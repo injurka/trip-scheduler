@@ -1,42 +1,20 @@
 <script setup lang="ts">
-import type { Activity } from '../../models/activity'
-import Button from 'primevue/button'
-import { computed } from 'vue'
-
-import { activityTypeIcons } from '../../models/activity'
+import type { Activity } from '~/components/modules/trip/models/activity'
+import { activityTypeIcons } from '~/components/modules/trip/models/activity'
+import { MarkdownContent } from '~/components/shared/markdown-content'
 
 interface ActivityItemProps {
   activity: Activity
 }
 
-const props = defineProps<ActivityItemProps>()
-
-const emit = defineEmits<{
-  (e: 'edit', activity: Activity): void
-  (e: 'delete', id: string): void
-}>()
-
-const icon = computed(() => activityTypeIcons[props.activity.type])
-
-function handleEdit(): void {
-  emit('edit', props.activity)
-}
-
-function handleDelete(): void {
-  emit('delete', props.activity.id)
-}
+defineProps<ActivityItemProps>()
 </script>
 
 <template>
   <div class="activity-item">
     <div class="activity-header">
-      <i :class="icon" style="font-size: small" class="activity-icon pi mr-2" />
       <div class="activity-time">
         {{ activity.startTime }} - {{ activity.endTime }}
-      </div>
-      <div class="activity-actions">
-        <Button v-tooltip="'Edit'" icon="pi pi-pencil" rounded text size="small" @click.stop="handleEdit" />
-        <Button v-tooltip="'Delete'" icon="pi pi-trash" rounded text size="small" @click.stop="handleDelete" />
       </div>
     </div>
 
@@ -45,30 +23,15 @@ function handleDelete(): void {
         {{ activity.description }}
       </h3>
 
-      <div v-if="activity.location" class="activity-location">
-        <i class="pi pi-map-marker" style="font-size: x-small" />
-        {{ activity.location }}
-      </div>
-
-      <div v-if="activity.links && activity.links.length" class="activity-links">
-        <div class="links-label">
-          Ссылки:
-        </div>
-        <div v-for="link in activity.links" :key="link" class="link-item">
-          <i class="pi pi-link" style="font-size: x-small" />
-          <a :href="link" target="_blank" rel="noopener">{{ link }}</a>
-        </div>
-      </div>
-
       <div v-if="activity.blocks && activity.blocks.length" class="activity-blocks">
         <div v-for="block in activity.blocks" :key="block.id" class="activity-block">
-          <div class="block-header">
+          <div v-if="block.type" class="block-header">
             <i :class="activityTypeIcons[block.type]" style="font-size: x-small" />
-            <span class="block-title">{{ block.description }}</span>
           </div>
-          <div v-if="block.notes" class="block-notes">
-            {{ block.notes }}
-          </div>
+          <MarkdownContent
+            class="block-description"
+            :content="block.description"
+          />
         </div>
       </div>
     </div>
@@ -77,104 +40,78 @@ function handleDelete(): void {
 
 <style scoped lang="scss">
 .activity-item {
-  margin-right: 10px;
-  border-radius: 8px;
-  border: 1px solid rgba(0, 0, 0, 0.1);
-  padding: 8px;
-  overflow: hidden;
-  cursor: move;
-  transition: box-shadow 0.2s ease;
-  background-color: white;
+  display: flex;
+  flex-direction: column;
   width: 100%;
 
   &:hover {
-    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
-  }
-
-  &.is-dragging {
-    z-index: 100;
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
-    opacity: 0.8;
+    .activity-content {
+      box-shadow: 0 2px 8px var(--border-secondary-color);
+    }
   }
 
   .activity-header {
     display: flex;
     align-items: center;
-    margin-bottom: 6px;
-
-    .activity-icon {
-      margin-right: 6px;
-    }
 
     .activity-time {
-      font-size: 12px;
-      font-weight: 500;
+      position: relative;
+      line-height: normal;
+      font-weight: 600;
       margin-right: auto;
-    }
+      color: var(--fg-accent-color);
+      padding: 4px;
 
-    .activity-actions {
-      display: flex;
-      gap: 4px;
+      &::before {
+        position: absolute;
+        left: -15px;
+        top: 6px;
+        content: '✦';
+        color: var(--fg-accent-color);
+        font-size: 0.8rem;
+        color: var(--fg-secondary-color);
+        opacity: 0.5;
+        cursor: pointer;
+      }
     }
   }
 
   .activity-content {
-    font-size: 13px;
+    background-color: var(--bg-secondary-color);
+    border: 1px solid var(--border-secondary-color);
+    padding: 8px;
+    transition: box-shadow 0.2s ease;
+    position: relative;
+    overflow: visible !important;
+
+    &::before {
+      position: absolute;
+      left: -12px;
+      top: 0px;
+      content: '';
+      color: var(--fg-accent-color);
+      font-size: 0.8rem;
+      color: var(--fg-secondary-color);
+      height: 100%;
+      width: 1px;
+      background-color: var(--border-secondary-color);
+    }
 
     .activity-title {
-      font-size: 14px;
-      font-weight: 500;
+      font-size: 1rem;
+      font-weight: 400;
+      margin: 0;
       margin-bottom: 4px;
-    }
-
-    .activity-location {
-      display: flex;
-      align-items: center;
-      gap: 4px;
-      font-size: 12px;
-      color: rgba(0, 0, 0, 0.6);
-      margin-bottom: 4px;
-    }
-
-    .activity-links {
-      margin-top: 6px;
-      font-size: 12px;
-
-      .links-label {
-        font-weight: 500;
-        margin-bottom: 2px;
-      }
-
-      .link-item {
-        display: flex;
-        align-items: center;
-        gap: 4px;
-        padding: 2px 0;
-
-        a {
-          color: #1976d2;
-          text-decoration: none;
-          overflow: hidden;
-          text-overflow: ellipsis;
-          white-space: nowrap;
-
-          &:hover {
-            text-decoration: underline;
-          }
-        }
-      }
     }
 
     .activity-blocks {
       margin-top: 8px;
-      border-top: 1px solid rgba(0, 0, 0, 0.1);
+      border-top: 1px solid var(--border-secondary-color);
       padding-top: 6px;
 
       .activity-block {
-        padding: 4px 0;
-
         &:not(:last-child) {
-          border-bottom: 1px dashed rgba(0, 0, 0, 0.1);
+          border-bottom: 1px dashed var(--border-secondary-color);
           margin-bottom: 4px;
         }
 
@@ -189,10 +126,15 @@ function handleDelete(): void {
           }
         }
 
-        .block-notes {
-          font-size: 12px;
-          color: rgba(0, 0, 0, 0.7);
-          margin-left: 18px;
+        .block-description {
+          font-size: 0.9rem;
+          color: var(--fg-primary-color);
+          &:deep() {
+            > p {
+              padding: 0;
+              margin: 0;
+            }
+          }
         }
       }
     }

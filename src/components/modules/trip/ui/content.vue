@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import Button from 'primevue/button'
 import { computed, ref } from 'vue'
-import { useActivitiesStore } from '../store/trip.store'
+import { useActivitiesStore } from '../store/trip.store.ts'
 
 import ActivityItem from './activity/activity-item.vue'
 
@@ -70,13 +70,12 @@ function deleteActivity() {}
   flex-direction: row;
   gap: 8px;
   align-items: center;
-  padding: 0 16px 16px;
+  padding: 16px 0;
   border-bottom: 1px solid var(--surface-border);
 }
 
 .day-activities {
   display: flex;
-  overflow-x: hidden;
 
   .activities-container {
     width: 100%;
