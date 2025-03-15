@@ -1,0 +1,27 @@
+@use '_variables.scss';
+
+// Border
+$border-status-colors: (
+  border-positive: variables.$border-positive-color,
+  border-warning: variables.$border-warning-color,
+  border-negative: variables.$border-negative-color,
+);
+
+// Tones
+$fg-tone-colors: (
+  fg-tone-0: variables.$fg-tone-0-color,
+  fg-tone-1: variables.$fg-tone-1-color,
+  fg-tone-2: variables.$fg-tone-2-color,
+  fg-tone-3: variables.$fg-tone-3-color,
+  fg-tone-4: variables.$fg-tone-4-color,
+);
+
+// Font family for chinese
+$font-family-cn: (
+  base: variables.$font-family-cn-base,
+  brushed: variables.$font-family-cn-brushed,
+);
+
+$font-family-base: (
+  default: variables.$font-family-ru-default,
+);

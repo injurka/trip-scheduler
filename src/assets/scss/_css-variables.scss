@@ -1,0 +1,13 @@
+@use 'mixins/theme' as mixins-theme;
+@use 'themes/theme' as themes-theme;
+@use 'sass:map';
+
+@include mixins-theme.connectThemes(themes-theme.$themes, 'theme') using ($theme, $themeName) {
+  @each $colorType, $color in map.get($theme, 'colors') {
+    --#{$colorType}-color: #{$color};
+  }
+}
+
+@include mixins-theme.connectThemes(map.get(themes-theme.$font-family, 'cn'), 'cn') using ($theme, $themeName) {
+  --font-family-cn: #{$theme};
+}
