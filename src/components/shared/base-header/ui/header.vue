@@ -1,4 +1,5 @@
 <script lang="ts" setup>
+import { Icon } from '@iconify/vue'
 import { HaoticLines } from '~/components/domain/haotic-lines'
 
 const sentinelEl = ref<HTMLElement>()
@@ -41,7 +42,8 @@ onMounted(() => {
     <div class="header-content">
       <div class="header-nav">
         <div class="logo">
-          <Icon class="logo-icon" name="game-icons:sea-dragon" size="24" />
+          <Icon class="logo-icon" icon="mdi:map-marker-path" style="font-size: 32px;" />
+          Trip Scheduler
         </div>
       </div>
 
@@ -51,8 +53,8 @@ onMounted(() => {
         <div class="profile">
           <div class="profile-img">
             <Icon
-              size="28"
-              name="mdi:face-man-profile"
+              icon="mdi:face-man-profile"
+              style="font-size: 64px;"
             />
           </div>
         </div>
@@ -113,7 +115,9 @@ onMounted(() => {
   &-nav {
     .logo {
       display: inline-flex;
+      align-items: center;
       margin: 0 8px;
+      gap: 8px;
 
       &-title {
         margin-left: 8px;

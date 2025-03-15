@@ -1,5 +1,4 @@
 <script lang="ts" setup>
-import ConfirmDialog from 'primevue/confirmdialog'
 import { BackgroundEffects } from '~/components/shared/background-effects'
 import { Footer } from '~/components/shared/base-footer'
 
@@ -19,8 +18,6 @@ import { Header } from '~/components/shared/base-header'
 
     <Footer />
   </main>
-
-  <ConfirmDialog />
 </template>
 
 <style scoped lang="scss">

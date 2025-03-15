@@ -8,12 +8,11 @@ export enum ActivityType {
 
 export interface ActivityBlock {
   id: string
-  type: ActivityType
   description: string
+  type?: ActivityType
   startTime?: string // Относительное время начала в рамках активности
-  duration?: number // Длительность в минутах
-  location?: string
-  notes?: string
+  images?: string[]
+  endTime?: string // Формат "HH:mm"
 }
 
 export interface Activity {
@@ -21,12 +20,13 @@ export interface Activity {
   day: number
   startTime: string // Формат "HH:mm"
   endTime: string // Формат "HH:mm"
-  type: ActivityType
   description: string
-  location?: string
-  links?: string[]
-  images?: string[]
-  blocks?: ActivityBlock[] // Подблоки активности (такси, прогулка и т.д.)
+  blocks?: ActivityBlock[]
+}
+
+export interface Day {
+  title?: string // Тематическое название дня по умолчанию `День`
+  activities: Activity[]
 }
 
 // Вспомогательные функции

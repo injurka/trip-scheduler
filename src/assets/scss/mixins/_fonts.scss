@@ -1,32 +1,13 @@
-$tablet-width: 768px;
-$desktop-width: 1024px;
-
-@mixin desktop {
-  @media (min-width: #{$desktop-width}) {
-    @content;
-  }
+@mixin default-font {
+  font-family: 'Rubik';
+  color: var(--fg-primary-color);
+  font-size: 1rem;
+  line-height: 24px;
 }
 
-@mixin before-desktop {
-  @media (max-width: #{$desktop-width - 1}) {
-    @content;
-  }
-}
-
-@mixin tablet {
-  @media (max-width: #{$desktop-width - 1}) and (min-width: #{$tablet-width}) {
-    @content;
-  }
-}
-
-@mixin after-mobile {
-  @media (min-width: #{$tablet-width}) {
-    @content;
-  }
-}
-
-@mixin mobile {
-  @media (max-width: #{$tablet-width - 1}) {
-    @content;
-  }
+@mixin mapple-font {
+  font-family: 'MapleMonoNL';
+  color: var(--fg-primary-color);
+  font-size: 0.9rem;
+  line-height: 24px;
 }

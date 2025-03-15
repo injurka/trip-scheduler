@@ -1,10 +1,11 @@
 .content-wrapper {
   @include default-font();
+  
   position: relative;
   display: flex;
   flex-direction: column;
   padding: 16px;
-  max-width: 1200px;
+  max-width: 1000px;
   min-height: 100%;
   width: 100%;
   background-color: var(--bg-primary-color);
@@ -15,9 +16,8 @@
   }
 
   .description {
-    font-size: 1rem;
     padding: 0 16px;
-    max-width: 1200px;
+    max-width: 1000px;
     width: 100%;
     margin: 0 auto;
 

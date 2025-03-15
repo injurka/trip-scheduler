@@ -1,5 +1,4 @@
 import type { Activity } from '../models/activity'
-import { ActivityType } from '../models/activity'
 
 const MOCK_ACTIVITIES: Activity[] = [
   {
@@ -7,23 +6,18 @@ const MOCK_ACTIVITIES: Activity[] = [
     day: 1,
     startTime: '09:00',
     endTime: '10:30',
-    type: ActivityType.TRANSPORT,
     description: 'Поездка в аэропорт',
-    location: 'Дом - Аэропорт',
-    links: [],
-    images: [],
-    blocks: [],
+    blocks: [{
+      id: '1',
+      description: 'Значимость этих проблем настолько очевидна, что консультация с широким активом способствует подготовки и реализации направлений прогрессивного развития. С другой стороны дальнейшее развитие различных форм деятельности обеспечивает широкому кругу (специалистов) участие в формировании модели развития.',
+    }],
   },
   {
     id: '2',
     day: 1,
     startTime: '11:00',
     endTime: '13:00',
-    type: ActivityType.ATTRACTION,
     description: 'Посещение Колизея',
-    location: 'Колизей, Рим',
-    links: ['https://www.example.com/colosseum'],
-    images: [],
     blocks: [],
   },
   {
@@ -31,11 +25,7 @@ const MOCK_ACTIVITIES: Activity[] = [
     day: 1,
     startTime: '13:30',
     endTime: '14:30',
-    type: ActivityType.FOOD,
     description: 'Обед в Trattoria',
-    location: 'Trattoria del Corso',
-    links: [],
-    images: [],
     blocks: [],
   },
   {
@@ -43,11 +33,7 @@ const MOCK_ACTIVITIES: Activity[] = [
     day: 2,
     startTime: '10:00',
     endTime: '12:00',
-    type: ActivityType.WALK,
     description: 'Прогулка по парку',
-    location: 'Парк Виллы Боргезе',
-    links: [],
-    images: [],
     blocks: [],
   },
   {
@@ -55,49 +41,10 @@ const MOCK_ACTIVITIES: Activity[] = [
     day: 2,
     startTime: '14:00',
     endTime: '16:00',
-    type: ActivityType.RELAX,
     description: 'Отдых в спа',
-    location: 'Римский спа-центр',
-    links: [],
-    images: [],
     blocks: [],
   },
-  {
-    id: '6',
-    day: 3,
-    startTime: '08:00',
-    endTime: '09:00',
-    type: ActivityType.TRANSPORT,
-    description: 'Поездка на вокзал',
-    location: 'Отель - Вокзал',
-    links: [],
-    images: [],
-    blocks: [],
-  },
-  {
-    id: '7',
-    day: 3,
-    startTime: '09:00',
-    endTime: '17:00',
-    type: ActivityType.TRANSPORT,
-    description: 'Поездка на поезде Рим-Флоренция',
-    location: 'Вокзал - Флоренция',
-    links: [],
-    images: [],
-    blocks: [],
-  },
-  {
-    id: '8',
-    day: 3,
-    startTime: '17:00',
-    endTime: '18:00',
-    type: ActivityType.RELAX,
-    description: 'Заселение в отель',
-    location: 'Отель во Флоренции',
-    links: [],
-    images: [],
-    blocks: [],
-  },
+
 ]
 
 export { MOCK_ACTIVITIES }

@@ -32,13 +32,11 @@ export const useActivitiesStore = defineStore('activities', {
 
   actions: {
     addActivity(activity: Activity): void {
-      // Проверка на пересечение времени
       const dayActivities = this.getActivitiesByDay(activity.day)
       const newStart = timeToMinutes(activity.startTime)
       const newEnd = timeToMinutes(activity.endTime)
 
       const hasOverlap = dayActivities.some((existingActivity) => {
-        // Пропускаем текущую активность при обновлении
         if (existingActivity.id === activity.id)
           return false
 
@@ -113,6 +111,37 @@ export const useActivitiesStore = defineStore('activities', {
         startTime: newStartTime,
         endTime: newEndTime,
       }
+    },
+
+    reorderActivities(day: number, newOrder: Activity[]): void {
+      const MIN_START_MINUTES = 6 * 60
+      const MAX_END_MINUTES = 24 * 60
+
+      let currentStart = MIN_START_MINUTES
+      let hasOverflow = false
+
+      const updatedActivities = newOrder.map((activity) => {
+        const duration = timeToMinutes(activity.endTime) - timeToMinutes(activity.startTime)
+
+        if (currentStart + duration > MAX_END_MINUTES || hasOverflow) {
+          hasOverflow = true
+          return activity
+        }
+
+        const newStartTime = minutesToTime(currentStart)
+        const newEndTime = minutesToTime(currentStart + duration)
+
+        currentStart += duration
+
+        return {
+          ...activity,
+          startTime: newStartTime,
+          endTime: newEndTime,
+        }
+      })
+
+      const otherDaysActivities = this.activities.filter(a => a.day !== day)
+      this.activities = [...otherDaysActivities, ...updatedActivities]
     },
 
     setCurrentDay(day: number): void {
