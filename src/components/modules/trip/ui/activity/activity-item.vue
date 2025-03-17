@@ -132,6 +132,7 @@ function getActivityTypeColor(type: ActivityType | undefined) {
       }
     }
   }
+  
 
   .drag-handle {
     position: absolute;
