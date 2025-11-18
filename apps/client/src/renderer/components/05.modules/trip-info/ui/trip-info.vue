@@ -22,7 +22,7 @@ import TripInfoSkeleton from './states/trip-info-skeleton.vue'
 const route = useRoute()
 const router = useRouter()
 
-const { plan, ui, sections } = useModuleStore(['plan', 'ui', 'routeGallery', 'memories', 'sections'])
+const { plan, ui, sections, memories } = useModuleStore(['plan', 'ui', 'routeGallery', 'memories', 'sections'])
 const { days, isLoading, fetchError, getPreviousDayId, getNextDayId } = storeToRefs(plan)
 const { activeView } = storeToRefs(ui)
 
@@ -40,6 +40,16 @@ function handleEditTrip() {
 function handleSaveTrip(updatedData: UpdateTripInput) {
   plan.updateTrip(updatedData)
 }
+
+watch(
+  [activeView, tripId],
+  ([view, tId]) => {
+    if ((view === 'memories' || view === 'split') && tId) {
+      memories.fetchMemories(tId)
+    }
+  },
+  { immediate: true },
+)
 
 watch(
   () => plan.currentDayId,

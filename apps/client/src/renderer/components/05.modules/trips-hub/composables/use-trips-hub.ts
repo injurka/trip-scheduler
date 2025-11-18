@@ -47,7 +47,8 @@ export function useTripsHub() {
   const isInitialized = ref(false)
   const hasLoadedOnce = ref(false)
   const isFiltersOpen = ref(false)
-  const activeTab = ref<TripsHubTab>('my')
+  // Default to 'public' to show content immediately for everyone
+  const activeTab = ref<TripsHubTab>('public')
   const isCreateModalOpen = ref(false)
   const newTripData = ref(getDefaultTripData())
   const displayMode = ref<TDisplayMode>('row')

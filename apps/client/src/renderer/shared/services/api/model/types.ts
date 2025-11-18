@@ -4,7 +4,19 @@ import type { CreateCommentInput, UpdateCommentInput } from '~/shared/types/mode
 import type { Community, CreateCommunityInput, ListCommunitiesInput } from '~/shared/types/models/community'
 import type { CreateMemoryInput, Memory, UpdateMemoryInput } from '~/shared/types/models/memory'
 import type { Place, PlaceTag } from '~/shared/types/models/place'
-import type { CreateTripInput, Plan, Trip, TripImage, TripImagePlacement, TripSection, TripSectionType, TripStatus, TripWithDays, UpdateTripInput } from '~/shared/types/models/trip'
+import type {
+  CreateTripInput,
+  ImageMetadata,
+  Plan,
+  Trip,
+  TripImage,
+  TripImagePlacement,
+  TripSection,
+  TripSectionType,
+  TripStatus,
+  TripWithDays,
+  UpdateTripInput,
+} from '~/shared/types/models/trip'
 
 export interface IPlacesRepository {
   getPlacesByCity: (city: string, filters?: { tags?: string[] }) => Promise<Place[]>
@@ -19,24 +31,18 @@ export interface TripListFilters {
   userIds?: string[]
 }
 
-/**
- * Структура объекта бронирования, возвращаемая сервисом генерации ИИ.
- */
 export interface GeneratedBooking {
   type: 'flight' | 'hotel' | 'train' | 'attraction'
   title: string
   data: any // Структура данных зависит от типа
 }
 
-/**
- * Структура объекта транзакции, возвращаемая сервисом генерации ИИ.
- */
 export interface GeneratedTransaction {
   title: string
   amount: number
   currency: string
   categorySuggestion?: string
-  date?: string // YYYY-MM-DD
+  date?: string
   notes?: string
 }
 
@@ -76,6 +82,7 @@ export interface IFileRepository {
   listImageByTrip: (tripId: string, placement: TripImagePlacement) => Promise<TripImage[]>
   getAllUserFiles: () => Promise<TripImage[]>
   deleteFile: (id: string) => Promise<void>
+  getMetadata: (id: string) => Promise<ImageMetadata | null>
 }
 
 export interface IAuthRepository {
@@ -91,9 +98,14 @@ export interface IAuthRepository {
   uploadAvatar: (file: File) => Promise<User>
 }
 
+export interface IUserRepository {
+  getById: (id: string) => Promise<User>
+  listPlans: () => Promise<Plan[]>
+}
+
 export interface ITripSectionRepository {
   create: (data: { tripId: string, type: TripSectionType, title: string, icon: string | null, content: any }) => Promise<TripSection>
-  update: (data: { id: string, title?: string, icon?: string | null, content?: any }) => Promise<TripSection>
+  update: (data: { id: string, title?: string | undefined, icon?: string | null | undefined, content?: any }) => Promise<TripSection>
   delete: (id: string) => Promise<TripSection>
 }
 
@@ -102,10 +114,6 @@ export interface ICommentRepository {
   create: (data: CreateCommentInput) => Promise<Comment>
   update: (data: UpdateCommentInput) => Promise<Comment>
   delete: (params: { commentId: string }) => Promise<Comment>
-}
-
-export interface IAccountRepository {
-  listPlans: () => Promise<Plan[]>
 }
 
 export interface ICommunityRepository {
@@ -122,9 +130,9 @@ export interface IDatabaseClient {
   activities: IActivityRepository
   memories: IMemoryRepository
   auth: IAuthRepository
+  user: IUserRepository
   tripSections: ITripSectionRepository
   comments: ICommentRepository
-  account: IAccountRepository
   community: ICommunityRepository
   llm: ILLMRepository
   places: IPlacesRepository
@@ -139,7 +147,6 @@ export interface IMemoryRepository {
   unassignTimestamp: (id: string) => Promise<Memory>
 }
 
-// Режимы работы
 export enum DatabaseMode {
   REAL = 'real',
   MOCK = 'mock',

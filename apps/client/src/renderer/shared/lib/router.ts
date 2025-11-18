@@ -21,17 +21,42 @@ const ForgotPassword = () => import('~/pages/auth/forgot-password.vue')
 const TripList = () => import('~/pages/trip/list.vue')
 const TripInfo = () => import('~/pages/trip/[id]/index.vue')
 
-// --- Аккаунт ---
-const QuotaPage = () => import('~/pages/account/quota.vue')
-const StoragePage = () => import('~/pages/account/storage.vue')
-const ProfilePage = () => import('~/pages/account/profile.vue')
-const SettingsPage = () => import('~/pages/account/settings.vue')
+// --- Пользователь (Новая структура) ---
+// Обратите внимание на импорты из новой структуры папок
+const UserProfile = () => import('~/pages/user/[id]/index.vue')
+const UserSettings = () => import('~/pages/user/[id]/settings.vue')
+const UserQuota = () => import('~/pages/user/[id]/quota.vue')
+const UserStorage = () => import('~/pages/user/[id]/storage.vue')
 
 // --- Сообщества ---
 const CommunitiesList = () => import('~/pages/communities/index.vue')
 const CommunityInfo = () => import('~/pages/communities/[id].vue')
 
 const ExplorePage = () => import('~/pages/explore.vue')
+
+// Guard для проверки, что пользователь заходит в свои настройки
+async function requireOwner(to: any, _from: any, next: any) {
+  const authStore = useAuthStore()
+  // Ждем инициализации, если перезагрузили страницу
+  if (!authStore.isInitialized) {
+    await new Promise<void>((resolve) => {
+      const unsubscribe = authStore.$subscribe((_, state) => {
+        if (state.isInitialized) {
+          unsubscribe()
+          resolve()
+        }
+      })
+    })
+  }
+
+  if (authStore.user?.id === to.params.id) {
+    next()
+  }
+  else {
+    // Если пытаются зайти в чужие настройки -> редирект на профиль этого пользователя
+    next({ name: AppRouteNames.UserProfile, params: { id: to.params.id } })
+  }
+}
 
 const routes: RouteRecordRaw[] = [
   {
@@ -75,45 +100,50 @@ const routes: RouteRecordRaw[] = [
     meta: { layout: 'empty' },
   },
 
-  // --- Основные маршруты приложения (требуют авторизации) ---
+  // --- Путешествия ---
   {
-    // Список путешествий
     path: AppRoutePaths.Trip.List,
     name: AppRouteNames.TripList,
     component: TripList,
     meta: { layout: 'default' },
   },
   {
-    // Маршрут по дням (план + воспоминания)
     path: AppRoutePaths.Trip.Info(':id'),
     name: AppRouteNames.TripInfo,
     component: TripInfo,
     meta: { layout: 'trip-info' },
   },
+
+  // --- Пользователь ---
   {
-    path: AppRoutePaths.Account.Quota,
-    name: AppRouteNames.AccountQuota,
-    component: QuotaPage,
-    meta: { layout: 'default', requiresAuth: true },
-  },
-  {
-    path: AppRoutePaths.Account.Storage,
-    name: AppRouteNames.AccountStorage,
-    component: StoragePage,
-    meta: { layout: 'default', requiresAuth: true },
-  },
-  {
-    path: AppRoutePaths.Account.Profile,
-    name: AppRouteNames.AccountProfile,
-    component: ProfilePage,
+    path: '/user/:id',
+    name: AppRouteNames.UserProfile,
+    component: UserProfile,
     meta: { layout: 'default' },
   },
   {
-    path: AppRoutePaths.Account.Settings,
-    name: AppRouteNames.AccountSettings,
-    component: SettingsPage,
+    path: '/user/:id/settings',
+    name: AppRouteNames.UserSettings,
+    component: UserSettings,
     meta: { layout: 'default', requiresAuth: true },
+    beforeEnter: requireOwner,
   },
+  {
+    path: '/user/:id/quota',
+    name: AppRouteNames.UserQuota,
+    component: UserQuota,
+    meta: { layout: 'default', requiresAuth: true },
+    beforeEnter: requireOwner,
+  },
+  {
+    path: '/user/:id/storage',
+    name: AppRouteNames.UserStorage,
+    component: UserStorage,
+    meta: { layout: 'default', requiresAuth: true },
+    beforeEnter: requireOwner,
+  },
+
+  // --- Сообщества ---
   {
     path: AppRoutePaths.Communities.List,
     name: AppRouteNames.CommunitiesList,
@@ -157,7 +187,6 @@ const router: Router = createRouter({
   scrollBehavior,
 })
 
-// --- Глобальный навигационный гард ---
 router.beforeEach(async (to, _, next) => {
   const authStore = useAuthStore()
 
@@ -181,7 +210,6 @@ router.beforeEach(async (to, _, next) => {
     })
   }
 
-  // Если пользователь авторизован и пытается зайти на страницу входа/регистрации
   if (authStore.isAuthenticated && (to.name === AppRouteNames.SignIn || to.name === AppRouteNames.SignUp)) {
     return next({ name: AppRouteNames.TripList })
   }

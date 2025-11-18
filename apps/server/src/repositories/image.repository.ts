@@ -1,5 +1,5 @@
 import type { tripImagePlacementEnum } from '../../db/schema'
-import { and, desc, eq, inArray } from 'drizzle-orm'
+import { and, eq, inArray } from 'drizzle-orm'
 import { db } from '../../db'
 import { tripImages, trips } from '../../db/schema'
 
@@ -25,12 +25,35 @@ export interface ImageMetadata {
     iso?: number
     focalLength?: number
     apertureValue?: number
-    [key: string]: any // Для всех остальных расширенных метаданных
+    [key: string]: unknown
   } | null
 }
 
+const LIST_COLUMNS = {
+  id: true,
+  tripId: true,
+  url: true,
+  originalName: true,
+  placement: true,
+  createdAt: true,
+  sizeBytes: true,
+  takenAt: true,
+  latitude: true,
+  longitude: true,
+  width: true,
+  height: true,
+  variants: true,
+} as const
+
 export const imageRepository = {
-  async create(tripId: string, url: string, originalName: string, placement: Placement, sizeBytes: number, metadata: ImageMetadata) {
+  async create(
+    tripId: string,
+    url: string,
+    originalName: string,
+    placement: Placement,
+    sizeBytes: number,
+    metadata: ImageMetadata,
+  ) {
     const [newImage] = await db
       .insert(tripImages)
       .values({
@@ -45,7 +68,6 @@ export const imageRepository = {
         width: metadata.width,
         height: metadata.height,
         variants: metadata.variants,
-
         metadata: metadata.metadata,
       })
       .returning()
@@ -54,11 +76,20 @@ export const imageRepository = {
   },
 
   /**
+   * Получает метаданные конкретного изображения.
+   */
+  async getMetadata(id: string) {
+    const image = await db.query.tripImages.findFirst({
+      where: eq(tripImages.id, id),
+      columns: {
+        metadata: true,
+      },
+    })
+    return image?.metadata || null
+  },
+
+  /**
    * Получает все изображения для конкретного путешествия.
-   * Для 'route' возвращает урезанный набор полей для оптимизации.
-   * @param tripId - ID путешествия.
-   * @param placement - Опциональный фильтр по типу размещения.
-   * @returns Массив изображений.
    */
   async getByTripId(tripId: string, placement?: Placement) {
     const conditions = [eq(tripImages.tripId, tripId)]
@@ -66,26 +97,10 @@ export const imageRepository = {
       conditions.push(eq(tripImages.placement, placement))
     }
 
-    // Если запрашиваются изображения для маршрута, возвращаем только необходимые поля
-    if (placement === 'route') {
-      return await db
-        .select({
-          id: tripImages.id,
-          tripId: tripImages.tripId,
-          url: tripImages.url,
-          originalName: tripImages.originalName,
-          placement: tripImages.placement,
-          createdAt: tripImages.createdAt,
-        })
-        .from(tripImages)
-        .where(and(...conditions))
-        .orderBy(desc(tripImages.createdAt))
-    }
-
-    // В остальных случаях (например, для 'memories') возвращаем все поля
     return await db.query.tripImages.findMany({
       where: and(...conditions),
       orderBy: (images, { desc }) => [desc(images.createdAt)],
+      columns: LIST_COLUMNS,
     })
   },
 
@@ -110,11 +125,13 @@ export const imageRepository = {
         },
       },
       orderBy: (images, { desc }) => [desc(images.createdAt)],
+      columns: LIST_COLUMNS,
     })
   },
 
   /**
    * Получает одно изображение по ID.
+   * Возвращает полный объект, включая метаданные (используется при удалении и т.д.).
    */
   async getById(id: string) {
     return await db.query.tripImages.findFirst({
@@ -129,11 +146,6 @@ export const imageRepository = {
     })
   },
 
-  /**
-   * Удаляет изображение по его ID.
-   * @param id - ID изображения для удаления.
-   * @returns Объект удаленного изображения или null, если не найден.
-   */
   async delete(id: string) {
     const [deletedImage] = await db
       .delete(tripImages)

@@ -60,7 +60,7 @@ onMounted(() => {
           :current="user.currentStorageBytes"
           :limit="user.plan.maxStorageBytes"
           unit="bytes"
-          :to="{ name: AppRouteNames.AccountStorage }"
+          :to="{ path: AppRoutePaths.User.Storage(user.id) }"
         />
         <UserQuotaWidget
           title="LLM Токены"
@@ -68,7 +68,7 @@ onMounted(() => {
           :current="user.llmCreditsUsed"
           :limit="user.plan.monthlyLlmCredits"
           unit="tokens"
-          :to="{ name: AppRouteNames.AccountQuota }"
+          :to="{ path: AppRoutePaths.User.Quota(user.id) }"
         />
       </div>
     </div>
@@ -154,27 +154,37 @@ onMounted(() => {
 <style scoped lang="scss">
 .quota-page {
   width: 100%;
-  max-width: 1200px;
-  margin: 0 auto;
-  padding: 2rem;
   display: flex;
   flex-direction: column;
   gap: 2rem;
+  padding-bottom: 4rem;
 }
 
 .quota-header {
   text-align: center;
+
   h1 {
     font-size: 2.5rem;
     font-weight: 700;
     margin: 0 0 0.5rem;
     color: var(--fg-primary-color);
+    line-height: 1.2;
   }
   p {
     font-size: 1.1rem;
     color: var(--fg-secondary-color);
     max-width: 600px;
     margin: 0 auto;
+    line-height: 1.5;
+  }
+
+  @include media-down(sm) {
+    h1 {
+      font-size: 2rem;
+    }
+    p {
+      font-size: 1rem;
+    }
   }
 }
 

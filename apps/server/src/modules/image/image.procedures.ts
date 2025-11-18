@@ -1,5 +1,5 @@
 import { protectedProcedure, publicProcedure } from '~/lib/trpc'
-import { DeleteImageInputSchema, GetImagesByTripIdInputSchema } from './image.schemas'
+import { DeleteImageInputSchema, GetImageMetadataInputSchema, GetImagesByTripIdInputSchema } from './image.schemas'
 import { imageService } from './image.service'
 
 export const imageProcedures = {
@@ -12,6 +12,12 @@ export const imageProcedures = {
   getAll: protectedProcedure
     .query(async ({ ctx }) => {
       return imageService.getAll(ctx.user.id)
+    }),
+
+  getMetadata: publicProcedure
+    .input(GetImageMetadataInputSchema)
+    .query(async ({ input }) => {
+      return imageService.getMetadata(input.id)
     }),
 
   delete: protectedProcedure

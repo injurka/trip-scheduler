@@ -1,5 +1,4 @@
 import type {
-  IAccountRepository,
   IActivityRepository,
   IAuthRepository,
   ICommentRepository,
@@ -12,8 +11,8 @@ import type {
   IPlacesRepository,
   ITripRepository,
   ITripSectionRepository,
+  IUserRepository,
 } from './model/types'
-import { AccountRepository } from './repositories/account.repository'
 import { ActivityRepository } from './repositories/activity.repository'
 import { AuthRepository } from './repositories/auth.repository'
 import { CommentRepository } from './repositories/comment.repository'
@@ -25,10 +24,10 @@ import { MemoryRepository } from './repositories/memory.repository'
 import { PlacesRepository } from './repositories/places.repository'
 import { TripSectionRepository } from './repositories/trip-section.repository'
 import { TripRepository } from './repositories/trip.repository'
+import { UserRepository } from './repositories/user.repository'
 
 /**
  * Клиент базы данных, работающий через tRPC.
- * Взаимодействует с удаленным API вместо локальной базы данных.
  */
 class TRPCDatabaseClient implements IDatabaseClient {
   trips: ITripRepository = new TripRepository()
@@ -37,9 +36,9 @@ class TRPCDatabaseClient implements IDatabaseClient {
   activities: IActivityRepository = new ActivityRepository()
   memories: IMemoryRepository = new MemoryRepository()
   auth: IAuthRepository = new AuthRepository()
+  user: IUserRepository = new UserRepository()
   tripSections: ITripSectionRepository = new TripSectionRepository()
   comments: ICommentRepository = new CommentRepository()
-  account: IAccountRepository = new AccountRepository()
   community: ICommunityRepository = new CommunityRepository()
   llm: ILLMRepository = new LLMRepository()
   places: IPlacesRepository = new PlacesRepository()

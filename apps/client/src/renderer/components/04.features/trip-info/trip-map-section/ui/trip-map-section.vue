@@ -1,8 +1,8 @@
 <script setup lang="ts">
 import type { FeatureLike } from 'ol/Feature'
 
-import type { useGeolocationMap } from '~/components/03.domain/trip-info/plan-geolocation-section/composables/use-geolocation-map'
-import type { DrawnRoute, MapPoint, MapRoute } from '~/components/03.domain/trip-info/plan-geolocation-section/models/types'
+import type { useGeolocationMap } from '~/components/03.domain/trip-info/geolocation-section/composables/use-geolocation-map'
+import type { DrawnRoute, MapPoint, MapRoute } from '~/components/03.domain/trip-info/geolocation-section/models/types'
 import type { IDay } from '~/components/04.features/trip-info/trip-plan/models/types'
 
 import { Icon } from '@iconify/vue'
@@ -10,7 +10,7 @@ import { useFullscreen, useMediaQuery } from '@vueuse/core'
 import { fromLonLat } from 'ol/proj'
 import { KitBtn } from '~/components/01.kit/kit-btn'
 import { KitSelectWithSearch } from '~/components/01.kit/kit-select-with-search'
-import GeolocationMap from '~/components/03.domain/trip-info/plan-geolocation-section/ui/geolocation-map.vue'
+import GeolocationMap from '~/components/03.domain/trip-info/geolocation-section/ui/geolocation-map.vue'
 import { EActivitySectionType } from '~/shared/types/models/activity'
 import { TripMapDetailsItem } from './details'
 import TripMapSidebarItem from './trip-map-sidebar-item.vue'

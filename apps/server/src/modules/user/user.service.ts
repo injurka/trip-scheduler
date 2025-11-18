@@ -9,9 +9,10 @@ import { userRepository } from '~/repositories/user.repository'
 import { emailService } from '~/services/email.service'
 
 export const userService = {
-  /**
-   * Инициирует процесс регистрации: создает токен верификации и отправляет его на почту.
-   */
+  async listPlans() {
+    return await userRepository.listPlans()
+  },
+
   async signUp(input: z.infer<typeof SignUpInputSchema>) {
     const existingUser = await userRepository.findByEmail(input.email)
     if (existingUser && existingUser.emailVerified) {
@@ -20,7 +21,7 @@ export const userService = {
 
     const verificationCode = Math.floor(100000 + Math.random() * 900000).toString()
     const hashedPassword = await authUtils.passwords.hash(input.password)
-    const expiresAt = new Date(Date.now() + 10 * 60 * 1000) // 10 минут
+    const expiresAt = new Date(Date.now() + 10 * 60 * 1000)
 
     await db.transaction(async (tx) => {
       await tx.delete(emailVerificationTokens).where(eq(emailVerificationTokens.email, input.email))
@@ -38,9 +39,6 @@ export const userService = {
     return { success: true, message: 'Код подтверждения отправлен на вашу почту.' }
   },
 
-  /**
-   * Проверяет код верификации и завершает регистрацию пользователя.
-   */
   async verifyEmail(input: z.infer<typeof VerifyEmailInputSchema>) {
     const verificationRecord = await db.query.emailVerificationTokens.findFirst({
       where: and(
@@ -72,9 +70,6 @@ export const userService = {
     return { user: fullUser, token }
   },
 
-  /**
-   * Аутентифицирует пользователя по email и паролю.
-   */
   async signIn(input: z.infer<typeof SignInInputSchema>) {
     const user = await userRepository.findByEmail(input.email)
 
@@ -97,18 +92,12 @@ export const userService = {
     return { user: userWithoutPassword, token }
   },
 
-  /**
-   * Аннулирует все токены пользователя.
-   */
   async signOut(userId: string) {
     await authUtils.invalidateTokens(userId)
 
     return { ok: true }
   },
 
-  /**
-   * Обновляет пару токенов, используя refresh-токен.
-   */
   async refresh(refreshToken: string) {
     try {
       const token = await authUtils.refreshTokens(refreshToken)
@@ -119,9 +108,6 @@ export const userService = {
     }
   },
 
-  /**
-   * Получает информацию о пользователе по его ID.
-   */
   async getById(id: string) {
     const user = await userRepository.getById(id)
     if (!user) {
@@ -131,16 +117,10 @@ export const userService = {
     return user
   },
 
-  /**
-   * Получает статистику пользователя.
-   */
   async getStats(id: string) {
     return await userRepository.getStats(id)
   },
 
-  /**
-   * Обновляет информацию о пользователе.
-   */
   async update(id: string, data: z.infer<typeof UpdateUserInputSchema>) {
     if (Object.keys(data).length === 0) {
       throw createTRPCError('BAD_REQUEST', 'Не предоставлено полей для обновления.')
@@ -154,9 +134,6 @@ export const userService = {
     return updatedUser
   },
 
-  /**
-   * Обновляет статус пользователя.
-   */
   async updateStatus(id: string, data: z.infer<typeof UpdateUserStatusInputSchema>) {
     const updatedUser = await userRepository.updateStatus(id, data)
     if (!updatedUser) {
@@ -165,22 +142,15 @@ export const userService = {
     return updatedUser
   },
 
-  /**
-   * Изменяет пароль пользователя.
-   */
   async changePassword(id: string, data: z.infer<typeof ChangePasswordInputSchema>) {
     const newPasswordHash = await authUtils.passwords.hash(data.newPassword)
     const result = await userRepository.changePassword(id, data.currentPassword, newPasswordHash)
     if (!result) {
-      // Ошибка будет выброшена из репозитория, но на всякий случай
       throw createTRPCError('INTERNAL_SERVER_ERROR', 'Не удалось сменить пароль.')
     }
     return { success: true }
   },
 
-  /**
-   * Удаляет аккаунт пользователя.
-   */
   async deleteAccount(id: string, data: z.infer<typeof DeleteAccountInputSchema>) {
     await userRepository.delete(id, data.password)
     return { success: true }

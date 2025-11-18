@@ -94,6 +94,8 @@ const componentClasses = computed(() => [
     padding: 0.375rem 0.75rem;
     font-size: 0.8125rem;
     border-radius: var(--r-2xs);
+    height: 38px;
+
     &.kit-btn--icon-only {
       padding: 0.5rem;
     }
@@ -106,6 +108,8 @@ const componentClasses = computed(() => [
     padding: 0.625rem 1.25rem;
     font-size: 0.875rem;
     border-radius: var(--r-2xs);
+    height: 46px;
+
     &.kit-btn--icon-only {
       padding: 0.625rem;
     }
@@ -118,6 +122,8 @@ const componentClasses = computed(() => [
     padding: 0.875rem 1.75rem;
     font-size: 1rem;
     border-radius: var(--r-s);
+    height: 54px;
+
     &.kit-btn--icon-only {
       padding: 0.75rem;
     }

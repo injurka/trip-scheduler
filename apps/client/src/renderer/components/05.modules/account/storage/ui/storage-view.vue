@@ -252,22 +252,37 @@ onMounted(() => {
 <style scoped lang="scss">
 .storage-page {
   width: 100%;
-  max-width: 1400px;
-  margin: 0 auto;
-  padding: 2rem;
   display: flex;
   flex-direction: column;
-  gap: 1.5rem;
+  gap: 2rem;
+  padding-bottom: 4rem;
 }
 
 .storage-header {
   position: relative;
+
   h1 {
-    font-size: 2rem;
+    font-size: 2.5rem;
     font-weight: 700;
+    margin: 0 0 0.5rem;
+    color: var(--fg-primary-color);
+    line-height: 1.2;
   }
   p {
+    font-size: 1.1rem;
     color: var(--fg-secondary-color);
+    max-width: 600px;
+    margin: 0 auto;
+    line-height: 1.5;
+  }
+
+  @include media-down(sm) {
+    h1 {
+      font-size: 2rem;
+    }
+    p {
+      font-size: 1rem;
+    }
   }
 }
 

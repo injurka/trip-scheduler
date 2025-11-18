@@ -13,4 +13,5 @@ export const TRIP_INFO_KEYS = {
 export const TRIP_GALLERY_KEYS = {
   FETCH_IMAGES: (tripId: string) => `trip/${tripId}/images/fetch`,
   UPLOAD_IMAGE: (tripId: string) => `trip/${tripId}/image/upload`,
+  FETCH_METADATA: (imageId: string) => `image/${imageId}/metadata`,
 }

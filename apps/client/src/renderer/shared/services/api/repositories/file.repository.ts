@@ -1,5 +1,5 @@
 import type { IFileRepository } from '../model/types'
-import type { TripImage, TripImagePlacement } from '~/shared/types/models/trip'
+import type { ImageMetadata, TripImage, TripImagePlacement } from '~/shared/types/models/trip'
 import { ofetch } from 'ofetch'
 import { trpc } from '~/shared/services/trpc/trpc.service'
 import { TOKEN_KEY } from '~/shared/store/auth.store'
@@ -8,7 +8,6 @@ import { throttle } from '../lib/decorators'
 export class FileRepository implements IFileRepository {
   /**
    * Загружает файл на сервер (используя FormData).
-   * Этот метод остается без изменений.
    */
   @throttle(500)
   async uploadFile(file: File, tripId: string, placement: TripImagePlacement, timestamp?: string | null, comment?: string | null): Promise<TripImage> {
@@ -19,6 +18,7 @@ export class FileRepository implements IFileRepository {
 
     if (timestamp)
       formData.append('timestamp', timestamp)
+
     if (comment)
       formData.append('comment', comment)
 
@@ -122,5 +122,10 @@ export class FileRepository implements IFileRepository {
   @throttle(500)
   async deleteFile(id: string): Promise<void> {
     await trpc.image.delete.mutate({ id })
+  }
+
+  @throttle(300)
+  async getMetadata(id: string): Promise<ImageMetadata | null> {
+    return await trpc.image.getMetadata.query({ id }) as ImageMetadata | null
   }
 }

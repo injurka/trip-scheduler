@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import type { CustomActivitySection, SectionGroup } from '../models/types.ts'
-import type { ActivitySectionGeolocation } from '~/components/03.domain/trip-info/plan-geolocation-section'
+import type { ActivitySectionGeolocation } from '~/components/03.domain/trip-info/geolocation-section/index.ts'
 import type {
   Activity,
   ActivitySection,

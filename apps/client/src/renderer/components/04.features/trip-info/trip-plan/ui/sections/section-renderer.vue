@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import type { CustomActivitySection } from '../../models/types.ts'
-import type { ActivitySectionGeolocation } from '~/components/03.domain/trip-info/plan-geolocation-section'
+import type { ActivitySectionGeolocation } from '~/components/03.domain/trip-info/geolocation-section'
 import type {
   ActivitySection,
   ActivitySectionGallery,
@@ -11,11 +11,11 @@ import { Icon } from '@iconify/vue'
 import { KitDropdown } from '~/components/01.kit/kit-dropdown'
 import { KitInput } from '~/components/01.kit/kit-input'
 import { IconPicker } from '~/components/02.shared/icon-picker'
-import { GeolocationSection } from '~/components/03.domain/trip-info/plan-geolocation-section'
+import { GallerySection } from '~/components/03.domain/trip-info/gallery-section'
+import { GeolocationSection } from '~/components/03.domain/trip-info/geolocation-section'
 import { useModuleStore } from '~/components/05.modules/trip-info/composables/use-trip-info-module'
 import { EActivitySectionType } from '~/shared/types/models/activity'
 import DescriptionSection from './description-section.vue'
-import GallerySection from './gallery-section.vue'
 import MetroSection from './metro-section.vue'
 
 interface Props {

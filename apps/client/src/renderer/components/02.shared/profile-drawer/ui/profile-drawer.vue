@@ -1,4 +1,5 @@
 <script lang="ts" setup>
+// ... (imports)
 import { Icon } from '@iconify/vue'
 import { KitAvatar } from '~/components/01.kit/kit-avatar'
 import { KitDivider } from '~/components/01.kit/kit-divider'
@@ -18,13 +19,15 @@ const menuItems = [
   { label: 'Указать статус', icon: 'mdi:emoticon-happy-outline', action: () => { isStatusEditorOpen.value = true } },
 ]
 
-const mainMenuItems = [
+const mainMenuItems = computed(() => [
   {
     label: 'Мой профиль',
     icon: 'mdi:account-circle-outline',
     action: () => {
-      router.push({ name: AppRouteNames.AccountProfile })
-      open.value = false
+      if (user.value) {
+        router.push({ name: AppRouteNames.UserProfile, params: { id: user.value.id } })
+        open.value = false
+      }
     },
   },
   {
@@ -43,18 +46,17 @@ const mainMenuItems = [
       open.value = false
     },
   },
-]
+])
 
-const secondaryMenuItems = [
-  // { label: 'Возможности', icon: 'mdi:flask-outline', action: () => {} },
+const secondaryMenuItems = computed(() => [
   {
     label: 'Настройки',
     icon: 'mdi:cog-outline',
     action: () => {
-      router.push({
-        name: AppRouteNames.AccountSettings,
-      })
-      open.value = false
+      if (user.value) {
+        router.push({ name: AppRouteNames.UserSettings, params: { id: user.value.id } })
+        open.value = false
+      }
     },
   },
   {
@@ -67,8 +69,9 @@ const secondaryMenuItems = [
       open.value = false
     },
   },
-]
+])
 
+// ... (остальной код без изменений)
 async function handleLogout() {
   await store.auth.signOut()
   open.value = false
@@ -107,7 +110,7 @@ const logoutItem = { label: 'Выйти', icon: 'mdi:logout', action: () => hand
           icon="mdi:briefcase-outline"
           :current="user.currentTripsCount"
           :limit="user.plan.maxTrips"
-          :to="{ name: AppRouteNames.AccountQuota }"
+          :to="{ name: AppRouteNames.UserQuota, params: { id: user.id } }"
           unit="items"
           @click="open = false"
         />
@@ -117,7 +120,7 @@ const logoutItem = { label: 'Выйти', icon: 'mdi:logout', action: () => hand
           :current="user.currentStorageBytes"
           :limit="user.plan.maxStorageBytes"
           unit="bytes"
-          :to="{ name: AppRouteNames.AccountStorage }"
+          :to="{ name: AppRouteNames.UserStorage, params: { id: user.id } }"
           @click="open = false"
         />
         <UserQuotaWidget
@@ -126,7 +129,7 @@ const logoutItem = { label: 'Выйти', icon: 'mdi:logout', action: () => hand
           :current="user.llmCreditsUsed"
           :limit="user.plan.monthlyLlmCredits"
           unit="tokens"
-          :to="{ name: AppRouteNames.AccountQuota }"
+          :to="{ name: AppRouteNames.UserQuota, params: { id: user.id } }"
           @click="open = false"
         />
       </div>
@@ -182,6 +185,7 @@ const logoutItem = { label: 'Выйти', icon: 'mdi:logout', action: () => hand
 </template>
 
 <style lang="scss" scoped>
+/* Стили остаются без изменений */
 .profile-drawer {
   display: flex;
   flex-direction: column;

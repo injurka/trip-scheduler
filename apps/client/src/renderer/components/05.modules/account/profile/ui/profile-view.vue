@@ -11,14 +11,20 @@ import { useAuthStore } from '~/shared/store/auth.store'
 import { useProfileView } from '../composables/use-profile-view'
 import { RecentTripCard } from './components'
 
+const route = useRoute()
 const authStore = useAuthStore()
 const router = useRouter()
 const profileView = useProfileView()
 
 const activeTab = ref('trips')
-const user = computed(() => authStore.user)
+const { userProfile, recentTrips, isLoading } = profileView
+const currentUser = computed(() => authStore.user)
 
-const { recentTrips, isLoading } = profileView
+const isOwnProfile = computed(() => {
+  return currentUser.value?.id === userProfile.value?.id
+})
+
+const userId = computed(() => route.params.id as string)
 
 const tabItems: ViewSwitcherItem[] = [
   { id: 'trips', label: 'Путешествия', icon: 'mdi:map-legend' },
@@ -26,35 +32,39 @@ const tabItems: ViewSwitcherItem[] = [
   { id: 'communities', label: 'Сообщества', icon: 'mdi:account-group-outline' },
 ]
 
-onMounted(() => {
-  if (user.value) {
-    profileView.init(user.value.id)
+watch(userId, (newId) => {
+  if (newId) {
+    profileView.init(newId)
   }
-})
+}, { immediate: true })
 </script>
 
 <template>
-  <div v-if="user" class="profile-view">
+  <div v-if="userProfile" class="profile-view">
     <div class="profile-cover">
       <!-- Сюда можно будет добавить баннер пользователя -->
       <div class="profile-header">
         <div class="avatar-section">
-          <KitAvatar :src="user.avatarUrl" :name="user.name" :size="140" class="profile-avatar" />
+          <KitAvatar :src="userProfile.avatarUrl" :name="userProfile.name" :size="140" class="profile-avatar" />
         </div>
         <div class="info-section">
           <h1 class="user-name">
-            {{ user.name }}
+            {{ userProfile.name }}
           </h1>
-          <div v-if="user.statusEmoji || user.statusText" class="user-status">
-            <span v-if="user.statusEmoji">{{ user.statusEmoji }}</span>
-            <span v-if="user.statusText">{{ user.statusText }}</span>
+          <div v-if="userProfile.statusEmoji || userProfile.statusText" class="user-status">
+            <span v-if="userProfile.statusEmoji">{{ userProfile.statusEmoji }}</span>
+            <span v-if="userProfile.statusText">{{ userProfile.statusText }}</span>
           </div>
           <p class="user-bio">
             Путешественник и исследователь. В поисках новых горизонтов и незабываемых впечатлений.
           </p>
         </div>
-        <div class="actions-section">
-          <KitBtn variant="outlined" color="secondary" @click="router.push({ name: AppRouteNames.AccountSettings })">
+        <div v-if="isOwnProfile" class="actions-section">
+          <KitBtn
+            variant="outlined"
+            color="secondary"
+            @click="router.push(AppRoutePaths.User.Settings(userProfile.id))"
+          >
             <Icon icon="mdi:pencil-outline" />
             Редактировать
           </KitBtn>
@@ -66,39 +76,39 @@ onMounted(() => {
       <aside class="profile-sidebar">
         <div class="stats-widget">
           <div class="stat-item">
-            <span class="stat-value">{{ user.currentTripsCount }}</span>
+            <span class="stat-value">{{ userProfile._count?.trips ?? 0 }}</span>
             <span class="stat-label">Путешествий</span>
           </div>
           <div class="stat-item">
-            <span class="stat-value">{{ user._count?.communities ?? 0 }}</span>
+            <span class="stat-value">{{ userProfile._count?.communities ?? 0 }}</span>
             <span class="stat-label">Сообществ</span>
           </div>
         </div>
 
-        <div v-if="user && user.plan" class="quota-section">
+        <div v-if="isOwnProfile && userProfile.plan" class="quota-section">
           <UserQuotaWidget
             title="Путешествия"
             icon="mdi:briefcase-outline"
-            :current="user.currentTripsCount"
-            :limit="user.plan.maxTrips"
-            :to="{ name: AppRouteNames.AccountQuota }"
+            :current="userProfile.currentTripsCount"
+            :limit="userProfile.plan.maxTrips"
+            :to="{ path: AppRoutePaths.User.Quota(userProfile.id) }"
             unit="items"
           />
           <UserQuotaWidget
             title="Хранилище"
             icon="mdi:database-outline"
-            :current="user.currentStorageBytes"
-            :limit="user.plan.maxStorageBytes"
+            :current="userProfile.currentStorageBytes"
+            :limit="userProfile.plan.maxStorageBytes"
             unit="bytes"
-            :to="{ name: AppRouteNames.AccountStorage }"
+            :to="{ path: AppRoutePaths.User.Storage(userProfile.id) }"
           />
           <UserQuotaWidget
             title="LLM Токены"
             icon="mdi:robot-outline"
-            :current="user.llmCreditsUsed"
-            :limit="user.plan.monthlyLlmCredits"
+            :current="userProfile.llmCreditsUsed"
+            :limit="userProfile.plan.monthlyLlmCredits"
             unit="tokens"
-            :to="{ name: AppRouteNames.AccountQuota }"
+            :to="{ path: AppRoutePaths.User.Quota(userProfile.id) }"
           />
         </div>
       </aside>
@@ -144,11 +154,7 @@ onMounted(() => {
 
 <style scoped lang="scss">
 .profile-view {
-  padding-top: 2rem;
-
-  @include media-down(md) {
-    padding-top: 84px;
-  }
+  padding-top: 24px;
 }
 
 .profile-cover {
@@ -171,7 +177,6 @@ onMounted(() => {
 .avatar-section {
   .profile-avatar {
     border: 4px solid var(--bg-primary-color);
-    margin-bottom: -50px;
     z-index: 2;
   }
 }
@@ -215,7 +220,6 @@ onMounted(() => {
   border: 1px solid var(--border-secondary-color);
   border-radius: var(--r-l);
   padding: 1.5rem;
-  min-height: 200px;
 }
 
 .widget-title {
@@ -228,7 +232,6 @@ onMounted(() => {
   display: flex;
   justify-content: space-around;
   text-align: center;
-  margin-bottom: 20px;
 
   .stat-item {
     display: flex;

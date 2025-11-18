@@ -10,6 +10,7 @@ export enum ETripGalleryKeys {
 export interface ITripInfoGalleryState {
   tripImages: TripImage[]
   currentTripId: string | null
+  loadedTripId: string | null
 }
 
 /**
@@ -20,6 +21,7 @@ export const useTripInfoGalleryStore = defineStore('tripInfoRouteGallery', {
   state: (): ITripInfoGalleryState => ({
     tripImages: [],
     currentTripId: null,
+    loadedTripId: null,
   }),
 
   // --- GETTERS ---
@@ -31,23 +33,30 @@ export const useTripInfoGalleryStore = defineStore('tripInfoRouteGallery', {
   // --- ACTIONS ---
   actions: {
     /**
-     * Устанавливает ID текущего путешествия и запускает загрузку изображений,
+     * Устанавливает ID текущего путешествия и сбрасывает состояние,
      * если ID изменился.
      * @param tripId - ID путешествия
      */
     setTripId(tripId: string) {
       if (this.currentTripId !== tripId) {
         this.currentTripId = tripId
+        this.loadedTripId = null
         this.tripImages = []
       }
     },
 
     /**
      * Загружает изображения для текущего путешествия.
+     * Не выполняет запрос, если данные уже загружены для этого ID.
      */
     async fetchTripImages() {
       if (!this.currentTripId) {
         console.error('Trip ID не установлен для загрузки изображений.')
+        return
+      }
+
+      // Если данные для этого путешествия уже загружены или загружаются прямо сейчас — выходим
+      if (this.currentTripId === this.loadedTripId || this.isFetchingImages) {
         return
       }
 
@@ -57,6 +66,7 @@ export const useTripInfoGalleryStore = defineStore('tripInfoRouteGallery', {
         fn: db => db.files.listImageByTrip(this.currentTripId!, TripImagePlacement.ROUTE),
         onSuccess: (result) => {
           this.tripImages = result
+          this.loadedTripId = this.currentTripId
         },
         onError: (error) => {
           console.error(`Ошибка при загрузке изображений для путешествия ${this.currentTripId}:`, error)
@@ -95,6 +105,7 @@ export const useTripInfoGalleryStore = defineStore('tripInfoRouteGallery', {
     reset() {
       this.tripImages = []
       this.currentTripId = null
+      this.loadedTripId = null
     },
   },
 })

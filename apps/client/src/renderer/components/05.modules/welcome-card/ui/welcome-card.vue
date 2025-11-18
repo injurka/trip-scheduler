@@ -28,14 +28,6 @@ function goToTrips() {
   router.push(AppRoutePaths.Trip.List)
 }
 
-function goToCommunity() {
-  router.push(AppRoutePaths.Communities.List)
-}
-
-function goToPlaces() {
-  router.push(AppRoutePaths.Explore)
-}
-
 function goToUsefulLinks() {
   router.push(AppRoutePaths.UsefulLinks)
 }

@@ -38,9 +38,6 @@ if (tripId.value) {
       sections.setSections(loadedSections)
     },
   )
-  routeGallery.setTripId(tripId.value)
-  routeGallery.fetchTripImages()
-  memories.fetchMemories(tripId.value)
 }
 
 function handleAddSection(type: any) {
@@ -129,14 +126,6 @@ onBeforeUnmount(() => {
           >
             <Icon width="18" height="18" :icon="ui.isViewMode ? 'mdi:pencil-outline' : 'mdi:eye-outline'" />
           </button>
-          <!-- TODO Later -->
-          <!-- <KitDropdown :items="layout.menuItems.value" @update:model-value="layout.handleMenuAction">
-            <template #trigger>
-              <button class="nav-button" title="Меню">
-                <Icon icon="mdi:dots-vertical" />
-              </button>
-            </template>
-          </KitDropdown> -->
         </div>
       </div>
       <KitDivider class="trip-info-divider">

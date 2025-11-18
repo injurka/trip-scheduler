@@ -1,9 +1,12 @@
+import { z } from 'zod'
 import { protectedProcedure, publicProcedure } from '~/lib/trpc'
 import { oAuthService } from '~/services/oauth.service'
 import {
   AuthOutputSchema,
   ChangePasswordInputSchema,
   DeleteAccountInputSchema,
+  GetUserByIdInputSchema,
+  PlanSchema,
   RefreshOutputSchema,
   RefreshTokenInputSchema,
   SignInInputSchema,
@@ -18,18 +21,18 @@ import {
 import { userService } from './user.service'
 
 export const userProcedures = {
-  /**
-   * Процедура регистрации (отправка кода).
-   */
+  listPlans: publicProcedure
+    .output(z.array(PlanSchema))
+    .query(async () => {
+      return userService.listPlans()
+    }),
+
   signUp: publicProcedure
     .input(SignUpInputSchema)
     .mutation(async ({ input }) => {
       return userService.signUp(input)
     }),
 
-  /**
-   * Процедура верификации почты и завершения регистрации.
-   */
   verifyEmail: publicProcedure
     .input(VerifyEmailInputSchema)
     .output(AuthOutputSchema)
@@ -37,9 +40,6 @@ export const userProcedures = {
       return userService.verifyEmail(input)
     }),
 
-  /**
-   * Процедура входа в систему.
-   */
   signIn: publicProcedure
     .input(SignInInputSchema)
     .output(AuthOutputSchema)
@@ -47,17 +47,11 @@ export const userProcedures = {
       return userService.signIn(input)
     }),
 
-  /**
-   * Процедура выхода из системы.
-   */
   signOut: protectedProcedure
     .mutation(async ({ ctx }) => {
       return userService.signOut(ctx.user.id)
     }),
 
-  /**
-   * Процедура входа через Telegram.
-   */
   signInWithTelegram: publicProcedure
     .input(TelegramAuthPayloadSchema)
     .output(AuthOutputSchema)
@@ -65,9 +59,6 @@ export const userProcedures = {
       return oAuthService.handleTelegram(input)
     }),
 
-  /**
-   * Процедура обновления токенов.
-   */
   refresh: publicProcedure
     .input(RefreshTokenInputSchema)
     .output(RefreshOutputSchema)
@@ -75,27 +66,25 @@ export const userProcedures = {
       return userService.refresh(input.refreshToken)
     }),
 
-  /**
-   * Процедура для получения данных текущего пользователя.
-   */
   me: protectedProcedure
     .output(UserSchema)
     .query(async ({ ctx }) => {
       return userService.getById(ctx.user.id)
     }),
 
-  /**
-   * Процедура для получения статистики текущего пользователя.
-   */
+  getById: publicProcedure
+    .input(GetUserByIdInputSchema)
+    .output(UserSchema)
+    .query(async ({ input }) => {
+      return userService.getById(input.id)
+    }),
+
   getStats: protectedProcedure
     .output(UserStatsSchema)
     .query(async ({ ctx }) => {
       return userService.getStats(ctx.user.id)
     }),
 
-  /**
-   * Процедура для обновления данных текущего пользователя.
-   */
   update: protectedProcedure
     .input(UpdateUserInputSchema)
     .output(UserSchema)
@@ -103,31 +92,21 @@ export const userProcedures = {
       return userService.update(ctx.user.id, input)
     }),
 
-  /**
-   * Процедура для обновления статуса пользователя.
-   */
   updateStatus: protectedProcedure
     .input(UpdateUserStatusInputSchema)
     .mutation(async ({ ctx, input }) => {
       return userService.updateStatus(ctx.user.id, input)
     }),
 
-  /**
-   * Процедура для смены пароля.
-   */
   changePassword: protectedProcedure
     .input(ChangePasswordInputSchema)
     .mutation(async ({ ctx, input }) => {
       return userService.changePassword(ctx.user.id, input)
     }),
 
-  /**
-   * Процедура для удаления аккаунта.
-   */
   deleteAccount: protectedProcedure
     .input(DeleteAccountInputSchema)
     .mutation(async ({ ctx, input }) => {
       return userService.deleteAccount(ctx.user.id, input)
     }),
-
 }

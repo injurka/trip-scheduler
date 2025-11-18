@@ -148,12 +148,7 @@ const displayTime = computed(() => {
         {{ group.title }}
       </h5>
 
-      <!-- This div will be pushed to the right -->
       <div class="activity-header-actions">
-        <button class="collapse-toggle-btn" @click="$emit('toggleCollapse')">
-          <Icon :icon="isCollapsed ? 'mdi:chevron-down' : 'mdi:chevron-up'" />
-        </button>
-
         <button
           v-if="!isViewMode && group.type === 'activity'"
           class="delete-activity-btn"
@@ -161,6 +156,10 @@ const displayTime = computed(() => {
           @click.stop="handleDeleteActivity"
         >
           <Icon icon="mdi:trash-can-outline" />
+        </button>
+
+        <button class="collapse-toggle-btn" @click="$emit('toggleCollapse')">
+          <Icon :icon="isCollapsed ? 'mdi:chevron-down' : 'mdi:chevron-up'" />
         </button>
       </div>
     </div>

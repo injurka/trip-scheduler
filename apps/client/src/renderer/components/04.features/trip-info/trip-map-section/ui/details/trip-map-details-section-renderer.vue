@@ -1,8 +1,8 @@
 <script setup lang="ts">
 import type { ActivitySection, ActivitySectionGallery, ActivitySectionText } from '~/shared/types/models/activity'
+import { GallerySection } from '~/components/03.domain/trip-info/gallery-section'
 import { EActivitySectionType } from '~/shared/types/models/activity'
 import DescriptionSection from './trip-map-details-description-section.vue'
-import GallerySection from './trip-map-details-gallery-section.vue'
 
 interface Props {
   section: ActivitySection

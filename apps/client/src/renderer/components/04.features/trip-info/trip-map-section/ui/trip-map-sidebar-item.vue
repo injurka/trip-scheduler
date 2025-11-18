@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import type { DrawnRoute, MapPoint, MapRoute } from '~/components/03.domain/trip-info/plan-geolocation-section'
+import type { DrawnRoute, MapPoint, MapRoute } from '~/components/03.domain/trip-info/geolocation-section'
 import { Icon } from '@iconify/vue'
 
 interface Props {

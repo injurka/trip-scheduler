@@ -45,7 +45,7 @@ export function useQuota() {
   async function fetchPlans() {
     await useRequest({
       key: EAccountKeys.FETCH_PLANS,
-      fn: db => db.account.listPlans(),
+      fn: db => db.user.listPlans(),
       onSuccess: (data) => {
         rawPlans.value = data as Plan[]
       },

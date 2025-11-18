@@ -15,7 +15,7 @@ interface OAuthInput {
   avatarUrl?: string
 }
 
-type UserForClient = Omit<typeof users.$inferSelect, 'password'> & { plan?: any, _count?: { communities: number } }
+type UserForClient = Omit<typeof users.$inferSelect, 'password'> & { plan?: any, _count?: { communities: number, trips: number } }
 
 function excludePassword<T extends { password?: string | null }>(user: T): Omit<T, 'password'> {
   const { password, ...rest } = user
@@ -24,8 +24,14 @@ function excludePassword<T extends { password?: string | null }>(user: T): Omit<
 
 export const userRepository = {
   /**
-   * Находит пользователя по email. Возвращает полный объект, включая пароль,
-   * для внутренних проверок.
+   * Получает список всех доступных тарифных планов.
+   */
+  async listPlans() {
+    return await db.query.plans.findMany()
+  },
+
+  /**
+   * Находит пользователя по email.
    */
   async findByEmail(email: string) {
     return await db.query.users.findFirst({
@@ -37,7 +43,7 @@ export const userRepository = {
   },
 
   /**
-   * Создает нового пользователя через регистрацию по email/паролю.
+   * Создает нового пользователя.
    */
   async create(data: z.infer<typeof SignUpInputSchema> & { password?: string }): Promise<UserForClient> {
     const [newUser] = await db
@@ -46,7 +52,7 @@ export const userRepository = {
         name: data.name,
         email: data.email,
         password: data.password,
-        planId: FREE_PLAN_ID, // Назначаем бесплатный план по умолчанию
+        planId: FREE_PLAN_ID,
       })
       .returning()
 
@@ -54,14 +60,11 @@ export const userRepository = {
   },
 
   /**
-   * Находит существующего пользователя по данным от OAuth-провайдера или создает нового.
-   * Связывает OAuth-профиль с существующим аккаунтом по email, если он найден.
-   * Всегда возвращает объект пользователя без поля 'password'.
+   * OAuth find or create logic
    */
   async findOrCreateFromOAuth({ provider, providerId, email, name, avatarUrl }: OAuthInput): Promise<UserForClient> {
     let user: Awaited<ReturnType<typeof db.query.users.findFirst>> | undefined
 
-    // 1. Попытка найти пользователя по ID провайдера.
     if (provider === 'google') {
       user = await db.query.users.findFirst({ where: eq(users.googleId, providerId), with: { plan: true } })
     }
@@ -76,7 +79,6 @@ export const userRepository = {
       return excludePassword(user) as UserForClient
     }
 
-    // 2. Если email предоставлен, ищем по нему для связи аккаунтов.
     if (email) {
       const userWithEmail = await db.query.users.findFirst({
         where: eq(users.email, email),
@@ -84,7 +86,6 @@ export const userRepository = {
       })
 
       if (userWithEmail) {
-        // Связываем аккаунты и возвращаем обновленного пользователя
         const updateData: Partial<typeof users.$inferInsert> = { updatedAt: new Date() }
         if (provider === 'google')
           updateData.googleId = providerId
@@ -102,7 +103,6 @@ export const userRepository = {
       }
     }
 
-    // 3. Если пользователь не найден, создаем нового.
     const finalEmail = email || `telegram_${providerId}@telegram.user`
     const newUserPayload: typeof users.$inferInsert = {
       email: finalEmail,
@@ -126,9 +126,6 @@ export const userRepository = {
     return await this.getById(newUser.id) as UserForClient
   },
 
-  /**
-   * Находит пользователя по его ID вместе с тарифным планом.
-   */
   async getById(id: string): Promise<UserForClient | null> {
     const user = await db.query.users.findFirst({
       where: eq(users.id, id),
@@ -145,17 +142,20 @@ export const userRepository = {
       .from(communityMembers)
       .where(eq(communityMembers.userId, id))
 
+    const [tripCountResult] = await db
+      .select({ count: sql<number>`count(*)` })
+      .from(tripParticipants)
+      .where(eq(tripParticipants.userId, id))
+
     return {
       ...excludePassword(user),
       _count: {
         communities: Number(communityCountResult.count),
+        trips: Number(tripCountResult.count),
       },
     }
   },
 
-  /**
-   * Получает статистику пользователя (количество путешествий и сообществ).
-   */
   async getStats(userId: string) {
     const [tripCountResult] = await db
       .select({ count: sql<number>`count(*)` })
@@ -173,9 +173,6 @@ export const userRepository = {
     }
   },
 
-  /**
-   * Обновляет данные пользователя.
-   */
   async update(id: string, data: z.infer<typeof UpdateUserInputSchema>): Promise<UserForClient> {
     await db
       .update(users)
@@ -185,9 +182,6 @@ export const userRepository = {
     return await this.getById(id) as UserForClient
   },
 
-  /**
-   * Обновляет статус пользователя.
-   */
   async updateStatus(id: string, data: { statusText?: string | null, statusEmoji?: string | null }) {
     const [updatedUser] = await db
       .update(users)
@@ -201,9 +195,6 @@ export const userRepository = {
     return await this.getById(updatedUser.id)
   },
 
-  /**
-   * Изменяет пароль пользователя после проверки текущего.
-   */
   async changePassword(id: string, currentPassword: string, newPasswordHash: string) {
     const user = await db.query.users.findFirst({ where: eq(users.id, id) })
     if (!user || !user.password) {
@@ -217,9 +208,6 @@ export const userRepository = {
     return true
   },
 
-  /**
-   * Удаляет пользователя после проверки пароля.
-   */
   async delete(id: string, password: string) {
     const user = await db.query.users.findFirst({ where: eq(users.id, id) })
     if (!user || !user.password) {

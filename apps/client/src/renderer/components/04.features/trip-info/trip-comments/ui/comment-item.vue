@@ -17,6 +17,7 @@ const emit = defineEmits<{
 
 const authStore = useAuthStore()
 const confirm = useConfirm()
+const router = useRouter()
 
 // --- Функция для правильного склонения слов ---
 function getPlural(n: number, one: string, two: string, five: string) {
@@ -64,6 +65,10 @@ async function handleDelete() {
     emit('delete')
   }
 }
+
+function navigateToProfile() {
+  router.push(AppRoutePaths.User.Profile(props.comment.user.id))
+}
 </script>
 
 <template>
@@ -73,10 +78,12 @@ async function handleDelete() {
       :name="comment.user.name"
       :size="32"
       style="flex-shrink: 0;"
+      class="clickable-avatar"
+      @click="navigateToProfile"
     />
     <div class="comment-body">
       <div class="comment-header">
-        <span class="author-name">{{ comment.user.name }}</span>
+        <span class="author-name clickable-name" @click="navigateToProfile">{{ comment.user.name }}</span>
         <span class="timestamp">{{ timeAgo }}</span>
         <div v-if="canDelete" class="comment-actions">
           <button title="Удалить" @click="handleDelete">
@@ -92,6 +99,14 @@ async function handleDelete() {
 </template>
 
 <style scoped lang="scss">
+.clickable-avatar,
+.clickable-name {
+  cursor: pointer;
+  &:hover {
+    opacity: 0.8;
+  }
+}
+
 .comment-item {
   position: relative;
   display: flex;
@@ -126,6 +141,10 @@ async function handleDelete() {
 .author-name {
   font-weight: 600;
   font-size: 0.9rem;
+  transition: color 0.2s;
+  &:hover {
+    color: var(--fg-accent-color);
+  }
 }
 
 .timestamp {

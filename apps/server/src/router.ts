@@ -1,5 +1,4 @@
 import { router } from './lib/trpc'
-import { accountRouter } from './modules/account/account.router'
 import { activityRouter } from './modules/activity/activity.router'
 import { commentRouter } from './modules/comment/comment.router'
 import { communityRouter } from './modules/community/community.router'
@@ -21,7 +20,6 @@ export const appRouter = router({
   user: userRouter,
   tripSection: tripSectionRouter,
   comment: commentRouter,
-  account: accountRouter,
   community: communityRouter,
   llmUsage: llmUsageRouter,
   metro: metroRouter,

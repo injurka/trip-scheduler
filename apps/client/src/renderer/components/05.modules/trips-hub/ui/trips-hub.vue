@@ -5,9 +5,11 @@ import { KitBtn } from '~/components/01.kit/kit-btn'
 import { KitDivider } from '~/components/01.kit/kit-divider'
 import { KitSelectWithSearch } from '~/components/01.kit/kit-select-with-search'
 import { KitViewSwitcher } from '~/components/01.kit/kit-view-switcher'
+import { useAuthStore } from '~/shared/store/auth.store'
 import { TripsHubKey, useTripsHub } from '../composables/use-trips-hub'
 import TripsFilters from './controls/trips-filters.vue'
 import TripList from './list-trip/list.vue'
+import UnauthorizedPlaceholder from './list-trip/states/unauthorized-placeholder.vue'
 import CreateTripFlow from './new-trip/create-trip-flow.vue'
 
 const emit = defineEmits<{
@@ -15,16 +17,23 @@ const emit = defineEmits<{
 }>()
 
 const tripsHub = useTripsHub()
+const authStore = useAuthStore()
+const { isAuthenticated } = storeToRefs(authStore)
 const { mdAndUp, smAndDown } = useDisplay()
 
 const currentTab = computed({
   get: () => tripsHub.activeTab.value,
-  set: (tab: TripsHubTab) => tripsHub.setActiveTab(tab),
+  set: (tab: TripsHubTab) => {
+    if (tab === 'my' && !isAuthenticated.value)
+      tripsHub.activeTab.value = tab
+    else
+      tripsHub.setActiveTab(tab)
+  },
 })
 
 const tabItems: ViewSwitcherItem<TripsHubTab>[] = [
-  { id: 'my', label: 'Мои путешествия', icon: 'mdi:account-heart-outline' },
   { id: 'public', label: 'Общие путешествия', icon: 'mdi:earth' },
+  { id: 'my', label: 'Мои путешествия', icon: 'mdi:account-heart-outline' },
 ]
 
 const tabLabel = computed(() => tabItems.find(f => f.id === currentTab.value))
@@ -47,16 +56,14 @@ const statusOptions = [
 
 const selectedCity = computed({
   get: () => tripsHub.filters.value.cities[0] || null,
-  set: (val) => {
-    tripsHub.filters.value.cities = val ? [val] : []
-  },
+  set: val => tripsHub.filters.value.cities = val ? [val] : [],
+
 })
 
 const selectedTag = computed({
   get: () => tripsHub.filters.value.tags[0] || null,
-  set: (val) => {
-    tripsHub.filters.value.tags = val ? [val] : []
-  },
+  set: val => tripsHub.filters.value.tags = val ? [val] : [],
+
 })
 
 watch(
@@ -78,7 +85,6 @@ watch(
 
 onMounted(() => {
   tripsHub.fetchTrips()
-  tripsHub.setActiveTab('my')
 })
 
 provide(TripsHubKey, tripsHub)
@@ -173,7 +179,9 @@ provide(TripsHubKey, tripsHub)
     </div>
 
     <div class="hub-content" :class="`display-mode--${tripsHub.displayMode.value}`">
+      <UnauthorizedPlaceholder v-if="currentTab === 'my' && !isAuthenticated" />
       <TripList
+        v-else
         :is-loading="tripsHub.isLoading.value"
         :error="tripsHub.fetchError.value"
         :trips="tripsHub.currentTrips.value"
@@ -214,12 +222,22 @@ provide(TripsHubKey, tripsHub)
   h1 {
     font-size: 2rem;
     font-weight: 700;
-    margin: 0 0 4px;
+    margin: 0 0 8px;
     color: var(--fg-primary-color);
   }
   p {
+    font-size: 1rem;
     margin: 0;
     color: var(--fg-secondary-color);
+  }
+
+  @include media-down(sm) {
+    h1 {
+      font-size: 1.8rem;
+    }
+    p {
+      font-size: 0.9rem;
+    }
   }
 }
 

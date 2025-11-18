@@ -34,6 +34,11 @@ export const RefreshTokenInputSchema = z.object({
   refreshToken: z.string(),
 })
 
+// --- Схема для получения пользователя по ID ---
+export const GetUserByIdInputSchema = z.object({
+  id: z.string().uuid(),
+})
+
 export const UpdateUserInputSchema = z.object({
   name: z.string().min(1).optional(),
   avatarUrl: z.string().url().optional(),
@@ -64,6 +69,7 @@ export const UserSchema = createSelectSchema(users)
     plan: PlanSchema.optional(),
     _count: z.object({
       communities: z.number(),
+      trips: z.number(),
     }).optional(),
   })
 

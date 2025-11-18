@@ -3,8 +3,6 @@ import type { Trip } from '~/shared/types/models/trip'
 import { useRouter } from 'vue-router'
 import { KitAvatar } from '~/components/01.kit/kit-avatar'
 import { KitDialogWithClose } from '~/components/01.kit/kit-dialog-with-close'
-import { AppRouteNames } from '~/shared/constants/routes'
-import { useAuthStore } from '~/shared/store/auth.store'
 
 interface Props {
   visible: boolean
@@ -13,16 +11,12 @@ interface Props {
 defineProps<Props>()
 const emit = defineEmits<{ (e: 'update:visible', value: boolean): void }>()
 
-const authStore = useAuthStore()
 const router = useRouter()
 
 function goToProfile(participantId: string) {
-  // Навигация работает только для профиля текущего пользователя,
-  // так как в проекте нет динамических роутов для чужих профилей.
-  if (authStore.user?.id === participantId) {
-    router.push({ name: AppRouteNames.AccountProfile })
-    emit('update:visible', false)
-  }
+  router.push(AppRoutePaths.User.Profile(participantId))
+
+  emit('update:visible', false)
 }
 </script>
 
@@ -38,7 +32,6 @@ function goToProfile(participantId: string) {
       <li v-for="p in participants" :key="p.id">
         <button
           class="participant-item"
-          :disabled="authStore.user?.id !== p.id"
           @click="goToProfile(p.id)"
         >
           <KitAvatar :src="p.avatarUrl" :name="p.name" :size="32" />
@@ -72,19 +65,12 @@ function goToProfile(participantId: string) {
   text-align: left;
   font-family: inherit;
   color: var(--fg-primary-color);
+  cursor: pointer;
+  transition: all 0.2s ease;
 
-  &:not(:disabled) {
-    cursor: pointer;
-    transition: all 0.2s ease;
-
-    &:hover {
-      border-color: var(--border-accent-color);
-      background-color: var(--bg-hover-color);
-    }
-  }
-
-  &:disabled {
-    cursor: default;
+  &:hover {
+    border-color: var(--border-accent-color);
+    background-color: var(--bg-hover-color);
   }
 }
 </style>

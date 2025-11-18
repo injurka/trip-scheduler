@@ -13,10 +13,10 @@ export enum AppRouteNames {
   ForgotPassword = 'forgot-password',
   AuthCallback = 'auth-callback',
 
-  AccountQuota = 'account-quota',
-  AccountStorage = 'account-storage',
-  AccountProfile = 'account-profile',
-  AccountSettings = 'account-settings',
+  UserProfile = 'user-profile',
+  UserSettings = 'user-settings',
+  UserQuota = 'user-quota',
+  UserStorage = 'user-storage',
 
   CommunitiesList = 'communities-list',
   CommunityInfo = 'community-info',
@@ -43,11 +43,11 @@ export const AppRoutePaths = {
     Callback: '/auth/callback',
   },
 
-  Account: {
-    Quota: '/account/quota',
-    Storage: '/account/storage',
-    Profile: '/account/profile',
-    Settings: '/account/settings',
+  User: {
+    Profile: (id: string) => `/user/${id}`,
+    Settings: (id: string) => `/user/${id}/settings`,
+    Quota: (id: string) => `/user/${id}/quota`,
+    Storage: (id: string) => `/user/${id}/storage`,
   },
 
   Communities: {

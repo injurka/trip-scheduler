@@ -42,6 +42,12 @@ export const useTripMemoriesStore = defineStore('tripMemories', {
   getters: {
     isLoadingMemories: () => useRequestStatus(ETripMemoriesKeys.FETCH).value,
     isCreatingMemory: () => useRequestStatus(ETripMemoriesKeys.CREATE).value,
+    isMutateMemory: () => useRequestStatus([
+      ETripMemoriesKeys.UPDATE,
+      ETripMemoriesKeys.DELETE,
+      ETripMemoriesKeys.REMOVE_TIMESTAMP,
+      ETripMemoriesKeys.APPLY_TIMESTAMP,
+    ]).value,
 
     getProcessingMemories(state): IProcessingMemory[] {
       return Array.from(state.processingMemories.values())
@@ -89,7 +95,7 @@ export const useTripMemoriesStore = defineStore('tripMemories', {
       this.currentTripId = tripId
 
       useRequest<Memory[]>({
-        key: `${ETripMemoriesKeys.FETCH}:${tripId}`,
+        key: ETripMemoriesKeys.FETCH,
         abortOnUnmount: true,
         fn: db => db.memories.getByTripId(tripId),
         onSuccess: (result) => {
@@ -270,7 +276,7 @@ export const useTripMemoriesStore = defineStore('tripMemories', {
       Object.assign(memory, data)
 
       await useRequest({
-        key: `${ETripMemoriesKeys.UPDATE}:${data.id}`,
+        key: ETripMemoriesKeys.UPDATE,
         fn: db => db.memories.update(data),
         onError: () => {
           Object.assign(memory, originalMemory)
@@ -280,10 +286,11 @@ export const useTripMemoriesStore = defineStore('tripMemories', {
 
     async deleteMemory(id: string) {
       const index = this.memories.findIndex(m => m.id === id)
+
       if (index > -1) {
         const [removedMemory] = this.memories.splice(index, 1)
         await useRequest({
-          key: `${ETripMemoriesKeys.DELETE}:${id}`,
+          key: ETripMemoriesKeys.DELETE,
           fn: db => db.memories.delete(id),
           onError: () => {
             this.memories.splice(index, 0, removedMemory)
@@ -298,8 +305,9 @@ export const useTripMemoriesStore = defineStore('tripMemories', {
         return
 
       const originalMemory = { ...memory }
+
       await useRequest({
-        key: `${ETripMemoriesKeys.APPLY_TIMESTAMP}:${memoryId}`,
+        key: ETripMemoriesKeys.APPLY_TIMESTAMP,
         fn: db => db.memories.applyTakenAtTimestamp(memoryId),
         onSuccess: (updatedMemory) => {
           if (updatedMemory)
@@ -320,7 +328,7 @@ export const useTripMemoriesStore = defineStore('tripMemories', {
       memory.timestamp = null
 
       await useRequest({
-        key: `${ETripMemoriesKeys.REMOVE_TIMESTAMP}:${memoryId}`,
+        key: ETripMemoriesKeys.REMOVE_TIMESTAMP,
         fn: db => db.memories.unassignTimestamp(memoryId),
         onError: () => {
           memory.timestamp = originalTimestamp

@@ -90,7 +90,6 @@ const attractionCount = computed(() => {
 const visibleParticipants = computed(() => props.trip?.participants.slice(0, 5) || [])
 const hiddenParticipantsCount = computed(() => Math.max(0, (props.trip?.participants.length || 0) - 5))
 
-// Информация о статусе
 const statusInfo = computed(() => {
   if (!props.trip)
     return {}
@@ -104,7 +103,6 @@ const statusInfo = computed(() => {
   }
 })
 
-// Форматирование бюджета
 const formattedBudget = computed(() => {
   if (!props.trip || !props.trip.budget || !props.trip.currency)
     return null
@@ -124,7 +122,10 @@ function navigateToSection(sectionId: string) {
   router.push({ query: { section: sectionId } })
 }
 
-// --- Функции для контролов ---
+function navigateToProfile(userId: string) {
+  router.push(AppRoutePaths.User.Profile(userId))
+}
+
 function handleEditTrip() {
   emit('edit')
 }
@@ -161,7 +162,6 @@ function handleMenuAction(action: string) {
 
 <template>
   <div v-if="trip" class="trip-overview">
-    <!-- Блок-обложка в стиле travel-card -->
     <div class="overview-banner">
       <KitImage
         v-if="trip.imageUrl"
@@ -205,9 +205,7 @@ function handleMenuAction(action: string) {
         </div>
       </div>
 
-      <!-- Футер баннера с эффектом матового стекла -->
       <div class="banner-footer">
-        <!-- Левая часть: мета-информация и теги -->
         <div class="footer-meta-content">
           <div class="trip-extra-meta">
             <div class="meta-item meta-item--status" :class="statusInfo.class">
@@ -227,10 +225,13 @@ function handleMenuAction(action: string) {
               :name="participant.name"
               :offset="10"
             >
+              <!-- Добавлен модификатор .stop -->
               <KitAvatar
                 :name="participant.name"
                 :src="participant.avatarUrl"
                 :size="36"
+                class="clickable-avatar"
+                @click.stop="navigateToProfile(participant.id)"
               />
             </KitAnimatedTooltip>
             <KitAvatar
@@ -249,12 +250,10 @@ function handleMenuAction(action: string) {
       </div>
     </div>
 
-    <!-- Описание путешествия -->
     <div v-if="trip.description" class="trip-description-summary">
       <p>{{ trip.description }}</p>
     </div>
 
-    <!-- Виджеты -->
     <div class="info-widgets">
       <StatsWidget
         :duration-days="tripDurationDays"
@@ -273,7 +272,6 @@ function handleMenuAction(action: string) {
       />
     </div>
 
-    <!-- Сетки с днями и разделами -->
     <div class="overview-grid">
       <div class="overview-section">
         <h2 class="section-title">
@@ -340,7 +338,6 @@ function handleMenuAction(action: string) {
       class="countdown"
     />
 
-    <!-- Dialogs -->
     <DaysListDialog v-model:visible="isDaysDialogVisible" :days="days" @navigate="navigateToDay" />
     <CitiesListDialog v-model:visible="isCitiesDialogVisible" :cities="trip.cities" />
     <ParticipantsListDialog v-model:visible="isParticipantsDialogVisible" :participants="trip.participants" />
@@ -349,6 +346,10 @@ function handleMenuAction(action: string) {
 </template>
 
 <style scoped lang="scss">
+.clickable-avatar {
+  cursor: pointer;
+}
+/* ... existing styles ... */
 .info-widget-card {
   background-color: var(--bg-secondary-color);
   border: 1px solid var(--border-secondary-color);

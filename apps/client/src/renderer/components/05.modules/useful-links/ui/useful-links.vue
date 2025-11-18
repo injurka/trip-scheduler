@@ -2,10 +2,13 @@
 import { Icon } from '@iconify/vue'
 import { computed, ref } from 'vue'
 import { KitBtn } from '~/components/01.kit/kit-btn'
+import { KitDivider } from '~/components/01.kit/kit-divider'
 import { KitDropdown } from '~/components/01.kit/kit-dropdown'
 import { KitInput } from '~/components/01.kit/kit-input'
 import { KitViewSwitcher } from '~/components/01.kit/kit-view-switcher'
 import { useUsefulLinks } from '~/components/05.modules/useful-links/composables/use-useful-links'
+
+import { useDisplay } from '~/shared/composables/use-display'
 
 const {
   searchQuery,
@@ -17,7 +20,21 @@ const {
   allCategories,
 } = useUsefulLinks()
 
+const { mdAndUp } = useDisplay()
+
 const viewMode = ref<'grid' | 'list'>('grid')
+
+// Лимит тегов для отображения по умолчанию
+const TAGS_LIMIT = 15
+const isAllTagsVisible = ref(false)
+
+const visibleTags = computed(() => {
+  if (isAllTagsVisible.value)
+    return allTags.value
+  return allTags.value.slice(0, TAGS_LIMIT)
+})
+
+const hasHiddenTags = computed(() => allTags.value.length > TAGS_LIMIT)
 
 const sortOptions = [
   { value: 'default', label: 'По умолчанию', icon: 'mdi:sort' },
@@ -39,7 +56,7 @@ function getFaviconUrl(url: string) {
     return `https://www.google.com/s2/favicons?domain=${domain}&sz=32`
   }
   catch {
-    return '' // Возвращаем пустую строку, если URL некорректен
+    return ''
   }
 }
 
@@ -50,7 +67,9 @@ function categoryToId(title: string) {
 function scrollToCategory(id: string) {
   const element = document.getElementById(id)
   if (element) {
-    element.scrollIntoView({ behavior: 'smooth', block: 'start' })
+    // Скроллим с небольшим отступом сверху (для хедера)
+    const y = element.getBoundingClientRect().top + window.scrollY - 100
+    window.scrollTo({ top: y, behavior: 'smooth' })
   }
 }
 </script>
@@ -62,8 +81,8 @@ function scrollToCategory(id: string) {
       <p>Подборка проверенных сервисов, которые помогут спланировать ваше идеальное путешествие.</p>
     </div>
 
-    <!-- Быстрые фильтры по категориям -->
-    <div class="quick-filters">
+    <!-- Блок быстрой навигации (Категории) -->
+    <div class="quick-filters-wrapper">
       <button
         v-for="category in allCategories"
         :key="category.title"
@@ -71,80 +90,111 @@ function scrollToCategory(id: string) {
         :title="category.title"
         @click="scrollToCategory(categoryToId(category.title))"
       >
-        <Icon :icon="category.icon" />
+        <div class="icon-box">
+          <Icon :icon="category.icon" />
+        </div>
+        <span class="quick-filter-label">{{ category.title }}</span>
       </button>
     </div>
 
-    <div class="controls-wrapper">
-      <!-- Поиск -->
-      <div class="search-bar">
-        <KitInput
-          v-model="searchQuery"
-          placeholder="Поиск по названию или описанию..."
-          icon="mdi:magnify"
-          size="md"
-        />
+    <!-- Панель инструментов (Поиск + Сортировка + Теги) -->
+    <div class="tools-panel">
+      <div class="tools-main-row">
+        <div class="search-wrapper">
+          <KitInput
+            v-model="searchQuery"
+            placeholder="Поиск сервиса..."
+            icon="mdi:magnify"
+            class="search-input"
+          />
+        </div>
+
+        <div class="view-controls">
+          <KitDropdown
+            v-model="sortOrder"
+            :items="sortOptions"
+            align="end"
+            size="md"
+          >
+            <template #trigger>
+              <KitBtn
+                :icon="currentSortOption.icon"
+                variant="outlined"
+                color="secondary"
+                class="sort-btn"
+              >
+                <span v-if="mdAndUp">{{ currentSortOption.label }}</span>
+              </KitBtn>
+            </template>
+          </KitDropdown>
+          <KitViewSwitcher v-if="mdAndUp" v-model="viewMode" :items="viewModeItems" />
+        </div>
       </div>
 
-      <!-- Управление отображением -->
-      <div class="view-controls">
-        <KitDropdown
-          v-model="sortOrder"
-          :items="sortOptions"
-          align="end"
-          size="md"
-        >
-          <template #trigger>
-            <KitBtn
-              :icon="currentSortOption.icon"
-              variant="outlined"
-              color="secondary"
-              size="md"
-            >
-              {{ `Сортировка: ${currentSortOption.label}` }}
-            </KitBtn>
-          </template>
-        </KitDropdown>
-        <KitViewSwitcher v-model="viewMode" :items="viewModeItems" />
-      </div>
-    </div>
-
-    <!-- Фильтр по тегам -->
-    <div v-if="allTags.length" class="tags-filter">
-      <button
-        v-for="tag in allTags"
-        :key="tag"
-        class="tag-btn" :class="[{ active: selectedTags.includes(tag) }]"
-        @click="toggleTag(tag)"
+      <KitDivider
+        v-if="allTags.length" class="tools-divider"
       >
-        {{ tag }}
-      </button>
+        <span>Теги</span>
+      </KitDivider>
+
+      <!-- Теги -->
+      <div v-if="allTags.length" class="tags-row">
+        <div class="tags-list">
+          <button
+            v-for="tag in visibleTags"
+            :key="tag"
+            class="tag-btn" :class="[{ active: selectedTags.includes(tag) }]"
+            @click="toggleTag(tag)"
+          >
+            {{ tag }}
+          </button>
+
+          <button
+            v-if="hasHiddenTags"
+            class="tag-btn toggle-tags-btn"
+            @click="isAllTagsVisible = !isAllTagsVisible"
+          >
+            <span class="btn-text">{{ isAllTagsVisible ? 'Свернуть' : `Еще ${allTags.length - TAGS_LIMIT}` }}</span>
+            <Icon :icon="isAllTagsVisible ? 'mdi:chevron-up' : 'mdi:chevron-down'" />
+          </button>
+        </div>
+      </div>
     </div>
 
     <!-- Сетка/список категорий -->
     <div v-if="filteredCategories.length > 0" class="categories-container" :class="[`view--${viewMode}`]">
-      <div v-for="category in filteredCategories" :id="categoryToId(category.title)" :key="category.title" class="category-card">
-        <h2 class="category-title">
-          <Icon :icon="category.icon" />
+      <div v-for="category in filteredCategories" :id="categoryToId(category.title)" :key="category.title" class="category-group">
+        <h2 class="category-header">
+          <div class="category-icon-wrapper">
+            <Icon :icon="category.icon" />
+          </div>
           <span>{{ category.title }}</span>
+          <span class="category-count">{{ category.links.length }}</span>
         </h2>
-        <ul class="links-list">
-          <li v-for="link in category.links" :key="link.name" class="link-item">
-            <a :href="link.url" target="_blank" rel="noopener noreferrer">
-              <div class="link-left">
-                <img :src="getFaviconUrl(link.url)" class="link-favicon" alt="">
-                <div class="link-info">
-                  <div class="link-name-wrapper">
-                    <span class="link-name">{{ link.name }}</span>
-                    <span v-if="link.recommended" class="recommended-badge">Наш выбор</span>
-                  </div>
-                  <p class="link-description">{{ link.description }}</p>
-                  <div v-if="link.tags" class="link-tags">
-                    <span v-for="tag in link.tags" :key="tag" class="link-tag">{{ tag }}</span>
-                  </div>
+        <ul class="links-grid">
+          <li v-for="link in category.links" :key="link.name" class="link-card-wrapper">
+            <a :href="link.url" target="_blank" rel="noopener noreferrer" class="link-card">
+              <div class="link-header">
+                <div class="favicon-wrapper">
+                  <img :src="getFaviconUrl(link.url)" alt="">
+                </div>
+                <div class="link-meta">
+                  <span class="link-name">{{ link.name }}</span>
+                  <Icon icon="mdi:open-in-new" class="external-icon" />
                 </div>
               </div>
-              <Icon icon="mdi:open-in-new" class="link-icon" />
+
+              <p class="link-description">{{ link.description }}</p>
+
+              <div class="link-footer">
+                <div v-if="link.recommended" class="badge recommended">
+                  <Icon icon="mdi:star" /> Наш выбор
+                </div>
+                <div v-if="link.tags && link.tags.length" class="mini-tags">
+                  <span v-for="tag in link.tags.slice(0, 2)" :key="tag">{{ tag }}</span>
+                  <span v-if="link.tags.length > 2" class="more-tag">+{{ link.tags.length - 2 }}</span>
+                </div>
+              </div>
             </a>
           </li>
         </ul>
@@ -165,7 +215,8 @@ function scrollToCategory(id: string) {
   width: 100%;
   display: flex;
   flex-direction: column;
-  gap: 1.5rem;
+  gap: 2rem;
+  padding-bottom: 4rem;
 }
 
 .header {
@@ -173,253 +224,398 @@ function scrollToCategory(id: string) {
     font-size: 2.5rem;
     font-weight: 700;
     margin: 0 0 0.5rem;
+    line-height: 1.2;
+    color: var(--fg-primary-color);
   }
   p {
     font-size: 1.1rem;
     color: var(--fg-secondary-color);
     max-width: 600px;
+    line-height: 1.5;
+  }
+
+  @include media-down(sm) {
+    h1 {
+      font-size: 2rem;
+    }
+    p {
+      font-size: 1rem;
+    }
   }
 }
 
-.quick-filters {
+/* --- Quick Filters (Navigation) --- */
+.quick-filters-wrapper {
   display: flex;
   flex-wrap: wrap;
-  gap: 0.5rem;
-  padding: 0.75rem;
-  background-color: var(--bg-secondary-color);
-  border-radius: var(--r-l);
-  border: 1px solid var(--border-secondary-color);
+  gap: 0.75rem;
 }
 
 .quick-filter-btn {
-  background-color: var(--bg-tertiary-color);
+  background-color: var(--bg-secondary-color);
   border: 1px solid var(--border-secondary-color);
   color: var(--fg-secondary-color);
-  border-radius: var(--r-m);
-  padding: 0.5rem;
-  font-size: 1.5rem;
+  border-radius: var(--r-full);
+  padding: 0.5rem 1rem 0.5rem 0.5rem;
+  font-size: 0.9rem;
+  font-weight: 500;
   cursor: pointer;
   transition: all 0.2s ease;
   display: flex;
   align-items: center;
-  justify-content: center;
+  gap: 0.5rem;
+
+  .icon-box {
+    width: 28px;
+    height: 28px;
+    border-radius: 50%;
+    background-color: var(--bg-tertiary-color);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.1rem;
+    color: var(--fg-accent-color);
+    transition: background-color 0.2s;
+  }
 
   &:hover {
     background-color: var(--bg-hover-color);
-    color: var(--fg-accent-color);
-    border-color: var(--fg-accent-color);
+    color: var(--fg-primary-color);
+    border-color: var(--border-primary-color);
+
+    .icon-box {
+      background-color: var(--bg-secondary-color);
+    }
   }
 }
 
-.controls-wrapper {
-  display: grid;
-  grid-template-columns: 1fr auto;
-  gap: 1.5rem;
+/* --- Tools Panel (Grouped Controls) --- */
+.tools-panel {
+  background-color: var(--bg-secondary-color);
+  border: 1px solid var(--border-secondary-color);
+  border-radius: var(--r-l);
+  padding: 1.25rem;
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  box-shadow: var(--s-xs);
+}
+
+.tools-main-row {
+  display: flex;
+  gap: 1rem;
   align-items: center;
-
-  @media (max-width: 768px) {
-    grid-template-columns: 1fr;
-  }
+  flex-wrap: wrap;
 }
 
-.search-bar {
-  width: 100%;
+.search-wrapper {
+  flex: 1;
+  min-width: 280px;
+
+  :deep(.kit-input-group) {
+    width: 100%;
+  }
+
+  :deep(input) {
+    background-color: var(--bg-primary-color);
+    border-color: var(--border-secondary-color);
+
+    &:focus {
+      border-color: var(--border-accent-color);
+    }
+  }
 }
 
 .view-controls {
   display: flex;
-  gap: 1rem;
+  gap: 0.75rem;
   align-items: center;
+
+  .kit-btn {
+    height: 46px;
+  }
+
+  @include media-down(sm) {
+    width: 100%;
+    .kit-dropdown {
+      flex: 1;
+    }
+    .sort-btn {
+      width: 100%;
+      justify-content: center;
+    }
+  }
 }
 
-.tags-filter {
+.tools-divider {
+  display: flex;
+  gap: 8px;
+}
+
+.tags-row {
+  display: flex;
+  gap: 1rem;
+  align-items: flex-start;
+
+  @include media-down(sm) {
+    flex-direction: column;
+    gap: 0.5rem;
+  }
+}
+
+.tags-label {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  color: var(--fg-tertiary-color);
+  font-size: 0.9rem;
+  font-weight: 500;
+  padding-top: 6px;
+  flex-shrink: 0;
+}
+
+.tags-list {
   display: flex;
   flex-wrap: wrap;
   gap: 0.5rem;
 }
 
 .tag-btn {
-  background-color: var(--bg-secondary-color);
+  background-color: var(--bg-primary-color);
   border: 1px solid var(--border-secondary-color);
   color: var(--fg-secondary-color);
   padding: 0.25rem 0.75rem;
   font-size: 0.85rem;
-  border-radius: var(--r-full);
+  border-radius: var(--r-s);
   cursor: pointer;
   transition: all 0.2s ease;
+  font-weight: 500;
 
   &:hover {
     border-color: var(--fg-accent-color);
     color: var(--fg-accent-color);
+    background-color: var(--bg-hover-color);
   }
 
   &.active {
     background-color: var(--fg-accent-color);
+    color: var(--fg-inverted-color);
     border-color: var(--fg-accent-color);
-    color: white;
   }
-}
 
-.categories-container {
-  display: grid;
-  gap: 1.5rem;
+  &.toggle-tags-btn {
+    border-style: dashed;
+    color: var(--fg-tertiary-color);
+    display: flex;
+    align-items: center;
+    gap: 4px;
 
-  &.view--grid {
-    grid-template-columns: repeat(auto-fit, minmax(350px, 1fr));
-  }
-  &.view--list {
-    grid-template-columns: 1fr;
-  }
-}
-
-.category-card {
-  background-color: var(--bg-secondary-color);
-  border: 1px solid var(--border-secondary-color);
-  border-radius: var(--r-l);
-  padding: 1rem;
-  display: flex;
-  flex-direction: column;
-}
-
-.category-title {
-  display: flex;
-  align-items: center;
-  gap: 0.75rem;
-  font-size: 1.25rem;
-  font-weight: 600;
-  margin: 0 0 1.5rem;
-  padding-bottom: 1rem;
-  border-bottom: 1px solid var(--border-secondary-color);
-  color: var(--fg-primary-color);
-
-  .iconify {
-    color: var(--fg-accent-color);
-    font-size: 1.5rem;
-  }
-}
-
-.links-list {
-  list-style: none;
-  padding: 0;
-  margin: 0;
-  display: flex;
-  flex-direction: column;
-  gap: 0.5rem;
-}
-
-.link-item a {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  gap: 1rem;
-  padding: 0.75rem;
-  border-radius: var(--r-m);
-  text-decoration: none;
-  transition: background-color 0.2s ease;
-
-  &:hover {
-    background-color: var(--bg-hover-color);
-
-    .link-name {
-      color: var(--fg-accent-color);
+    &:hover {
+      color: var(--fg-primary-color);
+      border-style: solid;
     }
   }
 }
 
-.link-left {
+/* --- Categories & Cards --- */
+.categories-container {
   display: flex;
-  align-items: flex-start;
+  flex-direction: column;
+  gap: 2.5rem;
+}
+
+.category-group {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.category-header {
+  display: flex;
+  align-items: center;
   gap: 0.75rem;
+  font-size: 1.25rem;
+  font-weight: 700;
+  color: var(--fg-primary-color);
+  margin: 0;
+  padding-left: 4px;
+
+  .category-icon-wrapper {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 32px;
+    height: 32px;
+    border-radius: 8px;
+    background-color: var(--bg-accent-color-translucent);
+    color: var(--fg-accent-color);
+    font-size: 1.1rem;
+  }
+
+  .category-count {
+    font-size: 0.9rem;
+    color: var(--fg-tertiary-color);
+    font-weight: 500;
+    margin-left: auto;
+  }
+}
+
+.links-grid {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: grid;
+  gap: 1rem;
+
+  .view--grid & {
+    grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+  }
+
+  .view--list & {
+    grid-template-columns: 1fr;
+  }
+}
+
+.link-card {
+  display: flex;
+  flex-direction: column;
+  background-color: var(--bg-secondary-color);
+  border: 1px solid var(--border-secondary-color);
+  border-radius: var(--r-m);
+  padding: 1rem;
+  height: 100%;
+  text-decoration: none;
+  transition: all 0.2s ease;
+
+  &:hover {
+    border-color: var(--border-primary-color);
+    transform: translateY(-2px);
+    box-shadow: var(--s-m);
+
+    .link-name {
+      color: var(--fg-accent-color);
+    }
+    .external-icon {
+      color: var(--fg-accent-color);
+      opacity: 1;
+    }
+  }
+}
+
+.link-header {
+  display: flex;
+  gap: 0.75rem;
+  align-items: center;
+  margin-bottom: 0.5rem;
+}
+
+.favicon-wrapper {
+  width: 24px;
+  height: 24px;
+  flex-shrink: 0;
+  border-radius: 4px;
+  overflow: hidden;
+  background-color: white;
+
+  img {
+    width: 100%;
+    height: 100%;
+    object-fit: contain;
+  }
+}
+
+.link-meta {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex: 1;
   min-width: 0;
 }
 
-.link-favicon {
-  width: 20px;
-  height: 20px;
-  margin-top: 3px;
-  flex-shrink: 0;
-  border-radius: 4px;
-}
-
-.link-info {
-  display: flex;
-  flex-direction: column;
-  gap: 0.25rem;
-}
-
-.link-name-wrapper {
-  display: flex;
-  align-items: center;
-  flex-wrap: wrap;
-  gap: 0.5rem;
-}
-
 .link-name {
-  font-weight: 500;
+  font-weight: 600;
   color: var(--fg-primary-color);
-  transition: color 0.2s ease;
+  font-size: 1rem;
+  transition: color 0.2s;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
-.recommended-badge {
-  background-color: hsl(48, 100%, 50%, 0.2);
-  color: hsl(48, 100%, 30%);
-  font-size: 0.7rem;
-  font-weight: 600;
-  padding: 0.1rem 0.4rem;
-  border-radius: var(--r-s);
+.external-icon {
+  font-size: 1rem;
+  color: var(--fg-tertiary-color);
+  opacity: 0.5;
+  transition: all 0.2s;
 }
 
 .link-description {
   font-size: 0.85rem;
   color: var(--fg-secondary-color);
-  margin: 0;
   line-height: 1.4;
+  margin: 0 0 1rem;
+  flex-grow: 1;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
 }
 
-.link-tags {
+.link-footer {
   display: flex;
-  flex-wrap: wrap;
-  gap: 0.35rem;
-  margin-top: 0.25rem;
-}
-
-.link-tag {
-  background-color: var(--bg-tertiary-color);
-  color: var(--fg-tertiary-color);
-  font-size: 0.75rem;
-  padding: 0.1rem 0.5rem;
-  border-radius: var(--r-full);
-}
-
-.link-icon {
-  font-size: 1rem;
-  color: var(--fg-tertiary-color);
-  flex-shrink: 0;
-}
-
-.no-results {
-  display: flex;
-  flex-direction: column;
   align-items: center;
-  justify-content: center;
+  justify-content: space-between;
+  margin-top: auto;
+}
+
+.badge {
+  font-size: 0.7rem;
+  font-weight: 600;
+  padding: 2px 6px;
+  border-radius: 4px;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+
+  &.recommended {
+    background-color: rgba(255, 193, 7, 0.1);
+    color: #d97706;
+    border: 1px solid rgba(255, 193, 7, 0.2);
+  }
+}
+
+.mini-tags {
+  display: flex;
+  gap: 4px;
+  font-size: 0.75rem;
+  color: var(--fg-tertiary-color);
+
+  .more-tag {
+    font-weight: 500;
+  }
+}
+
+/* No Results */
+.no-results {
   text-align: center;
   padding: 4rem 2rem;
   color: var(--fg-secondary-color);
   border: 2px dashed var(--border-secondary-color);
   border-radius: var(--r-l);
   margin-top: 1rem;
+  background-color: var(--bg-secondary-color-translucent);
 
   .no-results-icon {
-    font-size: 3rem;
-    margin-bottom: 1rem;
+    font-size: 4rem;
+    margin-bottom: 1.5rem;
+    color: var(--fg-tertiary-color);
   }
 
   h3 {
-    font-size: 1.25rem;
+    font-size: 1.5rem;
     color: var(--fg-primary-color);
     margin: 0 0 0.5rem;
   }
-
   p {
     margin: 0;
   }

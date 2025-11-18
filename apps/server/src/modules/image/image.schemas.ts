@@ -8,3 +8,7 @@ export const GetImagesByTripIdInputSchema = z.object({
 export const DeleteImageInputSchema = z.object({
   id: z.string().uuid(),
 })
+
+export const GetImageMetadataInputSchema = z.object({
+  id: z.string().uuid(),
+})

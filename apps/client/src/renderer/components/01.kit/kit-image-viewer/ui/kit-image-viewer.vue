@@ -2,6 +2,8 @@
 import type { IImageViewerImageMeta, ImageQuality, ImageViewerImage } from '../models/types'
 import { Icon } from '@iconify/vue'
 import { onClickOutside, toRef } from '@vueuse/core'
+import { useRequest } from '~/plugins/request'
+import { TRIP_GALLERY_KEYS } from '~/plugins/request/models/keys'
 import { resolveApiUrl } from '~/shared/lib/url'
 import { useImageViewerTransform, useSwipeNavigation } from '../composables'
 import ImageMetadataPanel from './kit-image-metadata-panel.vue'
@@ -54,8 +56,8 @@ const containerRef = ref<HTMLElement | null>(null)
 const naturalSize = reactive({ width: 0, height: 0 })
 const isUiVisible = ref(true)
 const isMetadataPanelVisible = ref(false)
+const isMetadataLoading = ref(false)
 
-// --- Новая, более надежная система отслеживания загрузки ---
 const isCurrentImageLoading = ref(true)
 const isCurrentImageInError = ref(false)
 
@@ -172,7 +174,6 @@ watch(() => props.visible, (isVisible) => {
 
 function handleImageLoad(event: Event) {
   const target = event.target as HTMLImageElement | null
-  // Убедимся, что событие пришло от текущего изображения, чтобы избежать race condition
   if (target && target.src === resolveApiUrl(currentImageSrc.value)) {
     isCurrentImageLoading.value = false
     isCurrentImageInError.value = false
@@ -190,6 +191,51 @@ function handleImageError(event: Event) {
     isCurrentImageLoading.value = false
     isCurrentImageInError.value = true
     emit('imageError', event)
+  }
+}
+
+async function handleShowMetadata() {
+  const image = currentImage.value
+  if (!image)
+    return
+
+  const hasFullMetadata = image.meta && (image.meta.camera || image.meta.settings)
+
+  if (hasFullMetadata) {
+    isMetadataPanelVisible.value = true
+    return
+  }
+
+  const imageId = (image.meta as any)?.imageId
+
+  if (imageId) {
+    isMetadataLoading.value = true
+    try {
+      await useRequest({
+        key: TRIP_GALLERY_KEYS.FETCH_METADATA(imageId),
+        fn: db => db.files.getMetadata(imageId),
+        onSuccess: (fullMetadata) => {
+          if (fullMetadata) {
+            if (!image.meta)
+              image.meta = {}
+            Object.assign(image.meta, fullMetadata)
+          }
+          isMetadataPanelVisible.value = true
+        },
+        onError: (error) => {
+          console.error('Failed to load metadata', error)
+
+          if (image.meta)
+            isMetadataPanelVisible.value = true
+        },
+      })
+    }
+    finally {
+      isMetadataLoading.value = false
+    }
+  }
+  else if (image.meta) {
+    isMetadataPanelVisible.value = true
   }
 }
 
@@ -260,11 +306,12 @@ onUnmounted(() => {
                 :can-zoom-in="canZoomIn"
                 :can-zoom-out="canZoomOut"
                 :is-zoomed="isZoomed"
-                :has-metadata="!!currentImageMeta"
+                :has-metadata="true"
+                :is-metadata-loading="isMetadataLoading"
                 :show-quality-selector="showQualitySelector"
                 :show-info-button="showInfoButton"
                 @reset-transform="resetTransform"
-                @show-metadata="isMetadataPanelVisible = true"
+                @show-metadata="handleShowMetadata"
                 @close="close"
               />
             </div>

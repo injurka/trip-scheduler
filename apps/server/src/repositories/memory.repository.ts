@@ -26,7 +26,11 @@ export const memoryRepository = {
     const result = await db.query.memories.findFirst({
       where: eq(memories.id, newMemory.id),
       with: {
-        image: true,
+        image: {
+          columns: {
+            metadata: false,
+          },
+        },
       },
     })
 
@@ -40,7 +44,11 @@ export const memoryRepository = {
     return await db.query.memories.findMany({
       where: eq(memories.tripId, tripId),
       with: {
-        image: true,
+        image: {
+          columns: {
+            metadata: false,
+          },
+        },
       },
       orderBy: [asc(memories.timestamp), asc(memories.createdAt)],
     })
@@ -87,7 +95,11 @@ export const memoryRepository = {
     return await db.query.memories.findFirst({
       where: eq(memories.id, updatedMemory.id),
       with: {
-        image: true,
+        image: {
+          columns: {
+            metadata: false,
+          },
+        },
       },
     })
   },
@@ -143,11 +155,10 @@ export const memoryRepository = {
     if (!updatedMemory)
       return null
 
-    // Возвращаем обновленный объект с полными данными
     return await db.query.memories.findFirst({
       where: eq(memories.id, updatedMemory.id),
       with: {
-        image: true,
+        image: { columns: { metadata: false } },
       },
     })
   },
@@ -170,7 +181,7 @@ export const memoryRepository = {
     return await db.query.memories.findFirst({
       where: eq(memories.id, updatedMemory.id),
       with: {
-        image: true,
+        image: { columns: { metadata: false } },
       },
     })
   },

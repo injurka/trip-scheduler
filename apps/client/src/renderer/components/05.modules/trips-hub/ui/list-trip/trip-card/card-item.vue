@@ -10,6 +10,7 @@ import { KitDropdown } from '~/components/01.kit/kit-dropdown'
 import { KitImage } from '~/components/01.kit/kit-image'
 import { TripCommentsWidget } from '~/components/04.features/trip-info/trip-comments'
 import { TripEditInfoDialog } from '~/components/04.features/trip-info/trip-edit-info-dialog'
+import { AppRoutePaths } from '~/shared/constants/routes'
 import { CommentParentType } from '~/shared/types/models/comment'
 import { TripsHubKey } from '../../../composables'
 
@@ -28,6 +29,10 @@ const isEditModalOpen = ref(false)
 
 function goTo() {
   router.push(AppRoutePaths.Trip.Info(`${props.id}`))
+}
+
+function navigateToProfile(userId: string) {
+  router.push(AppRoutePaths.User.Profile(userId))
 }
 
 async function handleDelete() {
@@ -181,9 +186,12 @@ const visibilityIcon = computed(() => {
               :offset="10"
               class="participant-wrapper"
             >
+              <!-- Добавлен модификатор .stop -->
               <KitAvatar
                 :name="participant.name"
                 :src="participant.avatarUrl"
+                class="clickable-avatar"
+                @click.stop="navigateToProfile(participant.id)"
               />
             </KitAnimatedTooltip>
 
@@ -221,6 +229,15 @@ const visibilityIcon = computed(() => {
 </template>
 
 <style scoped lang="scss">
+.clickable-avatar {
+  cursor: pointer;
+  transition: transform 0.2s ease;
+  &:hover {
+    transform: scale(1.1);
+    z-index: 20;
+  }
+}
+
 .travel-card-wrapper {
   padding: 8px;
   border-radius: var(--r-xl);
@@ -302,7 +319,7 @@ const visibilityIcon = computed(() => {
   position: relative;
   display: flex;
   z-index: 2;
-  min-height: 20px; // Резервируем место
+  min-height: 20px;
 }
 
 .card-visibility {

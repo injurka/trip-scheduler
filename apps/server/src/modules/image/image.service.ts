@@ -20,7 +20,18 @@ export const imageService = {
     sizeBytes: number,
     metadata: ImageMetadata,
   ) {
-    return await imageRepository.create(tripId, url, originalName, placement, sizeBytes, metadata)
+    return await imageRepository.create(
+      tripId,
+      url,
+      originalName,
+      placement,
+      sizeBytes,
+      metadata,
+    )
+  },
+
+  async getMetadata(imageId: string) {
+    return await imageRepository.getMetadata(imageId)
   },
 
   /**

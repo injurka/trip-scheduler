@@ -10,6 +10,7 @@ interface Props {
   canZoomOut: boolean
   isZoomed: boolean
   hasMetadata: boolean
+  isMetadataLoading?: boolean
   quality: ImageQuality
   showQualitySelector: boolean
   showInfoButton: boolean
@@ -64,12 +65,15 @@ const currentQuality = computed({
         </template>
       </KitViewerDropdown>
       <button
-        v-if="hasMetadata && showInfoButton"
+        v-if="showInfoButton"
         class="control-btn"
+        :class="{ loading: isMetadataLoading }"
+        :disabled="isMetadataLoading"
         title="Информация о снимке"
         @click="emit('showMetadata')"
       >
-        <Icon icon="mdi:information-outline" />
+        <Icon v-if="isMetadataLoading" icon="mdi:loading" class="spin" />
+        <Icon v-else icon="mdi:information-outline" />
       </button>
       <button
         class="control-btn"
@@ -124,6 +128,23 @@ const currentQuality = computed({
   &:disabled {
     opacity: 0.5;
     cursor: not-allowed;
+  }
+
+  &.loading {
+    cursor: wait;
+  }
+}
+
+.spin {
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
   }
 }
 
