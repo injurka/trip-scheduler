@@ -1,0 +1,38 @@
+.content-wrapper {
+  @include default-font();
+
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  padding: 16px;
+  max-width: 1000px;
+  min-height: 100%;
+  width: 100%;
+  background-color: var(--bg-primary-color);
+  margin: 0 auto;
+
+  @include media-down(sm) {
+    padding: 16px 6px;
+  }
+
+  &::before,
+  &::after {
+    content: '';
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    width: 100px;
+    pointer-events: none;
+    z-index: 2;
+  }
+
+  &::before {
+    right: 100%;
+    background: linear-gradient(to left, var(--bg-primary-color), transparent);
+  }
+
+  &::after {
+    left: 100%;
+    background: linear-gradient(to right, var(--bg-primary-color), transparent);
+  }
+}

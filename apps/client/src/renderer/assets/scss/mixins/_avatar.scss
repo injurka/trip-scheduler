@@ -1,0 +1,15 @@
+@use 'sass:color';
+
+$avatar-base-colors: (
+  'blue': #096dd9,
+  'orange': #d48806,
+  'green': #389e0d,
+  'red': #d9363e,
+  'purple': #722ed1,
+  'cyan': #08979c,
+);
+
+@mixin generate-avatar-colors($base-color) {
+  color: $base-color;
+  background-color: color.mix(white, $base-color, 90%);
+}

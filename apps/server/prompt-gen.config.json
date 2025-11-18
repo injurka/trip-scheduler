@@ -1,0 +1,8 @@
+{
+  "extensions": "ts,json",
+  "directory": "./",
+  "output": "project_prompt.md",
+  "format": "structured",
+  "maxSize": "35",
+  "excludePaths": "**/mock/**,**/mock-todo/**,**/drizzle/**"
+}

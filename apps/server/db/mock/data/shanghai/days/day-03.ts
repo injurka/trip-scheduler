@@ -1,0 +1,17 @@
+import { DAY_IDS, getRoutePath, TRIP_ID } from '../constants'
+
+export const MOCK_DAY_03 = {
+  id: DAY_IDS.DAY_03,
+  tripId: TRIP_ID,
+  date: new Date('2025-05-12'),
+  title: 'Ура небоскребам (Pudong)',
+  description: 'День, посвященный футуристическому району Пудун. Подъем на один из самых высоких небоскребов мира, посещение огромного океанариума и парков, и, конечно, классический вид на ночной Пудун с набережной Вайтан.',
+  activities: [
+    { id: crypto.randomUUID(), dayId: DAY_IDS.DAY_03, startTime: '10:00', endTime: '11:00', title: 'Дорога в Пудун', tag: 'transport' as const, sections: [{ id: crypto.randomUUID(), type: 'description', text: 'Поездка на метро до станции **Lujiazui (陆家嘴)**, финансового центра Шанхая.' }, { id: crypto.randomUUID(), type: 'gallery', imageUrls: [getRoutePath('20250313233958.png'), getRoutePath('20250313234517.png'), getRoutePath('20250313233753.png')] }] },
+    { id: crypto.randomUUID(), dayId: DAY_IDS.DAY_03, startTime: '11:00', endTime: '12:30', title: 'Подъем на небоскреб', tag: 'attraction' as const, sections: [{ id: crypto.randomUUID(), type: 'description', text: '**Варианты:**\n\n*   **Shanghai Tower (上海中心):** Самый высокий вид (546 м). *Цена: 180 CNY*. [Билеты](https://us.trip.com/travel-guide/attraction/shanghai/shanghai-tower-24591219/?locale=en-XX&curr=CNY)\n*   **Oriental Pearl Tower (东方明珠):** Самая узнаваемая башня со стеклянным полом. *Цена: 160 CNY*. [Билеты](https://us.trip.com/travel-guide/attraction/shanghai/oriental-pearl-radio-and-television-tower-75627/?locale=en-US&curr=CNY)' }, { id: crypto.randomUUID(), type: 'gallery', imageUrls: [getRoutePath('20250313234400.png'), getRoutePath('20250313234435.png')] }] },
+    { id: crypto.randomUUID(), dayId: DAY_IDS.DAY_03, startTime: '12:30', endTime: '14:00', title: 'Обед в IFC Mall', tag: 'food' as const, sections: [{ id: crypto.randomUUID(), type: 'description', text: 'Обед в одном из лучших торговых центров Пудуна **(国金中心商场)**. \n\n**Рекомендация:** Ресторан **Din Tai Fung (鼎泰丰)** на 3 этаже для дегустации знаменитых пельменей сяолунбао.' }, { id: crypto.randomUUID(), type: 'gallery', imageUrls: [getRoutePath('20250313234851.png')] }] },
+    { id: crypto.randomUUID(), dayId: DAY_IDS.DAY_03, startTime: '14:30', endTime: '16:00', title: 'Прогулка по Century Park', tag: 'walk' as const, sections: [{ id: crypto.randomUUID(), type: 'description', text: 'Крупнейший городской парк Шанхая **(世纪公园)** с озерами и садами. Вход: 10 юаней.' }, { id: crypto.randomUUID(), type: 'gallery', imageUrls: [getRoutePath('20250314004804.png'), getRoutePath('20250314004824.png'), getRoutePath('20250314004848.png')] }] },
+    { id: crypto.randomUUID(), dayId: DAY_IDS.DAY_03, startTime: '16:30', endTime: '20:00', title: 'Прогулка по району и ужин', tag: 'food' as const, sections: [{ id: crypto.randomUUID(), type: 'description', text: 'Свободное время для исследования района и ужин в **Super Brand Mall (正大广场)**. Попробуйте **Shanghai Min (小南国)** для аутентичной шанхайской кухни.' }] },
+    { id: crypto.randomUUID(), dayId: DAY_IDS.DAY_03, startTime: '20:30', endTime: '21:30', title: 'Вечерняя прогулка по набережной The Bund', tag: 'walk' as const, sections: [{ id: crypto.randomUUID(), type: 'description', text: 'Возвращение на другую сторону реки, чтобы насладиться культовым видом на освещенные небоскребы Пудуна. Лучшие фото получаются именно отсюда!' }, { id: crypto.randomUUID(), type: 'gallery', imageUrls: [getRoutePath('20250314004632.png')] }] },
+  ],
+}

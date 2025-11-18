@@ -1,0 +1,111 @@
+@use '_variables.scss';
+@use '../../_functions.scss';
+
+// BG
+$bg-colors: (
+  bg-primary: variables.$bg-primary-color,
+  bg-secondary: variables.$bg-secondary-color,
+  bg-tertiary: variables.$bg-tertiary-color,
+  bg-header: variables.$bg-header-color,
+  bg-disabled: variables.$bg-disabled-color,
+  bg-inverted: variables.$bg-inverted-color,
+  bg-accent-overlay: variables.$bg-accent-overlay-color,
+  bg-accent: variables.$bg-accent-color,
+  bg-pressed: variables.$bg-pressed-color,
+  bg-overlay-primary: variables.$bg-overlay-primary-color,
+  bg-overlay-secondary: variables.$bg-overlay-secondary-color,
+  bg-action-hover: variables.$bg-action-hover-color,
+  bg-hover: variables.$bg-hover-color,
+  bg-focus: variables.$bg-focus-color,
+  bg-highlight: variables.$bg-highlight-color,
+
+  // STATUS
+  bg-success: variables.$bg-success-color,
+  bg-error: variables.$bg-error-color,
+  bg-warning: variables.$bg-warning-color,
+  bg-info: variables.$bg-info-color,
+);
+
+// Border
+$border-colors: (
+  border-button-secondary: variables.$border-button-secondary-color,
+  border-disabled: variables.$border-disabled-color,
+  border-primary: variables.$border-primary-color,
+  border-secondary: variables.$border-secondary-color,
+  border-accent: variables.$border-accent-color,
+  border-focus: variables.$border-focus-color,
+  border-pressed: variables.$border-pressed-color,
+);
+
+// BORDER STATUS
+$border-status-colors: (
+  border-success: variables.$border-success-color,
+  border-error: variables.$border-error-color,
+  border-warning: variables.$border-warning-color,
+  border-info: variables.$border-info-color,
+);
+
+// FG
+$fg-colors: (
+  fg-primary: variables.$fg-primary-color,
+  fg-secondary: variables.$fg-secondary-color,
+  fg-tertiary: variables.$fg-tertiary-color,
+  fg-muted: variables.$fg-muted-color,
+  fg-accent: variables.$fg-accent-color,
+  fg-action: variables.$fg-action-color,
+  fg-inverted: variables.$fg-inverted-color,
+  fg-disabled: variables.$fg-disabled-color,
+  fg-pressed: variables.$fg-pressed-color,
+  fg-highlight: variables.$fg-highlight-color,
+);
+
+// FG STATUS
+$fg-status-colors: (
+  fg-success: variables.$fg-success-color,
+  fg-error: variables.$fg-error-color,
+  fg-warning: variables.$fg-warning-color,
+  fg-info: variables.$fg-info-color,
+);
+
+$paddings: (
+  2xl: 32px,
+  xl: 24px,
+  l: 20px,
+  m: 16px,
+  s: 12px,
+  xs: 8px,
+  2xs: 4px,
+);
+
+$radius: (
+  full: 1000px,
+  xl: 24px,
+  l: 16px,
+  m: 12px,
+  s: 8px,
+  xs: 6px,
+  2xs: 4px,
+);
+
+$shadows: (
+  xs: 0 1px 2px 0 rgba(variables.$shadow-color, 0.15),
+  s: (
+    0 1px 3px 0 rgba(variables.$shadow-color, 0.2),
+    0 1px 2px -1px rgba(variables.$shadow-color, 0.2),
+  ),
+  m: (
+    0 4px 8px -1px rgba(variables.$shadow-color, 0.25),
+    0 2px 6px -2px rgba(variables.$shadow-color, 0.25),
+  ),
+  l: (
+    0 10px 20px -3px rgba(variables.$shadow-color, 0.3),
+    0 4px 8px -4px rgba(variables.$shadow-color, 0.3),
+  ),
+  xl: (
+    0 20px 30px -5px rgba(variables.$shadow-color, 0.35),
+    0 8px 15px -6px rgba(variables.$shadow-color, 0.35),
+  ),
+  inset: inset 0 2px 4px 0 rgba(variables.$shadow-color, 0.15),
+);
+
+$colors: functions.map-collect($bg-colors, $border-colors, $border-status-colors, $fg-colors, $fg-status-colors);

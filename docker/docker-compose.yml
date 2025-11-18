@@ -1,0 +1,87 @@
+services:
+  client:
+    image: trip-scheduler-client:${V_CLIENT:-latest}
+    container_name: trip-scheduler-client
+    ports:
+      - "1420:1420"
+    restart: always
+
+  server:
+    image: trip-scheduler-server:${V_SERVER:-latest}
+    container_name: trip-scheduler-server
+    ports:
+      - "8080:8080"
+    networks:
+      - trip-net
+    env_file:
+      - ../apps/server/.env
+    volumes:
+      - "$HOME/static-data:/usr/src/app/static"
+    restart: always
+    depends_on:
+      - db
+
+  db:
+    image: postgres:16-alpine
+    container_name: trip-scheduler-db
+    networks:
+      - trip-net
+    environment:
+      POSTGRES_USER: trip-scheduler
+      POSTGRES_PASSWORD: trip-scheduler
+      POSTGRES_DB: trip_scheduler_prod
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    restart: always
+
+  prometheus:
+    image: prom/prometheus:latest
+    container_name: prometheus
+    ports:
+      - "9090:9090"
+    networks:
+      - trip-net
+    volumes:
+      - ./prometheus.yml:/etc/prometheus/prometheus.yml
+      - prometheus-data:/prometheus
+    command:
+      - "--config.file=/etc/prometheus/prometheus.yml"
+    restart: always
+    depends_on:
+      - server
+
+  grafana:
+    image: grafana/grafana:latest
+    container_name: grafana
+    ports:
+      - "3000:3000"
+    networks:
+      - trip-net
+    volumes:
+      - grafana-data:/var/lib/grafana # Для сохранения дашбордов и настроек
+      - ./grafana/provisioning/:/etc/grafana/provisioning/
+      - ./grafana/dashboards/:/etc/grafana/provisioning/dashboards/
+    restart: always
+    depends_on:
+      - prometheus
+
+  node-exporter:
+    image: prom/node-exporter:v1.7.0
+    container_name: node-exporter
+    networks:
+      - trip-net
+    command:
+      - "--path.rootfs=/host"
+    pid: host
+    restart: unless-stopped
+    volumes:
+      - "/:/host:ro,rslave"
+
+networks:
+  trip-net:
+    driver: bridge
+
+volumes:
+  pgdata:
+  prometheus-data:
+  grafana-data:

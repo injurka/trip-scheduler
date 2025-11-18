@@ -1,0 +1,66 @@
+@keyframes fadeInScale {
+  0% {
+    opacity: 0;
+    transform: scale(0.7);
+  }
+  100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+// --- PageTransitions --- //
+.faded-enter-active,
+.faded-leave-active {
+  transition: all 0.2s !important;
+}
+.faded-enter-from {
+  opacity: 0;
+}
+.faded-leave-to {
+  opacity: 0;
+}
+
+.faded-blured-enter-active,
+.faded-blured-leave-active {
+  transition: all 0.2s !important;
+}
+.faded-blured-enter-from,
+.faded-blured-leave-to {
+  opacity: 0;
+  filter: blur(4px);
+}
+
+// -- ComponentTransition --- //
+
+.slide-up-enter-active,
+.slide-up-leave-active {
+  transition:
+    opacity 0.2s ease,
+    transform 0.3s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.slide-up-enter-from,
+.slide-up-leave-to {
+  opacity: 0;
+  transform: translateY(-30px) scale(0.95);
+}
+
+.smooth-appear-enter-active,
+.smooth-appear-leave-active {
+  transition:
+    opacity 0.2s ease,
+    transform 0.2s ease-in-out;
+}
+
+.smooth-appear-enter-from,
+.smooth-appear-leave-to {
+  opacity: 0;
+  transform: translateY(10px);
+}
+
+.smooth-appear-enter-to,
+.smooth-appear-leave-from {
+  opacity: 1;
+  transform: translateY(0);
+}

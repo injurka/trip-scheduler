@@ -1,0 +1,35 @@
+@use 'sass:map';
+
+html {
+  padding: 0;
+  margin: 0;
+  height: 100%;
+  border: none;
+}
+
+body {
+  box-sizing: border-box;
+  scrollbar-gutter: stable;
+  margin: 0;
+  padding: 0;
+  border: none;
+  background-color: var(--bg-primary-color);
+  color: var(--fg-primary-color);
+  font-size: map.get($font-sizes, 'base');
+
+  *,
+  *::before,
+  *::after {
+    box-sizing: border-box;
+    overscroll-behavior: none;
+    text-decoration-color: var(--fg-primary-color);
+    caret-color: var(--fg-primary-color);
+    font-family: 'Rubik';
+  }
+}
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}

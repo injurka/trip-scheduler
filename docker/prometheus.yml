@@ -1,0 +1,13 @@
+global:
+  scrape_interval: 15s
+
+scrape_configs:
+  - job_name: 'trip-scheduler-server'
+  # Задача для сбора метрик с бэкенда по имени его сервиса ('server')
+    static_configs:
+      - targets: ['server:8080'] # Имя сервиса и порт из docker-compose
+
+  # Задача для сбора метрик с Node Exporter
+  - job_name: 'node-exporter'
+    static_configs:
+      - targets: ['node-exporter:9100'] # Имя сервиса и порт из docker-compose

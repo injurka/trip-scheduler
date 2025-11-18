@@ -1,0 +1,63 @@
+{
+  "name": "@xsolare/trip-scheduler-server",
+  "type": "module",
+  "version": "0.1.0",
+  "private": true,
+  "engines": {
+    "bun": ">=1.1.30"
+  },
+  "scripts": {
+    "start": "bun run dist/server.js",
+    "--------------------------------<      DEV       >--------------------------------": "",
+    "dev": "bun run --hot --watch src/server.ts",
+    "dev:debug": "bun --inspect run --hot --watch src/server.ts",
+    "--------------------------------<      BUILD     >--------------------------------": "",
+    "build:bun": "bun build ./src/index.ts --outdir ./dist --target bun --no-minify",
+    "build": "tsup",
+    "--------------------------------<   DATABASE    >---------------------------------": "",
+    "db:migrate": "bun run db/migrate.ts",
+    "db:generate": "bunx drizzle-kit generate",
+    "db:dump": "bun run db/create-dump.ts",
+    "db:check": "bun run db/check-data.ts",
+    "db:seed-mock": "bun run db/seed-from-mock.ts",
+    "db:seed-json": "bun run db/seed-from-json.ts",
+    "db:studio": "bunx drizzle-kit studio",
+    "db:reset": "bunx drizzle-kit drop",
+    "--------------------------------< LINT & FORMAT >---------------------------------": "",
+    "lint": "eslint .",
+    "lint:fix": "eslint . --fix",
+    "typecheck": "bunx tsc --noEmit"
+  },
+  "dependencies": {
+    "@hono/trpc-server": "^0.4.0",
+    "@tma.js/init-data-node": "^2.0.3",
+    "@trpc/server": "^11.7.1",
+    "drizzle-orm": "^0.44.7",
+    "drizzle-zod": "^0.8.3",
+    "exifr": "^7.1.3",
+    "hono": "^4.10.4",
+    "openai": "^6.8.0",
+    "pdf-parse": "^2.4.5",
+    "pg": "^8.16.3",
+    "prom-client": "^15.1.3",
+    "resend": "^6.4.0",
+    "sharp": "^0.34.4",
+    "uuid": "^13.0.0",
+    "zod": "^4.1.12"
+  },
+  "devDependencies": {
+    "@antfu/eslint-config": "6.2.0",
+    "@types/bun": "latest",
+    "@types/pg": "^8.15.6",
+    "@types/prompts": "^2.4.9",
+    "@types/uuid": "^11.0.0",
+    "bun": "^1.3.1",
+    "bun-types": "^1.3.1",
+    "drizzle-kit": "^0.31.6",
+    "eslint": "9.39.1",
+    "eslint-plugin-format": "1.0.2",
+    "prompts": "^2.4.2",
+    "tsup": "^8.5.0",
+    "typescript": "5.9.3"
+  }
+}

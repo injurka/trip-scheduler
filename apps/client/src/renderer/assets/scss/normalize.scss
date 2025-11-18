@@ -1,0 +1,105 @@
+button {
+  font-family: inherit;
+  color: inherit;
+  font-size: 100%;
+  margin: 0;
+  background-color: transparent;
+  outline: 0;
+  border: 0;
+  cursor: pointer;
+  overflow: visible;
+  text-transform: none;
+}
+
+h2 {
+  margin: 14px 0 8px 0;
+}
+
+ul {
+  padding: 12px 24px;
+}
+
+p {
+  padding: 2px 0;
+}
+
+#app {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+}
+
+::-webkit-scrollbar {
+  width: 4px;
+  height: 100%;
+  background-color: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  border-radius: var(--r-m);
+  background-color: var(--color-background-content);
+  box-shadow: inset 0 0 5px var(--color-background-content);
+}
+
+::-webkit-scrollbar-track {
+  background-color: transparent;
+}
+
+::-moz-selection {
+  background: var(--bg-accent-overlay-color);
+}
+
+::selection {
+  background: var(--bg-accent-overlay-color);
+}
+
+hr {
+  margin: 16px 0;
+  width: 100%;
+  border: 1px solid var(--border-secondary-color);
+}
+
+.milkdown {
+  --crepe-color-background: transparent; /* Main background color */
+
+  /* Background Colors */
+  --crepe-color-background: transparent; /* Main background color */
+  --crepe-color-surface: var(--bg-secondary-color); /* Surface color for cards/panels */
+  --crepe-color-surface-low: var(--bg-tertiary-color); /* Lower surface color for depth */
+
+  /* Text Colors */
+  --crepe-color-on-background: var(--fg-primary-color); /* Text color on background */
+  --crepe-color-on-surface: var(--fg-secondary-color); /* Text color on surface */
+  --crepe-color-on-surface-variant: var(--fg-accent-color); /* Secondary text color */
+
+  /* Accent Colors */
+  --crepe-color-primary: var(--fg-primary-color); /* Primary brand color */
+  --crepe-color-secondary: var(--fg-secondary-color); /* Secondary accent color */
+  --crepe-color-on-secondary: var(--fg-accent-color); /* Text color on secondary */
+
+  /* UI Colors */
+  --crepe-color-outline: var(--fg-primary-color); /* Border/outline color */
+  --crepe-color-inverse: var(--fg-secondary-color); /* Inverse color for contrast */
+  --crepe-color-on-inverse: var(--fg-tertiary-color); /* Text color on inverse */
+  --crepe-color-inline-code: var(--bg-error-color); /* Inline code color */
+  --crepe-color-error: var(--bg-error-color); /* Error state color */
+
+  /* Interactive Colors */
+  --crepe-color-hover: var(--bg-action-hover-color); /* Hover state color */
+  --crepe-color-selected: var(--bg-accent-overlay-color); /* Selected state color */
+  --crepe-color-inline-area: var(--bg-accent-color); /* Inline editing area color */
+}
+
+.milkdown-toolbar {
+  padding: 4px !important;
+  .toolbar-item {
+    margin: 0px !important;
+  }
+  .divider {
+    height: 12px !important;
+  }
+}
+
+.milkdown-slash-menu {
+  padding: 4px !important;
+}

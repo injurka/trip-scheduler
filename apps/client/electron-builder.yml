@@ -1,0 +1,111 @@
+appId: com.example
+productName: TripScheduler
+copyright: Copyright © 2025 ${author}
+
+npmRebuild: false
+
+electronLanguages:
+  - ru
+
+directories:
+  output: dist
+  buildResources: build
+
+protocols:
+  - name: TripScheduler Auth
+    schemes:
+      - trip-scheduler
+
+files:
+  - from: ./out
+    to: ./
+  - from: ./package.json
+    to: ./package.json
+  - from: ./resources
+    to: ./resources
+  - filter:
+      - '**/*'
+      - '!{.vscode,.yarn,.yarn-lock,.github,.cursorrules,.prettierrc}'
+      - '!electron.vite.config.{js,ts,mjs,cjs}'
+      - '!{.eslintignore,.eslintrc.cjs,.prettierignore,.prettierrc.yaml,eslint.config.mjs,dev-app-update.yml,CHANGELOG.md,README.md}'
+      - '!{.env,.env.*,.npmrc,pnpm-lock.yaml}'
+      - '!{tsconfig.json,tsconfig.node.json,tsconfig.web.json}'
+      - '!src'
+      - '!scripts'
+      - '!local'
+      - '!docs'
+      - '!packages'
+      - '!.swc'
+      - '!.bin'
+      - '!._*'
+      - '!*.log'
+      - '!stats.html'
+      - '!*.md'
+      - '!**/*.{iml,o,hprof,orig,pyc,pyo,rbc,swp,csproj,sln,xproj}'
+      - '!**/*.{map,ts,tsx,jsx,less,scss,sass,css.d.ts,d.cts,d.mts,md,markdown,yaml,yml}'
+      - '!**/{test,tests,__tests__,powered-test,coverage}/**'
+      - '!**/{example,examples}/**'
+      - '!**/*.{spec,test}.{js,jsx,ts,tsx}'
+      - '!**/*.min.*.map'
+      - '!**/*.d.ts'
+      - '!**/dist/es6/**'
+      - '!**/dist/demo/**'
+      - '!**/amd/**'
+      - '!**/{.DS_Store,Thumbs.db,thumbs.db,__pycache__}'
+      - '!**/{LICENSE,license,LICENSE.*,*.LICENSE.txt,NOTICE.txt,README.md,readme.md,CHANGELOG.md}'
+      - '!electron.vite.config.ts'
+      - '!eslint.config.ts'
+      - '!.env*'
+      - '!.git*'
+      - '!.vscode'
+      - '!node_modules/electron-builder'
+      - '!node_modules/rollup-plugin-visualizer'
+
+win:
+  icon: ./public/logo.png
+  target:
+    - target: nsis
+      arch:
+        - x64
+    - target: portable
+      arch:
+        - x64
+
+nsis:
+  artifactName: ${productName}-setup-${version}-${arch}.${ext}
+  uninstallDisplayName: ${productName}
+  createDesktopShortcut: always
+  allowToChangeInstallationDirectory: true
+  oneClick: false
+
+portable:
+  artifactName: ${productName}-portable-${version}-${arch}.${ext}
+
+mac:
+  icon: ./public/logo.png
+  category: public.app-category.utilities
+  target:
+    - target: dmg
+      arch:
+        - x64
+        - arm64
+    - target: zip
+      arch:
+        - x64
+        - arm64
+
+linux:
+  icon: ./public/logo.png
+  artifactName: ${productName}-${version}-${arch}.${ext}
+  category: Utility
+  maintainer: electronjs.org
+  desktop:
+    entry:
+      StartupWMClass: TripScheduler
+  target:
+    - target: AppImage
+  mimeTypes:
+    - x-scheme-handler/trip-scheduler
+
+electronDownload:
+  mirror: https://npmmirror.com/mirrors/electron/

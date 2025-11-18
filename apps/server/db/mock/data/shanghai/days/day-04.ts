@@ -1,0 +1,15 @@
+import { DAY_IDS, getRoutePath, TRIP_ID } from '../constants'
+
+export const MOCK_DAY_04 = {
+  id: DAY_IDS.DAY_04,
+  tripId: TRIP_ID,
+  date: new Date('2025-05-13'),
+  title: 'Сады, Храмы и Чаи',
+  description: 'День погружения в традиционный Китай в самом сердце Шанхая. Мы исследуем классический сад Юй Юань, прогуляемся по отреставрированным кварталам Xintiandi и затеряемся в лабиринте узких улочек Tian Zi Fang.',
+  activities: [
+    { id: crypto.randomUUID(), dayId: DAY_IDS.DAY_04, startTime: '10:00', endTime: '13:00', title: 'Посещение сада Юй Юань (Yu Garden)', tag: 'attraction' as const, sections: [{ id: crypto.randomUUID(), type: 'description', text: 'Исследование классического китайского сада династии Мин **(豫园)** с его прудами, павильонами и мостиками. \n\n**Обязательно к посещению:**\n* *Sansui Hall (三穗堂)*\n* *Wanhua Chamber (万花楼)*\n* *Dianchun Hall (点春堂)*' }, { id: crypto.randomUUID(), type: 'description', text: '**Бронирование:** Настоятельно рекомендуется бронировать билеты заранее, особенно в выходные, через Trip.com или Klook. Цена: ~30-40 CNY.' }, { id: crypto.randomUUID(), type: 'gallery', imageUrls: [getRoutePath('20250309004803.png'), getRoutePath('20250309004958.png'), getRoutePath('20250309005052.png'), getRoutePath('20250309005112.png'), getRoutePath('20250309005133.png')] }] },
+    { id: crypto.randomUUID(), dayId: DAY_IDS.DAY_04, startTime: '13:00', endTime: '14:00', title: 'Старый город и улица Fangbang', tag: 'walk' as const, sections: [{ id: crypto.randomUUID(), type: 'description', text: 'Прогулка мимо Даосского храма городского божества **(上海城隍庙)** по старинной улочке **Fangbang Middle Road (方浜中路)**.' }, { id: crypto.randomUUID(), type: 'gallery', imageUrls: [getRoutePath('20250309005739.png'), getRoutePath('20250309005903.png'), getRoutePath('20250309010228.png'), getRoutePath('20250309010246.png')] }] },
+    { id: crypto.randomUUID(), dayId: DAY_IDS.DAY_04, startTime: '14:00', endTime: '16:00', title: 'Прогулка и обед в Xintiandi', tag: 'food' as const, sections: [{ id: crypto.randomUUID(), type: 'description', text: 'Исследование пешеходного района **(新天地)** с домами "шикумен", где история встречается с современностью. Обед в одном из модных кафе.' }, { id: crypto.randomUUID(), type: 'gallery', imageUrls: [getRoutePath('20250309171231.png'), getRoutePath('20250309163606.png'), getRoutePath('20250309163617.png'), getRoutePath('20250309171739.png'), getRoutePath('20250309171818.png')] }] },
+    { id: crypto.randomUUID(), dayId: DAY_IDS.DAY_04, startTime: '16:30', endTime: '19:00', title: 'Исследование района Tian Zi Fang', tag: 'walk' as const, sections: [{ id: crypto.randomUUID(), type: 'description', text: 'Погружение в лабиринт узких улочек **(田子坊)** бывшей французской концессии, наполненных художественными галереями, крафтовыми магазинами, кафе и чайными домами. \n\n*Ищите:* уникальные сувениры, уличную еду (например, жареные булочки *生煎包*) и многочисленных кошек!' }, { id: crypto.randomUUID(), type: 'gallery', imageUrls: [getRoutePath('20250223152330.png'), getRoutePath('20250309174226.png')] }] },
+  ],
+}

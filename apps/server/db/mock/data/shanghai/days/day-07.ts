@@ -1,0 +1,18 @@
+import { DAY_IDS, getRoutePath, TRIP_ID } from '../constants'
+
+export const MOCK_DAY_07 = {
+  id: DAY_IDS.DAY_07,
+  tripId: TRIP_ID,
+  date: new Date('2025-05-16'),
+  title: 'Гимн Спокойствию (Suzhou)',
+  description: 'Однодневная поездка на скоростном поезде в Сучжоу, "Восточную Венецию". День будет посвящен исследованию шедевров китайского садово-паркового искусства, внесенных в список ЮНЕСКО, и прогулкам по живописным улицам вдоль каналов.',
+  activities: [
+    { id: crypto.randomUUID(), dayId: DAY_IDS.DAY_07, startTime: '09:20', endTime: '10:20', title: 'Дорога до вокзала и поездка в Сучжоу', tag: 'transport' as const, sections: [{ id: crypto.randomUUID(), type: 'description', text: 'Поездка на метро до вокзала **Hongqiao (虹桥火车站)** и 30-минутное путешествие на скоростном поезде.' }, { id: crypto.randomUUID(), type: 'gallery', imageUrls: [getRoutePath('20250221144249.png')] }] },
+    { id: crypto.randomUUID(), dayId: DAY_IDS.DAY_07, startTime: '11:20', endTime: '13:00', title: 'Сад Скромного Чиновника', tag: 'attraction' as const, sections: [{ id: crypto.randomUUID(), type: 'description', text: 'Самый большой и знаменитый сад Сучжоу **(The Humble Administrator\'s Garden 拙政园)**. Вход: 70 CNY.' }, { id: crypto.randomUUID(), type: 'gallery', imageUrls: [getRoutePath('20250221154010.png'), getRoutePath('20250221154201.png')] }] },
+    { id: crypto.randomUUID(), dayId: DAY_IDS.DAY_07, startTime: '11:20', endTime: '13:00', title: 'Альтернатива: Сад Львиного Леса', tag: 'attraction' as const, sections: [{ id: crypto.randomUUID(), type: 'description', text: 'Лабиринт из камней, напоминающих львов, в **Lion Grove Garden (狮子林)**. Вход: 40 CNY.' }, { id: crypto.randomUUID(), type: 'gallery', imageUrls: [getRoutePath('20250221154416.png'), getRoutePath('20250221154551.png'), getRoutePath('20250221154742.png')] }] },
+    { id: crypto.randomUUID(), dayId: DAY_IDS.DAY_07, startTime: '13:00', endTime: '14:50', title: 'Прогулка и обед на Pingjiang Road', tag: 'food' as const, sections: [{ id: crypto.randomUUID(), type: 'description', text: 'Прогулка по мощеной исторической улице **Pingjiang Road** с чайными, мастерскими и сувенирными лавками. Обед в местной пельменной.' }, { id: crypto.randomUUID(), type: 'gallery', imageUrls: [getRoutePath('20250221155358.png'), getRoutePath('20250221155028.png'), getRoutePath('20250221155103.png'), getRoutePath('20250221170009.png'), getRoutePath('20250221170416.png')] }] },
+    { id: crypto.randomUUID(), dayId: DAY_IDS.DAY_07, startTime: '15:30', endTime: '17:30', title: 'Tiger Hill Pagoda (Пагода на Тигрином холме)', tag: 'attraction' as const, sections: [{ id: crypto.randomUUID(), type: 'description', text: 'Посещение "китайской Пизанской башни" - древней наклонной пагоды **(云岩寺塔)** с богатой историей. \n\n[Видео обзор](https://youtu.be/V69OAJ2gE5E?si=iO74r6JVdQeTRT35)' }, { id: crypto.randomUUID(), type: 'gallery', imageUrls: [getRoutePath('20250221164850.png'), getRoutePath('20250221164918.png'), getRoutePath('20250221164947.png'), getRoutePath('20250221171153.png'), getRoutePath('20250221161326.png'), getRoutePath('20250221161351.png')] }] },
+    { id: crypto.randomUUID(), dayId: DAY_IDS.DAY_07, startTime: '17:30', endTime: '19:42', title: 'Ужин и возвращение на вокзал', tag: 'food' as const, sections: [{ id: crypto.randomUUID(), type: 'description', text: 'Ужин перед отправлением обратно в Шанхай.' }, { id: crypto.randomUUID(), type: 'gallery', imageUrls: [getRoutePath('20250221171445.png')] }] },
+    { id: crypto.randomUUID(), dayId: DAY_IDS.DAY_07, startTime: '19:42', endTime: '20:15', title: 'Скоростной поезд в Шанхай', tag: 'transport' as const, sections: [{ id: crypto.randomUUID(), type: 'description', text: 'Возвращение в Шанхай.' }] },
+  ],
+}

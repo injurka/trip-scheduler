@@ -1,0 +1,19 @@
+{
+	"folders": [
+		{
+			"path": "."
+		},
+		{
+			"path": "apps/client"
+		},
+		{
+			"path": "apps/server"
+		},
+		{
+			"path": "apps/scraper"
+		}
+	],
+	"settings": {
+		"explorer.fileNesting.expand": false
+	}
+}
