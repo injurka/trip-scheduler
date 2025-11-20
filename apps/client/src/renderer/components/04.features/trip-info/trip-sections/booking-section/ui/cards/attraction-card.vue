@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import type { BookingStatus } from '../../../composables/use-booking-section'
 import type { AttractionData, Booking } from '../../models/types'
 import { ref } from 'vue'
 import { KitBtn } from '~/components/01.kit/kit-btn'
@@ -13,6 +14,7 @@ import BookingTextareaField from '../shared/booking-textarea-field.vue'
 interface Props {
   booking: Booking & { type: 'attraction' }
   readonly: boolean
+  bookingStatus?: BookingStatus
 }
 const props = defineProps<Props>()
 const emit = defineEmits<{
@@ -40,6 +42,7 @@ function updateTitle(newTitle: string) {
     :title="booking.title"
     :icon="booking.icon"
     :readonly="readonly"
+    :booking-status="bookingStatus"
     @delete="emit('delete')"
     @update:title="updateTitle"
   >

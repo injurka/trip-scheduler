@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import type { BookingStatus } from '../../composables/use-booking-section'
 import type { Booking, FlightData, FlightSegment } from '../../models/types'
 import { Icon } from '@iconify/vue'
 import { computed } from 'vue'
@@ -12,6 +13,7 @@ import BookingTextareaField from '../shared/booking-textarea-field.vue'
 interface Props {
   booking: Booking & { type: 'flight' }
   readonly: boolean
+  bookingStatus?: BookingStatus
 }
 const props = defineProps<Props>()
 const emit = defineEmits<{
@@ -40,13 +42,6 @@ const uniqueAirlines = computed(() => {
       seen.add(airline.iataCode)
       return true
     })
-})
-
-const flightNumbersSummary = computed(() => {
-  return segments.value
-    .filter(s => s.flightNumber)
-    .map(s => s.flightNumber)
-    .join(', ')
 })
 
 function getAirlineLogoUrl(iataCode?: string): string | null {
@@ -199,6 +194,7 @@ function updateSegmentField<K extends keyof FlightSegment>(segmentIndex: number,
     :title="booking.title"
     :icon="booking.icon"
     :readonly="readonly"
+    :booking-status="bookingStatus"
     @delete="$emit('delete')"
     @update:title="updateTitle"
   >
@@ -332,7 +328,9 @@ function updateSegmentField<K extends keyof FlightSegment>(segmentIndex: number,
           <BookingField :model-value="segmentDuration(segment)" label="В пути" icon="mdi:timer-sand" readonly />
         </template>
 
-        <KitDivider class="span-2" />
+        <div class="span-2">
+          <div style="height: 1px; background-color: var(--border-secondary-color); margin: 8px 0;" />
+        </div>
 
         <BookingField
           :model-value="booking.data.bookingReference"
@@ -675,7 +673,7 @@ function updateSegmentField<K extends keyof FlightSegment>(segmentIndex: number,
   }
 }
 
-@include media-down(sm) {
+@media (max-width: 600px) {
   .card-content {
     grid-template-columns: 1fr;
     gap: 0.75rem;

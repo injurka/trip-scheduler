@@ -38,14 +38,6 @@ const mainMenuItems = computed(() => [
       open.value = false
     },
   },
-  {
-    label: 'Сообщества',
-    icon: 'mdi:account-group-outline',
-    action: () => {
-      router.push({ name: AppRouteNames.CommunitiesList })
-      open.value = false
-    },
-  },
 ])
 
 const secondaryMenuItems = computed(() => [

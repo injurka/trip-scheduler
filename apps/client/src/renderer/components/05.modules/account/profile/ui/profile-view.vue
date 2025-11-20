@@ -29,7 +29,6 @@ const userId = computed(() => route.params.id as string)
 const tabItems: ViewSwitcherItem[] = [
   { id: 'trips', label: 'Путешествия', icon: 'mdi:map-legend' },
   { id: 'activity', label: 'Активность', icon: 'mdi:pulse' },
-  { id: 'communities', label: 'Сообщества', icon: 'mdi:account-group-outline' },
 ]
 
 watch(userId, (newId) => {
@@ -116,7 +115,6 @@ watch(userId, (newId) => {
         <KitTabs v-model="activeTab" :items="tabItems">
           <template #trips>
             <div class="tab-content">
-              <h3>Последние путешествия</h3>
               <AsyncStateWrapper :loading="isLoading" :data="recentTrips.length > 0 ? recentTrips : null">
                 <template #success="{ data }">
                   <div class="recent-trips-list">
@@ -136,13 +134,6 @@ watch(userId, (newId) => {
           </template>
           <template #activity>
             <div class="tab-content">
-              <h3>Лента активности</h3>
-              <p>Раздел в разработке</p>
-            </div>
-          </template>
-          <template #communities>
-            <div class="tab-content">
-              <h3>Сообщества</h3>
               <p>Раздел в разработке</p>
             </div>
           </template>

@@ -1,5 +1,5 @@
 import type { Booking, BookingSectionContent, BookingType } from '../models/types'
-import { useDebounceFn } from '@vueuse/core'
+import { useDebounceFn, useIntervalFn } from '@vueuse/core'
 import { v4 as uuidv4 } from 'uuid'
 import { computed, ref, watch } from 'vue'
 
@@ -12,10 +12,8 @@ interface UseBookingSectionProps {
   readonly: boolean
 }
 
-/**
- * Конфигурация для различных типов бронирований.
- * Определяет метки, иконки и заголовки по умолчанию.
- */
+export type BookingStatus = 'active' | 'soon' | 'future' | 'past'
+
 export const BOOKING_TYPES_CONFIG = {
   flight: { label: 'Авиаперелеты', icon: 'mdi:airplane', defaultTitle: 'Новый авиабилет' },
   hotel: { label: 'Отели', icon: 'mdi:hotel', defaultTitle: 'Новый отель' },
@@ -24,40 +22,19 @@ export const BOOKING_TYPES_CONFIG = {
 } as const
 
 /**
- * Извлекает основную дату из бронирования для сортировки.
- * @param booking - Объект бронирования.
- * @returns Объект Date или null, если дата не найдена.
+ * Парсит дату из строки, учитывая возможные форматы и часовые пояса.
+ * Возвращает timestamp.
  */
-function getBookingDate(booking: Booking): Date | null {
+function parseDateSafely(dateStr?: string, timeZone?: string): number | null {
+  if (!dateStr)
+    return null
   try {
-    let dateString: string | undefined
-
-    switch (booking.type) {
-      case 'flight':
-        dateString = booking.data.segments?.[0]?.departureDateTime
-        break
-      case 'hotel':
-        dateString = booking.data.checkInDate
-        if (dateString && /^\d{4}-\d{2}-\d{2}$/.test(dateString))
-          dateString += 'T00:00:00'
-        break
-      case 'train':
-        dateString = booking.data.departureDateTime
-        break
-      case 'attraction':
-        dateString = booking.data.dateTime
-        break
-    }
-
-    if (!dateString)
-      return null
-
-    const date = new Date(dateString)
-    // Проверяем, что дата валидна
+    // Если есть timezone, добавляем его к строке
+    const fullStr = timeZone ? `${dateStr}${timeZone}` : dateStr
+    const date = new Date(fullStr)
     if (Number.isNaN(date.getTime()))
       return null
-
-    return date
+    return date.getTime()
   }
   catch {
     return null
@@ -65,16 +42,67 @@ function getBookingDate(booking: Booking): Date | null {
 }
 
 /**
- * Хук для управления логикой секции бронирований.
- * @param props - Входящие параметры компонента.
- * @param emit - Функция для отправки событий.
+ * Получает начало и конец времени для бронирования.
  */
+function getBookingTimeRange(booking: Booking): { start: number | null, end: number | null } {
+  let start: number | null = null
+  let end: number | null = null
+
+  switch (booking.type) {
+    case 'flight': {
+      const segments = booking.data.segments || []
+      if (segments.length > 0) {
+        start = parseDateSafely(segments[0].departureDateTime, segments[0].departureTimeZone)
+        const last = segments[segments.length - 1]
+        end = parseDateSafely(last.arrivalDateTime, last.arrivalTimeZone)
+      }
+      break
+    }
+    case 'train': {
+      start = parseDateSafely(booking.data.departureDateTime, booking.data.departureTimeZone)
+      end = parseDateSafely(booking.data.arrivalDateTime, booking.data.arrivalTimeZone)
+      break
+    }
+    case 'hotel': {
+      // Для отелей считаем началом 14:00 дня заезда, концом 12:00 дня выезда
+      // Или просто весь день, если время не указано.
+      // Для упрощения: берем даты как есть (UTC midnight)
+      const checkIn = parseDateSafely(booking.data.checkInDate)
+      const checkOut = parseDateSafely(booking.data.checkOutDate)
+      if (checkIn)
+        start = checkIn + 14 * 60 * 60 * 1000 // 14:00
+      if (checkOut)
+        end = checkOut + 12 * 60 * 60 * 1000 // 12:00
+      break
+    }
+    case 'attraction': {
+      start = parseDateSafely(booking.data.dateTime)
+      if (start)
+        end = start + 3 * 60 * 60 * 1000 // Предполагаем длительность 3 часа
+      break
+    }
+  }
+
+  return { start, end }
+}
+
+function getBookingDate(booking: Booking): Date | null {
+  const { start } = getBookingTimeRange(booking)
+  return start ? new Date(start) : null
+}
+
 export function useBookingSection(
   props: UseBookingSectionProps,
   emit: (event: 'updateSection', payload: any) => void,
 ) {
   const bookings = ref<Booking[]>(JSON.parse(JSON.stringify(props.section.content?.bookings || [])))
   const activeTab = ref<string>('timeline')
+  const now = ref(Date.now())
+
+  // Обновляем текущее время каждую минуту для актуализации статусов
+  useIntervalFn(() => {
+    now.value = Date.now()
+  }, 60 * 1000)
 
   const debouncedUpdate = useDebounceFn(() => {
     emit('updateSection', {
@@ -82,6 +110,51 @@ export function useBookingSection(
       content: { bookings: bookings.value },
     })
   }, 700)
+
+  const bookingStatuses = computed(() => {
+    const statuses: Record<string, BookingStatus> = {}
+    const upcomingBookings: { id: string, timeToStart: number }[] = []
+
+    bookings.value.forEach((booking) => {
+      const { start, end } = getBookingTimeRange(booking)
+
+      if (!start) {
+        statuses[booking.id] = 'future'
+        return
+      }
+
+      const safeEnd = end || start + 60 * 60 * 1000 // Fallback end time
+
+      if (now.value >= start && now.value <= safeEnd) {
+        statuses[booking.id] = 'active'
+      }
+      else if (now.value > safeEnd) {
+        statuses[booking.id] = 'past'
+      }
+      else {
+        // Future
+        statuses[booking.id] = 'future'
+        const timeToStart = start - now.value
+        // Если до начала менее 24 часов
+        if (timeToStart <= 24 * 60 * 60 * 1000) {
+          upcomingBookings.push({ id: booking.id, timeToStart })
+        }
+      }
+    })
+
+    // Находим ОДНО ближайшее предстоящее бронирование
+    if (upcomingBookings.length > 0) {
+      upcomingBookings.sort((a, b) => a.timeToStart - b.timeToStart)
+      const nearestId = upcomingBookings[0].id
+      statuses[nearestId] = 'soon'
+    }
+
+    return statuses
+  })
+
+  const getBookingStatus = (id: string): BookingStatus => {
+    return bookingStatuses.value[id] || 'future'
+  }
 
   const bookingGroups = computed(() => {
     return bookings.value.reduce((acc, booking) => {
@@ -99,27 +172,11 @@ export function useBookingSection(
       const dateB = getBookingDate(b)
 
       if (!dateA && !dateB)
-        return 0 // оба без даты, сохраняем исходный порядок
+        return 0
       if (!dateA)
-        return 1 // 'a' без даты, отправляем его в конец списка
+        return 1
       if (!dateB)
-        return -1 // 'b' без даты, отправляем его в конец списка
-
-      const isSameDay = dateA.getFullYear() === dateB.getFullYear()
-        && dateA.getMonth() === dateB.getMonth()
-        && dateA.getDate() === dateB.getDate()
-
-      if (isSameDay) {
-        const aHasTime = a.type !== 'hotel'
-        const bHasTime = b.type !== 'hotel'
-
-        // Если у 'a' есть время, а у 'b' нет, 'a' должно быть первым
-        if (aHasTime && !bHasTime)
-          return -1
-        // Если у 'b' есть время, а у 'a' нет, 'b' должно быть первым
-        if (!aHasTime && bHasTime)
-          return 1
-      }
+        return -1
 
       return dateA.getTime() - dateB.getTime()
     })
@@ -217,5 +274,6 @@ export function useBookingSection(
     updateBooking,
     updateBookingsForGroup,
     bookingTypeConfigs: BOOKING_TYPES_CONFIG,
+    getBookingStatus,
   }
 }

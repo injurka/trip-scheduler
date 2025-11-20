@@ -22,7 +22,7 @@ import MemoriesError from './state/memories-error.vue'
 import MemoriesSkeleton from './state/memories-skeleton.vue'
 
 const { ui, memories, plan: tripData } = useModuleStore(['ui', 'memories', 'plan'])
-const { areAllMemoryGroupsCollapsed, isViewMode } = storeToRefs(ui)
+const { areAllMemoryGroupsCollapsed, isViewMode, activeView } = storeToRefs(ui)
 const { memoriesForSelectedDay, getProcessingMemories, isLoadingMemories } = storeToRefs(memories)
 const { getActivitiesForSelectedDay, getSelectedDay } = storeToRefs(tripData)
 const { mdAndUp } = useDisplay()

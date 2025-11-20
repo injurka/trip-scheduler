@@ -76,6 +76,32 @@ export function useTripsHub() {
     return trips.value
   })
 
+  /**
+   * Вычисляет текущее активное путешествие пользователя.
+   * Путешествие считается активным, если текущая дата находится между датой начала и окончания.
+   */
+  const currentActiveTrip = computed(() => {
+    if (!authStore.isAuthenticated)
+      return null
+
+    const now = new Date().getTime()
+
+    return trips.value.find((t) => {
+      if (t.userId !== authStore.user?.id)
+        return false
+
+      const start = new Date(t.startDate)
+      start.setHours(0, 0, 0, 0)
+      const startTime = start.getTime()
+
+      const end = new Date(t.endDate)
+      end.setHours(23, 59, 59, 999)
+      const endTime = end.getTime()
+
+      return now >= startTime && now <= endTime && t.status !== TripStatus.DRAFT
+    }) || null
+  })
+
   async function searchTags(query?: string) {
     await useRequest({
       key: `${ETripHubKeys.FETCH_TAGS}:${query || ''}`,
@@ -280,6 +306,7 @@ export function useTripsHub() {
     isCreating,
     fetchError,
     currentTrips,
+    currentActiveTrip,
 
     // Actions
     fetchTrips,

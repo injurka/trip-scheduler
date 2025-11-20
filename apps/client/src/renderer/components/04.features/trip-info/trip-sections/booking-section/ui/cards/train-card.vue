@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import type { BookingStatus } from '../../../composables/use-booking-section'
 import type { Booking, TrainData } from '../../models/types'
 import { Icon } from '@iconify/vue'
 import { computed, ref } from 'vue'
@@ -14,6 +15,7 @@ import BookingTextareaField from '../shared/booking-textarea-field.vue'
 interface Props {
   booking: Booking & { type: 'train' }
   readonly: boolean
+  bookingStatus?: BookingStatus
 }
 const props = defineProps<Props>()
 const emit = defineEmits<{
@@ -95,6 +97,7 @@ const totalDurationFormatted = computed(() => {
     :title="booking.title"
     :icon="booking.icon"
     :readonly="readonly"
+    :booking-status="bookingStatus"
     @delete="$emit('delete')"
     @update:title="updateTitle"
   >
@@ -343,7 +346,7 @@ const totalDurationFormatted = computed(() => {
   }
 }
 
-@include media-down(sm) {
+@media (max-width: 600px) {
   .card-content {
     grid-template-columns: 1fr;
     gap: 0.75rem;

@@ -1,14 +1,18 @@
 <script setup lang="ts">
+import type { BookingStatus } from '../../composables/use-booking-section'
 import { Icon } from '@iconify/vue'
-import { ref } from 'vue'
+import { computed, ref } from 'vue'
 import { KitEditable } from '~/components/01.kit/kit-editable'
 
 interface Props {
   icon: string
   readonly: boolean
+  bookingStatus?: BookingStatus
 }
 
-defineProps<Props>()
+const props = withDefaults(defineProps<Props>(), {
+  bookingStatus: 'future',
+})
 const emit = defineEmits<{ (e: 'delete'): void }>()
 const title = defineModel<string>('title', { required: true })
 const confirm = useConfirm()
@@ -31,10 +35,34 @@ async function handleDelete() {
     emit('delete')
   }
 }
+
+const statusClasses = computed(() => {
+  return {
+    'status-active': props.bookingStatus === 'active',
+    'status-soon': props.bookingStatus === 'soon',
+    'status-past': props.bookingStatus === 'past',
+  }
+})
+
+const statusLabel = computed(() => {
+  if (props.bookingStatus === 'active')
+    return 'Сейчас'
+  if (props.bookingStatus === 'soon')
+    return 'Скоро'
+  return null
+})
+
+const statusIcon = computed(() => {
+  if (props.bookingStatus === 'active')
+    return 'mdi:check-circle-outline' // or 'mdi:clock-fast'
+  if (props.bookingStatus === 'soon')
+    return 'mdi:clock-outline'
+  return null
+})
 </script>
 
 <template>
-  <div class="booking-card">
+  <div class="booking-card" :class="statusClasses">
     <header class="card-header">
       <div class="title-container">
         <button v-if="!readonly" class="drag-handle" title="Перетащить">
@@ -47,6 +75,12 @@ async function handleDelete() {
           class="card-title"
           placeholder="Введите заголовок"
         />
+
+        <!-- Индикатор статуса -->
+        <div v-if="statusLabel" class="status-badge">
+          <Icon v-if="statusIcon" :icon="statusIcon" />
+          <span>{{ statusLabel }}</span>
+        </div>
       </div>
       <div class="card-actions">
         <button v-if="$slots.details" class="details-btn" title="Подробнее" @click="isDetailsVisible = !isDetailsVisible">
@@ -79,10 +113,47 @@ async function handleDelete() {
   overflow: hidden;
   display: flex;
   flex-direction: column;
-  transition: box-shadow 0.2s;
+  transition: all 0.3s ease;
 
   &:hover {
     box-shadow: var(--s-m);
+  }
+
+  /* --- Стили статусов --- */
+  &.status-active {
+    border-color: var(--fg-success-color);
+    box-shadow: 0 0 0 1px var(--fg-success-color);
+    background-color: rgba(var(--fg-success-color-rgb), 0.03);
+
+    .status-badge {
+      background-color: var(--fg-success-color);
+      color: var(--fg-inverted-color);
+    }
+
+    .card-header {
+      background-color: rgba(var(--fg-success-color-rgb), 0.1);
+    }
+  }
+
+  &.status-soon {
+    border-color: var(--fg-warning-color);
+    box-shadow: 0 0 0 1px var(--fg-warning-color);
+    background-color: rgba(var(--fg-warning-color-rgb), 0.03);
+
+    .status-badge {
+      background-color: var(--fg-warning-color);
+      color: var(--fg-primary-color);
+    }
+
+    .card-header {
+      background-color: rgba(var(--fg-warning-color-rgb), 0.1);
+    }
+  }
+
+  &.status-past {
+    opacity: 0.7;
+    filter: grayscale(0.5);
+    border-style: dashed;
   }
 }
 
@@ -101,7 +172,6 @@ async function handleDelete() {
   gap: 0.5rem;
   flex-grow: 1;
   min-width: 0;
-  /* Позволяет слоту header-info занимать место, но не ломать верстку */
   margin-right: 8px;
 }
 
@@ -114,7 +184,23 @@ async function handleDelete() {
 .card-title {
   font-size: 1rem;
   font-weight: 600;
-  /* Убираем flex-grow у заголовка, чтобы он не давил на header-info, если текста мало */
+}
+
+.status-badge {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 2px 8px;
+  border-radius: var(--r-full);
+  font-size: 0.75rem;
+  font-weight: 600;
+  margin-left: 8px;
+  text-transform: uppercase;
+  flex-shrink: 0;
+
+  .iconify {
+    font-size: 0.9rem;
+  }
 }
 
 .card-actions {

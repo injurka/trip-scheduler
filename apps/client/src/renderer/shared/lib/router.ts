@@ -143,20 +143,6 @@ const routes: RouteRecordRaw[] = [
     beforeEnter: requireOwner,
   },
 
-  // --- Сообщества ---
-  {
-    path: AppRoutePaths.Communities.List,
-    name: AppRouteNames.CommunitiesList,
-    component: CommunitiesList,
-    meta: { layout: 'default' },
-  },
-  {
-    path: AppRoutePaths.Communities.Info(':id'),
-    name: AppRouteNames.CommunityInfo,
-    component: CommunityInfo,
-    meta: { layout: 'default' },
-  },
-
   // --- Системные маршруты ---
   {
     path: AppRoutePaths.NotFound,

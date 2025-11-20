@@ -14,11 +14,14 @@ import { AppRoutePaths } from '~/shared/constants/routes'
 import { CommentParentType } from '~/shared/types/models/comment'
 import { TripsHubKey } from '../../../composables'
 
-type Props = ITrip
+interface Props extends ITrip {
+  isHighlight?: boolean
+}
 
 const props = withDefaults(defineProps<Props>(), {
   participants: () => [],
   tags: () => [],
+  isHighlight: false,
 })
 
 const router = useRouter()
@@ -113,7 +116,7 @@ const visibilityIcon = computed(() => {
 </script>
 
 <template>
-  <div class="travel-card-wrapper" :class="{ 'more-menu-open': isMoreMenuOpen }">
+  <div class="travel-card-wrapper" :class="{ 'more-menu-open': isMoreMenuOpen, 'is-highlighted': isHighlight }">
     <div class="travel-card" @click="goTo">
       <div class="card-image-container">
         <KitImage
@@ -131,6 +134,11 @@ const visibilityIcon = computed(() => {
         <h3 class="card-title">
           {{ title }}
         </h3>
+
+        <div v-if="isHighlight" class="active-trip-badge">
+          <Icon icon="mdi:fire" class="badge-icon" />
+          <span>Идёт сейчас</span>
+        </div>
 
         <span class="card-visibility">
           <Icon :icon="visibilityIcon.icon" />
@@ -245,6 +253,55 @@ const visibilityIcon = computed(() => {
 
   &:hover {
     background-color: var(--bg-hover-color);
+  }
+
+  &.is-highlighted {
+    background: linear-gradient(135deg, rgba(var(--fg-accent-color-rgb), 0.1), transparent);
+    border: 1px solid var(--fg-accent-color);
+    padding: 6px;
+    box-shadow: 0 4px 20px rgba(var(--fg-accent-color-rgb), 0.15);
+
+    .travel-card {
+      box-shadow: none;
+    }
+
+    &:hover {
+      background-color: rgba(var(--fg-accent-color-rgb), 0.15);
+    }
+  }
+}
+
+.active-trip-badge {
+  position: absolute;
+  top: 12px;
+  left: 16px;
+  z-index: 3;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 10px;
+  background-color: var(--fg-accent-color);
+  color: var(--fg-inverted-color);
+  border-radius: var(--r-full);
+  font-size: 0.85rem;
+  font-weight: 600;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+  animation: pulse-badge 2s infinite;
+
+  .badge-icon {
+    font-size: 1rem;
+  }
+}
+
+@keyframes pulse-badge {
+  0% {
+    box-shadow: 0 0 0 0 rgba(var(--fg-accent-color-rgb), 0.4);
+  }
+  70% {
+    box-shadow: 0 0 0 6px rgba(var(--fg-accent-color-rgb), 0);
+  }
+  100% {
+    box-shadow: 0 0 0 0 rgba(var(--fg-accent-color-rgb), 0);
   }
 }
 

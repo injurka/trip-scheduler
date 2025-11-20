@@ -18,9 +18,6 @@ export enum AppRouteNames {
   UserQuota = 'user-quota',
   UserStorage = 'user-storage',
 
-  CommunitiesList = 'communities-list',
-  CommunityInfo = 'community-info',
-
   Explore = 'explore',
 }
 
@@ -48,11 +45,6 @@ export const AppRoutePaths = {
     Settings: (id: string) => `/user/${id}/settings`,
     Quota: (id: string) => `/user/${id}/quota`,
     Storage: (id: string) => `/user/${id}/storage`,
-  },
-
-  Communities: {
-    List: '/communities',
-    Info: (id: string) => `/communities/${id}`,
   },
 
   Explore: '/explore',
