@@ -18,6 +18,7 @@ interface UseSwipeNavigationOptions {
   currentIndex: Ref<number>
   isZoomed: MaybeRefOrGetter<boolean>
   preferredQuality: RemovableRef<ImageQuality>
+  baseTransform: MaybeRefOrGetter<string>
 }
 
 /**
@@ -55,6 +56,7 @@ export function useSwipeNavigation(options: UseSwipeNavigationOptions) {
     currentIndex,
     isZoomed,
     preferredQuality,
+    baseTransform,
   } = options
 
   const swipeState = ref<SwipeState>({
@@ -182,17 +184,17 @@ export function useSwipeNavigation(options: UseSwipeNavigationOptions) {
   const currentImageStyle = computed(() => {
     const progress = Math.abs(swipeProgress.value)
     const opacity = 1 - progress * 0.3
+    const brightness = 1 - progress * 0.4 // от 1.0 до 0.6
 
     const style: Record<string, any> = {
       opacity: isAnimating.value ? 1 : opacity,
-      transition: isAnimating.value ? 'transform 0.2s ease-out, opacity 0.2s ease-out' : 'none',
+      filter: `brightness(${brightness})`,
+      transition: isAnimating.value ? 'transform 0.2s ease-out, opacity 0.2s ease-out, filter 0.2s ease-out' : 'none',
     }
 
-    // Только применяем трансформацию масштабирования, если свайп действительно происходит.
-    // Это предотвращает переопределение трансформации масштабирования от useImageViewerTransform, когда изображение не смахивается.
     if (progress > 0) {
       const scale = 1 - progress * 0.1
-      style.transform = `scale(${scale})`
+      style.transform = `${toValue(baseTransform)} scale(${scale})`
     }
 
     return style
@@ -201,9 +203,11 @@ export function useSwipeNavigation(options: UseSwipeNavigationOptions) {
   const adjacentImageStyle = computed(() => {
     const progress = Math.abs(swipeProgress.value)
     const opacity = progress * 1.2
+    const brightness = 0.6 + progress * 0.4 // от 0.6 до 1.0
     return {
       opacity: Math.min(1, opacity),
-      transition: isAnimating.value ? 'opacity 0.2s ease-out' : 'none',
+      filter: `brightness(${brightness})`,
+      transition: isAnimating.value ? 'opacity 0.2s ease-out, filter 0.2s ease-out' : 'none',
     }
   })
 

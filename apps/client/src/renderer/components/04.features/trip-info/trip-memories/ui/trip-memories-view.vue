@@ -15,6 +15,7 @@ import { ETripMemoriesKeys } from '~/components/04.features/trip-info/trip-memor
 import { useModuleStore } from '~/components/05.modules/trip-info/composables/use-trip-info-module'
 import { getTagInfo, memoryToViewerImage } from '~/components/05.modules/trip-info/lib/helpers'
 import { useRequestError } from '~/plugins/request'
+import { useDisplay } from '~/shared/composables/use-display'
 import MemoriesList from './memories-list.vue'
 import MemoriesEmpty from './state/memories-empty.vue'
 import MemoriesError from './state/memories-error.vue'
@@ -24,6 +25,7 @@ const { ui, memories, plan: tripData } = useModuleStore(['ui', 'memories', 'plan
 const { areAllMemoryGroupsCollapsed, isViewMode } = storeToRefs(ui)
 const { memoriesForSelectedDay, getProcessingMemories, isLoadingMemories } = storeToRefs(memories)
 const { getActivitiesForSelectedDay, getSelectedDay } = storeToRefs(tripData)
+const { mdAndUp } = useDisplay()
 
 // --- File Upload Logic ---
 const dropZoneRef = ref<HTMLDivElement | null>(null)
@@ -35,7 +37,7 @@ const { open: openFileDialog, onChange, reset } = useFileDialog({
 const { isOverDropZone } = useDropZone(dropZoneRef, { onDrop })
 
 function onDrop(files: File[] | null) {
-  if (!files || isViewMode.value)
+  if (!files || activeView.value !== 'memories' || isViewMode.value)
     return
   const imageFiles = files.filter(file => file.type.startsWith('image/'))
   if (imageFiles.length > 0)
@@ -54,7 +56,6 @@ const fetchError = useRequestError(ETripMemoriesKeys.FETCH)
 const isProcessing = computed(() => getProcessingMemories.value.length > 0)
 
 // Data is considered present if we have memories OR if we are currently processing uploads
-// This allows the list component to render the processing queue even if the main list is empty
 const memoriesData = computed(() => {
   if (memoriesForSelectedDay.value.length > 0 || isProcessing.value) {
     return memoriesForSelectedDay.value
@@ -128,6 +129,13 @@ const collapseMemoriesIcon = computed(() =>
 
 function handleToggleAllMemories() {
   ui.toggleAllMemoryGroups(allMemoryGroupKeys.value)
+}
+
+// --- Full Screen Mode ---
+const isFullScreen = ref(false)
+
+function toggleFullScreen() {
+  isFullScreen.value = !isFullScreen.value
 }
 
 // --- Modals State ---
@@ -207,62 +215,80 @@ function handleImport(activity: Activity) {
 </script>
 
 <template>
-  <div ref="dropZoneRef" class="memories-view">
+  <div
+    ref="dropZoneRef"
+    class="memories-view"
+    :class="{ 'is-fullscreen-mode': isFullScreen }"
+  >
     <div class="divider-with-action">
       <KitDivider
         :is-loading="isLoadingMemories || memories.isCreatingMemory || memories.isMutateMemory"
       >
         воспоминания дня
       </KitDivider>
-      <button
-        v-if="allMemoryGroupKeys.length > 0"
-        class="collapse-all-btn"
-        title="Свернуть/развернуть все группы"
-        @click="handleToggleAllMemories"
-      >
-        <Icon :icon="collapseMemoriesIcon" />
-      </button>
+
+      <div class="controls-wrapper">
+        <button
+          v-if="mdAndUp && memoriesForSelectedDay.length > 0"
+          class="control-btn fullscreen-btn"
+          :title="isFullScreen ? 'Выйти из полноэкранного режима' : 'На весь экран'"
+          @click="toggleFullScreen"
+        >
+          <Icon :icon="isFullScreen ? 'mdi:fullscreen-exit' : 'mdi:fullscreen'" />
+        </button>
+        <button
+          v-if="allMemoryGroupKeys.length > 0"
+          class="control-btn collapse-btn"
+          title="Свернуть/развернуть все группы"
+          @click="handleToggleAllMemories"
+        >
+          <Icon :icon="collapseMemoriesIcon" />
+        </button>
+      </div>
     </div>
 
-    <AsyncStateWrapper
-      class="async-wrapper"
-      :loading="isLoadingMemories && !isProcessing"
-      :error="fetchError"
-      :data="memoriesData"
-      :retry-handler="() => memories.fetchMemories(tripData.currentTripId!)"
-    >
-      <template #loading>
-        <MemoriesSkeleton />
-      </template>
+    <div class="memories-content-scroll">
+      <AsyncStateWrapper
+        class="async-wrapper"
+        :loading="isLoadingMemories && !isProcessing"
+        :error="fetchError"
+        :data="memoriesData"
+        :retry-handler="() => memories.fetchMemories(tripData.currentTripId!)"
+      >
+        <template #loading>
+          <MemoriesSkeleton />
+        </template>
 
-      <template #error="{ error, retry }">
-        <MemoriesError :error="error" @retry="retry" />
-      </template>
+        <template #error="{ error, retry }">
+          <MemoriesError :error="error" @retry="retry" />
+        </template>
 
-      <template #success>
-        <MemoriesList
-          :memories="memoriesForSelectedDay"
-          :gallery-images="galleryImages"
-          :import-options="importOptions"
-          :is-view-mode="isViewMode"
-          :is-processing="isProcessing"
-          :processing-memories="getProcessingMemories"
-          @upload="() => openFileDialog()"
-          @add-note="handleAddTextNote"
-          @add-activity="handleAddActivity"
-          @import="handleImport"
-        />
-      </template>
+        <template #success>
+          <MemoriesList
+            :memories="memoriesForSelectedDay"
+            :gallery-images="galleryImages"
+            :import-options="importOptions"
+            :is-view-mode="isViewMode"
+            :is-processing="isProcessing"
+            :processing-memories="getProcessingMemories"
+            :is-full-screen="isFullScreen"
+            @upload="() => openFileDialog()"
+            @add-note="handleAddTextNote"
+            @add-activity="handleAddActivity"
+            @import="handleImport"
+          />
+        </template>
 
-      <template #empty>
-        <MemoriesEmpty
-          :is-view-mode="isViewMode"
-          @upload="() => openFileDialog()"
-          @add-note="handleAddTextNote"
-          @add-activity="handleAddActivity"
-        />
-      </template>
-    </AsyncStateWrapper>
+        <template #empty>
+          <MemoriesEmpty
+            :is-view-mode="isViewMode"
+            @upload="() => openFileDialog()"
+            @add-note="handleAddTextNote"
+            @add-activity="handleAddActivity"
+          />
+        </template>
+      </AsyncStateWrapper>
+    </div>
 
     <div v-if="isOverDropZone && !isViewMode" class="drop-overlay">
       <div class="drop-overlay-content">
@@ -324,6 +350,34 @@ function handleImport(activity: Activity) {
 .memories-view {
   position: relative;
   min-height: 200px;
+  transition: all 0.3s ease;
+
+  // Fullscreen styles
+  &.is-fullscreen-mode {
+    position: fixed;
+    inset: 0;
+    z-index: 15; // Higher than header (7), below dialogs (2000+) and viewer
+    background-color: var(--bg-primary-color);
+    padding: 20px 32px;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+
+    .memories-content-scroll {
+      flex: 1;
+      overflow-y: auto;
+      padding-right: 8px;
+      padding-bottom: 40px;
+
+      &::-webkit-scrollbar {
+        width: 6px;
+      }
+      &::-webkit-scrollbar-thumb {
+        background-color: var(--border-secondary-color);
+        border-radius: 4px;
+      }
+    }
+  }
 }
 
 .divider-with-action {
@@ -335,31 +389,37 @@ function handleImport(activity: Activity) {
   .kit-divider {
     flex-grow: 1;
   }
+}
 
-  .collapse-all-btn {
-    position: absolute;
-    right: 0;
-    top: 50%;
-    transform: translateY(-50%);
-    background: var(--bg-secondary-color);
-    border: 1px solid var(--border-secondary-color);
-    border-radius: var(--r-s);
-    color: var(--fg-secondary-color);
-    width: 28px;
-    height: 28px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    cursor: pointer;
-    font-size: 1.1rem;
-    transition: all 0.2s ease;
-    z-index: 1;
+.controls-wrapper {
+  position: absolute;
+  right: 0;
+  top: 50%;
+  transform: translateY(-50%);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  z-index: 1;
+}
 
-    &:hover {
-      color: var(--fg-accent-color);
-      border-color: var(--fg-accent-color);
-      background-color: var(--bg-hover-color);
-    }
+.control-btn {
+  background: var(--bg-secondary-color);
+  border: 1px solid var(--border-secondary-color);
+  border-radius: var(--r-s);
+  color: var(--fg-secondary-color);
+  width: 28px;
+  height: 28px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  font-size: 1.1rem;
+  transition: all 0.2s ease;
+
+  &:hover {
+    color: var(--fg-accent-color);
+    border-color: var(--fg-accent-color);
+    background-color: var(--bg-hover-color);
   }
 }
 

@@ -229,10 +229,15 @@ export function useTripsHub() {
   }
 
   function openCreateModal() {
+    if (!authStore.isAuthenticated) {
+      router.push(AppRoutePaths.Auth.SignIn)
+    }
+
     if (!authStore.canCreateTrip) {
       useToast().error('Вы достигли лимита на создание путешествий. Улучшите ваш план, чтобы создавать больше.')
       return
     }
+
     isCreateModalOpen.value = true
   }
 

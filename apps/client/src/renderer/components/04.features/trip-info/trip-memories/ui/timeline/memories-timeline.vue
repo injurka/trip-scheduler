@@ -9,9 +9,12 @@ interface Props {
   memories: IMemory[]
   isViewMode: boolean
   galleryImages: ImageViewerImage[]
+  isFullScreen?: boolean
 }
 
-const props = defineProps<Props>()
+const props = withDefaults(defineProps<Props>(), {
+  isFullScreen: false,
+})
 
 const { ui } = useModuleStore(['ui'])
 
@@ -37,37 +40,30 @@ const timelineGroups = computed(() => {
     return startGroup
   }
 
-  // Memories are already sorted by timestamp from the store
   for (const memory of props.memories) {
     if (memory.title) {
-      // This is an activity-like memory, it starts a new group
       currentGroup = {
         type: 'activity',
-        activity: memory, // The memory itself provides the group's data
+        activity: memory,
         title: memory.title,
-        memories: [], // Child memories (photos/notes) will be added here
+        memories: [],
       }
-      // An activity can also be a photo or have a comment, so we add it to its own items.
       if (memory.imageId || memory.comment)
         currentGroup.memories.push(memory)
 
       groups.push(currentGroup)
     }
     else {
-      // This is a simple photo or note memory
       if (currentGroup) {
-        // Add it to the last known activity group
         currentGroup.memories.push(memory)
       }
       else {
-        // No activity has occurred yet, add to the "Start of Day" group
         const startGroup = ensureStartGroup()
         startGroup.memories.push(memory)
       }
     }
   }
 
-  // Clean up empty start group if no items were added before the first activity
   const startGroup = groups.find(g => g.type === 'start')
   if (startGroup && startGroup.memories.length === 0)
     return groups.filter(g => g.type !== 'start')
@@ -86,6 +82,7 @@ const timelineGroups = computed(() => {
       :gallery-images="galleryImages"
       :timeline-groups="timelineGroups"
       :is-collapsed="ui.collapsedMemoryGroups.has(group.type + (group.activity?.id || group.title))"
+      :is-full-screen="isFullScreen"
       @toggle-collapse="ui.toggleMemoryGroupCollapsed(group.type + (group.activity?.id || group.title))"
     />
   </div>

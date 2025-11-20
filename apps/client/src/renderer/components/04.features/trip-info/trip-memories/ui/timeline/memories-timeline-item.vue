@@ -4,7 +4,7 @@ import type { CustomImageViewerImageMeta } from '~/components/05.modules/trip-in
 import type { IMemory } from '~/components/05.modules/trip-info/models/types'
 import { Icon } from '@iconify/vue'
 import { Time } from '@internationalized/date'
-import { onClickOutside, useWindowSize } from '@vueuse/core'
+import { onClickOutside, useEventListener, useWindowSize } from '@vueuse/core'
 import { KitImage } from '~/components/01.kit/kit-image'
 import { KitImageViewer, useImageViewer } from '~/components/01.kit/kit-image-viewer'
 import { KitInlineMdEditorWrapper } from '~/components/01.kit/kit-inline-md-editor'
@@ -17,12 +17,14 @@ interface Props {
   isUnsorted?: boolean
   isViewMode?: boolean
   timelineGroups?: any[]
+  isFullScreen?: boolean
 }
 const props = withDefaults(defineProps<Props>(), {
   galleryImages: () => [],
   isUnsorted: false,
   isViewMode: false,
   timelineGroups: () => [],
+  isFullScreen: false,
 })
 
 const store = useModuleStore(['memories', 'plan'])
@@ -219,6 +221,7 @@ const isDesktop = computed(() => windowWidth.value >= 1024)
 const imageSrc = computed(() => {
   if (!props.memory.image)
     return ''
+
   if (isDesktop.value)
     return props.memory.image.variants?.medium || props.memory.image.url
 
@@ -252,26 +255,35 @@ function enterMorph() {
     height: `${initialRect.height}px`,
     zIndex: '1000',
     transition: 'none',
+    transform: 'none',
   }
 
   isMorphed.value = true
-  document.body.style.overflow = 'hidden'
 
   requestAnimationFrame(() => {
-    const aspectRatio = initialRect!.height / initialRect!.width
-    const targetWidth = Math.min(window.innerWidth * 0.8, 800)
+    if (!initialRect)
+      return
+
+    const aspectRatio = initialRect.height / initialRect.width
+    const targetWidth = Math.min(window.innerWidth * 0.9, 1000)
     const targetHeight = targetWidth * aspectRatio
+
+    const targetLeft = (window.innerWidth - targetWidth) / 2
+    const targetTop = (window.innerHeight - targetHeight) / 2
 
     morphStyle.value = {
       ...morphStyle.value,
-      top: '50%',
-      left: '50%',
+      top: `${targetTop}px`,
+      left: `${targetLeft}px`,
       width: `${targetWidth}px`,
       height: `${targetHeight}px`,
-      transform: 'translate(-50%, -50%)',
+      transform: 'none',
       transition: 'all 0.3s ease-out',
     }
-    setTimeout(() => isMorphing.value = false, 50)
+
+    setTimeout(() => {
+      isMorphing.value = false
+    }, 300)
   })
 }
 
@@ -287,7 +299,7 @@ function leaveMorph() {
     left: `${initialRect.left}px`,
     width: `${initialRect.width}px`,
     height: `${initialRect.height}px`,
-    transform: 'translate(0, 0)',
+    transform: 'none',
   }
 
   const onTransitionEnd = () => {
@@ -298,7 +310,6 @@ function leaveMorph() {
     morphStyle.value = {}
     isMorphing.value = false
     initialRect = null
-    document.body.style.overflow = ''
   }
 
   const fallback = setTimeout(onTransitionEnd, 350)
@@ -311,12 +322,45 @@ function handleWrapperClick() {
   else
     openImageViewer()
 }
+
+// Слушатель нажатия ESC для закрытия morph-режима
+useEventListener(document, 'keydown', (e: KeyboardEvent) => {
+  if (e.key === 'Escape' && isMorphed.value) {
+    leaveMorph()
+  }
+})
+
+// Закрываем morph, если пользователь скроллит
+useEventListener(window, 'scroll', () => {
+  if (isMorphed.value && !isMorphing.value) {
+    leaveMorph()
+  }
+}, { passive: true })
+
+// Закрываем morph при клике вне картинки
+onClickOutside(photoWrapperRef, () => {
+  if (isMorphed.value && !isMorphing.value) {
+    leaveMorph()
+  }
+})
+
+// Если переключается режим полного экрана, закрываем morph
+watch(() => props.isFullScreen, () => {
+  if (isMorphed.value)
+    leaveMorph()
+})
 </script>
 
 <template>
   <div
     class="memory-item"
-    :class="{ 'is-photo': memory.imageId, 'is-note': !memory.imageId && !memory.title, 'is-activity': memory.title, 'is-unsorted': isUnsorted }"
+    :class="{
+      'is-photo': memory.imageId,
+      'is-note': !memory.imageId && !memory.title,
+      'is-activity': memory.title,
+      'is-unsorted': isUnsorted,
+      'is-fullscreen-item': isFullScreen && memory.imageId,
+    }"
   >
     <template v-if="memory.imageId && memory?.image?.url">
       <div v-if="isMorphed" :style="placeholderStyle" />
@@ -331,8 +375,9 @@ function handleWrapperClick() {
           :src="imageSrc"
           object-fit="cover"
         />
+        <!-- Кнопка morph скрывается в полноэкранном режиме -->
         <button
-          v-if="isDesktop"
+          v-if="isDesktop && !isFullScreen"
           class="morph-trigger-btn"
           title="Приблизить"
           @click.stop="enterMorph"
@@ -484,7 +529,7 @@ function handleWrapperClick() {
 .memory-item {
   position: relative;
   border-radius: var(--r-m);
-  background-color: var(--bg-secondary-color);
+  background-color: rgba(var(--bg-secondary-color-rgb), 0.5);
   overflow: hidden;
 
   &.is-activity:not(.is-photo) {
@@ -522,6 +567,7 @@ function handleWrapperClick() {
       }
       &:not(.isEditing) {
         right: 4px;
+        bottom: 8px;
         background-color: var(--bg-secondary-color);
         border-radius: var(--r-full);
         border: 1px solid var(--border-secondary-color);
@@ -539,6 +585,11 @@ function handleWrapperClick() {
     @include media-down(sm) {
       height: 180px;
     }
+  }
+
+  /* Стили для элемента в полноэкранном режиме */
+  &.is-fullscreen-item {
+    height: 600px;
   }
 
   &.is-unsorted {

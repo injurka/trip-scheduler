@@ -85,7 +85,7 @@ onMounted(() => {
     }"
   >
     <div class="header-content">
-      <div class="header-left" @click="router.push(AppRoutePaths.Root)">
+      <div class="header-left" @click="router.push(AppRoutePaths.Trip.List)">
         <div class="logo">
           <Icon width="20" height="20" class="logo-icon" icon="mdi:map-marker-path" />
           <span class="logo-text">Trip Scheduler</span>

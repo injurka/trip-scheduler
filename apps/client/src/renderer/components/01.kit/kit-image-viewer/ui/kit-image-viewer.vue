@@ -125,6 +125,7 @@ const {
   preferredQuality,
   threshold: 80,
   velocity: 0.3,
+  baseTransform: computed(() => imageStyle.value.transform),
 })
 
 // --- Combined touch handlers ---
@@ -691,7 +692,6 @@ onUnmounted(() => {
   align-items: center;
   justify-content: center;
   height: 100%;
-  padding: 70px 40px;
 }
 
 .preview-img {
@@ -699,8 +699,6 @@ onUnmounted(() => {
   max-height: 100%;
   object-fit: contain;
   border-radius: var(--r-2xs);
-  filter: brightness(0.8);
-  opacity: 0;
 }
 
 .viewer-fade-enter-active,
@@ -793,10 +791,6 @@ onUnmounted(() => {
   }
   .header-left {
     justify-content: flex-start;
-  }
-
-  .preview-image {
-    padding: 8px 16px;
   }
 }
 </style>

@@ -101,6 +101,8 @@ async function handleDelete() {
   gap: 0.5rem;
   flex-grow: 1;
   min-width: 0;
+  /* Позволяет слоту header-info занимать место, но не ломать верстку */
+  margin-right: 8px;
 }
 
 .title-icon {
@@ -112,12 +114,14 @@ async function handleDelete() {
 .card-title {
   font-size: 1rem;
   font-weight: 600;
+  /* Убираем flex-grow у заголовка, чтобы он не давил на header-info, если текста мало */
 }
 
 .card-actions {
   display: flex;
   align-items: center;
   gap: 0.25rem;
+  flex-shrink: 0;
 }
 
 .card-actions button {

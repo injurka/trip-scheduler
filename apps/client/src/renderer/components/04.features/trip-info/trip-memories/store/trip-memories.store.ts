@@ -75,6 +75,13 @@ export const useTripMemoriesStore = defineStore('tripMemories', {
       return state.memories.filter(m => m.imageId && !m.timestamp)
     },
 
+    memoriesWithGeoForSelectedDay(): Memory[] {
+      return this.memoriesForSelectedDay.filter(
+        (m): m is Memory & { image: TripImage & { latitude: number, longitude: number } } =>
+          !!m.image?.latitude && !!m.image?.longitude,
+      )
+    },
+
     memoriesWithGeo(state): Memory[] {
       return state.memories.filter(
         (m): m is Memory & { image: TripImage & { latitude: number, longitude: number } } =>

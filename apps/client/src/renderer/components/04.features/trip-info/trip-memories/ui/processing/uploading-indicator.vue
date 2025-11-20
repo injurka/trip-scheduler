@@ -33,7 +33,7 @@ const failedUploads = computed(() => props.processingMemories.filter(m => m.stat
     <!-- Очередь -->
     <div v-if="queuedUploads.length > 0" class="queued-section">
       <div class="queued-header">
-        <Icon icon="mdi:timer-sand-outline" />
+        <Icon icon="mdi:timer-outline" />
         <span>В очереди: {{ queuedUploads.length }}</span>
       </div>
       <div class="queued-grid">
@@ -96,14 +96,14 @@ const failedUploads = computed(() => props.processingMemories.filter(m => m.stat
 }
 
 .queued-grid {
-  display: flex;
-  flex-wrap: wrap;
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(50px, 1fr));
   gap: 8px;
 }
 
 .queued-item {
-  width: 48px;
-  height: 48px;
+  width: 100%;
+  aspect-ratio: 1;
   border-radius: var(--r-s);
   overflow: hidden;
   background-color: var(--bg-tertiary-color);

@@ -1,3 +1,4 @@
+import type { FeatureLike } from 'ol/Feature'
 import type { Ref } from 'vue'
 import type { MapMarker } from '~/components/01.kit/kit-map'
 import { Feature, Map, Overlay, View } from 'ol'
@@ -8,6 +9,7 @@ import { fromLonLat } from 'ol/proj'
 import OSM from 'ol/source/OSM'
 import VectorSource from 'ol/source/Vector'
 import { Icon as OlIcon, Style } from 'ol/style'
+import { resolveApiUrl } from '~/shared/lib/url'
 
 export interface KitMapOptions {
   center: [number, number]
@@ -48,15 +50,20 @@ export function useKitMap() {
     await nextTick()
 
     try {
+      let currentlyShownFeature: FeatureLike | null = null
+
       const popup = new Overlay({
         element: popupEl,
+        positioning: 'bottom-center',
+        offset: [0, -45],
+        stopEvent: false,
         autoPan: options.autoPan === false
           ? false
           : {
-              animation: {
-                duration: 250,
-              },
+            animation: {
+              duration: 250,
             },
+          },
       })
 
       mapInstance.value = new Map({
@@ -73,26 +80,47 @@ export function useKitMap() {
       mapInstance.value.on('pointermove', (evt) => {
         if (evt.dragging) {
           popup.setPosition(undefined)
+          currentlyShownFeature = null
           return
         }
 
-        const feature = mapInstance.value?.forEachFeatureAtPixel(evt.pixel, f => f)
+        const featureUnderPointer = mapInstance.value?.forEachFeatureAtPixel(evt.pixel, f => f, { hitTolerance: 5 })
+        if (featureUnderPointer === currentlyShownFeature) {
+          return
+        }
+
+        currentlyShownFeature = featureUnderPointer!
+        popup.setPosition(undefined)
+
+        if (!featureUnderPointer) {
+          return
+        }
+
         const popupElement = popup.getElement()
         if (!popupElement)
           return
 
-        if (feature) {
-          const imageUrl = feature.get('imageUrl')
-          if (imageUrl) {
-            popupElement.innerHTML = `<img src="${resolveApiUrl(imageUrl)}" alt="Marker Preview" style="max-width:150px; max-height:150px; display:block; border-radius:var(--r-xs);" />`
-            popup.setPosition(evt.coordinate)
+        const imageUrl = featureUnderPointer.get('imageUrl')
+        const resolvedUrl = resolveApiUrl(imageUrl)
+
+        if (resolvedUrl) {
+          const img = new Image()
+          img.onload = () => {
+            if (currentlyShownFeature === featureUnderPointer) {
+              const isHorizontal = img.naturalWidth >= img.naturalHeight
+              const style = isHorizontal
+                ? 'width:200px; height:112px;' // ~16:9
+                : 'width:116px; height:200px;' // vertical
+              popupElement.innerHTML = `<img src="${resolvedUrl}" alt="Marker Preview" style="${style} object-fit: cover; display:block; border-radius:var(--r-xs);" />`
+
+              const geometry = featureUnderPointer.getGeometry()
+              if (geometry && geometry.getType() === 'Point') {
+                const coordinates = (geometry as Point).getCoordinates()
+                popup.setPosition(coordinates)
+              }
+            }
           }
-          else {
-            popup.setPosition(undefined)
-          }
-        }
-        else {
-          popup.setPosition(undefined)
+          img.src = resolvedUrl
         }
       })
 

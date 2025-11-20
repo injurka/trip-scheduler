@@ -25,9 +25,12 @@ interface Props {
   galleryImages: ImageViewerImage[]
   timelineGroups: TimelineGroups
   isCollapsed: boolean
+  isFullScreen?: boolean
 }
 
-const props = defineProps<Props>()
+const props = withDefaults(defineProps<Props>(), {
+  isFullScreen: false,
+})
 
 defineEmits<{
   (e: 'toggleCollapse'): void
@@ -131,7 +134,13 @@ const displayTime = computed(() => {
 </script>
 
 <template>
-  <div class="activity-timeline-node" :class="{ 'is-collapsed': isCollapsed }">
+  <div
+    class="activity-timeline-node"
+    :class="{
+      'is-collapsed': isCollapsed,
+      'is-fullscreen-node': isFullScreen,
+    }"
+  >
     <div class="activity-header">
       <div v-if="group.type === 'activity'" class="activity-time" :class="{ 'is-editable': !isViewMode }" @click="handleTimeClick">
         <div v-if="isEditingTime" ref="timeEditorRef" class="time-editor-inline" @click.stop>
@@ -187,7 +196,7 @@ const displayTime = computed(() => {
         <span>Взято из плана</span>
       </div>
 
-      <div v-if="group.memories.length > 0" class="memories-for-activity">
+      <div v-if="group.memories.length > 0" class="memories-for-activity" :class="{ 'fullscreen-grid': isFullScreen }">
         <MemoriesItem
           v-for="memory in group.memories"
           :key="memory.id"
@@ -195,6 +204,7 @@ const displayTime = computed(() => {
           :is-view-mode="isViewMode"
           :gallery-images="galleryImages"
           :timeline-groups="timelineGroups"
+          :is-full-screen="isFullScreen"
         />
       </div>
     </div>
@@ -222,6 +232,29 @@ const displayTime = computed(() => {
     }
   }
 
+  &.is-fullscreen-node {
+    border-left: 4px solid var(--border-secondary-color);
+    padding-left: 40px;
+    padding-bottom: 64px;
+
+    &::before {
+      width: 24px;
+      height: 24px;
+      left: -14px;
+      top: 34px;
+      border-width: 5px;
+    }
+
+    .activity-title {
+      font-size: 1.4rem;
+      margin-bottom: 24px;
+    }
+
+    .activity-time > span {
+      font-size: 1.1rem;
+    }
+  }
+
   &::before {
     content: '';
     position: absolute;
@@ -238,6 +271,10 @@ const displayTime = computed(() => {
     padding-top: 16px;
 
     &::before {
+      top: 30px;
+    }
+
+    &.is-fullscreen-node::before {
       top: 30px;
     }
   }
@@ -266,7 +303,7 @@ const displayTime = computed(() => {
 .activity-header {
   display: flex;
   align-items: center;
-  justify-content: space-between; // Pushes children to ends
+  justify-content: space-between;
   gap: 12px;
   width: 100%;
   border-radius: var(--r-xs) var(--r-l) var(--r-l) var(--r-xs);
@@ -277,7 +314,7 @@ const displayTime = computed(() => {
     padding: 2px 10px;
     border: 1px solid var(--border-secondary-color);
     border-radius: var(--r-s);
-    flex-shrink: 0; // Prevent shrinking
+    flex-shrink: 0;
     transition: background-color 0.2s ease;
 
     &.is-editable:hover {
@@ -312,6 +349,7 @@ const displayTime = computed(() => {
     padding: 4px;
     border-radius: 50%;
     transition: all 0.2s ease;
+    background-color: rgba(var(--bg-secondary-color-rgb), 0.8);
   }
 
   .collapse-toggle-btn:hover {
@@ -424,6 +462,11 @@ const displayTime = computed(() => {
 
   @include media-down(sm) {
     grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+  }
+
+  &.fullscreen-grid {
+    grid-template-columns: repeat(auto-fill, minmax(600px, 1fr));
+    gap: 12px;
   }
 }
 </style>

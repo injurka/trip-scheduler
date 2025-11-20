@@ -42,61 +42,42 @@ const uniqueAirlines = computed(() => {
     })
 })
 
-/**
- * Генерирует URL для логотипа авиакомпании по её IATA-коду.
- * Использует правильный CDN Skyscanner.
- * @param iataCode Двухбуквенный IATA-код (например, 'SU').
- */
+const flightNumbersSummary = computed(() => {
+  return segments.value
+    .filter(s => s.flightNumber)
+    .map(s => s.flightNumber)
+    .join(', ')
+})
+
 function getAirlineLogoUrl(iataCode?: string): string | null {
   if (!iataCode || iataCode.length < 2)
     return null
-  // ИСПОЛЬЗУЕТСЯ ПРАВИЛЬНЫЙ ДОМЕН: www.skyscanner.net
   return `https://www.skyscanner.net/images/airlines/favicon/${iataCode.toUpperCase()}.png`
 }
 
-/**
- * Безопасно создает объект Date из локального времени и смещения часового пояса.
- * Возвращает null, если дата не может быть надежно создана (т.е. нет информации о поясе).
- * Это предотвращает использование некорректной локальной таймзоны браузера.
- * @param dateTime Локальное время, например, '2025-10-18T22:40:00'
- * @param timeZone Смещение, например, '+03:00'
- */
 function createDateWithTimezone(dateTime?: string, timeZone?: string): Date | null {
   if (!dateTime)
     return null
-
-  // Проверяем, содержит ли строка dateTime уже информацию о временной зоне
   const hasOffset = /Z|[+-]\d{2}(?::\d{2})?$/.test(dateTime)
   if (hasOffset) {
     const date = new Date(dateTime)
     return Number.isNaN(date.getTime()) ? null : date
   }
-
-  // Если смещения нет в основной строке, оно должно быть в параметре timeZone
   if (timeZone) {
     const fullIso = `${dateTime}${timeZone}`
     const date = new Date(fullIso)
     return Number.isNaN(date.getTime()) ? null : date
   }
-
-  // Если информация о часовом поясе отсутствует, мы не можем создать корректную дату.
-  // Возвращаем null, чтобы избежать неверных расчетов.
   return null
 }
 
-/**
- * Форматирует локальную дату и время для отображения.
- * Эта функция не использует new Date() для форматирования, чтобы всегда показывать
- * время "как есть" в билете, а не в часовом поясе пользователя.
- */
 function formatDisplayDateTime(localDateTime?: string) {
   if (!localDateTime)
     return { time: '', date: '' }
   try {
     const time = localDateTime.substring(11, 16)
-    // Создаем дату в UTC, чтобы избежать смещения локальной зоной браузера при форматировании дня недели.
     const dateOnly = localDateTime.substring(0, 10)
-    const dateObj = new Date(`${dateOnly}T12:00:00Z`) // Use noon to avoid DST issues
+    const dateObj = new Date(`${dateOnly}T12:00:00Z`)
     const dateStr = dateObj.toLocaleDateString('ru-RU', { day: 'numeric', month: 'short', weekday: 'short' })
     return { time, date: dateStr }
   }
@@ -105,9 +86,6 @@ function formatDisplayDateTime(localDateTime?: string) {
   }
 }
 
-/**
- * Преобразует миллисекунды в строку "Чч Мм".
- */
 function formatDuration(ms: number) {
   if (ms < 0)
     return '---'
@@ -116,9 +94,6 @@ function formatDuration(ms: number) {
   return `${hours}ч ${minutes}м`
 }
 
-/**
- * Общая продолжительность всего путешествия в миллисекундах.
- */
 const totalDurationMs = computed(() => {
   const startDate = createDateWithTimezone(firstSegment.value?.departureDateTime, firstSegment.value?.departureTimeZone)
   const endDate = createDateWithTimezone(lastSegment.value?.arrivalDateTime, lastSegment.value?.arrivalTimeZone)
@@ -127,17 +102,10 @@ const totalDurationMs = computed(() => {
   return endDate.getTime() - startDate.getTime()
 })
 
-/**
- * Общая продолжительность в отформатированном виде.
- */
 const totalDurationFormatted = computed(() => {
   return formatDuration(totalDurationMs.value)
 })
 
-/**
- * Создает плоский массив всех "частей" путешествия (полеты и пересадки)
- * с рассчитанной шириной в процентах для визуализации.
- */
 const journeySegments = computed(() => {
   if (totalDurationMs.value <= 0 || segments.value.length === 0)
     return []
@@ -153,7 +121,6 @@ const journeySegments = computed(() => {
     if (!departureDate || !arrivalDate)
       continue
 
-    // Добавляем полетный сегмент
     const flightDurationMs = arrivalDate.getTime() - departureDate.getTime()
     if (flightDurationMs > 0) {
       journeyParts.push({
@@ -163,7 +130,6 @@ const journeySegments = computed(() => {
       })
     }
 
-    // Добавляем сегмент пересадки (если это не последний полет)
     if (i < segments.value.length - 1) {
       const nextSegment = segments.value[i + 1]
       const nextDepartureDate = createDateWithTimezone(nextSegment.departureDateTime, nextSegment.departureTimeZone)
@@ -183,9 +149,6 @@ const journeySegments = computed(() => {
   return journeyParts
 })
 
-/**
- * Продолжительность одного сегмента
- */
 function segmentDuration(segment: FlightSegment) {
   const departureDate = createDateWithTimezone(segment.departureDateTime, segment.departureTimeZone)
   const arrivalDate = createDateWithTimezone(segment.arrivalDateTime, segment.arrivalTimeZone)
@@ -216,12 +179,6 @@ function updateDataField<K extends keyof FlightData>(key: K, value: FlightData[K
   })
 }
 
-/**
- * Обновляет поле в конкретном сегменте перелета.
- * @param segmentIndex - Индекс сегмента в массиве.
- * @param key - Ключ поля в объекте сегмента.
- * @param value - Новое значение.
- */
 function updateSegmentField<K extends keyof FlightSegment>(segmentIndex: number, key: K, value: FlightSegment[K]) {
   const newSegments = JSON.parse(JSON.stringify(props.booking.data.segments || []))
   if (newSegments[segmentIndex]) {
@@ -319,15 +276,14 @@ function updateSegmentField<K extends keyof FlightSegment>(segmentIndex: number,
 
     <template #details>
       <div class="details-grid">
-        <template v-for="(segment, index) in segments" :key="segment.flightNumber">
-          <!-- Layover Info Block -->
+        <template v-for="(segment, index) in segments" :key="segment.flightNumber || index">
           <div v-if="index > 0" class="layover-details span-2">
             <Icon icon="mdi:clock-outline" />
             Пересадка в г. {{ segments[index - 1].arrivalCity }} ({{ segments[index - 1].arrivalAirport }})
             <span>{{ getLayoverDuration(segments[index - 1], segment) }}</span>
           </div>
 
-          <!-- Segment Details -->
+          <!-- Segment Header with Flight Number input -->
           <div class="segment-header span-2">
             <div class="segment-header-content">
               <div class="airline-logo-container-small">
@@ -344,7 +300,22 @@ function updateSegmentField<K extends keyof FlightSegment>(segmentIndex: number,
               </div>
               <span>Рейс {{ index + 1 }}</span>
             </div>
+
+            <!-- Ввод/Отображение номера рейса в заголовке сегмента -->
+            <div class="flight-number-container">
+              <span v-if="readonly" class="flight-number-text">
+                {{ segment.flightNumber }}
+              </span>
+              <div v-else class="flight-number-input">
+                <input
+                  :value="segment.flightNumber"
+                  placeholder="№"
+                  @input="updateSegmentField(index, 'flightNumber', ($event.target as HTMLInputElement).value)"
+                >
+              </div>
+            </div>
           </div>
+
           <BookingField :model-value="segment.airline" label="Авиакомпания" icon="mdi:compass-rose" :readonly="readonly" @update:model-value="updateSegmentField(index, 'airline', $event)" />
           <BookingField :model-value="segment.airlineIataCode" label="Код авиакомпании (IATA)" icon="mdi:barcode" :readonly="readonly" placeholder="SU" @update:model-value="updateSegmentField(index, 'airlineIataCode', $event)" />
           <BookingField :model-value="segment.departureCity" label="Город вылета" icon="mdi:city-variant-outline" :readonly="readonly" @update:model-value="updateSegmentField(index, 'departureCity', $event)" />
@@ -406,6 +377,7 @@ function updateSegmentField<K extends keyof FlightSegment>(segmentIndex: number,
   grid-template-columns: 1fr 1.5fr 1fr;
   align-items: center;
   gap: 1rem;
+  padding: 0.5rem 0;
 }
 
 .time-info {
@@ -596,16 +568,11 @@ function updateSegmentField<K extends keyof FlightSegment>(segmentIndex: number,
 .segment-header {
   display: flex;
   align-items: center;
-  gap: 0.75rem;
+  justify-content: space-between;
   margin-top: 1rem;
   margin-bottom: 0.5rem;
-
-  &::after {
-    content: '';
-    flex: 1 1 auto;
-    height: 1px;
-    background-color: var(--border-secondary-color);
-  }
+  padding-bottom: 4px;
+  border-bottom: 1px solid var(--border-secondary-color);
 }
 
 .segment-header-content {
@@ -615,7 +582,46 @@ function updateSegmentField<K extends keyof FlightSegment>(segmentIndex: number,
   font-weight: 600;
   font-size: 0.95rem;
   color: var(--fg-secondary-color);
-  flex-shrink: 0;
+}
+
+.flight-number-container {
+  display: flex;
+  align-items: center;
+}
+
+.flight-number-text {
+  font-family: var(--font-mono);
+  font-size: 0.85rem;
+  background-color: var(--bg-secondary-color);
+  padding: 2px 8px;
+  border-radius: var(--r-s);
+  border: 1px solid var(--border-secondary-color);
+  color: var(--fg-secondary-color);
+  white-space: nowrap;
+}
+
+.flight-number-input {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  background-color: var(--bg-tertiary-color);
+  padding: 2px 8px;
+  border-radius: var(--r-s);
+  border: 1px solid var(--border-secondary-color);
+
+  input {
+    background: transparent;
+    border: none;
+    width: 60px;
+    font-size: 0.9rem;
+    font-weight: 600;
+    color: var(--fg-primary-color);
+    outline: none;
+    &::placeholder {
+      color: var(--fg-tertiary-color);
+      font-weight: normal;
+    }
+  }
 }
 
 .airline-logo-container-small {
@@ -675,28 +681,31 @@ function updateSegmentField<K extends keyof FlightSegment>(segmentIndex: number,
     gap: 0.75rem;
     text-align: center;
   }
-
   .time-info {
-    order: 1;
     text-align: center;
-    align-items: center;
+    order: 1;
 
     &.arrival {
-      order: 3;
       text-align: center;
-      align-items: center;
+      order: 3;
     }
   }
-
   .route-visualizer {
     order: 2;
-
     background-color: var(--bg-primary-color);
     border: 1px solid var(--border-secondary-color);
     box-shadow: var(--s-l);
     margin: 8px 0;
     padding: 16px 16px 8px 8px;
     border-radius: var(--r-l);
+
+    .route-icon {
+      background-color: var(--bg-primary-color);
+    }
+  }
+
+  .span-2 {
+    grid-column: span 1 / span 1;
   }
 }
 </style>
