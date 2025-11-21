@@ -42,13 +42,6 @@ const uniqueAirlines = computed(() => {
     })
 })
 
-const flightNumbersSummary = computed(() => {
-  return segments.value
-    .filter(s => s.flightNumber)
-    .map(s => s.flightNumber)
-    .join(', ')
-})
-
 function getAirlineLogoUrl(iataCode?: string): string | null {
   if (!iataCode || iataCode.length < 2)
     return null

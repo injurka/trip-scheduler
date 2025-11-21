@@ -5,19 +5,14 @@ import { KitCheckbox } from '~/components/01.kit/kit-checkbox'
 import { useModuleStore } from '~/components/05.modules/trip-info/composables/use-trip-info-module'
 import MemoryProcessingCard from './processing-card.vue'
 
+const { memories: memoriesStore } = useModuleStore(['memories'])
+const { memoriesToProcess } = storeToRefs(memoriesStore)
+
 // --- UI State ---
 const isCollapsed = ref(false)
 const isFullScreen = ref(false)
 const BATCH_SIZE = 9
 const visibleCount = ref(BATCH_SIZE)
-
-const queueClasses = computed(() => ({
-  'processing-queue': true,
-  'is-fullscreen': isFullScreen.value,
-}))
-
-const { memories: memoriesStore } = useModuleStore(['memories'])
-const { memoriesToProcess } = storeToRefs(memoriesStore)
 
 /**
  * Реактивное состояние для фильтров отображения фотографий в очереди.
@@ -26,6 +21,11 @@ const filters = reactive({
   showWithDate: true, // Показать фото, у которых есть дата, но она не совпадает с текущим днем
   showWithoutDate: true, // Показать фото, у которых дата отсутствует вовсе
 })
+
+const queueClasses = computed(() => ({
+  'processing-queue': true,
+  'is-fullscreen': isFullScreen.value,
+}))
 
 /**
  * Отфильтрованный список воспоминаний для отображения на основе выбранных фильтров.

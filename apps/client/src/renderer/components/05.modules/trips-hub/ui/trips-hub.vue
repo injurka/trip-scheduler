@@ -10,7 +10,7 @@ import { TripsHubKey, useTripsHub } from '../composables/use-trips-hub'
 import TripsFilters from './controls/trips-filters.vue'
 import TripList from './list-trip/list.vue'
 import UnauthorizedPlaceholder from './list-trip/states/unauthorized-placeholder.vue'
-import TripCard from './list-trip/trip-card/card-item.vue' 
+import TripCard from './list-trip/trip-card/card-item.vue'
 
 import CreateTripFlow from './new-trip/create-trip-flow.vue'
 

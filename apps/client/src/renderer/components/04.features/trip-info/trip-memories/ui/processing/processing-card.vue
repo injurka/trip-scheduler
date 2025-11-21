@@ -14,9 +14,11 @@ import { ETripMemoriesKeys } from '~/components/04.features/trip-info/trip-memor
 import { useModuleStore } from '~/components/05.modules/trip-info/composables/use-trip-info-module'
 import { useRequestStatus } from '~/plugins/request'
 
-const props = defineProps<{
+interface Props {
   memory: Memory
-}>()
+}
+
+const props = defineProps<Props>()
 
 const { memories: memoriesStore, plan: tripDataStore } = useModuleStore(['memories', 'plan'])
 const { getSelectedDay, getAllDays } = storeToRefs(tripDataStore)

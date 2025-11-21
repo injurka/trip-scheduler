@@ -60,10 +60,10 @@ export function useKitMap() {
         autoPan: options.autoPan === false
           ? false
           : {
-            animation: {
-              duration: 250,
+              animation: {
+                duration: 250,
+              },
             },
-          },
       })
 
       mapInstance.value = new Map({

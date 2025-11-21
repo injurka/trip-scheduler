@@ -30,7 +30,7 @@ const { mdAndUp } = useDisplay()
 // --- File Upload Logic ---
 const dropZoneRef = ref<HTMLDivElement | null>(null)
 const { open: openFileDialog, onChange, reset } = useFileDialog({
-  accept: '.jpg,.jpeg,.png,.webp,.heic,.heif',
+  accept: '*',
   multiple: true,
 })
 
