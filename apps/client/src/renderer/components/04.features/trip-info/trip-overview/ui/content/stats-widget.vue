@@ -220,8 +220,12 @@ const attractionLabel = computed(() => getRussianPlural(props.attractionCount, [
   .main-stats {
     gap: 0.5rem;
   }
-  .stat-label-horizontal {
-    font-size: 0.8rem;
+  .stat-item-horizontal {
+    gap: 8px;
+
+    .stat-label-horizontal {
+      font-size: 0.85rem;
+    }
   }
 }
 </style>

@@ -8,7 +8,6 @@ interface Props {
   startDate: string
 }
 
-// Убрали solarIndex
 interface WeatherData {
   average: number | null
   min: number | null
@@ -20,7 +19,6 @@ interface WeatherData {
 const props = defineProps<Props>()
 
 const selectedCity = ref<string | null>(null)
-// Убрали solarIndex
 const weatherData = ref<WeatherData>({
   average: null,
   min: null,
@@ -54,8 +52,6 @@ function getAverage(arr: (number | null)[]): number | null {
   return Math.round(sum / validNumbers.length)
 }
 
-// Убрали функцию getSolarIndex
-
 function processDailyData(daily: any): Partial<WeatherData> {
   const temperatures = daily.temperature_2m_mean || []
   const tempMin = daily.temperature_2m_min || temperatures
@@ -63,7 +59,6 @@ function processDailyData(daily: any): Partial<WeatherData> {
 
   const precipitations = daily.precipitation_sum || []
   const windSpeeds = (daily.windspeed_10m_mean || daily.wind_speed_10m_mean || []).filter((w: number | null) => w !== null) as number[]
-  // Убрали solarRadiations
 
   const result: Partial<WeatherData> = {}
 
@@ -77,8 +72,6 @@ function processDailyData(daily: any): Partial<WeatherData> {
   if (windSpeeds.length > 0)
     result.windSpeed = Math.round(windSpeeds.reduce((a, b) => a + b, 0) / windSpeeds.length)
 
-  // Убрали логику расчета solarIndex
-
   return result
 }
 
@@ -88,7 +81,6 @@ async function fetchWeatherForCity(city: string) {
 
   isLoading.value = true
   error.value = null
-  // Убрали solarIndex
   weatherData.value = { average: null, min: null, max: null, rainyDays: null, windSpeed: null }
 
   try {
@@ -115,12 +107,10 @@ async function fetchWeatherForCity(city: string) {
 
     if (isFutureTrip) {
       apiUrl = 'https://climate-api.open-meteo.com/v1/climate'
-      // Убрали shortwave_radiation_sum из запроса
       dailyParams = 'temperature_2m_mean,precipitation_sum,wind_speed_10m_mean'
     }
     else {
       apiUrl = 'https://archive-api.open-meteo.com/v1/archive'
-      // Убрали shortwave_radiation_sum из запроса
       dailyParams = 'temperature_2m_mean,temperature_2m_max,temperature_2m_min,precipitation_sum,windspeed_10m_mean'
     }
 
@@ -196,28 +186,35 @@ onMounted(() => {
         <div class="weather-summary">
           <div class="summary-item">
             <span class="label">Мин.</span>
-            <span class="value">{{ weatherData.min }}°C</span>
+            <span class="value">{{ weatherData.min }}°</span>
           </div>
           <div class="summary-item average">
-            <span class="label">Сред.</span>
-            <span class="value">{{ weatherData.average }}°C</span>
+            <span class="label">Средняя</span>
+            <span class="value">{{ weatherData.average }}°</span>
           </div>
           <div class="summary-item">
             <span class="label">Макс.</span>
-            <span class="value">{{ weatherData.max }}°C</span>
+            <span class="value">{{ weatherData.max }}°</span>
           </div>
         </div>
         <div class="weather-details">
-          <!-- УДАЛЕНО: Блок с солнечной активностью -->
           <div v-if="weatherData.rainyDays !== null" class="detail-item">
-            <Icon icon="mdi:weather-rainy" />
-            <span class="detail-value">{{ weatherData.rainyDays }} дн.</span>
-            <span class="detail-label">в месяц</span>
+            <div class="icon-box">
+              <Icon icon="mdi:weather-rainy" />
+            </div>
+            <div class="detail-text">
+              <span class="detail-value">{{ weatherData.rainyDays }} дн.</span>
+              <span class="detail-label">осадки</span>
+            </div>
           </div>
           <div v-if="weatherData.windSpeed !== null" class="detail-item">
-            <Icon icon="mdi:weather-windy" />
-            <span class="detail-value">{{ weatherData.windSpeed }} км/ч</span>
-            <span class="detail-label">сред.</span>
+            <div class="icon-box">
+              <Icon icon="mdi:weather-windy" />
+            </div>
+            <div class="detail-text">
+              <span class="detail-value">{{ weatherData.windSpeed }} км/ч</span>
+              <span class="detail-label">ветер</span>
+            </div>
           </div>
         </div>
       </div>
@@ -278,17 +275,18 @@ onMounted(() => {
     transform: rotate(180deg);
   }
 }
+
 .forecast-display {
   flex-grow: 1;
   display: flex;
   align-items: center;
   justify-content: center;
-  min-height: 100px;
   background-color: var(--bg-tertiary-color);
   border-radius: var(--r-m);
-  padding: 1rem;
-  min-height: 230px;
+  padding: 1.25rem 1rem;
+  min-height: auto;
 }
+
 .state-info {
   display: flex;
   flex-direction: column;
@@ -299,6 +297,7 @@ onMounted(() => {
   color: var(--fg-secondary-color);
   text-align: center;
   flex-grow: 1;
+  padding: 1rem;
 
   &.error {
     color: var(--fg-error-color);
@@ -327,28 +326,30 @@ onMounted(() => {
   display: flex;
   flex-direction: column;
   align-items: center;
-  padding: 0 1rem;
-  gap: 10px;
+  padding: 0 0.5rem;
+  gap: 4px;
 
   .label {
     font-size: 0.8rem;
     color: var(--fg-secondary-color);
-    margin-bottom: 0.25rem;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
   }
   .value {
-    font-size: 1.5rem;
+    font-size: 1.4rem;
     font-weight: 600;
     color: var(--fg-primary-color);
+    line-height: 1.1;
   }
 
   &.average {
     .value {
-      font-size: 2.5rem;
-      line-height: 32px;
+      font-size: 2.2rem;
       color: var(--fg-accent-color);
     }
     .label {
-      font-size: 1rem;
+      font-weight: 600;
+      color: var(--fg-primary-color);
     }
   }
 }
@@ -363,23 +364,33 @@ onMounted(() => {
 
 .detail-item {
   display: flex;
-  flex-direction: column;
   align-items: center;
-  text-align: center;
-  gap: 4px;
-  color: var(--fg-secondary-color);
-  font-size: 0.8rem;
+  justify-content: center;
+  gap: 10px;
 
-  .iconify {
-    font-size: 1.5rem;
-    margin-bottom: 4px;
+  .icon-box {
     color: var(--fg-tertiary-color);
+    font-size: 1.4rem;
+    display: flex;
+    align-items: center;
+  }
+
+  .detail-text {
+    display: flex;
+    flex-direction: column;
+    text-align: left;
   }
 
   .detail-value {
-    font-size: 1rem;
+    font-size: 0.95rem;
     font-weight: 600;
     color: var(--fg-primary-color);
+    line-height: 1.1;
+  }
+
+  .detail-label {
+    font-size: 0.75rem;
+    color: var(--fg-secondary-color);
   }
 }
 
@@ -393,21 +404,47 @@ onMounted(() => {
 }
 
 @include media-down(sm) {
+  .forecast-display {
+    padding: 1rem;
+  }
+
+  .weather-content {
+    gap: 1rem;
+  }
+
   .weather-summary {
-    flex-direction: column;
-    gap: 1.5rem;
-    align-items: center;
+    flex-direction: row;
+    justify-content: space-between;
+    padding: 0 0.5rem;
   }
-  .summary-item.average .value {
-    font-size: 2.25rem;
-  }
-  .weather-details {
-    gap: 0.5rem;
-  }
-  .detail-item {
-    .iconify {
-      font-size: 1.25rem;
+
+  .summary-item {
+    .label {
+      font-size: 0.7rem;
     }
+    .value {
+      font-size: 1.2rem;
+    }
+
+    &.average {
+      .value {
+        font-size: 1.8rem;
+      }
+    }
+  }
+
+  .weather-details {
+    gap: 0.75rem;
+    padding-top: 1rem;
+  }
+
+  .detail-item {
+    gap: 8px;
+
+    .icon-box {
+      font-size: 1.2rem;
+    }
+
     .detail-value {
       font-size: 0.9rem;
     }
