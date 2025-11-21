@@ -56,7 +56,7 @@ const statusInfo = computed(() => {
       </div>
     </div>
     <div class="card-status" :class="statusInfo.class">
-      <Icon :icon="statusInfo.icon" />
+      <Icon size="18" :icon="statusInfo.icon" />
     </div>
   </div>
 </template>

@@ -156,7 +156,7 @@ function openViewer(index: number) {
     <input
       ref="fileInput"
       type="file"
-      accept="image/*"
+      accept=".jpg,.jpeg,.png,.webp,.heic,.heif"
       multiple
       class="hidden-file-input"
       @change="handleFileUpload"

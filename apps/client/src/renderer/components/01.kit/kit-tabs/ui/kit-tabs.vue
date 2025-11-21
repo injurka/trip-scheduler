@@ -117,7 +117,6 @@ watch(model, (newVal, oldVal) => {
 
 .kit-tabs-content-wrapper {
   position: relative;
-  overflow: hidden;
   transition: height 0.3s ease-in-out;
   min-height: 50px;
 }
