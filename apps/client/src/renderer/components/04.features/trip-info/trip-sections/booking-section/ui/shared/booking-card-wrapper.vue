@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import type { BookingStatus } from '../../composables/use-booking-section'
+import type { HighlightStatus } from '../../composables/use-booking-section'
 import { Icon } from '@iconify/vue'
 import { computed, ref } from 'vue'
 import { KitEditable } from '~/components/01.kit/kit-editable'
@@ -7,17 +7,32 @@ import { KitEditable } from '~/components/01.kit/kit-editable'
 interface Props {
   icon: string
   readonly: boolean
-  bookingStatus?: BookingStatus
+  highlightStatus?: HighlightStatus
 }
 
 const props = withDefaults(defineProps<Props>(), {
-  bookingStatus: 'future',
+  highlightStatus: null,
 })
 const emit = defineEmits<{ (e: 'delete'): void }>()
 const title = defineModel<string>('title', { required: true })
 const confirm = useConfirm()
 
 const isDetailsVisible = ref(false)
+
+const highlightClass = computed(() => {
+  if (!props.highlightStatus)
+    return ''
+  return `highlight-${props.highlightStatus}`
+})
+
+const statusBadge = computed(() => {
+  switch (props.highlightStatus) {
+    case 'active': return { text: 'Сейчас', icon: 'mdi:play-circle-outline', color: 'var(--fg-success-color)' }
+    case 'next': return { text: 'Далее', icon: 'mdi:skip-next-circle-outline', color: 'var(--fg-info-color)' }
+    case 'closest': return { text: 'Ближайшее', icon: 'mdi:clock-start', color: 'var(--fg-accent-color)' }
+    default: return null
+  }
+})
 
 function showVisibleIfClose() {
   if (!isDetailsVisible.value)
@@ -35,34 +50,10 @@ async function handleDelete() {
     emit('delete')
   }
 }
-
-const statusClasses = computed(() => {
-  return {
-    'status-active': props.bookingStatus === 'active',
-    'status-soon': props.bookingStatus === 'soon',
-    'status-past': props.bookingStatus === 'past',
-  }
-})
-
-const statusLabel = computed(() => {
-  if (props.bookingStatus === 'active')
-    return 'Сейчас'
-  if (props.bookingStatus === 'soon')
-    return 'Скоро'
-  return null
-})
-
-const statusIcon = computed(() => {
-  if (props.bookingStatus === 'active')
-    return 'mdi:check-circle-outline' // or 'mdi:clock-fast'
-  if (props.bookingStatus === 'soon')
-    return 'mdi:clock-outline'
-  return null
-})
 </script>
 
 <template>
-  <div class="booking-card" :class="statusClasses">
+  <div class="booking-card" :class="highlightClass">
     <header class="card-header">
       <div class="title-container">
         <button v-if="!readonly" class="drag-handle" title="Перетащить">
@@ -75,11 +66,9 @@ const statusIcon = computed(() => {
           class="card-title"
           placeholder="Введите заголовок"
         />
-
-        <!-- Индикатор статуса -->
-        <div v-if="statusLabel" class="status-badge">
-          <Icon v-if="statusIcon" :icon="statusIcon" />
-          <span>{{ statusLabel }}</span>
+        <div v-if="statusBadge" class="status-badge" :style="{ color: statusBadge.color, borderColor: statusBadge.color }">
+          <Icon :icon="statusBadge.icon" />
+          <span>{{ statusBadge.text }}</span>
         </div>
       </div>
       <div class="card-actions">
@@ -119,41 +108,23 @@ const statusIcon = computed(() => {
     box-shadow: var(--s-m);
   }
 
-  /* --- Стили статусов --- */
-  &.status-active {
+  &.highlight-active {
     border-color: var(--fg-success-color);
-    box-shadow: 0 0 0 1px var(--fg-success-color);
+    box-shadow:
+      0 0 0 1px var(--fg-success-color),
+      var(--s-m);
     background-color: rgba(var(--fg-success-color-rgb), 0.03);
-
-    .status-badge {
-      background-color: var(--fg-success-color);
-      color: var(--fg-inverted-color);
-    }
-
-    .card-header {
-      background-color: rgba(var(--fg-success-color-rgb), 0.1);
-    }
   }
 
-  &.status-soon {
-    border-color: var(--fg-warning-color);
-    box-shadow: 0 0 0 1px var(--fg-warning-color);
-    background-color: rgba(var(--fg-warning-color-rgb), 0.03);
-
-    .status-badge {
-      background-color: var(--fg-warning-color);
-      color: var(--fg-primary-color);
-    }
-
-    .card-header {
-      background-color: rgba(var(--fg-warning-color-rgb), 0.1);
-    }
-  }
-
-  &.status-past {
-    opacity: 0.7;
-    filter: grayscale(0.5);
+  &.highlight-next {
+    border-color: var(--fg-info-color);
     border-style: dashed;
+    background-color: rgba(var(--fg-info-color-rgb), 0.02);
+  }
+
+  &.highlight-closest {
+    border-color: var(--fg-accent-color);
+    box-shadow: 0 0 0 1px var(--fg-accent-color);
   }
 }
 
@@ -164,6 +135,17 @@ const statusIcon = computed(() => {
   padding: 0.5rem 0.75rem;
   background-color: var(--bg-tertiary-color);
   border-bottom: 1px solid var(--border-secondary-color);
+
+  .highlight-active & {
+    background-color: rgba(var(--fg-success-color-rgb), 0.1);
+    border-bottom-color: rgba(var(--fg-success-color-rgb), 0.2);
+  }
+  .highlight-next & {
+    background-color: rgba(var(--fg-info-color-rgb), 0.1);
+  }
+  .highlight-closest & {
+    background-color: rgba(var(--fg-accent-color-rgb), 0.1);
+  }
 }
 
 .title-container {
@@ -175,6 +157,26 @@ const statusIcon = computed(() => {
   margin-right: 8px;
 }
 
+.status-badge {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  padding: 2px 8px;
+  border-radius: var(--r-full);
+  border: 1px solid currentColor;
+  background-color: var(--bg-primary-color);
+  margin-left: auto;
+  white-space: nowrap;
+
+  @media (max-width: 600px) {
+    span {
+      display: none;
+    }
+  }
+}
+
 .title-icon {
   font-size: 1.25rem;
   color: var(--fg-secondary-color);
@@ -184,23 +186,6 @@ const statusIcon = computed(() => {
 .card-title {
   font-size: 1rem;
   font-weight: 600;
-}
-
-.status-badge {
-  display: flex;
-  align-items: center;
-  gap: 4px;
-  padding: 2px 8px;
-  border-radius: var(--r-full);
-  font-size: 0.75rem;
-  font-weight: 600;
-  margin-left: 8px;
-  text-transform: uppercase;
-  flex-shrink: 0;
-
-  .iconify {
-    font-size: 0.9rem;
-  }
 }
 
 .card-actions {
@@ -227,10 +212,8 @@ const statusIcon = computed(() => {
   }
 }
 
-.delete-btn {
-  svg {
-    color: var(--fg-error-color);
-  }
+.delete-btn svg {
+  color: var(--fg-error-color);
 }
 
 .drag-handle {

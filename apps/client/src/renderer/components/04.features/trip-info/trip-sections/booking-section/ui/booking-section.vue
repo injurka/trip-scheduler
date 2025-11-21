@@ -32,6 +32,7 @@ const {
   bookingGroups,
   tabItems,
   allBookingsSorted,
+  bookingHighlightMap,
   addBooking,
   addCompletedBooking,
   deleteBooking,
@@ -39,7 +40,6 @@ const {
   updateBooking,
   updateBookingsForGroup,
   bookingTypeConfigs,
-  getBookingStatus,
 } = useBookingSection(props, emit)
 
 const isAiCreatorViewOpen = ref(false)
@@ -95,12 +95,11 @@ function getCardComponent(type: Booking['type']) {
         <template #timeline>
           <div class="bookings-grid">
             <div v-for="booking in allBookingsSorted" :key="booking.id">
-              <!-- Прокидываем bookingStatus -->
               <Component
                 :is="getCardComponent(booking.type)"
                 :booking="booking as any"
                 :readonly="readonly"
-                :booking-status="getBookingStatus(booking.id)"
+                :highlight-status="bookingHighlightMap[booking.id]"
                 @delete="deleteBooking(booking.id)"
                 @update:booking="updateBooking"
               />
@@ -119,12 +118,11 @@ function getCardComponent(type: Booking['type']) {
             @update:model-value="updateBookingsForGroup(tab.id, $event)"
           >
             <template #item="{ element: booking }">
-              <!-- Прокидываем bookingStatus -->
               <component
                 :is="getCardComponent(booking.type)"
                 :booking="booking"
                 :readonly="readonly"
-                :booking-status="getBookingStatus(booking.id)"
+                :highlight-status="bookingHighlightMap[booking.id]"
                 @delete="deleteBooking(booking.id)"
                 @update:booking="updateBooking"
               />

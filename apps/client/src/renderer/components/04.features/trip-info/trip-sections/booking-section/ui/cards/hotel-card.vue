@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import type { HighlightStatus } from '../../composables/use-booking-section'
 import type { Booking, HotelData } from '../../models/types'
 import { Icon } from '@iconify/vue'
 import { computed, ref } from 'vue'
@@ -15,7 +16,9 @@ import BookingTextareaField from '../shared/booking-textarea-field.vue'
 interface Props {
   booking: Booking & { type: 'hotel' }
   readonly: boolean
+  highlightStatus?: HighlightStatus
 }
+
 const props = defineProps<Props>()
 const emit = defineEmits<{
   (e: 'delete'): void
@@ -53,6 +56,7 @@ const hotelWebsiteUrl = computed(() => {
     :title="booking.title"
     :icon="booking.icon"
     :readonly="readonly"
+    :highlight-status="highlightStatus"
     @delete="$emit('delete')"
     @update:title="updateTitle"
   >

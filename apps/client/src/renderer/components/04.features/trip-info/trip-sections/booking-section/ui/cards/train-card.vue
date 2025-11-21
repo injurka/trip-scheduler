@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import type { BookingStatus } from '../../../composables/use-booking-section'
+import type { HighlightStatus } from '../../composables/use-booking-section'
 import type { Booking, TrainData } from '../../models/types'
 import { Icon } from '@iconify/vue'
 import { computed, ref } from 'vue'
@@ -15,7 +15,7 @@ import BookingTextareaField from '../shared/booking-textarea-field.vue'
 interface Props {
   booking: Booking & { type: 'train' }
   readonly: boolean
-  bookingStatus?: BookingStatus
+  highlightStatus?: HighlightStatus
 }
 const props = defineProps<Props>()
 const emit = defineEmits<{
@@ -97,7 +97,7 @@ const totalDurationFormatted = computed(() => {
     :title="booking.title"
     :icon="booking.icon"
     :readonly="readonly"
-    :booking-status="bookingStatus"
+    :highlight-status="highlightStatus"
     @delete="$emit('delete')"
     @update:title="updateTitle"
   >
@@ -346,7 +346,7 @@ const totalDurationFormatted = computed(() => {
   }
 }
 
-@media (max-width: 600px) {
+@include media-down(sm) {
   .card-content {
     grid-template-columns: 1fr;
     gap: 0.75rem;

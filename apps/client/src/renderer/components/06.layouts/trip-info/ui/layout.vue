@@ -101,13 +101,14 @@ onBeforeUnmount(() => {
                   <Icon :icon="item.icon!" class="section-item-icon" />
                   <span>{{ item.label }}</span>
                 </li>
-                <li v-if="store.auth.isAuthenticated" class="add-section-item-wrapper">
-                  <button class="add-section-btn" @click="ui.openAddSectionDialog">
-                    <Icon icon="mdi:plus-circle-outline" />
-                    <span>Добавить раздел</span>
-                  </button>
-                </li>
               </ul>
+
+              <div v-if="store.auth.isAuthenticated" class="dropdown-footer">
+                <button class="add-section-btn" @click="ui.openAddSectionDialog">
+                  <Icon icon="mdi:plus-circle-outline" />
+                  <span>Добавить раздел</span>
+                </button>
+              </div>
             </div>
           </Transition>
         </div>
@@ -376,6 +377,7 @@ onBeforeUnmount(() => {
   }
 }
 
+/* Дровер для мобильных и общий стиль кнопки добавления */
 .sections-drawer {
   .drawer-header {
     padding: 16px;
@@ -420,28 +422,29 @@ onBeforeUnmount(() => {
   .drawer-footer {
     padding: 16px;
     border-top: 1px solid var(--border-secondary-color);
+  }
+}
 
-    .add-section-btn {
-      display: inline-flex;
-      align-items: center;
-      justify-content: center;
-      gap: 8px;
-      padding: 8px 12px;
-      border-radius: var(--r-s);
-      border: 1px solid var(--border-secondary-color);
-      background-color: transparent;
-      color: var(--fg-secondary-color);
-      font-weight: 500;
-      cursor: pointer;
-      width: 100%;
+.add-section-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 8px 12px;
+  border-radius: var(--r-s);
+  border: 1px dashed var(--border-secondary-color);
+  background-color: transparent;
+  color: var(--fg-secondary-color);
+  font-weight: 500;
+  cursor: pointer;
+  width: 100%;
+  transition: all 0.2s ease;
+  font-size: 0.9rem;
 
-      transition: all 0.2s ease;
-
-      &:hover {
-        color: var(--fg-accent-color);
-        border-color: var(--fg-accent-color);
-      }
-    }
+  &:hover {
+    color: var(--fg-accent-color);
+    border-color: var(--fg-accent-color);
+    background-color: var(--bg-hover-color);
   }
 }
 
@@ -456,17 +459,20 @@ onBeforeUnmount(() => {
   border-radius: var(--r-l);
   box-shadow: var(--s-xl);
   z-index: 10;
-  padding: 16px;
-  max-height: 50vh;
-  overflow-y: auto;
+  padding: 0;
+  max-height: 60vh;
+  display: flex;
+  flex-direction: column;
 }
 
 .sections-list {
   list-style: none;
-  padding: 0;
+  padding: 16px;
   margin: 0;
   column-count: 3;
   column-gap: 24px;
+  overflow-y: auto;
+  flex: 1;
 
   li {
     display: flex;
@@ -492,35 +498,13 @@ onBeforeUnmount(() => {
       color: var(--fg-primary-color);
     }
   }
+}
 
-  .add-section-item-wrapper {
-    padding: 0;
-    margin: 0;
-
-    &:hover {
-      background: none;
-    }
-
-    .add-section-btn {
-      display: inline-flex;
-      justify-content: flex-start;
-      align-items: center;
-      gap: 8px;
-      padding: 12px 16px;
-      border-radius: var(--r-s);
-      color: var(--fg-secondary-color);
-      font-weight: 400;
-      cursor: pointer;
-      transition: all 0.2s ease;
-      font-size: 1rem;
-      width: 100%;
-
-      &:hover {
-        color: var(--fg-accent-color);
-        background-color: var(--bg-hover-color);
-      }
-    }
-  }
+.dropdown-footer {
+  padding: 8px;
+  border-top: 1px solid var(--border-secondary-color);
+  background-color: var(--bg-tertiary-color);
+  flex-shrink: 0;
 }
 
 .fade-dropdown-enter-active,
@@ -536,6 +520,7 @@ onBeforeUnmount(() => {
   transform: translateX(-50%) translateY(-10px);
 }
 
+/* Форма добавления секции */
 .add-section-form {
   display: flex;
   flex-direction: column;
