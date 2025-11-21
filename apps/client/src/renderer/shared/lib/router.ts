@@ -28,10 +28,6 @@ const UserSettings = () => import('~/pages/user/[id]/settings.vue')
 const UserQuota = () => import('~/pages/user/[id]/quota.vue')
 const UserStorage = () => import('~/pages/user/[id]/storage.vue')
 
-// --- Сообщества ---
-const CommunitiesList = () => import('~/pages/communities/index.vue')
-const CommunityInfo = () => import('~/pages/communities/[id].vue')
-
 const ExplorePage = () => import('~/pages/explore.vue')
 
 // Guard для проверки, что пользователь заходит в свои настройки
