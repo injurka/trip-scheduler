@@ -1,6 +1,6 @@
 import type { Meta, StoryObj } from '@storybook/vue3'
 
-import { Divider } from '../../src/components/01.kit/divider'
+import { KitDivider } from '../../src/renderer/components/01.kit/kit-divider'
 
 /**
  * The `Divider` component is used to visually separate content into distinct sections.
@@ -8,7 +8,7 @@ import { Divider } from '../../src/components/01.kit/divider'
  */
 const meta = {
   title: 'Kit/Divider',
-  component: Divider,
+  component: KitDivider,
   tags: ['autodocs'],
   argTypes: {
     isLoading: {
@@ -23,18 +23,18 @@ const meta = {
   decorators: [
     () => ({ template: '<div style="width: 300px; padding: 2rem 0;"><story/></div>' }),
   ],
-} satisfies Meta<typeof Divider>
+} satisfies Meta<typeof KitDivider>
 
 export default meta
 type Story = StoryObj<typeof meta>
 
 export const WithText: Story = {
   render: args => ({
-    components: { Divider },
+    components: { KitDivider },
     setup() {
       return { args }
     },
-    template: '<Divider :isLoading="args.isLoading">{{ args.default }}</Divider>',
+    template: '<KitDivider :isLoading="args.isLoading">{{ args.default }}</Divider>',
   }),
   args: {
     isLoading: false,

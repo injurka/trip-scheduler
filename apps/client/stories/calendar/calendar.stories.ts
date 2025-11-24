@@ -2,7 +2,7 @@ import type { Meta, StoryObj } from '@storybook/vue3'
 import { CalendarDate, today } from '@internationalized/date'
 import { ref } from 'vue'
 
-import { Calendar } from '../../src/components/01.kit/calendar'
+import { KitCalendar } from '../../src/renderer/components/01.kit/kit-calendar'
 
 /**
  * The `Calendar` component provides an accessible and themeable date picker.
@@ -12,7 +12,7 @@ import { Calendar } from '../../src/components/01.kit/calendar'
  */
 const meta = {
   title: 'Kit/Calendar',
-  component: Calendar,
+  component: KitCalendar,
   tags: ['autodocs'],
   argTypes: {
     'modelValue': {
@@ -25,7 +25,7 @@ const meta = {
   decorators: [
     () => ({ template: '<div style="display: flex; justify-content: center; padding: 2rem;"><story/></div>' }),
   ],
-} satisfies Meta<typeof Calendar>
+} satisfies Meta<typeof KitCalendar>
 
 export default meta
 type Story = StoryObj<typeof meta>
@@ -36,7 +36,7 @@ const getToday = () => today('UTC')
 // A reusable render function to demonstrate v-model interactivity
 function interactiveRender(args: any) {
   return {
-    components: { Calendar },
+    components: { KitCalendar },
     setup() {
       // A ref to hold the selected date, initialized from story args
       const selectedDate = ref(args.modelValue)
@@ -48,7 +48,7 @@ function interactiveRender(args: any) {
     },
     template: `
     <div style="font-family: 'Rubik', sans-serif;">
-      <Calendar v-model="selectedDate" @update:modelValue="args['onUpdate:modelValue']" />
+      <KitCalendar v-model="selectedDate" @update:modelValue="args['onUpdate:modelValue']" />
       <div style="margin-top: 16px; text-align: center;">
         <p style="margin: 0; font-size: 14px; color: #666;">v-model state:</p>
         <code style="font-family: monospace; background: #f0f0f0; padding: 4px 8px; border-radius: var(--r-2xs);">

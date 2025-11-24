@@ -1,7 +1,7 @@
 import type { Meta, StoryObj } from '@storybook/vue3'
 
-import type { ImageViewerImage, ImageViewerOptions } from '../../src/components/01.kit/image-viewer'
-import { ImageViewer, useImageViewer } from '../../src/components/01.kit/image-viewer'
+import type { ImageViewerImage, ImageViewerOptions } from '../../src/renderer/components/01.kit/kit-image-viewer'
+import { KitImageViewer, useImageViewer } from '../../src/renderer/components/01.kit/kit-image-viewer'
 
 /**
  * The `ImageViewer` is a full-screen modal component for displaying single or multiple images.
@@ -10,7 +10,7 @@ import { ImageViewer, useImageViewer } from '../../src/components/01.kit/image-v
  */
 const meta = {
   title: 'Kit/ImageViewer',
-  component: ImageViewer,
+  component: KitImageViewer,
   tags: ['autodocs'],
   argTypes: {
     // Props of the ImageViewer component
@@ -28,7 +28,7 @@ const meta = {
       description: 'Options passed to `useImageViewer` (e.g., `{ enableKeyboard: false }`).',
     },
   },
-} satisfies Meta<typeof ImageViewer>
+} satisfies Meta<typeof KitImageViewer>
 
 export default meta
 type Story = StoryObj<typeof meta>
@@ -49,7 +49,7 @@ const singleImage: ImageViewerImage[] = [
 // --- Reusable Render Function ---
 function createRender(imageList: ImageViewerImage[]) {
   return (args: any) => ({
-    components: { ImageViewer },
+    components: { KitImageViewer },
     setup() {
       // Use the composable to manage the viewer's state
       const viewer = useImageViewer(args.options as ImageViewerOptions)
@@ -77,7 +77,7 @@ function createRender(imageList: ImageViewerImage[]) {
       </div>
 
       <!-- The Viewer Component -->
-      <ImageViewer
+      <KitImageViewer
         v-model:visible="viewer.isOpen.value"
         v-model:currentIndex="viewer.currentIndex.value"
         :images="viewer.images.value"

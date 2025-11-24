@@ -1,7 +1,7 @@
 import type { Meta, StoryObj } from '@storybook/vue3'
 import { ref, watch } from 'vue'
 
-import { InlineEditorWrapper } from '../../src/components/01.kit/inline-editor'
+import { KitInlineMdEditor, KitInlineMdEditorWrapper } from '../../src/renderer/components/01.kit/kit-inline-md-editor'
 
 /**
  * The `InlineEditor` component provides a lightweight, Notion-like WYSIWYG editor
@@ -11,7 +11,7 @@ import { InlineEditorWrapper } from '../../src/components/01.kit/inline-editor'
  */
 const meta = {
   title: 'Kit/InlineEditor',
-  component: InlineEditorWrapper,
+  component: KitInlineMdEditorWrapper,
   tags: ['autodocs'],
   argTypes: {
     // Props
@@ -42,7 +42,7 @@ const meta = {
     focus: { action: 'focus', description: 'Fired when the editor gains focus.' },
     blur: { action: 'blur', description: 'Fired when the editor loses focus.' },
   },
-} satisfies Meta<typeof InlineEditorWrapper>
+} satisfies Meta<typeof KitInlineMdEditorWrapper>
 
 export default meta
 type Story = StoryObj<typeof meta>
@@ -61,7 +61,7 @@ This is a demo of the **Milkdown**-based inline editor. You can write in _Markdo
 // A reusable render function to show the v-model state
 function render(args: any) {
   return {
-    components: { InlineEditorWrapper },
+    components: { KitInlineMdEditorWrapper },
     setup() {
       // Set up a ref to sync with v-model
       const content = ref(args.modelValue || '')
@@ -77,7 +77,7 @@ function render(args: any) {
     <div style="font-family: 'Rubik', sans-serif;">
       <p><strong>Editor:</strong></p>
       <div style="border: 1px solid #ccc; border-radius: var(--r-s); padding: 4px; min-height: 80px;">
-        <InlineEditorWrapper
+        <KitInlineMdEditorWrapper
           v-model="content"
           :disabled="args.disabled"
           :readonly="args.readonly"

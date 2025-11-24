@@ -1,6 +1,6 @@
 import type { Meta, StoryObj } from '@storybook/vue3'
 
-import { Skeleton } from '../../src/components/01.kit/skeleton'
+import { KitSkeleton} from '../../src/renderer/components/01.kit/kit-skeleton'
 
 /**
  * The `Skeleton` component is used to display a placeholder preview of your content
@@ -9,7 +9,7 @@ import { Skeleton } from '../../src/components/01.kit/skeleton'
  */
 const meta = {
   title: 'Kit/Skeleton',
-  component: Skeleton,
+  component: KitSkeleton,
   tags: ['autodocs'],
   argTypes: {
     type: {
@@ -34,7 +34,7 @@ const meta = {
       description: 'The background color of the skeleton.',
     },
   },
-} satisfies Meta<typeof Skeleton>
+} satisfies Meta<typeof KitSkeleton>
 
 export default meta
 type Story = StoryObj<typeof meta>
@@ -73,20 +73,20 @@ export const CustomColor: Story = {
 export const TextLines: Story = {
   name: 'As Text Placeholder',
   render: args => ({
-    components: { Skeleton },
+    components: { KitSkeleton },
     setup() {
       return { args }
     },
     template: `
       <div style="width: 350px;">
         <h3 style="margin: 0 0 12px;">
-          <Skeleton width="50%" height="28px" />
+          <KitSkeleton width="50%" height="28px" />
         </h3>
         <div style="display: flex; flex-direction: column; gap: 8px;">
-          <Skeleton width="100%" height="1em" />
-          <Skeleton width="95%" height="1em" />
-          <Skeleton width="100%" height="1em" />
-          <Skeleton width="75%" height="1em" />
+          <KitSkeleton width="100%" height="1em" />
+          <KitSkeleton width="95%" height="1em" />
+          <KitSkeleton width="100%" height="1em" />
+          <KitSkeleton width="75%" height="1em" />
         </div>
       </div>
     `,
