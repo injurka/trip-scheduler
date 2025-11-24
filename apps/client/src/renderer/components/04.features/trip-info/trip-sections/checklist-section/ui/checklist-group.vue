@@ -5,6 +5,7 @@ import { computed, ref } from 'vue'
 import draggable from 'vuedraggable'
 import { KitBtn } from '~/components/01.kit/kit-btn'
 import { KitEditable } from '~/components/01.kit/kit-editable'
+import { vRipple } from '~/shared/directives/ripple'
 import ChecklistIconPicker from './checklist-icon-picker.vue'
 import ChecklistItemComponent from './checklist-item.vue'
 
@@ -58,7 +59,6 @@ function onAddItem() {
   if (newItemText.value.trim()) {
     emit('addItem', newItemText.value)
     newItemText.value = ''
-    // Авто-фокус
     newItemInputRef.value?.focus()
   }
 }
@@ -66,7 +66,7 @@ function onAddItem() {
 
 <template>
   <div class="checklist-group">
-    <header class="group-header" @click.self="isCollapsed = !isCollapsed">
+    <header v-ripple class="group-header" @click="isCollapsed = !isCollapsed">
       <div class="title-container">
         <button v-if="!readonly" class="drag-handle-group" title="Перетащить группу">
           <Icon icon="mdi:drag" />
@@ -74,10 +74,18 @@ function onAddItem() {
         <button class="group-icon-btn" :disabled="readonly" @click="isIconPickerOpen = true">
           <Icon :icon="group.icon" class="group-icon" />
         </button>
+        <span
+          v-if="readonly"
+          class="group-name"
+        >
+          {{ group.name }}
+        </span>
         <KitEditable
+          v-else
           :model-value="group.name"
           :readonly="readonly"
           class="group-name"
+          @click.stop
           @update:model-value="handleUpdateGroup('name', $event)"
         />
       </div>
@@ -93,7 +101,7 @@ function onAddItem() {
         <button v-if="!readonly" class="delete-group-btn" title="Удалить группу" @click="$emit('delete')">
           <Icon icon="mdi:trash-can-outline" />
         </button>
-        <button class="collapse-btn" title="Свернуть/Развернуть" @click="isCollapsed = !isCollapsed">
+        <button class="collapse-btn" title="Свернуть/Развернуть">
           <Icon icon="mdi:chevron-down" :class="{ 'is-collapsed': isCollapsed }" />
         </button>
       </div>
@@ -198,6 +206,9 @@ function onAddItem() {
 .group-name {
   font-weight: 600;
   font-size: 1rem;
+  min-height: 40px;
+  display: flex;
+  align-items: center;
 }
 
 .header-actions {

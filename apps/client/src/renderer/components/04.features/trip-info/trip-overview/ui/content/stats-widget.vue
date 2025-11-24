@@ -2,6 +2,7 @@
 import { Icon } from '@iconify/vue'
 import { computed } from 'vue'
 import { KitDivider } from '~/components/01.kit/kit-divider'
+import { vRipple } from '~/shared/directives/ripple'
 
 interface Props {
   durationDays: number
@@ -34,7 +35,7 @@ const attractionLabel = computed(() => getRussianPlural(props.attractionCount, [
 <template>
   <div class="info-widget-card stats-widget">
     <div class="main-stats">
-      <button class="stat-item" @click="emit('showDays')">
+      <button v-ripple class="stat-item" @click="emit('showDays')">
         <div class="icon-wrapper">
           <Icon icon="mdi:calendar-range" class="stat-icon" />
         </div>
@@ -43,7 +44,7 @@ const attractionLabel = computed(() => getRussianPlural(props.attractionCount, [
           <span class="stat-label">{{ dayLabel }}</span>
         </div>
       </button>
-      <button class="stat-item" @click="emit('showCities')">
+      <button v-ripple class="stat-item" @click="emit('showCities')">
         <div class="icon-wrapper">
           <Icon icon="mdi:city-variant-outline" class="stat-icon" />
         </div>
@@ -52,7 +53,7 @@ const attractionLabel = computed(() => getRussianPlural(props.attractionCount, [
           <span class="stat-label">{{ cityLabel }}</span>
         </div>
       </button>
-      <button class="stat-item" @click="emit('showParticipants')">
+      <button v-ripple class="stat-item" @click="emit('showParticipants')">
         <div class="icon-wrapper">
           <Icon icon="mdi:account-group-outline" class="stat-icon" />
         </div>
@@ -65,7 +66,7 @@ const attractionLabel = computed(() => getRussianPlural(props.attractionCount, [
 
     <div v-if="attractionCount > 0" class="secondary-stats">
       <KitDivider />
-      <button class="stat-item-horizontal" @click="emit('showAttractions')">
+      <button v-ripple class="stat-item-horizontal" @click="emit('showAttractions')">
         <div class="icon-wrapper">
           <Icon icon="mdi:camera" class="stat-icon" />
         </div>
@@ -87,31 +88,51 @@ const attractionLabel = computed(() => getRussianPlural(props.attractionCount, [
 }
 
 .main-stats {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(100px, 1fr));
-  gap: 1rem;
-  height: 100%;
-}
-
-.stat-item {
   display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  text-align: center;
-  gap: 24px;
-  padding: 1rem 0.5rem;
-  border-radius: var(--r-m);
-  background-color: var(--bg-tertiary-color);
-  transition: all 0.2s ease-in-out;
-  cursor: pointer;
-  border: none;
-  font-family: inherit;
+  flex-direction: row;
+  gap: 8px;
+  height: 100%;
 
-  &:hover {
-    transform: translateY(-4px);
-    box-shadow: var(--s-m);
-    background-color: var(--bg-hover-color);
+  .stat-item {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    flex-grow: 1;
+    flex-basis: 0;
+    text-align: center;
+    gap: 24px;
+    padding: 1rem 0.5rem;
+    border-radius: var(--r-m);
+    background-color: var(--bg-tertiary-color);
+    transition: all 0.2s ease-in-out;
+    cursor: pointer;
+    border: none;
+    font-family: inherit;
+
+    .stat-text {
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+    }
+
+    .stat-value {
+      font-size: 1.75rem;
+      font-weight: 700;
+      color: var(--fg-primary-color);
+      line-height: 1.1;
+    }
+
+    .stat-label {
+      font-size: 0.8rem;
+      color: var(--fg-secondary-color);
+    }
+
+    &:hover {
+      transform: translateY(-4px);
+      box-shadow: var(--s-m);
+      background-color: var(--bg-hover-color);
+    }
   }
 }
 
@@ -130,7 +151,6 @@ const attractionLabel = computed(() => getRussianPlural(props.attractionCount, [
 
 .stat-item:hover .icon-wrapper,
 .stat-item-horizontal:hover .icon-wrapper {
-  background-color: var(--bg-accent-color-translucent);
   border-color: var(--fg-accent-color);
 }
 
@@ -138,23 +158,6 @@ const attractionLabel = computed(() => getRussianPlural(props.attractionCount, [
   font-size: 1.75rem;
   color: var(--fg-accent-color);
   transition: color 0.2s ease;
-}
-
-.stat-text {
-  display: flex;
-  flex-direction: column;
-}
-
-.stat-value {
-  font-size: 1.75rem;
-  font-weight: 700;
-  color: var(--fg-primary-color);
-  line-height: 1.1;
-}
-
-.stat-label {
-  font-size: 0.8rem;
-  color: var(--fg-secondary-color);
 }
 
 .secondary-stats {
@@ -216,9 +219,6 @@ const attractionLabel = computed(() => getRussianPlural(props.attractionCount, [
   .stats-widget {
     gap: 0.5rem;
     padding: 0.5rem;
-  }
-  .main-stats {
-    gap: 0.5rem;
   }
   .stat-item-horizontal {
     gap: 8px;

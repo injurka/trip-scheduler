@@ -1,5 +1,4 @@
 <script setup lang="ts">
-import type { UpdateTripInput } from '~/shared/types/models/trip'
 import { Icon } from '@iconify/vue'
 import { useElementBounding, useIntersectionObserver, useWindowSize } from '@vueuse/core'
 import { KitBtn } from '~/components/01.kit/kit-btn'
@@ -11,6 +10,7 @@ import { TripMemoriesView } from '~/components/04.features/trip-info/trip-memori
 import { TripPlanView } from '~/components/04.features/trip-info/trip-plan'
 import { useDisplay } from '~/shared/composables/use-display'
 import { useModuleStore } from '../composables/use-trip-info-module'
+import { useTripInfoView } from '../composables/use-trip-info-view'
 import SectionRenderer from './content/section-renderer.vue'
 import TripOverviewContent from './content/trip-overview.vue'
 import DayNavigation from './controls/day-navigation.vue'
@@ -19,17 +19,20 @@ import DayHeader from './day-header.vue'
 import TripInfoEmpty from './states/trip-info-empty.vue'
 import TripInfoSkeleton from './states/trip-info-skeleton.vue'
 
-const route = useRoute()
-const router = useRouter()
+const {
+  tripId,
+  dayId,
+  sectionId,
+  isMapView,
+  init,
+  handleSaveTrip,
+} = useTripInfoView()
 
-const { plan, ui, sections, memories } = useModuleStore(['plan', 'ui', 'routeGallery', 'memories', 'sections'])
+init()
+
+const { plan, ui, sections } = useModuleStore(['plan', 'ui', 'sections'])
 const { days, isLoading, fetchError, getPreviousDayId, getNextDayId } = storeToRefs(plan)
 const { activeView } = storeToRefs(ui)
-
-const tripId = computed(() => route.params.id as string)
-const dayId = computed(() => route.query.day as string)
-const sectionId = computed(() => route.query.section as string)
-const isMapView = computed(() => route.query.view === 'map')
 
 const isEditModalOpen = ref(false)
 
@@ -37,51 +40,7 @@ function handleEditTrip() {
   isEditModalOpen.value = true
 }
 
-function handleSaveTrip(updatedData: UpdateTripInput) {
-  plan.updateTrip(updatedData)
-}
-
-watch(
-  [activeView, tripId],
-  ([view, tId]) => {
-    if ((view === 'memories' || view === 'split') && tId) {
-      memories.fetchMemories(tId)
-    }
-  },
-  { immediate: true },
-)
-
-watch(
-  () => plan.currentDayId,
-  (newDayId, oldDayId) => {
-    if (newDayId && newDayId !== oldDayId) {
-      ui.clearCollapsedState()
-      nextTick(() => {
-        window.scrollTo({ top: 0, behavior: 'instant' })
-      })
-    }
-
-    if (newDayId && newDayId !== route.query.day) {
-      router.replace({ query: { ...route.query, day: newDayId, section: undefined, view: undefined } })
-    }
-    else if (!newDayId && route.query.day) {
-      // Handle case where day is deselected
-      const newQuery = { ...route.query }
-      delete newQuery.day
-      router.replace({ query: newQuery })
-    }
-  },
-)
-
-watch(dayId, (newDayId) => {
-  if (newDayId && newDayId !== plan.currentDayId) {
-    plan.setCurrentDay(newDayId)
-  }
-  else if (!newDayId && plan.currentDayId && !sectionId.value && !isMapView.value) {
-    plan.setCurrentDay('') // or null
-  }
-}, { immediate: true })
-
+// --- UI Controls & Fixed Navigation ---
 const { mdAndUp } = useDisplay()
 const tripInfoWrapperRef = ref<HTMLElement | null>(null)
 const dayNavigationWrapperRef = ref<HTMLElement | null>(null)
@@ -251,37 +210,6 @@ onUnmounted(() => {
 
   @include media-down(sm) {
     padding: 0 4px;
-  }
-}
-
-.drop-overlay {
-  position: fixed;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  background-color: rgba(var(--fg-accent-color-rgb), 0.1);
-  border: 2px dashed var(--fg-accent-color);
-  z-index: 100;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  pointer-events: none;
-  backdrop-filter: blur(4px);
-
-  &-content {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    gap: 16px;
-    color: var(--fg-accent-color);
-    font-size: 1.2rem;
-    font-weight: 600;
-    text-shadow: 0 1px 2px rgba(0, 0, 0, 0.1);
-
-    .iconify {
-      font-size: 3rem;
-    }
   }
 }
 

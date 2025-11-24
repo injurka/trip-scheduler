@@ -20,10 +20,6 @@ function detectMobile() {
   }
 }
 
-onMounted(() => {
-  detectMobile()
-})
-
 function goToTrips() {
   router.push(AppRoutePaths.Trip.List)
 }
@@ -75,6 +71,10 @@ const cardEventListeners = computed(() => {
     mouseleave: onMouseLeave,
   }
 })
+
+onMounted(() => {
+  detectMobile()
+})
 </script>
 
 <template>
@@ -86,24 +86,13 @@ const cardEventListeners = computed(() => {
       :staticity="30"
     />
 
-    <!-- <div class="feature-card" @click="goToCommunity">
-      <div class="feature-icon">
-        <Icon icon="mdi:account-group-outline" />
-      </div>
-      <h2 class="feature-title">
-        Сообщества
-      </h2>
-      <p class="feature-subtitle">
-        Обсуждайте маршруты и находите попутчиков.
-      </p>
-    </div> -->
-
     <div
       ref="cardRef"
       class="welcome-card"
       :class="{ 'is-transitioning': !isHovering }"
       :style="{ transform: transformStyle }"
       v-on="cardEventListeners"
+      @click="goToTrips"
     >
       <div class="card-content">
         <div class="logo-accent">
@@ -116,24 +105,12 @@ const cardEventListeners = computed(() => {
           Ваш умный помощник для создания идеальных маршрутов, организации
           планов и незабываемых впечатлений.
         </p>
-        <KitBtn class="btn" @click="goToTrips">
+        <KitBtn class="btn">
           <Icon icon="mdi:compass-rose" />
           <span>К моим путешествиям</span>
         </KitBtn>
       </div>
     </div>
-
-    <!-- <div class="feature-card" @click="goToPlaces">
-      <div class="feature-icon">
-        <Icon icon="mdi:map-search-outline" />
-      </div>
-      <h2 class="feature-title">
-        Интересные места
-      </h2>
-      <p class="feature-subtitle">
-        Иследуйте популярные локации и достопримечательности.
-      </p>
-    </div> -->
 
     <button class="useful-links-button" @click="goToUsefulLinks">
       <Icon icon="mdi:link-variant" class="link-icon" />
@@ -219,7 +196,6 @@ const cardEventListeners = computed(() => {
   }
 }
 
-.feature-card,
 .welcome-card {
   background-color: rgba(var(--bg-secondary-color-rgb), 0.5);
   backdrop-filter: blur(12px);
@@ -227,63 +203,8 @@ const cardEventListeners = computed(() => {
   z-index: 1;
 }
 
-.feature-card {
-  position: relative;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  text-align: center;
-  padding: 48px 24px;
-  border: 1px solid var(--border-secondary-color);
-  border-radius: var(--r-xl);
-  box-shadow: var(--s-l);
-  cursor: pointer;
-  transition: all 0.3s cubic-bezier(0.23, 1, 0.32, 1);
-  max-width: 400px;
-  width: 100%;
-
-  @media (min-width: 1024px) {
-    max-width: 300px;
-    flex-shrink: 0;
-  }
-
-  &:hover {
-    transform: translateY(-8px);
-    box-shadow: var(--s-xl);
-    border-color: var(--border-primary-color);
-    background-color: rgba(var(--bg-secondary-color-rgb), 0.7);
-
-    .feature-icon {
-      transform: scale(1.1);
-      color: var(--fg-accent-color);
-    }
-  }
-
-  .feature-icon {
-    font-size: 3rem;
-    color: var(--fg-secondary-color);
-    margin-bottom: 24px;
-    transition: all 0.3s ease;
-  }
-
-  .feature-title {
-    font-size: 1.5rem;
-    font-weight: 600;
-    color: var(--fg-primary-color);
-    margin: 0 0 12px;
-  }
-
-  .feature-subtitle {
-    font-size: 0.95rem;
-    color: var(--fg-secondary-color);
-    line-height: 1.6;
-    margin: 0;
-  }
-}
-
 @media (hover: none) and (pointer: coarse) {
-  .welcome-card,
-  .feature-card {
+  .welcome-card {
     transform: none !important;
   }
 }
@@ -318,6 +239,10 @@ const cardEventListeners = computed(() => {
   padding: 48px;
   user-select: none;
 
+  @include media-down(sm) {
+    padding: 48px 16px;
+  }
+
   .title {
     font-size: 2.75rem;
     font-weight: 700;
@@ -329,6 +254,10 @@ const cardEventListeners = computed(() => {
     -webkit-background-clip: text;
     -webkit-text-fill-color: transparent;
     background-clip: text;
+
+    @include media-down(sm) {
+      font-size: 2.4rem;
+    }
   }
 
   .subtitle {
@@ -337,6 +266,10 @@ const cardEventListeners = computed(() => {
     max-width: 450px;
     line-height: 1.6;
     margin-bottom: 32px;
+
+    @include media-down(sm) {
+      font-size: 1rem;
+    }
   }
 
   .btn {

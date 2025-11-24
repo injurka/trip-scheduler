@@ -6,6 +6,7 @@ import { onClickOutside } from '@vueuse/core'
 import { computed, ref, watch } from 'vue'
 import { KitBtn } from '~/components/01.kit/kit-btn'
 import { KitCalendarRange } from '~/components/01.kit/kit-calendar-range'
+import { vRipple } from '~/shared/directives/ripple'
 import { useFinancesSection } from '../composables'
 import AiFinancesCreator from './components/ai-finances-creator.vue'
 import BudgetSettingsDialog from './components/budget-settings-dialog.vue'
@@ -157,6 +158,7 @@ onClickOutside(dateFilterWrapperRef, () => {
         <button
           v-for="item in categoryFilterItems"
           :key="String(item.value)"
+          v-ripple
           class="filter-pill"
           :class="{ active: item.value === null ? selectedCategoryFilters.length === 0 : selectedCategoryFilters.includes(item.value) }"
           @click="toggleCategoryFilter(item.value)"

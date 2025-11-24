@@ -14,6 +14,7 @@ import { TripCommentsWidget } from '~/components/04.features/trip-info/trip-comm
 import { useModuleStore } from '~/components/05.modules/trip-info'
 import { useTripPermissions } from '~/components/05.modules/trip-info/composables/use-trip-permissions'
 import AddSectionDialog from '~/components/06.layouts/trip-info/ui/add-section-dialog.vue'
+import { vRipple } from '~/shared/directives/ripple'
 import { CommentParentType } from '~/shared/types/models/comment'
 import { useTripInfoLayout } from '../composables'
 
@@ -72,7 +73,7 @@ onBeforeUnmount(() => {
         class="main-navigation"
       >
         <div class="main-navigation-left">
-          <button class="nav-button" title="Назад" @click="router.back()">
+          <button v-ripple class="nav-button" title="Назад" @click="router.back()">
             <Icon icon="mdi:arrow-left" />
           </button>
         </div>
@@ -82,7 +83,7 @@ onBeforeUnmount(() => {
             <Icon icon="mdi:chevron-left" />
           </button>
 
-          <div class="current-section" @click="layout.handleCurrentSectionClick">
+          <div v-ripple class="current-section" @click="layout.handleCurrentSectionClick">
             <Icon v-if="layout.activeTab.value?.icon" :icon="layout.activeTab.value.icon" class="current-section-icon" />
             <h1 class="current-section-title">
               {{ layout.activeTab.value?.label }}

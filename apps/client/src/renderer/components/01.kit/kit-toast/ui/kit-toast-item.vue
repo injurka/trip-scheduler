@@ -66,7 +66,7 @@ const swipeStyle = computed(() => {
   border-radius: 12px;
   display: flex;
   align-items: center;
-  gap: 1rem;
+  gap: 8px;
   text-align: center;
   cursor: grab;
   user-select: none;
@@ -81,6 +81,10 @@ const swipeStyle = computed(() => {
   transition: all 0.3s cubic-bezier(0.22, 1, 0.36, 1);
   border: 1px solid transparent;
   transform-origin: right center;
+
+  @include media-down(sm) {
+    padding: 16px;
+  }
 
   &:active {
     cursor: grabbing;

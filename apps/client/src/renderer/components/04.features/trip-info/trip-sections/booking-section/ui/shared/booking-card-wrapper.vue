@@ -3,6 +3,7 @@ import type { HighlightStatus } from '../../composables/use-booking-section'
 import { Icon } from '@iconify/vue'
 import { computed, ref } from 'vue'
 import { KitEditable } from '~/components/01.kit/kit-editable'
+import { vRipple } from '~/shared/directives/ripple'
 
 interface Props {
   icon: string
@@ -54,25 +55,42 @@ async function handleDelete() {
 
 <template>
   <div class="booking-card" :class="highlightClass">
-    <header class="card-header">
+    <header v-ripple class="card-header" @click="isDetailsVisible = !isDetailsVisible">
       <div class="title-container">
         <button v-if="!readonly" class="drag-handle" title="Перетащить">
           <Icon icon="mdi:drag-vertical" />
         </button>
         <Icon :icon="icon" class="title-icon" />
-        <KitEditable
+        <!-- <KitEditable
           v-model="title"
           :readonly="readonly"
           class="card-title"
           placeholder="Введите заголовок"
+          @click.stop
+        /> -->
+
+        <span
+          v-if="readonly"
+          class="card-title"
+        >
+          {{ title }}
+        </span>
+        <KitEditable
+          v-else
+          v-model="title"
+          :readonly="readonly"
+          class="group-name"
+          placeholder="Введите заголовок"
+          @click.stop
         />
+
         <div v-if="statusBadge" class="status-badge" :style="{ color: statusBadge.color, borderColor: statusBadge.color }">
           <Icon :icon="statusBadge.icon" />
           <span>{{ statusBadge.text }}</span>
         </div>
       </div>
       <div class="card-actions">
-        <button v-if="$slots.details" class="details-btn" title="Подробнее" @click="isDetailsVisible = !isDetailsVisible">
+        <button v-if="$slots.details" class="details-btn" title="Подробнее">
           <Icon :icon="isDetailsVisible ? 'mdi:chevron-up' : 'mdi:chevron-down'" />
         </button>
         <button v-if="!readonly" class="delete-btn" title="Удалить" @click="handleDelete">
@@ -186,6 +204,9 @@ async function handleDelete() {
 .card-title {
   font-size: 1rem;
   font-weight: 600;
+  min-height: 40px;
+  display: flex;
+  align-items: center;
 }
 
 .card-actions {

@@ -28,3 +28,4 @@ tsconfig.tsbuildinfo
 static/**
 puppeteer_profile
 playwright_profile
+trip_com_profile

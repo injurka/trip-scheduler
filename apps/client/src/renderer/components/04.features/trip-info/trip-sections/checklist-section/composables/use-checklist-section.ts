@@ -128,7 +128,6 @@ export function useChecklistSection(
       groups.value[index] = updatedGroup
   }
 
-  // --- Вычисляемые свойства (ДОРАБОТАНЫ) ---
   const filteredItems = computed(() => {
     let result = items.value.filter(item => item.type === activeTab.value)
 

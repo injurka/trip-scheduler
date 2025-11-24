@@ -54,7 +54,7 @@ const avatarInput = ref<HTMLInputElement | null>(null)
         </div>
       </div>
       <footer class="section-footer">
-        <KitBtn :disabled="!isProfileChanged || isUpdatingProfile" :loading="isUpdatingProfile" @click="updateProfile()">
+        <KitBtn size="sm" :disabled="!isProfileChanged || isUpdatingProfile" :loading="isUpdatingProfile" @click="updateProfile()">
           Сохранить изменения
         </KitBtn>
       </footer>
@@ -88,7 +88,7 @@ const avatarInput = ref<HTMLInputElement | null>(null)
         />
       </div>
       <footer class="section-footer">
-        <KitBtn :disabled="!isPasswordFormValid || isChangingPassword" :loading="isChangingPassword" @click="changePassword">
+        <KitBtn size="sm" :disabled="!isPasswordFormValid || isChangingPassword" :loading="isChangingPassword" @click="changePassword">
           Сменить пароль
         </KitBtn>
       </footer>
@@ -113,6 +113,7 @@ const avatarInput = ref<HTMLInputElement | null>(null)
           />
         </div>
         <KitBtn
+          size="sm"
           color="secondary"
           :disabled="!deleteForm.password || isDeletingAccount"
           :loading="isDeletingAccount"
@@ -146,7 +147,6 @@ const avatarInput = ref<HTMLInputElement | null>(null)
     font-size: 1.1rem;
     color: var(--fg-secondary-color);
     max-width: 600px;
-    margin: 0 auto;
     line-height: 1.5;
   }
 

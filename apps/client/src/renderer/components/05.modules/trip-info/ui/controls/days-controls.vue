@@ -384,7 +384,6 @@ onUnmounted(() => {
   }
 
   &.is-active {
-    background-color: var(--bg-accent-color-translucent);
     color: var(--fg-accent-color);
   }
 }

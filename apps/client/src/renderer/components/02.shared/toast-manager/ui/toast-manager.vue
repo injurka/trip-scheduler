@@ -28,14 +28,19 @@ const { remove } = toastStore
 <style lang="scss">
 .kit-toast-container {
   position: fixed;
-  bottom: 1rem;
-  right: 1rem;
+  bottom: 16px;
+  right: 16px;
   z-index: 9999;
   display: flex;
   flex-direction: column;
-  gap: 0.75rem;
+  gap: 8px;
   pointer-events: none;
   width: 350px;
+
+  @include media-down(sm) {
+    left: 16px;
+    width: auto;
+  }
 }
 
 .kit-toast-fade-move,

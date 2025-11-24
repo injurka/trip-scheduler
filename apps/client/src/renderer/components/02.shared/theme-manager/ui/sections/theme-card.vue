@@ -1,14 +1,17 @@
 <script setup lang="ts">
 import type { ThemeType } from '~/shared/types/models/theme'
 import { Icon } from '@iconify/vue'
+import { vRipple } from '~/shared/directives/ripple'
 
-defineProps<{
+interface Props {
   type: ThemeType
   title: string
   description: string
   icon: string
   isActive: boolean
-}>()
+}
+
+defineProps<Props>()
 
 const emit = defineEmits<{
   (e: 'select', type: ThemeType): void
@@ -17,7 +20,7 @@ const emit = defineEmits<{
 </script>
 
 <template>
-  <div class="theme-card" :class="{ 'active': isActive, 'theme-card--custom': type === 'custom' }">
+  <div v-ripple class="theme-card" :class="{ 'active': isActive, 'theme-card--custom': type === 'custom' }">
     <div
       class="theme-card-preview"
       :class="`theme-card-preview--${type}`"

@@ -1,81 +1,176 @@
 /* eslint-disable no-console */
+import { promises as fs } from 'node:fs'
 import path from 'node:path'
 
-// A type guard to check for valid scraper types
-const SCRAPER_TYPES = ['api', 'http', 'llm-list', 'llm-detail', 'playwright', 'puppeteer', 'selenium'] as const
-type ScraperType = (typeof SCRAPER_TYPES)[number]
+// --- Types & Interfaces ---
 
-function isValidScraperType(type: string): type is ScraperType {
-  return SCRAPER_TYPES.includes(type as ScraperType)
+export type ScraperProvider = 'trip-advisor' | 'trip-com'
+export type ScraperCategory = 'llm' | 'classic'
+
+export interface RunOptions {
+  provider: ScraperProvider
+  category: ScraperCategory
+  // Specific method identifier (e.g., 'http', 'puppeteer', 'list', 'detail')
+  method: string
+  // Dynamic options (pages, city, etc.)
+  cliOptions?: {
+    pages?: number
+    city?: string
+  }
 }
 
-// Generic types for scraper functions and their options
-type ScrapeFunction = (options: any) => Promise<any>
+// --- Configuration Constants ---
 
-interface CliOptions {
-  pages?: number
-}
+const ARTIFACTS_BASE = './artifacts'
+const DEFAULT_CITY = 'Chongqing'
 
-async function main(scraperType: ScraperType, cliOptions?: CliOptions) {
-  console.log(`Запуск скрапера в режиме [${scraperType}]...`)
+// Trip.com default URL
+const TRIP_COM_URL = 'https://ru.trip.com/travel-guide/attraction/chongqing-158/tourist-attractions/?locale=ru_ru'
 
-  let options: object = {}
-  let runner: ScrapeFunction
+// TripAdvisor default URL (Classic)
+const TRIP_ADVISOR_CLASSIC_URL = 'https://www.tripadvisor.com/Attractions-g294213-Activities-oa0-Chongqing.html'
 
-  if (scraperType.startsWith('llm')) {
-    const { scrapeTripAdvisor } = await import('./scrapper-llm/trip-advisor/index.js')
-    runner = scrapeTripAdvisor
-    options = {
-      stage: scraperType.split('-')[1], // 'list' or 'detail'
-      city: 'Chongqing',
-      pages: cliOptions?.pages ?? 1, // Only for 'list' stage
-      maxDetails: 5, // Only for 'detail' stage
+// --- Main Entry Point ---
+
+export async function runScraper(options: RunOptions) {
+  const { provider, method } = options
+  console.log(`\n🚀 Запуск: [${provider.toUpperCase()}] -> Метод: [${method}]`)
+
+  try {
+    if (provider === 'trip-advisor') {
+      await handleTripAdvisor(options)
+    }
+    else if (provider === 'trip-com') {
+      await handleTripCom(options)
+    }
+    else {
+      throw new Error(`Неизвестный провайдер: ${provider}`)
     }
   }
+  catch (error) {
+    console.error(`\n❌ Критическая ошибка при выполнении (${provider}/${method}):`, error)
+  }
+}
+
+// --- TripAdvisor Handler ---
+
+async function handleTripAdvisor(options: RunOptions) {
+  const { category, method, cliOptions } = options
+  const city = cliOptions?.city || DEFAULT_CITY
+
+  // 1. LLM Strategy
+  if (category === 'llm') {
+    const { scrapeTripAdvisor } = await import('./scrapper-llm/trip-advisor/index.js')
+
+    const llmOptions = {
+      stage: method as 'list' | 'detail',
+      city,
+      pages: cliOptions?.pages ?? 1,
+      maxDetails: 5,
+    }
+
+    console.log(`📡 Запуск LLM Scraper для этапа: ${method}`)
+    await scrapeTripAdvisor(llmOptions)
+  }
+  // 2. Classic Strategy (Code-based)
   else {
-    // Dynamically import the chosen scraper module from scraper-parse
-    const { scrapeTripAdvisor } = await import(`./scraper-parse/${scraperType}/index.ts`)
-    runner = scrapeTripAdvisor
-    const url = 'https://www.tripadvisor.com/Attractions-g294213-Activities-oa0-Chongqing.html'
+    const { scrapeTripAdvisor } = await import(`./scraper-parse/trip-advisor/${method}/index.ts`)
 
-    // Configure options based on the selected scraper
-    switch (scraperType) {
+    let scraperOptions: any = {}
+    const url = TRIP_ADVISOR_CLASSIC_URL
+
+    switch (method) {
       case 'api': {
-        const MY_API_KEY = process.env.TRIPADVISOR_API_KEY || 'YOUR_API_KEY_HERE'
-        if (MY_API_KEY === 'YOUR_API_KEY_HERE')
-          console.warn('Внимание: используется временный API ключ. Задайте переменную окружения TRIPADVISOR_API_KEY.')
-
-        options = {
-          apiKey: MY_API_KEY,
-          latLong: '29.5630,106.5516',
-          category: 'attractions',
-          language: 'en',
-        }
+        const apiKey = process.env.TRIPADVISOR_API_KEY || 'YOUR_API_KEY_HERE'
+        scraperOptions = { apiKey, latLong: '29.5630,106.5516', category: 'attractions', language: 'en' }
         break
       }
       case 'http':
       case 'selenium': {
-        options = { url }
+        scraperOptions = { url }
         break
       }
       case 'playwright': {
-        options = { url, headless: false, maxPages: 2, userDataDir: path.resolve(process.cwd(), 'playwright_profile') }
+        scraperOptions = {
+          url,
+          headless: false,
+          maxPages: cliOptions?.pages || 1,
+          userDataDir: path.resolve(process.cwd(), 'playwright_profile'),
+        }
         break
       }
       case 'puppeteer': {
-        options = { url, headless: false, maxPages: 2, executablePath: '/usr/bin/google-chrome-stable', userDataDir: path.resolve(process.cwd(), 'puppeteer_profile') }
+        scraperOptions = {
+          url,
+          headless: false,
+          maxPages: cliOptions?.pages || 1,
+          executablePath: '/usr/bin/google-chrome-stable', // Adjust if needed
+          userDataDir: path.resolve(process.cwd(), 'puppeteer_profile'),
+        }
         break
       }
     }
-  }
 
-  await runner(options)
-  console.log(`\n--- Скрапер [${scraperType}] завершил работу. Проверьте директорию /artifacts или логи для деталей. ---`)
+    console.log(`🕷️ Запуск классического скрапера: ${method}`)
+    const results = await scrapeTripAdvisor(scraperOptions)
+
+    // Save results for classic scrapers
+    if (results && Array.isArray(results) && results.length > 0) {
+      await saveArtifacts('trip-advisor', `classic-${method}-list.json`, results)
+    }
+    else {
+      console.log('⚠️ Данные не найдены или массив пуст.')
+    }
+  }
 }
 
-export async function runScraper(scraperType: string, cliOptions?: CliOptions) {
-  if (isValidScraperType(scraperType))
-    await main(scraperType, cliOptions).catch(error => console.error(`Необработанная ошибка в main для ${scraperType}:`, error))
-  else
-    console.error(`Ошибка: "${scraperType}" неверный тип скрапера. Доступные опции: ${SCRAPER_TYPES.join(', ')}.`)
+// --- Trip.com Handler ---
+
+async function handleTripCom(options: RunOptions) {
+  const { category, method, cliOptions } = options
+
+  if (category === 'classic') {
+    if (method === 'http') {
+      const { scrapeTripCom } = await import('./scraper-parse/trip-com/http/scrape-trip-com.js')
+      console.log(`🕷️ Запуск Trip.com HTTP скрапера...`)
+      const results = await scrapeTripCom({ url: TRIP_COM_URL })
+      await saveResults(results)
+    }
+    else if (method === 'puppeteer') {
+      const { scrapeTripCom } = await import('./scraper-parse/trip-com/puppeteer/scrape-trip-com.js')
+      console.log(`🕷️ Запуск Trip.com Puppeteer скрапера (SPA)...`)
+
+      const results = await scrapeTripCom({
+        url: TRIP_COM_URL,
+        maxPages: cliOptions?.pages || 1,
+        headless: false, // Открываем браузер, чтобы видеть процесс (SPA часто капризны)
+        userDataDir: path.resolve(process.cwd(), 'trip_com_profile'),
+      })
+      await saveResults(results)
+    }
+    else {
+      console.warn(`Метод ${method} для Trip.com еще не реализован.`)
+    }
+  }
+
+  async function saveResults(results: any) {
+    if (results && results.length > 0) {
+      await saveArtifacts('trip-com', `chongqing-${method}-list.json`, results)
+    }
+    else {
+      console.log('⚠️ Данные не найдены.')
+    }
+  }
+}
+
+// --- Helper: Save Artifacts ---
+
+async function saveArtifacts(provider: string, filename: string, data: any) {
+  const dir = path.join(ARTIFACTS_BASE, provider)
+  await fs.mkdir(dir, { recursive: true })
+
+  const filePath = path.join(dir, filename)
+  await fs.writeFile(filePath, JSON.stringify(data, null, 2))
+
+  console.log(`💾 Результаты сохранены в: ${filePath}`)
 }

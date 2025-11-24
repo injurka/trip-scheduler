@@ -3,12 +3,15 @@ import type { KitDropdownItem } from '~/components/01.kit/kit-dropdown'
 import type { IDay } from '~/components/04.features/trip-info/trip-plan/models/types'
 import type { Trip, TripSection } from '~/shared/types/models/trip'
 import { Icon } from '@iconify/vue'
+import { DropdownMenuItem } from 'reka-ui'
 import { KitAnimatedTooltip } from '~/components/01.kit/kit-animated-tooltip'
 import { KitAvatar } from '~/components/01.kit/kit-avatar'
 import { KitDivider } from '~/components/01.kit/kit-divider'
 import { KitDropdown } from '~/components/01.kit/kit-dropdown'
 import { KitImage } from '~/components/01.kit/kit-image'
+import { KitTooltip } from '~/components/01.kit/kit-tooltip'
 import { useTripPermissions } from '~/components/05.modules/trip-info/composables/use-trip-permissions'
+import { vRipple } from '~/shared/directives/ripple'
 import { EActivityTag } from '~/shared/types/models/activity'
 import { TripStatus } from '~/shared/types/models/trip'
 import CountdownWidget from './content/countdown-widget.vue'
@@ -103,6 +106,21 @@ const statusInfo = computed(() => {
   }
 })
 
+// Логика для отображения статуса приватности
+const visibilityInfo = computed(() => {
+  if (!props.trip)
+    return { icon: 'mdi:lock-outline', label: 'Приватное' }
+
+  switch (props.trip.visibility) {
+    case 'public':
+      return { icon: 'mdi:earth', label: 'Публичное путешествие' }
+    case 'private':
+      return { icon: 'mdi:account-multiple-outline', label: 'Доступно по ссылке' }
+    default:
+      return { icon: 'mdi:lock-outline', label: 'Приватное путешествие' }
+  }
+})
+
 const formattedBudget = computed(() => {
   if (!props.trip || !props.trip.budget || !props.trip.currency)
     return null
@@ -157,6 +175,8 @@ function handleMenuAction(action: string) {
     handleEditTrip()
   else if (action === 'delete')
     handleDeleteTrip()
+
+  isMoreMenuOpen.value = false
 }
 </script>
 
@@ -174,19 +194,40 @@ function handleMenuAction(action: string) {
       </div>
       <div class="banner-overlay" />
 
-      <div class="card-actions">
-        <KitDropdown
-          v-model:open="isMoreMenuOpen"
-          align="end"
-          :items="moreMenuItems"
-          @update:model-value="handleMenuAction"
-        >
-          <template #trigger>
-            <button class="action-btn" title="Еще" @click.stop.prevent>
-              <Icon icon="mdi:dots-vertical" />
-            </button>
-          </template>
-        </KitDropdown>
+      <!-- Кнопки действий и статус видимости -->
+      <div class="header-actions-wrapper">
+        <div class="card-visibility-wrapper">
+          <KitTooltip :name="visibilityInfo.label">
+            <div class="card-visibility">
+              <Icon :icon="visibilityInfo.icon" />
+            </div>
+          </KitTooltip>
+        </div>
+
+        <div class="card-actions">
+          <KitDropdown
+            v-model:open="isMoreMenuOpen"
+            align="end"
+          >
+            <template #trigger>
+              <button class="action-btn" title="Еще" @click.stop.prevent>
+                <Icon icon="mdi:dots-vertical" />
+              </button>
+            </template>
+
+            <!-- Ручной рендеринг элементов меню для исправления отображения -->
+            <DropdownMenuItem
+              v-for="item in moreMenuItems"
+              :key="item.value"
+              class="kit-dropdown-item"
+              :class="{ 'is-destructive': item.isDestructive }"
+              @click="handleMenuAction(item.value)"
+            >
+              <Icon v-if="item.icon" :icon="item.icon" class="item-icon" />
+              <span class="item-label">{{ item.label }}</span>
+            </DropdownMenuItem>
+          </KitDropdown>
+        </div>
       </div>
 
       <div class="banner-content">
@@ -225,7 +266,6 @@ function handleMenuAction(action: string) {
               :name="participant.name"
               :offset="10"
             >
-              <!-- Добавлен модификатор .stop -->
               <KitAvatar
                 :name="participant.name"
                 :src="participant.avatarUrl"
@@ -245,7 +285,7 @@ function handleMenuAction(action: string) {
         </div>
 
         <div v-if="trip.tags?.length" class="trip-tags">
-          <span v-for="tag in trip.tags" :key="tag" class="tag">{{ tag }}</span>
+          <span v-for="tag in trip.tags" :key="tag" v-ripple class="tag">{{ tag }}</span>
         </div>
       </div>
     </div>
@@ -282,6 +322,7 @@ function handleMenuAction(action: string) {
           <li
             v-for="(day, index) in days"
             :key="day.id"
+            v-ripple
             class="list-item day-item"
             :style="{ animationDelay: `${index * 50}ms` }"
             @click="navigateToDay(day.id)"
@@ -585,13 +626,37 @@ function handleMenuAction(action: string) {
   }
 }
 
-.card-actions {
+/* Header Actions Wrapper */
+.header-actions-wrapper {
   position: absolute;
   top: 1rem;
   right: 1rem;
   display: flex;
-  gap: 0.5rem;
+  align-items: center;
+  gap: 8px;
   z-index: 3;
+}
+
+.card-visibility {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  background-color: rgba(var(--bg-secondary-color-rgb), 0.5);
+  color: var(--fg-primary-color);
+  border-radius: var(--r-full);
+  backdrop-filter: blur(4px);
+  cursor: help;
+  transition: background-color 0.2s ease;
+
+  &:hover {
+    background-color: rgba(var(--bg-secondary-color-rgb), 0.8);
+  }
+}
+
+.card-actions {
+  display: flex;
 
   .action-btn {
     display: flex;
@@ -613,6 +678,44 @@ function handleMenuAction(action: string) {
       color: var(--fg-accent-color);
     }
   }
+}
+
+.kit-dropdown-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 12px;
+  border-radius: var(--r-xs);
+  cursor: pointer;
+  transition: background-color 0.2s ease;
+  outline: none;
+  font-size: 0.95rem;
+  color: var(--fg-primary-color);
+
+  &:hover,
+  &[data-highlighted] {
+    background-color: var(--bg-hover-color);
+  }
+
+  &.is-destructive {
+    color: var(--fg-error-color);
+    .item-icon {
+      color: var(--fg-error-color);
+    }
+    &:hover,
+    &[data-highlighted] {
+      background-color: var(--bg-error-color);
+      color: var(--fg-error-color);
+      .item-icon {
+        color: var(--fg-error-color);
+      }
+    }
+  }
+}
+
+.item-icon {
+  color: var(--fg-secondary-color);
+  font-size: 1.1rem;
 }
 
 .trip-description-summary {
@@ -678,7 +781,6 @@ function handleMenuAction(action: string) {
   cursor: pointer;
   transition: all 0.2s ease-in-out;
   border: 1px solid transparent;
-
   animation: fadeInUp 0.4s ease-out forwards;
   opacity: 0;
 

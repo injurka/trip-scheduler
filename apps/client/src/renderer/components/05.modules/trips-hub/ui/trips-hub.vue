@@ -104,6 +104,8 @@ provide(TripsHubKey, tripsHub)
       </div>
       <KitBtn
         icon="mdi:plus"
+        variant="tonal"
+        size="sm"
         @click="tripsHub.openCreateModal"
       >
         <template v-if="mdAndUp">
@@ -341,6 +343,11 @@ provide(TripsHubKey, tripsHub)
   border: 1px solid var(--border-secondary-color);
   border-radius: var(--r-m);
 
+  @include media-down(sm) {
+    padding: 8px;
+    gap: 8px;
+  }
+
   &-divider {
     margin-top: 8px;
     margin-bottom: 16px;
@@ -350,7 +357,11 @@ provide(TripsHubKey, tripsHub)
 .filter-group {
   display: flex;
   flex-direction: column;
-  gap: 12px;
+  gap: 8px;
+
+  @include media-down(sm) {
+    gap: 4px;
+  }
 
   label {
     font-size: 0.875rem;

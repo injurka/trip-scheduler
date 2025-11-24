@@ -1,8 +1,8 @@
 <script setup lang="ts">
 import type { ITrip } from '../../../models/types'
+import type { KitDropdownItem } from '~/components/01.kit/kit-dropdown'
 import type { UpdateTripInput } from '~/shared/types/models/trip'
 import { Icon } from '@iconify/vue'
-import { DropdownMenuItem } from 'reka-ui'
 import { inject } from 'vue'
 import { KitAnimatedTooltip } from '~/components/01.kit/kit-animated-tooltip'
 import { KitAvatar } from '~/components/01.kit/kit-avatar'
@@ -59,6 +59,18 @@ function handleSave(updatedData: UpdateTripInput) {
   if (tripsHub) {
     tripsHub.updateTripInList({ id: props.id, ...updatedData })
   }
+}
+
+const moreMenuItems = computed((): KitDropdownItem<string>[] => [
+  { value: 'edit', label: 'Редактировать', icon: 'mdi:pencil-outline' },
+  { value: 'delete', label: 'Удалить', icon: 'mdi:trash-can-outline', isDestructive: true },
+])
+
+function handleMenuAction(action: string) {
+  if (action === 'edit')
+    handleEdit()
+  else if (action === 'delete')
+    handleDelete()
 }
 
 const formattedDates = computed(() => {
@@ -145,18 +157,17 @@ const visibilityIcon = computed(() => {
         </span>
 
         <div class="card-actions">
-          <KitDropdown v-model:open="isMoreMenuOpen" align="end">
+          <KitDropdown
+            v-model:open="isMoreMenuOpen"
+            align="end"
+            :items="moreMenuItems"
+            @update:model-value="handleMenuAction"
+          >
             <template #trigger>
               <button class="action-btn" title="Еще" @click.stop.prevent>
                 <Icon icon="mdi:dots-vertical" />
               </button>
             </template>
-            <DropdownMenuItem class="kit-dropdown-item" @click.stop="handleEdit">
-              <Icon icon="mdi:pencil-outline" /><span>Редактировать</span>
-            </DropdownMenuItem>
-            <DropdownMenuItem class="kit-dropdown-item is-destructive" @click.stop="handleDelete">
-              <Icon icon="mdi:trash-can-outline" /><span>Удалить</span>
-            </DropdownMenuItem>
           </KitDropdown>
         </div>
       </div>

@@ -3,8 +3,10 @@ import fs from 'node:fs/promises'
 import path from 'node:path'
 import process from 'node:process'
 import prompts from 'prompts'
-import { FREE_PLAN_ID, ONE_GIGABYTE_IN_BYTES } from '~/lib/constants'
 import { db } from './index'
+import { MOCK_METRO_DATA } from './mock/02.metro'
+import { SUBSCRIPTION_MOCK } from './mock/03.subscription'
+import { LLM_MOCK } from './mock/04.llm'
 import {
   activities,
   comments,
@@ -15,6 +17,10 @@ import {
   llmModels,
   llmTokenUsage,
   memories,
+  metroLines,
+  metroLineStations,
+  metroStations,
+  metroSystems,
   plans,
   refreshTokens,
   tripImages,
@@ -27,7 +33,6 @@ import {
 /**
  * Сканирует директорию 'dump', находит все JSON-дампы и предлагает пользователю
  * выбрать один для восстановления.
- * @returns Полный путь к выбранному файлу или null, если файлы не найдены.
  */
 async function discoverAndSelectDumpFile(): Promise<string | null> {
   const dumpDir = path.join(__dirname, 'dump')
@@ -42,12 +47,11 @@ async function discoverAndSelectDumpFile(): Promise<string | null> {
           return {
             name: file,
             path: filePath,
-            time: stats.mtime.getTime(), // Используем время модификации
+            time: stats.mtime.getTime(),
           }
         }),
     )
 
-    // Сортируем файлы по времени, самые новые вверху
     const sortedFiles = jsonFilesWithStats.sort((a, b) => b.time - a.time)
 
     if (sortedFiles.length === 0)
@@ -76,10 +80,8 @@ async function discoverAndSelectDumpFile(): Promise<string | null> {
     return response.selectedDump
   }
   catch (error) {
-    // Если директория 'dump' не существует, вернем null
     if (error instanceof Error && 'code' in error && error.code === 'ENOENT')
       return null
-
     throw error
   }
 }
@@ -121,7 +123,7 @@ async function seedFromJson() {
     process.exit(0)
   }
 
-  console.log('🗑️  Очистка старых данных...')
+  console.log('🗑️  Очистка всех данных...')
   await db.delete(llmTokenUsage)
   await db.delete(llmModels)
   await db.delete(memories)
@@ -138,26 +140,42 @@ async function seedFromJson() {
   await db.delete(emailVerificationTokens)
   await db.delete(users)
   await db.delete(plans)
+  await db.delete(metroLineStations)
+  await db.delete(metroStations)
+  await db.delete(metroLines)
+  await db.delete(metroSystems)
 
-  console.log('⭐ Создание тарифных планов...')
-  await db.insert(plans).values([
-    { id: FREE_PLAN_ID, name: 'Базовый', maxTrips: 1, maxStorageBytes: ONE_GIGABYTE_IN_BYTES, monthlyLlmCredits: 100000, isDeveloping: false },
-    { id: 2, name: 'Про', maxTrips: 10, maxStorageBytes: 20 * ONE_GIGABYTE_IN_BYTES, monthlyLlmCredits: 1000000, isDeveloping: false },
-    { id: 3, name: 'Командный', maxTrips: 999, maxStorageBytes: 100 * ONE_GIGABYTE_IN_BYTES, monthlyLlmCredits: 5000000, isDeveloping: true },
-  ])
+  console.log('⭐ Восстановление тарифных планов (Plans)...')
+  const plansData = SUBSCRIPTION_MOCK.map(p => ({ ...p, id: Number(p.id) }))
 
-  console.log('🤖 Заполнение цен на LLM модели...')
-  await db.insert(llmModels).values([
-    { id: 'gemini-2.5-pro', costPerMillionInputTokens: 1.25, costPerMillionOutputTokens: 10.0 },
-    { id: 'gemini-flash-latest', costPerMillionInputTokens: 0.5, costPerMillionOutputTokens: 1.5 },
-    { id: 'claude-sonnet-4-5', costPerMillionInputTokens: 3.3, costPerMillionOutputTokens: 16.5 },
-    { id: 'gpt-5-codex', costPerMillionInputTokens: 1.25, costPerMillionOutputTokens: 10.0 },
-    { id: 'o3', costPerMillionInputTokens: 2.0, costPerMillionOutputTokens: 8.0 },
-    { id: 'o4-mini', costPerMillionInputTokens: 1.1, costPerMillionOutputTokens: 4.4 },
-    { id: 'gpt-4.1', costPerMillionInputTokens: 2.0, costPerMillionOutputTokens: 8.0 },
-  ])
+  await db.insert(plans).values(plansData)
 
-  console.log('✈️  Подготовка данных для вставки...')
+  console.log('🤖 Восстановление LLM моделей...')
+  await db.insert(llmModels).values(LLM_MOCK).onConflictDoNothing()
+
+  console.log('🚇 Восстановление данных Метро...')
+  if (MOCK_METRO_DATA) {
+    for (const system of MOCK_METRO_DATA) {
+      const [insertedSystem] = await db.insert(metroSystems).values({ id: system.id, city: system.city, country: system.country }).returning()
+      for (const line of system.lines) {
+        const [insertedLine] = await db.insert(metroLines).values({ id: line.id, systemId: insertedSystem.id, name: line.name, color: line.color, lineNumber: line.lineNumber }).returning()
+        const stationsToInsert = line.stations.map((station: any) => ({ id: station.id, systemId: insertedSystem.id, name: station.name }))
+        if (stationsToInsert.length > 0) {
+          await db.insert(metroStations).values(stationsToInsert).onConflictDoNothing()
+        }
+        const lineStationsToInsert = line.stations.map((station: any, index: number) => ({
+          lineId: insertedLine.id,
+          stationId: station.id,
+          order: index,
+        }))
+        if (lineStationsToInsert.length > 0) {
+          await db.insert(metroLineStations).values(lineStationsToInsert).onConflictDoNothing()
+        }
+      }
+    }
+  }
+
+  console.log('✈️  Восстановление пользовательских данных...')
 
   if (sourceUsers.length > 0) {
     console.log(`👤 Вставка ${sourceUsers.length} пользователей...`)
@@ -171,7 +189,8 @@ async function seedFromJson() {
     await db.insert(users).values(usersToInsert)
   }
 
-  if (sourceCommunities.length > 0) {
+  // Вставляем сообщества только если они есть в дампе
+  if (sourceCommunities && sourceCommunities.length > 0) {
     console.log(`🏘️  Вставка ${sourceCommunities.length} сообществ...`)
     const communitiesToInsert = sourceCommunities.map((community: any) => ({
       ...community,
@@ -181,7 +200,7 @@ async function seedFromJson() {
     await db.insert(communities).values(communitiesToInsert)
   }
 
-  if (sourceMembers.length > 0) {
+  if (sourceMembers && sourceMembers.length > 0) {
     console.log(`👥 Вставка ${sourceMembers.length} участников сообществ...`)
     const membersToInsert = sourceMembers.map((member: any) => ({
       ...member,
@@ -198,13 +217,16 @@ async function seedFromJson() {
   const sectionsToInsert: (typeof tripSections.$inferInsert)[] = []
   const participantsToInsert: (typeof tripParticipants.$inferInsert)[] = []
 
+  // Хелпер для форматирования даты в строку YYYY-MM-DD
+  const toDateString = (d: string | Date) => new Date(d).toISOString().split('T')[0]
+
   for (const tripData of sourceTrips) {
     const { days: tripDays, images: tripImagesData, memories: tripMemories, sections, participants, user, ...tripDetails } = tripData
 
     tripsToInsert.push({
       ...tripDetails,
-      startDate: new Date(tripDetails.startDate),
-      endDate: new Date(tripDetails.endDate),
+      startDate: toDateString(tripDetails.startDate),
+      endDate: toDateString(tripDetails.endDate),
       createdAt: new Date(tripDetails.createdAt),
       updatedAt: new Date(tripDetails.updatedAt),
     })
@@ -226,7 +248,7 @@ async function seedFromJson() {
         const { activities: dayActivities, ...dayDetails } = day
         daysToInsert.push({
           ...dayDetails,
-          date: new Date(day.date),
+          date: toDateString(day.date),
           createdAt: new Date(dayDetails.createdAt),
           updatedAt: new Date(dayDetails.updatedAt),
         })
@@ -258,7 +280,7 @@ async function seedFromJson() {
     }
   }
 
-  console.log(`✈️  Вставка ${tripsToInsert.length} путешествий и всех связанных данных...`)
+  console.log(`✈️  Вставка ${tripsToInsert.length} путешествий и связанных данных...`)
 
   if (tripsToInsert.length > 0)
     await db.insert(trips).values(tripsToInsert)
@@ -275,7 +297,7 @@ async function seedFromJson() {
   if (memoriesToInsert.length > 0)
     await db.insert(memories).values(memoriesToInsert)
 
-  console.log('✅ База данных успешно заполнена из JSON дампа!')
+  console.log('✅ База данных успешно восстановлена из JSON дампа!')
   process.exit(0)
 }
 
