@@ -199,12 +199,12 @@ echo "--- Контейнер $CONTAINER_NAME успешно запущен! ---"
 
 ## Deploy
 
-./docker/build_server.sh v12
+./docker/build_server.sh v24
 ./docker/build_client.sh v24
 
 docker compose down
 
-V_CLIENT=v24 V_SERVER=v12 docker compose up -d
+V_CLIENT=v24 V_SERVER=v24 docker compose up -d
 
 ---
 

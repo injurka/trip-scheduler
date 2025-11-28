@@ -7,6 +7,7 @@ import prompts from 'prompts'
 import { db } from './index'
 import { MOCK_METRO_DATA } from './mock/02.metro'
 import { SUBSCRIPTION_MOCK } from './mock/03.subscription'
+import { LLM_MOCK } from './mock/04.llm'
 import {
   activities,
   comments,
@@ -29,7 +30,6 @@ import {
   tripSections,
   users,
 } from './schema'
-import { LLM_MOCK } from './mock/04.llm'
 
 async function copyStaticFiles() {
   const sourceDir = path.join(__dirname, 'mock/static')
