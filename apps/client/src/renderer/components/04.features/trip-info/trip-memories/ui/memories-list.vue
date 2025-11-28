@@ -19,9 +19,13 @@ interface Props {
   isViewMode: boolean
   isProcessing: boolean
   processingMemories: IProcessingMemory[]
+  isFullScreen?: boolean
 }
 
-defineProps<Props>()
+withDefaults(defineProps<Props>(), {
+  isFullScreen: false,
+})
+
 const emit = defineEmits<{
   (e: 'upload'): void
   (e: 'addNote'): void
@@ -30,13 +34,13 @@ const emit = defineEmits<{
 }>()
 
 const { memories: memoriesStore } = useModuleStore(['memories'])
-const { memoriesWithGeo, memoriesToProcess } = storeToRefs(memoriesStore)
+const { memoriesWithGeoForSelectedDay, memoriesToProcess } = storeToRefs(memoriesStore)
 
 const isMapVisible = ref(false)
 </script>
 
 <template>
-  <div class="memories-list">
+  <div class="memories-list" :class="{ 'fullscreen-layout': isFullScreen }">
     <div v-if="!isViewMode" class="upload-section">
       <button class="upload-button" :disabled="isProcessing" @click="emit('upload')">
         <Icon :icon="isProcessing ? 'mdi:loading' : 'mdi:camera-plus-outline'" :class="{ spin: isProcessing }" />
@@ -70,20 +74,15 @@ const isMapVisible = ref(false)
 
     <ProcessingQueue v-if="!isViewMode && memoriesToProcess.length > 0" />
 
-    <MemoriesMap
-      v-if="isMapVisible"
-      :memories="memoriesWithGeo"
-      @close="isMapVisible = false"
-    />
-
     <MemoriesTimeline
       v-if="memories.length > 0"
       :memories="memories"
       :is-view-mode="isViewMode"
       :gallery-images="galleryImages"
+      :is-full-screen="isFullScreen"
     />
 
-    <div v-if="memoriesWithGeo.length > 0 && !isMapVisible" class="map-button-container">
+    <div v-if="memoriesWithGeoForSelectedDay.length > 0 && !isMapVisible" class="map-button-container">
       <KitBtn
         variant="outlined"
         color="secondary"
@@ -93,6 +92,12 @@ const isMapVisible = ref(false)
         Показать фотографии на карте
       </KitBtn>
     </div>
+
+    <MemoriesMap
+      v-if="isMapVisible"
+      :memories="memoriesWithGeoForSelectedDay"
+      @close="isMapVisible = false"
+    />
   </div>
 </template>
 
@@ -102,6 +107,13 @@ const isMapVisible = ref(false)
   flex-direction: column;
   gap: 32px;
   margin-bottom: 16px;
+
+  &.fullscreen-layout {
+    gap: 48px;
+    max-width: 90%;
+    margin: 0 auto;
+    width: 100%;
+  }
 }
 
 .upload-section {
@@ -119,6 +131,12 @@ const isMapVisible = ref(false)
   }
   @include media-up(md) {
     grid-template-columns: repeat(4, 1fr);
+  }
+
+  .fullscreen-layout & {
+    max-width: 1200px;
+    width: 100%;
+    margin: 16px auto;
   }
 }
 
@@ -174,8 +192,6 @@ const isMapVisible = ref(false)
 .map-button-container {
   display: flex;
   justify-content: center;
-  padding: 16px 0;
-  border-bottom: 1px solid var(--border-secondary-color);
 }
 
 .spin {

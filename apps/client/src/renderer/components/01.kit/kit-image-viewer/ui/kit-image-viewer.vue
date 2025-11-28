@@ -3,11 +3,14 @@ import type { IImageViewerImageMeta, ImageQuality, ImageViewerImage } from '../m
 import { Icon } from '@iconify/vue'
 import { onClickOutside, toRef } from '@vueuse/core'
 import { useRequest } from '~/plugins/request'
-import { TRIP_GALLERY_KEYS } from '~/plugins/request/models/keys'
 import { resolveApiUrl } from '~/shared/lib/url'
 import { useImageViewerTransform, useSwipeNavigation } from '../composables'
 import ImageMetadataPanel from './kit-image-metadata-panel.vue'
 import KitViewerControls from './kit-viewer-controls.vue'
+
+enum EImageViewerKeys {
+  FETCH_IMAGE_VIEWER_METADATA = 'image-viewer:fetch-metadata',
+}
 
 interface Props {
   visible: boolean
@@ -125,6 +128,7 @@ const {
   preferredQuality,
   threshold: 80,
   velocity: 0.3,
+  baseTransform: computed(() => imageStyle.value.transform),
 })
 
 // --- Combined touch handlers ---
@@ -212,7 +216,7 @@ async function handleShowMetadata() {
     isMetadataLoading.value = true
     try {
       await useRequest({
-        key: TRIP_GALLERY_KEYS.FETCH_METADATA(imageId),
+        key: EImageViewerKeys.FETCH_IMAGE_VIEWER_METADATA,
         fn: db => db.files.getMetadata(imageId),
         onSuccess: (fullMetadata) => {
           if (fullMetadata) {
@@ -691,7 +695,6 @@ onUnmounted(() => {
   align-items: center;
   justify-content: center;
   height: 100%;
-  padding: 70px 40px;
 }
 
 .preview-img {
@@ -699,8 +702,6 @@ onUnmounted(() => {
   max-height: 100%;
   object-fit: contain;
   border-radius: var(--r-2xs);
-  filter: brightness(0.8);
-  opacity: 0;
 }
 
 .viewer-fade-enter-active,
@@ -793,10 +794,6 @@ onUnmounted(() => {
   }
   .header-left {
     justify-content: flex-start;
-  }
-
-  .preview-image {
-    padding: 8px 16px;
   }
 }
 </style>

@@ -15,6 +15,13 @@ class DayRepository implements IDayRepository {
   }
 
   /**
+   * Получает заметку для дня.
+   */
+  async getNote(params: { dayId: string }): Promise<string | null> {
+    return await trpc.day.getNote.query(params)
+  }
+
+  /**
    * Создает новый день через tRPC мутацию.
    * @param dayData - Данные нового дня.
    * @returns Promise<Day> - Созданный день с ID от сервера.
@@ -34,7 +41,7 @@ class DayRepository implements IDayRepository {
   }
 
   @throttle(1_000)
-  async updateDayDetails(id: string, details: Partial<Pick<Day, 'title' | 'description' | 'date'>>): Promise<Day> {
+  async updateDayDetails(id: string, details: Partial<Pick<Day, 'title' | 'description' | 'date' | 'meta' | 'note'>>): Promise<Day> {
     const result = await trpc.day.update.mutate({
       id,
       details,

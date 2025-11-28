@@ -310,17 +310,20 @@ onMounted(() => {
   .kit-btn.is-active {
     border-color: var(--border-accent-color);
     color: var(--fg-accent-color);
-    background-color: var(--bg-accent-color-translucent);
   }
 }
 
 .advanced-filters {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
-  gap: 1rem;
+  gap: 24px;
   background-color: var(--bg-tertiary-color);
-  padding: 1rem;
+  padding: 16px;
   border-radius: var(--r-m);
+
+  @include media-down(sm) {
+    gap: 4px;
+  }
 }
 
 .size-filter {

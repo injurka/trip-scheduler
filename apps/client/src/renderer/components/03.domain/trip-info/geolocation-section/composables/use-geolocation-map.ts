@@ -9,7 +9,7 @@ import { Tile as TileLayer, Vector as VectorLayer } from 'ol/layer'
 import { fromLonLat } from 'ol/proj'
 import { Vector as VectorSource } from 'ol/source'
 import { Circle as CircleStyle, Fill, Icon as OlIcon, Stroke, Style } from 'ol/style'
-import { TILE_SOURCES } from '../constant/map-styles'
+import { checkMapTilerAvailability, TILE_SOURCES } from '../constant/map-styles'
 
 const NOMINATIM_URL = 'https://nominatim.openstreetmap.org/reverse'
 const NOMINATIM_SEARCH_URL = 'https://nominatim.openstreetmap.org/search'
@@ -48,8 +48,16 @@ function useGeolocationMap() {
     }
     await nextTick()
     try {
+      // Проверяем доступность MapTiler
+      const isMapTilerWorking = await checkMapTilerAvailability()
+
+      // Выбираем источник: если MapTiler работает - используем его, иначе OSM
+      const initialSource = isMapTilerWorking
+        ? TILE_SOURCES.maptilerStreets.source
+        : TILE_SOURCES.osm.source
+
       const initialTileLayer = new TileLayer({
-        source: TILE_SOURCES.maptilerStreets.source,
+        source: initialSource,
       })
       tileLayerRef.value = initialTileLayer
 

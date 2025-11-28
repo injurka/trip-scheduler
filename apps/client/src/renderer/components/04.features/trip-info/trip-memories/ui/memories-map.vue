@@ -13,7 +13,6 @@ const emit = defineEmits<{ (e: 'close'): void }>()
 
 const mapMarkers = computed<MapMarker[]>(() => {
   return props.memories.map((memory) => {
-    // We can be sure that image, latitude and longitude exist because of the store getter
     const image = memory.image!
 
     return {
@@ -32,10 +31,11 @@ const mapCenter = computed((): [number, number] => {
   if (mapMarkers.value.length > 0) {
     const avgLon = mapMarkers.value.reduce((sum, m) => sum + m.coords.lon, 0) / mapMarkers.value.length
     const avgLat = mapMarkers.value.reduce((sum, m) => sum + m.coords.lat, 0) / mapMarkers.value.length
+
     return [avgLon, avgLat]
   }
 
-  return [0, 0] // Default fallback
+  return [0, 0]
 })
 </script>
 
@@ -52,15 +52,13 @@ const mapCenter = computed((): [number, number] => {
       />
     </div>
     <div class="map-container">
-      <ClientOnly>
-        <KitMap
-          v-if="memories.length > 0"
-          :markers="mapMarkers"
-          :center="mapCenter"
-          height="600px"
-          :auto-pan="false"
-        />
-      </ClientOnly>
+      <KitMap
+        v-if="memories.length > 0"
+        :markers="mapMarkers"
+        :center="mapCenter"
+        height="600px"
+        :auto-pan="false"
+      />
     </div>
   </div>
 </template>
@@ -69,8 +67,8 @@ const mapCenter = computed((): [number, number] => {
 .memories-map-view {
   display: flex;
   flex-direction: column;
-  gap: 16px;
-  padding: 24px;
+  gap: 8px;
+  padding: 8px;
   background-color: var(--bg-secondary-color);
   border: 1px solid var(--border-secondary-color);
   border-radius: var(--r-l);
@@ -80,6 +78,7 @@ const mapCenter = computed((): [number, number] => {
   display: flex;
   justify-content: space-between;
   align-items: center;
+  padding: 0 8px;
 
   h4 {
     display: flex;
@@ -97,5 +96,46 @@ const mapCenter = computed((): [number, number] => {
   height: 600px;
   border-radius: var(--r-m);
   overflow: hidden;
+}
+
+.map-marker-tooltip {
+  position: absolute;
+  bottom: 100%;
+  left: 50%;
+  transform: translate(-50%, -12px);
+  background-color: var(--bg-primary-color);
+  padding: 4px;
+  border-radius: var(--r-s);
+  box-shadow: var(--s-m);
+  z-index: 10;
+  pointer-events: none;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+
+  &::after {
+    content: '';
+    position: absolute;
+    top: 100%;
+    left: 50%;
+    margin-left: -6px;
+    border-width: 6px;
+    border-style: solid;
+    border-color: var(--bg-primary-color) transparent transparent transparent;
+  }
+}
+
+.tooltip-image {
+  width: 120px;
+  height: 90px;
+  border-radius: var(--r-xs);
+  overflow: hidden;
+  background-color: var(--bg-secondary-color);
+
+  img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+  }
 }
 </style>

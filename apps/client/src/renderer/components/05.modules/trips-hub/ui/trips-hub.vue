@@ -10,6 +10,8 @@ import { TripsHubKey, useTripsHub } from '../composables/use-trips-hub'
 import TripsFilters from './controls/trips-filters.vue'
 import TripList from './list-trip/list.vue'
 import UnauthorizedPlaceholder from './list-trip/states/unauthorized-placeholder.vue'
+import TripCard from './list-trip/trip-card/card-item.vue'
+
 import CreateTripFlow from './new-trip/create-trip-flow.vue'
 
 const emit = defineEmits<{
@@ -102,6 +104,8 @@ provide(TripsHubKey, tripsHub)
       </div>
       <KitBtn
         icon="mdi:plus"
+        variant="tonal"
+        size="sm"
         @click="tripsHub.openCreateModal"
       >
         <template v-if="mdAndUp">
@@ -109,6 +113,19 @@ provide(TripsHubKey, tripsHub)
         </template>
       </KitBtn>
     </div>
+
+    <!-- Блок активного путешествия -->
+    <Transition name="slide-fade">
+      <div v-if="tripsHub.currentActiveTrip.value && currentTab === 'my'" class="current-trip-section">
+        <h3 class="current-trip-label">
+          Происходит прямо сейчас
+        </h3>
+        <div class="active-trip-wrapper">
+          <TripCard :="tripsHub.currentActiveTrip.value" :is-highlight="true" />
+        </div>
+        <KitDivider />
+      </div>
+    </Transition>
 
     <div class="hub-controls-wrapper">
       <div class="hub-controls">
@@ -128,6 +145,7 @@ provide(TripsHubKey, tripsHub)
         />
       </div>
 
+      <!-- ... filters ... -->
       <Transition name="slide-fade">
         <div v-if="tripsHub.isFiltersOpen.value">
           <KitDivider class="advanced-filters-divider">
@@ -195,6 +213,46 @@ provide(TripsHubKey, tripsHub)
 </template>
 
 <style lang="scss" scoped>
+// ... existing styles ...
+
+.current-trip-section {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  animation: slide-in 0.4s ease-out;
+}
+
+.current-trip-label {
+  font-size: 1rem;
+  font-weight: 600;
+  color: var(--fg-accent-color);
+  margin: 0;
+  padding-left: 8px;
+}
+
+.active-trip-wrapper {
+  // Ограничиваем ширину для красивого отображения, если режим списка
+  max-width: 100%;
+
+  // Если режим колонки, можно ограничить
+  @include media-up(md) {
+    max-width: 800px;
+  }
+}
+
+@keyframes slide-in {
+  from {
+    opacity: 0;
+    transform: translateY(-10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+// ... rest of styles ...
+
 .trips-hub-container {
   display: flex;
   flex-direction: column;
@@ -285,6 +343,11 @@ provide(TripsHubKey, tripsHub)
   border: 1px solid var(--border-secondary-color);
   border-radius: var(--r-m);
 
+  @include media-down(sm) {
+    padding: 8px;
+    gap: 8px;
+  }
+
   &-divider {
     margin-top: 8px;
     margin-bottom: 16px;
@@ -294,7 +357,11 @@ provide(TripsHubKey, tripsHub)
 .filter-group {
   display: flex;
   flex-direction: column;
-  gap: 12px;
+  gap: 8px;
+
+  @include media-down(sm) {
+    gap: 4px;
+  }
 
   label {
     font-size: 0.875rem;

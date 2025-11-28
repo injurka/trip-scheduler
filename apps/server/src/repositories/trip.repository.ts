@@ -312,7 +312,10 @@ export const tripRepository = {
         .where(eq(tripParticipants.userId, userId))
 
       const result = await db.query.trips.findMany({
-        where: inArray(trips.id, userTripsSubquery),
+        where: and(
+          inArray(trips.id, userTripsSubquery),
+          eq(trips.visibility, 'public'),
+        ),
         orderBy: (trips, { desc }) => [desc(trips.createdAt)],
         limit,
         with: withParticipants,

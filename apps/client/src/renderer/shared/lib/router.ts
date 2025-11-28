@@ -28,10 +28,6 @@ const UserSettings = () => import('~/pages/user/[id]/settings.vue')
 const UserQuota = () => import('~/pages/user/[id]/quota.vue')
 const UserStorage = () => import('~/pages/user/[id]/storage.vue')
 
-// --- Сообщества ---
-const CommunitiesList = () => import('~/pages/communities/index.vue')
-const CommunityInfo = () => import('~/pages/communities/[id].vue')
-
 const ExplorePage = () => import('~/pages/explore.vue')
 
 // Guard для проверки, что пользователь заходит в свои настройки
@@ -141,20 +137,6 @@ const routes: RouteRecordRaw[] = [
     component: UserStorage,
     meta: { layout: 'default', requiresAuth: true },
     beforeEnter: requireOwner,
-  },
-
-  // --- Сообщества ---
-  {
-    path: AppRoutePaths.Communities.List,
-    name: AppRouteNames.CommunitiesList,
-    component: CommunitiesList,
-    meta: { layout: 'default' },
-  },
-  {
-    path: AppRoutePaths.Communities.Info(':id'),
-    name: AppRouteNames.CommunityInfo,
-    component: CommunityInfo,
-    meta: { layout: 'default' },
   },
 
   // --- Системные маршруты ---

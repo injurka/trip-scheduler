@@ -94,38 +94,38 @@ watch(() => props.markers, (newMarkers) => {
 
 <style lang="scss">
 .ol-popup-placeholder {
-  position: absolute;
+  position: relative;
   background-color: white;
   box-shadow: 0 1px 4px rgba(0, 0, 0, 0.2);
-  padding: 4px;
+  padding: 2px;
   border-radius: var(--r-s);
   border: 1px solid #cccccc;
-  bottom: 12px;
-  left: -50px;
   min-width: 120px;
-  transform: translate(-50%, -10px);
+  pointer-events: none;
 
   &::after,
   &::before {
     top: 100%;
+    left: 50%;
     border: solid transparent;
     content: ' ';
     height: 0;
     width: 0;
     position: absolute;
     pointer-events: none;
+    transform: translateX(-50%);
   }
+
   &::after {
     border-top-color: white;
     border-width: 10px;
-    left: 50%;
-    margin-left: -10px;
+    margin-left: 0;
   }
+
   &::before {
     border-top-color: #cccccc;
     border-width: 11px;
-    left: 50%;
-    margin-left: -11px;
+    margin-left: 0;
   }
 }
 </style>

@@ -1,7 +1,7 @@
 import type { Meta, StoryObj } from '@storybook/vue3'
 import { ref } from 'vue'
 
-import { DialogWithClose } from '../../src/components/01.kit/dialog-with-close'
+import { KitDialogWithClose } from '../../src/renderer/components/01.kit/kit-dialog-with-close'
 
 /**
  * `DialogWithClose` is a modal component based on `reka-ui`. It provides a consistent
@@ -10,7 +10,7 @@ import { DialogWithClose } from '../../src/components/01.kit/dialog-with-close'
  */
 const meta = {
   title: 'Kit/DialogWithClose',
-  component: DialogWithClose,
+  component: KitDialogWithClose,
   tags: ['autodocs'],
   argTypes: {
     'visible': {
@@ -30,7 +30,7 @@ const meta = {
     },
     'onUpdate:visible': { action: 'update:visible' },
   },
-} satisfies Meta<typeof DialogWithClose>
+} satisfies Meta<typeof KitDialogWithClose>
 
 export default meta
 type Story = StoryObj<typeof meta>
@@ -38,7 +38,7 @@ type Story = StoryObj<typeof meta>
 // Reusable render function to provide a button that opens the dialog
 function createRender(slotContent: string) {
   return (args: any) => ({
-    components: { DialogWithClose },
+    components: { KitDialogWithClose },
     setup() {
       const visible = ref(false)
       return { args, visible, slotContent }
@@ -51,9 +51,9 @@ function createRender(slotContent: string) {
       >
         Open Dialog
       </button>
-      <DialogWithClose v-model:visible="visible" :="args" @update:visible="args['onUpdate:visible']">
+      <KitDialogWithClose v-model:visible="visible" :="args" @update:visible="args['onUpdate:visible']">
         <div v-html="slotContent"></div>
-      </DialogWithClose>
+      </KitDialogWithClose>
     </div>
   `,
   })
@@ -84,14 +84,32 @@ export const CustomWidth: Story = {
 
 export const WithLongContent: Story = {
   render: createRender(
-    `<p>This example demonstrates how the dialog handles content that exceeds its height. The body of the dialog should become scrollable.</p>
+    `
+    <p>This example demonstrates how the dialog handles content that exceeds its height. The body of the dialog should become scrollable.</p>
     <p>Lorem ipsum dolor sit amet, consectetur adipiscing elit. Sed do eiusmod tempor incididunt ut labore et dolore magna aliqua.</p>
     <p>Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat.</p>
     <p>Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur.</p>
     <p>Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id est laborum.</p>
     <p>Here is some more content to ensure scrolling is triggered.</p>
     <p>And another line, just in case.</p>
-    <p>Final line. You should be able to scroll now.</p>`,
+    <p>Final line. You should be able to scroll now.</p>
+    <p>This example demonstrates how the dialog handles content that exceeds its height. The body of the dialog should become scrollable.</p>
+    <p>Lorem ipsum dolor sit amet, consectetur adipiscing elit. Sed do eiusmod tempor incididunt ut labore et dolore magna aliqua.</p>
+    <p>Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat.</p>
+    <p>Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur.</p>
+    <p>Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id est laborum.</p>
+    <p>Here is some more content to ensure scrolling is triggered.</p>
+    <p>And another line, just in case.</p>
+    <p>Final line. You should be able to scroll now.</p>
+    <p>This example demonstrates how the dialog handles content that exceeds its height. The body of the dialog should become scrollable.</p>
+    <p>Lorem ipsum dolor sit amet, consectetur adipiscing elit. Sed do eiusmod tempor incididunt ut labore et dolore magna aliqua.</p>
+    <p>Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat.</p>
+    <p>Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur.</p>
+    <p>Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id est laborum.</p>
+    <p>Here is some more content to ensure scrolling is triggered.</p>
+    <p>And another line, just in case.</p>
+    <p>Final line. You should be able to scroll now.</p>
+    `,
   ),
   // @ts-expect-error Visible in createRender
   args: {

@@ -1,8 +1,8 @@
 <script setup lang="ts">
 import type { ITrip } from '../../../models/types'
+import type { KitDropdownItem } from '~/components/01.kit/kit-dropdown'
 import type { UpdateTripInput } from '~/shared/types/models/trip'
 import { Icon } from '@iconify/vue'
-import { DropdownMenuItem } from 'reka-ui'
 import { inject } from 'vue'
 import { KitAnimatedTooltip } from '~/components/01.kit/kit-animated-tooltip'
 import { KitAvatar } from '~/components/01.kit/kit-avatar'
@@ -14,11 +14,14 @@ import { AppRoutePaths } from '~/shared/constants/routes'
 import { CommentParentType } from '~/shared/types/models/comment'
 import { TripsHubKey } from '../../../composables'
 
-type Props = ITrip
+interface Props extends ITrip {
+  isHighlight?: boolean
+}
 
 const props = withDefaults(defineProps<Props>(), {
   participants: () => [],
   tags: () => [],
+  isHighlight: false,
 })
 
 const router = useRouter()
@@ -56,6 +59,18 @@ function handleSave(updatedData: UpdateTripInput) {
   if (tripsHub) {
     tripsHub.updateTripInList({ id: props.id, ...updatedData })
   }
+}
+
+const moreMenuItems = computed((): KitDropdownItem<string>[] => [
+  { value: 'edit', label: 'Редактировать', icon: 'mdi:pencil-outline' },
+  { value: 'delete', label: 'Удалить', icon: 'mdi:trash-can-outline', isDestructive: true },
+])
+
+function handleMenuAction(action: string) {
+  if (action === 'edit')
+    handleEdit()
+  else if (action === 'delete')
+    handleDelete()
 }
 
 const formattedDates = computed(() => {
@@ -113,7 +128,7 @@ const visibilityIcon = computed(() => {
 </script>
 
 <template>
-  <div class="travel-card-wrapper" :class="{ 'more-menu-open': isMoreMenuOpen }">
+  <div class="travel-card-wrapper" :class="{ 'more-menu-open': isMoreMenuOpen, 'is-highlighted': isHighlight }">
     <div class="travel-card" @click="goTo">
       <div class="card-image-container">
         <KitImage
@@ -132,23 +147,27 @@ const visibilityIcon = computed(() => {
           {{ title }}
         </h3>
 
+        <div v-if="isHighlight" class="active-trip-badge">
+          <Icon icon="mdi:fire" class="badge-icon" />
+          <span>Идёт сейчас</span>
+        </div>
+
         <span class="card-visibility">
           <Icon :icon="visibilityIcon.icon" />
         </span>
 
         <div class="card-actions">
-          <KitDropdown v-model:open="isMoreMenuOpen" align="end">
+          <KitDropdown
+            v-model:open="isMoreMenuOpen"
+            align="end"
+            :items="moreMenuItems"
+            @update:model-value="handleMenuAction"
+          >
             <template #trigger>
               <button class="action-btn" title="Еще" @click.stop.prevent>
                 <Icon icon="mdi:dots-vertical" />
               </button>
             </template>
-            <DropdownMenuItem class="kit-dropdown-item" @click.stop="handleEdit">
-              <Icon icon="mdi:pencil-outline" /><span>Редактировать</span>
-            </DropdownMenuItem>
-            <DropdownMenuItem class="kit-dropdown-item is-destructive" @click.stop="handleDelete">
-              <Icon icon="mdi:trash-can-outline" /><span>Удалить</span>
-            </DropdownMenuItem>
           </KitDropdown>
         </div>
       </div>
@@ -245,6 +264,55 @@ const visibilityIcon = computed(() => {
 
   &:hover {
     background-color: var(--bg-hover-color);
+  }
+
+  &.is-highlighted {
+    background: linear-gradient(135deg, rgba(var(--fg-accent-color-rgb), 0.1), transparent);
+    border: 1px solid var(--fg-accent-color);
+    padding: 6px;
+    box-shadow: 0 4px 20px rgba(var(--fg-accent-color-rgb), 0.15);
+
+    .travel-card {
+      box-shadow: none;
+    }
+
+    &:hover {
+      background-color: rgba(var(--fg-accent-color-rgb), 0.15);
+    }
+  }
+}
+
+.active-trip-badge {
+  position: absolute;
+  top: 12px;
+  left: 16px;
+  z-index: 3;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 10px;
+  background-color: var(--fg-accent-color);
+  color: var(--fg-inverted-color);
+  border-radius: var(--r-full);
+  font-size: 0.85rem;
+  font-weight: 600;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+  animation: pulse-badge 2s infinite;
+
+  .badge-icon {
+    font-size: 1rem;
+  }
+}
+
+@keyframes pulse-badge {
+  0% {
+    box-shadow: 0 0 0 0 rgba(var(--fg-accent-color-rgb), 0.4);
+  }
+  70% {
+    box-shadow: 0 0 0 6px rgba(var(--fg-accent-color-rgb), 0);
+  }
+  100% {
+    box-shadow: 0 0 0 0 rgba(var(--fg-accent-color-rgb), 0);
   }
 }
 

@@ -141,7 +141,8 @@ onUnmounted(() => {
   overflow: hidden;
 
   @include media-down(xs) {
-    padding: 24px;
+    padding: 16px;
+    margin: 0px;
   }
 }
 

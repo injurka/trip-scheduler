@@ -44,6 +44,8 @@ function handleSectionUpdate(updatedSectionData: TripSection) {
 <style scoped lang="scss">
 .section-content {
   margin-top: 16px;
+  position: relative;
+  z-index: 3;
 }
 .section-not-found {
   text-align: center;

@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { Icon } from '@iconify/vue'
 import { useModuleStore } from '~/components/05.modules/trip-info/composables/use-trip-info-module'
+import { vRipple } from '~/shared/directives/ripple'
 
 const store = useModuleStore(['plan'])
 
@@ -19,6 +20,7 @@ function handleSelectNextDay() {
 <template>
   <div class="day-navigation">
     <button
+      v-ripple
       class="nav-button"
       :disabled="!getPreviousDayId"
       @click="handleSelectPreviousDay"
@@ -27,6 +29,7 @@ function handleSelectNextDay() {
       <span class="nav-button-text">Предыдущий день</span>
     </button>
     <button
+      v-ripple
       class="nav-button"
       :disabled="!getNextDayId"
       @click="handleSelectNextDay"

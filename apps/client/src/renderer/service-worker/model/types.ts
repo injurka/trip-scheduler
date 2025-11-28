@@ -67,63 +67,58 @@ interface ApiCacheRule {
   maxEntries: number
 }
 
+// ИЗМЕНЕНИЯ ЗДЕСЬ: Увеличено время жизни кеша до 30 дней
 const API_CACHE_RULES: ApiCacheRule[] = [
   {
     path: 'trip.list',
     cacheName: 'trip-scheduler-api-trips',
     strategy: 'NetworkFirst',
-    maxAgeSeconds: 1 * 60 * 60 * 24, // 24 часа
+    maxAgeSeconds: 30 * 24 * 60 * 60, // Было 1 день, стало 30 дней
     maxEntries: 10,
   },
   {
     path: 'day.getByTripId',
     cacheName: 'trip-scheduler-api-days',
     strategy: 'NetworkFirst',
-    maxAgeSeconds: 1 * 60 * 60 * 24, // 24 часа
+    maxAgeSeconds: 30 * 24 * 60 * 60, // 30 дней
     maxEntries: 50,
   },
   {
     path: 'trip.getByIdWithDays',
     cacheName: 'trip-scheduler-api-trip-details',
     strategy: 'NetworkFirst',
-    maxAgeSeconds: 1 * 60 * 60 * 24, // 24 часа
+    maxAgeSeconds: 30 * 24 * 60 * 60, // 30 дней
     maxEntries: 20,
   },
   {
     path: 'memory.getByTripId',
     cacheName: 'trip-scheduler-api-memories',
     strategy: 'NetworkFirst',
-    maxAgeSeconds: 1 * 60 * 60 * 24, // 24 часа
+    maxAgeSeconds: 30 * 24 * 60 * 60, // 30 дней
     maxEntries: 50,
   },
   {
     path: 'image.listByTrip',
     cacheName: 'trip-scheduler-api-route-images',
     strategy: 'NetworkFirst',
-    maxAgeSeconds: 1 * 60 * 60 * 24, // 24 часа
+    maxAgeSeconds: 30 * 24 * 60 * 60, // 30 дней
     maxEntries: 50,
   },
   {
     path: 'metro.listSystems',
     cacheName: 'trip-scheduler-api-metro-systems',
     strategy: 'CacheFirst',
-    maxAgeSeconds: 30 * 24 * 60 * 60, // 30 дней
+    maxAgeSeconds: 30 * 24 * 60 * 60,
     maxEntries: 25,
   },
   {
     path: 'metro.getDetails',
     cacheName: 'trip-scheduler-api-metro-details',
     strategy: 'CacheFirst',
-    maxAgeSeconds: 30 * 24 * 60 * 60, // 30 дней
+    maxAgeSeconds: 30 * 24 * 60 * 60,
     maxEntries: 50,
   },
 ]
-
-interface MessageHandlers {
-  SKIP_WAITING: () => Promise<void>
-  GET_CACHE_INFO: (port: MessagePort) => Promise<void>
-  CLEAR_CACHE: (port: MessagePort, payload?: { cacheName?: string }) => Promise<void>
-}
 
 interface MessageHandlers {
   SKIP_WAITING: () => Promise<void>

@@ -90,7 +90,11 @@ useEditor((root) => {
 }
 
 .has-content :deep(.crepe-placeholder) {
-  opacity: 0;
+  // opacity: 0;
+
+  &::before {
+    opacity: 0;
+  }
 }
 
 // Глобальные стили для скрытия ненужных UI элементов Crepe
@@ -132,6 +136,7 @@ useEditor((root) => {
     blockquote {
       padding-left: 8px;
       border-left: none;
+
       ::before {
         top: 1px;
         bottom: 1px;

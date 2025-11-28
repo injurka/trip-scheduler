@@ -5,6 +5,13 @@ import { dayRepository } from '~/repositories/day.repository'
 import { tripRepository } from '~/repositories/trip.repository'
 
 export const dayService = {
+  async getNote(dayId: string) {
+    const note = await dayRepository.getNote(dayId)
+    // Если день не найден или заметки нет, возвращаем пустую строку или null
+    // (репозиторий уже возвращает null, если не найдено)
+    return note
+  },
+
   async getByTripId(id: string) {
     const day = await dayRepository.getByTripId(id)
     if (!day)

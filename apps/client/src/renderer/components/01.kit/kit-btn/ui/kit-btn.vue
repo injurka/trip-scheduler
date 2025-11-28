@@ -1,10 +1,11 @@
 <script setup lang="ts">
 import { Icon } from '@iconify/vue'
-import { useSlots } from 'vue'
+import { computed, useSlots } from 'vue'
+import { vRipple } from '~/shared/directives/ripple'
 
 interface Props {
   icon?: string
-  variant?: 'solid' | 'outlined' | 'text' | 'subtle'
+  variant?: 'solid' | 'outlined' | 'text' | 'subtle' | 'tonal'
   color?: 'primary' | 'secondary'
   disabled?: boolean
   size?: 'xs' | 'sm' | 'md' | 'lg'
@@ -19,7 +20,6 @@ const props = withDefaults(defineProps<Props>(), {
 
 const slots = useSlots()
 
-// Определяем, является ли кнопка иконочной (иконка есть, а слота по умолчанию нет)
 const isIconOnly = computed(() => props.icon && !slots.default)
 
 const componentClasses = computed(() => [
@@ -33,6 +33,7 @@ const componentClasses = computed(() => [
 
 <template>
   <button
+    v-ripple
     :class="componentClasses"
     :disabled="props.disabled"
     type="button"
@@ -95,7 +96,6 @@ const componentClasses = computed(() => [
     font-size: 0.8125rem;
     border-radius: var(--r-2xs);
     height: 38px;
-
     &.kit-btn--icon-only {
       padding: 0.5rem;
     }
@@ -109,7 +109,6 @@ const componentClasses = computed(() => [
     font-size: 0.875rem;
     border-radius: var(--r-2xs);
     height: 46px;
-
     &.kit-btn--icon-only {
       padding: 0.625rem;
     }
@@ -123,7 +122,6 @@ const componentClasses = computed(() => [
     font-size: 1rem;
     border-radius: var(--r-s);
     height: 54px;
-
     &.kit-btn--icon-only {
       padding: 0.75rem;
     }
@@ -149,6 +147,30 @@ const componentClasses = computed(() => [
 
       &:not(:disabled):hover {
         background-color: var(--bg-hover-color);
+      }
+    }
+  }
+
+  &--tonal {
+    box-shadow: none;
+    border-color: transparent;
+
+    &.kit-btn--color-primary {
+      background-color: var(--bg-tertiary-color);
+      color: var(--fg-accent-color);
+
+      &:not(:disabled):hover {
+        background-color: var(--bg-disabled-color);
+      }
+    }
+
+    &.kit-btn--color-secondary {
+      background-color: var(--bg-disabled-color);
+      color: var(--fg-secondary-color);
+
+      &:not(:disabled):hover {
+        background-color: var(--bg-tertiary-color);
+        color: var(--fg-primary-color);
       }
     }
   }

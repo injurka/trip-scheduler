@@ -14,10 +14,15 @@ export const DaySchema = z.object({
   date: z.union([z.string(), z.date()]),
   title: z.string(),
   description: z.string().nullable(),
+  note: z.string().optional().nullable(),
   meta: z.array(DayMetaInfoSchema).optional(),
   tripId: z.string().uuid(),
   createdAt: z.date(),
   updatedAt: z.date(),
+})
+
+export const GetDayNoteInputSchema = z.object({
+  dayId: z.string().uuid(),
 })
 
 export const GetDayByIdInputSchema = z.object({
@@ -33,7 +38,13 @@ export const CreateDayInputSchema = DaySchema.pick({
 
 export const UpdateDayInputSchema = z.object({
   id: z.string().uuid(),
-  details: DaySchema.pick({ title: true, description: true, date: true, meta: true }).partial(),
+  details: DaySchema.pick({
+    title: true,
+    description: true,
+    date: true,
+    meta: true,
+    note: true,
+  }).partial(),
 })
 
 export const DeleteDayInputSchema = z.object({

@@ -32,6 +32,7 @@ const {
   bookingGroups,
   tabItems,
   allBookingsSorted,
+  bookingHighlightMap,
   addBooking,
   addCompletedBooking,
   deleteBooking,
@@ -98,6 +99,7 @@ function getCardComponent(type: Booking['type']) {
                 :is="getCardComponent(booking.type)"
                 :booking="booking as any"
                 :readonly="readonly"
+                :highlight-status="bookingHighlightMap[booking.id]"
                 @delete="deleteBooking(booking.id)"
                 @update:booking="updateBooking"
               />
@@ -120,6 +122,7 @@ function getCardComponent(type: Booking['type']) {
                 :is="getCardComponent(booking.type)"
                 :booking="booking"
                 :readonly="readonly"
+                :highlight-status="bookingHighlightMap[booking.id]"
                 @delete="deleteBooking(booking.id)"
                 @update:booking="updateBooking"
               />

@@ -1,18 +1,28 @@
 <script setup lang="ts">
 import type { IActivity } from '~/components/05.modules/trip-info/models/types'
 import { Icon } from '@iconify/vue'
+import { KitBtn } from '~/components/01.kit/kit-btn'
 import { KitDivider } from '~/components/01.kit/kit-divider'
 import { useModuleStore } from '~/components/05.modules/trip-info/composables/use-trip-info-module'
-import { EActivityTag } from '~/components/05.modules/trip-info/models/types'
-import DayMetaBadges from '~/components/05.modules/trip-info/ui/day-meta-badges.vue'
-import { EActivityStatus } from '~/shared/types/models/activity'
+import { EActivityStatus, EActivityTag } from '~/shared/types/models/activity'
+import DayNote from './day-note.vue'
 import DayActivitiesList from './list.vue'
-import PossibleActivities from './possible-activities.vue'
 
-const { plan: store, ui } = useModuleStore(['plan', 'ui'])
+const { plan, ui } = useModuleStore(['plan', 'ui'])
 
-const { getActivitiesForSelectedDay, getSelectedDay } = storeToRefs(store)
-const { isViewMode, areAllActivitiesCollapsed } = storeToRefs(ui)
+const { getActivitiesForSelectedDay, getSelectedDay } = storeToRefs(plan)
+const { isViewMode, areAllActivitiesCollapsed, isParallelPlanView } = storeToRefs(ui)
+
+// --- View Modes ---
+const viewMode = ref<'template' | 'canvas'>('template')
+
+function setViewMode(mode: 'template' | 'canvas') {
+  viewMode.value = mode
+}
+
+function toggleParallelView() {
+  ui.toggleParallelPlanView()
+}
 
 function handleAddNewActivity() {
   if (!getSelectedDay.value)
@@ -32,31 +42,63 @@ function handleAddNewActivity() {
     status: EActivityStatus.NONE,
   }
 
-  store.addActivity(getSelectedDay.value.id, newActivity)
+  plan.addActivity(getSelectedDay.value.id, newActivity)
 }
 
 // --- Логика для сворачивания ---
 const allActivityIds = computed(() => getActivitiesForSelectedDay.value.map((a: IActivity) => a.id))
 const allRouteBlocksCollapsed = computed(() => areAllActivitiesCollapsed.value(allActivityIds.value))
-const collapseRouteIcon = computed(() =>
-  allRouteBlocksCollapsed.value ? 'mdi:chevron-double-down' : 'mdi:chevron-double-up',
-)
-function handleToggleAllActivities() {
-  ui.toggleAllActivities(allActivityIds.value)
-}
+const collapseRouteIcon = computed(() => allRouteBlocksCollapsed.value ? 'mdi:chevron-double-down' : 'mdi:chevron-double-up')
 </script>
 
 <template>
   <div class="plan-view">
-    <div class="divider-with-action">
-      <KitDivider :is-loading="store.isLoadingUpdateActivity">
-        маршрут
+    <div class="divider-with-action" :class="{ 'is-parallel-mode': isParallelPlanView }">
+      <!-- Левая панель управления видами -->
+      <div class="view-mode-controls">
+        <div class="mode-group">
+          <KitBtn
+            icon="mdi:view-list-outline"
+            variant="outlined"
+            size="xs"
+            color="secondary"
+            :class="{ active: viewMode === 'template' && !isParallelPlanView }"
+            title="Шаблонный вид"
+            @click="setViewMode('template')"
+          />
+          <KitBtn
+            icon="mdi:text-box-outline"
+            variant="outlined"
+            size="xs"
+            color="secondary"
+            :class="{ active: viewMode === 'canvas' && !isParallelPlanView }"
+            title="Полотно (сплошной текст)"
+            @click="setViewMode('canvas')"
+          />
+        </div>
+        <div class="separator" />
+        <KitBtn
+          class="mode-parallel"
+          variant="outlined"
+          size="xs"
+          color="secondary"
+          :class="{ active: isParallelPlanView }"
+          title="Параллельный просмотр"
+          @click="toggleParallelView"
+        >
+          <Icon icon="mdi:view-column-outline" />
+        </KitBtn>
+      </div>
+
+      <KitDivider :is-loading="plan.isLoadingUpdateActivity" class="route-divider">
+        <span class="divider-label">маршрут</span>
       </KitDivider>
+
       <button
         v-if="isViewMode && getSelectedDay?.meta?.length"
         class="collapse-all-btn"
         title="Свернуть/развернуть все активности"
-        @click="handleToggleAllActivities"
+        @click="ui.toggleAllActivities(allActivityIds)"
       >
         <Icon :icon="collapseRouteIcon" />
       </button>
@@ -64,48 +106,111 @@ function handleToggleAllActivities() {
         v-if="isViewMode && allActivityIds.length > 0"
         class="collapse-all-btn"
         title="Свернуть/развернуть все активности"
-        @click="handleToggleAllActivities"
+        @click="ui.toggleAllActivities(allActivityIds)"
       >
         <Icon :icon="collapseRouteIcon" />
       </button>
     </div>
-    <DayActivitiesList @add="handleAddNewActivity" />
 
-    <!-- TODO позже -->
-    <!-- <div v-if="!isViewMode" class="add-ideas-wrapper">
-      <button class="add-from-ideas-btn" @click="ui.openPossibleActivitiesDrawer">
-        <Icon icon="mdi:lightbulb-on-outline" />
-        <span>Добавить из идей</span>
-      </button>
-    </div> -->
+    <!-- Основной контент -->
+    <div class="plan-content" :class="{ 'is-parallel': isParallelPlanView }">
+      <!-- Шаблонный список (Plan) -->
+      <div
+        v-if="isParallelPlanView || viewMode === 'template'"
+        class="plan-column"
+      >
+        <DayActivitiesList @add="handleAddNewActivity" />
+      </div>
 
-    <PossibleActivities />
+      <!-- Полотно (Canvas) -->
+      <div
+        v-if="isParallelPlanView || viewMode === 'canvas'"
+        class="canvas-column"
+      >
+        <DayNote :day-id="getSelectedDay?.id || ''" />
+      </div>
+    </div>
 
-    <KitDivider v-if="getSelectedDay?.meta?.length || !isViewMode">
-      мета-информация
-    </KitDivider>
-
-    <DayMetaBadges
-      v-if="getSelectedDay && (getSelectedDay.meta?.length || !isViewMode)"
-      :meta="getSelectedDay.meta || []"
-      :readonly="isViewMode"
-      @update:meta="newMeta => store.updateDayDetails(getSelectedDay!.id, { meta: newMeta })"
-    />
+    <slot name="footer" />
   </div>
 </template>
 
 <style scoped lang="scss">
 .plan-view {
   position: relative;
+  overflow: hidden;
 }
 
 .divider-with-action {
   position: relative;
   display: flex;
   align-items: center;
+  margin-bottom: 16px;
+  min-height: 40px;
 
   .kit-divider {
     flex-grow: 1;
+    margin-left: 120px;
+  }
+
+  &.is-parallel-mode::before {
+    content: '';
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    width: 100vw;
+    height: 1px;
+    background-color: var(--border-secondary-color);
+    z-index: 0;
+    pointer-events: none;
+  }
+
+  .view-mode-controls {
+    position: absolute;
+    left: 0;
+    top: 50%;
+    transform: translateY(-50%);
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    z-index: 2;
+    background-color: var(--bg-primary-color);
+
+    .mode-group {
+      display: flex;
+      gap: 2px;
+      background-color: var(--bg-secondary-color);
+      padding: 2px;
+      border-radius: var(--r-xs);
+      border: 1px solid var(--border-secondary-color);
+
+      .kit-btn {
+        border: none;
+        background: transparent;
+        &.active {
+          background-color: var(--bg-tertiary-color);
+          color: var(--fg-primary-color);
+          transform: none;
+        }
+        &:hover:not(.active) {
+          background-color: var(--bg-hover-color);
+          transform: none;
+        }
+      }
+    }
+
+    .separator {
+      width: 1px;
+      height: 20px;
+      background-color: var(--border-secondary-color);
+    }
+
+    .kit-btn.active {
+      background-color: var(--bg-accent-color);
+      color: var(--fg-on-accent-color);
+      border-color: var(--fg-accent-color);
+    }
   }
 
   .collapse-all-btn {
@@ -125,12 +230,52 @@ function handleToggleAllActivities() {
     cursor: pointer;
     font-size: 1.1rem;
     transition: all 0.2s ease;
-    z-index: 1;
+    z-index: 2;
 
     &:hover {
       color: var(--fg-accent-color);
       border-color: var(--fg-accent-color);
       background-color: var(--bg-hover-color);
+    }
+  }
+}
+
+.route-divider {
+  position: relative;
+  z-index: 1;
+
+  .divider-label {
+    background-color: var(--bg-primary-color);
+    padding: 0 12px;
+    border-radius: 4px;
+  }
+}
+
+.plan-content {
+  display: block;
+
+  &.is-parallel {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 32px;
+    align-items: start;
+    position: relative;
+    margin-bottom: 16px;
+
+    &::after {
+      content: '';
+      position: absolute;
+      top: 0;
+      left: 50%;
+      bottom: 0;
+      width: 1px;
+      background-color: var(--border-secondary-color);
+      transform: translateX(-50%);
+    }
+
+    .plan-column {
+      min-width: 920px;
+      max-width: 1000px;
     }
   }
 }
@@ -141,25 +286,40 @@ function handleToggleAllActivities() {
   justify-content: center;
 }
 
-.add-from-ideas-btn {
-  width: 100%;
-  padding: 10px;
-  background-color: var(--bg-secondary-color);
-  border: 1px solid var(--border-secondary-color);
-  color: var(--fg-secondary-color);
-  border-radius: var(--r-s);
-  cursor: pointer;
-  transition: all 0.2s ease;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 8px;
-  font-size: 0.9rem;
-  font-weight: 500;
+@include media-down(sm) {
+  .plan-content.is-parallel {
+    grid-template-columns: 1fr;
+    gap: 24px;
 
-  &:hover {
-    border-color: var(--border-accent-color);
-    color: var(--fg-accent-color);
+    &::after {
+      display: none;
+    }
+  }
+  .divider-with-action {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 8px;
+    justify-content: center;
+
+    .view-mode-controls {
+      top: auto;
+      transform: none;
+      left: auto;
+      justify-content: center;
+      gap: 0;
+
+      .separator {
+        display: none;
+      }
+
+      .mode-parallel {
+        display: none;
+      }
+    }
+
+    .kit-divider {
+      margin-left: 0;
+    }
   }
 }
 </style>

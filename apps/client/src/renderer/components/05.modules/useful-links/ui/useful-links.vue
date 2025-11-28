@@ -447,7 +447,6 @@ function scrollToCategory(id: string) {
     width: 32px;
     height: 32px;
     border-radius: 8px;
-    background-color: var(--bg-accent-color-translucent);
     color: var(--fg-accent-color);
     font-size: 1.1rem;
   }
@@ -603,7 +602,6 @@ function scrollToCategory(id: string) {
   border: 2px dashed var(--border-secondary-color);
   border-radius: var(--r-l);
   margin-top: 1rem;
-  background-color: var(--bg-secondary-color-translucent);
 
   .no-results-icon {
     font-size: 4rem;

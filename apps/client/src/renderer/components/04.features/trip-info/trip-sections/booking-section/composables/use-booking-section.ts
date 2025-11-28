@@ -24,45 +24,74 @@ export const BOOKING_TYPES_CONFIG = {
 } as const
 
 /**
- * Извлекает основную дату из бронирования для сортировки.
- * @param booking - Объект бронирования.
- * @returns Объект Date или null, если дата не найдена.
+ * Возвращает интервал времени (начало, конец) для бронирования.
+ * Если конец неизвестен, он равен началу (точечное событие).
  */
-function getBookingDate(booking: Booking): Date | null {
+function getBookingTimeRange(booking: Booking): { start: number, end: number } | null {
   try {
-    let dateString: string | undefined
+    let startStr: string | undefined
+    let endStr: string | undefined
 
     switch (booking.type) {
       case 'flight':
-        dateString = booking.data.segments?.[0]?.departureDateTime
+        startStr = booking.data.segments?.[0]?.departureDateTime
+        endStr = booking.data.segments?.[booking.data.segments.length - 1]?.arrivalDateTime
         break
       case 'hotel':
-        dateString = booking.data.checkInDate
-        if (dateString && /^\d{4}-\d{2}-\d{2}$/.test(dateString))
-          dateString += 'T00:00:00'
+        // Для сортировки берем дату заезда
+        if (booking.data.checkInDate)
+          startStr = booking.data.checkInDate.includes('T') ? booking.data.checkInDate : `${booking.data.checkInDate}T14:00:00`
+        // Выезд для сортировки не критичен, так как отели исключены из highlight-логики
         break
       case 'train':
-        dateString = booking.data.departureDateTime
+        startStr = booking.data.departureDateTime
+        endStr = booking.data.arrivalDateTime
         break
       case 'attraction':
-        dateString = booking.data.dateTime
+        startStr = booking.data.dateTime
+        endStr = undefined
         break
     }
 
-    if (!dateString)
+    if (!startStr)
       return null
 
-    const date = new Date(dateString)
-    // Проверяем, что дата валидна
-    if (Number.isNaN(date.getTime()))
+    const startDate = new Date(startStr)
+    if (Number.isNaN(startDate.getTime()))
       return null
 
-    return date
+    let endDate = startDate
+    if (endStr) {
+      const parsedEnd = new Date(endStr)
+      if (!Number.isNaN(parsedEnd.getTime())) {
+        endDate = parsedEnd
+      }
+    }
+    else {
+      // Если конечной даты нет, даем условное "окно" в 1 час
+      endDate = new Date(startDate.getTime() + 60 * 60 * 1000)
+    }
+
+    return { start: startDate.getTime(), end: endDate.getTime() }
   }
   catch {
     return null
   }
 }
+
+/**
+ * Получает текущее смещение часового пояса в формате ISO (например, +03:00)
+ */
+function getCurrentTimeZoneOffset(): string {
+  const offsetMinutes = new Date().getTimezoneOffset()
+  const sign = offsetMinutes <= 0 ? '+' : '-'
+  const abs = Math.abs(offsetMinutes)
+  const hours = String(Math.floor(abs / 60)).padStart(2, '0')
+  const minutes = String(abs % 60).padStart(2, '0')
+  return `${sign}${hours}:${minutes}`
+}
+
+export type HighlightStatus = 'active' | 'next' | 'closest' | null
 
 /**
  * Хук для управления логикой секции бронирований.
@@ -95,34 +124,64 @@ export function useBookingSection(
 
   const allBookingsSorted = computed(() => {
     return [...bookings.value].sort((a, b) => {
-      const dateA = getBookingDate(a)
-      const dateB = getBookingDate(b)
+      const rangeA = getBookingTimeRange(a)
+      const rangeB = getBookingTimeRange(b)
 
-      if (!dateA && !dateB)
-        return 0 // оба без даты, сохраняем исходный порядок
-      if (!dateA)
-        return 1 // 'a' без даты, отправляем его в конец списка
-      if (!dateB)
-        return -1 // 'b' без даты, отправляем его в конец списка
+      if (!rangeA && !rangeB)
+        return 0
+      if (!rangeA)
+        return 1
+      if (!rangeB)
+        return -1
 
-      const isSameDay = dateA.getFullYear() === dateB.getFullYear()
-        && dateA.getMonth() === dateB.getMonth()
-        && dateA.getDate() === dateB.getDate()
-
-      if (isSameDay) {
-        const aHasTime = a.type !== 'hotel'
-        const bHasTime = b.type !== 'hotel'
-
-        // Если у 'a' есть время, а у 'b' нет, 'a' должно быть первым
-        if (aHasTime && !bHasTime)
-          return -1
-        // Если у 'b' есть время, а у 'a' нет, 'b' должно быть первым
-        if (!aHasTime && bHasTime)
-          return 1
-      }
-
-      return dateA.getTime() - dateB.getTime()
+      return rangeA.start - rangeB.start
     })
+  })
+
+  // Логика подсветки
+  const bookingHighlightMap = computed<Record<string, HighlightStatus>>(() => {
+    const map: Record<string, HighlightStatus> = {}
+    const now = Date.now()
+
+    // Фильтруем список для подсветки: исключаем отели и события без даты
+    const highlightableBookings = allBookingsSorted.value.filter((b) => {
+      if (b.type === 'hotel')
+        return false
+      return getBookingTimeRange(b) !== null
+    })
+
+    // 1. Ищем активное событие (мы сейчас внутри него)
+    // Транспорт: от отправления до прибытия.
+    // Активности: в течение условного часа.
+    const activeIndex = highlightableBookings.findIndex((b) => {
+      const range = getBookingTimeRange(b)
+      return range && now >= range.start && now <= range.end
+    })
+
+    if (activeIndex !== -1) {
+      // Мы сейчас в процессе активности
+      const activeBooking = highlightableBookings[activeIndex]
+      map[activeBooking.id] = 'active'
+
+      // Выделяем следующее за ним, если оно есть
+      if (activeIndex + 1 < highlightableBookings.length) {
+        map[highlightableBookings[activeIndex + 1].id] = 'next'
+      }
+    }
+    else {
+      // Активных событий нет. Ищем ближайшее будущее.
+      // Первое событие, у которого start > now
+      const closestBooking = highlightableBookings.find((b) => {
+        const range = getBookingTimeRange(b)
+        return range && range.start > now
+      })
+
+      if (closestBooking) {
+        map[closestBooking.id] = 'closest'
+      }
+    }
+
+    return map
   })
 
   const tabItems = computed(() => {
@@ -158,12 +217,22 @@ export function useBookingSection(
       return
 
     const config = BOOKING_TYPES_CONFIG[type]
+
+    const initialData: any = {}
+
+    // Автоматическая простановка часового пояса для поездов
+    if (type === 'train') {
+      const tz = getCurrentTimeZoneOffset()
+      initialData.departureTimeZone = tz
+      initialData.arrivalTimeZone = tz
+    }
+
     const newBooking: Booking = {
       id: uuidv4(),
       type,
       icon: config.icon,
       title: config.defaultTitle,
-      data: {},
+      data: initialData,
     } as Booking
 
     bookings.value.unshift(newBooking)
@@ -211,6 +280,7 @@ export function useBookingSection(
     bookingGroups,
     tabItems,
     allBookingsSorted,
+    bookingHighlightMap,
     addBooking,
     addCompletedBooking,
     deleteBooking,

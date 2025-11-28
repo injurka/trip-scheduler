@@ -2,7 +2,7 @@ import type { Meta, StoryObj } from '@storybook/vue3'
 import { Time } from '@internationalized/date'
 import { ref } from 'vue'
 
-import { TimeField } from '../../src/components/01.kit/time-field'
+import { KitTimeField } from '../../src/renderer/components/01.kit/kit-time-field'
 
 /**
  * The `TimeField` component allows users to input a time (hours and minutes).
@@ -13,7 +13,7 @@ import { TimeField } from '../../src/components/01.kit/time-field'
  */
 const meta = {
   title: 'Kit/TimeField',
-  component: TimeField,
+  component: KitTimeField,
   tags: ['autodocs'],
   argTypes: {
     'modelValue': {
@@ -32,7 +32,7 @@ const meta = {
     // We will demonstrate the component's actual behavior.
     'onUpdate:modelValue': { action: 'update:modelValue' },
   },
-} satisfies Meta<typeof TimeField>
+} satisfies Meta<typeof KitTimeField>
 
 export default meta
 type Story = StoryObj<typeof meta>
@@ -40,7 +40,7 @@ type Story = StoryObj<typeof meta>
 // A reusable render function to demonstrate v-model interactivity
 function interactiveRender(args: any) {
   return {
-    components: { TimeField },
+    components: { KitTimeField },
     setup() {
       const timeValue = ref(args.modelValue)
       return { args, timeValue }
@@ -49,7 +49,7 @@ function interactiveRender(args: any) {
     <div style="font-family: 'Rubik', sans-serif; display: flex; flex-direction: column; gap: 16px; width: 250px;">
       <div>
         <label for="time-field" style="display: block; margin-bottom: 8px; font-weight: 500;">Select Time</label>
-        <TimeField
+        <KitTimeField
           v-model="timeValue"
           :disabled="args.disabled"
           :readonly="args.readonly"

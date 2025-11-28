@@ -253,7 +253,6 @@ onMounted(() => {
 
   &.is-current {
     border-color: var(--border-accent-color);
-    box-shadow: 0 0 0 3px var(--bg-accent-color-translucent);
     transform: translateY(-4px);
   }
 

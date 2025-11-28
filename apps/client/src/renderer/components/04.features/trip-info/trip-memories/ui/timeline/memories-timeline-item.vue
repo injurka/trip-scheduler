@@ -1,15 +1,14 @@
 <script setup lang="ts">
 import type { ImageViewerImage } from '~/components/01.kit/kit-image-viewer'
-import type { CustomImageViewerImageMeta } from '~/components/05.modules/trip-info/lib/helpers'
+import type { ImageQuality } from '~/components/01.kit/kit-image-viewer/models/types'
 import type { IMemory } from '~/components/05.modules/trip-info/models/types'
 import { Icon } from '@iconify/vue'
-import { Time } from '@internationalized/date'
-import { onClickOutside, useWindowSize } from '@vueuse/core'
+import { onClickOutside, useStorage, useWindowSize } from '@vueuse/core'
 import { KitImage } from '~/components/01.kit/kit-image'
-import { KitImageViewer, useImageViewer } from '~/components/01.kit/kit-image-viewer'
+import { KitImageViewer } from '~/components/01.kit/kit-image-viewer'
 import { KitInlineMdEditorWrapper } from '~/components/01.kit/kit-inline-md-editor'
 import { KitTimeField } from '~/components/01.kit/kit-time-field'
-import { useModuleStore } from '~/components/05.modules/trip-info/composables/use-trip-info-module'
+import { useMemoryImageViewer, useMemoryItemActions, useMorph } from '../../composables'
 
 interface Props {
   memory: IMemory
@@ -17,293 +16,100 @@ interface Props {
   isUnsorted?: boolean
   isViewMode?: boolean
   timelineGroups?: any[]
+  isFullScreen?: boolean
 }
 const props = withDefaults(defineProps<Props>(), {
   galleryImages: () => [],
   isUnsorted: false,
   isViewMode: false,
   timelineGroups: () => [],
+  isFullScreen: false,
 })
 
-const store = useModuleStore(['memories', 'plan'])
-const confirm = useConfirm()
+// --- 1. Morph & Quality Logic (Visuals) ---
+const photoWrapperRef = ref<HTMLElement | null>(null)
 
-const { updateMemory, deleteMemory, removeTimestamp } = store.memories
-const { getSelectedDay } = storeToRefs(store.plan)
-
-const memoryComment = ref(props.memory.comment || '')
-
-function saveComment() {
-  if (memoryComment.value !== props.memory.comment)
-    updateMemory({ id: props.memory.id, comment: memoryComment.value })
-}
-
-const isTimeEditing = ref(false)
-const timeEditorRef = ref<HTMLElement | null>(null)
-const editingTime = shallowRef<Time | null>(null)
-const commentEditorRef = ref(null)
-
-function handleTimeClick() {
-  if (props.isViewMode)
-    return
-  isTimeEditing.value = true
-  if (props.memory.timestamp) {
-    const d = new Date(props.memory.timestamp)
-    editingTime.value = new Time(d.getUTCHours(), d.getUTCMinutes())
-  }
-  else {
-    editingTime.value = new Time()
-  }
-}
-
-function saveTime() {
-  if (!isTimeEditing.value || !editingTime.value || !getSelectedDay.value)
-    return
-
-  const datePart = getSelectedDay.value.date.split('T')[0]
-  const timePart = `${editingTime.value.hour.toString().padStart(2, '0')}:${editingTime.value.minute.toString().padStart(2, '0')}:00`
-
-  const newTimestamp = `${datePart}T${timePart}.000Z`
-
-  updateMemory({ id: props.memory.id, timestamp: newTimestamp })
-  isTimeEditing.value = false
-}
-
-const displayTime = computed(() => {
-  if (!props.memory.timestamp)
-    return ''
-
-  const d = new Date(props.memory.timestamp)
-
-  const hours = d.getUTCHours().toString().padStart(2, '0')
-  const minutes = d.getUTCMinutes().toString().padStart(2, '0')
-
-  const formattedTime = `${hours}:${minutes}`
-
-  if (props.memory.title)
-    return ''
-
-  if (formattedTime === '00:00')
-    return ''
-
-  return formattedTime
-})
-
-async function handleDelete() {
-  const isConfirmed = await confirm({
-    title: 'Удалить воспоминание?',
-    description: 'Это действие нельзя будет отменить. Воспоминание будет удалено навсегда.',
-  })
-
-  if (isConfirmed)
-    await deleteMemory(props.memory.id)
-}
-
-async function handleRemoveTimestamp() {
-  const isConfirmed = await confirm({
-    title: 'Убрать временную метку?',
-    description: 'Воспоминание будет перемещено в блок "Фотографии для обработки".',
-  })
-
-  if (isConfirmed)
-    removeTimestamp(props.memory.id)
-}
-
-const imageViewer = useImageViewer()
-const activeViewerComment = ref('')
-const activeViewerActivityTitle = ref('')
-const activeViewerTime = shallowRef<Time | null>(null)
-
-const formattedActiveViewerTime = computed(() => {
-  if (!activeViewerTime.value)
-    return ''
-
-  const hours = String(activeViewerTime.value.hour).padStart(2, '0')
-  const minutes = String(activeViewerTime.value.minute).padStart(2, '0')
-  const formattedTime = `${hours}:${minutes}`
-
-  if (formattedTime === '00:00')
-    return ''
-
-  return formattedTime
-})
-
-watch(imageViewer.currentImage, (newImage) => {
-  if (newImage?.meta) {
-    const meta = newImage.meta as CustomImageViewerImageMeta
-    activeViewerComment.value = newImage.caption || ''
-
-    const memoryId = meta.memoryId
-    const correspondingMemory = memoryId ? store.memories.memories.find((m: IMemory) => m.id === memoryId) : undefined
-
-    let dateToUse: Date | null = null
-
-    if (correspondingMemory?.timestamp) {
-      dateToUse = new Date(correspondingMemory.timestamp)
-    }
-    else if (meta.takenAt) {
-      const baseDate = new Date(meta.takenAt)
-      if (meta.timezoneOffset) {
-        const localTimeMs = baseDate.getTime() + meta.timezoneOffset * 60 * 1000
-        dateToUse = new Date(localTimeMs)
-      }
-      else {
-        dateToUse = baseDate
-      }
-    }
-
-    if (dateToUse)
-      activeViewerTime.value = new Time(dateToUse.getUTCHours(), dateToUse.getUTCMinutes())
-    else
-      activeViewerTime.value = null
-
-    if (memoryId) {
-      const group = props.timelineGroups?.find(g => g.memories.some((m: IMemory) => m.id === memoryId))
-      activeViewerActivityTitle.value = group ? group.title : ''
-    }
-    else {
-      activeViewerActivityTitle.value = ''
-    }
-  }
-}, { deep: true })
-
-function openImageViewer() {
-  // eslint-disable-next-line ts/no-use-before-define
-  if (isTimeEditing.value || !props.memory.image || isMorphed.value)
-    return
-
-  const imageList = props.galleryImages ?? []
-  if (imageList.length === 0)
-    return
-
-  const startIndex = imageList.findIndex(img => img.url === props.memory.image?.url)
-
-  if (startIndex !== -1)
-    imageViewer.open(imageList, startIndex)
-}
-
-function saveViewerComment() {
-  const meta = imageViewer.currentImage.value?.meta as CustomImageViewerImageMeta | undefined
-  if (meta?.memoryId) {
-    const originalMemory = store.memories.memories.find((m: IMemory) => m.id === meta.memoryId)
-    if (originalMemory && activeViewerComment.value !== (originalMemory.comment || ''))
-      updateMemory({ id: meta.memoryId, comment: activeViewerComment.value })
-  }
-}
-
-function saveViewerTime() {
-  const meta = imageViewer.currentImage.value?.meta as CustomImageViewerImageMeta | undefined
-  const day = getSelectedDay.value
-  if (!meta?.memoryId || !activeViewerTime.value || !day)
-    return
-
-  const originalMemory = store.memories.memories.find((m: IMemory) => m.id === meta.memoryId)
-  if (!originalMemory)
-    return
-
-  const datePart = day.date.split('T')[0]
-  const timePart = `${activeViewerTime.value.hour.toString().padStart(2, '0')}:${activeViewerTime.value.minute.toString().padStart(2, '0')}:00`
-  const newTimestamp = `${datePart}T${timePart}.000Z`
-
-  if (newTimestamp !== originalMemory.timestamp)
-    updateMemory({ id: meta.memoryId, timestamp: newTimestamp })
-}
-
-onClickOutside(timeEditorRef, saveTime)
-onClickOutside(commentEditorRef, saveViewerComment)
-
-// --- Morph & Quality Logic ---
 const { width: windowWidth } = useWindowSize()
-const isDesktop = computed(() => windowWidth.value >= 1024)
+const { isMorphed, morphStyle, placeholderStyle, enterMorph, leaveMorph } = useMorph(photoWrapperRef)
+const preferredQuality = useStorage<ImageQuality>('viewer-quality-preference', 'large')
 
+const isDesktop = computed(() => windowWidth.value >= 1024)
 const imageSrc = computed(() => {
   if (!props.memory.image)
     return ''
+
+  if (isMorphed.value || props.isFullScreen) {
+    switch (preferredQuality.value) {
+      case 'medium':
+        return props.memory.image.variants?.medium || props.memory.image.variants?.large || props.memory.image.url
+      case 'large':
+        return props.memory.image.variants?.large || props.memory.image.url
+      case 'original':
+        return props.memory.image.url
+      default:
+        return props.memory.image.variants?.large || props.memory.image.url
+    }
+  }
+
+  // Стандартное поведение для ленты
   if (isDesktop.value)
     return props.memory.image.variants?.medium || props.memory.image.url
-
   return props.memory.image.variants?.small || props.memory.image.url
 })
 
-const photoWrapperRef = ref<HTMLElement | null>(null)
-const isMorphed = ref(false)
-const isMorphing = ref(false)
-const morphStyle = ref<Record<string, string>>({})
-const placeholderStyle = ref<Record<string, string>>({})
-let initialRect: DOMRect | null = null
-
-function enterMorph() {
-  if (isMorphed.value || isMorphing.value || !isDesktop.value || !photoWrapperRef.value)
-    return
-
-  isMorphing.value = true
-  initialRect = photoWrapperRef.value.getBoundingClientRect()
-
-  placeholderStyle.value = {
-    width: `${initialRect.width}px`,
-    height: `${initialRect.height}px`,
-  }
-
-  morphStyle.value = {
-    position: 'fixed',
-    top: `${initialRect.top}px`,
-    left: `${initialRect.left}px`,
-    width: `${initialRect.width}px`,
-    height: `${initialRect.height}px`,
-    zIndex: '1000',
-    transition: 'none',
-  }
-
-  isMorphed.value = true
-  document.body.style.overflow = 'hidden'
-
-  requestAnimationFrame(() => {
-    const aspectRatio = initialRect!.height / initialRect!.width
-    const targetWidth = Math.min(window.innerWidth * 0.8, 800)
-    const targetHeight = targetWidth * aspectRatio
-
-    morphStyle.value = {
-      ...morphStyle.value,
-      top: '50%',
-      left: '50%',
-      width: `${targetWidth}px`,
-      height: `${targetHeight}px`,
-      transform: 'translate(-50%, -50%)',
-      transition: 'all 0.3s ease-out',
-    }
-    setTimeout(() => isMorphing.value = false, 50)
-  })
+function setQuality(quality: ImageQuality) {
+  preferredQuality.value = quality
 }
 
-function leaveMorph() {
-  if (!initialRect || isMorphing.value)
-    return
-
-  isMorphing.value = true
-
-  morphStyle.value = {
-    ...morphStyle.value,
-    top: `${initialRect.top}px`,
-    left: `${initialRect.left}px`,
-    width: `${initialRect.width}px`,
-    height: `${initialRect.height}px`,
-    transform: 'translate(0, 0)',
-  }
-
-  const onTransitionEnd = () => {
-    photoWrapperRef.value?.removeEventListener('transitionend', onTransitionEnd)
-    // eslint-disable-next-line ts/no-use-before-define
-    clearTimeout(fallback)
-    isMorphed.value = false
-    morphStyle.value = {}
-    isMorphing.value = false
-    initialRect = null
-    document.body.style.overflow = ''
-  }
-
-  const fallback = setTimeout(onTransitionEnd, 350)
-  photoWrapperRef.value?.addEventListener('transitionend', onTransitionEnd, { once: true })
+function handleMorphTrigger() {
+  if (isDesktop.value && photoWrapperRef.value)
+    enterMorph()
 }
+
+watch(() => props.isFullScreen, () => {
+  if (isMorphed.value)
+    leaveMorph()
+})
+
+// --- 2. Memory Actions (Time, Comment, Delete) ---
+const {
+  memoryComment,
+  saveComment,
+  isTimeEditing,
+  editingTime,
+  displayTime,
+  handleTimeClick,
+  saveTime,
+  handleDelete,
+  handleRemoveTimestamp,
+} = useMemoryItemActions({
+  memory: props.memory,
+  isViewMode: props.isViewMode,
+})
+
+const timeEditorRef = ref<HTMLElement | null>(null)
+onClickOutside(timeEditorRef, saveTime)
+
+// --- 3. Image Viewer Integration ---
+const {
+  imageViewer,
+  activeViewerComment,
+  activeViewerActivityTitle,
+  activeViewerTime,
+  formattedActiveViewerTime,
+  openImageViewer,
+  saveViewerComment,
+  saveViewerTime,
+} = useMemoryImageViewer({
+  memory: props.memory,
+  galleryImages: props.galleryImages,
+  timelineGroups: props.timelineGroups,
+  isTimeEditing,
+  isMorphed,
+})
+
+const commentEditorRef = ref(null)
+onClickOutside(commentEditorRef, saveViewerComment)
 
 function handleWrapperClick() {
   if (isMorphed.value)
@@ -316,10 +122,17 @@ function handleWrapperClick() {
 <template>
   <div
     class="memory-item"
-    :class="{ 'is-photo': memory.imageId, 'is-note': !memory.imageId && !memory.title, 'is-activity': memory.title, 'is-unsorted': isUnsorted }"
+    :class="{
+      'is-photo': memory.imageId,
+      'is-note': !memory.imageId && !memory.title,
+      'is-activity': memory.title,
+      'is-unsorted': isUnsorted,
+      'is-fullscreen-item': isFullScreen && memory.imageId,
+    }"
   >
     <template v-if="memory.imageId && memory?.image?.url">
-      <div v-if="isMorphed" :style="placeholderStyle" />
+      <div v-if="isMorphed" class="morph-placeholder" :style="placeholderStyle" />
+
       <div
         ref="photoWrapperRef"
         class="photo-wrapper"
@@ -327,26 +140,51 @@ function handleWrapperClick() {
         :style="isMorphed ? morphStyle : {}"
         @click="handleWrapperClick"
       >
-        <KitImage
-          :src="imageSrc"
-          object-fit="cover"
-        />
+        <KitImage :src="imageSrc" object-fit="cover" />
+
+        <!-- Кнопка открытия morph (скрыта при самом morph) -->
         <button
-          v-if="isDesktop"
+          v-if="isDesktop && !isFullScreen && !isMorphed"
           class="morph-trigger-btn"
           title="Приблизить"
-          @click.stop="enterMorph"
+          @click.stop="handleMorphTrigger"
         >
           <Icon icon="mdi:eye-outline" />
         </button>
+
+        <!-- Контролы качества (видны только при morph) -->
+        <div v-if="isMorphed" class="quality-controls" @click.stop>
+          <button
+            class="quality-btn"
+            :class="{ active: preferredQuality === 'medium' }"
+            title="Среднее качество"
+            @click="setQuality('medium')"
+          >
+            <Icon icon="mdi:quality-medium" />
+          </button>
+          <button
+            class="quality-btn"
+            :class="{ active: preferredQuality === 'large' }"
+            title="Высокое качество"
+            @click="setQuality('large')"
+          >
+            <Icon icon="mdi:quality-high" />
+          </button>
+          <button
+            class="quality-btn"
+            :class="{ active: preferredQuality === 'original' }"
+            title="Оригинал"
+            @click="setQuality('original')"
+          >
+            <Icon icon="mdi:raw" />
+          </button>
+        </div>
+
         <div class="photo-overlay">
           <div v-if="memoryComment" class="memory-comment-overlay">
             <p>{{ memoryComment }}</p>
           </div>
-          <div
-            v-if="!isUnsorted && displayTime"
-            class="memory-meta-badge"
-          >
+          <div v-if="!isUnsorted && displayTime" class="memory-meta-badge">
             <div v-if="isTimeEditing" ref="timeEditorRef" class="time-editor-inline">
               <KitTimeField v-if="editingTime" v-model="editingTime" />
               <button class="save-time-btn-inline" @click.stop="saveTime">
@@ -365,6 +203,7 @@ function handleWrapperClick() {
           </div>
         </div>
       </div>
+
       <div v-if="isUnsorted" class="unsorted-time-setter">
         <Icon height="18" width="18" icon="mdi:clock-plus-outline" />
         <div v-if="isTimeEditing" ref="timeEditorRef" class="time-editor-container">
@@ -428,11 +267,7 @@ function handleWrapperClick() {
       :close-on-overlay-click="true"
     >
       <template #footer="{ image }">
-        <div
-          v-if="image.meta"
-          class="viewer-custom-footer"
-          :class="{ 'is-readonly': isViewMode }"
-        >
+        <div v-if="image.meta" class="viewer-custom-footer" :class="{ 'is-readonly': isViewMode }">
           <div class="viewer-comment-section">
             <div v-if="!isViewMode" ref="commentEditorRef">
               <KitInlineMdEditorWrapper
@@ -450,13 +285,9 @@ function handleWrapperClick() {
               />
             </div>
             <div v-else>
-              <span class="activity-title">
-                {{ activeViewerActivityTitle }}
-              </span>
+              <span class="activity-title">{{ activeViewerActivityTitle }}</span>
               <hr v-if="activeViewerComment && activeViewerActivityTitle">
-              <span class="activity-comment">
-                {{ activeViewerComment }}
-              </span>
+              <span class="activity-comment">{{ activeViewerComment }}</span>
             </div>
           </div>
 
@@ -484,7 +315,7 @@ function handleWrapperClick() {
 .memory-item {
   position: relative;
   border-radius: var(--r-m);
-  background-color: var(--bg-secondary-color);
+  background-color: rgba(var(--bg-secondary-color-rgb), 0.5);
   overflow: hidden;
 
   &.is-activity:not(.is-photo) {
@@ -522,6 +353,7 @@ function handleWrapperClick() {
       }
       &:not(.isEditing) {
         right: 4px;
+        bottom: 8px;
         background-color: var(--bg-secondary-color);
         border-radius: var(--r-full);
         border: 1px solid var(--border-secondary-color);
@@ -541,10 +373,19 @@ function handleWrapperClick() {
     }
   }
 
+  &.is-fullscreen-item {
+    height: 600px;
+  }
+
   &.is-unsorted {
     height: auto;
     cursor: default;
   }
+}
+
+.morph-placeholder {
+  flex-shrink: 0;
+  background-color: var(--bg-secondary-color);
 }
 
 .photo-wrapper {
@@ -556,10 +397,11 @@ function handleWrapperClick() {
   transition:
     transform 0.2s ease,
     box-shadow 0.2s ease;
+  background-color: var(--bg-tertiary-color);
 
   &.morphed {
     cursor: zoom-out;
-    box-shadow: var(--s-l);
+    border-radius: var(--r-s);
   }
 
   .is-unsorted & {
@@ -605,6 +447,53 @@ function handleWrapperClick() {
   pointer-events: auto;
 }
 
+.quality-controls {
+  position: absolute;
+  top: 12px;
+  left: 12px;
+  z-index: 10;
+  display: flex;
+  gap: 4px;
+  opacity: 0.4;
+  transition: opacity 0.3s ease;
+
+  &:hover {
+    opacity: 1;
+  }
+}
+
+.quality-btn {
+  background: rgba(0, 0, 0, 0.5);
+  backdrop-filter: blur(4px);
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  color: rgba(255, 255, 255, 0.7);
+  border-radius: 50%;
+  width: 32px;
+  height: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.1rem;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  padding: 0;
+
+  &:hover {
+    background: rgba(0, 0, 0, 0.7);
+    color: white;
+    border-color: rgba(255, 255, 255, 0.4);
+    transform: scale(1.05);
+  }
+
+  &.active {
+    background: var(--fg-accent-color);
+    color: white;
+    border-color: transparent;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+  }
+}
+
+/* --- Overlays --- */
 .photo-overlay {
   position: absolute;
   inset: 0;

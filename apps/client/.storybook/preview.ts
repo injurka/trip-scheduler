@@ -1,15 +1,15 @@
 import type { Preview } from '@storybook/vue3-vite'
 import { setup } from '@storybook/vue3-vite'
 import { createPinia } from 'pinia'
+import router from '../src/renderer/shared/lib/router'
 
 import { withTheme } from './with-theme.decorator'
 
-import '../src/assets/scss/normalize.scss'
-import '../src/assets/scss/fonts.scss'
-import '../src/assets/scss/global.scss'
-import '../src/assets/scss/atomic.scss'
-
-import '../src/assets/scss/animation.scss'
+import '../src/renderer/assets/scss/normalize.scss'
+import '../src/renderer/assets/scss/fonts.scss'
+import '../src/renderer/assets/scss/global.scss'
+import '../src/renderer/assets/scss/atomic.scss'
+import '../src/renderer/assets/scss/animation.scss'
 import '@milkdown/crepe/theme/common/style.css'
 import '@milkdown/crepe/theme/frame.css'
 
@@ -22,15 +22,18 @@ setup((app) => {
 
 const preview: Preview = {
   parameters: {
-    backgrounds: {
-      default: 'light',
-    },
-    actions: { argTypesRegex: '^on[A-Z].*' },
+    backgrounds: {},
     controls: {
       matchers: {
         color: /(background|color)$/i,
         date: /Date$/,
       },
+    },
+  },
+
+  initialGlobals: {
+    backgrounds: {
+      value: 'light',
     },
   },
 }

@@ -1,5 +1,4 @@
 <script setup lang="ts">
-import type { UpdateTripInput } from '~/shared/types/models/trip'
 import { Icon } from '@iconify/vue'
 import { useElementBounding, useIntersectionObserver, useWindowSize } from '@vueuse/core'
 import { KitBtn } from '~/components/01.kit/kit-btn'
@@ -8,9 +7,10 @@ import { AsyncStateWrapper } from '~/components/02.shared/async-state-wrapper'
 import { TripEditInfoDialog } from '~/components/04.features/trip-info/trip-edit-info-dialog'
 import { TripMapSection } from '~/components/04.features/trip-info/trip-map-section'
 import { TripMemoriesView } from '~/components/04.features/trip-info/trip-memories'
-import { TripPlanView } from '~/components/04.features/trip-info/trip-plan'
+import { DayMetaBadges, TripPlanView } from '~/components/04.features/trip-info/trip-plan'
 import { useDisplay } from '~/shared/composables/use-display'
 import { useModuleStore } from '../composables/use-trip-info-module'
+import { useTripInfoView } from '../composables/use-trip-info-view'
 import SectionRenderer from './content/section-renderer.vue'
 import TripOverviewContent from './content/trip-overview.vue'
 import DayNavigation from './controls/day-navigation.vue'
@@ -19,17 +19,20 @@ import DayHeader from './day-header.vue'
 import TripInfoEmpty from './states/trip-info-empty.vue'
 import TripInfoSkeleton from './states/trip-info-skeleton.vue'
 
-const route = useRoute()
-const router = useRouter()
+const {
+  tripId,
+  dayId,
+  sectionId,
+  isMapView,
+  init,
+  handleSaveTrip,
+} = useTripInfoView()
 
-const { plan, ui, sections, memories } = useModuleStore(['plan', 'ui', 'routeGallery', 'memories', 'sections'])
-const { days, isLoading, fetchError, getPreviousDayId, getNextDayId } = storeToRefs(plan)
-const { activeView } = storeToRefs(ui)
+init()
 
-const tripId = computed(() => route.params.id as string)
-const dayId = computed(() => route.query.day as string)
-const sectionId = computed(() => route.query.section as string)
-const isMapView = computed(() => route.query.view === 'map')
+const { plan, ui, sections } = useModuleStore(['plan', 'ui', 'sections'])
+const { days, isLoading, fetchError, getPreviousDayId, getNextDayId, getSelectedDay } = storeToRefs(plan)
+const { activeView, isViewMode } = storeToRefs(ui)
 
 const isEditModalOpen = ref(false)
 
@@ -37,51 +40,7 @@ function handleEditTrip() {
   isEditModalOpen.value = true
 }
 
-function handleSaveTrip(updatedData: UpdateTripInput) {
-  plan.updateTrip(updatedData)
-}
-
-watch(
-  [activeView, tripId],
-  ([view, tId]) => {
-    if ((view === 'memories' || view === 'split') && tId) {
-      memories.fetchMemories(tId)
-    }
-  },
-  { immediate: true },
-)
-
-watch(
-  () => plan.currentDayId,
-  (newDayId, oldDayId) => {
-    if (newDayId && newDayId !== oldDayId) {
-      ui.clearCollapsedState()
-      nextTick(() => {
-        window.scrollTo({ top: 0, behavior: 'instant' })
-      })
-    }
-
-    if (newDayId && newDayId !== route.query.day) {
-      router.replace({ query: { ...route.query, day: newDayId, section: undefined, view: undefined } })
-    }
-    else if (!newDayId && route.query.day) {
-      // Handle case where day is deselected
-      const newQuery = { ...route.query }
-      delete newQuery.day
-      router.replace({ query: newQuery })
-    }
-  },
-)
-
-watch(dayId, (newDayId) => {
-  if (newDayId && newDayId !== plan.currentDayId) {
-    plan.setCurrentDay(newDayId)
-  }
-  else if (!newDayId && plan.currentDayId && !sectionId.value && !isMapView.value) {
-    plan.setCurrentDay('') // or null
-  }
-}, { immediate: true })
-
+// --- UI Controls & Fixed Navigation ---
 const { mdAndUp } = useDisplay()
 const tripInfoWrapperRef = ref<HTMLElement | null>(null)
 const dayNavigationWrapperRef = ref<HTMLElement | null>(null)
@@ -98,10 +57,8 @@ const { width: windowWidth, height: windowHeight } = useWindowSize()
 const { left: wrapperLeft, width: wrapperWidth, bottom: wrapperBottom } = useElementBounding(tripInfoWrapperRef)
 
 const freeSpaceOnSide = computed(() => wrapperLeft.value)
-
-const showFixedNavButtons = computed(() => {
-  return mdAndUp.value && freeSpaceOnSide.value >= 240 && !dayNavigationIsVisible.value
-})
+const showFixedNavButtons = computed(() => mdAndUp.value && freeSpaceOnSide.value >= 240 && !dayNavigationIsVisible.value)
+const isDayMetaBadges = computed(() => !!(getSelectedDay.value && (getSelectedDay.value.meta?.length || !isViewMode.value)))
 
 const fixedNavPrevBtnStyle = computed(() => ({
   bottom: `${Math.max(20, windowHeight.value - wrapperBottom.value)}px`,
@@ -154,14 +111,33 @@ onUnmounted(() => {
               }"
             />
             <div :key="plan.currentDayId!" class="trip-info-day-view">
-              <KitDivider :is-loading="plan.isLoadingUpdateDay">
+              <KitDivider :is-loading="plan.isLoadingUpdateDay || plan.isLoadingUpdateDay">
                 о дне
               </KitDivider>
               <DayHeader />
 
-              <div class="view-content" :class="`view-mode-${activeView}`">
-                <TripPlanView v-if="activeView === 'plan' || activeView === 'split'" />
-                <TripMemoriesView v-if="activeView === 'memories' || activeView === 'split'" />
+              <div class="view-content">
+                <!-- Рендерим либо План, либо Воспоминания. Split больше нет. -->
+                <Transition name="fade-view" mode="out-in">
+                  <TripPlanView
+                    v-if="activeView === 'plan'"
+                  >
+                    <template #footer>
+                      <KitDivider v-if="getSelectedDay?.meta?.length || !isViewMode">
+                        мета-информация
+                      </KitDivider>
+
+                      <DayMetaBadges
+                        v-if="isDayMetaBadges"
+                        :meta="getSelectedDay!.meta || []"
+                        :readonly="isViewMode"
+                        @update:meta="newMeta => plan.updateDayDetails(getSelectedDay!.id, { meta: newMeta })"
+                      />
+                    </template>
+                  </TripPlanView>
+
+                  <TripMemoriesView v-else-if="activeView === 'memories'" />
+                </Transition>
               </div>
 
               <div ref="dayNavigationWrapperRef">
@@ -228,60 +204,12 @@ onUnmounted(() => {
   height: 100%;
 }
 
-.view-content.view-mode-split {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 32px;
-  align-items: start;
-}
-
-.view-mode-split .plan-view::after {
-  content: '';
-  position: absolute;
-  top: 0;
-  right: -16px;
-  bottom: 0;
-  width: 1px;
-  background-color: var(--border-secondary-color);
-}
-
 .trip-info-wrapper {
   height: 100%;
   position: relative;
 
   @include media-down(sm) {
     padding: 0 4px;
-  }
-}
-
-.drop-overlay {
-  position: fixed;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  background-color: rgba(var(--fg-accent-color-rgb), 0.1);
-  border: 2px dashed var(--fg-accent-color);
-  z-index: 100;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  pointer-events: none;
-  backdrop-filter: blur(4px);
-
-  &-content {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    gap: 16px;
-    color: var(--fg-accent-color);
-    font-size: 1.2rem;
-    font-weight: 600;
-    text-shadow: 0 1px 2px rgba(0, 0, 0, 0.1);
-
-    .iconify {
-      font-size: 3rem;
-    }
   }
 }
 
@@ -316,5 +244,14 @@ onUnmounted(() => {
 .fade-leave-to {
   opacity: 0;
   transform: translateY(10px);
+}
+
+.fade-view-enter-active,
+.fade-view-leave-active {
+  transition: opacity 0.2s ease;
+}
+.fade-view-enter-from,
+.fade-view-leave-to {
+  opacity: 0;
 }
 </style>

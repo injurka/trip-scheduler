@@ -290,8 +290,6 @@ function getShortWeekday(date: string): string {
   }
 
   &.active {
-    background-color: var(--bg-accent-color-translucent);
-
     .day-number {
       background-color: var(--fg-accent-color);
       color: var(--fg-inverted-color);
@@ -305,7 +303,7 @@ function getShortWeekday(date: string): string {
       color: var(--fg-accent-color);
     }
     .day-weekday-badge {
-      background-color: var(--bg-accent-color-translucent-heavy, rgba(0, 122, 255, 0.2));
+      background-color: rgba(0, 122, 255, 0.2);
     }
   }
 }
