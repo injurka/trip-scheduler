@@ -199,8 +199,8 @@ echo "--- Контейнер $CONTAINER_NAME успешно запущен! ---"
 
 ## Deploy
 
-./docker/build_server.sh v26
 ./docker/build_client.sh v25
+./docker/build_server.sh v26
 
 docker compose down
 
