@@ -68,7 +68,6 @@ export const UserSchema = createSelectSchema(users)
   .extend({
     plan: PlanSchema.optional(),
     _count: z.object({
-      communities: z.number(),
       trips: z.number(),
     }).optional(),
   })
@@ -92,5 +91,4 @@ export const RefreshOutputSchema = z.object({
 
 export const UserStatsSchema = z.object({
   trips: z.number(),
-  communities: z.number(),
 })

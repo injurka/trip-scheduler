@@ -4,7 +4,7 @@ import Vue from '@vitejs/plugin-vue'
 import AutoImport from 'unplugin-auto-import/vite'
 import Icons from 'unplugin-icons/vite'
 import { defineConfig } from 'vite'
-import viteCompression from 'vite-plugin-compression'
+import { compression as Compression } from 'vite-plugin-compression2'
 import { VitePWA } from 'vite-plugin-pwa'
 import { autoImportOptionsCfg } from './cfg/auto-import'
 import { iconsCfg } from './cfg/icons'
@@ -20,7 +20,10 @@ export default defineConfig({
   plugins: [
     Vue({}),
     AutoImport(autoImportOptionsCfg),
-    viteCompression({ algorithm: 'gzip' }),
+    Compression({
+      algorithms: ['gzip'],
+      exclude: [/\.(br)$/, /\.(gz)$/],
+    }),
     Icons(iconsCfg),
     VitePWA(pwaCfg),
     ...visualizerPlugin('renderer'),

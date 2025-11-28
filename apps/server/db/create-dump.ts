@@ -9,8 +9,6 @@ async function createDump() {
 
   try {
     const allUsers = await db.query.users.findMany()
-    const allCommunities = await db.query.communities.findMany()
-    const allCommunityMembers = await db.query.communityMembers.findMany()
 
     const allTrips = await db.query.trips.findMany({
       with: {
@@ -37,12 +35,10 @@ async function createDump() {
       orderBy: (trips, { desc }) => [desc(trips.createdAt)],
     })
 
-    console.log(`🔍 Найдено ${allUsers.length} пользователей, ${allCommunities.length} сообществ и ${allTrips.length} путешествий для дампа.`)
+    console.log(`🔍 Найдено ${allUsers.length} пользователей и ${allTrips.length} путешествий для дампа.`)
 
     const serializableData = {
       users: allUsers,
-      communities: allCommunities,
-      communityMembers: allCommunityMembers,
       trips: allTrips,
     }
 
