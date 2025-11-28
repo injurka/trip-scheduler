@@ -90,5 +90,6 @@ export interface Day {
   title: string
   description: string
   activities: Activity[]
+  note?: string | null
   meta?: DayMetaInfo[]
 }

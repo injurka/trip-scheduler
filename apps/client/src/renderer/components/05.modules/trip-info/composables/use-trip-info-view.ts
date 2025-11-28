@@ -36,7 +36,7 @@ export function useTripInfoView() {
 
   // --- Watchers: URL <-> Store Synchronization ---
 
-  // 1. URL -> Store: При изменении URL обновляем активный вид
+  // 1. URL -> Store
   watch(
     () => route.query.view,
     (newView) => {
@@ -48,32 +48,34 @@ export function useTripInfoView() {
     { immediate: true },
   )
 
-  // 2. Store -> URL: При переключении табов обновляем URL
+  // 2. Store -> URL
   watch(
     activeView,
     (newView) => {
-      // Не меняем URL если мы в режиме карты, секции или не выбран день
       if (isMapView.value || sectionId.value || !dayId.value)
         return
 
-      // Не добавляем параметр, если это split режим или он уже стоит
-      if (newView === 'split' || route.query.view === newView)
+      // Если текущий view совпадает с URL query, ничего не делаем
+      if (route.query.view === newView)
         return
+
+      // Если view == 'plan', мы можем убрать параметр view (сделать чище URL),
+      // либо явно проставить 'plan'. Обычно 'plan' это дефолт.
+      const queryView = newView === 'plan' ? undefined : newView
 
       router.replace({
         query: {
           ...route.query,
-          view: newView,
+          view: queryView,
         },
       })
     },
   )
 
-  // 3. Store (Day) -> URL: При смене дня обновляем URL, СОХРАНЯЯ вид
+  // 3. Store (Day) -> URL
   watch(
     () => plan.currentDayId,
     (newDayId, oldDayId) => {
-      // Скролл вверх при смене дня
       if (newDayId && newDayId !== oldDayId) {
         ui.clearCollapsedState()
         nextTick(() => {
@@ -81,24 +83,18 @@ export function useTripInfoView() {
         })
       }
 
-      // Если ID дня в сторе отличается от URL
       if (newDayId && newDayId !== route.query.day) {
-        // Определяем, какой view записать в query
-        // Если split - не пишем ничего (дефолт), иначе текущий активный
-        const currentViewParam = activeView.value === 'split' ? undefined : activeView.value
-
         router.replace({
           query: {
             ...route.query,
             day: newDayId,
             section: undefined,
-            // Если была карта - остаемся в карте, иначе берем текущий вид
-            view: isMapView.value ? 'map' : currentViewParam,
+            // Сохраняем текущий вид (карта или активный таб)
+            view: isMapView.value ? 'map' : (activeView.value === 'plan' ? undefined : activeView.value),
           },
         })
       }
       else if (!newDayId && route.query.day) {
-        // Если день сброшен (вернулись к обзору)
         const newQuery = { ...route.query }
         delete newQuery.day
         if (!isMapView.value)
@@ -123,18 +119,17 @@ export function useTripInfoView() {
     { immediate: true },
   )
 
-  // 5. Load Memories when entering memories view
+  // 5. Load Memories
   watch(
     [activeView, tripId],
     ([view, tId]) => {
-      if ((view === 'memories' || view === 'split') && tId) {
+      if (view === 'memories' && tId) {
         memories.fetchMemories(tId)
       }
     },
     { immediate: true },
   )
 
-  // --- Cleanup ---
   onBeforeUnmount(() => {
     plan.reset()
     memories.reset()

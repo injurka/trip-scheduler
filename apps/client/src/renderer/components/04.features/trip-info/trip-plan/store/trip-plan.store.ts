@@ -7,11 +7,13 @@ import { AppRoutePaths } from '~/shared/constants/routes'
 
 export enum ETripPlanKeys {
   FETCH_TRIP_DETAILS = 'trip-plan:fetch-details',
+  FETCH_DAY_NOTE = 'trip-plan:fetch-day-note',
   ADD_DAY = 'trip-plan:add-day',
   UPDATE_DAY = 'trip-plan:update-day',
   DELETE_DAY = 'trip-plan:delete-day',
   ADD_ACTIVITY = 'trip-plan:add-activity',
   UPDATE_ACTIVITY = 'trip-plan:update-activity',
+  UPDATE_DAY_NOTE = 'trip-plan:update-day-note',
   REMOVE_ACTIVITY = 'trip-plan:remove-activity',
   UPDATE_TRIP = 'trip-plan:update-trip',
   DELETE_TRIP = 'trip-plan:delete-trip',
@@ -22,6 +24,7 @@ export interface ITripPlanState {
   days: IDay[]
   currentTripId: string | null
   currentDayId: string | null
+  dayNote: Map<string, string>
 }
 
 /**
@@ -34,6 +37,7 @@ export const useTripPlanStore = defineStore('tripPlan', {
     days: [],
     currentTripId: null,
     currentDayId: null,
+    dayNote: new Map(),
   }),
 
   getters: {
@@ -42,6 +46,8 @@ export const useTripPlanStore = defineStore('tripPlan', {
     isLoadingUpdateDay: () => useRequestStatus(ETripPlanKeys.UPDATE_DAY).value,
     isLoadingNewDay: () => useRequestStatus(ETripPlanKeys.ADD_DAY).value,
     isLoadingUpdateActivity: () => useRequestStatusByPrefix(ETripPlanKeys.UPDATE_ACTIVITY).value,
+    isLoadingNote: () => useRequestStatus(ETripPlanKeys.FETCH_DAY_NOTE).value,
+    isLoadingUpdateNote: () => useRequestStatus(ETripPlanKeys.UPDATE_DAY_NOTE).value,
 
     getAllDays(state): IDay[] {
       return state.days
@@ -76,6 +82,13 @@ export const useTripPlanStore = defineStore('tripPlan', {
       if (this.currentDayIndex !== -1 && this.currentDayIndex < this.days.length - 1)
         return this.days[this.currentDayIndex + 1].id
       return null
+    },
+
+    getNoteForCurrentDay(state): string | null {
+      if (!state.currentDayId)
+        return null
+
+      return state.dayNote.get(state.currentDayId) ?? null
     },
   },
 
@@ -116,6 +129,13 @@ export const useTripPlanStore = defineStore('tripPlan', {
 
           const sortedDays = result.days.sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime())
           this.days = sortedDays as IDay[]
+
+          this.dayNote.clear()
+          sortedDays.forEach((day: any) => {
+            if (day.note) {
+              this.dayNote.set(day.id, day.note)
+            }
+          })
 
           onSectionsLoad(result.sections || [])
 
@@ -457,11 +477,37 @@ export const useTripPlanStore = defineStore('tripPlan', {
       // TODO: Отправить batch-запрос на обновление на бэкенд
     },
 
+    async fetchDayNote(dayId: string) {
+      if (this.dayNote.has(dayId))
+        return
+
+      await useRequest({
+        key: ETripPlanKeys.FETCH_DAY_NOTE,
+        fn: db => db.days.getNote({ dayId }),
+        onSuccess: (data) => {
+          this.dayNote.set(dayId, data || '')
+        },
+      })
+    },
+
+    async updateDayNote(dayId: string, noteContent: string) {
+      this.dayNote.set(dayId, noteContent)
+
+      await useRequest({
+        key: ETripPlanKeys.UPDATE_DAY_NOTE,
+        fn: db => db.days.updateDayDetails(dayId, { note: noteContent }),
+        onError: () => {
+          useToast().error('Ошибка при сохранении заметки')
+        },
+      })
+    },
+
     reset() {
       this.trip = null
       this.days = []
       this.currentTripId = null
       this.currentDayId = null
+      this.dayNote.clear()
 
       const requestStore = useRequestStore()
       Object.values(ETripPlanKeys).forEach(key => requestStore.reset(key))

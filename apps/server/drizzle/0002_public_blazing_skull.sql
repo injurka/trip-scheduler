@@ -1,1 +1,0 @@
-ALTER TABLE "metro_lines" ADD COLUMN "line_number" text;

@@ -1,21 +1,17 @@
 import type { IError } from '../lib/error-handler'
 import type { UseRequestOptions } from '../models/types'
+import { useDataTimestamp } from '~/shared/composables/use-data-timestamp'
 import { createApiErrorHandler } from '../lib/error-handler'
 import { getDatabaseService } from '../lib/service'
 import { useRequestStore } from '../store/request.store'
 
 const pendingPromises = new Map<string, Promise<any | null>>()
 
-/**
- * Асинхронный composable для выполнения и кеширования запросов к базе данных.
- *
- * @param options - Объект с параметрами операции.
- * @returns Promise, который разрешается в данные запроса или null в случае ошибки.
- */
 export async function useRequest<T>(
   options: UseRequestOptions<T>,
 ): Promise<T | null> {
   const defaultErrorHandler = createApiErrorHandler()
+  const { touch, peek } = useDataTimestamp()
 
   const {
     key,
@@ -43,8 +39,8 @@ export async function useRequest<T>(
     return pendingPromises.get(key)!
 
   if (cache && !force && store.statuses.get(key) === 'success' && store.cache.has(key)) {
+    peek(key)
     await onSuccess?.(toRaw(store.cache.get(key)))
-
     return toRaw(store.cache.get(key))
   }
 
@@ -68,6 +64,15 @@ export async function useRequest<T>(
 
       store.setCache(key, result)
       store.setStatus(key, 'success')
+
+      if (navigator.onLine) {
+        touch(key)
+      }
+      else {
+        peek(key)
+      }
+      // --------------------------
+
       await onSuccess?.(result)
       return result
     }

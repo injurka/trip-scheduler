@@ -22,7 +22,7 @@ interface Props {
 const props = defineProps<Props>()
 
 const store = useModuleStore(['ui', 'plan'])
-const { isDaysPanelPinned, isDaysPanelOpen, isViewMode, activeView } = storeToRefs(store.ui)
+const { isDaysPanelPinned, isDaysPanelOpen, isViewMode } = storeToRefs(store.ui)
 const { getAllDays, getSelectedDay, isLoading, isLoadingNewDay } = storeToRefs(store.plan)
 const { setCurrentDay, updateDayDetails } = store.plan
 const appStore = useAppStore(['layout'])
@@ -155,15 +155,7 @@ onUnmounted(() => {
       <div v-if="!isDayInfoLoading" class="right-controls">
         <div class="view-controls">
           <ViewSwitcher />
-          <button
-            v-if="canEdit && mdAndUp"
-            class="split-view-btn"
-            title="Отобразить План и Воспоминания"
-            :class="{ 'is-active': activeView === 'split' }"
-            @click="store.ui.setActiveView('split')"
-          >
-            <Icon icon="mdi:view-split-vertical" />
-          </button>
+          <!-- Кнопка split-view-btn удалена -->
         </div>
       </div>
     </div>
@@ -230,15 +222,7 @@ onUnmounted(() => {
 
           <div class="view-controls">
             <ViewSwitcher />
-            <button
-              v-if="canEdit && mdAndUp"
-              class="split-view-btn"
-              title="Отобразить План и Воспоминания"
-              :class="{ 'is-active': activeView === 'split' }"
-              @click="store.ui.setActiveView('split')"
-            >
-              <Icon icon="mdi:view-split-vertical" />
-            </button>
+            <!-- Кнопка split-view-btn удалена -->
           </div>
         </div>
       </div>
@@ -363,28 +347,6 @@ onUnmounted(() => {
   :deep(.kit-view-switcher) {
     border: none;
     border-radius: 0;
-  }
-}
-
-.split-view-btn {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  background-color: var(--bg-secondary-color);
-  padding: 14px 8px;
-  cursor: pointer;
-  color: var(--fg-secondary-color);
-  font-size: 1.2rem;
-  transition: all 0.2s ease;
-  border-left: 1px solid var(--border-secondary-color);
-
-  &:hover {
-    color: var(--fg-accent-color);
-    background-color: var(--bg-hover-color);
-  }
-
-  &.is-active {
-    color: var(--fg-accent-color);
   }
 }
 

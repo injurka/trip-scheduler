@@ -284,7 +284,7 @@ onMounted(() => {
   background-color: var(--bg-tertiary-color);
   border-radius: var(--r-m);
   padding: 1.25rem 1rem;
-  min-height: auto;
+  min-height: 190px;
 }
 
 .state-info {

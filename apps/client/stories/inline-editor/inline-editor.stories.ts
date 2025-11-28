@@ -1,7 +1,7 @@
 import type { Meta, StoryObj } from '@storybook/vue3'
 import { ref, watch } from 'vue'
 
-import { KitInlineMdEditor, KitInlineMdEditorWrapper } from '../../src/renderer/components/01.kit/kit-inline-md-editor'
+import { KitInlineMdEditorWrapper } from '../../src/renderer/components/01.kit/kit-inline-md-editor'
 
 /**
  * The `InlineEditor` component provides a lightweight, Notion-like WYSIWYG editor

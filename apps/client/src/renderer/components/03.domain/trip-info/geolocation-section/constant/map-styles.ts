@@ -49,3 +49,42 @@ export const TILE_SOURCES = {
 }
 
 export type TileSourceId = keyof typeof TILE_SOURCES
+
+// Кешируем результат проверки, чтобы не пинговать сервис при каждом переходе на вкладку карты
+let availabilityCache: boolean | null = null
+
+/**
+ * Проверяет доступность сервиса MapTiler.
+ * 1. Проверяет наличие API ключа.
+ * 2. Делает тестовый запрос к тайлу (0/0/0) с таймаутом.
+ */
+export async function checkMapTilerAvailability(): Promise<boolean> {
+  if (availabilityCache !== null)
+    return availabilityCache
+
+  if (!mapTilerKey) {
+    console.warn('MapTiler API key is missing.')
+    availabilityCache = false
+    return false
+  }
+
+  try {
+    const controller = new AbortController()
+    const timeoutId = setTimeout(() => controller.abort(), 3000)
+
+    const response = await fetch(`https://api.maptiler.com/maps/streets-v2/0/0/0.png?key=${mapTilerKey}`, {
+      method: 'GET',
+      signal: controller.signal,
+    })
+
+    clearTimeout(timeoutId)
+
+    availabilityCache = response.ok
+  }
+  catch (e) {
+    console.warn('MapTiler недоступен (ошибка сети или таймаут), переключаемся на OSM.', e)
+    availabilityCache = false
+  }
+
+  return availabilityCache
+}

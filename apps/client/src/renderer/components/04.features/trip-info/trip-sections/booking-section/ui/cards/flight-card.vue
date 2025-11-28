@@ -700,5 +700,10 @@ function updateSegmentField<K extends keyof FlightSegment>(segmentIndex: number,
   .span-2 {
     grid-column: span 1 / span 1;
   }
+
+  .layover-details,
+  .segment-header {
+    grid-column: 1 / -1;
+  }
 }
 </style>

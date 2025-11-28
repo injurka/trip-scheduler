@@ -7,21 +7,20 @@ export interface ITripInfoUiState {
   isDaysPanelPinned: boolean
   isAddSectionDialogOpen: boolean
   isPossibleActivitiesDrawerOpen: boolean
+  isParallelPlanView: boolean
   activeView: RemovableRef<ActiveView>
   interactionMode: RemovableRef<InteractionMode>
   collapsedActivities: Set<string>
   collapsedMemoryGroups: Set<string>
 }
 
-/**
- * Стор для управления состоянием UI на странице информации о путешествии.
- */
 export const useTripInfoUiStore = defineStore('tripInfoUi', {
   state: (): ITripInfoUiState => ({
     isDaysPanelOpen: false,
     isDaysPanelPinned: false,
     isAddSectionDialogOpen: false,
     isPossibleActivitiesDrawerOpen: false,
+    isParallelPlanView: false,
     activeView: useStorage<ActiveView>('trip-active-view', 'plan'),
     interactionMode: useStorage<InteractionMode>('tripinfo-interaction-mode', 'view'),
     collapsedActivities: new Set<string>(),
@@ -29,10 +28,6 @@ export const useTripInfoUiStore = defineStore('tripInfoUi', {
   }),
 
   getters: {
-    /**
-     * Проверяет, находится ли пользователь в режиме просмотра.
-     * @param state - Текущее состояние стора.
-     */
     isViewMode: state => state.interactionMode === 'view',
     areAllActivitiesCollapsed: state => (allIds: string[]) => {
       if (allIds.length === 0)
@@ -47,6 +42,9 @@ export const useTripInfoUiStore = defineStore('tripInfoUi', {
   },
 
   actions: {
+    toggleParallelPlanView() {
+      this.isParallelPlanView = !this.isParallelPlanView
+    },
     openPossibleActivitiesDrawer() {
       this.isPossibleActivitiesDrawerOpen = true
     },
@@ -74,6 +72,10 @@ export const useTripInfoUiStore = defineStore('tripInfoUi', {
 
     setActiveView(view: ActiveView) {
       this.activeView = view
+      // Если ушли с вкладки "План", выключаем параллельный режим
+      if (view !== 'plan') {
+        this.isParallelPlanView = false
+      }
     },
 
     toggleActivityCollapsed(id: string) {
@@ -114,6 +116,7 @@ export const useTripInfoUiStore = defineStore('tripInfoUi', {
     reset() {
       this.isDaysPanelOpen = false
       this.isDaysPanelPinned = false
+      this.isParallelPlanView = false
       this.activeView = 'plan'
       this.interactionMode = 'view'
       this.clearCollapsedState()

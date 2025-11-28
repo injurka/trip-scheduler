@@ -7,7 +7,7 @@ import { AsyncStateWrapper } from '~/components/02.shared/async-state-wrapper'
 import { TripEditInfoDialog } from '~/components/04.features/trip-info/trip-edit-info-dialog'
 import { TripMapSection } from '~/components/04.features/trip-info/trip-map-section'
 import { TripMemoriesView } from '~/components/04.features/trip-info/trip-memories'
-import { TripPlanView } from '~/components/04.features/trip-info/trip-plan'
+import { DayMetaBadges, TripPlanView } from '~/components/04.features/trip-info/trip-plan'
 import { useDisplay } from '~/shared/composables/use-display'
 import { useModuleStore } from '../composables/use-trip-info-module'
 import { useTripInfoView } from '../composables/use-trip-info-view'
@@ -31,8 +31,8 @@ const {
 init()
 
 const { plan, ui, sections } = useModuleStore(['plan', 'ui', 'sections'])
-const { days, isLoading, fetchError, getPreviousDayId, getNextDayId } = storeToRefs(plan)
-const { activeView } = storeToRefs(ui)
+const { days, isLoading, fetchError, getPreviousDayId, getNextDayId, getSelectedDay } = storeToRefs(plan)
+const { activeView, isViewMode } = storeToRefs(ui)
 
 const isEditModalOpen = ref(false)
 
@@ -57,10 +57,8 @@ const { width: windowWidth, height: windowHeight } = useWindowSize()
 const { left: wrapperLeft, width: wrapperWidth, bottom: wrapperBottom } = useElementBounding(tripInfoWrapperRef)
 
 const freeSpaceOnSide = computed(() => wrapperLeft.value)
-
-const showFixedNavButtons = computed(() => {
-  return mdAndUp.value && freeSpaceOnSide.value >= 240 && !dayNavigationIsVisible.value
-})
+const showFixedNavButtons = computed(() => mdAndUp.value && freeSpaceOnSide.value >= 240 && !dayNavigationIsVisible.value)
+const isDayMetaBadges = computed(() => !!(getSelectedDay.value && (getSelectedDay.value.meta?.length || !isViewMode.value)))
 
 const fixedNavPrevBtnStyle = computed(() => ({
   bottom: `${Math.max(20, windowHeight.value - wrapperBottom.value)}px`,
@@ -113,14 +111,33 @@ onUnmounted(() => {
               }"
             />
             <div :key="plan.currentDayId!" class="trip-info-day-view">
-              <KitDivider :is-loading="plan.isLoadingUpdateDay">
+              <KitDivider :is-loading="plan.isLoadingUpdateDay || plan.isLoadingUpdateDay">
                 о дне
               </KitDivider>
               <DayHeader />
 
-              <div class="view-content" :class="`view-mode-${activeView}`">
-                <TripPlanView v-if="activeView === 'plan' || activeView === 'split'" />
-                <TripMemoriesView v-if="activeView === 'memories' || activeView === 'split'" />
+              <div class="view-content">
+                <!-- Рендерим либо План, либо Воспоминания. Split больше нет. -->
+                <Transition name="fade-view" mode="out-in">
+                  <TripPlanView
+                    v-if="activeView === 'plan'"
+                  >
+                    <template #footer>
+                      <KitDivider v-if="getSelectedDay?.meta?.length || !isViewMode">
+                        мета-информация
+                      </KitDivider>
+
+                      <DayMetaBadges
+                        v-if="isDayMetaBadges"
+                        :meta="getSelectedDay!.meta || []"
+                        :readonly="isViewMode"
+                        @update:meta="newMeta => plan.updateDayDetails(getSelectedDay!.id, { meta: newMeta })"
+                      />
+                    </template>
+                  </TripPlanView>
+
+                  <TripMemoriesView v-else-if="activeView === 'memories'" />
+                </Transition>
               </div>
 
               <div ref="dayNavigationWrapperRef">
@@ -187,23 +204,6 @@ onUnmounted(() => {
   height: 100%;
 }
 
-.view-content.view-mode-split {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 32px;
-  align-items: start;
-}
-
-.view-mode-split .plan-view::after {
-  content: '';
-  position: absolute;
-  top: 0;
-  right: -16px;
-  bottom: 0;
-  width: 1px;
-  background-color: var(--border-secondary-color);
-}
-
 .trip-info-wrapper {
   height: 100%;
   position: relative;
@@ -244,5 +244,14 @@ onUnmounted(() => {
 .fade-leave-to {
   opacity: 0;
   transform: translateY(10px);
+}
+
+.fade-view-enter-active,
+.fade-view-leave-active {
+  transition: opacity 0.2s ease;
+}
+.fade-view-enter-from,
+.fade-view-leave-to {
+  opacity: 0;
 }
 </style>

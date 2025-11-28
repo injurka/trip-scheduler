@@ -3,6 +3,7 @@ import {
   CreateDayInputSchema,
   DeleteDayInputSchema,
   GetDayByIdInputSchema,
+  GetDayNoteInputSchema,
   UpdateDayInputSchema,
 } from './day.schemas'
 import { dayService } from './day.service'
@@ -12,6 +13,12 @@ export const dayProcedures = {
     .input(GetDayByIdInputSchema)
     .query(async ({ input }) => {
       return dayService.getByTripId(input.tripId)
+    }),
+
+  getNote: publicProcedure
+    .input(GetDayNoteInputSchema)
+    .query(async ({ input }) => {
+      return dayService.getNote(input.dayId)
     }),
 
   create: protectedProcedure

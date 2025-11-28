@@ -5,22 +5,8 @@
     {
       "idx": 0,
       "version": "7",
-      "when": 1762462976328,
-      "tag": "0000_typical_sumo",
-      "breakpoints": true
-    },
-    {
-      "idx": 1,
-      "version": "7",
-      "when": 1762627557941,
-      "tag": "0001_broad_stellaris",
-      "breakpoints": true
-    },
-    {
-      "idx": 2,
-      "version": "7",
-      "when": 1762645032022,
-      "tag": "0002_public_blazing_skull",
+      "when": 1764231621461,
+      "tag": "0000_simple_leopardon",
       "breakpoints": true
     }
   ]

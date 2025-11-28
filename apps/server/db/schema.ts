@@ -224,6 +224,7 @@ export const days = pgTable('days', {
   date: date('date').notNull(),
   title: text('title').notNull(),
   description: text('description'),
+  note: text('note'),
   tripId: uuid('trip_id').notNull().references(() => trips.id, { onDelete: 'cascade' }),
   meta: jsonb('meta').$type<DayMetaInfo[]>().notNull().default([]),
   createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),

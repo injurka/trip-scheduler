@@ -3,11 +3,14 @@ import type { IImageViewerImageMeta, ImageQuality, ImageViewerImage } from '../m
 import { Icon } from '@iconify/vue'
 import { onClickOutside, toRef } from '@vueuse/core'
 import { useRequest } from '~/plugins/request'
-import { TRIP_GALLERY_KEYS } from '~/plugins/request/models/keys'
 import { resolveApiUrl } from '~/shared/lib/url'
 import { useImageViewerTransform, useSwipeNavigation } from '../composables'
 import ImageMetadataPanel from './kit-image-metadata-panel.vue'
 import KitViewerControls from './kit-viewer-controls.vue'
+
+enum EImageViewerKeys {
+  FETCH_IMAGE_VIEWER_METADATA = 'image-viewer:fetch-metadata',
+}
 
 interface Props {
   visible: boolean
@@ -213,7 +216,7 @@ async function handleShowMetadata() {
     isMetadataLoading.value = true
     try {
       await useRequest({
-        key: TRIP_GALLERY_KEYS.FETCH_METADATA(imageId),
+        key: EImageViewerKeys.FETCH_IMAGE_VIEWER_METADATA,
         fn: db => db.files.getMetadata(imageId),
         onSuccess: (fullMetadata) => {
           if (fullMetadata) {

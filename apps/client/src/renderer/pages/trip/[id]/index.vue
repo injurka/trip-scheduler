@@ -10,7 +10,7 @@ const store = useModuleStore(['plan', 'ui'])
 const { mdAndDown } = useDisplay()
 
 const { fetchError } = storeToRefs(store.plan)
-const { isDaysPanelPinned, activeView } = storeToRefs(store.ui)
+const { isDaysPanelPinned, activeView, isParallelPlanView } = storeToRefs(store.ui)
 </script>
 
 <template>
@@ -20,6 +20,7 @@ const { isDaysPanelPinned, activeView } = storeToRefs(store.ui)
       { isPanelPinned: isDaysPanelPinned && !mdAndDown },
       { 'has-error': fetchError },
       { 'is-map-view': isMapView },
+      { 'is-wide-mode': isParallelPlanView },
       activeView,
     ]"
   >
@@ -30,6 +31,10 @@ const { isDaysPanelPinned, activeView } = storeToRefs(store.ui)
 <style lang="scss" scoped>
 .content-wrapper {
   transition: background-color 0.2s ease;
+  max-width: 1000px; // Возвращаем стандартную ширину 1000px
+  width: 100%;
+  margin: 0 auto;
+  padding: 8px;
 
   &.is-map-view {
     max-width: 1800px;
@@ -45,16 +50,26 @@ const { isDaysPanelPinned, activeView } = storeToRefs(store.ui)
     }
   }
 
-  &.split {
+  /* Стили для широкого режима (Parallel Plan view) */
+  &.is-wide-mode {
     max-width: 100%;
     justify-content: center;
     align-items: center;
 
     :deep() {
       .navigation-back-container,
-      .controls {
-        max-width: 968px;
+      .controls,
+      .day-header,
+      .day-navigation,
+      .divider-with-action {
+        max-width: 1000px;
         width: 100%;
+        margin-left: auto;
+        margin-right: auto;
+      }
+
+      .divider-with-action {
+        position: relative;
       }
 
       .trip-info-wrapper {
@@ -62,24 +77,17 @@ const { isDaysPanelPinned, activeView } = storeToRefs(store.ui)
           justify-content: center;
           align-items: center;
 
-          .day-header {
-            max-width: 968px;
-            width: 100%;
-          }
-
           .divider {
             padding: 0 32px;
           }
 
           .view-content {
             padding: 0 32px;
+            max-width: 1800px;
+            margin: 0 auto;
+            width: 100%;
           }
         }
-      }
-
-      .day-navigation {
-        max-width: 968px;
-        width: 100%;
       }
     }
   }

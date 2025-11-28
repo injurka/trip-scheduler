@@ -1,5 +1,6 @@
 <script setup>
 import { ConfirmDialogManager } from '~/components/02.shared/confirm-dialog-manager'
+import { OfflineBanner } from '~/components/02.shared/offline-banner' // <-- Импорт
 import { ReloadPrompt } from '~/components/02.shared/reload-prompt'
 import { ToastManager } from '~/components/02.shared/toast-manager'
 
@@ -28,6 +29,8 @@ const layouts = {
 </script>
 
 <template>
+  <OfflineBanner />
+
   <component :is="layouts[layout]">
     <router-view v-slot="{ Component }">
       <transition v-if="transition" :name="transition" mode="out-in">

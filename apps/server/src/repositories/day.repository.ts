@@ -14,6 +14,16 @@ export const dayRepository = {
   async getByTripId(tripId: string) {
     return await db.query.days.findMany({
       where: eq(days.tripId, tripId),
+      columns: {
+        id: true,
+        date: true,
+        title: true,
+        description: true,
+        tripId: true,
+        meta: true,
+        createdAt: true,
+        updatedAt: true,
+      },
       orderBy: days.date,
       with: {
         activities: {
@@ -21,6 +31,16 @@ export const dayRepository = {
         },
       },
     })
+  },
+
+  async getNote(dayId: string) {
+    const result = await db.query.days.findFirst({
+      where: eq(days.id, dayId),
+      columns: {
+        note: true,
+      },
+    })
+    return result?.note ?? null
   },
 
   /**
