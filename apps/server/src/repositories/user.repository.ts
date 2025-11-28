@@ -2,7 +2,7 @@ import type { z } from 'zod'
 import type { SignUpInputSchema, UpdateUserInputSchema } from '~/modules/user/user.schemas'
 import { eq, sql } from 'drizzle-orm'
 import { db } from '~/../db'
-import { communityMembers, tripParticipants, users } from '~/../db/schema'
+import { tripParticipants, users } from '~/../db/schema'
 import { authUtils } from '~/lib/auth.utils'
 import { FREE_PLAN_ID } from '~/lib/constants'
 import { createTRPCError } from '~/lib/trpc'
@@ -15,7 +15,7 @@ interface OAuthInput {
   avatarUrl?: string
 }
 
-type UserForClient = Omit<typeof users.$inferSelect, 'password'> & { plan?: any, _count?: { communities: number, trips: number } }
+type UserForClient = Omit<typeof users.$inferSelect, 'password'> & { plan?: any, _count?: { trips: number } }
 
 function excludePassword<T extends { password?: string | null }>(user: T): Omit<T, 'password'> {
   const { password, ...rest } = user
@@ -137,11 +137,6 @@ export const userRepository = {
     if (!user)
       return null
 
-    const [communityCountResult] = await db
-      .select({ count: sql<number>`count(*)` })
-      .from(communityMembers)
-      .where(eq(communityMembers.userId, id))
-
     const [tripCountResult] = await db
       .select({ count: sql<number>`count(*)` })
       .from(tripParticipants)
@@ -150,7 +145,6 @@ export const userRepository = {
     return {
       ...excludePassword(user),
       _count: {
-        communities: Number(communityCountResult.count),
         trips: Number(tripCountResult.count),
       },
     }
@@ -162,14 +156,8 @@ export const userRepository = {
       .from(tripParticipants)
       .where(eq(tripParticipants.userId, userId))
 
-    const [communityCountResult] = await db
-      .select({ count: sql<number>`count(*)` })
-      .from(communityMembers)
-      .where(eq(communityMembers.userId, userId))
-
     return {
       trips: Number(tripCountResult.count),
-      communities: Number(communityCountResult.count),
     }
   },
 

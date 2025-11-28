@@ -82,8 +82,6 @@ export const activitySectionTypeEnum = pgEnum('activity_section_type', ['descrip
 export const activityStatusEnum = pgEnum('activity_status', ['none', 'completed', 'skipped'])
 export const tripImagePlacementEnum = pgEnum('trip_image_placement', ['route', 'memories'])
 export const userRoleEnum = pgEnum('user_role', ['user', 'admin'])
-export const communityPrivacyEnum = pgEnum('community_privacy', ['public', 'private'])
-export const communityMemberRoleEnum = pgEnum('community_member_role', ['admin', 'moderator', 'member'])
 
 export const tripSectionTypeEnum = pgEnum('trip_section_type', [
   'bookings', // Бронирования (отели, авиа)
@@ -283,31 +281,6 @@ export const llmTokenUsage = pgTable('llm_token_usage', {
   userIdIndex: index('llm_usage_user_id_idx').on(t.userId),
 }))
 
-// ===============================================
-// ================= СООБЩЕСТВА ==================
-// ===============================================
-
-export const communities = pgTable('communities', {
-  id: uuid('id').primaryKey().defaultRandom(),
-  name: text('name').notNull(),
-  description: text('description'),
-  coverImageUrl: text('cover_image_url'),
-  avatarUrl: text('avatar_url'),
-  privacyType: communityPrivacyEnum('privacy_type').notNull().default('public'),
-  ownerId: uuid('owner_id').notNull().references(() => users.id, { onDelete: 'cascade' }),
-  createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
-  updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow().notNull(),
-})
-
-export const communityMembers = pgTable('community_members', {
-  communityId: uuid('community_id').notNull().references(() => communities.id, { onDelete: 'cascade' }),
-  userId: uuid('user_id').notNull().references(() => users.id, { onDelete: 'cascade' }),
-  role: communityMemberRoleEnum('role').notNull().default('member'),
-  joinedAt: timestamp('joined_at', { withTimezone: true }).defaultNow().notNull(),
-}, t => ({
-  pk: primaryKey({ columns: [t.communityId, t.userId] }),
-}))
-
 export const commentParentTypeEnum = pgEnum('comment_parent_type', ['trip', 'day'])
 
 export const comments = pgTable('comments', {
@@ -442,7 +415,6 @@ export const usersRelations = relations(users, ({ many, one }) => ({
     fields: [users.planId],
     references: [plans.id],
   }),
-  communityMemberships: many(communityMembers),
   llmTokenUsage: many(llmTokenUsage),
 }))
 
@@ -468,25 +440,6 @@ export const plansRelations = relations(plans, ({ many }) => ({
 export const refreshTokensRelations = relations(refreshTokens, ({ one }) => ({
   user: one(users, {
     fields: [refreshTokens.userId],
-    references: [users.id],
-  }),
-}))
-
-export const communitiesRelations = relations(communities, ({ one, many }) => ({
-  owner: one(users, {
-    fields: [communities.ownerId],
-    references: [users.id],
-  }),
-  members: many(communityMembers),
-}))
-
-export const communityMembersRelations = relations(communityMembers, ({ one }) => ({
-  community: one(communities, {
-    fields: [communityMembers.communityId],
-    references: [communities.id],
-  }),
-  user: one(users, {
-    fields: [communityMembers.userId],
     references: [users.id],
   }),
 }))

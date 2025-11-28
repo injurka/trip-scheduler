@@ -4,8 +4,6 @@ import { sql } from 'drizzle-orm'
 import { db } from './index'
 import {
   activities,
-  communities,
-  communityMembers,
   days,
   memories,
   tripImages,
@@ -36,8 +34,6 @@ async function checkData() {
 
     const counts = await Promise.all([
       getTableCount(users, '👤 Пользователи'),
-      getTableCount(communities, '🏘️ Сообщества'),
-      getTableCount(communityMembers, '👥 Участники сообществ'),
       getTableCount(trips, '✈️ Путешествия'),
       getTableCount(days, '📅 Дни'),
       getTableCount(activities, '엑 Мероприятия'),

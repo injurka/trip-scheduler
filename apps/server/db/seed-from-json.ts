@@ -10,8 +10,6 @@ import { LLM_MOCK } from './mock/04.llm'
 import {
   activities,
   comments,
-  communities,
-  communityMembers,
   days,
   emailVerificationTokens,
   llmModels,
@@ -116,7 +114,7 @@ async function seedFromJson() {
     process.exit(1)
   }
 
-  const { users: sourceUsers, communities: sourceCommunities, communityMembers: sourceMembers, trips: sourceTrips } = dumpData
+  const { users: sourceUsers, trips: sourceTrips } = dumpData
 
   if (!Array.isArray(sourceTrips) || !Array.isArray(sourceUsers)) {
     console.warn('⚠️ Файл дампа имеет неверный формат. Заполнение базы данных пропущено.')
@@ -134,8 +132,6 @@ async function seedFromJson() {
   await db.delete(tripImages)
   await db.delete(tripParticipants)
   await db.delete(trips)
-  await db.delete(communityMembers)
-  await db.delete(communities)
   await db.delete(refreshTokens)
   await db.delete(emailVerificationTokens)
   await db.delete(users)
@@ -187,26 +183,6 @@ async function seedFromJson() {
       updatedAt: new Date(user.updatedAt),
     }))
     await db.insert(users).values(usersToInsert)
-  }
-
-  // Вставляем сообщества только если они есть в дампе
-  if (sourceCommunities && sourceCommunities.length > 0) {
-    console.log(`🏘️  Вставка ${sourceCommunities.length} сообществ...`)
-    const communitiesToInsert = sourceCommunities.map((community: any) => ({
-      ...community,
-      createdAt: new Date(community.createdAt),
-      updatedAt: new Date(community.updatedAt),
-    }))
-    await db.insert(communities).values(communitiesToInsert)
-  }
-
-  if (sourceMembers && sourceMembers.length > 0) {
-    console.log(`👥 Вставка ${sourceMembers.length} участников сообществ...`)
-    const membersToInsert = sourceMembers.map((member: any) => ({
-      ...member,
-      joinedAt: new Date(member.joinedAt),
-    }))
-    await db.insert(communityMembers).values(membersToInsert)
   }
 
   const tripsToInsert: (typeof trips.$inferInsert)[] = []

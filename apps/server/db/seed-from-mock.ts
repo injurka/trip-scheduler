@@ -11,8 +11,6 @@ import { LLM_MOCK } from './mock/04.llm'
 import {
   activities,
   comments,
-  communities,
-  communityMembers,
   days,
   emailVerificationTokens,
   llmModels,
@@ -168,8 +166,6 @@ async function seed() {
   await db.delete(tripImages)
   await db.delete(tripParticipants)
   await db.delete(trips)
-  await db.delete(communityMembers)
-  await db.delete(communities)
   await db.delete(refreshTokens)
   await db.delete(emailVerificationTokens)
   await db.delete(users)
