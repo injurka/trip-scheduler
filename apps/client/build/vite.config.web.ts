@@ -70,9 +70,6 @@ export default defineConfig({
             if (id.includes('openlayers') || id.includes('ol')) {
               return 'ol' // Карты отдельно
             }
-            if (id.includes('@milkdown') || id.includes('prosemirror')) {
-              return 'editor' // Редактор отдельно
-            }
             if (id.includes('chart.js') || id.includes('vue-chartjs')) {
               return 'chart' // Графики отдельно
             }
