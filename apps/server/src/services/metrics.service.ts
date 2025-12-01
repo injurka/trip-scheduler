@@ -106,4 +106,20 @@ export const dbActiveQueriesGauge = new Gauge({
   help: 'Number of currently active database queries',
 })
 
+// 15. Время обработки изображений (resize + conversion)
+export const imageProcessingDurationHistogram = new Histogram({
+  name: 'image_processing_duration_seconds',
+  help: 'Duration of image processing (sharp) operations',
+  labelNames: ['format', 'status', 'type'], // type: 'processed' или 'cached' (skipped)
+  buckets: [0.01, 0.05, 0.1, 0.3, 0.5, 1, 3, 5], // Важно ловить быстрые операции
+})
+
+// 16. Размер отдаваемых изображений (позволяет следить за трафиком)
+export const imageOutputSizeBytesHistogram = new Histogram({
+  name: 'image_output_size_bytes',
+  help: 'Size of served images in bytes',
+  labelNames: ['format', 'type'],
+  buckets: [1024, 10240, 51200, 102400, 512000, 1048576, 5242880], // 1KB, 10KB, 50KB, 100KB, 500KB, 1MB, 5MB
+})
+
 export { register }

@@ -30,12 +30,18 @@ const layouts = {
 
 // --- SEO Конфигурация ---
 const siteUrl = 'https://trip-scheduler.ru'
-const siteName = 'TripScheduler'
-const description = 'Планируйте свои путешествия легко. Создавайте маршруты, сохраняйте воспоминания, управляйте бюджетом и списками вещей в одном месте.'
+const siteName = 'Trip Scheduler'
+
+const description = 'Trip Scheduler — удобный планировщик путешествий. Создавайте маршруты, сохраняйте воспоминания и организуйте свои поездки в одном месте.'
 
 useHead({
+  // Включаем ключевые слова в шаблон заголовка
   titleTemplate: (titleChunk) => {
-    return titleChunk ? `${titleChunk} | ${siteName}` : `${siteName} - Планировщик путешествий`
+    // Если есть заголовок страницы: "Мой трип | Trip Scheduler - Планировщик..."
+    // Если нет (главная): "Trip Scheduler - Планировщик путешествий"
+    return titleChunk
+      ? `${titleChunk} | ${siteName}`
+      : `${siteName} — Планировщик путешествий и маршрутов`
   },
   htmlAttrs: {
     lang: 'ru',
@@ -58,10 +64,11 @@ useHead({
         '@context': 'https://schema.org',
         '@type': 'WebApplication',
         'name': siteName,
+        'alternateName': ['TripScheduler', 'Планировщик путешествий'],
         'url': siteUrl,
         'description': description,
         'applicationCategory': 'TravelApplication',
-        'operatingSystem': 'Web, Windows, Linux',
+        'operatingSystem': 'Any',
         'offers': {
           '@type': 'Offer',
           'price': '0',
@@ -72,20 +79,17 @@ useHead({
   ],
 })
 
-// Исправление Meta Description и Social Tags
 useSeoMeta({
   description,
-  keywords: 'путешествия, планировщик, маршрут, trip planner, бюджет поездки, чек-лист, воспоминания',
-  // Open Graph
-  ogTitle: siteName,
+  keywords: 'путешествия, trip scheduler, планировщик, маршрут, trip planner, поездка, туризм',
+  ogTitle: `${siteName} — Планировщик путешествий`,
   ogDescription: description,
   ogType: 'website',
   ogUrl: computed(() => `${siteUrl}${route.path}`),
   ogImage: `${siteUrl}/og-image.jpg`,
   ogSiteName: siteName,
-  // Twitter
   twitterCard: 'summary_large_image',
-  twitterTitle: siteName,
+  twitterTitle: `${siteName} — Планировщик путешествий`,
   twitterDescription: description,
   twitterImage: `${siteUrl}/og-image.jpg`,
 })
