@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { Icon } from '@iconify/vue'
-import { useHead } from '@unhead/vue'
+import { useHead } from '@vueuse/head'
 import { KitBtn } from '~/components/01.kit/kit-btn'
 import { AppRoutePaths } from '~/shared/constants/routes'
 

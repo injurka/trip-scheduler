@@ -1,4 +1,4 @@
-import { createHead } from '@unhead/vue'
+import { createHead } from '@vueuse/head'
 import { createPinia } from 'pinia'
 import { createApp } from 'vue'
 

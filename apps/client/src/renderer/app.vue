@@ -1,5 +1,5 @@
 <script setup>
-import { useHead, useSeoMeta } from '@unhead/vue'
+import { useHead, useSeoMeta } from '@vueuse/head'
 import { ConfirmDialogManager } from '~/components/02.shared/confirm-dialog-manager'
 import { OfflineBanner } from '~/components/02.shared/offline-banner'
 import { ReloadPrompt } from '~/components/02.shared/reload-prompt'
