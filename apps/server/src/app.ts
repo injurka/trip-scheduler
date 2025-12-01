@@ -20,6 +20,7 @@ class Server {
 
   // Список разрешенных источников перенесен внутрь класса для инкапсуляции
   private allowedOrigins = [
+    'https://tripsh.vercel.app', // Vercel
     'http://localhost:1420', // Vite dev server для веб-разработки
     'http://localhost:4173', // Vite preview
     'capacitor://localhost', // Android Capacitor

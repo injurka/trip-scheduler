@@ -200,16 +200,16 @@ echo "--- Контейнер $CONTAINER_NAME успешно запущен! ---"
 ## Deploy
 
 ./docker/build_client.sh v26
-./docker/build_server.sh v26
+./docker/build_server.sh v27
 
 docker compose down
 
-V_CLIENT=v26 V_SERVER=v26 docker compose up -d
+V_CLIENT=v26 V_SERVER=v27 docker compose up -d
 
 ---
 
 docker tag trip-scheduler-client:v26 injurka/trip-scheduler-client:v26
 docker push injurka/trip-scheduler-client:v26
 
-docker tag trip-scheduler-server:v26 injurka/trip-scheduler-server:v26
-docker push injurka/trip-scheduler-server:v26
+docker tag trip-scheduler-server:v27 injurka/trip-scheduler-server:v27
+docker push injurka/trip-scheduler-server:v27
