@@ -139,7 +139,10 @@ onBeforeUnmount(() => {
   <div
     :class="{
       'milkdown-disabled': disabled,
-      'has-content': !!markdown }"
+      'has-content': !!markdown,
+      'notranslate': !readonly,
+    }"
+    :translate="readonly ? 'yes' : 'no'"
     class="kit-inline-md-editor-minimal"
   >
     <Milkdown />
@@ -230,4 +233,3 @@ onBeforeUnmount(() => {
     }
   }
 }
-</style>

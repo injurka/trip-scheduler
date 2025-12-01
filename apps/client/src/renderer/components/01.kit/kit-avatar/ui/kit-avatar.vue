@@ -69,6 +69,7 @@ const sizeStyle = computed(() => {
 <template>
   <AvatarRoot class="kit-avatar" :class="[colorClass]" :style="sizeStyle">
     <AvatarImage
+    
       v-if="resolvedSrc"
       class="kit-avatar-image"
       :src="resolvedSrc"

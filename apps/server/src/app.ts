@@ -7,6 +7,7 @@ import { HTTPException } from 'hono/http-exception'
 import { Logger } from '~/lib/logger'
 import { authController } from './api/auth.controller'
 import { avatarController } from './api/avatar.controller'
+import { imageController } from './api/image.controller'
 import { llmController } from './api/llm.controller'
 import { uploadFileController } from './api/upload.controller'
 import { createContext } from './lib/trpc'
@@ -98,6 +99,7 @@ class Server {
       .route('/llm', llmController)
 
     this.app.route('/api', apiRoutes)
+    this.app.route('/static', imageController)
 
     // Маршрут для tRPC
     this.app.use(

@@ -1,3 +1,4 @@
+import { createHead } from '@unhead/vue'
 import { createPinia } from 'pinia'
 import { createApp } from 'vue'
 
@@ -18,11 +19,13 @@ import { TRPCDatabaseClient } from './shared/services/api'
 async function initializeApp() {
   const app = createApp(application)
   const pinia = createPinia()
+  const head = createHead()
   const databaseService = new TRPCDatabaseClient()
 
   app.directive('resolve-src', resolveSrc)
 
   app.use(pinia)
+  app.use(head)
   app.use(requestPlugin, { databaseService })
   app.use(router)
   app.use(themePlugin)
