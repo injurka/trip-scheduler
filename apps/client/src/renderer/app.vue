@@ -35,10 +35,7 @@ const siteName = 'Trip Scheduler'
 const description = 'Trip Scheduler — удобный планировщик путешествий. Создавайте маршруты, сохраняйте воспоминания и организуйте свои поездки в одном месте.'
 
 useHead({
-  // Включаем ключевые слова в шаблон заголовка
   titleTemplate: (titleChunk) => {
-    // Если есть заголовок страницы: "Мой трип | Trip Scheduler - Планировщик..."
-    // Если нет (главная): "Trip Scheduler - Планировщик путешествий"
     return titleChunk
       ? `${titleChunk} | ${siteName}`
       : `${siteName} — Планировщик путешествий и маршрутов`
