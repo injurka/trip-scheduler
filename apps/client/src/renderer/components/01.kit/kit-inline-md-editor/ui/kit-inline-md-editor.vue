@@ -31,6 +31,21 @@ const crepeInstance = shallowRef<Crepe | null>(null)
 const isInternalUpdate = ref(false)
 const isEditorMounted = ref(false)
 
+function getEditorAttributes(prevAttributes: any) {
+  let existingClasses = ''
+  if (prevAttributes && typeof prevAttributes.class === 'string') {
+    existingClasses = prevAttributes.class
+  }
+
+  const newClasses = existingClasses
+
+  return {
+    ...prevAttributes,
+    translate: 'yes',
+    class: newClasses,
+  }
+}
+
 useEditor((root) => {
   const crepe = new Crepe({
     root,
@@ -51,26 +66,26 @@ useEditor((root) => {
       ctx.update(editorViewOptionsCtx, prev => ({
         ...prev,
         editable: () => !props.disabled && !props.readonly,
-        attributes: {
-          translate: (!props.disabled && !props.readonly) ? 'no' : 'yes',
-          class: (!props.disabled && !props.readonly) ? 'notranslate' : '',
+        attributes: (state) => {
+          const prevAttrs = typeof prev.attributes === 'function'
+            ? prev.attributes(state)
+            : (prev.attributes || {})
+
+          return getEditorAttributes(prevAttrs)
         },
       }))
 
       const listenerValue = ctx.get(listenerCtx)
 
-      // Слушаем обновление контента из редактора
       listenerValue.markdownUpdated((_, md) => {
         isInternalUpdate.value = true
         markdown.value = md
         emit('markdownUpdated', md)
-
         setTimeout(() => {
           isInternalUpdate.value = false
         }, 0)
       })
 
-      // Слушаем готовность редактора
       listenerValue.mounted(() => {
         isEditorMounted.value = true
       })
@@ -96,16 +111,18 @@ watch(() => [props.readonly, props.disabled], ([isReadonly, isDisabled]) => {
   if (!editor || !isEditorMounted.value)
     return
 
-  editor.config((ctx) => {
-    ctx.update(editorViewOptionsCtx, prev => ({
-      ...prev,
-      editable: () => !isDisabled && !isReadonly,
-      attributes: {
-        translate: (!isDisabled && !isReadonly) ? 'no' : 'yes',
-        class: (!isDisabled && !isReadonly) ? 'notranslate' : '',
-      },
-    }))
-  })
+  try {
+    editor.action((ctx) => {
+      const view = ctx.get(editorViewCtx)
+
+      view.setProps({
+        editable: () => !isDisabled && !isReadonly,
+      })
+    })
+  }
+  catch (e) {
+    console.error('Failed to update editor props:', e)
+  }
 })
 
 watch(markdown, (newValue) => {
@@ -120,7 +137,6 @@ watch(markdown, (newValue) => {
     editor.action((ctx) => {
       const view = ctx.get(editorViewCtx)
       const parser = ctx.get(parserCtx)
-
       const doc = parser(newValue || '')
 
       if (!doc)
@@ -128,7 +144,6 @@ watch(markdown, (newValue) => {
 
       const state = view.state
       const tr = state.tr.replaceWith(0, state.doc.content.size, doc)
-
       view.dispatch(tr)
     })
   }
@@ -147,9 +162,8 @@ onBeforeUnmount(() => {
     :class="{
       'milkdown-disabled': disabled,
       'has-content': !!markdown,
-      'notranslate': !readonly,
     }"
-    :translate="readonly ? 'yes' : 'no'"
+    translate="yes"
     class="kit-inline-md-editor-minimal"
   >
     <Milkdown />
@@ -168,21 +182,18 @@ onBeforeUnmount(() => {
   }
 }
 
-// Глобальные стили для скрытия ненужных UI элементов Crepe
 .kit-inline-md-editor-minimal :deep() {
-  .milkdown-menu-wrapper,      // Всплывающее меню
-  .milkdown-slash-wrapper,     // Slash-команды
-  .milkdown-block-handle,      // Хэндлер для перетаскивания блоков
-  .milkdown-image-tooltip,     // Тултип для изображений
-  .milkdown-link-tooltip,      // Тултип для ссылок
-  .crepe-dropdown,             // Выпадающие списки
-  .crepe-table-control-bar,    // Управление таблицами
+  .milkdown-menu-wrapper,
+  .milkdown-slash-wrapper,
+  .milkdown-block-handle,
+  .milkdown-image-tooltip,
+  .milkdown-link-tooltip,
+  .crepe-dropdown,
+  .crepe-table-control-bar,
   hr {
     display: none !important;
   }
 
-  // --- Скрытие тулбара при потере фокуса ---
-  // Если внутри компонента нет фокуса, скрываем всплывающие тулбары Crepe
   &:not(:focus-within) {
     .crepe-tooltip,
     .milkdown-toolbar,
@@ -191,7 +202,6 @@ onBeforeUnmount(() => {
     }
   }
 
-  // --- Стилизация самого редактора ---
   .milkdown {
     > div {
       padding: 0;
@@ -217,7 +227,6 @@ onBeforeUnmount(() => {
     blockquote {
       padding-left: 8px;
       border-left: none;
-
       ::before {
         top: 1px;
         bottom: 1px;
@@ -226,10 +235,8 @@ onBeforeUnmount(() => {
     ul,
     ol {
       padding-top: 0.5em;
-
       .list-item {
         gap: 4px;
-
         .children {
           padding-top: 4px;
         }
