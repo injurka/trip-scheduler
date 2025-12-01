@@ -137,7 +137,7 @@ function openViewer(index: number) {
   <div class="gallery-section">
     <div v-if="!isViewMode" class="edit-controls">
       <KitBtn
-        variant="outlined"
+        variant="tonal"
         icon="mdi:upload"
         :loading="isUploadingImage"
         @click="triggerFileUpload"
@@ -146,7 +146,7 @@ function openViewer(index: number) {
       </KitBtn>
       <KitBtn
         icon="mdi:image-multiple-outline"
-        variant="outlined"
+        variant="tonal"
         @click="isImagePickerOpen = true"
       >
         Выбрать из галереи

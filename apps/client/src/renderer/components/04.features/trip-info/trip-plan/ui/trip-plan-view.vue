@@ -275,7 +275,7 @@ const collapseRouteIcon = computed(() => allRouteBlocksCollapsed.value ? 'mdi:ch
 
     .plan-column {
       min-width: 920px;
-      max-width: 1000px;
+      width: 100%;
     }
   }
 }
@@ -286,7 +286,7 @@ const collapseRouteIcon = computed(() => allRouteBlocksCollapsed.value ? 'mdi:ch
   justify-content: center;
 }
 
-@include media-down(sm) {
+@include media-down(xl) {
   .plan-content.is-parallel {
     grid-template-columns: 1fr;
     gap: 24px;

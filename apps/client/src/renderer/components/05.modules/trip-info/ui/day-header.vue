@@ -52,7 +52,6 @@ function handleTitleBlur(newTitle: string) {
   padding: 32px;
   margin-bottom: 32px;
   margin-top: 16px;
-  overflow: hidden;
 
   &::before {
     content: '';

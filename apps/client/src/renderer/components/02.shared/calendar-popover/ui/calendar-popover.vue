@@ -56,12 +56,12 @@ function clearDate() {
           @update:model-value="handleUpdateValue"
         >
           <template #footer>
-            <div v-if="props.clearable" class="calendar-footer">
-              <KitBtn variant="text" size="sm" @click="clearDate">
+            <div class="calendar-footer">
+              <slot name="footer" />
+              <KitBtn v-if="props.clearable" variant="text" size="sm" @click="clearDate">
                 Очистить дату
               </KitBtn>
             </div>
-            <slot name="footer" />
           </template>
         </KitCalendar>
       </PopoverContent>
@@ -93,7 +93,8 @@ function clearDate() {
   margin-top: 8px;
   border-top: 1px solid var(--border-secondary-color);
   display: flex;
-  justify-content: flex-end;
+  justify-content: space-between;
+  align-items: center;
 }
 </style>
 

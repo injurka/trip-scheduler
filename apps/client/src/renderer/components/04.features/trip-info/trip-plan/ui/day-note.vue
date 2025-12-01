@@ -17,13 +17,22 @@ watch(getSelectedDay, async (newDay) => {
   if (!newDay)
     return
 
+  // Временно блокируем авто-сохранение, пока грузим данные
   isInitialized.value = false
 
-  // Загружаем заметку с сервера (если её нет в кэше)
+  // Сначала пробуем взять из кеша (если переключались между днями)
+  const cachedNote = plan.getNoteForCurrentDay
+  if (cachedNote !== null) {
+    noteContent.value = cachedNote
+  }
+
+  // Всегда подгружаем актуальные данные с сервера
   await plan.fetchDayNote(newDay.id)
 
-  // Получаем данные из стора
-  noteContent.value = plan.getNoteForCurrentDay ?? ''
+  // Обновляем контент, если пришло что-то новое
+  if (plan.getNoteForCurrentDay !== null) {
+    noteContent.value = plan.getNoteForCurrentDay
+  }
 
   isInitialized.value = true
 }, { immediate: true })
@@ -53,7 +62,7 @@ function onContentUpdate(val: string) {
       <div class="status-bar">
         <!-- mode="out-in" обеспечивает плавную смену элементов -->
         <transition name="status-fade" mode="out-in">
-          <span v-if="isLoadingNote" key="loading" class="status loading">
+          <span v-if="isLoadingNote && !isInitialized" key="loading" class="status loading">
             <Icon icon="mdi:loading" class="spin" /> Загрузка...
           </span>
           <span v-else-if="isLoadingUpdateNote" key="saving" class="status saving">
@@ -104,6 +113,7 @@ function onContentUpdate(val: string) {
   padding: 16px;
   padding-top: 32px;
   height: 100%;
+  margin-bottom: 32px;
 
   &-tip {
     position: absolute;

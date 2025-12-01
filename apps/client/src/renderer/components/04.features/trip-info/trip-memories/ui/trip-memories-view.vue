@@ -352,11 +352,10 @@ function handleImport(activity: Activity) {
   min-height: 200px;
   transition: all 0.3s ease;
 
-  // Fullscreen styles
   &.is-fullscreen-mode {
     position: fixed;
     inset: 0;
-    z-index: 15; // Higher than header (7), below dialogs (2000+) and viewer
+    z-index: 15;
     background-color: var(--bg-primary-color);
     padding: 20px 32px;
     display: flex;

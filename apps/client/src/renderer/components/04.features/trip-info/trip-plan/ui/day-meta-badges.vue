@@ -302,7 +302,7 @@ function createBlankBadge() {
     <DropdownMenuRoot v-if="!readonly" v-model:open="isAddMenuOpen">
       <DropdownMenuTrigger as-child>
         <KitBtn
-          variant="outlined"
+          variant="subtle"
           icon="mdi:plus-circle-outline"
           class="add-badge-btn"
         >

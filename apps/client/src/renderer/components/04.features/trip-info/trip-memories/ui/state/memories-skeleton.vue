@@ -1,5 +1,7 @@
 <script setup lang="ts">
 import { KitSkeleton } from '~/components/01.kit/kit-skeleton'
+
+const { smAndDown } = useDisplay()
 </script>
 
 <template>
@@ -10,7 +12,13 @@ import { KitSkeleton } from '~/components/01.kit/kit-skeleton'
           <KitSkeleton width="100px" height="24px" border-radius="6px" />
         </div>
         <div class="group-grid">
-          <KitSkeleton v-for="j in 3" :key="j" width="100%" height="300px" border-radius="12px" />
+          <KitSkeleton
+            v-for="j in 3"
+            :key="j"
+            width="100%"
+            :height="smAndDown ? '180px' : '300px'"
+            border-radius="12px"
+          />
         </div>
       </div>
     </div>
@@ -28,15 +36,12 @@ import { KitSkeleton } from '~/components/01.kit/kit-skeleton'
 .timeline-skeleton {
   display: flex;
   flex-direction: column;
-  padding-left: 12px;
 }
 
 .group-skeleton {
   position: relative;
-  padding-left: 24px;
   border-left: 2px solid var(--border-secondary-color);
-  padding-bottom: 24px;
-  padding-top: 24px;
+  padding: 26px 0 24px 24px;
 
   &::before {
     content: '';
@@ -49,6 +54,10 @@ import { KitSkeleton } from '~/components/01.kit/kit-skeleton'
     background-color: var(--bg-secondary-color);
     border: 3px solid var(--border-secondary-color);
   }
+
+  @include media-down(sm) {
+    padding: 26px 0 12px 12px;
+  }
 }
 
 .group-header {
@@ -60,6 +69,10 @@ import { KitSkeleton } from '~/components/01.kit/kit-skeleton'
 .group-grid {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
-  gap: 16px;
+  gap: 8px;
+
+  @include media-down(sm) {
+    grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+  }
 }
 </style>
