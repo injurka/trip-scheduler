@@ -51,6 +51,10 @@ useEditor((root) => {
       ctx.update(editorViewOptionsCtx, prev => ({
         ...prev,
         editable: () => !props.disabled && !props.readonly,
+        attributes: {
+          translate: (!props.disabled && !props.readonly) ? 'no' : 'yes',
+          class: (!props.disabled && !props.readonly) ? 'notranslate' : '',
+        },
       }))
 
       const listenerValue = ctx.get(listenerCtx)
@@ -96,12 +100,15 @@ watch(() => [props.readonly, props.disabled], ([isReadonly, isDisabled]) => {
     ctx.update(editorViewOptionsCtx, prev => ({
       ...prev,
       editable: () => !isDisabled && !isReadonly,
+      attributes: {
+        translate: (!isDisabled && !isReadonly) ? 'no' : 'yes',
+        class: (!isDisabled && !isReadonly) ? 'notranslate' : '',
+      },
     }))
   })
 })
 
 watch(markdown, (newValue) => {
-  // Если обновление пришло из самого редактора или редактор еще не готов — пропускаем
   if (isInternalUpdate.value || !isEditorMounted.value)
     return
 

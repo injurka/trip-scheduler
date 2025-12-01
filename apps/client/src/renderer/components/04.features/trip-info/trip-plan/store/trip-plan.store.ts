@@ -165,7 +165,7 @@ export const useTripPlanStore = defineStore('tripPlan', {
         return
 
       const originalTrip = { ...this.trip }
-      Object.assign(this.trip, details) // Оптимистичное обновление
+      Object.assign(this.trip, details)
 
       await useRequest({
         key: `${ETripPlanKeys.UPDATE_TRIP}:${this.trip.id}`,
@@ -176,7 +176,7 @@ export const useTripPlanStore = defineStore('tripPlan', {
           useToast().success('Информация о путешествии обновлена.')
         },
         onError: (error) => {
-          this.trip = originalTrip // Откат
+          this.trip = originalTrip
           useToast().error(`Ошибка при обновлении путешествия: ${error}`)
         },
       })

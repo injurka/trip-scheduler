@@ -586,8 +586,8 @@ function handleMenuAction(action: string) {
       background-color: rgba(217, 119, 6, 0.15);
     }
     &.draft {
-      color: #6c757d;
-      background-color: rgba(108, 117, 125, 0.15);
+      color: #505458;
+      background-color: rgba(128, 127, 125, 0.15);
     }
   }
 }
