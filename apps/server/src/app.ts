@@ -99,7 +99,7 @@ class Server {
       .route('/llm', llmController)
 
     this.app.route('/api', apiRoutes)
-    this.app.route('/static', imageController)
+    this.app.route('/image', imageController)
 
     // Маршрут для tRPC
     this.app.use(
