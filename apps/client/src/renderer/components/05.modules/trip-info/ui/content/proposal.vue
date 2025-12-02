@@ -18,7 +18,7 @@ function handleAddNewActivity() {
     return
 
   const lastActivity = getActivitiesForSelectedDay.value.at(-1)
-  const startTimeMinutes = lastActivity ? timeToMinutes(lastActivity.endTime) + 15 : 9 * 60 // 9:00
+  const startTimeMinutes = lastActivity ? timeToMinutes(lastActivity.endTime) : 9 * 60 // 9:00
   const endTimeMinutes = startTimeMinutes + 60
 
   const newActivity: Omit<IActivity, 'id'> = {

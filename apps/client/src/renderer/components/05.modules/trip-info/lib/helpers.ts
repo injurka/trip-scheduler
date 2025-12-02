@@ -14,6 +14,7 @@ export const activityTagIcons: Record<EActivityTag, string> = {
   [EActivityTag.FOOD]: 'mdi-food',
   [EActivityTag.ATTRACTION]: 'mdi-camera',
   [EActivityTag.RELAX]: 'mdi-bed',
+  [EActivityTag.ACTIVITY]: 'mdi-label-outline',
 }
 
 export const activityTagColors: Record<EActivityTag, string> = {
@@ -22,6 +23,7 @@ export const activityTagColors: Record<EActivityTag, string> = {
   [EActivityTag.FOOD]: '#FFD6A580',
   [EActivityTag.ATTRACTION]: '#E0BBE480',
   [EActivityTag.RELAX]: '#A0E7E580',
+  [EActivityTag.ACTIVITY]: '#CFD8DC80',
 }
 
 export const activityTagLabels: Record<EActivityTag, string> = {
@@ -30,6 +32,7 @@ export const activityTagLabels: Record<EActivityTag, string> = {
   [EActivityTag.FOOD]: 'Еда',
   [EActivityTag.ATTRACTION]: 'Достопримечательность',
   [EActivityTag.RELAX]: 'Отдых',
+  [EActivityTag.ACTIVITY]: 'Активность',
 }
 
 // Расширенный тип метаданных для внутреннего использования, чтобы хранить ID для обратной связи

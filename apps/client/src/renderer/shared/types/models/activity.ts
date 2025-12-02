@@ -6,6 +6,7 @@ export enum EActivityTag {
   FOOD = 'food',
   ATTRACTION = 'attraction',
   RELAX = 'relax',
+  ACTIVITY = 'activity',
 }
 
 export enum EActivitySectionType {
