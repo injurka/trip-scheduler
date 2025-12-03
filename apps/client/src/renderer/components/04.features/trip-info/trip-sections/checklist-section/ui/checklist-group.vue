@@ -179,8 +179,13 @@ function onAddItem() {
 }
 
 .drag-handle-group {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
   cursor: grab;
   color: var(--fg-tertiary-color);
+
   &:active {
     cursor: grabbing;
   }

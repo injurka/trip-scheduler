@@ -39,3 +39,23 @@ export interface ChecklistSectionContent {
   items: ChecklistItem[]
   groups: ChecklistGroup[]
 }
+
+export interface PresetItem {
+  text: string
+  priority?: ChecklistPriority
+}
+
+export interface PresetGroup {
+  name: string
+  icon: string
+  items: PresetItem[]
+}
+
+export interface ChecklistPreset {
+  id: string
+  name: string
+  description: string
+  icon: string
+  tab: ChecklistTab 
+  groups: PresetGroup[]
+}
