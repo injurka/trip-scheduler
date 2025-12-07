@@ -21,7 +21,11 @@ import {
   metroStations,
   metroSystems,
   plans,
+  postMedia,
+  posts,
+  postTimelineItems,
   refreshTokens,
+  savedPosts,
   tripImages,
   tripParticipants,
   trips,
@@ -35,10 +39,7 @@ async function copyStaticFiles() {
 
   try {
     console.log(`🔄 Копирование статических файлов из ${sourceDir} в ${destDir}...`)
-    // Проверяем существование исходной папки
     await fs.access(sourceDir)
-
-    // Удаляем старую и копируем новую
     await fs.rm(destDir, { recursive: true, force: true })
     await fs.cp(sourceDir, destDir, { recursive: true })
     console.log('✅ Статические файлы успешно скопированы.')
@@ -53,27 +54,23 @@ async function copyStaticFiles() {
   }
 }
 
-/**
- * 1. Сканирует все mock-файлы (кроме метро и подписок).
- * 2. Загружает из них пользователей и путешествия.
- * 3. Строит интерактивный опрос.
- */
 async function discoverAndSelectData() {
   const mockDirs = [path.join(__dirname, 'mock')]
   const discovered = {
     users: new Map<string, any>(),
     trips: new Map<string, any>(),
+    posts: new Map<string, any>(),
   }
 
   console.log('🔍 Поиск и загрузка доступных мок-данных...')
 
   for (const dir of mockDirs) {
     try {
-      // Игнорируем файлы, которые не содержат пользовательских данных
       const files = (await fs.readdir(dir)).filter(f =>
         f.endsWith('.ts')
         && !f.startsWith('02.metro')
-        && !f.startsWith('03.subscription'),
+        && !f.startsWith('03.subscription')
+        && !f.startsWith('04.llm'),
       )
 
       for (const file of files) {
@@ -90,13 +87,22 @@ async function discoverAndSelectData() {
         // 2. Загрузка Путешествий
         if (module.MOCK_DATA) {
           const tripsSource = module.MOCK_DATA
-          // Поддержка экспорта как массива или как объекта (ключ -> путешествие)
           const tripsData = Array.isArray(tripsSource) ? tripsSource : Object.values(tripsSource)
-
           for (const trip of tripsData as any[]) {
             if (!trip || !trip.id || !trip.title)
               continue
             discovered.trips.set(trip.id, trip)
+          }
+        }
+
+        // 3. Загрузка Постов
+        if (module.MOCK_POST_DATA) {
+          const postsSource = module.MOCK_POST_DATA
+          const postsData = Array.isArray(postsSource) ? postsSource : Object.values(postsSource)
+          for (const post of postsData as any[]) {
+            if (!post || !post.id || !post.title)
+              continue
+            discovered.posts.set(post.id, post)
           }
         }
       }
@@ -106,9 +112,9 @@ async function discoverAndSelectData() {
     }
   }
 
-  if ([...discovered.users.values(), ...discovered.trips.values()].length === 0) {
-    console.warn('⚠️ Моковые данные пользователей или путешествий не найдены.')
-    return { selectedUsers: [], selectedTrips: [] }
+  if ([...discovered.users.values(), ...discovered.trips.values(), ...discovered.posts.values()].length === 0) {
+    console.warn('⚠️ Моковые данные не найдены.')
+    return { selectedUsers: [], selectedTrips: [], selectedPosts: [] }
   }
 
   const questions: prompts.PromptObject[] = [
@@ -134,6 +140,18 @@ async function discoverAndSelectData() {
       })),
       hint: '- Пробел для выбора, Enter для подтверждения',
     },
+    {
+      type: discovered.posts.size > 0 ? 'multiselect' : null,
+      name: 'selectedPosts',
+      message: 'Выберите ПОСТЫ для добавления',
+      choices: [...discovered.posts.values()].map(post => ({
+        title: post.title,
+        description: `(${post.city})`,
+        value: post,
+        selected: true,
+      })),
+      hint: '- Пробел для выбора, Enter для подтверждения',
+    },
   ]
 
   const response = await prompts(questions, {
@@ -146,6 +164,7 @@ async function discoverAndSelectData() {
   return {
     selectedUsers: response.selectedUsers || [],
     selectedTrips: response.selectedTrips || [],
+    selectedPosts: response.selectedPosts || [],
   }
 }
 
@@ -153,9 +172,13 @@ async function seed() {
   await copyStaticFiles()
   console.log('🌱 Начало интерактивного заполнения базы данных...')
 
-  const { selectedUsers, selectedTrips } = await discoverAndSelectData()
+  const { selectedUsers, selectedTrips, selectedPosts } = await discoverAndSelectData()
 
   console.log('\n🗑️  Очистка старых данных...')
+  await db.delete(savedPosts)
+  await db.delete(postMedia)
+  await db.delete(postTimelineItems)
+  await db.delete(posts)
   await db.delete(llmTokenUsage)
   await db.delete(llmModels)
   await db.delete(memories)
@@ -171,7 +194,6 @@ async function seed() {
   await db.delete(users)
   await db.delete(plans)
 
-  // Очистка метро
   await db.delete(metroLineStations)
   await db.delete(metroStations)
   await db.delete(metroLines)
@@ -180,7 +202,7 @@ async function seed() {
   console.log('⭐ Создание тарифных планов...')
   const plansData = SUBSCRIPTION_MOCK.map(p => ({
     ...p,
-    id: typeof p.id === 'string' ? Number.parseInt(p.id) : p.id, // Защита если ID вдруг строка
+    id: typeof p.id === 'string' ? Number.parseInt(p.id) : p.id,
   }))
 
   await db.insert(plans).values(plansData)
@@ -234,6 +256,12 @@ async function seed() {
   const participantsToInsert: (typeof tripParticipants.$inferInsert)[] = []
   const sectionsToInsert: (typeof tripSections.$inferInsert)[] = []
 
+  // Arrays for Posts
+  const postsToInsert: (typeof posts.$inferInsert)[] = []
+  const timelineItemsToInsert: (typeof postTimelineItems.$inferInsert)[] = []
+  const postMediaToInsert: (typeof postMedia.$inferInsert)[] = []
+
+  // --- TRIPS PROCESSING ---
   for (const tripData of selectedTrips) {
     const {
       days: mockDays,
@@ -309,21 +337,53 @@ async function seed() {
     }
   }
 
+  // --- POSTS PROCESSING ---
+  for (const postData of selectedPosts) {
+    const { timelineItems, media, ...postDetails } = postData
+
+    postsToInsert.push({
+      ...postDetails,
+      createdAt: postDetails.createdAt ? new Date(postDetails.createdAt) : new Date(),
+      updatedAt: new Date(),
+    })
+
+    if (timelineItems) {
+      for (const item of timelineItems) {
+        const { media: itemMedia, ...itemDetails } = item
+        timelineItemsToInsert.push(itemDetails)
+
+        if (itemMedia) {
+          postMediaToInsert.push(...itemMedia.map((m: any) => ({
+            ...m,
+            timelineItemId: item.id,
+          })))
+        }
+      }
+    }
+
+    if (media) {
+      postMediaToInsert.push(...media.map((m: any) => ({
+        ...m,
+        timelineItemId: null, // General post media
+      })))
+    }
+  }
+
   console.log(`\n✍️  Запись данных в базу...`)
   console.log(`   - Пользователей: ${selectedUsers.length}`)
   console.log(`   - Путешествий: ${tripsToInsert.length}`)
+  console.log(`   - Постов: ${postsToInsert.length}`)
 
   if (selectedUsers.length > 0)
     await db.insert(users).values(selectedUsers.map((u: any) => ({ ...u, planId: plansData[0].id })))
 
+  // Insert Trips
   if (tripsToInsert.length > 0)
     await db.insert(trips).values(tripsToInsert)
   if (sectionsToInsert.length > 0)
     await db.insert(tripSections).values(sectionsToInsert)
-
   if (participantsToInsert.length > 0)
     await db.insert(tripParticipants).values(participantsToInsert).onConflictDoNothing()
-
   if (daysToInsert.length > 0)
     await db.insert(days).values(daysToInsert)
   if (imagesToInsert.length > 0)
@@ -332,6 +392,14 @@ async function seed() {
     await db.insert(activities).values(activitiesToInsert)
   if (memoriesToInsert.length > 0)
     await db.insert(memories).values(memoriesToInsert)
+
+  // Insert Posts
+  if (postsToInsert.length > 0)
+    await db.insert(posts).values(postsToInsert)
+  if (timelineItemsToInsert.length > 0)
+    await db.insert(postTimelineItems).values(timelineItemsToInsert)
+  if (postMediaToInsert.length > 0)
+    await db.insert(postMedia).values(postMediaToInsert)
 
   console.log('\n🎉 База данных успешно заполнена выбранными данными!')
   process.exit(0)

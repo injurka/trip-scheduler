@@ -137,7 +137,7 @@ function openViewer(index: number) {
   <div class="gallery-section">
     <div v-if="!isViewMode" class="edit-controls">
       <KitBtn
-        variant="tonal"
+        variant="subtle"
         icon="mdi:upload"
         :loading="isUploadingImage"
         @click="triggerFileUpload"
@@ -262,6 +262,7 @@ function openViewer(index: number) {
 .edit-controls {
   display: flex;
   gap: 12px;
+  justify-content: space-between;
   padding-bottom: 8px;
   border-bottom: 1px solid var(--border-secondary-color);
   margin-bottom: 8px;

@@ -6,6 +6,10 @@ import {
   activities,
   days,
   memories,
+  postMedia,
+  posts,
+  postTimelineItems,
+  savedPosts,
   tripImages,
   tripParticipants,
   trips,
@@ -41,6 +45,10 @@ async function checkData() {
       getTableCount(memories, '📝 Воспоминания'),
       getTableCount(tripSections, '📚 Секции путешествий'),
       getTableCount(tripParticipants, '🧑‍🤝‍🧑 Участники путешествий'),
+      getTableCount(posts, '📰 Посты'),
+      getTableCount(postTimelineItems, '⏱️ Элементы таймлайна'),
+      getTableCount(postMedia, '📷 Медиа постов'),
+      getTableCount(savedPosts, '🔖 Сохраненные посты'),
     ])
 
     counts.forEach(({ name, count }) => {
@@ -79,6 +87,26 @@ async function checkData() {
       }
       else {
         console.log('   - Не удалось загрузить данные о первом путешествии.')
+      }
+      console.groupEnd()
+    }
+
+    const postCount = counts.find(c => c.name.includes('Посты'))?.count ?? 0
+    if (postCount > 0) {
+      console.group('\n✅ Глубокая проверка первого поста:')
+      const firstPost = await db.query.posts.findFirst({
+        with: {
+          author: { columns: { name: true } },
+          timelineItems: true,
+          media: true,
+        },
+      })
+
+      if (firstPost) {
+        console.log(`   - Заголовок: "${firstPost.title}"`)
+        console.log(`   - Автор: ${firstPost.author.name}`)
+        console.log(`   - Элементов таймлайна: ${firstPost.timelineItems.length}`)
+        console.log(`   - Медиа файлов: ${firstPost.media.length}`)
       }
       console.groupEnd()
     }

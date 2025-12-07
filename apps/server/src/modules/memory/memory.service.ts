@@ -16,7 +16,8 @@ export const memoryService = {
     if (trip.userId !== userId)
       throw createTRPCError('FORBIDDEN', 'У вас нет прав на добавление воспоминания в это путешествие.')
 
-    return await memoryRepository.create(data)
+    const result = await memoryRepository.create(data)
+    return result || null
   },
 
   async update(data: z.infer<typeof UpdateMemoryInputSchema>, userId: string) {
@@ -42,28 +43,21 @@ export const memoryService = {
     if (memory.trip.userId !== userId)
       throw createTRPCError('FORBIDDEN', 'У вас нет прав на удаление этого воспоминания.')
 
-    // Этот метод возвращает полный объект `memory` с вложенным `image`
     const deletedMemory = await memoryRepository.delete(id)
     if (!deletedMemory)
       throw createTRPCError('NOT_FOUND', `Воспоминание с ID ${id} не найдено.`)
 
-    // Если у воспоминания было изображение, удаляем его файлы
     const imageToDelete = deletedMemory.image
     if (deletedMemory.imageId && imageToDelete) {
       try {
-        // 1. Уменьшаем квоту использования хранилища
         if (imageToDelete.sizeBytes)
           await quotaService.decrementStorageUsage(userId, imageToDelete.sizeBytes)
 
-        // 2. Удаляем запись из таблицы trip_images
         await imageRepository.delete(deletedMemory.imageId)
-
-        // 3. Удаляем физические файлы с помощью нового сервиса
         await deleteFileWithVariants(imageToDelete)
       }
       catch (error) {
         console.error(`Ошибка при удалении файлов изображения для воспоминания ${id}:`, error)
-        // Не бросаем ошибку клиенту, т.к. основная сущность (воспоминание) уже удалена
       }
     }
 
@@ -72,5 +66,15 @@ export const memoryService = {
 
   async getByTripId(tripId: string) {
     return await memoryRepository.getByTripId(tripId)
+  },
+
+  async applyTakenAt(id: string) {
+    const result = await memoryRepository.applyTakenAtTimestamp(id)
+    return result || null
+  },
+
+  async unassignDate(id: string) {
+    const result = await memoryRepository.unassignTimestamp(id)
+    return result || null
   },
 }

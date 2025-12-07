@@ -2,7 +2,6 @@ import type {
   IActivityRepository,
   IAuthRepository,
   ICommentRepository,
-  ICommunityRepository,
   IDatabaseClient,
   IDayRepository,
   IFileRepository,
@@ -16,7 +15,6 @@ import type {
 import { ActivityRepository } from './repositories/activity.repository'
 import { AuthRepository } from './repositories/auth.repository'
 import { CommentRepository } from './repositories/comment.repository'
-import { CommunityRepository } from './repositories/community.repository'
 import { DayRepository } from './repositories/day.repository'
 import { FileRepository } from './repositories/file.repository'
 import { LLMRepository } from './repositories/llm.repository'
@@ -39,9 +37,10 @@ class TRPCDatabaseClient implements IDatabaseClient {
   user: IUserRepository = new UserRepository()
   tripSections: ITripSectionRepository = new TripSectionRepository()
   comments: ICommentRepository = new CommentRepository()
-  community: ICommunityRepository = new CommunityRepository()
   llm: ILLMRepository = new LLMRepository()
   places: IPlacesRepository = new PlacesRepository()
 }
 
 export { TRPCDatabaseClient }
+
+

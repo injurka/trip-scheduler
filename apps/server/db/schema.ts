@@ -475,3 +475,121 @@ export const metroLineStationsRelations = relations(metroLineStations, ({ one })
     references: [metroStations.id],
   }),
 }))
+
+// Тип медиа-контента в посте
+export const postMediaTypeEnum = pgEnum('post_media_type', ['image', 'video'])
+
+// Основная таблица постов (Карточка активности)
+export const posts = pgTable('posts', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  userId: uuid('user_id').notNull().references(() => users.id, { onDelete: 'cascade' }),
+
+  // Основная инфа
+  title: text('title').notNull(), // Заголовок, например "Прогулка по старому городу"
+  insight: text('insight'), // "Главный совет" или краткое описание для карточки
+  description: text('description'), // Полное описание (если нужно вне таймлайна)
+
+  // Гео и Теги
+  city: text('city').notNull(), // Обязательный тег "Город"
+  country: text('country'),
+  tags: jsonb('tags').$type<string[]>().notNull().default([]), // ["Еда", "Недорого", "Архитектура"]
+
+  // Метаданные карточки
+  coverImageUrl: text('cover_image_url'), // Главное фото для превью
+  status: statusEnum('status').notNull().default('draft'), // draft | published
+
+  // Счетчики (для быстрой выборки)
+  viewsCount: integer('views_count').default(0).notNull(),
+  likesCount: integer('likes_count').default(0).notNull(),
+
+  createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
+  updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow().notNull(),
+}, t => ({
+  cityIdx: index('posts_city_idx').on(t.city),
+  tagsIdx: index('posts_tags_idx').on(t.tags), // Для поиска по JSONB
+}))
+
+// Элементы хронологии (Таймлайн)
+export const postTimelineItems = pgTable('post_timeline_items', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  postId: uuid('post_id').notNull().references(() => posts.id, { onDelete: 'cascade' }),
+
+  time: text('time'), // "10:30" или "Утро"
+  title: text('title'), // "Завтрак в кофейне"
+  description: text('description'), // Текст этапа
+
+  locationName: text('location_name'), // Название конкретного места
+  latitude: real('latitude'),
+  longitude: real('longitude'),
+
+  order: integer('order').notNull().default(0), // Для сортировки сверху вниз
+})
+
+// Медиа файлы поста (Галерея + Фото таймлайна)
+export const postMedia = pgTable('post_media', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  postId: uuid('post_id').notNull().references(() => posts.id, { onDelete: 'cascade' }),
+  timelineItemId: uuid('timeline_item_id').references(() => postTimelineItems.id, { onDelete: 'cascade' }), // Если null, то это общее фото галереи
+
+  url: text('url').notNull(),
+  type: postMediaTypeEnum('type').default('image').notNull(),
+
+  // Маркеры на фото (Tooltip bubbles): [{ x: 50, y: 30, text: "Вкусный круассан" }]
+  markers: jsonb('markers').$type<{ x: number, y: number, label: string }[]>().default([]),
+
+  width: integer('width'),
+  height: integer('height'),
+  order: integer('order').default(0),
+
+  createdAt: timestamp('created_at').defaultNow().notNull(),
+})
+
+// Сохраненные посты (Избранное)
+export const savedPosts = pgTable('saved_posts', {
+  userId: uuid('user_id').notNull().references(() => users.id, { onDelete: 'cascade' }),
+  postId: uuid('post_id').notNull().references(() => posts.id, { onDelete: 'cascade' }),
+  createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
+}, t => ({
+  pk: primaryKey({ columns: [t.userId, t.postId] }),
+}))
+
+// Релейшены
+export const postsRelations = relations(posts, ({ one, many }) => ({
+  author: one(users, {
+    fields: [posts.userId],
+    references: [users.id],
+  }),
+  timelineItems: many(postTimelineItems),
+  media: many(postMedia),
+  savedBy: many(savedPosts),
+}))
+
+export const postTimelineItemsRelations = relations(postTimelineItems, ({ one, many }) => ({
+  post: one(posts, {
+    fields: [postTimelineItems.postId],
+    references: [posts.id],
+  }),
+  media: many(postMedia),
+}))
+
+export const postMediaRelations = relations(postMedia, ({ one }) => ({
+  post: one(posts, {
+    fields: [postMedia.postId],
+    references: [posts.id],
+  }),
+  timelineItem: one(postTimelineItems, {
+    fields: [postMedia.timelineItemId],
+    references: [postTimelineItems.id],
+  }),
+}))
+
+export const savedPostsRelations = relations(savedPosts, ({ one }) => ({
+  post: one(posts, {
+    fields: [savedPosts.postId],
+    references: [posts.id],
+  }),
+  user: one(users, {
+    fields: [savedPosts.userId],
+    references: [users.id],
+  }),
+}))

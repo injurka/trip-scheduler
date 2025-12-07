@@ -112,7 +112,9 @@ function onContentUpdate(val: string) {
   border-radius: var(--r-m);
   padding: 16px;
   padding-top: 32px;
-  height: 100%;
+  min-height: 100%;
+  display: flex;
+  flex-direction: column;
   margin-bottom: 32px;
 
   &-tip {
@@ -123,6 +125,7 @@ function onContentUpdate(val: string) {
     font-family: 'Sansation';
     font-size: 0.7rem;
     pointer-events: none;
+    z-index: 10;
   }
 }
 
@@ -132,10 +135,11 @@ function onContentUpdate(val: string) {
   right: 12px;
   display: flex;
   align-items: center;
-  justify-content: flex-end; // Прижимаем контент к правому краю
+  justify-content: flex-end;
   font-size: 0.75rem;
   pointer-events: none;
-  min-width: 100px; // Резервируем место, чтобы текст не "прыгал" влево-вправо слишком сильно
+  min-width: 100px;
+  z-index: 10;
 
   .status {
     display: flex;
@@ -160,10 +164,12 @@ function onContentUpdate(val: string) {
 }
 
 .note-editor {
-  height: 100%;
+  flex-grow: 1;
+  height: auto;
+  min-height: 400px;
 
   :deep(.milkdown) {
-    min-height: 400px;
+    min-height: 100%;
     padding-bottom: 24px;
   }
 }
@@ -177,7 +183,6 @@ function onContentUpdate(val: string) {
   }
 }
 
-// Стандартный fade для подсказки снизу
 .faded-enter-active,
 .faded-leave-active {
   transition: opacity 0.3s ease;
@@ -187,17 +192,16 @@ function onContentUpdate(val: string) {
   opacity: 0;
 }
 
-// Специальный переход для статусов
 .status-fade-enter-active,
 .status-fade-leave-active {
   transition: all 0.2s ease;
 }
 .status-fade-enter-from {
   opacity: 0;
-  transform: translateY(-5px); // Появление сверху
+  transform: translateY(-5px);
 }
 .status-fade-leave-to {
   opacity: 0;
-  transform: translateY(5px); // Исчезновение вниз
+  transform: translateY(5px);
 }
 </style>

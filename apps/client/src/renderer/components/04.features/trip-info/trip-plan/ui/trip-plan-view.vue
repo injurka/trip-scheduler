@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import type { IActivity } from '~/components/05.modules/trip-info/models/types'
 import { Icon } from '@iconify/vue'
+import { onKeyStroke } from '@vueuse/core'
 import { KitBtn } from '~/components/01.kit/kit-btn'
 import { KitDivider } from '~/components/01.kit/kit-divider'
 import { useModuleStore } from '~/components/05.modules/trip-info/composables/use-trip-info-module'
@@ -15,13 +16,26 @@ const { isViewMode, areAllActivitiesCollapsed, isParallelPlanView } = storeToRef
 
 // --- View Modes ---
 const viewMode = ref<'template' | 'canvas'>('template')
+const isFullScreen = ref(false)
 
 function setViewMode(mode: 'template' | 'canvas') {
   viewMode.value = mode
+
+  if (isParallelPlanView.value) {
+    ui.toggleParallelPlanView()
+  }
 }
 
 function toggleParallelView() {
   ui.toggleParallelPlanView()
+
+  if (!isParallelPlanView.value) {
+    isFullScreen.value = false
+  }
+}
+
+function toggleFullScreen() {
+  isFullScreen.value = !isFullScreen.value
 }
 
 function handleAddNewActivity() {
@@ -45,6 +59,13 @@ function handleAddNewActivity() {
   plan.addActivity(getSelectedDay.value.id, newActivity)
 }
 
+onKeyStroke('Escape', (e) => {
+  if (isFullScreen.value) {
+    e.preventDefault()
+    isFullScreen.value = false
+  }
+})
+
 // --- Логика для сворачивания ---
 const allActivityIds = computed(() => getActivitiesForSelectedDay.value.map((a: IActivity) => a.id))
 const allRouteBlocksCollapsed = computed(() => areAllActivitiesCollapsed.value(allActivityIds.value))
@@ -52,10 +73,10 @@ const collapseRouteIcon = computed(() => allRouteBlocksCollapsed.value ? 'mdi:ch
 </script>
 
 <template>
-  <div class="plan-view">
+  <div class="plan-view" :class="{ 'is-full-screen': isFullScreen }">
     <div class="divider-with-action" :class="{ 'is-parallel-mode': isParallelPlanView }">
       <!-- Левая панель управления видами -->
-      <div class="view-mode-controls">
+      <div v-if="!isFullScreen" class="view-mode-controls left">
         <div class="mode-group">
           <KitBtn
             icon="mdi:view-list-outline"
@@ -91,25 +112,38 @@ const collapseRouteIcon = computed(() => allRouteBlocksCollapsed.value ? 'mdi:ch
       </div>
 
       <KitDivider :is-loading="plan.isLoadingUpdateActivity" class="route-divider">
-        <span class="divider-label">маршрут</span>
+        <div class="divider-content">
+          <span class="divider-label">маршрут</span>
+        </div>
       </KitDivider>
 
-      <button
-        v-if="isViewMode && getSelectedDay?.meta?.length"
-        class="collapse-all-btn"
-        title="Свернуть/развернуть все активности"
-        @click="ui.toggleAllActivities(allActivityIds)"
-      >
-        <Icon :icon="collapseRouteIcon" />
-      </button>
-      <button
-        v-if="isViewMode && allActivityIds.length > 0"
-        class="collapse-all-btn"
-        title="Свернуть/развернуть все активности"
-        @click="ui.toggleAllActivities(allActivityIds)"
-      >
-        <Icon :icon="collapseRouteIcon" />
-      </button>
+      <div class="view-mode-controls right">
+        <button
+          class="fullscreen-toggle-btn"
+          :class="{ active: isFullScreen }"
+          :title="isFullScreen ? 'Выйти из полноэкранного режима (Esc)' : 'На весь экран'"
+          @click="toggleFullScreen"
+        >
+          <Icon :icon="isFullScreen ? 'mdi:fullscreen-exit' : 'mdi:fullscreen'" />
+        </button>
+
+        <button
+          v-if="isViewMode && getSelectedDay?.meta?.length && !isFullScreen"
+          class="collapse-all-btn"
+          title="Свернуть/развернуть все активности"
+          @click="ui.toggleAllActivities(allActivityIds)"
+        >
+          <Icon :icon="collapseRouteIcon" />
+        </button>
+        <button
+          v-if="isViewMode && allActivityIds.length > 0 && !isFullScreen"
+          class="collapse-all-btn"
+          title="Свернуть/развернуть все активности"
+          @click="ui.toggleAllActivities(allActivityIds)"
+        >
+          <Icon :icon="collapseRouteIcon" />
+        </button>
+      </div>
     </div>
 
     <!-- Основной контент -->
@@ -131,14 +165,81 @@ const collapseRouteIcon = computed(() => allRouteBlocksCollapsed.value ? 'mdi:ch
       </div>
     </div>
 
-    <slot name="footer" />
+    <slot v-if="!isFullScreen" name="footer" />
   </div>
 </template>
 
 <style scoped lang="scss">
 .plan-view {
   position: relative;
-  overflow: hidden;
+  transition: all 0.3s ease;
+
+  &.is-full-screen {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100vw;
+    height: 100vh;
+    z-index: 10;
+    background-color: var(--bg-primary-color);
+    padding: 16px 32px;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+
+    .divider-with-action {
+      flex-shrink: 0;
+      margin-bottom: 24px;
+
+      &::before {
+        display: none;
+      }
+    }
+
+    .plan-content {
+      flex-grow: 1;
+      height: 100%;
+      overflow: hidden;
+      margin-bottom: 0;
+      padding-bottom: 0;
+      align-items: stretch;
+      height: 100%;
+
+      &::after {
+        height: 100%;
+        bottom: auto;
+      }
+
+      .plan-column,
+      .canvas-column {
+        height: 100%;
+        overflow-y: auto;
+        padding-right: 8px;
+        padding-bottom: 32px;
+
+        &::-webkit-scrollbar {
+          width: 6px;
+        }
+        &::-webkit-scrollbar-thumb {
+          background-color: var(--border-secondary-color);
+          border-radius: 4px;
+        }
+        &::-webkit-scrollbar-track {
+          background: transparent;
+        }
+      }
+
+      .canvas-column {
+        position: static;
+      }
+
+      &.is-parallel {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 32px;
+      }
+    }
+  }
 }
 
 .divider-with-action {
@@ -151,6 +252,11 @@ const collapseRouteIcon = computed(() => allRouteBlocksCollapsed.value ? 'mdi:ch
   .kit-divider {
     flex-grow: 1;
     margin-left: 120px;
+  }
+
+  // При фуллскрине divider центрируется, убираем отступ слева
+  .is-full-screen & .kit-divider {
+    margin-left: 0;
   }
 
   &.is-parallel-mode::before {
@@ -168,7 +274,6 @@ const collapseRouteIcon = computed(() => allRouteBlocksCollapsed.value ? 'mdi:ch
 
   .view-mode-controls {
     position: absolute;
-    left: 0;
     top: 50%;
     transform: translateY(-50%);
     display: flex;
@@ -211,13 +316,43 @@ const collapseRouteIcon = computed(() => allRouteBlocksCollapsed.value ? 'mdi:ch
       color: var(--fg-on-accent-color);
       border-color: var(--fg-accent-color);
     }
+
+    &.left {
+      left: 0;
+    }
+
+    &.right {
+      right: 0;
+    }
+  }
+
+  .fullscreen-toggle-btn {
+    background: var(--bg-secondary-color);
+    border: 1px solid var(--border-secondary-color);
+    border-radius: var(--r-s);
+    color: var(--fg-secondary-color);
+    width: 28px;
+    height: 28px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    font-size: 1.1rem;
+    transition: all 0.2s ease;
+    z-index: 2;
+
+    &:hover {
+      color: var(--fg-accent-color);
+      border-color: var(--fg-accent-color);
+      background-color: var(--bg-hover-color);
+    }
+    &.active {
+      color: var(--fg-accent-color);
+      background: var(--bg-tertiary-color);
+    }
   }
 
   .collapse-all-btn {
-    position: absolute;
-    right: 0;
-    top: 50%;
-    transform: translateY(-50%);
     background: var(--bg-secondary-color);
     border: 1px solid var(--border-secondary-color);
     border-radius: var(--r-s);
@@ -244,7 +379,10 @@ const collapseRouteIcon = computed(() => allRouteBlocksCollapsed.value ? 'mdi:ch
   position: relative;
   z-index: 1;
 
-  .divider-label {
+  .divider-content {
+    display: flex;
+    align-items: center;
+    gap: 8px;
     background-color: var(--bg-primary-color);
     padding: 0 12px;
     border-radius: 4px;
@@ -274,8 +412,13 @@ const collapseRouteIcon = computed(() => allRouteBlocksCollapsed.value ? 'mdi:ch
     }
 
     .plan-column {
-      min-width: 920px;
       width: 100%;
+      min-width: 0;
+    }
+
+    .canvas-column {
+      width: 100%;
+      min-width: 0;
     }
   }
 }
@@ -288,6 +431,7 @@ const collapseRouteIcon = computed(() => allRouteBlocksCollapsed.value ? 'mdi:ch
 
 @include media-down(xl) {
   .plan-content.is-parallel {
+    // В мобильной версии фуллскрин может вести себя как одна колонка или выключаться
     grid-template-columns: 1fr;
     gap: 24px;
 
@@ -295,6 +439,7 @@ const collapseRouteIcon = computed(() => allRouteBlocksCollapsed.value ? 'mdi:ch
       display: none;
     }
   }
+
   .divider-with-action {
     flex-direction: column;
     align-items: stretch;
@@ -306,7 +451,10 @@ const collapseRouteIcon = computed(() => allRouteBlocksCollapsed.value ? 'mdi:ch
       transform: none;
       left: auto;
       justify-content: center;
-      gap: 0;
+
+      &.left {
+        gap: 0;
+      }
 
       .separator {
         display: none;

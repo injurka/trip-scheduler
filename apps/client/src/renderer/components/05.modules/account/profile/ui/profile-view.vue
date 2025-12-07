@@ -79,8 +79,8 @@ watch(userId, (newId) => {
             <span class="stat-label">Путешествий</span>
           </div>
           <div class="stat-item">
-            <span class="stat-value">{{ userProfile._count?.communities ?? 0 }}</span>
-            <span class="stat-label">Сообществ</span>
+            <span class="stat-value">{{ 0 }}</span>
+            <span class="stat-label">Активности</span>
           </div>
         </div>
 

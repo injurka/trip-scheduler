@@ -7,7 +7,8 @@ import { quotaService } from '~/services/quota.service'
 
 export const tripService = {
   async getAll(filters?: z.infer<typeof ListTripsInputSchema>, userId?: string) {
-    return await tripRepository.getAll(filters, userId)
+    const trips = await tripRepository.getAll(filters, userId)
+    return trips as NonNullable<typeof trips[number]>[]
   },
 
   async getUniqueCities() {
@@ -35,37 +36,42 @@ export const tripService = {
   },
 
   async create(data: z.infer<typeof CreateTripInputSchema>, userId: string) {
-    // Проверка квоты перед созданием
     await quotaService.checkTripCreationQuota(userId)
 
     const newTrip = await tripRepository.create(data, userId)
 
-    // Автоматически создаем первый день для нового путешествия
-    if (newTrip) {
-      try {
-        await dayRepository.create({
-          tripId: newTrip.id,
-          date: newTrip.startDate,
-          title: 'День 1',
-          description: 'Начало вашего удивительного путешествия!',
-        })
-      }
-      catch (error) {
-        console.error(`Failed to create initial day for trip ${newTrip.id}:`, error)
-      }
+    if (!newTrip) {
+      throw createTRPCError('INTERNAL_SERVER_ERROR', 'Не удалось создать путешествие.')
     }
-    // Увеличение счетчика после успешного создания
+
+    try {
+      await dayRepository.create({
+        tripId: newTrip.id,
+        date: newTrip.startDate,
+        title: 'День 1',
+        description: 'Начало вашего удивительного путешествия!',
+      })
+    }
+    catch (error) {
+      console.error(`Failed to create initial day for trip ${newTrip.id}:`, error)
+    }
+
     await quotaService.incrementTripCount(userId)
 
     return newTrip
   },
 
-  async update(id: string, details: z.infer<typeof UpdateTripInputSchema>['details'], userId: string) {
+  async update(
+    id: string,
+    details: z.infer<typeof UpdateTripInputSchema>['details'],
+    userId: string,
+    userRole: string,
+  ) {
     const trip = await tripRepository.getById(id)
     if (!trip)
       throw createTRPCError('NOT_FOUND', `Путешествие с ID ${id} не найдено.`)
 
-    if (trip.userId !== userId)
+    if (trip.userId !== userId && userRole !== 'admin')
       throw createTRPCError('FORBIDDEN', 'У вас нет прав на изменение этого путешествия.')
 
     const updatedTrip = await tripRepository.update(id, details)
@@ -75,25 +81,21 @@ export const tripService = {
     return updatedTrip
   },
 
-  async delete(id: string, userId: string) {
-    // Сначала получаем данные о путешествии, чтобы знать userId и кол-во изображений
+  async delete(id: string, userId: string, userRole: string) {
     const tripToDelete = await tripRepository.getByIdWithImages(id)
     if (!tripToDelete)
       throw createTRPCError('NOT_FOUND', `Путешествие с ID ${id} для удаления не найдено.`)
 
-    if (tripToDelete.userId !== userId)
+    if (tripToDelete.userId !== userId && userRole !== 'admin')
       throw createTRPCError('FORBIDDEN', 'У вас нет прав на удаление этого путешествия.')
 
     const deletedTrip = await tripRepository.delete(id)
     if (!deletedTrip) {
-      // Этого не должно произойти, если мы нашли его выше, но для надежности
       throw createTRPCError('INTERNAL_SERVER_ERROR', `Не удалось удалить путешествие с ID ${id}.`)
     }
 
-    // Уменьшаем счетчик путешествий
     await quotaService.decrementTripCount(tripToDelete.userId)
 
-    // Уменьшаем счетчик занимаемого места
     const totalImageSize = tripToDelete.images.reduce((sum, image) => sum + (image.sizeBytes || 0), 0)
     if (totalImageSize > 0)
       await quotaService.decrementStorageUsage(tripToDelete.userId, totalImageSize)
@@ -102,6 +104,7 @@ export const tripService = {
   },
 
   async listByUser(userId: string, limit: number) {
-    return await tripRepository.listByUser(userId, limit)
+    const trips = await tripRepository.listByUser(userId, limit)
+    return trips as NonNullable<typeof trips[number]>[]
   },
 }

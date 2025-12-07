@@ -1,6 +1,7 @@
 import type { FetchCreateContextFnOptions } from '@trpc/server/adapters/fetch'
 import type { users } from 'db/schema'
 import type { Context } from 'hono'
+import type { OpenApiMeta } from 'trpc-to-openapi'
 import { initTRPC, TRPCError } from '@trpc/server'
 import { db } from '~/../db'
 import { trpcRequestCounter, trpcRequestDurationHistogram } from '~/services/metrics.service'
@@ -34,6 +35,7 @@ type AppContext = Awaited<ReturnType<typeof createContext>>
 // Инициализация tRPC с новым контекстом
 const t = initTRPC
   .context<AppContext>()
+  .meta<OpenApiMeta>()
   .create({
     errorFormatter({ shape, error }) {
       return {
