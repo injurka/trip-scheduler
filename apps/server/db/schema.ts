@@ -1,3 +1,4 @@
+/* eslint-disable ts/no-use-before-define */
 import { relations } from 'drizzle-orm'
 import {
   bigint,
@@ -416,6 +417,9 @@ export const usersRelations = relations(users, ({ many, one }) => ({
     references: [plans.id],
   }),
   llmTokenUsage: many(llmTokenUsage),
+
+  posts: many(posts),
+  savedPosts: many(savedPosts),
 }))
 
 export const llmTokenUsageRelations = relations(llmTokenUsage, ({ one }) => ({
@@ -476,75 +480,160 @@ export const metroLineStationsRelations = relations(metroLineStations, ({ one })
   }),
 }))
 
-// Тип медиа-контента в посте
-export const postMediaTypeEnum = pgEnum('post_media_type', ['image', 'video'])
+// ===============================================
+// ========== ТИПИЗАЦИЯ КОНТЕНТА ПОСТА ===========
+// ===============================================
+
+// Объединенный тип блока
+export type PostElementBlock
+  = | PostContentBlockText
+  | PostContentBlockGallery
+  | PostContentBlockLocation
+  | PostContentBlockRoute
+
+// Типы блоков внутри одного элемента
+// 'location' — для одной точки (MapPoint)
+// 'route' — для маршрута (MapRoute)
+type PostContentBlockType = 'markdown' | 'image' | 'gallery' | 'location' | 'route'
+
+interface PostContentBlockBase {
+  id: string // Генерируем uuid на клиенте для ключей списка
+  type: PostContentBlockType
+}
+
+// Блок текста (Markdown)
+interface PostContentBlockText extends PostContentBlockBase {
+  type: 'markdown'
+  text: string
+}
+
+// Блок изображения (ссылка на загруженную картинку)
+interface PostContentBlockImage extends PostContentBlockBase {
+  type: 'image'
+  imageId: string // ID из таблицы post_images
+  caption?: string
+  viewMode?: 'default' | 'full-width'
+}
+
+// Блок галереи (сразу несколько картинок в ряд/слайдером)
+interface PostContentBlockGallery extends PostContentBlockBase {
+  type: 'gallery'
+  imageIds: string[] // IDs из таблицы post_images
+  displayType: 'grid' | 'carousel'
+}
+
+// Интерфейс для одной точки (изменен: добавлен адрес)
+interface MapPoint {
+  lat: number
+  lng: number
+  label?: string
+  address?: string // Добавлено поле адреса, как просили
+  color?: string
+}
+
+// Интерфейс для маршрута (множество точек)
+interface MapRoute {
+  points: MapPoint[]
+  color?: string
+  title?: string
+}
+
+// Блок локации (одна точка) - вместо PostContentBlockMap
+interface PostContentBlockLocation extends PostContentBlockBase {
+  type: 'location'
+  location: MapPoint
+}
+
+// Блок маршрута (множество точек)
+interface PostContentBlockRoute extends PostContentBlockBase {
+  type: 'route'
+  route: MapRoute
+}
+
+// Объединяющий тип для использования в generic jsonb
+export type PostElementContent
+  = | PostContentBlockText
+  | PostContentBlockImage
+  | PostContentBlockGallery
+  | PostContentBlockLocation
+  | PostContentBlockRoute
+
+// ===============================================
+// ================ ТАБЛИЦЫ ПОСТОВ ===============
+// ===============================================
 
 // Основная таблица постов (Карточка активности)
 export const posts = pgTable('posts', {
   id: uuid('id').primaryKey().defaultRandom(),
   userId: uuid('user_id').notNull().references(() => users.id, { onDelete: 'cascade' }),
 
-  // Основная инфа
-  title: text('title').notNull(), // Заголовок, например "Прогулка по старому городу"
-  insight: text('insight'), // "Главный совет" или краткое описание для карточки
-  description: text('description'), // Полное описание (если нужно вне таймлайна)
+  title: text('title').notNull(),
+  insight: text('insight'),
+  description: text('description'), // Краткое описание для SEO или превью
 
-  // Гео и Теги
-  city: text('city').notNull(), // Обязательный тег "Город"
   country: text('country'),
-  tags: jsonb('tags').$type<string[]>().notNull().default([]), // ["Еда", "Недорого", "Архитектура"]
+  tags: jsonb('tags').$type<string[]>().notNull().default([]),
 
-  // Метаданные карточки
-  coverImageUrl: text('cover_image_url'), // Главное фото для превью
-  status: statusEnum('status').notNull().default('draft'), // draft | published
+  status: statusEnum('status').notNull().default('draft'),
 
-  // Счетчики (для быстрой выборки)
   viewsCount: integer('views_count').default(0).notNull(),
   likesCount: integer('likes_count').default(0).notNull(),
 
   createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
   updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow().notNull(),
 }, t => ({
-  cityIdx: index('posts_city_idx').on(t.city),
-  tagsIdx: index('posts_tags_idx').on(t.tags), // Для поиска по JSONB
+  countryIdx: index('posts_city_idx').on(t.country),
+  tagsIdx: index('posts_tags_idx').on(t.tags),
 }))
 
-// Элементы хронологии (Таймлайн)
-export const postTimelineItems = pgTable('post_timeline_items', {
+// Элементы поста (Секции)
+export const postElements = pgTable('post_elements', {
   id: uuid('id').primaryKey().defaultRandom(),
   postId: uuid('post_id').notNull().references(() => posts.id, { onDelete: 'cascade' }),
 
-  time: text('time'), // "10:30" или "Утро"
-  title: text('title'), // "Завтрак в кофейне"
-  description: text('description'), // Текст этапа
+  order: integer('order').notNull().default(0), // Порядок вывода элементов
+  title: text('title'), // Заголовок элемента (секции)
+  content: jsonb('content').$type<PostElementContent[]>().notNull().default([]),
 
-  locationName: text('location_name'), // Название конкретного места
+  createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
+  updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow().notNull(),
+}, t => ({
+  postIdx: index('post_elements_post_id_idx').on(t.postId),
+}))
+
+export const postMediaTypeEnum = pgEnum('post_media_type', ['image', 'video'])
+
+// Медиа поста
+export const postMedia = pgTable('post_media', {
+  id: uuid('id').defaultRandom().primaryKey(),
+
+  // Привязка к посту (обязательная)
+  postId: uuid('post_id').notNull().references(() => posts.id, { onDelete: 'cascade' }),
+
+  // Привязка к конкретному элементу (опциональная)
+  elementId: uuid('element_id').references(() => postElements.id, { onDelete: 'set null' }),
+
+  originalName: text('original_name').notNull(),
+  url: text('url').notNull(),
+
+  type: postMediaTypeEnum('type').default('image').notNull(),
+  sizeBytes: bigint('size_bytes', { mode: 'number' }).notNull().default(0),
+
+  createdAt: timestamp('created_at').defaultNow().notNull(),
+  takenAt: timestamp('taken_at'),
   latitude: real('latitude'),
   longitude: real('longitude'),
 
-  order: integer('order').notNull().default(0), // Для сортировки сверху вниз
-})
-
-// Медиа файлы поста (Галерея + Фото таймлайна)
-export const postMedia = pgTable('post_media', {
-  id: uuid('id').primaryKey().defaultRandom(),
-  postId: uuid('post_id').notNull().references(() => posts.id, { onDelete: 'cascade' }),
-  timelineItemId: uuid('timeline_item_id').references(() => postTimelineItems.id, { onDelete: 'cascade' }), // Если null, то это общее фото галереи
-
-  url: text('url').notNull(),
-  type: postMediaTypeEnum('type').default('image').notNull(),
-
-  // Маркеры на фото (Tooltip bubbles): [{ x: 50, y: 30, text: "Вкусный круассан" }]
-  markers: jsonb('markers').$type<{ x: number, y: number, label: string }[]>().default([]),
-
   width: integer('width'),
   height: integer('height'),
-  order: integer('order').default(0),
 
-  createdAt: timestamp('created_at').defaultNow().notNull(),
-})
+  variants: jsonb('variants').$type<Record<string, string>>(), // { small: '...', medium: '...', large: '...' }
+  metadata: jsonb('metadata'),
+}, t => ({
+  postIdx: index('post_images_post_id_idx').on(t.postId),
+  elementIdx: index('post_images_element_id_idx').on(t.elementId),
+}))
 
-// Сохраненные посты (Избранное)
 export const savedPosts = pgTable('saved_posts', {
   userId: uuid('user_id').notNull().references(() => users.id, { onDelete: 'cascade' }),
   postId: uuid('post_id').notNull().references(() => posts.id, { onDelete: 'cascade' }),
@@ -553,43 +642,51 @@ export const savedPosts = pgTable('saved_posts', {
   pk: primaryKey({ columns: [t.userId, t.postId] }),
 }))
 
-// Релейшены
+// ===============================================
+// =================== RELATIONS =================
+// ===============================================
+
+// 2. Связи для таблицы Posts
 export const postsRelations = relations(posts, ({ one, many }) => ({
-  author: one(users, {
+  user: one(users, {
     fields: [posts.userId],
     references: [users.id],
   }),
-  timelineItems: many(postTimelineItems),
+  elements: many(postElements),
   media: many(postMedia),
-  savedBy: many(savedPosts),
+  savedBy: many(savedPosts), // Для обратной связи "кто сохранил этот пост"
 }))
 
-export const postTimelineItemsRelations = relations(postTimelineItems, ({ one, many }) => ({
+// 3. Связи для элементов поста (PostElements)
+export const postElementsRelations = relations(postElements, ({ one, many }) => ({
   post: one(posts, {
-    fields: [postTimelineItems.postId],
+    fields: [postElements.postId],
     references: [posts.id],
   }),
+  // Элемент может содержать медиа (если вы решите искать картинки через элемент)
   media: many(postMedia),
 }))
 
+// 4. Связи для медиафайлов поста (PostMedia)
 export const postMediaRelations = relations(postMedia, ({ one }) => ({
   post: one(posts, {
     fields: [postMedia.postId],
     references: [posts.id],
   }),
-  timelineItem: one(postTimelineItems, {
-    fields: [postMedia.timelineItemId],
-    references: [postTimelineItems.id],
+  element: one(postElements, {
+    fields: [postMedia.elementId],
+    references: [postElements.id],
   }),
 }))
 
+// 5. Связи для сохраненных постов (SavedPosts - Many-to-Many)
 export const savedPostsRelations = relations(savedPosts, ({ one }) => ({
-  post: one(posts, {
-    fields: [savedPosts.postId],
-    references: [posts.id],
-  }),
   user: one(users, {
     fields: [savedPosts.userId],
     references: [users.id],
+  }),
+  post: one(posts, {
+    fields: [savedPosts.postId],
+    references: [posts.id],
   }),
 }))

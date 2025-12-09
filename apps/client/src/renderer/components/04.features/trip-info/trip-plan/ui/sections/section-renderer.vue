@@ -314,8 +314,8 @@ watch(() => props.section, (newSection) => {
 
 .section-controls {
   position: absolute;
-  top: -12px;
-  right: -12px;
+  top: -16px;
+  right: 0px;
   display: flex;
   gap: 4px;
   opacity: 0;

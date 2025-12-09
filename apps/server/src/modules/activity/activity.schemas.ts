@@ -19,7 +19,9 @@ const ActivitySectionGallerySchema = ActivitySectionBaseSchema.extend({
 })
 
 const CoordinateSchema = z.tuple([z.number(), z.number()])
-const PointTypeSchema = z.enum(['poi', 'start', 'via', 'end'])
+
+const PointTypeSchema = z.enum(['poi', 'start', 'via', 'end', 'connect'])
+
 const MarkerStyleSchema = z.object({
   iconUrl: z.string().optional(),
   color: z.string().optional(),

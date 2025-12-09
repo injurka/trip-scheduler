@@ -2,9 +2,10 @@ import type { Context } from 'hono'
 import type { ImageMetadata } from '~/repositories/image.repository'
 import { tripImagePlacementEnum } from 'db/schema'
 import { HTTPException } from 'hono/http-exception'
-import sharp from 'sharp'
 import { authUtils } from '~/lib/auth.utils'
 import { imageService } from '~/modules/image/image.service'
+import { postService } from '~/modules/post/post.service'
+import { postRepository } from '~/repositories/post.repository'
 import { tripRepository } from '~/repositories/trip.repository'
 import { userRepository } from '~/repositories/user.repository'
 import { generateFilePaths, saveFile } from '~/services/file-storage.service'
@@ -33,107 +34,168 @@ export async function uploadFileController(c: Context) {
     throw new HTTPException(401, { message: 'Невалидный или истекший токен.' })
   const userId = payload.id
 
-  // 1. Получаем данные из FormData (так как клиент шлет multipart/form-data)
+  // 1. Получаем данные из FormData
   const formData = await c.req.formData()
 
-  const tripId = formData.get('tripId') as string
-  const placement = formData.get('placement') as string
+  // Поля могут быть null, так как мы поддерживаем два сценария
+  const tripId = formData.get('tripId') as string | null
+  const postId = formData.get('postId') as string | null
+
+  const placement = formData.get('placement') as string | null
   const file = formData.get('file')
-
-  // 2. Валидация полей
-  if (!tripId)
-    throw new HTTPException(400, { message: 'Необходимо указать ID путешествия (tripId).' })
-
-  if (!placement || !tripImagePlacementEnum.enumValues.includes(placement as 'route' | 'memories'))
-    throw new HTTPException(400, { message: 'Необходимо указать корректный тип размещения (placement).' })
 
   if (!file || !(file instanceof File))
     throw new HTTPException(400, { message: 'Файл не найден в теле запроса или имеет неверный формат.' })
 
   const fileName = file.name ?? getFileNameFromHeader(c.req.header('content-disposition')!)
   const fileBuffer = await file.arrayBuffer()
+  // Преобразуем ArrayBuffer в Buffer для Node.js/Sharp
+  const buffer = Buffer.from(fileBuffer)
 
-  const trip = await tripRepository.getById(tripId)
-  if (!trip)
-    throw new HTTPException(404, { message: 'Путешествие не найдено.' })
+  // =========================================================================
+  // СЦЕНАРИЙ 1: ЗАГРУЗКА ДЛЯ ПУТЕШЕСТВИЯ (Оригинальная логика)
+  // =========================================================================
+  if (tripId) {
+    if (!placement || !tripImagePlacementEnum.enumValues.includes(placement as 'route' | 'memories'))
+      throw new HTTPException(400, { message: 'Необходимо указать корректный тип размещения (placement).' })
 
-  if (trip.userId !== userId)
-    throw new HTTPException(403, { message: 'У вас нет прав на загрузку файлов в это путешествие.' })
+    const trip = await tripRepository.getById(tripId)
+    if (!trip)
+      throw new HTTPException(404, { message: 'Путешествие не найдено.' })
 
-  try {
-    // 3. Подготовка данных (преобразуем ArrayBuffer в Buffer для Node.js/Sharp)
-    const buffer = Buffer.from(fileBuffer)
+    if (trip.userId !== userId)
+      throw new HTTPException(403, { message: 'У вас нет прав на загрузку файлов в это путешествие.' })
 
-    await quotaService.checkStorageQuota(userId, buffer.length)
-    const paths = generateFilePaths(`trips/${tripId}/${placement}`, fileName)
-
-    // 4. Извлечение метаданных
-    let metadata, imageVariants
     try {
-      ({ metadata } = await extractAndStructureMetadata(buffer))
-      imageVariants = await generateImageVariants(buffer)
-    }
-    catch (sharpError: any) {
-      console.error('Sharp processing error:', sharpError)
-      throw new HTTPException(415, { message: `Неподдерживаемый формат изображения: ${sharpError.message}` })
-    }
+      await quotaService.checkStorageQuota(userId, buffer.length)
+      const paths = generateFilePaths(`trips/${tripId}/${placement}`, fileName)
 
-    // 5. Генерация и сохранение вариантов
-    const variantUrls: Record<string, string> = {}
-    let variantsTotalSize = 0
+      // Извлечение метаданных и генерация вариантов
+      let metadata, imageVariants
+      try {
+        ({ metadata } = await extractAndStructureMetadata(buffer))
+        imageVariants = await generateImageVariants(buffer)
+      }
+      catch (sharpError: any) {
+        console.error('Sharp processing error:', sharpError)
+        throw new HTTPException(415, { message: `Неподдерживаемый формат изображения: ${sharpError.message}` })
+      }
 
-    await Promise.all(
-      Object.entries(imageVariants).map(async ([name, variantBuffer]) => {
-        const variantPaths = paths.getVariantPaths(name)
-        await saveFile(variantPaths.diskPath, variantBuffer)
-        variantUrls[name] = variantPaths.dbPath
-        variantsTotalSize += variantBuffer.length
-      }),
-    )
+      const variantUrls: Record<string, string> = {}
+      let variantsTotalSize = 0
 
-    // 6. Сохранение основного файла
-    await saveFile(paths.original.diskPath, buffer)
-
-    // 7. Сохранение записи в БД
-    const totalSize = buffer.length + variantsTotalSize
-    const newImageRecord = await imageService.create(
-      tripId,
-      paths.original.dbPath,
-      fileName,
-      placement as 'route' | 'memories',
-      totalSize,
-      {
-        ...metadata,
-        variants: variantUrls,
-      } as ImageMetadata,
-    )
-
-    await quotaService.incrementStorageUsage(userId, totalSize)
-
-    fileUploadsCounter.inc({ placement })
-    fileUploadSizeBytesHistogram.observe({ placement }, buffer.length)
-
-    // 8. Отправка ответа
-    return c.json(newImageRecord)
-  }
-  catch (error: any) {
-    console.error('Ошибка при обработке загруженного файла:', error)
-
-    if (error instanceof HTTPException)
-      throw error
-
-    if (error.message.includes('Input buffer')) {
-      return c.json(
-        { message: 'Ошибка обработки изображения. Возможно, файл поврежден.' },
-        415,
+      await Promise.all(
+        Object.entries(imageVariants).map(async ([name, variantBuffer]) => {
+          const variantPaths = paths.getVariantPaths(name)
+          await saveFile(variantPaths.diskPath, variantBuffer)
+          variantUrls[name] = variantPaths.dbPath
+          variantsTotalSize += variantBuffer.length
+        }),
       )
-    }
 
-    return c.json(
-      { message: error.message || 'Внутренняя ошибка при обработке файла.' },
-      500,
-    )
+      await saveFile(paths.original.diskPath, buffer)
+
+      const totalSize = buffer.length + variantsTotalSize
+      const newImageRecord = await imageService.create(
+        tripId,
+        paths.original.dbPath,
+        fileName,
+        placement as 'route' | 'memories',
+        totalSize,
+        {
+          ...metadata,
+          variants: variantUrls,
+        } as ImageMetadata,
+      )
+
+      await quotaService.incrementStorageUsage(userId, totalSize)
+      fileUploadsCounter.inc({ placement })
+      fileUploadSizeBytesHistogram.observe({ placement }, buffer.length)
+
+      return c.json(newImageRecord)
+    }
+    catch (error: any) {
+      console.error('Ошибка при обработке файла путешествия:', error)
+      if (error instanceof HTTPException)
+        throw error
+      if (error.message.includes('Input buffer')) {
+        return c.json({ message: 'Ошибка обработки изображения. Возможно, файл поврежден.' }, 415)
+      }
+      return c.json({ message: error.message || 'Внутренняя ошибка при обработке файла.' }, 500)
+    }
   }
+
+  // =========================================================================
+  // СЦЕНАРИЙ 2: ЗАГРУЗКА ДЛЯ ПОСТА (Новая логика)
+  // =========================================================================
+  if (postId) {
+    const post = await postRepository.findById(postId)
+    if (!post)
+      throw new HTTPException(404, { message: 'Пост не найден.' })
+
+    if (post.userId !== userId)
+      throw new HTTPException(403, { message: 'У вас нет прав на загрузку файлов в этот пост.' })
+
+    try {
+      await quotaService.checkStorageQuota(userId, buffer.length)
+      const paths = generateFilePaths(`posts/${postId}`, fileName)
+
+      let metadata, imageVariants
+      try {
+        ({ metadata } = await extractAndStructureMetadata(buffer))
+        imageVariants = await generateImageVariants(buffer)
+      }
+      catch (sharpError: any) {
+        console.error('Sharp processing error:', sharpError)
+        throw new HTTPException(415, { message: `Неподдерживаемый формат изображения: ${sharpError.message}` })
+      }
+
+      const variantUrls: Record<string, string> = {}
+      let variantsTotalSize = 0
+
+      await Promise.all(
+        Object.entries(imageVariants).map(async ([name, variantBuffer]) => {
+          const variantPaths = paths.getVariantPaths(name)
+          await saveFile(variantPaths.diskPath, variantBuffer)
+          variantUrls[name] = variantPaths.dbPath
+          variantsTotalSize += variantBuffer.length
+        }),
+      )
+
+      await saveFile(paths.original.diskPath, buffer)
+
+      const totalSize = buffer.length + variantsTotalSize
+
+      // Создаем запись в таблице postMedia
+      const newMediaRecord = await postService.createMedia(
+        postId,
+        paths.original.dbPath,
+        fileName,
+        totalSize,
+        {
+          ...metadata,
+          variants: variantUrls,
+        },
+      )
+
+      await quotaService.incrementStorageUsage(userId, totalSize)
+      fileUploadsCounter.inc({ placement: 'post-media' })
+      fileUploadSizeBytesHistogram.observe({ placement: 'post-media' }, buffer.length)
+
+      return c.json(newMediaRecord)
+    }
+    catch (error: any) {
+      console.error('Ошибка при обработке файла поста:', error)
+      if (error instanceof HTTPException)
+        throw error
+      if (error.message.includes('Input buffer')) {
+        return c.json({ message: 'Ошибка обработки изображения. Возможно, файл поврежден.' }, 415)
+      }
+      return c.json({ message: error.message || 'Внутренняя ошибка при обработке файла.' }, 500)
+    }
+  }
+
+  throw new HTTPException(400, { message: 'Необходимо указать tripId или postId.' })
 }
 
 export async function uploadAvatarController(c: Context) {

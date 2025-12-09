@@ -40,33 +40,42 @@ export function useGeolocationRoutes(mapApiRef: Ref<GeolocationMapApi | undefine
     return newRoute
   }
 
-  async function addPointToRoute(routeId: string, coords: Coordinate) {
+  async function addPointToRoute(routeId: string, coords: Coordinate, pointType: 'via' | 'connect' = 'via') {
     const routeIndex = routes.value.findIndex(r => r.id === routeId)
     if (routeIndex === -1 || !mapApiRef.value)
       return
 
-    isLoading.value = true
-    const addressInfo = await mapApiRef.value.fetchAddress(coords)
-    isLoading.value = false
+    let address = ''
+    if (pointType === 'via') {
+      isLoading.value = true
+      const addressInfo = await mapApiRef.value.fetchAddress(coords)
+      isLoading.value = false
+      address = addressInfo?.address || 'Промежуточная точка'
+    }
 
     const route = routes.value[routeIndex]
     let updatedPoints = [...route.points]
 
     if (updatedPoints.length > 0) {
       const lastPoint = updatedPoints[updatedPoints.length - 1]
-      if (lastPoint.type === 'start' || lastPoint.type === 'via') {
-        // Создаем новый массив точек с измененным типом последней точки
+      // Если предыдущая точка была "концом" (маркером), то она становится промежуточной (via).
+      // Если она была соединительной (connect) или стартовой (start), мы её не меняем.
+      if (lastPoint.type === 'end') {
         updatedPoints = updatedPoints.map((p, index) =>
           index === updatedPoints.length - 1 ? { ...p, type: 'via' } : p,
         )
       }
     }
 
+    // Если мы добавляем "via" (маркер), то визуально это 'end' (так как она последняя).
+    // Если "connect", то 'connect'.
+    const finalType = pointType === 'connect' ? 'connect' : 'end'
+
     const newPoint: MapPoint = {
       id: uuidv4(),
       coordinates: coords,
-      type: 'end',
-      address: addressInfo?.address || 'Промежуточная точка',
+      type: finalType,
+      address,
     }
 
     updatedPoints.push(newPoint)
@@ -109,9 +118,10 @@ export function useGeolocationRoutes(mapApiRef: Ref<GeolocationMapApi | undefine
       updatedPoints = updatedPoints.map((p, index) => {
         if (index === 0)
           return { ...p, type: 'start' }
-        if (index === updatedPoints.length - 1)
+        // Если это последняя точка и она не "connect", то делаем её 'end'
+        if (index === updatedPoints.length - 1 && p.type !== 'connect')
           return { ...p, type: 'end' }
-        return { ...p, type: 'via' }
+        return p
       })
     }
 
@@ -129,7 +139,7 @@ export function useGeolocationRoutes(mapApiRef: Ref<GeolocationMapApi | undefine
         routeOfPoint = route
         point.coordinates = newCoords
 
-        if (shouldUpdateAddress) {
+        if (shouldUpdateAddress && point.type !== 'connect') {
           isLoading.value = true
           const addressInfo = await mapApiRef.value?.fetchAddress(newCoords)
           isLoading.value = false

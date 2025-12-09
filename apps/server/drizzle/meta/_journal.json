@@ -1,5 +1,13 @@
 {
   "version": "7",
   "dialect": "postgresql",
-  "entries": []
+  "entries": [
+    {
+      "idx": 0,
+      "version": "7",
+      "when": 1765232621889,
+      "tag": "0000_rare_aqueduct",
+      "breakpoints": true
+    }
+  ]
 }

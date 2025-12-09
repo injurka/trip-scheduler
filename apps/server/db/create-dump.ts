@@ -8,8 +8,10 @@ async function createDump() {
   console.log('🎬 Начало создания дампа базы данных...')
 
   try {
+    // 1. Загрузка пользователей
     const allUsers = await db.query.users.findMany()
 
+    // 2. Загрузка путешествий
     const allTrips = await db.query.trips.findMany({
       with: {
         user: true,
@@ -35,11 +37,27 @@ async function createDump() {
       orderBy: (trips, { desc }) => [desc(trips.createdAt)],
     })
 
-    console.log(`🔍 Найдено ${allUsers.length} пользователей и ${allTrips.length} путешествий для дампа.`)
+    // 3. Загрузка постов
+    const allPosts = await db.query.posts.findMany({
+      with: {
+        elements: {
+          orderBy: (elements, { asc }) => [asc(elements.order)],
+        },
+        media: true,
+        savedBy: true,
+      },
+      orderBy: (posts, { desc }) => [desc(posts.createdAt)],
+    })
+
+    console.log(`🔍 Найдено:`)
+    console.log(`   - Пользователей: ${allUsers.length}`)
+    console.log(`   - Путешествий: ${allTrips.length}`)
+    console.log(`   - Постов: ${allPosts.length}`)
 
     const serializableData = {
       users: allUsers,
       trips: allTrips,
+      posts: allPosts,
     }
 
     const dumpDir = path.join(__dirname, 'dump')

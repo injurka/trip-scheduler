@@ -1,6 +1,11 @@
 import { z } from 'zod'
-import { publicProcedure } from '~/lib/trpc'
-import { GetMetroSystemDetailsInputSchema, MetroSystemDetailsSchema, MetroSystemSchema } from './metro.schemas'
+import { protectedProcedure, publicProcedure } from '~/lib/trpc'
+import {
+  GetMetroSystemDetailsInputSchema,
+  ImportMetroSystemInputSchema,
+  MetroSystemDetailsSchema,
+  MetroSystemSchema,
+} from './metro.schemas'
 import { metroService } from './metro.service'
 
 export const metroProcedures = {
@@ -31,5 +36,21 @@ export const metroProcedures = {
     .output(MetroSystemDetailsSchema)
     .query(async ({ input }) => {
       return metroService.getDetails(input.systemId)
+    }),
+
+  import: protectedProcedure
+    .meta({
+      openapi: {
+        method: 'POST',
+        path: '/metro/import',
+        tags: ['Metro'],
+        summary: 'Импортировать полную схему метро города',
+        protect: true,
+      },
+    })
+    .input(ImportMetroSystemInputSchema)
+    .output(MetroSystemSchema)
+    .mutation(async ({ input }) => {
+      return metroService.importSystem(input)
     }),
 }

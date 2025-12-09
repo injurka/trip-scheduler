@@ -21,9 +21,9 @@ import {
   metroStations,
   metroSystems,
   plans,
+  postElements,
   postMedia,
   posts,
-  postTimelineItems,
   refreshTokens,
   savedPosts,
   tripImages,
@@ -146,7 +146,7 @@ async function discoverAndSelectData() {
       message: 'Выберите ПОСТЫ для добавления',
       choices: [...discovered.posts.values()].map(post => ({
         title: post.title,
-        description: `(${post.city})`,
+        description: `(${post.country || ''})`,
         value: post,
         selected: true,
       })),
@@ -177,7 +177,7 @@ async function seed() {
   console.log('\n🗑️  Очистка старых данных...')
   await db.delete(savedPosts)
   await db.delete(postMedia)
-  await db.delete(postTimelineItems)
+  await db.delete(postElements)
   await db.delete(posts)
   await db.delete(llmTokenUsage)
   await db.delete(llmModels)
@@ -258,7 +258,7 @@ async function seed() {
 
   // Arrays for Posts
   const postsToInsert: (typeof posts.$inferInsert)[] = []
-  const timelineItemsToInsert: (typeof postTimelineItems.$inferInsert)[] = []
+  const elementsToInsert: (typeof postElements.$inferInsert)[] = []
   const postMediaToInsert: (typeof postMedia.$inferInsert)[] = []
 
   // --- TRIPS PROCESSING ---
@@ -339,7 +339,10 @@ async function seed() {
 
   // --- POSTS PROCESSING ---
   for (const postData of selectedPosts) {
-    const { timelineItems, media, ...postDetails } = postData
+    // В моковых данных поле может называться timelineItems или elements.
+    // Адаптируем под новую схему postElements.
+    const { timelineItems, elements, media, ...postDetails } = postData
+    const items = elements || timelineItems || []
 
     postsToInsert.push({
       ...postDetails,
@@ -347,24 +350,32 @@ async function seed() {
       updatedAt: new Date(),
     })
 
-    if (timelineItems) {
-      for (const item of timelineItems) {
+    // Обработка элементов поста
+    if (items) {
+      for (const item of items) {
+        // Если в моке есть media внутри элемента (для старых структур), выносим их
         const { media: itemMedia, ...itemDetails } = item
-        timelineItemsToInsert.push(itemDetails)
+        elementsToInsert.push({
+          ...itemDetails,
+          postId: postDetails.id,
+        })
 
         if (itemMedia) {
           postMediaToInsert.push(...itemMedia.map((m: any) => ({
             ...m,
-            timelineItemId: item.id,
+            postId: postDetails.id,
+            elementId: item.id, // Связываем медиа с конкретным элементом
           })))
         }
       }
     }
 
+    // Обработка общих медиа поста (без привязки к элементам или если структура такая)
     if (media) {
       postMediaToInsert.push(...media.map((m: any) => ({
         ...m,
-        timelineItemId: null, // General post media
+        postId: postDetails.id,
+        elementId: null, // Медиа, привязанное к посту в целом
       })))
     }
   }
@@ -396,8 +407,8 @@ async function seed() {
   // Insert Posts
   if (postsToInsert.length > 0)
     await db.insert(posts).values(postsToInsert)
-  if (timelineItemsToInsert.length > 0)
-    await db.insert(postTimelineItems).values(timelineItemsToInsert)
+  if (elementsToInsert.length > 0)
+    await db.insert(postElements).values(elementsToInsert)
   if (postMediaToInsert.length > 0)
     await db.insert(postMedia).values(postMediaToInsert)
 
