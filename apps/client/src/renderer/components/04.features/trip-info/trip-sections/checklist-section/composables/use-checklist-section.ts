@@ -1,4 +1,11 @@
-import type { ChecklistGroup, ChecklistItem, ChecklistPriority, ChecklistSectionContent, ChecklistTab } from '../models/types'
+import type {
+  ChecklistGroup,
+  ChecklistItem,
+  ChecklistPreset,
+  ChecklistPriority,
+  ChecklistSectionContent,
+  ChecklistTab,
+} from '../models/types'
 import { useDebounceFn } from '@vueuse/core'
 import { v4 as uuidv4 } from 'uuid'
 import { computed, ref, watch } from 'vue'
@@ -128,6 +135,40 @@ export function useChecklistSection(
       groups.value[index] = updatedGroup
   }
 
+  // --- Логика пресетов ---
+  function applyPreset(preset: ChecklistPreset) {
+    if (props.readonly)
+      return
+
+    // Проходим по группам пресета
+    preset.groups.forEach((groupData) => {
+      const newGroupId = uuidv4()
+
+      // Добавляем группу
+      groups.value.push({
+        id: newGroupId,
+        name: groupData.name,
+        icon: groupData.icon,
+        type: activeTab.value, // Добавляем в текущую вкладку
+      })
+
+      // Добавляем элементы группы
+      groupData.items.forEach((itemData) => {
+        items.value.push({
+          id: uuidv4(),
+          text: itemData.text,
+          completed: false,
+          type: activeTab.value,
+          groupId: newGroupId,
+          priority: itemData.priority || 1,
+        })
+      })
+    })
+
+    // Принудительный апдейт
+    debouncedUpdate()
+  }
+
   const filteredItems = computed(() => {
     let result = items.value.filter(item => item.type === activeTab.value)
 
@@ -209,5 +250,6 @@ export function useChecklistSection(
     addGroup,
     deleteGroup,
     updateGroup,
+    applyPreset,
   }
 }

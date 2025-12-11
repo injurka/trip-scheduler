@@ -2,7 +2,16 @@ import type { CSSProperties, Ref } from 'vue'
 import { useEventListener } from '@vueuse/core'
 import { nextTick, ref } from 'vue'
 
-export function useMorph(targetRef: Ref<HTMLElement | null>) {
+interface UseMorphReturn {
+  isMorphed: Ref<boolean>
+  isMorphing: Ref<boolean>
+  morphStyle: Ref<CSSProperties>
+  placeholderStyle: Ref<CSSProperties>
+  enterMorph: () => Promise<void>
+  leaveMorph: () => void
+}
+
+export function useMorph(targetRef: Ref<HTMLElement | null>): UseMorphReturn {
   const isMorphed = ref(false)
   const isMorphing = ref(false)
   const morphStyle = ref<CSSProperties>({})

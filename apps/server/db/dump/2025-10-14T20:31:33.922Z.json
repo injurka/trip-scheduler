@@ -61,85 +61,6 @@
       "updatedAt": "2025-10-14T20:31:29.137Z"
     }
   ],
-  "communities": [
-    {
-      "id": "c1a2b3c4-d5e6-f7a8-9b0c-1d2e3f4a5b6c",
-      "name": "Путешествия по Азии",
-      "description": "Обсуждаем маршруты, делимся советами и фотографиями из поездок по странам Азии. От Таиланда до Японии!",
-      "coverImageUrl": "/static/images/communities/asia-cover.jpg",
-      "avatarUrl": "/static/images/communities/asia-avatar.jpg",
-      "privacyType": "public",
-      "ownerId": "1a97d95a-0158-4171-8258-52c7a917e3f0",
-      "createdAt": "2025-10-14T20:31:29.139Z",
-      "updatedAt": "2025-10-14T20:31:29.139Z"
-    },
-    {
-      "id": "d2b3c4d5-e6f7-a8b9-c0d1-e2f3a4b5c6d7",
-      "name": "Семейные поездки",
-      "description": "Закрытое сообщество для планирования и обсуждения путешествий с детьми. Безопасность, комфорт и развлечения.",
-      "coverImageUrl": "/static/images/communities/family-cover.jpg",
-      "avatarUrl": "/static/images/communities/family-avatar.jpg",
-      "privacyType": "private",
-      "ownerId": "1a97d95a-0158-4171-8258-52c7a917e3f2",
-      "createdAt": "2025-10-14T20:31:29.139Z",
-      "updatedAt": "2025-10-14T20:31:29.139Z"
-    },
-    {
-      "id": "e3c4d5e6-f7a8-b9c0-d1e2-f3a4b5c6d7e8",
-      "name": "Бюджетный бэкпэкинг",
-      "description": "Как посмотреть мир с минимальными затратами. Лайфхаки, хостелы, дешевые билеты и бесплатные достопримечательности.",
-      "coverImageUrl": "/static/images/communities/budget-cover.jpg",
-      "avatarUrl": "/static/images/communities/budget-avatar.jpg",
-      "privacyType": "public",
-      "ownerId": "1a97d95a-0158-4171-8258-52c7a917e3f3",
-      "createdAt": "2025-10-14T20:31:29.139Z",
-      "updatedAt": "2025-10-14T20:31:29.139Z"
-    }
-  ],
-  "communityMembers": [
-    {
-      "communityId": "c1a2b3c4-d5e6-f7a8-9b0c-1d2e3f4a5b6c",
-      "userId": "1a97d95a-0158-4171-8258-52c7a917e3f0",
-      "role": "admin",
-      "joinedAt": "2025-10-14T20:31:29.141Z"
-    },
-    {
-      "communityId": "c1a2b3c4-d5e6-f7a8-9b0c-1d2e3f4a5b6c",
-      "userId": "1a97d95a-0158-4171-8258-52c7a917e3f2",
-      "role": "member",
-      "joinedAt": "2025-10-14T20:31:29.141Z"
-    },
-    {
-      "communityId": "c1a2b3c4-d5e6-f7a8-9b0c-1d2e3f4a5b6c",
-      "userId": "1a97d95a-0158-4171-8258-52c7a917e3f3",
-      "role": "moderator",
-      "joinedAt": "2025-10-14T20:31:29.141Z"
-    },
-    {
-      "communityId": "d2b3c4d5-e6f7-a8b9-c0d1-e2f3a4b5c6d7",
-      "userId": "1a97d95a-0158-4171-8258-52c7a917e3f2",
-      "role": "admin",
-      "joinedAt": "2025-10-14T20:31:29.141Z"
-    },
-    {
-      "communityId": "d2b3c4d5-e6f7-a8b9-c0d1-e2f3a4b5c6d7",
-      "userId": "1a97d95a-0158-4171-8258-52c7a917e3f0",
-      "role": "member",
-      "joinedAt": "2025-10-14T20:31:29.141Z"
-    },
-    {
-      "communityId": "e3c4d5e6-f7a8-b9c0-d1e2-f3a4b5c6d7e8",
-      "userId": "1a97d95a-0158-4171-8258-52c7a917e3f3",
-      "role": "admin",
-      "joinedAt": "2025-10-14T20:31:29.141Z"
-    },
-    {
-      "communityId": "e3c4d5e6-f7a8-b9c0-d1e2-f3a4b5c6d7e8",
-      "userId": "1a97d95a-0158-4171-8258-52c7a917e3f0",
-      "role": "member",
-      "joinedAt": "2025-10-14T20:31:29.141Z"
-    }
-  ],
   "trips": [
     {
       "id": "3e8e2c7c-7a7b-4d43-9f5b-1a2c3d4e5f6a",
@@ -214,7 +135,6 @@
               ],
               "tag": "transport",
               "status": "none",
-              "rating": null,
               "dayId": "10fc63a3-6aaa-41f8-9948-21e3e2b7af76"
             },
             {
@@ -231,7 +151,6 @@
               ],
               "tag": "relax",
               "status": "none",
-              "rating": null,
               "dayId": "10fc63a3-6aaa-41f8-9948-21e3e2b7af76"
             },
             {
@@ -255,7 +174,6 @@
               ],
               "tag": "walk",
               "status": "none",
-              "rating": null,
               "dayId": "10fc63a3-6aaa-41f8-9948-21e3e2b7af76"
             },
             {
@@ -280,7 +198,6 @@
               ],
               "tag": "walk",
               "status": "none",
-              "rating": null,
               "dayId": "10fc63a3-6aaa-41f8-9948-21e3e2b7af76"
             },
             {
@@ -304,7 +221,6 @@
               ],
               "tag": "food",
               "status": "none",
-              "rating": null,
               "dayId": "10fc63a3-6aaa-41f8-9948-21e3e2b7af76"
             },
             {
@@ -321,7 +237,6 @@
               ],
               "tag": "transport",
               "status": "none",
-              "rating": null,
               "dayId": "10fc63a3-6aaa-41f8-9948-21e3e2b7af76"
             }
           ]
@@ -360,7 +275,6 @@
               ],
               "tag": "walk",
               "status": "none",
-              "rating": null,
               "dayId": "cb27f880-be57-4491-a0d1-e832c77d6a27"
             },
             {
@@ -386,7 +300,6 @@
               ],
               "tag": "walk",
               "status": "none",
-              "rating": null,
               "dayId": "cb27f880-be57-4491-a0d1-e832c77d6a27"
             },
             {
@@ -415,7 +328,6 @@
               ],
               "tag": "attraction",
               "status": "none",
-              "rating": null,
               "dayId": "cb27f880-be57-4491-a0d1-e832c77d6a27"
             },
             {
@@ -441,7 +353,6 @@
               ],
               "tag": "food",
               "status": "none",
-              "rating": null,
               "dayId": "cb27f880-be57-4491-a0d1-e832c77d6a27"
             },
             {
@@ -466,7 +377,6 @@
               ],
               "tag": "attraction",
               "status": "none",
-              "rating": null,
               "dayId": "cb27f880-be57-4491-a0d1-e832c77d6a27"
             },
             {
@@ -492,7 +402,6 @@
               ],
               "tag": "attraction",
               "status": "none",
-              "rating": null,
               "dayId": "cb27f880-be57-4491-a0d1-e832c77d6a27"
             },
             {
@@ -517,7 +426,6 @@
               ],
               "tag": "walk",
               "status": "none",
-              "rating": null,
               "dayId": "cb27f880-be57-4491-a0d1-e832c77d6a27"
             }
           ]
@@ -555,7 +463,6 @@
               ],
               "tag": "transport",
               "status": "none",
-              "rating": null,
               "dayId": "82b49367-500c-42dc-954e-0d45d9cc93f7"
             },
             {
@@ -580,7 +487,6 @@
               ],
               "tag": "attraction",
               "status": "none",
-              "rating": null,
               "dayId": "82b49367-500c-42dc-954e-0d45d9cc93f7"
             },
             {
@@ -604,7 +510,6 @@
               ],
               "tag": "food",
               "status": "none",
-              "rating": null,
               "dayId": "82b49367-500c-42dc-954e-0d45d9cc93f7"
             },
             {
@@ -630,7 +535,6 @@
               ],
               "tag": "walk",
               "status": "none",
-              "rating": null,
               "dayId": "82b49367-500c-42dc-954e-0d45d9cc93f7"
             },
             {
@@ -647,7 +551,6 @@
               ],
               "tag": "food",
               "status": "none",
-              "rating": null,
               "dayId": "82b49367-500c-42dc-954e-0d45d9cc93f7"
             },
             {
@@ -671,7 +574,6 @@
               ],
               "tag": "walk",
               "status": "none",
-              "rating": null,
               "dayId": "82b49367-500c-42dc-954e-0d45d9cc93f7"
             }
           ]
@@ -716,7 +618,6 @@
               ],
               "tag": "attraction",
               "status": "none",
-              "rating": null,
               "dayId": "7928e487-f629-4424-a76f-c20284277e41"
             },
             {
@@ -743,7 +644,6 @@
               ],
               "tag": "walk",
               "status": "none",
-              "rating": null,
               "dayId": "7928e487-f629-4424-a76f-c20284277e41"
             },
             {
@@ -771,7 +671,6 @@
               ],
               "tag": "food",
               "status": "none",
-              "rating": null,
               "dayId": "7928e487-f629-4424-a76f-c20284277e41"
             },
             {
@@ -796,7 +695,6 @@
               ],
               "tag": "walk",
               "status": "none",
-              "rating": null,
               "dayId": "7928e487-f629-4424-a76f-c20284277e41"
             }
           ]
@@ -832,7 +730,6 @@
               ],
               "tag": "transport",
               "status": "none",
-              "rating": null,
               "dayId": "69ed3b27-ff5e-4e93-8610-571511b8ae4c"
             },
             {
@@ -856,7 +753,6 @@
               ],
               "tag": "walk",
               "status": "none",
-              "rating": null,
               "dayId": "69ed3b27-ff5e-4e93-8610-571511b8ae4c"
             },
             {
@@ -884,7 +780,6 @@
               ],
               "tag": "food",
               "status": "none",
-              "rating": null,
               "dayId": "69ed3b27-ff5e-4e93-8610-571511b8ae4c"
             },
             {
@@ -901,7 +796,6 @@
               ],
               "tag": "walk",
               "status": "none",
-              "rating": null,
               "dayId": "69ed3b27-ff5e-4e93-8610-571511b8ae4c"
             },
             {
@@ -918,7 +812,6 @@
               ],
               "tag": "relax",
               "status": "none",
-              "rating": null,
               "dayId": "69ed3b27-ff5e-4e93-8610-571511b8ae4c"
             },
             {
@@ -935,7 +828,6 @@
               ],
               "tag": "food",
               "status": "none",
-              "rating": null,
               "dayId": "69ed3b27-ff5e-4e93-8610-571511b8ae4c"
             }
           ]
@@ -964,7 +856,6 @@
               ],
               "tag": "relax",
               "status": "none",
-              "rating": null,
               "dayId": "2b7bdbe1-09d9-4cfa-bded-daffff6d6820"
             }
           ]
@@ -1000,7 +891,6 @@
               ],
               "tag": "transport",
               "status": "none",
-              "rating": null,
               "dayId": "6a24e4b6-6e79-4cea-bb4f-d5ccd4a4303d"
             },
             {
@@ -1025,7 +915,6 @@
               ],
               "tag": "attraction",
               "status": "none",
-              "rating": null,
               "dayId": "6a24e4b6-6e79-4cea-bb4f-d5ccd4a4303d"
             },
             {
@@ -1051,7 +940,6 @@
               ],
               "tag": "attraction",
               "status": "none",
-              "rating": null,
               "dayId": "6a24e4b6-6e79-4cea-bb4f-d5ccd4a4303d"
             },
             {
@@ -1079,7 +967,6 @@
               ],
               "tag": "food",
               "status": "none",
-              "rating": null,
               "dayId": "6a24e4b6-6e79-4cea-bb4f-d5ccd4a4303d"
             },
             {
@@ -1108,7 +995,6 @@
               ],
               "tag": "attraction",
               "status": "none",
-              "rating": null,
               "dayId": "6a24e4b6-6e79-4cea-bb4f-d5ccd4a4303d"
             },
             {
@@ -1132,7 +1018,6 @@
               ],
               "tag": "food",
               "status": "none",
-              "rating": null,
               "dayId": "6a24e4b6-6e79-4cea-bb4f-d5ccd4a4303d"
             },
             {
@@ -1149,7 +1034,6 @@
               ],
               "tag": "transport",
               "status": "none",
-              "rating": null,
               "dayId": "6a24e4b6-6e79-4cea-bb4f-d5ccd4a4303d"
             }
           ]
@@ -1186,7 +1070,6 @@
               ],
               "tag": "attraction",
               "status": "none",
-              "rating": null,
               "dayId": "d482f6fe-41b8-41f0-bb34-b8404b56cfcf"
             },
             {
@@ -1211,7 +1094,6 @@
               ],
               "tag": "attraction",
               "status": "none",
-              "rating": null,
               "dayId": "d482f6fe-41b8-41f0-bb34-b8404b56cfcf"
             },
             {
@@ -1237,7 +1119,6 @@
               ],
               "tag": "food",
               "status": "none",
-              "rating": null,
               "dayId": "d482f6fe-41b8-41f0-bb34-b8404b56cfcf"
             },
             {
@@ -1262,7 +1143,6 @@
               ],
               "tag": "walk",
               "status": "none",
-              "rating": null,
               "dayId": "d482f6fe-41b8-41f0-bb34-b8404b56cfcf"
             },
             {
@@ -1290,7 +1170,6 @@
               ],
               "tag": "walk",
               "status": "none",
-              "rating": null,
               "dayId": "d482f6fe-41b8-41f0-bb34-b8404b56cfcf"
             },
             {
@@ -1317,7 +1196,6 @@
               ],
               "tag": "food",
               "status": "none",
-              "rating": null,
               "dayId": "d482f6fe-41b8-41f0-bb34-b8404b56cfcf"
             }
           ]
@@ -1346,7 +1224,6 @@
               ],
               "tag": "relax",
               "status": "none",
-              "rating": null,
               "dayId": "9c6a6d4c-0d91-4f9a-b0f5-8a26040985af"
             },
             {
@@ -1370,7 +1247,6 @@
               ],
               "tag": "attraction",
               "status": "none",
-              "rating": null,
               "dayId": "9c6a6d4c-0d91-4f9a-b0f5-8a26040985af"
             },
             {
@@ -1387,7 +1263,6 @@
               ],
               "tag": "relax",
               "status": "none",
-              "rating": null,
               "dayId": "9c6a6d4c-0d91-4f9a-b0f5-8a26040985af"
             }
           ]
@@ -1416,7 +1291,6 @@
               ],
               "tag": "relax",
               "status": "none",
-              "rating": null,
               "dayId": "eef912d6-0174-4e97-919d-08907a85e0e4"
             }
           ]
@@ -1454,7 +1328,6 @@
               ],
               "tag": "transport",
               "status": "none",
-              "rating": null,
               "dayId": "8a57c574-09f2-4625-8f91-8e41a9145bdd"
             },
             {
@@ -1479,7 +1352,6 @@
               ],
               "tag": "walk",
               "status": "none",
-              "rating": null,
               "dayId": "8a57c574-09f2-4625-8f91-8e41a9145bdd"
             },
             {
@@ -1504,7 +1376,6 @@
               ],
               "tag": "attraction",
               "status": "none",
-              "rating": null,
               "dayId": "8a57c574-09f2-4625-8f91-8e41a9145bdd"
             },
             {
@@ -1532,7 +1403,6 @@
               ],
               "tag": "food",
               "status": "none",
-              "rating": null,
               "dayId": "8a57c574-09f2-4625-8f91-8e41a9145bdd"
             },
             {
@@ -1549,7 +1419,6 @@
               ],
               "tag": "transport",
               "status": "none",
-              "rating": null,
               "dayId": "8a57c574-09f2-4625-8f91-8e41a9145bdd"
             }
           ]
@@ -1578,7 +1447,6 @@
               ],
               "tag": "relax",
               "status": "none",
-              "rating": null,
               "dayId": "90245284-9604-4b45-86e9-80f8c1e92ab4"
             },
             {
@@ -1595,7 +1463,6 @@
               ],
               "tag": "walk",
               "status": "none",
-              "rating": null,
               "dayId": "90245284-9604-4b45-86e9-80f8c1e92ab4"
             },
             {
@@ -1612,7 +1479,6 @@
               ],
               "tag": "transport",
               "status": "none",
-              "rating": null,
               "dayId": "90245284-9604-4b45-86e9-80f8c1e92ab4"
             }
           ]
@@ -1650,7 +1516,6 @@
               ],
               "tag": "transport",
               "status": "none",
-              "rating": null,
               "dayId": "420531c8-ed0a-4ae5-beb4-3fb4019c7709"
             },
             {
@@ -1676,7 +1541,6 @@
               ],
               "tag": "transport",
               "status": "none",
-              "rating": null,
               "dayId": "420531c8-ed0a-4ae5-beb4-3fb4019c7709"
             },
             {
@@ -1701,7 +1565,6 @@
               ],
               "tag": "attraction",
               "status": "none",
-              "rating": null,
               "dayId": "420531c8-ed0a-4ae5-beb4-3fb4019c7709"
             },
             {
@@ -1718,7 +1581,6 @@
               ],
               "tag": "transport",
               "status": "none",
-              "rating": null,
               "dayId": "420531c8-ed0a-4ae5-beb4-3fb4019c7709"
             },
             {
@@ -1742,7 +1604,6 @@
               ],
               "tag": "food",
               "status": "none",
-              "rating": null,
               "dayId": "420531c8-ed0a-4ae5-beb4-3fb4019c7709"
             }
           ]
@@ -1771,7 +1632,6 @@
               ],
               "tag": "relax",
               "status": "none",
-              "rating": null,
               "dayId": "7ef574e3-b6a1-45f2-806f-5b778ef0ed82"
             },
             {
@@ -1797,7 +1657,6 @@
               ],
               "tag": "attraction",
               "status": "none",
-              "rating": null,
               "dayId": "7ef574e3-b6a1-45f2-806f-5b778ef0ed82"
             },
             {
@@ -1823,7 +1682,6 @@
               ],
               "tag": "walk",
               "status": "none",
-              "rating": null,
               "dayId": "7ef574e3-b6a1-45f2-806f-5b778ef0ed82"
             },
             {
@@ -1852,7 +1710,6 @@
               ],
               "tag": "food",
               "status": "none",
-              "rating": null,
               "dayId": "7ef574e3-b6a1-45f2-806f-5b778ef0ed82"
             },
             {
@@ -1869,7 +1726,6 @@
               ],
               "tag": "transport",
               "status": "none",
-              "rating": null,
               "dayId": "7ef574e3-b6a1-45f2-806f-5b778ef0ed82"
             }
           ]
@@ -4071,7 +3927,6 @@
               ],
               "tag": "transport",
               "status": "none",
-              "rating": null,
               "dayId": "6d579741-3b24-4d6f-8ca1-3fa26fc0e1f0"
             },
             {
@@ -4088,7 +3943,6 @@
               ],
               "tag": "transport",
               "status": "none",
-              "rating": null,
               "dayId": "6d579741-3b24-4d6f-8ca1-3fa26fc0e1f0"
             },
             {
@@ -4134,7 +3988,6 @@
               ],
               "tag": "relax",
               "status": "none",
-              "rating": null,
               "dayId": "6d579741-3b24-4d6f-8ca1-3fa26fc0e1f0"
             },
             {
@@ -4299,7 +4152,6 @@
               ],
               "tag": "walk",
               "status": "none",
-              "rating": null,
               "dayId": "6d579741-3b24-4d6f-8ca1-3fa26fc0e1f0"
             },
             {
@@ -4402,7 +4254,6 @@
               ],
               "tag": "walk",
               "status": "none",
-              "rating": null,
               "dayId": "6d579741-3b24-4d6f-8ca1-3fa26fc0e1f0"
             },
             {
@@ -4545,7 +4396,6 @@
               ],
               "tag": "food",
               "status": "none",
-              "rating": null,
               "dayId": "6d579741-3b24-4d6f-8ca1-3fa26fc0e1f0"
             },
             {
@@ -4562,7 +4412,6 @@
               ],
               "tag": "relax",
               "status": "none",
-              "rating": null,
               "dayId": "6d579741-3b24-4d6f-8ca1-3fa26fc0e1f0"
             }
           ]
@@ -4607,7 +4456,6 @@
               ],
               "tag": "food",
               "status": "none",
-              "rating": null,
               "dayId": "06fb16c2-edb7-41d3-a3a7-4adf3c066c0d"
             },
             {
@@ -4903,7 +4751,6 @@
               ],
               "tag": "transport",
               "status": "none",
-              "rating": null,
               "dayId": "06fb16c2-edb7-41d3-a3a7-4adf3c066c0d"
             },
             {
@@ -4938,7 +4785,6 @@
               ],
               "tag": "attraction",
               "status": "none",
-              "rating": null,
               "dayId": "06fb16c2-edb7-41d3-a3a7-4adf3c066c0d"
             },
             {
@@ -4955,7 +4801,6 @@
               ],
               "tag": "attraction",
               "status": "none",
-              "rating": null,
               "dayId": "06fb16c2-edb7-41d3-a3a7-4adf3c066c0d"
             },
             {
@@ -4972,7 +4817,6 @@
               ],
               "tag": "food",
               "status": "none",
-              "rating": null,
               "dayId": "06fb16c2-edb7-41d3-a3a7-4adf3c066c0d"
             },
             {
@@ -5028,7 +4872,6 @@
               ],
               "tag": "attraction",
               "status": "none",
-              "rating": null,
               "dayId": "06fb16c2-edb7-41d3-a3a7-4adf3c066c0d"
             },
             {
@@ -5039,7 +4882,6 @@
               "sections": [],
               "tag": "relax",
               "status": "none",
-              "rating": null,
               "dayId": "06fb16c2-edb7-41d3-a3a7-4adf3c066c0d"
             },
             {
@@ -5094,7 +4936,6 @@
               ],
               "tag": "food",
               "status": "none",
-              "rating": null,
               "dayId": "06fb16c2-edb7-41d3-a3a7-4adf3c066c0d"
             }
           ]
@@ -5133,7 +4974,6 @@
               "sections": [],
               "tag": "food",
               "status": "none",
-              "rating": null,
               "dayId": "7b852fc8-c54f-4510-b337-e8d81371f71d"
             },
             {
@@ -5150,7 +4990,6 @@
               ],
               "tag": "transport",
               "status": "none",
-              "rating": null,
               "dayId": "7b852fc8-c54f-4510-b337-e8d81371f71d"
             },
             {
@@ -5206,7 +5045,6 @@
               ],
               "tag": "attraction",
               "status": "none",
-              "rating": null,
               "dayId": "7b852fc8-c54f-4510-b337-e8d81371f71d"
             },
             {
@@ -5223,7 +5061,6 @@
               ],
               "tag": "food",
               "status": "none",
-              "rating": null,
               "dayId": "7b852fc8-c54f-4510-b337-e8d81371f71d"
             },
             {
@@ -5447,7 +5284,6 @@
               ],
               "tag": "attraction",
               "status": "none",
-              "rating": null,
               "dayId": "7b852fc8-c54f-4510-b337-e8d81371f71d"
             },
             {
@@ -5735,7 +5571,6 @@
               ],
               "tag": "food",
               "status": "none",
-              "rating": null,
               "dayId": "7b852fc8-c54f-4510-b337-e8d81371f71d"
             },
             {
@@ -5752,7 +5587,6 @@
               ],
               "tag": "relax",
               "status": "none",
-              "rating": null,
               "dayId": "7b852fc8-c54f-4510-b337-e8d81371f71d"
             }
           ]
@@ -5797,7 +5631,6 @@
               ],
               "tag": "relax",
               "status": "none",
-              "rating": null,
               "dayId": "8a8248ab-b061-49bf-9abb-65207257a667"
             },
             {
@@ -5822,7 +5655,6 @@
               ],
               "tag": "transport",
               "status": "none",
-              "rating": null,
               "dayId": "8a8248ab-b061-49bf-9abb-65207257a667"
             },
             {
@@ -5839,7 +5671,6 @@
               ],
               "tag": "transport",
               "status": "none",
-              "rating": null,
               "dayId": "8a8248ab-b061-49bf-9abb-65207257a667"
             },
             {
@@ -5886,7 +5717,6 @@
               ],
               "tag": "transport",
               "status": "none",
-              "rating": null,
               "dayId": "8a8248ab-b061-49bf-9abb-65207257a667"
             },
             {
@@ -5934,7 +5764,6 @@
               ],
               "tag": "transport",
               "status": "none",
-              "rating": null,
               "dayId": "8a8248ab-b061-49bf-9abb-65207257a667"
             },
             {
@@ -5951,7 +5780,6 @@
               ],
               "tag": "relax",
               "status": "none",
-              "rating": null,
               "dayId": "8a8248ab-b061-49bf-9abb-65207257a667"
             },
             {
@@ -5968,7 +5796,6 @@
               ],
               "tag": "food",
               "status": "none",
-              "rating": null,
               "dayId": "8a8248ab-b061-49bf-9abb-65207257a667"
             }
           ]
@@ -6013,7 +5840,6 @@
               ],
               "tag": "food",
               "status": "none",
-              "rating": null,
               "dayId": "41fb99f6-e7a6-4d9e-be04-c9fc7d6eda9a"
             },
             {
@@ -6086,7 +5912,6 @@
               ],
               "tag": "transport",
               "status": "none",
-              "rating": null,
               "dayId": "41fb99f6-e7a6-4d9e-be04-c9fc7d6eda9a"
             },
             {
@@ -6121,7 +5946,6 @@
               ],
               "tag": "attraction",
               "status": "none",
-              "rating": null,
               "dayId": "41fb99f6-e7a6-4d9e-be04-c9fc7d6eda9a"
             },
             {
@@ -6155,7 +5979,6 @@
               ],
               "tag": "attraction",
               "status": "none",
-              "rating": null,
               "dayId": "41fb99f6-e7a6-4d9e-be04-c9fc7d6eda9a"
             },
             {
@@ -6172,7 +5995,6 @@
               ],
               "tag": "food",
               "status": "none",
-              "rating": null,
               "dayId": "41fb99f6-e7a6-4d9e-be04-c9fc7d6eda9a"
             },
             {
@@ -6205,7 +6027,6 @@
               ],
               "tag": "attraction",
               "status": "none",
-              "rating": null,
               "dayId": "41fb99f6-e7a6-4d9e-be04-c9fc7d6eda9a"
             },
             {
@@ -6260,7 +6081,6 @@
               ],
               "tag": "transport",
               "status": "none",
-              "rating": null,
               "dayId": "41fb99f6-e7a6-4d9e-be04-c9fc7d6eda9a"
             },
             {
@@ -6277,7 +6097,6 @@
               ],
               "tag": "transport",
               "status": "none",
-              "rating": null,
               "dayId": "41fb99f6-e7a6-4d9e-be04-c9fc7d6eda9a"
             },
             {
@@ -6294,7 +6113,6 @@
               ],
               "tag": "relax",
               "status": "none",
-              "rating": null,
               "dayId": "41fb99f6-e7a6-4d9e-be04-c9fc7d6eda9a"
             },
             {
@@ -6349,7 +6167,6 @@
               ],
               "tag": "attraction",
               "status": "none",
-              "rating": null,
               "dayId": "41fb99f6-e7a6-4d9e-be04-c9fc7d6eda9a"
             },
             {
@@ -6366,7 +6183,6 @@
               ],
               "tag": "relax",
               "status": "none",
-              "rating": null,
               "dayId": "41fb99f6-e7a6-4d9e-be04-c9fc7d6eda9a"
             }
           ]
@@ -6418,7 +6234,6 @@
               ],
               "tag": "food",
               "status": "none",
-              "rating": null,
               "dayId": "d2c1b2a3-f4e5-4d6c-8b9a-0c1d2e3f4a5b"
             },
             {
@@ -6487,7 +6302,6 @@
               ],
               "tag": "transport",
               "status": "none",
-              "rating": null,
               "dayId": "d2c1b2a3-f4e5-4d6c-8b9a-0c1d2e3f4a5b"
             },
             {
@@ -6522,7 +6336,6 @@
               ],
               "tag": "attraction",
               "status": "none",
-              "rating": null,
               "dayId": "d2c1b2a3-f4e5-4d6c-8b9a-0c1d2e3f4a5b"
             },
             {
@@ -7823,7 +7636,6 @@
               ],
               "tag": "attraction",
               "status": "none",
-              "rating": null,
               "dayId": "d2c1b2a3-f4e5-4d6c-8b9a-0c1d2e3f4a5b"
             },
             {
@@ -8443,7 +8255,6 @@
               ],
               "tag": "attraction",
               "status": "none",
-              "rating": null,
               "dayId": "d2c1b2a3-f4e5-4d6c-8b9a-0c1d2e3f4a5b"
             },
             {
@@ -8460,7 +8271,6 @@
               ],
               "tag": "food",
               "status": "none",
-              "rating": null,
               "dayId": "d2c1b2a3-f4e5-4d6c-8b9a-0c1d2e3f4a5b"
             },
             {
@@ -9762,7 +9572,6 @@
               ],
               "tag": "attraction",
               "status": "none",
-              "rating": null,
               "dayId": "d2c1b2a3-f4e5-4d6c-8b9a-0c1d2e3f4a5b"
             },
             {
@@ -10088,7 +9897,6 @@
               ],
               "tag": "transport",
               "status": "none",
-              "rating": null,
               "dayId": "d2c1b2a3-f4e5-4d6c-8b9a-0c1d2e3f4a5b"
             },
             {
@@ -10105,7 +9913,6 @@
               ],
               "tag": "transport",
               "status": "none",
-              "rating": null,
               "dayId": "d2c1b2a3-f4e5-4d6c-8b9a-0c1d2e3f4a5b"
             },
             {
@@ -10122,7 +9929,6 @@
               ],
               "tag": "transport",
               "status": "none",
-              "rating": null,
               "dayId": "d2c1b2a3-f4e5-4d6c-8b9a-0c1d2e3f4a5b"
             },
             {
@@ -10133,7 +9939,6 @@
               "sections": [],
               "tag": "relax",
               "status": "none",
-              "rating": null,
               "dayId": "d2c1b2a3-f4e5-4d6c-8b9a-0c1d2e3f4a5b"
             }
           ]
@@ -10178,7 +9983,6 @@
               ],
               "tag": "food",
               "status": "none",
-              "rating": null,
               "dayId": "e3d2c1b4-a5f6-4e7d-9c0b-1d2e3f4a5b6c"
             },
             {
@@ -10233,7 +10037,6 @@
               ],
               "tag": "transport",
               "status": "none",
-              "rating": null,
               "dayId": "e3d2c1b4-a5f6-4e7d-9c0b-1d2e3f4a5b6c"
             },
             {
@@ -10557,7 +10360,6 @@
               ],
               "tag": "walk",
               "status": "none",
-              "rating": null,
               "dayId": "e3d2c1b4-a5f6-4e7d-9c0b-1d2e3f4a5b6c"
             },
             {
@@ -11309,7 +11111,6 @@
               ],
               "tag": "attraction",
               "status": "none",
-              "rating": null,
               "dayId": "e3d2c1b4-a5f6-4e7d-9c0b-1d2e3f4a5b6c"
             },
             {
@@ -11326,7 +11127,6 @@
               ],
               "tag": "food",
               "status": "none",
-              "rating": null,
               "dayId": "e3d2c1b4-a5f6-4e7d-9c0b-1d2e3f4a5b6c"
             },
             {
@@ -11990,7 +11790,6 @@
               ],
               "tag": "walk",
               "status": "none",
-              "rating": null,
               "dayId": "e3d2c1b4-a5f6-4e7d-9c0b-1d2e3f4a5b6c"
             },
             {
@@ -13134,7 +12933,6 @@
               ],
               "tag": "transport",
               "status": "none",
-              "rating": null,
               "dayId": "e3d2c1b4-a5f6-4e7d-9c0b-1d2e3f4a5b6c"
             },
             {
@@ -13151,7 +12949,6 @@
               ],
               "tag": "transport",
               "status": "none",
-              "rating": null,
               "dayId": "e3d2c1b4-a5f6-4e7d-9c0b-1d2e3f4a5b6c"
             },
             {
@@ -13162,7 +12959,6 @@
               "sections": [],
               "tag": "relax",
               "status": "none",
-              "rating": null,
               "dayId": "e3d2c1b4-a5f6-4e7d-9c0b-1d2e3f4a5b6c"
             }
           ]
@@ -13207,7 +13003,6 @@
               ],
               "tag": "food",
               "status": "none",
-              "rating": null,
               "dayId": "f4e3d2c5-b6a7-4f8e-a0d1-2e3f4a5b6c7d"
             },
             {
@@ -13224,7 +13019,6 @@
               ],
               "tag": "relax",
               "status": "none",
-              "rating": null,
               "dayId": "f4e3d2c5-b6a7-4f8e-a0d1-2e3f4a5b6c7d"
             },
             {
@@ -13270,7 +13064,6 @@
               ],
               "tag": "transport",
               "status": "none",
-              "rating": null,
               "dayId": "f4e3d2c5-b6a7-4f8e-a0d1-2e3f4a5b6c7d"
             },
             {
@@ -13325,7 +13118,6 @@
               ],
               "tag": "transport",
               "status": "none",
-              "rating": null,
               "dayId": "f4e3d2c5-b6a7-4f8e-a0d1-2e3f4a5b6c7d"
             },
             {
@@ -13374,7 +13166,6 @@
               ],
               "tag": "transport",
               "status": "none",
-              "rating": null,
               "dayId": "f4e3d2c5-b6a7-4f8e-a0d1-2e3f4a5b6c7d"
             },
             {
@@ -13391,7 +13182,6 @@
               ],
               "tag": "food",
               "status": "none",
-              "rating": null,
               "dayId": "f4e3d2c5-b6a7-4f8e-a0d1-2e3f4a5b6c7d"
             },
             {
@@ -13449,7 +13239,6 @@
               ],
               "tag": "attraction",
               "status": "none",
-              "rating": null,
               "dayId": "f4e3d2c5-b6a7-4f8e-a0d1-2e3f4a5b6c7d"
             },
             {
@@ -13466,7 +13255,6 @@
               ],
               "tag": "relax",
               "status": "none",
-              "rating": null,
               "dayId": "f4e3d2c5-b6a7-4f8e-a0d1-2e3f4a5b6c7d"
             },
             {
@@ -13483,7 +13271,6 @@
               ],
               "tag": "attraction",
               "status": "none",
-              "rating": null,
               "dayId": "f4e3d2c5-b6a7-4f8e-a0d1-2e3f4a5b6c7d"
             }
           ]
@@ -13528,7 +13315,6 @@
               ],
               "tag": "relax",
               "status": "none",
-              "rating": null,
               "dayId": "a5f4e3d6-c7b8-4a9f-b1e2-3f4a5b6c7d8e"
             },
             {
@@ -13545,7 +13331,6 @@
               ],
               "tag": "transport",
               "status": "none",
-              "rating": null,
               "dayId": "a5f4e3d6-c7b8-4a9f-b1e2-3f4a5b6c7d8e"
             },
             {
@@ -13590,7 +13375,6 @@
               ],
               "tag": "transport",
               "status": "none",
-              "rating": null,
               "dayId": "a5f4e3d6-c7b8-4a9f-b1e2-3f4a5b6c7d8e"
             },
             {
@@ -13640,7 +13424,6 @@
               ],
               "tag": "transport",
               "status": "none",
-              "rating": null,
               "dayId": "a5f4e3d6-c7b8-4a9f-b1e2-3f4a5b6c7d8e"
             },
             {
@@ -13657,7 +13440,6 @@
               ],
               "tag": "food",
               "status": "none",
-              "rating": null,
               "dayId": "a5f4e3d6-c7b8-4a9f-b1e2-3f4a5b6c7d8e"
             },
             {
@@ -13873,7 +13655,6 @@
               ],
               "tag": "attraction",
               "status": "none",
-              "rating": null,
               "dayId": "a5f4e3d6-c7b8-4a9f-b1e2-3f4a5b6c7d8e"
             }
           ]
@@ -13918,7 +13699,6 @@
               ],
               "tag": "transport",
               "status": "none",
-              "rating": null,
               "dayId": "32bcabf2-fa72-43f5-8a45-269dc59dea0b"
             },
             {
@@ -13976,7 +13756,6 @@
               ],
               "tag": "attraction",
               "status": "none",
-              "rating": null,
               "dayId": "32bcabf2-fa72-43f5-8a45-269dc59dea0b"
             },
             {
@@ -14128,7 +13907,6 @@
               ],
               "tag": "food",
               "status": "none",
-              "rating": null,
               "dayId": "32bcabf2-fa72-43f5-8a45-269dc59dea0b"
             },
             {
@@ -14184,7 +13962,6 @@
               ],
               "tag": "attraction",
               "status": "none",
-              "rating": null,
               "dayId": "32bcabf2-fa72-43f5-8a45-269dc59dea0b"
             },
             {
@@ -14766,7 +14543,6 @@
               ],
               "tag": "walk",
               "status": "none",
-              "rating": null,
               "dayId": "32bcabf2-fa72-43f5-8a45-269dc59dea0b"
             },
             {
@@ -15083,7 +14859,6 @@
               ],
               "tag": "walk",
               "status": "none",
-              "rating": null,
               "dayId": "32bcabf2-fa72-43f5-8a45-269dc59dea0b"
             },
             {
@@ -15139,7 +14914,6 @@
               ],
               "tag": "attraction",
               "status": "none",
-              "rating": null,
               "dayId": "32bcabf2-fa72-43f5-8a45-269dc59dea0b"
             },
             {
@@ -15196,7 +14970,6 @@
               ],
               "tag": "attraction",
               "status": "none",
-              "rating": null,
               "dayId": "32bcabf2-fa72-43f5-8a45-269dc59dea0b"
             },
             {
@@ -15252,7 +15025,6 @@
               ],
               "tag": "attraction",
               "status": "none",
-              "rating": null,
               "dayId": "32bcabf2-fa72-43f5-8a45-269dc59dea0b"
             },
             {
@@ -15450,7 +15222,6 @@
               ],
               "tag": "walk",
               "status": "none",
-              "rating": null,
               "dayId": "32bcabf2-fa72-43f5-8a45-269dc59dea0b"
             },
             {
@@ -15507,7 +15278,6 @@
               ],
               "tag": "attraction",
               "status": "none",
-              "rating": null,
               "dayId": "32bcabf2-fa72-43f5-8a45-269dc59dea0b"
             }
           ]
@@ -15546,7 +15316,6 @@
               "sections": [],
               "tag": "food",
               "status": "none",
-              "rating": null,
               "dayId": "d2e50cb1-8a59-41bc-a015-d06f260c62b0"
             },
             {
@@ -15778,7 +15547,6 @@
               ],
               "tag": "attraction",
               "status": "none",
-              "rating": null,
               "dayId": "d2e50cb1-8a59-41bc-a015-d06f260c62b0"
             },
             {
@@ -16128,7 +15896,6 @@
               ],
               "tag": "attraction",
               "status": "none",
-              "rating": null,
               "dayId": "d2e50cb1-8a59-41bc-a015-d06f260c62b0"
             },
             {
@@ -16184,7 +15951,6 @@
               ],
               "tag": "attraction",
               "status": "none",
-              "rating": null,
               "dayId": "d2e50cb1-8a59-41bc-a015-d06f260c62b0"
             },
             {
@@ -16384,7 +16150,6 @@
               ],
               "tag": "attraction",
               "status": "none",
-              "rating": null,
               "dayId": "d2e50cb1-8a59-41bc-a015-d06f260c62b0"
             },
             {
@@ -16442,7 +16207,6 @@
               ],
               "tag": "attraction",
               "status": "none",
-              "rating": null,
               "dayId": "d2e50cb1-8a59-41bc-a015-d06f260c62b0"
             },
             {
@@ -16459,7 +16223,6 @@
               ],
               "tag": "transport",
               "status": "none",
-              "rating": null,
               "dayId": "d2e50cb1-8a59-41bc-a015-d06f260c62b0"
             }
           ]
@@ -16498,7 +16261,6 @@
               "sections": [],
               "tag": "food",
               "status": "none",
-              "rating": null,
               "dayId": "0e320e56-ff56-47d2-86d4-b4e2eb6a0f20"
             },
             {
@@ -16535,7 +16297,6 @@
               ],
               "tag": "attraction",
               "status": "none",
-              "rating": null,
               "dayId": "0e320e56-ff56-47d2-86d4-b4e2eb6a0f20"
             },
             {
@@ -16552,7 +16313,6 @@
               ],
               "tag": "food",
               "status": "none",
-              "rating": null,
               "dayId": "0e320e56-ff56-47d2-86d4-b4e2eb6a0f20"
             },
             {
@@ -16588,7 +16348,6 @@
               ],
               "tag": "walk",
               "status": "none",
-              "rating": null,
               "dayId": "0e320e56-ff56-47d2-86d4-b4e2eb6a0f20"
             },
             {
@@ -16624,7 +16383,6 @@
               ],
               "tag": "attraction",
               "status": "none",
-              "rating": null,
               "dayId": "0e320e56-ff56-47d2-86d4-b4e2eb6a0f20"
             },
             {
@@ -16660,7 +16418,6 @@
               ],
               "tag": "walk",
               "status": "none",
-              "rating": null,
               "dayId": "0e320e56-ff56-47d2-86d4-b4e2eb6a0f20"
             },
             {
@@ -16688,7 +16445,6 @@
               ],
               "tag": "food",
               "status": "none",
-              "rating": null,
               "dayId": "0e320e56-ff56-47d2-86d4-b4e2eb6a0f20"
             },
             {
@@ -16705,7 +16461,6 @@
               ],
               "tag": "attraction",
               "status": "none",
-              "rating": null,
               "dayId": "0e320e56-ff56-47d2-86d4-b4e2eb6a0f20"
             },
             {
@@ -16722,7 +16477,6 @@
               ],
               "tag": "transport",
               "status": "none",
-              "rating": null,
               "dayId": "0e320e56-ff56-47d2-86d4-b4e2eb6a0f20"
             }
           ]
@@ -16761,7 +16515,6 @@
               "sections": [],
               "tag": "food",
               "status": "none",
-              "rating": null,
               "dayId": "4c333329-34a9-408e-b9b0-eda1979e5aba"
             },
             {
@@ -16797,7 +16550,6 @@
               ],
               "tag": "attraction",
               "status": "none",
-              "rating": null,
               "dayId": "4c333329-34a9-408e-b9b0-eda1979e5aba"
             },
             {
@@ -16824,7 +16576,6 @@
               ],
               "tag": "attraction",
               "status": "none",
-              "rating": null,
               "dayId": "4c333329-34a9-408e-b9b0-eda1979e5aba"
             },
             {
@@ -16841,7 +16592,6 @@
               ],
               "tag": "food",
               "status": "none",
-              "rating": null,
               "dayId": "4c333329-34a9-408e-b9b0-eda1979e5aba"
             },
             {
@@ -16867,7 +16617,6 @@
               ],
               "tag": "transport",
               "status": "none",
-              "rating": null,
               "dayId": "4c333329-34a9-408e-b9b0-eda1979e5aba"
             },
             {
@@ -16902,7 +16651,6 @@
               ],
               "tag": "attraction",
               "status": "none",
-              "rating": null,
               "dayId": "4c333329-34a9-408e-b9b0-eda1979e5aba"
             },
             {
@@ -16919,7 +16667,6 @@
               ],
               "tag": "food",
               "status": "none",
-              "rating": null,
               "dayId": "4c333329-34a9-408e-b9b0-eda1979e5aba"
             },
             {
@@ -16936,7 +16683,6 @@
               ],
               "tag": "transport",
               "status": "none",
-              "rating": null,
               "dayId": "4c333329-34a9-408e-b9b0-eda1979e5aba"
             }
           ]
@@ -16975,7 +16721,6 @@
               "sections": [],
               "tag": "food",
               "status": "none",
-              "rating": null,
               "dayId": "7a269a77-6621-4518-a819-c85de6d1f009"
             },
             {
@@ -16992,7 +16737,6 @@
               ],
               "tag": "relax",
               "status": "none",
-              "rating": null,
               "dayId": "7a269a77-6621-4518-a819-c85de6d1f009"
             },
             {
@@ -17050,7 +16794,6 @@
               ],
               "tag": "attraction",
               "status": "none",
-              "rating": null,
               "dayId": "7a269a77-6621-4518-a819-c85de6d1f009"
             },
             {
@@ -17097,7 +16840,6 @@
               ],
               "tag": "walk",
               "status": "none",
-              "rating": null,
               "dayId": "7a269a77-6621-4518-a819-c85de6d1f009"
             },
             {
@@ -17167,7 +16909,6 @@
               ],
               "tag": "walk",
               "status": "none",
-              "rating": null,
               "dayId": "7a269a77-6621-4518-a819-c85de6d1f009"
             },
             {
@@ -17184,7 +16925,6 @@
               ],
               "tag": "food",
               "status": "none",
-              "rating": null,
               "dayId": "7a269a77-6621-4518-a819-c85de6d1f009"
             },
             {
@@ -17366,7 +17106,6 @@
               ],
               "tag": "walk",
               "status": "none",
-              "rating": null,
               "dayId": "7a269a77-6621-4518-a819-c85de6d1f009"
             },
             {
@@ -17422,7 +17161,6 @@
               ],
               "tag": "attraction",
               "status": "none",
-              "rating": null,
               "dayId": "7a269a77-6621-4518-a819-c85de6d1f009"
             },
             {
@@ -17439,7 +17177,6 @@
               ],
               "tag": "transport",
               "status": "none",
-              "rating": null,
               "dayId": "7a269a77-6621-4518-a819-c85de6d1f009"
             }
           ]
@@ -17484,7 +17221,6 @@
               ],
               "tag": "relax",
               "status": "none",
-              "rating": null,
               "dayId": "a8e8ea55-a1f4-4bab-9ae3-e05557860e09"
             },
             {
@@ -17501,7 +17237,6 @@
               ],
               "tag": "relax",
               "status": "none",
-              "rating": null,
               "dayId": "a8e8ea55-a1f4-4bab-9ae3-e05557860e09"
             },
             {
@@ -17539,7 +17274,6 @@
               ],
               "tag": "transport",
               "status": "none",
-              "rating": null,
               "dayId": "a8e8ea55-a1f4-4bab-9ae3-e05557860e09"
             },
             {
@@ -17556,7 +17290,6 @@
               ],
               "tag": "transport",
               "status": "none",
-              "rating": null,
               "dayId": "a8e8ea55-a1f4-4bab-9ae3-e05557860e09"
             },
             {
@@ -17573,7 +17306,6 @@
               ],
               "tag": "transport",
               "status": "none",
-              "rating": null,
               "dayId": "a8e8ea55-a1f4-4bab-9ae3-e05557860e09"
             }
           ]

@@ -2,6 +2,8 @@ export enum AppRouteNames {
   Root = 'root',
   About = 'about',
   UsefulLinks = 'useful-links',
+  Terms = 'terms',
+  Privacy = 'privacy',
 
   NotFound = 'not-found',
 
@@ -18,6 +20,8 @@ export enum AppRouteNames {
   UserQuota = 'user-quota',
   UserStorage = 'user-storage',
 
+  PostList = 'post-list',
+
   Explore = 'explore',
 }
 
@@ -25,6 +29,8 @@ export const AppRoutePaths = {
   Root: '/',
   About: '/about',
   UsefulLinks: '/useful-links',
+  Terms: '/terms',
+  Privacy: '/privacy',
 
   NotFound: '/:catchAll(.*)?',
 
@@ -45,6 +51,10 @@ export const AppRoutePaths = {
     Settings: (id: string) => `/user/${id}/settings`,
     Quota: (id: string) => `/user/${id}/quota`,
     Storage: (id: string) => `/user/${id}/storage`,
+  },
+
+  Post: {
+    List: () => `/post/list`,
   },
 
   Explore: '/explore',

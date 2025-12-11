@@ -12,8 +12,9 @@ export type Coordinate = [number, number]
  * - `start`: Начальная точка маршрута.
  * - `via`: Промежуточная точка маршрута.
  * - `end`: Конечная точка маршрута.
+ * - `connect`: Соединительная точка (без мета-информации).
  */
-export type PointType = 'poi' | 'start' | 'via' | 'end'
+export type PointType = 'poi' | 'start' | 'via' | 'end' | 'connect'
 
 /**
  * Стиль для маркера на карте.

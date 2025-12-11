@@ -92,3 +92,12 @@ export const RefreshOutputSchema = z.object({
 export const UserStatsSchema = z.object({
   trips: z.number(),
 })
+
+export const SuccessResponseSchema = z.object({
+  success: z.boolean(),
+  message: z.string().optional(),
+})
+
+export const SignOutResponseSchema = z.object({
+  ok: z.boolean(),
+})

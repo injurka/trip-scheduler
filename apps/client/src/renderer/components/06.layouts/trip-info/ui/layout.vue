@@ -6,6 +6,7 @@ import { KitDialogWithClose } from '~/components/01.kit/kit-dialog-with-close'
 import { KitDivider } from '~/components/01.kit/kit-divider'
 import { KitDrawer } from '~/components/01.kit/kit-drawer'
 import { KitInput } from '~/components/01.kit/kit-input'
+import { KitSkeleton } from '~/components/01.kit/kit-skeleton'
 import { AppFooter } from '~/components/02.shared/app-footer'
 import { AppHeader } from '~/components/02.shared/app-header'
 import { BackgroundEffects } from '~/components/02.shared/background-effects'
@@ -30,6 +31,8 @@ const { canEdit } = useTripPermissions()
 
 const tripId = computed(() => route.params.id as string)
 const dayId = computed(() => route.query.day as string)
+
+const { isLoading: isTripLoading } = storeToRefs(plan)
 
 if (tripId.value) {
   plan.fetchTripDetails(
@@ -79,55 +82,65 @@ onBeforeUnmount(() => {
         </div>
 
         <div ref="navigationWrapperRef" class="navigation-wrapper">
-          <button class="nav-arrow left" title="Предыдущая секция" @click="layout.navigate('prev')">
-            <Icon icon="mdi:chevron-left" />
-          </button>
+          <template v-if="isTripLoading">
+            <KitSkeleton width="250px" height="40px" border-radius="12px" />
+          </template>
+          <template v-else>
+            <button class="nav-arrow left" title="Предыдущая секция" @click="layout.navigate('prev')">
+              <Icon icon="mdi:chevron-left" />
+            </button>
 
-          <div v-ripple class="current-section" @click="layout.handleCurrentSectionClick">
-            <Icon v-if="layout.activeTab.value?.icon" :icon="layout.activeTab.value.icon" class="current-section-icon" />
-            <h1 class="current-section-title">
-              {{ layout.activeTab.value?.label }}
-            </h1>
-            <Icon icon="mdi:chevron-down" class="chevron-icon" :class="{ 'is-open': layout.isLayoutDropdownOpen.value }" />
-          </div>
-
-          <button class="nav-arrow right" title="Следующая секция" @click="layout.navigate('next')">
-            <Icon icon="mdi:chevron-right" />
-          </button>
-
-          <Transition name="fade-dropdown">
-            <div v-if="!layout.isMobile.value && layout.isLayoutDropdownOpen.value" class="sections-dropdown-panel">
-              <ul class="sections-list">
-                <li v-for="item in layout.tabItems.value" :key="item.id" @click="layout.selectSection(item.id)">
-                  <Icon :icon="item.icon!" class="section-item-icon" />
-                  <span>{{ item.label }}</span>
-                </li>
-              </ul>
-
-              <div v-if="store.auth.isAuthenticated" class="dropdown-footer">
-                <button class="add-section-btn" @click="ui.openAddSectionDialog">
-                  <Icon icon="mdi:plus-circle-outline" />
-                  <span>Добавить раздел</span>
-                </button>
-              </div>
+            <div v-ripple class="current-section" @click="layout.handleCurrentSectionClick">
+              <Icon v-if="layout.activeTab.value?.icon" :icon="layout.activeTab.value.icon" class="current-section-icon" />
+              <h1 class="current-section-title">
+                {{ layout.activeTab.value?.label }}
+              </h1>
+              <Icon icon="mdi:chevron-down" class="chevron-icon" :class="{ 'is-open': layout.isLayoutDropdownOpen.value }" />
             </div>
-          </Transition>
+
+            <button class="nav-arrow right" title="Следующая секция" @click="layout.navigate('next')">
+              <Icon icon="mdi:chevron-right" />
+            </button>
+
+            <Transition name="fade-dropdown">
+              <div v-if="!layout.isMobile.value && layout.isLayoutDropdownOpen.value" class="sections-dropdown-panel">
+                <ul class="sections-list">
+                  <li v-for="item in layout.tabItems.value" :key="item.id" @click="layout.selectSection(item.id)">
+                    <Icon :icon="item.icon!" class="section-item-icon" />
+                    <span>{{ item.label }}</span>
+                  </li>
+                </ul>
+
+                <div v-if="store.auth.isAuthenticated" class="dropdown-footer">
+                  <button class="add-section-btn" @click="ui.openAddSectionDialog">
+                    <Icon icon="mdi:plus-circle-outline" />
+                    <span>Добавить раздел</span>
+                  </button>
+                </div>
+              </div>
+            </Transition>
+          </template>
         </div>
 
         <div class="main-navigation-right">
-          <TripCommentsWidget
-            v-if="dayId && layout.activeTab.value?.id === 'daily-route'"
-            :parent-id="dayId"
-            :parent-type="CommentParentType.DAY"
-          />
-          <button
-            v-if="canEdit"
-            class="nav-button"
-            :title="ui.isViewMode ? 'Перейти в режим редактирования' : 'Перейти в режим просмотра'"
-            @click="toggleMode"
-          >
-            <Icon width="18" height="18" :icon="ui.isViewMode ? 'mdi:pencil-outline' : 'mdi:eye-outline'" />
-          </button>
+          <template v-if="isTripLoading">
+            <KitSkeleton width="40px" height="40px" border-radius="50%" />
+          </template>
+          <template v-else>
+            <TripCommentsWidget
+              v-if="dayId && layout.activeTab.value?.id === 'daily-route'"
+              :parent-id="dayId"
+              :parent-type="CommentParentType.DAY"
+            />
+            <button
+              v-if="canEdit"
+              class="nav-button"
+              :title="ui.isViewMode ? 'Перейти в режим редактирования' : 'Перейти в режим просмотра'"
+              @click="toggleMode"
+            >
+              <Icon width="18" height="18" :icon="ui.isViewMode ? 'mdi:pencil-outline' : 'mdi:eye-outline'" />
+            </button>
+          </template>
         </div>
       </div>
       <KitDivider class="trip-info-divider">

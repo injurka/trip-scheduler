@@ -1,13 +1,13 @@
 services:
   client:
-    image: trip-scheduler-client:${V_CLIENT:-latest}
+    image: injurka/trip-scheduler-client:${V_CLIENT:-latest}
     container_name: trip-scheduler-client
     ports:
       - "1420:1420"
     restart: always
 
   server:
-    image: trip-scheduler-server:${V_SERVER:-latest}
+    image: injurka/trip-scheduler-server:${V_SERVER:-latest}
     container_name: trip-scheduler-server
     ports:
       - "8080:8080"

@@ -22,6 +22,8 @@ const props = withDefaults(defineProps<Props>(), {
   participants: () => [],
   tags: () => [],
   isHighlight: false,
+  userRating: null,
+  averageRating: null,
 })
 
 const router = useRouter()
@@ -29,6 +31,7 @@ const tripsHub = inject(TripsHubKey)
 const confirm = useConfirm()
 const isMoreMenuOpen = ref(false)
 const isEditModalOpen = ref(false)
+const isRatingOpen = ref(false)
 
 function goTo() {
   router.push(AppRoutePaths.Trip.Info(`${props.id}`))
@@ -61,10 +64,32 @@ function handleSave(updatedData: UpdateTripInput) {
   }
 }
 
+function handleRatingSelect(ratingValue: number) {
+  if (tripsHub) {
+    tripsHub.rateTrip(props.id, ratingValue)
+  }
+  isRatingOpen.value = false
+}
+
 const moreMenuItems = computed((): KitDropdownItem<string>[] => [
   { value: 'edit', label: 'Редактировать', icon: 'mdi:pencil-outline' },
   { value: 'delete', label: 'Удалить', icon: 'mdi:trash-can-outline', isDestructive: true },
 ])
+
+const ratingOptions = [
+  { value: 5, label: 'Потрясающе', icon: 'mdi:emoticon-excited-outline', color: 'var(--fg-warning-color)' },
+  { value: 4, label: 'Отлично', icon: 'mdi:emoticon-happy-outline', color: 'var(--fg-success-color)' },
+  { value: 3, label: 'Нормально', icon: 'mdi:emoticon-neutral-outline', color: 'var(--fg-info-color)' },
+  { value: 2, label: 'Так себе', icon: 'mdi:emoticon-sad-outline', color: 'var(--fg-accent-color)' },
+  { value: 1, label: 'Плохо', icon: 'mdi:emoticon-dead-outline', color: 'var(--fg-error-color)' },
+]
+
+// Конфигурация для отображения ВАШЕЙ оценки
+const currentUserRatingConfig = computed(() => {
+  if (!props.userRating)
+    return null
+  return ratingOptions.find(opt => opt.value === props.userRating)
+})
 
 function handleMenuAction(action: string) {
   if (action === 'edit')
@@ -124,6 +149,12 @@ const visibilityIcon = computed(() => {
     default:
       return { icon: 'mdi:lock-outline', title: 'Приватное путешествие' }
   }
+})
+
+const formattedAverageRating = computed(() => {
+  if (!props.averageRating)
+    return null
+  return props.averageRating.toFixed(1)
 })
 </script>
 
@@ -197,42 +228,85 @@ const visibilityIcon = computed(() => {
         </div>
 
         <div class="card-footer">
-          <div v-if="participants.length" class="card-participants">
-            <KitAnimatedTooltip
-              v-for="participant in participants"
-              :key="participant.id"
-              :name="participant.name"
-              :offset="10"
-              class="participant-wrapper"
-            >
-              <!-- Добавлен модификатор .stop -->
-              <KitAvatar
+          <div class="card-participants">
+            <div v-if="participants.length" class="participants-list">
+              <KitAnimatedTooltip
+                v-for="participant in participants"
+                :key="participant.id"
                 :name="participant.name"
-                :src="participant.avatarUrl"
-                class="clickable-avatar"
-                @click.stop="navigateToProfile(participant.id)"
-              />
-            </KitAnimatedTooltip>
+                :offset="10"
+                class="participant-wrapper"
+              >
+                <KitAvatar
+                  :name="participant.name"
+                  :src="participant.avatarUrl"
+                  class="clickable-avatar"
+                  @click.stop="navigateToProfile(participant.id)"
+                />
+              </KitAnimatedTooltip>
 
-            <KitAvatar
-              v-if="participants.length > 3"
-              class="participant-avatar"
-              is-more
-            >
-              +{{ participants.length - 3 }}
-            </KitAvatar>
-          </div>
-          <div class="card-footer-right">
-            <div v-if="tags?.length" class="card-tags">
-              <span v-for="tag in tags.slice(0, 2)" :key="tag" class="tag">
-                {{ tag }}
-              </span>
+              <KitAvatar
+                v-if="participants.length > 3"
+                class="participant-avatar"
+                is-more
+              >
+                +{{ participants.length - 3 }}
+              </KitAvatar>
             </div>
+            <div v-else class="no-participants">
+              <Icon icon="mdi:account-outline" />
+              <span>Нет участников</span>
+            </div>
+          </div>
+
+          <div class="card-footer-right">
             <TripCommentsWidget
               :parent-id="id"
               :parent-type="CommentParentType.TRIP"
               @click.stop
             />
+
+            <KitDropdown v-model:open="isRatingOpen" align="end">
+              <template #trigger>
+                <button
+                  class="combined-rating-btn"
+                  :class="{ 'has-user-rating': !!userRating }"
+                  title="Оценить"
+                  @click.stop.prevent
+                >
+                  <!-- Часть со средним рейтингом -->
+                  <div v-if="formattedAverageRating" class="average-rating-part">
+                    <Icon icon="mdi:star" />
+                    <span>{{ formattedAverageRating }}</span>
+                  </div>
+
+                  <!-- Разделитель -->
+                  <div v-if="formattedAverageRating" class="divider" />
+
+                  <!-- Часть с оценкой пользователя -->
+                  <div
+                    class="user-rating-part"
+                    :style="userRating ? { color: currentUserRatingConfig?.color } : {}"
+                  >
+                    <Icon :icon="currentUserRatingConfig?.icon || 'mdi:star-outline'" />
+                    <span>{{ userRating ? userRating : 'Оценить' }}</span>
+                  </div>
+                </button>
+              </template>
+
+              <div class="rating-picker">
+                <button
+                  v-for="opt in ratingOptions"
+                  :key="opt.value"
+                  class="rating-option"
+                  :class="{ active: userRating === opt.value }"
+                  @click.stop="handleRatingSelect(opt.value)"
+                >
+                  <Icon :icon="opt.icon" :style="{ color: opt.color }" class="rating-icon" />
+                  <span class="rating-label">{{ opt.label }}</span>
+                </button>
+              </div>
+            </KitDropdown>
           </div>
         </div>
       </div>
@@ -531,15 +605,16 @@ const visibilityIcon = computed(() => {
 
 .card-participants {
   display: flex;
-  margin-left: 16px;
+  align-items: center;
+  gap: 6px;
 
-  .participants-container {
+  .participants-list {
     display: flex;
-    padding-left: 16px;
+    padding-left: 8px;
   }
 
   .participant-wrapper {
-    margin-left: -16px;
+    margin-left: -8px;
     transition: transform 0.2s ease;
 
     &:hover {
@@ -555,26 +630,109 @@ const visibilityIcon = computed(() => {
       margin-left: 0;
     }
   }
+
+  .no-participants {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 0.85rem;
+    color: var(--fg-tertiary-color);
+
+    .iconify {
+      font-size: 1.2rem;
+    }
+  }
 }
+
 .card-footer-right {
   display: flex;
   align-items: center;
-  gap: 12px;
+  gap: 8px;
 }
 
-.card-tags {
+.combined-rating-btn {
   display: flex;
-  flex-wrap: nowrap;
-  gap: 6px;
+  align-items: center;
+  background: transparent;
+  border: 1px solid var(--border-secondary-color);
+  border-radius: 20px;
+  padding: 0;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  overflow: hidden;
 
-  .tag {
-    background-color: var(--bg-tertiary-color);
-    color: var(--fg-secondary-color);
-    padding: 4px 10px;
-    border-radius: var(--r-l);
-    font-size: 0.75rem;
+  &:hover {
+    background-color: var(--bg-hover-color);
+    border-color: var(--border-primary-color);
+  }
+}
+
+.average-rating-part,
+.user-rating-part {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 6px 10px;
+  font-size: 0.85rem;
+  font-weight: 600;
+  transition: color 0.2s ease;
+}
+
+.average-rating-part {
+  color: var(--fg-warning-color);
+}
+
+.user-rating-part {
+  color: var(--fg-secondary-color);
+
+  .iconify {
+    font-size: 1.1rem;
+  }
+}
+
+.divider {
+  width: 1px;
+  height: 16px;
+  background-color: var(--border-secondary-color);
+}
+
+.rating-picker {
+  display: flex;
+  flex-direction: column;
+  padding: 4px;
+  min-width: 150px;
+}
+
+.rating-option {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 12px;
+  border-radius: var(--r-s);
+  border: none;
+  background: transparent;
+  cursor: pointer;
+  transition: background-color 0.2s ease;
+  width: 100%;
+  text-align: left;
+  color: var(--fg-primary-color);
+
+  &:hover {
+    background-color: var(--bg-hover-color);
+  }
+
+  &.active {
+    background-color: var(--bg-accent-overlay-color);
+    color: var(--fg-accent-color);
+  }
+
+  .rating-icon {
+    font-size: 1.2rem;
+  }
+
+  .rating-label {
+    font-size: 0.9rem;
     font-weight: 500;
-    white-space: nowrap;
   }
 }
 </style>

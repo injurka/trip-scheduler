@@ -41,6 +41,7 @@ const isMapFullscreen = ref(false)
 const isPanelVisible = ref(false)
 const routeIdForNewSegment = ref<string | null>(null)
 const searchQuery = ref('')
+const routePointType = ref<'via' | 'connect'>('via') // Тип добавляемой точки
 
 // --- Композиции ---
 const {
@@ -104,12 +105,15 @@ const poiPointsWithStyle = computed(() => points.value.map((point, index) => ({
 })))
 const allMapPoints = computed(() => {
   const routePoints = routes.value.flatMap(r => r.points.map((p, index) => {
-    let type: MapPoint['type'] = 'via'
+    let type: MapPoint['type'] = p.type
 
+    // Если тип явно не задан как connect или start, и это первая/последняя точка...
+    // Но теперь мы храним тип явно в p.type, поэтому старая логика перезаписи type может быть излишней,
+    // кроме случая первой точки (всегда start для логики цвета).
     if (index === 0)
       type = 'start'
-    if (index === r.points.length - 1 && r.points.length > 1)
-      type = 'end'
+
+    // Для остальных полагаемся на p.type (via, end, connect), который устанавливается в useGeolocationRoutes
 
     return {
       ...p,
@@ -146,35 +150,29 @@ const viewItems: ViewSwitcherItem[] = [
   { id: 'points', icon: 'mdi:map-marker-multiple', label: 'Точки' },
   { id: 'routes', icon: 'mdi:directions', label: 'Маршруты' },
 ]
-const modeItems = computed((): ViewSwitcherItem[] => {
-  if (activeView.value === 'points') {
-    return [
-      { id: 'pan', icon: 'mdi:cursor-move', label: 'Панорама' },
-      { id: 'add_point', icon: 'mdi:map-marker-plus', label: 'Точка' },
-    ]
-  }
-  return [
-    { id: 'pan', icon: 'mdi:cursor-move', label: 'Панорама' },
-    { id: 'add_route_point', icon: 'mdi:source-commit-start-next-local', label: 'Добавить в маршрут' },
-    // { id: 'draw_route', icon: 'mdi:draw', label: 'Нарисовать' },
-  ]
-})
 
 // --- Обработчики ---
+function toggleMode(targetMode: typeof mode.value) {
+  if (mode.value === targetMode)
+    mode.value = 'pan'
+  else
+    mode.value = targetMode
+}
+
 async function handleMapClick(coords: Coordinate) {
   if (props.readonly)
     return
 
   if (mode.value === 'add_point') {
     await addPoiPoint(coords)
-    mode.value = 'pan'
+    mode.value = 'pan' // Сбрасываем после добавления для удобства
   }
   else if (mode.value === 'add_route_point') {
     if (!activeRouteId.value) {
       useToast().info('Сначала выберите или создайте маршрут для добавления точки.')
       return
     }
-    await addPointToRoute(activeRouteId.value, coords)
+    await addPointToRoute(activeRouteId.value, coords, routePointType.value)
   }
   else if (mode.value === 'move_point' && pointToMoveId.value) {
     if (points.value.some(p => p.id === pointToMoveId.value))
@@ -364,8 +362,60 @@ onUnmounted(() => {
             <KitBtn icon="mdi:magnify" size="sm" @click="handleSearch" />
             <KitBtn v-if="searchQuery" icon="mdi:close" size="sm" variant="subtle" @click="clearSearch" />
           </div>
+
           <KitViewSwitcher v-model="activeView" :items="viewItems" />
-          <KitViewSwitcher v-model="mode" :items="modeItems" />
+
+          <!-- Инструменты управления в зависимости от вида -->
+          <div class="tools-panel">
+            <template v-if="activeView === 'points'">
+              <KitBtn
+                :variant="mode === 'add_point' ? 'solid' : 'subtle'"
+                color="secondary"
+                icon="mdi:map-marker-plus"
+                class="tool-btn"
+                @click="toggleMode('add_point')"
+              >
+                {{ mode === 'add_point' ? 'Режим добавления' : 'Добавить точку' }}
+              </KitBtn>
+            </template>
+
+            <template v-if="activeView === 'routes'">
+              <div v-if="activeRouteId" class="route-tools">
+                <KitBtn
+                  :variant="mode === 'add_route_point' ? 'solid' : 'outlined'"
+                  color="secondary"
+                  icon="mdi:map-marker-path"
+                  class="tool-btn"
+                  @click="toggleMode('add_route_point')"
+                >
+                  {{ mode === 'add_route_point' ? 'Кликните на карту' : 'Активировать добавление' }}
+                </KitBtn>
+
+                <div v-if="mode === 'add_route_point'" class="point-type-switcher">
+                  <span class="switcher-label">Тип:</span>
+                  <div class="switcher-buttons">
+                    <button
+                      class="type-btn"
+                      :class="{ active: routePointType === 'via' }"
+                      @click="routePointType = 'via'"
+                    >
+                      Метка
+                    </button>
+                    <button
+                      class="type-btn"
+                      :class="{ active: routePointType === 'connect' }"
+                      @click="routePointType = 'connect'"
+                    >
+                      Точка
+                    </button>
+                  </div>
+                </div>
+              </div>
+              <div v-else class="route-hint">
+                <p>Выберите маршрут в списке или создайте новый через контекстное меню (ПКМ на карте).</p>
+              </div>
+            </template>
+          </div>
         </div>
       </div>
 
@@ -505,7 +555,79 @@ onUnmounted(() => {
     display: flex;
     :deep(> *) {
       flex: 1 1 0;
+      justify-content: center;
+      text-align: center;
     }
+  }
+}
+
+.tools-panel {
+  display: flex;
+  flex-direction: column;
+}
+
+.tool-btn {
+  width: 100%;
+  justify-content: center;
+}
+
+.route-tools {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.point-type-switcher {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  background-color: var(--bg-tertiary-color);
+  padding: 4px 8px;
+  border-radius: var(--r-xs);
+
+  .switcher-label {
+    font-size: 0.8rem;
+    font-weight: 500;
+    color: var(--fg-secondary-color);
+  }
+
+  .switcher-buttons {
+    display: flex;
+    gap: 4px;
+  }
+
+  .type-btn {
+    padding: 2px 8px;
+    font-size: 0.75rem;
+    border-radius: var(--r-xs);
+    border: 1px solid transparent;
+    background: none;
+    cursor: pointer;
+    color: var(--fg-secondary-color);
+    transition: all 0.2s;
+
+    &:hover {
+      background-color: var(--bg-hover-color);
+    }
+
+    &.active {
+      background-color: var(--c-primary);
+      color: var(--fg-accent-color);
+    }
+  }
+}
+
+.route-hint {
+  padding: 8px;
+  background-color: var(--bg-tertiary-color);
+  border-radius: var(--r-xs);
+  color: var(--fg-secondary-color);
+  font-size: 0.8rem;
+  text-align: center;
+  border: 1px dashed var(--border-secondary-color);
+
+  p {
+    margin: 0;
   }
 }
 

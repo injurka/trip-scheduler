@@ -1,6 +1,7 @@
 <script setup>
+import { useHead, useSeoMeta } from '@vueuse/head'
 import { ConfirmDialogManager } from '~/components/02.shared/confirm-dialog-manager'
-import { OfflineBanner } from '~/components/02.shared/offline-banner' // <-- Импорт
+import { OfflineBanner } from '~/components/02.shared/offline-banner'
 import { ReloadPrompt } from '~/components/02.shared/reload-prompt'
 import { ToastManager } from '~/components/02.shared/toast-manager'
 
@@ -26,6 +27,69 @@ const layouts = {
   'empty': EmptyLayout,
   'trip-info': TripInfoLayout,
 }
+
+// --- SEO Конфигурация ---
+const siteUrl = 'https://trip-scheduler.ru'
+const siteName = 'Trip Scheduler'
+
+const description = 'Trip Scheduler — удобный планировщик путешествий. Создавайте маршруты, сохраняйте воспоминания и организуйте свои поездки в одном месте.'
+
+useHead({
+  titleTemplate: (titleChunk) => {
+    return titleChunk
+      ? `${titleChunk} | ${siteName}`
+      : `${siteName} — Планировщик путешествий и маршрутов`
+  },
+  htmlAttrs: {
+    lang: 'ru',
+  },
+  link: [
+    {
+      rel: 'canonical',
+      href: computed(() => `${siteUrl}${route.path}`),
+    },
+    {
+      rel: 'icon',
+      type: 'image/svg+xml',
+      href: '/trip-scheduler-logo.svg',
+    },
+  ],
+  script: [
+    {
+      type: 'application/ld+json',
+      children: JSON.stringify({
+        '@context': 'https://schema.org',
+        '@type': 'WebApplication',
+        'name': siteName,
+        'alternateName': ['TripScheduler', 'Планировщик путешествий'],
+        'url': siteUrl,
+        'description': description,
+        'applicationCategory': 'TravelApplication',
+        'operatingSystem': 'Any',
+        'offers': {
+          '@type': 'Offer',
+          'price': '0',
+          'priceCurrency': 'RUB',
+        },
+      }),
+    },
+  ],
+})
+
+useSeoMeta({
+  description,
+  keywords: 'путешествия, trip scheduler, планировщик, маршрут, trip planner, поездка, туризм',
+  ogTitle: `${siteName} — Планировщик путешествий`,
+  ogDescription: description,
+  ogType: 'website',
+  ogUrl: computed(() => `${siteUrl}${route.path}`),
+  ogImage: `${siteUrl}/og-image.jpg`,
+  ogSiteName: siteName,
+  twitterCard: 'summary_large_image',
+  twitterTitle: `${siteName} — Планировщик путешествий`,
+  twitterDescription: description,
+  twitterImage: `${siteUrl}/og-image.jpg`,
+})
 </script>
 
 <template>

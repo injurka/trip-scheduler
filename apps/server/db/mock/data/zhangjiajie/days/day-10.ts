@@ -36,7 +36,7 @@ export const MOCK_DAY_10 = {
       }],
       tag: 'transport' as const,
       status: 'none' as const,
-      rating: null,
+      
       dayId: DAY_IDS.DAY_10,
     },
     {
@@ -89,7 +89,7 @@ export const MOCK_DAY_10 = {
       ],
       tag: 'attraction' as const,
       status: 'none' as const,
-      rating: null,
+      
       dayId: DAY_IDS.DAY_10,
     },
     {
@@ -143,7 +143,7 @@ export const MOCK_DAY_10 = {
       ],
       tag: 'food' as const,
       status: 'none' as const,
-      rating: null,
+      
       dayId: DAY_IDS.DAY_10,
     },
     {
@@ -194,7 +194,7 @@ export const MOCK_DAY_10 = {
       ],
       tag: 'attraction' as const,
       status: 'none' as const,
-      rating: null,
+      
       dayId: DAY_IDS.DAY_10,
     },
     {
@@ -249,7 +249,7 @@ export const MOCK_DAY_10 = {
       ],
       tag: 'walk' as const,
       status: 'none' as const,
-      rating: null,
+      
       dayId: DAY_IDS.DAY_10,
     },
     {
@@ -292,7 +292,7 @@ export const MOCK_DAY_10 = {
       ],
       tag: 'walk' as const,
       status: 'none' as const,
-      rating: null,
+      
       dayId: DAY_IDS.DAY_10,
     },
     {
@@ -343,7 +343,7 @@ export const MOCK_DAY_10 = {
       ],
       tag: 'attraction' as const,
       status: 'none' as const,
-      rating: null,
+      
       dayId: DAY_IDS.DAY_10,
     },
     {
@@ -395,7 +395,7 @@ export const MOCK_DAY_10 = {
       ],
       tag: 'attraction' as const,
       status: 'none' as const,
-      rating: null,
+      
       dayId: DAY_IDS.DAY_10,
     },
     {
@@ -446,7 +446,7 @@ export const MOCK_DAY_10 = {
       ],
       tag: 'attraction' as const,
       status: 'none' as const,
-      rating: null,
+      
       dayId: DAY_IDS.DAY_10,
     },
     {
@@ -499,7 +499,7 @@ export const MOCK_DAY_10 = {
       ],
       tag: 'walk' as const,
       status: 'none' as const,
-      rating: null,
+      
       dayId: DAY_IDS.DAY_10,
     },
     {
@@ -551,7 +551,7 @@ export const MOCK_DAY_10 = {
       ],
       tag: 'attraction' as const,
       status: 'none' as const,
-      rating: null,
+      
       dayId: DAY_IDS.DAY_10,
     },
   ],

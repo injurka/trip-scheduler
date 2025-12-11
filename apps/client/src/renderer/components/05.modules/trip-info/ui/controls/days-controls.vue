@@ -4,6 +4,7 @@ import type { IDay } from '../../models/types'
 import { Icon } from '@iconify/vue'
 import { parseDate } from '@internationalized/date'
 import { useElementBounding, useIntersectionObserver, useWindowSize } from '@vueuse/core'
+import { KitBtn } from '~/components/01.kit/kit-btn'
 import { KitSkeleton } from '~/components/01.kit/kit-skeleton'
 import { CalendarPopover } from '~/components/02.shared/calendar-popover'
 import { useDisplay } from '~/shared/composables/use-display'
@@ -24,10 +25,11 @@ const props = defineProps<Props>()
 const store = useModuleStore(['ui', 'plan'])
 const { isDaysPanelPinned, isDaysPanelOpen, isViewMode } = storeToRefs(store.ui)
 const { getAllDays, getSelectedDay, isLoading, isLoadingNewDay } = storeToRefs(store.plan)
-const { setCurrentDay, updateDayDetails } = store.plan
+const { setCurrentDay, updateDayDetails, deleteDay } = store.plan
 const appStore = useAppStore(['layout'])
 const { isHeaderVisible, headerHeight } = storeToRefs(appStore.layout)
 const { canEdit } = useTripPermissions()
+const confirm = useConfirm()
 
 const controlsRef = ref<HTMLElement | null>(null)
 const fixedLeftControlsRef = ref<HTMLElement | null>(null)
@@ -53,6 +55,17 @@ function handleAddNewDay() {
   store.plan.addNewDay()
   if (!store.ui.isDaysPanelPinned)
     store.ui.closeDaysPanel()
+}
+
+async function handleDeleteDay() {
+  const isConfirmed = await confirm({
+    title: 'Удалить текущий день?',
+    description: 'Это действие необратимо. Все активности, связанные с этим днем, будут удалены.',
+    type: 'danger',
+    confirmText: 'Удалить',
+  })
+  if (isConfirmed)
+    deleteDay()
 }
 
 function toggleMode() {
@@ -138,7 +151,11 @@ onUnmounted(() => {
           <KitSkeleton width="100px" height="20px" border-radius="6px" type="wave" />
           <KitSkeleton width="80px" height="18px" border-radius="6px" type="wave" />
         </div>
-        <CalendarPopover v-else v-model="selectedCalendarDate" :disabled="isViewMode">
+        <CalendarPopover
+          v-else
+          v-model="selectedCalendarDate"
+          :disabled="isViewMode"
+        >
           <template #trigger>
             <div class="current-day-info" role="button" :class="{ readonly: isViewMode }">
               <h3 v-if="getSelectedDay">
@@ -148,6 +165,12 @@ onUnmounted(() => {
                 {{ new Date(getSelectedDay.date).toLocaleDateString('ru-RU', { weekday: 'long' }) }}
               </span>
             </div>
+          </template>
+          <template #footer>
+            <KitBtn v-if="!isViewMode && !!getSelectedDay" variant="text" size="sm" class="delete-btn" title="Удалить день" @click="handleDeleteDay">
+              <Icon width="18" icon="mdi:trash-can-outline" />
+            </KitBtn>
+            <div class="spacer" />
           </template>
         </CalendarPopover>
       </div>
@@ -190,7 +213,11 @@ onUnmounted(() => {
             <KitSkeleton width="100px" height="20px" border-radius="6px" type="wave" />
             <KitSkeleton width="80px" height="18px" border-radius="6px" type="wave" />
           </div>
-          <CalendarPopover v-else v-model="selectedCalendarDate" :disabled="isViewMode">
+          <CalendarPopover
+            v-else
+            v-model="selectedCalendarDate"
+            :disabled="isViewMode"
+          >
             <template #trigger>
               <div class="current-day-info" role="button" :class="{ readonly: isViewMode }">
                 <h3 v-if="getSelectedDay">
@@ -200,6 +227,12 @@ onUnmounted(() => {
                   {{ new Date(getSelectedDay.date).toLocaleDateString('ru-RU', { weekday: 'long' }) }}
                 </span>
               </div>
+            </template>
+            <template #footer>
+              <KitBtn v-if="!isViewMode && !!getSelectedDay" variant="text" size="sm" class="delete-btn" title="Удалить день" @click="handleDeleteDay">
+                <Icon width="18" icon="mdi:trash-can-outline" />
+              </KitBtn>
+              <div class="spacer" />
             </template>
           </CalendarPopover>
         </div>
@@ -269,26 +302,6 @@ onUnmounted(() => {
   &:hover {
     color: var(--fg-accent-color);
     border-color: var(--fg-accent-color);
-  }
-}
-
-.delete-day-btn {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  background: transparent;
-  border: 1px solid var(--border-secondary-color);
-  border-radius: var(--r-s);
-  padding: 8px;
-  cursor: pointer;
-  color: var(--fg-secondary-color);
-  font-size: 1.2rem;
-  transition: all 0.2s ease;
-
-  &:hover {
-    background-color: var(--bg-error-color);
-    color: var(--fg-error-color);
-    border-color: var(--border-error-color);
   }
 }
 
@@ -368,6 +381,13 @@ onUnmounted(() => {
     opacity: 1;
     transform: translateY(0);
     pointer-events: auto;
+  }
+}
+
+.delete-btn {
+  color: var(--fg-error-color);
+  &:hover {
+    background-color: var(--bg-error-color);
   }
 }
 </style>

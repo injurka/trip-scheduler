@@ -1,7 +1,6 @@
 import type { Activity, Day } from '~/shared/types/models/activity'
 import type { SignInPayload, SignUpPayload, TelegramAuthPayload, TokenPair, User } from '~/shared/types/models/auth'
 import type { CreateCommentInput, UpdateCommentInput } from '~/shared/types/models/comment'
-import type { Community, CreateCommunityInput, ListCommunitiesInput } from '~/shared/types/models/community'
 import type { CreateMemoryInput, Memory, UpdateMemoryInput } from '~/shared/types/models/memory'
 import type { Place, PlaceTag } from '~/shared/types/models/place'
 import type {
@@ -58,10 +57,13 @@ export interface ITripRepository {
   create: (data: CreateTripInput) => Promise<Trip>
   update: (id: string, details: UpdateTripInput) => Promise<Trip>
   delete: (id: string) => Promise<Trip>
+  rate: (tripId: string, rating: number) => Promise<void>
   getUniqueCities: () => Promise<string[]>
   getUniqueTags: (params: { query?: string }) => Promise<string[]>
   listByUser: (params: { userId: string, limit: number }) => Promise<Trip[]>
+  addParticipant: (tripId: string, email: string) => Promise<void>
 }
+
 
 export interface IDayRepository {
   getByTripId: (tripId: string) => Promise<Day[]>
@@ -117,12 +119,6 @@ export interface ICommentRepository {
   delete: (params: { commentId: string }) => Promise<Comment>
 }
 
-export interface ICommunityRepository {
-  create: (data: CreateCommunityInput, ownerId: string) => Promise<Community>
-  list: (filters: ListCommunitiesInput) => Promise<Community[]>
-  getById: (id: string) => Promise<Community | null>
-}
-
 // Интерфейс для всей базы данных
 export interface IDatabaseClient {
   trips: ITripRepository
@@ -134,7 +130,6 @@ export interface IDatabaseClient {
   user: IUserRepository
   tripSections: ITripSectionRepository
   comments: ICommentRepository
-  community: ICommunityRepository
   llm: ILLMRepository
   places: IPlacesRepository
 }

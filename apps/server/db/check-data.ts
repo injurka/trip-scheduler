@@ -6,6 +6,10 @@ import {
   activities,
   days,
   memories,
+  postElements,
+  postMedia,
+  posts,
+  savedPosts,
   tripImages,
   tripParticipants,
   trips,
@@ -36,11 +40,16 @@ async function checkData() {
       getTableCount(users, '👤 Пользователи'),
       getTableCount(trips, '✈️ Путешествия'),
       getTableCount(days, '📅 Дни'),
-      getTableCount(activities, '엑 Мероприятия'),
-      getTableCount(tripImages, '🖼️ Изображения'),
+      getTableCount(activities, '🏃 Мероприятия'),
+      getTableCount(tripImages, '🖼️ Изображения путешествий'),
       getTableCount(memories, '📝 Воспоминания'),
       getTableCount(tripSections, '📚 Секции путешествий'),
       getTableCount(tripParticipants, '🧑‍🤝‍🧑 Участники путешествий'),
+      // Новые сущности
+      getTableCount(posts, '📝 Посты'),
+      getTableCount(postElements, '🧩 Элементы постов'),
+      getTableCount(postMedia, '🎬 Медиа постов'),
+      getTableCount(savedPosts, '🔖 Сохраненные посты'),
     ])
 
     counts.forEach(({ name, count }) => {
@@ -48,21 +57,14 @@ async function checkData() {
     })
     console.groupEnd()
 
+    // Проверка путешествий
     const tripCount = counts.find(c => c.name.includes('Путешествия'))?.count ?? 0
-
     if (tripCount > 0) {
       console.group('\n✅ Глубокая проверка первого путешествия:')
-
       const firstTrip = await db.query.trips.findFirst({
         with: {
-          user: {
-            columns: { name: true },
-          },
-          days: {
-            with: {
-              activities: { columns: { id: true } },
-            },
-          },
+          user: { columns: { name: true } },
+          days: { with: { activities: { columns: { id: true } } } },
           participants: { columns: { userId: true } },
           images: { columns: { id: true } },
         },
@@ -79,6 +81,31 @@ async function checkData() {
       }
       else {
         console.log('   - Не удалось загрузить данные о первом путешествии.')
+      }
+      console.groupEnd()
+    }
+
+    // Проверка постов
+    const postCount = counts.find(c => c.name.includes('Посты'))?.count ?? 0
+    if (postCount > 0) {
+      console.group('\n✅ Глубокая проверка первого поста:')
+      const firstPost = await db.query.posts.findFirst({
+        with: {
+          user: { columns: { name: true } },
+          elements: true,
+          media: true,
+        },
+      })
+
+      if (firstPost) {
+        console.log(`   - Заголовок: "${firstPost.title}"`)
+        console.log(`   - Автор: ${firstPost.user.name}`)
+        console.log(`   - Статус: ${firstPost.status}`)
+        console.log(`   - Элементов контента: ${firstPost.elements.length}`)
+        console.log(`   - Медиа файлов: ${firstPost.media.length}`)
+      }
+      else {
+        console.log('   - Не удалось загрузить данные о первом посте.')
       }
       console.groupEnd()
     }

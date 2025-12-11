@@ -72,13 +72,14 @@ function getCardComponent(type: Booking['type']) {
     <div v-if="!readonly" class="actions-panel">
       <KitBtn
         icon="mdi:plus-circle-outline"
+        variant="subtle"
         @click="isAddDialogOpen = true"
       >
         Добавить бронирование
       </KitBtn>
       <KitBtn
-        icon="mdi:magic-staff"
-        variant="outlined"
+        icon="mdi:auto-fix"
+        variant="tonal"
         title="Создать с помощью ИИ"
         @click="isAiCreatorViewOpen = !isAiCreatorViewOpen"
       >

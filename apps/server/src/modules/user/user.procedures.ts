@@ -10,7 +10,9 @@ import {
   RefreshOutputSchema,
   RefreshTokenInputSchema,
   SignInInputSchema,
+  SignOutResponseSchema,
   SignUpInputSchema,
+  SuccessResponseSchema,
   TelegramAuthPayloadSchema,
   UpdateUserInputSchema,
   UpdateUserStatusInputSchema,
@@ -22,18 +24,43 @@ import { userService } from './user.service'
 
 export const userProcedures = {
   listPlans: publicProcedure
+    .meta({
+      openapi: {
+        method: 'GET',
+        path: '/users/plans',
+        tags: ['Users'],
+        summary: 'Получить список тарифных планов',
+      },
+    })
     .output(z.array(PlanSchema))
     .query(async () => {
       return userService.listPlans()
     }),
 
   signUp: publicProcedure
+    .meta({
+      openapi: {
+        method: 'POST',
+        path: '/auth/signup',
+        tags: ['Auth'],
+        summary: 'Регистрация пользователя',
+      },
+    })
     .input(SignUpInputSchema)
+    .output(SuccessResponseSchema)
     .mutation(async ({ input }) => {
       return userService.signUp(input)
     }),
 
   verifyEmail: publicProcedure
+    .meta({
+      openapi: {
+        method: 'POST',
+        path: '/auth/verify',
+        tags: ['Auth'],
+        summary: 'Подтверждение email',
+      },
+    })
     .input(VerifyEmailInputSchema)
     .output(AuthOutputSchema)
     .mutation(async ({ input }) => {
@@ -41,6 +68,14 @@ export const userProcedures = {
     }),
 
   signIn: publicProcedure
+    .meta({
+      openapi: {
+        method: 'POST',
+        path: '/auth/signin',
+        tags: ['Auth'],
+        summary: 'Вход по email/паролю',
+      },
+    })
     .input(SignInInputSchema)
     .output(AuthOutputSchema)
     .mutation(async ({ input }) => {
@@ -48,11 +83,28 @@ export const userProcedures = {
     }),
 
   signOut: protectedProcedure
+    .meta({
+      openapi: {
+        method: 'POST',
+        path: '/auth/signout',
+        tags: ['Auth'],
+        summary: 'Выход (аннулирование токенов)',
+      },
+    })
+    .output(SignOutResponseSchema)
     .mutation(async ({ ctx }) => {
       return userService.signOut(ctx.user.id)
     }),
 
   signInWithTelegram: publicProcedure
+    .meta({
+      openapi: {
+        method: 'POST',
+        path: '/auth/telegram',
+        tags: ['Auth'],
+        summary: 'Вход через Telegram',
+      },
+    })
     .input(TelegramAuthPayloadSchema)
     .output(AuthOutputSchema)
     .mutation(async ({ input }) => {
@@ -60,6 +112,14 @@ export const userProcedures = {
     }),
 
   refresh: publicProcedure
+    .meta({
+      openapi: {
+        method: 'POST',
+        path: '/auth/refresh',
+        tags: ['Auth'],
+        summary: 'Обновление токенов',
+      },
+    })
     .input(RefreshTokenInputSchema)
     .output(RefreshOutputSchema)
     .mutation(async ({ input }) => {
@@ -67,25 +127,57 @@ export const userProcedures = {
     }),
 
   me: protectedProcedure
-    .output(UserSchema)
+    .meta({
+      openapi: {
+        method: 'GET',
+        path: '/users/me',
+        tags: ['Users'],
+        summary: 'Получить текущего пользователя',
+      },
+    })
+    .output(UserSchema.nullable())
     .query(async ({ ctx }) => {
       return userService.getById(ctx.user.id)
     }),
 
   getById: publicProcedure
+    .meta({
+      openapi: {
+        method: 'GET',
+        path: '/users/{id}',
+        tags: ['Users'],
+        summary: 'Получить пользователя по ID',
+      },
+    })
     .input(GetUserByIdInputSchema)
-    .output(UserSchema)
+    .output(UserSchema.nullable())
     .query(async ({ input }) => {
       return userService.getById(input.id)
     }),
 
   getStats: protectedProcedure
+    .meta({
+      openapi: {
+        method: 'GET',
+        path: '/users/me/stats',
+        tags: ['Users'],
+        summary: 'Получить статистику текущего пользователя',
+      },
+    })
     .output(UserStatsSchema)
     .query(async ({ ctx }) => {
       return userService.getStats(ctx.user.id)
     }),
 
   update: protectedProcedure
+    .meta({
+      openapi: {
+        method: 'PATCH',
+        path: '/users/me',
+        tags: ['Users'],
+        summary: 'Обновить профиль пользователя',
+      },
+    })
     .input(UpdateUserInputSchema)
     .output(UserSchema)
     .mutation(async ({ ctx, input }) => {
@@ -93,19 +185,46 @@ export const userProcedures = {
     }),
 
   updateStatus: protectedProcedure
+    .meta({
+      openapi: {
+        method: 'PATCH',
+        path: '/users/me/status',
+        tags: ['Users'],
+        summary: 'Обновить статус пользователя',
+      },
+    })
     .input(UpdateUserStatusInputSchema)
+    .output(UserSchema.nullable())
     .mutation(async ({ ctx, input }) => {
       return userService.updateStatus(ctx.user.id, input)
     }),
 
   changePassword: protectedProcedure
+    .meta({
+      openapi: {
+        method: 'POST',
+        path: '/users/me/password',
+        tags: ['Users'],
+        summary: 'Сменить пароль',
+      },
+    })
     .input(ChangePasswordInputSchema)
+    .output(SuccessResponseSchema)
     .mutation(async ({ ctx, input }) => {
       return userService.changePassword(ctx.user.id, input)
     }),
 
   deleteAccount: protectedProcedure
+    .meta({
+      openapi: {
+        method: 'DELETE',
+        path: '/users/me',
+        tags: ['Users'],
+        summary: 'Удалить аккаунт',
+      },
+    })
     .input(DeleteAccountInputSchema)
+    .output(SuccessResponseSchema)
     .mutation(async ({ ctx, input }) => {
       return userService.deleteAccount(ctx.user.id, input)
     }),

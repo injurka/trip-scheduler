@@ -4,19 +4,29 @@ import { LlmUsageSchema, LlmUsageSummarySchema } from './llm-usage.schemas'
 import { llmUsageService } from './llm-usage.service'
 
 export const llmUsageProcedures = {
-  /**
-   * Procedure to get the token usage history for the current user.
-   */
   getHistory: protectedProcedure
+    .meta({
+      openapi: {
+        method: 'GET',
+        path: '/llm/history',
+        tags: ['LLM Usage'],
+        summary: 'Получить историю использования токенов',
+      },
+    })
     .output(z.array(LlmUsageSchema))
     .query(async ({ ctx }) => {
       return llmUsageService.getHistory(ctx.user.id)
     }),
 
-  /**
-   * Procedure to get the token usage summary for the current user.
-   */
   getSummary: protectedProcedure
+    .meta({
+      openapi: {
+        method: 'GET',
+        path: '/llm/summary',
+        tags: ['LLM Usage'],
+        summary: 'Получить сводку использования токенов',
+      },
+    })
     .output(LlmUsageSummarySchema)
     .query(async ({ ctx }) => {
       return llmUsageService.getSummary(ctx.user)

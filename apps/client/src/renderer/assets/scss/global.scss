@@ -5,6 +5,7 @@ html {
   margin: 0;
   height: 100%;
   border: none;
+  -webkit-tap-highlight-color: transparent;
 }
 
 body {
@@ -32,4 +33,13 @@ body {
 *::before,
 *::after {
   box-sizing: border-box;
+}
+
+button,
+label,
+a,
+img,
+[role="button"] {
+  user-select: none;
+  -webkit-user-select: none;
 }

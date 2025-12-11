@@ -153,7 +153,7 @@ const componentClasses = computed(() => [
 
   &--tonal {
     box-shadow: none;
-    border-color: transparent;
+    border: none;
 
     &.kit-btn--color-primary {
       background-color: var(--bg-tertiary-color);

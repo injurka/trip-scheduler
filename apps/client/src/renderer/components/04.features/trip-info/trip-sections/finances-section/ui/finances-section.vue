@@ -147,42 +147,42 @@ onClickOutside(dateFilterWrapperRef, () => {
 
 <template>
   <div class="finances-section">
+    <!-- 1. Фильтры категорий (на самом верху) -->
+    <div class="category-filter-pills">
+      <button
+        v-for="item in categoryFilterItems"
+        :key="String(item.value)"
+        v-ripple
+        class="filter-pill"
+        :class="{ active: item.value === null ? selectedCategoryFilters.length === 0 : selectedCategoryFilters.includes(item.value) }"
+        @click="toggleCategoryFilter(item.value)"
+      >
+        <Icon :icon="item.icon" />
+        <span>{{ item.label }}</span>
+      </button>
+    </div>
+
+    <!-- 2. Дэшборд с графиками (теперь реагирует на фильтры) -->
     <FinancesDashboard
       :main-currency="settings.mainCurrency"
       :spending-by-category="spendingByCategory"
       :spending-by-day="spendingByDay"
     />
 
-    <div class="list-controls">
-      <div class="category-filter-pills">
-        <button
-          v-for="item in categoryFilterItems"
-          :key="String(item.value)"
-          v-ripple
-          class="filter-pill"
-          :class="{ active: item.value === null ? selectedCategoryFilters.length === 0 : selectedCategoryFilters.includes(item.value) }"
-          @click="toggleCategoryFilter(item.value)"
-        >
-          <Icon :icon="item.icon" />
-          <span>{{ item.label }}</span>
-        </button>
+    <!-- 3. Панель действий и фильтр даты -->
+    <div class="toolbar">
+      <div class="main-actions">
+        <KitBtn v-if="!readonly" icon="mdi:plus" @click="openTransactionForm()">
+          Добавить трату
+        </KitBtn>
+        <KitBtn v-if="!readonly" icon="mdi:auto-fix" variant="tonal" @click="isAiCreatorOpen = !isAiCreatorOpen">
+          AI
+        </KitBtn>
       </div>
 
-      <div class="actions-and-filters">
-        <div class="list-actions">
-          <KitBtn v-if="!readonly" icon="mdi:plus" @click="openTransactionForm()">
-            Добавить трату
-          </KitBtn>
-          <KitBtn v-if="!readonly" icon="mdi:magic-staff" variant="outlined" @click="isAiCreatorOpen = !isAiCreatorOpen">
-            AI
-          </KitBtn>
-          <KitBtn v-if="!readonly" icon="mdi:tag-outline" variant="text" @click="handleOpenCategoryManager">
-            Категории
-          </KitBtn>
-          <KitBtn v-if="!readonly" icon="mdi:cog-outline" variant="text" @click="isSettingsOpen = true">
-            Настройки
-          </KitBtn>
-        </div>
+      <div class="secondary-actions">
+        <KitBtn v-if="!readonly" icon="mdi:tag-outline" variant="text" title="Управление категориями" @click="handleOpenCategoryManager" />
+        <KitBtn v-if="!readonly" icon="mdi:cog-outline" variant="text" title="Настройки" @click="isSettingsOpen = true" />
 
         <div ref="dateFilterWrapperRef" class="date-filter-wrapper">
           <KitBtn
@@ -212,6 +212,7 @@ onClickOutside(dateFilterWrapperRef, () => {
       </div>
     </div>
 
+    <!-- 4. AI Создатель (скрытый блок) -->
     <div v-if="!readonly" v-show="isAiCreatorOpen" class="ai-creator-wrapper">
       <AiFinancesCreator
         :categories="categories"
@@ -221,6 +222,7 @@ onClickOutside(dateFilterWrapperRef, () => {
       />
     </div>
 
+    <!-- 5. Список транзакций -->
     <TransactionsList
       :transactions="filteredTransactions"
       :categories="categories"
@@ -231,6 +233,7 @@ onClickOutside(dateFilterWrapperRef, () => {
       @delete-transaction="deleteTransaction"
     />
 
+    <!-- Диалоги -->
     <TransactionFormDialog
       v-model:visible="isTransactionFormOpen"
       :transaction="transactionToEdit"
@@ -263,20 +266,7 @@ onClickOutside(dateFilterWrapperRef, () => {
   gap: 1.5rem;
 }
 
-.ai-creator-wrapper {
-  margin-top: 0.5rem;
-  padding: 1rem;
-  border: 1px solid var(--border-secondary-color);
-  border-radius: var(--r-m);
-  background-color: var(--bg-secondary-color);
-}
-
-.list-controls {
-  display: flex;
-  flex-direction: column;
-  gap: 1.5rem;
-}
-
+/* Category Filters */
 .category-filter-pills {
   display: flex;
   flex-wrap: wrap;
@@ -292,9 +282,10 @@ onClickOutside(dateFilterWrapperRef, () => {
   background-color: var(--bg-secondary-color);
   border: 1px solid var(--border-primary-color);
   color: var(--fg-secondary-color);
-  font-size: 0.875rem;
+  font-size: 0.8rem;
   font-weight: 500;
   transition: all 0.2s ease;
+  cursor: pointer;
 
   &:hover {
     border-color: var(--border-accent-color);
@@ -308,13 +299,27 @@ onClickOutside(dateFilterWrapperRef, () => {
   }
 }
 
-.actions-and-filters {
+/* Toolbar (Actions + Date) */
+.toolbar {
   display: flex;
   justify-content: space-between;
   align-items: center;
   gap: 1rem;
+  flex-wrap: wrap;
 }
 
+.main-actions {
+  display: flex;
+  gap: 0.5rem;
+}
+
+.secondary-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+/* Date Filter Popover */
 .date-filter-wrapper {
   position: relative;
 }
@@ -341,24 +346,39 @@ onClickOutside(dateFilterWrapperRef, () => {
   border-top: 1px solid var(--border-secondary-color);
 }
 
-.list-actions {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 0.5rem;
+/* AI Creator */
+.ai-creator-wrapper {
+  padding: 1rem;
+  border: 1px solid var(--border-secondary-color);
+  border-radius: var(--r-m);
+  background-color: var(--bg-secondary-color);
 }
 
 @include media-down(sm) {
-  .actions-and-filters {
+  .toolbar {
     flex-direction: column;
     align-items: stretch;
-    gap: 1rem;
+  }
+  .main-actions {
+    justify-content: flex-start;
+  }
+  .secondary-actions {
+    justify-content: space-between;
+    width: 100%;
   }
   .date-filter-wrapper {
-    order: 1;
+    flex-grow: 1;
+    .kit-btn {
+      width: 100%;
+      justify-content: center;
+    }
   }
-  .list-actions {
-    order: 2;
-    justify-content: flex-end;
+  .calendar-popover {
+    right: auto;
+    left: 0;
+    width: 100%;
+    display: flex;
+    flex-direction: column;
   }
 }
 </style>

@@ -440,7 +440,6 @@ watch(() => sectionData.value.systemId, (newId) => {
   align-items: center;
   padding-left: 3px;
   gap: 8px;
-  height: 32px;
 }
 .path-line {
   width: 2px;
@@ -452,6 +451,10 @@ watch(() => sectionData.value.systemId, (newId) => {
   color: var(--fg-secondary-color);
   display: flex;
   flex-direction: column;
+
+  :last-child {
+    font-style: italic;
+  }
 }
 .transfer-info {
   display: flex;

@@ -1,17 +1,18 @@
 import { z } from 'zod'
+import { TripImageSchema } from '../image/image.schemas'
 
 export const MemorySchema = z.object({
   id: z.string().uuid(),
   tripId: z.string().uuid(),
-  timestamp: z.string().datetime().nullable(),
+  timestamp: z.union([z.string(), z.date()]).nullable(),
   comment: z.string().nullable(),
   imageId: z.string().uuid().nullable(),
   title: z.string().nullable(),
   tag: z.enum(['transport', 'walk', 'food', 'attraction', 'relax']).nullable(),
   sourceActivityId: z.string().uuid().nullable(),
-  imageUrl: z.string().url().optional(),
   createdAt: z.date(),
   updatedAt: z.date(),
+  image: TripImageSchema.optional().nullable(),
 })
 
 export const CreateMemoryInputSchema = z.object({

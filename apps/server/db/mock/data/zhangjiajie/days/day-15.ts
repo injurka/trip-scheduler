@@ -36,7 +36,7 @@ export const MOCK_DAY_15 = {
       }],
       tag: 'relax' as const,
       status: 'none' as const,
-      rating: null,
+      
       dayId: DAY_IDS.DAY_15,
     },
     {
@@ -51,7 +51,7 @@ export const MOCK_DAY_15 = {
       }],
       tag: 'relax' as const,
       status: 'none' as const,
-      rating: null,
+      
       dayId: DAY_IDS.DAY_15,
     },
     {
@@ -84,7 +84,7 @@ export const MOCK_DAY_15 = {
       ],
       tag: 'transport' as const,
       status: 'none' as const,
-      rating: null,
+      
       dayId: DAY_IDS.DAY_15,
     },
     {
@@ -99,7 +99,7 @@ export const MOCK_DAY_15 = {
       }],
       tag: 'transport' as const,
       status: 'none' as const,
-      rating: null,
+      
       dayId: DAY_IDS.DAY_15,
     },
     {
@@ -114,7 +114,7 @@ export const MOCK_DAY_15 = {
       }],
       tag: 'transport' as const,
       status: 'none' as const,
-      rating: null,
+      
       dayId: DAY_IDS.DAY_15,
     },
   ],

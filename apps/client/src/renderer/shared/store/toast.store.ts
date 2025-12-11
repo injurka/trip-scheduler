@@ -26,7 +26,7 @@ export const useToastStore = defineStore('toast', {
         id,
         type: 'info',
         detail: '',
-        expire: 111000,
+        expire: 5000,
         swipeToClose: true,
       }
 

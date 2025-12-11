@@ -11,6 +11,7 @@ import { KitTabs } from '~/components/01.kit/kit-tabs'
 import { useChecklistSection } from '../composables'
 import ChecklistGroupComponent from './checklist-group.vue'
 import ChecklistItemComponent from './checklist-item.vue'
+import ChecklistPresetsModal from './checklist-presets-modal.vue'
 
 // --- Типы ---
 interface Props {
@@ -46,10 +47,12 @@ const {
   addGroup,
   deleteGroup,
   updateGroup,
+  applyPreset,
 } = useChecklistSection(props, emit)
 
 const newUngroupedItemText = ref('')
 const newUngroupedItemInputRef = ref<HTMLInputElement | null>(null)
+const isPresetsModalOpen = ref(false)
 
 function onGroupItemsUpdate(groupId: string, updatedItems: ChecklistItem[]) {
   const otherItems = items.value.filter(i => i.groupId !== groupId)
@@ -87,10 +90,22 @@ watch(activeTab, () => {
           <div v-if="hasItemsInCurrentTab || !props.readonly" class="actions-panel">
             <KitInput v-model="searchQuery" placeholder="Поиск по задачам..." icon="mdi:magnify" class="search-input" />
             <div class="action-controls">
+              <!-- Кнопка пресетов слева -->
+              <KitBtn
+                v-if="!readonly"
+                variant="subtle"
+                size="sm"
+                icon="mdi:playlist-star"
+                class="presets-btn"
+                @click="isPresetsModalOpen = true"
+              >
+                Пресеты
+              </KitBtn>
+
               <KitCheckbox v-model="hideCompleted">
                 Скрыть выполненные
               </KitCheckbox>
-              <KitBtn v-if="!readonly" icon="mdi:playlist-plus" @click="addGroup('preparation')">
+              <KitBtn v-if="!readonly" variant="tonal" icon="mdi:playlist-plus" @click="addGroup('preparation')">
                 Добавить группу
               </KitBtn>
             </div>
@@ -186,6 +201,11 @@ watch(activeTab, () => {
             <p v-else>
               Задач пока нет.
             </p>
+            <div v-if="!readonly && !searchQuery" class="empty-state-actions">
+              <KitBtn variant="tonal" icon="mdi:playlist-star" @click="isPresetsModalOpen = true">
+                Выбрать готовый набор
+              </KitBtn>
+            </div>
           </div>
         </div>
       </template>
@@ -194,10 +214,21 @@ watch(activeTab, () => {
           <div v-if="hasItemsInCurrentTab || !props.readonly" class="actions-panel">
             <KitInput v-model="searchQuery" placeholder="Поиск по задачам..." icon="mdi:magnify" class="search-input" />
             <div class="action-controls">
+              <!-- Кнопка пресетов слева -->
+              <KitBtn
+                v-if="!readonly"
+                variant="subtle"
+                size="sm"
+                icon="mdi:playlist-star"
+                class="presets-btn"
+                @click="isPresetsModalOpen = true"
+              >
+                Пресеты
+              </KitBtn>
               <KitCheckbox v-model="hideCompleted">
                 Скрыть выполненные
               </KitCheckbox>
-              <KitBtn v-if="!readonly" icon="mdi:playlist-plus" @click="addGroup('in-trip')">
+              <KitBtn v-if="!readonly" variant="tonal" icon="mdi:playlist-plus" @click="addGroup('in-trip')">
                 Добавить группу
               </KitBtn>
             </div>
@@ -284,10 +315,21 @@ watch(activeTab, () => {
             <p v-else>
               Задач пока нет.
             </p>
+            <div v-if="!readonly && !searchQuery" class="empty-state-actions">
+              <KitBtn variant="tonal" icon="mdi:playlist-star" @click="isPresetsModalOpen = true">
+                Выбрать готовый набор
+              </KitBtn>
+            </div>
           </div>
         </div>
       </template>
     </KitTabs>
+
+    <ChecklistPresetsModal
+      v-model:visible="isPresetsModalOpen"
+      :current-tab="activeTab"
+      @select="applyPreset"
+    />
   </div>
 </template>
 
@@ -329,14 +371,20 @@ watch(activeTab, () => {
   justify-content: flex-end;
 }
 
-/* Адаптивность для мобильных */
-@media (max-width: 768px) {
+.presets-btn {
+  margin-right: auto;
+}
+
+@include media-down(sm) {
   .actions-panel {
     flex-direction: column;
     align-items: stretch;
   }
   .action-controls {
     justify-content: space-between;
+  }
+  .presets-btn {
+    margin-right: 0;
   }
 }
 
@@ -437,5 +485,9 @@ watch(activeTab, () => {
 .empty-icon {
   font-size: 3rem;
   margin-bottom: 1rem;
+}
+
+.empty-state-actions {
+  margin-top: 16px;
 }
 </style>

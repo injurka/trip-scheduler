@@ -20,7 +20,11 @@ import {
   metroStations,
   metroSystems,
   plans,
+  postElements,
+  postMedia,
+  posts,
   refreshTokens,
+  savedPosts,
   tripImages,
   tripParticipants,
   trips,
@@ -114,14 +118,21 @@ async function seedFromJson() {
     process.exit(1)
   }
 
-  const { users: sourceUsers, trips: sourceTrips } = dumpData
+  const { users: sourceUsers, trips: sourceTrips, posts: sourcePosts } = dumpData
 
-  if (!Array.isArray(sourceTrips) || !Array.isArray(sourceUsers)) {
-    console.warn('⚠️ Файл дампа имеет неверный формат. Заполнение базы данных пропущено.')
+  if (!Array.isArray(sourceUsers)) {
+    console.warn('⚠️ Файл дампа имеет неверный формат (отсутствуют users). Заполнение базы данных пропущено.')
     process.exit(0)
   }
 
   console.log('🗑️  Очистка всех данных...')
+  // Очистка постов
+  await db.delete(savedPosts)
+  await db.delete(postMedia)
+  await db.delete(postElements)
+  await db.delete(posts)
+
+  // Очистка путешествий и остального
   await db.delete(llmTokenUsage)
   await db.delete(llmModels)
   await db.delete(memories)
@@ -143,7 +154,6 @@ async function seedFromJson() {
 
   console.log('⭐ Восстановление тарифных планов (Plans)...')
   const plansData = SUBSCRIPTION_MOCK.map(p => ({ ...p, id: Number(p.id) }))
-
   await db.insert(plans).values(plansData)
 
   console.log('🤖 Восстановление LLM моделей...')
@@ -185,93 +195,144 @@ async function seedFromJson() {
     await db.insert(users).values(usersToInsert)
   }
 
-  const tripsToInsert: (typeof trips.$inferInsert)[] = []
-  const daysToInsert: (typeof days.$inferInsert)[] = []
-  const activitiesToInsert: (typeof activities.$inferInsert)[] = []
-  const imagesToInsert: (typeof tripImages.$inferInsert)[] = []
-  const memoriesToInsert: (typeof memories.$inferInsert)[] = []
-  const sectionsToInsert: (typeof tripSections.$inferInsert)[] = []
-  const participantsToInsert: (typeof tripParticipants.$inferInsert)[] = []
+  // --- TRIPS ---
+  if (sourceTrips && Array.isArray(sourceTrips)) {
+    const tripsToInsert: (typeof trips.$inferInsert)[] = []
+    const daysToInsert: (typeof days.$inferInsert)[] = []
+    const activitiesToInsert: (typeof activities.$inferInsert)[] = []
+    const imagesToInsert: (typeof tripImages.$inferInsert)[] = []
+    const memoriesToInsert: (typeof memories.$inferInsert)[] = []
+    const sectionsToInsert: (typeof tripSections.$inferInsert)[] = []
+    const participantsToInsert: (typeof tripParticipants.$inferInsert)[] = []
 
-  // Хелпер для форматирования даты в строку YYYY-MM-DD
-  const toDateString = (d: string | Date) => new Date(d).toISOString().split('T')[0]
+    const toDateString = (d: string | Date) => new Date(d).toISOString().split('T')[0]
 
-  for (const tripData of sourceTrips) {
-    const { days: tripDays, images: tripImagesData, memories: tripMemories, sections, participants, user, ...tripDetails } = tripData
+    for (const tripData of sourceTrips) {
+      const { days: tripDays, images: tripImagesData, memories: tripMemories, sections, participants, user, ...tripDetails } = tripData
 
-    tripsToInsert.push({
-      ...tripDetails,
-      startDate: toDateString(tripDetails.startDate),
-      endDate: toDateString(tripDetails.endDate),
-      createdAt: new Date(tripDetails.createdAt),
-      updatedAt: new Date(tripDetails.updatedAt),
-    })
+      tripsToInsert.push({
+        ...tripDetails,
+        startDate: toDateString(tripDetails.startDate),
+        endDate: toDateString(tripDetails.endDate),
+        createdAt: new Date(tripDetails.createdAt),
+        updatedAt: new Date(tripDetails.updatedAt),
+      })
 
-    if (sections) {
-      const processedSections = sections.map((section: any) => ({
-        ...section,
-        createdAt: new Date(section.createdAt),
-        updatedAt: new Date(section.updatedAt),
-      }))
-      sectionsToInsert.push(...processedSections)
-    }
+      if (sections) {
+        sectionsToInsert.push(...sections.map((section: any) => ({
+          ...section,
+          createdAt: new Date(section.createdAt),
+          updatedAt: new Date(section.updatedAt),
+        })))
+      }
 
-    if (participants)
-      participantsToInsert.push(...participants)
+      if (participants)
+        participantsToInsert.push(...participants)
 
-    if (tripDays) {
-      for (const day of tripDays) {
-        const { activities: dayActivities, ...dayDetails } = day
-        daysToInsert.push({
-          ...dayDetails,
-          date: toDateString(day.date),
-          createdAt: new Date(dayDetails.createdAt),
-          updatedAt: new Date(dayDetails.updatedAt),
-        })
-        if (dayActivities) {
-          activitiesToInsert.push(...dayActivities.map((activity: any) => ({
-            ...activity,
-            createdAt: activity.createdAt ? new Date(activity.createdAt) : new Date(),
-            updatedAt: activity.updatedAt ? new Date(activity.updatedAt) : new Date(),
-          })))
+      if (tripDays) {
+        for (const day of tripDays) {
+          const { activities: dayActivities, ...dayDetails } = day
+          daysToInsert.push({
+            ...dayDetails,
+            date: toDateString(day.date),
+            createdAt: new Date(dayDetails.createdAt),
+            updatedAt: new Date(dayDetails.updatedAt),
+          })
+          if (dayActivities) {
+            activitiesToInsert.push(...dayActivities.map((activity: any) => ({
+              ...activity,
+              createdAt: activity.createdAt ? new Date(activity.createdAt) : new Date(),
+              updatedAt: activity.updatedAt ? new Date(activity.updatedAt) : new Date(),
+            })))
+          }
         }
+      }
+
+      if (tripImagesData) {
+        imagesToInsert.push(...tripImagesData.map((image: any) => ({
+          ...image,
+          createdAt: image.createdAt ? new Date(image.createdAt) : new Date(),
+          takenAt: image.takenAt ? new Date(image.takenAt) : null,
+        })))
+      }
+
+      if (tripMemories) {
+        memoriesToInsert.push(...tripMemories.map((memory: any) => ({
+          ...memory,
+          timestamp: memory.timestamp ? new Date(memory.timestamp) : null,
+          createdAt: memory.createdAt ? new Date(memory.createdAt) : new Date(),
+          updatedAt: memory.updatedAt ? new Date(memory.updatedAt) : new Date(),
+        })))
       }
     }
 
-    if (tripImagesData) {
-      imagesToInsert.push(...tripImagesData.map((image: any) => ({
-        ...image,
-        createdAt: image.createdAt ? new Date(image.createdAt) : new Date(),
-        takenAt: image.takenAt ? new Date(image.takenAt) : null,
-      })))
-    }
-
-    if (tripMemories) {
-      memoriesToInsert.push(...tripMemories.map((memory: any) => ({
-        ...memory,
-        timestamp: memory.timestamp ? new Date(memory.timestamp) : null,
-        createdAt: memory.createdAt ? new Date(memory.createdAt) : new Date(),
-        updatedAt: memory.updatedAt ? new Date(memory.updatedAt) : new Date(),
-      })))
-    }
+    console.log(`✈️  Вставка ${tripsToInsert.length} путешествий и связанных данных...`)
+    if (tripsToInsert.length > 0)
+      await db.insert(trips).values(tripsToInsert)
+    if (sectionsToInsert.length > 0)
+      await db.insert(tripSections).values(sectionsToInsert)
+    if (participantsToInsert.length > 0)
+      await db.insert(tripParticipants).values(participantsToInsert)
+    if (daysToInsert.length > 0)
+      await db.insert(days).values(daysToInsert)
+    if (imagesToInsert.length > 0)
+      await db.insert(tripImages).values(imagesToInsert)
+    if (activitiesToInsert.length > 0)
+      await db.insert(activities).values(activitiesToInsert)
+    if (memoriesToInsert.length > 0)
+      await db.insert(memories).values(memoriesToInsert)
   }
 
-  console.log(`✈️  Вставка ${tripsToInsert.length} путешествий и связанных данных...`)
+  // --- POSTS ---
+  if (sourcePosts && Array.isArray(sourcePosts)) {
+    const postsToInsert: (typeof posts.$inferInsert)[] = []
+    const elementsToInsert: (typeof postElements.$inferInsert)[] = []
+    const mediaToInsert: (typeof postMedia.$inferInsert)[] = []
+    const savedPostsToInsert: (typeof savedPosts.$inferInsert)[] = []
 
-  if (tripsToInsert.length > 0)
-    await db.insert(trips).values(tripsToInsert)
-  if (sectionsToInsert.length > 0)
-    await db.insert(tripSections).values(sectionsToInsert)
-  if (participantsToInsert.length > 0)
-    await db.insert(tripParticipants).values(participantsToInsert)
-  if (daysToInsert.length > 0)
-    await db.insert(days).values(daysToInsert)
-  if (imagesToInsert.length > 0)
-    await db.insert(tripImages).values(imagesToInsert)
-  if (activitiesToInsert.length > 0)
-    await db.insert(activities).values(activitiesToInsert)
-  if (memoriesToInsert.length > 0)
-    await db.insert(memories).values(memoriesToInsert)
+    for (const postData of sourcePosts) {
+      const { elements, media, savedBy, ...postDetails } = postData
+
+      postsToInsert.push({
+        ...postDetails,
+        createdAt: new Date(postDetails.createdAt),
+        updatedAt: new Date(postDetails.updatedAt),
+      })
+
+      if (elements) {
+        elementsToInsert.push(...elements.map((el: any) => ({
+          ...el,
+          createdAt: new Date(el.createdAt),
+          updatedAt: new Date(el.updatedAt),
+        })))
+      }
+
+      if (media) {
+        mediaToInsert.push(...media.map((m: any) => ({
+          ...m,
+          createdAt: new Date(m.createdAt),
+          takenAt: m.takenAt ? new Date(m.takenAt) : null,
+        })))
+      }
+
+      if (savedBy) {
+        savedPostsToInsert.push(...savedBy.map((s: any) => ({
+          ...s,
+          createdAt: new Date(s.createdAt),
+        })))
+      }
+    }
+
+    console.log(`📝 Вставка ${postsToInsert.length} постов и связанных данных...`)
+    if (postsToInsert.length > 0)
+      await db.insert(posts).values(postsToInsert)
+    if (elementsToInsert.length > 0)
+      await db.insert(postElements).values(elementsToInsert)
+    if (mediaToInsert.length > 0)
+      await db.insert(postMedia).values(mediaToInsert)
+    if (savedPostsToInsert.length > 0)
+      await db.insert(savedPosts).values(savedPostsToInsert)
+  }
 
   console.log('✅ База данных успешно восстановлена из JSON дампа!')
   process.exit(0)

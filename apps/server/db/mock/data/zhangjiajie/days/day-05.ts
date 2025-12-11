@@ -36,7 +36,7 @@ export const MOCK_DAY_05 = {
       }],
       tag: 'food' as const,
       status: 'none' as const,
-      rating: null,
+      
       dayId: DAY_IDS.DAY_05,
     },
     {
@@ -106,7 +106,7 @@ export const MOCK_DAY_05 = {
       ],
       tag: 'transport' as const,
       status: 'none' as const,
-      rating: null,
+      
       dayId: DAY_IDS.DAY_05,
     },
     {
@@ -137,7 +137,7 @@ export const MOCK_DAY_05 = {
       ],
       tag: 'attraction' as const,
       status: 'none' as const,
-      rating: null,
+      
       dayId: DAY_IDS.DAY_05,
     },
     {
@@ -168,7 +168,7 @@ export const MOCK_DAY_05 = {
       ],
       tag: 'attraction' as const,
       status: 'none' as const,
-      rating: null,
+      
       dayId: DAY_IDS.DAY_05,
     },
     {
@@ -183,7 +183,7 @@ export const MOCK_DAY_05 = {
       }],
       tag: 'food' as const,
       status: 'none' as const,
-      rating: null,
+      
       dayId: DAY_IDS.DAY_05,
     },
     {
@@ -214,7 +214,7 @@ export const MOCK_DAY_05 = {
       ],
       tag: 'attraction' as const,
       status: 'none' as const,
-      rating: null,
+      
       dayId: DAY_IDS.DAY_05,
     },
     {
@@ -266,7 +266,7 @@ export const MOCK_DAY_05 = {
       ],
       tag: 'transport' as const,
       status: 'none' as const,
-      rating: null,
+      
       dayId: DAY_IDS.DAY_05,
     },
     {
@@ -281,7 +281,7 @@ export const MOCK_DAY_05 = {
       }],
       tag: 'transport' as const,
       status: 'none' as const,
-      rating: null,
+      
       dayId: DAY_IDS.DAY_05,
     },
     {
@@ -296,7 +296,7 @@ export const MOCK_DAY_05 = {
       }],
       tag: 'relax' as const,
       status: 'none' as const,
-      rating: null,
+      
       dayId: DAY_IDS.DAY_05,
     },
     {
@@ -348,7 +348,7 @@ export const MOCK_DAY_05 = {
       ],
       tag: 'attraction' as const,
       status: 'none' as const,
-      rating: null,
+      
       dayId: DAY_IDS.DAY_05,
     },
     {
@@ -363,7 +363,7 @@ export const MOCK_DAY_05 = {
       }],
       tag: 'relax' as const,
       status: 'none' as const,
-      rating: null,
+      
       dayId: DAY_IDS.DAY_05,
     },
   ],

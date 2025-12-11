@@ -19,7 +19,9 @@ const ActivitySectionGallerySchema = ActivitySectionBaseSchema.extend({
 })
 
 const CoordinateSchema = z.tuple([z.number(), z.number()])
-const PointTypeSchema = z.enum(['poi', 'start', 'via', 'end'])
+
+const PointTypeSchema = z.enum(['poi', 'start', 'via', 'end', 'connect'])
+
 const MarkerStyleSchema = z.object({
   iconUrl: z.string().optional(),
   color: z.string().optional(),
@@ -104,7 +106,6 @@ export const ActivitySchema = z.object({
   tag: z.enum(['transport', 'walk', 'food', 'attraction', 'relax']).optional().nullable(),
   dayId: z.string().uuid(),
   status: z.enum(['none', 'completed', 'skipped']).default('none').optional(),
-  rating: z.number().min(0).max(5).nullable().optional(),
 })
 
 export const CreateActivityInputSchema = ActivitySchema.pick({
@@ -115,7 +116,6 @@ export const CreateActivityInputSchema = ActivitySchema.pick({
   tag: true,
   sections: true,
   status: true,
-  rating: true,
 })
 
 export const UpdateActivityInputSchema = ActivitySchema

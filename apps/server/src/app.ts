@@ -1,12 +1,15 @@
+import { swaggerUI } from '@hono/swagger-ui'
 import { trpcServer } from '@hono/trpc-server'
 import { Hono } from 'hono'
 import { bodyLimit } from 'hono/body-limit'
 import { serveStatic } from 'hono/bun'
 import { cors } from 'hono/cors'
 import { HTTPException } from 'hono/http-exception'
+import { createOpenApiFetchHandler, generateOpenApiDocument } from 'trpc-to-openapi'
 import { Logger } from '~/lib/logger'
 import { authController } from './api/auth.controller'
 import { avatarController } from './api/avatar.controller'
+import { imageController } from './api/image.controller'
 import { llmController } from './api/llm.controller'
 import { uploadFileController } from './api/upload.controller'
 import { createContext } from './lib/trpc'
@@ -20,6 +23,7 @@ class Server {
 
   // Список разрешенных источников перенесен внутрь класса для инкапсуляции
   private allowedOrigins = [
+    'https://tripsh.vercel.app', // Vercel
     'http://localhost:1420', // Vite dev server для веб-разработки
     'http://localhost:4173', // Vite preview
     'capacitor://localhost', // Android Capacitor
@@ -97,6 +101,7 @@ class Server {
       .route('/llm', llmController)
 
     this.app.route('/api', apiRoutes)
+    this.app.route('/image', imageController)
 
     // Маршрут для tRPC
     this.app.use(
@@ -110,11 +115,49 @@ class Server {
       }),
     )
 
+    // REST-обработчик для OpenAPI (Swagger) endpoints
+    // Перехватывает запросы, не попавшие в предыдущие роуты, и пытается выполнить их через tRPC
+    this.app.all('/*', async (c, next) => {
+      if (c.req.path.startsWith('/static/')
+        || c.req.path === '/metrics'
+        || c.req.path === '/openapi.json'
+        || c.req.path === '/docs') {
+        return next()
+      }
+
+      const res = await createOpenApiFetchHandler({
+        endpoint: '/', // Корневой путь, так как в meta.openapi paths указаны от корня (например, /trips/cities)
+        router: appRouter,
+        createContext: () => createContext({} as any, c),
+        req: c.req.raw,
+        onError: () => { },
+      })
+
+      if (!res || res.status === 404) {
+        return next()
+      }
+
+      return res
+    })
+
     // Маршрут для метрик
     this.app.get('/metrics', async (c) => {
       c.header('Content-Type', register.contentType)
       return c.body(await register.metrics())
     })
+
+    // 1. Генерируем документ
+    const openApiDocument = generateOpenApiDocument(appRouter, {
+      title: 'tRPC OpenAPI',
+      version: '1.0.0',
+      baseUrl: `${import.meta.env.API_URL}`,
+    })
+
+    // 2. Отдаем JSON спецификации
+    this.app.get('/openapi.json', c => c.json(openApiDocument))
+
+    // 3. Рендерим Swagger UI
+    this.app.get('/docs', swaggerUI({ url: '/openapi.json' }))
 
     logger.log('Routes initialized')
   }

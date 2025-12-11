@@ -85,51 +85,61 @@ onClickOutside(mapIframeContainerRef, () => {
       v-for="(point, index) in points"
       :key="point.id"
       class="poi-item"
-      :class="{ 'is-readonly': readonly }"
+      :class="{ 'is-readonly': readonly, 'is-connect': point.type === 'connect' }"
       @click="emit('focusOnPoint', point)"
     >
       <div class="poi-marker-visual">
         <span class="poi-number" :style="{ backgroundColor: point.style?.color }">
-          {{ index + 1 }}
+          <span v-if="point.type === 'connect'" class="connect-dot" />
+          <span v-else>{{ index + 1 }}</span>
         </span>
       </div>
 
       <div class="poi-info">
-        <div class="poi-field">
-          <Icon icon="mdi:map-marker-outline" class="field-icon" />
-          <KitInlineMdEditorWrapper
-            v-if="!readonly"
-            :model-value="point.address!"
-            class="poi-editor poi-address"
-            :features="{
-              'block-edit': false, 'code-mirror': false, 'cursor': false, 'image-block': false, 'latex': false, 'link-tooltip': false, 'table': false, 'toolbar': false,
-            }"
-            placeholder="Адрес не найден"
-            @update:model-value="point.address = $event"
-            @blur="emit('updatePoint', point)"
-          />
-          <span v-else class="poi-text">{{ point.address || 'Адрес не найден' }}</span>
-          <KitBtn v-if="!readonly" icon="mdi:refresh" variant="subtle" size="xs" aria-label="Обновить адрес" @click.stop="emit('refreshAddress', point.id)" />
-          <KitBtn icon="mdi:map-search-outline" variant="subtle" size="xs" aria-label="Показать на карте" @click.stop="openMapChoice(point)" />
-        </div>
-        <div v-if="point.comment || !readonly" class="poi-field">
-          <Icon icon="mdi:comment-text-outline" class="field-icon" />
-          <KitInlineMdEditorWrapper
-            v-if="!readonly"
-            :model-value="point.comment || ''"
-            class="poi-editor poi-comment"
-            :features="{
-              'block-edit': false, 'code-mirror': false, 'cursor': false, 'image-block': false, 'latex': false, 'link-tooltip': false, 'table': false, 'toolbar': false,
-            }"
-            placeholder="Добавить комментарий"
-            @update:model-value="point.comment = $event"
-            @blur="emit('updatePoint', point)"
-          />
-          <span v-else-if="point.comment" class="poi-text poi-text-comment">{{ point.comment }}</span>
-        </div>
+        <!-- Если это обычная точка (marker) -->
+        <template v-if="point.type !== 'connect'">
+          <div class="poi-field">
+            <Icon icon="mdi:map-marker-outline" class="field-icon" />
+            <KitInlineMdEditorWrapper
+              v-if="!readonly"
+              :model-value="point.address!"
+              class="poi-editor poi-address"
+              :features="{
+                'block-edit': false, 'code-mirror': false, 'cursor': false, 'image-block': false, 'latex': false, 'link-tooltip': false, 'table': false, 'toolbar': false,
+              }"
+              placeholder="Адрес не найден"
+              @update:model-value="point.address = $event"
+              @blur="emit('updatePoint', point)"
+            />
+            <span v-else class="poi-text">{{ point.address || 'Адрес не найден' }}</span>
+            <KitBtn v-if="!readonly" icon="mdi:refresh" variant="subtle" size="xs" aria-label="Обновить адрес" @click.stop="emit('refreshAddress', point.id)" />
+            <KitBtn icon="mdi:map-search-outline" variant="subtle" size="xs" aria-label="Показать на карте" @click.stop="openMapChoice(point)" />
+          </div>
+          <div v-if="point.comment || !readonly" class="poi-field">
+            <Icon icon="mdi:comment-text-outline" class="field-icon" />
+            <KitInlineMdEditorWrapper
+              v-if="!readonly"
+              :model-value="point.comment || ''"
+              class="poi-editor poi-comment"
+              :features="{
+                'block-edit': false, 'code-mirror': false, 'cursor': false, 'image-block': false, 'latex': false, 'link-tooltip': false, 'table': false, 'toolbar': false,
+              }"
+              placeholder="Добавить комментарий"
+              @update:model-value="point.comment = $event"
+              @blur="emit('updatePoint', point)"
+            />
+            <span v-else-if="point.comment" class="poi-text poi-text-comment">{{ point.comment }}</span>
+          </div>
+        </template>
+        <!-- Если это соединительная точка (connect) -->
+        <template v-else>
+          <div class="poi-field connect-field">
+            <span class="poi-text connect-text">Соединительная точка</span>
+          </div>
+        </template>
 
-        <div v-if="!readonly" class="poi-controls">
-          <div class="poi-coords">
+        <div v-if="!readonly" class="poi-controls" :class="{ 'connect-controls': point.type === 'connect' }">
+          <div v-if="point.type !== 'connect'" class="poi-coords">
             <KitInput
               :model-value="point.coordinates[1]"
               size="sm"
@@ -221,6 +231,11 @@ onClickOutside(mapIframeContainerRef, () => {
       background-color: var(--bg-hover-color);
     }
   }
+
+  &.is-connect {
+    padding: 6px 12px;
+    align-items: center;
+  }
 }
 
 .poi-marker-visual {
@@ -228,6 +243,12 @@ onClickOutside(mapIframeContainerRef, () => {
   left: -4px;
   top: -4px;
   opacity: 0.6;
+
+  .is-connect & {
+    position: static;
+    opacity: 1;
+    margin-right: 4px;
+  }
 
   .poi-number {
     display: flex;
@@ -242,7 +263,20 @@ onClickOutside(mapIframeContainerRef, () => {
     line-height: 20px;
     font-weight: 600;
     flex-shrink: 0;
+
+    .is-connect & {
+      width: 14px;
+      height: 14px;
+    }
   }
+}
+
+.connect-dot {
+  display: block;
+  width: 6px;
+  height: 6px;
+  background-color: white;
+  border-radius: 50%;
 }
 
 .poi-info {
@@ -252,6 +286,12 @@ onClickOutside(mapIframeContainerRef, () => {
   flex-direction: column;
   gap: 4px;
   min-width: 0;
+
+  .is-connect & {
+    flex-direction: row;
+    align-items: center;
+    justify-content: space-between;
+  }
 }
 
 .poi-field {
@@ -263,6 +303,10 @@ onClickOutside(mapIframeContainerRef, () => {
     font-size: 1.1rem;
     color: var(--fg-secondary-color);
     flex-shrink: 0;
+  }
+
+  &.connect-field {
+    opacity: 0.7;
   }
 }
 
@@ -277,6 +321,11 @@ onClickOutside(mapIframeContainerRef, () => {
   &-comment {
     font-size: 0.85rem;
     color: var(--fg-secondary-color);
+    font-style: italic;
+  }
+
+  &.connect-text {
+    font-size: 0.8rem;
     font-style: italic;
   }
 }
@@ -313,6 +362,10 @@ onClickOutside(mapIframeContainerRef, () => {
   align-items: center;
   gap: 8px;
   margin-top: 4px;
+
+  &.connect-controls {
+    margin-top: 0;
+  }
 }
 
 .poi-coords {

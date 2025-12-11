@@ -1,8 +1,20 @@
 import type { z } from 'zod'
-import type { CreateTripSectionInputSchema, ReorderTripSectionsInputSchema, UpdateTripSectionInputSchema } from './trip-section.schemas'
+import type { CreateTripSectionInputSchema, ReorderTripSectionsInputSchema, TripSectionType, UpdateTripSectionInputSchema } from './trip-section.schemas'
 import { createTRPCError } from '~/lib/trpc'
 import { tripSectionRepository } from '~/repositories/trip-section.repository'
 import { tripRepository } from '~/repositories/trip.repository'
+
+interface TripSectionResult {
+  id: string
+  tripId: string
+  type: TripSectionType
+  title: string
+  icon: string | null
+  content: any
+  order: number
+  createdAt: Date
+  updatedAt: Date
+}
 
 export const tripSectionService = {
   async create(data: z.infer<typeof CreateTripSectionInputSchema>, userId: string) {
@@ -13,7 +25,8 @@ export const tripSectionService = {
     if (trip.userId !== userId)
       throw createTRPCError('FORBIDDEN', 'У вас нет прав на добавление раздела в это путешествие.')
 
-    return await tripSectionRepository.create(data)
+    const result = await tripSectionRepository.create(data)
+    return result as unknown as TripSectionResult
   },
 
   async update(data: z.infer<typeof UpdateTripSectionInputSchema>, userId: string) {
@@ -29,7 +42,7 @@ export const tripSectionService = {
     if (!updatedSection)
       throw createTRPCError('NOT_FOUND', `Раздел с ID ${id} не найден.`)
 
-    return updatedSection
+    return updatedSection as unknown as TripSectionResult
   },
 
   async delete(id: string, userId: string) {
@@ -44,7 +57,7 @@ export const tripSectionService = {
     if (!deletedSection)
       throw createTRPCError('NOT_FOUND', `Раздел с ID ${id} не найден.`)
 
-    return deletedSection
+    return deletedSection as unknown as TripSectionResult
   },
 
   async reorder(data: z.infer<typeof ReorderTripSectionsInputSchema>, userId: string) {
