@@ -4,7 +4,7 @@ import { KitBtn } from '~/components/01.kit/kit-btn'
 import { KitCheckbox } from '~/components/01.kit/kit-checkbox'
 import { KitInput } from '~/components/01.kit/kit-input'
 import AuthSignLayout from '~/components/06.layouts/auth-sign/ui/auth-sign.vue'
-import { AppRoutePaths } from '~/shared/constants/routes'
+import { AppRouteNames, AppRoutePaths } from '~/shared/constants/routes'
 
 enum OAuthErrors { MissingToken = 'missing_token', MeError = 'me_error' }
 
@@ -124,7 +124,14 @@ onMounted(() => {
         </KitInput>
 
         <KitCheckbox v-model="terms">
-          Я подтверждаю, что прочитал и принимаю <a href="#">Условия использования</a> и <a href="#">Политику конфиденциальности</a>.
+          Я принимаю
+          <router-link :to="{ name: AppRouteNames.Terms }" target="_blank" class="auth-link">
+            Условия использования
+          </router-link>
+          и
+          <router-link :to="{ name: AppRouteNames.Privacy }" target="_blank" class="auth-link">
+            Политику конфиденциальности
+          </router-link>.
         </KitCheckbox>
 
         <KitBtn
@@ -162,7 +169,7 @@ onMounted(() => {
       line-height: 1.5;
     }
 
-    a {
+    .auth-link {
       color: var(--fg-accent-color);
       text-decoration: none;
       &:hover {

@@ -128,14 +128,6 @@ const collapseRouteIcon = computed(() => allRouteBlocksCollapsed.value ? 'mdi:ch
         </button>
 
         <button
-          v-if="isViewMode && getSelectedDay?.meta?.length && !isFullScreen"
-          class="collapse-all-btn"
-          title="Свернуть/развернуть все активности"
-          @click="ui.toggleAllActivities(allActivityIds)"
-        >
-          <Icon :icon="collapseRouteIcon" />
-        </button>
-        <button
           v-if="isViewMode && allActivityIds.length > 0 && !isFullScreen"
           class="collapse-all-btn"
           title="Свернуть/развернуть все активности"
@@ -186,6 +178,10 @@ const collapseRouteIcon = computed(() => allRouteBlocksCollapsed.value ? 'mdi:ch
     display: flex;
     flex-direction: column;
     overflow: hidden;
+
+    @include media-down(sm) {
+      padding: 16px 2px;
+    }
 
     .divider-with-action {
       flex-shrink: 0;

@@ -10,6 +10,8 @@ const Root = () => import('~/pages/root.vue')
 const NotFound = () => import('~/pages/not-found.vue')
 const About = () => import('~/pages/about.vue')
 const UsefulLinks = () => import('~/pages/useful-links.vue')
+const Terms = () => import('~/pages/terms.vue')
+const Privacy = () => import('~/pages/privacy.vue')
 
 // --- Аутентификация ---
 const SignIn = () => import('~/pages/auth/sign-in.vue')
@@ -22,13 +24,13 @@ const TripList = () => import('~/pages/trip/list.vue')
 const TripInfo = () => import('~/pages/trip/[id]/index.vue')
 
 // --- Пользователь (Новая структура) ---
-// Обратите внимание на импорты из новой структуры папок
 const UserProfile = () => import('~/pages/user/[id]/index.vue')
 const UserSettings = () => import('~/pages/user/[id]/settings.vue')
 const UserQuota = () => import('~/pages/user/[id]/quota.vue')
 const UserStorage = () => import('~/pages/user/[id]/storage.vue')
 
 const ExplorePage = () => import('~/pages/explore.vue')
+const PostListPage = () => import('~/pages/post/list.vue')
 
 // Guard для проверки, что пользователь заходит в свои настройки
 async function requireOwner(to: any, _from: any, next: any) {
@@ -69,6 +71,18 @@ const routes: RouteRecordRaw[] = [
     path: AppRoutePaths.UsefulLinks,
     name: AppRouteNames.UsefulLinks,
     component: UsefulLinks,
+    meta: { layout: 'default' },
+  },
+  {
+    path: AppRoutePaths.Terms,
+    name: AppRouteNames.Terms,
+    component: Terms,
+    meta: { layout: 'default' },
+  },
+  {
+    path: AppRoutePaths.Privacy,
+    name: AppRouteNames.Privacy,
+    component: Privacy,
     meta: { layout: 'default' },
   },
   {
@@ -137,6 +151,14 @@ const routes: RouteRecordRaw[] = [
     component: UserStorage,
     meta: { layout: 'default', requiresAuth: true },
     beforeEnter: requireOwner,
+  },
+
+  // --- Посты ---
+  {
+    path: '/post/list',
+    name: AppRouteNames.PostList,
+    component: PostListPage,
+    meta: { layout: 'default', requiresAuth: true },
   },
 
   // --- Системные маршруты ---

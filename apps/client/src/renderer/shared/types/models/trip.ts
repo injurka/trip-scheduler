@@ -6,6 +6,7 @@ import type { Day } from './activity'
 export enum TripImagePlacement {
   ROUTE = 'route',
   MEMORIES = 'memories',
+  DOCUMENTS = 'documents',
 }
 
 /**
@@ -89,7 +90,9 @@ export interface TripImage {
   id: string
   tripId: string
   originalName: string
+  name: string
   url: string
+  fileType: string
   placement: TripImagePlacement
   createdAt: string // ISO string
   sizeBytes: number
@@ -131,6 +134,7 @@ export enum TripSectionType {
   NOTES = 'notes',
   CUSTOM = 'custom',
   MAP = 'map',
+  DOCUMENTS = 'documents',
 }
 
 export interface TripSection {
@@ -166,6 +170,11 @@ export interface Trip {
   visibility: TripVisibility
   createdAt: string
   updatedAt: string
+
+  userRating?: number | null // Оценка текущего пользователя
+  averageRating?: number | null // Средняя оценка
+  ratingsCount?: number // Количество оценок
+
   sections: TripSection[]
 }
 

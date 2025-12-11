@@ -21,6 +21,7 @@ import {
   AttractionsListDialog,
   CitiesListDialog,
   DaysListDialog,
+  ExportTripDialog,
   ParticipantsListDialog,
 } from './dialogs'
 
@@ -46,6 +47,7 @@ const isDaysDialogVisible = ref(false)
 const isCitiesDialogVisible = ref(false)
 const isParticipantsDialogVisible = ref(false)
 const isAttractionsDialogVisible = ref(false)
+const isExportDialogVisible = ref(false) // Добавлено состояние
 
 const isTripUpcoming = computed(() => {
   if (!props.trip)
@@ -161,6 +163,7 @@ async function handleDeleteTrip() {
 
 const moreMenuItems = computed((): KitDropdownItem<string>[] => {
   const items: KitDropdownItem<string>[] = [
+    { value: 'export', label: 'Экспорт', icon: 'mdi:export-variant' },
     { value: 'share', label: 'Поделиться', icon: 'mdi:share-variant-outline' },
   ]
   if (canEdit.value) {
@@ -175,6 +178,8 @@ function handleMenuAction(action: string) {
     handleEditTrip()
   else if (action === 'delete')
     handleDeleteTrip()
+  else if (action === 'export')
+    isExportDialogVisible.value = true
 
   isMoreMenuOpen.value = false
 }
@@ -383,6 +388,7 @@ function handleMenuAction(action: string) {
     <CitiesListDialog v-model:visible="isCitiesDialogVisible" :cities="trip.cities" />
     <ParticipantsListDialog v-model:visible="isParticipantsDialogVisible" :participants="trip.participants" />
     <AttractionsListDialog v-model:visible="isAttractionsDialogVisible" :days="days" @navigate="navigateToDay" />
+    <ExportTripDialog v-model:visible="isExportDialogVisible" :trip="trip" :days="days" :sections="sections" />
   </div>
 </template>
 

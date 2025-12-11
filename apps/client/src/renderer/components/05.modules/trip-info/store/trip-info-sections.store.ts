@@ -59,17 +59,21 @@ export const useTripSectionsStore = defineStore('tripSections', {
           defaultTitle = 'Заметки'
           break
         case TripSectionType.BOOKINGS:
-          defaultContent = { items: [] }
+          defaultContent = { bookings: [] }
           defaultIcon = 'mdi:book-multiple-outline'
           defaultTitle = 'Бронирования'
           break
         case TripSectionType.FINANCES:
-          defaultContent = { totalBudget: 0, expenses: [] }
+          defaultContent = {
+            transactions: [],
+            categories: [],
+            settings: { mainCurrency: 'RUB', exchangeRates: {} },
+          }
           defaultIcon = 'mdi:cash-multiple'
           defaultTitle = 'Финансы'
           break
         case TripSectionType.CHECKLIST:
-          defaultContent = { items: [] }
+          defaultContent = { items: [], groups: [] }
           defaultIcon = 'mdi:format-list-checks'
           defaultTitle = 'Чек-лист'
           break
@@ -77,6 +81,11 @@ export const useTripSectionsStore = defineStore('tripSections', {
           defaultContent = {}
           defaultIcon = 'mdi:map-search-outline'
           defaultTitle = 'Карта путешествия'
+          break
+        case TripSectionType.DOCUMENTS:
+          defaultContent = { documents: [], folders: [] }
+          defaultIcon = 'mdi:file-document-multiple-outline'
+          defaultTitle = 'Документы'
           break
       }
 
@@ -155,13 +164,20 @@ export const useTripSectionsStore = defineStore('tripSections', {
           defaultContent = { markdown: '' }
           break
         case TripSectionType.BOOKINGS:
-          defaultContent = { items: [] }
+          defaultContent = { bookings: [] }
           break
         case TripSectionType.FINANCES:
-          defaultContent = { totalBudget: 0, expenses: [] }
+          defaultContent = {
+            transactions: [],
+            categories: [],
+            settings: { mainCurrency: 'RUB', exchangeRates: {} },
+          }
           break
         case TripSectionType.CHECKLIST:
-          defaultContent = { items: [] }
+          defaultContent = { items: [], groups: [] }
+          break
+        case TripSectionType.DOCUMENTS:
+          defaultContent = { documents: [], folders: [] }
           break
       }
 

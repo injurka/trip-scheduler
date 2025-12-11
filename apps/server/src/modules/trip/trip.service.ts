@@ -19,16 +19,16 @@ export const tripService = {
     return await tripRepository.getUniqueTags(query)
   },
 
-  async getById(id: string) {
-    const trip = await tripRepository.getById(id)
+  async getById(id: string, userId?: string) {
+    const trip = await tripRepository.getById(id, userId)
     if (!trip)
       throw createTRPCError('NOT_FOUND', `Путешествие с ID ${id} не найдено.`)
 
     return trip
   },
 
-  async getByIdWithDays(id: string) {
-    const trip = await tripRepository.getByIdWithDays(id)
+  async getByIdWithDays(id: string, userId?: string) {
+    const trip = await tripRepository.getByIdWithDays(id, userId)
     if (!trip)
       throw createTRPCError('NOT_FOUND', `Путешествие с ID ${id} не найдено.`)
 
@@ -106,5 +106,13 @@ export const tripService = {
   async listByUser(userId: string, limit: number) {
     const trips = await tripRepository.listByUser(userId, limit)
     return trips as NonNullable<typeof trips[number]>[]
+  },
+
+  async rateTrip(tripId: string, userId: string, rating: number) {
+    const trip = await tripRepository.getById(tripId)
+    if (!trip)
+      throw createTRPCError('NOT_FOUND', `Путешествие не найдено.`)
+
+    await tripRepository.rate(tripId, userId, rating)
   },
 }

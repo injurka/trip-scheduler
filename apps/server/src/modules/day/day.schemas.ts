@@ -1,4 +1,5 @@
 import { z } from 'zod'
+import { ActivitySchema } from '../activity/activity.schemas'
 
 export const DayMetaInfoSchema = z.object({
   id: z.string().uuid(),
@@ -19,6 +20,10 @@ export const DaySchema = z.object({
   tripId: z.string().uuid(),
   createdAt: z.date(),
   updatedAt: z.date(),
+})
+
+export const DayWithActivitiesSchema = DaySchema.extend({
+  activities: z.array(ActivitySchema),
 })
 
 export const GetDayNoteInputSchema = z.object({

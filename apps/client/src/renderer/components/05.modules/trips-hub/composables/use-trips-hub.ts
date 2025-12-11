@@ -24,6 +24,7 @@ enum ETripHubKeys {
   CREATE = 'trips:create',
   UPDATE = 'trips:update',
   DELETE = 'trips:delete',
+  RATE = 'trips:rate',
 }
 
 function getDefaultTripData() {
@@ -41,6 +42,7 @@ export function useTripsHub() {
   const { setCount } = useLastCounts()
   const { abort } = useAbortRequest()
   const authStore = useAppStore('auth')
+  const toast = useToast()
 
   // State
   const trips = ref<ITrip[]>([])
@@ -110,7 +112,7 @@ export function useTripsHub() {
         availableTags.value = tags.map(tag => ({ value: tag, label: tag }))
       },
       onError: (error) => {
-        useToast().error(`Не удалось загрузить список тегов: ${error}`)
+        toast.error(`Не удалось загрузить список тегов: ${error}`)
       },
     })
   }
@@ -126,7 +128,7 @@ export function useTripsHub() {
         availableCities.value = cities.map(city => ({ value: city, label: city }))
       },
       onError: (error) => {
-        useToast().error(`Не удалось загрузить список городов: ${error}`)
+        toast.error(`Не удалось загрузить список городов: ${error}`)
       },
     })
   }
@@ -161,18 +163,16 @@ export function useTripsHub() {
       },
       onError: (error) => {
         trips.value = []
-        useToast().error(`Не удалось загрузить список путешествий: ${error}`)
+        toast.error(`Не удалось загрузить список путешествий: ${error}`)
       },
     })
   }
 
   async function createTrip() {
     if (!authStore.canCreateTrip) {
-      useToast().error('Вы достигли лимита на создание путешествий.')
+      toast.error('Вы достигли лимита на создание путешествий.')
       return
     }
-
-    const toast = useToast()
 
     const newTrip = await useRequest({
       key: ETripHubKeys.CREATE,
@@ -192,7 +192,6 @@ export function useTripsHub() {
   }
 
   function deleteTrip(tripId: string) {
-    const toast = useToast()
     const tripIndex = trips.value.findIndex(t => t.id === tripId)
     if (tripIndex === -1)
       return
@@ -230,14 +229,44 @@ export function useTripsHub() {
         if (finalIndex !== -1) {
           trips.value[finalIndex] = { ...trips.value[finalIndex], ...updatedFromServer }
         }
-        useToast().success('Путешествие обновлено.')
+        toast.success('Путешествие обновлено.')
       },
       onError: (error) => {
         const revertIndex = trips.value.findIndex(t => t.id === updatedData.id)
         if (revertIndex !== -1) {
           trips.value[revertIndex] = originalTrip
         }
-        useToast().error(`Не удалось обновить путешествие: ${error}`)
+        toast.error(`Не удалось обновить путешествие: ${error}`)
+      },
+    })
+  }
+
+  async function rateTrip(tripId: string, rating: number) {
+    if (!authStore.isAuthenticated) {
+      toast.error('Войдите, чтобы оценивать путешествия.')
+      return
+    }
+
+    const tripIndex = trips.value.findIndex(t => t.id === tripId)
+    if (tripIndex === -1)
+      return
+
+    const trip = trips.value[tripIndex]
+    const originalUserRating = trip.userRating
+
+    trips.value[tripIndex] = { ...trip, userRating: rating }
+
+    await useRequest({
+      key: `${ETripHubKeys.RATE}:${tripId}`,
+      fn: db => db.trips.rate(tripId, rating),
+      onSuccess: () => {
+        toast.success('Оценка сохранена!')
+      },
+      onError: (error) => {
+        if (tripIndex !== -1) {
+          trips.value[tripIndex] = { ...trip, userRating: originalUserRating }
+        }
+        toast.error(`Не удалось сохранить оценку: ${error}`)
       },
     })
   }
@@ -260,7 +289,7 @@ export function useTripsHub() {
     }
 
     if (!authStore.canCreateTrip) {
-      useToast().error('Вы достигли лимита на создание путешествий. Улучшите ваш план, чтобы создавать больше.')
+      toast.error('Вы достигли лимита на создание путешествий. Улучшите ваш план, чтобы создавать больше.')
       return
     }
 
@@ -315,6 +344,7 @@ export function useTripsHub() {
     createTrip,
     deleteTrip,
     updateTripInList,
+    rateTrip,
     setActiveTab,
     setDisplayMode,
     openCreateModal,

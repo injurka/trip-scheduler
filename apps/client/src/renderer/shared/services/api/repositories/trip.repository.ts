@@ -30,6 +30,11 @@ class TripRepository implements ITripRepository {
   }
 
   @throttle(500)
+  async rate(tripId: string, rating: number): Promise<void> {
+    await trpc.trip.rate.mutate({ tripId, rating })
+  }
+
+  @throttle(500)
   async delete(tripId: string): Promise<Trip> {
     return await trpc.trip.delete.mutate({ tripId }) as unknown as Trip
   }
@@ -47,6 +52,11 @@ class TripRepository implements ITripRepository {
   @throttle(500)
   async listByUser(params: { userId: string, limit: number }): Promise<Trip[]> {
     return await trpc.trip.listByUser.query(params) as Trip[]
+  }
+
+  @throttle(500)
+  async addParticipant(tripId: string, email: string): Promise<void> {
+    await trpc.trip.addParticipant.mutate({ tripId, email })
   }
 }
 

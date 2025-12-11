@@ -51,6 +51,13 @@ const sectionPresets = computed((): SectionPreset[] => {
       icon: 'mdi:cash-multiple',
       isAvailable: !existingTypes.has(TripSectionType.FINANCES),
     },
+    {
+      type: TripSectionType.DOCUMENTS,
+      title: 'Документы',
+      description: 'Хранение важных файлов: билеты, страховки.',
+      icon: 'mdi:file-document-multiple-outline',
+      isAvailable: !existingTypes.has(TripSectionType.DOCUMENTS),
+    },
   ]
 })
 

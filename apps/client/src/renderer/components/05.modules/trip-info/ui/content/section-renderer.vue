@@ -14,6 +14,7 @@ const componentsMap: Partial<Record<TripSectionType, Component>> = {
   [TripSectionType.CHECKLIST]: defineAsyncComponent(() => import('~/components/04.features/trip-info/trip-sections/checklist-section/ui/checklist-section.vue')),
   [TripSectionType.BOOKINGS]: defineAsyncComponent(() => import('~/components/04.features/trip-info/trip-sections/booking-section/ui/booking-section.vue')),
   [TripSectionType.FINANCES]: defineAsyncComponent(() => import('~/components/04.features/trip-info/trip-sections/finances-section/ui/finances-section.vue')),
+  [TripSectionType.DOCUMENTS]: defineAsyncComponent(() => import('~/components/04.features/trip-info/trip-sections/documents-section/ui/documents-section.vue')),
 }
 
 function handleSectionUpdate(updatedSectionData: TripSection) {

@@ -32,7 +32,7 @@ export const MOCK_DAY_14 = {
       sections: [],
       tag: 'food' as const,
       status: 'none' as const,
-      rating: null,
+      
       dayId: DAY_IDS.DAY_14,
     },
     {
@@ -47,7 +47,7 @@ export const MOCK_DAY_14 = {
       }],
       tag: 'relax' as const,
       status: 'none' as const,
-      rating: null,
+      
       dayId: DAY_IDS.DAY_14,
     },
     {
@@ -100,7 +100,7 @@ export const MOCK_DAY_14 = {
       ],
       tag: 'attraction' as const,
       status: 'none' as const,
-      rating: null,
+      
       dayId: DAY_IDS.DAY_14,
     },
     {
@@ -142,7 +142,7 @@ export const MOCK_DAY_14 = {
       ],
       tag: 'walk' as const,
       status: 'none' as const,
-      rating: null,
+      
       dayId: DAY_IDS.DAY_14,
     },
     {
@@ -202,7 +202,7 @@ export const MOCK_DAY_14 = {
       ],
       tag: 'walk' as const,
       status: 'none' as const,
-      rating: null,
+      
       dayId: DAY_IDS.DAY_14,
     },
     {
@@ -217,7 +217,7 @@ export const MOCK_DAY_14 = {
       }],
       tag: 'food' as const,
       status: 'none' as const,
-      rating: null,
+      
       dayId: DAY_IDS.DAY_14,
     },
     {
@@ -262,7 +262,7 @@ export const MOCK_DAY_14 = {
       ],
       tag: 'walk' as const,
       status: 'none' as const,
-      rating: null,
+      
       dayId: DAY_IDS.DAY_14,
     },
     {
@@ -313,7 +313,7 @@ export const MOCK_DAY_14 = {
       ],
       tag: 'attraction' as const,
       status: 'none' as const,
-      rating: null,
+      
       dayId: DAY_IDS.DAY_14,
     },
     {
@@ -328,7 +328,7 @@ export const MOCK_DAY_14 = {
       }],
       tag: 'transport' as const,
       status: 'none' as const,
-      rating: null,
+      
       dayId: DAY_IDS.DAY_14,
     },
   ],

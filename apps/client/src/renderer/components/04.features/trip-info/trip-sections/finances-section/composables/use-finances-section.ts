@@ -140,52 +140,6 @@ export function useFinancesSection(
     return amount * rate
   }
 
-  const totalSpending = computed(() => {
-    return transactions.value
-      .reduce((sum, tx) => sum + convertToMainCurrency(tx.amount, tx.currency), 0)
-  })
-
-  const spendingByCategory = computed(() => {
-    const spendingMap = new Map<string, { name: string, icon: string, amount: number }>()
-
-    transactions.value
-      .forEach((tx) => {
-        const categoryId = tx.categoryId || 'cat-other'
-        const category = categories.value.find(c => c.id === categoryId) || DEFAULT_CATEGORIES.find(c => c.id === 'cat-other')!
-        const amountInMain = convertToMainCurrency(tx.amount, tx.currency)
-
-        if (spendingMap.has(categoryId)) {
-          spendingMap.get(categoryId)!.amount += amountInMain
-        }
-        else {
-          spendingMap.set(categoryId, { name: category.name, icon: category.icon, amount: amountInMain })
-        }
-      })
-
-    return Array.from(spendingMap.values()).sort((a, b) => b.amount - a.amount)
-  })
-
-  const spendingByDay = computed(() => {
-    const spendingMap = new Map<string, number>()
-
-    transactions.value
-      .filter(tx => tx.date) // Исключаем транзакции без даты
-      .forEach((tx) => {
-        const date = tx.date!.split('T')[0] // Группируем по дню, отбрасывая время
-        const amountInMain = convertToMainCurrency(tx.amount, tx.currency)
-
-        if (spendingMap.has(date))
-          spendingMap.set(date, spendingMap.get(date)! + amountInMain)
-
-        else
-          spendingMap.set(date, amountInMain)
-      })
-
-    return Array.from(spendingMap.entries())
-      .map(([date, amount]) => ({ date, amount }))
-      .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime())
-  })
-
   const sortedTransactions = computed(() => {
     return [...transactions.value].sort((a, b) => {
       // Траты без даты всегда наверху
@@ -227,6 +181,54 @@ export function useFinancesSection(
     }
 
     return result
+  })
+
+  const totalSpending = computed(() => {
+    return transactions.value
+      .reduce((sum, tx) => sum + convertToMainCurrency(tx.amount, tx.currency), 0)
+  })
+
+  // ВАЖНО: Теперь графики строятся на основе filteredTransactions
+  const spendingByCategory = computed(() => {
+    const spendingMap = new Map<string, { name: string, icon: string, amount: number }>()
+
+    filteredTransactions.value
+      .forEach((tx) => {
+        const categoryId = tx.categoryId || 'cat-other'
+        const category = categories.value.find(c => c.id === categoryId) || DEFAULT_CATEGORIES.find(c => c.id === 'cat-other')!
+        const amountInMain = convertToMainCurrency(tx.amount, tx.currency)
+
+        if (spendingMap.has(categoryId)) {
+          spendingMap.get(categoryId)!.amount += amountInMain
+        }
+        else {
+          spendingMap.set(categoryId, { name: category.name, icon: category.icon, amount: amountInMain })
+        }
+      })
+
+    return Array.from(spendingMap.values()).sort((a, b) => b.amount - a.amount)
+  })
+
+  // ВАЖНО: График по дням тоже учитывает активные фильтры
+  const spendingByDay = computed(() => {
+    const spendingMap = new Map<string, number>()
+
+    filteredTransactions.value
+      .filter(tx => tx.date) // Исключаем транзакции без даты
+      .forEach((tx) => {
+        const date = tx.date!.split('T')[0] // Группируем по дню, отбрасывая время
+        const amountInMain = convertToMainCurrency(tx.amount, tx.currency)
+
+        if (spendingMap.has(date))
+          spendingMap.set(date, spendingMap.get(date)! + amountInMain)
+
+        else
+          spendingMap.set(date, amountInMain)
+      })
+
+    return Array.from(spendingMap.entries())
+      .map(([date, amount]) => ({ date, amount }))
+      .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime())
   })
 
   const filteredTotal = computed(() => {

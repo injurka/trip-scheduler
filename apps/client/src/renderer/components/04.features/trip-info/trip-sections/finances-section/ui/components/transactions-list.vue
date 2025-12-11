@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import type { Category, FinancesSettings, Transaction } from '../../models/types'
 import { Icon } from '@iconify/vue'
+import { KitBtn } from '~/components/01.kit/kit-btn'
 import { useCurrencyFormatter } from '../../composables/use-currency-formatter'
 
 interface Props {
@@ -74,12 +75,22 @@ function getConvertedAmountInMainCurrency(transaction: Transaction): string | nu
               </span>
             </div>
             <div v-if="!readonly" class="item-actions">
-              <button title="Редактировать" @click="emit('editTransaction', tx)">
-                <Icon icon="mdi:pencil-outline" />
-              </button>
-              <button title="Удалить" @click="emit('deleteTransaction', tx.id)">
-                <Icon icon="mdi:trash-can-outline" />
-              </button>
+              <KitBtn
+                icon="mdi:pencil-outline"
+                variant="text"
+                color="secondary"
+                size="sm"
+                title="Редактировать"
+                @click="emit('editTransaction', tx)"
+              />
+              <KitBtn
+                icon="mdi:trash-can-outline"
+                variant="text"
+                color="secondary"
+                size="sm"
+                title="Удалить"
+                @click="emit('deleteTransaction', tx.id)"
+              />
             </div>
           </div>
         </div>
@@ -183,14 +194,9 @@ function getConvertedAmountInMainCurrency(transaction: Transaction): string | nu
 
 .item-actions {
   display: flex;
-  gap: 0.5rem;
+  gap: 0.25rem; /* Уменьшили gap, так как у кнопок есть свой padding */
   transition: opacity 0.2s;
-  button {
-    color: var(--fg-tertiary-color);
-  }
-  button:hover {
-    color: var(--fg-primary-color);
-  }
+  /* Убрали стили для button, так как KitBtn управляет ими сам */
 }
 
 .empty-state {
@@ -237,7 +243,7 @@ function getConvertedAmountInMainCurrency(transaction: Transaction): string | nu
   }
   .item-actions {
     opacity: 1;
-    gap: 1rem;
+    gap: 0.5rem;
   }
 }
 </style>

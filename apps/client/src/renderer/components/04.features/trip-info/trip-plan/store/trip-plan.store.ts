@@ -17,6 +17,7 @@ export enum ETripPlanKeys {
   REMOVE_ACTIVITY = 'trip-plan:remove-activity',
   UPDATE_TRIP = 'trip-plan:update-trip',
   DELETE_TRIP = 'trip-plan:delete-trip',
+  ADD_PARTICIPANT = 'trip-plan:add-participant',
 }
 
 export interface ITripPlanState {
@@ -48,6 +49,7 @@ export const useTripPlanStore = defineStore('tripPlan', {
     isLoadingUpdateActivity: () => useRequestStatusByPrefix(ETripPlanKeys.UPDATE_ACTIVITY).value,
     isLoadingNote: () => useRequestStatus(ETripPlanKeys.FETCH_DAY_NOTE).value,
     isLoadingUpdateNote: () => useRequestStatus(ETripPlanKeys.UPDATE_DAY_NOTE).value,
+    isAddingParticipant: () => useRequestStatus(ETripPlanKeys.ADD_PARTICIPANT).value,
 
     getAllDays(state): IDay[] {
       return state.days
@@ -178,6 +180,23 @@ export const useTripPlanStore = defineStore('tripPlan', {
         onError: (error) => {
           this.trip = originalTrip
           useToast().error(`Ошибка при обновлении путешествия: ${error}`)
+        },
+      })
+    },
+
+    async addParticipant(email: string) {
+      if (!this.trip)
+        return
+
+      await useRequest({
+        key: ETripPlanKeys.ADD_PARTICIPANT,
+        fn: db => db.trips.addParticipant(this.trip!.id, email),
+        onSuccess: () => {
+          useToast().success(`Пользователь ${email} добавлен в путешествие`)
+          this.fetchTripDetails(this.trip!.id, this.currentDayId!, () => { })
+        },
+        onError: (error) => {
+          useToast().error(`Не удалось добавить участника: ${error}`)
         },
       })
     },

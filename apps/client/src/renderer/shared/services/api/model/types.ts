@@ -57,10 +57,13 @@ export interface ITripRepository {
   create: (data: CreateTripInput) => Promise<Trip>
   update: (id: string, details: UpdateTripInput) => Promise<Trip>
   delete: (id: string) => Promise<Trip>
+  rate: (tripId: string, rating: number) => Promise<void>
   getUniqueCities: () => Promise<string[]>
   getUniqueTags: (params: { query?: string }) => Promise<string[]>
   listByUser: (params: { userId: string, limit: number }) => Promise<Trip[]>
+  addParticipant: (tripId: string, email: string) => Promise<void>
 }
+
 
 export interface IDayRepository {
   getByTripId: (tripId: string) => Promise<Day[]>
