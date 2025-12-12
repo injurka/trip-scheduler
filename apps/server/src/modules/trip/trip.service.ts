@@ -1,5 +1,5 @@
 import type { z } from 'zod'
-import type { CreateTripInputSchema, ListTripsInputSchema, UpdateTripInputSchema } from './trip.schemas'
+import type { CreateTripInputSchema, ListTripsInputSchema, TripWithDaysSchema, UpdateTripInputSchema } from './trip.schemas'
 import { createTRPCError } from '~/lib/trpc'
 import { dayRepository } from '~/repositories/day.repository'
 import { tripRepository } from '~/repositories/trip.repository'
@@ -32,7 +32,7 @@ export const tripService = {
     if (!trip)
       throw createTRPCError('NOT_FOUND', `Путешествие с ID ${id} не найдено.`)
 
-    return trip
+    return trip as unknown as z.infer<typeof TripWithDaysSchema>
   },
 
   async create(data: z.infer<typeof CreateTripInputSchema>, userId: string) {

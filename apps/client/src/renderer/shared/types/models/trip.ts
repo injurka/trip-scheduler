@@ -131,9 +131,9 @@ export enum TripSectionType {
   FINANCES = 'finances',
   CHECKLIST = 'checklist',
   NOTES = 'notes',
-  CUSTOM = 'custom',
-  MAP = 'map',
   DOCUMENTS = 'documents',
+  MAP = 'map',
+  CUSTOM = 'custom',
 }
 
 export interface TripSection {
