@@ -6,7 +6,6 @@ import type { Day } from './activity'
 export enum TripImagePlacement {
   ROUTE = 'route',
   MEMORIES = 'memories',
-  DOCUMENTS = 'documents',
 }
 
 /**

@@ -312,7 +312,6 @@ async function seed() {
           activitiesToInsert.push(...mockActivities.map((a: any) => ({
             ...a,
             sections: a.sections || [],
-            status: a.status || 'none',
             tag: a.tag || 'transport',
           })))
         }

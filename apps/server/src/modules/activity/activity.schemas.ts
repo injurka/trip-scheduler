@@ -98,14 +98,13 @@ export const ActivitySectionSchema = z.discriminatedUnion('type', [
 ])
 
 export const ActivitySchema = z.object({
-  id: z.string().uuid(),
+  id: z.string(),
   startTime: z.string(),
   endTime: z.string(),
   title: z.string(),
   sections: z.array(ActivitySectionSchema).optional().nullable(),
-  tag: z.enum(['transport', 'walk', 'food', 'attraction', 'relax']).optional().nullable(),
-  dayId: z.string().uuid(),
-  status: z.enum(['none', 'completed', 'skipped']).default('none').optional(),
+  tag: z.enum(['transport', 'walk', 'food', 'attraction', 'relax', 'activity']).optional().nullable(),
+  dayId: z.string(),
 })
 
 export const CreateActivityInputSchema = ActivitySchema.pick({
@@ -115,7 +114,6 @@ export const CreateActivityInputSchema = ActivitySchema.pick({
   endTime: true,
   tag: true,
   sections: true,
-  status: true,
 })
 
 export const UpdateActivityInputSchema = ActivitySchema

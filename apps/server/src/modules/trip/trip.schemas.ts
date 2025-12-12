@@ -1,5 +1,6 @@
 import { z } from 'zod'
-import { DaySchema, DayWithActivitiesSchema } from '../day/day.schemas'
+import { DayWithActivitiesSchema } from '../day/day.schemas'
+import { TripSectionSchema } from '../trip-section/trip-section.schemas'
 import { UserSchema } from '../user/user.schemas'
 
 export const TripParticipantSchema = UserSchema.pick({
@@ -24,14 +25,11 @@ export const TripSchema = z.object({
   visibility: z.enum(['public', 'private']),
   createdAt: z.date(),
   updatedAt: z.date(),
-
-  userRating: z.number().int().min(1).max(5).nullable().optional(), // Оценка текущего пользователя
-  averageRating: z.number().nullable().optional(), // Средняя оценка всех пользователей
-  ratingsCount: z.number().optional(), // Количество оценок
 })
 
 export const TripWithDaysSchema = TripSchema.extend({
   days: z.array(DayWithActivitiesSchema),
+  sections: z.array(TripSectionSchema).optional().default([]),
 })
 
 export const GetTripByIdInputSchema = z.object({
@@ -77,9 +75,4 @@ export const ListTripsInputSchema = z.object({
 export const ListTripsByUserInputSchema = z.object({
   userId: z.string().uuid(),
   limit: z.number().min(1).max(10).optional().default(3),
-})
-
-export const RateTripInputSchema = z.object({
-  tripId: z.string().uuid(),
-  rating: z.number().int().min(1).max(5),
 })

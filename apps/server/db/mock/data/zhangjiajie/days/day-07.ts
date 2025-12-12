@@ -35,8 +35,7 @@ export const MOCK_DAY_07 = {
         type: 'description',
       }],
       tag: 'food' as const,
-      status: 'none' as const,
-      
+
       dayId: DAY_IDS.DAY_07,
     },
     {
@@ -85,8 +84,7 @@ export const MOCK_DAY_07 = {
         },
       ],
       tag: 'transport' as const,
-      status: 'none' as const,
-      
+
       dayId: DAY_IDS.DAY_07,
     },
     {
@@ -131,8 +129,7 @@ export const MOCK_DAY_07 = {
         },
       ],
       tag: 'walk' as const,
-      status: 'none' as const,
-      
+
       dayId: DAY_IDS.DAY_07,
     },
     {
@@ -185,8 +182,7 @@ export const MOCK_DAY_07 = {
         },
       ],
       tag: 'attraction' as const,
-      status: 'none' as const,
-      
+
       dayId: DAY_IDS.DAY_07,
     },
     {
@@ -200,8 +196,7 @@ export const MOCK_DAY_07 = {
         type: 'description',
       }],
       tag: 'food' as const,
-      status: 'none' as const,
-      
+
       dayId: DAY_IDS.DAY_07,
     },
     {
@@ -254,8 +249,7 @@ export const MOCK_DAY_07 = {
         },
       ],
       tag: 'walk' as const,
-      status: 'none' as const,
-      
+
       dayId: DAY_IDS.DAY_07,
     },
     {
@@ -294,8 +288,7 @@ export const MOCK_DAY_07 = {
         },
       ],
       tag: 'transport' as const,
-      status: 'none' as const,
-      
+
       dayId: DAY_IDS.DAY_07,
     },
     {
@@ -309,8 +302,7 @@ export const MOCK_DAY_07 = {
         type: 'description',
       }],
       tag: 'transport' as const,
-      status: 'none' as const,
-      
+
       dayId: DAY_IDS.DAY_07,
     },
     {
@@ -320,8 +312,7 @@ export const MOCK_DAY_07 = {
       title: 'Возвращение в отель, ужин и отдых',
       sections: [],
       tag: 'relax' as const,
-      status: 'none' as const,
-      
+
       dayId: DAY_IDS.DAY_07,
     },
   ],

@@ -31,7 +31,6 @@ const tripsHub = inject(TripsHubKey)
 const confirm = useConfirm()
 const isMoreMenuOpen = ref(false)
 const isEditModalOpen = ref(false)
-const isRatingOpen = ref(false)
 
 function goTo() {
   router.push(AppRoutePaths.Trip.Info(`${props.id}`))
@@ -64,32 +63,10 @@ function handleSave(updatedData: UpdateTripInput) {
   }
 }
 
-function handleRatingSelect(ratingValue: number) {
-  if (tripsHub) {
-    tripsHub.rateTrip(props.id, ratingValue)
-  }
-  isRatingOpen.value = false
-}
-
 const moreMenuItems = computed((): KitDropdownItem<string>[] => [
   { value: 'edit', label: 'Редактировать', icon: 'mdi:pencil-outline' },
   { value: 'delete', label: 'Удалить', icon: 'mdi:trash-can-outline', isDestructive: true },
 ])
-
-const ratingOptions = [
-  { value: 5, label: 'Потрясающе', icon: 'mdi:emoticon-excited-outline', color: 'var(--fg-warning-color)' },
-  { value: 4, label: 'Отлично', icon: 'mdi:emoticon-happy-outline', color: 'var(--fg-success-color)' },
-  { value: 3, label: 'Нормально', icon: 'mdi:emoticon-neutral-outline', color: 'var(--fg-info-color)' },
-  { value: 2, label: 'Так себе', icon: 'mdi:emoticon-sad-outline', color: 'var(--fg-accent-color)' },
-  { value: 1, label: 'Плохо', icon: 'mdi:emoticon-dead-outline', color: 'var(--fg-error-color)' },
-]
-
-// Конфигурация для отображения ВАШЕЙ оценки
-const currentUserRatingConfig = computed(() => {
-  if (!props.userRating)
-    return null
-  return ratingOptions.find(opt => opt.value === props.userRating)
-})
 
 function handleMenuAction(action: string) {
   if (action === 'edit')
@@ -149,12 +126,6 @@ const visibilityIcon = computed(() => {
     default:
       return { icon: 'mdi:lock-outline', title: 'Приватное путешествие' }
   }
-})
-
-const formattedAverageRating = computed(() => {
-  if (!props.averageRating)
-    return null
-  return props.averageRating.toFixed(1)
 })
 </script>
 
@@ -265,48 +236,6 @@ const formattedAverageRating = computed(() => {
               :parent-type="CommentParentType.TRIP"
               @click.stop
             />
-
-            <KitDropdown v-model:open="isRatingOpen" align="end">
-              <template #trigger>
-                <button
-                  class="combined-rating-btn"
-                  :class="{ 'has-user-rating': !!userRating }"
-                  title="Оценить"
-                  @click.stop.prevent
-                >
-                  <!-- Часть со средним рейтингом -->
-                  <div v-if="formattedAverageRating" class="average-rating-part">
-                    <Icon icon="mdi:star" />
-                    <span>{{ formattedAverageRating }}</span>
-                  </div>
-
-                  <!-- Разделитель -->
-                  <div v-if="formattedAverageRating" class="divider" />
-
-                  <!-- Часть с оценкой пользователя -->
-                  <div
-                    class="user-rating-part"
-                    :style="userRating ? { color: currentUserRatingConfig?.color } : {}"
-                  >
-                    <Icon :icon="currentUserRatingConfig?.icon || 'mdi:star-outline'" />
-                    <span>{{ userRating ? userRating : 'Оценить' }}</span>
-                  </div>
-                </button>
-              </template>
-
-              <div class="rating-picker">
-                <button
-                  v-for="opt in ratingOptions"
-                  :key="opt.value"
-                  class="rating-option"
-                  :class="{ active: userRating === opt.value }"
-                  @click.stop="handleRatingSelect(opt.value)"
-                >
-                  <Icon :icon="opt.icon" :style="{ color: opt.color }" class="rating-icon" />
-                  <span class="rating-label">{{ opt.label }}</span>
-                </button>
-              </div>
-            </KitDropdown>
           </div>
         </div>
       </div>
@@ -664,29 +593,6 @@ const formattedAverageRating = computed(() => {
   &:hover {
     background-color: var(--bg-hover-color);
     border-color: var(--border-primary-color);
-  }
-}
-
-.average-rating-part,
-.user-rating-part {
-  display: flex;
-  align-items: center;
-  gap: 4px;
-  padding: 6px 10px;
-  font-size: 0.85rem;
-  font-weight: 600;
-  transition: color 0.2s ease;
-}
-
-.average-rating-part {
-  color: var(--fg-warning-color);
-}
-
-.user-rating-part {
-  color: var(--fg-secondary-color);
-
-  .iconify {
-    font-size: 1.1rem;
   }
 }
 

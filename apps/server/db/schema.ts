@@ -176,14 +176,6 @@ export const trips = pgTable('trips', {
   updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow().notNull(),
 })
 
-export const tripRatings = pgTable('trip_ratings', {
-  tripId: uuid('trip_id').references(() => trips.id, { onDelete: 'cascade' }).notNull(),
-  userId: uuid('user_id').references(() => users.id, { onDelete: 'cascade' }).notNull(),
-  rating: integer('rating').notNull(),
-}, t => ({
-  pk: primaryKey(t.tripId, t.userId),
-}))
-
 export const tripSections = pgTable('trip_sections', {
   id: uuid('id').primaryKey().defaultRandom(),
   tripId: uuid('trip_id').notNull().references(() => trips.id, { onDelete: 'cascade' }),
@@ -247,6 +239,7 @@ export const activities = pgTable('activities', {
   sections: jsonb('sections').$type<ActivitySection[]>().notNull().default([]),
   tag: activityTagEnum('tag'),
   status: activityStatusEnum('status').notNull().default('none'),
+  rating: integer('rating'),
   dayId: uuid('day_id').notNull().references(() => days.id, { onDelete: 'cascade' }),
 })
 
@@ -344,17 +337,6 @@ export const metroLineStations = pgTable('metro_line_stations', {
 // =================== СВЯЗИ =====================
 // ===============================================
 
-export const tripRatingsRelations = relations(tripRatings, ({ one }) => ({
-  trip: one(trips, {
-    fields: [tripRatings.tripId],
-    references: [trips.id],
-  }),
-  user: one(users, {
-    fields: [tripRatings.userId],
-    references: [users.id],
-  }),
-}))
-
 export const tripsRelations = relations(trips, ({ one, many }) => ({
   user: one(users, {
     fields: [trips.userId],
@@ -365,7 +347,6 @@ export const tripsRelations = relations(trips, ({ one, many }) => ({
   memories: many(memories),
   participants: many(tripParticipants),
   sections: many(tripSections),
-  ratings: many(tripRatings),
 }))
 
 export const tripSectionsRelations = relations(tripSections, ({ one }) => ({
@@ -436,9 +417,9 @@ export const usersRelations = relations(users, ({ many, one }) => ({
     references: [plans.id],
   }),
   llmTokenUsage: many(llmTokenUsage),
+
   posts: many(posts),
   savedPosts: many(savedPosts),
-  ratings: many(tripRatings),
 }))
 
 export const llmTokenUsageRelations = relations(llmTokenUsage, ({ one }) => ({
@@ -506,9 +487,9 @@ export const metroLineStationsRelations = relations(metroLineStations, ({ one })
 // Объединенный тип блока
 export type PostElementBlock
   = | PostContentBlockText
-  | PostContentBlockGallery
-  | PostContentBlockLocation
-  | PostContentBlockRoute
+    | PostContentBlockGallery
+    | PostContentBlockLocation
+    | PostContentBlockRoute
 
 // Типы блоков внутри одного элемента
 // 'location' — для одной точки (MapPoint)
@@ -572,10 +553,10 @@ interface PostContentBlockRoute extends PostContentBlockBase {
 // Объединяющий тип для использования в generic jsonb
 export type PostElementContent
   = | PostContentBlockText
-  | PostContentBlockImage
-  | PostContentBlockGallery
-  | PostContentBlockLocation
-  | PostContentBlockRoute
+    | PostContentBlockImage
+    | PostContentBlockGallery
+    | PostContentBlockLocation
+    | PostContentBlockRoute
 
 // ===============================================
 // ================ ТАБЛИЦЫ ПОСТОВ ===============

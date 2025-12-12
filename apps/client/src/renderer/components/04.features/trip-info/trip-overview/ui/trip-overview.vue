@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import type { KitDropdownItem } from '~/components/01.kit/kit-dropdown'
+import type { MapPoint, MapRoute } from '~/components/03.domain/trip-info/geolocation-section'
 import type { IDay } from '~/components/04.features/trip-info/trip-plan/models/types'
 import type { Trip, TripSection } from '~/shared/types/models/trip'
 import { Icon } from '@iconify/vue'
@@ -12,9 +13,10 @@ import { KitImage } from '~/components/01.kit/kit-image'
 import { KitTooltip } from '~/components/01.kit/kit-tooltip'
 import { useTripPermissions } from '~/components/05.modules/trip-info/composables/use-trip-permissions'
 import { vRipple } from '~/shared/directives/ripple'
-import { EActivityTag } from '~/shared/types/models/activity'
+import { EActivitySectionType, EActivityTag } from '~/shared/types/models/activity'
 import { TripStatus } from '~/shared/types/models/trip'
 import CountdownWidget from './content/countdown-widget.vue'
+import TripMapWidget from './content/map-widget.vue'
 import StatsWidget from './content/stats-widget.vue'
 import WeatherWidget from './content/weather-widget.vue'
 import {
@@ -47,7 +49,7 @@ const isDaysDialogVisible = ref(false)
 const isCitiesDialogVisible = ref(false)
 const isParticipantsDialogVisible = ref(false)
 const isAttractionsDialogVisible = ref(false)
-const isExportDialogVisible = ref(false) // Добавлено состояние
+const isExportDialogVisible = ref(false)
 
 const isTripUpcoming = computed(() => {
   if (!props.trip)
@@ -92,6 +94,29 @@ const attractionCount = computed(() => {
   }, 0)
 })
 
+// --- Logic for Map Widget ---
+const allGeoSections = computed(() => {
+  const sections: { section: any }[] = []
+  props.days.forEach((day) => {
+    day.activities.forEach((activity) => {
+      activity.sections?.forEach((section) => {
+        if (section.type === EActivitySectionType.GEOLOCATION) {
+          sections.push({ section })
+        }
+      })
+    })
+  })
+  return sections
+})
+
+const allPoints = computed<MapPoint[]>(() =>
+  allGeoSections.value.flatMap(s => s.section.points || []),
+)
+const allRoutes = computed<MapRoute[]>(() =>
+  allGeoSections.value.flatMap(s => s.section.routes || []),
+)
+// ----------------------------
+
 const visibleParticipants = computed(() => props.trip?.participants.slice(0, 5) || [])
 const hiddenParticipantsCount = computed(() => Math.max(0, (props.trip?.participants.length || 0) - 5))
 
@@ -108,7 +133,6 @@ const statusInfo = computed(() => {
   }
 })
 
-// Логика для отображения статуса приватности
 const visibilityInfo = computed(() => {
   if (!props.trip)
     return { icon: 'mdi:lock-outline', label: 'Приватное' }
@@ -187,6 +211,7 @@ function handleMenuAction(action: string) {
 
 <template>
   <div v-if="trip" class="trip-overview">
+    <!-- Banner -->
     <div class="overview-banner">
       <KitImage
         v-if="trip.imageUrl"
@@ -199,7 +224,6 @@ function handleMenuAction(action: string) {
       </div>
       <div class="banner-overlay" />
 
-      <!-- Кнопки действий и статус видимости -->
       <div class="header-actions-wrapper">
         <div class="card-visibility-wrapper">
           <KitTooltip :name="visibilityInfo.label">
@@ -219,8 +243,6 @@ function handleMenuAction(action: string) {
                 <Icon icon="mdi:dots-vertical" />
               </button>
             </template>
-
-            <!-- Ручной рендеринг элементов меню для исправления отображения -->
             <DropdownMenuItem
               v-for="item in moreMenuItems"
               :key="item.value"
@@ -295,10 +317,12 @@ function handleMenuAction(action: string) {
       </div>
     </div>
 
+    <!-- Description -->
     <div v-if="trip.description" class="trip-description-summary">
       <p>{{ trip.description }}</p>
     </div>
 
+    <!-- Stats & Weather -->
     <div class="info-widgets">
       <StatsWidget
         :duration-days="tripDurationDays"
@@ -317,6 +341,7 @@ function handleMenuAction(action: string) {
       />
     </div>
 
+    <!-- Days & Sections Grid -->
     <div class="overview-grid">
       <div class="overview-section">
         <h2 class="section-title">
@@ -373,9 +398,16 @@ function handleMenuAction(action: string) {
       </div>
     </div>
 
-    <KitDivider
-      v-if="isTripUpcoming"
-    >
+    <!-- Map Widget (в самом низу) -->
+    <TripMapWidget
+      v-if="allPoints.length > 0 || allRoutes.length > 0 || trip.cities.length > 0"
+      :points="allPoints"
+      :routes="allRoutes"
+      :cities="trip.cities"
+    />
+
+    <!-- Countdown -->
+    <KitDivider v-if="isTripUpcoming">
       <Icon icon="mdi:star-four-points-outline" />
     </KitDivider>
     <CountdownWidget
@@ -384,6 +416,7 @@ function handleMenuAction(action: string) {
       class="countdown"
     />
 
+    <!-- Dialogs -->
     <DaysListDialog v-model:visible="isDaysDialogVisible" :days="days" @navigate="navigateToDay" />
     <CitiesListDialog v-model:visible="isCitiesDialogVisible" :cities="trip.cities" />
     <ParticipantsListDialog v-model:visible="isParticipantsDialogVisible" :participants="trip.participants" />
@@ -426,6 +459,7 @@ function handleMenuAction(action: string) {
 .trip-description-summary,
 .info-widgets,
 .overview-grid,
+.trip-map-widget,
 .countdown {
   animation: fadeInUp 0.5s 0.1s ease-out forwards;
   opacity: 0;
@@ -439,6 +473,9 @@ function handleMenuAction(action: string) {
 }
 .overview-grid {
   animation-delay: 0.4s;
+}
+.trip-map-widget {
+  animation-delay: 0.45s;
 }
 .countdown {
   animation-delay: 0.5s;

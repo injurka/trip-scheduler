@@ -35,8 +35,7 @@ export const MOCK_DAY_02 = {
         type: 'description',
       }],
       tag: 'food' as const,
-      status: 'none' as const,
-      
+
       dayId: DAY_IDS.DAY_02,
     },
     {
@@ -331,8 +330,7 @@ export const MOCK_DAY_02 = {
         },
       ],
       tag: 'transport' as const,
-      status: 'none' as const,
-      
+
       dayId: DAY_IDS.DAY_02,
     },
     {
@@ -366,8 +364,7 @@ export const MOCK_DAY_02 = {
         },
       ],
       tag: 'attraction' as const,
-      status: 'none' as const,
-      
+
       dayId: DAY_IDS.DAY_02,
     },
     {
@@ -383,8 +380,7 @@ export const MOCK_DAY_02 = {
         },
       ],
       tag: 'attraction' as const,
-      status: 'none' as const,
-      
+
       dayId: DAY_IDS.DAY_02,
     },
     {
@@ -398,8 +394,7 @@ export const MOCK_DAY_02 = {
         type: 'description',
       }],
       tag: 'food' as const,
-      status: 'none' as const,
-      
+
       dayId: DAY_IDS.DAY_02,
     },
     {
@@ -454,8 +449,7 @@ export const MOCK_DAY_02 = {
         },
       ],
       tag: 'attraction' as const,
-      status: 'none' as const,
-      
+
       dayId: DAY_IDS.DAY_02,
     },
     {
@@ -465,8 +459,7 @@ export const MOCK_DAY_02 = {
       title: 'Возвращение в отель и небольшой отдых',
       sections: [],
       tag: 'relax' as const,
-      status: 'none' as const,
-      
+
       dayId: DAY_IDS.DAY_02,
     },
     {
@@ -520,8 +513,7 @@ export const MOCK_DAY_02 = {
         },
       ],
       tag: 'food' as const,
-      status: 'none' as const,
-      
+
       dayId: DAY_IDS.DAY_02,
     },
   ],

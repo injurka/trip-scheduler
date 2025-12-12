@@ -21,13 +21,38 @@ services:
     depends_on:
       - db
 
+  directus:
+    image: directus/directus:latest
+    container_name: trip-scheduler-admin
+    ports:
+      - "8055:8055"
+    networks:
+      - trip-net
+    restart: always
+    depends_on:
+      - db
+    volumes:
+      - directus-uploads:/directus/uploads
+      - directus-extensions:/directus/extensions
+    env_file:
+      - .env.database # 1. Грузим переменные БД (POSTGRES_...)
+      - .env.directus # 2. Грузим настройки Directus
+    environment:
+      # 3. Мапим одно в другое прямо тут
+      DB_CLIENT: "pg"
+      DB_HOST: "db"
+      DB_PORT: "5432"
+      DB_DATABASE: "${POSTGRES_DB:-postgres}"
+      DB_USER: "${POSTGRES_USER:-postgres}"
+      DB_PASSWORD: "${POSTGRES_PASSWORD:-postgres}"
+
   db:
     image: postgres:16-alpine
     container_name: trip-scheduler-db
     networks:
       - trip-net
     env_file:
-      - ../apps/server/.env.db
+      - .env.database # 1. Грузим переменные БД (POSTGRES_...)
     volumes:
       - pgdata:/var/lib/postgresql/data
     restart: always
@@ -56,7 +81,7 @@ services:
     networks:
       - trip-net
     volumes:
-      - grafana-data:/var/lib/grafana # Для сохранения дашбордов и настроек
+      - grafana-data:/var/lib/grafana
       - ./grafana/provisioning/:/etc/grafana/provisioning/
       - ./grafana/dashboards/:/etc/grafana/provisioning/dashboards/
     restart: always
@@ -83,3 +108,5 @@ volumes:
   pgdata:
   prometheus-data:
   grafana-data:
+  directus-uploads:
+  directus-extensions:

@@ -286,6 +286,7 @@ function handleExport() {
     const blob = new Blob([content], { type: mimeType })
     const url = URL.createObjectURL(blob)
     const link = document.createElement('a')
+    // eslint-disable-next-line regexp/no-obscure-range
     const sanitizedTitle = trip.title.replace(/[^a-zа-яё0-9]/gi, '_').toLowerCase()
     link.href = url
     link.download = `trip_${sanitizedTitle}_${new Date().toISOString().split('T')[0]}.${extension}`
