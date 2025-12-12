@@ -170,10 +170,6 @@ export interface Trip {
   createdAt: string
   updatedAt: string
 
-  userRating?: number | null // Оценка текущего пользователя
-  averageRating?: number | null // Средняя оценка
-  ratingsCount?: number // Количество оценок
-
   sections: TripSection[]
 }
 

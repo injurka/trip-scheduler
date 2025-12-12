@@ -145,11 +145,4 @@ function handleSelect(item: KitDropdownItem<T>) {
 .item-label {
   flex-grow: 1;
 }
-
-:slotted(.rating-picker) {
-  display: flex;
-  gap: 4px;
-  align-items: center;
-  padding: 2px;
-}
 </style>

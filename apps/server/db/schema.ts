@@ -240,7 +240,6 @@ export const activities = pgTable('activities', {
   sections: jsonb('sections').$type<ActivitySection[]>().notNull().default([]),
   tag: activityTagEnum('tag'),
   status: activityStatusEnum('status').notNull().default('none'),
-  rating: integer('rating'),
   dayId: uuid('day_id').notNull().references(() => days.id, { onDelete: 'cascade' }),
 })
 
@@ -488,9 +487,9 @@ export const metroLineStationsRelations = relations(metroLineStations, ({ one })
 // Объединенный тип блока
 export type PostElementBlock
   = | PostContentBlockText
-    | PostContentBlockGallery
-    | PostContentBlockLocation
-    | PostContentBlockRoute
+  | PostContentBlockGallery
+  | PostContentBlockLocation
+  | PostContentBlockRoute
 
 // Типы блоков внутри одного элемента
 // 'location' — для одной точки (MapPoint)
@@ -554,10 +553,10 @@ interface PostContentBlockRoute extends PostContentBlockBase {
 // Объединяющий тип для использования в generic jsonb
 export type PostElementContent
   = | PostContentBlockText
-    | PostContentBlockImage
-    | PostContentBlockGallery
-    | PostContentBlockLocation
-    | PostContentBlockRoute
+  | PostContentBlockImage
+  | PostContentBlockGallery
+  | PostContentBlockLocation
+  | PostContentBlockRoute
 
 // ===============================================
 // ================ ТАБЛИЦЫ ПОСТОВ ===============
