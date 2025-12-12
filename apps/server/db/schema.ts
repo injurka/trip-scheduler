@@ -488,9 +488,9 @@ export const metroLineStationsRelations = relations(metroLineStations, ({ one })
 // Объединенный тип блока
 export type PostElementBlock
   = | PostContentBlockText
-  | PostContentBlockGallery
-  | PostContentBlockLocation
-  | PostContentBlockRoute
+    | PostContentBlockGallery
+    | PostContentBlockLocation
+    | PostContentBlockRoute
 
 // Типы блоков внутри одного элемента
 // 'location' — для одной точки (MapPoint)
@@ -554,10 +554,10 @@ interface PostContentBlockRoute extends PostContentBlockBase {
 // Объединяющий тип для использования в generic jsonb
 export type PostElementContent
   = | PostContentBlockText
-  | PostContentBlockImage
-  | PostContentBlockGallery
-  | PostContentBlockLocation
-  | PostContentBlockRoute
+    | PostContentBlockImage
+    | PostContentBlockGallery
+    | PostContentBlockLocation
+    | PostContentBlockRoute
 
 // ===============================================
 // ================ ТАБЛИЦЫ ПОСТОВ ===============
