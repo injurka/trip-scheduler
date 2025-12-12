@@ -35,8 +35,7 @@ export const MOCK_DAY_10 = {
         type: 'description',
       }],
       tag: 'transport' as const,
-      status: 'none' as const,
-      
+
       dayId: DAY_IDS.DAY_10,
     },
     {
@@ -88,8 +87,7 @@ export const MOCK_DAY_10 = {
         },
       ],
       tag: 'attraction' as const,
-      status: 'none' as const,
-      
+
       dayId: DAY_IDS.DAY_10,
     },
     {
@@ -142,8 +140,7 @@ export const MOCK_DAY_10 = {
         },
       ],
       tag: 'food' as const,
-      status: 'none' as const,
-      
+
       dayId: DAY_IDS.DAY_10,
     },
     {
@@ -193,8 +190,7 @@ export const MOCK_DAY_10 = {
         },
       ],
       tag: 'attraction' as const,
-      status: 'none' as const,
-      
+
       dayId: DAY_IDS.DAY_10,
     },
     {
@@ -248,8 +244,7 @@ export const MOCK_DAY_10 = {
         },
       ],
       tag: 'walk' as const,
-      status: 'none' as const,
-      
+
       dayId: DAY_IDS.DAY_10,
     },
     {
@@ -291,8 +286,7 @@ export const MOCK_DAY_10 = {
         },
       ],
       tag: 'walk' as const,
-      status: 'none' as const,
-      
+
       dayId: DAY_IDS.DAY_10,
     },
     {
@@ -342,8 +336,7 @@ export const MOCK_DAY_10 = {
         },
       ],
       tag: 'attraction' as const,
-      status: 'none' as const,
-      
+
       dayId: DAY_IDS.DAY_10,
     },
     {
@@ -394,8 +387,7 @@ export const MOCK_DAY_10 = {
         },
       ],
       tag: 'attraction' as const,
-      status: 'none' as const,
-      
+
       dayId: DAY_IDS.DAY_10,
     },
     {
@@ -445,8 +437,7 @@ export const MOCK_DAY_10 = {
         },
       ],
       tag: 'attraction' as const,
-      status: 'none' as const,
-      
+
       dayId: DAY_IDS.DAY_10,
     },
     {
@@ -498,8 +489,7 @@ export const MOCK_DAY_10 = {
         },
       ],
       tag: 'walk' as const,
-      status: 'none' as const,
-      
+
       dayId: DAY_IDS.DAY_10,
     },
     {
@@ -550,8 +540,7 @@ export const MOCK_DAY_10 = {
         },
       ],
       tag: 'attraction' as const,
-      status: 'none' as const,
-      
+
       dayId: DAY_IDS.DAY_10,
     },
   ],

@@ -42,5 +42,3 @@ class TRPCDatabaseClient implements IDatabaseClient {
 }
 
 export { TRPCDatabaseClient }
-
-

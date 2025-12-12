@@ -6,7 +6,6 @@ import type { Day } from './activity'
 export enum TripImagePlacement {
   ROUTE = 'route',
   MEMORIES = 'memories',
-  DOCUMENTS = 'documents',
 }
 
 /**
@@ -132,9 +131,9 @@ export enum TripSectionType {
   FINANCES = 'finances',
   CHECKLIST = 'checklist',
   NOTES = 'notes',
-  CUSTOM = 'custom',
-  MAP = 'map',
   DOCUMENTS = 'documents',
+  MAP = 'map',
+  CUSTOM = 'custom',
 }
 
 export interface TripSection {

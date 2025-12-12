@@ -44,8 +44,7 @@ export const MOCK_DAY_06 = {
         },
       ],
       tag: 'food' as const,
-      status: 'none' as const,
-      
+
       dayId: DAY_IDS.DAY_06,
     },
     {
@@ -103,8 +102,7 @@ export const MOCK_DAY_06 = {
         },
       ],
       tag: 'transport' as const,
-      status: 'none' as const,
-      
+
       dayId: DAY_IDS.DAY_06,
     },
     {
@@ -138,8 +136,7 @@ export const MOCK_DAY_06 = {
         },
       ],
       tag: 'attraction' as const,
-      status: 'none' as const,
-      
+
       dayId: DAY_IDS.DAY_06,
     },
     {
@@ -190,8 +187,7 @@ export const MOCK_DAY_06 = {
         },
       ],
       tag: 'attraction' as const,
-      status: 'none' as const,
-      
+
       dayId: DAY_IDS.DAY_06,
     },
     {
@@ -248,8 +244,7 @@ export const MOCK_DAY_06 = {
         },
       ],
       tag: 'attraction' as const,
-      status: 'none' as const,
-      
+
       dayId: DAY_IDS.DAY_06,
     },
     {
@@ -263,8 +258,7 @@ export const MOCK_DAY_06 = {
         type: 'description',
       }],
       tag: 'food' as const,
-      status: 'none' as const,
-      
+
       dayId: DAY_IDS.DAY_06,
     },
     {
@@ -315,8 +309,7 @@ export const MOCK_DAY_06 = {
         },
       ],
       tag: 'attraction' as const,
-      status: 'none' as const,
-      
+
       dayId: DAY_IDS.DAY_06,
     },
     {
@@ -367,8 +360,7 @@ export const MOCK_DAY_06 = {
         },
       ],
       tag: 'transport' as const,
-      status: 'none' as const,
-      
+
       dayId: DAY_IDS.DAY_06,
     },
     {
@@ -382,8 +374,7 @@ export const MOCK_DAY_06 = {
         type: 'description',
       }],
       tag: 'transport' as const,
-      status: 'none' as const,
-      
+
       dayId: DAY_IDS.DAY_06,
     },
     {
@@ -397,8 +388,7 @@ export const MOCK_DAY_06 = {
         type: 'description',
       }],
       tag: 'transport' as const,
-      status: 'none' as const,
-      
+
       dayId: DAY_IDS.DAY_06,
     },
     {
@@ -408,8 +398,7 @@ export const MOCK_DAY_06 = {
       title: 'Возвращение в отель, ужин и отдых',
       sections: [],
       tag: 'relax' as const,
-      status: 'none' as const,
-      
+
       dayId: DAY_IDS.DAY_06,
     },
   ],

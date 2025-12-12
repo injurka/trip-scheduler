@@ -5,7 +5,6 @@ import {
   GetTripByIdInputSchema,
   ListTripsByUserInputSchema,
   ListTripsInputSchema,
-  RateTripInputSchema,
   TripSchema,
   TripWithDaysSchema,
   UpdateTripInputSchema,
@@ -83,8 +82,8 @@ export const tripProcedures = {
     })
     .input(GetTripByIdInputSchema)
     .output(TripSchema)
-    .query(async ({ input, ctx }) => {
-      return tripService.getById(input.tripId, ctx.user?.id)
+    .query(async ({ input }) => {
+      return tripService.getById(input.tripId)
     }),
 
   getByIdWithDays: publicProcedure
@@ -98,8 +97,8 @@ export const tripProcedures = {
     })
     .input(GetTripByIdInputSchema)
     .output(TripWithDaysSchema)
-    .query(async ({ input, ctx }) => {
-      return tripService.getByIdWithDays(input.tripId, ctx.user?.id)
+    .query(async ({ input }) => {
+      return tripService.getByIdWithDays(input.tripId)
     }),
 
   create: protectedProcedure
@@ -148,22 +147,5 @@ export const tripProcedures = {
     .output(TripSchema.omit({ participants: true }))
     .mutation(async ({ input, ctx }) => {
       return tripService.delete(input.tripId, ctx.user.id, ctx.user.role)
-    }),
-
-  rate: protectedProcedure
-    .meta({
-      openapi: {
-        method: 'POST',
-        path: '/trips/rate',
-        tags: ['Trips'],
-        summary: 'Оценить путешествие',
-        protect: true,
-      },
-    })
-    .input(RateTripInputSchema)
-    .output(z.object({ success: z.boolean(), userRating: z.number() }))
-    .mutation(async ({ input, ctx }) => {
-      await tripService.rateTrip(input.tripId, ctx.user.id, input.rating)
-      return { success: true, userRating: input.rating }
     }),
 }

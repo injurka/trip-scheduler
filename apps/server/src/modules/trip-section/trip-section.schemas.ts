@@ -7,18 +7,17 @@ export enum TripSectionType {
   BOOKINGS = 'bookings',
   FINANCES = 'finances',
   CHECKLIST = 'checklist',
+  DOCUMENTS = 'documents',
   NOTES = 'notes',
 }
 
 export const TripSectionSchema = z.object({
   id: z.string().uuid(),
   tripId: z.string().uuid(),
-  // Используем z.nativeEnum для корректной генерации типов для клиента.
-  // Zod будет по-прежнему валидировать, что значение является одним из значений enum.
   type: z.nativeEnum(TripSectionType),
   title: z.string(),
   icon: z.string().nullable(),
-  content: z.any(), // z.any() для гибкости jsonb
+  content: z.any(),
   order: z.number(),
   createdAt: z.date(),
   updatedAt: z.date(),

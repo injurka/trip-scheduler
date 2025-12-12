@@ -1,12 +1,10 @@
 import type { z } from 'zod'
 import type { CreateTripInputSchema, ListTripsInputSchema, UpdateTripInputSchema } from '~/modules/trip/trip.schemas'
-import { and, asc, desc, eq, ilike, inArray, or, sql } from 'drizzle-orm'
+import { and, asc, eq, ilike, inArray, or, sql } from 'drizzle-orm'
 import { v4 as uuidv4 } from 'uuid'
 import { measureDbQuery } from '~/lib/db-monitoring'
 import { db } from '../../db'
-import { activities, days, tripParticipants, tripRatings, trips, tripSections } from '../../db/schema'
-
-// --- Helpers & SQL Fragments ---
+import { activities, days, tripParticipants, trips, tripSections } from '../../db/schema'
 
 const withParticipants = {
   participants: {
@@ -29,62 +27,17 @@ const withFullTripData = {
   },
 }
 
-// SQL-фрагменты для получения рейтингов.
-// Используем явные названия таблиц ("trip_ratings"), чтобы избежать ошибок алиасов в Drizzle.
-const tripExtras = {
-  averageRating: sql<number>`(
-    SELECT AVG(rating)::float 
-    FROM "trip_ratings" 
-    WHERE "trip_ratings"."trip_id" = ${trips.id}
-  )`.as('averageRating'),
-
-  ratingsCount: sql<number>`(
-    SELECT COUNT(*)::int
-    FROM "trip_ratings"
-    WHERE "trip_ratings"."trip_id" = ${trips.id}
-  )`.as('ratingsCount'),
-}
-
-// Функция для получения SQL-фрагмента рейтинга текущего пользователя
-function getUserRatingExtra(userId?: string) {
-  return {
-    userRating: userId
-      ? sql<number>`(
-        SELECT rating 
-        FROM "trip_ratings" 
-        WHERE "trip_ratings"."trip_id" = ${trips.id} 
-        AND "trip_ratings"."user_id" = ${userId}
-      )`.as('userRating')
-      : sql<null>`null`.as('userRating'),
-  }
-}
-
 function mapTripParticipants<T extends { participants: Array<{ user: any }> }>(trip: T | null | undefined) {
   if (!trip)
     return null
+
   return {
     ...trip,
     participants: trip.participants.map(p => p.user),
   }
 }
 
-// --- Repository Implementation ---
-
 export const tripRepository = {
-  /**
-   * Добавляет или обновляет рейтинг пользователя для путешествия.
-   */
-  async rate(tripId: string, userId: string, rating: number) {
-    return measureDbQuery('tripRatings', 'insert', async () => {
-      await db.insert(tripRatings)
-        .values({ tripId, userId, rating })
-        .onConflictDoUpdate({
-          target: [tripRatings.tripId, tripRatings.userId],
-          set: { rating },
-        })
-    })
-  },
-
   /**
    * Получает все путешествия с применением фильтров.
    */
@@ -133,10 +86,6 @@ export const tripRepository = {
         where: and(...conditions),
         orderBy: (trips, { desc }) => [desc(trips.createdAt)],
         with: withParticipants,
-        extras: {
-          ...tripExtras,
-          ...getUserRatingExtra(userId),
-        },
       })
 
       return result.map(mapTripParticipants)
@@ -184,15 +133,11 @@ export const tripRepository = {
   /**
    * Получает путешествие по ID.
    */
-  async getById(id: string, userId?: string) {
+  async getById(id: string) {
     return measureDbQuery('trips', 'select', async () => {
       const result = await db.query.trips.findFirst({
         where: eq(trips.id, id),
         with: withFullTripData,
-        extras: {
-          ...tripExtras,
-          ...getUserRatingExtra(userId),
-        },
       })
 
       return mapTripParticipants(result)
@@ -220,7 +165,7 @@ export const tripRepository = {
   /**
    * Получает путешествие со всеми днями и активностями.
    */
-  async getByIdWithDays(id: string, userId?: string) {
+  async getByIdWithDays(id: string) {
     return measureDbQuery('trips', 'select', async () => {
       const result = await db.query.trips.findFirst({
         where: eq(trips.id, id),
@@ -235,9 +180,6 @@ export const tripRepository = {
             },
           },
         },
-        extras: {
-          ...getUserRatingExtra(userId),
-        },
       })
 
       return mapTripParticipants(result)
@@ -246,6 +188,7 @@ export const tripRepository = {
 
   /**
    * Обновляет детали путешествия.
+   * @returns Обновленный объект путешествия или null.
    */
   async update(id: string, details: z.infer<typeof UpdateTripInputSchema>['details']) {
     return measureDbQuery('trips', 'update', async () => {
@@ -310,6 +253,7 @@ export const tripRepository = {
 
   /**
    * Создает новое путешествие.
+   * @returns Созданный объект путешествия.
    */
   async create(data: z.infer<typeof CreateTripInputSchema>, userId: string) {
     return measureDbQuery('trips', 'insert', async () => {
@@ -349,6 +293,7 @@ export const tripRepository = {
 
   /**
    * Удаляет путешествие по ID.
+   * @returns Удаленный объект или null.
    */
   async delete(id: string) {
     return measureDbQuery('trips', 'delete', async () => {

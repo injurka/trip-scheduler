@@ -56,6 +56,6 @@ export interface ChecklistPreset {
   name: string
   description: string
   icon: string
-  tab: ChecklistTab 
+  tab: ChecklistTab
   groups: PresetGroup[]
 }

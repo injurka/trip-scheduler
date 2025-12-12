@@ -49,6 +49,7 @@
     "src/**/*.d.ts",
     "src/**/*.tsx",
     "src/**/*.vue",
-    ".storybook/**/*"
-, "src/renderer/pages/post/list.vue"  ]
+    ".storybook/**/*",
+    "src/renderer/pages/post/list.vue"
+  ]
 }

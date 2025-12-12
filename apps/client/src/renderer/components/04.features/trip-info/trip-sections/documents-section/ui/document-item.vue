@@ -2,7 +2,6 @@
 import type { DocumentFile } from '../models/types'
 import { Icon } from '@iconify/vue'
 import { KitDropdown } from '~/components/01.kit/kit-dropdown'
-import { useModuleStore } from '~/components/05.modules/trip-info/composables'
 
 const props = defineProps<{
   document: DocumentFile
@@ -13,8 +12,6 @@ const emit = defineEmits<{
   (e: 'delete'): void
   (e: 'update', value: DocumentFile): void
 }>()
-
-const { routeGallery } = useModuleStore(['routeGallery'])
 
 function getFileIcon(fileType: string) {
   const type = fileType.toLowerCase()
@@ -51,7 +48,7 @@ function toggleAccess() {
 }
 
 function handleDownload() {
-  window.open(routeGallery.resolveDocumentUrl(props.document.url), '_blank')
+  // TODO
 }
 </script>
 

@@ -19,7 +19,6 @@ export const activityRepository = {
       .values({
         ...data,
         tag: data.tag ?? null,
-        status: data.status ?? 'none',
         id: uuidv4(),
         sections: data.sections ?? [],
       } as ActivityInsert)

@@ -64,7 +64,6 @@ export interface ITripRepository {
   addParticipant: (tripId: string, email: string) => Promise<void>
 }
 
-
 export interface IDayRepository {
   getByTripId: (tripId: string) => Promise<Day[]>
   createNewDay: (dayData: Omit<Day, 'id' | 'activities'>) => Promise<Day>

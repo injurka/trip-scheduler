@@ -1,9 +1,6 @@
 import type { DocumentFile, DocumentFolder, DocumentsSectionContent } from '../models/types'
 import { useDebounceFn } from '@vueuse/core'
 import { v4 as uuidv4 } from 'uuid'
-import { computed, ref, watch } from 'vue'
-import { useModuleStore } from '~/components/05.modules/trip-info/composables'
-import { TripImagePlacement } from '~/shared/types/models/trip'
 
 interface UseDocumentsSectionProps {
   section: {
@@ -18,7 +15,6 @@ export function useDocumentsSection(
   props: UseDocumentsSectionProps,
   emit: (event: 'updateSection', payload: any) => void,
 ) {
-  const { routeGallery } = useModuleStore(['routeGallery'])
   const confirm = useConfirm()
   const toast = useToast()
 
@@ -43,7 +39,8 @@ export function useDocumentsSection(
     if (currentFolderId.value) {
       const folder = folders.value.find(f => f.id === currentFolderId.value)
       if (folder) {
-        crumbs.push({ id: folder.id, name: folder.name })
+        // TODO
+        // crumbs.push({ id: folder.id, name: folder.name })
       }
     }
     return crumbs
@@ -84,26 +81,17 @@ export function useDocumentsSection(
     }
   }
 
-  async function uploadFiles(files: File[], folderId: string | null, access: 'public' | 'private') {
+  async function uploadFiles(files: File[], _folderId: string | null, _access: 'public' | 'private') {
     if (props.readonly || files.length === 0)
       return
 
     isUploading.value = true
     try {
-      for (const file of files) {
-        const uploadedImage = await routeGallery.uploadImage(file, TripImagePlacement.DOCUMENTS)
-        if (uploadedImage) {
-          const newDocument: DocumentFile = {
-            ...uploadedImage,
-            access,
-            folderId,
-          }
-          documents.value.unshift(newDocument)
-        }
-      }
+      // TODO
+
       toast.success(`Успешно загружено ${files.length} файла(ов).`)
     }
-    catch (e) {
+    catch {
       toast.error('Ошибка при загрузке файлов.')
     }
     finally {
