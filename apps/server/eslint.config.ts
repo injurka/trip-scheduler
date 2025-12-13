@@ -5,6 +5,7 @@ export default antfu({
   rules: {
     'node/prefer-global/process': 'off',
     'node/prefer-global/buffer': 'off',
+    'ts/consistent-type-definitions': 'off',
   },
-  ignores: ['**/dump/**', '**/drizzle/**', 'bun.lock'],
+  ignores: ['**/dump/**', 'bun.lock'],
 })

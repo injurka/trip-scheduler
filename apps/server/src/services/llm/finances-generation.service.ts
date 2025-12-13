@@ -1,7 +1,7 @@
-import type { AiRequestPrompts } from '~/lib/llm'
+import type { AiRequestPrompts } from '~/lib/llm-request'
 import { TRPCError } from '@trpc/server'
-import { createAiChatRequest } from '~/lib/llm'
-import { llmUsageRepository } from '~/repositories/llm-usage.repository'
+import { createAiChatRequest } from '~/lib/llm-request'
+// import { llmUsageRepository } from '~/repositories/llm-usage.repository'
 import { quotaService } from '~/services/quota.service'
 
 interface GenerateFinancesParams {
@@ -105,13 +105,13 @@ async function generateTransactionsFromData({ userId, fileBuffer, fileName, text
       completion.usage.completion_tokens,
     )
 
-    await llmUsageRepository.create({
-      userId,
-      model: modelId,
-      operation: 'financesGeneration',
-      inputTokens: completion.usage.prompt_tokens,
-      outputTokens: completion.usage.completion_tokens,
-    })
+    // await llmUsageRepository.create({
+    //   userId,
+    //   model: modelId,
+    //   operation: 'financesGeneration',
+    //   inputTokens: completion.usage.prompt_tokens,
+    //   outputTokens: completion.usage.completion_tokens,
+    // })
   }
 
   const jsonResponse = completion.choices[0].message.content

@@ -1,8 +1,4 @@
-import { createSelectSchema } from 'drizzle-zod'
 import { z } from 'zod'
-import { plans, users } from '~/../db/schema'
-
-// --- Входящие данные (Input) ---
 
 export const SignUpInputSchema = z.object({
   name: z.string().min(1, 'Имя не может быть пустым'),
@@ -12,7 +8,7 @@ export const SignUpInputSchema = z.object({
 
 export const VerifyEmailInputSchema = z.object({
   email: z.string().email('Некорректный формат email'),
-  token: z.string().min(6, 'Код должен содержать 6 символов').max(6, 'Код должен содержать 6 символов'),
+  token: z.string().min(6).max(6),
 })
 
 export const SignInInputSchema = z.object({
@@ -34,9 +30,8 @@ export const RefreshTokenInputSchema = z.object({
   refreshToken: z.string(),
 })
 
-// --- Схема для получения пользователя по ID ---
 export const GetUserByIdInputSchema = z.object({
-  id: z.string().uuid(),
+  id: z.string(),
 })
 
 export const UpdateUserInputSchema = z.object({
@@ -51,40 +46,45 @@ export const UpdateUserStatusInputSchema = z.object({
 
 export const ChangePasswordInputSchema = z.object({
   currentPassword: z.string(),
-  newPassword: z.string().min(6, 'Новый пароль должен содержать минимум 6 символов'),
+  newPassword: z.string().min(6),
 })
 
 export const DeleteAccountInputSchema = z.object({
   password: z.string(),
 })
 
-// --- Исходящие данные (Output) ---
+export const PlanSchema = z.object({
+  id: z.string(), 
+  name: z.string(),
+  maxTrips: z.number(),
+  maxStorageBytes: z.number(),
+  monthlyLlmCredits: z.number(),
+  isDeveloping: z.boolean(),
+})
 
-export const PlanSchema = createSelectSchema(plans)
+export const UserSchema = z.object({
+  id: z.string(),
+  role: z.enum(['user', 'admin']),
+  email: z.string().email(),
+  name: z.string().nullable().optional(),
+  avatarUrl: z.string().nullable().optional(),
+  emailVerified: z.union([z.string(), z.date()]).nullable().optional(), 
+  plan: PlanSchema.optional(),
+  _count: z.object({
+    trips: z.number(),
+  }).optional(),
+})
 
-// Безопасная схема пользователя (без пароля) для отправки на клиент
-export const UserSchema = createSelectSchema(users)
-  .omit({ password: true })
-  .extend({
-    plan: PlanSchema.optional(),
-    _count: z.object({
-      trips: z.number(),
-    }).optional(),
-  })
-
-// Схема для пары токенов
 export const TokenPairSchema = z.object({
   accessToken: z.string(),
   refreshToken: z.string(),
 })
 
-// Схема для ответа при успешном входе или обновлении токена
 export const AuthOutputSchema = z.object({
   user: UserSchema,
   token: TokenPairSchema,
 })
 
-// Схема для ответа при обновлении токена
 export const RefreshOutputSchema = z.object({
   token: TokenPairSchema,
 })

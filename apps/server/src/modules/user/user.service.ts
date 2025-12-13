@@ -1,12 +1,28 @@
 import type { z } from 'zod'
-import type { ChangePasswordInputSchema, DeleteAccountInputSchema, SignInInputSchema, SignUpInputSchema, UpdateUserInputSchema, UpdateUserStatusInputSchema, VerifyEmailInputSchema } from './user.schemas'
-import { and, eq, gte } from 'drizzle-orm'
-import { db } from '~/../db'
-import { emailVerificationTokens, users } from '~/../db/schema'
+import type {
+  ChangePasswordInputSchema,
+  DeleteAccountInputSchema,
+  SignInInputSchema,
+  SignUpInputSchema,
+  UpdateUserInputSchema,
+  UpdateUserStatusInputSchema,
+  VerifyEmailInputSchema,
+} from './user.schemas'
+import { v4 as uuidv4 } from 'uuid'
+import { db, toId } from '~/db'
 import { authUtils } from '~/lib/auth.utils'
 import { createTRPCError } from '~/lib/trpc'
-import { userRepository } from '~/repositories/user.repository'
+import { userRepository } from '~/modules/user/user.repository'
 import { emailService } from '~/services/email.service'
+
+interface EmailToken {
+  id: string
+  email: string
+  token: string
+  name: string
+  password: string // hashed
+  expiresAt: string | Date
+}
 
 export const userService = {
   async listPlans() {
@@ -23,15 +39,24 @@ export const userService = {
     const hashedPassword = await authUtils.passwords.hash(input.password)
     const expiresAt = new Date(Date.now() + 10 * 60 * 1000)
 
-    await db.transaction(async (tx) => {
-      await tx.delete(emailVerificationTokens).where(eq(emailVerificationTokens.email, input.email))
-      await tx.insert(emailVerificationTokens).values({
-        email: input.email,
-        token: verificationCode,
-        name: input.name,
-        password: hashedPassword,
-        expiresAt,
-      })
+    await db.query(`
+      BEGIN TRANSACTION;
+      DELETE email_verification_token WHERE email = $email;
+      CREATE $tokenId CONTENT {
+        email: $email,
+        token: $token,
+        name: $name,
+        password: $password,
+        expiresAt: $expiresAt
+      };
+      COMMIT TRANSACTION;
+    `, {
+      email: input.email,
+      tokenId: toId('email_verification_token', uuidv4()),
+      token: verificationCode,
+      name: input.name,
+      password: hashedPassword,
+      expiresAt,
     })
 
     await emailService.sendVerificationEmail(input.email, verificationCode)
@@ -40,30 +65,50 @@ export const userService = {
   },
 
   async verifyEmail(input: z.infer<typeof VerifyEmailInputSchema>) {
-    const verificationRecord = await db.query.emailVerificationTokens.findFirst({
-      where: and(
-        eq(emailVerificationTokens.email, input.email),
-        gte(emailVerificationTokens.expiresAt, new Date()),
-      ),
-    })
+    const [result] = await db.query<[EmailToken[]]>(`
+      SELECT * FROM email_verification_token
+      WHERE email = $email AND expiresAt > time::now()
+      LIMIT 1
+    `, { email: input.email })
+
+    const verificationRecord = result?.[0]
 
     if (!verificationRecord || verificationRecord.token !== input.token) {
       throw createTRPCError('UNAUTHORIZED', 'Неверный или истекший код подтверждения.')
     }
 
-    const user = await userRepository.create({
-      name: verificationRecord.name,
-      email: verificationRecord.email,
-      password: verificationRecord.password,
-    })
-
-    await db.update(users).set({ emailVerified: new Date() }).where(eq(users.id, user.id))
-    await db.delete(emailVerificationTokens).where(eq(emailVerificationTokens.id, verificationRecord.id))
-
-    const fullUser = await userRepository.getById(user.id)
-    if (!fullUser) {
-      throw createTRPCError('INTERNAL_SERVER_ERROR', 'Не удалось получить данные пользователя после регистрации.')
+    const existingUser = await userRepository.findByEmail(verificationRecord.email)
+    if (existingUser && existingUser.emailVerified) {
+      throw createTRPCError('CONFLICT', `Пользователь с таким email уже подтвержден.`)
     }
+
+    let userId: string
+
+    if (existingUser) {
+      await db.merge(existingUser.id, {
+        name: verificationRecord.name,
+        password: verificationRecord.password,
+        emailVerified: new Date(),
+        updatedAt: new Date(),
+      })
+      userId = existingUser.id.toString()
+    }
+    else {
+      const newUser = await userRepository.create({
+        name: verificationRecord.name,
+        email: verificationRecord.email,
+        password: verificationRecord.password,
+      })
+      // userRepository.create возвращает UserForClient, но нам нужно явно проставить emailVerified
+      await db.merge(toId('user', newUser.id), { emailVerified: new Date() })
+      userId = newUser.id
+    }
+
+    await db.delete(verificationRecord.id)
+
+    const fullUser = await userRepository.getById(userId)
+    if (!fullUser)
+      throw createTRPCError('INTERNAL_SERVER_ERROR', 'Ошибка при получении пользователя')
 
     const token = await authUtils.generateTokens({ id: fullUser.id, email: fullUser.email })
 
@@ -86,15 +131,24 @@ export const userService = {
       throw createTRPCError('UNAUTHORIZED', 'Неверный email или пароль.')
     }
 
-    const { password, ...userWithoutPassword } = user
-    const token = await authUtils.generateTokens({ id: user.id, email: user.email })
+    const token = await authUtils.generateTokens({ id: user.id.toString(), email: user.email })
 
-    return { user: userWithoutPassword, token }
+    // Преобразуем UserRecord в UserForClient
+    // eslint-disable-next-line unused-imports/no-unused-vars
+    const { password, id, plan, tripsCount, ...rest } = user as any
+
+    // В findByEmail мы получали просто таблицу, там могло не быть tripsCount через SELECT
+    // Но для signIn нам нужен tripsCount для UserForClient.
+    // Проще вызвать getById, чтобы получить нормализованного пользователя
+    const userForClient = await userRepository.getById(user.id.toString())
+    if (!userForClient)
+      throw createTRPCError('INTERNAL_SERVER_ERROR', 'Ошибка пользователя')
+
+    return { user: userForClient, token }
   },
 
   async signOut(userId: string) {
     await authUtils.invalidateTokens(userId)
-
     return { ok: true }
   },
 
@@ -113,7 +167,6 @@ export const userService = {
     if (!user) {
       throw createTRPCError('NOT_FOUND', `Пользователь не найден.`)
     }
-
     return user
   },
 
@@ -123,7 +176,7 @@ export const userService = {
 
   async update(id: string, data: z.infer<typeof UpdateUserInputSchema>) {
     if (Object.keys(data).length === 0) {
-      throw createTRPCError('BAD_REQUEST', 'Не предоставлено полей для обновления.')
+      return this.getById(id)
     }
     const updatedUser = await userRepository.update(id, data)
 
@@ -144,10 +197,7 @@ export const userService = {
 
   async changePassword(id: string, data: z.infer<typeof ChangePasswordInputSchema>) {
     const newPasswordHash = await authUtils.passwords.hash(data.newPassword)
-    const result = await userRepository.changePassword(id, data.currentPassword, newPasswordHash)
-    if (!result) {
-      throw createTRPCError('INTERNAL_SERVER_ERROR', 'Не удалось сменить пароль.')
-    }
+    await userRepository.changePassword(id, data.currentPassword, newPasswordHash)
     return { success: true }
   },
 

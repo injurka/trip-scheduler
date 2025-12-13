@@ -1,116 +1,73 @@
 /* eslint-disable no-console */
 import process from 'node:process'
-import { sql } from 'drizzle-orm'
-import { db } from './index'
-import {
-  activities,
-  days,
-  memories,
-  postElements,
-  postMedia,
-  posts,
-  savedPosts,
-  tripImages,
-  tripParticipants,
-  trips,
-  tripSections,
-  users,
-} from './schema'
-
-/**
- * Вспомогательная функция для подсчета записей в таблице.
- * @param table - Схема таблицы из Drizzle.
- * @param tableName - Человекочитаемое имя таблицы для вывода.
- * @returns Объект с именем и количеством записей.
- */
-async function getTableCount(table: any, tableName: string): Promise<{ name: string, count: number }> {
-  const [result] = await db
-    .select({ count: sql<number>`count(*)` })
-    .from(table)
-  return { name: tableName, count: result.count }
-}
+import { connectDB, db } from '../src/db'
 
 async function checkData() {
-  console.log('🧐 Начинаем расширенную проверку данных в базе...')
+  console.log('🧐 Начинаем проверку данных в SurrealDB...')
 
   try {
+    await connectDB()
+
     console.group('\n📊 Общая статистика по таблицам:')
 
-    const counts = await Promise.all([
-      getTableCount(users, '👤 Пользователи'),
-      getTableCount(trips, '✈️ Путешествия'),
-      getTableCount(days, '📅 Дни'),
-      getTableCount(activities, '🏃 Мероприятия'),
-      getTableCount(tripImages, '🖼️ Изображения путешествий'),
-      getTableCount(memories, '📝 Воспоминания'),
-      getTableCount(tripSections, '📚 Секции путешествий'),
-      getTableCount(tripParticipants, '🧑‍🤝‍🧑 Участники путешествий'),
-      // Новые сущности
-      getTableCount(posts, '📝 Посты'),
-      getTableCount(postElements, '🧩 Элементы постов'),
-      getTableCount(postMedia, '🎬 Медиа постов'),
-      getTableCount(savedPosts, '🔖 Сохраненные посты'),
-    ])
+    const tables = [
+      { name: 'user', label: '👤 Пользователи' },
+      { name: 'trip', label: '✈️ Путешествия' },
+      { name: 'day', label: '📅 Дни' },
+      { name: 'activity', label: '🏃 Мероприятия' },
+      { name: 'trip_image', label: '🖼️ Изображения' },
+      { name: 'memory', label: '📝 Воспоминания' },
+      { name: 'trip_section', label: '📚 Секции' },
+      { name: 'post', label: '📝 Посты' },
+      { name: 'participates_in', label: '🧑‍🤝‍🧑 Связи участников' },
+      { name: 'saved', label: '🔖 Сохраненные посты' },
+    ]
 
-    counts.forEach(({ name, count }) => {
-      console.log(`   - ${name}: ${count}`)
-    })
+    const counts: Record<string, number> = {}
+
+    for (const t of tables) {
+      const [res] = await db.query<[{ count: number }][]>(`SELECT count() FROM \`${t.name}\` GROUP ALL`)
+      const count = res[0]?.count || 0
+      counts[t.name] = count
+      console.log(`   - ${t.label}: ${count}`)
+    }
     console.groupEnd()
 
     // Проверка путешествий
-    const tripCount = counts.find(c => c.name.includes('Путешествия'))?.count ?? 0
-    if (tripCount > 0) {
+    if (counts.trip > 0) {
       console.group('\n✅ Глубокая проверка первого путешествия:')
-      const firstTrip = await db.query.trips.findFirst({
-        with: {
-          user: { columns: { name: true } },
-          days: { with: { activities: { columns: { id: true } } } },
-          participants: { columns: { userId: true } },
-          images: { columns: { id: true } },
-        },
-      })
+      const [trips] = await db.query<any[][]>(`
+        SELECT *, 
+          user.name as ownerName,
+          (SELECT count() FROM day WHERE tripId = $parent.id GROUP ALL)[0].count as dayCount,
+          (SELECT count() FROM <-participates_in GROUP ALL)[0].count as participantCount
+        FROM trip 
+        LIMIT 1 
+        FETCH user
+      `)
+
+      const firstTrip = trips[0]
 
       if (firstTrip) {
+        const userName = typeof firstTrip.user === 'object' ? firstTrip.user?.name : 'Не загружен (ID)'
+
+        console.log(`   - ID: "${firstTrip.id}"`)
         console.log(`   - Название: "${firstTrip.title}"`)
-        console.log(`   - Автор: ${firstTrip.user.name}`)
-        console.log(`   - Количество дней: ${firstTrip.days.length}`)
-        const totalActivities = firstTrip.days.reduce((acc, day) => acc + day.activities.length, 0)
-        console.log(`   - Общее количество мероприятий: ${totalActivities}`)
-        console.log(`   - Количество участников: ${firstTrip.participants.length}`)
-        console.log(`   - Количество изображений: ${firstTrip.images.length}`)
+        console.log(`   - Автор: ${userName || 'Неизвестен'}`)
+        console.log(`   - Количество дней: ${firstTrip.dayCount || 0}`)
+        console.log(`   - Количество участников: ${firstTrip.participantCount || 0}`)
       }
       else {
         console.log('   - Не удалось загрузить данные о первом путешествии.')
       }
       console.groupEnd()
     }
-
-    // Проверка постов
-    const postCount = counts.find(c => c.name.includes('Посты'))?.count ?? 0
-    if (postCount > 0) {
-      console.group('\n✅ Глубокая проверка первого поста:')
-      const firstPost = await db.query.posts.findFirst({
-        with: {
-          user: { columns: { name: true } },
-          elements: true,
-          media: true,
-        },
-      })
-
-      if (firstPost) {
-        console.log(`   - Заголовок: "${firstPost.title}"`)
-        console.log(`   - Автор: ${firstPost.user.name}`)
-        console.log(`   - Статус: ${firstPost.status}`)
-        console.log(`   - Элементов контента: ${firstPost.elements.length}`)
-        console.log(`   - Медиа файлов: ${firstPost.media.length}`)
-      }
-      else {
-        console.log('   - Не удалось загрузить данные о первом посте.')
-      }
-      console.groupEnd()
+    else {
+      console.log('\n⚠️ Путешествия не найдены.')
     }
 
-    console.log('\n🎉 Проверка данных успешно завершена.')
+    console.log('\n🎉 Проверка данных завершена.')
+    process.exit(0)
   }
   catch (error) {
     console.error('\n❌ Ошибка во время проверки данных:', error)

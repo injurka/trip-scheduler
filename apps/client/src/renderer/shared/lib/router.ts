@@ -12,6 +12,7 @@ const About = () => import('~/pages/about.vue')
 const UsefulLinks = () => import('~/pages/useful-links.vue')
 const Terms = () => import('~/pages/terms.vue')
 const Privacy = () => import('~/pages/privacy.vue')
+const OssLicenses = () => import('~/pages/oss-licenses.vue')
 
 // --- Аутентификация ---
 const SignIn = () => import('~/pages/auth/sign-in.vue')
@@ -83,6 +84,12 @@ const routes: RouteRecordRaw[] = [
     path: AppRoutePaths.Privacy,
     name: AppRouteNames.Privacy,
     component: Privacy,
+    meta: { layout: 'default' },
+  },
+  {
+    path: AppRoutePaths.OssLicenses,
+    name: AppRouteNames.OssLicenses,
+    component: OssLicenses,
     meta: { layout: 'default' },
   },
   {

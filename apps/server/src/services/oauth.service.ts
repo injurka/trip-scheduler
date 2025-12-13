@@ -1,8 +1,8 @@
-import type { GitHubEmail, GitHubUser, GoogleUser, TelegramAuthPayload } from '~/models/auth'
+import type { GitHubEmail, GitHubUser, GoogleUser, TelegramAuthPayload } from '~/models/oauth'
 import { createHash, createHmac } from 'node:crypto'
 import { TRPCError } from '@trpc/server'
 import { authUtils } from '~/lib/auth.utils'
-import { userRepository } from '~/repositories/user.repository'
+import { userRepository } from '~/modules/user/user.repository'
 
 // Интерфейс TelegramUserData больше не нужен для входящих параметров,
 // так как мы работаем с сырой строкой initData.

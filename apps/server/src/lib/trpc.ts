@@ -1,9 +1,9 @@
 import type { FetchCreateContextFnOptions } from '@trpc/server/adapters/fetch'
-import type { users } from 'db/schema'
 import type { Context } from 'hono'
 import type { OpenApiMeta } from 'trpc-to-openapi'
+import type { User } from '~/modules/user/user.types'
 import { initTRPC, TRPCError } from '@trpc/server'
-import { db } from '~/../db'
+import { db, toId } from '~/db'
 import { trpcRequestCounter, trpcRequestDurationHistogram } from '~/services/metrics.service'
 import { authUtils } from './auth.utils'
 
@@ -20,19 +20,21 @@ export async function createContext(_: FetchCreateContextFnOptions, c: Context) 
     return { user: null, db, c }
   }
 
-  const user = await db.query.users.findFirst({
-    where: (users, { eq }) => eq(users.id, payload.id),
-    with: {
-      plan: true,
-    },
-  })
+  try {
+    const userId = toId('user', payload.id)
+    const [result] = await db.query<[User[]]>(`SELECT * FROM ${userId}`)
+    const user = result?.[0]
 
-  return { user, db, c }
+    return { user, db, c }
+  }
+  catch (e) {
+    console.error('Context creation DB error', e)
+    return { user: null, db, c }
+  }
 }
 
 type AppContext = Awaited<ReturnType<typeof createContext>>
 
-// Инициализация tRPC с новым контекстом
 const t = initTRPC
   .context<AppContext>()
   .meta<OpenApiMeta>()
@@ -56,19 +58,17 @@ const isAuthed = t.middleware(({ ctx, next }) => {
   }
   return next({
     ctx: {
-      user: ctx.user as typeof users.$inferSelect & { plan: any }, // Типизация теперь соответствует реальности
+      user: ctx.user,
       db: ctx.db,
       c: ctx.c,
     },
   })
 })
 
-// Middleware для сбора метрик
 const metricsMiddleware = t.middleware(async ({ path, type, next }) => {
   const start = Date.now()
   const result = await next()
   const duration = (Date.now() - start) / 1000
-
   const status = result.ok ? 'success' : 'error'
 
   trpcRequestDurationHistogram.observe({ path, type, status }, duration)
@@ -77,18 +77,13 @@ const metricsMiddleware = t.middleware(async ({ path, type, next }) => {
   return result
 })
 
-// Экспорт роутеров и процедур
 export const router = t.router
 export const mergeRouters = t.mergeRouters
 export const publicProcedure = t.procedure.use(metricsMiddleware)
 export const protectedProcedure = t.procedure.use(isAuthed).use(metricsMiddleware)
 
-// Вспомогательная функция для создания tRPC ошибок
 export function createTRPCError(code: 'NOT_FOUND' | 'BAD_REQUEST' | 'INTERNAL_SERVER_ERROR' | 'CONFLICT' | 'UNAUTHORIZED' | 'FORBIDDEN', message: string) {
-  throw new TRPCError({
-    code,
-    message,
-  })
+  throw new TRPCError({ code, message })
 }
 
 export { t }

@@ -15,6 +15,9 @@ import { AppRouteNames } from '~/shared/constants/routes'
           <router-link :to="{ name: AppRouteNames.Privacy }" class="legal-link">
             Конфиденциальность
           </router-link>
+          <router-link :to="{ name: AppRouteNames.OssLicenses }" class="legal-link">
+            Лицензии OSS
+          </router-link>
         </div>
       </div>
       <div class="spacer" />

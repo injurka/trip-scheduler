@@ -3,7 +3,6 @@
   "compilerOptions": {
     "composite": true,
     "target": "ESNext",
-    // Enable latest features
     "lib": [
       "ESNext",
       "DOM"
@@ -11,19 +10,19 @@
     "moduleDetection": "force",
     "baseUrl": ".",
     "module": "ESNext",
-    // Bundler mode
     "moduleResolution": "bundler",
     "paths": {
       "~/*": [
         "./src/*"
+      ],
+      "db/*": [
+        "./db/*"
       ]
     },
     "allowJs": true,
-    // Best practices
     "strict": true,
     "noFallthroughCasesInSwitch": true,
     "noPropertyAccessFromIndexSignature": false,
-    // Some stricter flags (disabled by default)
     "noUnusedLocals": false,
     "noUnusedParameters": false,
     "declaration": true,

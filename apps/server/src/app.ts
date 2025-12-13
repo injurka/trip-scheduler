@@ -11,7 +11,6 @@ import { authController } from './api/auth.controller'
 import { avatarController } from './api/avatar.controller'
 import { imageController } from './api/image.controller'
 import { llmController } from './api/llm.controller'
-import { uploadFileController } from './api/upload.controller'
 import { createContext } from './lib/trpc'
 import { appRouter } from './router'
 import { httpRequestCounter, httpRequestDurationHistogram, register } from './services/metrics.service'
@@ -95,7 +94,8 @@ class Server {
       .use('/upload', bodyLimit({
         maxSize: 25 * 1024 * 1024,
       }))
-      .post('/upload', uploadFileController)
+      // TODO
+      // .post('/upload', uploadFileController)
       .route('/avatar', avatarController)
       .route('/auth', authController)
       .route('/llm', llmController)

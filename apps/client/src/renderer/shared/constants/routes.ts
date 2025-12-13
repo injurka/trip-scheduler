@@ -4,6 +4,7 @@ export enum AppRouteNames {
   UsefulLinks = 'useful-links',
   Terms = 'terms',
   Privacy = 'privacy',
+  OssLicenses = 'oss-licenses',
 
   NotFound = 'not-found',
 
@@ -31,6 +32,7 @@ export const AppRoutePaths = {
   UsefulLinks: '/useful-links',
   Terms: '/terms',
   Privacy: '/privacy',
+  OssLicenses: '/oss-licenses',
 
   NotFound: '/:catchAll(.*)?',
 

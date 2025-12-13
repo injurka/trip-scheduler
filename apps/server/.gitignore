@@ -26,3 +26,4 @@ dist-ssr
 sqlite.db
 tsconfig.tsbuildinfo
 static/**
+surreal_data

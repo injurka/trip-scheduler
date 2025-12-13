@@ -93,7 +93,7 @@ export const userProcedures = {
     })
     .output(SignOutResponseSchema)
     .mutation(async ({ ctx }) => {
-      return userService.signOut(ctx.user.id)
+      return userService.signOut(ctx.user.id.toString())
     }),
 
   signInWithTelegram: publicProcedure
@@ -137,7 +137,7 @@ export const userProcedures = {
     })
     .output(UserSchema.nullable())
     .query(async ({ ctx }) => {
-      return userService.getById(ctx.user.id)
+      return userService.getById(ctx.user.id.toString())
     }),
 
   getById: publicProcedure
@@ -166,7 +166,7 @@ export const userProcedures = {
     })
     .output(UserStatsSchema)
     .query(async ({ ctx }) => {
-      return userService.getStats(ctx.user.id)
+      return userService.getStats(ctx.user.id.toString())
     }),
 
   update: protectedProcedure
@@ -181,7 +181,7 @@ export const userProcedures = {
     .input(UpdateUserInputSchema)
     .output(UserSchema)
     .mutation(async ({ ctx, input }) => {
-      return userService.update(ctx.user.id, input)
+      return userService.update(ctx.user.id.toString(), input)
     }),
 
   updateStatus: protectedProcedure
@@ -196,7 +196,7 @@ export const userProcedures = {
     .input(UpdateUserStatusInputSchema)
     .output(UserSchema.nullable())
     .mutation(async ({ ctx, input }) => {
-      return userService.updateStatus(ctx.user.id, input)
+      return userService.updateStatus(ctx.user.id.toString(), input)
     }),
 
   changePassword: protectedProcedure
@@ -211,7 +211,7 @@ export const userProcedures = {
     .input(ChangePasswordInputSchema)
     .output(SuccessResponseSchema)
     .mutation(async ({ ctx, input }) => {
-      return userService.changePassword(ctx.user.id, input)
+      return userService.changePassword(ctx.user.id.toString(), input)
     }),
 
   deleteAccount: protectedProcedure
@@ -226,6 +226,6 @@ export const userProcedures = {
     .input(DeleteAccountInputSchema)
     .output(SuccessResponseSchema)
     .mutation(async ({ ctx, input }) => {
-      return userService.deleteAccount(ctx.user.id, input)
+      return userService.deleteAccount(ctx.user.id.toString(), input)
     }),
 }

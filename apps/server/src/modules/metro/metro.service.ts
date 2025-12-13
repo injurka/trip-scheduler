@@ -1,6 +1,7 @@
 import type { z } from 'zod'
 import type { ImportMetroSystemInputSchema } from './metro.schemas'
-import { metroRepository } from '~/repositories/metro.repository'
+import { createTRPCError } from '~/lib/trpc'
+import { metroRepository } from './metro.repository'
 
 export const metroService = {
   async listSystems() {
@@ -8,7 +9,11 @@ export const metroService = {
   },
 
   async getDetails(systemId: string) {
-    return metroRepository.findSystemWithDetails(systemId)
+    const details = await metroRepository.findSystemWithDetails(systemId)
+    if (!details) {
+      throw createTRPCError('NOT_FOUND', `Система метро с ID ${systemId} не найдена.`)
+    }
+    return details
   },
 
   async importSystem(data: z.infer<typeof ImportMetroSystemInputSchema>) {
