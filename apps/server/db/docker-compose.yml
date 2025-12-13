@@ -1,0 +1,9 @@
+services:
+  surrealdb:
+    image: surrealdb/surrealdb:latest
+    container_name: trip-scheduler-surrealdb
+    ports:
+      - "8000:8000"
+    command: start --log trace --user root --pass root file:/mydata/surreal.db
+    volumes:
+      - ./surreal_data:/mydata
