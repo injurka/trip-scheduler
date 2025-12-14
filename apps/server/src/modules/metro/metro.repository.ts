@@ -1,48 +1,36 @@
 import type { z } from 'zod'
 import type { MetroSystem, MetroSystemDetails } from './metro.types'
 import type { ImportMetroSystemInputSchema } from '~/modules/metro/metro.schemas'
-import { db, toId } from '~/db'
+import { db } from '~/db'
 
 export const metroRepository = {
   async findSystems(): Promise<MetroSystem[]> {
     const [systems] = await db.query<[MetroSystem[]]>(
-      'SELECT * FROM metro_system ORDER BY city ASC',
+      'SELECT id, city, country FROM metro_systems ORDER BY city ASC',
     )
-    return systems || []
+
+    if (!systems)
+      return []
+
+    return systems.map(s => ({
+      ...s,
+      id: s.id.toString(),
+    }))
   },
 
   async findSystemWithDetails(systemId: string): Promise<MetroSystemDetails | null> {
-    const systemRecordId = toId('metro_system', systemId)
+    const cleanUuid = systemId.replace(/^metro_systems:/, '').replace(/[⟨⟩]/g, '')
 
-    const [results] = await db.query<[MetroSystemDetails[]]>(
-      `
-      SELECT
-          id,
-          city,
-          country,
-          (
-              SELECT
-                  id,
-                  name,
-                  color,
-                  lineNumber,
-                  (
-                      SELECT out.id as id, out.name as name
-                      FROM includes_station
-                      WHERE in = metro_line.id
-                      ORDER BY order ASC
-                  ) AS stations
-              FROM metro_line WHERE system = ${systemRecordId}
-          ) AS lines
-      FROM ONLY ${systemRecordId};
-    `,
-    )
+    const [results] = await db.query<[MetroSystemDetails[]]>(`
+      SELECT *
+      FROM metro_systems 
+      WHERE id = type::thing('metro_systems', $uuid)
+    `, { uuid: cleanUuid })
 
     const details = results?.[0]
 
-    if (!details) {
+    if (!details)
       return null
-    }
 
     return details
   },
@@ -53,8 +41,8 @@ export const metroRepository = {
     const query = `
       LET $p_system_data = $data;
 
-      LET $system = (CREATE metro_system CONTENT {
-          id: string::concat("metro_system:", $p_system_data.id),
+      LET $system = (CREATE metro_systems CONTENT {
+          id: string::concat("metro_systems:", $p_system_data.id),
           city: $p_system_data.city,
           country: $p_system_data.country
       } ON DUPLICATE KEY UPDATE
@@ -95,12 +83,16 @@ export const metroRepository = {
 
       RETURN $system;
     `
-    const [result] = await db.query<[MetroSystem]>(query, { data })
+
+    const [result] = await db.query<[MetroSystemDetails]>(query, { data })
 
     if (!result) {
       throw new Error('Не удалось импортировать систему метро.')
     }
 
-    return result
+    return {
+      ...result,
+      id: result.id.toString(),
+    }
   },
 }

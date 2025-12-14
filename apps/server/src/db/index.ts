@@ -1,42 +1,37 @@
-import Surreal from 'surrealdb'
+import { Surreal } from 'surrealdb'
 
-// Экземпляр клиента
+// Создаем единственный экземпляр клиента
 export const db = new Surreal()
 
-let isConnected = false
-
 export async function connectDB() {
-  if (isConnected) {
-    return
-  }
-
-  const url = process.env.SURREAL_URL || 'http://127.0.0.1:8000'
-  const namespace = process.env.SURREAL_NS || 'trip_scheduler'
-  const database = process.env.SURREAL_DB || 'dev'
-  const username = process.env.SURREAL_USER || 'root'
-  const password = process.env.SURREAL_PASS || 'root'
-
   try {
-    await db.connect(`${url}/rpc`, {
-      // Контекст для сессии (namespace и database)
-      namespace,
-      database,
+    // Читаем конфигурацию из переменных окружения
+    const dbUrl = import.meta.env.SURREAL_URL || 'http://127.0.0.1:8000/rpc'
+    const dbNs = import.meta.env.SURREAL_NS || 'trip_scheduler'
+    const dbName = import.meta.env.SURREAL_DB || 'dev'
+    const dbUser = import.meta.env.SURREAL_USER
+    const dbPass = import.meta.env.SURREAL_PASS
 
-      // Данные для аутентификации
-      auth: {
-        username, // Правильное имя свойства: 'username'
-        password, // Правильное имя свойства: 'password'
-      },
-    })
+    // Подключаемся к базе данных
+    await db.connect(dbUrl)
 
-    isConnected = true
+    // Выбираем namespace и database
+    await db.use({ namespace: dbNs, database: dbName })
+
+    // Если заданы учетные данные, аутентифицируемся
+    if (dbUser && dbPass) {
+      await db.signin({
+        username: dbUser,
+        password: dbPass,
+      })
+    }
 
     // eslint-disable-next-line no-console
-    console.log(`✅ Connected and using SurrealDB at ${url} (${namespace}/${database})`)
+    console.log(`✅ Connected and using SurrealDB at ${dbUrl} (${dbNs}/${dbName})`)
   }
   catch (err) {
-    console.error('❌ SurrealDB connect error:', err)
-    process.exit(1)
+    console.error('❌ Ошибка подключения к SurrealDB:', err)
+    throw err // Пробрасываем ошибку дальше
   }
 }
 

@@ -15,8 +15,8 @@ export const MetroLineSchema = z.object({
 
 export const MetroSystemSchema = z.object({
   id: z.string(),
-  city: z.string(),
-  country: z.string(),
+  city: z.string().nullable(),
+  country: z.string().nullable(),
 })
 
 export const MetroSystemDetailsSchema = MetroSystemSchema.extend({
@@ -28,7 +28,6 @@ export const MetroSystemDetailsSchema = MetroSystemSchema.extend({
 })
 
 // --- Input Schemas ---
-
 export const GetMetroSystemDetailsInputSchema = z.object({
   systemId: z.string(),
 })

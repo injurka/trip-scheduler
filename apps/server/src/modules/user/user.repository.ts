@@ -158,7 +158,6 @@ export const userRepository = {
 
   async changePassword(id: string, currentPassword: string, newPasswordHash: string) {
     const recordId = toId('user', id)
-    // db.select возвращает массив
     const [user] = await db.select<UserRecord>(recordId)
 
     if (!user || !user.password)

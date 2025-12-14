@@ -17,6 +17,7 @@ const MOCK_TRIP_SHANGHAI = {
   currency: 'RUB',
   tags: ['Китай', 'Шанхай', 'Урумчи', 'культура', 'еда', 'приключения'],
   visibility: 'public' as const,
+
   participantIds: [USER_ID_1, USER_ID_2],
 
   images: MOCK_IMAGES,

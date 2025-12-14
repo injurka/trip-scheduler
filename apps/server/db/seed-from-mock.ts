@@ -1,6 +1,7 @@
 /* eslint-disable no-console */
 import { RecordId } from 'surrealdb'
 import { connectDB, db } from '~/db'
+import { initSchema } from './init-schema'
 import { MOCK_USER_DATA } from './mock/00.users'
 import { MOCK_DATA as MOCK_TRIPS_DATA } from './mock/01.trips'
 import { MOCK_METRO_DATA } from './mock/02.metro'
@@ -8,139 +9,214 @@ import { SUBSCRIPTION_MOCK } from './mock/03.subscription'
 import { LLM_MOCK } from './mock/04.llm'
 import { MOCK_POST_DATA } from './mock/05.posts'
 
-// --- Вспомогательная функция для массовой вставки ---
+/**
+ * Хелпер для преобразования строкового ID в RecordId SurrealDB.
+ */
+function toId(table: string, id: string | undefined | null): RecordId | undefined {
+  if (!id)
+    return undefined
+  return new RecordId(table, id)
+}
 
 /**
- * Обобщенная функция для загрузки данных в указанную таблицу.
- * @param tableName - Название таблицы в БД.
- * @param data - Массив объектов для вставки.
- * @param description - Описание данных для логгирования.
+ * Очистка базы данных перед заполнением
  */
-async function seedTable<T extends { id: string }>(tableName: string, data: T[], description: string) {
-  if (!data || data.length === 0) {
-    console.log(`⚪ Пропуск '${description}', данные не найдены.`)
-    return
-  }
-
-  console.log(`⏳ Загрузка '${description}'...`)
+async function resetDatabase() {
+  console.log('🧨 Очистка базы данных...')
   try {
-    // Используем последовательный цикл вместо Promise.all для избежания конфликтов записи
-    for (const item of data) {
-      await db.create(new RecordId(tableName, item.id), item)
-    }
-    console.log(`✅ Загружено ${data.length} записей в таблицу '${tableName}'.`)
+    const result = await db.query<[{ tables: Record<string, string> }]>('INFO FOR DB')
+    const tables = Object.keys(result[0]?.tables || {})
+    if (tables.length === 0)
+      return
+
+    const query = tables.map(t => `REMOVE TABLE \`${t}\``).join(';')
+    await db.query(query)
+    console.log(`✅ Удалено таблиц: ${tables.length}`)
   }
   catch (error) {
-    console.error(`❌ Ошибка при загрузке '${description}':`, error)
-    throw error // Прерываем выполнение, если что-то пошло не так
+    console.error('⚠️ Ошибка при очистке (возможно, база новая):', error)
   }
 }
 
-// --- Функции для загрузки сложных, вложенных данных ---
+/**
+ * Загрузка простых таблиц
+ */
+async function seedSimpleTables() {
+  console.log('⏳ Загрузка справочников и пользователей...')
+
+  for (const user of MOCK_USER_DATA) {
+    // Убираем id из тела объекта
+    const { id: _id, ...userData } = user
+    await db.create(new RecordId('users', user.id), userData)
+  }
+
+  for (const metro of MOCK_METRO_DATA) {
+    const { id: _id, ...metroData } = metro
+    await db.create(new RecordId('metro_systems', metro.id), metroData)
+  }
+
+  for (const sub of SUBSCRIPTION_MOCK) {
+    const { id: _id, ...subData } = sub
+    await db.create(new RecordId('subscriptions', sub.id), subData)
+  }
+
+  for (const model of LLM_MOCK) {
+    const { id: _id, ...modelData } = model
+    await db.create(new RecordId('llm_models', model.id), modelData)
+  }
+  console.log('✅ Справочники загружены.')
+}
 
 /**
- * Загружает данные о путешествиях и все связанные с ними сущности.
+ * Загрузка путешествий со всей иерархией
  */
 async function seedTrips() {
   const trips = Object.values(MOCK_TRIPS_DATA)
-  if (trips.length === 0) {
-    console.log('⚪ Пропуск путешествий, данные не найдены.')
-    return
-  }
-
-  console.log(`⏳ Загрузка ${trips.length} путешествий и связанных данных...`)
+  console.log(`⏳ Загрузка ${trips.length} путешествий...`)
 
   for (const trip of trips) {
-    const { days, images, sections, ...tripData } = trip
-    await db.create(new RecordId('trips', tripData.id), tripData)
-    console.log(`   - Создано путешествие: ${tripData.title}`)
+    // 1. Деструктуризация: извлекаем id (чтобы не попал в body), вложенные массивы и спец. поля
+    const { id: _tripId, days, images, sections, participantIds, userId, ...tripMeta } = trip as any
+    const tripRecordId = new RecordId('trips', trip.id)
 
+    // 2. Создаем поездку
+    await db.create(tripRecordId, {
+      ...tripMeta,
+      userId: toId('users', userId),
+    })
+
+    // 3. Графовые связи участников
+    if (participantIds && participantIds.length > 0) {
+      for (const pId of participantIds) {
+        await db.query(`RELATE ${toId('users', pId)}->participates_in->${tripRecordId} SET joined_at = time::now()`)
+      }
+    }
+
+    // 4. Дни и активности
     if (days?.length) {
       for (const day of days) {
-        await db.create(new RecordId('days', day.id), day)
+        const { id: _dayId, activities, ...dayMeta } = day
+        const dayRecordId = new RecordId('days', day.id)
+
+        await db.create(dayRecordId, {
+          ...dayMeta,
+          tripId: tripRecordId,
+        })
+
+        if (activities?.length) {
+          for (const activity of activities) {
+            const { id: _actId, sections: actSections, ...actMeta } = activity
+            const activityRecordId = new RecordId('activities', activity.id)
+
+            await db.create(activityRecordId, {
+              ...actMeta,
+              dayId: dayRecordId,
+            })
+
+            if (actSections?.length) {
+              for (const section of actSections) {
+                const { id: _sectId, ...sectionData } = section
+                await db.create(new RecordId('activity_sections', crypto.randomUUID()), {
+                  ...sectionData,
+                  activityId: activityRecordId,
+                })
+              }
+            }
+          }
+        }
       }
-      console.log(`     - Загружено ${days.length} дней`)
     }
 
+    // 5. Изображения
     if (images?.length) {
       for (const image of images) {
-        await db.create(new RecordId('images', image.id), image)
+        const { id: _imgId, ...imageData } = image
+        await db.create(new RecordId('images', image.id), {
+          ...imageData,
+          tripId: tripRecordId,
+        })
       }
-      console.log(`     - Загружено ${images.length} изображений`)
     }
 
+    // 6. Секции поездки
     if (sections?.length) {
       for (const section of sections) {
-        await db.create(new RecordId('sections', section.id), section)
+        const { id: _sectId, ...sectionData } = section
+        await db.create(new RecordId('trip_sections', crypto.randomUUID()), {
+          ...sectionData,
+          tripId: tripRecordId,
+        })
       }
-      console.log(`     - Загружено ${sections.length} секций`)
     }
-  }
 
-  console.log('✅ Все путешествия успешно загружены.')
+    console.log(`   - Trip "${tripMeta.title}" loaded.`)
+  }
+  console.log('✅ Путешествия загружены.')
 }
 
 /**
- * Загружает посты и связанные с ними элементы и медиа.
+ * Загрузка постов
  */
 async function seedPosts() {
-  if (MOCK_POST_DATA.length === 0) {
-    console.log('⚪ Пропуск постов, данные не найдены.')
+  if (MOCK_POST_DATA.length === 0)
     return
-  }
 
-  console.log(`⏳ Загрузка ${MOCK_POST_DATA.length} постов и связанных данных...`)
+  console.log(`⏳ Загрузка ${MOCK_POST_DATA.length} постов...`)
 
   for (const post of MOCK_POST_DATA) {
-    const { elements, media, ...postData } = post
-    await db.create(new RecordId('posts', postData.id), postData)
-    console.log(`   - Создан пост: ${postData.title}`)
+    const { id: _postId, elements, media, userId, ...postMeta } = post
+    const postRecordId = new RecordId('posts', post.id)
+
+    await db.create(postRecordId, {
+      ...postMeta,
+      userId: toId('users', userId),
+    })
 
     if (elements?.length) {
       for (const element of elements) {
-        await db.create(new RecordId('post_elements', element.id), element)
+        const { id: _elId, ...elData } = element
+        await db.create(new RecordId('post_elements', element.id), {
+          ...elData,
+          postId: postRecordId,
+        })
       }
-      console.log(`     - Загружено ${elements.length} элементов поста`)
     }
 
     if (media?.length) {
       for (const mediaItem of media) {
-        await db.create(new RecordId('post_media', mediaItem.id), mediaItem)
+        const { id: _medId, ...medData } = mediaItem
+        await db.create(new RecordId('post_media', mediaItem.id), {
+          ...medData,
+          postId: postRecordId,
+        })
       }
-      console.log(`     - Загружено ${media.length} медиа-файлов`)
     }
   }
-
-  console.log('✅ Все посты успешно загружены.')
+  console.log('✅ Посты загружены.')
 }
 
-// --- Основная функция скрипта ---
+// --- Main ---
 
-async function seedDatabase() {
+async function main() {
   try {
     await connectDB()
-    console.log('🚀 Начинаем загрузку моковых данных в базу...')
 
-    // Используем простые загрузчики для плоских данных
-    await seedTable('users', MOCK_USER_DATA, 'Пользователи')
-    await seedTable('metro_systems', MOCK_METRO_DATA, 'Схемы метро')
-    await seedTable('subscriptions', SUBSCRIPTION_MOCK, 'Тарифные планы')
-    await seedTable('llm_models', LLM_MOCK, 'Модели LLM')
+    await resetDatabase()
+    await initSchema()
 
-    // Используем сложные загрузчики для данных с вложенностью
+    await seedSimpleTables()
     await seedTrips()
     await seedPosts()
 
-    console.log('\n🎉 Все данные успешно загружены!')
+    console.log('\n🚀 SEEDING COMPLETE! 🚀')
   }
   catch (error) {
-    console.error('\n❌ Произошла критическая ошибка во время загрузки данных:', error)
+    console.error('❌ Error seeding database:', error)
   }
   finally {
     await db.close()
-    console.log('👋 Соединение с базой данных закрыто.')
     process.exit()
   }
 }
 
-seedDatabase()
+main()

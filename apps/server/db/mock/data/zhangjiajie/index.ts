@@ -18,6 +18,8 @@ const MOCK_TRIP_ZHANGJIAJIE = {
   tags: ['Китай', 'Чжанцзяцзе', 'Чунцин', 'Горы Аватара', 'природа', 'хайкинг', 'мегаполис', 'культура', 'история'],
   visibility: 'public' as const,
 
+  participantIds: [USER_ID],
+
   images: MOCK_IMAGES,
   sections: MOCK_SECTIONS,
   days: MOCK_DAYS,

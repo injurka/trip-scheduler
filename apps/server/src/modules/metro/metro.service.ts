@@ -10,9 +10,9 @@ export const metroService = {
 
   async getDetails(systemId: string) {
     const details = await metroRepository.findSystemWithDetails(systemId)
-    if (!details) {
+    if (!details)
       throw createTRPCError('NOT_FOUND', `Система метро с ID ${systemId} не найдена.`)
-    }
+
     return details
   },
 
