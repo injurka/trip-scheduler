@@ -4,11 +4,14 @@ import { AppRouteNames } from '~/shared/constants/routes'
 </script>
 
 <template>
-  <footer class="footer">
+  <footer class="app-footer">
     <div class="footer-content">
-      <div class="footer-left">
+      <div class="footer-info">
         <span class="copyright">© 2025 TripScheduler</span>
-        <div class="legal-links">
+
+        <div class="divider-dot" />
+
+        <nav class="legal-links">
           <router-link :to="{ name: AppRouteNames.Terms }" class="legal-link">
             Условия
           </router-link>
@@ -18,20 +21,35 @@ import { AppRouteNames } from '~/shared/constants/routes'
           <router-link :to="{ name: AppRouteNames.OssLicenses }" class="legal-link">
             Лицензии OSS
           </router-link>
-        </div>
+        </nav>
       </div>
-      <div class="spacer" />
 
-      <div class="links">
-        <router-link :to="{ name: AppRouteNames.UsefulLinks }" class="p-link" title="Полезные ссылки">
-          <Icon width="20" height="20" icon="mdi:link-variant" color="var(--fg-primary-color)" />
-        </router-link>
-        <router-link :to="{ name: AppRouteNames.About }" class="p-link" title="О проекте">
-          <Icon width="20" height="20" icon="mdi:information-outline" color="var(--fg-primary-color)" />
+      <!-- Правая часть: Иконки -->
+      <div class="footer-socials">
+        <router-link
+          :to="{ name: AppRouteNames.UsefulLinks }"
+          class="icon-link"
+          title="Полезные ссылки"
+        >
+          <Icon icon="mdi:link-variant" />
         </router-link>
 
-        <a href="https://github.com/xsolare/trip-scheduler" target="_blank" rel="noopener noreferrer" class="p-link" title="GitHub">
-          <Icon width="20" height="20" icon="mdi:github" color="var(--fg-primary-color)" />
+        <router-link
+          :to="{ name: AppRouteNames.About }"
+          class="icon-link"
+          title="О проекте"
+        >
+          <Icon icon="mdi:information-outline" />
+        </router-link>
+
+        <a
+          href="https://github.com/xsolare/trip-scheduler"
+          target="_blank"
+          rel="noopener noreferrer"
+          class="icon-link"
+          title="GitHub"
+        >
+          <Icon icon="mdi:github" />
         </a>
       </div>
     </div>
@@ -39,77 +57,113 @@ import { AppRouteNames } from '~/shared/constants/routes'
 </template>
 
 <style lang="scss" scoped>
-.footer {
-  background-color: var(--bg-secondary-color);
+.app-footer {
+  background-color: rgba(var(--bg-secondary-color-rgb), 0.8);
+  backdrop-filter: blur(12px);
   border-top: 1px solid var(--border-secondary-color);
+  padding: 0.5rem 1rem;
+  margin-top: auto;
+  z-index: 10;
+}
+
+.footer-content {
+  max-width: 1200px;
+  margin: 0 auto;
+  width: 100%;
   display: flex;
-  justify-content: center;
-  padding: 1rem;
-  z-index: 9;
+  justify-content: space-between;
+  align-items: center;
+  gap: 16px;
 
-  .footer-left {
-    display: flex;
+  @include media-down(sm) {
+    flex-direction: column-reverse;
+    gap: 16px;
+  }
+}
+
+.footer-info {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 12px;
+  color: var(--fg-secondary-color);
+  font-size: 0.8rem;
+
+  @include media-down(sm) {
     flex-direction: column;
-    gap: 4px;
-
-    @include media-up(sm) {
-      flex-direction: row;
-      align-items: center;
-      gap: 16px;
-    }
+    text-align: center;
+    gap: 8px;
   }
+}
 
-  .copyright {
-    font-size: 0.75rem;
-    opacity: 0.7;
+.copyright {
+  font-weight: 500;
+  opacity: 0.8;
+}
+
+.divider-dot {
+  width: 4px;
+  height: 4px;
+  background-color: var(--fg-tertiary-color);
+  border-radius: 50%;
+
+  @include media-down(sm) {
+    display: none;
   }
+}
 
-  .legal-links {
-    display: flex;
+.legal-links {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  flex-wrap: wrap;
+
+  @include media-down(sm) {
+    justify-content: center;
     gap: 12px;
   }
+}
 
-  .legal-link {
-    font-size: 0.75rem;
-    color: var(--fg-secondary-color);
-    text-decoration: none;
-    transition: color 0.2s;
+.legal-link {
+  color: var(--fg-secondary-color);
+  text-decoration: none;
+  transition: color 0.2s ease;
+  position: relative;
 
-    &:hover {
-      color: var(--fg-primary-color);
-      text-decoration: underline;
-    }
-  }
-
-  .links {
-    display: flex;
-    gap: 12px;
-
-    .p-link {
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      text-decoration: none;
-      transition: opacity 0.2s;
-
-      &:hover {
-        opacity: 0.7;
-      }
-    }
-  }
-
-  .spacer {
-    flex: 1 1 auto;
-  }
-
-  &-content {
-    display: flex;
-    align-items: center;
-    max-width: 1200px;
-    width: 100%;
+  &:hover {
     color: var(--fg-primary-color);
-    flex-wrap: wrap;
-    gap: 12px;
+    text-decoration: underline;
+    text-decoration-thickness: 1px;
+    text-underline-offset: 4px;
+  }
+}
+
+.footer-socials {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.icon-link {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  border-radius: 10px;
+  color: var(--fg-secondary-color);
+  background-color: transparent;
+  transition: all 0.2s ease;
+  font-size: 1.25rem;
+
+  &:hover {
+    background-color: var(--bg-tertiary-color);
+    color: var(--fg-primary-color);
+    transform: translateY(-2px);
+  }
+
+  &:active {
+    transform: translateY(0);
   }
 }
 </style>

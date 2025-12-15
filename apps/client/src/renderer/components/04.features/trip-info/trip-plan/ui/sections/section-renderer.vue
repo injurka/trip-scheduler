@@ -23,7 +23,7 @@ interface Props {
   isFirstAttached: boolean
 }
 const props = defineProps<Props>()
-const emit = defineEmits(['updateSection', 'deleteSection'])
+const emit = defineEmits(['updateSection', 'deleteSection', 'moveSectionUp', 'moveSectionDown'])
 const store = useModuleStore(['ui'])
 const { isViewMode } = storeToRefs(store.ui)
 
@@ -166,6 +166,20 @@ watch(() => props.section, (newSection) => {
     />
 
     <div v-if="!isViewMode" class="section-controls">
+      <button
+        class="control-btn"
+        title="Переместить выше"
+        @click="emit('moveSectionUp')"
+      >
+        <Icon icon="mdi:arrow-up" />
+      </button>
+      <button
+        class="control-btn"
+        title="Переместить ниже"
+        @click="emit('moveSectionDown')"
+      >
+        <Icon icon="mdi:arrow-down" />
+      </button>
       <button
         class="control-btn attach-btn"
         :title="(section as CustomActivitySection).isAttached ? 'Открепить секцию' : 'Прикрепить к предыдущей'"
