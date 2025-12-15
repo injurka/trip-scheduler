@@ -1,6 +1,6 @@
 <script setup lang="ts">
-import type { TileSourceId } from '../constant/map-styles'
 import type { Coordinate, DrawnRoute, MapPoint, MapRoute } from '../models/types'
+import type { TileSourceId } from '~/shared/lib/map-styles-sources'
 import { onClickOutside } from '@vueuse/core'
 import { toLonLat } from 'ol/proj'
 import { useGeolocationMap } from '../composables/use-geolocation-map'
@@ -272,7 +272,7 @@ watch(isMapLoaded, (isReady) => {
   left: 0;
   width: 100%;
   height: 100%;
-  z-index: 9; /* Below controls (z-index: 10) */
+  z-index: 9;
   cursor: pointer;
   display: flex;
   align-items: center;

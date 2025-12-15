@@ -29,7 +29,18 @@ const emit = defineEmits<{
   (e: 'update:modelValue', value: T): void
 }>()
 
-const open = defineModel<boolean>('open')
+const openModel = defineModel<boolean>('open')
+const localOpen = ref(false)
+
+const isOpen = computed({
+  get() {
+    return openModel.value !== undefined ? openModel.value : localOpen.value
+  },
+  set(val: boolean) {
+    openModel.value = val
+    localOpen.value = val
+  },
+})
 
 function handleSelect(item: KitDropdownItem<T>) {
   emit('update:modelValue', item.value)
@@ -37,7 +48,7 @@ function handleSelect(item: KitDropdownItem<T>) {
 </script>
 
 <template>
-  <DropdownMenuRoot v-model:open="open">
+  <DropdownMenuRoot v-model:open="isOpen">
     <DropdownMenuTrigger as-child>
       <slot name="trigger" />
     </DropdownMenuTrigger>
@@ -47,8 +58,8 @@ function handleSelect(item: KitDropdownItem<T>) {
         class="kit-dropdown-content"
         :side-offset="props.sideOffset"
         :align="props.align"
+        предотвращает нежелательный фокус после закрытия @close-auto-focus.prevent
       >
-        <!-- Рендер из items, если они переданы -->
         <template v-if="props.items.length > 0">
           <DropdownMenuItem
             v-for="item in props.items"
@@ -62,7 +73,6 @@ function handleSelect(item: KitDropdownItem<T>) {
           </DropdownMenuItem>
         </template>
 
-        <!-- Рендер из слота для кастомного контента -->
         <slot />
       </DropdownMenuContent>
     </DropdownMenuPortal>
@@ -75,7 +85,7 @@ function handleSelect(item: KitDropdownItem<T>) {
   background: var(--bg-primary-color);
   border: 1px solid var(--border-primary-color);
   border-radius: var(--r-s);
-  box-shadow: var(--shadow-m);
+  box-shadow: var(--s-l);
   z-index: 2100;
   min-width: 200px;
 }
@@ -89,7 +99,6 @@ function handleSelect(item: KitDropdownItem<T>) {
   transition: background-color 0.2s ease;
   outline: none;
 
-  // --- Sizing ---
   &--sm {
     padding: 6px 10px;
     font-size: 0.875rem;

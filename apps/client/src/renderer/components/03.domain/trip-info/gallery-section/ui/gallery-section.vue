@@ -171,7 +171,7 @@ function openViewer(index: number) {
     >
       <!-- LOADING STATE -->
       <template #loading>
-        <div class="gallery-container gallery-skeleton">
+        <div class="gallery-container gallery-skeleton" :class="galleryClass">
           <div v-for="i in 3" :key="i" class="skeleton-wrapper">
             <KitSkeleton width="100%" height="100%" border-radius="8px" />
           </div>

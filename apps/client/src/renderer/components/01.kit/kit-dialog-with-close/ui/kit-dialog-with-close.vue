@@ -85,7 +85,7 @@ const maxWidthPx = computed(() => `${maxWidth}px`)
   transform: translate(-50%, -50%);
   background-color: var(--bg-primary-color);
   border: 1px solid var(--border-secondary-color);
-  border-radius: 8px;
+  border-radius: var(--r-m);
   box-shadow: var(--s-m);
   z-index: 1001;
   width: 90vw;

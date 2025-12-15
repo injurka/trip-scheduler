@@ -1,18 +1,32 @@
-/**
- * Интерфейс для хранения географических координат.
- * [Долгота, Широта]
- */
+import type TileSource from 'ol/source/Tile'
+
 export interface LocationCoords {
   lat: number
   lon: number
 }
 
-/**
- * Описывает маркер для отображения на карте.
- */
 export interface MapMarker {
   id: string
   coords: LocationCoords
-  imageUrl?: string // URL для превью во всплывающем окне
-  payload?: any // Дополнительные данные, связанные с маркером
+  imageUrl?: string
+  payload?: any
 }
+
+/**
+ * Опция выбора слоя карты
+ */
+export interface MapLayerOption {
+  id: string
+  label: string
+  icon: string
+  source: TileSource
+}
+
+export interface KitMapOptions {
+  center: [number, number]
+  zoom?: number
+  autoPan?: boolean
+  initialSource?: TileSource
+}
+
+export { TileSource }

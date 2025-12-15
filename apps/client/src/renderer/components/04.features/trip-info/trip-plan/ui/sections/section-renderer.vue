@@ -142,6 +142,7 @@ watch(() => props.section, (newSection) => {
       </div>
     </div>
 
+    <!-- Контент секции -->
     <DescriptionSection
       v-if="section.type === EActivitySectionType.DESCRIPTION"
       :section="section as ActivitySectionText"
@@ -165,35 +166,46 @@ watch(() => props.section, (newSection) => {
       @update-section="onUpdate"
     />
 
-    <div v-if="!isViewMode" class="section-controls">
-      <button
-        class="control-btn"
-        title="Переместить выше"
-        @click="emit('moveSectionUp')"
-      >
-        <Icon icon="mdi:arrow-up" />
-      </button>
-      <button
-        class="control-btn"
-        title="Переместить ниже"
-        @click="emit('moveSectionDown')"
-      >
-        <Icon icon="mdi:arrow-down" />
-      </button>
-      <button
-        class="control-btn attach-btn"
-        :title="(section as CustomActivitySection).isAttached ? 'Открепить секцию' : 'Прикрепить к предыдущей'"
-        @click="toggleAttached"
-      >
-        <Icon :icon="(section as CustomActivitySection).isAttached ? 'mdi:link-variant-off' : 'mdi:link-variant-plus'" />
-      </button>
-      <button
-        class="control-btn delete-btn"
-        title="Удалить секцию"
-        @click="emit('deleteSection')"
-      >
-        <Icon icon="mdi:close" />
-      </button>
+    <div v-if="!isViewMode" class="section-controls-wrapper">
+      <div class="section-controls">
+        <div class="controls-group">
+          <button
+            class="control-btn"
+            title="Переместить выше"
+            @click="emit('moveSectionUp')"
+          >
+            <Icon icon="mdi:arrow-up" />
+          </button>
+          <button
+            class="control-btn"
+            title="Переместить ниже"
+            @click="emit('moveSectionDown')"
+          >
+            <Icon icon="mdi:arrow-down" />
+          </button>
+        </div>
+
+        <div class="separator" />
+
+        <button
+          class="control-btn attach-btn"
+          :class="{ 'is-active': (section as CustomActivitySection).isAttached }"
+          :title="(section as CustomActivitySection).isAttached ? 'Открепить секцию' : 'Прикрепить к предыдущей'"
+          @click="toggleAttached"
+        >
+          <Icon :icon="(section as CustomActivitySection).isAttached ? 'mdi:link-variant-off' : 'mdi:link-variant-plus'" />
+        </button>
+
+        <div class="separator" />
+
+        <button
+          class="control-btn delete-btn"
+          title="Удалить секцию"
+          @click="emit('deleteSection')"
+        >
+          <Icon icon="mdi:close" />
+        </button>
+      </div>
     </div>
   </div>
 </template>
@@ -201,10 +213,15 @@ watch(() => props.section, (newSection) => {
 <style scoped lang="scss">
 .activity-section-renderer {
   position: relative;
+  transition: all 0.3s ease;
 
   &.is-attached {
     padding-left: 8px;
     border-left: 2px dashed var(--border-secondary-color);
+  }
+
+  &:hover {
+    z-index: 5;
   }
 }
 
@@ -326,59 +343,99 @@ watch(() => props.section, (newSection) => {
   }
 }
 
-.section-controls {
+.section-controls-wrapper {
   position: absolute;
-  top: -16px;
-  right: 0px;
-  display: flex;
-  gap: 4px;
-  opacity: 0;
-  transform: scale(0.8);
-  transition: all 0.2s ease;
+  top: -20px;
+  right: 4px;
   z-index: 10;
+
+  opacity: 0;
+  transform: translateY(-4px) scale(0.95);
+  pointer-events: none;
+  transition: all 0.2s cubic-bezier(0.165, 0.84, 0.44, 1);
+}
+
+.activity-section-renderer:hover .section-controls-wrapper {
+  opacity: 1;
+  transform: translateY(0) scale(1);
+  pointer-events: auto;
+}
+
+.section-controls {
+  display: flex;
+  align-items: center;
+  background-color: rgba(var(--bg-primary-color-rgb), 0.95);
+  backdrop-filter: blur(8px);
+  padding: 2px;
+  border-radius: var(--r-full);
+  border: 1px solid var(--border-secondary-color);
+  box-shadow: var(--s-m);
+  gap: 4px;
+}
+
+.controls-group {
+  display: flex;
+  gap: 2px;
+}
+
+.separator {
+  width: 1px;
+  height: 16px;
+  background-color: var(--border-secondary-color);
+  margin: 0 2px;
 }
 
 .control-btn {
-  width: 26px;
-  height: 26px;
-  border-radius: var(--r-full);
-  background-color: var(--bg-tertiary-color);
-  border: 1px solid var(--border-secondary-color);
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  background-color: transparent;
+  border: 1px solid transparent;
   color: var(--fg-secondary-color);
   display: flex;
   align-items: center;
   justify-content: center;
   cursor: pointer;
-  font-size: 0.9rem;
-  padding: 2px;
+  font-size: 1.1rem;
+  transition: all 0.2s ease;
 
   &:hover {
     background-color: var(--bg-hover-color);
     color: var(--fg-primary-color);
   }
-}
 
-.attach-btn:hover {
-  color: var(--fg-accent-color);
-}
+  &.attach-btn {
+    &.is-active {
+      color: var(--fg-accent-color);
+      background-color: rgba(var(--fg-accent-color-rgb), 0.1);
+    }
+    &:hover {
+      color: var(--fg-accent-color);
+    }
+  }
 
-.activity-section-renderer:hover .section-controls {
-  opacity: 1;
-  transform: scale(1);
+  &.delete-btn {
+    &:hover {
+      background-color: var(--bg-error-color);
+      color: var(--fg-error-color);
+      border-color: var(--border-error-color); /* При наведении красная обводка */
+      color: white;
+    }
+  }
 }
 
 @include media-down(md) {
-  .section-controls {
+  .section-controls-wrapper {
     opacity: 1;
-    transform: scale(1);
-    top: -12px;
-    right: 4px;
-    gap: 8px;
+    transform: translateY(0) scale(1);
+    pointer-events: auto;
+    right: 0px;
   }
 
-  .activity-section-renderer:hover .section-controls {
+  .activity-section-renderer:active .section-controls-wrapper,
+  .activity-section-renderer:focus-within .section-controls-wrapper {
     opacity: 1;
-    transform: scale(1);
+    transform: translateY(0);
   }
 }
 </style>

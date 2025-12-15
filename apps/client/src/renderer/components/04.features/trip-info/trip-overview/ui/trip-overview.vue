@@ -429,7 +429,6 @@ function handleMenuAction(action: string) {
 .clickable-avatar {
   cursor: pointer;
 }
-/* ... existing styles ... */
 .info-widget-card {
   background-color: var(--bg-secondary-color);
   border: 1px solid var(--border-secondary-color);

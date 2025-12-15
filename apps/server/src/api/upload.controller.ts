@@ -50,6 +50,7 @@ export async function uploadFileController(c: Context) {
 
   const fileName = file.name ?? getFileNameFromHeader(c.req.header('content-disposition')!)
   const fileBuffer = await file.arrayBuffer()
+
   // Преобразуем ArrayBuffer в Buffer для Node.js/Sharp
   const buffer = Buffer.from(fileBuffer)
 

@@ -6,6 +6,7 @@ import { storeToRefs } from 'pinia'
 import { computed, onMounted, onUnmounted, ref, watch, watchEffect } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useModuleStore } from '~/components/05.modules/trip-info/composables/use-trip-info-module'
+import { SECTION_TYPE_MAP } from '~/components/05.modules/trip-info/composables/use-trip-info-view'
 import { useIconPicker } from './use-icon-picker'
 
 export function useTripInfoLayout() {
@@ -16,7 +17,9 @@ export function useTripInfoLayout() {
   const router = useRouter()
   const route = useRoute()
 
-  const activeTabId = ref<string>((route.query.section as string) || 'overview')
+  // В activeTabId храним ID секции или спец. ключи ('overview', 'trip-map', 'daily-route')
+  const activeTabId = ref<string>('overview')
+
   const isDrawerOpen = ref(false)
   const isLayoutDropdownOpen = ref(false)
   const isHeaderDropdownOpen = ref(false)
@@ -32,6 +35,7 @@ export function useTripInfoLayout() {
     filteredIcons: filteredIconsEdit,
   } = useIconPicker()
 
+  // Список всех табов для переключателя
   const tabItems = computed((): ViewSwitcherItem<string>[] => {
     const overviewTab: ViewSwitcherItem<string> = {
       id: 'overview',
@@ -51,24 +55,49 @@ export function useTripInfoLayout() {
     return [overviewTab, mapTab, ...sectionTabs]
   })
 
+  // Синхронизация URL -> activeTabId
   watchEffect(() => {
-    const sectionIdFromQuery = route.query.section as string
-    if (sectionIdFromQuery && tabItems.value.some(item => item.id === sectionIdFromQuery)) {
-      if (activeTabId.value !== sectionIdFromQuery) {
-        activeTabId.value = sectionIdFromQuery
-      }
+    const sectionQuery = route.query.section as string
+    const dayQuery = route.query.day as string
+
+    if (dayQuery) {
+      activeTabId.value = 'daily-route'
+      return
     }
-    else if (!sectionIdFromQuery && activeTabId.value !== 'overview') {
+
+    if (!sectionQuery) {
       activeTabId.value = 'overview'
+      return
     }
+
+    if (sectionQuery === 'map') {
+      activeTabId.value = 'trip-map'
+      return
+    }
+
+    // Пробуем найти секцию по слагу (если это booking/finances) или по ID
+    // Мы ищем секцию, которая соответствует query
+    // 1. Попытка найти по типу (reverse map)
+    const sectionBySlug = sortedSections.value.find(s => SECTION_TYPE_MAP[s.type] === sectionQuery)
+    if (sectionBySlug) {
+      activeTabId.value = sectionBySlug.id
+      return
+    }
+
+    // 2. Попытка найти по ID (для кастомных секций)
+    const sectionById = sortedSections.value.find(s => s.id === sectionQuery)
+    if (sectionById) {
+      activeTabId.value = sectionById.id
+      return
+    }
+
+    // Fallback
+    activeTabId.value = 'overview'
   })
 
   const activeTab = computed(() => {
-    if (route.query.day) {
+    if (activeTabId.value === 'daily-route') {
       return { id: 'daily-route', label: 'Маршрут по дням', icon: 'mdi:calendar-month-outline' }
-    }
-    if (route.query.view === 'map') {
-      return { id: 'trip-map', label: 'Карта путешествия', icon: 'mdi:map-search-outline' }
     }
     return tabItems.value.find(item => item.id === activeTabId.value)
   })
@@ -78,7 +107,6 @@ export function useTripInfoLayout() {
       { value: 'share', label: 'Поделиться', icon: 'mdi:share-variant-outline' },
     ]
 
-    // Если выбрана какая-либо секция (а не "Маршрут по дням" или "Обзор")
     if (activeTab.value && !['daily-route', 'overview', 'trip-map'].includes(activeTab.value.id)) {
       const sectionActions: KitDropdownItem[] = [
         { value: 'edit', label: 'Редактировать', icon: 'mdi:pencil-outline' },
@@ -92,6 +120,8 @@ export function useTripInfoLayout() {
   })
 
   // --- МЕТОДЫ (METHODS) ---
+
+  // Основной метод навигации
   function selectSection(id: string) {
     isDrawerOpen.value = false
     isLayoutDropdownOpen.value = false
@@ -100,18 +130,28 @@ export function useTripInfoLayout() {
     const currentQuery = { ...route.query }
     delete currentQuery.day
     delete currentQuery.section
-    delete currentQuery.view
+    // view больше не используется для карты, карта теперь section=map
 
     if (id === 'trip-map') {
-      router.push({ query: { ...currentQuery, view: 'map' } })
+      router.push({ query: { ...currentQuery, section: 'map' } })
     }
     else if (id === 'overview') {
       router.push({ query: currentQuery })
     }
-    else {
-      router.push({ query: { ...currentQuery, section: id } })
+    else if (id === 'daily-route') {
+      // Маршрут по дням обычно привязан к конкретному дню, если он был выбран ранее,
+      // но если мы просто переключаемся, то логика в компоненте выберет день.
+      // Здесь мы ничего не делаем, так как daily-route обычно не кликабелен из меню как таковой,
+      // но если нужно - можно редиректить на первый день.
     }
-    activeTabId.value = id
+    else {
+      // Это обычная секция. Проверяем, есть ли для неё красивый slug.
+      const section = sortedSections.value.find(s => s.id === id)
+      if (section) {
+        const slug = SECTION_TYPE_MAP[section.type] || section.id
+        router.push({ query: { ...currentQuery, section: slug } })
+      }
+    }
   }
 
   function handleCurrentSectionClick() {

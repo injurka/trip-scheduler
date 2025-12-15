@@ -4,7 +4,8 @@ import { useModuleStore } from '~/components/05.modules/trip-info/composables/us
 import { useDisplay } from '~/shared/composables/use-display'
 
 const route = useRoute()
-const isMapView = computed(() => route.query.view === 'map')
+// Теперь проверяем через section=map
+const isMapView = computed(() => route.query.section === 'map')
 
 const store = useModuleStore(['plan', 'ui'])
 const { mdAndDown } = useDisplay()
@@ -31,13 +32,18 @@ const { isDaysPanelPinned, activeView, isParallelPlanView } = storeToRefs(store.
 <style lang="scss" scoped>
 .content-wrapper {
   transition: background-color 0.2s ease;
-  max-width: 1000px; // Возвращаем стандартную ширину 1000px
+  max-width: 1000px;
   width: 100%;
   margin: 0 auto;
   padding: 8px;
+  display: flex;
+  flex-direction: column;
+  flex: 1;
 
   &.is-map-view {
-    max-width: 1800px;
+    max-width: 100%;
+    padding: 0; // Убираем отступы для карты
+    height: 100%; // Занимаем всю высоту родителя (main-content)
   }
 
   &.has-error {

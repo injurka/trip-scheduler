@@ -4,6 +4,7 @@ import { ConfirmDialogManager } from '~/components/02.shared/confirm-dialog-mana
 import { OfflineBanner } from '~/components/02.shared/offline-banner'
 import { ReloadPrompt } from '~/components/02.shared/reload-prompt'
 import { ToastManager } from '~/components/02.shared/toast-manager'
+import { FloatingMap } from '~/components/04.features/floating-map'
 
 import { DefaultLayout } from '~/components/06.layouts/default'
 import { EmptyLayout } from '~/components/06.layouts/empty'
@@ -105,6 +106,7 @@ useSeoMeta({
     </router-view>
   </component>
 
+  <FloatingMap />
   <ReloadPrompt />
   <ToastManager />
   <ConfirmDialogManager />

@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import type { KitDropdownItem } from '~/components/01.kit/kit-dropdown'
+import type { ActivitySection } from '~/shared/types/models/activity'
 import type { TripImage } from '~/shared/types/models/trip'
 import { Icon } from '@iconify/vue'
 import { useDebounce, useElementSize, useVirtualList } from '@vueuse/core'
@@ -22,21 +23,21 @@ const emit = defineEmits<{
   (e: 'confirm', urls: string[]): void
 }>()
 
-const store = useModuleStore(['routeGallery'])
+const store = useModuleStore(['routeGallery', 'plan'])
 const { tripImages, isFetchingImages } = storeToRefs(store.routeGallery)
+const { trip, days } = storeToRefs(store.plan)
 
-// --- State ---
 const selectedUrls = ref<Set<string>>(new Set())
-
-// 1. Create our own ref for the container to measure size
 const containerRef = ref<HTMLElement | null>(null)
+
 const { width: containerWidth } = useElementSize(containerRef)
 
-// --- Filters State ---
 const searchQuery = ref('')
 const debouncedSearch = useDebounce(searchQuery, 300)
 const sortOrder = ref<'newest' | 'oldest' | 'size_desc'>('newest')
-const showSelectedOnly = ref(false)
+
+type FilterMode = 'all' | 'selected' | 'unselected' | 'unused'
+const filterMode = ref<FilterMode>('all')
 
 const sortOptions: KitDropdownItem[] = [
   { value: 'newest', label: 'Сначала новые', icon: 'mdi:sort-calendar-descending' },
@@ -44,23 +45,61 @@ const sortOptions: KitDropdownItem[] = [
   { value: 'size_desc', label: 'По размеру', icon: 'mdi:sort-numeric-descending' },
 ]
 
-// --- Logic ---
+const filterOptions: KitDropdownItem[] = [
+  { value: 'all', label: 'Все фото', icon: 'mdi:image-multiple-outline' },
+  { value: 'selected', label: 'Выбранные здесь', icon: 'mdi:checkbox-marked-circle-outline' },
+  { value: 'unselected', label: 'Не выбранные здесь', icon: 'mdi:checkbox-blank-circle-outline' },
+  { value: 'unused', label: 'Нигде не используются', icon: 'mdi:image-broken-variant' },
+]
 
-// Initialize when opened
+const globallyUsedUrls = computed(() => {
+  const used = new Set<string>()
+
+  if (days.value) {
+    days.value.forEach((day) => {
+      day.activities?.forEach((activity) => {
+        activity.sections?.forEach((section: ActivitySection) => {
+          if (section.type === 'gallery' && Array.isArray((section as any).imageUrls)) {
+            (section as any).imageUrls.forEach((url: string) => used.add(url))
+          }
+        })
+      })
+    })
+  }
+
+  if (trip.value && trip.value.sections) {
+    trip.value.sections.forEach((section) => {
+      const content = section.content as any
+      if (content && Array.isArray(content.imageUrls)) {
+        content.imageUrls.forEach((url: string) => used.add(url))
+      }
+    })
+  }
+
+  return used
+})
+
 watch(() => props.visible, (isOpen) => {
   if (isOpen) {
     selectedUrls.value = new Set(props.initialSelectedUrls)
     searchQuery.value = ''
-    showSelectedOnly.value = false
+    filterMode.value = 'all'
   }
 })
 
-// 2. Filter & Sort Images
 const processedImages = computed(() => {
   let images = [...tripImages.value]
 
-  if (showSelectedOnly.value) {
-    images = images.filter(img => selectedUrls.value.has(img.url))
+  switch (filterMode.value) {
+    case 'selected':
+      images = images.filter(img => selectedUrls.value.has(img.url))
+      break
+    case 'unselected':
+      images = images.filter(img => !selectedUrls.value.has(img.url))
+      break
+    case 'unused':
+      images = images.filter(img => !globallyUsedUrls.value.has(img.url))
+      break
   }
 
   if (debouncedSearch.value) {
@@ -86,7 +125,6 @@ const processedImages = computed(() => {
   return images
 })
 
-// 3. Grid Calculation
 const ITEM_MIN_WIDTH = 160
 const GAP = 8
 const columnsCount = computed(() => {
@@ -95,7 +133,6 @@ const columnsCount = computed(() => {
   return Math.floor((containerWidth.value + GAP) / (ITEM_MIN_WIDTH + GAP)) || 1
 })
 
-// 4. Chunking for Virtual Scroll
 const virtualRows = computed(() => {
   const cols = columnsCount.value
   const rows: TripImage[][] = []
@@ -105,26 +142,21 @@ const virtualRows = computed(() => {
   return rows
 })
 
-// 5. Virtual List
 const { list: visibleRows, containerProps, wrapperProps } = useVirtualList(virtualRows, {
   itemHeight: ITEM_MIN_WIDTH + GAP,
   overscan: 5,
 })
 
-// Sync refs: useVirtualList needs to know about the element
 watch(containerRef, (el) => {
   if (containerProps.ref) {
     containerProps.ref.value = el
   }
 })
 
-// Exclude 'ref' from containerProps to avoid TS conflict in template
 const bindableContainerProps = computed(() => {
   const { ref: _, ...rest } = containerProps
   return rest
 })
-
-// --- Methods ---
 
 function toggleSelection(url: string) {
   if (selectedUrls.value.has(url))
@@ -144,6 +176,10 @@ function handleClose() {
 
 const currentSortIcon = computed(() =>
   sortOptions.find(o => o.value === sortOrder.value)?.icon || 'mdi:sort',
+)
+
+const currentFilterObj = computed(() =>
+  filterOptions.find(o => o.value === filterMode.value) || filterOptions[0],
 )
 </script>
 
@@ -168,17 +204,22 @@ const currentSortIcon = computed(() =>
         </div>
 
         <div class="actions-wrapper">
-          <KitBtn
-            variant="outlined"
-            color="secondary"
-            size="sm"
-            :icon="showSelectedOnly ? 'mdi:checkbox-marked-circle-outline' : 'mdi:checkbox-blank-circle-outline'"
-            :class="{ 'is-active': showSelectedOnly }"
-            @click="showSelectedOnly = !showSelectedOnly"
-          >
-            {{ showSelectedOnly ? 'Выбранные' : 'Все' }}
-          </KitBtn>
+          <!-- Filter Dropdown -->
+          <KitDropdown v-model="filterMode" :items="filterOptions">
+            <template #trigger>
+              <KitBtn
+                variant="outlined"
+                color="secondary"
+                size="sm"
+                :icon="currentFilterObj.icon"
+                :class="{ 'is-active': filterMode !== 'all' }"
+              >
+                {{ currentFilterObj.label }}
+              </KitBtn>
+            </template>
+          </KitDropdown>
 
+          <!-- Sort Dropdown -->
           <KitDropdown v-model="sortOrder" :items="sortOptions" align="end">
             <template #trigger>
               <KitBtn variant="outlined" color="secondary" size="sm" :icon="currentSortIcon">
@@ -246,6 +287,11 @@ const currentSortIcon = computed(() =>
                   />
                 </div>
 
+                <!-- Used/Unused Indicator (Optional Hint) -->
+                <div v-if="globallyUsedUrls.has(tripImg.url)" class="used-indicator" title="Используется в путешествии">
+                  <Icon icon="mdi:link-variant" />
+                </div>
+
                 <!-- Info Overlay -->
                 <div class="info-overlay">
                   <span class="file-name">{{ tripImg.originalName }}</span>
@@ -294,7 +340,7 @@ const currentSortIcon = computed(() =>
   display: flex;
   flex-wrap: wrap;
   gap: 12px;
-  padding: 0 4px 12px 4px;
+  padding: 4px 4px 12px 4px;
   border-bottom: 1px solid var(--border-secondary-color);
   margin-bottom: 8px;
   flex-shrink: 0;
@@ -411,6 +457,23 @@ const currentSortIcon = computed(() =>
     &.selected {
       color: var(--fg-accent-color);
     }
+  }
+
+  .used-indicator {
+    position: absolute;
+    top: 8px;
+    left: 8px;
+    background: rgba(0, 0, 0, 0.6);
+    color: rgba(255, 255, 255, 0.8);
+    border-radius: 50%;
+    width: 24px;
+    height: 24px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 0.9rem;
+    z-index: 2;
+    pointer-events: none;
   }
 
   .info-overlay {

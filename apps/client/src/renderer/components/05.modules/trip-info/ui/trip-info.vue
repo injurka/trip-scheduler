@@ -5,7 +5,6 @@ import { KitBtn } from '~/components/01.kit/kit-btn'
 import { KitDivider } from '~/components/01.kit/kit-divider'
 import { AsyncStateWrapper } from '~/components/02.shared/async-state-wrapper'
 import { TripEditInfoDialog } from '~/components/04.features/trip-info/trip-edit-info-dialog'
-import { TripMapSection } from '~/components/04.features/trip-info/trip-map-section'
 import { TripMemoriesView } from '~/components/04.features/trip-info/trip-memories'
 import { DayMetaBadges, TripPlanView } from '~/components/04.features/trip-info/trip-plan'
 import { useDisplay } from '~/shared/composables/use-display'
@@ -22,8 +21,8 @@ import TripInfoSkeleton from './states/trip-info-skeleton.vue'
 const {
   tripId,
   dayId,
-  sectionId,
-  isMapView,
+  resolvedSectionId,
+  sectionQuery,
   init,
   handleSaveTrip,
 } = useTripInfoView()
@@ -91,64 +90,65 @@ onUnmounted(() => {
       :data="days"
       :retry-handler="() => plan.fetchTripDetails(tripId, dayId, sections.setSections)"
       transition="slide-up"
+      class="trip-info-async-wrapper"
     >
       <template #loading>
         <TripInfoSkeleton />
       </template>
 
       <template #success>
-        <TripMapSection v-if="isMapView" :days="days" />
-        <template v-else>
-          <!-- Вид "Обзор" (Визитка) -->
-          <TripOverviewContent v-if="!dayId && !sectionId" :plan="plan" :sections="sections" @edit="handleEditTrip" />
+        <!-- 1. Вид "Обзор" -->
+        <TripOverviewContent v-if="!dayId && !sectionQuery" :plan="plan" :sections="sections" @edit="handleEditTrip" />
 
-          <!-- Вид "День" -->
-          <template v-else-if="dayId && !sectionId">
-            <DaysControls
-              :wrapper-bounding="{
-                left: wrapperLeft,
-                width: wrapperWidth,
-              }"
-            />
-            <div :key="plan.currentDayId!" class="trip-info-day-view">
-              <KitDivider :is-loading="plan.isLoadingUpdateDay || plan.isLoadingUpdateDay">
-                о дне
-              </KitDivider>
-              <DayHeader />
+        <!-- 2. Вид "День" -->
+        <template v-else-if="dayId && !sectionQuery">
+          <DaysControls
+            :wrapper-bounding="{
+              left: wrapperLeft,
+              width: wrapperWidth,
+            }"
+          />
+          <div :key="plan.currentDayId!" class="trip-info-day-view">
+            <KitDivider :is-loading="plan.isLoadingUpdateDay || plan.isLoadingUpdateDay">
+              о дне
+            </KitDivider>
+            <DayHeader />
 
-              <div class="view-content">
-                <!-- Рендерим либо План, либо Воспоминания. Split больше нет. -->
-                <Transition name="fade-view" mode="out-in">
-                  <TripPlanView
-                    v-if="activeView === 'plan'"
-                  >
-                    <template #footer>
-                      <KitDivider v-if="getSelectedDay?.meta?.length || !isViewMode">
-                        мета-информация
-                      </KitDivider>
+            <div class="view-content">
+              <Transition name="fade-view" mode="out-in">
+                <TripPlanView
+                  v-if="activeView === 'plan'"
+                >
+                  <template #footer>
+                    <KitDivider v-if="getSelectedDay?.meta?.length || !isViewMode">
+                      мета-информация
+                    </KitDivider>
 
-                      <DayMetaBadges
-                        v-if="isDayMetaBadges"
-                        :meta="getSelectedDay!.meta || []"
-                        :readonly="isViewMode"
-                        @update:meta="newMeta => plan.updateDayDetails(getSelectedDay!.id, { meta: newMeta })"
-                      />
-                    </template>
-                  </TripPlanView>
+                    <DayMetaBadges
+                      v-if="isDayMetaBadges"
+                      :meta="getSelectedDay!.meta || []"
+                      :readonly="isViewMode"
+                      @update:meta="newMeta => plan.updateDayDetails(getSelectedDay!.id, { meta: newMeta })"
+                    />
+                  </template>
+                </TripPlanView>
 
-                  <TripMemoriesView v-else-if="activeView === 'memories'" />
-                </Transition>
-              </div>
-
-              <div ref="dayNavigationWrapperRef">
-                <DayNavigation v-if="!isLoading && days.length > 1" />
-              </div>
+                <TripMemoriesView v-else-if="activeView === 'memories'" />
+              </Transition>
             </div>
-          </template>
 
-          <!-- Вид "Раздел" -->
-          <SectionRenderer v-else-if="sectionId" />
+            <div ref="dayNavigationWrapperRef">
+              <DayNavigation v-if="!isLoading && days.length > 1" />
+            </div>
+          </div>
         </template>
+
+        <!-- 3. Вид "Раздел" (включая Карту) -->
+        <SectionRenderer
+          v-else-if="resolvedSectionId"
+          :section-id="resolvedSectionId"
+          :days="days"
+        />
 
         <TripEditInfoDialog
           v-if="isEditModalOpen"
@@ -207,9 +207,26 @@ onUnmounted(() => {
 .trip-info-wrapper {
   height: 100%;
   position: relative;
+  display: flex;
+  flex-direction: column;
+  flex: 1;
 
   @include media-down(sm) {
     padding: 0 4px;
+  }
+}
+
+:deep(.trip-info-async-wrapper) {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  height: 100%;
+
+  .async-state-wrapper-content {
+    display: flex;
+    flex-direction: column;
+    flex: 1;
+    height: 100%;
   }
 }
 

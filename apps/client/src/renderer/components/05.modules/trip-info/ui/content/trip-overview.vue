@@ -31,6 +31,6 @@ function handleDeleteTrip() {
 
 <style scoped lang="scss">
 .trip-overview {
-  padding: 1rem 0;
+  padding: 0;
 }
 </style>
