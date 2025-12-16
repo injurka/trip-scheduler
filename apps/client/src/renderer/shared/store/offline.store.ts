@@ -1,8 +1,9 @@
 import type { TripWithDays } from '~/shared/types/models/trip'
 import { useStorage } from '@vueuse/core'
 import { defineStore } from 'pinia'
-import { OFFLINE_MEDIA_CACHE_NAME } from '~/service-worker/constant'
 import { useToast } from '~/shared/composables/use-toast'
+
+const OFFLINE_MEDIA_CACHE_NAME = 'trip-scheduler-offline-media'
 
 export interface OfflineTripEntry {
   id: string
