@@ -9,7 +9,7 @@ export enum EBlogKeys {
 
 interface BlogState {
   list: BlogListItems[]
-  currentPost: any | null 
+  currentPost: any | null
   nextCursor?: string
 }
 

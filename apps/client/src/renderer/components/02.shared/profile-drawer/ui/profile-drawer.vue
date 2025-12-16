@@ -184,7 +184,7 @@ const logoutItem = { label: 'Выйти', icon: 'mdi:logout', action: () => hand
       </nav>
     </div>
   </KitDrawer>
-  
+
   <StatusEditorDialog v-model:visible="isStatusEditorOpen" />
   <OfflineManagerDialog v-model:visible="isOfflineManagerOpen" />
 </template>

@@ -1,6 +1,5 @@
 <script setup lang="ts">
 import { Icon } from '@iconify/vue'
-import { KitBtn } from '~/components/01.kit/kit-btn'
 import { KitDialogWithClose } from '~/components/01.kit/kit-dialog-with-close'
 import { useModuleStore } from '~/components/05.modules/trip-info/composables/use-trip-info-module'
 import { AppRoutePaths } from '~/shared/constants/routes'
