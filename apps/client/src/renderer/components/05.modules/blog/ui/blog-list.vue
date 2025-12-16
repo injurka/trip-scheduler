@@ -1,10 +1,17 @@
 <script setup lang="ts">
 import { onMounted } from 'vue'
+import { KitBtn } from '~/components/01.kit/kit-btn'
 import { AsyncStateWrapper } from '~/components/02.shared/async-state-wrapper'
+import { AppRouteNames } from '~/shared/constants/routes'
+import { useAuthStore } from '~/shared/store/auth.store'
 import { useBlogStore } from '../store/blog.store'
 import BlogCard from './blog-card.vue'
 
 const store = useBlogStore()
+const authStore = useAuthStore()
+const router = useRouter()
+
+const canCreate = computed(() => authStore.user?.role === 'admin' || true)
 
 onMounted(() => {
   store.fetchList()
@@ -13,6 +20,12 @@ onMounted(() => {
 
 <template>
   <div class="blog-list-container">
+    <div v-if="canCreate" class="admin-controls">
+      <KitBtn icon="mdi:plus" @click="router.push({ name: AppRouteNames.BlogCreate })">
+        Создать новость
+      </KitBtn>
+    </div>
+
     <AsyncStateWrapper
       :loading="store.isLoadingList && store.list.length === 0"
       :data="store.list.length > 0 ? store.list : null"
@@ -43,6 +56,17 @@ onMounted(() => {
 </template>
 
 <style scoped lang="scss">
+.blog-list-container {
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+}
+
+.admin-controls {
+  display: flex;
+  justify-content: flex-end;
+}
+
 .grid {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));

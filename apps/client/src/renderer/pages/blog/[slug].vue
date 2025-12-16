@@ -1,24 +1,65 @@
 <script setup lang="ts">
+import { Icon } from '@iconify/vue'
 import { onMounted } from 'vue'
 import { useRoute } from 'vue-router'
+import { KitBtn } from '~/components/01.kit/kit-btn'
 import { KitInlineMdEditorWrapper } from '~/components/01.kit/kit-inline-md-editor'
 import { AsyncStateWrapper } from '~/components/02.shared/async-state-wrapper'
 import { NavigationBack } from '~/components/02.shared/navigation-back'
 import { useBlogStore } from '~/components/05.modules/blog/store/blog.store'
+import { AppRouteNames } from '~/shared/constants/routes'
 import { formatDate } from '~/shared/lib/date-time'
+import { useAuthStore } from '~/shared/store/auth.store'
 
 const route = useRoute()
+const router = useRouter()
 const store = useBlogStore()
+const authStore = useAuthStore()
 const slug = route.params.slug as string
+const confirm = useConfirm()
+
+const canEdit = computed(() => authStore.user?.role === 'admin' || false)
 
 onMounted(() => {
   store.fetchBySlug(slug)
 })
+
+function handleEdit() {
+  if (store.currentPost) {
+    router.push({ name: AppRouteNames.BlogEdit, params: { id: store.currentPost.id } })
+  }
+}
+
+async function handleDelete() {
+  if (!store.currentPost)
+    return
+  const isConfirmed = await confirm({
+    title: 'Удалить статью?',
+    description: 'Это действие необратимо.',
+    type: 'danger',
+  })
+
+  if (isConfirmed) {
+    await store.deletePost(store.currentPost.id)
+    router.push({ name: AppRouteNames.BlogList })
+  }
+}
 </script>
 
 <template>
   <div class="content-wrapper">
-    <NavigationBack />
+    <div class="page-top-bar">
+      <NavigationBack />
+      <div v-if="canEdit && store.currentPost" class="admin-actions">
+        <KitBtn variant="outlined" color="secondary" size="sm" @click="handleEdit">
+          <Icon icon="mdi:pencil-outline" />
+          Редактировать
+        </KitBtn>
+        <KitBtn variant="outlined" color="secondary" size="sm" class="delete-btn" @click="handleDelete">
+          <Icon icon="mdi:trash-can-outline" />
+        </KitBtn>
+      </div>
+    </div>
 
     <AsyncStateWrapper
       :loading="store.isLoadingDetail"
@@ -53,6 +94,23 @@ onMounted(() => {
   margin: 0 auto;
   padding: 24px;
   width: 100%;
+}
+
+.page-top-bar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 20px;
+}
+
+.admin-actions {
+  display: flex;
+  gap: 8px;
+
+  .delete-btn:hover {
+    color: var(--fg-error-color);
+    border-color: var(--fg-error-color);
+  }
 }
 
 .article-header {

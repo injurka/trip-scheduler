@@ -35,6 +35,8 @@ const PostListPage = () => import('~/pages/post/list.vue')
 
 const BlogList = () => import('~/pages/blog/index.vue')
 const BlogArticle = () => import('~/pages/blog/[slug].vue')
+const BlogCreate = () => import('~/pages/blog/create.vue')
+const BlogEdit = () => import('~/pages/blog/edit/[id].vue')
 
 // Guard для проверки, что пользователь заходит в свои настройки
 async function requireOwner(to: any, _from: any, next: any) {
@@ -174,13 +176,25 @@ const routes: RouteRecordRaw[] = [
   // --- Блог ---
   {
     path: '/blog',
-    name: 'blog-list',
+    name: AppRouteNames.BlogList,
     component: BlogList,
     meta: { layout: 'default', requiresAuth: false },
   },
   {
+    path: '/blog/create',
+    name: AppRouteNames.BlogCreate,
+    component: BlogCreate,
+    meta: { layout: 'default', requiresAuth: true },
+  },
+  {
+    path: '/blog/edit/:id',
+    name: AppRouteNames.BlogEdit,
+    component: BlogEdit,
+    meta: { layout: 'default', requiresAuth: true },
+  },
+  {
     path: '/blog/:slug',
-    name: 'blog-article',
+    name: AppRouteNames.BlogArticle,
     component: BlogArticle,
     meta: { layout: 'default', requiresAuth: false },
   },

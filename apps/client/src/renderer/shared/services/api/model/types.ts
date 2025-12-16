@@ -1,6 +1,6 @@
 import type { Activity, Day } from '~/shared/types/models/activity'
 import type { SignInPayload, SignUpPayload, TelegramAuthPayload, TokenPair, User } from '~/shared/types/models/auth'
-import type { BlogListItems, BlogPost } from '~/shared/types/models/blog'
+import type { BlogListItems, BlogPost, CreateBlogPostInput, UpdateBlogPostInput } from '~/shared/types/models/blog'
 import type { CreateCommentInput, UpdateCommentInput } from '~/shared/types/models/comment'
 import type { CreateMemoryInput, Memory, UpdateMemoryInput } from '~/shared/types/models/memory'
 import type { Place, PlaceTag } from '~/shared/types/models/place'
@@ -119,8 +119,12 @@ export interface ICommentRepository {
 }
 
 export interface IBlogRepository {
-  list: (limit: number, cursor?: string) => Promise<BlogListItems>
-  getBySlug: (data: CreateCommentInput) => Promise<BlogPost>
+  list: (limit: number, cursor?: string) => Promise<{ items: BlogListItems[], nextCursor?: string }>
+  getBySlug: (slug: string) => Promise<BlogPost>
+  getById: (id: string) => Promise<BlogPost>
+  create: (data: CreateBlogPostInput) => Promise<BlogPost>
+  update: (data: UpdateBlogPostInput) => Promise<BlogPost>
+  delete: (id: string) => Promise<void>
 }
 
 // Интерфейс для всей базы данных

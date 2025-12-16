@@ -25,6 +25,8 @@ export enum AppRouteNames {
 
   BlogList = 'blog-list',
   BlogArticle = 'blog-article',
+  BlogCreate = 'blog-create',
+  BlogEdit = 'blog-edit',
 
   Explore = 'explore',
 }
@@ -64,6 +66,8 @@ export const AppRoutePaths = {
 
   Blog: {
     List: '/blog',
+    Create: '/blog/create',
+    Edit: (id: string) => `/blog/edit/${id}`,
     Article: (slug: string) => `/blog/${slug}`,
   },
 
