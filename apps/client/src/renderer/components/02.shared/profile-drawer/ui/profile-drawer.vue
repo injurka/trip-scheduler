@@ -1,19 +1,22 @@
 <script lang="ts" setup>
-// ... (imports)
 import { Icon } from '@iconify/vue'
 import { KitAvatar } from '~/components/01.kit/kit-avatar'
 import { KitDivider } from '~/components/01.kit/kit-divider'
 import { KitDrawer } from '~/components/01.kit/kit-drawer'
+import { OfflineManagerDialog } from '~/components/02.shared/offline-manager'
 import { StatusEditorDialog } from '~/components/02.shared/status-editor-dialog'
 import { UserQuotaWidget } from '~/components/02.shared/user-quota-widget'
 import { AppRouteNames } from '~/shared/constants/routes'
 
 const open = defineModel<boolean>('open', { required: true })
-const router = useRouter()
 
+const router = useRouter()
 const store = useAppStore(['auth'])
+
 const user = computed(() => store.auth.user)
+
 const isStatusEditorOpen = ref(false)
+const isOfflineManagerOpen = ref(false)
 
 const menuItems = [
   { label: 'Указать статус', icon: 'mdi:emoticon-happy-outline', action: () => { isStatusEditorOpen.value = true } },
@@ -49,6 +52,14 @@ const secondaryMenuItems = computed(() => [
         router.push({ name: AppRouteNames.UserSettings, params: { id: user.value.id } })
         open.value = false
       }
+    },
+  },
+  {
+    label: 'Оффлайн доступ',
+    icon: 'mdi:cloud-check-outline',
+    action: () => {
+      isOfflineManagerOpen.value = true
+      open.value = false
     },
   },
   {
@@ -173,7 +184,9 @@ const logoutItem = { label: 'Выйти', icon: 'mdi:logout', action: () => hand
       </nav>
     </div>
   </KitDrawer>
+  
   <StatusEditorDialog v-model:visible="isStatusEditorOpen" />
+  <OfflineManagerDialog v-model:visible="isOfflineManagerOpen" />
 </template>
 
 <style lang="scss" scoped>

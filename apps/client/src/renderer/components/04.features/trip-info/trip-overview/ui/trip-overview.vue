@@ -11,8 +11,10 @@ import { KitDivider } from '~/components/01.kit/kit-divider'
 import { KitDropdown } from '~/components/01.kit/kit-dropdown'
 import { KitImage } from '~/components/01.kit/kit-image'
 import { KitTooltip } from '~/components/01.kit/kit-tooltip'
+import { useModuleStore } from '~/components/05.modules/trip-info/composables/use-trip-info-module'
 import { useTripPermissions } from '~/components/05.modules/trip-info/composables/use-trip-permissions'
 import { vRipple } from '~/shared/directives/ripple'
+import { useOfflineStore } from '~/shared/store/offline.store'
 import { EActivitySectionType, EActivityTag } from '~/shared/types/models/activity'
 import { TripStatus } from '~/shared/types/models/trip'
 import CountdownWidget from './content/countdown-widget.vue'
@@ -42,6 +44,10 @@ const emit = defineEmits<{
 const router = useRouter()
 const confirm = useConfirm()
 const { canEdit } = useTripPermissions()
+
+// --- Offline Stores ---
+const offlineStore = useOfflineStore()
+const moduleStore = useModuleStore(['plan'])
 
 const isMoreMenuOpen = ref(false)
 
@@ -185,11 +191,32 @@ async function handleDeleteTrip() {
     await emit('delete')
 }
 
+// --- Offline Status ---
+const isCached = computed(() => props.trip && offlineStore.isTripCached(props.trip.id))
+const isDownloading = computed(() => props.trip && offlineStore.isTripDownloading(props.trip.id))
+const progress = computed(() => props.trip ? offlineStore.getDownloadProgress(props.trip.id) : 0)
+
 const moreMenuItems = computed((): KitDropdownItem<string>[] => {
   const items: KitDropdownItem<string>[] = [
     { value: 'export', label: 'Экспорт', icon: 'mdi:export-variant' },
     { value: 'share', label: 'Поделиться', icon: 'mdi:share-variant-outline' },
   ]
+
+  // Пункты для Оффлайн
+  if (isDownloading.value) {
+    items.push({
+      value: 'downloading',
+      label: `Загрузка ${progress.value}%...`,
+      icon: 'mdi:loading',
+    })
+  }
+  else if (isCached.value) {
+    items.push({ value: 'update_offline', label: 'Обновить оффлайн', icon: 'mdi:cloud-refresh' })
+  }
+  else {
+    items.push({ value: 'save_offline', label: 'Сохранить оффлайн', icon: 'mdi:cloud-download-outline' })
+  }
+
   if (canEdit.value) {
     items.unshift({ value: 'edit', label: 'Редактировать', icon: 'mdi:pencil-outline' })
     items.push({ value: 'delete', label: 'Удалить', icon: 'mdi:trash-can-outline', isDestructive: true })
@@ -197,13 +224,26 @@ const moreMenuItems = computed((): KitDropdownItem<string>[] => {
   return items
 })
 
-function handleMenuAction(action: string) {
-  if (action === 'edit')
+async function handleMenuAction(action: string) {
+  if (action === 'edit') {
     handleEditTrip()
-  else if (action === 'delete')
+  }
+  else if (action === 'delete') {
     handleDeleteTrip()
-  else if (action === 'export')
+  }
+  else if (action === 'export') {
     isExportDialogVisible.value = true
+  }
+  else if (action === 'save_offline' || action === 'update_offline') {
+    if (moduleStore.plan.trip) {
+      const fullTripData = {
+        ...moduleStore.plan.trip,
+        days: props.days,
+        sections: props.sections,
+      }
+      await offlineStore.saveTripForOffline(fullTripData)
+    }
+  }
 
   isMoreMenuOpen.value = false
 }
@@ -248,9 +288,10 @@ function handleMenuAction(action: string) {
               :key="item.value"
               class="kit-dropdown-item"
               :class="{ 'is-destructive': item.isDestructive }"
+              :disabled="item.value === 'downloading'"
               @click="handleMenuAction(item.value)"
             >
-              <Icon v-if="item.icon" :icon="item.icon" class="item-icon" />
+              <Icon v-if="item.icon" :icon="item.icon" class="item-icon" :class="{ 'spin-icon': item.value === 'downloading' }" />
               <span class="item-label">{{ item.label }}</span>
             </DropdownMenuItem>
           </KitDropdown>
@@ -753,11 +794,29 @@ function handleMenuAction(action: string) {
       }
     }
   }
+
+  &[disabled] {
+    opacity: 0.6;
+    cursor: default;
+    &:hover {
+      background: transparent;
+    }
+  }
 }
 
 .item-icon {
   color: var(--fg-secondary-color);
   font-size: 1.1rem;
+}
+
+.spin-icon {
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
 }
 
 .trip-description-summary {

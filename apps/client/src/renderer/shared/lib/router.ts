@@ -33,6 +33,9 @@ const UserStorage = () => import('~/pages/user/[id]/storage.vue')
 const ExplorePage = () => import('~/pages/explore.vue')
 const PostListPage = () => import('~/pages/post/list.vue')
 
+const BlogList = () => import('~/pages/blog/index.vue')
+const BlogArticle = () => import('~/pages/blog/[slug].vue')
+
 // Guard для проверки, что пользователь заходит в свои настройки
 async function requireOwner(to: any, _from: any, next: any) {
   const authStore = useAuthStore()
@@ -166,6 +169,20 @@ const routes: RouteRecordRaw[] = [
     name: AppRouteNames.PostList,
     component: PostListPage,
     meta: { layout: 'default', requiresAuth: true },
+  },
+
+  // --- Блог ---
+  {
+    path: '/blog',
+    name: 'blog-list',
+    component: BlogList,
+    meta: { layout: 'default', requiresAuth: false },
+  },
+  {
+    path: '/blog/:slug',
+    name: 'blog-article',
+    component: BlogArticle,
+    meta: { layout: 'default', requiresAuth: false },
   },
 
   // --- Системные маршруты ---

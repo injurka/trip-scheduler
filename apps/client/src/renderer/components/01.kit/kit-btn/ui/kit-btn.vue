@@ -1,6 +1,5 @@
 <script setup lang="ts">
 import { Icon } from '@iconify/vue'
-import { computed, useSlots } from 'vue'
 import { vRipple } from '~/shared/directives/ripple'
 
 interface Props {

@@ -9,6 +9,7 @@ import { SUBSCRIPTION_MOCK } from './mock/03.subscription'
 import { LLM_MOCK } from './mock/04.llm'
 import {
   activities,
+  blogs,
   comments,
   days,
   emailVerificationTokens,
@@ -118,7 +119,7 @@ async function seedFromJson() {
     process.exit(1)
   }
 
-  const { users: sourceUsers, trips: sourceTrips, posts: sourcePosts } = dumpData
+  const { users: sourceUsers, trips: sourceTrips, posts: sourcePosts, blogs: sourceBlogs } = dumpData
 
   if (!Array.isArray(sourceUsers)) {
     console.warn('⚠️ Файл дампа имеет неверный формат (отсутствуют users). Заполнение базы данных пропущено.')
@@ -126,13 +127,11 @@ async function seedFromJson() {
   }
 
   console.log('🗑️  Очистка всех данных...')
-  // Очистка постов
+  await db.delete(blogs)
   await db.delete(savedPosts)
   await db.delete(postMedia)
   await db.delete(postElements)
   await db.delete(posts)
-
-  // Очистка путешествий и остального
   await db.delete(llmTokenUsage)
   await db.delete(llmModels)
   await db.delete(memories)
@@ -332,6 +331,21 @@ async function seedFromJson() {
       await db.insert(postMedia).values(mediaToInsert)
     if (savedPostsToInsert.length > 0)
       await db.insert(savedPosts).values(savedPostsToInsert)
+  }
+
+  // --- BLOGS ---
+  if (sourceBlogs && Array.isArray(sourceBlogs)) {
+    const blogsToInsert = sourceBlogs.map((blog: any) => ({
+      ...blog,
+      publishedAt: blog.publishedAt ? new Date(blog.publishedAt) : null,
+      createdAt: new Date(blog.createdAt),
+      updatedAt: new Date(blog.updatedAt),
+    }))
+
+    console.log(`📰 Вставка ${blogsToInsert.length} статей блога...`)
+    if (blogsToInsert.length > 0) {
+      await db.insert(blogs).values(blogsToInsert)
+    }
   }
 
   console.log('✅ База данных успешно восстановлена из JSON дампа!')

@@ -4,6 +4,7 @@ import { FileSystemIconLoader } from 'unplugin-icons/loaders'
 
 export const iconsCfg: Parameters<typeof Icons>[0] = {
   compiler: 'vue3',
+  autoInstall: true,
   customCollections: {
     custom: FileSystemIconLoader(
       fileURLToPath(new URL('../src/assets/svg', import.meta.url)),

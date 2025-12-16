@@ -4,6 +4,7 @@ import { sql } from 'drizzle-orm'
 import { db } from './index'
 import {
   activities,
+  blogs,
   days,
   memories,
   postElements,
@@ -45,11 +46,11 @@ async function checkData() {
       getTableCount(memories, '📝 Воспоминания'),
       getTableCount(tripSections, '📚 Секции путешествий'),
       getTableCount(tripParticipants, '🧑‍🤝‍🧑 Участники путешествий'),
-      // Новые сущности
       getTableCount(posts, '📝 Посты'),
       getTableCount(postElements, '🧩 Элементы постов'),
       getTableCount(postMedia, '🎬 Медиа постов'),
       getTableCount(savedPosts, '🔖 Сохраненные посты'),
+      getTableCount(blogs, '📰 Блог (Новости)'),
     ])
 
     counts.forEach(({ name, count }) => {

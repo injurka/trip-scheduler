@@ -13,6 +13,10 @@ const mapInstance = shallowRef<OlMap | null>(null)
 const windowRef = ref<HTMLElement | null>(null)
 const headerRef = ref<HTMLElement | null>(null)
 
+// --- Определение мобильного режима ---
+const { width: windowWidth, height: windowHeight } = useWindowSize()
+const isMobile = computed(() => windowWidth.value < 768) // Порог для мобильного режима
+
 // --- Данные карты ---
 const mapCenter = ref<[number, number]>([37.6176, 55.7558])
 
@@ -22,18 +26,22 @@ const searchQuery = ref('')
 const isSearching = ref(false)
 const NOMINATIM_SEARCH_URL = 'https://nominatim.openstreetmap.org/search'
 
-// --- Drag & Drop с сохранением ресайза ---
-const { width: windowWidth, height: windowHeight } = useWindowSize()
-const initialX = windowWidth.value - 450
+// --- Drag & Drop с сохранением ресайза (только для десктопа) ---
+const initialX = computed(() => windowWidth.value - 450)
 const initialY = 100
 
 const { x, y } = useDraggable(headerRef, {
-  initialValue: { x: initialX, y: initialY },
+  initialValue: { x: initialX.value, y: initialY },
   preventDefault: true,
+  onStart: () => {
+    if (isMobile.value)
+      return false
+  },
 })
 
+// Применяем позицию только если не мобильное устройство
 watch([x, y], ([newX, newY]) => {
-  if (!windowRef.value)
+  if (!windowRef.value || isMobile.value)
     return
 
   const el = windowRef.value
@@ -98,66 +106,135 @@ function closeWindow() {
 }
 
 watch(() => layoutStore.isFloatingMapOpen, (isOpen) => {
-  if (isOpen) {
+  if (isOpen)
     nextTick(() => mapInstance.value?.updateSize())
+})
+
+// Начальные стили для окна, которые будут меняться
+const windowStyle = computed(() => {
+  if (isMobile.value) {
+    return {}
+  }
+  return {
+    left: `${initialX.value}px`,
+    top: `${initialY}px`,
   }
 })
 </script>
 
 <template>
   <Teleport to="body">
-    <div
-      v-if="layoutStore.isFloatingMapOpen"
-      ref="windowRef"
-      class="floating-map-window"
-      :style="{ left: `${initialX}px`, top: `${initialY}px` }"
-    >
-      <header ref="headerRef" class="window-header">
-        <div class="header-title">
-          <Icon icon="mdi:map-legend" />
-          <span>Карта</span>
-        </div>
-        <div class="header-actions">
-          <button class="action-btn" :class="{ active: isSearchOpen }" title="Поиск" @click="isSearchOpen = !isSearchOpen">
-            <Icon :icon="isSearchOpen ? 'mdi:magnify-minus' : 'mdi:magnify'" />
-          </button>
-          <button class="action-btn" title="Закрыть" @click="closeWindow">
-            <Icon icon="mdi:close" />
-          </button>
-        </div>
-      </header>
+    <div v-if="layoutStore.isFloatingMapOpen">
+      <!-- Модальный режим для мобильных -->
+      <div v-if="isMobile" class="floating-map-overlay" @click.self="closeWindow">
+        <div ref="windowRef" class="floating-map-window is-modal">
+          <!-- Содержимое окна -->
+          <header ref="headerRef" class="window-header">
+            <div class="header-title">
+              <Icon icon="mdi:map-legend" />
+              <span>Карта</span>
+            </div>
+            <div class="header-actions">
+              <button class="action-btn" :class="{ active: isSearchOpen }" title="Поиск" @click="isSearchOpen = !isSearchOpen">
+                <Icon :icon="isSearchOpen ? 'mdi:magnify-minus' : 'mdi:magnify'" />
+              </button>
+              <button class="action-btn" title="Закрыть" @click="closeWindow">
+                <Icon icon="mdi:close" />
+              </button>
+            </div>
+          </header>
 
-      <div v-if="isSearchOpen" class="search-bar">
-        <KitInput
-          v-model="searchQuery"
-          placeholder="Поиск места..."
-          size="sm"
-          @keydown.enter="handleSearch"
-        />
-        <KitBtn size="sm" icon="mdi:arrow-right" :loading="isSearching" @click="handleSearch" />
+          <div v-if="isSearchOpen" class="search-bar">
+            <KitInput
+              v-model="searchQuery"
+              placeholder="Поиск места..."
+              size="sm"
+              @keydown.enter="handleSearch"
+            />
+            <KitBtn size="sm" icon="mdi:arrow-right" :loading="isSearching" @click="handleSearch" />
+          </div>
+
+          <div class="map-container">
+            <KitMap
+              :center="mapCenter"
+              :zoom="10"
+              height="100%"
+              width="100%"
+              class="minimal-map"
+              :auto-pan="false"
+              @map-ready="onMapReady"
+            />
+          </div>
+          <!-- Ручка ресайза скрыта в модалке -->
+        </div>
       </div>
 
-      <div class="map-container">
-        <!-- KitMap теперь сам управляет слоями, передавать их явно не нужно -->
-        <KitMap
-          :center="mapCenter"
-          :zoom="10"
-          height="100%"
-          width="100%"
-          class="minimal-map"
-          :auto-pan="false"
-          @map-ready="onMapReady"
-        />
-      </div>
+      <!-- Обычный режим для десктопа -->
+      <div
+        v-else
+        ref="windowRef"
+        class="floating-map-window"
+        :style="windowStyle"
+      >
+        <header ref="headerRef" class="window-header">
+          <div class="header-title">
+            <Icon icon="mdi:map-legend" />
+            <span>Карта</span>
+          </div>
+          <div class="header-actions">
+            <button class="action-btn" :class="{ active: isSearchOpen }" title="Поиск" @click="isSearchOpen = !isSearchOpen">
+              <Icon :icon="isSearchOpen ? 'mdi:magnify-minus' : 'mdi:magnify'" />
+            </button>
+            <button class="action-btn" title="Закрыть" @click="closeWindow">
+              <Icon icon="mdi:close" />
+            </button>
+          </div>
+        </header>
 
-      <div class="resize-handle">
-        <Icon icon="mdi:resize-bottom-right" />
+        <div v-if="isSearchOpen" class="search-bar">
+          <KitInput
+            v-model="searchQuery"
+            placeholder="Поиск места..."
+            size="sm"
+            @keydown.enter="handleSearch"
+          />
+          <KitBtn size="sm" icon="mdi:arrow-right" :loading="isSearching" @click="handleSearch" />
+        </div>
+
+        <div class="map-container">
+          <KitMap
+            :center="mapCenter"
+            :zoom="10"
+            height="100%"
+            width="100%"
+            class="minimal-map"
+            :auto-pan="false"
+            @map-ready="onMapReady"
+          />
+        </div>
+
+        <div class="resize-handle">
+          <Icon icon="mdi:resize-bottom-right" />
+        </div>
       </div>
     </div>
   </Teleport>
 </template>
 
 <style scoped lang="scss">
+.floating-map-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background-color: rgba(0, 0, 0, 0.5);
+  z-index: 1000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
 .floating-map-window {
   position: fixed;
   width: 400px;
@@ -173,6 +250,27 @@ watch(() => layoutStore.isFloatingMapOpen, (isOpen) => {
   flex-direction: column;
   overflow: hidden;
   resize: both;
+
+  &.is-modal {
+    position: relative;
+    // Сбрасываем позиционирование, т.к. центрирование идет через flex в оверлее
+    left: auto;
+    top: auto;
+    resize: none; // Отключаем ресайз в модальном режиме
+    width: 90vw;
+    height: 70vh;
+    max-width: 500px; // Ограничиваем максимальную ширину на мобильных
+
+    .resize-handle {
+      display: none;
+    }
+    .window-header {
+      cursor: default; // Убираем курсор перетаскивания
+      &:active {
+        cursor: default;
+      }
+    }
+  }
 }
 
 .window-header {

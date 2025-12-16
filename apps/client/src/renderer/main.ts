@@ -1,22 +1,26 @@
+import { addCollection } from '@iconify/vue'
 import { createHead } from '@vueuse/head'
-import { createPinia } from 'pinia'
-import { createApp } from 'vue'
 
+// файл генерируется скриптом
+import iconsBundle from '~/assets/icons-bundle.json'
 import router from '~/shared/lib/router'
-import { initializePwaUpdater } from '~/shared/services/pwa/pwa.service'
 
+import { initializePwaUpdater } from '~/shared/services/pwa/pwa.service'
 // @ts-expect-error бред какой то
 import application from './app.vue'
 import { requestPlugin } from './plugins/request'
 import { restoreSession } from './plugins/session-restore'
 import { themePlugin } from './plugins/theme'
 import { resolveSrc } from './shared/directives/resolve-src'
+
 import { TRPCDatabaseClient } from './shared/services/api'
 
 /**
  * Асинхронная функция для инициализации приложения.
  */
 async function initializeApp() {
+  addCollection(iconsBundle)
+
   const app = createApp(application)
   const pinia = createPinia()
   const head = createHead()

@@ -21,6 +21,9 @@ import { AppRouteNames } from '~/shared/constants/routes'
           <router-link :to="{ name: AppRouteNames.OssLicenses }" class="legal-link">
             Лицензии OSS
           </router-link>
+          <router-link :to="{ name: AppRouteNames.BlogList }" class="legal-link">
+            Блог
+          </router-link>
         </nav>
       </div>
 

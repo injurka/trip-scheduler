@@ -198,17 +198,17 @@ echo "--- Контейнер $CONTAINER_NAME успешно запущен! ---"
 
 ## Deploy
 
-./docker/build_client.sh v33
-./docker/build_server.sh v36
+./docker/build_client.sh v35
+./docker/build_server.sh v37
 
 docker compose down
 
-V_CLIENT=v33 V_SERVER=v36 docker compose up -d
+V_CLIENT=v35 V_SERVER=v37 docker compose up -d
 
 ---
 
-docker tag trip-scheduler-client:v33 injurka/trip-scheduler-client:v33
-docker push injurka/trip-scheduler-client:v33
+docker tag trip-scheduler-client:v35 injurka/trip-scheduler-client:v35
+docker push injurka/trip-scheduler-client:v35
 
-docker tag trip-scheduler-server:v36 injurka/trip-scheduler-server:v36
-docker push injurka/trip-scheduler-server:v36
+docker tag trip-scheduler-server:v37 injurka/trip-scheduler-server:v37
+docker push injurka/trip-scheduler-server:v37

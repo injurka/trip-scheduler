@@ -14,6 +14,7 @@ import type {
 } from './model/types'
 import { ActivityRepository } from './repositories/activity.repository'
 import { AuthRepository } from './repositories/auth.repository'
+import { BlogRepository } from './repositories/blog.repository'
 import { CommentRepository } from './repositories/comment.repository'
 import { DayRepository } from './repositories/day.repository'
 import { FileRepository } from './repositories/file.repository'
@@ -34,6 +35,7 @@ class TRPCDatabaseClient implements IDatabaseClient {
   activities: IActivityRepository = new ActivityRepository()
   memories: IMemoryRepository = new MemoryRepository()
   auth: IAuthRepository = new AuthRepository()
+  blog = new BlogRepository()
   user: IUserRepository = new UserRepository()
   tripSections: ITripSectionRepository = new TripSectionRepository()
   comments: ICommentRepository = new CommentRepository()

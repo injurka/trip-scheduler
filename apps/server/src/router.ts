@@ -1,5 +1,6 @@
 import { router } from './lib/trpc'
 import { activityRouter } from './modules/activity/activity.router'
+import { blogRouter } from './modules/blog/blog.router'
 import { commentRouter } from './modules/comment/comment.router'
 import { dayRouter } from './modules/day/day.router'
 import { imageRouter } from './modules/image/image.router'
@@ -23,6 +24,7 @@ export const appRouter = router({
   llmUsage: llmUsageRouter,
   metro: metroRouter,
   post: postRouter,
+  blog: blogRouter,
 })
 
 export type AppRouter = typeof appRouter

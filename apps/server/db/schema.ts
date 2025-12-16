@@ -642,6 +642,18 @@ export const savedPosts = pgTable('saved_posts', {
   pk: primaryKey({ columns: [t.userId, t.postId] }),
 }))
 
+export const blogs = pgTable('blogs', {
+  id: uuid('id').defaultRandom().primaryKey(),
+  slug: text('slug').unique().notNull(), // ЧПУ для URL (например, 'new-update-2025')
+  title: text('title').notNull(),
+  excerpt: text('excerpt'), // Краткое описание для карточки
+  content: text('content').notNull(), // Markdown контент
+  coverImage: text('cover_image'), // URL обложки
+  publishedAt: timestamp('published_at').defaultNow(),
+  createdAt: timestamp('created_at').defaultNow().notNull(),
+  updatedAt: timestamp('updated_at').defaultNow().notNull(),
+})
+
 // ===============================================
 // =================== RELATIONS =================
 // ===============================================

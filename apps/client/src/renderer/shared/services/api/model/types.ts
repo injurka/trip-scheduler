@@ -1,5 +1,6 @@
 import type { Activity, Day } from '~/shared/types/models/activity'
 import type { SignInPayload, SignUpPayload, TelegramAuthPayload, TokenPair, User } from '~/shared/types/models/auth'
+import type { BlogListItems, BlogPost } from '~/shared/types/models/blog'
 import type { CreateCommentInput, UpdateCommentInput } from '~/shared/types/models/comment'
 import type { CreateMemoryInput, Memory, UpdateMemoryInput } from '~/shared/types/models/memory'
 import type { Place, PlaceTag } from '~/shared/types/models/place'
@@ -117,6 +118,11 @@ export interface ICommentRepository {
   delete: (params: { commentId: string }) => Promise<Comment>
 }
 
+export interface IBlogRepository {
+  list: (limit: number, cursor?: string) => Promise<BlogListItems>
+  getBySlug: (data: CreateCommentInput) => Promise<BlogPost>
+}
+
 // Интерфейс для всей базы данных
 export interface IDatabaseClient {
   trips: ITripRepository
@@ -130,6 +136,7 @@ export interface IDatabaseClient {
   comments: ICommentRepository
   llm: ILLMRepository
   places: IPlacesRepository
+  blog: IBlogRepository
 }
 
 export interface IMemoryRepository {
