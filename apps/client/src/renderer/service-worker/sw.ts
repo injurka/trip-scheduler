@@ -16,9 +16,6 @@ cleanupOutdatedCaches()
 
 precacheAndRoute(self.__WB_MANIFEST || [])
 
-// --- СТРАТЕГИИ КЕШИРОВАНИЯ ---
-
-// Стратегия для обычного просмотра (runtime cache)
 const runtimeImageStrategy = CacheStrategyFactory.createStaleWhileRevalidate(
   CACHE_CONFIG.names.images,
   {
@@ -27,24 +24,19 @@ const runtimeImageStrategy = CacheStrategyFactory.createStaleWhileRevalidate(
   },
 )
 
-// --- ПРАВИЛА МАРШРУТИЗАЦИИ ---
-
-// 1. ИЗОБРАЖЕНИЯ (Комбинированная стратегия)
 registerRoute(
   ({ request }) => request.destination === 'image',
   async ({ request, url, event }) => {
-    // 1. Исключаем Memories (они только онлайн, чтобы не забивать память)
     if (url.pathname.includes('/memories/')) {
       // eslint-disable-next-line no-useless-catch
       try {
         return await fetch(request)
       }
       catch (e) {
-        throw e // Ошибка сети -> битая картинка
+        throw e
       }
     }
 
-    // 2. СНАЧАЛА ищем в "Вечном" оффлайн-кеше (который мы наполнили вручную)
     try {
       const offlineCache = await caches.open(OFFLINE_MEDIA_CACHE_NAME)
       const offlineResponse = await offlineCache.match(request)
@@ -55,10 +47,8 @@ registerRoute(
       }
     }
     catch {
-      // Игнорируем ошибки чтения кеша
     }
 
-    // 3. Если нет в ручном кеше, используем обычную стратегию (StaleWhileRevalidate)
     return runtimeImageStrategy.handle({ event, request, url } as any)
   },
 )
@@ -89,7 +79,7 @@ if (import.meta.env.PROD) {
     ),
   )
 
-  // AIRLINE ICONS (skyscanner)
+  // AIRLINE ICONS
   registerRoute(
     ({ url }) =>
       url.hostname === 'www.skyscanner.net'
@@ -116,7 +106,7 @@ if (import.meta.env.PROD) {
   )
 }
 
-// GEOCODING API (Open-Meteo)
+// GEOCODING API
 registerRoute(
   ({ url }) => url.hostname === 'geocoding-api.open-meteo.com',
   CacheStrategyFactory.createStaleWhileRevalidate(
@@ -276,7 +266,6 @@ if (import.meta.env.DEV) {
   self.addEventListener('fetch', (event) => {
     if (event.request.method === 'GET') {
       const assetType = AssetAnalyzer.getAssetType(event.request.url)
-      // Логируем только если это не API запрос, чтобы не засорять консоль
       if (!event.request.url.includes('/api/')) {
         console.log(`📥 ${assetType}: ${event.request.url}`)
       }

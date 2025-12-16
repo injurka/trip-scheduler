@@ -10,13 +10,13 @@ export interface OfflineTripEntry {
   title: string
   savedAt: number
   imageCount: number
-  data: TripWithDays | null
+  data: TripWithDays
 }
 
 export interface IOfflineState {
   savedTrips: Record<string, OfflineTripEntry>
-  isDownloading: Record<string, boolean> // id -> bool
-  downloadProgress: Record<string, number> // id -> % (0-100)
+  isDownloading: Record<string, boolean>
+  downloadProgress: Record<string, number>
 }
 
 export const useOfflineStore = defineStore('offline', {
@@ -29,20 +29,21 @@ export const useOfflineStore = defineStore('offline', {
   getters: {
     isTripCached: state => (tripId: string) => !!state.savedTrips[tripId],
     getSavedTrip: state => (tripId: string) => state.savedTrips[tripId]?.data,
-    sortedSavedTrips: state => Object.values(state.savedTrips).sort((a, b) => b.savedAt - a.savedAt),
+    sortedSavedTrips: (state) => {
+      return Object.values(state.savedTrips).sort((a, b) => b.savedAt - a.savedAt)
+    },
     getDownloadProgress: state => (tripId: string) => state.downloadProgress[tripId] || 0,
     isTripDownloading: state => (tripId: string) => !!state.isDownloading[tripId],
   },
 
   actions: {
-    /**
-     * Основная функция кэширования путешествия и его медиа-файлов
-     */
     async saveTripForOffline(trip: TripWithDays) {
       if (this.isDownloading[trip.id])
         return
 
       this.isDownloading[trip.id] = true
+      this.downloadProgress[trip.id] = 0
+      const toast = useToast()
 
       if (!this.savedTrips[trip.id]) {
         this.savedTrips[trip.id] = {
@@ -50,12 +51,9 @@ export const useOfflineStore = defineStore('offline', {
           title: trip.title,
           savedAt: Date.now(),
           imageCount: 0,
-          data: null,
+          data: JSON.parse(JSON.stringify(trip)),
         }
       }
-
-      this.downloadProgress[trip.id] = 0
-      const toast = useToast()
 
       try {
         const urlsToCache = new Set<string>()
@@ -67,10 +65,10 @@ export const useOfflineStore = defineStore('offline', {
             return
           if (url.includes('/memories/'))
             return
-
           urlsToCache.add(url)
         }
 
+        // --- Сбор URL ---
         addUrl(trip.imageUrl)
 
         trip.sections.forEach((section: any) => {
@@ -92,15 +90,13 @@ export const useOfflineStore = defineStore('offline', {
               if (section.type === 'gallery' && Array.isArray(section.imageUrls)) {
                 section.imageUrls.forEach(addUrl)
               }
-              if (section.type === 'geolocation') {
-                if (Array.isArray(section.points)) {
-                  section.points.forEach((point: any) => {
-                    if (point.imageUrl)
-                      addUrl(point.imageUrl)
-                    if (point.style?.iconUrl)
-                      addUrl(point.style.iconUrl)
-                  })
-                }
+              if (section.type === 'geolocation' && Array.isArray(section.points)) {
+                section.points.forEach((point: any) => {
+                  if (point.imageUrl)
+                    addUrl(point.imageUrl)
+                  if (point.style?.iconUrl)
+                    addUrl(point.style.iconUrl)
+                })
               }
             })
           })
@@ -113,12 +109,14 @@ export const useOfflineStore = defineStore('offline', {
         if (urlsArray.length === 0)
           this.downloadProgress[trip.id] = 100
 
+        // --- Загрузка ---
         const BATCH_SIZE = 5
         for (let i = 0; i < urlsArray.length; i += BATCH_SIZE) {
           const batch = urlsArray.slice(i, i + BATCH_SIZE)
 
           await Promise.all(batch.map(async (url) => {
             try {
+              // 1. Проверяем, есть ли уже в кеше (по строке URL!)
               const match = await cache.match(url)
               if (match) {
                 loadedCount++
@@ -126,24 +124,24 @@ export const useOfflineStore = defineStore('offline', {
                 return
               }
 
+              // 2. Скачиваем
               let response
               try {
-                const request = new Request(url, { mode: 'cors' })
-                response = await fetch(request)
+                // Пытаемся скачать "по-честному" (CORS)
+                response = await fetch(url, { mode: 'cors', cache: 'reload' })
               }
               catch {
-                const noCorsRequest = new Request(url, { mode: 'no-cors' })
-                response = await fetch(noCorsRequest)
+                // Если CORS ошибка, пробуем no-cors (Opaque)
+                response = await fetch(url, { mode: 'no-cors', cache: 'reload' })
               }
 
-              if (response) {
-                if (response.ok || response.type === 'opaque') {
-                  await cache.put(url, response)
-                }
+              // 3. Кладем в кеш, используя URL как ключ (ВАЖНО!)
+              if (response && (response.ok || response.type === 'opaque')) {
+                await cache.put(url, response)
               }
             }
             catch (e) {
-              console.warn(`[Offline] Не удалось закешировать: ${url}`, e)
+              console.warn(`[Offline] Skip: ${url}`, e)
             }
             finally {
               loadedCount++
@@ -152,23 +150,19 @@ export const useOfflineStore = defineStore('offline', {
           }))
         }
 
+        // Обновляем запись (final data + timestamp)
         this.savedTrips[trip.id] = {
-          id: trip.id,
-          title: trip.title,
+          ...this.savedTrips[trip.id],
           savedAt: Date.now(),
           imageCount: urlsArray.length,
           data: JSON.parse(JSON.stringify(trip)),
         }
 
-        toast.success(`Путешествие "${trip.title}" успешно сохранено!`)
+        toast.success(`Путешествие "${trip.title}" сохранено!`)
       }
       catch (e) {
-        console.error('Ошибка при сохранении оффлайн:', e)
-        toast.error('Не удалось сохранить путешествие.')
-
-        if (this.savedTrips[trip.id] && !this.savedTrips[trip.id].data) {
-          delete this.savedTrips[trip.id]
-        }
+        console.error('Ошибка сохранения:', e)
+        toast.error('Ошибка при сохранении оффлайн.')
       }
       finally {
         setTimeout(() => {
@@ -178,23 +172,13 @@ export const useOfflineStore = defineStore('offline', {
       }
     },
 
-    /**
-     * Удаление путешествия из оффлайн доступа
-     */
     async removeOfflineTrip(tripId: string) {
       if (!this.savedTrips[tripId])
         return
-
-      const toast = useToast()
-
       delete this.savedTrips[tripId]
-
-      toast.info('Путешествие удалено из памяти устройства.')
+      useToast().info('Путешествие удалено из памяти устройства.')
     },
 
-    /**
-     * Обновление уже сохраненного путешествия
-     */
     async updateOfflineTrip(trip: TripWithDays) {
       await this.saveTripForOffline(trip)
     },
