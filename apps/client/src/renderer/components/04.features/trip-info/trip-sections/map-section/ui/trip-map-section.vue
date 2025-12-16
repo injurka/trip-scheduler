@@ -27,8 +27,106 @@ const mapController = ref<ReturnType<typeof useGeolocationMap>>()
 const selectedDayId = ref('all')
 const selectedItemId = ref<string | null>(null)
 
+// Breakpoints
 const isSmallScreen = useMediaQuery('(max-width: 1200px)')
+const isLargeScreen = useMediaQuery('(min-width: 1920px)')
+
 const isSidebarVisible = ref(!isSmallScreen.value)
+
+// --- Sidebar Resize Logic ---
+const sidebarWidth = ref(320)
+const isSidebarResizing = ref(false)
+
+function startSidebarResize(e: MouseEvent) {
+  isSidebarResizing.value = true
+  const startX = e.clientX
+  const startWidth = sidebarWidth.value
+
+  const doResize = (moveEvent: MouseEvent) => {
+    if (!isSidebarResizing.value)
+      return
+    const newWidth = startWidth + (moveEvent.clientX - startX)
+    if (newWidth > 200 && newWidth < 600) {
+      sidebarWidth.value = newWidth
+    }
+  }
+
+  const stopResize = () => {
+    isSidebarResizing.value = false
+    document.removeEventListener('mousemove', doResize)
+    document.removeEventListener('mouseup', stopResize)
+    document.body.style.cursor = ''
+    document.body.style.userSelect = ''
+  }
+
+  document.addEventListener('mousemove', doResize)
+  document.addEventListener('mouseup', stopResize)
+  document.body.style.cursor = 'col-resize'
+  document.body.style.userSelect = 'none'
+}
+
+// --- Details Panel Resize Logic ---
+const detailsPanelSize = ref(isLargeScreen ? 600 : 300) // Высота (стандарт) или Ширина (Large screen)
+const isDetailsResizing = ref(false)
+
+function startDetailsResize(e: MouseEvent) {
+  isDetailsResizing.value = true
+  const startX = e.clientX
+  const startY = e.clientY
+  const startSize = detailsPanelSize.value
+  const isSideMode = isLargeScreen.value
+
+  const doResize = (moveEvent: MouseEvent) => {
+    if (!isDetailsResizing.value)
+      return
+
+    if (isSideMode) {
+      // Режим боковой панели (справа): тянем за левый край.
+      // Движение влево (уменьшение X) -> увеличение ширины.
+      const diff = startX - moveEvent.clientX
+      const newWidth = startSize + diff
+      if (newWidth > 300 && newWidth < 1000) {
+        detailsPanelSize.value = newWidth
+      }
+    }
+    else {
+      // Режим нижней панели: тянем за верхний край.
+      // Движение вверх (уменьшение Y) -> увеличение высоты.
+      const diff = startY - moveEvent.clientY
+      const newHeight = startSize + diff
+      if (newHeight > 150 && newHeight < 600) {
+        detailsPanelSize.value = newHeight
+      }
+    }
+  }
+
+  const stopResize = () => {
+    isDetailsResizing.value = false
+    document.removeEventListener('mousemove', doResize)
+    document.removeEventListener('mouseup', stopResize)
+    document.body.style.cursor = ''
+    document.body.style.userSelect = ''
+  }
+
+  document.addEventListener('mousemove', doResize)
+  document.addEventListener('mouseup', stopResize)
+  // Курсор зависит от режима
+  document.body.style.cursor = isSideMode ? 'col-resize' : 'row-resize'
+  document.body.style.userSelect = 'none'
+}
+// --------------------
+
+// --- Collapsible Groups Logic ---
+const collapsedGroups = reactive({
+  points: false,
+  routes: false,
+  drawnRoutes: false,
+})
+
+function toggleGroup(group: keyof typeof collapsedGroups) {
+  collapsedGroups[group] = !collapsedGroups[group]
+}
+// --------------------------------
 
 const dayOptions = computed(() => {
   const options: any[] = [{ value: 'all', label: 'Все дни', dayNumber: null }]
@@ -75,6 +173,28 @@ const selectedActivity = computed(() => {
 
   const day = props.days.find(d => d.id === geoSection.dayId)
   return day?.activities.find(a => a.id === geoSection.activityId) || null
+})
+
+// Динамический стиль для панели деталей
+const detailsPanelStyle = computed(() => {
+  const style: Record<string, string> = {}
+
+  if (isLargeScreen.value) {
+    // Large Screen Mode: Панель справа
+    style.width = `${detailsPanelSize.value}px`
+    // Сброс высоты, так как она занимает 100% (минус отступы) через CSS
+  }
+  else {
+    // Standard Mode: Панель снизу
+    style.height = `${detailsPanelSize.value}px`
+
+    // Логика смещения влево, если открыт сайдбар
+    if (isSidebarVisible.value && !isSmallScreen.value) {
+      style.left = `${sidebarWidth.value + 24}px`
+    }
+  }
+
+  return style
 })
 
 const mapCenter = computed((): [number, number] => {
@@ -124,7 +244,6 @@ function focusOnItem(item: MapPoint | MapRoute | DrawnRoute) {
     mapController.value?.flyToLocation(item.segments[0][0][0], item.segments[0][0][1], 14)
   }
 
-  // На мобильных закрываем сайдбар после выбора
   if (isSmallScreen.value) {
     isSidebarVisible.value = false
   }
@@ -136,7 +255,14 @@ function focusOnItem(item: MapPoint | MapRoute | DrawnRoute) {
     <div class="trip-map-section">
       <main class="map-view">
         <Transition name="slide-left">
-          <aside v-show="isSidebarVisible" class="sidebar">
+          <aside
+            v-show="isSidebarVisible"
+            class="sidebar"
+            :style="{ width: !isSmallScreen ? `${sidebarWidth}px` : undefined }"
+          >
+            <!-- Sidebar Resizer -->
+            <div class="resizer sidebar-resizer" @mousedown.prevent="startSidebarResize" />
+
             <div class="sidebar-header">
               <KitSelectWithSearch
                 v-model="selectedDayId"
@@ -164,27 +290,44 @@ function focusOnItem(item: MapPoint | MapRoute | DrawnRoute) {
             <div class="sidebar-content">
               <div v-if="filteredPoints.length > 0 || filteredRoutes.length > 0 || filteredDrawnRoutes.length > 0">
                 <div v-if="filteredPoints.length > 0" class="items-group">
-                  <h4 class="group-title">
-                    Точки интереса
-                  </h4>
-                  <TripMapSidebarItem v-for="point in filteredPoints" :key="point.id" :item="point" type="point" @click="focusOnItem(point)" />
+                  <div class="group-header" @click="toggleGroup('points')">
+                    <h4 class="group-title">
+                      Точки интереса
+                    </h4>
+                    <Icon :icon="collapsedGroups.points ? 'mdi:chevron-down' : 'mdi:chevron-up'" class="group-toggle-icon" />
+                  </div>
+                  <div v-show="!collapsedGroups.points" class="group-content">
+                    <TripMapSidebarItem v-for="point in filteredPoints" :key="point.id" :item="point" type="point" @click="focusOnItem(point)" />
+                  </div>
                 </div>
+
                 <div v-if="filteredRoutes.length > 0" class="items-group">
-                  <h4 class="group-title">
-                    Маршруты
-                  </h4>
-                  <div v-for="route in filteredRoutes" :key="route.id" class="route-group-in-sidebar">
-                    <TripMapSidebarItem :item="route" type="route" @click="focusOnItem(route)" />
-                    <div class="route-points-list">
-                      <TripMapSidebarItem v-for="point in route.points" :key="point.id" :item="point" type="point" @click="focusOnItem(point)" />
+                  <div class="group-header" @click="toggleGroup('routes')">
+                    <h4 class="group-title">
+                      Маршруты
+                    </h4>
+                    <Icon :icon="collapsedGroups.routes ? 'mdi:chevron-down' : 'mdi:chevron-up'" class="group-toggle-icon" />
+                  </div>
+                  <div v-show="!collapsedGroups.routes" class="group-content">
+                    <div v-for="route in filteredRoutes" :key="route.id" class="route-group-in-sidebar">
+                      <TripMapSidebarItem :item="route" type="route" @click="focusOnItem(route)" />
+                      <div class="route-points-list">
+                        <TripMapSidebarItem v-for="point in route.points" :key="point.id" :item="point" type="point" @click="focusOnItem(point)" />
+                      </div>
                     </div>
                   </div>
                 </div>
+
                 <div v-if="filteredDrawnRoutes.length > 0" class="items-group">
-                  <h4 class="group-title">
-                    Нарисованные маршруты
-                  </h4>
-                  <TripMapSidebarItem v-for="route in filteredDrawnRoutes" :key="route.id" :item="route" type="route" @click="focusOnItem(route)" />
+                  <div class="group-header" @click="toggleGroup('drawnRoutes')">
+                    <h4 class="group-title">
+                      Нарисованные маршруты
+                    </h4>
+                    <Icon :icon="collapsedGroups.drawnRoutes ? 'mdi:chevron-down' : 'mdi:chevron-up'" class="group-toggle-icon" />
+                  </div>
+                  <div v-show="!collapsedGroups.drawnRoutes" class="group-content">
+                    <TripMapSidebarItem v-for="route in filteredDrawnRoutes" :key="route.id" :item="route" type="route" @click="focusOnItem(route)" />
+                  </div>
                 </div>
               </div>
               <div v-else class="empty-state">
@@ -223,7 +366,15 @@ function focusOnItem(item: MapPoint | MapRoute | DrawnRoute) {
         />
 
         <Transition name="slide-up">
-          <div v-if="selectedActivity" class="details-panel" :class="{ 'sidebar-open': isSidebarVisible && !isSmallScreen }">
+          <div
+            v-if="selectedActivity"
+            class="details-panel"
+            :class="{ 'is-side-panel': isLargeScreen }"
+            :style="detailsPanelStyle"
+          >
+            <!-- Details Resizer -->
+            <div class="resizer details-resizer" @mousedown.prevent="startDetailsResize" />
+
             <div class="details-header">
               <h4>Активность: {{ selectedActivity.title }}</h4>
               <KitBtn icon="mdi:close" variant="text" size="sm" @click="selectedItemId = null" />
@@ -243,8 +394,6 @@ function focusOnItem(item: MapPoint | MapRoute | DrawnRoute) {
   display: flex;
   justify-content: center;
   width: 100%;
-  height: calc(100vh - 180px);
-  padding-bottom: 16px;
   position: relative;
 }
 
@@ -261,8 +410,9 @@ function focusOnItem(item: MapPoint | MapRoute | DrawnRoute) {
 
 .trip-map-section {
   width: 100%;
-  height: 100%;
   position: relative;
+  display: flex;
+  flex-direction: column;
 
   .is-fullscreen & {
     max-width: 100%;
@@ -273,6 +423,9 @@ function focusOnItem(item: MapPoint | MapRoute | DrawnRoute) {
   position: relative;
   width: 100%;
   height: 100%;
+  flex: 1;
+  background-color: var(--bg-primary-color);
+  overflow: hidden; // Важно, чтобы панели не вылезали
 }
 
 .sidebar {
@@ -280,7 +433,7 @@ function focusOnItem(item: MapPoint | MapRoute | DrawnRoute) {
   top: 12px;
   left: 12px;
   bottom: 12px;
-  width: 320px;
+  // width задается через style
   z-index: 20;
   display: flex;
   flex-direction: column;
@@ -289,8 +442,32 @@ function focusOnItem(item: MapPoint | MapRoute | DrawnRoute) {
   -webkit-backdrop-filter: blur(10px);
   border-radius: var(--r-m);
   border: 1px solid var(--border-secondary-color);
-  overflow: hidden;
   box-shadow: var(--s-l);
+  min-width: 200px;
+  max-width: 80vw;
+}
+
+/* Общий стиль для ресайзеров */
+.resizer {
+  position: absolute;
+  z-index: 21;
+  background-color: transparent;
+  transition: background-color 0.2s;
+
+  &:hover,
+  &:active {
+    background-color: var(--primary-color);
+    opacity: 0.5;
+  }
+}
+
+/* Ресайзер для сайдбара (правая граница) */
+.sidebar-resizer {
+  top: 0;
+  right: 0;
+  width: 5px;
+  height: 100%;
+  cursor: col-resize;
 }
 
 .sidebar-header {
@@ -299,9 +476,11 @@ function focusOnItem(item: MapPoint | MapRoute | DrawnRoute) {
   display: flex;
   gap: 8px;
   align-items: center;
+  flex-shrink: 0;
 
   :deep(.kit-select-with-search) {
     flex-grow: 1;
+    min-width: 0;
   }
   :deep(.day-option-content) {
     display: flex;
@@ -346,6 +525,7 @@ function focusOnItem(item: MapPoint | MapRoute | DrawnRoute) {
   display: flex;
   flex-direction: column;
   gap: 1rem;
+  flex: 1;
 
   &::-webkit-scrollbar {
     width: 4px;
@@ -363,7 +543,42 @@ function focusOnItem(item: MapPoint | MapRoute | DrawnRoute) {
   display: flex;
   flex-direction: column;
   gap: 4px;
-  margin-bottom: 12px;
+  margin-bottom: 8px;
+}
+
+.group-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  cursor: pointer;
+  padding: 4px 8px;
+  border-radius: var(--r-s);
+  user-select: none;
+  transition: background-color 0.2s;
+
+  &:hover {
+    background-color: var(--bg-tertiary-color);
+  }
+}
+
+.group-title {
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--fg-tertiary-color);
+  text-transform: uppercase;
+  margin: 0;
+  letter-spacing: 0.5px;
+}
+
+.group-toggle-icon {
+  font-size: 1.1rem;
+  color: var(--fg-tertiary-color);
+}
+
+.group-content {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
 }
 
 .route-group-in-sidebar {
@@ -393,20 +608,9 @@ function focusOnItem(item: MapPoint | MapRoute | DrawnRoute) {
   }
 }
 
-.group-title {
-  font-size: 0.75rem;
-  font-weight: 600;
-  color: var(--fg-tertiary-color);
-  text-transform: uppercase;
-  margin: 0 0 4px 8px;
-  letter-spacing: 0.5px;
-}
-
+/* DETAILS PANEL */
 .details-panel {
   position: absolute;
-  bottom: 12px;
-  left: 12px;
-  right: 12px;
   background-color: rgba(var(--bg-secondary-color-rgb), 0.9);
   backdrop-filter: blur(10px);
   -webkit-backdrop-filter: blur(10px);
@@ -414,13 +618,42 @@ function focusOnItem(item: MapPoint | MapRoute | DrawnRoute) {
   border-radius: var(--r-m);
   box-shadow: var(--s-xl);
   z-index: 15;
-  max-height: 40%;
   display: flex;
   flex-direction: column;
-  transition: left 0.3s ease;
 
-  &.sidebar-open {
-    left: calc(320px + 24px);
+  // Standard Mode (Bottom) - Default
+  bottom: 12px;
+  left: 12px; // Переопределяется JS-ом
+  right: 12px;
+  // height задается JS-ом
+  max-height: 60%;
+
+  /* Ресайзер для нижней панели (верхняя граница) */
+  .details-resizer {
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 5px;
+    cursor: row-resize;
+  }
+
+  // Large Screen Mode (Side Right)
+  &.is-side-panel {
+    top: 12px;
+    bottom: 12px;
+    right: 12px;
+    left: auto !important; // Сбрасываем left, который может прийти из JS логики sidebar
+    max-height: 100%;
+    // width задается JS-ом
+
+    /* Ресайзер для боковой правой панели (левая граница) */
+    .details-resizer {
+      top: 0;
+      left: 0;
+      width: 5px;
+      height: 100%;
+      cursor: col-resize;
+    }
   }
 
   .details-header {
@@ -444,6 +677,7 @@ function focusOnItem(item: MapPoint | MapRoute | DrawnRoute) {
   .details-content {
     overflow-y: auto;
     padding: 1rem;
+    flex: 1;
   }
 }
 
@@ -488,23 +722,33 @@ function focusOnItem(item: MapPoint | MapRoute | DrawnRoute) {
   opacity: 0;
 }
 
+@media (max-width: 1200px) {
+  .resizer {
+    display: none !important; /* Отключаем ресайз на тач устройствах */
+  }
+  .sidebar {
+    width: 320px !important;
+  }
+  .details-panel {
+    height: auto !important; /* Возвращаем авто высоту */
+    max-height: 40%;
+  }
+}
+
 @media (max-width: 768px) {
   .trip-map-section-wrapper {
     padding: 0;
-    height: calc(100vh - 130px);
   }
   .map-view {
     border-radius: 0;
     border: none;
   }
   .sidebar {
-    width: calc(100% - 60px);
+    width: calc(100% - 60px) !important;
     max-height: 100%;
   }
   .details-panel {
-    &.sidebar-open {
-      left: 12px;
-    }
+    left: 12px !important;
   }
 }
 </style>

@@ -1,6 +1,6 @@
 import type { FeatureLike } from 'ol/Feature'
 import type { Ref } from 'vue'
-import type { MapMarker } from '~/components/01.kit/kit-map'
+import type { KitMapOptions, MapMarker, TileSource } from '../models/types'
 import { Feature, Map, Overlay, View } from 'ol'
 import Point from 'ol/geom/Point'
 import TileLayer from 'ol/layer/Tile'
@@ -11,18 +11,14 @@ import VectorSource from 'ol/source/Vector'
 import { Icon as OlIcon, Style } from 'ol/style'
 import { resolveApiUrl } from '~/shared/lib/url'
 
-export interface KitMapOptions {
-  center: [number, number]
-  zoom?: number
-  autoPan?: boolean
-}
-
 export function useKitMap() {
-  const mapInstance: Ref<Map | null> = ref(null)
+  const mapInstance: Ref<Map | null> = shallowRef(null)
   const isMapReady = ref(false)
-  let resizeObserver: ResizeObserver | null = null
 
+  const tileLayerRef = shallowRef<TileLayer<TileSource> | null>(null)
   const vectorSource = new VectorSource()
+
+  let resizeObserver: ResizeObserver | null = null
 
   const defaultMarkerSvg = `
       <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
@@ -40,35 +36,32 @@ export function useKitMap() {
         anchor: [0.5, 1],
       }),
     }),
+    zIndex: 10,
   })
 
   const initMap = async (container: HTMLElement, popupEl: HTMLElement, options: KitMapOptions) => {
-    if (!container) {
-      console.error('Map container is required')
+    if (!container)
       return
-    }
     await nextTick()
 
     try {
-      let currentlyShownFeature: FeatureLike | null = null
-
       const popup = new Overlay({
         element: popupEl,
         positioning: 'bottom-center',
         offset: [0, -45],
         stopEvent: false,
-        autoPan: options.autoPan === false
-          ? false
-          : {
-              animation: {
-                duration: 250,
-              },
-            },
+        autoPan: options.autoPan === false ? false : { animation: { duration: 250 } },
+      })
+
+      const initialSource = options.initialSource || new OSM()
+
+      tileLayerRef.value = new TileLayer({
+        source: initialSource,
       })
 
       mapInstance.value = new Map({
         target: container,
-        layers: [new TileLayer({ source: new OSM() }), vectorLayer],
+        layers: [tileLayerRef.value, vectorLayer],
         view: new View({
           center: fromLonLat(options.center),
           zoom: options.zoom || 12,
@@ -80,54 +73,32 @@ export function useKitMap() {
       mapInstance.value.on('pointermove', (evt) => {
         if (evt.dragging) {
           popup.setPosition(undefined)
-          currentlyShownFeature = null
+          return
+        }
+        const pixel = mapInstance.value?.getEventPixel(evt.originalEvent)
+        if (!pixel)
+          return
+
+        const feature = mapInstance.value?.forEachFeatureAtPixel(pixel, f => f)
+
+        if (!feature) {
+          popup.setPosition(undefined)
           return
         }
 
-        const featureUnderPointer = mapInstance.value?.forEachFeatureAtPixel(evt.pixel, f => f, { hitTolerance: 5 })
-        if (featureUnderPointer === currentlyShownFeature) {
-          return
-        }
-
-        currentlyShownFeature = featureUnderPointer!
-        popup.setPosition(undefined)
-
-        if (!featureUnderPointer) {
-          return
-        }
-
-        const popupElement = popup.getElement()
-        if (!popupElement)
-          return
-
-        const imageUrl = featureUnderPointer.get('imageUrl')
+        const imageUrl = (feature as FeatureLike).get('imageUrl')
         const resolvedUrl = resolveApiUrl(imageUrl)
 
-        if (resolvedUrl) {
-          const img = new Image()
-          img.onload = () => {
-            if (currentlyShownFeature === featureUnderPointer) {
-              const isHorizontal = img.naturalWidth >= img.naturalHeight
-              const style = isHorizontal
-                ? 'width:200px; height:112px;' // ~16:9
-                : 'width:116px; height:200px;' // vertical
-              popupElement.innerHTML = `<img src="${resolvedUrl}" alt="Marker Preview" style="${style} object-fit: cover; display:block; border-radius:var(--r-xs);" />`
-
-              const geometry = featureUnderPointer.getGeometry()
-              if (geometry && geometry.getType() === 'Point') {
-                const coordinates = (geometry as Point).getCoordinates()
-                popup.setPosition(coordinates)
-              }
-            }
+        if (resolvedUrl && popupEl) {
+          popupEl.innerHTML = `<img src="${resolvedUrl}" style="width:200px; height:120px; object-fit: cover; border-radius:4px;" />`
+          const geometry = (feature as Feature).getGeometry()
+          if (geometry?.getType() === 'Point') {
+            popup.setPosition((geometry as Point).getCoordinates())
           }
-          img.src = resolvedUrl
         }
       })
 
-      mapInstance.value.once('postrender', () => {
-        isMapReady.value = true
-        mapInstance.value?.updateSize()
-      })
+      isMapReady.value = true
 
       resizeObserver = new ResizeObserver(() => {
         mapInstance.value?.updateSize()
@@ -139,9 +110,15 @@ export function useKitMap() {
     }
   }
 
+  const setTileSource = (source: TileSource) => {
+    if (tileLayerRef.value) {
+      tileLayerRef.value.setSource(source)
+    }
+  }
+
   const updateMarkers = (markers: MapMarker[]) => {
     vectorSource.clear()
-    if (markers.length === 0)
+    if (!markers.length)
       return
 
     const features = markers.map((marker) => {
@@ -160,45 +137,38 @@ export function useKitMap() {
     if (!mapInstance.value || vectorSource.getFeatures().length === 0)
       return
 
-    mapInstance.value.getView().fit(vectorSource.getExtent(), {
-      padding: [100, 100, 100, 100],
+    const extent = vectorSource.getExtent()
+    mapInstance.value.getView().fit(extent, {
+      padding: [50, 50, 50, 50],
       duration: 500,
       maxZoom: 15,
     })
   }
 
-  const destroyMap = () => {
-    if (resizeObserver) {
-      resizeObserver.disconnect()
-      resizeObserver = null
-    }
-    if (mapInstance.value) {
-      mapInstance.value.setTarget(undefined)
-      mapInstance.value = null
-      isMapReady.value = false
-    }
-  }
-
   const zoomIn = () => {
     const view = mapInstance.value?.getView()
-    const currentZoom = view?.getZoom()
-    if (view && currentZoom !== undefined)
-      view.animate({ zoom: currentZoom + 1, duration: 250 })
+    if (view)
+      view.animate({ zoom: (view.getZoom() || 10) + 1, duration: 250 })
   }
 
   const zoomOut = () => {
     const view = mapInstance.value?.getView()
-    const currentZoom = view?.getZoom()
-    if (view && currentZoom !== undefined)
-      view.animate({ zoom: currentZoom - 1, duration: 250 })
+    if (view)
+      view.animate({ zoom: (view.getZoom() || 10) - 1, duration: 250 })
   }
 
-  onUnmounted(destroyMap)
+  onUnmounted(() => {
+    if (resizeObserver)
+      resizeObserver.disconnect()
+    if (mapInstance.value)
+      mapInstance.value.setTarget(undefined)
+  })
 
   return {
     mapInstance,
     isMapReady: readonly(isMapReady),
     initMap,
+    setTileSource,
     zoomIn,
     zoomOut,
     updateMarkers,

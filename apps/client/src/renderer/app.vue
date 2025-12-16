@@ -2,9 +2,11 @@
 import { useHead, useSeoMeta } from '@vueuse/head'
 import { ConfirmDialogManager } from '~/components/02.shared/confirm-dialog-manager'
 import { OfflineBanner } from '~/components/02.shared/offline-banner'
+import { OfflineProgressDialog } from '~/components/02.shared/offline-manager'
 import { ReloadPrompt } from '~/components/02.shared/reload-prompt'
 import { ToastManager } from '~/components/02.shared/toast-manager'
 
+import { FloatingMap } from '~/components/04.features/floating-map'
 import { DefaultLayout } from '~/components/06.layouts/default'
 import { EmptyLayout } from '~/components/06.layouts/empty'
 import { TripInfoLayout } from '~/components/06.layouts/trip-info'
@@ -105,7 +107,10 @@ useSeoMeta({
     </router-view>
   </component>
 
+  <FloatingMap />
   <ReloadPrompt />
   <ToastManager />
+
   <ConfirmDialogManager />
+  <OfflineProgressDialog />
 </template>

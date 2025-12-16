@@ -50,13 +50,10 @@ export const TILE_SOURCES = {
 
 export type TileSourceId = keyof typeof TILE_SOURCES
 
-// Кешируем результат проверки, чтобы не пинговать сервис при каждом переходе на вкладку карты
 let availabilityCache: boolean | null = null
 
 /**
  * Проверяет доступность сервиса MapTiler.
- * 1. Проверяет наличие API ключа.
- * 2. Делает тестовый запрос к тайлу (0/0/0) с таймаутом.
  */
 export async function checkMapTilerAvailability(): Promise<boolean> {
   if (availabilityCache !== null)
@@ -78,11 +75,10 @@ export async function checkMapTilerAvailability(): Promise<boolean> {
     })
 
     clearTimeout(timeoutId)
-
     availabilityCache = response.ok
   }
   catch (e) {
-    console.warn('MapTiler недоступен (ошибка сети или таймаут), переключаемся на OSM.', e)
+    console.warn('MapTiler недоступен, переключаемся на OSM.', e)
     availabilityCache = false
   }
 

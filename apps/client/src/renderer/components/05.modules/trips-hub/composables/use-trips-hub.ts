@@ -241,36 +241,6 @@ export function useTripsHub() {
     })
   }
 
-  async function rateTrip(tripId: string, rating: number) {
-    if (!authStore.isAuthenticated) {
-      toast.error('Войдите, чтобы оценивать путешествия.')
-      return
-    }
-
-    const tripIndex = trips.value.findIndex(t => t.id === tripId)
-    if (tripIndex === -1)
-      return
-
-    const trip = trips.value[tripIndex]
-    const originalUserRating = trip.userRating
-
-    trips.value[tripIndex] = { ...trip, userRating: rating }
-
-    await useRequest({
-      key: `${ETripHubKeys.RATE}:${tripId}`,
-      fn: db => db.trips.rate(tripId, rating),
-      onSuccess: () => {
-        toast.success('Оценка сохранена!')
-      },
-      onError: (error) => {
-        if (tripIndex !== -1) {
-          trips.value[tripIndex] = { ...trip, userRating: originalUserRating }
-        }
-        toast.error(`Не удалось сохранить оценку: ${error}`)
-      },
-    })
-  }
-
   function setActiveTab(tab: TripsHubTab) {
     if (activeTab.value === tab)
       return
@@ -344,7 +314,6 @@ export function useTripsHub() {
     createTrip,
     deleteTrip,
     updateTripInList,
-    rateTrip,
     setActiveTab,
     setDisplayMode,
     openCreateModal,

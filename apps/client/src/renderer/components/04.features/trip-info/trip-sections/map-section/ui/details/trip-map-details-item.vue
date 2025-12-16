@@ -66,7 +66,6 @@ const sectionGroups = computed(() => {
           class="section-group"
         >
           <SectionRenderer :section="group.parent" />
-          <!-- Children sections are not rendered in this simplified view -->
         </div>
       </div>
     </div>

@@ -3,6 +3,7 @@ import type { ServiceWorkerMessage } from './model/types'
 import { clientsClaim } from 'workbox-core'
 import { cleanupOutdatedCaches, createHandlerBoundToURL, precacheAndRoute } from 'workbox-precaching'
 import { NavigationRoute, registerRoute } from 'workbox-routing'
+import { OFFLINE_MEDIA_CACHE_NAME } from './constant'
 import { messageHandlers } from './lib/message-handlers'
 import { AssetAnalyzer, CacheStrategyFactory } from './lib/utils'
 import { API_CACHE_RULES, CACHE_CONFIG } from './model/types'
@@ -14,6 +15,43 @@ clientsClaim()
 cleanupOutdatedCaches()
 
 precacheAndRoute(self.__WB_MANIFEST || [])
+
+const runtimeImageStrategy = CacheStrategyFactory.createStaleWhileRevalidate(
+  CACHE_CONFIG.names.images,
+  {
+    maxEntries: CACHE_CONFIG.limits.images,
+    maxAgeSeconds: CACHE_CONFIG.durations.images,
+  },
+)
+
+registerRoute(
+  ({ request }) => request.destination === 'image',
+  async ({ request, url, event }) => {
+    if (url.pathname.includes('/memories/')) {
+      // eslint-disable-next-line no-useless-catch
+      try {
+        return await fetch(request)
+      }
+      catch (e) {
+        throw e
+      }
+    }
+
+    try {
+      const offlineCache = await caches.open(OFFLINE_MEDIA_CACHE_NAME)
+      const offlineResponse = await offlineCache.match(request)
+      if (offlineResponse) {
+        if (import.meta.env.DEV)
+          console.log(`[SW] Served from Offline Cache: ${url.pathname}`)
+        return offlineResponse
+      }
+    }
+    catch {
+    }
+
+    return runtimeImageStrategy.handle({ event, request, url } as any)
+  },
+)
 
 if (import.meta.env.PROD) {
   // WEB APP MANIFEST
@@ -41,34 +79,7 @@ if (import.meta.env.PROD) {
     ),
   )
 
-  // IMAGE
-  registerRoute(
-    ({ request, url }) => {
-      if (request.destination !== 'image')
-        return false
-
-      const isMemoryImage = url.pathname.includes('/memories/')
-      // Если это не изображение из "воспоминаний", кешируем его по умолчанию
-      if (!isMemoryImage)
-        return true
-
-      // Если это изображение из "воспоминаний", мы кешируем его только если
-      // в названии есть суффикс размера. Это предотвращает кеширование
-      // оригинальных, больших изображений.
-      const hasSizeSuffix = /-medium|-large|-small/.test(url.pathname)
-
-      return hasSizeSuffix
-    },
-    CacheStrategyFactory.createStaleWhileRevalidate(
-      CACHE_CONFIG.names.images,
-      {
-        maxEntries: CACHE_CONFIG.limits.images,
-        maxAgeSeconds: CACHE_CONFIG.durations.images,
-      },
-    ),
-  )
-
-  // AIRLINE ICONS (skyscanner)
+  // AIRLINE ICONS
   registerRoute(
     ({ url }) =>
       url.hostname === 'www.skyscanner.net'
@@ -95,7 +106,7 @@ if (import.meta.env.PROD) {
   )
 }
 
-// GEOCODING API (Open-Meteo)
+// GEOCODING API
 registerRoute(
   ({ url }) => url.hostname === 'geocoding-api.open-meteo.com',
   CacheStrategyFactory.createStaleWhileRevalidate(
@@ -117,6 +128,8 @@ registerRoute(
     },
   ),
 )
+
+// --- СТАТИЧЕСКИЕ АССЕТЫ (JS, CSS) ---
 
 const hashedAssetsStrategy = CacheStrategyFactory.createCacheFirst(
   CACHE_CONFIG.names.hashedAssets,
@@ -143,30 +156,26 @@ const regularAssetsStrategy = CacheStrategyFactory.createStaleWhileRevalidate(
   },
 )
 
-// JS/CSS
 function isScriptOrStyle({ request, sameOrigin }: { request: Request, sameOrigin: boolean }) {
   return sameOrigin && (request.destination === 'script' || request.destination === 'style')
 }
 
-// Маршрут для хешированных ассетов
 registerRoute(
   options => isScriptOrStyle(options) && AssetAnalyzer.getAssetType(options.url.href) === 'hashed',
   hashedAssetsStrategy,
 )
 
-// Маршрут для вендорных ассетов
 registerRoute(
   options => isScriptOrStyle(options) && AssetAnalyzer.getAssetType(options.url.href) === 'vendor',
   vendorAssetsStrategy,
 )
 
-// Маршрут для обычных ассетов
 registerRoute(
   options => isScriptOrStyle(options) && AssetAnalyzer.getAssetType(options.url.href) === 'regular',
   regularAssetsStrategy,
 )
 
-// API
+// --- API КЕШИРОВАНИЕ ---
 API_CACHE_RULES.forEach((rule) => {
   let strategy
 
@@ -197,6 +206,8 @@ API_CACHE_RULES.forEach((rule) => {
   )
 })
 
+// --- SPA НАВИГАЦИЯ ---
+
 let allowlist: undefined | RegExp[]
 if (import.meta.env.DEV)
   allowlist = [/^\/$/]
@@ -218,6 +229,8 @@ registerRoute(new NavigationRoute(
     denylist,
   },
 ))
+
+// --- ОБРАБОТКА СООБЩЕНИЙ ---
 
 self.addEventListener('message', async (event) => {
   const { type, payload } = event.data as ServiceWorkerMessage
@@ -253,8 +266,9 @@ if (import.meta.env.DEV) {
   self.addEventListener('fetch', (event) => {
     if (event.request.method === 'GET') {
       const assetType = AssetAnalyzer.getAssetType(event.request.url)
-
-      console.log(`📥 ${assetType}: ${event.request.url}`)
+      if (!event.request.url.includes('/api/')) {
+        console.log(`📥 ${assetType}: ${event.request.url}`)
+      }
     }
   })
 }

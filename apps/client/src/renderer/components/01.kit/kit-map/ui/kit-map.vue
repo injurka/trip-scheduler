@@ -1,9 +1,12 @@
 <script setup lang="ts">
 import type { Map as OlMap } from 'ol'
-import type { MapMarker } from '../models/types'
+import type TileSource from 'ol/source/Tile'
+import type { MapLayerOption, MapMarker } from '../models/types'
+import type { TileSourceId } from '~/shared/lib/map-styles-sources'
 import { useFullscreen } from '@vueuse/core'
 import { onMounted, ref, watch } from 'vue'
 import { KitBtn } from '~/components/01.kit/kit-btn'
+import { checkMapTilerAvailability, TILE_SOURCES } from '~/shared/lib/map-styles-sources'
 import { useKitMap } from '../composables/use-kit-map'
 import KitMapControls from './kit-map-controls.vue'
 
@@ -13,15 +16,19 @@ interface Props {
   center: [number, number]
   zoom?: number
   height?: string
+  width?: string
   markers?: MapMarker[]
   autoPan?: boolean
+  customLayers?: MapLayerOption[]
 }
 
 const props = withDefaults(defineProps<Props>(), {
   zoom: 12,
   height: '100%',
+  width: '100%',
   markers: () => [],
   autoPan: true,
+  customLayers: undefined,
 })
 
 const emit = defineEmits<{
@@ -31,28 +38,70 @@ const emit = defineEmits<{
 
 const mapWrapperRef = ref<HTMLElement | null>(null)
 const popupRef = ref<HTMLElement | null>(null)
-const { mapInstance, isMapReady, initMap, zoomIn, zoomOut, updateMarkers, fitViewToMarkers } = useKitMap()
+
+const { mapInstance, isMapReady, initMap, setTileSource, zoomIn, zoomOut, updateMarkers, fitViewToMarkers } = useKitMap()
 const { isFullscreen, toggle: toggleFullscreen } = useFullscreen(mapWrapperRef)
 
+const activeLayerId = ref<string>('osm')
+const availableLayers = shallowRef<MapLayerOption[]>([])
+
 onMounted(async () => {
-  if (mapWrapperRef.value && popupRef.value) {
-    await initMap(mapWrapperRef.value, popupRef.value, {
+  if (!mapWrapperRef.value || !popupRef.value)
+    return
+
+  if (props.customLayers) {
+    availableLayers.value = props.customLayers
+    activeLayerId.value = props.customLayers[0]?.id || 'osm'
+  }
+  else {
+    const isMapTilerAvailable = await checkMapTilerAvailability()
+
+    const layers: MapLayerOption[] = []
+
+    if (isMapTilerAvailable) {
+      layers.push({ id: 'maptilerStreets', ...TILE_SOURCES.maptilerStreets })
+      layers.push({ id: 'maptilerTopo', ...TILE_SOURCES.maptilerTopo })
+    }
+
+    layers.push({ id: 'osm', ...TILE_SOURCES.osm })
+    layers.push({ id: 'satellite', ...TILE_SOURCES.satellite })
+
+    availableLayers.value = layers
+    activeLayerId.value = layers[0].id
+  }
+
+  const initialSource = availableLayers.value.find(l => l.id === activeLayerId.value)?.source as TileSource
+
+  await initMap(
+    mapWrapperRef.value,
+    popupRef.value,
+    {
       center: props.center,
       zoom: props.zoom,
       autoPan: props.autoPan,
+      initialSource,
+    },
+  )
+
+  if (mapInstance.value) {
+    mapInstance.value.on('click', (event) => {
+      emit('click', event.coordinate as [number, number])
     })
+    emit('mapReady', mapInstance.value)
 
-    if (mapInstance.value) {
-      mapInstance.value.on('click', (event) => {
-        emit('click', event.coordinate as [number, number])
-      })
-      emit('mapReady', mapInstance.value)
-
-      if (props.markers.length > 0) {
-        updateMarkers(props.markers)
-        fitViewToMarkers()
-      }
+    if (props.markers.length > 0) {
+      updateMarkers(props.markers)
+      fitViewToMarkers()
     }
+  }
+})
+
+watch(activeLayerId, (newId) => {
+  const layer = availableLayers.value.find(l => l.id === newId)
+  const source = layer?.source || (TILE_SOURCES[newId as TileSourceId]?.source as unknown as TileSource)
+
+  if (source) {
+    setTileSource(source as TileSource)
   }
 })
 
@@ -69,7 +118,7 @@ watch(() => props.markers, (newMarkers) => {
 </script>
 
 <template>
-  <div ref="mapWrapperRef" class="kit-map-wrapper" :style="{ height }">
+  <div ref="mapWrapperRef" class="kit-map-wrapper" :style="{ height, width }">
     <div v-if="!isMapReady" class="loading-overlay">
       <span>Инициализация карты...</span>
     </div>
@@ -78,13 +127,21 @@ watch(() => props.markers, (newMarkers) => {
 
     <div ref="popupRef" class="ol-popup-placeholder" />
 
-    <div class="controls-container">
-      <KitMapControls :map-instance="mapInstance" @zoom-in="zoomIn" @zoom-out="zoomOut" />
+    <KitMapControls
+      v-model:active-layer-id="activeLayerId"
+      :map-instance="mapInstance"
+      :layers="availableLayers"
+      @zoom-in="zoomIn"
+      @zoom-out="zoomOut"
+    />
+
+    <div class="fullscreen-control">
       <KitBtn
-        class="fullscreen-btn"
-        variant="outlined"
+        variant="solid"
         color="secondary"
         :icon="isFullscreen ? 'mdi:fullscreen-exit' : 'mdi:fullscreen'"
+        size="sm"
+        class="fs-btn"
         aria-label="Во весь экран"
         @click="toggleFullscreen"
       />
@@ -133,13 +190,14 @@ watch(() => props.markers, (newMarkers) => {
 <style scoped lang="scss">
 .kit-map-wrapper {
   position: relative;
-  width: 100%;
   background-color: var(--bg-tertiary-color);
-  border-radius: var(--r-xs);
+  border-radius: var(--r-m);
   overflow: hidden;
 
   &:fullscreen {
     border-radius: 0;
+    width: 100vw !important;
+    height: 100vh !important;
   }
 }
 
@@ -155,22 +213,26 @@ watch(() => props.markers, (newMarkers) => {
   font-weight: 500;
 }
 
-.controls-container {
+.fullscreen-control {
   position: absolute;
   top: 12px;
   right: 12px;
   z-index: 10;
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
 }
 
-.fullscreen-btn {
-  padding: 0;
+:deep(.fs-btn) {
   width: 36px;
   height: 36px;
-  flex-shrink: 0;
+  padding: 0;
+  border-radius: var(--r-s);
+  border: 1px solid var(--border-secondary-color);
   background-color: var(--bg-secondary-color);
+  color: var(--fg-primary-color);
   box-shadow: var(--s-m);
+
+  &:hover {
+    background-color: var(--bg-hover-color);
+    transform: none;
+  }
 }
 </style>

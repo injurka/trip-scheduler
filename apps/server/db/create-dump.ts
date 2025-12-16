@@ -49,15 +49,20 @@ async function createDump() {
       orderBy: (posts, { desc }) => [desc(posts.createdAt)],
     })
 
+    // 4. Загрузка блога
+    const allBlogs = await db.query.blogs.findMany()
+
     console.log(`🔍 Найдено:`)
     console.log(`   - Пользователей: ${allUsers.length}`)
     console.log(`   - Путешествий: ${allTrips.length}`)
     console.log(`   - Постов: ${allPosts.length}`)
+    console.log(`   - Статей блога: ${allBlogs.length}`)
 
     const serializableData = {
       users: allUsers,
       trips: allTrips,
       posts: allPosts,
+      blogs: allBlogs,
     }
 
     const dumpDir = path.join(__dirname, 'dump')

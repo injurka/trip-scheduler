@@ -1,6 +1,6 @@
 import type { OSM, XYZ } from 'ol/source'
-import type { TileSourceId } from '../constant/map-styles'
 import type { Coordinate, DrawnRoute, GeolocationMapOptions, MapPoint, MapRoute, OSRMResponse } from '../models/types'
+import type { TileSourceId } from '~/shared/lib/map-styles-sources'
 import Polyline from '@mapbox/polyline'
 import { Feature, Map, Overlay, View } from 'ol'
 import { LineString, MultiLineString, Point } from 'ol/geom'
@@ -9,7 +9,7 @@ import { Tile as TileLayer, Vector as VectorLayer } from 'ol/layer'
 import { fromLonLat } from 'ol/proj'
 import { Vector as VectorSource } from 'ol/source'
 import { Circle as CircleStyle, Fill, Icon as OlIcon, Stroke, Style } from 'ol/style'
-import { checkMapTilerAvailability, TILE_SOURCES } from '../constant/map-styles'
+import { checkMapTilerAvailability, TILE_SOURCES } from '~/shared/lib/map-styles-sources'
 
 const NOMINATIM_URL = 'https://nominatim.openstreetmap.org/reverse'
 const NOMINATIM_SEARCH_URL = 'https://nominatim.openstreetmap.org/search'
@@ -25,8 +25,8 @@ function useGeolocationMap() {
   const pointSource = new VectorSource()
   const routeSource = new VectorSource()
   const drawSource = new VectorSource()
-  const searchResultSource = new VectorSource() // Для результатов поиска
-  const currentLocationSource = new VectorSource() // Для местоположения пользователя
+  const searchResultSource = new VectorSource()
+  const currentLocationSource = new VectorSource()
 
   const pointLayer = new VectorLayer({ source: pointSource, zIndex: 10 })
   const routeLayer = new VectorLayer({ source: routeSource, zIndex: 5 })
@@ -46,7 +46,9 @@ function useGeolocationMap() {
       console.error('Map container is required')
       return
     }
+
     await nextTick()
+
     try {
       // Проверяем доступность MapTiler
       const isMapTilerWorking = await checkMapTilerAvailability()

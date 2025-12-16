@@ -93,7 +93,7 @@ async function initMapData() {
 }
 
 function openFullMap() {
-  router.push({ query: { ...router.currentRoute.value.query, view: 'map' } })
+  router.push({ query: { ...router.currentRoute.value.query, section: 'map' } })
 }
 
 onMounted(() => {

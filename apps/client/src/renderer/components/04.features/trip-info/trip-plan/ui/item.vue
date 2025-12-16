@@ -262,6 +262,31 @@ function deleteSection(sectionId: string) {
   updateActivity({ sections: newSections })
 }
 
+function moveSection(sectionId: string, direction: 'up' | 'down') {
+  const sections = [...(props.activity.sections || [])]
+  const index = sections.findIndex(s => s.id === sectionId)
+
+  if (index === -1)
+    return
+
+  if (direction === 'up') {
+    if (index === 0)
+      return
+    const temp = sections[index]
+    sections[index] = sections[index - 1]
+    sections[index - 1] = temp
+  }
+  else {
+    if (index === sections.length - 1)
+      return
+    const temp = sections[index]
+    sections[index] = sections[index + 1]
+    sections[index + 1] = temp
+  }
+
+  updateActivity({ sections })
+}
+
 const sectionGroups = computed((): SectionGroup[] => {
   const groups: SectionGroup[] = []
   const sections = (props.activity.sections || []) as CustomActivitySection[]
@@ -412,6 +437,8 @@ onClickOutside(timeEditorRef, saveTimeChanges)
               :is-first-attached="false"
               @update-section="newSectionData => updateSection(group.parent.id, newSectionData)"
               @delete-section="deleteSection(group.parent.id)"
+              @move-section-up="moveSection(group.parent.id, 'up')"
+              @move-section-down="moveSection(group.parent.id, 'down')"
             />
 
             <div v-if="group.children.length > 0" class="attached-items-container">
@@ -440,6 +467,8 @@ onClickOutside(timeEditorRef, saveTimeChanges)
                     :is-first-attached="true"
                     @update-section="newSectionData => updateSection(child.id, newSectionData)"
                     @delete-section="deleteSection(child.id)"
+                    @move-section-up="moveSection(child.id, 'up')"
+                    @move-section-down="moveSection(child.id, 'down')"
                   />
                 </div>
               </div>
@@ -475,6 +504,8 @@ onClickOutside(timeEditorRef, saveTimeChanges)
                       :is-first-attached="true"
                       @update-section="newSectionData => updateSection(child.id, newSectionData)"
                       @delete-section="deleteSection(child.id)"
+                      @move-section-up="moveSection(child.id, 'up')"
+                      @move-section-down="moveSection(child.id, 'down')"
                     />
                   </div>
                 </div>

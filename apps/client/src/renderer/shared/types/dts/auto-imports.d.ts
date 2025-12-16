@@ -9,10 +9,12 @@ declare global {
   const AppRouteNames: typeof import('../../constants/routes').AppRouteNames
   const AppRoutePaths: typeof import('../../constants/routes').AppRoutePaths
   const EffectScope: typeof import('vue').EffectScope
+  const TILE_SOURCES: typeof import('../../lib/map-styles-sources').TILE_SOURCES
   const acceptHMRUpdate: typeof import('pinia').acceptHMRUpdate
   const asyncComputed: typeof import('@vueuse/core').asyncComputed
   const autoResetRef: typeof import('@vueuse/core').autoResetRef
   const breakpoints: typeof import('../../composables/use-display').breakpoints
+  const checkMapTilerAvailability: typeof import('../../lib/map-styles-sources').checkMapTilerAvailability
   const computed: typeof import('vue').computed
   const computedAsync: typeof import('@vueuse/core').computedAsync
   const computedEager: typeof import('@vueuse/core').computedEager
@@ -334,6 +336,9 @@ declare global {
   export type { Component, Slot, Slots, ComponentPublicInstance, ComputedRef, DirectiveBinding, ExtractDefaultPropTypes, ExtractPropTypes, ExtractPublicPropTypes, InjectionKey, PropType, Ref, ShallowRef, MaybeRef, MaybeRefOrGetter, VNode, WritableComputedRef } from 'vue'
   import('vue')
   // @ts-ignore
+  export type { TileSourceId } from '../../lib/map-styles-sources'
+  import('../../lib/map-styles-sources')
+  // @ts-ignore
   export type { RouterInput, RouterOutput, AppRouter } from '../trpc'
   import('../trpc')
   // @ts-ignore
@@ -349,10 +354,12 @@ declare module 'vue' {
     readonly AppRouteNames: UnwrapRef<typeof import('../../constants/routes')['AppRouteNames']>
     readonly AppRoutePaths: UnwrapRef<typeof import('../../constants/routes')['AppRoutePaths']>
     readonly EffectScope: UnwrapRef<typeof import('vue')['EffectScope']>
+    readonly TILE_SOURCES: UnwrapRef<typeof import('../../lib/map-styles-sources')['TILE_SOURCES']>
     readonly acceptHMRUpdate: UnwrapRef<typeof import('pinia')['acceptHMRUpdate']>
     readonly asyncComputed: UnwrapRef<typeof import('@vueuse/core')['asyncComputed']>
     readonly autoResetRef: UnwrapRef<typeof import('@vueuse/core')['autoResetRef']>
     readonly breakpoints: UnwrapRef<typeof import('../../composables/use-display')['breakpoints']>
+    readonly checkMapTilerAvailability: UnwrapRef<typeof import('../../lib/map-styles-sources')['checkMapTilerAvailability']>
     readonly computed: UnwrapRef<typeof import('vue')['computed']>
     readonly computedAsync: UnwrapRef<typeof import('@vueuse/core')['computedAsync']>
     readonly computedEager: UnwrapRef<typeof import('@vueuse/core')['computedEager']>

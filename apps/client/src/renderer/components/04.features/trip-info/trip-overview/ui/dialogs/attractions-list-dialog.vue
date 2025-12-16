@@ -34,7 +34,7 @@ function handleNavigate(dayId: string) {
 
 function showOnMap() {
   emit('update:visible', false)
-  router.push({ query: { ...route.query, view: 'map' } })
+  router.push({ query: { ...route.query, section: 'map' } })
 }
 </script>
 

@@ -51,7 +51,8 @@ const { mdAndUp } = useDisplay()
   border-radius: var(--r-s);
   border: 1px solid var(--border-secondary-color);
   transition: all 0.2s ease;
-  flex-shrink: 0; // Предотвращаем сжатие кнопки
+  flex-shrink: 0;
+  width: 46px;
 
   &.is-active {
     border-color: var(--border-accent-color);

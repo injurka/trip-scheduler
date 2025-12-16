@@ -97,6 +97,16 @@ onMounted(() => {
       </div>
 
       <div class="header-right">
+        <!-- New Floating Map Button -->
+        <button
+          class="util-btn"
+          :class="{ 'is-active': appStore.layout.isFloatingMapOpen }"
+          title="Открыть карту"
+          @click="appStore.layout.toggleFloatingMap()"
+        >
+          <Icon icon="mdi:map-search-outline" />
+        </button>
+
         <button class="util-btn" title="Настроить тему" @click="appStore.theme.openCreator()">
           <Icon icon="mdi:palette-outline" />
         </button>
@@ -305,7 +315,8 @@ onMounted(() => {
         z-index: -1;
       }
 
-      &:hover {
+      &:hover,
+      &.is-active {
         color: var(--fg-accent-color);
         transform: scale(1.1);
 

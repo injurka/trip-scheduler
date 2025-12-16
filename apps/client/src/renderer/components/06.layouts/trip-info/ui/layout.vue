@@ -241,7 +241,8 @@ onBeforeUnmount(() => {
     width: 100%;
     padding: 0 8px;
     background: var(--bg-primary-color);
-    padding-top: 32px;
+    padding-top: 16px;
+    padding-bottom: 8px;
   }
 
   &-navigation {
@@ -265,7 +266,7 @@ onBeforeUnmount(() => {
       display: flex;
       align-items: center;
       justify-content: center;
-      font-size: 1.5rem;
+      font-size: 1.4rem;
       cursor: pointer;
       transition: all 0.2s ease;
       flex-shrink: 0;
@@ -333,6 +334,7 @@ onBeforeUnmount(() => {
       cursor: pointer;
       transition: background-color 0.2s ease;
       text-align: center;
+      height: 40px;
 
       &:hover {
         background-color: var(--bg-hover-color);
@@ -355,11 +357,10 @@ onBeforeUnmount(() => {
       }
 
       &-title {
-        font-size: 1.5rem;
+        font-size: 1.4rem;
         font-weight: 600;
         color: var(--fg-primary-color);
         margin: 0;
-        line-height: 1.2;
         font-family: 'Sansation';
 
         @include media-down(sm) {

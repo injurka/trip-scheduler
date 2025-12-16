@@ -4,6 +4,7 @@ export enum AppRouteNames {
   UsefulLinks = 'useful-links',
   Terms = 'terms',
   Privacy = 'privacy',
+  OssLicenses = 'oss-licenses',
 
   NotFound = 'not-found',
 
@@ -22,6 +23,9 @@ export enum AppRouteNames {
 
   PostList = 'post-list',
 
+  BlogList = 'blog-list',
+  BlogArticle = 'blog-article',
+
   Explore = 'explore',
 }
 
@@ -31,6 +35,7 @@ export const AppRoutePaths = {
   UsefulLinks: '/useful-links',
   Terms: '/terms',
   Privacy: '/privacy',
+  OssLicenses: '/oss-licenses',
 
   NotFound: '/:catchAll(.*)?',
 
@@ -54,7 +59,12 @@ export const AppRoutePaths = {
   },
 
   Post: {
-    List: () => `/post/list`,
+    List: '/posts',
+  },
+
+  Blog: {
+    List: '/blog',
+    Article: (slug: string) => `/blog/${slug}`,
   },
 
   Explore: '/explore',

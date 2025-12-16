@@ -71,7 +71,6 @@ export async function useRequest<T>(
       else {
         peek(key)
       }
-      // --------------------------
 
       await onSuccess?.(result)
       return result

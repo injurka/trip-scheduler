@@ -1,3 +1,3 @@
-import NavigationBack from './ui/index.vue'
+import NavigationBack from './ui/navigation-back.vue'
 
 export { NavigationBack }

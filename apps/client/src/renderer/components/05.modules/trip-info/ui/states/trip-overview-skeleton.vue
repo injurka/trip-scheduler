@@ -75,7 +75,6 @@ import { KitSkeleton } from '~/components/01.kit/kit-skeleton'
 
 <style scoped lang="scss">
 .trip-overview-skeleton {
-  padding: 1rem 0;
   display: flex;
   flex-direction: column;
   gap: 1.5rem;

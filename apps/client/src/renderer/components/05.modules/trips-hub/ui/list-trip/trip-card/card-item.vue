@@ -22,8 +22,6 @@ const props = withDefaults(defineProps<Props>(), {
   participants: () => [],
   tags: () => [],
   isHighlight: false,
-  userRating: null,
-  averageRating: null,
 })
 
 const router = useRouter()
@@ -579,66 +577,9 @@ const visibilityIcon = computed(() => {
   gap: 8px;
 }
 
-.combined-rating-btn {
-  display: flex;
-  align-items: center;
-  background: transparent;
-  border: 1px solid var(--border-secondary-color);
-  border-radius: 20px;
-  padding: 0;
-  cursor: pointer;
-  transition: all 0.2s ease;
-  overflow: hidden;
-
-  &:hover {
-    background-color: var(--bg-hover-color);
-    border-color: var(--border-primary-color);
-  }
-}
-
 .divider {
   width: 1px;
   height: 16px;
   background-color: var(--border-secondary-color);
-}
-
-.rating-picker {
-  display: flex;
-  flex-direction: column;
-  padding: 4px;
-  min-width: 150px;
-}
-
-.rating-option {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  padding: 8px 12px;
-  border-radius: var(--r-s);
-  border: none;
-  background: transparent;
-  cursor: pointer;
-  transition: background-color 0.2s ease;
-  width: 100%;
-  text-align: left;
-  color: var(--fg-primary-color);
-
-  &:hover {
-    background-color: var(--bg-hover-color);
-  }
-
-  &.active {
-    background-color: var(--bg-accent-overlay-color);
-    color: var(--fg-accent-color);
-  }
-
-  .rating-icon {
-    font-size: 1.2rem;
-  }
-
-  .rating-label {
-    font-size: 0.9rem;
-    font-weight: 500;
-  }
 }
 </style>

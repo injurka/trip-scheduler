@@ -1,9 +1,9 @@
 <script setup lang="ts">
 import type { Map } from 'ol'
-import type { TileSourceId } from '../constant/map-styles'
+import type { TileSourceId } from '../../../../../shared/lib/map-styles-sources'
 import { KitBtn } from '~/components/01.kit/kit-btn'
 import { KitDropdown } from '~/components/01.kit/kit-dropdown'
-import { TILE_SOURCES } from '../constant/map-styles'
+import { TILE_SOURCES } from '../../../../../shared/lib/map-styles-sources'
 
 interface Props {
   mapInstance: Map | null

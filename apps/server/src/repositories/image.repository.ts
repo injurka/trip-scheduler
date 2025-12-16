@@ -29,7 +29,25 @@ export interface ImageMetadata {
   } | null
 }
 
-const LIST_COLUMNS = {
+/**
+ * Колонки для оптимизированной выдачи (например, для маршрута).
+ * Исключены тяжелые поля: metadata, variants, геоданные.
+ * Исключены избыточные поля: tripId, placement (они известны из контекста запроса).
+ */
+const ROUTE_COLUMNS = {
+  id: true,
+  url: true,
+  originalName: true,
+  createdAt: true,
+  sizeBytes: true,
+  width: true,
+  height: true,
+} as const
+
+/**
+ * Полный набор колонок для детального просмотра или галереи.
+ */
+const FULL_COLUMNS = {
   id: true,
   tripId: true,
   url: true,
@@ -43,6 +61,7 @@ const LIST_COLUMNS = {
   width: true,
   height: true,
   variants: true,
+  metadata: true,
 } as const
 
 export const imageRepository = {
@@ -90,6 +109,7 @@ export const imageRepository = {
 
   /**
    * Получает все изображения для конкретного путешествия.
+   * Если placement === 'route', возвращает облегченный набор данных.
    */
   async getByTripId(tripId: string, placement?: Placement) {
     const conditions = [eq(tripImages.tripId, tripId)]
@@ -97,11 +117,16 @@ export const imageRepository = {
       conditions.push(eq(tripImages.placement, placement))
     }
 
-    return await db.query.tripImages.findMany({
+    // Выбираем набор колонок в зависимости от типа размещения
+    const columnsToSelect = placement === 'route' ? ROUTE_COLUMNS : FULL_COLUMNS
+
+    const result = await db.query.tripImages.findMany({
       where: and(...conditions),
       orderBy: (images, { desc }) => [desc(images.createdAt)],
-      columns: LIST_COLUMNS,
+      columns: columnsToSelect,
     })
+
+    return result
   },
 
   /**
@@ -125,13 +150,13 @@ export const imageRepository = {
         },
       },
       orderBy: (images, { desc }) => [desc(images.createdAt)],
-      columns: LIST_COLUMNS,
+      columns: FULL_COLUMNS,
     })
   },
 
   /**
    * Получает одно изображение по ID.
-   * Возвращает полный объект, включая метаданные (используется при удалении и т.д.).
+   * Возвращает полный объект (используется при удалении и т.д.).
    */
   async getById(id: string) {
     return await db.query.tripImages.findFirst({

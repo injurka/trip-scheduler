@@ -8,8 +8,10 @@ import { db } from './index'
 import { MOCK_METRO_DATA } from './mock/02.metro'
 import { SUBSCRIPTION_MOCK } from './mock/03.subscription'
 import { LLM_MOCK } from './mock/04.llm'
+import { MOCK_BLOG_DATA } from './mock/06.blog'
 import {
   activities,
+  blogs,
   comments,
   days,
   emailVerificationTokens,
@@ -175,6 +177,7 @@ async function seed() {
   const { selectedUsers, selectedTrips, selectedPosts } = await discoverAndSelectData()
 
   console.log('\n🗑️  Очистка старых данных...')
+  await db.delete(blogs)
   await db.delete(savedPosts)
   await db.delete(postMedia)
   await db.delete(postElements)
@@ -383,6 +386,15 @@ async function seed() {
   console.log(`   - Пользователей: ${selectedUsers.length}`)
   console.log(`   - Путешествий: ${tripsToInsert.length}`)
   console.log(`   - Постов: ${postsToInsert.length}`)
+
+  console.log('📰 Заполнение блога...')
+  const blogsToInsert = MOCK_BLOG_DATA.map(blog => ({
+    ...blog,
+    publishedAt: new Date(blog.publishedAt),
+    createdAt: new Date(),
+    updatedAt: new Date(),
+  }))
+  await db.insert(blogs).values(blogsToInsert)
 
   if (selectedUsers.length > 0)
     await db.insert(users).values(selectedUsers.map((u: any) => ({ ...u, planId: plansData[0].id })))
