@@ -5,6 +5,8 @@ services:
     ports:
       - "1420:1420"
     restart: always
+    networks:
+      - trip-net
 
   server:
     image: injurka/trip-scheduler-server:${V_SERVER:-latest}
@@ -19,10 +21,11 @@ services:
       - "$HOME/static-data:/usr/src/app/static"
     restart: always
     depends_on:
-      - db
+      db:
+        condition: service_healthy
 
   directus:
-    image: directus/directus:latest
+    image: directus/directus:11.14.0
     container_name: trip-scheduler-admin
     ports:
       - "8055:8055"
@@ -30,21 +33,30 @@ services:
       - trip-net
     restart: always
     depends_on:
-      - db
+      db:
+        condition: service_healthy
+      cache:
+        condition: service_healthy
     volumes:
       - directus-uploads:/directus/uploads
       - directus-extensions:/directus/extensions
     env_file:
-      - .env.database # 1. Грузим переменные БД (POSTGRES_...)
-      - .env.directus # 2. Грузим настройки Directus
-    environment:
-      # 3. Мапим одно в другое прямо тут
-      DB_CLIENT: "pg"
-      DB_HOST: "db"
-      DB_PORT: "5432"
-      DB_DATABASE: "${POSTGRES_DB:-postgres}"
-      DB_USER: "${POSTGRES_USER:-postgres}"
-      DB_PASSWORD: "${POSTGRES_PASSWORD:-postgres}"
+      - .env.database
+      - .env.directus
+
+  cache:
+    image: redis:7-alpine
+    container_name: trip-scheduler-cache
+    networks:
+      - trip-net
+    healthcheck:
+      test: ["CMD-SHELL", "[ $$(redis-cli ping) = 'PONG' ]"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_interval: 5s
+      start_period: 30s
+    restart: always
 
   db:
     image: postgres:16-alpine
@@ -52,10 +64,17 @@ services:
     networks:
       - trip-net
     env_file:
-      - .env.database # 1. Грузим переменные БД (POSTGRES_...)
+      - .env.database
     volumes:
       - pgdata:/var/lib/postgresql/data
     restart: always
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $$POSTGRES_USER"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_interval: 5s
+      start_period: 30s
 
   prometheus:
     image: prom/prometheus:latest
@@ -71,7 +90,8 @@ services:
       - "--config.file=/etc/prometheus/prometheus.yml"
     restart: always
     depends_on:
-      - server
+      server:
+        condition: service_started
 
   grafana:
     image: grafana/grafana:latest
@@ -86,7 +106,8 @@ services:
       - ./grafana/dashboards/:/etc/grafana/provisioning/dashboards/
     restart: always
     depends_on:
-      - prometheus
+      prometheus:
+        condition: service_started
 
   node-exporter:
     image: prom/node-exporter:v1.7.0
