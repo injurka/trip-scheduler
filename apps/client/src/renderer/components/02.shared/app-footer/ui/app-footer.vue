@@ -61,9 +61,9 @@ import { AppRouteNames } from '~/shared/constants/routes'
 
 <style lang="scss" scoped>
 .app-footer {
-  background-color: rgba(var(--bg-secondary-color-rgb), 0.8);
   backdrop-filter: blur(12px);
-  border-top: 1px solid var(--border-secondary-color);
+  border-top: 1px solid rgba(var(--border-primary-color-rgb), 0.2);
+  background-color: rgba(var(--bg-primary-color-rgb), 0.5);
   padding: 0.5rem 1rem;
   margin-top: auto;
   z-index: 10;

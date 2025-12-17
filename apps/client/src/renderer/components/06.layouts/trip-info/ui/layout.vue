@@ -28,11 +28,14 @@ const { mainNavigationRef, navigationWrapperRef } = layout
 const { plan, ui, routeGallery, memories, sections } = useModuleStore(['plan', 'ui', 'routeGallery', 'memories', 'sections'])
 const store = useAppStore(['auth'])
 const { canEdit } = useTripPermissions()
+const { mdAndDown } = useDisplay()
 
 const tripId = computed(() => route.params.id as string)
 const dayId = computed(() => route.query.day as string)
+const isMapView = computed(() => route.query.section === 'map')
 
-const { isLoading: isTripLoading } = storeToRefs(plan)
+const { isLoading: isTripLoading, fetchError } = storeToRefs(plan)
+const { isDaysPanelPinned, activeView, isParallelPlanView } = storeToRefs(ui)
 
 if (tripId.value) {
   plan.fetchTripDetails(
@@ -71,7 +74,15 @@ onBeforeUnmount(() => {
 
   <main class="main">
     <div class="main-content">
-      <div class="content-wrapper">
+      <div
+        class="content-wrapper"
+        :class="[
+          { 'has-error': fetchError },
+          { 'is-panel-pinned': isDaysPanelPinned && !mdAndDown },
+          { 'is-wide-mode': isParallelPlanView || isMapView },
+          activeView,
+        ]"
+      >
         <div
           ref="mainNavigationRef"
           class="main-navigation"
@@ -391,6 +402,60 @@ onBeforeUnmount(() => {
     display: flex;
     flex-direction: column;
     flex: 1;
+  }
+}
+
+.content-wrapper {
+  &.has-error {
+    background: transparent;
+  }
+
+  &.is-panel-pinned {
+    @media (max-width: 1800px) {
+      margin-left: 440px;
+    }
+  }
+
+  &.is-wide-mode {
+    max-width: 100%;
+    height: 100%;
+    padding: 0;
+    align-items: center;
+
+    :deep() {
+      .navigation-back-container,
+      .controls,
+      .day-header,
+      .day-navigation,
+      .divider-with-action {
+        max-width: 1000px;
+        width: 100%;
+        margin-left: auto;
+        margin-right: auto;
+      }
+
+      .divider-with-action {
+        position: relative;
+      }
+
+      .trip-info-wrapper {
+        .trip-info {
+          justify-content: center;
+          align-items: center;
+
+          .divider {
+            padding: 0 32px;
+          }
+
+          .view-content {
+            padding: 0 32px;
+            max-width: 1800px;
+            margin: 0 auto;
+            width: 100%;
+          }
+        }
+      }
+    }
   }
 }
 

@@ -31,12 +31,17 @@ const UserQuota = () => import('~/pages/user/[id]/quota.vue')
 const UserStorage = () => import('~/pages/user/[id]/storage.vue')
 
 const ExplorePage = () => import('~/pages/explore.vue')
+
 const PostListPage = () => import('~/pages/post/list.vue')
+const PostCreatePage = () => import('~/pages/post/create.vue')
+const PostDetailsPage = () => import('~/pages/post/[id].vue')
 
 const BlogList = () => import('~/pages/blog/index.vue')
 const BlogArticle = () => import('~/pages/blog/[slug].vue')
 const BlogCreate = () => import('~/pages/blog/create.vue')
 const BlogEdit = () => import('~/pages/blog/edit/[id].vue')
+
+const ActivityMapPage = () => import('~/pages/activity-map.vue')
 
 // Guard для проверки, что пользователь заходит в свои настройки
 async function requireOwner(to: any, _from: any, next: any) {
@@ -172,6 +177,18 @@ const routes: RouteRecordRaw[] = [
     component: PostListPage,
     meta: { layout: 'default', requiresAuth: true },
   },
+  {
+    path: '/post/:id',
+    name: AppRouteNames.PostDetails,
+    component: PostDetailsPage,
+    meta: { layout: 'default' },
+  },
+  {
+    path: AppRoutePaths.Post.Create,
+    name: AppRouteNames.PostCreate,
+    component: PostCreatePage,
+    meta: { layout: 'default', requiresAuth: true },
+  },
 
   // --- Блог ---
   {
@@ -210,6 +227,13 @@ const routes: RouteRecordRaw[] = [
     path: AppRoutePaths.Explore,
     name: AppRouteNames.Explore,
     component: ExplorePage,
+    meta: { layout: 'default' },
+  },
+
+  {
+    path: AppRoutePaths.ActivityMap,
+    name: AppRouteNames.ActivityMap,
+    component: ActivityMapPage,
     meta: { layout: 'default' },
   },
 ]

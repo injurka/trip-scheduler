@@ -39,7 +39,7 @@ const router = useRouter()
         </KitBtn>
 
         <KitBtn
-          variant="outlined"
+          variant="tonal"
           color="secondary"
           size="lg"
           @click="router.back()"
@@ -60,7 +60,6 @@ const router = useRouter()
   min-height: 100vh;
   width: 100%;
   padding: 20px;
-  background-color: var(--bg-primary-color);
   text-align: center;
 }
 

@@ -1,7 +1,6 @@
 <script lang="ts" setup>
 import { Icon } from '@iconify/vue'
 import { useElementBounding } from '@vueuse/core'
-import { computed, onMounted, onUnmounted, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { KitAvatar } from '~/components/01.kit/kit-avatar'
 import { KitDropdown } from '~/components/01.kit/kit-dropdown'
@@ -38,6 +37,14 @@ const navItems = [
     bgColor: 'rgba(var(--fg-accent-color-rgb), 0.1)',
   },
   {
+    id: 'activity-map',
+    label: 'Карта активностей',
+    desc: 'Планируйте дела на карте',
+    icon: 'mdi:map-marker-radius',
+    color: '#00bcd4',
+    bgColor: 'rgba(0, 188, 212, 0.1)',
+  },
+  {
     id: 'posts',
     label: 'Посты',
     desc: 'Заметки и истории',
@@ -67,6 +74,10 @@ function handleNavigation(item: typeof navItems[0]) {
   switch (item.id) {
     case 'trips':
       router.push({ name: AppRouteNames.TripList })
+      break
+    case 'activity-map':
+      // Убедитесь, что ActivityMap добавлен в enum AppRouteNames в shared/constants/routes.ts
+      router.push({ name: AppRouteNames.ActivityMap })
       break
     case 'posts':
       router.push({ name: AppRouteNames.PostList })

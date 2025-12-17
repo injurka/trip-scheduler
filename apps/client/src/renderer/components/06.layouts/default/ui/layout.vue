@@ -36,6 +36,6 @@ import { ThemeManager } from '~/components/02.shared/theme-manager'
 .main-content {
   height: 100%;
   display: flex;
-  flex: 1;
+  flex-grow: 1;
 }
 </style>
