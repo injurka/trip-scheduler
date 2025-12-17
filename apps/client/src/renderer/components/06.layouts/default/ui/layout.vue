@@ -28,12 +28,14 @@ import { ThemeManager } from '~/components/02.shared/theme-manager'
   flex-direction: column;
   flex: 1;
   position: relative;
+  overflow: hidden;
+  margin-top: -56px;
+  padding-top: 56px;
 }
 
 .main-content {
   height: 100%;
   display: flex;
   flex: 1;
-  overflow: hidden;
 }
 </style>

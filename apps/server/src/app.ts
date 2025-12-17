@@ -92,9 +92,6 @@ class Server {
   private initializeRoutes() {
     // Определение API маршрутов
     const apiRoutes = new Hono()
-      .use('/upload', bodyLimit({
-        maxSize: 25 * 1024 * 1024,
-      }))
       .post('/upload', uploadFileController)
       .route('/avatar', avatarController)
       .route('/auth', authController)

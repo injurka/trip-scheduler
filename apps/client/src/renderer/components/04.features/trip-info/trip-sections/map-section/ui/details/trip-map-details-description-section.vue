@@ -22,7 +22,7 @@ defineProps<Props>()
 
 <style scoped lang="scss">
 .description-section {
-  background-color: var(--bg-secondary-color);
+  background-color: rgba(var(--bg-secondary-color-rgb), 0.1);
   border: 1px solid var(--border-secondary-color);
   border-radius: var(--r-2xs);
 }

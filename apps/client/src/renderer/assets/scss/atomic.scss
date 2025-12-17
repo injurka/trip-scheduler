@@ -1,19 +1,29 @@
+:root {
+  --content-bg-opacity: 1;
+  --content-gradient-width: 100px;
+}
+
 .content-wrapper {
   @include default-font();
 
   position: relative;
   display: flex;
   flex-direction: column;
+  flex-grow: 1;
   padding: 16px;
   max-width: 1000px;
   min-height: 100%;
   width: 100%;
-  background-color: var(--bg-primary-color);
   margin: 0 auto;
+  margin-top: -56px !important;
+  padding-top: 56px !important;
+  background-color: rgba(var(--bg-primary-color-rgb), var(--content-bg-opacity));
+  transition: background-color 0.3s ease;
 
   @include media-down(sm) {
     padding: 16px 6px;
   }
+
 
   &::before,
   &::after {
@@ -21,19 +31,20 @@
     position: absolute;
     top: 0;
     bottom: 0;
-    width: 100px;
+    width: var(--content-gradient-width);
     pointer-events: none;
     z-index: 2;
+    transition: all 0.3s ease;
   }
 
   &::before {
     right: 100%;
-    background: linear-gradient(to left, var(--bg-primary-color), transparent);
+    background: linear-gradient(to left, rgba(var(--bg-primary-color-rgb), var(--content-bg-opacity)), transparent);
   }
 
   &::after {
     left: 100%;
-    background: linear-gradient(to right, var(--bg-primary-color), transparent);
+    background: linear-gradient(to right, rgba(var(--bg-primary-color-rgb), var(--content-bg-opacity)), transparent);
   }
 }
 

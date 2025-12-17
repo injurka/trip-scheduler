@@ -2,15 +2,25 @@ import type { ThemeType } from '~/shared/types/models/theme'
 import { useStorage } from '@vueuse/core'
 
 export interface ColorPalette {
-  [key: string]: string // e.g., 'bg-primary-color': '#eeeeee'
+  [key: string]: string
 }
 
 export interface RadiusPalette {
-  [key: string]: string // e.g., 'r-m': '12px'
+  [key: string]: string
 }
 
 export interface ShadowPalette {
-  [key: string]: string // e.g., 's-m': '0 4px 6px -1px rgba(34, 38, 59, 0.1)...'
+  [key: string]: string
+}
+
+export interface BackgroundSettings {
+  showSymbols: boolean
+  showImage: boolean
+  customImageUrl: string
+  imageOpacity: number // 0 - 1
+  enableContentDimming: boolean
+  contentDimmingOpacity: number // 0 - 1
+  contentGradientWidth: number // px (0 - 500)
 }
 
 const defaultLightPalette: ColorPalette = {
@@ -86,10 +96,10 @@ function hexToRgb(hex: string): { r: number, g: number, b: number } | null {
   const result = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex)
   return result
     ? {
-        r: Number.parseInt(result[1], 16),
-        g: Number.parseInt(result[2], 16),
-        b: Number.parseInt(result[3], 16),
-      }
+      r: Number.parseInt(result[1], 16),
+      g: Number.parseInt(result[2], 16),
+      b: Number.parseInt(result[3], 16),
+    }
     : null
 }
 
@@ -113,6 +123,16 @@ function generateShadowsFromColor(color: string): ShadowPalette {
 const defaultLightShadowColor = '#22263b'
 const defaultLightShadows = generateShadowsFromColor(defaultLightShadowColor)
 
+const defaultBackgroundSettings: BackgroundSettings = {
+  showSymbols: true,
+  showImage: true,
+  customImageUrl: '',
+  imageOpacity: 0.05,
+  enableContentDimming: true,
+  contentDimmingOpacity: 0.95,
+  contentGradientWidth: 100, // px
+}
+
 export const useThemeStore = defineStore('theme', () => {
   const isCreatorOpen = ref(false)
 
@@ -121,14 +141,23 @@ export const useThemeStore = defineStore('theme', () => {
   const customThemeRadius = useStorage<RadiusPalette>('custom-theme-radius', defaultRadiusPalette)
   const customThemeShadowColor = useStorage<string>('custom-theme-shadow-color', defaultLightShadowColor)
   const customThemeShadows = useStorage<ShadowPalette>('custom-theme-shadows', defaultLightShadows)
+  const backgroundSettings = useStorage<BackgroundSettings>('custom-theme-background', defaultBackgroundSettings)
 
   // --- GETTERS ---
   const isCustomThemeActive = computed(() => activeThemeName.value === 'custom')
   const currentTheme = computed(() => activeThemeName.value)
 
   // --- ACTIONS ---
+  function resetBackgroundSettings() {
+    backgroundSettings.value = { ...defaultBackgroundSettings }
+  }
+
   function setTheme(name: ThemeType) {
     activeThemeName.value = name
+    // Если выбирается стандартная тема (не кастомная), сбрасываем настройки фона на дефолтные
+    if (name !== 'custom') {
+      resetBackgroundSettings()
+    }
   }
 
   function resetCustomTheme() {
@@ -180,6 +209,15 @@ export const useThemeStore = defineStore('theme', () => {
     if (!customThemeShadows.value || Object.keys(customThemeShadows.value).length === 0) {
       customThemeShadows.value = generateShadowsFromColor(customThemeShadowColor.value)
     }
+    if (!backgroundSettings.value) {
+      backgroundSettings.value = { ...defaultBackgroundSettings }
+    }
+    if (typeof backgroundSettings.value.contentDimmingOpacity === 'undefined') {
+      backgroundSettings.value.contentDimmingOpacity = defaultBackgroundSettings.contentDimmingOpacity
+    }
+    if (typeof backgroundSettings.value.contentGradientWidth === 'undefined') {
+      backgroundSettings.value.contentGradientWidth = defaultBackgroundSettings.contentGradientWidth
+    }
   }
 
   return {
@@ -192,6 +230,7 @@ export const useThemeStore = defineStore('theme', () => {
     customThemeRadius,
     customThemeShadowColor,
     customThemeShadows,
+    backgroundSettings,
     isCustomThemeActive,
     setTheme,
     openCreator,
@@ -200,6 +239,7 @@ export const useThemeStore = defineStore('theme', () => {
     resetCustomTheme,
     resetCustomRadius,
     resetCustomShadows,
+    resetBackgroundSettings,
     applyCustomShadowColor,
   }
 })

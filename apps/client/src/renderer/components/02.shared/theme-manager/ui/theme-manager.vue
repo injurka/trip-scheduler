@@ -81,6 +81,8 @@ function handleJsonUpload(event: Event) {
       v-else
       @reset="store.theme.resetCustomTheme"
       @reset-radius="store.theme.resetCustomRadius"
+      @reset-shadows="store.theme.resetCustomShadows"
+      @reset-background="store.theme.resetBackgroundSettings"
       @upload="triggerJsonUpload"
     />
 

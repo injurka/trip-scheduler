@@ -74,6 +74,7 @@ onMounted(() => {
   justify-content: center;
   flex-direction: column;
   gap: 24px;
+  background-color: rgba(var(--bg-primary-color-rgb), 0.5);
 
   .title {
     font-weight: 500;

@@ -8,6 +8,7 @@ import { useDisplay } from '~/shared/composables/use-display'
 import { useThemeStore } from '~/shared/store/theme.store'
 import { themePresets } from '../../constants/color-presets'
 import { radiusPresets } from '../../constants/radius-presets'
+import BackgroundEditorSection from './background-editor-section.vue'
 import ColorEditorGrid from './color-editor-grid.vue'
 import ColorPresetSelector from './preset-selector.vue'
 import RadiusEditorGrid from './radius-editor-grid.vue'
@@ -19,12 +20,13 @@ const emit = defineEmits<{
   (e: 'reset'): void
   (e: 'resetRadius'): void
   (e: 'resetShadows'): void
+  (e: 'resetBackground'): void
 }>()
 
 const themeStore = useThemeStore()
 const { customThemePalette, customThemeRadius } = storeToRefs(themeStore)
 
-type EditorTab = 'presets' | 'colors' | 'radius' | 'shadows'
+type EditorTab = 'presets' | 'colors' | 'radius' | 'shadows' | 'background'
 
 const activeTab = ref<EditorTab>('presets')
 
@@ -33,6 +35,7 @@ const viewItems: ViewSwitcherItem<EditorTab>[] = [
   { id: 'colors', label: 'Цвета', icon: 'mdi:eyedropper-variant' },
   { id: 'radius', label: 'Радиусы', icon: 'mdi:vector-radius' },
   { id: 'shadows', label: 'Тени', icon: 'mdi:box-shadow' },
+  { id: 'background', label: 'Фон', icon: 'mdi:image-filter-hdr' },
 ]
 
 function applyPreset(palette: ColorPalette) {
@@ -93,12 +96,26 @@ const { mdAndDown } = useDisplay()
       <!-- Слот для вкладки 'shadows' -->
       <template #shadows>
         <div class="tab-pane">
+          <ShadowEditorSection />
+
           <div class="tab-pane-actions">
             <KitBtn icon="mdi:restore" variant="outlined" color="secondary" @click="emit('resetShadows')">
               {{ mdAndDown ? '' : 'Сбросить тени' }}
             </KitBtn>
           </div>
-          <ShadowEditorSection />
+        </div>
+      </template>
+
+      <!-- Слот для вкладки 'background' -->
+      <template #background>
+        <div class="tab-pane">
+          <BackgroundEditorSection />
+
+          <div class="tab-pane-actions">
+            <KitBtn icon="mdi:restore" variant="outlined" color="secondary" @click="emit('resetBackground')">
+              {{ mdAndDown ? '' : 'Сбросить фон' }}
+            </KitBtn>
+          </div>
         </div>
       </template>
     </KitTabs>
@@ -135,6 +152,7 @@ const { mdAndDown } = useDisplay()
   flex-wrap: wrap;
   gap: 12px;
   align-items: center;
+  justify-content: flex-end;
 
   &--between {
     justify-content: space-between;

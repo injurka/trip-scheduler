@@ -36,7 +36,7 @@ import { AppRoutePaths } from '~/shared/constants/routes'
   text-align: center;
   border: 1px solid var(--border-secondary-color);
   border-radius: var(--r-l);
-  background-color: var(--bg-secondary-color);
+  background-color: rgba(var(--bg-primary-color-rgb), 0.5);
 
   h2 {
     color: var(--fg-primary-color);

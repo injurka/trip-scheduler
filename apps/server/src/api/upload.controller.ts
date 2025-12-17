@@ -25,6 +25,11 @@ function getFileNameFromHeader(header: string | null): string | null {
 }
 
 export async function uploadFileController(c: Context) {
+  const contentLength = c.req.header('content-length')
+  if (contentLength && Number.parseInt(contentLength, 10) > 25 * 1024 * 1024) {
+    throw new HTTPException(413, { message: 'Файл слишком большой (максимум 25MB)' })
+  }
+
   const authHeader = c.req.header('authorization')
   const token = authHeader?.split(' ')[1]
   if (!token)
@@ -55,7 +60,7 @@ export async function uploadFileController(c: Context) {
   const buffer = Buffer.from(fileBuffer)
 
   // =========================================================================
-  // СЦЕНАРИЙ 1: ЗАГРУЗКА ДЛЯ ПУТЕШЕСТВИЯ (Оригинальная логика)
+  // СЦЕНАРИЙ 1: ЗАГРУЗКА ДЛЯ ПУТЕШЕСТВИЯ
   // =========================================================================
   if (tripId) {
     if (!placement || !tripImagePlacementEnum.enumValues.includes(placement as 'route' | 'memories'))
@@ -128,7 +133,7 @@ export async function uploadFileController(c: Context) {
   }
 
   // =========================================================================
-  // СЦЕНАРИЙ 2: ЗАГРУЗКА ДЛЯ ПОСТА (Новая логика)
+  // СЦЕНАРИЙ 2: ЗАГРУЗКА ДЛЯ ПОСТА
   // =========================================================================
   if (postId) {
     const post = await postRepository.findById(postId)

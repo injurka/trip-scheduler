@@ -1,6 +1,10 @@
 <script lang="ts" setup>
 import { Icon, loadIcons } from '@iconify/vue'
-import { onMounted } from 'vue'
+import defaultBackgroundImage from '~/assets/images/cloudy_crescent.png'
+import { useThemeStore } from '~/shared/store/theme.store'
+
+const themeStore = useThemeStore()
+const { backgroundSettings } = storeToRefs(themeStore)
 
 const travelIcons = [
   'mdi:airplane',
@@ -44,19 +48,30 @@ onMounted(() => {
 <template>
   <div class="background-effects">
     <div
-      v-for="(symbol, index) in symbols"
-      :key="index"
-      class="symbol"
+      v-if="backgroundSettings.showImage"
+      class="background-image-layer"
       :style="{
-        top: `${symbol.top}%`,
-        left: `${symbol.left}%`,
-        animationDelay: `${symbol.delay}s`,
-        animationDuration: `${symbol.duration}s`,
-        fontSize: `${symbol.size}rem`,
+        backgroundImage: `url(${backgroundSettings.customImageUrl || defaultBackgroundImage})`,
+        opacity: backgroundSettings.imageOpacity,
       }"
-    >
-      <Icon :icon="symbol.icon" />
-    </div>
+    />
+
+    <template v-if="backgroundSettings.showSymbols">
+      <div
+        v-for="(symbol, index) in symbols"
+        :key="index"
+        class="symbol"
+        :style="{
+          top: `${symbol.top}%`,
+          left: `${symbol.left}%`,
+          animationDelay: `${symbol.delay}s`,
+          animationDuration: `${symbol.duration}s`,
+          fontSize: `${symbol.size}rem`,
+        }"
+      >
+        <Icon :icon="symbol.icon" />
+      </div>
+    </template>
   </div>
 </template>
 
@@ -72,6 +87,18 @@ onMounted(() => {
   overflow: hidden;
   background: linear-gradient(to center, var(--bg-primary-color), var(--bg-tertiary-color));
   z-index: -1;
+
+  .background-image-layer {
+    position: absolute;
+    inset: 0;
+    background-size: cover;
+    background-position: center;
+    background-repeat: no-repeat;
+    filter: blur(8px) grayscale(30%);
+    // opacity управляется через inline-style
+    z-index: 0;
+    transition: opacity 0.3s ease;
+  }
 
   .symbol {
     position: absolute;

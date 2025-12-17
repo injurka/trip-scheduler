@@ -4,7 +4,6 @@ import { useModuleStore } from '~/components/05.modules/trip-info/composables/us
 import { useDisplay } from '~/shared/composables/use-display'
 
 const route = useRoute()
-// Теперь проверяем через section=map
 const isMapView = computed(() => route.query.section === 'map')
 
 const store = useModuleStore(['plan', 'ui'])
@@ -16,7 +15,7 @@ const { isDaysPanelPinned, activeView, isParallelPlanView } = storeToRefs(store.
 
 <template>
   <section
-    class="content-wrapper"
+    class="content-wrapper-inner"
     :class="[
       { isPanelPinned: isDaysPanelPinned && !mdAndDown },
       { 'has-error': fetchError },
@@ -30,20 +29,11 @@ const { isDaysPanelPinned, activeView, isParallelPlanView } = storeToRefs(store.
 </template>
 
 <style lang="scss" scoped>
-.content-wrapper {
-  transition: background-color 0.2s ease;
-  max-width: 1000px;
-  width: 100%;
-  margin: 0 auto;
-  padding: 8px;
-  display: flex;
-  flex-direction: column;
-  flex: 1;
-
+.content-wrapper-inner {
   &.is-map-view {
     max-width: 100%;
-    padding: 0; // Убираем отступы для карты
-    height: 100%; // Занимаем всю высоту родителя (main-content)
+    padding: 0; 
+    height: 100%; 
   }
 
   &.has-error {
@@ -56,7 +46,6 @@ const { isDaysPanelPinned, activeView, isParallelPlanView } = storeToRefs(store.
     }
   }
 
-  /* Стили для широкого режима (Parallel Plan view) */
   &.is-wide-mode {
     max-width: 100%;
     justify-content: center;
