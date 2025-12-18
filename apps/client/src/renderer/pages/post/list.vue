@@ -3,6 +3,7 @@ import { Icon } from '@iconify/vue'
 import { computed } from 'vue'
 import { useRouter } from 'vue-router'
 import { KitBtn } from '~/components/01.kit/kit-btn'
+import { KitWipBadge } from '~/components/01.kit/kit-wip-badge'
 import { NavigationBack } from '~/components/02.shared/navigation-back'
 import { PostCard } from '~/components/05.modules/post'
 import { usePostStore } from '~/components/05.modules/post/store/post.store'
@@ -11,7 +12,6 @@ import PostFilters from '~/components/05.modules/post/ui/feed/post-filters.vue'
 const router = useRouter()
 const postStore = usePostStore()
 
-// Получаем отфильтрованные посты из стора
 const posts = computed(() => postStore.filteredPosts)
 
 function goToDetails(id: string) {
@@ -22,7 +22,6 @@ function handleCreate() {
   router.push('/post/create')
 }
 
-// При клике на локацию в карточке — заполняем поиск
 function handleLocationClick(loc: any) {
   postStore.setSearch(loc.city)
 }
@@ -40,10 +39,10 @@ function handleLocationClick(loc: any) {
       </KitBtn>
     </div>
 
-    <!-- Filters Panel -->
+    <KitWipBadge style="width: 100%" />
+
     <PostFilters />
 
-    <!-- Feed List -->
     <div class="feed-container">
       <TransitionGroup name="list">
         <PostCard

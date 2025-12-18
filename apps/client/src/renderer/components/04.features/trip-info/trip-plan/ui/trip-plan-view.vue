@@ -97,7 +97,6 @@ const collapseRouteIcon = computed(() => allRouteBlocksCollapsed.value ? 'mdi:ch
             @click="setViewMode('canvas')"
           />
         </div>
-        <div class="separator" />
         <KitBtn
           class="mode-parallel"
           variant="outlined"
@@ -296,12 +295,6 @@ const collapseRouteIcon = computed(() => allRouteBlocksCollapsed.value ? 'mdi:ch
           transform: none;
         }
       }
-    }
-
-    .separator {
-      width: 1px;
-      height: 20px;
-      background-color: var(--border-secondary-color);
     }
 
     .kit-btn.active {

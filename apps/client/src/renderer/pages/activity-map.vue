@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { KitWipBadge } from '~/components/01.kit/kit-wip-badge'
 import { NavigationBack } from '~/components/02.shared/navigation-back'
 import { ActivityMap } from '~/components/05.modules/activity-map'
 </script>
@@ -6,6 +7,7 @@ import { ActivityMap } from '~/components/05.modules/activity-map'
 <template>
   <section class="content-wrapper">
     <NavigationBack />
+    <KitWipBadge />
     <ActivityMap />
   </section>
 </template>

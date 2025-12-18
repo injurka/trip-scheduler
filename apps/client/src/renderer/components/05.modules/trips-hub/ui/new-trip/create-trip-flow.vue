@@ -35,6 +35,7 @@ const isFormValid = computed(() => {
         <KitBtn
           :disabled="!isFormValid || tripsHub.isCreating.value"
           :loading="tripsHub.isCreating.value"
+          variant="tonal"
           @click="tripsHub.createTrip"
         >
           Создать

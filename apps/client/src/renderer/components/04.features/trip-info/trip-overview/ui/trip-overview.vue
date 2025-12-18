@@ -4,6 +4,7 @@ import type { MapPoint, MapRoute } from '~/components/03.domain/trip-info/geoloc
 import type { IDay } from '~/components/04.features/trip-info/trip-plan/models/types'
 import type { Trip, TripSection } from '~/shared/types/models/trip'
 import { Icon } from '@iconify/vue'
+import { useClipboard, useShare } from '@vueuse/core'
 import { DropdownMenuItem } from 'reka-ui'
 import { KitAnimatedTooltip } from '~/components/01.kit/kit-animated-tooltip'
 import { KitAvatar } from '~/components/01.kit/kit-avatar'
@@ -13,6 +14,7 @@ import { KitImage } from '~/components/01.kit/kit-image'
 import { KitTooltip } from '~/components/01.kit/kit-tooltip'
 import { useModuleStore } from '~/components/05.modules/trip-info/composables/use-trip-info-module'
 import { useTripPermissions } from '~/components/05.modules/trip-info/composables/use-trip-permissions'
+import { useToast } from '~/shared/composables/use-toast'
 import { vRipple } from '~/shared/directives/ripple'
 import { useOfflineStore } from '~/shared/store/offline.store'
 import { EActivitySectionType, EActivityTag } from '~/shared/types/models/activity'
@@ -43,7 +45,11 @@ const emit = defineEmits<{
 
 const router = useRouter()
 const confirm = useConfirm()
+const toast = useToast()
 const { canEdit } = useTripPermissions()
+
+const { share, isSupported: isShareSupported } = useShare()
+const { copy } = useClipboard()
 
 // --- Offline Stores ---
 const offlineStore = useOfflineStore()
@@ -225,7 +231,26 @@ const moreMenuItems = computed((): KitDropdownItem<string>[] => {
 })
 
 async function handleMenuAction(action: string) {
-  if (action === 'edit') {
+  if (action === 'share') {
+    const shareData = {
+      title: props.trip?.title || 'Путешествие',
+      text: props.trip?.description || `Взгляните на план путешествия "${props.trip?.title}"`,
+      url: window.location.href,
+    }
+
+    if (isShareSupported.value) {
+      try {
+        await share(shareData)
+      }
+      catch {
+      }
+    }
+    else {
+      await copy(shareData.url)
+      toast.success('Ссылка скопирована в буфер обмена')
+    }
+  }
+  else if (action === 'edit') {
     handleEditTrip()
   }
   else if (action === 'delete') {

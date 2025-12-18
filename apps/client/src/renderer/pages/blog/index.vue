@@ -28,6 +28,7 @@ onMounted(() => {
           v-if="canEdit"
           icon="mdi:plus"
           size="sm"
+          variant="tonal"
           @click="router.push({ name: AppRouteNames.BlogCreate })"
         >
           Создать
