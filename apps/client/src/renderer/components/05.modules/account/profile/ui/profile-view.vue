@@ -41,7 +41,6 @@ watch(userId, (newId) => {
 <template>
   <div v-if="userProfile" class="profile-view">
     <div class="profile-cover">
-      <!-- Сюда можно будет добавить баннер пользователя -->
       <div class="profile-header">
         <div class="avatar-section">
           <KitAvatar :src="userProfile.avatarUrl" :name="userProfile.name" :size="140" class="profile-avatar" />

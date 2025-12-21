@@ -1,7 +1,6 @@
 <script setup lang="ts">
 import type { Booking, FlightData, FlightSegment } from '../../models/types'
 import { Icon } from '@iconify/vue'
-import { computed } from 'vue'
 import { KitTooltip } from '~/components/01.kit/kit-tooltip'
 import BookingCardWrapper from '../shared/booking-card-wrapper.vue'
 import BookingDateTimeField from '../shared/booking-date-time-field.vue'
@@ -276,7 +275,6 @@ function updateSegmentField<K extends keyof FlightSegment>(segmentIndex: number,
             <span>{{ getLayoverDuration(segments[index - 1], segment) }}</span>
           </div>
 
-          <!-- Segment Header with Flight Number input -->
           <div class="segment-header span-2">
             <div class="segment-header-content">
               <div class="airline-logo-container-small">
@@ -294,7 +292,6 @@ function updateSegmentField<K extends keyof FlightSegment>(segmentIndex: number,
               <span>Рейс {{ index + 1 }}</span>
             </div>
 
-            <!-- Ввод/Отображение номера рейса в заголовке сегмента -->
             <div class="flight-number-container">
               <span v-if="readonly" class="flight-number-text">
                 {{ segment.flightNumber }}

@@ -6,14 +6,12 @@ import { KitSkeleton } from '~/components/01.kit/kit-skeleton'
   <div class="travel-card-wrapper">
     <div class="travel-card">
       <div class="card-image-container">
-        <!-- Скелетоны для элементов в шапке (статус и заголовок) -->
         <div class="card-header-skeleton" />
 
         <div class="card-title-skeleton">
           <KitSkeleton width="55%" height="28px" />
         </div>
 
-        <!-- Скелетон для иконки приватности -->
         <div class="card-visibility-skeleton">
           <KitSkeleton width="32px" height="32px" border-radius="50%" />
         </div>
@@ -21,7 +19,6 @@ import { KitSkeleton } from '~/components/01.kit/kit-skeleton'
 
       <div class="card-content">
         <div class="card-meta">
-          <!-- Скелетоны для мета-данных (даты, города, бюджет) -->
           <div class="meta-item-skeleton">
             <KitSkeleton width="24px" height="24px" border-radius="50%" color="var(--bg-tertiary-color)" />
             <KitSkeleton width="20%" height="20px" color="var(--bg-tertiary-color)" />
@@ -41,12 +38,10 @@ import { KitSkeleton } from '~/components/01.kit/kit-skeleton'
         </div>
 
         <div class="card-footer">
-          <!-- Скелетоны для аватарок участников -->
           <div class="card-participants-skeleton">
             <KitSkeleton width="32px" height="32px" border-radius="50%" color="var(--bg-tertiary-color)" />
             <KitSkeleton width="32px" height="32px" border-radius="50%" class="avatar-overlap" color="var(--bg-tertiary-color)" />
           </div>
-          <!-- Скелетоны для тегов -->
           <div class="card-tags-skeleton">
             <KitSkeleton width="80px" height="26px" border-radius="16px" color="var(--bg-tertiary-color)" />
             <KitSkeleton width="60px" height="26px" border-radius="16px" color="var(--bg-tertiary-color)" />

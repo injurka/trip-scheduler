@@ -82,7 +82,6 @@ function handleAddFolder() {
     </header>
 
     <div class="section-content">
-      <!-- Folders -->
       <div v-if="visibleFolders.length > 0 || !readonly" class="folders-grid">
         <div
           v-for="folder in visibleFolders"
@@ -122,7 +121,6 @@ function handleAddFolder() {
         </button>
       </div>
 
-      <!-- Documents -->
       <div class="documents-list">
         <DocumentItem
           v-for="doc in visibleDocuments"

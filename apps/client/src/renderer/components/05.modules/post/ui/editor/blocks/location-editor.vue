@@ -1,7 +1,6 @@
 <script setup lang="ts">
 import type { LocationBlock } from '../../../models/types'
 import { Icon } from '@iconify/vue'
-import { ref } from 'vue'
 import { KitInput } from '~/components/01.kit/kit-input'
 import PostMapPicker from '../tools/post-map-picker.vue'
 

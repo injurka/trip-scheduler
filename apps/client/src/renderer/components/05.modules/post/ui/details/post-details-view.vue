@@ -1,7 +1,6 @@
 <script setup lang="ts">
 import type { PostDetail } from '../../models/types'
 import { Icon } from '@iconify/vue'
-import { ref } from 'vue'
 import { KitDivider } from '~/components/01.kit/kit-divider'
 import { NavigationBack } from '~/components/02.shared/navigation-back'
 import { TripComments } from '~/components/04.features/trip-info/trip-comments'
@@ -13,7 +12,6 @@ import TimelineStage from './timeline-stage.vue'
 
 const props = defineProps<{ post: PostDetail }>()
 
-// --- Navigation Scroll Logic ---
 const activeStageId = ref(props.post.stages[0]?.id)
 const isMapVisible = ref(false)
 
@@ -35,7 +33,6 @@ function scrollToStage(id: string) {
     <PostHero :post="post" />
 
     <div class="content-container">
-      <!-- Sticky Navigation Tabs -->
       <div v-if="post.stages.length > 0" class="sticky-nav">
         <div class="nav-scroller">
           <button
@@ -50,7 +47,6 @@ function scrollToStage(id: string) {
         </div>
       </div>
 
-      <!-- Timeline -->
       <div class="timeline-container">
         <div
           v-for="(stage, index) in post.stages"
@@ -73,7 +69,6 @@ function scrollToStage(id: string) {
         Обсуждение
       </KitDivider>
 
-      <!-- Comments Section -->
       <section class="comments-section">
         <TripComments
           :parent-id="post.id"
@@ -82,13 +77,11 @@ function scrollToStage(id: string) {
       </section>
     </div>
 
-    <!-- Floating Map Button -->
     <button class="map-fab" title="Показать на карте" @click="isMapVisible = true">
       <Icon icon="mdi:map" />
       <span class="fab-text">Карта</span>
     </button>
 
-    <!-- Map Modal -->
     <PostMapView
       v-model:visible="isMapVisible"
       :post="post"

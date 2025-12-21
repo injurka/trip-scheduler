@@ -66,7 +66,7 @@ export const useAuthStore = defineStore('auth', {
         onSuccess: (data) => {
           this.user = data
         },
-        onError: (error) => {
+        onError: ({ error }) => {
           this.user = null
           throw error
         },
@@ -88,7 +88,7 @@ export const useAuthStore = defineStore('auth', {
         onSuccess: (data) => {
           this.saveTokens(data.token)
         },
-        onError: (error) => {
+        onError: ({ error }) => {
           this.clearAuth()
           throw error
         },
@@ -105,7 +105,7 @@ export const useAuthStore = defineStore('auth', {
         onSuccess: () => {
           this.clearAuth()
         },
-        onError: (error) => {
+        onError: ({ error }) => {
           this.clearAuth()
           throw error
         },
@@ -123,7 +123,7 @@ export const useAuthStore = defineStore('auth', {
           this.user = data.user
           this.saveTokens(data.token)
         },
-        onError: (error) => {
+        onError: ({ error }) => {
           this.clearAuth()
           throw error
         },
@@ -141,7 +141,7 @@ export const useAuthStore = defineStore('auth', {
           this.user = data.user
           this.saveTokens(data.token)
         },
-        onError: (error) => {
+        onError: ({ error }) => {
           this.clearAuth()
           throw error
         },
@@ -155,7 +155,7 @@ export const useAuthStore = defineStore('auth', {
       return useRequest({
         key: EAuthRequestKeys.SIGN_UP,
         fn: db => db.auth.signUp(payload),
-        onError: (error) => {
+        onError: ({ error }) => {
           throw error
         },
       })
@@ -172,7 +172,7 @@ export const useAuthStore = defineStore('auth', {
           this.user = data.user
           this.saveTokens(data.token)
         },
-        onError: (error) => {
+        onError: ({ error }) => {
           this.clearAuth()
           throw error
         },
@@ -268,7 +268,7 @@ export const useAuthStore = defineStore('auth', {
             this.user = { ...this.user, ...updatedUser }
           }
         },
-        onError: (error) => {
+        onError: ({ error }) => {
           throw error
         },
       })
@@ -286,7 +286,7 @@ export const useAuthStore = defineStore('auth', {
             this.user = { ...this.user, ...updatedUser }
           }
         },
-        onError: (error) => {
+        onError: ({ error }) => {
           throw error
         },
       })

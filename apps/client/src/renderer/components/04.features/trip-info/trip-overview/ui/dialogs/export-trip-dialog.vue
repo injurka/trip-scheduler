@@ -4,7 +4,6 @@ import type { BookingSectionContent, ChecklistSectionContent, FinancesSectionCon
 import type { ActivitySectionText } from '~/shared/types/models/activity'
 import type { Trip, TripSection } from '~/shared/types/models/trip'
 import { Icon } from '@iconify/vue'
-import { ref } from 'vue'
 import { KitBtn } from '~/components/01.kit/kit-btn'
 import { KitCheckbox } from '~/components/01.kit/kit-checkbox'
 import { KitDialogWithClose } from '~/components/01.kit/kit-dialog-with-close'

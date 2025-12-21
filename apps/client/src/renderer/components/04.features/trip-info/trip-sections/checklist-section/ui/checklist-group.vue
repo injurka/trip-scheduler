@@ -1,7 +1,6 @@
 <script setup lang="ts">
 import type { ChecklistGroup, ChecklistItem } from '../models/types'
 import { Icon } from '@iconify/vue'
-import { computed, ref } from 'vue'
 import draggable from 'vuedraggable'
 import { KitBtn } from '~/components/01.kit/kit-btn'
 import { KitEditable } from '~/components/01.kit/kit-editable'

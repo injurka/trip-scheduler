@@ -1,7 +1,6 @@
 <script setup lang="ts">
 import type { MapMarker } from '~/components/01.kit/kit-map'
 import { Icon } from '@iconify/vue'
-import { onMounted, ref, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import { KitBtn } from '~/components/01.kit/kit-btn'
 import { KitMap } from '~/components/01.kit/kit-map'

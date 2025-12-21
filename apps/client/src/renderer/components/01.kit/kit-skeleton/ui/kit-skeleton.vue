@@ -29,7 +29,6 @@ const style = computed(() => ({
     :class="{ 'kit-skeleton--wave': type === 'wave' }"
     :style="style"
   >
-    <!-- Невидимый контент для сохранения высоты строки -->
     ‌
   </div>
 </template>

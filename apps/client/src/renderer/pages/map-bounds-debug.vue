@@ -2,14 +2,10 @@
 import type { Map as OlMap } from 'ol'
 import type { MapMarker } from '~/components/01.kit/kit-map'
 import { toLonLat } from 'ol/proj'
-import { ref } from 'vue'
 import { KitMap } from '~/components/01.kit/kit-map'
 
-// Данные для отображения
 const debugData = ref<any>({})
 const mapMarkers = ref<MapMarker[]>([])
-
-// Центр (Москва)
 const center = ref<[number, number]>([37.6176, 55.7558])
 
 function updateBounds(map: OlMap) {
@@ -19,23 +15,19 @@ function updateBounds(map: OlMap) {
   if (!mapSize)
     return
 
-  // 1. Получаем границы (Extent) в проекции карты
   const extent = view.calculateExtent(mapSize)
 
-  // 2. Углы в проекции (обычно EPSG:3857)
   const bottomLeftProjected = [extent[0], extent[1]]
   const topRightProjected = [extent[2], extent[3]]
   const topLeftProjected = [extent[0], extent[3]]
   const bottomRightProjected = [extent[2], extent[1]]
 
-  // 3. Конвертация в GPS координаты (LonLat, EPSG:4326)
   const centerLL = toLonLat(view.getCenter() as [number, number])
   const topLeftLL = toLonLat(topLeftProjected)
   const bottomRightLL = toLonLat(bottomRightProjected)
   const bottomLeftLL = toLonLat(bottomLeftProjected)
   const topRightLL = toLonLat(topRightProjected)
 
-  // 4. Записываем данные для JSON-панели
   debugData.value = {
     screen: {
       width: mapSize[0],
@@ -69,7 +61,6 @@ function updateBounds(map: OlMap) {
     },
   }
 
-  // 5. Ставим маркеры (синие точки) в углы
   mapMarkers.value = [
     {
       id: 'top-left',
@@ -81,7 +72,6 @@ function updateBounds(map: OlMap) {
       coords: { lat: bottomRightLL[1], lon: bottomRightLL[0] },
       payload: { title: 'Right Bottom' },
     },
-    // Центр, чтобы видеть, куда смотрим
     {
       id: 'center',
       coords: { lat: centerLL[1], lon: centerLL[0] },
@@ -91,10 +81,8 @@ function updateBounds(map: OlMap) {
 }
 
 function onMapReady(map: OlMap) {
-  // Первичный расчет
   updateBounds(map)
 
-  // Слушаем окончание движения (zoom, pan, resize)
   map.on('moveend', () => {
     updateBounds(map)
   })
@@ -114,14 +102,10 @@ function onMapReady(map: OlMap) {
         @map-ready="onMapReady"
       />
 
-      <!-- Красные рамки для визуальной проверки -->
-      <!-- Левый верхний -->
       <div class="corner-marker top-left" />
-      <!-- Правый нижний -->
       <div class="corner-marker bottom-right" />
     </div>
 
-    <!-- Панель данных -->
     <div class="debug-panel">
       <h3>Debug Info</h3>
       <pre>{{ JSON.stringify(debugData, null, 2) }}</pre>

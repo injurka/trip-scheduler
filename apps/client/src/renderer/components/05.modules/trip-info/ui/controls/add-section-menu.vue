@@ -103,7 +103,6 @@ useEventListener('keydown', (e) => {
 
     <DropdownMenuPortal>
       <DropdownMenuContent class="add-section-dropdown" align="start" :side-offset="8">
-        <!-- Заголовок -->
         <div class="dropdown-header">
           <Icon icon="mdi:plus-box-multiple" class="header-icon" />
           <div class="header-text">
@@ -118,7 +117,6 @@ useEventListener('keydown', (e) => {
 
         <DropdownMenuSeparator class="dropdown-separator" />
 
-        <!-- Контентные блоки -->
         <div class="section-category">
           <div class="category-label">
             <Icon icon="mdi:text" class="category-icon" />
@@ -149,7 +147,6 @@ useEventListener('keydown', (e) => {
 
         <DropdownMenuSeparator class="dropdown-separator" />
 
-        <!-- Медиа блоки -->
         <div class="section-category">
           <div class="category-label">
             <Icon icon="mdi:image" class="category-icon" />
@@ -180,7 +177,6 @@ useEventListener('keydown', (e) => {
 
         <DropdownMenuSeparator class="dropdown-separator" />
 
-        <!-- Локация -->
         <div class="section-category">
           <div class="category-label">
             <Icon icon="mdi:map" class="category-icon" />
@@ -209,7 +205,6 @@ useEventListener('keydown', (e) => {
           </DropdownMenuItem>
         </div>
 
-        <!-- Подсказка по горячим клавишам -->
         <DropdownMenuSeparator class="dropdown-separator" />
         <div class="keyboard-hint">
           <Icon icon="mdi:keyboard" class="hint-icon" />

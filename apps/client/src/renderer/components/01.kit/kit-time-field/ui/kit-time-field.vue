@@ -1,7 +1,6 @@
 <script setup lang="ts">
 import { Time } from '@internationalized/date'
 import { TimeFieldInput, TimeFieldRoot } from 'reka-ui'
-import { watch } from 'vue'
 
 interface Props {
   placeholder?: string

@@ -164,7 +164,6 @@ onMounted(() => {
             </div>
           </template>
 
-          <!-- Rich Menu Content -->
           <div class="nav-menu-content">
             <div class="nav-menu-header">
               <span>Навигация</span>
@@ -194,7 +193,6 @@ onMounted(() => {
         <slot name="center" />
       </div>
 
-      <!-- HEADER RIGHT: ACTIONS -->
       <div class="header-right">
         <button
           class="util-btn"
@@ -236,9 +234,6 @@ onMounted(() => {
 </template>
 
 <style lang="scss" scoped>
-/* =========================================
-   ORIGINAL HEADER STYLES
-   ========================================= */
 
 .header {
   position: sticky;
@@ -299,16 +294,13 @@ onMounted(() => {
     transition: grid-template-columns 0.3s ease;
   }
 
-  /* --- HEADER LEFT (Original Styling Restored) --- */
   &-left {
     justify-self: end;
     display: flex;
     align-items: center;
-    /* Убрали background отсюда, перенесли на .logo-wrapper, так как он внутри Dropdown */
     margin: 8px;
     height: 40px;
 
-    /* Обертка логотипа, которая выглядит как кнопка */
     .logo-wrapper {
       padding: 0 16px;
       background-color: var(--bg-secondary-color);
@@ -367,7 +359,6 @@ onMounted(() => {
     position: relative;
   }
 
-  /* --- HEADER RIGHT (Original Styling Restored) --- */
   &-right {
     justify-self: start;
     display: flex;

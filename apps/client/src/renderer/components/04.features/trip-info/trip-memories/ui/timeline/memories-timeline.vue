@@ -1,7 +1,6 @@
 <script setup lang="ts">
 import type { ImageViewerImage } from '~/components/01.kit/kit-image-viewer'
 import type { IMemory } from '~/components/05.modules/trip-info/models/types'
-import { computed } from 'vue'
 import { useModuleStore } from '~/components/05.modules/trip-info/composables/use-trip-info-module'
 import MemoriesTimelineGroup from './memories-timeline-group.vue'
 
@@ -25,7 +24,6 @@ const timelineGroups = computed(() => {
   const groups: any[] = []
   let currentGroup: any = null
 
-  // Helper function to create a "start of day" group if it doesn't exist
   const ensureStartGroup = () => {
     let startGroup = groups.find(g => g.type === 'start')
     if (!startGroup) {
@@ -35,7 +33,7 @@ const timelineGroups = computed(() => {
         memories: [],
         activity: null,
       }
-      groups.unshift(startGroup) // Add to the beginning
+      groups.unshift(startGroup) 
     }
     return startGroup
   }

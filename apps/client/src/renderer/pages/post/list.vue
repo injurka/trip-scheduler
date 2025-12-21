@@ -1,6 +1,5 @@
 <script setup lang="ts">
 import { Icon } from '@iconify/vue'
-import { computed } from 'vue'
 import { useRouter } from 'vue-router'
 import { KitBtn } from '~/components/01.kit/kit-btn'
 import { KitWipBadge } from '~/components/01.kit/kit-wip-badge'
@@ -29,7 +28,6 @@ function handleLocationClick(loc: any) {
 
 <template>
   <section class="content-wrapper">
-    <!-- Header -->
     <div class="page-header-row">
       <div class="left">
         <NavigationBack />
@@ -56,7 +54,6 @@ function handleLocationClick(loc: any) {
         />
       </TransitionGroup>
 
-      <!-- Empty States -->
       <div v-if="posts.length === 0" class="empty-feed">
         <div v-if="postStore.filters.tab === 'saved'" class="empty-content">
           <Icon icon="mdi:bookmark-outline" size="48" />

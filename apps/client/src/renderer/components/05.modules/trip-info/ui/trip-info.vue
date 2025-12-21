@@ -39,7 +39,6 @@ function handleEditTrip() {
   isEditModalOpen.value = true
 }
 
-// --- UI Controls & Fixed Navigation ---
 const { mdAndUp } = useDisplay()
 const tripInfoWrapperRef = ref<HTMLElement | null>(null)
 const dayNavigationWrapperRef = ref<HTMLElement | null>(null)
@@ -97,10 +96,8 @@ onUnmounted(() => {
       </template>
 
       <template #success>
-        <!-- 1. Вид "Обзор" -->
         <TripOverviewContent v-if="!dayId && !sectionQuery" :plan="plan" :sections="sections" @edit="handleEditTrip" />
 
-        <!-- 2. Вид "День" -->
         <template v-else-if="dayId && !sectionQuery">
           <DaysControls
             :wrapper-bounding="{
@@ -143,7 +140,6 @@ onUnmounted(() => {
           </div>
         </template>
 
-        <!-- 3. Вид "Раздел" (включая Карту) -->
         <SectionRenderer
           v-else-if="resolvedSectionId"
           :section-id="resolvedSectionId"
@@ -164,7 +160,6 @@ onUnmounted(() => {
     </AsyncStateWrapper>
   </div>
 
-  <!-- Fixed Navigation Buttons -->
   <Teleport to="body">
     <Transition name="fade">
       <KitBtn

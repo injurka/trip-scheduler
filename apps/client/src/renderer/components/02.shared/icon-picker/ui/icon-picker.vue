@@ -1,7 +1,6 @@
 <script setup lang="ts">
 import { Icon } from '@iconify/vue'
 import { onClickOutside } from '@vueuse/core'
-import { computed, nextTick, ref, watch } from 'vue'
 
 const props = withDefaults(defineProps<Props>(), {
   size: 'md',

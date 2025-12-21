@@ -1,6 +1,5 @@
 <script setup lang="ts">
 import { Icon } from '@iconify/vue'
-import { computed, onMounted, ref, watch } from 'vue'
 import { KitDropdown } from '~/components/01.kit/kit-dropdown'
 
 interface Props {

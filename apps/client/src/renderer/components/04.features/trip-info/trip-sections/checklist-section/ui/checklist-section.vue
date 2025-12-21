@@ -1,7 +1,6 @@
 <script setup lang="ts">
 import type { ChecklistItem, ChecklistSectionContent } from '../models/types'
 import { Icon } from '@iconify/vue'
-import { ref, watch } from 'vue'
 import draggable from 'vuedraggable'
 import { KitBtn } from '~/components/01.kit/kit-btn'
 import { KitCheckbox } from '~/components/01.kit/kit-checkbox'
@@ -86,11 +85,9 @@ watch(activeTab, () => {
     <KitTabs v-model="activeTab" :items="tabItems">
       <template #preparation>
         <div class="tab-content-wrapper">
-          <!-- Панель действий с новыми элементами -->
           <div v-if="hasItemsInCurrentTab || !props.readonly" class="actions-panel">
             <KitInput v-model="searchQuery" placeholder="Поиск по задачам..." icon="mdi:magnify" class="search-input" />
             <div class="action-controls">
-              <!-- Кнопка пресетов слева -->
               <KitBtn
                 v-if="!readonly"
                 variant="subtle"
@@ -111,7 +108,6 @@ watch(activeTab, () => {
             </div>
           </div>
 
-          <!-- Прогресс-бар -->
           <div v-if="hasItemsInCurrentTab || !props.readonly" class="progress-container">
             <div class="progress-bar-container">
               <div class="progress-bar" :style="{ width: `${progress}%` }" />
@@ -119,9 +115,7 @@ watch(activeTab, () => {
             <span class="progress-text">{{ progress }}%</span>
           </div>
 
-          <!-- Контент -->
           <div class="checklist-content">
-            <!-- Группы -->
             <draggable
               :model-value="currentTabGroups"
               item-key="id"
@@ -144,7 +138,6 @@ watch(activeTab, () => {
               </template>
             </draggable>
 
-            <!-- Задачи без группы -->
             <div v-if="currentTabUngroupedItems.length > 0 || !readonly">
               <KitDivider v-if="currentTabGroups.length > 0" class="group-divider">
                 Прочие задачи
@@ -189,7 +182,6 @@ watch(activeTab, () => {
             </div>
           </div>
 
-          <!-- Пустое состояние (если после всех фильтров ничего не осталось) -->
           <div v-if="currentTabGroups.length === 0 && currentTabUngroupedItems.length === 0" class="empty-state">
             <Icon icon="mdi:clipboard-check-outline" class="empty-icon" />
             <p v-if="searchQuery">
@@ -214,7 +206,6 @@ watch(activeTab, () => {
           <div v-if="hasItemsInCurrentTab || !props.readonly" class="actions-panel">
             <KitInput v-model="searchQuery" placeholder="Поиск по задачам..." icon="mdi:magnify" class="search-input" />
             <div class="action-controls">
-              <!-- Кнопка пресетов слева -->
               <KitBtn
                 v-if="!readonly"
                 variant="subtle"

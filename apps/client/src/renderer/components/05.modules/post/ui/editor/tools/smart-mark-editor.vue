@@ -16,11 +16,8 @@ const emit = defineEmits<{
   (e: 'save', media: PostMedia): void
 }>()
 
-// Локальная копия медиа для редактирования
 const currentMedia = ref<PostMedia>(JSON.parse(JSON.stringify(props.media)))
 const imageContainerRef = ref<HTMLElement | null>(null)
-
-// Состояние редактирования метки
 const activeMarkId = ref<string | null>(null)
 const markLabelInput = ref('')
 
@@ -28,7 +25,6 @@ function handleImageClick(event: MouseEvent) {
   if (!imageContainerRef.value)
     return
 
-  // Вычисляем координаты в процентах (0-100)
   const rect = imageContainerRef.value.getBoundingClientRect()
   const x = ((event.clientX - rect.left) / rect.width) * 100
   const y = ((event.clientY - rect.top) / rect.height) * 100
@@ -52,10 +48,6 @@ function startEditingMark(id: string) {
   activeMarkId.value = id
   const mark = currentMedia.value.marks?.find(m => m.id === id)
   markLabelInput.value = mark?.label || ''
-
-  nextTick(() => {
-    // Фокус на инпут (нужен доступ к нативному элементу внутри KitInput, предположим он есть или используем стандартный ref)
-  })
 }
 
 function saveActiveMark() {
@@ -65,7 +57,6 @@ function saveActiveMark() {
   const mark = currentMedia.value.marks?.find(m => m.id === activeMarkId.value)
   if (mark) {
     if (!markLabelInput.value.trim()) {
-      // Удаляем метку, если текст пустой
       removeMark(activeMarkId.value)
     }
     else {
@@ -85,12 +76,11 @@ function removeMark(id: string) {
 }
 
 function handleSave() {
-  saveActiveMark() // Сохраняем текущую, если есть
+  saveActiveMark()
   emit('save', currentMedia.value)
   emit('update:visible', false)
 }
 
-// Следим за обновлением пропсов при открытии
 watch(() => props.visible, (isOpen) => {
   if (isOpen) {
     currentMedia.value = JSON.parse(JSON.stringify(props.media))
@@ -119,7 +109,6 @@ watch(() => props.visible, (isOpen) => {
         >
           <img :src="currentMedia.url" alt="Edit" class="target-image">
 
-          <!-- Метки -->
           <div
             v-for="mark in currentMedia.marks"
             :key="mark.id"
@@ -130,7 +119,6 @@ watch(() => props.visible, (isOpen) => {
           >
             <div class="dot" />
 
-            <!-- Поповер редактирования -->
             <div v-if="activeMarkId === mark.id" class="edit-popover" @click.stop>
               <input
                 v-model="markLabelInput"
@@ -146,7 +134,6 @@ watch(() => props.visible, (isOpen) => {
               </button>
             </div>
 
-            <!-- Лейбл в режиме просмотра -->
             <div v-else class="mark-label">
               {{ mark.label }}
             </div>

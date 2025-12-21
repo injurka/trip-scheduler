@@ -4,12 +4,15 @@ import { Icon } from '@iconify/vue'
 import { KitAvatar } from '~/components/01.kit/kit-avatar'
 import { KitImage } from '~/components/01.kit/kit-image'
 
-defineProps<{ post: PostDetail }>()
+interface IProps {
+  post: PostDetail
+}
+
+defineProps<IProps>()
 </script>
 
 <template>
   <div class="post-hero">
-    <!-- Blurred Background -->
     <div class="hero-bg">
       <KitImage :src="post.media[0]?.url" object-fit="cover" />
     </div>

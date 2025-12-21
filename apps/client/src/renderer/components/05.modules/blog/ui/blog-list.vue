@@ -1,20 +1,18 @@
 <script setup lang="ts">
-import { onMounted } from 'vue'
 import { KitBtn } from '~/components/01.kit/kit-btn'
 import { AsyncStateWrapper } from '~/components/02.shared/async-state-wrapper'
 import { AppRouteNames } from '~/shared/constants/routes'
-import { useAuthStore } from '~/shared/store/auth.store'
 import { useBlogStore } from '../store/blog.store'
 import BlogCard from './blog-card.vue'
 
-const store = useBlogStore()
-const authStore = useAuthStore()
+const storeBlog = useBlogStore()
+const store = useAppStore(['auth'])
 const router = useRouter()
 
-const canCreate = computed(() => authStore.user?.role === 'admin' || true)
+const canCreate = computed(() => store.auth.user?.role === 'admin' || true)
 
 onMounted(() => {
-  store.fetchList()
+  storeBlog.fetchList()
 })
 </script>
 
@@ -27,8 +25,8 @@ onMounted(() => {
     </div>
 
     <AsyncStateWrapper
-      :loading="store.isLoadingList && store.list.length === 0"
-      :data="store.list.length > 0 ? store.list : null"
+      :loading="storeBlog.isLoadingList && storeBlog.list.length === 0"
+      :data="storeBlog.list.length > 0 ? storeBlog.list : null"
     >
       <template #loading>
         <div class="grid">

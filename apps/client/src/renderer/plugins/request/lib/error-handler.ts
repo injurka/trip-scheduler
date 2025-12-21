@@ -26,7 +26,7 @@ export interface IError {
   message?: string
 }
 
-interface IErrorCallback {
+export interface IErrorCallback {
   error: IError
 }
 
@@ -86,7 +86,7 @@ export function createApiErrorHandler(options: IApiErrorHandlerOptions = {}) {
       return
 
     // 4. Стандартная логика определения сообщения
-    let description = 'Произошла неизвестная ошибка. Пожалуйста, попробуйте позже.'
+    let description = ''
 
     if (trpcCode === 'FORBIDDEN' || statusCode === 403) {
       description = error?.shape?.message || error?.message || 'У вас нет прав для выполнения этого действия.'
@@ -103,15 +103,16 @@ export function createApiErrorHandler(options: IApiErrorHandlerOptions = {}) {
             || 'Произошел конфликт данных.'
           break
         default:
-          if (error?.shape?.message)
-            description = error.shape.message
-          else if (error?.data?.description)
-            description = error.data.description
-          else if (error?.data?.message)
-            description = error.data.message
-          else if (error?.message)
-            description = error.message
           break
+      }
+    }
+
+    if (!description) {
+      try {
+        description = JSON.parse(error.shape!.message!)[0].message
+      }
+      catch {
+        description = 'Произошла неизвестная ошибка. Пожалуйста, попробуйте позже.'
       }
     }
 

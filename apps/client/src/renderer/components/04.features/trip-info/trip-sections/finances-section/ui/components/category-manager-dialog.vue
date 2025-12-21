@@ -1,7 +1,6 @@
 <script setup lang="ts">
 import type { Category } from '../../models/types'
 import { Icon } from '@iconify/vue'
-import { ref } from 'vue'
 import { KitBtn } from '~/components/01.kit/kit-btn'
 import { KitDialogWithClose } from '~/components/01.kit/kit-dialog-with-close'
 import { KitEditable } from '~/components/01.kit/kit-editable'

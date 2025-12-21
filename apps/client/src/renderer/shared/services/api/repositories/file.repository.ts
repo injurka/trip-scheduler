@@ -1,4 +1,4 @@
-import type { IFileRepository } from '../model/types'
+import type { EntityType, IFileRepository } from '../model/types'
 import type { ImageMetadata, TripImage, TripImagePlacement } from '~/shared/types/models/trip'
 import { ofetch } from 'ofetch'
 import { trpc } from '~/shared/services/trpc/trpc.service'
@@ -7,15 +7,24 @@ import { throttle } from '../lib/decorators'
 
 export class FileRepository implements IFileRepository {
   /**
-   * Загружает файл на сервер (используя FormData).
+   * Загружает файл на сервер (используя FormData) с указанием типа сущности.
    */
   @throttle(500)
-  async uploadFile(file: File, tripId: string, placement: TripImagePlacement, timestamp?: string | null, comment?: string | null): Promise<TripImage> {
+  async uploadFile(
+    file: File,
+    entityId: string,
+    entityType: EntityType,
+    placement?: string | null,
+    timestamp?: string | null,
+    comment?: string | null,
+  ): Promise<TripImage> {
     const formData = new FormData()
     formData.append('file', file)
-    formData.append('tripId', tripId)
-    formData.append('placement', placement)
+    formData.append('entityId', entityId)
+    formData.append('entityType', entityType)
 
+    if (placement)
+      formData.append('placement', placement)
     if (timestamp)
       formData.append('timestamp', timestamp)
     if (comment)
@@ -33,12 +42,13 @@ export class FileRepository implements IFileRepository {
   }
 
   /**
-   * Загружает файл с отслеживанием прогресса, используя XMLHttpRequest для надежности.
+   * Загружает файл с отслеживанием прогресса, используя XMLHttpRequest.
    */
   uploadFileWithProgress(
     file: File,
-    tripId: string,
-    placement: TripImagePlacement,
+    entityId: string,
+    entityType: EntityType,
+    placement: string | null,
     onProgress: (percentage: number) => void,
     signal: AbortSignal,
   ): Promise<TripImage> {
@@ -91,11 +101,19 @@ export class FileRepository implements IFileRepository {
 
       const formData = new FormData()
       formData.append('file', file)
-      formData.append('tripId', tripId)
-      formData.append('placement', placement)
+      formData.append('entityId', entityId)
+      formData.append('entityType', entityType)
+
+      if (placement)
+        formData.append('placement', placement)
 
       xhr.send(formData)
     })
+  }
+
+  @throttle(500)
+  async listImages(entityId: string, entityType: EntityType, placement?: string): Promise<TripImage[]> {
+    return await trpc.image.listByEntity.query({ entityId, entityType, placement }) as TripImage[]
   }
 
   @throttle(500)

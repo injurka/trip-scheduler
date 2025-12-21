@@ -252,6 +252,17 @@ export const tripRepository = {
   },
 
   /**
+   * Добавляет участника в путешествие.
+   */
+  async addParticipant(tripId: string, userId: string) {
+    return measureDbQuery('tripParticipants', 'insert', async () => {
+      await db.insert(tripParticipants)
+        .values({ tripId, userId })
+        .onConflictDoNothing()
+    })
+  },
+
+  /**
    * Создает новое путешествие.
    * @returns Созданный объект путешествия.
    */

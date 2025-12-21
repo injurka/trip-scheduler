@@ -3,20 +3,20 @@ import type { PostMedia } from '../../../models/types'
 import { Icon } from '@iconify/vue'
 import { useFileDialog } from '@vueuse/core'
 import { v4 as uuidv4 } from 'uuid'
-import { ref } from 'vue'
 import draggable from 'vuedraggable'
 import { KitImage } from '~/components/01.kit/kit-image'
 import SmartMarkEditor from '../tools/smart-mark-editor.vue'
 
-const props = defineProps<{
-  images: PostMedia[] // Внимание: мы обновим модель, чтобы хранить объекты PostMedia, а не строки
-}>()
+interface IProps {
+  images: PostMedia[]
+}
+
+const props = defineProps<IProps>()
 
 const emit = defineEmits<{
   (e: 'update:images', images: PostMedia[]): void
 }>()
 
-// --- File Upload ---
 const { open, onChange } = useFileDialog({
   accept: 'image/*',
   multiple: true,
@@ -29,14 +29,13 @@ onChange((files) => {
   const newMedia: PostMedia[] = Array.from(files).map(file => ({
     id: uuidv4(),
     type: 'image',
-    url: URL.createObjectURL(file), // В реальном приложении здесь будет загрузка на сервер
+    url: URL.createObjectURL(file),
     marks: [],
   }))
 
   emit('update:images', [...props.images, ...newMedia])
 })
 
-// --- Marks Editor ---
 const isMarkEditorOpen = ref(false)
 const mediaToEdit = ref<PostMedia | null>(null)
 const editingIndex = ref(-1)
@@ -80,7 +79,6 @@ function removeImage(index: number) {
           <div class="image-preview" @click="openMarkEditor(element, index)">
             <KitImage :src="element.url" object-fit="cover" />
 
-            <!-- Badge if marks exist -->
             <div v-if="element.marks?.length" class="marks-badge">
               <Icon icon="mdi:target" /> {{ element.marks.length }}
             </div>
@@ -97,7 +95,6 @@ function removeImage(index: number) {
         </div>
       </template>
 
-      <!-- Add Button Slot -->
       <template #footer>
         <button class="add-image-btn" @click="open()">
           <Icon icon="mdi:plus" />

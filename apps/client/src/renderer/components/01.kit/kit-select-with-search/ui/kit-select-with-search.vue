@@ -1,10 +1,7 @@
 <script setup lang="ts" generic="T extends string | number | object">
 import type { KitDropdownItem } from '~/components/01.kit/kit-dropdown'
 import { Icon } from '@iconify/vue'
-// --- Новые импорты ---
 import { onClickOutside, useElementBounding, useWindowSize } from '@vueuse/core'
-import { nextTick, ref, watch } from 'vue'
-// --- Конец новых импортов ---
 import { KitInput } from '~/components/01.kit/kit-input'
 
 const props = withDefaults(defineProps<{
@@ -40,20 +37,17 @@ const searchInputRef = ref<InstanceType<typeof KitInput> | null>(null)
 const isOpen = ref(false)
 const searchQuery = ref('')
 
-// --- Новое состояние и логика для определения направления открытия ---
 const openDirection = ref<'down' | 'up'>('down')
-const DROPDOWN_MIN_HEIGHT = 250 // Примерная минимальная высота выпадающего списка
+const DROPDOWN_MIN_HEIGHT = 250
 const { height: windowHeight } = useWindowSize()
 const { bottom: wrapperBottom, top: wrapperTop } = useElementBounding(wrapperRef)
 
 watch(isOpen, (isNowOpen) => {
   if (isNowOpen) {
-    // Ждем следующего тика, чтобы DOM обновился и wrapperRef был доступен
     nextTick(() => {
       const spaceBelow = windowHeight.value - wrapperBottom.value
       const spaceAbove = wrapperTop.value
 
-      // Если внизу места мало, а вверху больше - открываем вверх
       if (spaceBelow < DROPDOWN_MIN_HEIGHT && spaceAbove > spaceBelow) {
         openDirection.value = 'up'
       }
@@ -63,7 +57,6 @@ watch(isOpen, (isNowOpen) => {
     })
   }
 })
-// --- Конец новой логики ---
 
 const selectedItems = computed(() => {
   if (!props.modelValue)
@@ -190,7 +183,6 @@ onClickOutside(wrapperRef, handleClose)
   <div ref="wrapperRef" class="kit-select-with-search" :class="{ 'is-disabled': disabled }">
     <label v-if="label" @click="toggleDropdown">{{ label }}</label>
 
-    <!-- Режим с чипами (multiple) -->
     <div
       v-if="multiple"
       class="chip-input-wrapper"
@@ -227,7 +219,6 @@ onClickOutside(wrapperRef, handleClose)
       </button>
     </div>
 
-    <!-- Одиночный режим -->
     <div v-else class="input-wrapper">
       <KitInput
         ref="searchInputRef"
@@ -250,9 +241,7 @@ onClickOutside(wrapperRef, handleClose)
       </button>
     </div>
 
-    <!-- Общий выпадающий список -->
     <Transition name="fade-dropdown">
-      <!-- --- Добавлен класс is-open-up --- -->
       <div
         v-if="isOpen"
         class="dropdown-panel"

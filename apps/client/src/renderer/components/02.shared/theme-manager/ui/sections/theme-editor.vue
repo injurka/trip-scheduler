@@ -1,7 +1,6 @@
 <script setup lang="ts">
 import type { ViewSwitcherItem } from '~/components/01.kit/kit-view-switcher'
 import type { ColorPalette, RadiusPalette } from '~/shared/store/theme.store'
-import { ref } from 'vue'
 import { KitBtn } from '~/components/01.kit/kit-btn'
 import { KitTabs } from '~/components/01.kit/kit-tabs'
 import { useDisplay } from '~/shared/composables/use-display'

@@ -1,7 +1,12 @@
 import type { Activity, Day } from '~/shared/types/models/activity'
 import type { SignInPayload, SignUpPayload, TelegramAuthPayload, TokenPair, User } from '~/shared/types/models/auth'
 import type { BlogListItems, BlogPost, CreateBlogPostInput, UpdateBlogPostInput } from '~/shared/types/models/blog'
-import type { CreateCommentInput, UpdateCommentInput } from '~/shared/types/models/comment'
+import type { Comment, CreateCommentInput, UpdateCommentInput } from '~/shared/types/models/comment'
+import type {
+  CreateMarkInput,
+  GetMarksParams,
+  Mark,
+} from '~/shared/types/models/mark'
 import type { CreateMemoryInput, Memory, UpdateMemoryInput } from '~/shared/types/models/memory'
 import type { Place, PlaceTag } from '~/shared/types/models/place'
 import type {
@@ -18,11 +23,15 @@ import type {
   UpdateTripInput,
 } from '~/shared/types/models/trip'
 
+export interface IMarksRepository {
+  getMarks: (params: GetMarksParams) => Promise<Mark[]>
+  createMark: (data: CreateMarkInput) => Promise<Mark>
+}
+
 export interface IPlacesRepository {
   getPlacesByCity: (city: string, filters?: { tags?: string[] }) => Promise<Place[]>
   getAvailableTags: (city: string) => Promise<PlaceTag[]>
 }
-
 export interface TripListFilters {
   search?: string
   statuses?: TripStatus[]
@@ -34,7 +43,7 @@ export interface TripListFilters {
 export interface GeneratedBooking {
   type: 'flight' | 'hotel' | 'train' | 'attraction'
   title: string
-  data: any // Структура данных зависит от типа
+  data: any
 }
 
 export interface GeneratedTransaction {
@@ -78,21 +87,41 @@ export interface IActivityRepository {
   remove: (id: string) => Promise<Activity>
 }
 
+export type EntityType = 'trip' | 'post' | 'blog' | 'avatar'
+
 export interface IFileRepository {
-  uploadFile: (file: File, tripId: string, placement: TripImagePlacement, timestamp?: string | null, comment?: string | null) => Promise<TripImage>
-  uploadFileWithProgress: (file: File, tripId: string, placement: TripImagePlacement, onProgress: (percentage: number) => void, signal: AbortSignal) => Promise<TripImage>
+  uploadFile: (
+    file: File,
+    entityId: string,
+    entityType: EntityType,
+    placement?: string | null,
+    timestamp?: string | null,
+    comment?: string | null,
+  ) => Promise<TripImage>
+
+  uploadFileWithProgress: (
+    file: File,
+    entityId: string,
+    entityType: EntityType,
+    placement: string | null,
+    onProgress: (percentage: number) => void,
+    signal: AbortSignal,
+  ) => Promise<TripImage>
+
+  listImages: (entityId: string, entityType: EntityType, placement?: string) => Promise<TripImage[]>
   listImageByTrip: (tripId: string, placement: TripImagePlacement) => Promise<TripImage[]>
+
   getAllUserFiles: () => Promise<TripImage[]>
   deleteFile: (id: string) => Promise<void>
   getMetadata: (id: string) => Promise<ImageMetadata | null>
 }
 
 export interface IAuthRepository {
-  signUp: (payload: SignUpPayload) => Promise<{ success: boolean, message: string }>
   verifyEmail: (payload: { email: string, token: string }) => Promise<{ user: User, token: TokenPair }>
   signInWithTelegram: (authData: TelegramAuthPayload) => Promise<{ user: User, token: TokenPair }>
   signIn: (payload: SignInPayload) => Promise<{ user: User, token: TokenPair }>
   signOut: () => Promise<void>
+  signUp: (payload: SignUpPayload) => Promise<{ success: boolean, message?: string }>
   refresh: (refreshToken: string) => Promise<{ token: TokenPair }>
   me: () => Promise<User>
   updateStatus: (data: { statusText?: string | null, statusEmoji?: string | null }) => Promise<User>
@@ -127,7 +156,6 @@ export interface IBlogRepository {
   delete: (id: string) => Promise<void>
 }
 
-// Интерфейс для всей базы данных
 export interface IDatabaseClient {
   trips: ITripRepository
   days: IDayRepository
@@ -141,6 +169,7 @@ export interface IDatabaseClient {
   llm: ILLMRepository
   places: IPlacesRepository
   blog: IBlogRepository
+  marks: IMarksRepository
 }
 
 export interface IMemoryRepository {

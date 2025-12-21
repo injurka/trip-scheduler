@@ -2,7 +2,6 @@
 import type { HighlightStatus } from '../../composables/use-booking-section'
 import type { Booking, HotelData } from '../../models/types'
 import { Icon } from '@iconify/vue'
-import { computed, ref } from 'vue'
 import { KitBtn } from '~/components/01.kit/kit-btn'
 import { KitDivider } from '~/components/01.kit/kit-divider'
 import BookingCardWrapper from '../shared/booking-card-wrapper.vue'
@@ -104,13 +103,11 @@ const hotelWebsiteUrl = computed(() => {
 
     <template #details>
       <div class="details-grid">
-        <!-- Stay Details -->
         <BookingField :model-value="booking.data.roomType" label="Тип номера" icon="mdi:bed-outline" :readonly="readonly" @update:model-value="updateDataField('roomType', $event)" />
         <BookingField :model-value="booking.data.guests" label="Количество гостей" icon="mdi:account-group-outline" :readonly="readonly" @update:model-value="updateDataField('guests', $event)" />
 
         <KitDivider class="span-2" />
 
-        <!-- Booking Info -->
         <BookingField :model-value="booking.data.confirmationNumber" label="Номер подтверждения" icon="mdi:barcode-scan" :readonly="readonly" class="span-2" @update:model-value="updateDataField('confirmationNumber', $event)" />
         <BookingField
           v-if="!readonly"
@@ -126,14 +123,12 @@ const hotelWebsiteUrl = computed(() => {
 
         <KitDivider class="span-2" />
 
-        <!-- Hotel Contact Info -->
         <BookingField :model-value="booking.data.phone" label="Телефон" icon="mdi:phone-outline" :readonly="readonly" link-type="tel" @update:model-value="updateDataField('phone', $event)" />
         <BookingField :model-value="booking.data.email" label="Email" icon="mdi:email-outline" :readonly="readonly" link-type="email" @update:model-value="updateDataField('email', $event)" />
         <BookingField :model-value="booking.data.website" label="Веб-сайт отеля" icon="mdi:web" :readonly="readonly" class="span-2" link-type="web" @update:model-value="updateDataField('website', $event)" />
 
         <KitDivider v-if="!readonly || booking.data.notes" class="span-2" />
 
-        <!-- Notes -->
         <BookingTextareaField
           v-if="!readonly || booking.data.notes"
           :model-value="booking.data.notes"

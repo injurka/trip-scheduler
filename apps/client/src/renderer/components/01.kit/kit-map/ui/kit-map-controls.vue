@@ -1,7 +1,6 @@
 <script setup lang="ts">
 import type { Map } from 'ol'
 import type { MapLayerOption } from '../models/types'
-import { computed } from 'vue'
 import { KitBtn } from '~/components/01.kit/kit-btn'
 import { KitDropdown } from '~/components/01.kit/kit-dropdown'
 
@@ -32,7 +31,6 @@ const dropDownLayers = computed(() => {
 
 <template>
   <div class="kit-map-controls">
-    <!-- Группа зума -->
     <div class="control-group zoom-group">
       <KitBtn
         variant="text"
@@ -55,7 +53,6 @@ const dropDownLayers = computed(() => {
       />
     </div>
 
-    <!-- Кнопка слоев (отдельная группа) -->
     <div v-if="layers.length > 0" class="control-group layer-group">
       <KitDropdown
         :items="dropDownLayers"
@@ -87,7 +84,7 @@ const dropDownLayers = computed(() => {
   right: 12px;
   top: 50%;
   transform: translateY(-50%);
-  z-index: 20; /* Выше карты */
+  z-index: 20;
 }
 
 .control-group {

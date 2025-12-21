@@ -1,7 +1,6 @@
 <script setup lang="ts">
 import { Icon } from '@iconify/vue'
 import { vMaska } from 'maska/vue'
-import { computed } from 'vue'
 import { KitInput } from '~/components/01.kit/kit-input'
 
 interface Props {
@@ -155,7 +154,6 @@ const formattedValue = computed(() => {
 
 <template>
   <div class="booking-field">
-    <!-- Readonly View -->
     <div v-if="props.readonly" class="readonly-wrapper">
       <label class="field-label">
         {{ label }}
@@ -168,7 +166,6 @@ const formattedValue = computed(() => {
       </div>
     </div>
 
-    <!-- Editable View -->
     <KitInput
       v-else
       v-model="displayValue"

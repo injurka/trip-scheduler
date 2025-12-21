@@ -55,7 +55,6 @@ function handleRetry() {
 <template>
   <div class="async-state-wrapper">
     <Transition :name="transitionName" mode="out-in" appear>
-      <!-- Состояние загрузки (Скелетон) -->
       <div
         v-if="currentState === 'loading'"
         key="loading"
@@ -70,7 +69,6 @@ function handleRetry() {
         </slot>
       </div>
 
-      <!-- Состояние ошибки -->
       <div
         v-else-if="currentState === 'error'"
         key="error"
@@ -91,7 +89,6 @@ function handleRetry() {
         </slot>
       </div>
 
-      <!-- Состояние успеха (Контент) -->
       <div
         v-else-if="currentState === 'success' && !!data"
         key="success"
@@ -104,7 +101,6 @@ function handleRetry() {
         />
       </div>
 
-      <!-- Пустое состояние -->
       <div v-else key="empty">
         <slot name="empty" />
       </div>

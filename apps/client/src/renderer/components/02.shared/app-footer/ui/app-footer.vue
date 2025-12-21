@@ -27,7 +27,6 @@ import { AppRouteNames } from '~/shared/constants/routes'
         </nav>
       </div>
 
-      <!-- Правая часть: Иконки -->
       <div class="footer-socials">
         <router-link
           :to="{ name: AppRouteNames.UsefulLinks }"

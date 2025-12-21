@@ -2,7 +2,6 @@
 import type { Post } from '../../models/types'
 import { Icon } from '@iconify/vue'
 import { useTimeAgo } from '@vueuse/core'
-import { computed, ref } from 'vue'
 import { KitAvatar } from '~/components/01.kit/kit-avatar'
 import { KitBtn } from '~/components/01.kit/kit-btn'
 import { KitImage } from '~/components/01.kit/kit-image'
@@ -19,10 +18,8 @@ const emit = defineEmits<{
   (e: 'toggleSave', id: string): void
 }>()
 
-// --- Logic: Time Ago ---
 const timeAgo = useTimeAgo(new Date(props.post.createdAt))
 
-// --- Logic: Media Carousel ---
 const activeMediaIndex = ref(0)
 const mediaScrollRef = ref<HTMLElement | null>(null)
 
@@ -34,7 +31,6 @@ function onScroll() {
   activeMediaIndex.value = Math.round(scrollLeft / width)
 }
 
-// --- Logic: Marks (Tooltips) ---
 const activeMarkId = ref<string | null>(null)
 
 function toggleMark(markId: string) {
@@ -46,7 +42,6 @@ function toggleMark(markId: string) {
   }
 }
 
-// --- Logic: Color Coding ---
 const categoryColors: Record<string, string> = {
   food: '#FF9F43', // Оранжевый
   nature: '#28C76F', // Зеленый
@@ -66,7 +61,6 @@ const cardStyle = computed(() => ({
 
 <template>
   <article class="post-card" :style="cardStyle" @click="$emit('clickCard', post.id)">
-    <!-- 1. Header -->
     <header class="card-header">
       <div class="author-info">
         <KitAvatar :src="post.author.avatarUrl" :name="post.author.name" size="32" />
@@ -86,7 +80,6 @@ const cardStyle = computed(() => ({
       </div>
     </header>
 
-    <!-- 2. Media Zone (Swipe Carousel) -->
     <div class="media-zone">
       <div
         ref="mediaScrollRef"
@@ -104,7 +97,6 @@ const cardStyle = computed(() => ({
             object-fit="cover"
           />
 
-          <!-- Smart Marks -->
           <template v-if="media.marks">
             <div
               v-for="mark in media.marks"
@@ -124,7 +116,6 @@ const cardStyle = computed(() => ({
         </div>
       </div>
 
-      <!-- Pagination Dots -->
       <div v-if="post.media.length > 1" class="media-dots">
         <span
           v-for="(_, idx) in post.media"
@@ -134,7 +125,6 @@ const cardStyle = computed(() => ({
         />
       </div>
 
-      <!-- 3. Info Overlay (Gradient) -->
       <div class="info-overlay">
         <div class="title-row">
           <h3 class="post-title">
@@ -145,7 +135,6 @@ const cardStyle = computed(() => ({
       </div>
     </div>
 
-    <!-- 4. Tags & Actions Row -->
     <div class="tags-actions-row">
       <div class="tags-scroll">
         <span class="tag city-tag">📍 {{ post.location.city }}</span>
@@ -168,7 +157,6 @@ const cardStyle = computed(() => ({
       </div>
     </div>
 
-    <!-- 5. Insight Block -->
     <div class="insight-block">
       <div class="insight-icon">
         <Icon icon="mdi:lightbulb-on-outline" />
@@ -178,7 +166,6 @@ const cardStyle = computed(() => ({
       </p>
     </div>
 
-    <!-- 6. Footer (Interactions & Mini-Map Button) -->
     <footer class="card-footer">
       <div class="interaction-group">
         <button
@@ -224,7 +211,6 @@ const cardStyle = computed(() => ({
     box-shadow 0.2s;
   border: 1px solid var(--border-secondary-color);
 
-  /* Color Coding Border - subtle indication */
   &::before {
     content: '';
     position: absolute;
@@ -243,7 +229,6 @@ const cardStyle = computed(() => ({
   }
 }
 
-/* --- Header --- */
 .card-header {
   display: flex;
   align-items: center;
@@ -301,11 +286,10 @@ const cardStyle = computed(() => ({
   }
 }
 
-/* --- Media Zone --- */
 .media-zone {
   position: relative;
   width: 100%;
-  aspect-ratio: 4/3; /* Standard aspect ratio */
+  aspect-ratio: 4/3;
   overflow: hidden;
 }
 
@@ -315,7 +299,7 @@ const cardStyle = computed(() => ({
   scroll-snap-type: x mandatory;
   width: 100%;
   height: 100%;
-  scrollbar-width: none; /* Hide scrollbar */
+  scrollbar-width: none;
   &::-webkit-scrollbar {
     display: none;
   }
@@ -334,7 +318,6 @@ const cardStyle = computed(() => ({
   height: 100%;
 }
 
-/* Smart Marks (Bubbles) */
 .smart-mark {
   position: absolute;
   transform: translate(-50%, -50%);
@@ -391,10 +374,9 @@ const cardStyle = computed(() => ({
   border-color: rgba(0, 0, 0, 0.8) transparent transparent transparent;
 }
 
-/* Pagination Dots */
 .media-dots {
   position: absolute;
-  bottom: 80px; /* Above the title */
+  bottom: 80px;
   left: 50%;
   transform: translateX(-50%);
   display: flex;
@@ -415,13 +397,12 @@ const cardStyle = computed(() => ({
   }
 }
 
-/* Info Overlay */
 .info-overlay {
   position: absolute;
   bottom: 0;
   left: 0;
   right: 0;
-  padding: 40px 16px 12px; /* Top padding for gradient */
+  padding: 40px 16px 12px;
   background: linear-gradient(to top, rgba(0, 0, 0, 0.8) 0%, rgba(0, 0, 0, 0) 100%);
   color: white;
   pointer-events: none;
@@ -446,7 +427,6 @@ const cardStyle = computed(() => ({
   filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.3));
 }
 
-/* --- Tags Row --- */
 .tags-actions-row {
   padding: 12px 16px 8px;
   border-bottom: 1px solid var(--border-secondary-color);
@@ -487,11 +467,10 @@ const cardStyle = computed(() => ({
   color: var(--fg-secondary-color);
 }
 
-/* --- Insight Block --- */
 .insight-block {
   margin: 12px 16px;
   padding: 12px;
-  background-color: rgba(var(--bg-accent-color-rgb), 0.3); /* Subtle accent tint */
+  background-color: rgba(var(--bg-accent-color-rgb), 0.3);
   border-radius: var(--r-m);
   display: flex;
   gap: 10px;
@@ -513,7 +492,6 @@ const cardStyle = computed(() => ({
   font-style: italic;
 }
 
-/* --- Footer --- */
 .card-footer {
   padding: 8px 16px 16px;
   display: flex;

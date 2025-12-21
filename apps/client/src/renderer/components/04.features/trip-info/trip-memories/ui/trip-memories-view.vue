@@ -21,18 +21,16 @@ import MemoriesEmpty from './state/memories-empty.vue'
 import MemoriesError from './state/memories-error.vue'
 import MemoriesSkeleton from './state/memories-skeleton.vue'
 
+const { mdAndUp } = useDisplay()
 const { ui, memories, plan: tripData } = useModuleStore(['ui', 'memories', 'plan'])
+const { open: openFileDialog, onChange, reset } = useFileDialog({ accept: '*', multiple: true })
+const fetchError = useRequestError(ETripMemoriesKeys.FETCH)
+
 const { areAllMemoryGroupsCollapsed, isViewMode, activeView } = storeToRefs(ui)
 const { memoriesForSelectedDay, getProcessingMemories, isLoadingMemories } = storeToRefs(memories)
 const { getActivitiesForSelectedDay, getSelectedDay } = storeToRefs(tripData)
-const { mdAndUp } = useDisplay()
 
-// --- File Upload Logic ---
 const dropZoneRef = ref<HTMLDivElement | null>(null)
-const { open: openFileDialog, onChange, reset } = useFileDialog({
-  accept: '*',
-  multiple: true,
-})
 
 const { isOverDropZone } = useDropZone(dropZoneRef, { onDrop })
 
@@ -47,15 +45,14 @@ function onDrop(files: File[] | null) {
 onChange((files) => {
   if (!files || files.length === 0)
     return
+  
   memories.enqueueFilesForUpload(Array.from(files))
+
   reset()
 })
 
-// --- Async State Logic ---
-const fetchError = useRequestError(ETripMemoriesKeys.FETCH)
 const isProcessing = computed(() => getProcessingMemories.value.length > 0)
 
-// Data is considered present if we have memories OR if we are currently processing uploads
 const memoriesData = computed(() => {
   if (memoriesForSelectedDay.value.length > 0 || isProcessing.value) {
     return memoriesForSelectedDay.value
@@ -63,7 +60,6 @@ const memoriesData = computed(() => {
   return null
 })
 
-// --- Timeline Groups Logic (for collapsing) ---
 const timelineGroups = computed(() => {
   const memoriesList = memoriesForSelectedDay.value
   if (memoriesList.length === 0)
@@ -131,14 +127,12 @@ function handleToggleAllMemories() {
   ui.toggleAllMemoryGroups(allMemoryGroupKeys.value)
 }
 
-// --- Full Screen Mode ---
 const isFullScreen = ref(false)
 
 function toggleFullScreen() {
   isFullScreen.value = !isFullScreen.value
 }
 
-// --- Modals State ---
 const isAddNoteModalVisible = ref(false)
 const newNoteText = ref('')
 const newNoteTime = shallowRef<Time | null>(null)
@@ -150,7 +144,6 @@ const newActivity = shallowReactive<{ title: string, time: Time | null, tag: EAc
   tag: null,
 })
 
-// --- Handlers ---
 function handleAddTextNote() {
   newNoteText.value = ''
   newNoteTime.value = new Time(12, 0)
@@ -297,7 +290,6 @@ function handleImport(activity: Activity) {
       </div>
     </div>
 
-    <!-- Modals -->
     <KitDialogWithClose
       v-model:visible="isAddNoteModalVisible"
       title="Добавить заметку"

@@ -1,7 +1,6 @@
 <script setup lang="ts">
 import type { Booking, BookingType } from '../../models/types'
 import { Icon } from '@iconify/vue'
-import { computed, onUnmounted, ref } from 'vue'
 import { KitBtn } from '~/components/01.kit/kit-btn'
 import { KitFileInput } from '~/components/01.kit/kit-file-input'
 import { KitInput } from '~/components/01.kit/kit-input'
@@ -116,7 +115,6 @@ onUnmounted(() => {
 
 <template>
   <div class="ai-creator-content">
-    <!-- UPLOAD STATE -->
     <div v-if="state === 'upload' || state === 'error'" class="upload-view">
       <p class="description">
         Выберите тип бронирования, прикрепите файл (билет, ваучер в .pdf, .png, .jpg) и добавьте заметки.
@@ -159,14 +157,12 @@ onUnmounted(() => {
       </div>
     </div>
 
-    <!-- LOADING STATE -->
     <div v-if="state === 'loading'" class="loading-view">
       <Icon icon="svg-spinners:3-dots-fade" />
       <p>Анализирую документ...</p>
       <span>Это может занять до 30 секунд.</span>
     </div>
 
-    <!-- PREVIEW STATE -->
     <div v-if="state === 'preview' && generatedBooking && previewCardComponent" class="preview-view">
       <p class="description">
         Проверьте и при необходимости исправьте данные, которые удалось распознать.

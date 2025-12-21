@@ -5,6 +5,7 @@ import { defineStore } from 'pinia'
 import { v4 as uuidv4 } from 'uuid'
 import { useTripPlanStore } from '~/components/04.features/trip-info/trip-plan'
 import { useAbortRequest, useRequest, useRequestStatus } from '~/plugins/request'
+import { getLocalDate } from '~/shared/lib/date-time'
 import { TripImagePlacement } from '~/shared/types/models/trip'
 
 export interface IProcessingMemory {
@@ -91,10 +92,7 @@ export const useTripMemoriesStore = defineStore('tripMemories', {
   },
 
   actions: {
-    /**
-     * Загружает воспоминания для указанного путешествия.
-     * @param tripId - ID путешествия.
-     */
+
     fetchMemories(tripId: string) {
       if (this.currentTripId === tripId && this.memories.length > 0)
         return
@@ -169,7 +167,14 @@ export const useTripMemoriesStore = defineStore('tripMemories', {
               currentItem.progress = progress
           }
 
-          const newImage = await db.files.uploadFileWithProgress(file, tripId, TripImagePlacement.MEMORIES, onProgress, signal)
+          const newImage = await db.files.uploadFileWithProgress(
+            file,
+            tripId,
+            'trip',
+            TripImagePlacement.MEMORIES,
+            onProgress,
+            signal,
+          )
 
           const selectedDay = tripPlanStore.getSelectedDay
           const getTimestamp = () => {
@@ -199,7 +204,7 @@ export const useTripMemoriesStore = defineStore('tripMemories', {
           this.processingMemories.delete(tempId)
           this._processUploadQueue()
         },
-        onError: (error) => {
+        onError: ({ error }) => {
           console.error(`Ошибка при загрузке (tempId: ${tempId}):`, error)
 
           const pItem = this.processingMemories.get(tempId)

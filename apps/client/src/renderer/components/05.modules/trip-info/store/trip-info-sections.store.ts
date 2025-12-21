@@ -119,7 +119,7 @@ export const useTripSectionsStore = defineStore('tripSections', {
             this.sections[index] = createdSection as TripSection
           }
         },
-        onError: (error) => {
+        onError: ({ error }) => {
           this.sections = this.sections.filter(s => s.id !== tempId)
           useToast().error(`Ошибка при создании раздела: ${error}`)
         },
@@ -142,7 +142,7 @@ export const useTripSectionsStore = defineStore('tripSections', {
           icon: section.icon,
           content: section.content,
         }),
-        onError: (error) => {
+        onError: ({ error }) => {
           this.sections[index] = originalSection // Откат
           useToast().error(`Ошибка при обновлении раздела: ${error}`)
         },
@@ -200,7 +200,7 @@ export const useTripSectionsStore = defineStore('tripSections', {
       await useRequest({
         key: `${ETripSectionsKeys.DELETE}:${sectionId}`,
         fn: db => db.tripSections.delete(sectionId),
-        onError: (error) => {
+        onError: ({ error }) => {
           this.sections.splice(index, 0, removedSection) // Откат
           useToast().error(`Ошибка при удалении раздела: ${error}`)
         },

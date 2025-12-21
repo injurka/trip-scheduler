@@ -1,280 +1,177 @@
 <script setup lang="ts">
+import type { MapBounds } from '../models/types'
 import type { MapMarker } from '~/components/01.kit/kit-map'
-import { Icon } from '@iconify/vue'
-import { ref } from 'vue'
-import { KitBtn } from '~/components/01.kit/kit-btn'
-import { KitDialogWithClose } from '~/components/01.kit/kit-dialog-with-close'
-import { KitInput } from '~/components/01.kit/kit-input'
-import { KitMap } from '~/components/01.kit/kit-map'
+import type { CreateMarkInput } from '~/shared/types/models/mark'
+import { storeToRefs } from 'pinia'
 import { useToast } from '~/shared/composables/use-toast'
+import { useActivityUrlState } from '../composables/use-activity-url-state'
+import { useActivityMapStore } from '../store/activity-map.store'
+import ActivityCreateDialog from './dialogs/activity-create-dialog.vue'
+import ActivityListView from './list/activity-list-view.vue'
+import ActivityMapView from './map/activity-map-view.vue'
 
-// Состояние
-const markers = ref<MapMarker[]>([])
-const isDialogOpen = ref(false)
+export interface ActivityItem {
+  id: string
+  title: string
+  description: string
+  date: string
+  coords: [number, number]
+  duration: string
+}
+
+const emit = defineEmits<{
+  (e: 'modeChange', mode: 'list' | 'map'): void
+}>()
+
 const toast = useToast()
+const store = useActivityMapStore()
 
-// Форма
-const form = ref({
-  title: '',
-  description: '',
-  duration: '',
-  coords: null as [number, number] | null,
+const { marks, isCreating } = storeToRefs(store)
+
+const viewMode = ref<'list' | 'map'>('list')
+const isCreateDialogOpen = ref(false)
+const createFormCoords = ref<[number, number] | null>(null)
+
+const {
+  dateRange,
+  mapCenterView,
+  mapZoomView,
+  setMapPosition,
+} = useActivityUrlState({
+  defaultCenter: [37.6176, 55.7558],
+  defaultZoom: 10,
+  viewMode,
 })
 
-// Обработка клика по карте
+const activities = computed<ActivityItem[]>(() => {
+  return marks.value.map(mark => ({
+    id: String(mark.id),
+    title: mark.markName,
+    description: mark.additionalInfo || '',
+    date: new Date(mark.endAt).toLocaleDateString(),
+    coords: mark.geom.coordinates,
+    duration: '',
+  }))
+})
+
+const mapMarkers = computed<MapMarker[]>(() => {
+  return marks.value.map(mark => ({
+    id: String(mark.id),
+    coords: { lon: mark.geom.coordinates[0], lat: mark.geom.coordinates[1] },
+    payload: mark,
+  }))
+})
+
+function handleModeChange(newMode: 'list' | 'map') {
+  viewMode.value = newMode
+}
+
 function handleMapClick(coords: [number, number]) {
-  form.value.coords = coords
-  form.value.title = ''
-  form.value.description = ''
-  form.value.duration = ''
-  isDialogOpen.value = true
+  if (viewMode.value === 'map') {
+    createFormCoords.value = coords
+    isCreateDialogOpen.value = true
+  }
 }
 
-// Сохранение активности
-function saveActivity() {
-  if (!form.value.title || !form.value.coords) {
-    toast.error('Укажите название активности')
+async function handleCreate(data: any) {
+  if (!createFormCoords.value && !data.coords)
     return
+
+  const coords = data.coords || createFormCoords.value
+
+  const input: CreateMarkInput = {
+    markName: data.title,
+    additionalInfo: data.description,
+    duration: Number.parseInt(data.duration) || 24,
+    latitude: coords[1],
+    longitude: coords[0],
+    categoryId: 1,
+    startAt: new Date().toISOString(),
   }
 
-  const newMarker: MapMarker = {
-    id: crypto.randomUUID(),
-    coords: {
-      lon: form.value.coords[0],
-      lat: form.value.coords[1],
-    },
-    // Можно использовать иконку или изображение, если есть
-    payload: {
-      title: form.value.title,
-      description: form.value.description,
-      duration: form.value.duration,
-    },
+  try {
+    await store.createMark(input)
+    isCreateDialogOpen.value = false
+    createFormCoords.value = null
+    toast.success('Активность добавлена')
   }
-
-  markers.value.push(newMarker)
-  isDialogOpen.value = false
-  toast.success('Активность добавлена на карту')
+  catch {
+    toast.error('Ошибка при создании активности')
+  }
 }
 
-// Удаление маркера (опционально, если нужно)
-function removeMarker(id: string) {
-  markers.value = markers.value.filter(m => m.id !== id)
+async function handleDelete(id: string) {
+  toast.warn(`В разработке ${id}`)
 }
+
+function handleMapBoundsChange(bounds: MapBounds) {
+  setMapPosition(
+    bounds.screen.center.lat,
+    bounds.screen.center.lon,
+    bounds.zoomlevel,
+  )
+
+  store.fetchMarks(bounds)
+}
+
+function handleFocusItem(coords: [number, number]) {
+  // Focus on the point and zoom in slightly
+  setMapPosition(coords[1], coords[0], 14)
+}
+
+watch(
+  dateRange,
+  (newRange) => {
+    store.dateRange = newRange
+    store.fetchMarks()
+  },
+  { deep: true, immediate: true },
+)
+
+watch(viewMode, (newMode) => {
+  emit('modeChange', newMode)
+}, { immediate: true })
+
+onMounted(() => {
+  store.fetchMarks()
+})
 </script>
 
 <template>
-  <div class="activity-map-container">
-    <div class="map-header">
-      <h2>Карта активностей</h2>
-      <p>Кликните на карту, чтобы отметить, чем вы планируете заняться.</p>
-    </div>
+  <div class="activity-module">
+    <ActivityListView
+      v-if="viewMode === 'list'"
+      v-model:date-range="dateRange"
+      :activities="activities"
+      @delete="handleDelete"
+      @switch-to-map="handleModeChange('map')"
+    />
 
-    <div class="map-wrapper">
-      <KitMap
-        :center="[37.6176, 55.7558]"
-        :zoom="12"
-        height="100%"
-        width="100%"
-        :markers="markers"
-        @click="handleMapClick"
-      />
+    <ActivityMapView
+      v-else
+      v-model:date-range="dateRange"
+      :center="mapCenterView"
+      :zoom="mapZoomView"
+      :activities="activities"
+      :markers="mapMarkers"
+      @switch-to-list="handleModeChange('list')"
+      @map-click="handleMapClick"
+      @bounds-change="handleMapBoundsChange"
+      @focus-item="handleFocusItem"
+    />
 
-      <!-- Список активностей справа (или снизу на мобильных) -->
-      <div v-if="markers.length > 0" class="activities-sidebar">
-        <h3>Ваши планы</h3>
-        <div class="activities-list">
-          <div v-for="marker in markers" :key="marker.id" class="activity-card">
-            <div class="card-header">
-              <span class="activity-title">{{ marker.payload.title }}</span>
-              <button class="delete-btn" @click="removeMarker(marker.id)">
-                <Icon icon="mdi:close" />
-              </button>
-            </div>
-            <div v-if="marker.payload.duration" class="activity-meta">
-              <Icon icon="mdi:clock-outline" />
-              <span>{{ marker.payload.duration }}</span>
-            </div>
-            <p v-if="marker.payload.description" class="activity-desc">
-              {{ marker.payload.description }}
-            </p>
-          </div>
-        </div>
-      </div>
-    </div>
-
-    <!-- Диалог добавления -->
-    <KitDialogWithClose
-      v-model:visible="isDialogOpen"
-      title="Новая активность"
-      icon="mdi:map-marker-plus"
-      :max-width="400"
-    >
-      <div class="form-content">
-        <KitInput
-          v-model="form.title"
-          label="Что будем делать?"
-          placeholder="Например: Отдых в парке"
-          required
-        />
-
-        <KitInput
-          v-model="form.duration"
-          label="Длительность"
-          placeholder="Например: 2 часа"
-          icon="mdi:clock-time-four-outline"
-        />
-
-        <KitInput
-          v-model="form.description"
-          type="textarea"
-          label="Комментарий"
-          placeholder="Подробности..."
-        />
-
-        <div class="form-actions">
-          <KitBtn variant="text" @click="isDialogOpen = false">
-            Отмена
-          </KitBtn>
-          <KitBtn @click="saveActivity">
-            Добавить метку
-          </KitBtn>
-        </div>
-      </div>
-    </KitDialogWithClose>
+    <ActivityCreateDialog
+      v-model:visible="isCreateDialogOpen"
+      :initial-coords="createFormCoords"
+      :is-loading="isCreating"
+      @create="handleCreate"
+    />
   </div>
 </template>
 
-<style scoped lang="scss">
-.activity-map-container {
-  display: flex;
-  flex-direction: column;
+<style scoped>
+.activity-module {
+  width: 100%;
   height: 100%;
-  gap: 16px;
-}
-
-.map-header {
-  h2 {
-    margin: 0 0 4px 0;
-    color: var(--fg-primary-color);
-  }
-  p {
-    margin: 0;
-    color: var(--fg-secondary-color);
-    font-size: 0.9rem;
-  }
-}
-
-.map-wrapper {
-  flex-grow: 1;
-  position: relative;
-  display: flex;
-  gap: 16px;
-  overflow: hidden;
-  border-radius: var(--r-l);
-  border: 1px solid var(--border-secondary-color);
-
-  :deep(.kit-map-wrapper) {
-    flex-grow: 1;
-    height: 100% !important;
-  }
-}
-
-.activities-sidebar {
-  width: 300px;
-  background-color: var(--bg-secondary-color);
-  border-left: 1px solid var(--border-secondary-color);
-  padding: 16px;
-  display: flex;
-  flex-direction: column;
-  overflow-y: auto;
-  flex-shrink: 0;
-
-  h3 {
-    margin: 0 0 16px 0;
-    font-size: 1.1rem;
-    color: var(--fg-primary-color);
-  }
-}
-
-.activities-list {
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
-}
-
-.activity-card {
-  background-color: var(--bg-tertiary-color);
-  padding: 12px;
-  border-radius: var(--r-m);
-  border: 1px solid var(--border-secondary-color);
-  transition: all 0.2s;
-
-  &:hover {
-    border-color: var(--border-primary-color);
-    transform: translateY(-2px);
-  }
-}
-
-.card-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: flex-start;
-  margin-bottom: 4px;
-}
-
-.activity-title {
-  font-weight: 600;
-  color: var(--fg-primary-color);
-}
-
-.delete-btn {
-  color: var(--fg-tertiary-color);
-  transition: color 0.2s;
-  cursor: pointer;
-  &:hover {
-    color: var(--fg-error-color);
-  }
-}
-
-.activity-meta {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  font-size: 0.85rem;
-  color: var(--fg-accent-color);
-  margin-bottom: 4px;
-}
-
-.activity-desc {
-  font-size: 0.9rem;
-  color: var(--fg-secondary-color);
-  margin: 0;
-  line-height: 1.4;
-}
-
-.form-content {
-  display: flex;
-  flex-direction: column;
-  gap: 16px;
-  padding-top: 8px;
-}
-
-.form-actions {
-  display: flex;
-  justify-content: flex-end;
-  gap: 12px;
-  margin-top: 8px;
-}
-
-@include media-down(md) {
-  .map-wrapper {
-    flex-direction: column;
-  }
-  .activities-sidebar {
-    width: 100%;
-    height: 250px;
-    border-left: none;
-    border-top: 1px solid var(--border-secondary-color);
-  }
 }
 </style>

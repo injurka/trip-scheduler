@@ -23,7 +23,6 @@ function handleTabChange(tab: 'explore' | 'saved') {
 
 <template>
   <div class="filters-container">
-    <!-- 1. Tabs & Search Row -->
     <div class="top-row">
       <div class="tabs-switch">
         <button
@@ -52,7 +51,6 @@ function handleTabChange(tab: 'explore' | 'saved') {
       </div>
     </div>
 
-    <!-- 2. Categories Scroll -->
     <div class="categories-scroll">
       <button
         v-for="cat in categories"

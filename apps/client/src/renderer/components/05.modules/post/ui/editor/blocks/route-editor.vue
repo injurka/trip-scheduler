@@ -32,12 +32,10 @@ function swapPoints() {
 <template>
   <div class="route-editor">
     <div class="route-line">
-      <!-- Transport Toggle -->
       <button class="transport-btn" :title="block.transport" @click="toggleTransport">
         <Icon :icon="transportIcons[block.transport]" />
       </button>
 
-      <!-- Points -->
       <div class="points-inputs">
         <div class="point-row">
           <div class="dot start" />
@@ -62,13 +60,11 @@ function swapPoints() {
         </div>
       </div>
 
-      <!-- Swap Action -->
       <button class="swap-btn" title="Поменять местами" @click="swapPoints">
         <Icon icon="mdi:swap-vertical" />
       </button>
     </div>
 
-    <!-- Meta Info (Distance/Duration) -->
     <div class="meta-inputs">
       <div class="meta-field">
         <Icon icon="mdi:map-marker-distance" />

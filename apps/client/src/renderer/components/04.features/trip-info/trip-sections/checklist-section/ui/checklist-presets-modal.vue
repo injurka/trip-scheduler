@@ -1,7 +1,6 @@
 <script setup lang="ts">
 import type { ChecklistPreset, ChecklistTab } from '../models/types'
 import { Icon } from '@iconify/vue'
-import { computed, ref } from 'vue'
 import { KitBtn } from '~/components/01.kit/kit-btn'
 import { KitDialogWithClose } from '~/components/01.kit/kit-dialog-with-close'
 import { HARDCODED_PRESETS } from '../constant'
@@ -105,7 +104,6 @@ function selectPreset(preset: ChecklistPreset) {
           </div>
         </div>
 
-        <!-- Секция предпросмотра -->
         <div v-if="expandedPresetId === preset.id" class="preset-preview">
           <div v-for="(group, idx) in preset.groups" :key="idx" class="preview-group">
             <div class="preview-group-header">

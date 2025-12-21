@@ -2,7 +2,6 @@
 import type { HighlightStatus } from '../../composables/use-booking-section'
 import type { Booking, TrainData } from '../../models/types'
 import { Icon } from '@iconify/vue'
-import { computed, ref } from 'vue'
 import { KitBtn } from '~/components/01.kit/kit-btn'
 import BookingCardWrapper from '../shared/booking-card-wrapper.vue'
 import BookingDateTimeField from '../shared/booking-date-time-field.vue'

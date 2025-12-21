@@ -3,7 +3,6 @@ import type { ImageViewerImage } from '~/components/01.kit/kit-image-viewer'
 import type { ActivitySectionGallery } from '~/shared/types/models/activity'
 import type { TripImage } from '~/shared/types/models/trip'
 import { Icon } from '@iconify/vue'
-import { computed, onMounted, ref } from 'vue'
 import { useRoute } from 'vue-router'
 import { KitBtn } from '~/components/01.kit/kit-btn'
 import { KitImage } from '~/components/01.kit/kit-image'
@@ -169,7 +168,6 @@ function openViewer(index: number) {
       :retry-handler="loadImages"
       class="gallery-state-wrapper"
     >
-      <!-- LOADING STATE -->
       <template #loading>
         <div class="gallery-container gallery-skeleton" :class="galleryClass">
           <div v-for="i in 3" :key="i" class="skeleton-wrapper">
@@ -178,7 +176,6 @@ function openViewer(index: number) {
         </div>
       </template>
 
-      <!-- SUCCESS STATE (Images grid) -->
       <template #success>
         <div class="gallery-container" :class="galleryClass">
           <div
@@ -223,7 +220,6 @@ function openViewer(index: number) {
         </div>
       </template>
 
-      <!-- EMPTY STATE -->
       <template #empty>
         <div class="empty-state">
           <Icon icon="mdi:image-multiple-outline" class="empty-icon" />

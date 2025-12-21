@@ -1,7 +1,6 @@
 <script setup lang="ts">
 import { Icon } from '@iconify/vue'
 import { CheckboxIndicator, CheckboxRoot } from 'reka-ui'
-import { computed } from 'vue'
 
 type CheckboxColor = 'accent' | 'primary' | 'secondary' | 'tertiary' | 'success' | 'warning' | 'error'
 
@@ -17,12 +16,9 @@ const props = withDefaults(defineProps<Props>(), {
 
 const model = defineModel<boolean>()
 
-const id = `kit-checkbox-${Math.random().toString(36).substring(2, 9)}`
-
-/**
- * Генерирует класс для цветового оформления.
- */
 const colorClass = computed(() => `is-color-${props.color}`)
+
+const id = `kit-checkbox-${Math.random().toString(36).substring(2, 9)}`
 </script>
 
 <template>
@@ -58,15 +54,13 @@ const colorClass = computed(() => `is-color-${props.color}`)
   user-select: none;
   transition: opacity 0.2s ease-out;
 
-  // Стиль для полностью отключенного состояния
   &.is-disabled {
     cursor: not-allowed;
     opacity: 0.6;
   }
 
-  // Стиль для состояния "только для чтения"
   &.is-readonly {
-    pointer-events: none; // Блокируем любые события мыши (клики, наведения)
+    pointer-events: none;
   }
 }
 
@@ -87,7 +81,6 @@ const colorClass = computed(() => `is-color-${props.color}`)
     transform: scale(1.05);
   }
 
-  // --- Стили для разных цветов ---
   &.is-color-accent {
     &:hover:not([data-disabled]) {
       border-color: var(--border-accent-color);

@@ -22,7 +22,6 @@ const failedUploads = computed(() => props.processingMemories.filter(m => m.stat
 
 <template>
   <div class="upload-indicator-wrapper">
-    <!-- Текущая загрузка -->
     <div v-if="currentUpload" class="current-upload-section">
       <UploadingProgressCard
         :memory="currentUpload"
@@ -30,7 +29,6 @@ const failedUploads = computed(() => props.processingMemories.filter(m => m.stat
       />
     </div>
 
-    <!-- Очередь -->
     <div v-if="queuedUploads.length > 0" class="queued-section">
       <div class="queued-header">
         <Icon icon="mdi:timer-outline" />
@@ -46,7 +44,6 @@ const failedUploads = computed(() => props.processingMemories.filter(m => m.stat
       </div>
     </div>
 
-    <!-- Ошибки -->
     <div v-if="failedUploads.length > 0" class="failed-section">
       <div class="failed-header">
         <Icon icon="mdi:alert-circle-outline" />

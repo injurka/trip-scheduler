@@ -1,6 +1,5 @@
 <script setup lang="ts">
 import { AspectRatio } from 'reka-ui'
-import { computed, nextTick, onBeforeUnmount, readonly, ref, watch } from 'vue'
 import smthWrongImage from '~/assets/images/smth-wrong.png'
 import { KitSkeleton } from '~/components/01.kit/kit-skeleton'
 import { resolveApiUrl } from '~/shared/lib/url'
@@ -185,7 +184,6 @@ defineExpose({
 <template>
   <component :is="aspectRatio ? AspectRatio : 'div'" :ratio="aspectRatio" class="kit-image-wrapper">
     <div class="kit-image-container">
-      <!-- Слот для лоудера с Skeleton по умолчанию -->
       <transition name="faded">
         <div v-if="isLoading" class="placeholder-wrapper">
           <slot name="loader">
@@ -194,7 +192,6 @@ defineExpose({
         </div>
       </transition>
 
-      <!-- Слот для ошибки с заглушкой по умолчанию -->
       <transition name="faded">
         <div v-if="hasError" class="placeholder-wrapper">
           <slot name="error">
@@ -205,9 +202,7 @@ defineExpose({
         </div>
       </transition>
 
-      <!-- Адаптивное изображение с помощью <picture> -->
       <picture v-if="src">
-        <!-- Источники для разных размеров экрана. Браузер выберет первый подходящий. -->
         <source
           v-if="resolvedVariants.large"
           :srcset="resolvedVariants.large"
@@ -221,7 +216,6 @@ defineExpose({
           type="image/webp"
         >
 
-        <!-- Фоллбэк: оригинальное изображение для старых браузеров или если вариантов нет -->
         <img
           ref="imageRef"
           :src="resolvedSrc"

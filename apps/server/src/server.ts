@@ -44,7 +44,7 @@ console.log(`📍 Server running at http://${host}:${port}`)
 process.on('uncaughtException', (err, origin) => {
   console.error(`[Uncaught Exception] Origin: ${origin}, Error:`, err)
   uncaughtExceptionsCounter.inc()
-  // process.exit(1);
+  process.exit(1)
 })
 
 process.on('unhandledRejection', (reason, promise) => {

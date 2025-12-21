@@ -8,7 +8,6 @@ import type {
 } from '../models/types'
 import { useDebounceFn } from '@vueuse/core'
 import { v4 as uuidv4 } from 'uuid'
-import { computed, ref, watch } from 'vue'
 
 interface UseChecklistSectionProps {
   section: {

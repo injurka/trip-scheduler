@@ -161,7 +161,6 @@ onMounted(() => {
       </template>
 
       <template #success="{ data }">
-        <!-- Grid View -->
         <div v-if="viewMode === 'grid'" class="files-grid">
           <div v-for="file in paginatedFiles" :key="file.id" class="file-card">
             <div class="file-card-image">
@@ -177,7 +176,6 @@ onMounted(() => {
           </div>
         </div>
 
-        <!-- List View -->
         <div v-if="viewMode === 'list'" class="files-list-wrapper">
           <div class="files-list">
             <div class="list-header-row">
@@ -221,7 +219,6 @@ onMounted(() => {
           </div>
         </div>
 
-        <!-- Pagination Controls -->
         <div v-if="data.length > 0" class="pagination-controls">
           <KitPagination
             :current-page="currentPage"

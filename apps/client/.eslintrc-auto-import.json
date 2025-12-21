@@ -124,6 +124,7 @@
     "resolveApiUrl": true,
     "resolveComponent": true,
     "resolveRef": true,
+    "router": true,
     "setActivePinia": true,
     "setMapStoreSuffix": true,
     "shallowReactive": true,

@@ -50,6 +50,10 @@ export const blogService = {
     return await blogRepository.update(input.id, input.data)
   },
 
+  async updateCoverImage(id: string, imageUrl: string) {
+    return await blogRepository.update(id, { coverImage: imageUrl })
+  },
+
   async delete(id: string, userRole: string) {
     if (userRole !== 'admin') {
       throw createTRPCError('FORBIDDEN', 'Только администраторы могут удалять новости.')

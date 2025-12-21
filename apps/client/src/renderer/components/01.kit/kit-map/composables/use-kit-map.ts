@@ -39,75 +39,98 @@ export function useKitMap() {
     zIndex: 10,
   })
 
-  const initMap = async (container: HTMLElement, popupEl: HTMLElement, options: KitMapOptions) => {
-    if (!container)
-      return
-    await nextTick()
+  const initMap = (container: HTMLElement, popupEl: HTMLElement, options: KitMapOptions): Promise<void> => {
+    return new Promise((resolve) => {
+      if (!container) {
+        resolve()
+        return
+      }
 
-    try {
-      const popup = new Overlay({
-        element: popupEl,
-        positioning: 'bottom-center',
-        offset: [0, -45],
-        stopEvent: false,
-        autoPan: options.autoPan === false ? false : { animation: { duration: 250 } },
-      })
+      const createMap = async () => {
+        try {
+          const popup = new Overlay({
+            element: popupEl,
+            positioning: 'bottom-center',
+            offset: [0, -45],
+            stopEvent: false,
+            autoPan: options.autoPan === false ? false : { animation: { duration: 250 } },
+          })
 
-      const initialSource = options.initialSource || new OSM()
+          const initialSource = options.initialSource || new OSM()
 
-      tileLayerRef.value = new TileLayer({
-        source: initialSource,
-      })
+          tileLayerRef.value = new TileLayer({
+            source: initialSource,
+          })
 
-      mapInstance.value = new Map({
-        target: container,
-        layers: [tileLayerRef.value, vectorLayer],
-        view: new View({
-          center: fromLonLat(options.center),
-          zoom: options.zoom || 12,
-        }),
-        controls: [],
-        overlays: [popup],
-      })
+          mapInstance.value = new Map({
+            target: container,
+            layers: [tileLayerRef.value, vectorLayer],
+            view: new View({
+              center: fromLonLat(options.center),
+              zoom: options.zoom || 12,
+            }),
+            controls: [],
+            overlays: [popup],
+          })
 
-      mapInstance.value.on('pointermove', (evt) => {
-        if (evt.dragging) {
-          popup.setPosition(undefined)
-          return
+          mapInstance.value.on('pointermove', (evt) => {
+            if (evt.dragging) {
+              popup.setPosition(undefined)
+              return
+            }
+            const pixel = mapInstance.value?.getEventPixel(evt.originalEvent)
+            if (!pixel)
+              return
+
+            const feature = mapInstance.value?.forEachFeatureAtPixel(pixel, f => f)
+
+            if (!feature) {
+              popup.setPosition(undefined)
+              return
+            }
+
+            const imageUrl = (feature as FeatureLike).get('imageUrl')
+            const resolvedUrl = resolveApiUrl(imageUrl)
+
+            if (resolvedUrl && popupEl) {
+              popupEl.innerHTML = `<img src="${resolvedUrl}" style="width:200px; height:120px; object-fit: cover; border-radius:4px;" />`
+              const geometry = (feature as Feature).getGeometry()
+              if (geometry?.getType() === 'Point') {
+                popup.setPosition((geometry as Point).getCoordinates())
+              }
+            }
+          })
+
+          isMapReady.value = true
+          resolve()
         }
-        const pixel = mapInstance.value?.getEventPixel(evt.originalEvent)
-        if (!pixel)
-          return
-
-        const feature = mapInstance.value?.forEachFeatureAtPixel(pixel, f => f)
-
-        if (!feature) {
-          popup.setPosition(undefined)
-          return
+        catch (error) {
+          console.error('Failed to initialize map:', error)
+          resolve()
         }
+      }
 
-        const imageUrl = (feature as FeatureLike).get('imageUrl')
-        const resolvedUrl = resolveApiUrl(imageUrl)
-
-        if (resolvedUrl && popupEl) {
-          popupEl.innerHTML = `<img src="${resolvedUrl}" style="width:200px; height:120px; object-fit: cover; border-radius:4px;" />`
-          const geometry = (feature as Feature).getGeometry()
-          if (geometry?.getType() === 'Point') {
-            popup.setPosition((geometry as Point).getCoordinates())
+      if (container.clientWidth > 0 && container.clientHeight > 0) {
+        createMap()
+        resizeObserver = new ResizeObserver(() => {
+          mapInstance.value?.updateSize()
+        })
+        resizeObserver.observe(container)
+      }
+      else {
+        resizeObserver = new ResizeObserver(() => {
+          if (container.clientWidth > 0 && container.clientHeight > 0) {
+            if (!mapInstance.value) {
+              createMap()
+            }
+            else {
+              mapInstance.value.updateSize()
+            }
           }
-        }
-      })
-
-      isMapReady.value = true
-
-      resizeObserver = new ResizeObserver(() => {
-        mapInstance.value?.updateSize()
-      })
-      resizeObserver.observe(container)
-    }
-    catch (error) {
-      console.error('Failed to initialize map:', error)
-    }
+        })
+        resizeObserver.observe(container)
+      }
+    })
   }
 
   const setTileSource = (source: TileSource) => {

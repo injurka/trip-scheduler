@@ -3,6 +3,7 @@ import { protectedProcedure, publicProcedure } from '~/lib/trpc'
 import {
   DeleteImageInputSchema,
   GetImageMetadataInputSchema,
+  GetImagesByEntityInputSchema,
   GetImagesByTripIdInputSchema,
   TripImageSchema,
 } from './image.schemas'
@@ -22,6 +23,21 @@ export const imageProcedures = {
     .output(z.array(TripImageSchema))
     .query(async ({ input }) => {
       return imageService.getByTripId(input.tripId, input.placement)
+    }),
+
+  listByEntity: publicProcedure
+    .meta({
+      openapi: {
+        method: 'GET',
+        path: '/images/list',
+        tags: ['Images'],
+        summary: 'Получить изображения по сущности',
+      },
+    })
+    .input(GetImagesByEntityInputSchema)
+    .output(z.array(TripImageSchema))
+    .query(async ({ input }) => {
+      return imageService.getByEntity(input.entityId, input.entityType, input.placement)
     }),
 
   getAll: protectedProcedure

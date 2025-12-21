@@ -1,6 +1,7 @@
 import z from 'zod'
 import { protectedProcedure, publicProcedure } from '~/lib/trpc'
 import {
+  AddParticipantInputSchema,
   CreateTripInputSchema,
   GetTripByIdInputSchema,
   ListTripsByUserInputSchema,
@@ -131,6 +132,22 @@ export const tripProcedures = {
     .output(TripSchema)
     .mutation(async ({ input, ctx }) => {
       return tripService.update(input.id, input.details, ctx.user.id, ctx.user.role)
+    }),
+
+  addParticipant: protectedProcedure
+    .meta({
+      openapi: {
+        method: 'POST',
+        path: '/trips/{tripId}/participants',
+        tags: ['Trips'],
+        summary: 'Добавить участника в путешествие по email',
+        protect: true,
+      },
+    })
+    .input(AddParticipantInputSchema)
+    .output(z.void())
+    .mutation(async ({ input, ctx }) => {
+      return tripService.addParticipant(input.tripId, input.email, ctx.user.id)
     }),
 
   delete: protectedProcedure

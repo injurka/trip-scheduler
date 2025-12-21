@@ -4,7 +4,6 @@ import { Crepe } from '@milkdown/crepe'
 import { editorViewCtx, editorViewOptionsCtx, parserCtx } from '@milkdown/kit/core'
 import { listener, listenerCtx } from '@milkdown/kit/plugin/listener'
 import { Milkdown, useEditor } from '@milkdown/vue'
-import { onBeforeUnmount, shallowRef, watch } from 'vue'
 import '@milkdown/crepe/theme/common/style.css'
 
 interface Props {

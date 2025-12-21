@@ -1,5 +1,4 @@
 <script setup lang="ts">
-import { computed } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { PostDetailsView } from '~/components/05.modules/post'
 import { usePostStore } from '~/components/05.modules/post/store/post.store'

@@ -114,7 +114,6 @@ provide(TripsHubKey, tripsHub)
       </KitBtn>
     </div>
 
-    <!-- Блок активного путешествия -->
     <Transition name="slide-fade">
       <div v-if="tripsHub.currentActiveTrip.value && currentTab === 'my'" class="current-trip-section">
         <h3 class="current-trip-label">
@@ -145,7 +144,6 @@ provide(TripsHubKey, tripsHub)
         />
       </div>
 
-      <!-- ... filters ... -->
       <Transition name="slide-fade">
         <div v-if="tripsHub.isFiltersOpen.value">
           <KitDivider class="advanced-filters-divider">
@@ -188,7 +186,6 @@ provide(TripsHubKey, tripsHub)
         </div>
       </Transition>
 
-      <!-- Mobile Tab Info Block -->
       <div v-if="smAndDown && currentTab" class="mobile-tab-info">
         <KitDivider>
           <span class="mobile-tab-label">{{ tabLabel?.label }}</span>

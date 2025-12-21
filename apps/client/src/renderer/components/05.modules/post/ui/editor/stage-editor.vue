@@ -53,7 +53,6 @@ function handleAddBlock(type: TimelineBlockType) {
       </button>
     </div>
 
-    <!-- Blocks List -->
     <div class="blocks-container">
       <draggable
         v-model="blocksModel"
@@ -68,9 +67,7 @@ function handleAddBlock(type: TimelineBlockType) {
               <Icon icon="mdi:drag-horizontal" />
             </div>
 
-            <!-- Dynamic Block Content Editors -->
             <div class="block-content">
-              <!-- TEXT -->
               <template v-if="block.type === 'text'">
                 <KitInlineMdEditorWrapper
                   :model-value="block.content"
@@ -79,7 +76,6 @@ function handleAddBlock(type: TimelineBlockType) {
                 />
               </template>
 
-              <!-- GALLERY -->
               <template v-if="block.type === 'gallery'">
                 <GalleryEditor
                   :images="block.images"
@@ -94,7 +90,6 @@ function handleAddBlock(type: TimelineBlockType) {
                 />
               </template>
 
-              <!-- LOCATION -->
               <template v-if="block.type === 'location'">
                 <LocationEditor
                   :block="block"
@@ -102,7 +97,6 @@ function handleAddBlock(type: TimelineBlockType) {
                 />
               </template>
 
-              <!-- ROUTE -->
               <template v-if="block.type === 'route'">
                 <RouteEditor
                   :block="block"
@@ -177,7 +171,6 @@ function handleAddBlock(type: TimelineBlockType) {
   gap: 8px;
 }
 
-/* Block Styles */
 .block-item {
   display: flex;
   align-items: flex-start;

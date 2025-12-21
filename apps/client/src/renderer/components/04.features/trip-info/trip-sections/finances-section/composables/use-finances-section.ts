@@ -1,7 +1,6 @@
 import type { Category, FinancesSectionContent, FinancesSettings, Transaction } from '../models/types'
 import { useDebounceFn } from '@vueuse/core'
 import { v4 as uuidv4 } from 'uuid'
-import { computed, ref, watch } from 'vue'
 
 const DEFAULT_CATEGORIES: Category[] = [
   { id: 'cat-food', name: 'Еда и напитки', icon: 'mdi:food-fork-drink', isDefault: true },

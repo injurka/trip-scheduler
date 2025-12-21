@@ -1,6 +1,5 @@
 <script setup lang="ts">
 import { Icon } from '@iconify/vue'
-import { onMounted } from 'vue'
 import { KitBtn } from '~/components/01.kit/kit-btn'
 import { KitDivider } from '~/components/01.kit/kit-divider'
 import { AsyncStateWrapper } from '~/components/02.shared/async-state-wrapper'
@@ -134,14 +133,12 @@ onMounted(() => {
                 </KitBtn>
                 <KitBtn v-else color="primary" style="width: 100%;" :disabled="plan.isDeveloping">
                   Лень делать
-                  <!-- Перейти на {{ plan.name }} -->
                 </KitBtn>
               </div>
             </div>
           </div>
         </template>
         <template #loading>
-          <!-- Можно добавить скелетон для планов -->
           <div class="plans-grid">
             <div v-for="i in 3" :key="i" class="plan-card" />
           </div>

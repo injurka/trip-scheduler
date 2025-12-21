@@ -2,7 +2,6 @@
 import type { ChecklistItem, ChecklistPriority } from '../models/types'
 import { Icon } from '@iconify/vue'
 import { onClickOutside } from '@vueuse/core'
-import { ref } from 'vue'
 import { KitCheckbox } from '~/components/01.kit/kit-checkbox'
 import { KitEditable } from '~/components/01.kit/kit-editable'
 
@@ -85,7 +84,6 @@ function handleLinkUpdate(value: string) {
             <Icon icon="mdi:text-box-outline" />
           </button>
 
-          <!-- Priority Picker -->
           <div v-if="!readonly" class="priority-picker-wrapper">
             <button
               class="action-btn priority-btn"
@@ -124,7 +122,6 @@ function handleLinkUpdate(value: string) {
         v-if="item.link || isEditingLink || item.description || isEditingDescription"
         class="item-details-container"
       >
-        <!-- Блок для ссылки -->
         <div v-if="item.link || isEditingLink" class="detail-block">
           <div class="icon-wrapper">
             <Icon icon="mdi:link-variant" class="detail-icon" />
@@ -140,7 +137,6 @@ function handleLinkUpdate(value: string) {
           <a v-else :href="item.link" target="_blank" rel="noopener noreferrer" class="detail-link">{{ item.link }}</a>
         </div>
 
-        <!-- Блок для заметки -->
         <div v-if="item.description || isEditingDescription" class="detail-block">
           <div class="icon-wrapper">
             <Icon icon="mdi:text-box-outline" class="detail-icon" width="14" height="14" />

@@ -2,7 +2,6 @@
 import type { ViewSwitcherItem } from '../models/types'
 import { Icon } from '@iconify/vue'
 import { useResizeObserver } from '@vueuse/core'
-import { nextTick, onMounted, ref, watch } from 'vue'
 
 const props = withDefaults(defineProps<{
   items: ViewSwitcherItem<T>[]

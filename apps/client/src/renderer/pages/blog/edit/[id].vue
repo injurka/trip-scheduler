@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import type { CreateBlogPostInput } from '~/shared/types/models/blog'
 import { BlogEditor } from '~/components/05.modules/blog'
 import { useBlogStore } from '~/components/05.modules/blog/store/blog.store'
 import { AppRouteNames } from '~/shared/constants/routes'
@@ -9,22 +10,18 @@ const store = useBlogStore()
 const toast = useToast()
 
 const id = route.params.id as string
-const form = ref<any>({})
-
-onMounted(async () => {
-  await store.fetchById(id)
-  if (store.currentPost) {
-    form.value = JSON.parse(JSON.stringify(store.currentPost))
-  }
-  else {
-    toast.error('Статья не найдена')
-    router.push({ name: AppRouteNames.BlogList })
-  }
-})
+const form = ref<CreateBlogPostInput>({} as CreateBlogPostInput)
 
 async function handleSave() {
+  if (!form.value)
+    return
+
   try {
-    await store.updatePost({ id, ...form.value })
+    await store.updatePost({
+      id,
+      data: form.value,
+    })
+
     toast.success('Статья обновлена')
     router.push({ name: AppRouteNames.BlogArticle, params: { slug: form.value.slug } })
   }
@@ -36,6 +33,18 @@ async function handleSave() {
 function handleCancel() {
   router.back()
 }
+
+onMounted(async () => {
+  await store.fetchById(id)
+
+  if (store.currentPost) {
+    form.value = JSON.parse(JSON.stringify(store.currentPost))
+  }
+  else {
+    toast.error('Статья не найдена')
+    router.push({ name: AppRouteNames.BlogList })
+  }
+})
 </script>
 
 <template>
@@ -55,7 +64,7 @@ function handleCancel() {
   </div>
 </template>
 
-<style scoped>
+<style scoped lang="scss">
 .content-wrapper {
   max-width: 1000px;
   margin: 0 auto;

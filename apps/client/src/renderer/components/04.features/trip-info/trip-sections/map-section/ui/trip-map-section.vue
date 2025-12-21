@@ -260,7 +260,6 @@ function focusOnItem(item: MapPoint | MapRoute | DrawnRoute) {
             class="sidebar"
             :style="{ width: !isSmallScreen ? `${sidebarWidth}px` : undefined }"
           >
-            <!-- Sidebar Resizer -->
             <div class="resizer sidebar-resizer" @mousedown.prevent="startSidebarResize" />
 
             <div class="sidebar-header">
@@ -372,7 +371,6 @@ function focusOnItem(item: MapPoint | MapRoute | DrawnRoute) {
             :class="{ 'is-side-panel': isLargeScreen }"
             :style="detailsPanelStyle"
           >
-            <!-- Details Resizer -->
             <div class="resizer details-resizer" @mousedown.prevent="startDetailsResize" />
 
             <div class="details-header">

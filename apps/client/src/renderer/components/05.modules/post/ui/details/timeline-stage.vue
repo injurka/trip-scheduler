@@ -5,12 +5,16 @@ import GalleryBlock from './blocks/gallery-block.vue'
 import GeoBlock from './blocks/geo-block.vue'
 import TextBlock from './blocks/text-block.vue'
 
-defineProps<{ stage: TimelineStage, isLast: boolean }>()
+interface IProps {
+  stage: TimelineStage
+  isLast: boolean
+}
+
+defineProps<IProps>()
 </script>
 
 <template>
   <div class="timeline-stage" :class="{ 'is-last': isLast }">
-    <!-- Left Connector -->
     <div class="connector-column">
       <div class="connector-icon">
         <Icon :icon="stage.icon || 'mdi:circle-small'" />
@@ -18,7 +22,6 @@ defineProps<{ stage: TimelineStage, isLast: boolean }>()
       <div v-if="!isLast" class="connector-line" />
     </div>
 
-    <!-- Content -->
     <div class="stage-content">
       <header class="stage-header">
         <h4 class="stage-title">

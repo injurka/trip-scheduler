@@ -169,7 +169,6 @@ onBeforeUnmount(() => {
 
   <ThemeManager />
 
-  <!-- Drawer для мобильных -->
   <KitDrawer
     v-model:open="layout.isDrawerOpen.value"
     side="right"
@@ -198,10 +197,8 @@ onBeforeUnmount(() => {
     </div>
   </KitDrawer>
 
-  <!-- Диалог добавления новой секции -->
   <AddSectionDialog v-model:visible="ui.isAddSectionDialogOpen" @add-section="handleAddSection" />
 
-  <!-- Диалог редактирования раздела -->
   <KitDialogWithClose
     v-if="layout.sectionToEdit.value"
     v-model:visible="layout.isEditSectionDialogOpen.value"

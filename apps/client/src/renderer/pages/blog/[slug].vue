@@ -1,8 +1,8 @@
 <script setup lang="ts">
 import { Icon } from '@iconify/vue'
-import { onMounted } from 'vue'
 import { useRoute } from 'vue-router'
 import { KitBtn } from '~/components/01.kit/kit-btn'
+import { KitImage } from '~/components/01.kit/kit-image'
 import { KitInlineMdEditorWrapper } from '~/components/01.kit/kit-inline-md-editor'
 import { AsyncStateWrapper } from '~/components/02.shared/async-state-wrapper'
 import { NavigationBack } from '~/components/02.shared/navigation-back'
@@ -15,14 +15,11 @@ const route = useRoute()
 const router = useRouter()
 const store = useBlogStore()
 const authStore = useAuthStore()
-const slug = route.params.slug as string
 const confirm = useConfirm()
 
-const canEdit = computed(() => authStore.user?.role === 'admin' || false)
+const slug = route.params.slug as string
 
-onMounted(() => {
-  store.fetchBySlug(slug)
-})
+const canEdit = computed(() => authStore.user?.role === 'admin' || false)
 
 function handleEdit() {
   if (store.currentPost) {
@@ -33,6 +30,7 @@ function handleEdit() {
 async function handleDelete() {
   if (!store.currentPost)
     return
+
   const isConfirmed = await confirm({
     title: 'Удалить статью?',
     description: 'Это действие необратимо.',
@@ -41,9 +39,13 @@ async function handleDelete() {
 
   if (isConfirmed) {
     await store.deletePost(store.currentPost.id)
-    router.push({ name: AppRouteNames.BlogList })
+    await router.push({ name: AppRouteNames.BlogList })
   }
 }
+
+onMounted(() => {
+  store.fetchBySlug(slug)
+})
 </script>
 
 <template>
@@ -68,12 +70,16 @@ async function handleDelete() {
       <template #success="{ data }">
         <article class="article">
           <header class="article-header">
-            <span class="date">{{ formatDate(data.publishedAt, { dateStyle: 'long' }) }}</span>
+            <span class="date">{{ data.publishedAt ? formatDate(data.publishedAt, { dateStyle: 'long' }) : '' }}</span>
             <h1>{{ data.title }}</h1>
           </header>
 
           <div v-if="data.coverImage" class="cover-image">
-            <img :src="data.coverImage" :alt="data.title">
+            <KitImage
+              :src="data.coverImage"
+              :alt="data.title"
+              object-fit="cover"
+            />
           </div>
 
           <div class="article-content">
@@ -137,12 +143,6 @@ async function handleDelete() {
   border-radius: var(--r-l);
   overflow: hidden;
   margin-bottom: 40px;
-
-  img {
-    width: 100%;
-    height: 100%;
-    object-fit: cover;
-  }
 }
 
 .article-content {

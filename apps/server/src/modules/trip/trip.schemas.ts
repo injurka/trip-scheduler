@@ -76,3 +76,8 @@ export const ListTripsByUserInputSchema = z.object({
   userId: z.string().uuid(),
   limit: z.number().min(1).max(10).optional().default(3),
 })
+
+export const AddParticipantInputSchema = z.object({
+  tripId: z.string().uuid(),
+  email: z.string().email(),
+})

@@ -1,6 +1,5 @@
 <script setup lang="ts">
 import { Icon } from '@iconify/vue'
-import { computed } from 'vue'
 import { KitInlineMdEditorWrapper } from '~/components/01.kit/kit-inline-md-editor'
 
 interface Props {

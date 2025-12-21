@@ -6,7 +6,6 @@ import { Point } from 'ol/geom'
 import VectorLayer from 'ol/layer/Vector'
 import VectorSource from 'ol/source/Vector'
 import { Icon as OlIcon, Style } from 'ol/style'
-import { computed, nextTick, ref, watch } from 'vue'
 import { KitDialogWithClose } from '~/components/01.kit/kit-dialog-with-close'
 import { KitMap } from '~/components/01.kit/kit-map'
 

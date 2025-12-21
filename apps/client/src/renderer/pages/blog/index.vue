@@ -1,5 +1,4 @@
 <script setup lang="ts">
-import { computed, onMounted } from 'vue'
 import { KitBtn } from '~/components/01.kit/kit-btn'
 import { AsyncStateWrapper } from '~/components/02.shared/async-state-wrapper'
 import { NavigationBack } from '~/components/02.shared/navigation-back'
@@ -45,7 +44,6 @@ onMounted(() => {
     >
       <template #loading>
         <div class="grid-skeleton">
-          <!-- Скелетоны для загрузки -->
           <div v-for="i in 6" :key="i" class="skeleton-card" />
         </div>
       </template>

@@ -157,7 +157,6 @@ function updateTransactionDate(tx: GeneratedTransaction, newDate: CalendarDate |
 
 <template>
   <div class="ai-creator-content">
-    <!-- INPUT STATE -->
     <div v-if="state === 'input' || state === 'error'" class="input-view">
       <p class="description">
         <Icon icon="mdi:information-outline" />
@@ -192,14 +191,12 @@ function updateTransactionDate(tx: GeneratedTransaction, newDate: CalendarDate |
       </div>
     </div>
 
-    <!-- LOADING STATE -->
     <div v-if="state === 'loading'" class="loading-view">
       <Icon icon="svg-spinners:3-dots-fade" />
       <p>Анализирую данные...</p>
       <span>Это может занять несколько секунд.</span>
     </div>
 
-    <!-- PREVIEW STATE -->
     <div v-if="state === 'preview' && generatedTransactions.length > 0" class="preview-view">
       <p class="description">
         <Icon icon="mdi:check-circle-outline" />

@@ -10,26 +10,21 @@ const dayQuery = computed(() => route.query.day)
 <template>
   <TripOverviewSkeleton v-if="!dayQuery" />
   <div v-else class="trip-info-day-skeleton">
-    <!-- Divider "о дне" -->
     <div class="divider-skeleton">
       <KitSkeleton width="80px" height="12px" border-radius="4px" type="wave" />
     </div>
 
-    <!-- Day Header Skeleton -->
     <div class="day-header-skeleton">
       <KitSkeleton width="60%" height="32px" border-radius="6px" type="wave" style="margin-bottom: 16px;" />
       <KitSkeleton width="85%" height="18px" border-radius="6px" type="wave" />
     </div>
 
-    <!-- Divider "маршрут" -->
     <div class="divider-skeleton">
       <KitSkeleton width="120px" height="12px" border-radius="4px" type="wave" />
     </div>
 
-    <!-- Activities List Skeleton -->
     <div class="activities-list-skeleton">
       <div v-for="i in 4" :key="i" class="activity-item-skeleton">
-        <!-- Diamond marker is handled by pseudo-element in styles -->
         <div class="activity-header-skeleton">
           <KitSkeleton width="40%" height="20px" border-radius="4px" type="wave" />
         </div>
@@ -45,7 +40,6 @@ const dayQuery = computed(() => route.query.day)
       </div>
     </div>
 
-    <!-- Add Activity Button Skeleton -->
     <div class="add-activity-skeleton">
       <KitSkeleton width="180px" height="20px" border-radius="4px" type="wave" />
     </div>

@@ -1,7 +1,6 @@
 <script setup lang="ts">
 import { Icon } from '@iconify/vue'
 import { storeToRefs } from 'pinia'
-import { computed, onMounted, ref } from 'vue'
 import { useRouter } from 'vue-router'
 import draggable from 'vuedraggable'
 import { KitBtn } from '~/components/01.kit/kit-btn'
@@ -20,10 +19,6 @@ const postStore = usePostStore()
 const { post } = storeToRefs(draftStore)
 const isPreviewMode = ref(false)
 const isPublishing = ref(false)
-
-onMounted(() => {
-  draftStore.initDraft()
-})
 
 async function handlePublish() {
   if (!post.value.title) {
@@ -45,13 +40,16 @@ async function handlePublish() {
   }
 }
 
-// Вычисляем данные для предпросмотра, добавляя заглушки для обязательных полей, которых может не быть в черновике
 const previewData = computed(() => ({
   ...post.value,
   author: { id: 'me', name: 'Автор (Вы)', avatarUrl: '' },
   stats: { likes: 0, saves: 0, isLiked: false, isSaved: false },
   statsDetail: { views: 0, budget: '$$', duration: '...' },
 }))
+
+onMounted(() => {
+  draftStore.initDraft()
+})
 </script>
 
 <template>
@@ -65,7 +63,6 @@ const previewData = computed(() => ({
       </div>
 
       <div class="actions">
-        <!-- Toggle Preview -->
         <button class="preview-toggle" @click="isPreviewMode = !isPreviewMode">
           <Icon :icon="isPreviewMode ? 'mdi:pencil-outline' : 'mdi:eye-outline'" />
           <span>{{ isPreviewMode ? 'Редактировать' : 'Просмотр' }}</span>
@@ -83,14 +80,11 @@ const previewData = computed(() => ({
       </div>
     </header>
 
-    <!-- MODE: PREVIEW -->
     <div v-if="isPreviewMode" class="preview-container">
       <PostDetailsView :post="previewData" />
     </div>
 
-    <!-- MODE: EDITOR -->
     <div v-else class="editor-container">
-      <!-- 1. Hero Section Edit -->
       <section class="meta-section">
         <div class="cover-upload-placeholder">
           <Icon icon="mdi:camera-plus" size="32" />
@@ -103,12 +97,10 @@ const previewData = computed(() => ({
 
           <div class="tags-inputs">
             <KitInput v-model="post.location.city" label="Город" placeholder="Город" />
-            <!-- Additional inputs for category/emoji can be here -->
           </div>
         </div>
       </section>
 
-      <!-- 2. Timeline Editor -->
       <section class="timeline-section">
         <h3 class="section-title">
           Таймлайн путешествия
@@ -202,7 +194,6 @@ const previewData = computed(() => ({
   background-color: var(--border-secondary-color);
 }
 
-/* Editor Container */
 .editor-container {
   max-width: 800px;
   margin: 0 auto;
@@ -212,12 +203,10 @@ const previewData = computed(() => ({
   gap: 32px;
 }
 
-/* Preview Container (Full width for detail view) */
 .preview-container {
   background-color: var(--bg-primary-color);
 }
 
-/* Meta Section Styles from previous step... */
 .meta-section {
   display: grid;
   grid-template-columns: 200px 1fr;

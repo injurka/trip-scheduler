@@ -1,7 +1,6 @@
 <script setup lang="ts">
 import type { HighlightStatus } from '../../composables/use-booking-section'
 import { Icon } from '@iconify/vue'
-import { computed, ref } from 'vue'
 import { KitEditable } from '~/components/01.kit/kit-editable'
 import { vRipple } from '~/shared/directives/ripple'
 
@@ -61,13 +60,6 @@ async function handleDelete() {
           <Icon icon="mdi:drag-vertical" />
         </button>
         <Icon :icon="icon" class="title-icon" />
-        <!-- <KitEditable
-          v-model="title"
-          :readonly="readonly"
-          class="card-title"
-          placeholder="Введите заголовок"
-          @click.stop
-        /> -->
 
         <span
           v-if="readonly"

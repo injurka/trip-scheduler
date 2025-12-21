@@ -45,7 +45,6 @@ const tooltipStyle = computed(() => {
     @mouseleave="handleMouseLeave"
     @mousemove="handleMouseMove"
   >
-    <!-- Анимированная подсказка -->
     <transition name="tooltip">
       <div
         v-if="isHovered"
