@@ -1,6 +1,8 @@
 <script setup lang="ts">
+import type { CalendarDate } from '@internationalized/date'
 import type { CreateBlogPostInput } from '~/shared/types/models/blog'
 import { Icon } from '@iconify/vue'
+import { getLocalTimeZone, parseDate, Time, today } from '@internationalized/date'
 import { v4 as uuidv4 } from 'uuid'
 import { KitBtn } from '~/components/01.kit/kit-btn'
 import { KitCheckbox } from '~/components/01.kit/kit-checkbox'
@@ -8,11 +10,17 @@ import { KitDivider } from '~/components/01.kit/kit-divider'
 import { KitImage } from '~/components/01.kit/kit-image'
 import { KitInlineMdEditorWrapper } from '~/components/01.kit/kit-inline-md-editor'
 import { KitInput } from '~/components/01.kit/kit-input'
+import { KitTimeField } from '~/components/01.kit/kit-time-field'
 import { KitViewSwitcher } from '~/components/01.kit/kit-view-switcher'
+import { CalendarPopover } from '~/components/02.shared/calendar-popover'
+import { formatDate } from '~/shared/lib/date-time'
 import { useBlogStore } from '../store/blog.store'
 import BlogMediaManager from './blog-media-manager.vue'
 
-type LocalBlogForm = Partial<CreateBlogPostInput> & { id?: string }
+type LocalBlogForm = Partial<CreateBlogPostInput> & {
+  id?: string
+  publishedAt?: string | null
+}
 
 interface Props {
   isEditing?: boolean
@@ -38,6 +46,37 @@ const localForm = ref<LocalBlogForm>({
   excerpt: modelValue.value?.excerpt || '',
   coverImage: modelValue.value?.coverImage || '',
   published: modelValue.value?.published ?? true,
+  publishedAt: (modelValue.value as any)?.publishedAt || new Date().toISOString(),
+})
+
+const selectedDate = shallowRef<CalendarDate>(today(getLocalTimeZone()))
+const selectedTime = shallowRef<Time>(new Time(new Date().getHours(), new Date().getMinutes()))
+
+watch(() => localForm.value.publishedAt, (newVal) => {
+  if (newVal) {
+    try {
+      const dateObj = new Date(newVal)
+      selectedDate.value = parseDate(dateObj.toISOString().split('T')[0])
+      selectedTime.value = new Time(dateObj.getHours(), dateObj.getMinutes())
+    }
+    catch (e) {
+      console.error('Invalid date', e)
+    }
+  }
+}, { immediate: true })
+
+watch([selectedDate, selectedTime], ([date, time]) => {
+  if (date && time) {
+    const dateStr = date.toString()
+    const timeStr = `${time.hour.toString().padStart(2, '0')}:${time.minute.toString().padStart(2, '0')}:00`
+    localForm.value.publishedAt = `${dateStr}T${timeStr}.000Z` // Упрощенно в UTC или локальном формате
+  }
+})
+
+const formattedPublishDate = computed(() => {
+  if (!localForm.value.publishedAt)
+    return 'Дата не выбрана'
+  return formatDate(localForm.value.publishedAt, { dateStyle: 'long', timeStyle: 'short' })
 })
 
 watch(
@@ -51,30 +90,25 @@ watch(
 )
 
 watch(
-  () => modelValue.value,
-  (newVal) => {
-    if (!newVal)
-      return
-
-    const inputWithId = newVal as LocalBlogForm
-    const incomingId = inputWithId.id || localForm.value.id
-
-    if (localForm.value.title === '' || localForm.value.id !== incomingId) {
+  () => modelValue.value?.id,
+  (newId) => {
+    if (newId && newId !== localForm.value.id) {
       localForm.value = {
         ...localForm.value,
-        ...newVal,
-        id: incomingId,
+        ...modelValue.value,
+        id: newId,
+        publishedAt: (modelValue.value as any)?.publishedAt || new Date().toISOString(),
       }
     }
   },
-  { deep: true },
+  { immediate: true },
 )
 
 watch(
   localForm,
   (newVal) => {
     const { id, ...rest } = newVal
-    modelValue.value = { ...modelValue.value, ...rest }
+    Object.assign(modelValue.value, rest)
   },
   { deep: true },
 )
@@ -169,6 +203,21 @@ function removeCover() {
               placeholder="Для карточки превью..."
             />
           </div>
+
+          <!-- СЕКЦИЯ ДАТЫ ПУБЛИКАЦИИ -->
+          <div class="date-section">
+            <label class="section-label">Дата публикации</label>
+            <div class="date-controls">
+              <CalendarPopover v-model="selectedDate">
+                <template #trigger>
+                  <KitBtn variant="outlined" color="secondary" icon="mdi:calendar">
+                    {{ formattedPublishDate }}
+                  </KitBtn>
+                </template>
+              </CalendarPopover>
+              <KitTimeField v-model="selectedTime" />
+            </div>
+          </div>
         </div>
 
         <div class="cover-section">
@@ -198,8 +247,8 @@ function removeCover() {
       <KitDivider>Контент</KitDivider>
 
       <div class="content-section">
+        <!-- Убран :key, чтобы не перемонтировать редактор при смене любого поля формы -->
         <KitInlineMdEditorWrapper
-          :key="localForm.id"
           v-model="localForm.content!"
           class="markdown-editor"
           placeholder="Напишите свою историю..."
@@ -210,6 +259,9 @@ function removeCover() {
 
     <div v-show="viewMode === 'preview'" class="preview-container">
       <div class="preview-article">
+        <div class="preview-meta">
+          <span>{{ formattedPublishDate }}</span>
+        </div>
         <h1 class="preview-title">
           {{ localForm.title || 'Заголовок статьи' }}
         </h1>
@@ -230,7 +282,7 @@ function removeCover() {
     <div class="editor-footer">
       <div class="footer-left">
         <KitCheckbox v-model="localForm.published">
-          Опубликовать
+          Опубликовать сразу
         </KitCheckbox>
       </div>
       <div class="footer-right">
@@ -322,6 +374,24 @@ function removeCover() {
   gap: 16px;
 }
 
+.date-section {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.section-label {
+  font-size: 0.85rem;
+  color: var(--fg-secondary-color);
+  font-weight: 500;
+}
+
+.date-controls {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
 .cover-section {
   display: flex;
   flex-direction: column;
@@ -409,7 +479,6 @@ function removeCover() {
   }
 }
 
-/* Preview Area */
 .preview-container {
   flex: 1;
   overflow-y: auto;
@@ -420,6 +489,12 @@ function removeCover() {
 .preview-article {
   max-width: 800px;
   margin: 0 auto;
+}
+
+.preview-meta {
+  color: var(--fg-tertiary-color);
+  font-size: 0.9rem;
+  margin-bottom: 8px;
 }
 
 .preview-title {
@@ -442,7 +517,6 @@ function removeCover() {
   line-height: 1.7;
 }
 
-/* Footer */
 .editor-footer {
   padding: 12px 0;
   background: transparent;
@@ -458,7 +532,6 @@ function removeCover() {
   gap: 12px;
 }
 
-/* Transitions */
 .slide-fade-enter-active,
 .slide-fade-leave-active {
   transition: all 0.3s ease;
