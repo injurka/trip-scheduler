@@ -52,17 +52,35 @@ async function createDump() {
     // 4. Загрузка блога
     const allBlogs = await db.query.blogs.findMany()
 
+    // 5. Загрузка метро (системы -> линии -> станции)
+    const allMetro = await db.query.metroSystems.findMany({
+      with: {
+        lines: {
+          with: {
+            lineStations: {
+              orderBy: (lineStations, { asc }) => [asc(lineStations.order)],
+              with: {
+                station: true,
+              },
+            },
+          },
+        },
+      },
+    })
+
     console.log(`🔍 Найдено:`)
     console.log(`   - Пользователей: ${allUsers.length}`)
     console.log(`   - Путешествий: ${allTrips.length}`)
     console.log(`   - Постов: ${allPosts.length}`)
     console.log(`   - Статей блога: ${allBlogs.length}`)
+    console.log(`   - Систем метро: ${allMetro.length}`)
 
     const serializableData = {
       users: allUsers,
       trips: allTrips,
       posts: allPosts,
       blogs: allBlogs,
+      metro: allMetro,
     }
 
     const dumpDir = path.join(__dirname, 'dump')

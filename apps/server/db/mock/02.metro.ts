@@ -446,7 +446,7 @@ export const MOCK_METRO_DATA = [
     ],
   },
   {
-    id: 'h1k2-3m4t-5r6-7h8k-9m0t-r1s2y3s4t5m',
+    id: 'a1b2c3d4-e5f6-4789-a0b1-c2d3e4f56789',
     city: 'Гонконг',
     country: 'Китай',
     lines: [
@@ -657,7 +657,7 @@ export const MOCK_METRO_DATA = [
     ],
   },
   {
-    id: 'gz-metro-001',
+    id: '0433295a-d816-4d42-a2dc-72e6ccf17f3a',
     city: 'Гуанчжоу',
     country: 'Китай',
     lines: [
@@ -1096,7 +1096,7 @@ export const MOCK_METRO_DATA = [
     ],
   },
   {
-    id: 'sz-metro-001',
+    id: '15ea6840-b663-428c-a9ce-9d4bb2439821',
     city: 'Шэньчжэнь',
     country: 'Китай',
     lines: [

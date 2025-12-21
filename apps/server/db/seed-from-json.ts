@@ -119,7 +119,13 @@ async function seedFromJson() {
     process.exit(1)
   }
 
-  const { users: sourceUsers, trips: sourceTrips, posts: sourcePosts, blogs: sourceBlogs } = dumpData
+  const {
+    users: sourceUsers,
+    trips: sourceTrips,
+    posts: sourcePosts,
+    blogs: sourceBlogs,
+    metro: sourceMetro,
+  } = dumpData
 
   if (!Array.isArray(sourceUsers)) {
     console.warn('⚠️ Файл дампа имеет неверный формат (отсутствуют users). Заполнение базы данных пропущено.')
@@ -159,15 +165,64 @@ async function seedFromJson() {
   await db.insert(llmModels).values(LLM_MOCK).onConflictDoNothing()
 
   console.log('🚇 Восстановление данных Метро...')
-  if (MOCK_METRO_DATA) {
+
+  if (sourceMetro && Array.isArray(sourceMetro) && sourceMetro.length > 0) {
+    console.log(`   📂 Найдено систем метро в дампе: ${sourceMetro.length}. Восстанавливаем...`)
+
+    for (const system of sourceMetro) {
+      await db.insert(metroSystems)
+        .values({ id: system.id, city: system.city, country: system.country })
+        .onConflictDoNothing()
+
+      if (system.lines && Array.isArray(system.lines)) {
+        for (const line of system.lines) {
+          await db.insert(metroLines)
+            .values({
+              id: line.id,
+              systemId: system.id,
+              name: line.name,
+              color: line.color,
+              lineNumber: line.lineNumber,
+            })
+            .onConflictDoNothing()
+
+          if (line.lineStations && Array.isArray(line.lineStations)) {
+            for (const ls of line.lineStations) {
+              if (ls.station) {
+                await db.insert(metroStations)
+                  .values({
+                    id: ls.station.id,
+                    systemId: system.id,
+                    name: ls.station.name,
+                  })
+                  .onConflictDoNothing()
+
+                await db.insert(metroLineStations)
+                  .values({
+                    lineId: line.id,
+                    stationId: ls.station.id,
+                    order: ls.order,
+                  })
+                  .onConflictDoNothing()
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+  else if (MOCK_METRO_DATA) {
+    console.log('   ⚠️ В дампе нет данных метро. Используем встроенный MOCK_METRO_DATA.')
     for (const system of MOCK_METRO_DATA) {
       const [insertedSystem] = await db.insert(metroSystems).values({ id: system.id, city: system.city, country: system.country }).returning()
       for (const line of system.lines) {
         const [insertedLine] = await db.insert(metroLines).values({ id: line.id, systemId: insertedSystem.id, name: line.name, color: line.color, lineNumber: line.lineNumber }).returning()
+
         const stationsToInsert = line.stations.map((station: any) => ({ id: station.id, systemId: insertedSystem.id, name: station.name }))
         if (stationsToInsert.length > 0) {
           await db.insert(metroStations).values(stationsToInsert).onConflictDoNothing()
         }
+
         const lineStationsToInsert = line.stations.map((station: any, index: number) => ({
           lineId: insertedLine.id,
           stationId: station.id,
@@ -333,7 +388,6 @@ async function seedFromJson() {
       await db.insert(savedPosts).values(savedPostsToInsert)
   }
 
-  // --- BLOGS ---
   if (sourceBlogs && Array.isArray(sourceBlogs)) {
     const blogsToInsert = sourceBlogs.map((blog: any) => ({
       ...blog,
