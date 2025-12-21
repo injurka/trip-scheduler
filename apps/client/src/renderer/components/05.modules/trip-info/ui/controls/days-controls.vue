@@ -178,7 +178,6 @@ onUnmounted(() => {
       <div v-if="!isDayInfoLoading" class="right-controls">
         <div class="view-controls">
           <ViewSwitcher />
-          <!-- Кнопка split-view-btn удалена -->
         </div>
       </div>
     </div>
@@ -255,7 +254,6 @@ onUnmounted(() => {
 
           <div class="view-controls">
             <ViewSwitcher />
-            <!-- Кнопка split-view-btn удалена -->
           </div>
         </div>
       </div>

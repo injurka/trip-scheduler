@@ -129,7 +129,6 @@ watch(formError, (newError) => {
 <template>
   <AuthSignLayout :is-loading="isLoading">
     <template #form>
-      <!-- Step 1: Details Form -->
       <form v-if="step === 'details'" class="form" @submit.prevent="submitSignUp">
         <KitInput
           v-model="form.name"
@@ -198,7 +197,6 @@ watch(formError, (newError) => {
         </KitBtn>
       </form>
 
-      <!-- Step 2: Verification Form -->
       <form v-if="step === 'verify'" class="form" @submit.prevent="submitVerification">
         <p class="verification-info">
           Мы отправили 6-значный код на <strong>{{ form.email }}</strong>. Пожалуйста, введите его ниже.

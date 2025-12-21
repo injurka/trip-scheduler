@@ -39,18 +39,19 @@ defineEmits<{
 const { memories: memoriesStore, plan: tripPlanStore } = useModuleStore(['memories', 'plan'])
 const confirm = useConfirm()
 
-// --- Editing State ---
 const isEditingTime = ref(false)
-const editableTime = shallowRef<Time | null>(null)
 const timeEditorRef = ref(null)
 
 const isEditingTitle = ref(false)
 const editableTitle = ref('')
 const titleEditorRef = ref(null)
 
+const editableTime = shallowRef<Time | null>(null)
+
 function handleTimeClick() {
   if (props.isViewMode || props.group.type !== 'activity' || !props.group.activity?.timestamp)
     return
+
   isEditingTime.value = true
   const d = new Date(props.group.activity.timestamp)
   editableTime.value = new Time(d.getUTCHours(), d.getUTCMinutes())
@@ -90,15 +91,14 @@ function saveTitle() {
     isEditingTitle.value = false
     return
   }
+
   const newTitle = editableTitle.value.trim()
+
   if (newTitle && newTitle !== props.group.title)
     memoriesStore.updateMemory({ id: props.group.activity.id, title: newTitle })
 
   isEditingTitle.value = false
 }
-
-onClickOutside(timeEditorRef, saveTime)
-onClickOutside(titleEditorRef, saveTitle)
 
 async function handleDeleteActivity() {
   if (!props.group.activity)
@@ -131,6 +131,9 @@ const displayTime = computed(() => {
 
   return `${hours}:${minutes}`
 })
+
+onClickOutside(timeEditorRef, saveTime)
+onClickOutside(titleEditorRef, saveTitle)
 </script>
 
 <template>

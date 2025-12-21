@@ -231,7 +231,6 @@ const extendedInfo = computed(() => {
 
 <template>
   <Teleport to="body">
-    <!-- Метаданные -->
     <Transition name="slide-from-right">
       <div v-if="visible" class="metadata-overlay">
         <div ref="panelRef" class="metadata-panel">
@@ -245,7 +244,6 @@ const extendedInfo = computed(() => {
             </button>
           </header>
           <div class="panel-content">
-            <!-- Общая информация -->
             <section class="info-section">
               <dl class="info-list">
                 <div v-for="item in generalInfo" :key="item.label" class="info-item">
@@ -291,7 +289,6 @@ const extendedInfo = computed(() => {
               </Transition>
             </section>
 
-            <!-- Камера и объектив -->
             <section v-if="cameraInfo.length" class="info-section">
               <h4>Камера и объектив</h4>
               <dl class="info-list">
@@ -305,7 +302,6 @@ const extendedInfo = computed(() => {
               </dl>
             </section>
 
-            <!-- Параметры съёмки -->
             <section v-if="settingsInfo.length" class="info-section">
               <h4>Параметры съёмки</h4>
               <dl class="info-list">
@@ -319,7 +315,6 @@ const extendedInfo = computed(() => {
               </dl>
             </section>
 
-            <!-- Техническая информация -->
             <section v-if="technicalInfo.length" class="info-section">
               <h4>Техническая информация</h4>
               <dl class="info-list">
@@ -333,7 +328,6 @@ const extendedInfo = computed(() => {
               </dl>
             </section>
 
-            <!-- Расширенные данные -->
             <section v-if="extendedInfo.length" class="info-section">
               <h4 class="extended-header">
                 <span>Расширенные данные (EXIF)</span>

@@ -11,7 +11,6 @@ export function useGeolocationRoutes(mapApiRef: Ref<GeolocationMapApi | undefine
   const drawnRoutes = ref<DrawnRoute[]>([])
   const isLoading = ref(false)
 
-  // --- Управление маршрутами OSRM ---
   async function createNewRoute(startCoords: Coordinate) {
     if (!mapApiRef.value)
       return
@@ -35,7 +34,7 @@ export function useGeolocationRoutes(mapApiRef: Ref<GeolocationMapApi | undefine
       color: POI_COLORS[routes.value.length % POI_COLORS.length],
     }
 
-    routes.value = [...routes.value, newRoute] // Создаем новый массив
+    routes.value = [...routes.value, newRoute] 
     mapApiRef.value.addOrUpdatePoint(startPoint)
     return newRoute
   }
@@ -58,8 +57,6 @@ export function useGeolocationRoutes(mapApiRef: Ref<GeolocationMapApi | undefine
 
     if (updatedPoints.length > 0) {
       const lastPoint = updatedPoints[updatedPoints.length - 1]
-      // Если предыдущая точка была "концом" (маркером), то она становится промежуточной (via).
-      // Если она была соединительной (connect) или стартовой (start), мы её не меняем.
       if (lastPoint.type === 'end') {
         updatedPoints = updatedPoints.map((p, index) =>
           index === updatedPoints.length - 1 ? { ...p, type: 'via' } : p,
@@ -67,8 +64,6 @@ export function useGeolocationRoutes(mapApiRef: Ref<GeolocationMapApi | undefine
       }
     }
 
-    // Если мы добавляем "via" (маркер), то визуально это 'end' (так как она последняя).
-    // Если "connect", то 'connect'.
     const finalType = pointType === 'connect' ? 'connect' : 'end'
 
     const newPoint: MapPoint = {
@@ -118,7 +113,6 @@ export function useGeolocationRoutes(mapApiRef: Ref<GeolocationMapApi | undefine
       updatedPoints = updatedPoints.map((p, index) => {
         if (index === 0)
           return { ...p, type: 'start' }
-        // Если это последняя точка и она не "connect", то делаем её 'end'
         if (index === updatedPoints.length - 1 && p.type !== 'connect')
           return { ...p, type: 'end' }
         return p
@@ -162,7 +156,6 @@ export function useGeolocationRoutes(mapApiRef: Ref<GeolocationMapApi | undefine
     if (!point)
       return
 
-    // Эта функция уже содержит логику для обновления адреса
     await updatePointInRoute(pointId, point.coordinates, true)
     useToast().success('Адрес точки в маршруте обновлен.')
   }
@@ -223,7 +216,6 @@ export function useGeolocationRoutes(mapApiRef: Ref<GeolocationMapApi | undefine
     await Promise.all(routeUpdatePromises)
   }
 
-  // --- Управление нарисованными маршрутами ---
   function addDrawnRoute(coords: Coordinate[]) {
     const newDrawnRoute: DrawnRoute = {
       id: uuidv4(),

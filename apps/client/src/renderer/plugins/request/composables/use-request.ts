@@ -83,7 +83,7 @@ export async function useRequest<T>(
       else {
         store.setError(key, e)
         store.setStatus(key, 'error')
-        console.error(`[useRequest Error] (key: ${key}):`, e)
+        console.error(`[useRequest Error] (key: ${key}): ${e}`)
         await onError?.(e)
       }
       return initialData

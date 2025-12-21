@@ -1,6 +1,5 @@
 import type { CSSProperties, Ref } from 'vue'
 import { useEventListener } from '@vueuse/core'
-import { nextTick, ref } from 'vue'
 
 interface UseMorphReturn {
   isMorphed: Ref<boolean>
@@ -35,17 +34,13 @@ export function useMorph(targetRef: Ref<HTMLElement | null>): UseMorphReturn {
 
     isMorphing.value = true
 
-    // 1. Запоминаем начальную позицию элемента в потоке
     initialRect = el.getBoundingClientRect()
 
-    // 2. Создаем плейсхолдер, чтобы верстка не "схлопнулась"
     placeholderStyle.value = {
       width: `${initialRect.width}px`,
       height: `${initialRect.height}px`,
     }
 
-    // 3. Сразу ставим элемент в position: fixed, но РОВНО на то же место, где он был.
-    // Важно: transition: none, чтобы он мгновенно встал на место.
     morphStyle.value = {
       position: 'fixed',
       top: `${initialRect.top}px`,
@@ -61,15 +56,11 @@ export function useMorph(targetRef: Ref<HTMLElement | null>): UseMorphReturn {
     isMorphed.value = true
     document.body.style.overflow = 'hidden'
 
-    // 4. Ждем, пока Vue применит стили в DOM (Critical Step!)
     await nextTick()
-
-    // 5. Форсируем перерисовку браузера (Force Reflow), чтобы он "осознал" начальное положение
 
     // eslint-disable-next-line ts/no-unused-expressions
     el.offsetHeight
 
-    // 6. Запускаем анимацию в следующем кадре
     requestAnimationFrame(() => {
       if (!initialRect)
         return
@@ -81,7 +72,6 @@ export function useMorph(targetRef: Ref<HTMLElement | null>): UseMorphReturn {
       let targetWidth = maxWidth
       let targetHeight = targetWidth * aspectRatio
 
-      // Если высота не влезает, считаем по высоте
       if (targetHeight > maxHeight) {
         targetHeight = maxHeight
         targetWidth = targetHeight / aspectRatio
@@ -113,7 +103,6 @@ export function useMorph(targetRef: Ref<HTMLElement | null>): UseMorphReturn {
 
     isMorphing.value = true
 
-    // Анимируем обратно к начальным координатам
     morphStyle.value = {
       ...morphStyle.value,
       top: `${initialRect.top}px`,
@@ -124,7 +113,6 @@ export function useMorph(targetRef: Ref<HTMLElement | null>): UseMorphReturn {
       boxShadow: 'none',
     }
 
-    // Слушаем окончание анимации
     const onTransitionEnd = () => {
       targetRef.value?.removeEventListener('transitionend', onTransitionEnd)
       reset()
@@ -138,7 +126,6 @@ export function useMorph(targetRef: Ref<HTMLElement | null>): UseMorphReturn {
     }, { once: true })
   }
 
-  // Закрытие по ESC
   useEventListener(document, 'keydown', (e: KeyboardEvent) => {
     if (e.key === 'Escape' && isMorphed.value)
       leaveMorph()

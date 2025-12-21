@@ -12,7 +12,6 @@ const emit = defineEmits(['update:visible', 'addSection'])
 
 const { sections: sectionsStore } = useModuleStore(['sections'])
 
-// --- Состояние для кастомного режима ---
 const isCustomMode = ref(false)
 const newSectionTitle = ref('')
 const newSectionIcon = ref('mdi:note-text-outline')
@@ -78,7 +77,7 @@ function handleAddCustomSection() {
     return
 
   handleAddSection({
-    type: TripSectionType.NOTES, // Кастомные секции по умолчанию имеют тип "Заметки"
+    type: TripSectionType.NOTES,
     title: newSectionTitle.value,
     icon: newSectionIcon.value,
   })
@@ -86,15 +85,12 @@ function handleAddCustomSection() {
 
 watch(() => props.visible, (isVisible) => {
   if (!isVisible) {
-    // Сбрасываем состояние при закрытии окна
     isCustomMode.value = false
     newSectionTitle.value = ''
     newSectionIcon.value = 'mdi:file-document-outline'
     iconSearchQuery.value = ''
   }
   else {
-    // Если окно открывается и доступных пресетов нет,
-    // сразу переходим в режим создания своего варианта
     if (availablePresets.value.length === 0)
       isCustomMode.value = true
   }
@@ -110,7 +106,6 @@ watch(() => props.visible, (isVisible) => {
     @update:visible="emit('update:visible', $event)"
   >
     <div v-if="!isCustomMode" class="presets-grid">
-      <!-- Теперь итерация идет по отфильтрованному списку -->
       <template v-for="preset in availablePresets" :key="preset.type">
         <button
           class="preset-card"
@@ -144,7 +139,6 @@ watch(() => props.visible, (isVisible) => {
       </button>
     </div>
     <form v-else class="add-section-form" @submit.prevent="handleAddCustomSection">
-      <!-- Кнопка "Назад" отображается только если были доступны другие пресеты -->
       <KitBtn v-if="availablePresets.length > 0" variant="text" class="back-btn" @click="isCustomMode = false">
         <Icon icon="mdi:arrow-left" /> Назад к пресетам
       </KitBtn>

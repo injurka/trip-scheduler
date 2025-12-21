@@ -8,15 +8,13 @@ export const TripImageSchema = z.object({
   sizeBytes: z.number().default(0),
   createdAt: z.date(),
 
-  // Поля, которые могут отсутствовать при placement="route"
   tripId: z.string().optional(),
-  placement: z.enum(['route', 'memories']).optional(),
+  placement: z.enum(['route', 'memories', 'cover', 'content']).optional(),
   variants: z.any().nullable().optional(),
   takenAt: z.date().nullable().optional(),
   latitude: z.number().nullable().optional(),
   longitude: z.number().nullable().optional(),
 
-  // Остальные поля оставляем как есть или тоже делаем опциональными по необходимости
   width: z.number().nullable().optional(),
   height: z.number().nullable().optional(),
   metadata: z.any().nullable().optional(),
@@ -25,6 +23,12 @@ export const TripImageSchema = z.object({
 export const GetImagesByTripIdInputSchema = z.object({
   tripId: z.string().uuid(),
   placement: z.enum(['route', 'memories']).optional(),
+})
+
+export const GetImagesByEntityInputSchema = z.object({
+  entityId: z.string(),
+  entityType: z.enum(['trip', 'post', 'blog', 'avatar']),
+  placement: z.string().optional(),
 })
 
 export const DeleteImageInputSchema = z.object({

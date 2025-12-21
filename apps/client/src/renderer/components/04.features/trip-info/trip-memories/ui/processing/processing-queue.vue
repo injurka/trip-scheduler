@@ -1,6 +1,5 @@
 <script setup lang="ts">
 import { Icon } from '@iconify/vue'
-import { computed, reactive, ref } from 'vue'
 import { KitCheckbox } from '~/components/01.kit/kit-checkbox'
 import { useModuleStore } from '~/components/05.modules/trip-info/composables/use-trip-info-module'
 import MemoryProcessingCard from './processing-card.vue'

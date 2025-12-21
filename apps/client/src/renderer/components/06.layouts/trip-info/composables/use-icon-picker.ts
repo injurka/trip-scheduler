@@ -1,5 +1,3 @@
-import { computed, ref } from 'vue'
-
 // Централизованный список иконок. Редактировать только здесь.
 const iconList = [
   'mdi:walk',

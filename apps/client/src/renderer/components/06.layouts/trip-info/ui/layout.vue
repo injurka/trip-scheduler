@@ -28,11 +28,14 @@ const { mainNavigationRef, navigationWrapperRef } = layout
 const { plan, ui, routeGallery, memories, sections } = useModuleStore(['plan', 'ui', 'routeGallery', 'memories', 'sections'])
 const store = useAppStore(['auth'])
 const { canEdit } = useTripPermissions()
+const { mdAndDown } = useDisplay()
 
 const tripId = computed(() => route.params.id as string)
 const dayId = computed(() => route.query.day as string)
+const isMapView = computed(() => route.query.section === 'map')
 
-const { isLoading: isTripLoading } = storeToRefs(plan)
+const { isLoading: isTripLoading, fetchError } = storeToRefs(plan)
+const { isDaysPanelPinned, activeView, isParallelPlanView } = storeToRefs(ui)
 
 if (tripId.value) {
   plan.fetchTripDetails(
@@ -72,82 +75,92 @@ onBeforeUnmount(() => {
   <main class="main">
     <div class="main-content">
       <div
-        ref="mainNavigationRef"
-        class="main-navigation"
+        class="content-wrapper"
+        :class="[
+          { 'has-error': fetchError },
+          { 'is-panel-pinned': isDaysPanelPinned && !mdAndDown },
+          { 'is-wide-mode': isParallelPlanView || isMapView },
+          activeView,
+        ]"
       >
-        <div class="main-navigation-left">
-          <button v-ripple class="nav-button" title="Назад" @click="router.back()">
-            <Icon icon="mdi:arrow-left" />
-          </button>
-        </div>
-
-        <div ref="navigationWrapperRef" class="navigation-wrapper">
-          <template v-if="isTripLoading">
-            <KitSkeleton width="250px" height="40px" border-radius="12px" />
-          </template>
-          <template v-else>
-            <button class="nav-arrow left" title="Предыдущая секция" @click="layout.navigate('prev')">
-              <Icon icon="mdi:chevron-left" />
+        <div
+          ref="mainNavigationRef"
+          class="main-navigation"
+        >
+          <div class="main-navigation-left">
+            <button v-ripple class="nav-button" title="Назад" @click="router.back()">
+              <Icon icon="mdi:arrow-left" />
             </button>
+          </div>
 
-            <div v-ripple class="current-section" @click="layout.handleCurrentSectionClick">
-              <Icon v-if="layout.activeTab.value?.icon" :icon="layout.activeTab.value.icon" class="current-section-icon" />
-              <h1 class="current-section-title">
-                {{ layout.activeTab.value?.label }}
-              </h1>
-              <Icon icon="mdi:chevron-down" class="chevron-icon" :class="{ 'is-open': layout.isLayoutDropdownOpen.value }" />
-            </div>
+          <div ref="navigationWrapperRef" class="navigation-wrapper">
+            <template v-if="isTripLoading">
+              <KitSkeleton width="250px" height="40px" border-radius="12px" />
+            </template>
+            <template v-else>
+              <button class="nav-arrow left" title="Предыдущая секция" @click="layout.navigate('prev')">
+                <Icon icon="mdi:chevron-left" />
+              </button>
 
-            <button class="nav-arrow right" title="Следующая секция" @click="layout.navigate('next')">
-              <Icon icon="mdi:chevron-right" />
-            </button>
-
-            <Transition name="fade-dropdown">
-              <div v-if="!layout.isMobile.value && layout.isLayoutDropdownOpen.value" class="sections-dropdown-panel">
-                <ul class="sections-list">
-                  <li v-for="item in layout.tabItems.value" :key="item.id" @click="layout.selectSection(item.id)">
-                    <Icon :icon="item.icon!" class="section-item-icon" />
-                    <span>{{ item.label }}</span>
-                  </li>
-                </ul>
-
-                <div v-if="store.auth.isAuthenticated" class="dropdown-footer">
-                  <button class="add-section-btn" @click="ui.openAddSectionDialog">
-                    <Icon icon="mdi:plus-circle-outline" />
-                    <span>Добавить раздел</span>
-                  </button>
-                </div>
+              <div v-ripple class="current-section" @click="layout.handleCurrentSectionClick">
+                <Icon v-if="layout.activeTab.value?.icon" :icon="layout.activeTab.value.icon" class="current-section-icon" />
+                <h1 class="current-section-title">
+                  {{ layout.activeTab.value?.label }}
+                </h1>
+                <Icon icon="mdi:chevron-down" class="chevron-icon" :class="{ 'is-open': layout.isLayoutDropdownOpen.value }" />
               </div>
-            </Transition>
-          </template>
-        </div>
 
-        <div class="main-navigation-right">
-          <template v-if="isTripLoading">
-            <KitSkeleton width="40px" height="40px" border-radius="50%" />
-          </template>
-          <template v-else>
-            <TripCommentsWidget
-              v-if="dayId && layout.activeTab.value?.id === 'daily-route'"
-              :parent-id="dayId"
-              :parent-type="CommentParentType.DAY"
-            />
-            <button
-              v-if="canEdit"
-              class="nav-button"
-              :title="ui.isViewMode ? 'Перейти в режим редактирования' : 'Перейти в режим просмотра'"
-              @click="toggleMode"
-            >
-              <Icon width="18" height="18" :icon="ui.isViewMode ? 'mdi:pencil-outline' : 'mdi:eye-outline'" />
-            </button>
-          </template>
+              <button class="nav-arrow right" title="Следующая секция" @click="layout.navigate('next')">
+                <Icon icon="mdi:chevron-right" />
+              </button>
+
+              <Transition name="fade-dropdown">
+                <div v-if="!layout.isMobile.value && layout.isLayoutDropdownOpen.value" class="sections-dropdown-panel">
+                  <ul class="sections-list">
+                    <li v-for="item in layout.tabItems.value" :key="item.id" @click="layout.selectSection(item.id)">
+                      <Icon :icon="item.icon!" class="section-item-icon" />
+                      <span>{{ item.label }}</span>
+                    </li>
+                  </ul>
+
+                  <div v-if="store.auth.isAuthenticated" class="dropdown-footer">
+                    <button class="add-section-btn" @click="ui.openAddSectionDialog">
+                      <Icon icon="mdi:plus-circle-outline" />
+                      <span>Добавить раздел</span>
+                    </button>
+                  </div>
+                </div>
+              </Transition>
+            </template>
+          </div>
+
+          <div class="main-navigation-right">
+            <template v-if="isTripLoading">
+              <KitSkeleton width="40px" height="40px" border-radius="50%" />
+            </template>
+            <template v-else>
+              <TripCommentsWidget
+                v-if="dayId && layout.activeTab.value?.id === 'daily-route'"
+                :parent-id="dayId"
+                :parent-type="CommentParentType.DAY"
+              />
+              <button
+                v-if="canEdit"
+                class="nav-button"
+                :title="ui.isViewMode ? 'Перейти в режим редактирования' : 'Перейти в режим просмотра'"
+                @click="toggleMode"
+              >
+                <Icon width="18" height="18" :icon="ui.isViewMode ? 'mdi:pencil-outline' : 'mdi:eye-outline'" />
+              </button>
+            </template>
+          </div>
         </div>
+        <KitDivider class="trip-info-divider">
+          <Icon width="16" height="16" icon="mdi-axis-arrow-info" />
+        </KitDivider>
+
+        <slot />
       </div>
-      <KitDivider class="trip-info-divider">
-        <Icon width="16" height="16" icon="mdi-axis-arrow-info" />
-      </KitDivider>
-
-      <slot />
     </div>
 
     <BackgroundEffects />
@@ -156,7 +169,6 @@ onBeforeUnmount(() => {
 
   <ThemeManager />
 
-  <!-- Drawer для мобильных -->
   <KitDrawer
     v-model:open="layout.isDrawerOpen.value"
     side="right"
@@ -185,10 +197,8 @@ onBeforeUnmount(() => {
     </div>
   </KitDrawer>
 
-  <!-- Диалог добавления новой секции -->
   <AddSectionDialog v-model:visible="ui.isAddSectionDialogOpen" @add-section="handleAddSection" />
 
-  <!-- Диалог редактирования раздела -->
   <KitDialogWithClose
     v-if="layout.sectionToEdit.value"
     v-model:visible="layout.isEditSectionDialogOpen.value"
@@ -232,6 +242,9 @@ onBeforeUnmount(() => {
   flex-direction: column;
   flex: 1;
   position: relative;
+  overflow: hidden;
+  margin-top: -56px;
+  padding-top: 56px;
 
   .trip-info-divider {
     margin: 0 auto;
@@ -240,7 +253,6 @@ onBeforeUnmount(() => {
     max-width: 1000px;
     width: 100%;
     padding: 0 8px;
-    background: var(--bg-primary-color);
     padding-top: 16px;
     padding-bottom: 8px;
   }
@@ -253,7 +265,6 @@ onBeforeUnmount(() => {
     max-width: 1000px;
     width: 100%;
     padding: 0 8px;
-    background: var(--bg-primary-color);
     padding-top: 16px;
 
     .nav-button {
@@ -388,11 +399,63 @@ onBeforeUnmount(() => {
     display: flex;
     flex-direction: column;
     flex: 1;
-    overflow: hidden;
   }
 }
 
-/* Дровер для мобильных и общий стиль кнопки добавления */
+.content-wrapper {
+  &.has-error {
+    background: transparent;
+  }
+
+  &.is-panel-pinned {
+    @media (max-width: 1800px) {
+      margin-left: 440px;
+    }
+  }
+
+  &.is-wide-mode {
+    max-width: 100%;
+    height: 100%;
+    padding: 0;
+    align-items: center;
+
+    :deep() {
+      .navigation-back-container,
+      .controls,
+      .day-header,
+      .day-navigation,
+      .divider-with-action {
+        max-width: 1000px;
+        width: 100%;
+        margin-left: auto;
+        margin-right: auto;
+      }
+
+      .divider-with-action {
+        position: relative;
+      }
+
+      .trip-info-wrapper {
+        .trip-info {
+          justify-content: center;
+          align-items: center;
+
+          .divider {
+            padding: 0 32px;
+          }
+
+          .view-content {
+            padding: 0 32px;
+            max-width: 1800px;
+            margin: 0 auto;
+            width: 100%;
+          }
+        }
+      }
+    }
+  }
+}
+
 .sections-drawer {
   .drawer-header {
     padding: 16px;
@@ -535,7 +598,6 @@ onBeforeUnmount(() => {
   transform: translateX(-50%) translateY(-10px);
 }
 
-/* Форма добавления секции */
 .add-section-form {
   display: flex;
   flex-direction: column;

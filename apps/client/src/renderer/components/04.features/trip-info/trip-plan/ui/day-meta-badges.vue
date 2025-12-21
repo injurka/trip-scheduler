@@ -423,10 +423,12 @@ function createBlankBadge() {
 <style scoped lang="scss">
 .day-meta-badges-container {
   padding: 16px 0;
-  margin-bottom: 8px;
   display: flex;
   flex-direction: column;
   gap: 16px;
+  max-width: 1000px;
+  margin: 0 auto;
+  margin-bottom: 8px;
 }
 
 .badges-wrapper {

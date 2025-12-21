@@ -91,7 +91,6 @@ async function handleUpdate(id: string) {
                 {{ item.imageCount }} файлов
               </span>
             </div>
-            <!-- Прогресс бар если идет загрузка -->
             <div v-if="offlineStore.isDownloading[item.id]" class="download-progress">
               <div class="progress-bar" :style="{ width: `${offlineStore.downloadProgress[item.id]}%` }" />
             </div>

@@ -1,24 +1,17 @@
 import type { IMemory } from '~/components/05.modules/trip-info/models/types'
 import { Time } from '@internationalized/date'
-import { computed, ref, shallowRef } from 'vue'
 import { useModuleStore } from '~/components/05.modules/trip-info/composables/use-trip-info-module'
 
 export function useMemoryItemActions(props: { memory: IMemory, isViewMode: boolean }) {
+  const confirm = useConfirm()
   const { memories, plan } = useModuleStore(['memories', 'plan'])
+
   const { updateMemory, deleteMemory, removeTimestamp } = memories
   const { getSelectedDay } = storeToRefs(plan)
-  const confirm = useConfirm()
 
-  // --- Comment Logic ---
   const memoryComment = ref(props.memory.comment || '')
-
-  function saveComment() {
-    if (memoryComment.value !== props.memory.comment)
-      updateMemory({ id: props.memory.id, comment: memoryComment.value })
-  }
-
-  // --- Time Logic ---
   const isTimeEditing = ref(false)
+
   const editingTime = shallowRef<Time | null>(null)
 
   const displayTime = computed(() => {
@@ -62,7 +55,11 @@ export function useMemoryItemActions(props: { memory: IMemory, isViewMode: boole
     isTimeEditing.value = false
   }
 
-  // --- Actions ---
+  function saveComment() {
+    if (memoryComment.value !== props.memory.comment)
+      updateMemory({ id: props.memory.id, comment: memoryComment.value })
+  }
+
   async function handleDelete() {
     const isConfirmed = await confirm({
       title: 'Удалить воспоминание?',

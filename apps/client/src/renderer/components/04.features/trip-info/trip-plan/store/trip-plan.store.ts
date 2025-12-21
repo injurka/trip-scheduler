@@ -3,6 +3,7 @@ import type { IActivity, IDay } from '../models/types'
 import type { Trip, TripSection, UpdateTripInput } from '~/shared/types/models/trip'
 import { defineStore } from 'pinia'
 import { useRequest, useRequestError, useRequestStatus, useRequestStatusByPrefix, useRequestStore } from '~/plugins/request'
+import { createApiErrorHandler } from '~/plugins/request/lib/error-handler'
 import { AppRoutePaths } from '~/shared/constants/routes'
 
 export enum ETripPlanKeys {
@@ -150,14 +151,14 @@ export const useTripPlanStore = defineStore('tripPlan', {
             this.currentDayId = null
           }
         },
-        onError: (error) => {
+        onError: ({ error }) => {
           this.trip = null
           this.days = []
           this.currentDayId = null
           onSectionsLoad([])
 
           console.error(`Ошибка при загрузке данных для путешествия ${tripId}: `, error)
-          useToast().error(`Ошибка при загрузке данных: ${error}`)
+          useToast().error(`Ошибка при загрузке данных: ${error.message}`)
         },
       })
     },
@@ -177,10 +178,13 @@ export const useTripPlanStore = defineStore('tripPlan', {
             this.trip = { ...this.trip, ...updatedTripFromServer }
           useToast().success('Информация о путешествии обновлена.')
         },
-        onError: (error) => {
-          this.trip = originalTrip
-          useToast().error(`Ошибка при обновлении путешествия: ${error}`)
-        },
+        onError: createApiErrorHandler({
+          handlers: {
+            custom: () => {
+              this.trip = originalTrip
+            },
+          },
+        }),
       })
     },
 
@@ -194,9 +198,6 @@ export const useTripPlanStore = defineStore('tripPlan', {
         onSuccess: () => {
           useToast().success(`Пользователь ${email} добавлен в путешествие`)
           this.fetchTripDetails(this.trip!.id, this.currentDayId!, () => { })
-        },
-        onError: (error) => {
-          useToast().error(`Не удалось добавить участника: ${error}`)
         },
       })
     },
@@ -223,7 +224,7 @@ export const useTripPlanStore = defineStore('tripPlan', {
           if (finalDayIndex !== -1)
             this.days[finalDayIndex] = { ...this.days[finalDayIndex], ...updatedDayFromServer }
         },
-        onError: (error) => {
+        onError: ({ error }) => {
           const dayToRevertIndex = this.days.findIndex(d => d.id === dayId)
           if (dayToRevertIndex !== -1)
             this.days[dayToRevertIndex] = originalDay
@@ -263,7 +264,7 @@ export const useTripPlanStore = defineStore('tripPlan', {
           }
           console.log(`Активность ${createdActivityFromServer.id} успешно создана.`)
         },
-        onError: (error) => {
+        onError: ({ error }) => {
           const activityIndex = day.activities.findIndex(a => a.id === tempId)
           if (activityIndex !== -1) {
             day.activities.splice(activityIndex, 1)
@@ -298,7 +299,7 @@ export const useTripPlanStore = defineStore('tripPlan', {
         onSuccess: () => {
           console.log(`Активность ${activityId} успешно удалена с сервера.`)
         },
-        onError: (error) => {
+        onError: ({ error }) => {
           if (day)
             day.activities.splice(activityIndex, 0, removedActivity)
 
@@ -330,7 +331,7 @@ export const useTripPlanStore = defineStore('tripPlan', {
           if (finalIndex !== -1)
             day.activities[finalIndex] = activityFromServer
         },
-        onError: (error) => {
+        onError: ({ error }) => {
           const revertIndex = day.activities.findIndex(a => a.id === updatedActivity.id)
           if (revertIndex !== -1)
             day.activities[revertIndex] = originalActivity
@@ -380,7 +381,7 @@ export const useTripPlanStore = defineStore('tripPlan', {
               this.currentDayId = createdDay.id
           }
         },
-        onError: (error) => {
+        onError: ({ error }) => {
           const tempDayIndex = this.days.findIndex(d => d.id === tempId)
           if (tempDayIndex !== -1)
             this.days.splice(tempDayIndex, 1)
@@ -428,7 +429,7 @@ export const useTripPlanStore = defineStore('tripPlan', {
         onSuccess: () => {
           console.log(`День ${dayIdToDelete} успешно удален с сервера.`)
         },
-        onError: (error) => {
+        onError: ({ error }) => {
           this.days.splice(dayIndex, 0, deletedDay)
           this.currentDayId = originalCurrentDayId
 
@@ -452,7 +453,7 @@ export const useTripPlanStore = defineStore('tripPlan', {
           useToast().success('Путешествие успешно удалено.')
           router.push(AppRoutePaths.Trip.List)
         },
-        onError: (error) => {
+        onError: ({ error }) => {
           useToast().error(`Не удалось удалить путешествие: ${error}`)
           throw error
         },

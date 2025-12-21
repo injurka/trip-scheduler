@@ -1,6 +1,5 @@
 <script setup lang="ts">
 import { Icon } from '@iconify/vue'
-import { computed } from 'vue'
 import { KitDivider } from '~/components/01.kit/kit-divider'
 import { vRipple } from '~/shared/directives/ripple'
 

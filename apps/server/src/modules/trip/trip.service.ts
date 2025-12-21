@@ -3,6 +3,7 @@ import type { CreateTripInputSchema, ListTripsInputSchema, TripWithDaysSchema, U
 import { createTRPCError } from '~/lib/trpc'
 import { dayRepository } from '~/repositories/day.repository'
 import { tripRepository } from '~/repositories/trip.repository'
+import { userRepository } from '~/repositories/user.repository'
 import { quotaService } from '~/services/quota.service'
 
 export const tripService = {
@@ -79,6 +80,21 @@ export const tripService = {
       throw createTRPCError('NOT_FOUND', `Путешествие с ID ${id} не найдено.`)
 
     return updatedTrip
+  },
+
+  async addParticipant(tripId: string, email: string, currentUserId: string) {
+    const trip = await tripRepository.getById(tripId)
+    if (!trip)
+      throw createTRPCError('NOT_FOUND', `Путешествие с ID ${tripId} не найдено.`)
+
+    if (trip.userId !== currentUserId)
+      throw createTRPCError('FORBIDDEN', 'Только владелец путешествия может добавлять участников.')
+
+    const userToAdd = await userRepository.findByEmail(email)
+    if (!userToAdd)
+      throw createTRPCError('NOT_FOUND', `Пользователь с email ${email} не найден.`)
+
+    await tripRepository.addParticipant(tripId, userToAdd.id)
   },
 
   async delete(id: string, userId: string, userRole: string) {

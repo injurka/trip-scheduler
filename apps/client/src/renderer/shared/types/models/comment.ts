@@ -7,6 +7,7 @@ import type { RouterInput, RouterOutput } from '../trpc'
 export enum CommentParentType {
   TRIP = 'trip',
   DAY = 'day',
+  POST = 'post',
 }
 
 /**

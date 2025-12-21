@@ -26,8 +26,8 @@ export class AuthRepository implements IAuthRepository {
   }
 
   @throttle(1000)
-  async signInWithTelegram(authData: TelegramAuthPayload) { // Убедитесь, что тип здесь - объект
-    return trpc.user.signInWithTelegram.mutate(authData) // Передаем объект
+  async signInWithTelegram(authData: TelegramAuthPayload) {
+    return trpc.user.signInWithTelegram.mutate(authData)
   }
 
   @throttle(1000)
@@ -53,11 +53,12 @@ export class AuthRepository implements IAuthRepository {
   @throttle(1000)
   async uploadAvatar(file: File): Promise<User> {
     const formData = new FormData()
-    formData.append('file', file) // Используем 'file', как ожидает сервер
+    formData.append('file', file)
+    formData.append('entityType', 'avatar')
 
     const accessToken = useStorage<string | null>(TOKEN_KEY, null)
 
-    const response = await fetch(`${import.meta.env.VITE_APP_SERVER_URL}/api/avatar/upload`, {
+    const response = await fetch(`${import.meta.env.VITE_APP_SERVER_URL}/api/upload`, {
       method: 'POST',
       body: formData,
       headers: {

@@ -111,7 +111,7 @@ export function useTripsHub() {
       onSuccess: (tags) => {
         availableTags.value = tags.map(tag => ({ value: tag, label: tag }))
       },
-      onError: (error) => {
+      onError: ({ error }) => {
         toast.error(`Не удалось загрузить список тегов: ${error}`)
       },
     })
@@ -127,7 +127,7 @@ export function useTripsHub() {
       onSuccess: (cities) => {
         availableCities.value = cities.map(city => ({ value: city, label: city }))
       },
-      onError: (error) => {
+      onError: ({ error }) => {
         toast.error(`Не удалось загрузить список городов: ${error}`)
       },
     })
@@ -161,7 +161,7 @@ export function useTripsHub() {
         hasLoadedOnce.value = true
         setCount('trip-list', trips.value.length)
       },
-      onError: (error) => {
+      onError: ({ error }) => {
         trips.value = []
         toast.error(`Не удалось загрузить список путешествий: ${error}`)
       },
@@ -183,7 +183,7 @@ export function useTripsHub() {
         toast.success(`Путешествие "${createdTrip.title}" создано!`)
         closeCreateModal()
       },
-      onError: (error) => {
+      onError: ({ error }) => {
         toast.error(`Ошибка при создании путешествия: ${error}`)
       },
     })
@@ -205,7 +205,7 @@ export function useTripsHub() {
       onSuccess: () => {
         authStore.decrementTripCount()
       },
-      onError: (error) => {
+      onError: ({ error }) => {
         trips.value.splice(tripIndex, 0, removedTrip)
         toast.error(`Не удалось удалить путешествие: ${error}`)
       },
@@ -231,7 +231,7 @@ export function useTripsHub() {
         }
         toast.success('Путешествие обновлено.')
       },
-      onError: (error) => {
+      onError: ({ error }) => {
         const revertIndex = trips.value.findIndex(t => t.id === updatedData.id)
         if (revertIndex !== -1) {
           trips.value[revertIndex] = originalTrip

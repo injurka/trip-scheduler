@@ -34,7 +34,6 @@ const avatarInput = ref<HTMLInputElement | null>(null)
       <p>Здесь вы можете управлять информацией вашего аккаунта.</p>
     </header>
 
-    <!-- Основная информация -->
     <section class="profile-section">
       <h2 class="section-title">
         Основная информация
@@ -62,7 +61,6 @@ const avatarInput = ref<HTMLInputElement | null>(null)
 
     <KitDivider />
 
-    <!-- Безопасность -->
     <section class="profile-section">
       <h2 class="section-title">
         Безопасность
@@ -96,7 +94,6 @@ const avatarInput = ref<HTMLInputElement | null>(null)
 
     <KitDivider />
 
-    <!-- Опасная зона -->
     <section class="profile-section danger-zone">
       <h2 class="section-title">
         Опасная зона

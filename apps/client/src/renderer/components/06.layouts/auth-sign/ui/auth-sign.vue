@@ -139,6 +139,7 @@ onUnmounted(() => {
   border-radius: var(--r-l);
   padding: 32px;
   overflow: hidden;
+  background-color: rgba(var(--bg-primary-color-rgb), 0.5);
 
   @include media-down(xs) {
     padding: 16px;

@@ -1,7 +1,6 @@
 <script setup lang="ts">
 import type { HighlightStatus } from '../../composables/use-booking-section'
 import type { AttractionData, Booking } from '../../models/types'
-import { ref } from 'vue'
 import { KitBtn } from '~/components/01.kit/kit-btn'
 import BookingCardWrapper from '../shared/booking-card-wrapper.vue'
 import BookingDateTimeField from '../shared/booking-date-time-field.vue'

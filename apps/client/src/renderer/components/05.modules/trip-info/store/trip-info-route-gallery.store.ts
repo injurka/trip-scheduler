@@ -1,4 +1,5 @@
 import type { TripImage } from '~/shared/types/models/trip'
+import { defineStore } from 'pinia'
 import { useRequest, useRequestStatus } from '~/plugins/request'
 import { TripImagePlacement } from '~/shared/types/models/trip'
 
@@ -68,7 +69,7 @@ export const useTripInfoGalleryStore = defineStore('tripInfoRouteGallery', {
           this.tripImages = result
           this.loadedTripId = this.currentTripId
         },
-        onError: (error) => {
+        onError: ({ error }) => {
           console.error(`Ошибка при загрузке изображений для путешествия ${this.currentTripId}:`, error)
         },
       })
@@ -87,11 +88,16 @@ export const useTripInfoGalleryStore = defineStore('tripInfoRouteGallery', {
 
       const newImage = await useRequest<TripImage>({
         key: ETripGalleryKeys.UPLOAD_IMAGE,
-        fn: db => db.files.uploadFile(file, this.currentTripId!, TripImagePlacement.ROUTE),
+        fn: db => db.files.uploadFile(
+          file,
+          this.currentTripId!, // entityId
+          'trip', // entityType
+          TripImagePlacement.ROUTE, // placement
+        ),
         onSuccess: (result) => {
           this.tripImages.push(result)
         },
-        onError: (error) => {
+        onError: ({ error }) => {
           console.error(`Ошибка при загрузке изображения для путешествия ${this.currentTripId}:`, error)
         },
       })

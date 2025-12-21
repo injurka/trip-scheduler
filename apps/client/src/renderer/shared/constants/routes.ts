@@ -22,11 +22,17 @@ export enum AppRouteNames {
   UserStorage = 'user-storage',
 
   PostList = 'post-list',
+  PostCreate = 'post-create',
+  PostDetails = 'post-details',
 
   BlogList = 'blog-list',
   BlogArticle = 'blog-article',
+  BlogCreate = 'blog-create',
+  BlogEdit = 'blog-edit',
 
   Explore = 'explore',
+
+  ActivityMap = 'activity-map',
 }
 
 export const AppRoutePaths = {
@@ -59,13 +65,19 @@ export const AppRoutePaths = {
   },
 
   Post: {
-    List: '/posts',
+    List: '/post/list',
+    Create: '/post/create',
+    Details: (id: string) => `/post/${id}`,
   },
 
   Blog: {
     List: '/blog',
+    Create: '/blog/create',
+    Edit: (id: string) => `/blog/edit/${id}`,
     Article: (slug: string) => `/blog/${slug}`,
   },
 
   Explore: '/explore',
+
+  ActivityMap: '/activity-map',
 }

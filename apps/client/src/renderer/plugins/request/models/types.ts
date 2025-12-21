@@ -1,4 +1,5 @@
 import type { InjectionKey } from 'vue'
+import type { IErrorCallback } from '../lib/error-handler'
 import type { IDatabaseClient } from '~/shared/services/api/model/types'
 
 export interface RequestPluginOptions {
@@ -18,6 +19,6 @@ export interface UseRequestOptions<T> {
   abortOnUnmount?: boolean
   cancelPrevious?: boolean
   onSuccess?: (result: T) => void | Promise<void>
-  onError?: (error: unknown) => void | Promise<void>
+  onError?: ({ error }: IErrorCallback) => void | Promise<void>
   onAbort?: () => void | Promise<void>
 }

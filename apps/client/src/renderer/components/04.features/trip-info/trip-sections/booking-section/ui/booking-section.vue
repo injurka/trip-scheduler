@@ -1,7 +1,6 @@
 <script setup lang="ts">
 import type { Booking, BookingSectionContent, BookingType } from '../models/types'
 import { Icon } from '@iconify/vue'
-import { ref } from 'vue'
 import draggable from 'vuedraggable'
 import { KitBtn } from '~/components/01.kit/kit-btn'
 import { KitTabs } from '~/components/01.kit/kit-tabs'

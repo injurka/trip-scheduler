@@ -85,7 +85,7 @@ const router = useRouter()
     padding: 2rem;
     color: var(--fg-primary-color);
     line-height: 1.7;
-    background-color: var(--bg-secondary-color-rgb-a-80);
+    background-color: rgba(var(--bg-primary-color-rgb), 0.5);
     backdrop-filter: blur(8px);
     -webkit-backdrop-filter: blur(8px);
     border-radius: var(--r-l);
@@ -136,7 +136,7 @@ const router = useRouter()
       align-items: center;
       gap: 4px;
       color: var(--fg-secondary-color);
-      background-color: var(--bg-tertiary-color);
+      background-color: rgba(var(--bg-tertiary-color-rgb), 0.5);
       border: 1px solid var(--border-secondary-color);
       border-radius: var(--r-s);
       transition: all 0.2s ease;
@@ -161,7 +161,7 @@ const router = useRouter()
   .section {
     margin-top: 2rem;
     padding: 1rem 1.5rem;
-    background: var(--bg-tertiary-color);
+    background-color: rgba(var(--bg-tertiary-color-rgb), 0.5);
     border-left: 3px solid var(--border-accent-color);
     border-radius: var(--r-m);
 

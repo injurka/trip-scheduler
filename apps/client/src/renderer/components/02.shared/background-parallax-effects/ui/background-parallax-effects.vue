@@ -1,7 +1,6 @@
 <script setup lang="ts">
 import { Icon, loadIcons } from '@iconify/vue'
 import { useMouse } from '@vueuse/core'
-import { onBeforeUnmount, onMounted, reactive, ref } from 'vue'
 
 // --- Типы и Пропсы ---
 interface Particle {

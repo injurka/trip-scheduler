@@ -1,6 +1,5 @@
 import type { MaybeRef } from 'vue'
 import type { RequestStatus } from '../store/request.store'
-import { computed, unref } from 'vue'
 import { useRequestStore } from '../store/request.store'
 
 /**

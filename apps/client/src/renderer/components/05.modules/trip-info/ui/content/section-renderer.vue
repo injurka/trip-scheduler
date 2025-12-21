@@ -7,15 +7,13 @@ import { TripSectionType } from '~/shared/types/models/trip'
 
 const props = defineProps<{
   sectionId: string
-  days: IDay[] // Добавляем days, так как карта требует их
+  days: IDay[]
 }>()
 
 const { sections: sectionsStore, ui: uiStore } = useModuleStore(['sections', 'ui'])
 
-// Если ID === 'map', секции в сторе не будет, это нормально
 const section = computed(() => sectionsStore.sections.find(s => s.id === props.sectionId))
 
-// Динамический импорт карты, чтобы не грузить её, если не нужна
 const TripMapSection = defineAsyncComponent(() => import('~/components/04.features/trip-info/trip-sections/map-section/ui/trip-map-section.vue'))
 
 const componentsMap: Partial<Record<TripSectionType, Component>> = {
@@ -31,14 +29,12 @@ function handleSectionUpdate(updatedSectionData: TripSection) {
 </script>
 
 <template>
-  <!-- 1. Специальный случай для Карты -->
   <TripMapSection
     v-if="sectionId === 'map'"
     :days="days"
     class="full-height-section"
   />
 
-  <!-- 2. Обычные секции -->
   <div v-else-if="section" class="section-renderer">
     <div class="section-content">
       <component
@@ -54,7 +50,6 @@ function handleSectionUpdate(updatedSectionData: TripSection) {
     </div>
   </div>
 
-  <!-- 3. Ошибка (ни карта, ни секция не найдены) -->
   <div v-else class="section-not-found">
     Раздел не найден.
   </div>

@@ -1,6 +1,5 @@
 <script setup lang="ts">
 import { Icon } from '@iconify/vue'
-import { computed } from 'vue'
 import { KitInput } from '~/components/01.kit/kit-input'
 
 interface Props {
@@ -43,7 +42,6 @@ const href = computed(() => {
 
 <template>
   <div class="booking-field">
-    <!-- Readonly View -->
     <div v-if="props.readonly" class="readonly-wrapper">
       <label class="field-label">
         {{ label }}
@@ -56,7 +54,6 @@ const href = computed(() => {
       </div>
     </div>
 
-    <!-- Editable View -->
     <KitInput
       v-else
       v-model="modelValue"

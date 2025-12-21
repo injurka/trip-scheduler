@@ -1,6 +1,5 @@
 <script setup lang="ts">
 import { useOnline } from '@vueuse/core'
-import { computed } from 'vue'
 import { useDataTimestamp } from '~/shared/composables/use-data-timestamp'
 
 const isOnline = useOnline()

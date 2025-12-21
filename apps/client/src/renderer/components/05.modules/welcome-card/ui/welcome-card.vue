@@ -1,7 +1,6 @@
 <script setup lang="ts">
 import { Icon } from '@iconify/vue'
 import { useMouse } from '@vueuse/core'
-import { computed, onMounted, ref } from 'vue'
 import { KitBtn } from '~/components/01.kit/kit-btn'
 import { BackgroundParallaxEffects } from '~/components/02.shared/background-parallax-effects'
 

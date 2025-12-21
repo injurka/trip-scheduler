@@ -13,7 +13,6 @@ const meta = {
   component: KitImageViewer,
   tags: ['autodocs'],
   argTypes: {
-    // Props of the ImageViewer component
     visible: { description: 'Controls visibility (bound to `useImageViewer().isOpen`).' },
     images: { description: 'Array of images to display (bound to `useImageViewer().images`).' },
     currentIndex: { description: 'Current image index (bound to `useImageViewer().currentIndex`).' },
@@ -21,7 +20,6 @@ const meta = {
     enableThumbnails: { control: 'boolean', description: 'Show or hide the thumbnail strip.' },
     closeOnOverlayClick: { control: 'boolean', description: 'Whether clicking the overlay closes the viewer.' },
 
-    // Options for the useImageViewer composable
     // @ts-expect-error ...
     options: {
       control: 'object',
@@ -33,7 +31,6 @@ const meta = {
 export default meta
 type Story = StoryObj<typeof meta>
 
-// --- Mock Data ---
 const galleryImages: ImageViewerImage[] = [
   { url: 'https://picsum.photos/id/1018/1920/1080', alt: 'Mountain Landscape', caption: 'A stunning view of the mountains and a lake.' },
   { url: 'https://picsum.photos/id/1015/1920/1080', alt: 'Valley', caption: 'A river flowing through a green valley.' },
@@ -46,12 +43,10 @@ const singleImage: ImageViewerImage[] = [
   { url: 'https://picsum.photos/id/1040/1920/1080', alt: 'Castle', caption: 'An old castle on a hill.' },
 ]
 
-// --- Reusable Render Function ---
 function createRender(imageList: ImageViewerImage[]) {
   return (args: any) => ({
     components: { KitImageViewer },
     setup() {
-      // Use the composable to manage the viewer's state
       const viewer = useImageViewer(args.options as ImageViewerOptions)
 
       function openViewer(index: number) {
@@ -76,7 +71,6 @@ function createRender(imageList: ImageViewerImage[]) {
         />
       </div>
 
-      <!-- The Viewer Component -->
       <KitImageViewer
         v-model:visible="viewer.isOpen.value"
         v-model:currentIndex="viewer.currentIndex.value"
@@ -115,7 +109,7 @@ export const SingleImage: Story = {
   render: createRender(singleImage),
   // @ts-expect-error ...
   args: {
-    showCounter: true, // Will be ignored because there's only one image
+    showCounter: true, 
   },
 }
 

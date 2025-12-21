@@ -127,7 +127,6 @@ onMounted(() => {
       </div>
     </header>
 
-    <!-- By Category View -->
     <div v-if="currentView === 'category'">
       <div v-if="spendingByCategory.length > 0" class="categories-content">
         <div class="chart-container">
@@ -147,11 +146,9 @@ onMounted(() => {
       </div>
     </div>
 
-    <!-- By Day View -->
     <div v-else-if="currentView === 'day'">
       <div v-if="spendingByDay.length > 0" class="days-content">
         <div class="chart-container-bar">
-          <!-- :options теперь биндится к computed свойству -->
           <Bar :data="barChartData" :options="barChartOptions" />
         </div>
       </div>

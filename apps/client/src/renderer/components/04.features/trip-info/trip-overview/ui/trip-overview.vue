@@ -4,6 +4,7 @@ import type { MapPoint, MapRoute } from '~/components/03.domain/trip-info/geoloc
 import type { IDay } from '~/components/04.features/trip-info/trip-plan/models/types'
 import type { Trip, TripSection } from '~/shared/types/models/trip'
 import { Icon } from '@iconify/vue'
+import { useClipboard, useShare } from '@vueuse/core'
 import { DropdownMenuItem } from 'reka-ui'
 import { KitAnimatedTooltip } from '~/components/01.kit/kit-animated-tooltip'
 import { KitAvatar } from '~/components/01.kit/kit-avatar'
@@ -13,6 +14,7 @@ import { KitImage } from '~/components/01.kit/kit-image'
 import { KitTooltip } from '~/components/01.kit/kit-tooltip'
 import { useModuleStore } from '~/components/05.modules/trip-info/composables/use-trip-info-module'
 import { useTripPermissions } from '~/components/05.modules/trip-info/composables/use-trip-permissions'
+import { useToast } from '~/shared/composables/use-toast'
 import { vRipple } from '~/shared/directives/ripple'
 import { useOfflineStore } from '~/shared/store/offline.store'
 import { EActivitySectionType, EActivityTag } from '~/shared/types/models/activity'
@@ -43,9 +45,12 @@ const emit = defineEmits<{
 
 const router = useRouter()
 const confirm = useConfirm()
+const toast = useToast()
 const { canEdit } = useTripPermissions()
 
-// --- Offline Stores ---
+const { share, isSupported: isShareSupported } = useShare()
+const { copy } = useClipboard()
+
 const offlineStore = useOfflineStore()
 const moduleStore = useModuleStore(['plan'])
 
@@ -100,7 +105,6 @@ const attractionCount = computed(() => {
   }, 0)
 })
 
-// --- Logic for Map Widget ---
 const allGeoSections = computed(() => {
   const sections: { section: any }[] = []
   props.days.forEach((day) => {
@@ -121,7 +125,6 @@ const allPoints = computed<MapPoint[]>(() =>
 const allRoutes = computed<MapRoute[]>(() =>
   allGeoSections.value.flatMap(s => s.section.routes || []),
 )
-// ----------------------------
 
 const visibleParticipants = computed(() => props.trip?.participants.slice(0, 5) || [])
 const hiddenParticipantsCount = computed(() => Math.max(0, (props.trip?.participants.length || 0) - 5))
@@ -191,7 +194,6 @@ async function handleDeleteTrip() {
     await emit('delete')
 }
 
-// --- Offline Status ---
 const isCached = computed(() => props.trip && offlineStore.isTripCached(props.trip.id))
 const isDownloading = computed(() => props.trip && offlineStore.isTripDownloading(props.trip.id))
 const progress = computed(() => props.trip ? offlineStore.getDownloadProgress(props.trip.id) : 0)
@@ -202,7 +204,6 @@ const moreMenuItems = computed((): KitDropdownItem<string>[] => {
     { value: 'share', label: 'Поделиться', icon: 'mdi:share-variant-outline' },
   ]
 
-  // Пункты для Оффлайн
   if (isDownloading.value) {
     items.push({
       value: 'downloading',
@@ -225,7 +226,26 @@ const moreMenuItems = computed((): KitDropdownItem<string>[] => {
 })
 
 async function handleMenuAction(action: string) {
-  if (action === 'edit') {
+  if (action === 'share') {
+    const shareData = {
+      title: props.trip?.title || 'Путешествие',
+      text: props.trip?.description || `Взгляните на план путешествия "${props.trip?.title}"`,
+      url: window.location.href,
+    }
+
+    if (isShareSupported.value) {
+      try {
+        await share(shareData)
+      }
+      catch {
+      }
+    }
+    else {
+      await copy(shareData.url)
+      toast.success('Ссылка скопирована в буфер обмена')
+    }
+  }
+  else if (action === 'edit') {
     handleEditTrip()
   }
   else if (action === 'delete') {
@@ -251,7 +271,6 @@ async function handleMenuAction(action: string) {
 
 <template>
   <div v-if="trip" class="trip-overview">
-    <!-- Banner -->
     <div class="overview-banner">
       <KitImage
         v-if="trip.imageUrl"
@@ -358,12 +377,10 @@ async function handleMenuAction(action: string) {
       </div>
     </div>
 
-    <!-- Description -->
     <div v-if="trip.description" class="trip-description-summary">
       <p>{{ trip.description }}</p>
     </div>
 
-    <!-- Stats & Weather -->
     <div class="info-widgets">
       <StatsWidget
         :duration-days="tripDurationDays"
@@ -382,7 +399,6 @@ async function handleMenuAction(action: string) {
       />
     </div>
 
-    <!-- Days & Sections Grid -->
     <div class="overview-grid">
       <div class="overview-section">
         <h2 class="section-title">
@@ -439,7 +455,6 @@ async function handleMenuAction(action: string) {
       </div>
     </div>
 
-    <!-- Map Widget (в самом низу) -->
     <TripMapWidget
       v-if="allPoints.length > 0 || allRoutes.length > 0 || trip.cities.length > 0"
       :points="allPoints"
@@ -447,7 +462,6 @@ async function handleMenuAction(action: string) {
       :cities="trip.cities"
     />
 
-    <!-- Countdown -->
     <KitDivider v-if="isTripUpcoming">
       <Icon icon="mdi:star-four-points-outline" />
     </KitDivider>
@@ -457,7 +471,6 @@ async function handleMenuAction(action: string) {
       class="countdown"
     />
 
-    <!-- Dialogs -->
     <DaysListDialog v-model:visible="isDaysDialogVisible" :days="days" @navigate="navigateToDay" />
     <CitiesListDialog v-model:visible="isCitiesDialogVisible" :cities="trip.cities" />
     <ParticipantsListDialog v-model:visible="isParticipantsDialogVisible" :participants="trip.participants" />

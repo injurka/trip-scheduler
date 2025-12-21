@@ -26,8 +26,9 @@ const props = withDefaults(defineProps<Props>(), {
   isFullScreen: false,
 })
 
-// --- 1. Morph & Quality Logic (Visuals) ---
 const photoWrapperRef = ref<HTMLElement | null>(null)
+const commentEditorRef = ref(null)
+const timeEditorRef = ref<HTMLElement | null>(null)
 
 const { width: windowWidth } = useWindowSize()
 const { isMorphed, morphStyle, placeholderStyle, enterMorph, leaveMorph } = useMorph(photoWrapperRef)
@@ -51,7 +52,6 @@ const imageSrc = computed(() => {
     }
   }
 
-  // Стандартное поведение для ленты
   if (isDesktop.value)
     return props.memory.image.variants?.medium || props.memory.image.url
   return props.memory.image.variants?.small || props.memory.image.url
@@ -66,12 +66,6 @@ function handleMorphTrigger() {
     enterMorph()
 }
 
-watch(() => props.isFullScreen, () => {
-  if (isMorphed.value)
-    leaveMorph()
-})
-
-// --- 2. Memory Actions (Time, Comment, Delete) ---
 const {
   memoryComment,
   saveComment,
@@ -87,10 +81,6 @@ const {
   isViewMode: props.isViewMode,
 })
 
-const timeEditorRef = ref<HTMLElement | null>(null)
-onClickOutside(timeEditorRef, saveTime)
-
-// --- 3. Image Viewer Integration ---
 const {
   imageViewer,
   activeViewerComment,
@@ -108,15 +98,20 @@ const {
   isMorphed,
 })
 
-const commentEditorRef = ref(null)
-onClickOutside(commentEditorRef, saveViewerComment)
-
 function handleWrapperClick() {
   if (isMorphed.value)
     leaveMorph()
   else
     openImageViewer()
 }
+
+watch(() => props.isFullScreen, () => {
+  if (isMorphed.value)
+    leaveMorph()
+})
+
+onClickOutside(commentEditorRef, saveViewerComment)
+onClickOutside(timeEditorRef, saveTime)
 </script>
 
 <template>
@@ -142,7 +137,6 @@ function handleWrapperClick() {
       >
         <KitImage :src="imageSrc" object-fit="cover" />
 
-        <!-- Кнопка открытия morph (скрыта при самом morph) -->
         <button
           v-if="isDesktop && !isFullScreen && !isMorphed"
           class="morph-trigger-btn"
@@ -152,7 +146,6 @@ function handleWrapperClick() {
           <Icon icon="mdi:eye-outline" />
         </button>
 
-        <!-- Контролы качества (видны только при morph) -->
         <div v-if="isMorphed" class="quality-controls" @click.stop>
           <button
             class="quality-btn"
@@ -493,7 +486,6 @@ function handleWrapperClick() {
   }
 }
 
-/* --- Overlays --- */
 .photo-overlay {
   position: absolute;
   inset: 0;

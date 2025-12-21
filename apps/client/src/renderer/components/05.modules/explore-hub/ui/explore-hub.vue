@@ -1,8 +1,5 @@
 <script setup lang="ts">
-// import type { ViewSwitcherItem } from '~/components/01.kit/kit-view-switcher'
-import { computed, onMounted, ref } from 'vue'
 import { KitSelectWithSearch } from '~/components/01.kit/kit-select-with-search'
-// import { KitViewSwitcher } from '~/components/01.kit/kit-view-switcher'
 import { AsyncStateWrapper } from '~/components/02.shared/async-state-wrapper'
 import { useExploreStore } from '~/components/04.features/explore-hub/store/explore.store'
 import { PlacesFilters, PlacesList, PlacesListSkeleton, PlacesMap } from '~/components/04.features/explore-hub/ui'
@@ -11,10 +8,6 @@ const exploreStore = useExploreStore()
 const { filteredPlaces, tags, isLoading, selectedTagIds, currentCity } = storeToRefs(exploreStore)
 
 const viewMode = ref<'list' | 'map'>('list')
-// const viewModeItems: ViewSwitcherItem<'list' | 'map'>[] = [
-//   { id: 'list', label: 'Список', icon: 'mdi:view-list' },
-//   { id: 'map', label: 'Карта', icon: 'mdi:map-outline' },
-// ]
 
 const cityOptions = ref([
   { value: 'Chongqing', label: 'Chongqing' },
@@ -33,7 +26,6 @@ const mapCenter = computed((): [number, number] => {
   if (filteredPlaces.value.length > 0) {
     return [filteredPlaces.value[0].coordinates.lon, filteredPlaces.value[0].coordinates.lat]
   }
-  // Default to Chongqing if no places
   return [106.5517, 29.563]
 })
 
@@ -67,7 +59,6 @@ onMounted(() => {
           <h2 class="panel-title">
             Фильтры
           </h2>
-          <!-- <KitViewSwitcher v-model="viewMode" :items="viewModeItems" /> -->
         </div>
         <PlacesFilters
           :tags="tags"

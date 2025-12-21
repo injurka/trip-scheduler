@@ -131,7 +131,6 @@ const {
   baseTransform: computed(() => imageStyle.value.transform),
 })
 
-// --- Combined touch handlers ---
 function handleTouchStartCombined(event: TouchEvent) {
   handleSwipeTouchStart(event)
   handleTouchStart(event)
@@ -151,7 +150,6 @@ const currentImageMeta = computed((): IImageViewerImageMeta | null => {
   return toRaw(props.images[props.currentIndex]?.meta) || null
 })
 
-// Сбрасываем состояние загрузки при смене изображения
 watch(currentImageSrc, (src) => {
   if (src) {
     isCurrentImageLoading.value = true
@@ -226,7 +224,7 @@ async function handleShowMetadata() {
           }
           isMetadataPanelVisible.value = true
         },
-        onError: (error) => {
+        onError: ({ error }) => {
           console.error('Failed to load metadata', error)
 
           if (image.meta)
@@ -323,12 +321,10 @@ onUnmounted(() => {
           <div class="viewer-content">
             <div ref="containerRef" class="image-container">
               <div class="swipe-container" :style="containerStyle">
-                <!-- Preview Предыдущего -->
                 <div class="preview-image prev-preview">
                   <img v-if="prevImageSrc" v-resolve-src="prevImageSrc" class="preview-img" :style="adjacentImageStyle">
                 </div>
 
-                <!-- Текущее изображение -->
                 <div class="current-image-wrapper">
                   <Transition name="loader-fade">
                     <div v-if="isCurrentImageLoading || isCurrentImageInError" class="placeholder-wrapper">
@@ -362,12 +358,10 @@ onUnmounted(() => {
                   >
                 </div>
 
-                <!-- Preview Следующего -->
                 <div class="preview-image next-preview">
                   <img v-if="nextImageSrc" v-resolve-src="nextImageSrc" class="preview-img" :style="adjacentImageStyle">
                 </div>
               </div>
-              <!-- Невидимые навигационные зоны для десктопа -->
               <div
                 v-if="hasMultipleImages && transform.scale <= minZoom"
                 class="nav-zone prev-zone"

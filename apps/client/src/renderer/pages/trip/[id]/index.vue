@@ -1,101 +1,17 @@
 <script setup lang="ts">
 import { TripInfo } from '~/components/05.modules/trip-info'
-import { useModuleStore } from '~/components/05.modules/trip-info/composables/use-trip-info-module'
-import { useDisplay } from '~/shared/composables/use-display'
-
-const route = useRoute()
-// Теперь проверяем через section=map
-const isMapView = computed(() => route.query.section === 'map')
-
-const store = useModuleStore(['plan', 'ui'])
-const { mdAndDown } = useDisplay()
-
-const { fetchError } = storeToRefs(store.plan)
-const { isDaysPanelPinned, activeView, isParallelPlanView } = storeToRefs(store.ui)
 </script>
 
 <template>
-  <section
-    class="content-wrapper"
-    :class="[
-      { isPanelPinned: isDaysPanelPinned && !mdAndDown },
-      { 'has-error': fetchError },
-      { 'is-map-view': isMapView },
-      { 'is-wide-mode': isParallelPlanView },
-      activeView,
-    ]"
-  >
+  <section class="content-wrapper-inner">
     <TripInfo />
   </section>
 </template>
 
 <style lang="scss" scoped>
-.content-wrapper {
-  transition: background-color 0.2s ease;
-  max-width: 1000px;
-  width: 100%;
-  margin: 0 auto;
-  padding: 8px;
+.content-wrapper-inner {
   display: flex;
-  flex-direction: column;
-  flex: 1;
-
-  &.is-map-view {
-    max-width: 100%;
-    padding: 0; // Убираем отступы для карты
-    height: 100%; // Занимаем всю высоту родителя (main-content)
-  }
-
-  &.has-error {
-    background: transparent;
-  }
-
-  &.isPanelPinned {
-    @media (max-width: 1800px) {
-      margin-left: 440px;
-    }
-  }
-
-  /* Стили для широкого режима (Parallel Plan view) */
-  &.is-wide-mode {
-    max-width: 100%;
-    justify-content: center;
-    align-items: center;
-
-    :deep() {
-      .navigation-back-container,
-      .controls,
-      .day-header,
-      .day-navigation,
-      .divider-with-action {
-        max-width: 1000px;
-        width: 100%;
-        margin-left: auto;
-        margin-right: auto;
-      }
-
-      .divider-with-action {
-        position: relative;
-      }
-
-      .trip-info-wrapper {
-        .trip-info {
-          justify-content: center;
-          align-items: center;
-
-          .divider {
-            padding: 0 32px;
-          }
-
-          .view-content {
-            padding: 0 32px;
-            max-width: 1800px;
-            margin: 0 auto;
-            width: 100%;
-          }
-        }
-      }
-    }
-  }
+  flex-grow: 1;
+  width: 100%;
 }
 </style>

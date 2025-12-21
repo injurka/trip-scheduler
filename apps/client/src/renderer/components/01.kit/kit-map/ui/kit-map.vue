@@ -4,7 +4,6 @@ import type TileSource from 'ol/source/Tile'
 import type { MapLayerOption, MapMarker } from '../models/types'
 import type { TileSourceId } from '~/shared/lib/map-styles-sources'
 import { useFullscreen } from '@vueuse/core'
-import { onMounted, ref, watch } from 'vue'
 import { KitBtn } from '~/components/01.kit/kit-btn'
 import { checkMapTilerAvailability, TILE_SOURCES } from '~/shared/lib/map-styles-sources'
 import { useKitMap } from '../composables/use-kit-map'
@@ -44,6 +43,35 @@ const { isFullscreen, toggle: toggleFullscreen } = useFullscreen(mapWrapperRef)
 
 const activeLayerId = ref<string>('osm')
 const availableLayers = shallowRef<MapLayerOption[]>([])
+
+watch(
+  activeLayerId,
+  (newId) => {
+    const layer = availableLayers.value.find(l => l.id === newId)
+    const source = layer?.source || (TILE_SOURCES[newId as TileSourceId]?.source as unknown as TileSource)
+
+    if (source) {
+      setTileSource(source as TileSource)
+    }
+  },
+)
+
+watch(
+  () => props.center,
+  (newCenter) => {
+    mapInstance.value?.getView().animate({ center: newCenter, duration: 500 })
+  },
+)
+
+watch(
+  () => props.markers,
+  (newMarkers) => {
+    if (isMapReady.value) {
+      updateMarkers(newMarkers)
+    }
+  },
+  { deep: true },
+)
 
 onMounted(async () => {
   if (!mapWrapperRef.value || !popupRef.value)
@@ -95,26 +123,6 @@ onMounted(async () => {
     }
   }
 })
-
-watch(activeLayerId, (newId) => {
-  const layer = availableLayers.value.find(l => l.id === newId)
-  const source = layer?.source || (TILE_SOURCES[newId as TileSourceId]?.source as unknown as TileSource)
-
-  if (source) {
-    setTileSource(source as TileSource)
-  }
-})
-
-watch(() => props.center, (newCenter) => {
-  mapInstance.value?.getView().animate({ center: newCenter, duration: 500 })
-})
-
-watch(() => props.markers, (newMarkers) => {
-  if (isMapReady.value) {
-    updateMarkers(newMarkers)
-    fitViewToMarkers()
-  }
-}, { deep: true })
 </script>
 
 <template>

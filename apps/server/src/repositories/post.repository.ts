@@ -181,10 +181,8 @@ export const postRepository = {
         }
 
         if (elements) {
-          // Удаляем старые элементы
           await tx.delete(postElements).where(eq(postElements.postId, id))
 
-          // Добавляем новые
           if (elements.length > 0) {
             const elementsToInsert = elements.map((el, index) => ({
               id: uuidv4(),
@@ -241,5 +239,11 @@ export const postRepository = {
 
   async incrementViewCount(id: string) {
     await db.update(posts).set({ viewsCount: sql`${posts.viewsCount} + 1` }).where(eq(posts.id, id))
+  },
+
+  async getMediaByPostId(postId: string) {
+    return await db.query.postMedia.findMany({
+      where: eq(postMedia.postId, postId),
+    })
   },
 }

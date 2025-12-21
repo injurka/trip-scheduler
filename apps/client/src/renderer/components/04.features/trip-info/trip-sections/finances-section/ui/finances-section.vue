@@ -3,7 +3,6 @@ import type { FinancesSectionContent } from '../models/types'
 import { Icon } from '@iconify/vue'
 import { parseDate } from '@internationalized/date'
 import { onClickOutside } from '@vueuse/core'
-import { computed, ref, watch } from 'vue'
 import { KitBtn } from '~/components/01.kit/kit-btn'
 import { KitCalendarRange } from '~/components/01.kit/kit-calendar-range'
 import { vRipple } from '~/shared/directives/ripple'
@@ -147,7 +146,6 @@ onClickOutside(dateFilterWrapperRef, () => {
 
 <template>
   <div class="finances-section">
-    <!-- 1. Фильтры категорий (на самом верху) -->
     <div class="category-filter-pills">
       <button
         v-for="item in categoryFilterItems"
@@ -162,14 +160,12 @@ onClickOutside(dateFilterWrapperRef, () => {
       </button>
     </div>
 
-    <!-- 2. Дэшборд с графиками (теперь реагирует на фильтры) -->
     <FinancesDashboard
       :main-currency="settings.mainCurrency"
       :spending-by-category="spendingByCategory"
       :spending-by-day="spendingByDay"
     />
 
-    <!-- 3. Панель действий и фильтр даты -->
     <div class="toolbar">
       <div class="main-actions">
         <KitBtn v-if="!readonly" icon="mdi:plus" @click="openTransactionForm()">
@@ -212,7 +208,6 @@ onClickOutside(dateFilterWrapperRef, () => {
       </div>
     </div>
 
-    <!-- 4. AI Создатель (скрытый блок) -->
     <div v-if="!readonly" v-show="isAiCreatorOpen" class="ai-creator-wrapper">
       <AiFinancesCreator
         :categories="categories"
@@ -222,7 +217,6 @@ onClickOutside(dateFilterWrapperRef, () => {
       />
     </div>
 
-    <!-- 5. Список транзакций -->
     <TransactionsList
       :transactions="filteredTransactions"
       :categories="categories"
@@ -233,7 +227,6 @@ onClickOutside(dateFilterWrapperRef, () => {
       @delete-transaction="deleteTransaction"
     />
 
-    <!-- Диалоги -->
     <TransactionFormDialog
       v-model:visible="isTransactionFormOpen"
       :transaction="transactionToEdit"

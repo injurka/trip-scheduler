@@ -4,180 +4,322 @@ import { KitSkeleton } from '~/components/01.kit/kit-skeleton'
 
 <template>
   <div class="trip-overview-skeleton">
-    <!-- Banner Skeleton -->
     <div class="overview-banner-skeleton">
       <div class="banner-content-skeleton">
-        <KitSkeleton width="70%" height="40px" border-radius="8px" />
-        <KitSkeleton width="50%" height="20px" border-radius="6px" />
+        <KitSkeleton width="60%" height="2.5rem" class="mb-4" />
+        <div class="meta-line">
+          <KitSkeleton width="150px" height="1.5rem" />
+          <KitSkeleton width="200px" height="1.5rem" />
+        </div>
       </div>
       <div class="banner-footer-skeleton">
-        <div class="footer-meta-skeleton">
-          <div class="meta-item-skeleton">
-            <KitSkeleton width="24px" height="24px" border-radius="4px" />
-            <KitSkeleton width="100px" height="20px" border-radius="4px" />
+        <div class="footer-top-row">
+          <div class="footer-meta-left">
+            <KitSkeleton width="110px" height="32px" border-radius="var(--r-s)" />
+            <KitSkeleton width="90px" height="24px" />
           </div>
-          <div class="meta-item-skeleton">
-            <KitSkeleton width="24px" height="24px" border-radius="4px" />
-            <KitSkeleton width="80px" height="20px" border-radius="4px" />
+
+          <div class="footer-avatars">
+            <KitSkeleton width="36px" height="36px" border-radius="50%" />
+            <KitSkeleton width="36px" height="36px" border-radius="50%" class="avatar-overlap" />
           </div>
         </div>
-        <div class="participants-skeleton">
-          <KitSkeleton v-for="i in 4" :key="i" width="36px" height="36px" border-radius="50%" />
+
+        <div class="footer-tags-row">
+          <KitSkeleton width="60px" height="24px" border-radius="var(--r-full)" />
+          <KitSkeleton width="80px" height="24px" border-radius="var(--r-full)" />
+          <KitSkeleton width="70px" height="24px" border-radius="var(--r-full)" />
+          <KitSkeleton width="90px" height="24px" border-radius="var(--r-full)" />
+          <KitSkeleton width="60px" height="24px" border-radius="var(--r-full)" />
         </div>
       </div>
     </div>
 
-    <!-- Description Skeleton -->
     <div class="description-skeleton">
-      <KitSkeleton width="90%" height="18px" border-radius="4px" />
-      <KitSkeleton width="70%" height="18px" border-radius="4px" />
+      <KitSkeleton width="100%" height="1.2rem" class="mb-2" />
+      <KitSkeleton width="80%" height="1.2rem" />
     </div>
 
-    <!-- Widgets Skeleton -->
     <div class="info-widgets-skeleton">
-      <div class="widget-skeleton">
-        <div class="main-stats-skeleton">
-          <div v-for="i in 3" :key="i" class="stat-item-skeleton">
-            <KitSkeleton width="48px" height="48px" border-radius="50%" />
-            <KitSkeleton width="60px" height="24px" border-radius="4px" />
-            <KitSkeleton width="40px" height="16px" border-radius="4px" />
+      <div class="widget-card">
+        <div class="stats-row">
+          <KitSkeleton height="80px" class="flex-1" border-radius="var(--r-m)" />
+          <KitSkeleton height="80px" class="flex-1" border-radius="var(--r-m)" />
+          <KitSkeleton height="80px" class="flex-1" border-radius="var(--r-m)" />
+        </div>
+        <KitSkeleton height="1px" width="100%" class="my-3" />
+        <KitSkeleton height="40px" width="100%" border-radius="var(--r-m)" />
+      </div>
+
+      <div class="widget-card">
+        <KitSkeleton width="150px" height="1.2rem" class="mb-3" />
+        <KitSkeleton width="100%" height="36px" border-radius="var(--r-m)" class="mb-3" />
+        <KitSkeleton width="100%" height="190px" border-radius="var(--r-m)" />
+      </div>
+    </div>
+
+    <div class="overview-grid-skeleton">
+      <div class="section-card">
+        <div class="section-header">
+          <KitSkeleton width="24px" height="24px" />
+          <KitSkeleton width="150px" height="24px" />
+        </div>
+        <div class="list-skeleton">
+          <div v-for="i in 5" :key="`day-${i}`" class="list-item-skeleton">
+            <KitSkeleton width="28px" height="28px" border-radius="var(--r-s)" />
+            <div class="item-content">
+              <KitSkeleton width="80px" height="1rem" class="mb-1" />
+              <KitSkeleton width="120px" height="0.8rem" />
+            </div>
+            <KitSkeleton width="24px" height="24px" class="ml-auto" />
           </div>
         </div>
       </div>
-      <div class="widget-skeleton">
-        <KitSkeleton width="180px" height="20px" border-radius="6px" style="margin-bottom: 16px;" />
-        <KitSkeleton width="100%" height="40px" border-radius="8px" style="margin-bottom: 24px;" />
-        <div style="display: flex; justify-content: space-around; align-items: center;">
-          <KitSkeleton width="50px" height="50px" border-radius="4px" />
-          <KitSkeleton width="80px" height="80px" border-radius="4px" />
-          <KitSkeleton width="50px" height="50px" border-radius="4px" />
-        </div>
-      </div>
     </div>
 
-    <!-- Lists Skeleton -->
-    <div class="overview-grid-skeleton">
-      <div class="overview-section-skeleton">
-        <KitSkeleton width="40%" height="28px" border-radius="6px" style="margin-bottom: 24px;" />
-        <div class="list-items-skeleton">
-          <KitSkeleton v-for="i in 4" :key="i" width="100%" height="48px" border-radius="8px" />
-        </div>
+    <div class="map-widget-skeleton">
+      <div class="section-header">
+        <KitSkeleton width="24px" height="24px" />
+        <KitSkeleton width="180px" height="24px" />
+        <div class="spacer" />
+        <KitSkeleton width="100px" height="32px" border-radius="var(--r-m)" />
       </div>
-      <div class="overview-section-skeleton">
-        <KitSkeleton width="30%" height="28px" border-radius="6px" style="margin-bottom: 24px;" />
-        <div class="list-items-skeleton">
-          <KitSkeleton v-for="i in 2" :key="i" width="100%" height="48px" border-radius="8px" />
-        </div>
-      </div>
+      <KitSkeleton width="100%" height="400px" border-radius="var(--r-m)" />
     </div>
   </div>
 </template>
 
 <style scoped lang="scss">
 .trip-overview-skeleton {
+  padding: 1rem 0;
   display: flex;
   flex-direction: column;
   gap: 1.5rem;
 }
 
 .overview-banner-skeleton {
-  position: relative;
   height: 380px;
+  background-color: var(--bg-secondary-color);
+  border: 1px solid var(--border-secondary-color);
   border-radius: var(--r-l);
-  overflow: hidden;
   display: flex;
   flex-direction: column;
   justify-content: flex-end;
-  background-color: var(--bg-secondary-color);
-  padding: 1.5rem;
+  overflow: hidden;
+
+  @include media-down(md) {
+    min-height: 300px;
+    height: auto;
+  }
 }
 
 .banner-content-skeleton {
+  padding: 24px;
   display: flex;
   flex-direction: column;
-  gap: 12px;
-  z-index: 2;
-  margin-bottom: 1rem;
+}
+
+.meta-line {
+  display: flex;
+  gap: 1.5rem;
 }
 
 .banner-footer-skeleton {
+  background-color: var(--bg-tertiary-color);
+  padding: 1rem 1.5rem;
+  border-top: 1px solid var(--border-secondary-color);
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+
+  @include media-down(sm) {
+    padding: 1rem;
+    gap: 1rem;
+  }
+}
+
+.footer-top-row {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 1rem;
-  background-color: rgba(var(--bg-primary-color-rgb), 0.4);
-  backdrop-filter: blur(10px);
-  padding: 1rem 1.5rem;
-  border-radius: var(--r-m);
-  z-index: 2;
-}
+  width: 100%;
 
-.footer-meta-skeleton {
-  display: flex;
-  gap: 1.5rem;
-  align-items: center;
-}
-
-.meta-item-skeleton {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-}
-
-.participants-skeleton {
-  display: flex;
-  :deep(.kit-skeleton) {
-    margin-left: -12px;
-    border: 2px solid var(--bg-secondary-color);
+  @include media-down(xs) {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 1rem;
   }
+}
+
+.footer-meta-left {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+}
+
+.footer-avatars {
+  display: flex;
+  flex-shrink: 0;
+}
+
+.avatar-overlap {
+  margin-left: -10px;
+  border: 2px solid var(--bg-secondary-color);
+}
+
+.footer-tags-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.footer-meta {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+
+  @include media-down(sm) {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 1rem;
+  }
+}
+
+.badges {
+  display: flex;
+  gap: 1rem;
+}
+
+.avatars {
+  display: flex;
 }
 
 .description-skeleton {
   padding: 1rem;
   background-color: var(--bg-secondary-color);
+  border: 1px solid var(--border-secondary-color);
   border-radius: var(--r-m);
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-}
-
-.info-widgets-skeleton,
-.overview-grid-skeleton {
-  display: grid;
-  gap: 1.5rem;
 }
 
 .info-widgets-skeleton {
+  display: grid;
   grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  gap: 1.5rem;
+
+  @include media-down(md) {
+    grid-template-columns: 1fr;
+    gap: 1rem;
+  }
 }
 
-.widget-skeleton,
-.overview-section-skeleton {
+.widget-card,
+.section-card,
+.map-widget-skeleton {
   background-color: var(--bg-secondary-color);
   border: 1px solid var(--border-secondary-color);
   border-radius: var(--r-l);
   padding: 1rem;
 }
 
-.main-stats-skeleton {
-  display: grid;
-  grid-template-columns: repeat(3, 1fr);
-  gap: 1rem;
+.stats-row {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 0.5rem;
 }
 
-.stat-item-skeleton {
+.flex-1 {
+  flex: 1;
+}
+
+.ml-3 {
+  margin-left: 0.75rem;
+}
+
+.ml-auto {
+  margin-left: auto;
+}
+
+.mb-1 {
+  margin-bottom: 0.25rem;
+}
+.mb-2 {
+  margin-bottom: 0.5rem;
+}
+.mb-3 {
+  margin-bottom: 0.75rem;
+}
+.mb-4 {
+  margin-bottom: 1rem;
+}
+.my-3 {
+  margin-top: 0.75rem;
+  margin-bottom: 0.75rem;
+}
+
+.overview-grid-skeleton {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 1.5rem;
+  align-items: start;
+
+  @include media-down(md) {
+    grid-template-columns: 1fr;
+    gap: 1rem;
+  }
+}
+
+.section-header {
   display: flex;
-  flex-direction: column;
   align-items: center;
   gap: 12px;
-  padding: 1rem 0.5rem;
+  padding-bottom: 1rem;
+  margin-bottom: 0.5rem;
+  border-bottom: 1px solid var(--border-secondary-color);
+}
+
+.list-skeleton {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.list-item-skeleton {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  padding: 12px 8px;
   background-color: var(--bg-tertiary-color);
   border-radius: var(--r-m);
 }
 
-.list-items-skeleton {
+.item-content {
   display: flex;
   flex-direction: column;
+  gap: 4px;
+
+  @include media-down(md) {
+    width: 100%;
+  }
+}
+
+.spacer {
+  flex-grow: 1;
+}
+
+.digits-row {
+  display: flex;
+  align-items: center;
   gap: 0.5rem;
+  padding: 0.75rem;
+  background-color: var(--bg-secondary-color);
+  border-radius: var(--r-m);
+  border: 1px solid var(--border-secondary-color);
+}
+
+.sep {
+  font-size: 2rem;
+  color: var(--fg-tertiary-color);
+  opacity: 0.3;
 }
 </style>

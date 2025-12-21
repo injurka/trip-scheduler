@@ -97,7 +97,6 @@ const collapseRouteIcon = computed(() => allRouteBlocksCollapsed.value ? 'mdi:ch
             @click="setViewMode('canvas')"
           />
         </div>
-        <div class="separator" />
         <KitBtn
           class="mode-parallel"
           variant="outlined"
@@ -185,7 +184,6 @@ const collapseRouteIcon = computed(() => allRouteBlocksCollapsed.value ? 'mdi:ch
 
     .divider-with-action {
       flex-shrink: 0;
-      margin-bottom: 24px;
 
       &::before {
         display: none;
@@ -250,7 +248,6 @@ const collapseRouteIcon = computed(() => allRouteBlocksCollapsed.value ? 'mdi:ch
     margin-left: 120px;
   }
 
-  // При фуллскрине divider центрируется, убираем отступ слева
   .is-full-screen & .kit-divider {
     margin-left: 0;
   }
@@ -276,7 +273,6 @@ const collapseRouteIcon = computed(() => allRouteBlocksCollapsed.value ? 'mdi:ch
     align-items: center;
     gap: 8px;
     z-index: 2;
-    background-color: var(--bg-primary-color);
 
     .mode-group {
       display: flex;
@@ -299,12 +295,6 @@ const collapseRouteIcon = computed(() => allRouteBlocksCollapsed.value ? 'mdi:ch
           transform: none;
         }
       }
-    }
-
-    .separator {
-      width: 1px;
-      height: 20px;
-      background-color: var(--border-secondary-color);
     }
 
     .kit-btn.active {
@@ -379,7 +369,6 @@ const collapseRouteIcon = computed(() => allRouteBlocksCollapsed.value ? 'mdi:ch
     display: flex;
     align-items: center;
     gap: 8px;
-    background-color: var(--bg-primary-color);
     padding: 0 12px;
     border-radius: 4px;
   }
@@ -427,7 +416,6 @@ const collapseRouteIcon = computed(() => allRouteBlocksCollapsed.value ? 'mdi:ch
 
 @include media-down(xl) {
   .plan-content.is-parallel {
-    // В мобильной версии фуллскрин может вести себя как одна колонка или выключаться
     grid-template-columns: 1fr;
     gap: 24px;
 

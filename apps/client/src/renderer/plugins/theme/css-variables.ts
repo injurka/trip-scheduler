@@ -6,7 +6,6 @@ import { useThemeStore } from '~/shared/store/theme.store'
  * @returns Строка вида "R, G, B" или null, если формат неверный.
  */
 function hexToRgbString(hex: string): string | null {
-  // Разворачиваем сокращенный формат (например, #03F -> #0033FF)
   const shorthandRegex = /^#?([a-f\d])([a-f\d])([a-f\d])$/i
   hex = hex.replace(shorthandRegex, (_, r, g, b) => {
     return r + r + g + g + b + b
@@ -18,23 +17,14 @@ function hexToRgbString(hex: string): string | null {
     : null
 }
 
-/**
- * Применяет палитру цветов, создавая как обычные, так и RGB-переменные.
- * @param element - HTML-элемент, к которому применяются стили.
- * @param palette - Объект с ключами-именами переменных и HEX-значениями.
- */
 function applyColorPalette(element: HTMLElement, palette: Record<string, string>) {
   for (const key in palette) {
     const colorValue = palette[key]
-
-    // 1. Устанавливаем основную переменную, например, `--bg-primary-color: #eeeeee`
     element.style.setProperty(`--${key}`, colorValue)
 
-    // 2. Если значение - это HEX-цвет, создаем RGB-версию
     if (colorValue.startsWith('#')) {
       const rgbString = hexToRgbString(colorValue)
       if (rgbString) {
-        // Создаем ключ вида `--bg-primary-color-rgb`
         const rgbKey = `--${key}-rgb`
         element.style.setProperty(rgbKey, rgbString)
       }
@@ -42,27 +32,32 @@ function applyColorPalette(element: HTMLElement, palette: Record<string, string>
   }
 }
 
-/**
- * Применяет палитру (например, радиусов или теней) как CSS переменные.
- * @param element - HTML-элемент.
- * @param palette - Объект с переменными.
- */
 function applyGenericPalette(element: HTMLElement, palette: Record<string, string>) {
   for (const key in palette) {
     element.style.setProperty(`--${key}`, palette[key])
   }
 }
 
-/**
- * Инициализирует наблюдатель, который отслеживает изменения в теме
- * и динамически применяет CSS-переменные к `<html>`.
- */
 export function setupCssVariablesUpdater() {
   const themeStore = useThemeStore()
 
   watchEffect(() => {
     const htmlElement = document.documentElement
 
+    // 1. Применяем настройки контента
+    if (themeStore.backgroundSettings.enableContentDimming) {
+      const opacity = themeStore.backgroundSettings.contentDimmingOpacity ?? 1
+      const width = themeStore.backgroundSettings.contentGradientWidth ?? 100
+      htmlElement.style.setProperty('--content-bg-opacity', opacity.toString())
+      htmlElement.style.setProperty('--content-gradient-width', `${width}px`)
+    }
+    else {
+      // Если выключено — полностью прозрачно и без градиентов
+      htmlElement.style.setProperty('--content-bg-opacity', '0')
+      htmlElement.style.setProperty('--content-gradient-width', '0px')
+    }
+
+    // 2. Применяем настройки темы
     if (themeStore.isCustomThemeActive) {
       htmlElement.setAttribute('data-theme', 'custom')
 
@@ -72,7 +67,17 @@ export function setupCssVariablesUpdater() {
     }
     else {
       htmlElement.setAttribute('data-theme', themeStore.activeThemeName)
+
+      // Чтобы не потерять переменные, которые мы установили в пункте 1, при очистке cssText:
+      const currentOpacity = htmlElement.style.getPropertyValue('--content-bg-opacity')
+      const currentWidth = htmlElement.style.getPropertyValue('--content-gradient-width')
+
       htmlElement.style.cssText = ''
+
+      if (currentOpacity)
+        htmlElement.style.setProperty('--content-bg-opacity', currentOpacity)
+      if (currentWidth)
+        htmlElement.style.setProperty('--content-gradient-width', currentWidth)
     }
   })
 }

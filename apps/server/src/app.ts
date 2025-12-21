@@ -1,14 +1,12 @@
 import { swaggerUI } from '@hono/swagger-ui'
 import { trpcServer } from '@hono/trpc-server'
 import { Hono } from 'hono'
-import { bodyLimit } from 'hono/body-limit'
 import { serveStatic } from 'hono/bun'
 import { cors } from 'hono/cors'
 import { HTTPException } from 'hono/http-exception'
 import { createOpenApiFetchHandler, generateOpenApiDocument } from 'trpc-to-openapi'
 import { Logger } from '~/lib/logger'
 import { authController } from './api/auth.controller'
-import { avatarController } from './api/avatar.controller'
 import { imageController } from './api/image.controller'
 import { llmController } from './api/llm.controller'
 import { uploadFileController } from './api/upload.controller'
@@ -92,11 +90,7 @@ class Server {
   private initializeRoutes() {
     // Определение API маршрутов
     const apiRoutes = new Hono()
-      .use('/upload', bodyLimit({
-        maxSize: 25 * 1024 * 1024,
-      }))
       .post('/upload', uploadFileController)
-      .route('/avatar', avatarController)
       .route('/auth', authController)
       .route('/llm', llmController)
 

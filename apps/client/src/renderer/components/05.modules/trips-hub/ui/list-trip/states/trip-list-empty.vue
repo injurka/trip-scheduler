@@ -1,6 +1,5 @@
 <script setup lang="ts">
 import { Icon } from '@iconify/vue'
-import { inject } from 'vue'
 import { KitBtn } from '~/components/01.kit/kit-btn'
 import { TripsHubKey } from '../../../composables/use-trips-hub'
 

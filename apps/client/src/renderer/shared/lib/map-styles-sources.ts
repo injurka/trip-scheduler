@@ -50,37 +50,34 @@ export const TILE_SOURCES = {
 
 export type TileSourceId = keyof typeof TILE_SOURCES
 
-let availabilityCache: boolean | null = null
-
 /**
  * Проверяет доступность сервиса MapTiler.
  */
 export async function checkMapTilerAvailability(): Promise<boolean> {
-  if (availabilityCache !== null)
-    return availabilityCache
-
   if (!mapTilerKey) {
     console.warn('MapTiler API key is missing.')
-    availabilityCache = false
     return false
   }
 
   try {
     const controller = new AbortController()
-    const timeoutId = setTimeout(() => controller.abort(), 3000)
+    const timeoutId = setTimeout(() => controller.abort(), 2000)
 
-    const response = await fetch(`https://api.maptiler.com/maps/streets-v2/0/0/0.png?key=${mapTilerKey}`, {
+    const response = await fetch(`https://api.maptiler.com/maps/streets-v2/0/0/0@2x.png?key=${mapTilerKey}&_=${Date.now()}`, {
       method: 'GET',
       signal: controller.signal,
+      cache: 'no-store',
     })
 
     clearTimeout(timeoutId)
-    availabilityCache = response.ok
+
+    if (response.ok) {
+      return true
+    }
+    return false
   }
   catch (e) {
-    console.warn('MapTiler недоступен, переключаемся на OSM.', e)
-    availabilityCache = false
+    console.warn('MapTiler недоступен (network error), переключаемся на OSM.', e)
+    return false
   }
-
-  return availabilityCache
 }

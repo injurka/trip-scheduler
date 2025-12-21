@@ -1,5 +1,3 @@
-// composables/use-image-viewer-transform.ts
-
 import type { MaybeRefOrGetter, Ref } from 'vue'
 import type { TouchPoint, ViewerBounds, ViewerTransform } from '../models/types'
 

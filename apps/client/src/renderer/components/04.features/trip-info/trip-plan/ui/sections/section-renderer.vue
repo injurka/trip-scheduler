@@ -142,7 +142,6 @@ watch(() => props.section, (newSection) => {
       </div>
     </div>
 
-    <!-- Контент секции -->
     <DescriptionSection
       v-if="section.type === EActivitySectionType.DESCRIPTION"
       :section="section as ActivitySectionText"

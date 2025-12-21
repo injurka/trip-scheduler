@@ -1,5 +1,3 @@
-import { computed, ref } from 'vue'
-
 /**
  * Composable для управления логикой выбора иконки с поиском.
  */

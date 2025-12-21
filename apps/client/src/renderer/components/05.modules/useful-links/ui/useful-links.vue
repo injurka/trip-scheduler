@@ -1,6 +1,5 @@
 <script setup lang="ts">
 import { Icon } from '@iconify/vue'
-import { computed, ref } from 'vue'
 import { KitBtn } from '~/components/01.kit/kit-btn'
 import { KitDivider } from '~/components/01.kit/kit-divider'
 import { KitDropdown } from '~/components/01.kit/kit-dropdown'
@@ -24,7 +23,6 @@ const { mdAndUp } = useDisplay()
 
 const viewMode = ref<'grid' | 'list'>('grid')
 
-// Лимит тегов для отображения по умолчанию
 const TAGS_LIMIT = 15
 const isAllTagsVisible = ref(false)
 
@@ -81,7 +79,6 @@ function scrollToCategory(id: string) {
       <p>Подборка проверенных сервисов, которые помогут спланировать ваше идеальное путешествие.</p>
     </div>
 
-    <!-- Блок быстрой навигации (Категории) -->
     <div class="quick-filters-wrapper">
       <button
         v-for="category in allCategories"
@@ -97,7 +94,6 @@ function scrollToCategory(id: string) {
       </button>
     </div>
 
-    <!-- Панель инструментов (Поиск + Сортировка + Теги) -->
     <div class="tools-panel">
       <div class="tools-main-row">
         <div class="search-wrapper">
@@ -137,7 +133,6 @@ function scrollToCategory(id: string) {
         <span>Теги</span>
       </KitDivider>
 
-      <!-- Теги -->
       <div v-if="allTags.length" class="tags-row">
         <div class="tags-list">
           <button
@@ -161,7 +156,6 @@ function scrollToCategory(id: string) {
       </div>
     </div>
 
-    <!-- Сетка/список категорий -->
     <div v-if="filteredCategories.length > 0" class="categories-container" :class="[`view--${viewMode}`]">
       <div v-for="category in filteredCategories" :id="categoryToId(category.title)" :key="category.title" class="category-group">
         <h2 class="category-header">
@@ -201,7 +195,6 @@ function scrollToCategory(id: string) {
       </div>
     </div>
 
-    <!-- Нет результатов -->
     <div v-else class="no-results">
       <Icon icon="mdi:magnify-remove-outline" class="no-results-icon" />
       <h3>Ничего не найдено</h3>
@@ -244,7 +237,6 @@ function scrollToCategory(id: string) {
   }
 }
 
-/* --- Quick Filters (Navigation) --- */
 .quick-filters-wrapper {
   display: flex;
   flex-wrap: wrap;
@@ -289,7 +281,6 @@ function scrollToCategory(id: string) {
   }
 }
 
-/* --- Tools Panel (Grouped Controls) --- */
 .tools-panel {
   background-color: var(--bg-secondary-color);
   border: 1px solid var(--border-secondary-color);
@@ -417,7 +408,6 @@ function scrollToCategory(id: string) {
   }
 }
 
-/* --- Categories & Cards --- */
 .categories-container {
   display: flex;
   flex-direction: column;
@@ -594,7 +584,6 @@ function scrollToCategory(id: string) {
   }
 }
 
-/* No Results */
 .no-results {
   text-align: center;
   padding: 4rem 2rem;

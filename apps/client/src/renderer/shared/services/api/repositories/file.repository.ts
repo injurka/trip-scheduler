@@ -1,4 +1,4 @@
-import type { IFileRepository } from '../model/types'
+import type { EntityType, IFileRepository } from '../model/types'
 import type { ImageMetadata, TripImage, TripImagePlacement } from '~/shared/types/models/trip'
 import { ofetch } from 'ofetch'
 import { trpc } from '~/shared/services/trpc/trpc.service'
@@ -7,18 +7,26 @@ import { throttle } from '../lib/decorators'
 
 export class FileRepository implements IFileRepository {
   /**
-   * Загружает файл на сервер (используя FormData).
+   * Загружает файл на сервер (используя FormData) с указанием типа сущности.
    */
   @throttle(500)
-  async uploadFile(file: File, tripId: string, placement: TripImagePlacement, timestamp?: string | null, comment?: string | null): Promise<TripImage> {
+  async uploadFile(
+    file: File,
+    entityId: string,
+    entityType: EntityType,
+    placement?: string | null,
+    timestamp?: string | null,
+    comment?: string | null,
+  ): Promise<TripImage> {
     const formData = new FormData()
     formData.append('file', file)
-    formData.append('tripId', tripId)
-    formData.append('placement', placement)
+    formData.append('entityId', entityId)
+    formData.append('entityType', entityType)
 
+    if (placement)
+      formData.append('placement', placement)
     if (timestamp)
       formData.append('timestamp', timestamp)
-
     if (comment)
       formData.append('comment', comment)
 
@@ -34,27 +42,27 @@ export class FileRepository implements IFileRepository {
   }
 
   /**
-   * Загружает файл с отслеживанием прогресса, используя XMLHttpRequest для надежности.
+   * Загружает файл с отслеживанием прогресса, используя XMLHttpRequest.
    */
   uploadFileWithProgress(
     file: File,
-    tripId: string,
-    placement: TripImagePlacement,
+    entityId: string,
+    entityType: EntityType,
+    placement: string | null,
     onProgress: (percentage: number) => void,
     signal: AbortSignal,
   ): Promise<TripImage> {
     return new Promise((resolve, reject) => {
       const xhr = new XMLHttpRequest()
-      const url = `${import.meta.env.VITE_APP_SERVER_URL}/api/upload?tripId=${tripId}&placement=${placement}`
+
+      const url = `${import.meta.env.VITE_APP_SERVER_URL}/api/upload`
+
       xhr.open('POST', url, true)
 
-      // Установка необходимых заголовков
       const accessToken = useStorage<string | null>(TOKEN_KEY, null)
       xhr.setRequestHeader('Authorization', `Bearer ${accessToken.value}`)
-      xhr.setRequestHeader('Content-Disposition', `attachment; filename="${encodeURIComponent(file.name)}"`)
-      // Content-Type и Content-Length браузер установит сам для объекта File
 
-      // Обработчик прогресса загрузки
+      // Обработчик прогресса
       xhr.upload.onprogress = (event) => {
         if (event.lengthComputable) {
           const percentage = Math.round((event.loaded * 100) / event.total)
@@ -62,12 +70,11 @@ export class FileRepository implements IFileRepository {
         }
       }
 
-      // Обработчик успешного завершения запроса
       xhr.onload = () => {
         if (xhr.status >= 200 && xhr.status < 300) {
           try {
             const response = JSON.parse(xhr.responseText)
-            onProgress(100) // Гарантируем, что прогресс дойдет до 100%
+            onProgress(100)
             resolve(response as TripImage)
           }
           catch {
@@ -75,38 +82,38 @@ export class FileRepository implements IFileRepository {
           }
         }
         else {
-          // Попытка извлечь сообщение об ошибке от сервера
           let errorMessage = `Ошибка HTTP: ${xhr.status}`
           try {
             const errorResponse = JSON.parse(xhr.responseText)
             if (errorResponse.message)
               errorMessage = errorResponse.message
           }
-          catch {
-            // Игнорируем ошибку парсинга, используем стандартное сообщение
-          }
+          catch { }
           reject(new Error(errorMessage))
         }
       }
 
-      // Обработчики ошибок и отмены
-      xhr.onerror = () => {
-        reject(new Error('Сетевая ошибка при загрузке файла.'))
-      }
+      xhr.onerror = () => reject(new Error('Сетевая ошибка при загрузке файла.'))
 
-      xhr.onabort = () => {
-        // Ошибки AbortError обрабатываются в сторе Pinia особым образом
-        reject(new DOMException('Загрузка отменена', 'AbortError'))
-      }
+      xhr.onabort = () => reject(new DOMException('Загрузка отменена', 'AbortError'))
 
-      // Интеграция с AbortSignal для отмены извне
-      signal.addEventListener('abort', () => {
-        xhr.abort()
-      })
+      signal.addEventListener('abort', () => xhr.abort())
 
-      // Отправка файла
-      xhr.send(file)
+      const formData = new FormData()
+      formData.append('file', file)
+      formData.append('entityId', entityId)
+      formData.append('entityType', entityType)
+
+      if (placement)
+        formData.append('placement', placement)
+
+      xhr.send(formData)
     })
+  }
+
+  @throttle(500)
+  async listImages(entityId: string, entityType: EntityType, placement?: string): Promise<TripImage[]> {
+    return await trpc.image.listByEntity.query({ entityId, entityType, placement }) as TripImage[]
   }
 
   @throttle(500)
