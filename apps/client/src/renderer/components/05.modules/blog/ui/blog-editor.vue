@@ -51,12 +51,20 @@ const localForm = ref<LocalBlogForm>({
 
 const selectedDate = shallowRef<CalendarDate>(today(getLocalTimeZone()))
 const selectedTime = shallowRef<Time>(new Time(new Date().getHours(), new Date().getMinutes()))
+const isInternalDateUpdate = ref(false)
 
 watch(() => localForm.value.publishedAt, (newVal) => {
+  if (isInternalDateUpdate.value)
+    return
+
   if (newVal) {
     try {
       const dateObj = new Date(newVal)
-      selectedDate.value = parseDate(dateObj.toISOString().split('T')[0])
+      const year = dateObj.getFullYear()
+      const month = String(dateObj.getMonth() + 1).padStart(2, '0')
+      const day = String(dateObj.getDate()).padStart(2, '0')
+
+      selectedDate.value = parseDate(`${year}-${month}-${day}`)
       selectedTime.value = new Time(dateObj.getHours(), dateObj.getMinutes())
     }
     catch (e) {
@@ -67,9 +75,24 @@ watch(() => localForm.value.publishedAt, (newVal) => {
 
 watch([selectedDate, selectedTime], ([date, time]) => {
   if (date && time) {
-    const dateStr = date.toString()
-    const timeStr = `${time.hour.toString().padStart(2, '0')}:${time.minute.toString().padStart(2, '0')}:00`
-    localForm.value.publishedAt = `${dateStr}T${timeStr}.000Z` // Упрощенно в UTC или локальном формате
+    const localDate = new Date(
+      date.year,
+      date.month - 1,
+      date.day,
+      time.hour,
+      time.minute,
+      0,
+    )
+
+    const newIso = localDate.toISOString()
+
+    if (localForm.value.publishedAt !== newIso) {
+      isInternalDateUpdate.value = true
+      localForm.value.publishedAt = newIso
+      nextTick(() => {
+        isInternalDateUpdate.value = false
+      })
+    }
   }
 })
 
@@ -204,7 +227,6 @@ function removeCover() {
             />
           </div>
 
-          <!-- СЕКЦИЯ ДАТЫ ПУБЛИКАЦИИ -->
           <div class="date-section">
             <label class="section-label">Дата публикации</label>
             <div class="date-controls">
@@ -247,7 +269,6 @@ function removeCover() {
       <KitDivider>Контент</KitDivider>
 
       <div class="content-section">
-        <!-- Убран :key, чтобы не перемонтировать редактор при смене любого поля формы -->
         <KitInlineMdEditorWrapper
           v-model="localForm.content!"
           class="markdown-editor"
@@ -328,7 +349,6 @@ function removeCover() {
   margin-bottom: 16px;
 }
 
-/* Editor Form Area */
 .editor-container {
   flex: 1;
   overflow-y: auto;
@@ -343,13 +363,11 @@ function removeCover() {
 
 .meta-section {
   display: grid;
-  /* Desktop: 2/3 контент, 1/3 картинка */
   grid-template-columns: 2fr 1fr;
   gap: 32px;
   align-items: start;
 
   @include media-down(md) {
-    /* Mobile: 1 колонка, картинка упадет вниз (так как в DOM она идет второй) */
     grid-template-columns: 1fr;
     gap: 24px;
   }
