@@ -83,7 +83,6 @@ watch([selectedDate, selectedTime], ([date, time]) => {
       time.minute,
       0,
     )
-
     const newIso = localDate.toISOString()
 
     if (localForm.value.publishedAt !== newIso) {
@@ -105,33 +104,37 @@ const formattedPublishDate = computed(() => {
 watch(
   () => localForm.value.id,
   (newId) => {
-    if (newId && !props.isEditing) {
+    if (newId && !props.isEditing)
       store.fetchPostImages(newId)
-    }
   },
   { immediate: true },
 )
 
 watch(
-  () => modelValue.value?.id,
-  (newId) => {
-    if (newId && newId !== localForm.value.id) {
+  () => modelValue.value,
+  (newVal) => {
+    if (!newVal)
+      return
+
+    const inputWithId = newVal as LocalBlogForm
+    const incomingId = inputWithId.id || localForm.value.id
+
+    if (localForm.value.id !== incomingId || !localForm.value.title) {
       localForm.value = {
         ...localForm.value,
-        ...modelValue.value,
-        id: newId,
-        publishedAt: (modelValue.value as any)?.publishedAt || new Date().toISOString(),
+        ...newVal,
+        id: incomingId,
+        publishedAt: (newVal as any)?.publishedAt || new Date().toISOString(),
       }
     }
   },
-  { immediate: true },
+  { deep: true, immediate: true },
 )
 
 watch(
   localForm,
   (newVal) => {
-    const { id, ...rest } = newVal
-    Object.assign(modelValue.value, rest)
+    Object.assign(modelValue.value, newVal)
   },
   { deep: true },
 )
@@ -154,9 +157,8 @@ function generateSlug() {
     .replace(/[\s_-]+/g, '-')
     .replace(/^-+|-+$/g, '')
 
-  if (!localForm.value.slug) {
+  if (!localForm.value.slug)
     localForm.value.slug = slug
-  }
 }
 
 function handleSetCover(url: string) {
@@ -270,6 +272,7 @@ function removeCover() {
 
       <div class="content-section">
         <KitInlineMdEditorWrapper
+          :key="localForm.id"
           v-model="localForm.content!"
           class="markdown-editor"
           placeholder="Напишите свою историю..."
