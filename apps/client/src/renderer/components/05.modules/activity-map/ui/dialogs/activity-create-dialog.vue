@@ -21,16 +21,27 @@ const emit = defineEmits<{
 const form = ref({
   title: '',
   description: '',
-  duration: '',
+  startAt: '',
+  endAt: '',
   coords: null as [number, number] | null,
 })
 
+function toDateTimeLocal(date: Date): string {
+  const d = new Date(date)
+  d.setMinutes(d.getMinutes() - d.getTimezoneOffset())
+  return d.toISOString().slice(0, 16)
+}
+
 watch(() => props.visible, (isOpen) => {
   if (isOpen) {
+    const now = new Date()
+    const oneHourLater = new Date(now.getTime() + 60 * 60 * 1000)
+
     form.value = {
       title: '',
       description: '',
-      duration: '',
+      startAt: toDateTimeLocal(now),
+      endAt: toDateTimeLocal(oneHourLater),
       coords: props.initialCoords,
     }
   }
@@ -39,6 +50,11 @@ watch(() => props.visible, (isOpen) => {
 function handleSave() {
   if (props.isLoading)
     return
+
+  if (new Date(form.value.endAt) <= new Date(form.value.startAt)) {
+    return
+  }
+
   emit('create', form.value)
 }
 
@@ -55,7 +71,7 @@ function handleUpdateVisible(value: boolean) {
     :visible="visible"
     title="Новая активность"
     icon="mdi:map-marker-plus"
-    :max-width="400"
+    :max-width="450"
     @update:visible="handleUpdateVisible"
   >
     <div class="form-content" :class="{ 'is-loading': isLoading }">
@@ -66,13 +82,24 @@ function handleUpdateVisible(value: boolean) {
         required
         :disabled="isLoading"
       />
-      <KitInput
-        v-model="form.duration"
-        label="Длительность"
-        placeholder="Например: 1 час"
-        icon="mdi:clock-outline"
-        :disabled="isLoading"
-      />
+
+      <div class="dates-row">
+        <KitInput
+          v-model="form.startAt"
+          type="datetime-local"
+          label="Начало"
+          required
+          :disabled="isLoading"
+        />
+        <KitInput
+          v-model="form.endAt"
+          type="datetime-local"
+          label="Окончание"
+          required
+          :disabled="isLoading"
+        />
+      </div>
+
       <KitInput
         v-model="form.description"
         type="textarea"
@@ -118,6 +145,12 @@ function handleUpdateVisible(value: boolean) {
 .form-content.is-loading {
   opacity: 0.8;
   pointer-events: none;
+}
+
+.dates-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
 }
 
 .form-actions {

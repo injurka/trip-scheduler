@@ -79,14 +79,20 @@ async function handleCreate(data: any) {
 
   const coords = data.coords || createFormCoords.value
 
+  const start = new Date(data.startAt)
+  const end = new Date(data.endAt)
+  const diffMs = end.getTime() - start.getTime()
+  // Вычисляем длительность в часах, минимум 1 час
+  const durationHours = Math.max(1, Math.round(diffMs / (1000 * 60 * 60)))
+
   const input: CreateMarkInput = {
     markName: data.title,
     additionalInfo: data.description,
-    duration: Number.parseInt(data.duration) || 24,
+    duration: durationHours,
     latitude: coords[1],
     longitude: coords[0],
     categoryId: 1,
-    startAt: new Date().toISOString(),
+    startAt: start.toISOString(),
   }
 
   try {
@@ -115,7 +121,6 @@ function handleMapBoundsChange(bounds: MapBounds) {
 }
 
 function handleFocusItem(coords: [number, number]) {
-  // Focus on the point and zoom in slightly
   setMapPosition(coords[1], coords[0], 14)
 }
 

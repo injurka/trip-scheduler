@@ -21,7 +21,7 @@ export class MarksRepository implements IMarksRepository {
   }
 
   async getMarks(params: GetMarksParams): Promise<Mark[]> {
-    const response = await ofetch(`/api/v2/marks/`, {
+    const response = await ofetch(`/api/v2/mark/`, {
       baseURL: BASE_URL,
       method: 'POST',
       body: params,
@@ -110,7 +110,7 @@ export class MarksRepository implements IMarksRepository {
       })
     }
 
-    const response = await ofetch(`/api/v2/marks/create `, {
+    const response = await ofetch(`/api/v2/mark/create `, {
       baseURL: BASE_URL,
       method: 'POST',
       body: formData,
