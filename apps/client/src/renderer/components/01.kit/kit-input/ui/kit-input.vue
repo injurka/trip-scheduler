@@ -4,7 +4,7 @@ import { Icon } from '@iconify/vue'
 interface Props {
   label?: string
   icon?: string
-  type?: 'text' | 'email' | 'password' | 'number' | 'textarea'
+  type?: 'text' | 'email' | 'password' | 'number' | 'textarea' | 'datetime-local' | 'date' | 'time'
   name?: string
   placeholder?: string
   disabled?: boolean

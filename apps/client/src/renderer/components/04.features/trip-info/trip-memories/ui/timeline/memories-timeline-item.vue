@@ -29,6 +29,7 @@ const props = withDefaults(defineProps<Props>(), {
 const photoWrapperRef = ref<HTMLElement | null>(null)
 const commentEditorRef = ref(null)
 const timeEditorRef = ref<HTMLElement | null>(null)
+const ratingMenuRef = ref<HTMLElement | null>(null)
 
 const { width: windowWidth } = useWindowSize()
 const { isMorphed, morphStyle, placeholderStyle, enterMorph, leaveMorph } = useMorph(photoWrapperRef)
@@ -69,6 +70,7 @@ function handleMorphTrigger() {
 const {
   memoryComment,
   saveComment,
+  saveRating,
   isTimeEditing,
   editingTime,
   displayTime,
@@ -105,6 +107,25 @@ function handleWrapperClick() {
     openImageViewer()
 }
 
+const isRatingMenuOpen = ref(false)
+const hoveredRating = ref(0)
+
+function toggleRatingMenu() {
+  if (props.isViewMode)
+    return
+  isRatingMenuOpen.value = !isRatingMenuOpen.value
+}
+
+function handleRate(star: number) {
+  saveRating(star)
+  isRatingMenuOpen.value = false
+}
+
+function getStarIcon(star: number) {
+  const currentVal = hoveredRating.value || props.memory.rating || 0
+  return star <= currentVal ? 'mdi:star' : 'mdi:star-outline'
+}
+
 watch(() => props.isFullScreen, () => {
   if (isMorphed.value)
     leaveMorph()
@@ -112,6 +133,7 @@ watch(() => props.isFullScreen, () => {
 
 onClickOutside(commentEditorRef, saveViewerComment)
 onClickOutside(timeEditorRef, saveTime)
+onClickOutside(ratingMenuRef, () => isRatingMenuOpen.value = false)
 </script>
 
 <template>
@@ -140,36 +162,46 @@ onClickOutside(timeEditorRef, saveTime)
         <button
           v-if="isDesktop && !isFullScreen && !isMorphed"
           class="morph-trigger-btn"
-          title="Приблизить"
           @click.stop="handleMorphTrigger"
         >
-          <Icon icon="mdi:eye-outline" />
+          <div class="icon-wrapper">
+            <Icon icon="mdi:eye-outline" class="morph-icon" />
+          </div>
+          <span>Приблизить</span>
         </button>
 
         <div v-if="isMorphed" class="quality-controls" @click.stop>
           <button
             class="quality-btn"
             :class="{ active: preferredQuality === 'medium' }"
-            title="Среднее качество"
             @click="setQuality('medium')"
           >
-            <Icon icon="mdi:quality-medium" />
+            <div class="icon-wrapper">
+              <Icon icon="mdi:quality-medium" />
+            </div>
+            <span>Среднее</span>
           </button>
+
           <button
             class="quality-btn"
             :class="{ active: preferredQuality === 'large' }"
-            title="Высокое качество"
             @click="setQuality('large')"
           >
-            <Icon icon="mdi:quality-high" />
+            <div class="icon-wrapper">
+              <Icon icon="mdi:quality-high" />
+            </div>
+            <span>Высокое</span>
           </button>
+
           <button
             class="quality-btn"
             :class="{ active: preferredQuality === 'original' }"
-            title="Оригинал"
             @click="setQuality('original')"
           >
-            <Icon icon="mdi:raw" />
+            <div class="icon-wrapper">
+              <Icon icon="mdi:raw" />
+            </div>
+            <span>Оригинал</span>
           </button>
         </div>
 
@@ -177,15 +209,50 @@ onClickOutside(timeEditorRef, saveTime)
           <div v-if="memoryComment" class="memory-comment-overlay">
             <p>{{ memoryComment }}</p>
           </div>
-          <div v-if="!isUnsorted && displayTime" class="memory-meta-badge">
-            <div v-if="isTimeEditing" ref="timeEditorRef" class="time-editor-inline">
-              <KitTimeField v-if="editingTime" v-model="editingTime" />
-              <button class="save-time-btn-inline" @click.stop="saveTime">
-                <Icon icon="mdi:check" />
+
+          <div class="memory-top-bar" :class="{ 'has-content': !isUnsorted && displayTime }">
+            <div
+              v-if="!isUnsorted && (!isViewMode || memory.rating)"
+              ref="ratingMenuRef"
+              class="rating-wrapper"
+            >
+              <button
+                class="rating-trigger-btn"
+                :class="{ 'has-rating': !!memory.rating }"
+                :disabled="isViewMode"
+                @click.stop="toggleRatingMenu"
+              >
+                <Icon :icon="memory.rating ? 'mdi:star' : 'mdi:star-outline'" class="star-icon" />
+                <span v-if="memory.rating" class="rating-value">{{ memory.rating }}</span>
               </button>
+
+              <Transition name="fade">
+                <div v-if="isRatingMenuOpen" class="rating-popup" @click.stop>
+                  <button
+                    v-for="star in 5"
+                    :key="star"
+                    class="popup-star-btn"
+                    @click="handleRate(star)"
+                    @mouseenter="hoveredRating = star"
+                    @mouseleave="hoveredRating = 0"
+                  >
+                    <Icon :icon="getStarIcon(star)" />
+                  </button>
+                </div>
+              </Transition>
             </div>
-            <span v-else @click.stop="handleTimeClick">{{ displayTime }}</span>
+
+            <div v-if="!isUnsorted && displayTime" class="memory-meta-badge">
+              <div v-if="isTimeEditing" ref="timeEditorRef" class="time-editor-inline">
+                <KitTimeField v-if="editingTime" v-model="editingTime" />
+                <button class="save-time-btn-inline" @click.stop="saveTime">
+                  <Icon icon="mdi:check" />
+                </button>
+              </div>
+              <span v-else @click.stop="handleTimeClick">{{ displayTime }}</span>
+            </div>
           </div>
+
           <div class="memory-actions">
             <button v-if="!isViewMode && memory.timestamp" title="Убрать временную метку" @click.stop="handleRemoveTimestamp">
               <Icon icon="mdi:calendar-remove-outline" />
@@ -410,6 +477,150 @@ onClickOutside(timeEditorRef, saveTime)
   }
 }
 
+.memory-top-bar {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  z-index: 3;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  pointer-events: auto;
+
+  @include media-down(sm) {
+    top: 6px;
+    right: 6px;
+    gap: 4px;
+  }
+}
+
+.rating-wrapper {
+  position: relative;
+  opacity: 0;
+  transform: translateY(-5px);
+  transition: all 0.2s ease;
+
+  .photo-wrapper:hover:not(.morphed) & {
+    opacity: 1;
+    transform: translateY(0);
+  }
+
+  &:has(.rating-popup) {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.rating-trigger-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+
+  height: 28px;
+  padding: 0 8px;
+  border-radius: 14px;
+  background: rgba(0, 0, 0, 0.5);
+  backdrop-filter: blur(4px);
+  color: white;
+  border: none;
+  cursor: pointer;
+  transition: background-color 0.2s ease;
+
+  font-size: 0.8rem;
+  font-weight: 600;
+
+  &:hover:not(:disabled) {
+    background: rgba(0, 0, 0, 0.7);
+  }
+
+  &.has-rating {
+    background: rgba(255, 215, 0, 0.2);
+    color: #ffd700;
+    border: 1px solid rgba(255, 215, 0, 0.3);
+  }
+
+  .star-icon {
+    font-size: 1rem;
+    margin-top: -1px;
+  }
+
+  @include media-down(sm) {
+    height: 24px;
+    padding: 0 6px;
+    border-radius: 12px;
+    font-size: 0.75rem;
+
+    .star-icon {
+      font-size: 0.9rem;
+    }
+  }
+}
+
+.rating-popup {
+  position: absolute;
+  top: calc(100% + 4px);
+  right: 0;
+  background: rgba(0, 0, 0, 0.85);
+  backdrop-filter: blur(8px);
+  padding: 6px 10px;
+  border-radius: 20px;
+  display: flex;
+  gap: 4px;
+  box-shadow: var(--s-m);
+  z-index: 10;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+
+  .popup-star-btn {
+    background: none;
+    border: none;
+    padding: 2px;
+    color: #ffd700;
+    cursor: pointer;
+    font-size: 1.2rem;
+    transition: transform 0.1s;
+    display: flex;
+    align-items: center;
+
+    &:hover {
+      transform: scale(1.2);
+    }
+  }
+}
+
+.memory-meta-badge {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+
+  height: 28px;
+  padding: 0 8px;
+  border-radius: 14px;
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: white;
+  background: rgba(0, 0, 0, 0.5);
+  backdrop-filter: blur(4px);
+  transition: background-color 0.2s ease;
+  pointer-events: auto;
+
+  :deep(.kit-time-field) {
+    background-color: transparent;
+  }
+
+  &:hover {
+    background: rgba(0, 0, 0, 0.7);
+  }
+
+  @include media-down(sm) {
+    height: 24px;
+    padding: 0 6px;
+    font-size: 0.75rem;
+    border-radius: 12px;
+  }
+}
+
 .morph-trigger-btn {
   position: absolute;
   top: 8px;
@@ -417,21 +628,60 @@ onClickOutside(timeEditorRef, saveTime)
   z-index: 4;
   opacity: 0;
   pointer-events: none;
-  transition: opacity 0.2s ease;
   background: rgba(0, 0, 0, 0.5);
   backdrop-filter: blur(4px);
-  border-radius: 50%;
+  border-radius: 32px;
   width: 32px;
   height: 32px;
+  padding: 0;
   display: flex;
   align-items: center;
-  justify-content: center;
+  justify-content: flex-start;
   cursor: zoom-in;
   color: white;
   border: 1px solid rgba(255, 255, 255, 0.2);
+  overflow: hidden;
+  transition:
+    opacity 0.2s ease,
+    width 0.3s ease,
+    background-color 0.2s ease;
+
+  .icon-wrapper {
+    width: 32px;
+    height: 32px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+  }
+
+  .morph-icon {
+    flex-shrink: 0;
+  }
+
+  span {
+    opacity: 0;
+    white-space: nowrap;
+    max-width: 0;
+    overflow: hidden;
+    margin-left: 0;
+    font-size: 0.85rem;
+    font-weight: 500;
+    transition:
+      opacity 0.2s ease 0.1s,
+      max-width 0.3s ease,
+      margin-left 0.2s ease;
+  }
 
   &:hover {
     background: rgba(0, 0, 0, 0.7);
+    width: 130px;
+
+    span {
+      opacity: 1;
+      max-width: 100px;
+      margin-left: 0px;
+    }
   }
 }
 
@@ -446,8 +696,9 @@ onClickOutside(timeEditorRef, saveTime)
   left: 12px;
   z-index: 10;
   display: flex;
-  gap: 4px;
-  opacity: 0.4;
+  flex-direction: column;
+  gap: 8px;
+  opacity: 0.6;
   transition: opacity 0.3s ease;
 
   &:hover {
@@ -460,22 +711,57 @@ onClickOutside(timeEditorRef, saveTime)
   backdrop-filter: blur(4px);
   border: 1px solid rgba(255, 255, 255, 0.15);
   color: rgba(255, 255, 255, 0.7);
-  border-radius: 50%;
+  border-radius: 32px;
   width: 32px;
   height: 32px;
+  padding: 0;
   display: flex;
   align-items: center;
-  justify-content: center;
+  justify-content: flex-start;
   font-size: 1.1rem;
   cursor: pointer;
-  transition: all 0.2s ease;
-  padding: 0;
+  overflow: hidden;
+  transition:
+    background-color 0.2s ease,
+    border-color 0.2s ease,
+    width 0.3s ease,
+    transform 0.2s ease;
+
+  .icon-wrapper {
+    width: 32px;
+    height: 32px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+  }
+
+  span {
+    opacity: 0;
+    white-space: nowrap;
+    max-width: 0;
+    overflow: hidden;
+    font-size: 0.8rem;
+    font-weight: 500;
+    margin-left: 0;
+    transition:
+      opacity 0.2s ease 0.1s,
+      max-width 0.3s ease,
+      margin-left 0.2s ease;
+  }
 
   &:hover {
     background: rgba(0, 0, 0, 0.7);
     color: white;
     border-color: rgba(255, 255, 255, 0.4);
-    transform: scale(1.05);
+    width: auto;
+    padding-right: 12px;
+
+    span {
+      opacity: 1;
+      max-width: 80px;
+      margin-left: 0;
+    }
   }
 
   &.active {
@@ -483,6 +769,7 @@ onClickOutside(timeEditorRef, saveTime)
     color: white;
     border-color: transparent;
     box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+    opacity: 1;
   }
 }
 
@@ -537,42 +824,6 @@ onClickOutside(timeEditorRef, saveTime)
     white-space: pre-wrap;
     max-height: 100px;
     overflow-y: auto;
-  }
-}
-
-.memory-meta-badge {
-  position: absolute;
-  top: 8px;
-  right: 8px;
-  display: flex;
-  align-items: center;
-  gap: 4px;
-  font-size: 0.8rem;
-  font-weight: 600;
-  color: white;
-  background: rgba(0, 0, 0, 0.5);
-  backdrop-filter: blur(4px);
-  padding: 4px 8px;
-  border-radius: var(--r-full);
-  z-index: 3;
-  transition: background-color 0.2s ease;
-  line-height: 20px;
-  pointer-events: auto;
-
-  :deep(.kit-time-field) {
-    background-color: transparent;
-  }
-
-  &:hover {
-    background: rgba(0, 0, 0, 0.7);
-  }
-
-  @include media-down(sm) {
-    font-size: 0.7rem;
-    top: 4px;
-    right: 4px;
-    line-height: 16px;
-    padding: 2px 6px;
   }
 }
 
@@ -854,5 +1105,14 @@ onClickOutside(timeEditorRef, saveTime)
     width: auto;
     gap: 6px;
   }
+}
+
+.fade-enter-active,
+.fade-leave-active {
+  transition: opacity 0.2s ease;
+}
+.fade-enter-from,
+.fade-leave-to {
+  opacity: 0;
 }
 </style>

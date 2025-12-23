@@ -21,6 +21,7 @@ const componentsMap: Partial<Record<TripSectionType, Component>> = {
   [TripSectionType.BOOKINGS]: defineAsyncComponent(() => import('~/components/04.features/trip-info/trip-sections/booking-section/ui/booking-section.vue')),
   [TripSectionType.FINANCES]: defineAsyncComponent(() => import('~/components/04.features/trip-info/trip-sections/finances-section/ui/finances-section.vue')),
   [TripSectionType.DOCUMENTS]: defineAsyncComponent(() => import('~/components/04.features/trip-info/trip-sections/documents-section/ui/documents-section.vue')),
+  [TripSectionType.MEMORIES]: defineAsyncComponent(() => import('~/components/04.features/trip-info/trip-sections/memories-section/ui/memories-section.vue')),
 }
 
 function handleSectionUpdate(updatedSectionData: TripSection) {

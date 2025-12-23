@@ -9,6 +9,7 @@ export enum TripSectionType {
   CHECKLIST = 'checklist',
   DOCUMENTS = 'documents',
   NOTES = 'notes',
+  MEMORIES = 'memories',
 }
 
 export const TripSectionSchema = z.object({

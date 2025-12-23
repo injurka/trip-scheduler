@@ -1,5 +1,5 @@
 import type { z } from 'zod'
-import type { CreateMemoryInputSchema, UpdateMemoryInputSchema } from '~/modules/memory/memory.schemas'
+import type { CreateMemoryInputSchema, GetMemoriesInputSchema, UpdateMemoryInputSchema } from '~/modules/memory/memory.schemas'
 import { createTRPCError } from '~/lib/trpc'
 import { imageRepository } from '~/repositories/image.repository'
 import { memoryRepository } from '~/repositories/memory.repository'
@@ -64,8 +64,8 @@ export const memoryService = {
     return deletedMemory
   },
 
-  async getByTripId(tripId: string) {
-    return await memoryRepository.getByTripId(tripId)
+  async getByTripId(input: z.infer<typeof GetMemoriesInputSchema>) {
+    return await memoryRepository.getByTripId(input)
   },
 
   async applyTakenAt(id: string) {

@@ -285,6 +285,8 @@ const collapseRouteIcon = computed(() => allRouteBlocksCollapsed.value ? 'mdi:ch
       .kit-btn {
         border: none;
         background: transparent;
+        border-radius: var(--r-xs);
+
         &.active {
           background-color: var(--bg-tertiary-color);
           color: var(--fg-primary-color);

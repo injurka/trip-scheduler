@@ -90,6 +90,7 @@ export const tripSectionTypeEnum = pgEnum('trip_section_type', [
   'checklist', // Чек-листы
   'documents', // Документы
   'notes', // Общие заметки (гибкий/кастомный раздел)
+  'memories', // Галерея воспоминаний
 ])
 
 // Таблица для тарифных планов
@@ -255,6 +256,8 @@ export const memories = pgTable('memories', {
   sourceActivityId: uuid('source_activity_id').references(() => activities.id, { onDelete: 'set null' }),
   createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
   updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow().notNull(),
+  rating: integer('rating'), // Рейтинг 1-5
+  tags: jsonb('tags').$type<string[]>().default([]), // Массив произвольных тегов
 })
 
 // ===============================================
@@ -487,9 +490,9 @@ export const metroLineStationsRelations = relations(metroLineStations, ({ one })
 // Объединенный тип блока
 export type PostElementBlock
   = | PostContentBlockText
-    | PostContentBlockGallery
-    | PostContentBlockLocation
-    | PostContentBlockRoute
+  | PostContentBlockGallery
+  | PostContentBlockLocation
+  | PostContentBlockRoute
 
 // Типы блоков внутри одного элемента
 // 'location' — для одной точки (MapPoint)
@@ -553,10 +556,10 @@ interface PostContentBlockRoute extends PostContentBlockBase {
 // Объединяющий тип для использования в generic jsonb
 export type PostElementContent
   = | PostContentBlockText
-    | PostContentBlockImage
-    | PostContentBlockGallery
-    | PostContentBlockLocation
-    | PostContentBlockRoute
+  | PostContentBlockImage
+  | PostContentBlockGallery
+  | PostContentBlockLocation
+  | PostContentBlockRoute
 
 // ===============================================
 // ================ ТАБЛИЦЫ ПОСТОВ ===============

@@ -51,6 +51,13 @@ const sectionPresets = computed((): SectionPreset[] => {
       isAvailable: !existingTypes.has(TripSectionType.FINANCES),
     },
     {
+      type: TripSectionType.MEMORIES,
+      title: 'Галерея воспоминаний',
+      description: 'Все фотографии со всех дней в одном месте.',
+      icon: 'mdi:image-filter-hdr',
+      isAvailable: !existingTypes.has(TripSectionType.MEMORIES),
+    },
+    {
       type: TripSectionType.DOCUMENTS,
       title: 'Документы',
       description: 'Хранение важных файлов: билеты, страховки.',

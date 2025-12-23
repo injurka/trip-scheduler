@@ -20,11 +20,9 @@ export const useTripSectionsStore = defineStore('tripSections', {
   }),
 
   getters: {
-    // Получаем отсортированные разделы
     sortedSections: (state): TripSection[] => {
       return [...state.sections].sort((a, b) => a.order - b.order)
     },
-    // Получаем Set существующих уникальных типов секций (всех, кроме NOTES)
     existingUniqueSectionTypes: (state): Set<TripSectionType> => {
       return new Set(
         state.sections
@@ -35,7 +33,6 @@ export const useTripSectionsStore = defineStore('tripSections', {
   },
 
   actions: {
-    // Этот экшен будет вызываться из основного стора для инициализации
     setSections(sections: TripSection[]) {
       this.sections = sections
     },
@@ -47,7 +44,6 @@ export const useTripSectionsStore = defineStore('tripSections', {
         return
       }
 
-      // Определение контента и иконки по умолчанию для каждого типа раздела
       let defaultContent: any = {}
       let defaultIcon = 'mdi:file-document-outline'
       let defaultTitle = 'Новый раздел'
@@ -87,9 +83,13 @@ export const useTripSectionsStore = defineStore('tripSections', {
           defaultIcon = 'mdi:file-document-multiple-outline'
           defaultTitle = 'Документы'
           break
+        case TripSectionType.MEMORIES:
+          defaultContent = {}
+          defaultIcon = 'mdi:image-filter-hdr'
+          defaultTitle = 'Галерея воспоминаний'
+          break
       }
 
-      // Оптимистичное добавление
       const tempId = `temp-section-${Date.now()}`
       const newSection: TripSection = {
         id: tempId,
@@ -132,7 +132,7 @@ export const useTripSectionsStore = defineStore('tripSections', {
         return
 
       const originalSection = { ...this.sections[index] }
-      this.sections[index] = section // Оптимистичное обновление
+      this.sections[index] = section 
 
       await useRequest({
         key: `${ETripSectionsKeys.UPDATE}:${section.id}`,
@@ -143,7 +143,7 @@ export const useTripSectionsStore = defineStore('tripSections', {
           content: section.content,
         }),
         onError: ({ error }) => {
-          this.sections[index] = originalSection // Откат
+          this.sections[index] = originalSection 
           useToast().error(`Ошибка при обновлении раздела: ${error}`)
         },
       })
@@ -195,19 +195,18 @@ export const useTripSectionsStore = defineStore('tripSections', {
       if (index === -1)
         return
 
-      const [removedSection] = this.sections.splice(index, 1) // Оптимистичное удаление
+      const [removedSection] = this.sections.splice(index, 1) 
 
       await useRequest({
         key: `${ETripSectionsKeys.DELETE}:${sectionId}`,
         fn: db => db.tripSections.delete(sectionId),
         onError: ({ error }) => {
-          this.sections.splice(index, 0, removedSection) // Откат
+          this.sections.splice(index, 0, removedSection) 
           useToast().error(`Ошибка при удалении раздела: ${error}`)
         },
       })
     },
 
-    // Очистка состояния при выходе со страницы
     reset() {
       this.sections = []
     },
