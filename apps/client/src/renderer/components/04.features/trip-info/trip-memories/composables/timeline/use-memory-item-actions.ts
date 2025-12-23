@@ -60,6 +60,14 @@ export function useMemoryItemActions(props: { memory: IMemory, isViewMode: boole
       updateMemory({ id: props.memory.id, comment: memoryComment.value })
   }
 
+  function saveRating(rating: number) {
+    if (props.isViewMode)
+      return
+
+    const newRating = props.memory.rating === rating ? null : rating
+    updateMemory({ id: props.memory.id, rating: newRating })
+  }
+
   async function handleDelete() {
     const isConfirmed = await confirm({
       title: 'Удалить воспоминание?',
@@ -83,6 +91,7 @@ export function useMemoryItemActions(props: { memory: IMemory, isViewMode: boole
   return {
     memoryComment,
     saveComment,
+    saveRating,
     isTimeEditing,
     editingTime,
     displayTime,

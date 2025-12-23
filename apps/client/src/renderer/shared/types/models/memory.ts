@@ -14,6 +14,8 @@ export interface Memory {
   sourceActivityId: string
   tag?: EActivityTag
 
+  rating?: number | null
+
   createdAt: string
   updatedAt: string
 }

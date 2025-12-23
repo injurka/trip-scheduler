@@ -3,6 +3,7 @@ import { protectedProcedure, publicProcedure } from '~/lib/trpc'
 import {
   CreateMemoryInputSchema,
   DeleteMemoryInputSchema,
+  GetMemoriesInputSchema,
   MemorySchema,
   UpdateMemoryInputSchema,
 } from './memory.schemas'
@@ -15,13 +16,13 @@ export const memoryProcedures = {
         method: 'GET',
         path: '/memories/by-trip/{tripId}',
         tags: ['Memories'],
-        summary: 'Получить воспоминания путешествия',
+        summary: 'Получить воспоминания путешествия (с фильтрацией)',
       },
     })
-    .input(z.object({ tripId: z.string().uuid() }))
+    .input(GetMemoriesInputSchema)
     .output(z.array(MemorySchema))
     .query(async ({ input }) => {
-      return memoryService.getByTripId(input.tripId)
+      return memoryService.getByTripId(input)
     }),
 
   create: protectedProcedure

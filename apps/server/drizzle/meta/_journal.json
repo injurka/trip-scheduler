@@ -29,6 +29,20 @@
       "when": 1765836224319,
       "tag": "0003_stiff_nehzno",
       "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "7",
+      "when": 1766483304793,
+      "tag": "0004_green_pestilence",
+      "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "7",
+      "when": 1766483415043,
+      "tag": "0005_fine_jubilee",
+      "breakpoints": true
     }
   ]
 }

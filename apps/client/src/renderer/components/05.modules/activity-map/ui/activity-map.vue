@@ -2,7 +2,6 @@
 import type { MapBounds } from '../models/types'
 import type { MapMarker } from '~/components/01.kit/kit-map'
 import type { CreateMarkInput } from '~/shared/types/models/mark'
-import { storeToRefs } from 'pinia'
 import { useToast } from '~/shared/composables/use-toast'
 import { useActivityUrlState } from '../composables/use-activity-url-state'
 import { useActivityMapStore } from '../store/activity-map.store'
@@ -73,36 +72,49 @@ function handleMapClick(coords: [number, number]) {
   }
 }
 
-async function handleCreate(data: any) {
+// Типизированный пэйлоад от диалога
+interface CreatePayload {
+  title: string
+  description: string
+  startAt: string
+  endAt: string
+  coords: [number, number] | null
+}
+
+async function handleCreate(data: CreatePayload) {
   if (!createFormCoords.value && !data.coords)
     return
 
   const coords = data.coords || createFormCoords.value
 
+  // Парсим даты, пришедшие из диалога
   const start = new Date(data.startAt)
   const end = new Date(data.endAt)
+
+  // Расчет длительности в часах (минимум 1 час)
   const diffMs = end.getTime() - start.getTime()
-  // Вычисляем длительность в часах, минимум 1 час
   const durationHours = Math.max(1, Math.round(diffMs / (1000 * 60 * 60)))
 
-  const input: CreateMarkInput = {
-    markName: data.title,
-    additionalInfo: data.description,
-    duration: durationHours,
-    latitude: coords[1],
-    longitude: coords[0],
-    categoryId: 1,
-    startAt: start.toISOString(),
-  }
+  if (coords) {
+    const input: CreateMarkInput = {
+      markName: data.title,
+      additionalInfo: data.description,
+      duration: durationHours,
+      latitude: coords[1],
+      longitude: coords[0],
+      categoryId: 1, // Хардкод категории пока оставляем как было
+      startAt: start.toISOString(),
+    }
 
-  try {
-    await store.createMark(input)
-    isCreateDialogOpen.value = false
-    createFormCoords.value = null
-    toast.success('Активность добавлена')
-  }
-  catch {
-    toast.error('Ошибка при создании активности')
+    try {
+      await store.createMark(input)
+      isCreateDialogOpen.value = false
+      createFormCoords.value = null
+      toast.success('Активность добавлена')
+    }
+    catch {
+      toast.error('Ошибка при создании активности')
+    }
   }
 }
 
@@ -133,9 +145,13 @@ watch(
   { deep: true, immediate: true },
 )
 
-watch(viewMode, (newMode) => {
-  emit('modeChange', newMode)
-}, { immediate: true })
+watch(
+  viewMode,
+  (newMode) => {
+    emit('modeChange', newMode)
+  },
+  { immediate: true },
+)
 
 onMounted(() => {
   store.fetchMarks()

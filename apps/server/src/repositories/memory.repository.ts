@@ -1,8 +1,8 @@
 import type { z } from 'zod'
-import type { CreateMemoryInputSchema, UpdateMemoryInputSchema } from '~/modules/memory/memory.schemas'
+import type { CreateMemoryInputSchema, GetMemoriesInputSchema, UpdateMemoryInputSchema } from '~/modules/memory/memory.schemas'
 import { db } from 'db'
 import { memories, tripImages } from 'db/schema'
-import { asc, eq } from 'drizzle-orm'
+import { and, asc, desc, eq, gte, lte, sql } from 'drizzle-orm'
 
 export const memoryRepository = {
   /**
@@ -20,6 +20,8 @@ export const memoryRepository = {
         title: data.title,
         tag: data.tag,
         sourceActivityId: data.sourceActivityId,
+        rating: data.rating,
+        tags: data.tags ?? [],
       })
       .returning()
 
@@ -40,9 +42,24 @@ export const memoryRepository = {
   /**
    * Получает все воспоминания для путешествия, включая полные данные связанных изображений.
    */
-  async getByTripId(tripId: string) {
+  async getByTripId(input: z.infer<typeof GetMemoriesInputSchema>) {
+    const conditions = [eq(memories.tripId, input.tripId)]
+
+    if (input.minRating !== undefined) {
+      conditions.push(gte(memories.rating, input.minRating))
+    }
+
+    if (input.maxRating !== undefined) {
+      conditions.push(lte(memories.rating, input.maxRating))
+    }
+
+    if (input.tags && input.tags.length > 0) {
+      const tagsJson = JSON.stringify(input.tags)
+      conditions.push(sql`${memories.tags} @> ${tagsJson}::jsonb`)
+    }
+
     return await db.query.memories.findMany({
-      where: eq(memories.tripId, tripId),
+      where: and(...conditions),
       with: {
         image: {
           columns: {
