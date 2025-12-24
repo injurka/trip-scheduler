@@ -43,6 +43,13 @@
       "when": 1766483415043,
       "tag": "0005_fine_jubilee",
       "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1766590152820,
+      "tag": "0006_remarkable_sleepwalker",
+      "breakpoints": true
     }
   ]
 }

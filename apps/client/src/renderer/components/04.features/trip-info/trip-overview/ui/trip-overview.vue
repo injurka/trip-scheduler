@@ -16,6 +16,7 @@ import { useModuleStore } from '~/components/05.modules/trip-info/composables/us
 import { useTripPermissions } from '~/components/05.modules/trip-info/composables/use-trip-permissions'
 import { useToast } from '~/shared/composables/use-toast'
 import { vRipple } from '~/shared/directives/ripple'
+import { useNotificationStore } from '~/shared/store/notification.store'
 import { useOfflineStore } from '~/shared/store/offline.store'
 import { EActivitySectionType, EActivityTag } from '~/shared/types/models/activity'
 import { TripStatus } from '~/shared/types/models/trip'
@@ -23,7 +24,9 @@ import CountdownWidget from './content/countdown-widget.vue'
 import TripMapWidget from './content/map-widget.vue'
 import StatsWidget from './content/stats-widget.vue'
 import WeatherWidget from './content/weather-widget.vue'
+
 import {
+
   AttractionsListDialog,
   CitiesListDialog,
   DaysListDialog,
@@ -47,6 +50,7 @@ const router = useRouter()
 const confirm = useConfirm()
 const toast = useToast()
 const { canEdit } = useTripPermissions()
+const notificationStore = useNotificationStore()
 
 const { share, isSupported: isShareSupported } = useShare()
 const { copy } = useClipboard()
@@ -67,6 +71,10 @@ const isTripUpcoming = computed(() => {
     return false
 
   return props.trip.status === TripStatus.PLANNED && new Date(props.trip.startDate) > new Date()
+})
+
+const isSubscribedToCurrentTrip = computed(() => {
+  return props.trip ? notificationStore.isSubscribedToTrip(props.trip.id) : false
 })
 
 const formattedDates = computed(() => {
@@ -218,6 +226,21 @@ const moreMenuItems = computed((): KitDropdownItem<string>[] => {
     items.push({ value: 'save_offline', label: 'Сохранить оффлайн', icon: 'mdi:cloud-download-outline' })
   }
 
+  if (isSubscribedToCurrentTrip.value) {
+    items.push({
+      value: 'unsubscribe_trip',
+      label: 'Не следить',
+      icon: 'mdi:bell-off-outline',
+    })
+  }
+  else {
+    items.push({
+      value: 'subscribe_trip',
+      label: 'Следить за поездкой',
+      icon: 'mdi:bell-plus-outline',
+    })
+  }
+
   if (canEdit.value) {
     items.unshift({ value: 'edit', label: 'Редактировать', icon: 'mdi:pencil-outline' })
     items.push({ value: 'delete', label: 'Удалить', icon: 'mdi:trash-can-outline', isDestructive: true })
@@ -245,6 +268,12 @@ async function handleMenuAction(action: string) {
       toast.success('Ссылка скопирована в буфер обмена')
     }
   }
+  else if (action === 'subscribe_trip' && props.trip) {
+    await notificationStore.subscribeToTrip(props.trip.id)
+  }
+  else if (action === 'unsubscribe_trip' && props.trip) {
+    await notificationStore.unsubscribeFromTrip(props.trip.id)
+  }
   else if (action === 'edit') {
     handleEditTrip()
   }
@@ -267,6 +296,17 @@ async function handleMenuAction(action: string) {
 
   isMoreMenuOpen.value = false
 }
+
+onMounted(() => {
+  if (props.trip?.id) {
+    notificationStore.checkTripSubscription(props.trip.id)
+  }
+})
+
+watch(() => props.trip?.id, (newId) => {
+  if (newId)
+    notificationStore.checkTripSubscription(newId)
+})
 </script>
 
 <template>

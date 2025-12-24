@@ -44,4 +44,8 @@ export const pwaCfg: Parameters<typeof VitePWA>[0] = {
       // revision: import.meta.env.APP_VERSION || new Date().toString(),
     }],
   },
+  devOptions: {
+    enabled: true,
+    type: 'module',
+  },
 }

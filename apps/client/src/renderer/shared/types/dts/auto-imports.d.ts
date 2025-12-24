@@ -139,6 +139,7 @@ declare global {
   const unref: typeof import('vue').unref
   const unrefElement: typeof import('@vueuse/core').unrefElement
   const until: typeof import('@vueuse/core').until
+  const urlBase64ToUint8Array: typeof import('../../lib/push-utils').urlBase64ToUint8Array
   const useActiveElement: typeof import('@vueuse/core').useActiveElement
   const useAnimate: typeof import('@vueuse/core').useAnimate
   const useAppStore: typeof import('../../composables/use-store').useAppStore
@@ -482,6 +483,7 @@ declare module 'vue' {
     readonly unref: UnwrapRef<typeof import('vue')['unref']>
     readonly unrefElement: UnwrapRef<typeof import('@vueuse/core')['unrefElement']>
     readonly until: UnwrapRef<typeof import('@vueuse/core')['until']>
+    readonly urlBase64ToUint8Array: UnwrapRef<typeof import('../../lib/push-utils')['urlBase64ToUint8Array']>
     readonly useActiveElement: UnwrapRef<typeof import('@vueuse/core')['useActiveElement']>
     readonly useAnimate: UnwrapRef<typeof import('@vueuse/core')['useAnimate']>
     readonly useAppStore: UnwrapRef<typeof import('../../composables/use-store')['useAppStore']>

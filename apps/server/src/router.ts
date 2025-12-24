@@ -7,6 +7,7 @@ import { imageRouter } from './modules/image/image.router'
 import { llmUsageRouter } from './modules/llm-usage/llm-usage.router'
 import { memoryRouter } from './modules/memory/memory.router'
 import { metroRouter } from './modules/metro/metro.router'
+import { notificationRouter } from './modules/notification/notification.router'
 import { postRouter } from './modules/post/post.router'
 import { tripSectionRouter } from './modules/trip-section/trip-section.router'
 import { tripRouter } from './modules/trip/trip.router'
@@ -25,6 +26,7 @@ export const appRouter = router({
   metro: metroRouter,
   post: postRouter,
   blog: blogRouter,
+  notification: notificationRouter,
 })
 
 export type AppRouter = typeof appRouter

@@ -16,6 +16,7 @@ import { useModuleStore } from '~/components/05.modules/trip-info/composables/us
 import { getTagInfo, memoryToViewerImage } from '~/components/05.modules/trip-info/lib/helpers'
 import { useRequestError } from '~/plugins/request'
 import { useDisplay } from '~/shared/composables/use-display'
+import { useNotificationStore } from '~/shared/store/notification.store'
 import MemoriesList from './memories-list.vue'
 import MemoriesEmpty from './state/memories-empty.vue'
 import MemoriesError from './state/memories-error.vue'
@@ -25,6 +26,8 @@ const { mdAndUp } = useDisplay()
 const { ui, memories, plan: tripData } = useModuleStore(['ui', 'memories', 'plan'])
 const { open: openFileDialog, onChange, reset } = useFileDialog({ accept: '*', multiple: true })
 const fetchError = useRequestError(ETripMemoriesKeys.FETCH)
+const notificationStore = useNotificationStore()
+const confirm = useConfirm()
 
 const { areAllMemoryGroupsCollapsed, isViewMode, activeView } = storeToRefs(ui)
 const { memoriesForSelectedDay, getProcessingMemories, isLoadingMemories } = storeToRefs(memories)
@@ -45,7 +48,7 @@ function onDrop(files: File[] | null) {
 onChange((files) => {
   if (!files || files.length === 0)
     return
-  
+
   memories.enqueueFilesForUpload(Array.from(files))
 
   reset()
@@ -135,9 +138,8 @@ function toggleFullScreen() {
 
 const isAddNoteModalVisible = ref(false)
 const newNoteText = ref('')
-const newNoteTime = shallowRef<Time | null>(null)
-
 const isAddActivityModalVisible = ref(false)
+const newNoteTime = shallowRef<Time | null>(null)
 const newActivity = shallowReactive<{ title: string, time: Time | null, tag: EActivityTag | null }>({
   title: '',
   time: new Time(12, 0),
@@ -205,6 +207,34 @@ function handleImport(activity: Activity) {
   if (activity)
     memories.importActivityFromPlan(activity)
 }
+
+const isNotifyLoading = ref(false)
+
+async function handleNotifyParticipants() {
+  if (!tripData.currentTripId || !getSelectedDay.value)
+    return
+
+  const isConfirmed = await confirm({
+    title: 'Уведомить участников?',
+    description: 'Все участники путешествия получат Push-уведомление о том, что добавлены новые воспоминания в этот день.',
+    confirmText: 'Отправить',
+    type: 'default',
+  })
+
+  if (!isConfirmed)
+    return
+
+  isNotifyLoading.value = true
+  try {
+    await notificationStore.notifyAboutMemoryUpdate(
+      tripData.currentTripId,
+      getSelectedDay.value.id,
+    )
+  }
+  finally {
+    isNotifyLoading.value = false
+  }
+}
 </script>
 
 <template>
@@ -221,6 +251,16 @@ function handleImport(activity: Activity) {
       </KitDivider>
 
       <div class="controls-wrapper">
+        <button
+          v-if="!isViewMode && memoriesForSelectedDay.length > 0"
+          class="control-btn notify-btn"
+          :class="{ 'is-loading': isNotifyLoading }"
+          :disabled="isNotifyLoading"
+          title="Уведомить участников об обновлении"
+          @click="handleNotifyParticipants"
+        >
+          <Icon :icon="isNotifyLoading ? 'mdi:loading' : 'mdi:bell-ring-outline'" :class="{ spin: isNotifyLoading }" />
+        </button>
         <button
           v-if="mdAndUp && memoriesForSelectedDay.length > 0"
           class="control-btn fullscreen-btn"
