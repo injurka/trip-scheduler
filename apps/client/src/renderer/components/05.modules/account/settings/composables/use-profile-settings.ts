@@ -11,16 +11,10 @@ export function useProfileSettings() {
 
   const user = computed(() => authStore.user)
 
-  // --- Profile Info Form ---
   const profileForm = reactive({
     name: user.value?.name || '',
     email: user.value?.email || '',
   })
-
-  const isProfileChanged = computed(() => profileForm.name !== user.value?.name)
-  const isUpdatingProfile = useRequestStatus([EAuthRequestKeys.UPDATE_USER, EAuthRequestKeys.UPLOAD_AVATAR])
-
-  // --- Password Change Form ---
   const passwordForm = reactive({
     currentPassword: '',
     newPassword: '',
@@ -28,19 +22,20 @@ export function useProfileSettings() {
   })
   const isChangingPassword = ref(false)
 
+  const isProfileChanged = computed(() => profileForm.name !== user.value?.name)
+  const isUpdatingProfile = useRequestStatus([EAuthRequestKeys.UPDATE_USER, EAuthRequestKeys.UPLOAD_AVATAR])
+
   const isPasswordFormValid = computed(() =>
     passwordForm.currentPassword
     && passwordForm.newPassword.length >= 6
     && passwordForm.newPassword === passwordForm.confirmPassword,
   )
 
-  // --- Delete Account Form ---
   const deleteForm = reactive({
     password: '',
   })
   const isDeletingAccount = ref(false)
 
-  // --- Methods ---
   async function updateProfile() {
     try {
       await authStore.updateUser({ name: profileForm.name })

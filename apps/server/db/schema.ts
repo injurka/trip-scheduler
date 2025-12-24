@@ -483,6 +483,22 @@ export const metroLineStationsRelations = relations(metroLineStations, ({ one })
   }),
 }))
 
+export const pushSubscriptions = pgTable('push_subscriptions', {
+  endpoint: text('endpoint').primaryKey(),
+  userId: uuid('user_id').notNull().references(() => users.id, { onDelete: 'cascade' }),
+  keys: jsonb('keys').$type<{ p256dh: string, auth: string }>().notNull(),
+  createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
+  updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow().notNull(),
+})
+
+export const tripSubscriptions = pgTable('trip_subscriptions', {
+  userId: uuid('user_id').notNull().references(() => users.id, { onDelete: 'cascade' }),
+  tripId: uuid('trip_id').notNull().references(() => trips.id, { onDelete: 'cascade' }),
+  createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
+}, t => ({
+  pk: primaryKey({ columns: [t.userId, t.tripId] }),
+}))
+
 // ===============================================
 // ========== ТИПИЗАЦИЯ КОНТЕНТА ПОСТА ===========
 // ===============================================

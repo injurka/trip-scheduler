@@ -23,6 +23,13 @@ import type {
   UpdateTripInput,
 } from '~/shared/types/models/trip'
 
+export interface INotificationRepository {
+  checkTripSubscription: (tripId: string) => Promise<boolean>
+  subscribeToTrip: (payload: { tripId: string, subscription: any }) => Promise<void>
+  unsubscribeFromTrip: (tripId: string) => Promise<void>
+  sendMemoryUpdate: (payload: { tripId: string, dayId: string }) => Promise<void>
+}
+
 export interface IMarksRepository {
   getMarks: (params: GetMarksParams) => Promise<Mark[]>
   createMark: (data: CreateMarkInput) => Promise<Mark>
@@ -170,6 +177,7 @@ export interface IDatabaseClient {
   places: IPlacesRepository
   blog: IBlogRepository
   marks: IMarksRepository
+  notification: INotificationRepository
 }
 
 export interface IMemoryRepository {

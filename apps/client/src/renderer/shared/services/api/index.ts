@@ -9,6 +9,7 @@ import type {
   ILLMRepository,
   IMarksRepository,
   IMemoryRepository,
+  INotificationRepository,
   IPlacesRepository,
   ITripRepository,
   ITripSectionRepository,
@@ -23,6 +24,7 @@ import { FileRepository } from './repositories/file.repository'
 import { LLMRepository } from './repositories/llm.repository'
 import { MarksRepository } from './repositories/marks.repository'
 import { MemoryRepository } from './repositories/memory.repository'
+import { NotificationRepository } from './repositories/notification.repository'
 import { PlacesRepository } from './repositories/places.repository'
 import { TripSectionRepository } from './repositories/trip-section.repository'
 import { TripRepository } from './repositories/trip.repository'
@@ -45,6 +47,7 @@ class TRPCDatabaseClient implements IDatabaseClient {
   llm: ILLMRepository = new LLMRepository()
   places: IPlacesRepository = new PlacesRepository()
   marks: IMarksRepository = new MarksRepository()
+  notification: INotificationRepository = new NotificationRepository()
 }
 
 export { TRPCDatabaseClient }

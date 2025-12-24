@@ -152,6 +152,7 @@
     "unref": true,
     "unrefElement": true,
     "until": true,
+    "urlBase64ToUint8Array": true,
     "useActiveElement": true,
     "useAnimate": true,
     "useAppStore": true,

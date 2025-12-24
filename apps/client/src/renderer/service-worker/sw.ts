@@ -230,6 +230,51 @@ registerRoute(new NavigationRoute(
   },
 ))
 
+// --- WEB PUSH NOTIFICATIONS ---
+
+self.addEventListener('push', (event) => {
+  if (!event.data)
+    return
+
+  try {
+    const data = event.data.json()
+    const title = data.title || 'Trip Scheduler'
+    const options: NotificationOptions = {
+      body: data.body,
+      icon: '/pwa-192x192.png', // Убедитесь, что иконка существует
+      badge: '/badge-72x72.png', // Монохромная иконка для статус-бара Android
+      data: data.data || {}, // Здесь может лежать url для перехода
+      tag: data.tag, // Для группировки уведомлений
+    }
+
+    event.waitUntil(self.registration.showNotification(title, options))
+  }
+  catch (err) {
+    console.error('[SW] Error parsing push data', err)
+  }
+})
+
+self.addEventListener('notificationclick', (event) => {
+  event.notification.close()
+
+  const urlToOpen = event.notification.data?.url || '/'
+
+  event.waitUntil(
+    self.clients.matchAll({ type: 'window', includeUncontrolled: true }).then((windowClients) => {
+      // Если вкладка уже открыта - фокусируемся на ней
+      for (const client of windowClients) {
+        if (client.url === urlToOpen && 'focus' in client) {
+          return client.focus()
+        }
+      }
+      // Иначе открываем новую
+      if (self.clients.openWindow) {
+        return self.clients.openWindow(urlToOpen)
+      }
+    }),
+  )
+})
+
 // --- ОБРАБОТКА СООБЩЕНИЙ ---
 
 self.addEventListener('message', async (event) => {
