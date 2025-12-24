@@ -4,7 +4,6 @@ import type {
   GetMarksParams,
   Mark,
 } from '~/shared/types/models/mark'
-import { ofetch } from 'ofetch'
 
 const BASE_URL = import.meta.env.PROD
   ? 'https://realtimemap.ru' // Prod
@@ -15,20 +14,23 @@ export class MarksRepository implements IMarksRepository {
     const headers: Record<string, string> = {
       'X-User-ID': '1',
       'X-User-Name': 'Test User',
+      'Authorization': 'Bearer jtMkX5mJvLin_cvZVdrtyd8ix9qU40bu23jTePg9pzc',
     }
 
     return headers
   }
 
   async getMarks(params: GetMarksParams): Promise<Mark[]> {
-    const response = await ofetch(`/api/v2/marks/`, {
-      baseURL: BASE_URL,
+    const response = await fetch(`${BASE_URL}/api/v2/marks/`, {
       method: 'POST',
-      body: params,
-      headers: this.getAuthHeader(),
+      body: JSON.stringify(params),
+      headers: {
+        ...this.getAuthHeader(),
+        'Content-Type': 'application/json',
+      },
     })
 
-    return response
+    return await response.json()
 
     // const mockMarks= [
     //   {
@@ -110,13 +112,12 @@ export class MarksRepository implements IMarksRepository {
       })
     }
 
-    const response = await ofetch(`/api/v2/marks/create `, {
-      baseURL: BASE_URL,
+    const response = await fetch(`${BASE_URL}/api/v2/marks/create`, {
       method: 'POST',
       body: formData,
       headers: this.getAuthHeader(),
     })
 
-    return response
+    return await response.json()
   }
 }

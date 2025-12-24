@@ -11,16 +11,20 @@ export interface GroupedMemory {
   items: Memory[]
 }
 
+export type SortType = 'date-desc' | 'date-asc' | 'rating-desc' | 'rating-asc'
+
 export function useMemoriesView(memories: Ref<Memory[]>) {
-  const sortOrder = ref<'asc' | 'desc'>('desc')
+  const sortType = ref<SortType>('date-asc')
   const filterDay = ref<string>('all')
+  const filterRating = ref<number>(0)
   const renderLimit = ref(50)
   const BATCH_SIZE = 50
 
-  // Опции для фильтров
   const sortOptions = [
-    { value: 'desc', label: 'Сначала новые', icon: 'mdi:sort-calendar-descending' },
-    { value: 'asc', label: 'Сначала старые', icon: 'mdi:sort-calendar-ascending' },
+    { value: 'date-asc', label: 'Сначала старые', icon: 'mdi:sort-calendar-ascending' },
+    { value: 'date-desc', label: 'Сначала новые', icon: 'mdi:sort-calendar-descending' },
+    { value: 'rating-desc', label: 'Сначала высокий рейтинг', icon: 'mdi:star' },
+    { value: 'rating-asc', label: 'Сначала низкий рейтинг', icon: 'mdi:star-outline' },
   ]
 
   const availableDays = computed(() => {
@@ -37,7 +41,6 @@ export function useMemoriesView(memories: Ref<Memory[]>) {
     return [{ value: 'all', label: 'Все дни' }, ...options]
   })
 
-  // Полный отфильтрованный и отсортированный список (для Viewer'а и подсчетов)
   const allFilteredMemories = computed(() => {
     let result = [...memories.value].filter(m => !!m.imageId)
 
@@ -45,21 +48,40 @@ export function useMemoriesView(memories: Ref<Memory[]>) {
       result = result.filter(m => m.timestamp && m.timestamp.startsWith(filterDay.value))
     }
 
+    if (filterRating.value > 0) {
+      result = result.filter(m => (m.rating || 0) >= filterRating.value)
+    }
+
     result.sort((a, b) => {
-      const timeA = new Date(a.timestamp || 0).getTime()
-      const timeB = new Date(b.timestamp || 0).getTime()
-      return sortOrder.value === 'asc' ? timeA - timeB : timeB - timeA
+      if (sortType.value.startsWith('date')) {
+        const timeA = new Date(a.timestamp || 0).getTime()
+        const timeB = new Date(b.timestamp || 0).getTime()
+        return sortType.value === 'date-asc' ? timeA - timeB : timeB - timeA
+      }
+
+      if (sortType.value.startsWith('rating')) {
+        const ratingA = a.rating || 0
+        const ratingB = b.rating || 0
+
+        if (ratingA === ratingB) {
+          const timeA = new Date(a.timestamp || 0).getTime()
+          const timeB = new Date(b.timestamp || 0).getTime()
+          return timeB - timeA
+        }
+
+        return sortType.value === 'rating-desc' ? ratingB - ratingA : ratingA - ratingB
+      }
+
+      return 0
     })
 
     return result
   })
 
-  // Урезанный список для рендера в DOM (Infinite Scroll)
   const visibleMemories = computed(() => {
     return allFilteredMemories.value.slice(0, renderLimit.value)
   })
 
-  // Группировка видимых элементов
   const groupedMemories = computed<GroupedMemory[]>(() => {
     const groups: Record<string, Memory[]> = {}
 
@@ -75,9 +97,13 @@ export function useMemoriesView(memories: Ref<Memory[]>) {
         return 1
       if (b === 'no-date')
         return -1
-      return sortOrder.value === 'asc'
-        ? new Date(a).getTime() - new Date(b).getTime()
-        : new Date(b).getTime() - new Date(a).getTime()
+
+      const timeA = new Date(a).getTime()
+      const timeB = new Date(b).getTime()
+
+      return sortType.value === 'date-asc'
+        ? timeA - timeB
+        : timeB - timeA
     })
 
     return sortedKeys.map(date => ({
@@ -87,7 +113,6 @@ export function useMemoriesView(memories: Ref<Memory[]>) {
     }))
   })
 
-  // Список картинок для вьювера (всегда полный список!)
   const viewerImages = computed<ImageViewerImage[]>(() => {
     return allFilteredMemories.value
       .map(memoryToViewerImage)
@@ -100,20 +125,22 @@ export function useMemoriesView(memories: Ref<Memory[]>) {
     }
   }
 
-  // Сброс лимита при смене фильтров
-  watch([filterDay, sortOrder], () => {
+  watch([filterDay, sortType, filterRating], () => {
     renderLimit.value = BATCH_SIZE
-    document.querySelector('.memories-section')?.scrollIntoView({ behavior: 'smooth' })
+    setTimeout(() => {
+      document.querySelector('.memories-section')?.scrollIntoView({ behavior: 'smooth' })
+    }, 50)
   })
 
   return {
-    sortOrder,
+    sortType,
     filterDay,
+    filterRating,
     availableDays,
     sortOptions,
-    groupedMemories, // Для рендера групп
-    viewerImages, // Для Image Viewer
-    allFilteredMemories, // Для поиска индекса
+    groupedMemories,
+    viewerImages,
+    allFilteredMemories,
     renderLimit,
     loadMore,
   }

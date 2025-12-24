@@ -11,12 +11,13 @@ const { memories } = storeToRefs(store.memories)
 
 const {
   filterDay,
-  sortOrder,
+  sortType,
   availableDays,
   sortOptions,
   groupedMemories,
   viewerImages,
   allFilteredMemories,
+  filterRating,
   renderLimit,
   loadMore,
 } = useMemoriesView(memories)
@@ -40,10 +41,14 @@ onMounted(() => {
 
   observer = new IntersectionObserver((entries) => {
     const target = entries[0]
-    if (target.isIntersecting) {
+    // Проверяем не только видимость, но и есть ли что загружать
+    if (target.isIntersecting && renderLimit.value < allFilteredMemories.value.length) {
       loadMore()
     }
-  }, { rootMargin: '400px', threshold: 0.1 })
+  }, {
+    rootMargin: '200px',
+    threshold: 0.1,
+  })
 
   if (loadMoreTrigger.value) {
     observer.observe(loadMoreTrigger.value)
@@ -60,7 +65,8 @@ onUnmounted(() => {
   <div class="memories-section">
     <MemoriesFilters
       v-model:filter-day="filterDay"
-      v-model:sort-order="sortOrder"
+      v-model:filter-rating="filterRating"
+      v-model:sort-order="sortType"
       :available-days="availableDays"
       :sort-options="sortOptions"
     />
@@ -111,7 +117,7 @@ onUnmounted(() => {
 }
 
 .load-trigger {
-  height: 40px;
+  min-height: 40px;
   width: 100%;
   display: flex;
   justify-content: center;
