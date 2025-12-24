@@ -14,7 +14,7 @@ export class MarksRepository implements IMarksRepository {
     const headers: Record<string, string> = {
       'X-User-ID': '1',
       'X-User-Name': 'Test User',
-      'Authorization': 'Bearer jtMkX5mJvLin_cvZVdrtyd8ix9qU40bu23jTePg9pzc',
+      'Authorization': 'Bearer IZsBb905bqAn5W7v-y-nekD0fqp-mXnj6oLCy2eGn60',
     }
 
     return headers

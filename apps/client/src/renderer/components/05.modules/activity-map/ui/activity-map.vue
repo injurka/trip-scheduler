@@ -2,12 +2,21 @@
 import type { MapBounds } from '../models/types'
 import type { MapMarker } from '~/components/01.kit/kit-map'
 import type { CreateMarkInput } from '~/shared/types/models/mark'
+import { toLonLat } from 'ol/proj'
 import { useToast } from '~/shared/composables/use-toast'
 import { useActivityUrlState } from '../composables/use-activity-url-state'
 import { useActivityMapStore } from '../store/activity-map.store'
 import ActivityCreateDialog from './dialogs/activity-create-dialog.vue'
 import ActivityListView from './list/activity-list-view.vue'
 import ActivityMapView from './map/activity-map-view.vue'
+
+interface CreatePayload {
+  title: string
+  description: string
+  startAt: string
+  endAt: string
+  coords: [number, number] | null
+}
 
 export interface ActivityItem {
   id: string
@@ -72,13 +81,12 @@ function handleMapClick(coords: [number, number]) {
   }
 }
 
-// Типизированный пэйлоад от диалога
-interface CreatePayload {
-  title: string
-  description: string
-  startAt: string
-  endAt: string
-  coords: [number, number] | null
+function mapDurationToAllowedValue(hours: number): 12 | 24 | 36 | 48 {
+  const allowedDurations = [12, 24, 36, 48]
+  const closest = allowedDurations.reduce((prev, curr) => {
+    return (Math.abs(curr - hours) < Math.abs(prev - hours) ? curr : prev)
+  })
+  return closest as 12 | 24 | 36 | 48
 }
 
 async function handleCreate(data: CreatePayload) {
@@ -87,22 +95,23 @@ async function handleCreate(data: CreatePayload) {
 
   const coords = data.coords || createFormCoords.value
 
-  // Парсим даты, пришедшие из диалога
   const start = new Date(data.startAt)
   const end = new Date(data.endAt)
 
-  // Расчет длительности в часах (минимум 1 час)
   const diffMs = end.getTime() - start.getTime()
   const durationHours = Math.max(1, Math.round(diffMs / (1000 * 60 * 60)))
+  const mappedDuration = mapDurationToAllowedValue(durationHours)
 
   if (coords) {
+    const lonLatCoords = toLonLat(coords)
+
     const input: CreateMarkInput = {
       markName: data.title,
       additionalInfo: data.description,
-      duration: durationHours,
-      latitude: coords[1],
-      longitude: coords[0],
-      categoryId: 1, // Хардкод категории пока оставляем как было
+      duration: mappedDuration,
+      latitude: lonLatCoords[1],
+      longitude: lonLatCoords[0],
+      categoryId: 1,
       startAt: start.toISOString(),
     }
 
