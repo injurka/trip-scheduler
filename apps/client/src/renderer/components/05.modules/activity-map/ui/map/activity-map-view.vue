@@ -200,7 +200,7 @@ const controlsLeftPosition = computed(() => `${sidebarWidth.value + 32}px`)
         <div v-if="hoveredActivity.additionalInfo" class="hover-desc">
           {{ hoveredActivity.additionalInfo }}
         </div>
-        <div class="hover-meta">
+        <div v-if="hoveredActivity.endAt" class="hover-meta">
           {{ new Date(hoveredActivity.endAt).toLocaleDateString() }}
         </div>
       </div>
@@ -252,7 +252,7 @@ const controlsLeftPosition = computed(() => `${sidebarWidth.value + 32}px`)
   display: flex;
   flex-direction: column;
   box-shadow: var(--s-xl);
-  overflow: visible; 
+  overflow: visible;
   overflow: hidden;
 
   @include media-down(sm) {
@@ -482,4 +482,4 @@ const controlsLeftPosition = computed(() => `${sidebarWidth.value + 32}px`)
   color: var(--fg-tertiary-color);
   margin-top: 2px;
 }
-</style>
+</style>```

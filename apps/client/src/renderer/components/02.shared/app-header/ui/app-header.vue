@@ -26,7 +26,6 @@ const { height: headerHeight } = useElementBounding(headerEl)
 watch(headerHeight, newHeight => appStore.layout.setHeaderHeight(newHeight))
 watch(isHeaderVisible, isVisible => appStore.layout.setHeaderVisibility(isVisible))
 
-// --- Навигационное меню (Rich Items) ---
 const navItems = [
   {
     id: 'trips',
@@ -76,7 +75,6 @@ function handleNavigation(item: typeof navItems[0]) {
       router.push({ name: AppRouteNames.TripList })
       break
     case 'activity-map':
-      // Убедитесь, что ActivityMap добавлен в enum AppRouteNames в shared/constants/routes.ts
       router.push({ name: AppRouteNames.ActivityMap })
       break
     case 'posts':

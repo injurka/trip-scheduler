@@ -193,7 +193,7 @@ export const useAuthStore = defineStore('auth', {
           }
         },
         onError: (error: any) => {
-          useToast().error(`Не удалось обновить статус: ${error.message || error}`)
+          useToast().error(`Не удалось обновить статус: ${error.customMessage}`)
           throw error
         },
       })

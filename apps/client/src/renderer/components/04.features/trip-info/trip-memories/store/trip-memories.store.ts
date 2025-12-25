@@ -212,7 +212,7 @@ export const useTripMemoriesStore = defineStore('tripMemories', {
           if (pItem) {
             pItem.status = 'error'
             pItem.progress = 0
-            pItem.error = (error as Error).message || 'Неизвестная ошибка'
+            pItem.error = error.customMessage
           }
           this._processUploadQueue()
         },

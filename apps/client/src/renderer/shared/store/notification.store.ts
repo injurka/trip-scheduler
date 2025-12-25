@@ -10,12 +10,12 @@ export enum ENotificationKeys {
   NOTIFY_MEMORY = 'push:notify-memory',
 }
 
-interface NotificationState {
+export interface NotificationState {
   subscribedTripIds: Set<string>
   loading: boolean
 }
 
-export const useNotificationStore = defineStore('notification', {
+const useNotificationStore = defineStore('notification', {
   state: (): NotificationState => ({
     subscribedTripIds: new Set(),
     loading: false,
@@ -114,7 +114,7 @@ export const useNotificationStore = defineStore('notification', {
             toast.success('Вы подписались на уведомления об этом путешествии')
           },
           onError: ({ error }) => {
-            toast.error(`Ошибка подписки: ${error.message}`)
+            toast.error(`Ошибка подписки: ${error.customMessage}`)
           },
         })
       }
@@ -167,3 +167,5 @@ export const useNotificationStore = defineStore('notification', {
     },
   },
 })
+
+export { useNotificationStore }

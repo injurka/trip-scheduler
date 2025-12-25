@@ -70,7 +70,7 @@ export const useTripInfoGalleryStore = defineStore('tripInfoRouteGallery', {
           this.loadedTripId = this.currentTripId
         },
         onError: ({ error }) => {
-          console.error(`Ошибка при загрузке изображений для путешествия ${this.currentTripId}:`, error)
+          console.error(`Ошибка при загрузке изображений для путешествия ${this.currentTripId}:`, error.customMessage)
         },
       })
     },
@@ -98,7 +98,7 @@ export const useTripInfoGalleryStore = defineStore('tripInfoRouteGallery', {
           this.tripImages.push(result)
         },
         onError: ({ error }) => {
-          console.error(`Ошибка при загрузке изображения для путешествия ${this.currentTripId}:`, error)
+          console.error(`Ошибка при загрузке изображения для путешествия ${this.currentTripId}:`, error.customMessage)
         },
       })
 

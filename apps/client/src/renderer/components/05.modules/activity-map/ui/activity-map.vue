@@ -10,14 +10,6 @@ import ActivityCreateDialog from './dialogs/activity-create-dialog.vue'
 import ActivityListView from './list/activity-list-view.vue'
 import ActivityMapView from './map/activity-map-view.vue'
 
-interface CreatePayload {
-  title: string
-  description: string
-  startAt: string
-  endAt: string
-  coords: [number, number] | null
-}
-
 export interface ActivityItem {
   id: string
   title: string
@@ -81,6 +73,14 @@ function handleMapClick(coords: [number, number]) {
   }
 }
 
+interface CreatePayload {
+  title: string
+  description: string
+  startAt: string
+  endAt: string
+  coords: [number, number] | null
+}
+
 function mapDurationToAllowedValue(hours: number): 12 | 24 | 36 | 48 {
   const allowedDurations = [12, 24, 36, 48]
   const closest = allowedDurations.reduce((prev, curr) => {
@@ -104,7 +104,6 @@ async function handleCreate(data: CreatePayload) {
 
   if (coords) {
     const lonLatCoords = toLonLat(coords)
-
     const input: CreateMarkInput = {
       markName: data.title,
       additionalInfo: data.description,
