@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import type { PostMark, PostMedia } from '../../../models/types'
+import type { PostMark, PostMedia } from '~/shared/types/models/post'
 import { Icon } from '@iconify/vue'
 import { v4 as uuidv4 } from 'uuid'
 import { KitBtn } from '~/components/01.kit/kit-btn'
@@ -194,7 +194,6 @@ watch(() => props.visible, (isOpen) => {
   display: block;
 }
 
-/* Mark Styles */
 .mark-point {
   position: absolute;
   transform: translate(-50%, -50%);
@@ -231,7 +230,6 @@ watch(() => props.visible, (isOpen) => {
   pointer-events: none;
 }
 
-/* Edit Popover */
 .edit-popover {
   position: absolute;
   top: 24px;

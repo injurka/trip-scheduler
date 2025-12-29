@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import type { LocationBlock } from '../../../models/types'
+import type { LocationBlock } from '~/shared/types/models/post'
 import { Icon } from '@iconify/vue'
 import { KitInput } from '~/components/01.kit/kit-input'
 import PostMapPicker from '../tools/post-map-picker.vue'
@@ -16,7 +16,6 @@ const isMapOpen = ref(false)
 
 function handleMapConfirm(coords: { lat: number, lng: number }) {
   emit('update', { coords })
-  // Здесь можно добавить обратное геокодирование, если есть сервис
 }
 </script>
 
@@ -39,7 +38,11 @@ function handleMapConfirm(coords: { lat: number, lng: number }) {
         />
       </div>
 
-      <button class="map-btn" :class="{ 'has-coords': block.coords?.lat }" @click="isMapOpen = true">
+      <button
+        class="map-btn"
+        :class="{ 'has-coords': block.coords?.lat }"
+        @click="isMapOpen = true"
+      >
         <Icon icon="mdi:map-search-outline" />
         <span v-if="block.coords?.lat" class="coords-badge">✓</span>
       </button>
@@ -89,7 +92,7 @@ function handleMapConfirm(coords: { lat: number, lng: number }) {
   position: relative;
   transition: all 0.2s;
   flex-shrink: 0;
-  margin-top: 2px; /* Align with first input */
+  margin-top: 2px;
 
   &:hover {
     background: var(--bg-hover-color);
@@ -111,9 +114,10 @@ function handleMapConfirm(coords: { lat: number, lng: number }) {
   background: var(--fg-success-color);
   color: white;
   font-size: 10px;
-  width: 14px;
-  height: 14px;
+  width: 18px;
+  height: 18px;
   border-radius: 50%;
+  font-size: 1rem;
   display: flex;
   align-items: center;
   justify-content: center;

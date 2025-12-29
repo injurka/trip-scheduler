@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import type { PostDetail } from '../../models/types'
+import type { PostDetail } from '~/shared/types/models/post'
 import { Icon } from '@iconify/vue'
 import { KitAvatar } from '~/components/01.kit/kit-avatar'
 import { KitImage } from '~/components/01.kit/kit-image'
@@ -14,13 +14,13 @@ defineProps<IProps>()
 <template>
   <div class="post-hero">
     <div class="hero-bg">
-      <KitImage :src="post.media[0]?.url" object-fit="cover" />
+      <KitImage :src="post.media?.[0]?.url" object-fit="cover" />
     </div>
 
     <div class="hero-content">
       <div class="tags">
-        <span class="tag-geo"><Icon icon="mdi:map-marker" /> {{ post.location.city }}</span>
-        <span class="tag-cat">{{ post.category }}</span>
+        <span v-if="post.city" class="tag-geo"><Icon icon="mdi:map-marker" /> {{ post.city }}</span>
+        <!-- Категории больше нет -->
       </div>
 
       <h1 class="hero-title">
@@ -28,22 +28,24 @@ defineProps<IProps>()
       </h1>
 
       <div class="author-row">
-        <KitAvatar :src="post.author.avatarUrl" :name="post.author.name" size="28" />
-        <span class="author-name">by {{ post.author.name }}</span>
+        <KitAvatar :src="post.user.avatarUrl" :name="post.user.name" size="28" />
+        <span class="author-name">by {{ post.user.name }}</span>
       </div>
 
       <div class="stats-bar">
         <div class="stat-item">
+          <Icon icon="mdi:eye-outline" />
+          <span>{{ post.statsDetail?.views || 0 }}</span>
+        </div>
+
+        <div v-if="post.statsDetail?.duration " class="stat-item">
           <Icon icon="mdi:clock-outline" />
           <span>{{ post.statsDetail.duration }}</span>
         </div>
-        <div class="stat-item">
+
+        <div v-if="post.statsDetail?.budget " class="stat-item">
           <Icon icon="mdi:wallet-outline" />
           <span>{{ post.statsDetail.budget }}</span>
-        </div>
-        <div class="stat-item">
-          <Icon icon="mdi:eye-outline" />
-          <span>{{ post.statsDetail.views }}</span>
         </div>
       </div>
     </div>
@@ -53,7 +55,7 @@ defineProps<IProps>()
 <style scoped lang="scss">
 .post-hero {
   position: relative;
-  height: 350px;
+  height: 400px;
   width: 100%;
   overflow: hidden;
   border-radius: 0 0 var(--r-xl) var(--r-xl);
@@ -96,8 +98,7 @@ defineProps<IProps>()
   margin-bottom: 12px;
 }
 
-.tag-geo,
-.tag-cat {
+.tag-geo {
   font-size: 0.8rem;
   padding: 4px 10px;
   background: rgba(255, 255, 255, 0.2);
@@ -109,10 +110,6 @@ defineProps<IProps>()
   text-transform: uppercase;
   font-weight: 600;
   letter-spacing: 0.5px;
-}
-
-.tag-cat {
-  background: var(--fg-accent-color);
 }
 
 .hero-title {
@@ -130,6 +127,13 @@ defineProps<IProps>()
   margin-bottom: 24px;
   font-size: 0.9rem;
   opacity: 0.9;
+
+  :deep(.kit-avatar) {
+    height: 24px;
+    width: 24px;
+    border: none;
+    font-size: 0.7rem;
+  }
 }
 
 .stats-bar {

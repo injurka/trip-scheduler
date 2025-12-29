@@ -13,19 +13,20 @@ export const postService = {
     if (!post) {
       throw createTRPCError('NOT_FOUND', `Пост с ID ${id} не найден.`)
     }
-    if (post.status === 'draft' && post.userId !== userId) {
+    if (post.status === 'draft' && post.user.id !== userId) {
       throw createTRPCError('FORBIDDEN', 'Этот пост еще не опубликован.')
     }
     return post
   },
 
   async create(data: z.infer<typeof CreatePostInputSchema>, userId: string) {
-    return await postRepository.create(data, userId)
+    const newPost = await postRepository.create(data, userId)
+    if (!newPost) {
+      throw createTRPCError('INTERNAL_SERVER_ERROR', 'Не удалось создать пост.')
+    }
+    return newPost
   },
 
-  /**
-   * Создает запись о медиа-файле, прикрепленном к посту.
-   */
   async createMedia(
     postId: string,
     url: string,
@@ -39,16 +40,16 @@ export const postService = {
       originalName,
       sizeBytes,
       metadata,
-      type: 'image', // Пока поддерживаем только изображения
+      type: 'image',
     })
   },
 
   async update(input: z.infer<typeof UpdatePostInputSchema>, userId: string) {
-    const existingPost = await postRepository.findById(input.id)
+    const existingPost = await postRepository.findById(input.id, userId)
     if (!existingPost) {
       throw createTRPCError('NOT_FOUND', 'Пост не найден.')
     }
-    if (existingPost.userId !== userId) {
+    if (existingPost.user.id !== userId) {
       throw createTRPCError('FORBIDDEN', 'У вас нет прав на редактирование этого поста.')
     }
 
@@ -60,16 +61,15 @@ export const postService = {
   },
 
   async delete(id: string, userId: string) {
-    const existingPost = await postRepository.findById(id)
+    const existingPost = await postRepository.findById(id, userId)
     if (!existingPost) {
       throw createTRPCError('NOT_FOUND', 'Пост не найден.')
     }
-    if (existingPost.userId !== userId) {
+    if (existingPost.user.id !== userId) {
       throw createTRPCError('FORBIDDEN', 'У вас нет прав на удаление этого поста.')
     }
     return await postRepository.delete(id)
   },
-
   async toggleSave(postId: string, userId: string) {
     const post = await postRepository.findById(postId)
     if (!post) {
@@ -77,6 +77,15 @@ export const postService = {
     }
     const isSaved = await postRepository.toggleSave(postId, userId)
     return { isSaved }
+  },
+
+  async toggleLike(postId: string, userId: string) {
+    const post = await postRepository.findById(postId)
+    if (!post) {
+      throw createTRPCError('NOT_FOUND', 'Пост не найден.')
+    }
+    const isLiked = await postRepository.toggleLike(postId, userId)
+    return { isLiked }
   },
 
   async incrementView(postId: string) {

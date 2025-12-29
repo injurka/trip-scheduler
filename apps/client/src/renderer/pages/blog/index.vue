@@ -20,20 +20,19 @@ onMounted(() => {
 
 <template>
   <section class="content-wrapper">
+    <div class="page-nav">
+      <NavigationBack />
+      <KitBtn
+        v-if="canEdit"
+        icon="mdi:plus"
+        size="sm"
+        variant="tonal"
+        @click="router.push({ name: AppRouteNames.BlogCreate })"
+      >
+        Создать
+      </KitBtn>
+    </div>
     <div class="page-header">
-      <div class="header-top">
-        <NavigationBack />
-        <KitBtn
-          v-if="canEdit"
-          icon="mdi:plus"
-          size="sm"
-          variant="tonal"
-          @click="router.push({ name: AppRouteNames.BlogCreate })"
-        >
-          Создать
-        </KitBtn>
-      </div>
-
       <h1>Новости</h1>
       <p>Официальные новости, обновления и полезные статьи от команды разработчиков.</p>
     </div>
@@ -67,15 +66,13 @@ onMounted(() => {
 .content-wrapper {
   max-width: 1200px;
   margin: 0 auto;
-  padding: 24px;
   width: 100%;
 }
 
-.header-top {
+.page-nav {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: 16px;
 }
 
 .blog-grid {

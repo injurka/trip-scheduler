@@ -18,6 +18,8 @@ const props = withDefaults(defineProps<Props>(), {
 })
 
 const router = useRouter()
+const { smAndDown } = useDisplay()
+
 const isLoading = ref(true)
 const mapMarkers = ref<MapMarker[]>([])
 const mapCenter = ref<[number, number]>([37.6176, 55.7558]) // Default Moscow
@@ -41,21 +43,18 @@ async function fetchCoordinates(city: string): Promise<[number, number] | null> 
 }
 
 async function initMapData() {
-  // 1. Если есть реальные точки пользователя
   if (props.points.length > 0) {
     mapMarkers.value = props.points.map(p => ({
       id: p.id,
       coords: { lat: p.coordinates[1], lon: p.coordinates[0] },
       payload: p,
     }))
-    // Центрируем по первой точке
     const p = props.points[0]
     mapCenter.value = [p.coordinates[0], p.coordinates[1]]
     isLoading.value = false
     return
   }
 
-  // 2. Если точек нет, но есть города - геокодируем их
   if (props.cities.length > 0) {
     isLoading.value = true
     const markers: MapMarker[] = []
@@ -87,7 +86,6 @@ async function initMapData() {
     return
   }
 
-  // 3. Ничего нет
   isLoading.value = false
 }
 
@@ -116,7 +114,7 @@ watch(() => [props.cities, props.points], () => {
         icon="mdi:arrow-expand"
         @click="openFullMap"
       >
-        Подробнее
+        {{ smAndDown ? '' : 'Подробнее' }}
       </KitBtn>
     </div>
 

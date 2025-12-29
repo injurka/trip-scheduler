@@ -248,8 +248,6 @@ provide(TripsHubKey, tripsHub)
   }
 }
 
-// ... rest of styles ...
-
 .trips-hub-container {
   display: flex;
   flex-direction: column;

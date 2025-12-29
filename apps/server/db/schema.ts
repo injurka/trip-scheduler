@@ -1,6 +1,9 @@
 /* eslint-disable ts/no-use-before-define */
+import type { AnyPgColumn } from 'drizzle-orm/pg-core'
+import type { ActivitySection, DayMetaInfo, PostElementContent, PostStatsDetail } from './schema.type'
 import { relations } from 'drizzle-orm'
 import {
+
   bigint,
   boolean,
   date,
@@ -17,63 +20,6 @@ import {
   uuid,
 } from 'drizzle-orm/pg-core'
 import { ONE_GIGABYTE_IN_BYTES } from '~/lib/constants'
-
-interface ActivitySectionBase {
-  id: string
-  isAttached?: boolean
-  title?: string
-  icon?: string
-  color?: string
-}
-
-export interface DayMetaInfo {
-  id: string
-  title: string
-  subtitle?: string
-  icon?: string
-  color?: string
-  content?: string
-}
-
-interface ActivitySectionText extends ActivitySectionBase {
-  type: 'description'
-  text: string
-}
-
-interface ActivitySectionGallery extends ActivitySectionBase {
-  type: 'gallery'
-  imageUrls: string[]
-}
-
-interface ActivitySectionGeolocation extends ActivitySectionBase {
-  type: 'geolocation'
-  points: any[]
-  routes: any[]
-  drawnRoutes: any[]
-}
-
-interface MetroRide {
-  id: string
-  startStationId: string | null
-  startStation: string
-  endStationId: string | null
-  endStation: string
-  lineId: string | null
-  lineName: string
-  lineNumber: string | null
-  lineColor: string
-  direction: string
-  stops: number
-}
-
-interface ActivitySectionMetro extends ActivitySectionBase {
-  type: 'metro'
-  mode: 'free' | 'city'
-  systemId: string | null
-  rides: MetroRide[]
-}
-
-export type ActivitySection = ActivitySectionText | ActivitySectionGallery | ActivitySectionGeolocation | ActivitySectionMetro
 
 // Обновленные Enums
 export const statusEnum = pgEnum('status', ['completed', 'planned', 'draft'])
@@ -215,7 +161,6 @@ export const tripImages = pgTable('trip_images', {
 
   variants: jsonb('variants').$type<Record<string, string>>(), // { small: '...', medium: '...', large: '...' }
 
-  // --- Все остальные метаданные в одном поле JSONB ---
   metadata: jsonb('metadata'),
 })
 
@@ -260,24 +205,18 @@ export const memories = pgTable('memories', {
   tags: jsonb('tags').$type<string[]>().default([]), // Массив произвольных тегов
 })
 
-// ===============================================
-// ================ МОДЕЛИ LLM И ЦЕНЫ ============
-// ===============================================
 export const llmModels = pgTable('llm_models', {
-  id: text('id').primaryKey(), // e.g., 'gemini-2.5-pro'
+  id: text('id').primaryKey(),
   costPerMillionInputTokens: real('cost_per_million_input_tokens').notNull().default(0),
   costPerMillionOutputTokens: real('cost_per_million_output_tokens').notNull().default(0),
   updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow().notNull(),
 })
 
-// ===============================================
-// =========== ИСПОЛЬЗОВАНИЕ ТОКЕНОВ LLM =========
-// ===============================================
 export const llmTokenUsage = pgTable('llm_token_usage', {
   id: serial('id').primaryKey(),
   userId: uuid('user_id').notNull().references(() => users.id, { onDelete: 'cascade' }),
   model: text('model').notNull().references(() => llmModels.id, { onDelete: 'set null' }),
-  operation: text('operation').notNull(), // e.g., 'bookingGeneration', 'financesGeneration'
+  operation: text('operation').notNull(),
   inputTokens: integer('input_tokens').notNull(),
   outputTokens: integer('output_tokens').notNull(),
   createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
@@ -290,55 +229,151 @@ export const commentParentTypeEnum = pgEnum('comment_parent_type', ['trip', 'day
 export const comments = pgTable('comments', {
   id: uuid('id').primaryKey().defaultRandom(),
   text: text('text').notNull(),
-
   userId: uuid('user_id').notNull().references(() => users.id, { onDelete: 'cascade' }),
-
-  // Полиморфная связь
   parentId: uuid('parent_id').notNull(),
   parentType: commentParentTypeEnum('parent_type').notNull(),
-
   createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
   updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow().notNull(),
 }, t => ({
   parentIndex: index('parent_idx').on(t.parentId),
 }))
 
-// ===============================================
-// ==================== МЕТРО ====================
-// ===============================================
-
 export const metroSystems = pgTable('metro_systems', {
   id: text('id').primaryKey(),
-  city: text('city').notNull().unique(), // e.g., 'Москва'
-  country: text('country').notNull(), // e.g., 'Россия'
+  city: text('city').notNull().unique(),
+  country: text('country').notNull(),
 })
 
 export const metroLines = pgTable('metro_lines', {
   id: text('id').primaryKey(),
   systemId: text('system_id').notNull().references(() => metroSystems.id, { onDelete: 'cascade' }),
-  name: text('name').notNull(), // e.g., 'Сокольническая линия'
+  name: text('name').notNull(),
   lineNumber: text('line_number'),
-  color: text('color').notNull(), // e.g., '#EF161E'
+  color: text('color').notNull(),
 })
 
 export const metroStations = pgTable('metro_stations', {
   id: text('id').primaryKey(),
   systemId: text('system_id').notNull().references(() => metroSystems.id, { onDelete: 'cascade' }),
-  name: text('name').notNull(), // e.g., 'Охотный Ряд'
+  name: text('name').notNull(),
 })
 
-// Связующая таблица для станций и линий (многие ко многим)
 export const metroLineStations = pgTable('metro_line_stations', {
   lineId: text('line_id').notNull().references(() => metroLines.id, { onDelete: 'cascade' }),
   stationId: text('station_id').notNull().references(() => metroStations.id, { onDelete: 'cascade' }),
-  order: integer('order').notNull().default(0), // Порядок станции на линии
+  order: integer('order').notNull().default(0),
 }, t => ({
   pk: primaryKey({ columns: [t.lineId, t.stationId] }),
 }))
 
-// ===============================================
-// =================== СВЯЗИ =====================
-// ===============================================
+export const postMediaTypeEnum = pgEnum('post_media_type', ['image', 'video'])
+
+export const postMedia = pgTable('post_media', {
+  id: uuid('id').defaultRandom().primaryKey(),
+  postId: uuid('post_id').notNull().references((): AnyPgColumn => posts.id, { onDelete: 'cascade' }),
+  originalName: text('original_name').notNull(),
+  url: text('url').notNull(),
+  type: postMediaTypeEnum('type').default('image').notNull(),
+  sizeBytes: bigint('size_bytes', { mode: 'number' }).notNull().default(0),
+  order: integer('order').default(0).notNull(),
+  createdAt: timestamp('created_at').defaultNow().notNull(),
+  takenAt: timestamp('taken_at'),
+  latitude: real('latitude'),
+  longitude: real('longitude'),
+  width: integer('width'),
+  height: integer('height'),
+  variants: jsonb('variants').$type<Record<string, string>>(),
+  metadata: jsonb('metadata'),
+}, t => ({
+  postIdx: index('post_media_post_id_idx').on(t.postId),
+}))
+
+export const posts = pgTable('posts', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  userId: uuid('user_id').notNull().references(() => users.id, { onDelete: 'cascade' }),
+  title: text('title').notNull(),
+  insight: text('insight'),
+  description: text('description'),
+  country: text('country'),
+  tags: jsonb('tags').$type<string[]>().notNull().default([]),
+  status: statusEnum('status').notNull().default('draft'),
+  viewsCount: integer('views_count').default(0).notNull(),
+  likesCount: integer('likes_count').default(0).notNull(),
+  savesCount: integer('saves_count').default(0).notNull(),
+  createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
+  updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow().notNull(),
+
+  latitude: real('latitude'),
+  longitude: real('longitude'),
+
+  statsDetail: jsonb('stats_detail').$type<PostStatsDetail>().notNull().default({
+    views: 0,
+    budget: '',
+    duration: '',
+  }),
+
+}, t => ({
+  countryIdx: index('posts_country_idx').on(t.country),
+  tagsIdx: index('posts_tags_idx').on(t.tags),
+}))
+
+export const postElements = pgTable('post_elements', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  postId: uuid('post_id').notNull().references(() => posts.id, { onDelete: 'cascade' }),
+  order: integer('order').notNull().default(0),
+  title: text('title'),
+  content: jsonb('content').$type<PostElementContent[]>().notNull().default([]),
+  createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
+  updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow().notNull(),
+}, t => ({
+  postIdx: index('post_elements_post_id_idx').on(t.postId),
+}))
+
+export const savedPosts = pgTable('saved_posts', {
+  userId: uuid('user_id').notNull().references(() => users.id, { onDelete: 'cascade' }),
+  postId: uuid('post_id').notNull().references(() => posts.id, { onDelete: 'cascade' }),
+  createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
+}, t => ({
+  pk: primaryKey({ columns: [t.userId, t.postId] }),
+}))
+
+export const postLikes = pgTable('post_likes', {
+  userId: uuid('user_id').notNull().references(() => users.id, { onDelete: 'cascade' }),
+  postId: uuid('post_id').notNull().references(() => posts.id, { onDelete: 'cascade' }),
+  createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
+}, t => ({
+  pk: primaryKey({ columns: [t.userId, t.postId] }),
+}))
+
+export const blogs = pgTable('blogs', {
+  id: uuid('id').defaultRandom().primaryKey(),
+  slug: text('slug').unique().notNull(),
+  title: text('title').notNull(),
+  excerpt: text('excerpt'),
+  content: text('content').notNull(),
+  coverImage: text('cover_image'),
+  publishedAt: timestamp('published_at').defaultNow(),
+  createdAt: timestamp('created_at').defaultNow().notNull(),
+  updatedAt: timestamp('updated_at').defaultNow().notNull(),
+})
+
+export const pushSubscriptions = pgTable('push_subscriptions', {
+  endpoint: text('endpoint').primaryKey(),
+  userId: uuid('user_id').notNull().references(() => users.id, { onDelete: 'cascade' }),
+  keys: jsonb('keys').$type<{ p256dh: string, auth: string }>().notNull(),
+  createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
+  updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow().notNull(),
+})
+
+export const tripSubscriptions = pgTable('trip_subscriptions', {
+  userId: uuid('user_id').notNull().references(() => users.id, { onDelete: 'cascade' }),
+  tripId: uuid('trip_id').notNull().references(() => trips.id, { onDelete: 'cascade' }),
+  createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
+}, t => ({
+  pk: primaryKey({ columns: [t.userId, t.tripId] }),
+}))
+
+// --- RELATIONS ---
 
 export const tripsRelations = relations(trips, ({ one, many }) => ({
   user: one(users, {
@@ -420,9 +455,9 @@ export const usersRelations = relations(users, ({ many, one }) => ({
     references: [plans.id],
   }),
   llmTokenUsage: many(llmTokenUsage),
-
   posts: many(posts),
   savedPosts: many(savedPosts),
+  likedPosts: many(postLikes),
 }))
 
 export const llmTokenUsageRelations = relations(llmTokenUsage, ({ one }) => ({
@@ -483,201 +518,6 @@ export const metroLineStationsRelations = relations(metroLineStations, ({ one })
   }),
 }))
 
-export const pushSubscriptions = pgTable('push_subscriptions', {
-  endpoint: text('endpoint').primaryKey(),
-  userId: uuid('user_id').notNull().references(() => users.id, { onDelete: 'cascade' }),
-  keys: jsonb('keys').$type<{ p256dh: string, auth: string }>().notNull(),
-  createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
-  updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow().notNull(),
-})
-
-export const tripSubscriptions = pgTable('trip_subscriptions', {
-  userId: uuid('user_id').notNull().references(() => users.id, { onDelete: 'cascade' }),
-  tripId: uuid('trip_id').notNull().references(() => trips.id, { onDelete: 'cascade' }),
-  createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
-}, t => ({
-  pk: primaryKey({ columns: [t.userId, t.tripId] }),
-}))
-
-// ===============================================
-// ========== ТИПИЗАЦИЯ КОНТЕНТА ПОСТА ===========
-// ===============================================
-
-// Объединенный тип блока
-export type PostElementBlock
-  = | PostContentBlockText
-  | PostContentBlockGallery
-  | PostContentBlockLocation
-  | PostContentBlockRoute
-
-// Типы блоков внутри одного элемента
-// 'location' — для одной точки (MapPoint)
-// 'route' — для маршрута (MapRoute)
-type PostContentBlockType = 'markdown' | 'image' | 'gallery' | 'location' | 'route'
-
-interface PostContentBlockBase {
-  id: string // Генерируем uuid на клиенте для ключей списка
-  type: PostContentBlockType
-}
-
-// Блок текста (Markdown)
-interface PostContentBlockText extends PostContentBlockBase {
-  type: 'markdown'
-  text: string
-}
-
-// Блок изображения (ссылка на загруженную картинку)
-interface PostContentBlockImage extends PostContentBlockBase {
-  type: 'image'
-  imageId: string // ID из таблицы post_images
-  caption?: string
-  viewMode?: 'default' | 'full-width'
-}
-
-// Блок галереи (сразу несколько картинок в ряд/слайдером)
-interface PostContentBlockGallery extends PostContentBlockBase {
-  type: 'gallery'
-  imageIds: string[] // IDs из таблицы post_images
-  displayType: 'grid' | 'carousel'
-}
-
-// Интерфейс для одной точки (изменен: добавлен адрес)
-interface MapPoint {
-  lat: number
-  lng: number
-  label?: string
-  address?: string // Добавлено поле адреса, как просили
-  color?: string
-}
-
-// Интерфейс для маршрута (множество точек)
-interface MapRoute {
-  points: MapPoint[]
-  color?: string
-  title?: string
-}
-
-// Блок локации (одна точка) - вместо PostContentBlockMap
-interface PostContentBlockLocation extends PostContentBlockBase {
-  type: 'location'
-  location: MapPoint
-}
-
-// Блок маршрута (множество точек)
-interface PostContentBlockRoute extends PostContentBlockBase {
-  type: 'route'
-  route: MapRoute
-}
-
-// Объединяющий тип для использования в generic jsonb
-export type PostElementContent
-  = | PostContentBlockText
-  | PostContentBlockImage
-  | PostContentBlockGallery
-  | PostContentBlockLocation
-  | PostContentBlockRoute
-
-// ===============================================
-// ================ ТАБЛИЦЫ ПОСТОВ ===============
-// ===============================================
-
-// Основная таблица постов (Карточка активности)
-export const posts = pgTable('posts', {
-  id: uuid('id').primaryKey().defaultRandom(),
-  userId: uuid('user_id').notNull().references(() => users.id, { onDelete: 'cascade' }),
-
-  title: text('title').notNull(),
-  insight: text('insight'),
-  description: text('description'), // Краткое описание для SEO или превью
-
-  country: text('country'),
-  tags: jsonb('tags').$type<string[]>().notNull().default([]),
-
-  status: statusEnum('status').notNull().default('draft'),
-
-  viewsCount: integer('views_count').default(0).notNull(),
-  likesCount: integer('likes_count').default(0).notNull(),
-
-  createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
-  updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow().notNull(),
-}, t => ({
-  countryIdx: index('posts_city_idx').on(t.country),
-  tagsIdx: index('posts_tags_idx').on(t.tags),
-}))
-
-// Элементы поста (Секции)
-export const postElements = pgTable('post_elements', {
-  id: uuid('id').primaryKey().defaultRandom(),
-  postId: uuid('post_id').notNull().references(() => posts.id, { onDelete: 'cascade' }),
-
-  order: integer('order').notNull().default(0), // Порядок вывода элементов
-  title: text('title'), // Заголовок элемента (секции)
-  content: jsonb('content').$type<PostElementContent[]>().notNull().default([]),
-
-  createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
-  updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow().notNull(),
-}, t => ({
-  postIdx: index('post_elements_post_id_idx').on(t.postId),
-}))
-
-export const postMediaTypeEnum = pgEnum('post_media_type', ['image', 'video'])
-
-// Медиа поста
-export const postMedia = pgTable('post_media', {
-  id: uuid('id').defaultRandom().primaryKey(),
-
-  // Привязка к посту (обязательная)
-  postId: uuid('post_id').notNull().references(() => posts.id, { onDelete: 'cascade' }),
-
-  // Привязка к конкретному элементу (опциональная)
-  elementId: uuid('element_id').references(() => postElements.id, { onDelete: 'set null' }),
-
-  originalName: text('original_name').notNull(),
-  url: text('url').notNull(),
-
-  type: postMediaTypeEnum('type').default('image').notNull(),
-  sizeBytes: bigint('size_bytes', { mode: 'number' }).notNull().default(0),
-
-  createdAt: timestamp('created_at').defaultNow().notNull(),
-  takenAt: timestamp('taken_at'),
-  latitude: real('latitude'),
-  longitude: real('longitude'),
-
-  width: integer('width'),
-  height: integer('height'),
-
-  variants: jsonb('variants').$type<Record<string, string>>(), // { small: '...', medium: '...', large: '...' }
-  metadata: jsonb('metadata'),
-}, t => ({
-  postIdx: index('post_images_post_id_idx').on(t.postId),
-  elementIdx: index('post_images_element_id_idx').on(t.elementId),
-}))
-
-export const savedPosts = pgTable('saved_posts', {
-  userId: uuid('user_id').notNull().references(() => users.id, { onDelete: 'cascade' }),
-  postId: uuid('post_id').notNull().references(() => posts.id, { onDelete: 'cascade' }),
-  createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
-}, t => ({
-  pk: primaryKey({ columns: [t.userId, t.postId] }),
-}))
-
-export const blogs = pgTable('blogs', {
-  id: uuid('id').defaultRandom().primaryKey(),
-  slug: text('slug').unique().notNull(), // ЧПУ для URL (например, 'new-update-2025')
-  title: text('title').notNull(),
-  excerpt: text('excerpt'), // Краткое описание для карточки
-  content: text('content').notNull(), // Markdown контент
-  coverImage: text('cover_image'), // URL обложки
-  publishedAt: timestamp('published_at').defaultNow(),
-  createdAt: timestamp('created_at').defaultNow().notNull(),
-  updatedAt: timestamp('updated_at').defaultNow().notNull(),
-})
-
-// ===============================================
-// =================== RELATIONS =================
-// ===============================================
-
-// 2. Связи для таблицы Posts
 export const postsRelations = relations(posts, ({ one, many }) => ({
   user: one(users, {
     fields: [posts.userId],
@@ -685,32 +525,24 @@ export const postsRelations = relations(posts, ({ one, many }) => ({
   }),
   elements: many(postElements),
   media: many(postMedia),
-  savedBy: many(savedPosts), // Для обратной связи "кто сохранил этот пост"
+  savedBy: many(savedPosts),
+  likedBy: many(postLikes),
 }))
 
-// 3. Связи для элементов поста (PostElements)
-export const postElementsRelations = relations(postElements, ({ one, many }) => ({
+export const postElementsRelations = relations(postElements, ({ one }) => ({
   post: one(posts, {
     fields: [postElements.postId],
     references: [posts.id],
   }),
-  // Элемент может содержать медиа (если вы решите искать картинки через элемент)
-  media: many(postMedia),
 }))
 
-// 4. Связи для медиафайлов поста (PostMedia)
 export const postMediaRelations = relations(postMedia, ({ one }) => ({
   post: one(posts, {
     fields: [postMedia.postId],
     references: [posts.id],
   }),
-  element: one(postElements, {
-    fields: [postMedia.elementId],
-    references: [postElements.id],
-  }),
 }))
 
-// 5. Связи для сохраненных постов (SavedPosts - Many-to-Many)
 export const savedPostsRelations = relations(savedPosts, ({ one }) => ({
   user: one(users, {
     fields: [savedPosts.userId],
@@ -718,6 +550,17 @@ export const savedPostsRelations = relations(savedPosts, ({ one }) => ({
   }),
   post: one(posts, {
     fields: [savedPosts.postId],
+    references: [posts.id],
+  }),
+}))
+
+export const postLikesRelations = relations(postLikes, ({ one }) => ({
+  user: one(users, {
+    fields: [postLikes.userId],
+    references: [users.id],
+  }),
+  post: one(posts, {
+    fields: [postLikes.postId],
     references: [posts.id],
   }),
 }))

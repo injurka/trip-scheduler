@@ -61,7 +61,7 @@ withDefaults(defineProps<Props>(), {
 }
 
 .wip-text {
-  font-size: 0.9rem;
+  font-size: 1rem;
   font-weight: 600;
   color: var(--fg-warning-color);
   letter-spacing: 0.02em;

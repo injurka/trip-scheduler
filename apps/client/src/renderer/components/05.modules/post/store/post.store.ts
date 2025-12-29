@@ -1,141 +1,198 @@
-import type { PostCategory, PostDetail } from '../models/types'
+import type { ListPostsFilters, PostDetail, PostElement, PostMedia, TimelineBlock, TimelineStage } from '~/shared/types/models/post'
 import { defineStore } from 'pinia'
+import { useRequest, useRequestStatus } from '~/plugins/request'
 
-// Моковые данные для начального заполнения
-const MOCK_POSTS: PostDetail[] = [
-  {
-    id: '1',
-    author: { id: 'u1', name: 'Алексей Путешественник', avatarUrl: '' },
-    createdAt: new Date().toISOString(),
-    location: { country: 'Китай', city: 'Шанхай', address: 'The Bund', lat: 31.2304, lng: 121.4737 },
-    title: 'Прогулка по Набережной Вайтан',
-    ratingEmoji: '😍',
-    category: 'culture',
-    media: [{ id: 'm1', type: 'image', url: '/avatars/ghoul.gif' }],
-    tags: { category: ['Прогулка', 'Архитектура'], context: ['Бесплатно', 'Вечер'] },
-    insight: 'Лучшее время — 18:30, когда включают подсветку.',
-    stats: { likes: 124, saves: 45, isLiked: true, isSaved: false },
-    statsDetail: { views: 1205, budget: 'Бесплатно', duration: '2 часа' },
-    stages: [
-      {
-        id: 's1',
-        title: 'Старт у монумента',
-        time: '18:00',
-        blocks: [
-          { id: 'b1', type: 'text', content: 'Встречаемся у памятника Народным Героям.' },
-          { id: 'b2', type: 'location', name: 'Monument', address: 'The Bund', coords: { lat: 31.2, lng: 121.4 } },
-        ],
-      },
-    ],
-  },
-  {
-    id: '2',
-    author: { id: 'u2', name: 'Мария Еда', avatarUrl: '' },
-    createdAt: new Date(Date.now() - 86400000).toISOString(),
-    location: { country: 'Италия', city: 'Рим', address: 'Trastevere', lat: 41.88, lng: 12.47 },
-    title: 'Скрытый дворик для завтрака',
-    ratingEmoji: '😋',
-    category: 'food',
-    media: [{ id: 'm3', type: 'image', url: '/avatars/ghoul.gif' }],
-    tags: { category: ['Еда', 'Завтрак'], context: ['Свидание', 'Тишина'] },
-    insight: 'Обязательно попробуйте круассан с миндалем!',
-    stats: { likes: 89, saves: 120, isLiked: false, isSaved: true },
-    statsDetail: { views: 800, budget: '$$', duration: '1 час' },
-    stages: [],
-  },
-]
+export enum EPostRequestKeys {
+  LIST = 'post:list',
+  GET_BY_ID = 'post:get-by-id',
+  DELETE = 'post:delete',
+  TOGGLE_SAVE = 'post:toggle-save',
+  TOGGLE_LIKE = 'post:toggle-like',
+}
+
+/**
+ * Преобразует `elements` из ответа API в `stages` для использования в UI.
+ */
+function transformElementsToStages(elements: PostElement[], allMedia: PostMedia[]): TimelineStage[] {
+  return elements.map((element): TimelineStage => {
+    const blocks: TimelineBlock[] = element.content.map((contentBlock): TimelineBlock => {
+      switch (contentBlock.type) {
+        case 'markdown':
+          return { id: contentBlock.id, type: 'text', content: contentBlock.text }
+        case 'gallery':
+          return {
+            id: contentBlock.id,
+            type: 'gallery',
+            images: allMedia.filter(media => contentBlock.imageIds.includes(media.id)),
+            comment: '',
+          }
+        case 'location':
+          return {
+            id: contentBlock.id,
+            type: 'location',
+            coords: { lat: contentBlock.location.lat, lng: contentBlock.location.lng },
+            name: contentBlock.location.label || '',
+            address: contentBlock.location.address || '',
+          }
+        case 'route':
+          return {
+            id: contentBlock.id,
+            type: 'route',
+            from: 'Начало',
+            to: 'Конец',
+            distance: '',
+            duration: '',
+            transport: 'walk',
+          }
+        default:
+          return { id: (contentBlock as any).id, type: 'text', content: '[Неподдерживаемый тип блока]' }
+      }
+    })
+
+    return {
+      id: element.id,
+      title: element.title,
+      order: element.order,
+      blocks,
+    }
+  })
+}
 
 export const usePostStore = defineStore('post-main', {
   state: () => ({
-    posts: [...MOCK_POSTS] as PostDetail[],
+    posts: [] as PostDetail[],
+    nextCursor: undefined as string | undefined,
     filters: {
       search: '',
-      category: null as PostCategory | null,
       tab: 'explore' as 'explore' | 'saved',
     },
   }),
 
   getters: {
+    isLoading: () => useRequestStatus([EPostRequestKeys.LIST]).value,
     getPostById: state => (id: string) => state.posts.find(p => p.id === id),
-
-    // Умный геттер фильтрации
-    filteredPosts: (state) => {
-      let result = state.posts
-
-      // 1. Таб (Все или Сохраненные)
-      if (state.filters.tab === 'saved') {
-        result = result.filter(p => p.stats.isSaved)
-      }
-
-      // 2. Категория
-      if (state.filters.category) {
-        result = result.filter(p => p.category === state.filters.category)
-      }
-
-      // 3. Поиск (по заголовку, городу или тегам)
-      const query = state.filters.search.toLowerCase().trim()
-      if (query) {
-        result = result.filter(p =>
-          p.title.toLowerCase().includes(query)
-          || p.location.city.toLowerCase().includes(query)
-          || p.location.country.toLowerCase().includes(query)
-          || p.tags.category.some(t => t.toLowerCase().includes(query)),
-        )
-      }
-
-      return result
-    },
   },
 
   actions: {
-    createPost(post: PostDetail) {
-      return new Promise<void>((resolve) => {
-        setTimeout(() => {
-          const newPost = {
-            ...post,
-            createdAt: new Date().toISOString(),
-            author: { id: 'me', name: 'Я', avatarUrl: '' },
-            stats: { likes: 0, saves: 0, isLiked: false, isSaved: false },
-            statsDetail: { views: 0, budget: 'Не указан', duration: '1 день' },
-          }
-          this.posts.unshift(newPost)
-          resolve()
-        }, 500)
+    async fetchPosts(reload = false) {
+      if (reload) {
+        this.nextCursor = undefined
+        this.posts = []
+      }
+
+      const filters: ListPostsFilters = {
+        limit: 10,
+        cursor: this.nextCursor,
+        query: this.filters.search || undefined,
+        onlySaved: this.filters.tab === 'saved',
+      }
+
+      await useRequest<{ items: PostDetail[], nextCursor?: string }>({
+        key: EPostRequestKeys.LIST,
+        fn: db => db.posts.list(filters),
+        onSuccess: (data) => {
+          if (!data)
+            return
+          if (reload)
+            this.posts = data.items
+          else
+            this.posts.push(...data.items)
+
+          this.nextCursor = data.nextCursor
+        },
       })
     },
 
-    toggleLike(id: string) {
-      const post = this.posts.find(p => p.id === id)
-      if (post) {
-        post.stats.isLiked = !post.stats.isLiked
-        post.stats.likes += post.stats.isLiked ? 1 : -1
-      }
+    async fetchPostById(id: string): Promise<PostDetail | undefined> {
+      // --- ИСПРАВЛЕНИЕ ЗДЕСЬ ---
+      // Убрана всякая проверка. Мы всегда запрашиваем свежие данные.
+      let post: PostDetail | undefined
+      await useRequest<PostDetail>({
+        key: EPostRequestKeys.GET_BY_ID,
+        fn: db => db.posts.getById({ id }),
+        onSuccess: (data) => {
+          if (data) {
+            // Трансформируем данные в удобный для UI вид
+            data.stages = transformElementsToStages(data.elements, data.media)
+
+            // Обновляем или добавляем пост в локальное хранилище
+            const existingIndex = this.posts.findIndex(p => p.id === id)
+            if (existingIndex !== -1) {
+              this.posts.splice(existingIndex, 1, data)
+            }
+            else {
+              this.posts.unshift(data)
+            }
+            post = data
+          }
+        },
+      })
+      return post
     },
 
-    toggleSave(id: string) {
+    async deletePost(id: string) {
+      await useRequest({
+        key: EPostRequestKeys.DELETE,
+        fn: db => db.posts.delete({ id }),
+        onSuccess: () => {
+          this.posts = this.posts.filter(p => p.id !== id)
+        },
+      })
+    },
+
+    async toggleSave(id: string) {
       const post = this.posts.find(p => p.id === id)
-      if (post) {
+      if (post)
         post.stats.isSaved = !post.stats.isSaved
-      }
+
+      await useRequest<{ isSaved: boolean }>({
+        key: EPostRequestKeys.TOGGLE_SAVE,
+        fn: db => db.posts.toggleSave({ postId: id }),
+        onSuccess: (res) => {
+          if (post && res)
+            post.stats.isSaved = res.isSaved
+        },
+        onError: ({ error }) => {
+          if (post)
+            post.stats.isSaved = !post.stats.isSaved
+          useToast().error(error.customMessage || 'Не удалось сохранить пост.')
+        },
+      })
     },
 
-    // Методы управления фильтрами
+    async toggleLike(id: string) {
+      const post = this.posts.find(p => p.id === id)
+      if (!post)
+        return
+
+      post.stats.isLiked = !post.stats.isLiked
+      post.stats.likes += post.stats.isLiked ? 1 : -1
+
+      await useRequest<{ isLiked: boolean }>({
+        key: EPostRequestKeys.TOGGLE_LIKE,
+        fn: db => db.posts.toggleLike({ postId: id }),
+        onSuccess: (res) => {
+          if (post && res)
+            post.stats.isLiked = res.isLiked
+        },
+        onError: ({ error }) => {
+          if (post) {
+            post.stats.isLiked = !post.stats.isLiked
+            post.stats.likes += post.stats.isLiked ? 1 : -1
+          }
+          useToast().error(error.customMessage || 'Не удалось поставить лайк.')
+        },
+      })
+    },
+
     setSearch(query: string) {
       this.filters.search = query
-    },
-
-    setCategory(category: PostCategory | null) {
-      // Если кликнули по уже активной категории — сбрасываем
-      if (this.filters.category === category) {
-        this.filters.category = null
-      }
-      else {
-        this.filters.category = category
-      }
+      this.fetchPosts(true)
     },
 
     setTab(tab: 'explore' | 'saved') {
       this.filters.tab = tab
+      this.fetchPosts(true)
     },
   },
 })

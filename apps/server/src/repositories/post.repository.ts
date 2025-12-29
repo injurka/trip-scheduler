@@ -1,9 +1,10 @@
+import type { SQL } from 'drizzle-orm'
 import type { z } from 'zod'
 import type { CreatePostInputSchema, ListPostsInputSchema, UpdatePostInputSchema } from '~/modules/post/post.schemas'
-import { and, desc, eq, exists, ilike, lt, or, sql } from 'drizzle-orm'
+import { and, desc, eq, exists, ilike, lt, max, or, sql } from 'drizzle-orm'
 import { v4 as uuidv4 } from 'uuid'
 import { db } from '~/../db'
-import { postElements, postMedia, posts, savedPosts } from '~/../db/schema'
+import { postElements, postLikes, postMedia, posts, savedPosts } from '~/../db/schema'
 import { measureDbQuery } from '~/lib/db-monitoring'
 
 const userRelationQuery = {
@@ -17,27 +18,27 @@ const userRelationQuery = {
 export const postRepository = {
   async findAll(filters: z.infer<typeof ListPostsInputSchema>, currentUserId?: string) {
     return measureDbQuery('posts', 'select', async () => {
-      const conditions = []
+      const conditions: (SQL<unknown> | undefined)[] = [eq(posts.status, 'completed')]
 
-      if (!filters.userId || filters.userId !== currentUserId) {
-        conditions.push(eq(posts.status, 'completed'))
-      }
       if (filters.userId) {
         conditions.push(eq(posts.userId, filters.userId))
       }
       if (filters.tag) {
-        conditions.push(sql`${posts.tags} ? ${filters.tag}`)
+        conditions.push(sql`${posts.tags} @> ${JSON.stringify([filters.tag])}::jsonb`)
       }
       if (filters.country) {
         conditions.push(eq(posts.country, filters.country))
       }
       if (filters.query) {
         const searchPattern = `%${filters.query}%`
-        conditions.push(or(
+        const searchCondition = or(
           ilike(posts.title, searchPattern),
           ilike(posts.description, searchPattern),
           ilike(posts.insight, searchPattern),
-        ))
+        )
+        if (searchCondition) {
+          conditions.push(searchCondition)
+        }
       }
       if (filters.onlySaved && currentUserId) {
         conditions.push(exists(
@@ -55,13 +56,14 @@ export const postRepository = {
       }
 
       const items = await db.query.posts.findMany({
-        where: and(...conditions),
+        where: and(...conditions.filter((c): c is SQL<unknown> => !!c)),
         limit: filters.limit + 1,
         orderBy: [desc(posts.createdAt)],
         with: {
           user: userRelationQuery,
-          media: { limit: 1 },
+          media: { limit: 1, orderBy: (media, { asc }) => [asc(media.order)] },
           savedBy: currentUserId ? { where: eq(savedPosts.userId, currentUserId), limit: 1 } : undefined,
+          likedBy: currentUserId ? { where: eq(postLikes.userId, currentUserId), limit: 1 } : undefined,
         },
       })
 
@@ -72,11 +74,16 @@ export const postRepository = {
       }
 
       const mappedItems = items.map((post) => {
-        const { savedBy, ...rest } = post
+        const { savedBy, likedBy, likesCount, savesCount, ...rest } = post
         return {
           ...rest,
           user: post.user as { id: string, name: string | null, avatarUrl: string | null },
-          isSaved: savedBy ? savedBy.length > 0 : false,
+          stats: {
+            likes: likesCount,
+            saves: savesCount,
+            isLiked: !!likedBy?.length,
+            isSaved: !!savedBy?.length,
+          },
         }
       })
 
@@ -91,19 +98,25 @@ export const postRepository = {
         with: {
           user: userRelationQuery,
           elements: { orderBy: (elements, { asc }) => [asc(elements.order)] },
-          media: true,
+          media: { orderBy: (media, { asc }) => [asc(media.order)] },
           savedBy: currentUserId ? { where: eq(savedPosts.userId, currentUserId), limit: 1 } : undefined,
+          likedBy: currentUserId ? { where: eq(postLikes.userId, currentUserId), limit: 1 } : undefined,
         },
       })
 
       if (!post)
         return null
 
-      const { savedBy, ...rest } = post
+      const { savedBy, likedBy, likesCount, savesCount, ...rest } = post
       return {
         ...rest,
         user: post.user as { id: string, name: string | null, avatarUrl: string | null },
-        isSaved: savedBy ? savedBy.length > 0 : false,
+        stats: {
+          likes: likesCount,
+          saves: savesCount,
+          isLiked: !!likedBy?.length,
+          isSaved: !!savedBy?.length,
+        },
       }
     })
   },
@@ -111,10 +124,8 @@ export const postRepository = {
   async create(data: z.infer<typeof CreatePostInputSchema>, userId: string) {
     return measureDbQuery('posts', 'insert', async () => {
       return await db.transaction(async (tx) => {
-        const postId = uuidv4()
-
-        await tx.insert(posts).values({
-          id: postId,
+        const inserted = await tx.insert(posts).values({
+          id: uuidv4(),
           userId,
           title: data.title,
           insight: data.insight,
@@ -122,61 +133,65 @@ export const postRepository = {
           country: data.country,
           tags: data.tags,
           status: data.status,
-        })
+          latitude: data.latitude,
+          longitude: data.longitude,
+          statsDetail: { views: 0, budget: '', duration: '', ...data.statsDetail },
+        }).returning() as (typeof posts.$inferSelect)[]
+
+        const post = inserted[0]
+        if (!post)
+          throw new Error('Post creation failed, no returned post.')
 
         if (data.elements && data.elements.length > 0) {
           const elementsToInsert = data.elements.map((el, index) => ({
             id: uuidv4(),
-            postId,
+            postId: post.id,
             order: index,
             title: el.title,
-            content: el.content,
+            content: el.content as any,
           }))
-          await tx.insert(postElements).values(elementsToInsert)
+          if (elementsToInsert.length > 0) {
+            await tx.insert(postElements).values(elementsToInsert)
+          }
         }
 
-        const createdPost = await tx.query.posts.findFirst({
-          where: eq(posts.id, postId),
-          with: {
-            user: userRelationQuery,
-            elements: { orderBy: (el, { asc }) => [asc(el.order)] },
-            media: true,
-          },
-        })
-
-        if (!createdPost)
-          throw new Error('Post created but could not be retrieved')
-
-        return {
-          ...createdPost,
-          user: createdPost.user as { id: string, name: string | null, avatarUrl: string | null },
-          isSaved: false,
+        if (data.mediaIds && data.mediaIds.length > 0) {
+          const updates = data.mediaIds.map((id, index) =>
+            tx.update(postMedia).set({ order: index }).where(eq(postMedia.id, id)),
+          )
+          await Promise.all(updates)
         }
+
+        return this.findById(post.id, userId)
       })
     })
   },
 
-  /**
-   * Добавление медиа-файла.
-   */
-  async createMedia(data: typeof postMedia.$inferInsert) {
+  async createMedia(data: Omit<typeof postMedia.$inferInsert, 'id' | 'order'>) {
     return measureDbQuery('postMedia', 'insert', async () => {
-      const [newMedia] = await db.insert(postMedia).values(data).returning()
-      return newMedia
+      const maxOrderResult = await db.select({ value: max(postMedia.order) })
+        .from(postMedia)
+        .where(eq(postMedia.postId, data.postId))
+
+      const nextOrder = (maxOrderResult[0].value ?? -1) + 1
+
+      const result = await db.insert(postMedia).values({ id: uuidv4(), ...data, order: nextOrder }).returning()
+      return result[0]
     })
   },
 
-  /**
-   * Обновление поста с заменой элементов.
-   */
   async update(id: string, updateInput: z.infer<typeof UpdatePostInputSchema>['data']) {
     return measureDbQuery('posts', 'update', async () => {
       return await db.transaction(async (tx) => {
-        const { elements, ...postData } = updateInput
+        const { elements, mediaIds, statsDetail, ...postData } = updateInput
 
-        if (Object.keys(postData).length > 0) {
+        if (Object.keys(postData).length > 0 || statsDetail) {
+          const payload: Record<string, any> = { ...postData, updatedAt: new Date() }
+          if (statsDetail) {
+            payload.statsDetail = sql`${posts.statsDetail} || ${JSON.stringify(statsDetail)}::jsonb`
+          }
           await tx.update(posts)
-            .set({ ...postData, updatedAt: new Date() })
+            .set(payload)
             .where(eq(posts.id, id))
         }
 
@@ -189,29 +204,21 @@ export const postRepository = {
               postId: id,
               order: index,
               title: el.title,
-              content: el.content,
+              content: el.content as any,
             }))
             await tx.insert(postElements).values(elementsToInsert)
           }
         }
 
-        const updatedPost = await tx.query.posts.findFirst({
-          where: eq(posts.id, id),
-          with: {
-            user: userRelationQuery,
-            elements: { orderBy: (el, { asc }) => [asc(el.order)] },
-            media: true,
-          },
-        })
-
-        if (!updatedPost)
-          return null
-
-        return {
-          ...updatedPost,
-          user: updatedPost.user as { id: string, name: string | null, avatarUrl: string | null },
-          isSaved: false,
+        if (mediaIds && mediaIds.length > 0) {
+          const updates = mediaIds.map((id, index) =>
+            tx.update(postMedia).set({ order: index }).where(eq(postMedia.id, id)),
+          )
+          await Promise.all(updates)
         }
+
+        const userResult = await tx.query.posts.findFirst({ where: eq(posts.id, id), columns: { userId: true } })
+        return this.findById(id, userResult?.userId)
       })
     })
   },
@@ -229,10 +236,28 @@ export const postRepository = {
     })
     if (existing) {
       await db.delete(savedPosts).where(and(eq(savedPosts.postId, postId), eq(savedPosts.userId, userId)))
+      await db.update(posts).set({ savesCount: sql`${posts.savesCount} - 1` }).where(eq(posts.id, postId))
       return false
     }
     else {
       await db.insert(savedPosts).values({ postId, userId })
+      await db.update(posts).set({ savesCount: sql`${posts.savesCount} + 1` }).where(eq(posts.id, postId))
+      return true
+    }
+  },
+
+  async toggleLike(postId: string, userId: string) {
+    const existing = await db.query.postLikes.findFirst({
+      where: and(eq(postLikes.postId, postId), eq(postLikes.userId, userId)),
+    })
+    if (existing) {
+      await db.delete(postLikes).where(and(eq(postLikes.postId, postId), eq(postLikes.userId, userId)))
+      await db.update(posts).set({ likesCount: sql`${posts.likesCount} - 1` }).where(eq(posts.id, postId))
+      return false
+    }
+    else {
+      await db.insert(postLikes).values({ postId, userId })
+      await db.update(posts).set({ likesCount: sql`${posts.likesCount} + 1` }).where(eq(posts.id, postId))
       return true
     }
   },

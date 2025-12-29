@@ -16,7 +16,6 @@ export function useTripInfoLayout() {
   const router = useRouter()
   const route = useRoute()
 
-  // В activeTabId храним ID секции или спец. ключи ('overview', 'trip-map', 'daily-route')
   const activeTabId = ref<string>('overview')
 
   const isDrawerOpen = ref(false)
@@ -34,7 +33,6 @@ export function useTripInfoLayout() {
     filteredIcons: filteredIconsEdit,
   } = useIconPicker()
 
-  // Список всех табов для переключателя
   const tabItems = computed((): ViewSwitcherItem<string>[] => {
     const overviewTab: ViewSwitcherItem<string> = {
       id: 'overview',
@@ -54,7 +52,6 @@ export function useTripInfoLayout() {
     return [overviewTab, mapTab, ...sectionTabs]
   })
 
-  // Синхронизация URL -> activeTabId
   watchEffect(() => {
     const sectionQuery = route.query.section as string
     const dayQuery = route.query.day as string
@@ -74,23 +71,18 @@ export function useTripInfoLayout() {
       return
     }
 
-    // Пробуем найти секцию по слагу (если это booking/finances) или по ID
-    // Мы ищем секцию, которая соответствует query
-    // 1. Попытка найти по типу (reverse map)
     const sectionBySlug = sortedSections.value.find(s => SECTION_TYPE_MAP[s.type] === sectionQuery)
     if (sectionBySlug) {
       activeTabId.value = sectionBySlug.id
       return
     }
 
-    // 2. Попытка найти по ID (для кастомных секций)
     const sectionById = sortedSections.value.find(s => s.id === sectionQuery)
     if (sectionById) {
       activeTabId.value = sectionById.id
       return
     }
 
-    // Fallback
     activeTabId.value = 'overview'
   })
 
@@ -118,9 +110,6 @@ export function useTripInfoLayout() {
     return baseItems
   })
 
-  // --- МЕТОДЫ (METHODS) ---
-
-  // Основной метод навигации
   function selectSection(id: string) {
     isDrawerOpen.value = false
     isLayoutDropdownOpen.value = false
@@ -129,7 +118,6 @@ export function useTripInfoLayout() {
     const currentQuery = { ...route.query }
     delete currentQuery.day
     delete currentQuery.section
-    // view больше не используется для карты, карта теперь section=map
 
     if (id === 'trip-map') {
       router.push({ query: { ...currentQuery, section: 'map' } })
@@ -144,7 +132,6 @@ export function useTripInfoLayout() {
       // но если нужно - можно редиректить на первый день.
     }
     else {
-      // Это обычная секция. Проверяем, есть ли для неё красивый slug.
       const section = sortedSections.value.find(s => s.id === id)
       if (section) {
         const slug = SECTION_TYPE_MAP[section.type] || section.id

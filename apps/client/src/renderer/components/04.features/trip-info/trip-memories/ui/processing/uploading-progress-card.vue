@@ -22,7 +22,7 @@ const emit = defineEmits<{
     </div>
     <div class="details">
       <div class="file-info">
-        <span class="file-name" :title="memory.file.name">{{ memory.file.name }}</span>
+        <span class="file-name" :title="memory.file.name">{{ `${memory.file.name.slice(0, 8)}...` }}</span>
         <span class="file-size">{{ (memory.file.size / 1024 / 1024).toFixed(2) }} MB</span>
       </div>
 
@@ -59,10 +59,13 @@ const emit = defineEmits<{
   background-color: var(--bg-tertiary-color);
   border-radius: var(--r-m);
   border: 1px solid transparent;
+  max-width: 100%;
+  overflow: hidden;
 
   &.status-error {
     background-color: var(--bg-error-color);
     border-color: var(--border-error-color);
+
     .file-name {
       color: var(--fg-error-color);
     }
@@ -76,6 +79,7 @@ const emit = defineEmits<{
   border-radius: var(--r-s);
   overflow: hidden;
   background-color: var(--bg-secondary-color);
+
   img {
     width: 100%;
     height: 100%;
@@ -103,6 +107,9 @@ const emit = defineEmits<{
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+
+  flex: 1;
+  min-width: 0;
 }
 
 .file-size {
@@ -135,12 +142,14 @@ const emit = defineEmits<{
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+  max-width: 100%;
 }
 
 .actions {
   display: flex;
   align-items: center;
   gap: 8px;
+  flex-shrink: 0;
 }
 
 .progress-text {

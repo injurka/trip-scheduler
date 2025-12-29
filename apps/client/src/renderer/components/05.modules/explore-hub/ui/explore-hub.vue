@@ -133,8 +133,6 @@ onMounted(() => {
   }
 }
 .filters-panel {
-  position: sticky;
-  top: 80px; /* Высота хедера + отступ */
   background-color: var(--bg-secondary-color);
   border: 1px solid var(--border-secondary-color);
   border-radius: var(--r-l);

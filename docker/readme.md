@@ -199,19 +199,16 @@ echo "--- Контейнер $CONTAINER_NAME успешно запущен! ---"
 ## Deploy
 
 ./docker/build_client.sh v53
-./docker/build_server.sh v43
+./docker/build_server.sh v44
 
 docker compose down
 
-V_CLIENT=v53 V_SERVER=v43 docker compose up -d
+V_CLIENT=v53 V_SERVER=v44 docker compose up -d
 
 ---
 
 docker tag trip-scheduler-client:v53 injurka/trip-scheduler-client:v53
 docker push injurka/trip-scheduler-client:v53
 
-docker tag trip-scheduler-server:v43 injurka/trip-scheduler-server:v43
-docker push injurka/trip-scheduler-server:v43
-1
-Выдержка = ———————————————————————
-           2 × Фокусное расстояние
+docker tag trip-scheduler-server:v44 injurka/trip-scheduler-server:v44
+docker push injurka/trip-scheduler-server:v44

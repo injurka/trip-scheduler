@@ -175,12 +175,6 @@ const routes: RouteRecordRaw[] = [
     path: '/post/list',
     name: AppRouteNames.PostList,
     component: PostListPage,
-    meta: { layout: 'default', requiresAuth: true },
-  },
-  {
-    path: '/post/:id',
-    name: AppRouteNames.PostDetails,
-    component: PostDetailsPage,
     meta: { layout: 'default' },
   },
   {
@@ -188,6 +182,18 @@ const routes: RouteRecordRaw[] = [
     name: AppRouteNames.PostCreate,
     component: PostCreatePage,
     meta: { layout: 'default', requiresAuth: true },
+  },
+  {
+    path: '/post/editor/:id',
+    name: 'post-edit',
+    component: PostCreatePage,
+    meta: { layout: 'default', requiresAuth: true },
+  },
+  {
+    path: '/post/:id',
+    name: AppRouteNames.PostDetails,
+    component: PostDetailsPage,
+    meta: { layout: 'default' },
   },
 
   // --- Блог ---

@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import type { RouteBlock } from '../../../models/types'
+import type { RouteBlock } from '~/shared/types/models/post'
 import { Icon } from '@iconify/vue'
 import { KitInput } from '~/components/01.kit/kit-input'
 

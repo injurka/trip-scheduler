@@ -97,6 +97,7 @@ const id = `kit-input-${Math.random().toString(36).substring(2, 9)}`
   position: relative;
   display: flex;
   align-items: center;
+  font-size: 1rem;
 
   .input-icon-prefix {
     position: absolute;

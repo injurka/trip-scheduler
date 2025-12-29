@@ -8,8 +8,8 @@ import { KitSkeleton } from '~/components/01.kit/kit-skeleton'
       <div class="banner-content-skeleton">
         <KitSkeleton width="60%" height="2.5rem" class="mb-4" />
         <div class="meta-line">
-          <KitSkeleton width="150px" height="1.5rem" />
-          <KitSkeleton width="200px" height="1.5rem" />
+          <KitSkeleton width="100px" height="1.5rem" />
+          <KitSkeleton width="100px" height="1.5rem" />
         </div>
       </div>
       <div class="banner-footer-skeleton">
@@ -62,7 +62,7 @@ import { KitSkeleton } from '~/components/01.kit/kit-skeleton'
       <div class="section-card">
         <div class="section-header">
           <KitSkeleton width="24px" height="24px" />
-          <KitSkeleton width="150px" height="24px" />
+          <KitSkeleton width="100px" height="24px" />
         </div>
         <div class="list-skeleton">
           <div v-for="i in 5" :key="`day-${i}`" class="list-item-skeleton">
@@ -80,7 +80,7 @@ import { KitSkeleton } from '~/components/01.kit/kit-skeleton'
     <div class="map-widget-skeleton">
       <div class="section-header">
         <KitSkeleton width="24px" height="24px" />
-        <KitSkeleton width="180px" height="24px" />
+        <KitSkeleton width="100px" height="24px" />
         <div class="spacer" />
         <KitSkeleton width="100px" height="32px" border-radius="var(--r-m)" />
       </div>

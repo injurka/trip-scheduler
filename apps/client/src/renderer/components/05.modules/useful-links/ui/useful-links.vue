@@ -65,7 +65,6 @@ function categoryToId(title: string) {
 function scrollToCategory(id: string) {
   const element = document.getElementById(id)
   if (element) {
-    // Скроллим с небольшим отступом сверху (для хедера)
     const y = element.getBoundingClientRect().top + window.scrollY - 100
     window.scrollTo({ top: y, behavior: 'smooth' })
   }
@@ -74,7 +73,7 @@ function scrollToCategory(id: string) {
 
 <template>
   <section class="useful-links">
-    <div class="header">
+    <div class="page-header">
       <h1>Полезные ссылки</h1>
       <p>Подборка проверенных сервисов, которые помогут спланировать ваше идеальное путешествие.</p>
     </div>
@@ -210,31 +209,6 @@ function scrollToCategory(id: string) {
   flex-direction: column;
   gap: 2rem;
   padding-bottom: 4rem;
-}
-
-.header {
-  h1 {
-    font-size: 2.5rem;
-    font-weight: 700;
-    margin: 0 0 0.5rem;
-    line-height: 1.2;
-    color: var(--fg-primary-color);
-  }
-  p {
-    font-size: 1.1rem;
-    color: var(--fg-secondary-color);
-    max-width: 600px;
-    line-height: 1.5;
-  }
-
-  @include media-down(sm) {
-    h1 {
-      font-size: 2rem;
-    }
-    p {
-      font-size: 1rem;
-    }
-  }
 }
 
 .quick-filters-wrapper {
