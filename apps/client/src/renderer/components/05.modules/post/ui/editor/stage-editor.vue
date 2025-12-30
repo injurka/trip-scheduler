@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import type { PostMedia, TimelineBlockType, TimelineStage } from '../../models/types'
+import type { PostMedia, TimelineBlockType, TimelineStage } from '~/shared/types/models/post'
 import { Icon } from '@iconify/vue'
 import draggable from 'vuedraggable'
 import { KitInlineMdEditorWrapper } from '~/components/01.kit/kit-inline-md-editor'
@@ -57,6 +57,7 @@ function handleAddBlock(type: TimelineBlockType) {
       <draggable
         v-model="blocksModel"
         item-key="id"
+        class="blocks-container-wrapper"
         handle=".block-drag-handle"
         ghost-class="ghost-block"
         group="stage-blocks"
@@ -106,7 +107,7 @@ function handleAddBlock(type: TimelineBlockType) {
             </div>
 
             <button class="remove-block-btn" @click="store.removeBlock(stage.id, block.id)">
-              <Icon icon="mdi:trash-can-outline" />
+              <Icon icon="mdi:trash-can-outline" width="16" height="16" />
             </button>
           </div>
         </template>
@@ -138,6 +139,12 @@ function handleAddBlock(type: TimelineBlockType) {
 .drag-handle {
   cursor: grab;
   color: var(--fg-tertiary-color);
+  height: 24px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+
   &:active {
     cursor: grabbing;
   }
@@ -159,6 +166,11 @@ function handleAddBlock(type: TimelineBlockType) {
 .delete-btn {
   color: var(--fg-tertiary-color);
   cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+
   &:hover {
     color: var(--fg-error-color);
   }
@@ -169,6 +181,12 @@ function handleAddBlock(type: TimelineBlockType) {
   display: flex;
   flex-direction: column;
   gap: 8px;
+
+  &-wrapper {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
 }
 
 .block-item {
@@ -182,9 +200,6 @@ function handleAddBlock(type: TimelineBlockType) {
 
   &:hover {
     border-color: var(--border-primary-color);
-    .remove-block-btn {
-      opacity: 1;
-    }
   }
 }
 
@@ -192,16 +207,25 @@ function handleAddBlock(type: TimelineBlockType) {
   cursor: grab;
   color: var(--fg-tertiary-color);
   padding-top: 4px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 
 .block-content {
   flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
 }
 
 .remove-block-btn {
-  opacity: 0;
   color: var(--fg-error-color);
   transition: opacity 0.2s;
+  height: 24px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 
 .gallery-placeholder {
@@ -231,5 +255,29 @@ function handleAddBlock(type: TimelineBlockType) {
 
 .mt-2 {
   margin-top: 8px;
+}
+
+/* === Mobile Adaptations === */
+@media (max-width: 600px) {
+  .stage-header {
+    align-items: flex-start; /* Align drag/del icons to top */
+  }
+
+  .stage-meta {
+    flex-direction: column; /* Stack Title and Time vertically */
+    gap: 8px;
+  }
+
+  .stage-title-input,
+  .stage-time-input {
+    flex: 1;
+    max-width: 100%;
+    width: 100%;
+  }
+
+  .drag-handle,
+  .delete-btn {
+    margin-top: 8px;
+  }
 }
 </style>

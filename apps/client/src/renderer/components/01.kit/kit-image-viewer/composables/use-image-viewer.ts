@@ -17,25 +17,10 @@ export function useImageViewer(options: ImageViewerOptions = {}) {
 
   const currentImage = computed(() => images.value[currentIndex.value])
   const hasMultipleImages = computed(() => images.value.length > 1)
-  const canZoomIn = computed(() => true) // Will be controlled by component
-  const canZoomOut = computed(() => true) // Will be controlled by component
+  const canZoomIn = computed(() => true)
+  const canZoomOut = computed(() => true)
 
   let originalOverflow = ''
-
-  // Body scroll lock management
-  watch(isOpen, (value) => {
-    if (value) {
-      originalOverflow = document.body.style.overflow
-      document.body.style.overflow = 'hidden'
-    }
-    else {
-      document.body.style.overflow = originalOverflow
-    }
-  })
-
-  onUnmounted(() => {
-    document.body.style.overflow = originalOverflow
-  })
 
   function open(imageList: ImageViewerImage[], startIndex = 0) {
     images.value = imageList
@@ -108,6 +93,20 @@ export function useImageViewer(options: ImageViewerOptions = {}) {
   if (enableKeyboard) {
     useEventListener(document, 'keydown', handleKeydown)
   }
+
+  watch(isOpen, (value) => {
+    if (value) {
+      originalOverflow = document.body.style.overflow
+      document.body.style.overflow = 'hidden'
+    }
+    else {
+      document.body.style.overflow = originalOverflow
+    }
+  })
+
+  onUnmounted(() => {
+    document.body.style.overflow = originalOverflow
+  })
 
   return {
     // State

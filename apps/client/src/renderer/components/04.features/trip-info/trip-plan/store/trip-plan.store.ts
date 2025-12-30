@@ -158,7 +158,7 @@ export const useTripPlanStore = defineStore('tripPlan', {
           onSectionsLoad([])
 
           console.error(`Ошибка при загрузке данных для путешествия ${tripId}: `, error)
-          useToast().error(`Ошибка при загрузке данных: ${error.message}`)
+          useToast().error(`Ошибка при загрузке данных: ${error.customMessage}`)
         },
       })
     },
@@ -233,7 +233,7 @@ export const useTripPlanStore = defineStore('tripPlan', {
             this.days.sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime())
 
           console.error(`Ошибка при обновлении дня ${dayId}: `, error)
-          useToast().error(`Ошибка при обновлении дня: ${error}`)
+          useToast().error(`Ошибка при обновлении дня: ${error.customMessage}`)
         },
       })
     },
@@ -271,7 +271,7 @@ export const useTripPlanStore = defineStore('tripPlan', {
           }
 
           console.error(`Ошибка при создании активности: `, error)
-          useToast().error(`Ошибка при создании активности: ${error}`)
+          useToast().error(`Ошибка при создании активности: ${error.customMessage}`)
         },
       })
     },
@@ -304,7 +304,7 @@ export const useTripPlanStore = defineStore('tripPlan', {
             day.activities.splice(activityIndex, 0, removedActivity)
 
           console.error(`Ошибка при удалении активности ${activityId}: `, error)
-          useToast().error(`Ошибка при удалении активности: ${error}`)
+          useToast().error(`Ошибка при удалении активности: ${error.customMessage}`)
         },
 
       })
@@ -337,7 +337,7 @@ export const useTripPlanStore = defineStore('tripPlan', {
             day.activities[revertIndex] = originalActivity
 
           console.error(`Ошибка при обновлении активности ${updatedActivity.id}: `, error)
-          useToast().error(`Ошибка при обновлении активности: ${error}`)
+          useToast().error(`Ошибка при обновлении активности: ${error.customMessage}`)
         },
       })
     },
@@ -390,7 +390,7 @@ export const useTripPlanStore = defineStore('tripPlan', {
             this.currentDayId = this.days.length > 0 ? this.days[this.days.length - 1].id : null
 
           console.error('Ошибка при добавлении нового дня:', error)
-          useToast().error(`Ошибка при добавлении нового дня: ${error}`)
+          useToast().error(`Ошибка при добавлении нового дня: ${error.customMessage}`)
         },
       })
     },
@@ -434,7 +434,7 @@ export const useTripPlanStore = defineStore('tripPlan', {
           this.currentDayId = originalCurrentDayId
 
           console.error(`Ошибка при удалении дня ${dayIdToDelete}: `, error)
-          useToast().error(`Ошибка при удалении дня: ${error}`)
+          useToast().error(`Ошибка при удалении дня: ${error.customMessage}`)
         },
       })
     },
@@ -454,7 +454,7 @@ export const useTripPlanStore = defineStore('tripPlan', {
           router.push(AppRoutePaths.Trip.List)
         },
         onError: ({ error }) => {
-          useToast().error(`Не удалось удалить путешествие: ${error}`)
+          useToast().error(`Не удалось удалить путешествие: ${error.customMessage}`)
           throw error
         },
       })

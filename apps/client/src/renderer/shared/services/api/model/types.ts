@@ -10,6 +10,12 @@ import type {
 import type { CreateMemoryInput, Memory, UpdateMemoryInput } from '~/shared/types/models/memory'
 import type { Place, PlaceTag } from '~/shared/types/models/place'
 import type {
+  PostDetail,
+  CreatePostInput,
+  UpdatePostInput,
+  ListPostsFilters,
+} from '~/shared/types/models/post'
+import type {
   CreateTripInput,
   ImageMetadata,
   Plan,
@@ -22,6 +28,16 @@ import type {
   TripWithDays,
   UpdateTripInput,
 } from '~/shared/types/models/trip'
+
+export interface IPostRepository {
+  list: (filters: ListPostsFilters) => Promise<{ items: PostDetail[], nextCursor?: string }>
+  getById: (params: { id: string }) => Promise<PostDetail>
+  create: (data: CreatePostInput) => Promise<PostDetail>
+  update: (params: { id: string, data: Partial<UpdatePostInput> }) => Promise<PostDetail>
+  delete: (params: { id: string }) => Promise<{ id: string }>
+  toggleSave: (params: { postId: string }) => Promise<{ isSaved: boolean }>
+  toggleLike: (params: { postId: string }) => Promise<{ isLiked: boolean }>
+}
 
 export interface INotificationRepository {
   checkTripSubscription: (tripId: string) => Promise<boolean>
@@ -163,6 +179,20 @@ export interface IBlogRepository {
   delete: (id: string) => Promise<void>
 }
 
+export interface IMemoryRepository {
+  getByTripId: (tripId: string) => Promise<Memory[]>
+  create: (data: CreateMemoryInput) => Promise<Memory>
+  update: (data: UpdateMemoryInput) => Promise<Memory>
+  delete: (id: string) => Promise<Memory>
+  applyTakenAtTimestamp: (id: string) => Promise<Memory>
+  unassignTimestamp: (id: string) => Promise<Memory>
+}
+
+export enum DatabaseMode {
+  REAL = 'real',
+  MOCK = 'mock',
+}
+
 export interface IDatabaseClient {
   trips: ITripRepository
   days: IDayRepository
@@ -178,18 +208,5 @@ export interface IDatabaseClient {
   blog: IBlogRepository
   marks: IMarksRepository
   notification: INotificationRepository
-}
-
-export interface IMemoryRepository {
-  getByTripId: (tripId: string) => Promise<Memory[]>
-  create: (data: CreateMemoryInput) => Promise<Memory>
-  update: (data: UpdateMemoryInput) => Promise<Memory>
-  delete: (id: string) => Promise<Memory>
-  applyTakenAtTimestamp: (id: string) => Promise<Memory>
-  unassignTimestamp: (id: string) => Promise<Memory>
-}
-
-export enum DatabaseMode {
-  REAL = 'real',
-  MOCK = 'mock',
+  posts: IPostRepository
 }

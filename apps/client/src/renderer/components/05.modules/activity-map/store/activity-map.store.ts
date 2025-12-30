@@ -84,8 +84,8 @@ export const useActivityMapStore = defineStore('activityMap', {
       await useRequest({
         key: EActivityMapKeys.CREATE_MARK,
         fn: db => db.marks.createMark(input),
-        onSuccess: (newMark) => {
-          this.marks.push(newMark)
+        onSuccess: () => {
+          this.fetchMarks()
         },
         onError: ({ error }) => {
           throw error

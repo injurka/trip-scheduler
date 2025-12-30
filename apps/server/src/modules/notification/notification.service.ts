@@ -26,11 +26,6 @@ export const notificationService = {
       throw createTRPCError('NOT_FOUND', 'Путешествие не найдено')
     }
 
-    const isParticipant = trip.participants.some((p: any) => p.id === userId) || trip.userId === userId
-    if (!isParticipant) {
-      throw createTRPCError('FORBIDDEN', 'Вы должны быть участником путешествия')
-    }
-
     await notificationRepository.upsertPushSubscription(userId, subscription)
     await notificationRepository.addTripSubscription(userId, tripId)
   },

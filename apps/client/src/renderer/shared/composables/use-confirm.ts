@@ -11,7 +11,7 @@
  * }
  */
 export function useConfirm() {
-  const store = useAppStore(['confirmDialog'])
+  const store = useAppStore(['confirm'])
 
-  return store.confirmDialog.open
+  return store.confirm.open
 }

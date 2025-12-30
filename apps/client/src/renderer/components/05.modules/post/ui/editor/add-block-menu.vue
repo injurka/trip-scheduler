@@ -1,6 +1,6 @@
 <script setup lang="ts">
-import type { TimelineBlockType } from '../../models/types'
 import type { KitDropdownItem } from '~/components/01.kit/kit-dropdown'
+import type { TimelineBlockType } from '~/shared/types/models/post'
 import { Icon } from '@iconify/vue'
 import { KitDropdown } from '~/components/01.kit/kit-dropdown'
 

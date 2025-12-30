@@ -68,6 +68,7 @@ export const AppRoutePaths = {
     List: '/post/list',
     Create: '/post/create',
     Details: (id: string) => `/post/${id}`,
+    Edit: (id: string) => `/post/editor/${id}`,
   },
 
   Blog: {

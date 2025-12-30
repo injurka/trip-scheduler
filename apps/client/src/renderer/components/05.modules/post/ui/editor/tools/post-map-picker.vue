@@ -18,23 +18,7 @@ const emit = defineEmits<{
 const selectedCoords = ref<{ lat: number, lon: number } | null>(null)
 const markers = ref<MapMarker[]>([])
 
-// Инициализация при открытии
-watch(() => props.visible, (isOpen) => {
-  if (isOpen) {
-    if (props.initialCoords && props.initialCoords.lat !== 0) {
-      selectedCoords.value = { lat: props.initialCoords.lat, lon: props.initialCoords.lng }
-      updateMarker()
-    }
-    else {
-      selectedCoords.value = null
-      markers.value = []
-    }
-  }
-})
-
 function handleMapClick(coords: [number, number]) {
-  // KitMap возвращает [lon, lat] или [lat, lon] в зависимости от реализации.
-  // Предположим [lon, lat] согласно GeoJSON стандарту, который часто используется в OpenLayers
   selectedCoords.value = { lat: coords[1], lon: coords[0] }
   updateMarker()
 }
@@ -46,7 +30,6 @@ function updateMarker() {
   markers.value = [{
     id: 'selected-point',
     coords: selectedCoords.value,
-    // Можно добавить кастомную иконку, если KitMap поддерживает
   }]
 }
 
@@ -57,11 +40,23 @@ function handleConfirm() {
   }
 }
 
-// Центр карты по умолчанию (или по выбранной точке)
 const mapCenter = computed((): [number, number] => {
   if (selectedCoords.value)
     return [selectedCoords.value.lon, selectedCoords.value.lat]
   return [37.6173, 55.7558] // Москва по дефолту
+})
+
+watch(() => props.visible, (isOpen) => {
+  if (isOpen) {
+    if (props.initialCoords && props.initialCoords.lat !== 0) {
+      selectedCoords.value = { lat: props.initialCoords.lat, lon: props.initialCoords.lng }
+      updateMarker()
+    }
+    else {
+      selectedCoords.value = null
+      markers.value = []
+    }
+  }
 })
 </script>
 

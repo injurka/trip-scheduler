@@ -121,7 +121,7 @@ export const useTripSectionsStore = defineStore('tripSections', {
         },
         onError: ({ error }) => {
           this.sections = this.sections.filter(s => s.id !== tempId)
-          useToast().error(`Ошибка при создании раздела: ${error}`)
+          useToast().error(`Ошибка при создании раздела: ${error.customMessage}`)
         },
       })
     },
@@ -144,7 +144,7 @@ export const useTripSectionsStore = defineStore('tripSections', {
         }),
         onError: ({ error }) => {
           this.sections[index] = originalSection 
-          useToast().error(`Ошибка при обновлении раздела: ${error}`)
+          useToast().error(`Ошибка при обновлении раздела: ${error.customMessage}`)
         },
       })
     },
@@ -202,7 +202,7 @@ export const useTripSectionsStore = defineStore('tripSections', {
         fn: db => db.tripSections.delete(sectionId),
         onError: ({ error }) => {
           this.sections.splice(index, 0, removedSection) 
-          useToast().error(`Ошибка при удалении раздела: ${error}`)
+          useToast().error(`Ошибка при удалении раздела: ${error.customMessage}`)
         },
       })
     },

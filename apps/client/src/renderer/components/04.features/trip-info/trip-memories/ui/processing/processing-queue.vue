@@ -7,18 +7,14 @@ import MemoryProcessingCard from './processing-card.vue'
 const { memories: memoriesStore } = useModuleStore(['memories'])
 const { memoriesToProcess } = storeToRefs(memoriesStore)
 
-// --- UI State ---
 const isCollapsed = ref(false)
 const isFullScreen = ref(false)
 const BATCH_SIZE = 9
 const visibleCount = ref(BATCH_SIZE)
 
-/**
- * Реактивное состояние для фильтров отображения фотографий в очереди.
- */
 const filters = reactive({
-  showWithDate: true, // Показать фото, у которых есть дата, но она не совпадает с текущим днем
-  showWithoutDate: true, // Показать фото, у которых дата отсутствует вовсе
+  showWithDate: true,
+  showWithoutDate: true,
 })
 
 const queueClasses = computed(() => ({
@@ -26,9 +22,6 @@ const queueClasses = computed(() => ({
   'is-fullscreen': isFullScreen.value,
 }))
 
-/**
- * Отфильтрованный список воспоминаний для отображения на основе выбранных фильтров.
- */
 const filteredMemories = computed(() => {
   if (!memoriesToProcess.value)
     return []
@@ -46,16 +39,10 @@ const filteredMemories = computed(() => {
   })
 })
 
-/**
- * Отфильтрованный и постранично разделенный список воспоминаний для отображения.
- */
 const paginatedMemories = computed(() => {
   return filteredMemories.value.slice(0, visibleCount.value)
 })
 
-/**
- * Увеличивает количество видимых фотографий.
- */
 function showMore() {
   visibleCount.value += BATCH_SIZE
 }
@@ -178,6 +165,10 @@ function showMore() {
   margin: 20px 0;
   padding-bottom: 20px;
   border-bottom: 1px solid var(--border-secondary-color);
+
+  @include media-down(sm) {
+    flex-direction: column;
+  }
 }
 
 .queue-grid {

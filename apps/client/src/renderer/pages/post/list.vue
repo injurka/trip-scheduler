@@ -1,29 +1,55 @@
 <script setup lang="ts">
 import { Icon } from '@iconify/vue'
+import { storeToRefs } from 'pinia'
 import { useRouter } from 'vue-router'
 import { KitBtn } from '~/components/01.kit/kit-btn'
-import { KitWipBadge } from '~/components/01.kit/kit-wip-badge'
 import { NavigationBack } from '~/components/02.shared/navigation-back'
 import { PostCard } from '~/components/05.modules/post'
 import { usePostStore } from '~/components/05.modules/post/store/post.store'
 import PostFilters from '~/components/05.modules/post/ui/feed/post-filters.vue'
 
 const router = useRouter()
-const postStore = usePostStore()
+const store = usePostStore()
+const confirm = useConfirm()
 
-const posts = computed(() => postStore.filteredPosts)
+const { posts } = storeToRefs(store)
 
-function goToDetails(id: string) {
-  router.push(`/post/${id}`)
+function handleCardClick(id: string) {
+  router.push(AppRoutePaths.Post.Details(id))
+}
+
+function handleToggleLike(id: string) {
+  store.toggleLike(id)
 }
 
 function handleCreate() {
-  router.push('/post/create')
+  router.push(AppRoutePaths.Post.Create)
 }
 
-function handleLocationClick(loc: any) {
-  postStore.setSearch(loc.city)
+function handleToggleSave(id: string) {
+  store.toggleSave(id)
 }
+
+function handleEdit(id: string) {
+  router.push(AppRoutePaths.Post.Edit(id))
+}
+
+async function handleDelete(id: string) {
+  const isConfirmed = await confirm({
+    title: 'Вы уверены, что хотите удалить этот пост?',
+    description: 'Это действие необратимо.',
+    type: 'danger',
+    confirmText: 'Да, удалить',
+  })
+
+  if (isConfirmed) {
+    store.deletePost(id)
+  }
+}
+
+onMounted(() => {
+  store.fetchPosts(true)
+})
 </script>
 
 <template>
@@ -37,7 +63,10 @@ function handleLocationClick(loc: any) {
       </KitBtn>
     </div>
 
-    <KitWipBadge style="width: 100%" />
+    <div class="page-header">
+      <h1>Истории и маршруты</h1>
+      <p>Читайте рассказы других путешественников и делитесь своими впечатлениями.</p>
+    </div>
 
     <PostFilters />
 
@@ -47,28 +76,29 @@ function handleLocationClick(loc: any) {
           v-for="post in posts"
           :key="post.id"
           :post="post"
-          @click-card="goToDetails"
-          @toggle-like="postStore.toggleLike"
-          @toggle-save="postStore.toggleSave"
-          @click-location="handleLocationClick"
+          @click-card="handleCardClick"
+          @toggle-like="handleToggleLike"
+          @toggle-save="handleToggleSave"
+          @edit="handleEdit"
+          @delete="handleDelete"
         />
       </TransitionGroup>
 
-      <div v-if="posts.length === 0" class="empty-feed">
-        <div v-if="postStore.filters.tab === 'saved'" class="empty-content">
-          <Icon icon="mdi:bookmark-outline" size="48" />
+      <div v-if="posts.length === 0 && !store.isLoading" class="empty-feed">
+        <div v-if="store.filters.tab === 'saved'" class="empty-content">
+          <Icon icon="mdi:bookmark-outline" width="48" height="48" />
           <p>У вас пока нет сохраненных постов.</p>
         </div>
         <div v-else class="empty-content">
-          <Icon icon="mdi:magnify-remove-outline" size="48" />
+          <Icon icon="mdi:magnify-remove-outline" width="48" height="48" />
           <p>Ничего не найдено.</p>
-          <KitBtn variant="text" @click="postStore.setSearch('')">
+          <KitBtn variant="tonal" @click="store.setSearch('')">
             Сбросить поиск
           </KitBtn>
         </div>
       </div>
 
-      <div v-if="posts.length > 0" class="load-more">
+      <div v-if="posts.length > 0 && !store.nextCursor" class="load-more">
         <p>Вы посмотрели все актуальное!</p>
       </div>
     </div>
@@ -78,11 +108,10 @@ function handleLocationClick(loc: any) {
 <style scoped lang="scss">
 .content-wrapper {
   width: 100%;
-  max-width: 600px;
+  max-width: 800px;
   margin: 0 auto;
   display: flex;
   flex-direction: column;
-  padding: 16px;
   gap: 16px;
 }
 
@@ -133,7 +162,6 @@ function handleLocationClick(loc: any) {
   font-size: 0.9rem;
 }
 
-/* Animations for List */
 .list-move,
 .list-enter-active,
 .list-leave-active {
@@ -146,7 +174,6 @@ function handleLocationClick(loc: any) {
   transform: translateY(20px);
 }
 
-/* Ensure items don't jump when removed */
 .list-leave-active {
   position: absolute;
   width: 100%;

@@ -7,7 +7,6 @@ import { Icon } from '@iconify/vue'
 import { KitBtn } from '~/components/01.kit/kit-btn'
 import { KitDropdown } from '~/components/01.kit/kit-dropdown'
 import { useModuleStore } from '~/components/05.modules/trip-info/composables/use-trip-info-module'
-import { useNotificationStore } from '~/shared/store/notification.store'
 import MemoriesMap from './memories-map.vue'
 import ProcessingQueue from './processing/processing-queue.vue'
 import UploadingIndicator from './processing/uploading-indicator.vue'
@@ -34,23 +33,10 @@ const emit = defineEmits<{
   (e: 'import', activity: Activity): void
 }>()
 
-const notifStore = useNotificationStore()
-
 const { memories: memoriesStore } = useModuleStore(['memories'])
 const { memoriesWithGeoForSelectedDay, memoriesToProcess } = storeToRefs(memoriesStore)
-const { plan } = useModuleStore(['plan'])
 
 const isMapVisible = ref(false)
-const isNotifyLoading = ref(false)
-
-async function handleNotifyParticipants() {
-  if (!plan.currentTripId || !plan.getSelectedDay?.id)
-    return
-
-  isNotifyLoading.value = true
-  await notifStore.notifyAboutMemoryUpdate(plan.currentTripId, plan.getSelectedDay.id)
-  isNotifyLoading.value = false
-}
 </script>
 
 <template>
@@ -130,7 +116,6 @@ async function handleNotifyParticipants() {
     width: 100%;
   }
 }
-
 
 .upload-section {
   display: grid;

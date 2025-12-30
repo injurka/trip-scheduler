@@ -249,7 +249,6 @@ defineExpose({
   .placeholder-wrapper,
   .image,
   picture {
-    /* Добавляем picture сюда */
     position: absolute;
     inset: 0;
     width: 100%;

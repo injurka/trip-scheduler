@@ -1,61 +1,135 @@
 <script setup lang="ts">
-import type { Post } from '../../models/types'
+import type { KitDropdownItem } from '~/components/01.kit/kit-dropdown'
+import type { PostDetail } from '~/shared/types/models/post'
 import { Icon } from '@iconify/vue'
 import { useTimeAgo } from '@vueuse/core'
 import { KitAvatar } from '~/components/01.kit/kit-avatar'
 import { KitBtn } from '~/components/01.kit/kit-btn'
+import { KitDropdown } from '~/components/01.kit/kit-dropdown'
 import { KitImage } from '~/components/01.kit/kit-image'
 
 interface Props {
-  post: Post
+  post: PostDetail
 }
 
 const props = defineProps<Props>()
+
 const emit = defineEmits<{
   (e: 'clickLocation', location: any): void
   (e: 'clickCard', id: string): void
   (e: 'toggleLike', id: string): void
   (e: 'toggleSave', id: string): void
+  (e: 'edit', id: string): void
+  (e: 'delete', id: string): void
 }>()
 
 const timeAgo = useTimeAgo(new Date(props.post.createdAt))
-
 const activeMediaIndex = ref(0)
-const mediaScrollRef = ref<HTMLElement | null>(null)
+const activeMarkId = ref<string | null>(null)
+const cardAccentColor = ref('#A8AAAE')
 
-function onScroll() {
-  if (!mediaScrollRef.value)
-    return
-  const scrollLeft = mediaScrollRef.value.scrollLeft
-  const width = mediaScrollRef.value.offsetWidth
-  activeMediaIndex.value = Math.round(scrollLeft / width)
+const menuItems: KitDropdownItem[] = [
+  { label: 'Редактировать', value: 'edit', icon: 'mdi:pencil' },
+  { label: 'Удалить', value: 'delete', icon: 'mdi:trash-can-outline', isDestructive: true },
+]
+
+function handleMenuAction(action: string) {
+  if (action === 'edit')
+    emit('edit', props.post.id)
+  else if (action === 'delete')
+    emit('delete', props.post.id)
 }
 
-const activeMarkId = ref<string | null>(null)
+const currentMedia = computed(() => props.post.media[activeMediaIndex.value])
+const hasMultipleMedia = computed(() => props.post.media.length > 1)
 
-function toggleMark(markId: string) {
-  if (activeMarkId.value === markId) {
+function nextImage() {
+  if (activeMediaIndex.value < props.post.media.length - 1) {
+    activeMediaIndex.value++
     activeMarkId.value = null
   }
-  else {
-    activeMarkId.value = markId
+}
+
+function prevImage() {
+  if (activeMediaIndex.value > 0) {
+    activeMediaIndex.value--
+    activeMarkId.value = null
   }
 }
 
-const categoryColors: Record<string, string> = {
-  food: '#FF9F43', // Оранжевый
-  nature: '#28C76F', // Зеленый
-  culture: '#7367F0', // Синий
-  sport: '#EA5455', // Красный
-  other: '#A8AAAE', // Серый
+function toggleMark(markId: string) {
+  activeMarkId.value = activeMarkId.value === markId ? null : markId
 }
 
-const cardBorderColor = computed(() => {
-  return categoryColors[props.post.category] || categoryColors.other
-})
+async function extractAverageColor(url: string) {
+  if (!url)
+    return
+
+  const img = new Image()
+  // Атрибут crossOrigin обязателен для работы с изображениями с других доменов
+  img.crossOrigin = 'Anonymous'
+
+  // Обработчик ошибок: сработает при 404 или проблемах с сетью
+  img.onerror = () => {
+    console.error(`Не удалось загрузить изображение для анализа цвета: ${url}`)
+    // В случае ошибки можно сбросить цвет к дефолтному
+    cardAccentColor.value = '#A8AAAE'
+  }
+
+  img.onload = () => {
+    const canvas = document.createElement('canvas')
+    // Добавляем { willReadFrequently: true } как подсказку браузеру для оптимизации
+    const ctx = canvas.getContext('2d', { willReadFrequently: true })
+    if (!ctx)
+      return
+
+    canvas.width = 1
+    canvas.height = 1
+
+    try {
+      // Рисуем изображение на холсте 1x1, что эффективно усредняет цвет
+      ctx.drawImage(img, 0, 0, 1, 1)
+
+      // Получаем все 4 значения: R, G, B, A (альфа-канал)
+      const pixelData = ctx.getImageData(0, 0, 1, 1).data
+      const [r, g, b, a] = pixelData
+
+      // ---- КЛЮЧЕВОЕ ИСПРАВЛЕНИЕ ----
+      // Если пиксель полностью прозрачный (alpha === 0), это значит, что
+      // изображение не отрисовалось (например, из-за CORS).
+      // В этом случае мы НЕ устанавливаем цвет, чтобы избежать черного.
+      if (a === 0) {
+        console.warn(`Анализ цвета не удался (прозрачный пиксель), используется цвет по умолчанию. URL: ${url}`)
+        cardAccentColor.value = '#A8AAAE' // Сбрасываем на дефолтный
+        return
+      }
+
+      cardAccentColor.value = `rgb(${r},${g},${b})`
+    }
+    catch (e) {
+      // Этот блок перехватит ошибку, если браузер заблокирует getImageData из-за CORS
+      console.error(`Ошибка при анализе цвета изображения (вероятно, CORS): ${url}`, e)
+      cardAccentColor.value = '#A8AAAE' // Сбрасываем на дефолтный
+    }
+  }
+
+  img.src = url
+}
+
+function onClickLocation() {
+  const { city, country, latitude, longitude } = props.post
+
+  emit('clickLocation', { city, country, lat: latitude, lng: longitude })
+}
+
+watch(() => props.post.media[0]?.url, (newUrl) => {
+  if (newUrl) {
+    extractAverageColor(newUrl)
+  }
+}, { immediate: true })
 
 const cardStyle = computed(() => ({
-  '--post-card-accent': cardBorderColor.value,
+  '--post-card-accent': cardAccentColor.value,
 }))
 </script>
 
@@ -63,60 +137,34 @@ const cardStyle = computed(() => ({
   <article class="post-card" :style="cardStyle" @click="$emit('clickCard', post.id)">
     <header class="card-header">
       <div class="author-info">
-        <KitAvatar :src="post.author.avatarUrl" :name="post.author.name" size="32" />
+        <KitAvatar :src="post.user.avatarUrl" :name="post.user.name" size="32" />
         <div class="meta">
-          <span class="author-name">{{ post.author.name }}</span>
+          <span class="author-name">{{ post.user.name }}</span>
           <span class="time">{{ timeAgo }}</span>
         </div>
       </div>
 
-      <div class="header-actions">
-        <button class="location-badge" @click.stop="emit('clickLocation', post.location)">
+      <div class="header-actions" @click.stop>
+        <button class="location-badge" @click.stop="onClickLocation">
           <Icon icon="mdi:map-marker-outline" />
-          <span>{{ post.location.country }}</span>
+          <span>{{ post.country }}</span>
         </button>
         <div class="spacer" />
-        <KitBtn variant="text" size="xs" icon="mdi:dots-horizontal" class="more-btn" />
+
+        <KitDropdown
+          :items="menuItems"
+          align="end"
+          @update:model-value="handleMenuAction"
+        >
+          <template #trigger>
+            <KitBtn variant="text" size="xs" icon="mdi:dots-horizontal" class="more-btn" />
+          </template>
+        </KitDropdown>
       </div>
     </header>
 
     <div class="media-zone">
-      <div
-        ref="mediaScrollRef"
-        class="media-scroller"
-        @scroll.passive="onScroll"
-      >
-        <div
-          v-for="media in post.media"
-          :key="media.id"
-          class="media-item"
-        >
-          <KitImage
-            :src="media.url"
-            class="media-image"
-            object-fit="cover"
-          />
-
-          <template v-if="media.marks">
-            <div
-              v-for="mark in media.marks"
-              :key="mark.id"
-              class="smart-mark"
-              :class="{ 'is-active': activeMarkId === mark.id }"
-              :style="{ left: `${mark.x}%`, top: `${mark.y}%` }"
-              @click.stop="toggleMark(mark.id)"
-            >
-              <div class="mark-dot" />
-              <div class="mark-bubble">
-                <span>{{ mark.label }}</span>
-                <div class="bubble-tail" />
-              </div>
-            </div>
-          </template>
-        </div>
-      </div>
-
-      <div v-if="post.media.length > 1" class="media-dots">
+      <div v-if="hasMultipleMedia" class="media-dots-top">
         <span
           v-for="(_, idx) in post.media"
           :key="idx"
@@ -125,34 +173,78 @@ const cardStyle = computed(() => ({
         />
       </div>
 
+      <div v-if="hasMultipleMedia" class="nav-overlay">
+        <div class="nav-zone left" @click.stop="prevImage" />
+        <div class="nav-zone right" @click.stop="nextImage" />
+      </div>
+
+      <div class="image-container">
+        <Transition name="fade" mode="out-in">
+          <div :key="currentMedia?.id || 'empty'" class="image-wrapper">
+            <template v-if="currentMedia">
+              <div class="blur-backdrop">
+                <KitImage
+                  :src="currentMedia.url"
+                  object-fit="cover"
+                  class="backdrop-img"
+                />
+                <div class="backdrop-overlay" />
+              </div>
+
+              <div class="main-img-wrapper">
+                <KitImage
+                  :src="currentMedia.url"
+                  class="main-img"
+                  object-fit="contain"
+                />
+              </div>
+
+              <template v-if="currentMedia.marks">
+                <div
+                  v-for="mark in currentMedia.marks"
+                  :key="mark.id"
+                  class="smart-mark"
+                  :class="{ 'is-active': activeMarkId === mark.id }"
+                  :style="{ left: `${mark.x}%`, top: `${mark.y}%` }"
+                  @click.stop="toggleMark(mark.id)"
+                >
+                  <div class="mark-dot" />
+                  <div class="mark-bubble">
+                    <span>{{ mark.label }}</span>
+                    <div class="bubble-tail" />
+                  </div>
+                </div>
+              </template>
+            </template>
+            <div v-else class="no-media">
+              <Icon icon="mdi:image-off-outline" />
+            </div>
+          </div>
+        </Transition>
+      </div>
+
       <div class="info-overlay">
         <div class="title-row">
           <h3 class="post-title">
             {{ post.title }}
           </h3>
-          <span class="rating-emoji">{{ post.ratingEmoji }}</span>
         </div>
       </div>
     </div>
 
-    <div class="tags-actions-row">
+    <div v-if="post.city || post.tags.length" class="tags-actions-row">
       <div class="tags-scroll">
-        <span class="tag city-tag">📍 {{ post.location.city }}</span>
+        <div v-if="post.city" class="tag city-tag">
+          <Icon icon="mdi:map-marker" />
+          <span>{{ post.city }}</span>
+        </div>
 
         <span
-          v-for="tag in post.tags.category"
+          v-for="tag in post.tags"
           :key="tag"
-          class="tag category-tag"
+          class="tag simple-tag"
         >
           #{{ tag }}
-        </span>
-
-        <span
-          v-for="tag in post.tags.context"
-          :key="tag"
-          class="tag context-tag"
-        >
-          {{ tag }}
         </span>
       </div>
     </div>
@@ -170,29 +262,29 @@ const cardStyle = computed(() => ({
       <div class="interaction-group">
         <button
           class="action-btn like-btn"
-          :class="{ active: post.stats.isLiked }"
+          :class="{ active: post.stats?.isLiked }"
           @click.stop="emit('toggleLike', post.id)"
         >
-          <Icon :icon="post.stats.isLiked ? 'mdi:heart' : 'mdi:heart-outline'" />
-          <span>{{ post.stats.likes }}</span>
+          <Icon :icon="post.stats?.isLiked ? 'mdi:heart' : 'mdi:heart-outline'" />
+          <span>{{ post.stats?.likes ?? 0 }}</span>
         </button>
 
         <button
           class="action-btn save-btn"
-          :class="{ active: post.stats.isSaved }"
+          :class="{ active: post.stats?.isSaved }"
           @click.stop="emit('toggleSave', post.id)"
         >
-          <Icon :icon="post.stats.isSaved ? 'mdi:bookmark' : 'mdi:bookmark-outline'" />
-          <span>{{ post.stats.isSaved ? 'Сохранено' : 'Хочу' }}</span>
+          <Icon :icon="post.stats?.isSaved ? 'mdi:bookmark' : 'mdi:bookmark-outline'" />
+          <span>{{ post.stats?.isSaved ? 'Сохранено' : 'Хочу' }}</span>
         </button>
       </div>
 
-      <button class="mini-map-btn" @click.stop="emit('clickLocation', post.location)">
-        <span class="address-text">{{ post.location.address }}</span>
-        <div class="map-icon-box">
-          <Icon icon="mdi:map" />
-        </div>
-      </button>
+      <!-- Статистика для превью -->
+      <div v-if="post.statsDetail" class="stats-preview">
+        <span v-if="post.statsDetail.duration">{{ post.statsDetail.duration }}</span>
+        <span v-if="post.statsDetail.budget" class="divider">•</span>
+        <span v-if="post.statsDetail.budget">{{ post.statsDetail.budget }}</span>
+      </div>
     </footer>
   </article>
 </template>
@@ -210,18 +302,8 @@ const cardStyle = computed(() => ({
     transform 0.2s,
     box-shadow 0.2s;
   border: 1px solid var(--border-secondary-color);
-
-  &::before {
-    content: '';
-    position: absolute;
-    top: 0;
-    left: 0;
-    width: 4px;
-    height: 100%;
-    background-color: var(--post-card-accent);
-    opacity: 0.6;
-    z-index: 10;
-  }
+  /* Левая граница динамического цвета */
+  border-left: 4px solid var(--post-card-accent);
 
   &:hover {
     transform: translateY(-2px);
@@ -233,19 +315,25 @@ const cardStyle = computed(() => ({
   display: flex;
   align-items: center;
   padding: 12px 16px;
-  background-color: var(--bg-primary-color);
+  background-color: var(--bg-secondary-color);
 }
 
 .author-info {
   display: flex;
   align-items: center;
   gap: 10px;
-}
 
-.meta {
-  display: flex;
-  flex-direction: column;
-  line-height: 1.2;
+  :deep(.kit-avatar) {
+    flex-shrink: 0;
+    width: 32px;
+    height: 32px;
+  }
+
+  .meta {
+    display: flex;
+    flex-direction: column;
+    line-height: 1.2;
+  }
 }
 
 .author-name {
@@ -291,37 +379,132 @@ const cardStyle = computed(() => ({
   width: 100%;
   aspect-ratio: 4/3;
   overflow: hidden;
+  background-color: #1a1a1a;
 }
 
-.media-scroller {
-  display: flex;
-  overflow-x: auto;
-  scroll-snap-type: x mandatory;
+.image-container {
   width: 100%;
   height: 100%;
-  scrollbar-width: none;
-  &::-webkit-scrollbar {
-    display: none;
+  position: relative;
+}
+
+.image-wrapper {
+  width: 100%;
+  height: 100%;
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.blur-backdrop {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  overflow: hidden;
+  pointer-events: none;
+  :deep(.kit-image-container) {
+    background: transparent;
   }
 }
 
-.media-item {
-  flex: 0 0 100%;
-  scroll-snap-align: start;
+.backdrop-img {
+  width: 100%;
+  height: 100%;
+  filter: blur(20px) brightness(0.9) saturate(1.2);
+  transform: scale(1.5);
+  opacity: 1;
+}
+
+.backdrop-overlay {
+  position: absolute;
+  inset: 0;
+  background-color: rgba(0, 0, 0, 0.2);
+  z-index: 1;
+}
+
+.main-img-wrapper {
   position: relative;
+  z-index: 2;
+  width: 100%;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  filter: drop-shadow(0 10px 30px rgba(0, 0, 0, 0.5));
+
+  :deep(.kit-image-container) {
+    background: transparent;
+  }
+}
+
+.main-img {
+  max-width: 100%;
+  max-height: 100%;
+  width: 100%;
+  height: 100%;
+  display: block;
+}
+
+.no-media {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: rgba(255, 255, 255, 0.2);
+  font-size: 48px;
   width: 100%;
   height: 100%;
 }
 
-.media-image {
-  width: 100%;
+.nav-overlay {
+  position: absolute;
+  inset: 0;
+  z-index: 10;
+  display: flex;
+}
+
+.nav-zone {
   height: 100%;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+
+  &.left {
+    width: 30%;
+  }
+  &.right {
+    width: 70%;
+  }
+}
+
+.media-dots-top {
+  position: absolute;
+  top: 12px;
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  gap: 6px;
+  z-index: 20;
+  pointer-events: none;
+}
+
+.dot {
+  width: 6px;
+  height: 6px;
+  background-color: rgba(255, 255, 255, 0.4);
+  border-radius: 50%;
+  transition: all 0.2s cubic-bezier(0.25, 0.8, 0.5, 1);
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.3);
+
+  &.active {
+    background-color: white;
+    transform: scale(1.3);
+  }
 }
 
 .smart-mark {
   position: absolute;
   transform: translate(-50%, -50%);
-  z-index: 5;
+  z-index: 30;
   cursor: pointer;
 }
 
@@ -354,7 +537,7 @@ const cardStyle = computed(() => ({
   white-space: nowrap;
   opacity: 0;
   pointer-events: none;
-  transition: all 0.2s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+  transition: all 0.2s;
 }
 
 .smart-mark:hover .mark-bubble,
@@ -374,29 +557,6 @@ const cardStyle = computed(() => ({
   border-color: rgba(0, 0, 0, 0.8) transparent transparent transparent;
 }
 
-.media-dots {
-  position: absolute;
-  bottom: 80px;
-  left: 50%;
-  transform: translateX(-50%);
-  display: flex;
-  gap: 6px;
-  z-index: 3;
-}
-
-.dot {
-  width: 6px;
-  height: 6px;
-  background-color: rgba(255, 255, 255, 0.5);
-  border-radius: 50%;
-  transition: all 0.2s;
-
-  &.active {
-    background-color: white;
-    transform: scale(1.2);
-  }
-}
-
 .info-overlay {
   position: absolute;
   bottom: 0;
@@ -406,6 +566,7 @@ const cardStyle = computed(() => ({
   background: linear-gradient(to top, rgba(0, 0, 0, 0.8) 0%, rgba(0, 0, 0, 0) 100%);
   color: white;
   pointer-events: none;
+  z-index: 15;
 }
 
 .title-row {
@@ -420,11 +581,6 @@ const cardStyle = computed(() => ({
   font-weight: 700;
   line-height: 1.3;
   text-shadow: 0 1px 2px rgba(0, 0, 0, 0.5);
-}
-
-.rating-emoji {
-  font-size: 1.5rem;
-  filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.3));
 }
 
 .tags-actions-row {
@@ -451,18 +607,17 @@ const cardStyle = computed(() => ({
 }
 
 .city-tag {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 2px;
   background-color: var(--bg-primary-color);
   color: var(--fg-primary-color);
   border: 1px solid var(--border-primary-color);
   font-weight: 700;
 }
 
-.category-tag {
-  background-color: rgba(var(--fg-accent-color-rgb), 0.1);
-  color: var(--fg-accent-color);
-}
-
-.context-tag {
+.simple-tag {
   background-color: var(--bg-tertiary-color);
   color: var(--fg-secondary-color);
 }
@@ -470,7 +625,7 @@ const cardStyle = computed(() => ({
 .insight-block {
   margin: 12px 16px;
   padding: 12px;
-  background-color: rgba(var(--bg-accent-color-rgb), 0.3);
+  background-color: rgba(var(--bg-accent-color-rgb), 0.1);
   border-radius: var(--r-m);
   display: flex;
   gap: 10px;
@@ -530,49 +685,29 @@ const cardStyle = computed(() => ({
   &.like-btn.active {
     color: #ea5455;
   }
-
   &.save-btn.active {
     color: var(--fg-accent-color);
   }
 }
 
-.mini-map-btn {
+.stats-preview {
   display: flex;
-  align-items: center;
   gap: 8px;
-  background: none;
-  border: 1px solid var(--border-secondary-color);
-  border-radius: var(--r-full);
-  padding: 4px 4px 4px 12px;
-  cursor: pointer;
-  transition: all 0.2s;
-  max-width: 140px;
-
-  &:hover {
-    border-color: var(--fg-accent-color);
-    background-color: var(--bg-hover-color);
+  font-size: 0.8rem;
+  color: var(--fg-secondary-color);
+  .divider {
+    opacity: 0.5;
   }
 }
 
-.address-text {
-  font-size: 0.75rem;
-  color: var(--fg-secondary-color);
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  max-width: 100px;
+.fade-enter-active,
+.fade-leave-active {
+  transition: opacity 0.2s ease;
 }
 
-.map-icon-box {
-  width: 28px;
-  height: 28px;
-  background-color: var(--bg-tertiary-color);
-  border-radius: 50%;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  color: var(--fg-accent-color);
-  font-size: 0.9rem;
+.fade-enter-from,
+.fade-leave-to {
+  opacity: 0;
 }
 
 @keyframes pulse {

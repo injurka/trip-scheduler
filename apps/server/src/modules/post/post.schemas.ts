@@ -1,13 +1,10 @@
 import { createSelectSchema } from 'drizzle-zod'
 import { z } from 'zod'
-import { posts } from '~/../db/schema'
+import { postElements, postMedia, posts } from '~/../db/schema'
 import { UserSchema } from '../user/user.schemas'
-
-// --- Вспомогательные схемы для контента (JSONB) ---
 
 const PostContentBlockBaseSchema = z.object({
   id: z.string(),
-  type: z.enum(['markdown', 'image', 'gallery', 'location', 'route']),
 })
 
 const PostContentBlockTextSchema = PostContentBlockBaseSchema.extend({
@@ -60,38 +57,34 @@ export const PostElementContentSchema = z.discriminatedUnion('type', [
   PostContentBlockRouteSchema,
 ])
 
-// --- Схемы БД ---
-
-export const PostMediaSchema = z.object({
-  id: z.string().uuid(),
-  url: z.string(),
-  originalName: z.string(),
-  type: z.enum(['image', 'video']),
-  width: z.number().nullable().optional(),
-  height: z.number().nullable().optional(),
-  metadata: z.any().nullable().optional(),
+export const PostStatsDetailSchema = z.object({
+  views: z.number().default(0),
+  budget: z.string().default(''),
+  duration: z.string().default(''),
 })
 
-export const PostElementSchema = z.object({
-  id: z.string().uuid(),
-  postId: z.string().uuid(),
-  order: z.number(),
-  title: z.string().nullable().optional(),
+export const PostMediaSchema = createSelectSchema(postMedia)
+export const PostElementSchema = createSelectSchema(postElements).extend({
   content: z.array(PostElementContentSchema),
 })
 
-// Базовая схема поста из БД
-const BasePostSchema = createSelectSchema(posts)
-
-// Расширенная схема поста для клиента (с вложениями)
-export const PostSchema = BasePostSchema.extend({
-  user: UserSchema.pick({ id: true, name: true, avatarUrl: true }),
-  elements: z.array(PostElementSchema).optional(),
-  media: z.array(PostMediaSchema).optional(),
-  isSaved: z.boolean().optional().default(false),
+const BasePostSchema = createSelectSchema(posts).extend({
+  statsDetail: PostStatsDetailSchema,
 })
 
-// --- Input Schemas (Входящие данные) ---
+export const PostSchema = BasePostSchema
+  .omit({ likesCount: true, savesCount: true })
+  .extend({
+    user: UserSchema.pick({ id: true, name: true, avatarUrl: true }),
+    elements: z.array(PostElementSchema).optional(),
+    media: z.array(PostMediaSchema).optional(),
+    stats: z.object({
+      likes: z.number(),
+      saves: z.number(),
+      isLiked: z.boolean(),
+      isSaved: z.boolean(),
+    }),
+  })
 
 export const CreatePostElementInput = z.object({
   title: z.string().optional(),
@@ -106,6 +99,10 @@ export const CreatePostInputSchema = z.object({
   tags: z.array(z.string()).default([]),
   status: z.enum(['draft', 'completed', 'planned']).default('draft'),
   elements: z.array(CreatePostElementInput).optional(),
+  mediaIds: z.array(z.string().uuid()).optional(),
+  latitude: z.number().optional(),
+  longitude: z.number().optional(),
+  statsDetail: PostStatsDetailSchema.partial().optional(),
 })
 
 export const UpdatePostInputSchema = z.object({
@@ -128,5 +125,9 @@ export const ListPostsInputSchema = z.object({
 })
 
 export const ToggleSavePostInputSchema = z.object({
+  postId: z.string().uuid(),
+})
+
+export const ToggleLikePostInputSchema = z.object({
   postId: z.string().uuid(),
 })

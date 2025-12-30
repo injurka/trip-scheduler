@@ -18,6 +18,14 @@ export interface MapBounds {
   zoomlevel: number
 }
 
+export interface GroupedMark {
+  center: {
+    type: 'Point'
+    coordinates: [number, number]
+  }
+  count: number
+}
+
 export interface GetMarksParams extends MapBounds {
   startAt: string
   endAt: string

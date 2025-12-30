@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import type { PostMedia } from '../../../models/types'
+import type { PostMedia } from '~/shared/types/models/post'
 import { KitImage } from '~/components/01.kit/kit-image'
 
 defineProps<{ images: PostMedia[], comment?: string }>()
@@ -27,10 +27,11 @@ defineProps<{ images: PostMedia[], comment?: string }>()
 }
 .grid {
   display: grid;
-  gap: 8px;
+  gap: 6px;
   height: 240px;
   border-radius: var(--r-m);
   overflow: hidden;
+  background-color: var(--bg-tertiary-color);
 
   &.count-1 {
     grid-template-columns: 1fr;

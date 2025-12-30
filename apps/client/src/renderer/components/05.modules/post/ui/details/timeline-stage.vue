@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import type { TimelineStage } from '../../models/types'
+import type { TimelineStage } from '~/shared/types/models/post'
 import { Icon } from '@iconify/vue'
 import GalleryBlock from './blocks/gallery-block.vue'
 import GeoBlock from './blocks/geo-block.vue'
@@ -68,9 +68,12 @@ defineProps<IProps>()
   display: flex;
   gap: 16px;
   position: relative;
+
+  @include media-down(sm) {
+    gap: 8px;
+  }
 }
 
-/* Connector Styles */
 .connector-column {
   display: flex;
   flex-direction: column;
@@ -103,10 +106,9 @@ defineProps<IProps>()
   border-radius: 2px;
 }
 
-/* Content Styles */
 .stage-content {
   flex-grow: 1;
-  padding-bottom: 32px; /* Spacing between stages */
+  padding-bottom: 32px;
 
   .is-last & {
     padding-bottom: 0;

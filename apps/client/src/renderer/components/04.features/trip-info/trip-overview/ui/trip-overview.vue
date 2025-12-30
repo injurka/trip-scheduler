@@ -16,7 +16,6 @@ import { useModuleStore } from '~/components/05.modules/trip-info/composables/us
 import { useTripPermissions } from '~/components/05.modules/trip-info/composables/use-trip-permissions'
 import { useToast } from '~/shared/composables/use-toast'
 import { vRipple } from '~/shared/directives/ripple'
-import { useNotificationStore } from '~/shared/store/notification.store'
 import { useOfflineStore } from '~/shared/store/offline.store'
 import { EActivitySectionType, EActivityTag } from '~/shared/types/models/activity'
 import { TripStatus } from '~/shared/types/models/trip'
@@ -49,8 +48,8 @@ const emit = defineEmits<{
 const router = useRouter()
 const confirm = useConfirm()
 const toast = useToast()
+const appStore = useAppStore(['auth', 'notif'])
 const { canEdit } = useTripPermissions()
-const notificationStore = useNotificationStore()
 
 const { share, isSupported: isShareSupported } = useShare()
 const { copy } = useClipboard()
@@ -74,7 +73,7 @@ const isTripUpcoming = computed(() => {
 })
 
 const isSubscribedToCurrentTrip = computed(() => {
-  return props.trip ? notificationStore.isSubscribedToTrip(props.trip.id) : false
+  return props.trip ? appStore.notif.isSubscribedToTrip(props.trip.id) : false
 })
 
 const formattedDates = computed(() => {
@@ -269,10 +268,10 @@ async function handleMenuAction(action: string) {
     }
   }
   else if (action === 'subscribe_trip' && props.trip) {
-    await notificationStore.subscribeToTrip(props.trip.id)
+    await appStore.notif.subscribeToTrip(props.trip.id)
   }
   else if (action === 'unsubscribe_trip' && props.trip) {
-    await notificationStore.unsubscribeFromTrip(props.trip.id)
+    await appStore.notif.unsubscribeFromTrip(props.trip.id)
   }
   else if (action === 'edit') {
     handleEditTrip()
@@ -298,14 +297,14 @@ async function handleMenuAction(action: string) {
 }
 
 onMounted(() => {
-  if (props.trip?.id) {
-    notificationStore.checkTripSubscription(props.trip.id)
+  if (props.trip?.id && appStore.auth.isAuthenticated) {
+    appStore.notif.checkTripSubscription(props.trip.id)
   }
 })
 
 watch(() => props.trip?.id, (newId) => {
-  if (newId)
-    notificationStore.checkTripSubscription(newId)
+  if (newId && appStore.auth.isAuthenticated)
+    appStore.notif.checkTripSubscription(newId)
 })
 </script>
 

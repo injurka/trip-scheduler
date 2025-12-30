@@ -225,7 +225,7 @@ async function handleShowMetadata() {
           isMetadataPanelVisible.value = true
         },
         onError: ({ error }) => {
-          console.error('Failed to load metadata', error)
+          console.error('Failed to load metadata', error.customMessage)
 
           if (image.meta)
             isMetadataPanelVisible.value = true

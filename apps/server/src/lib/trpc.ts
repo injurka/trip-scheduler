@@ -1,5 +1,4 @@
 import type { FetchCreateContextFnOptions } from '@trpc/server/adapters/fetch'
-import type { users } from 'db/schema'
 import type { Context } from 'hono'
 import type { OpenApiMeta } from 'trpc-to-openapi'
 import { initTRPC, TRPCError } from '@trpc/server'
@@ -56,7 +55,7 @@ const isAuthed = t.middleware(({ ctx, next }) => {
   }
   return next({
     ctx: {
-      user: ctx.user as typeof users.$inferSelect & { plan: any }, // Типизация теперь соответствует реальности
+      user: ctx.user,
       db: ctx.db,
       c: ctx.c,
     },

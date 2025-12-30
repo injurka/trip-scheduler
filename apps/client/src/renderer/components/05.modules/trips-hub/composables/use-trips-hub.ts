@@ -112,7 +112,7 @@ export function useTripsHub() {
         availableTags.value = tags.map(tag => ({ value: tag, label: tag }))
       },
       onError: ({ error }) => {
-        toast.error(`Не удалось загрузить список тегов: ${error}`)
+        toast.error(`Не удалось загрузить список тегов: ${error.customMessage}`)
       },
     })
   }
@@ -128,7 +128,7 @@ export function useTripsHub() {
         availableCities.value = cities.map(city => ({ value: city, label: city }))
       },
       onError: ({ error }) => {
-        toast.error(`Не удалось загрузить список городов: ${error}`)
+        toast.error(`Не удалось загрузить список городов: ${error.customMessage}`)
       },
     })
   }
@@ -163,7 +163,7 @@ export function useTripsHub() {
       },
       onError: ({ error }) => {
         trips.value = []
-        toast.error(`Не удалось загрузить список путешествий: ${error}`)
+        toast.error(`Не удалось загрузить список путешествий: ${error.customMessage}`)
       },
     })
   }
@@ -184,7 +184,7 @@ export function useTripsHub() {
         closeCreateModal()
       },
       onError: ({ error }) => {
-        toast.error(`Ошибка при создании путешествия: ${error}`)
+        toast.error(`Ошибка при создании путешествия: ${error.customMessage}`)
       },
     })
 
@@ -207,7 +207,7 @@ export function useTripsHub() {
       },
       onError: ({ error }) => {
         trips.value.splice(tripIndex, 0, removedTrip)
-        toast.error(`Не удалось удалить путешествие: ${error}`)
+        toast.error(`Не удалось удалить путешествие: ${error.customMessage}`)
       },
     })
   }
@@ -218,7 +218,6 @@ export function useTripsHub() {
       return
 
     const originalTrip = { ...trips.value[tripIndex] }
-    // Оптимистичное обновление
     trips.value[tripIndex] = { ...originalTrip, ...updatedData }
 
     useRequest({
@@ -236,7 +235,7 @@ export function useTripsHub() {
         if (revertIndex !== -1) {
           trips.value[revertIndex] = originalTrip
         }
-        toast.error(`Не удалось обновить путешествие: ${error}`)
+        toast.error(`Не удалось обновить путешествие: ${error.customMessage}`)
       },
     })
   }

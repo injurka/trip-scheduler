@@ -1,6 +1,6 @@
 <script setup lang="ts">
-import type { PostDetail } from '../../models/types'
 import type { MapPoint } from '~/components/03.domain/trip-info/geolocation-section'
+import type { PostDetail } from '~/shared/types/models/post'
 import { KitDialogWithClose } from '~/components/01.kit/kit-dialog-with-close'
 import GeolocationMap from '~/components/03.domain/trip-info/geolocation-section/ui/geolocation-map.vue'
 
@@ -12,37 +12,33 @@ interface Props {
 const props = defineProps<Props>()
 const emit = defineEmits<{ (e: 'update:visible', value: boolean): void }>()
 
-// Извлекаем все точки из всех этапов
 const mapPoints = computed<MapPoint[]>(() => {
   const points: MapPoint[] = []
-
-  props.post.stages.forEach((stage, sIndex) => {
-    stage.blocks.forEach((block) => {
-      if (block.type === 'location' && block.coords && block.coords.lat) {
+  props.post.elements.forEach((element, sIndex) => {
+    element.content.forEach((block) => {
+      if (block.type === 'location' && block.location && block.location.lat) {
         points.push({
           id: block.id,
           type: 'poi',
-          coordinates: [block.coords.lng, block.coords.lat], // [lon, lat] for OpenLayers
-          address: block.address,
-          comment: block.name, // Используем имя места как комментарий над пином
+          coordinates: [block.location.lng, block.location.lat],
+          address: block.location.address,
+          comment: block.location.label,
           style: {
-            // Разные цвета для разных этапов для красоты
             color: getColorForIndex(sIndex),
           },
         })
       }
     })
   })
-
   return points
 })
 
-// Центрируем карту по первой точке или по локации поста
 const mapCenter = computed((): [number, number] => {
   if (mapPoints.value.length > 0) {
     return mapPoints.value[0].coordinates
   }
-  return [props.post.location.lng, props.post.location.lat]
+  // Используем корневые lat/lng поста
+  return [props.post.longitude, props.post.latitude]
 })
 
 function getColorForIndex(index: number) {
@@ -50,14 +46,7 @@ function getColorForIndex(index: number) {
   return colors[index % colors.length]
 }
 
-function handleMapReady() {
-  // Автоматически зумим, чтобы вместить все точки
-  setTimeout(() => {
-    // В реальном GeolocationMap есть метод fitViewToMarkers, но он внутри composable.
-    // Можно вызвать controller.fitViewToMarkers(), если он экспортирован.
-    // Для простоты пока оставим дефолтный зум.
-  }, 500)
-}
+function handleMapReady() { }
 </script>
 
 <template>

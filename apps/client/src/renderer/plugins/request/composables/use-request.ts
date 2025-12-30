@@ -81,11 +81,28 @@ export async function useRequest<T>(
         await onAbort?.()
       }
       else {
-        store.setError(key, e)
+        const responseData = e.response?.data || e.data
+
+        let serverMessage = null
+
+        if (Array.isArray(responseData) && responseData[0]?.error?.message) {
+          serverMessage = responseData[0].error.message
+        }
+        else if (responseData?.error?.message) {
+          serverMessage = responseData.error.message
+        }
+
+        const displayMessage = serverMessage || e.message || 'Произошла ошибка'
+
+        store.setError(key, displayMessage)
         store.setStatus(key, 'error')
-        console.error(`[useRequest Error] (key: ${key}): ${e}`)
-        await onError?.(e)
+
+        console.error(`[useRequest Error] (key: ${key}):`, displayMessage)
+
+        e.customMessage = displayMessage
+        await onError?.({ error: e })
       }
+
       return initialData
     }
     finally {

@@ -11,6 +11,7 @@ import type {
   IMemoryRepository,
   INotificationRepository,
   IPlacesRepository,
+  IPostRepository,
   ITripRepository,
   ITripSectionRepository,
   IUserRepository,
@@ -26,6 +27,7 @@ import { MarksRepository } from './repositories/marks.repository'
 import { MemoryRepository } from './repositories/memory.repository'
 import { NotificationRepository } from './repositories/notification.repository'
 import { PlacesRepository } from './repositories/places.repository'
+import { PostRepository } from './repositories/post.repository'
 import { TripSectionRepository } from './repositories/trip-section.repository'
 import { TripRepository } from './repositories/trip.repository'
 import { UserRepository } from './repositories/user.repository'
@@ -48,6 +50,7 @@ class TRPCDatabaseClient implements IDatabaseClient {
   places: IPlacesRepository = new PlacesRepository()
   marks: IMarksRepository = new MarksRepository()
   notification: INotificationRepository = new NotificationRepository()
+  posts: IPostRepository = new PostRepository()
 }
 
 export { TRPCDatabaseClient }

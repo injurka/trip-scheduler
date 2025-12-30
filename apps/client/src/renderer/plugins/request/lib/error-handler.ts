@@ -24,6 +24,8 @@ export interface IError {
   statusCode?: number
   // Общее сообщение об ошибке
   message?: string
+  // Отформатированное сообщение об ошибке
+  customMessage: string
 }
 
 export interface IErrorCallback {
