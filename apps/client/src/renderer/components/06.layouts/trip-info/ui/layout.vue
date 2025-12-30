@@ -123,7 +123,7 @@ onBeforeUnmount(() => {
                     </li>
                   </ul>
 
-                  <div v-if="store.auth.isAuthenticated" class="dropdown-footer">
+                  <div v-if="canEdit" class="dropdown-footer">
                     <button class="add-section-btn" @click="ui.openAddSectionDialog">
                       <Icon icon="mdi:plus-circle-outline" />
                       <span>Добавить раздел</span>

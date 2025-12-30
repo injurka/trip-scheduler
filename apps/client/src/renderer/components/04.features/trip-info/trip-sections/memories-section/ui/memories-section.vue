@@ -1,13 +1,15 @@
 <script setup lang="ts">
 import { Icon } from '@iconify/vue'
+import { useIntersectionObserver } from '@vueuse/core'
 import { KitImageViewer, useImageViewer } from '~/components/01.kit/kit-image-viewer'
+import { KitSkeleton } from '~/components/01.kit/kit-skeleton'
 import { useModuleStore } from '~/components/05.modules/trip-info/composables/use-trip-info-module'
 import { useMemoriesView } from '../composables/use-memories-view'
 import MemoriesFilters from './memories-filters.vue'
 import MemoriesGroup from './memories-group.vue'
 
 const store = useModuleStore(['memories', 'plan'])
-const { memories } = storeToRefs(store.memories)
+const { memories, isLoadingMemories } = storeToRefs(store.memories)
 
 const {
   filterDay,
@@ -18,7 +20,7 @@ const {
   viewerImages,
   allFilteredMemories,
   filterRating,
-  renderLimit,
+  hasMore,
   loadMore,
 } = useMemoriesView(memories)
 
@@ -32,32 +34,23 @@ function openViewer(memoryId: string) {
 }
 
 const loadMoreTrigger = ref<HTMLElement | null>(null)
-let observer: IntersectionObserver | null = null
+
+useIntersectionObserver(
+  loadMoreTrigger,
+  ([{ isIntersecting }]) => {
+    if (isIntersecting && hasMore.value) {
+      loadMore()
+    }
+  },
+  {
+    rootMargin: '200px',
+  },
+)
 
 onMounted(() => {
   if (store.plan.currentTripId) {
     store.memories.fetchMemories(store.plan.currentTripId)
   }
-
-  observer = new IntersectionObserver((entries) => {
-    const target = entries[0]
-    // Проверяем не только видимость, но и есть ли что загружать
-    if (target.isIntersecting && renderLimit.value < allFilteredMemories.value.length) {
-      loadMore()
-    }
-  }, {
-    rootMargin: '200px',
-    threshold: 0.1,
-  })
-
-  if (loadMoreTrigger.value) {
-    observer.observe(loadMoreTrigger.value)
-  }
-})
-
-onUnmounted(() => {
-  if (observer)
-    observer.disconnect()
 })
 </script>
 
@@ -71,7 +64,13 @@ onUnmounted(() => {
       :sort-options="sortOptions"
     />
 
-    <div v-if="allFilteredMemories.length === 0" class="empty-state">
+    <div v-if="isLoadingMemories && memories.length === 0" class="skeleton-grid">
+      <div v-for="i in 12" :key="i" class="skeleton-item">
+        <KitSkeleton width="100%" height="100%" />
+      </div>
+    </div>
+
+    <div v-else-if="allFilteredMemories.length === 0" class="empty-state">
       <Icon icon="mdi:image-filter-hdr" class="empty-icon" />
       <p>Фотографий не найдено</p>
       <span v-if="memories.length === 0" class="sub-text">Добавляйте фото в ленту дня или через меню загрузки.</span>
@@ -85,8 +84,9 @@ onUnmounted(() => {
         @click-image="openViewer"
       />
 
-      <div ref="loadMoreTrigger" class="load-trigger">
-        <span v-if="renderLimit < allFilteredMemories.length" class="loading-text">
+      <div v-if="hasMore" ref="loadMoreTrigger" class="load-trigger">
+        <span class="loading-text">
+          <Icon icon="mdi:loading" class="spin" />
           Загрузка фото...
         </span>
       </div>
@@ -117,14 +117,24 @@ onUnmounted(() => {
 }
 
 .load-trigger {
-  min-height: 40px;
+  min-height: 60px;
   width: 100%;
   display: flex;
   justify-content: center;
   align-items: center;
+  padding-bottom: 20px;
+}
+
+.loading-text {
+  display: flex;
+  align-items: center;
+  gap: 8px;
   color: var(--fg-tertiary-color);
   font-size: 0.9rem;
-  padding-bottom: 20px;
+}
+
+.spin {
+  animation: spin 1s linear infinite;
 }
 
 .empty-state {
@@ -154,6 +164,29 @@ onUnmounted(() => {
 
   .sub-text {
     font-size: 0.9rem;
+  }
+}
+
+.skeleton-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+  gap: 8px;
+  width: 100%;
+  margin-top: 48px;
+}
+
+.skeleton-item {
+  aspect-ratio: 1;
+  border-radius: var(--r-m);
+  overflow: hidden;
+}
+
+@keyframes spin {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
   }
 }
 </style>

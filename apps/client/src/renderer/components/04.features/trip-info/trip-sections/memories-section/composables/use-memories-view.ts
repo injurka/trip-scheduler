@@ -82,6 +82,10 @@ export function useMemoriesView(memories: Ref<Memory[]>) {
     return allFilteredMemories.value.slice(0, renderLimit.value)
   })
 
+  const hasMore = computed(() => {
+    return renderLimit.value < allFilteredMemories.value.length
+  })
+
   const groupedMemories = computed<GroupedMemory[]>(() => {
     const groups: Record<string, Memory[]> = {}
 
@@ -120,7 +124,7 @@ export function useMemoriesView(memories: Ref<Memory[]>) {
   })
 
   function loadMore() {
-    if (renderLimit.value < allFilteredMemories.value.length) {
+    if (hasMore.value) {
       renderLimit.value += BATCH_SIZE
     }
   }
@@ -142,6 +146,7 @@ export function useMemoriesView(memories: Ref<Memory[]>) {
     viewerImages,
     allFilteredMemories,
     renderLimit,
+    hasMore,
     loadMore,
   }
 }

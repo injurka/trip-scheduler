@@ -28,7 +28,7 @@ const emit = defineEmits<{
         @click="emit('click-image', item.id)"
       >
         <KitImage
-          :src="item.image?.variants?.small || item.image?.url"
+          :src="item.image?.variants?.medium || item.image?.url"
           object-fit="cover"
           class="photo-img"
         />
@@ -49,7 +49,7 @@ const emit = defineEmits<{
   gap: 12px;
 
   content-visibility: auto;
-  contain-intrinsic-size: 1px 250px; 
+  contain-intrinsic-size: 1px 250px;
 }
 
 .group-header {
@@ -57,6 +57,7 @@ const emit = defineEmits<{
   align-items: center;
   gap: 8px;
   padding-left: 4px;
+  margin-top: 16px;
 
   .group-title {
     font-size: 1.1rem;
