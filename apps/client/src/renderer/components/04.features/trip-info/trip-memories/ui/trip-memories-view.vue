@@ -18,6 +18,7 @@ import { useRequestError } from '~/plugins/request'
 import { useDisplay } from '~/shared/composables/use-display'
 import { useNotificationStore } from '~/shared/store/notification.store'
 import MemoriesList from './memories-list.vue'
+import DownloadStatusBanner from './state/download-status-banner.vue'
 import MemoriesEmpty from './state/memories-empty.vue'
 import MemoriesError from './state/memories-error.vue'
 import MemoriesSkeleton from './state/memories-skeleton.vue'
@@ -29,8 +30,16 @@ const fetchError = useRequestError(ETripMemoriesKeys.FETCH)
 const notificationStore = useNotificationStore()
 const confirm = useConfirm()
 
+const {
+  memoriesForSelectedDay,
+  getProcessingMemories,
+  isLoadingMemories,
+  downloadProgress,
+  isLocalModeEnabled,
+  canEnableLocalMode,
+  localBlobUrls,
+} = storeToRefs(memories)
 const { areAllMemoryGroupsCollapsed, isViewMode, activeView } = storeToRefs(ui)
-const { memoriesForSelectedDay, getProcessingMemories, isLoadingMemories } = storeToRefs(memories)
 const { getActivitiesForSelectedDay, getSelectedDay } = storeToRefs(tripData)
 
 const dropZoneRef = ref<HTMLDivElement | null>(null)
@@ -116,7 +125,31 @@ const timelineGroups = computed(() => {
 
 const galleryImages = computed<ImageViewerImage[]>(() => {
   return memoriesForSelectedDay.value
-    .map((memory: IMemory) => memoryToViewerImage(memory))
+    .map((memory: IMemory) => {
+      const img = memoryToViewerImage(memory)
+      if (!img)
+        return null
+
+      // Если включен локальный режим и есть локальная ссылка для этого изображения
+      if (isLocalModeEnabled.value && memory.imageId && localBlobUrls.value.has(memory.imageId)) {
+        const localUrl = localBlobUrls.value.get(memory.imageId)!
+
+        // Подменяем основной URL и все варианты на локальный Blob
+        // Это гарантирует, что Viewer откроет локальную версию мгновенно
+        return {
+          ...img,
+          url: localUrl,
+          variants: {
+            small: localUrl,
+            medium: localUrl,
+            large: localUrl,
+            original: localUrl,
+          },
+        }
+      }
+
+      return img
+    })
     .filter((img): img is NonNullable<typeof img> => !!img)
 })
 
@@ -235,6 +268,14 @@ async function handleNotifyParticipants() {
     isNotifyLoading.value = false
   }
 }
+
+const localModeTooltip = computed(() => {
+  if (!canEnableLocalMode.value)
+    return 'Скачайте фото, чтобы включить локальный режим'
+  return isLocalModeEnabled.value
+    ? 'Локальный режим: фото открываются мгновенно (с диска)'
+    : 'Сетевой режим: фото загружаются с сервера'
+})
 </script>
 
 <template>
@@ -243,6 +284,8 @@ async function handleNotifyParticipants() {
     class="memories-view"
     :class="{ 'is-fullscreen-mode': isFullScreen }"
   >
+    <DownloadStatusBanner :progress="downloadProgress" />
+
     <div class="divider-with-action">
       <KitDivider
         :is-loading="isLoadingMemories || memories.isCreatingMemory || memories.isMutateMemory"
@@ -251,6 +294,28 @@ async function handleNotifyParticipants() {
       </KitDivider>
 
       <div class="controls-wrapper">
+        <button
+          v-if="memoriesForSelectedDay.length > 0"
+          class="control-btn download-btn"
+          :class="{ 'is-active': downloadProgress.isDownloading }"
+          :disabled="downloadProgress.isDownloading"
+          title="Скачать оригиналы фото в папку"
+          @click="memories.downloadAllPhotosToFolder()"
+        >
+          <Icon icon="mdi:folder-download-outline" />
+        </button>
+
+        <button
+          v-if="canEnableLocalMode || isLocalModeEnabled"
+          class="control-btn local-mode-btn"
+          :class="{ 'is-active': isLocalModeEnabled }"
+          :title="localModeTooltip"
+          :disabled="!canEnableLocalMode"
+          @click="memories.toggleLocalMode()"
+        >
+          <Icon :icon="isLocalModeEnabled ? 'mdi:harddisk' : 'mdi:cloud-outline'" />
+        </button>
+
         <button
           v-if="!isViewMode && memoriesForSelectedDay.length > 0"
           class="control-btn notify-btn"
@@ -261,6 +326,7 @@ async function handleNotifyParticipants() {
         >
           <Icon :icon="isNotifyLoading ? 'mdi:loading' : 'mdi:bell-ring-outline'" :class="{ spin: isNotifyLoading }" />
         </button>
+
         <button
           v-if="mdAndUp && memoriesForSelectedDay.length > 0"
           class="control-btn fullscreen-btn"
@@ -447,10 +513,47 @@ async function handleNotifyParticipants() {
   font-size: 1.1rem;
   transition: all 0.2s ease;
 
-  &:hover {
+  &:hover:not(:disabled) {
     color: var(--fg-accent-color);
     border-color: var(--fg-accent-color);
     background-color: var(--bg-hover-color);
+  }
+
+  &:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+  }
+}
+
+.download-btn {
+  &.is-active {
+    color: var(--fg-accent-color);
+    border-color: var(--fg-accent-color);
+  }
+}
+
+.local-mode-btn {
+  &.is-active {
+    color: var(--fg-success-color);
+    border-color: var(--fg-success-color);
+    background-color: rgba(var(--fg-success-color-rgb), 0.1);
+
+    &:hover {
+      background-color: rgba(var(--fg-success-color-rgb), 0.2);
+    }
+  }
+}
+
+.spin {
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
   }
 }
 

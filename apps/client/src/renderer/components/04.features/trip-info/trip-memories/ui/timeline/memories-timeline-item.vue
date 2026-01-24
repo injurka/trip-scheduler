@@ -8,6 +8,7 @@ import { KitImage } from '~/components/01.kit/kit-image'
 import { KitImageViewer } from '~/components/01.kit/kit-image-viewer'
 import { KitInlineMdEditorWrapper } from '~/components/01.kit/kit-inline-md-editor'
 import { KitTimeField } from '~/components/01.kit/kit-time-field'
+import { useModuleStore } from '~/components/05.modules/trip-info/composables/use-trip-info-module'
 import { useMemoryImageViewer, useMemoryItemActions, useMorph } from '../../composables'
 
 interface Props {
@@ -31,15 +32,25 @@ const commentEditorRef = ref(null)
 const timeEditorRef = ref<HTMLElement | null>(null)
 const ratingMenuRef = ref<HTMLElement | null>(null)
 
+const { memories: memoriesStore } = useModuleStore(['memories'])
+const { isLocalModeEnabled, localBlobUrls } = storeToRefs(memoriesStore)
+
 const { width: windowWidth } = useWindowSize()
 const { isMorphed, morphStyle, placeholderStyle, enterMorph, leaveMorph } = useMorph(photoWrapperRef)
 const preferredQuality = useStorage<ImageQuality>('viewer-quality-preference', 'large')
 
 const isDesktop = computed(() => windowWidth.value >= 1024)
+
 const imageSrc = computed(() => {
   if (!props.memory.image)
     return ''
 
+  // Если включен локальный режим и есть скачанный Blob
+  if (isLocalModeEnabled.value && props.memory.imageId && localBlobUrls.value.has(props.memory.imageId)) {
+    return localBlobUrls.value.get(props.memory.imageId)
+  }
+
+  // Обычная логика (серверные URL)
   if (isMorphed.value || props.isFullScreen) {
     switch (preferredQuality.value) {
       case 'medium':
@@ -55,6 +66,7 @@ const imageSrc = computed(() => {
 
   if (isDesktop.value)
     return props.memory.image.variants?.medium || props.memory.image.url
+
   return props.memory.image.variants?.small || props.memory.image.url
 })
 
@@ -170,7 +182,7 @@ onClickOutside(ratingMenuRef, () => isRatingMenuOpen.value = false)
           <span>Приблизить</span>
         </button>
 
-        <div v-if="isMorphed" class="quality-controls" @click.stop>
+        <div v-if="isMorphed && !isLocalModeEnabled" class="quality-controls" @click.stop>
           <button
             class="quality-btn"
             :class="{ active: preferredQuality === 'medium' }"
@@ -203,6 +215,12 @@ onClickOutside(ratingMenuRef, () => isRatingMenuOpen.value = false)
             </div>
             <span>Оригинал</span>
           </button>
+        </div>
+        <div v-else-if="isMorphed && isLocalModeEnabled" class="quality-controls" @click.stop>
+          <div class="quality-badge-local">
+            <Icon icon="mdi:harddisk" />
+            <span>Локальный файл</span>
+          </div>
         </div>
 
         <div class="photo-overlay">
@@ -704,6 +722,20 @@ onClickOutside(ratingMenuRef, () => isRatingMenuOpen.value = false)
   &:hover {
     opacity: 1;
   }
+}
+
+.quality-badge-local {
+  background: rgba(0, 150, 0, 0.6);
+  backdrop-filter: blur(4px);
+  border: 1px solid rgba(255, 255, 255, 0.3);
+  color: white;
+  border-radius: 32px;
+  padding: 6px 12px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.9rem;
+  font-weight: 500;
 }
 
 .quality-btn {
