@@ -6,6 +6,7 @@ import { v4 as uuidv4 } from 'uuid'
 import { useTripPlanStore } from '~/components/04.features/trip-info/trip-plan'
 import { useAbortRequest, useRequest, useRequestStatus } from '~/plugins/request'
 import { getLocalDate } from '~/shared/lib/date-time'
+import { resolveApiUrl } from '~/shared/lib/url'
 import { TripImagePlacement } from '~/shared/types/models/trip'
 
 export interface IProcessingMemory {
@@ -31,6 +32,15 @@ export interface ITripInfoMemoriesState {
   memories: Memory[]
   processingMemories: Map<string, IProcessingMemory>
   currentTripId: string | null
+
+  localBlobUrls: Map<string, string>
+  isLocalModeEnabled: boolean
+  downloadProgress: {
+    current: number
+    total: number
+    loadedBytes: number
+    isDownloading: boolean
+  }
 }
 
 export const useTripMemoriesStore = defineStore('tripMemories', {
@@ -38,6 +48,10 @@ export const useTripMemoriesStore = defineStore('tripMemories', {
     memories: [],
     processingMemories: new Map(),
     currentTripId: null,
+
+    localBlobUrls: new Map(),
+    isLocalModeEnabled: false,
+    downloadProgress: { current: 0, total: 0, loadedBytes: 0, isDownloading: false },
   }),
 
   getters: {
@@ -83,16 +97,12 @@ export const useTripMemoriesStore = defineStore('tripMemories', {
       )
     },
 
-    memoriesWithGeo(state): Memory[] {
-      return state.memories.filter(
-        (m): m is Memory & { image: TripImage & { latitude: number, longitude: number } } =>
-          !!m.image?.latitude && !!m.image?.longitude,
-      )
+    canEnableLocalMode(state): boolean {
+      return state.localBlobUrls.size > 0
     },
   },
 
   actions: {
-
     fetchMemories(tripId: string) {
       if (this.currentTripId === tripId && this.memories.length > 0)
         return
@@ -348,8 +358,119 @@ export const useTripMemoriesStore = defineStore('tripMemories', {
       })
     },
 
+    async downloadAllPhotosToFolder() {
+      if (!('showDirectoryPicker' in window)) {
+        useToast().error(`Ваш браузер не поддерживает сохранение в папки (File System Access API). Используйте Chrome, Edge или Opera на десктопе.`)
+        return
+      }
+
+      const photosToDownload = this.memoriesForSelectedDay.filter(m => !!m.image)
+      if (photosToDownload.length === 0)
+        return
+
+      try {
+        // @ts-expect-error - File System Access API types
+        const dirHandle = await window.showDirectoryPicker()
+
+        this.downloadProgress.isDownloading = true
+        this.downloadProgress.total = photosToDownload.length
+        this.downloadProgress.current = 0
+        this.downloadProgress.loadedBytes = 0
+
+        for (const memory of photosToDownload) {
+          if (!memory.image || !memory.image.url)
+            continue
+
+          try {
+            // 1. Получаем абсолютный URL через хелпер, чтобы запрос ушел на сервер API, а не на клиент
+            const url = resolveApiUrl(memory.image.url)
+
+            // 2. Скачиваем Blob
+            const response = await fetch(url)
+            if (!response.ok)
+              throw new Error(`Failed to fetch ${url}`)
+
+            const blob = await response.blob()
+            this.downloadProgress.loadedBytes += blob.size
+
+            // 3. Формируем имя файла
+            // Формат: YYYY-MM-DD_HH-mm-ss_ID.ext
+            let filename = `photo_${memory.id.slice(0, 8)}.jpg`
+
+            if (memory.timestamp) {
+              const date = new Date(memory.timestamp)
+              const dateStr = date.toISOString().split('T')[0]
+              const timeStr = date.toTimeString().split(' ')[0].replace(/:/g, '-')
+              filename = `${dateStr}_${timeStr}_${memory.id.slice(0, 5)}.jpg`
+            }
+
+            // Определяем расширение из MIME типа, если возможно
+            const mimeType = blob.type
+            if (mimeType === 'image/png')
+              filename = filename.replace('.jpg', '.png')
+            else if (mimeType === 'image/webp')
+              filename = filename.replace('.jpg', '.webp')
+            else if (mimeType === 'image/jpeg')
+              filename = filename.replace('.png', '.jpg') // normalize
+
+            // 4. Сохраняем файл на диск
+            const fileHandle = await dirHandle.getFileHandle(filename, { create: true })
+            const writable = await fileHandle.createWritable()
+            await writable.write(blob)
+            await writable.close()
+
+            // 5. Сохраняем Blob URL для локального режима
+            if (memory.imageId) {
+              // Если уже был URL для этого ID, освобождаем память
+              if (this.localBlobUrls.has(memory.imageId)) {
+                URL.revokeObjectURL(this.localBlobUrls.get(memory.imageId)!)
+              }
+              const localUrl = URL.createObjectURL(blob)
+              this.localBlobUrls.set(memory.imageId, localUrl)
+            }
+          }
+          catch (e) {
+            console.error(`Failed to download photo ${memory.id}`, e)
+          }
+          finally {
+            this.downloadProgress.current++
+          }
+        }
+
+        // Автоматически включаем локальный режим, если скачали что-то
+        if (this.localBlobUrls.size > 0) {
+          this.isLocalModeEnabled = true
+          useToast().success(`Успешно скачано ${this.downloadProgress.current} фото. Включен локальный режим просмотра.`)
+        }
+      }
+      catch (err: any) {
+        if (err.name !== 'AbortError') {
+          console.error('Download error:', err)
+          useToast().error('Ошибка при скачивании фотографий.')
+        }
+      }
+      finally {
+        this.downloadProgress.isDownloading = false
+      }
+    },
+
+    toggleLocalMode() {
+      if (this.localBlobUrls.size === 0 && !this.isLocalModeEnabled) {
+        useToast().info('Нет скачанных локально фотографий.')
+        return
+      }
+      this.isLocalModeEnabled = !this.isLocalModeEnabled
+    },
+
     reset() {
       this.getProcessingMemories.forEach(p => this.cancelMemoryUpload(p.tempId))
+
+      // Очистка Blob URLs
+      this.localBlobUrls.forEach(url => URL.revokeObjectURL(url))
+      this.localBlobUrls.clear()
+      this.isLocalModeEnabled = false
+      this.downloadProgress = { current: 0, total: 0, loadedBytes: 0, isDownloading: false }
+
       this.memories = []
       this.processingMemories.clear()
       this.currentTripId = null
