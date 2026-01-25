@@ -24,9 +24,9 @@ const route = useRoute()
 const router = useRouter()
 const { smAndDown } = useDisplay()
 
+// @ts-expect-error используются в template
 const { mainNavigationRef, navigationWrapperRef } = layout
 const { plan, ui, routeGallery, memories, sections } = useModuleStore(['plan', 'ui', 'routeGallery', 'memories', 'sections'])
-const store = useAppStore(['auth'])
 const { canEdit } = useTripPermissions()
 const { mdAndDown } = useDisplay()
 
@@ -186,7 +186,7 @@ onBeforeUnmount(() => {
         <span>{{ item.label }}</span>
       </li>
     </ul>
-    <div class="drawer-footer">
+    <div v-if="canEdit" class="drawer-footer">
       <button
         class="add-section-btn"
         @click=" ui.openAddSectionDialog(), layout.isDrawerOpen.value = false "

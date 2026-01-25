@@ -1,7 +1,9 @@
+--- File: ui/kit-image-viewer.vue ---
+
 <script setup lang="ts">
 import type { IImageViewerImageMeta, ImageQuality, ImageViewerImage } from '../models/types'
 import { Icon } from '@iconify/vue'
-import { onClickOutside, toRef } from '@vueuse/core'
+import { onClickOutside, toRef, useIdle } from '@vueuse/core'
 import { useRequest } from '~/plugins/request'
 import { resolveApiUrl } from '~/shared/lib/url'
 import { useImageViewerTransform, useSwipeNavigation } from '../composables'
@@ -53,11 +55,17 @@ const emit = defineEmits<Emits>()
 
 const preferredQuality = useStorage<ImageQuality>('viewer-quality-preference', 'large')
 
+// --- Idle & Visibility Logic ---
+// Исключаем 'keydown' из событий, чтобы стрелки клавиатуры не будили интерфейс
+const { idle: isIdle } = useIdle(3000, {
+  events: ['mousemove', 'mousedown', 'resize', 'touchstart', 'wheel'],
+})
+
 const viewerContentRef = ref<HTMLElement | null>(null)
 const imageRef = ref<HTMLImageElement | null>(null)
 const containerRef = ref<HTMLElement | null>(null)
 const naturalSize = reactive({ width: 0, height: 0 })
-const isUiVisible = ref(true)
+const isUiVisible = ref(true) // Ручной переключатель (глаз)
 const isMetadataPanelVisible = ref(false)
 const isMetadataLoading = ref(false)
 
@@ -110,6 +118,21 @@ const {
 
 const isZoomed = computed(() => transform.scale > props.minZoom)
 
+// Вычисляем, должны ли отображаться контролы (хедер и тамбнейлы)
+const areControlsVisible = computed(() => {
+  // Если выключено вручную через "глаз" - скрываем
+  if (!isUiVisible.value)
+    return false
+  // Если открыта панель метаданных - показываем всегда
+  if (isMetadataPanelVisible.value)
+    return true
+  // Если пользователь зумит или перетаскивает - показываем
+  if (isDragging.value || isZoomed.value)
+    return true
+  // Иначе зависим от активности мыши/тача (но не клавиатуры)
+  return !isIdle.value
+})
+
 const {
   prevImageSrc,
   nextImageSrc,
@@ -160,12 +183,24 @@ watch(currentImageSrc, (src) => {
 watch(() => props.currentIndex, () => {
   resetTransform()
   isMetadataPanelVisible.value = false
+  // Скроллим к активному тамбнейлу, если интерфейс виден
+  scrollToActiveThumbnail()
+})
+
+// Если интерфейс появился (например, пользователь подвигал мышкой после навигации клавиатурой),
+// нужно убедиться, что активный тамбнейл в поле зрения.
+watch(areControlsVisible, (visible) => {
+  if (visible) {
+    // nextTick нужен, так как элемент появляется через v-if
+    nextTick(() => scrollToActiveThumbnail())
+  }
 })
 
 watch(() => props.visible, (isVisible) => {
   if (isVisible) {
     document.body.style.overflow = 'hidden'
     isUiVisible.value = true
+    nextTick(() => scrollToActiveThumbnail())
   }
   else {
     document.body.style.overflow = ''
@@ -265,6 +300,17 @@ function goToIndex(index: number) {
     emit('update:currentIndex', index)
 }
 
+// Скролл тамбнейлов к активному элементу
+const thumbnailsWrapperRef = ref<HTMLElement | null>(null)
+function scrollToActiveThumbnail() {
+  if (!thumbnailsWrapperRef.value)
+    return
+  const activeBtn = thumbnailsWrapperRef.value.children[props.currentIndex] as HTMLElement
+  if (activeBtn) {
+    activeBtn.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'center' })
+  }
+}
+
 onClickOutside(viewerContentRef, () => {
   if (props.closeOnOverlayClick && props.visible && !isDragging.value && transform.scale <= props.minZoom && !isMetadataPanelVisible.value)
     close()
@@ -288,36 +334,40 @@ onUnmounted(() => {
         @touchcancel="handleTouchEndCombined"
       >
         <div ref="viewerContentRef" class="viewer-wrapper">
-          <div class="viewer-header">
-            <div v-if="isUiVisible" class="header-content-wrapper">
-              <div class="header-left">
-                <div v-if="showCounter && hasMultipleImages" class="viewer-counter">
-                  {{ currentIndex + 1 }} / {{ images.length }}
+          <!-- Header -->
+          <Transition name="controls-fade">
+            <div v-if="areControlsVisible" class="viewer-header">
+              <div class="header-content-wrapper">
+                <div class="header-left">
+                  <div v-if="showCounter && hasMultipleImages" class="viewer-counter">
+                    {{ currentIndex + 1 }} / {{ images.length }}
+                  </div>
+                </div>
+                <div class="header-center">
+                  <div v-if="transform.scale > minZoom" class="scale-indicator">
+                    {{ Math.round(transform.scale * 100) }}%
+                  </div>
                 </div>
               </div>
-              <div class="header-center">
-                <div v-if="transform.scale > minZoom" class="scale-indicator">
-                  {{ Math.round(transform.scale * 100) }}%
-                </div>
+              <div class="header-right">
+                <KitViewerControls
+                  v-model:is-ui-visible="isUiVisible"
+                  v-model:quality="preferredQuality"
+                  :can-zoom-in="canZoomIn"
+                  :can-zoom-out="canZoomOut"
+                  :is-zoomed="isZoomed"
+                  :has-metadata="true"
+                  :is-metadata-loading="isMetadataLoading"
+                  :show-quality-selector="showQualitySelector"
+                  :show-info-button="showInfoButton"
+                  @reset-transform="resetTransform"
+                  @show-metadata="handleShowMetadata"
+                  @close="close"
+                />
               </div>
             </div>
-            <div class="header-right">
-              <KitViewerControls
-                v-model:is-ui-visible="isUiVisible"
-                v-model:quality="preferredQuality"
-                :can-zoom-in="canZoomIn"
-                :can-zoom-out="canZoomOut"
-                :is-zoomed="isZoomed"
-                :has-metadata="true"
-                :is-metadata-loading="isMetadataLoading"
-                :show-quality-selector="showQualitySelector"
-                :show-info-button="showInfoButton"
-                @reset-transform="resetTransform"
-                @show-metadata="handleShowMetadata"
-                @close="close"
-              />
-            </div>
-          </div>
+          </Transition>
+
           <div class="viewer-content">
             <div ref="containerRef" class="image-container">
               <div class="swipe-container" :style="containerStyle">
@@ -374,7 +424,7 @@ onUnmounted(() => {
               />
             </div>
           </div>
-          <div v-if="$slots.footer && isUiVisible" class="viewer-footer">
+          <div v-if="$slots.footer && areControlsVisible" class="viewer-footer">
             <slot
               name="footer"
               :image="currentImage"
@@ -382,21 +432,23 @@ onUnmounted(() => {
               :transform="transform"
             />
           </div>
-          <div v-if="enableThumbnails && hasMultipleImages && isUiVisible" class="thumbnails-container">
-            <div class="thumbnails-wrapper">
-              <button
-                v-for="(image, index) in images"
-                :key="`thumb-${index}`"
-                class="thumbnail"
-                :class="{ active: index === currentIndex }"
-                :title="`Go to image ${index + 1}`"
-                @click="goToIndex(index)"
-              >
-                <img v-resolve-src="image.variants?.small || image.url" :alt="image.alt || `Thumbnail ${index + 1}`">
-                <div v-if="index === currentIndex" class="thumbnail-indicator" />
-              </button>
+          <!-- Thumbnails -->
+          <Transition name="controls-fade">
+            <div v-if="enableThumbnails && hasMultipleImages && areControlsVisible" class="thumbnails-container">
+              <div ref="thumbnailsWrapperRef" class="thumbnails-wrapper">
+                <button
+                  v-for="(image, index) in images"
+                  :key="`thumb-${index}`"
+                  class="thumbnail"
+                  :class="{ active: index === currentIndex }"
+                  :title="`Go to image ${index + 1}`"
+                  @click.stop="goToIndex(index)"
+                >
+                  <img v-resolve-src="image.variants?.small || image.url" :alt="image.alt || `Thumbnail ${index + 1}`">
+                </button>
+              </div>
             </div>
-          </div>
+          </Transition>
         </div>
         <ImageMetadataPanel
           v-if="currentImageMeta"
@@ -413,7 +465,7 @@ onUnmounted(() => {
 .image-viewer-overlay {
   position: fixed;
   inset: 0;
-  background: rgba(0, 0, 0, 0.9);
+  background: rgba(0, 0, 0, 0.95);
   z-index: 21;
   display: flex;
   flex-direction: column;
@@ -443,6 +495,7 @@ onUnmounted(() => {
   padding: 20px;
   z-index: 10;
   pointer-events: none;
+  background: linear-gradient(to bottom, rgba(0, 0, 0, 0.6) 0%, rgba(0, 0, 0, 0) 100%);
 
   & > * {
     pointer-events: auto;
@@ -480,13 +533,14 @@ onUnmounted(() => {
 
 .viewer-counter,
 .scale-indicator {
-  background: var(--bg-tertiary-color);
-  color: var(--fg-primary-color);
+  background: rgba(0, 0, 0, 0.5);
+  backdrop-filter: blur(4px);
+  color: #fff;
   padding: 8px 16px;
   border-radius: var(--r-full);
   font-size: 14px;
   font-weight: 500;
-  border: 1px solid var(--border-primary-color);
+  border: 1px solid rgba(255, 255, 255, 0.1);
   white-space: nowrap;
 }
 
@@ -570,7 +624,7 @@ onUnmounted(() => {
   position: absolute;
   top: 0;
   bottom: 0;
-  width: 25%;
+  width: 15%;
   z-index: 2;
   cursor: pointer;
 }
@@ -584,10 +638,11 @@ onUnmounted(() => {
 .viewer-footer,
 .thumbnails-container {
   position: absolute;
-  left: 50%;
-  transform: translateX(-50%);
-  max-width: calc(100% - 40px);
+  left: 0;
+  right: 0;
   pointer-events: none;
+  z-index: 10;
+
   & > * {
     pointer-events: auto;
   }
@@ -596,8 +651,6 @@ onUnmounted(() => {
 .viewer-footer {
   bottom: 0;
   padding: 8px 0;
-  width: 100%;
-  max-width: none;
   display: flex;
   justify-content: center;
 
@@ -608,59 +661,74 @@ onUnmounted(() => {
 
 .thumbnails-container {
   bottom: 20px;
+  display: flex;
+  justify-content: center;
+  width: 100%;
 }
 
 .thumbnails-wrapper {
   display: flex;
-  gap: 8px;
-  padding: 12px;
-  background: var(--bg-tertiary-color);
-  border-radius: var(--r-l);
-  border: 1px solid var(--border-primary-color);
+  gap: 10px;
+  padding: 10px 20px;
+  /* Убрали фон и бордер, как просил пользователь */
+  background: transparent;
+  border: none;
+
+  /* Исправляем скролл */
   overflow-x: auto;
-  scrollbar-width: none;
+  max-width: 100%;
+  /* Маска для красивого затухания по краям */
+  mask-image: linear-gradient(to right, transparent, black 5%, black 95%, transparent);
+  -webkit-mask-image: linear-gradient(to right, transparent, black 5%, black 95%, transparent);
+
+  scrollbar-width: thin;
+  scrollbar-color: rgba(255, 255, 255, 0.3) transparent;
 
   &::-webkit-scrollbar {
-    display: none;
+    height: 4px;
+  }
+  &::-webkit-scrollbar-track {
+    background: transparent;
+  }
+  &::-webkit-scrollbar-thumb {
+    background-color: rgba(255, 255, 255, 0.3);
+    border-radius: 4px;
   }
 }
 
 .thumbnail {
   position: relative;
   flex-shrink: 0;
-  width: 60px;
-  height: 60px;
+  width: 56px;
+  height: 56px;
   border-radius: var(--r-s);
   overflow: hidden;
   cursor: pointer;
-  transition: all 0.2s ease;
+  transition: all 0.2s cubic-bezier(0.25, 0.8, 0.25, 1);
   border: 2px solid transparent;
+  opacity: 0.6;
+  background: #000;
+  padding: 0;
 
   &:hover {
-    transform: scale(1.05);
+    opacity: 0.9;
+    transform: translateY(-2px);
   }
 
   &.active {
-    border-color: var(--border-focus-color);
+    opacity: 1;
+    border-color: var(--fg-accent-color);
     transform: scale(1.1);
+    z-index: 1;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.5);
   }
 
   img {
     width: 100%;
     height: 100%;
     object-fit: cover;
+    display: block;
   }
-}
-
-.thumbnail-indicator {
-  position: absolute;
-  bottom: 2px;
-  left: 50%;
-  transform: translateX(-50%);
-  width: 6px;
-  height: 6px;
-  background: var(--fg-accent-color);
-  border-radius: var(--r-full);
 }
 
 // --- Swipe Styles ---
@@ -698,14 +766,36 @@ onUnmounted(() => {
   border-radius: var(--r-2xs);
 }
 
+/* Transitions */
+
 .viewer-fade-enter-active,
 .viewer-fade-leave-active {
-  transition: opacity 0.2s ease;
+  transition: opacity 0.25s ease;
 }
 .viewer-fade-enter-from,
 .viewer-fade-leave-to {
   opacity: 0;
 }
+
+.controls-fade-enter-active,
+.controls-fade-leave-active {
+  transition:
+    opacity 0.3s ease,
+    transform 0.3s ease;
+}
+.controls-fade-enter-from,
+.controls-fade-leave-to {
+  opacity: 0;
+}
+/* Header slides up slightly when hiding */
+.viewer-header.controls-fade-leave-to {
+  transform: translateY(-10px);
+}
+/* Thumbnails slide down slightly when hiding */
+.thumbnails-container.controls-fade-leave-to {
+  transform: translateY(10px);
+}
+
 .loader-fade-enter-active {
   transition: opacity 0.2s ease-in;
   transition-delay: 150ms;
@@ -775,16 +865,16 @@ onUnmounted(() => {
   }
   .thumbnails-container {
     bottom: 16px;
-    max-width: calc(100% - 32px);
   }
   .thumbnail {
-    width: 48px;
-    height: 48px;
+    width: 44px;
+    height: 44px;
   }
 }
 @include media-down(sm) {
   .viewer-header {
     display: block;
+    background: transparent;
   }
   .header-left {
     justify-content: flex-start;
