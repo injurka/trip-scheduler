@@ -130,12 +130,9 @@ const galleryImages = computed<ImageViewerImage[]>(() => {
       if (!img)
         return null
 
-      // Если включен локальный режим и есть локальная ссылка для этого изображения
       if (isLocalModeEnabled.value && memory.imageId && localBlobUrls.value.has(memory.imageId)) {
         const localUrl = localBlobUrls.value.get(memory.imageId)!
 
-        // Подменяем основной URL и все варианты на локальный Blob
-        // Это гарантирует, что Viewer откроет локальную версию мгновенно
         return {
           ...img,
           url: localUrl,

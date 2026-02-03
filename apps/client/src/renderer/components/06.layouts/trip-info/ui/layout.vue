@@ -242,6 +242,7 @@ onBeforeUnmount(() => {
   flex-direction: column;
   flex: 1;
   position: relative;
+  overflow: hidden;
   margin-top: -56px;
   padding-top: 56px;
 
@@ -269,6 +270,7 @@ onBeforeUnmount(() => {
     .nav-button {
       width: 40px;
       height: 40px;
+      box-shadow: var(--s-s);
       border-radius: var(--r-full);
       border: 1px solid transparent;
       background-color: var(--bg-secondary-color);
@@ -680,6 +682,14 @@ onBeforeUnmount(() => {
       order: 3;
       width: 100%;
       justify-content: center;
+      background-color: var(--bg-secondary-color);
+      border-radius: var(--r-m);
+      box-shadow: var(--s-s);
+
+      .current-section {
+        width: 100%;
+        justify-content: center;
+      }
     }
 
     &-left {
