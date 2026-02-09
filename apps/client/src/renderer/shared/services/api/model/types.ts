@@ -10,10 +10,10 @@ import type {
 import type { CreateMemoryInput, Memory, UpdateMemoryInput } from '~/shared/types/models/memory'
 import type { Place, PlaceTag } from '~/shared/types/models/place'
 import type {
-  PostDetail,
   CreatePostInput,
-  UpdatePostInput,
   ListPostsFilters,
+  PostDetail,
+  UpdatePostInput,
 } from '~/shared/types/models/post'
 import type {
   CreateTripInput,

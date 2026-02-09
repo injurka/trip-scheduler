@@ -27,7 +27,7 @@ export function useMemoryImageViewer(props: UseMemoryImageViewerProps) {
   const formattedActiveViewerTime = computed(() => {
     if (!activeViewerTime.value)
       return ''
-    
+
     const hours = String(activeViewerTime.value.hour).padStart(2, '0')
     const minutes = String(activeViewerTime.value.minute).padStart(2, '0')
 

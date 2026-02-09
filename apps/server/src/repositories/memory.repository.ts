@@ -2,7 +2,7 @@ import type { z } from 'zod'
 import type { CreateMemoryInputSchema, GetMemoriesInputSchema, UpdateMemoryInputSchema } from '~/modules/memory/memory.schemas'
 import { db } from 'db'
 import { memories, tripImages } from 'db/schema'
-import { and, asc, desc, eq, gte, lte, sql } from 'drizzle-orm'
+import { and, asc, eq, gte, lte, sql } from 'drizzle-orm'
 
 export const memoryRepository = {
   /**

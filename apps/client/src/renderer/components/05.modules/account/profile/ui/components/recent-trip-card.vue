@@ -133,9 +133,11 @@ const statusInfo = computed(() => {
   position: absolute;
   top: -1px;
   right: -1px;
-  padding: 0.5rem 0.75rem;
+  padding: 0.5rem 0.5rem;
   border-bottom-left-radius: var(--r-m);
   font-size: 1rem;
+  height: 32px;
+  width: 32px;
 
   &.completed {
     background-color: var(--bg-success-color);

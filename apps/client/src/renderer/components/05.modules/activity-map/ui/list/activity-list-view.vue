@@ -1,5 +1,4 @@
 <script setup lang="ts">
-import type { CalendarDate } from '@internationalized/date'
 import type { DateRange } from '../../models/types'
 import type { ActivityItem } from '../activity-map.vue'
 import { Icon } from '@iconify/vue'

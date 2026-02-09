@@ -34,7 +34,7 @@ export function useGeolocationRoutes(mapApiRef: Ref<GeolocationMapApi | undefine
       color: POI_COLORS[routes.value.length % POI_COLORS.length],
     }
 
-    routes.value = [...routes.value, newRoute] 
+    routes.value = [...routes.value, newRoute]
     mapApiRef.value.addOrUpdatePoint(startPoint)
     return newRoute
   }

@@ -399,6 +399,14 @@ provide(TripsHubKey, tripsHub)
     .travel-card-wrapper {
       flex-basis: 460px;
       flex-grow: 1;
+
+      .travel-card {
+        height: 100%;
+
+        .card-description {
+          flex-grow: 1;
+        }
+      }
     }
   }
 

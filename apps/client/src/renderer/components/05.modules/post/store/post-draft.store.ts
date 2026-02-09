@@ -17,7 +17,7 @@ function defaultPostState(): PostDetail {
     longitude: 0,
     tags: [],
     media: [],
-    elements: [], 
+    elements: [],
     statsDetail: { views: 0, budget: '', duration: '' },
     stages: [
       { id: uuidv4(), title: 'Начало', order: 0, blocks: [] },
@@ -138,10 +138,25 @@ export const usePostDraftStore = defineStore('post-draft', {
 
       const newBlock: any = { id: uuidv4(), type }
 
-      if (type === 'text') { newBlock.content = '' }
-      else if (type === 'gallery') { newBlock.images = []; newBlock.comment = '' }
-      else if (type === 'location') { newBlock.coords = { lat: 0, lng: 0 }; newBlock.name = ''; newBlock.address = '' }
-      else if (type === 'route') { newBlock.from = ''; newBlock.to = ''; newBlock.distance = ''; newBlock.duration = ''; newBlock.transport = 'walk' }
+      if (type === 'text') {
+        newBlock.content = ''
+      }
+      else if (type === 'gallery') {
+        newBlock.images = []
+        newBlock.comment = ''
+      }
+      else if (type === 'location') {
+        newBlock.coords = { lat: 0, lng: 0 }
+        newBlock.name = ''
+        newBlock.address = ''
+      }
+      else if (type === 'route') {
+        newBlock.from = ''
+        newBlock.to = ''
+        newBlock.distance = ''
+        newBlock.duration = ''
+        newBlock.transport = 'walk'
+      }
 
       stage.blocks.push(newBlock)
       this.isDirty = true
@@ -150,7 +165,9 @@ export const usePostDraftStore = defineStore('post-draft', {
     removeBlock(stageId: string, blockId: string) {
       if (!this.post.stages)
         return
+
       const stage = this.post.stages.find(s => s.id === stageId)
+
       if (stage) {
         stage.blocks = stage.blocks.filter(b => b.id !== blockId)
         this.isDirty = true

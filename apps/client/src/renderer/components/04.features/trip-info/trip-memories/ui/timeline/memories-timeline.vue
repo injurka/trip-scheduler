@@ -33,7 +33,7 @@ const timelineGroups = computed(() => {
         memories: [],
         activity: null,
       }
-      groups.unshift(startGroup) 
+      groups.unshift(startGroup)
     }
     return startGroup
   }

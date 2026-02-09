@@ -109,7 +109,7 @@ export const SingleImage: Story = {
   render: createRender(singleImage),
   // @ts-expect-error ...
   args: {
-    showCounter: true, 
+    showCounter: true,
   },
 }
 

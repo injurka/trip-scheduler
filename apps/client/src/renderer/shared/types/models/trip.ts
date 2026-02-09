@@ -134,7 +134,7 @@ export enum TripSectionType {
   DOCUMENTS = 'documents',
   MAP = 'map',
   CUSTOM = 'custom',
-  MEMORIES ='memories'
+  MEMORIES = 'memories',
 }
 
 export interface TripSection {
