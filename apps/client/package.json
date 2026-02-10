@@ -24,7 +24,7 @@
     "electron:dev": "electron-vite dev --config build/vite.config.electron.ts",
     "electron:build": "electron-vite build --config build/vite.config.electron.ts",
     "electron:build:linux:x64": "electron-vite build --config build/vite.config.electron.ts && electron-builder --linux --x64",
-    "electron:build:win:x64": "bun run build && electron-builder --win --x64",
+    "electron:build:win:x64": "electron-vite build --config build/vite.config.electron.ts && electron-builder --win --x64",
     "--------------------------------<   CAPACITOR   >---------------------------------": "",
     "cap:sync": "bun run build && bunx cap sync",
     "cap:open:android": "bunx cap open android",

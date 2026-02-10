@@ -1,3 +1,1 @@
-import GallerySection from './gallery-section.vue'
-
-export { GallerySection }
+export { default as GallerySection } from './gallery-section.vue'
