@@ -1,11 +1,11 @@
 <script setup>
 import { useHead, useSeoMeta } from '@vueuse/head'
+import { AppTitleBar } from '~/components/02.shared/app-title-bar'
 import { ConfirmDialogManager } from '~/components/02.shared/confirm-dialog-manager'
 import { OfflineBanner } from '~/components/02.shared/offline-banner'
 import { OfflineProgressDialog } from '~/components/02.shared/offline-manager'
 import { ReloadPrompt } from '~/components/02.shared/reload-prompt'
 import { ToastManager } from '~/components/02.shared/toast-manager'
-import { WindowControls } from '~/components/02.shared/window-controls'
 
 import { FloatingMap } from '~/components/04.features/floating-map'
 import { DefaultLayout } from '~/components/06.layouts/default'
@@ -36,6 +36,9 @@ const siteUrl = 'https://trip-scheduler.ru'
 const siteName = 'Trip Scheduler'
 
 const description = 'Trip Scheduler — удобный планировщик путешествий. Создавайте маршруты, сохраняйте воспоминания и организуйте свои поездки в одном месте.'
+
+const isElectron = typeof window !== 'undefined' && !!window.electronAPI
+const titleBarHeight = isElectron ? '32px' : '0px'
 
 useHead({
   titleTemplate: (titleChunk) => {
@@ -96,7 +99,7 @@ useSeoMeta({
 </script>
 
 <template>
-  <WindowControls />
+  <AppTitleBar />
   <OfflineBanner />
 
   <component :is="layouts[layout]">
@@ -116,3 +119,14 @@ useSeoMeta({
   <ConfirmDialogManager />
   <OfflineProgressDialog />
 </template>
+
+<style lang="scss">
+:root {
+  --title-bar-height: v-bind(titleBarHeight);
+}
+
+body {
+  padding-top: var(--title-bar-height);
+  background-color: var(--bg-primary-color);
+}
+</style>
