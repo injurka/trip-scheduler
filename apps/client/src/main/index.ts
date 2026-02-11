@@ -1,16 +1,12 @@
 import { dirname, join } from 'node:path'
 import process from 'node:process'
 import { fileURLToPath } from 'node:url'
-import { app, BrowserWindow, shell } from 'electron'
+import { app, BrowserWindow, ipcMain, shell } from 'electron'
 import isDev from 'electron-is-dev'
 
 const currentDir = dirname(fileURLToPath(import.meta.url))
 
 const VITE_DEV_SERVER_URL = process.env.VITE_DEV_SERVER_URL
-
-// TODO Later
-// const dbPath = isDev ? 'trip-scheduler.db' : join(app.getPath('userData'), 'trip-scheduler.db')
-// const db = new Database(dbPath)
 
 function createWindow() {
   const win = new BrowserWindow({
@@ -60,29 +56,22 @@ app.on('activate', () => {
     createWindow()
 })
 
-// TODO Later
-// ipcMain.handle('db:query', (_, sql, params) => {
-//   try {
-//     const stmt = db.prepare(sql)
-//     const data = stmt.all(params)
-//     return { data, error: null }
-//   }
-//   catch (error: any) {
-//     console.error('DB Query Error:', error)
-//     return { data: null, error: error.message }
-//   }
-// })
+ipcMain.handle('window:minimize', () => {
+  const win = BrowserWindow.getFocusedWindow()
+  win?.minimize()
+})
 
-// TODO Later
-// ipcMain.handle('db:execute', (_, sql, params) => {
-//   try {
-//     const stmt = db.prepare(sql)
-//     const info = stmt.run(params)
-//     const data = { rowsAffected: info.changes, lastInsertId: info.lastInsertRowid }
-//     return { data, error: null }
-//   }
-//   catch (error: any) {
-//     console.error('DB Execute Error:', error)
-//     return { data: null, error: error.message }
-//   }
-// })
+ipcMain.handle('window:maximize', () => {
+  const win = BrowserWindow.getFocusedWindow()
+  if (win?.isMaximized()) {
+    win.unmaximize()
+  }
+  else {
+    win?.maximize()
+  }
+})
+
+ipcMain.handle('window:close', () => {
+  const win = BrowserWindow.getFocusedWindow()
+  win?.close()
+})

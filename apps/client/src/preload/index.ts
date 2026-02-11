@@ -2,9 +2,10 @@ import { contextBridge, ipcRenderer } from 'electron'
 
 // API, которое будет доступно в вашем Vue-приложении через `window.electronAPI`
 const electronAPI = {
-  db: {
-    query: (sql: string, params?: any[]) => ipcRenderer.invoke('db:query', sql, params),
-    execute: (sql: string, params?: any[]) => ipcRenderer.invoke('db:execute', sql, params),
+  window: {
+    minimize: () => ipcRenderer.invoke('window:minimize'),
+    toggleMaximize: () => ipcRenderer.invoke('window:maximize'),
+    close: () => ipcRenderer.invoke('window:close'),
   },
 }
 

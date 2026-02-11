@@ -11,9 +11,10 @@ interface ImportMeta {
 }
 
 export interface IElectronAPI {
-  db: {
-    query: (sql: string, params?: any[]) => Promise<{ data: any[], error: string | null }>
-    execute: (sql: string, params?: any[]) => Promise<{ data: { rowsAffected: number, lastInsertId: number }, error: string | null }>
+  window: {
+    minimize: () => Promise<void>
+    toggleMaximize: () => Promise<void>
+    close: () => Promise<void>
   }
 }
 

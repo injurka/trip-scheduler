@@ -5,6 +5,7 @@ import { OfflineBanner } from '~/components/02.shared/offline-banner'
 import { OfflineProgressDialog } from '~/components/02.shared/offline-manager'
 import { ReloadPrompt } from '~/components/02.shared/reload-prompt'
 import { ToastManager } from '~/components/02.shared/toast-manager'
+import { WindowControls } from '~/components/02.shared/window-controls'
 
 import { FloatingMap } from '~/components/04.features/floating-map'
 import { DefaultLayout } from '~/components/06.layouts/default'
@@ -95,6 +96,7 @@ useSeoMeta({
 </script>
 
 <template>
+  <WindowControls />
   <OfflineBanner />
 
   <component :is="layouts[layout]">
