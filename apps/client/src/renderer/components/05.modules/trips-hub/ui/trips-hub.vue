@@ -210,8 +210,6 @@ provide(TripsHubKey, tripsHub)
 </template>
 
 <style lang="scss" scoped>
-// ... existing styles ...
-
 .current-trip-section {
   display: flex;
   flex-direction: column;
@@ -228,10 +226,8 @@ provide(TripsHubKey, tripsHub)
 }
 
 .active-trip-wrapper {
-  // Ограничиваем ширину для красивого отображения, если режим списка
   max-width: 100%;
 
-  // Если режим колонки, можно ограничить
   @include media-up(md) {
     max-width: 800px;
   }

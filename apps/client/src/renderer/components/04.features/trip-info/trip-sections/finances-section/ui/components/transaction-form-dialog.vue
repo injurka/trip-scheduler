@@ -27,7 +27,6 @@ const emit = defineEmits<{
 const form = ref<Partial<Transaction>>({})
 const isTimeless = ref(false)
 
-// --- Date Picker Logic ---
 const isCalendarOpen = ref(false)
 const datePickerWrapperRef = ref(null)
 onClickOutside(datePickerWrapperRef, () => {
@@ -61,7 +60,6 @@ const calendarDate = computed<CalendarDate>({
   },
 })
 
-// --- General Form Logic ---
 const title = computed(() => props.transaction ? 'Редактировать трату' : 'Новая трата')
 
 const categoryItems = computed(() =>
@@ -177,7 +175,6 @@ watch(isTimeless, (isNowTimeless) => {
 
 .date-picker-wrapper {
   position: relative;
-  // Borrow label styles from KitInput for consistency
   .kit-input__label {
     display: block;
     margin-bottom: 0.5rem;

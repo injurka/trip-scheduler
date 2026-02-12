@@ -92,11 +92,7 @@ async function refreshUserTokens(token: string) {
  */
 async function verifyAccessToken(token: string): Promise<AccessTokenPayload | null> {
   try {
-    // `verify` выбрасывает ошибку, если токен невалиден (истек, подпись неверна)
     const payload = await verify(token, JWT_SECRET)
-
-    // Используем `as unknown as Type` для безопасного приведения типов,
-    // так как мы уверены в структуре, которую сами же и создали в `sign`.
     return payload as unknown as AccessTokenPayload
   }
   catch (error) {

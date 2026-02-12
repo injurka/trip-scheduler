@@ -1,4 +1,3 @@
-// Централизованный список иконок.
 const sharedIconList = [
   'mdi:walk',
   'mdi:car',

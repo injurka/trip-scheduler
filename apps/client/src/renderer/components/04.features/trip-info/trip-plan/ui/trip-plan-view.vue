@@ -14,7 +14,6 @@ const { plan, ui } = useModuleStore(['plan', 'ui'])
 const { getActivitiesForSelectedDay, getSelectedDay } = storeToRefs(plan)
 const { isViewMode, areAllActivitiesCollapsed, isParallelPlanView } = storeToRefs(ui)
 
-// --- View Modes ---
 const viewMode = ref<'template' | 'canvas'>('template')
 const isFullScreen = ref(false)
 
@@ -66,7 +65,6 @@ onKeyStroke('Escape', (e) => {
   }
 })
 
-// --- Логика для сворачивания ---
 const allActivityIds = computed(() => getActivitiesForSelectedDay.value.map((a: IActivity) => a.id))
 const allRouteBlocksCollapsed = computed(() => areAllActivitiesCollapsed.value(allActivityIds.value))
 const collapseRouteIcon = computed(() => allRouteBlocksCollapsed.value ? 'mdi:chevron-double-down' : 'mdi:chevron-double-up')

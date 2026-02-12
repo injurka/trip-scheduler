@@ -65,9 +65,8 @@ export const dayRepository = {
    * @param details - Объект с данными для обновления.
    * @returns Обновленный объект дня или null.
    */
-  async update(id: string, details: DayUpdateInput) { // Используем более гибкий тип
+  async update(id: string, details: DayUpdateInput) {
     const { date, ...rest } = details
-    // Логика преобразования даты остается, так как она корректна
     const updatePayload = {
       ...rest,
       updatedAt: new Date(),

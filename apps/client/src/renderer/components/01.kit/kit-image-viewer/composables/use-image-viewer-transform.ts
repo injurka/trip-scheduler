@@ -23,23 +23,20 @@ export function useImageViewerTransform(options: UseImageViewerTransformOptions)
     animationDuration,
   } = options
 
-  // --- Состояние трансформации ---
   const transform = reactive<ViewerTransform>({ scale: 1, x: 0, y: 0 })
   const isDragging = ref(false)
   const isAnimating = ref(false)
-  const isGesturing = ref(false) // Объединяет wheel и pinch
+  const isGesturing = ref(false)
   let gestureTimeoutId: number | undefined
 
   const dragStart = reactive<TouchPoint>({ x: 0, y: 0 })
   const transformStart = reactive<ViewerTransform>({ scale: 1, x: 0, y: 0 })
 
-  // Состояние для жеста pinch-to-zoom
   const touches = ref<TouchPoint[]>([])
   const initialDistance = ref(0)
   const initialScale = ref(1)
   const pinchStartCenter = reactive<TouchPoint>({ x: 0, y: 0 })
 
-  // --- Вычисляемые свойства ---
   const imageStyle = computed(() => ({
     transform: `translate(${transform.x}px, ${transform.y}px) scale(${transform.scale})`,
     transition: (isAnimating.value && !isDragging.value && !isGesturing.value)
@@ -59,7 +56,6 @@ export function useImageViewerTransform(options: UseImageViewerTransformOptions)
     return 'zoom-in'
   }
 
-  // --- Функции трансформации ---
   function resetTransform() {
     isAnimating.value = true
     transform.scale = toValue(minZoom)
@@ -75,7 +71,6 @@ export function useImageViewerTransform(options: UseImageViewerTransformOptions)
       return { minX: 0, maxX: 0, minY: 0, maxY: 0 }
 
     const containerRect = containerRef.value.getBoundingClientRect()
-    // Важно использовать размеры реального отображаемого изображения, а не naturalSize
     const imageRect = imageRef.value.getBoundingClientRect()
     const scaledWidth = imageRect.width
     const scaledHeight = imageRect.height
@@ -108,7 +103,6 @@ export function useImageViewerTransform(options: UseImageViewerTransformOptions)
       return
     }
 
-    // Если масштаб не изменился, ничего не делаем
     if (clampedScale === transform.scale)
       return
 
@@ -121,7 +115,6 @@ export function useImageViewerTransform(options: UseImageViewerTransformOptions)
       y: containerRect.top + containerRect.height / 2,
     }
 
-    // 1. Находим позицию точки зума относительно центра контейнера
     const mouseRelContainerCenter = {
       x: zoomOrigin.x - (containerRect.left + containerRect.width / 2),
       y: zoomOrigin.y - (containerRect.top + containerRect.height / 2),
@@ -129,7 +122,6 @@ export function useImageViewerTransform(options: UseImageViewerTransformOptions)
 
     const scaleRatio = clampedScale / S_old
 
-    // 2. Вычисляем новый сдвиг, чтобы точка под курсором осталась на месте
     const T_new_x = mouseRelContainerCenter.x - (mouseRelContainerCenter.x - T_old.x) * scaleRatio
     const T_new_y = mouseRelContainerCenter.y - (mouseRelContainerCenter.y - T_old.y) * scaleRatio
 
@@ -148,15 +140,14 @@ export function useImageViewerTransform(options: UseImageViewerTransformOptions)
 
   function zoomIn() {
     const newScale = transform.scale + toValue(zoomStep)
-    zoomTo(newScale) // Масштабируем к центру
+    zoomTo(newScale)
   }
 
   function zoomOut() {
     const newScale = transform.scale - toValue(zoomStep)
-    zoomTo(newScale) // Масштабируем к центру
+    zoomTo(newScale)
   }
 
-  // --- Обработчики событий ---
   function handleDoubleClick(event: MouseEvent) {
     event.preventDefault()
     if (transform.scale > toValue(minZoom))
@@ -313,19 +304,15 @@ export function useImageViewerTransform(options: UseImageViewerTransformOptions)
       if (!containerRef.value)
         return
 
-      // --- Новая логика Pinch-to-Zoom ---
-      // 1. Вычисляем новый масштаб
       const currentDistance = getDistance(currentTouches[0], currentTouches[1])
       const scaleRatioFromStart = currentDistance / initialDistance.value
       const newScale = initialScale.value * scaleRatioFromStart
       const clampedScale = Math.max(toValue(minZoom), Math.min(toValue(maxZoom), newScale))
 
-      // 2. Вычисляем новый сдвиг, учитывая смещение центра жеста
       const S_start = initialScale.value
       const T_start = { x: transformStart.x, y: transformStart.y }
       const containerRect = containerRef.value.getBoundingClientRect()
 
-      // 2.1 Находим точку на изображении под начальным центром жеста
       const startCenterRelContainer = {
         x: pinchStartCenter.x - (containerRect.left + containerRect.width / 2),
         y: pinchStartCenter.y - (containerRect.top + containerRect.height / 2),
@@ -335,7 +322,6 @@ export function useImageViewerTransform(options: UseImageViewerTransformOptions)
         y: (startCenterRelContainer.y - T_start.y) / S_start,
       }
 
-      // 2.2 Позиционируем эту точку под текущим центром жеста
       const currentCenter = getCenter(currentTouches[0], currentTouches[1])
       const currentCenterRelContainer = {
         x: currentCenter.x - (containerRect.left + containerRect.width / 2),
@@ -364,7 +350,6 @@ export function useImageViewerTransform(options: UseImageViewerTransformOptions)
       touches.value = []
     }
     else if (remainingTouches === 1 && touches.value.length > 1) {
-      // Переключаемся с pinch на drag
       isDragging.value = true
       dragStart.x = event.touches[0].clientX
       dragStart.y = event.touches[0].clientY

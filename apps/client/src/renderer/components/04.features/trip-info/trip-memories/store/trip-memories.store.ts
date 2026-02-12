@@ -382,10 +382,8 @@ export const useTripMemoriesStore = defineStore('tripMemories', {
             continue
 
           try {
-            // 1. Получаем абсолютный URL через хелпер, чтобы запрос ушел на сервер API, а не на клиент
             const url = resolveApiUrl(memory.image.url)
 
-            // 2. Скачиваем Blob
             const response = await fetch(url)
             if (!response.ok)
               throw new Error(`Failed to fetch ${url}`)
@@ -393,8 +391,6 @@ export const useTripMemoriesStore = defineStore('tripMemories', {
             const blob = await response.blob()
             this.downloadProgress.loadedBytes += blob.size
 
-            // 3. Формируем имя файла
-            // Формат: YYYY-MM-DD_HH-mm-ss_ID.ext
             let filename = `photo_${memory.id.slice(0, 8)}.jpg`
 
             if (memory.timestamp) {
@@ -404,24 +400,20 @@ export const useTripMemoriesStore = defineStore('tripMemories', {
               filename = `${dateStr}_${timeStr}_${memory.id.slice(0, 5)}.jpg`
             }
 
-            // Определяем расширение из MIME типа, если возможно
             const mimeType = blob.type
             if (mimeType === 'image/png')
               filename = filename.replace('.jpg', '.png')
             else if (mimeType === 'image/webp')
               filename = filename.replace('.jpg', '.webp')
             else if (mimeType === 'image/jpeg')
-              filename = filename.replace('.png', '.jpg') // normalize
+              filename = filename.replace('.png', '.jpg') 
 
-            // 4. Сохраняем файл на диск
             const fileHandle = await dirHandle.getFileHandle(filename, { create: true })
             const writable = await fileHandle.createWritable()
             await writable.write(blob)
             await writable.close()
 
-            // 5. Сохраняем Blob URL для локального режима
             if (memory.imageId) {
-              // Если уже был URL для этого ID, освобождаем память
               if (this.localBlobUrls.has(memory.imageId)) {
                 URL.revokeObjectURL(this.localBlobUrls.get(memory.imageId)!)
               }
@@ -437,7 +429,6 @@ export const useTripMemoriesStore = defineStore('tripMemories', {
           }
         }
 
-        // Автоматически включаем локальный режим, если скачали что-то
         if (this.localBlobUrls.size > 0) {
           this.isLocalModeEnabled = true
           useToast().success(`Успешно скачано ${this.downloadProgress.current} фото. Включен локальный режим просмотра.`)
@@ -465,7 +456,6 @@ export const useTripMemoriesStore = defineStore('tripMemories', {
     reset() {
       this.getProcessingMemories.forEach(p => this.cancelMemoryUpload(p.tempId))
 
-      // Очистка Blob URLs
       this.localBlobUrls.forEach(url => URL.revokeObjectURL(url))
       this.localBlobUrls.clear()
       this.isLocalModeEnabled = false

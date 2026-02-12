@@ -21,7 +21,6 @@ import {
 } from 'drizzle-orm/pg-core'
 import { ONE_GIGABYTE_IN_BYTES } from '~/lib/constants'
 
-// Обновленные Enums
 export const statusEnum = pgEnum('status', ['completed', 'planned', 'draft'])
 export const visibilityEnum = pgEnum('visibility', ['public', 'private'])
 export const activityTagEnum = pgEnum('activity_tag', ['transport', 'walk', 'food', 'attraction', 'relax'])
@@ -76,14 +75,12 @@ export const users = pgTable('users', {
   statusText: text('status_text'),
   statusEmoji: text('status_emoji'),
 
-  // Таймстампы
   createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
   updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow().notNull(),
 }, t => ({
   emailIndex: index('email_idx').on(t.email),
 }))
 
-// Новая таблица для токенов верификации почты
 export const emailVerificationTokens = pgTable('email_verification_tokens', {
   id: uuid('id').primaryKey().defaultRandom(),
   token: text('token').notNull(), // 6-значный код

@@ -44,7 +44,6 @@ export const usePostDraftStore = defineStore('post-draft', {
         if (!this.post.statsDetail) {
           this.post.statsDetail = { views: 0, budget: '', duration: '' }
         }
-        // Гарантируем, что stages всегда массив
         if (!this.post.stages) {
           this.post.stages = []
         }

@@ -19,7 +19,6 @@ const authStore = useAuthStore()
 const confirm = useConfirm()
 const router = useRouter()
 
-// --- Функция для правильного склонения слов ---
 function getPlural(n: number, one: string, two: string, five: string) {
   let num = Math.abs(n)
   num %= 100

@@ -24,7 +24,6 @@ const emit = defineEmits<{
 
 const visible = defineModel<boolean>('visible', { required: true })
 
-// State
 const title = ref('')
 const description = ref('')
 const selectedDate = shallowRef<CalendarDate>(today(getLocalTimeZone()))
@@ -38,9 +37,9 @@ const formattedDate = computed(() => {
 
 function getIsoDateTime(date: CalendarDate, time: Time): string {
   const d = date.toDate(getLocalTimeZone())
+
   d.setHours(time.hour, time.minute, 0, 0)
-  // Корректируем смещение, чтобы получить ISO в локальном времени или UTC
-  // В данном случае формируем ISO строку с учетом таймзоны
+
   const offset = d.getTimezoneOffset()
   const localTime = new Date(d.getTime() - offset * 60 * 1000)
   return localTime.toISOString()
@@ -51,7 +50,6 @@ function handleSave() {
     return
 
   if (!title.value.trim()) {
-    // Можно добавить валидацию
     return
   }
 
@@ -59,8 +57,6 @@ function handleSave() {
   const endIso = getIsoDateTime(selectedDate.value, endTime.value)
 
   if (new Date(endIso) <= new Date(startIso)) {
-    // Простая валидация: если конец раньше начала
-    // Можно добавить toast.error('Время окончания должно быть позже начала')
     return
   }
 
@@ -82,7 +78,6 @@ function handleUpdateVisible(value: boolean) {
   visible.value = value
 }
 
-// Сброс формы при открытии
 watch(
   () => visible.value,
   (isOpen) => {
@@ -90,13 +85,11 @@ watch(
       const now = new Date()
       title.value = ''
       description.value = ''
-
-      // Устанавливаем текущую дату
       selectedDate.value = parseDate(now.toISOString().split('T')[0])
-
-      // Устанавливаем текущее время и +1 час
       startTime.value = new Time(now.getHours(), now.getMinutes())
+      
       const oneHourLater = new Date(now.getTime() + 60 * 60 * 1000)
+      
       endTime.value = new Time(oneHourLater.getHours(), oneHourLater.getMinutes())
     }
   },

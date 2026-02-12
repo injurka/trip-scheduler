@@ -72,7 +72,6 @@ export const useTripInfoUiStore = defineStore('tripInfoUi', {
 
     setActiveView(view: ActiveView) {
       this.activeView = view
-      // Если ушли с вкладки "План", выключаем параллельный режим
       if (view !== 'plan') {
         this.isParallelPlanView = false
       }

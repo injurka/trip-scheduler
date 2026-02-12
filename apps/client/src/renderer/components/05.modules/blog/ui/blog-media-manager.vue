@@ -44,7 +44,7 @@ async function handleFileChange(event: Event) {
     toast.error('Ошибка загрузки')
   }
   finally {
-    input.value = '' // reset
+    input.value = ''
   }
 }
 

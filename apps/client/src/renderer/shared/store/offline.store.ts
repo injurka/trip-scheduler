@@ -68,7 +68,6 @@ export const useOfflineStore = defineStore('offline', {
           urlsToCache.add(url)
         }
 
-        // --- Сбор URL ---
         addUrl(trip.imageUrl)
 
         trip.sections.forEach((section: any) => {
@@ -109,14 +108,12 @@ export const useOfflineStore = defineStore('offline', {
         if (urlsArray.length === 0)
           this.downloadProgress[trip.id] = 100
 
-        // --- Загрузка ---
         const BATCH_SIZE = 5
         for (let i = 0; i < urlsArray.length; i += BATCH_SIZE) {
           const batch = urlsArray.slice(i, i + BATCH_SIZE)
 
           await Promise.all(batch.map(async (url) => {
             try {
-              // 1. Проверяем, есть ли уже в кеше (по строке URL!)
               const match = await cache.match(url)
               if (match) {
                 loadedCount++
@@ -124,18 +121,14 @@ export const useOfflineStore = defineStore('offline', {
                 return
               }
 
-              // 2. Скачиваем
               let response
               try {
-                // Пытаемся скачать "по-честному" (CORS)
                 response = await fetch(url, { mode: 'cors', cache: 'reload' })
               }
               catch {
-                // Если CORS ошибка, пробуем no-cors (Opaque)
                 response = await fetch(url, { mode: 'no-cors', cache: 'reload' })
               }
 
-              // 3. Кладем в кеш, используя URL как ключ (ВАЖНО!)
               if (response && (response.ok || response.type === 'opaque')) {
                 await cache.put(url, response)
               }
@@ -150,7 +143,6 @@ export const useOfflineStore = defineStore('offline', {
           }))
         }
 
-        // Обновляем запись (final data + timestamp)
         this.savedTrips[trip.id] = {
           ...this.savedTrips[trip.id],
           savedAt: Date.now(),

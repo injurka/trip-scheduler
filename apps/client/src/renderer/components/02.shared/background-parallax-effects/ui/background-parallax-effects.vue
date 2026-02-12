@@ -2,7 +2,6 @@
 import { Icon, loadIcons } from '@iconify/vue'
 import { useMouse } from '@vueuse/core'
 
-// --- Типы и Пропсы ---
 interface Particle {
   id: number
   icon: string
@@ -28,7 +27,6 @@ const props = withDefaults(defineProps<{
   ease: 100,
 })
 
-// --- Иконки ---
 const travelIcons = [
   'mdi:airplane',
   'mdi:map-marker-outline',
@@ -54,7 +52,6 @@ function getRandomIcon() {
   return travelIcons[Math.floor(Math.random() * travelIcons.length)]
 }
 
-// --- Реактивное состояние ---
 const containerRef = ref<HTMLDivElement | null>(null)
 const particles = ref<Particle[]>([])
 const mouse = reactive({ x: 0, y: 0 })
@@ -62,7 +59,6 @@ const containerSize = reactive({ w: 0, h: 0 })
 const { x: mouseX, y: mouseY } = useMouse()
 let animationFrameId: number
 
-// --- Инициализация ---
 onMounted(() => {
   loadIcons(travelIcons)
   init()
@@ -83,7 +79,6 @@ watch([mouseX, mouseY], () => {
   }
 })
 
-// --- Логика анимации ---
 function init() {
   if (containerRef.value) {
     containerSize.w = containerRef.value.offsetWidth
@@ -111,19 +106,15 @@ function createParticle(id: number): Particle {
 
 function animate() {
   particles.value.forEach((p) => {
-    // Постепенное появление
     if (p.alpha < p.targetAlpha)
       p.alpha += 0.01
 
-    // Движение частицы под влиянием мыши (параллакс)
     p.translateX += (mouse.x / (props.staticity / p.magnetism) - p.translateX) / props.ease
     p.translateY += (mouse.y / (props.staticity / p.magnetism) - p.translateY) / props.ease
 
-    // Собственное "дрейфующее" движение
     p.x += p.dx
     p.y += p.dy
 
-    // Возвращение на экран при выходе за границы
     if (p.x < -20)
       p.x = containerSize.w + 20
     if (p.x > containerSize.w + 20)

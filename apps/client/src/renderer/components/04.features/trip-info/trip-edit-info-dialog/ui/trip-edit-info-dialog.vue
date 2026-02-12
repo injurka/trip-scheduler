@@ -55,7 +55,6 @@ const visibilityOptions: KitDropdownItem<TripVisibility>[] = [
   { value: TripVisibility.PUBLIC, label: 'Публичное', icon: 'mdi:earth' },
 ]
 
-// --- Data Fetching ---
 const availableCities = ref<KitDropdownItem<string>[]>([])
 const availableTags = ref<KitDropdownItem<string>[]>([])
 const coverImages = ref<TripImage[]>([])

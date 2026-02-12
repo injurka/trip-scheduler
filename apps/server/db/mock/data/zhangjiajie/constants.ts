@@ -7,7 +7,6 @@ import {
 export const TRIP_ID = 'c0417422-b266-4242-91e8-f9a7d852a9fd'
 export const USER_ID = MOCK_USER_ID_1
 
-// Используем ID дней из исходного JSON
 export const DAY_IDS = {
   DAY_01: '6d579741-3b24-4d6f-8ca1-3fa26fc0e1f0',
   DAY_02: '06fb16c2-edb7-41d3-a3a7-4adf3c066c0d',
@@ -26,6 +25,5 @@ export const DAY_IDS = {
   DAY_15: 'a8e8ea55-a1f4-4bab-9ae3-e05557860e09',
 }
 
-// Хелпер для формирования путей к изображениям
 export const getMemoriesPath = (filename: string) => getMemoriesPathFromLib(filename, TRIP_ID)
 export const getRoutePath = (filename: string) => getRoutePathFromLib(filename, TRIP_ID)

@@ -30,7 +30,6 @@ const layouts = {
   'trip-info': TripInfoLayout,
 }
 
-// --- SEO Конфигурация ---
 const siteUrl = 'https://trip-scheduler.ru'
 const siteName = 'Trip Scheduler'
 

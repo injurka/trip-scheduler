@@ -66,19 +66,15 @@ async function extractAverageColor(url: string) {
     return
 
   const img = new Image()
-  // Атрибут crossOrigin обязателен для работы с изображениями с других доменов
   img.crossOrigin = 'Anonymous'
 
-  // Обработчик ошибок: сработает при 404 или проблемах с сетью
   img.onerror = () => {
     console.error(`Не удалось загрузить изображение для анализа цвета: ${url}`)
-    // В случае ошибки можно сбросить цвет к дефолтному
     cardAccentColor.value = '#A8AAAE'
   }
 
   img.onload = () => {
     const canvas = document.createElement('canvas')
-    // Добавляем { willReadFrequently: true } как подсказку браузеру для оптимизации
     const ctx = canvas.getContext('2d', { willReadFrequently: true })
     if (!ctx)
       return
@@ -87,29 +83,22 @@ async function extractAverageColor(url: string) {
     canvas.height = 1
 
     try {
-      // Рисуем изображение на холсте 1x1, что эффективно усредняет цвет
       ctx.drawImage(img, 0, 0, 1, 1)
 
-      // Получаем все 4 значения: R, G, B, A (альфа-канал)
       const pixelData = ctx.getImageData(0, 0, 1, 1).data
       const [r, g, b, a] = pixelData
 
-      // ---- КЛЮЧЕВОЕ ИСПРАВЛЕНИЕ ----
-      // Если пиксель полностью прозрачный (alpha === 0), это значит, что
-      // изображение не отрисовалось (например, из-за CORS).
-      // В этом случае мы НЕ устанавливаем цвет, чтобы избежать черного.
       if (a === 0) {
         console.warn(`Анализ цвета не удался (прозрачный пиксель), используется цвет по умолчанию. URL: ${url}`)
-        cardAccentColor.value = '#A8AAAE' // Сбрасываем на дефолтный
+        cardAccentColor.value = '#A8AAAE'
         return
       }
 
       cardAccentColor.value = `rgb(${r},${g},${b})`
     }
     catch (e) {
-      // Этот блок перехватит ошибку, если браузер заблокирует getImageData из-за CORS
       console.error(`Ошибка при анализе цвета изображения (вероятно, CORS): ${url}`, e)
-      cardAccentColor.value = '#A8AAAE' // Сбрасываем на дефолтный
+      cardAccentColor.value = '#A8AAAE'
     }
   }
 

@@ -74,7 +74,6 @@ const secondaryMenuItems = computed(() => [
   },
 ])
 
-// ... (остальной код без изменений)
 async function handleLogout() {
   await store.auth.signOut()
   open.value = false

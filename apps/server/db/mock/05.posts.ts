@@ -1,24 +1,19 @@
 import { MOCK_USER_ID_1, MOCK_USER_ID_2 } from './00.users'
 
-// Валидные UUID для постов
 const POST_ID_1 = '3322b3c4-d5e6-4f8a-9b0c-1d2e3f4a5b6c'
 const POST_ID_2 = '4422b3c4-d5e6-4f8a-9b0c-1d2e3f4a5b6d'
 
-// Валидные UUID для элементов Поста 1
 const EL_ID_1_TEXT = '5522b3c4-d5e6-4f8a-9b0c-1d2e3f4a5b60'
 const EL_ID_1_GALLERY = '5522b3c4-d5e6-4f8a-9b0c-1d2e3f4a5b61'
 const EL_ID_1_LOCATION = '5522b3c4-d5e6-4f8a-9b0c-1d2e3f4a5b62'
 
-// Валидные UUID для элементов Поста 2
 const EL_ID_2_INTRO = 'b1b2c3d4-e5f6-4890-a234-567890abcde0'
 const EL_ID_2_WATERFALLS = 'b1b2c3d4-e5f6-4890-a234-567890abcde1'
 const EL_ID_2_BEACH = 'b1b2c3d4-e5f6-4890-a234-567890abcde2'
 const EL_ID_2_LAGOON = 'b1b2c3d4-e5f6-4890-a234-567890abcde3'
 
-// Валидные UUID для медиа
 const MEDIA_ID_1 = '7722b3c4-d5e6-4f8a-9b0c-1d2e3f4a5b60'
 const MEDIA_ID_2 = '7722b3c4-d5e6-4f8a-9b0c-1d2e3f4a5b61'
-// --- ИСПРАВЛЕННЫЕ UUID ---
 const MEDIA_ID_3 = 'c1b2c3d4-e5f6-4a8b-9234-567890abcde0'
 const MEDIA_ID_4 = 'c1b2c3d4-e5f6-4a8b-a234-567890abcde1'
 const MEDIA_ID_5 = 'c1b2c3d4-e5f6-4a8b-b234-567890abcde2'
@@ -26,7 +21,6 @@ const MEDIA_ID_6 = 'c1b2c3d4-e5f6-4a8b-8234-567890abcde3'
 const MEDIA_ID_7 = 'c1b2c3d4-e5f6-4a8b-9abc-567890abcde4'
 
 export const MOCK_POST_DATA = [
-  // --- ПОСТ 1: Путешествие в Японию ---
   {
     id: POST_ID_1,
     userId: MOCK_USER_ID_1,
@@ -145,7 +139,6 @@ export const MOCK_POST_DATA = [
     ],
   },
 
-  // --- ОБНОВЛЕННЫЙ ПОСТ 2: Исландия ---
   {
     id: POST_ID_2,
     userId: MOCK_USER_ID_2,
@@ -160,7 +153,7 @@ export const MOCK_POST_DATA = [
     savesCount: 420,
     createdAt: new Date('2025-08-15T18:00:00Z'),
     updatedAt: new Date('2025-08-16T11:00:00Z'),
-    latitude: 63.5321, // Координаты Vík
+    latitude: 63.5321,
     longitude: -19.019,
     statsDetail: {
       views: 2800,

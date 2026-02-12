@@ -11,12 +11,10 @@ export function resolveApiUrl(path: string | null | undefined): string {
     return ''
   }
 
-  // Не изменяем полные URL (http, https) и локальные blob
   if (path.startsWith('http://') || path.startsWith('https://') || path.startsWith('blob:')) {
     return path
   }
 
-  // "Чистим" части URL, чтобы избежать двойных слэшей
   const cleanedServer = serverUrl.endsWith('/') ? serverUrl.slice(0, -1) : serverUrl
   const cleanedStatic = staticPath.replace(/^\/|\/$/g, '')
   const cleanedPath = path.startsWith('/') ? path.slice(1) : path

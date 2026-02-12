@@ -45,12 +45,10 @@ const imageSrc = computed(() => {
   if (!props.memory.image)
     return ''
 
-  // Если включен локальный режим и есть скачанный Blob
   if (isLocalModeEnabled.value && props.memory.imageId && localBlobUrls.value.has(props.memory.imageId)) {
     return localBlobUrls.value.get(props.memory.imageId)
   }
 
-  // Обычная логика (серверные URL)
   if (isMorphed.value || props.isFullScreen) {
     switch (preferredQuality.value) {
       case 'medium':

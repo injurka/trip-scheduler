@@ -33,12 +33,10 @@ function handleAddCategory() {
 
 function handleIconSelect(icon: string) {
   if (categoryToPickIconFor.value) {
-    // Редактирование иконки существующей категории
     emit('save', { ...categoryToPickIconFor.value, icon })
     categoryToPickIconFor.value = null
   }
   else {
-    // Выбор иконки для новой категории
     newCategoryIcon.value = icon
   }
 }

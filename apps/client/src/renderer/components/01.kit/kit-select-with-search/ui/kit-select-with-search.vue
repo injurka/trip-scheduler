@@ -324,14 +324,12 @@ onClickOutside(wrapperRef, handleClose)
   border-radius: var(--r-m);
   z-index: 100;
   box-shadow: var(--s-l);
-  // --- Изменения стилей для позиционирования ---
-  top: calc(100% + 4px); // По умолчанию открывается вниз
+  top: calc(100% + 4px);
 
   &.is-open-up {
-    top: auto; // Сбрасываем top
-    bottom: calc(100% + 4px); // Позиционируем снизу
+    top: auto;
+    bottom: calc(100% + 4px);
   }
-  // --- Конец изменений ---
 }
 
 .dropdown-list {
@@ -454,15 +452,13 @@ onClickOutside(wrapperRef, handleClose)
 .fade-dropdown-enter-from,
 .fade-dropdown-leave-to {
   opacity: 0;
-  transform: translateY(-5px); // По умолчанию анимация вниз
+  transform: translateY(-5px);
 }
 
-// --- Новые стили для анимации вверх ---
 .is-open-up.fade-dropdown-enter-from,
 .is-open-up.fade-dropdown-leave-to {
   transform: translateY(5px);
 }
-// --- Конец новых стилей ---
 
 .chip-input-wrapper {
   &.kit-input-sm {

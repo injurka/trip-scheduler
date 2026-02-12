@@ -35,7 +35,6 @@ export const activityTagLabels: Record<EActivityTag, string> = {
   [EActivityTag.ACTIVITY]: 'Активность',
 }
 
-// Расширенный тип метаданных для внутреннего использования, чтобы хранить ID для обратной связи
 export interface CustomImageViewerImageMeta extends IImageViewerImageMeta {
   memoryId?: string
   imageId: string

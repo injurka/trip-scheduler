@@ -55,8 +55,6 @@ const emit = defineEmits<Emits>()
 
 const preferredQuality = useStorage<ImageQuality>('viewer-quality-preference', 'large')
 
-// --- Idle & Visibility Logic ---
-// Исключаем 'keydown' из событий, чтобы стрелки клавиатуры не будили интерфейс
 const { idle: isIdle } = useIdle(3000, {
   events: ['mousemove', 'mousedown', 'resize', 'touchstart', 'wheel'],
 })
@@ -65,7 +63,7 @@ const viewerContentRef = ref<HTMLElement | null>(null)
 const imageRef = ref<HTMLImageElement | null>(null)
 const containerRef = ref<HTMLElement | null>(null)
 const naturalSize = reactive({ width: 0, height: 0 })
-const isUiVisible = ref(true) // Ручной переключатель (глаз)
+const isUiVisible = ref(true)
 const isMetadataPanelVisible = ref(false)
 const isMetadataLoading = ref(false)
 
@@ -118,18 +116,16 @@ const {
 
 const isZoomed = computed(() => transform.scale > props.minZoom)
 
-// Вычисляем, должны ли отображаться контролы (хедер и тамбнейлы)
 const areControlsVisible = computed(() => {
-  // Если выключено вручную через "глаз" - скрываем
   if (!isUiVisible.value)
     return false
-  // Если открыта панель метаданных - показываем всегда
+
   if (isMetadataPanelVisible.value)
     return true
-  // Если пользователь зумит или перетаскивает - показываем
+
   if (isDragging.value || isZoomed.value)
     return true
-  // Иначе зависим от активности мыши/тача (но не клавиатуры)
+
   return !isIdle.value
 })
 
@@ -183,15 +179,11 @@ watch(currentImageSrc, (src) => {
 watch(() => props.currentIndex, () => {
   resetTransform()
   isMetadataPanelVisible.value = false
-  // Скроллим к активному тамбнейлу, если интерфейс виден
   scrollToActiveThumbnail()
 })
 
-// Если интерфейс появился (например, пользователь подвигал мышкой после навигации клавиатурой),
-// нужно убедиться, что активный тамбнейл в поле зрения.
 watch(areControlsVisible, (visible) => {
   if (visible) {
-    // nextTick нужен, так как элемент появляется через v-if
     nextTick(() => scrollToActiveThumbnail())
   }
 })
@@ -300,7 +292,6 @@ function goToIndex(index: number) {
     emit('update:currentIndex', index)
 }
 
-// Скролл тамбнейлов к активному элементу
 const thumbnailsWrapperRef = ref<HTMLElement | null>(null)
 function scrollToActiveThumbnail() {
   if (!thumbnailsWrapperRef.value)
@@ -732,7 +723,6 @@ onUnmounted(() => {
   }
 }
 
-// --- Swipe Styles ---
 .swipe-container {
   display: flex;
   position: absolute;

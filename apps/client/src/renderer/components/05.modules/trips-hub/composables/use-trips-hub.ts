@@ -44,12 +44,10 @@ export function useTripsHub() {
   const authStore = useAppStore('auth')
   const toast = useToast()
 
-  // State
   const trips = ref<ITrip[]>([])
   const isInitialized = ref(false)
   const hasLoadedOnce = ref(false)
   const isFiltersOpen = ref(false)
-  // Default to 'public' to show content immediately for everyone
   const activeTab = ref<TripsHubTab>('public')
   const isCreateModalOpen = ref(false)
   const newTripData = ref(getDefaultTripData())
@@ -69,7 +67,6 @@ export function useTripsHub() {
   const debouncedTagSearchQuery = useDebounce(tagSearchQuery, 300)
   const debouncedFilters = useDebounce(filters, 400)
 
-  // Computed (getters)
   const isLoading = computed(() => useRequestStatus(ETripHubKeys.FETCH_ALL).value)
   const isCreating = computed(() => useRequestStatus(ETripHubKeys.CREATE).value)
   const fetchError = computed(() => useRequestError(ETripHubKeys.FETCH_ALL).value)
@@ -78,10 +75,7 @@ export function useTripsHub() {
     return trips.value
   })
 
-  /**
-   * Вычисляет текущее активное путешествие пользователя.
-   * Путешествие считается активным, если текущая дата находится между датой начала и окончания.
-   */
+
   const currentActiveTrip = computed(() => {
     if (!authStore.isAuthenticated)
       return null

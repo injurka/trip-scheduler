@@ -1,6 +1,5 @@
 import { contextBridge, ipcRenderer } from 'electron'
 
-// API, которое будет доступно в вашем Vue-приложении через `window.electronAPI`
 const electronAPI = {
   window: {
     minimize: () => ipcRenderer.invoke('window:minimize'),
@@ -9,7 +8,6 @@ const electronAPI = {
   },
 }
 
-// Безопасно предоставляем API процессу рендеринга
 try {
   contextBridge.exposeInMainWorld('electronAPI', electronAPI)
 }

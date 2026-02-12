@@ -18,20 +18,17 @@ export interface ITripInfoGalleryState {
  * Стор для управления галереей и изображениями на странице путешествия.
  */
 export const useTripInfoGalleryStore = defineStore('tripInfoRouteGallery', {
-  // --- STATE ---
   state: (): ITripInfoGalleryState => ({
     tripImages: [],
     currentTripId: null,
     loadedTripId: null,
   }),
 
-  // --- GETTERS ---
   getters: {
     isFetchingImages: () => useRequestStatus(ETripGalleryKeys.FETCH_IMAGES).value,
     isUploadingImage: () => useRequestStatus(ETripGalleryKeys.UPLOAD_IMAGE).value,
   },
 
-  // --- ACTIONS ---
   actions: {
     /**
      * Устанавливает ID текущего путешествия и сбрасывает состояние,
@@ -56,7 +53,6 @@ export const useTripInfoGalleryStore = defineStore('tripInfoRouteGallery', {
         return
       }
 
-      // Если данные для этого путешествия уже загружены или загружаются прямо сейчас — выходим
       if (this.currentTripId === this.loadedTripId || this.isFetchingImages) {
         return
       }
@@ -90,9 +86,9 @@ export const useTripInfoGalleryStore = defineStore('tripInfoRouteGallery', {
         key: ETripGalleryKeys.UPLOAD_IMAGE,
         fn: db => db.files.uploadFile(
           file,
-          this.currentTripId!, // entityId
-          'trip', // entityType
-          TripImagePlacement.ROUTE, // placement
+          this.currentTripId!,
+          'trip',
+          TripImagePlacement.ROUTE,
         ),
         onSuccess: (result) => {
           this.tripImages.push(result)

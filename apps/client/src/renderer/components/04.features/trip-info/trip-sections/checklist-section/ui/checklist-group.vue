@@ -24,7 +24,7 @@ const emit = defineEmits<{
 const newItemText = ref('')
 const isIconPickerOpen = ref(false)
 const isCollapsed = ref(false)
-const newItemInputRef = ref<HTMLInputElement | null>(null) // Ref для инпута
+const newItemInputRef = ref<HTMLInputElement | null>(null)
 
 const groupProgress = computed(() => {
   if (!props.items)

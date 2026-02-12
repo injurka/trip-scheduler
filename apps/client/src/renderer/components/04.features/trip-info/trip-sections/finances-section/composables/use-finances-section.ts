@@ -26,9 +26,7 @@ interface UseFinancesSectionProps {
   readonly: boolean
 }
 
-/**
- * Хук для управления логикой секции финансов.
- */
+
 export function useFinancesSection(
   props: UseFinancesSectionProps,
   emit: (event: 'updateSection', payload: any) => void,
@@ -36,14 +34,12 @@ export function useFinancesSection(
   const confirm = useConfirm()
   const content = computed(() => props.section.content)
 
-  // --- Состояние ---
   const transactions = ref<Transaction[]>(JSON.parse(JSON.stringify(content.value?.transactions || [])))
   const categories = ref<Category[]>(JSON.parse(JSON.stringify(content.value?.categories || DEFAULT_CATEGORIES)))
   const settings = ref<FinancesSettings>(JSON.parse(JSON.stringify(content.value?.settings || DEFAULT_SETTINGS)))
-  const selectedCategoryFilters = ref<string[]>([]) // Пустой массив означает 'все'
+  const selectedCategoryFilters = ref<string[]>([])
   const dateFilter = ref<{ start: string | null, end: string | null }>({ start: null, end: null })
 
-  // --- Состояние UI ---
   const isTransactionFormOpen = ref(false)
   const isCategoryManagerOpen = ref(false)
   const isSettingsOpen = ref(false)
@@ -61,7 +57,6 @@ export function useFinancesSection(
     })
   }, 700)
 
-  // --- Методы для работы с транзакциями ---
   function openTransactionForm(tx: Transaction | null = null) {
     if (props.readonly)
       return
@@ -71,21 +66,17 @@ export function useFinancesSection(
 
   function saveTransaction(tx: Partial<Transaction>) {
     if (transactionToEdit.value) {
-      // Обновление
       const index = transactions.value.findIndex(t => t.id === tx.id)
       if (index !== -1)
         transactions.value.splice(index, 1, tx as Transaction)
     }
     else {
-      // Создание
       transactions.value.unshift({ ...tx, id: uuidv4(), categoryId: tx.categoryId || null } as Transaction)
     }
     isTransactionFormOpen.value = false
   }
 
-  /**
-   * Новый метод для добавления нескольких транзакций от AI
-   */
+
   function addMultipleTransactions(newTransactions: Partial<Transaction>[]) {
     const transactionsToAdd = newTransactions.map(tx => ({
       ...tx,
@@ -104,7 +95,6 @@ export function useFinancesSection(
       transactions.value = transactions.value.filter(t => t.id !== id)
   }
 
-  // --- Методы для работы с категориями ---
   function saveCategory(cat: Partial<Category>) {
     const index = categories.value.findIndex(c => c.id === cat.id)
     if (index !== -1) {
@@ -118,20 +108,17 @@ export function useFinancesSection(
   function deleteCategory(id: string) {
     const isUsed = transactions.value.some(t => t.categoryId === id)
     if (isUsed) {
-      // Вместо удаления, можно предложить переназначить транзакции, но для простоты просто запретим
       confirm({ title: 'Категория используется', description: 'Нельзя удалить категорию, которая присвоена одной или нескольким транзакциям.' })
       return
     }
     categories.value = categories.value.filter(c => c.id !== id)
   }
 
-  // --- Методы для настроек ---
   function saveSettings(newSettings: FinancesSettings) {
     settings.value = newSettings
     isSettingsOpen.value = false
   }
 
-  // --- Вычисляемые свойства для дэшборда ---
   const convertToMainCurrency = (amount: number, currency: string): number => {
     if (currency === settings.value.mainCurrency)
       return amount
@@ -141,17 +128,14 @@ export function useFinancesSection(
 
   const sortedTransactions = computed(() => {
     return [...transactions.value].sort((a, b) => {
-      // Траты без даты всегда наверху
       if (!a.date && b.date)
         return -1
       if (a.date && !b.date)
         return 1
 
-      // Если у обеих нет даты, порядок не важен
       if (!a.date && !b.date)
         return 0
 
-      // Если у обеих есть дата, сортируем по убыванию
       return new Date(b.date!).getTime() - new Date(a.date!).getTime()
     })
   })
@@ -159,12 +143,12 @@ export function useFinancesSection(
   const filteredTransactions = computed(() => {
     let result = sortedTransactions.value
 
-    // 1. Фильтр по дате
     const { start, end } = dateFilter.value
     if (start || end) {
       result = result.filter((tx) => {
         if (!tx.date)
-          return false // Исключаем траты без даты при активном фильтре по дате
+          return false 
+
         const txDate = tx.date.split('T')[0]
         const isAfterStart = start ? txDate >= start : true
         const isBeforeEnd = end ? txDate <= end : true
@@ -172,7 +156,6 @@ export function useFinancesSection(
       })
     }
 
-    // 2. Фильтр по категориям
     if (selectedCategoryFilters.value.length > 0) {
       result = result.filter(tx =>
         tx.categoryId && selectedCategoryFilters.value.includes(tx.categoryId),
@@ -187,7 +170,6 @@ export function useFinancesSection(
       .reduce((sum, tx) => sum + convertToMainCurrency(tx.amount, tx.currency), 0)
   })
 
-  // ВАЖНО: Теперь графики строятся на основе filteredTransactions
   const spendingByCategory = computed(() => {
     const spendingMap = new Map<string, { name: string, icon: string, amount: number }>()
 
@@ -208,14 +190,13 @@ export function useFinancesSection(
     return Array.from(spendingMap.values()).sort((a, b) => b.amount - a.amount)
   })
 
-  // ВАЖНО: График по дням тоже учитывает активные фильтры
   const spendingByDay = computed(() => {
     const spendingMap = new Map<string, number>()
 
     filteredTransactions.value
-      .filter(tx => tx.date) // Исключаем транзакции без даты
+      .filter(tx => tx.date) 
       .forEach((tx) => {
-        const date = tx.date!.split('T')[0] // Группируем по дню, отбрасывая время
+        const date = tx.date!.split('T')[0] 
         const amountInMain = convertToMainCurrency(tx.amount, tx.currency)
 
         if (spendingMap.has(date))
@@ -236,7 +217,6 @@ export function useFinancesSection(
   })
 
   function toggleCategoryFilter(categoryId: string | null) {
-    // Клик по "Все категории"
     if (categoryId === null) {
       selectedCategoryFilters.value = []
       return
@@ -244,11 +224,9 @@ export function useFinancesSection(
 
     const index = selectedCategoryFilters.value.indexOf(categoryId)
     if (index > -1) {
-      // Категория уже выбрана, убираем ее
       selectedCategoryFilters.value.splice(index, 1)
     }
     else {
-      // Категория не выбрана, добавляем ее
       selectedCategoryFilters.value.push(categoryId)
     }
   }

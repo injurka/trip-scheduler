@@ -36,6 +36,7 @@ export function useDocumentsSection(
 
   const breadcrumbs = computed(() => {
     const crumbs = [{ id: null, name: 'Все документы' }]
+
     if (currentFolderId.value) {
       const folder = folders.value.find(f => f.id === currentFolderId.value)
       if (folder) {

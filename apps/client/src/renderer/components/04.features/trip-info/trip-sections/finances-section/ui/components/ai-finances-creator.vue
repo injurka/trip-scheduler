@@ -112,7 +112,7 @@ async function handleGenerate() {
       return {
         ...tx,
         currency: finalCurrency,
-        date: tx.date || today(getLocalTimeZone()).toString(), // Установка сегодняшней даты, если она отсутствует
+        date: tx.date || today(getLocalTimeZone()).toString(),
         categoryId: foundCategory ? foundCategory.id : (otherCategory ? otherCategory.id : null),
       }
     })

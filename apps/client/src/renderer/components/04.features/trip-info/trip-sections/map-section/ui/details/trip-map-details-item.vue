@@ -11,7 +11,6 @@ const props = defineProps<Props>()
 
 const tagInfo = computed(() => getTagInfo(props.activity.tag))
 
-// Группировка секций, аналогично trip-plan/item.vue
 const sectionGroups = computed(() => {
   const groups: { parent: ActivitySection, children: ActivitySection[] }[] = []
   const sections = (props.activity.sections || [])

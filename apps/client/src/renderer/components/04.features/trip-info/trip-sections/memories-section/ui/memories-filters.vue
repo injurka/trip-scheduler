@@ -18,7 +18,6 @@ const currentFilterLabel = computed(() =>
   props.availableDays.find(d => d.value === filterDay.value)?.label || 'Все дни',
 )
 
-// Вычисляем цвет звездочки в зависимости от выбранного значения
 const starColor = computed(() => filterRating.value > 0 ? 'var(--c-orange-500)' : 'var(--fg-tertiary-color)')
 </script>
 

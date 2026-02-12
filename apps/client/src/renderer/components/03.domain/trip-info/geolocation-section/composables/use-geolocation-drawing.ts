@@ -19,7 +19,7 @@ export function useGeolocationDrawing(mapApiRef: Ref<GeolocationMapApi | undefin
    */
   const stopDrawing = () => {
     if (!isDrawing.value)
-      return // Не делаем ничего, если и так не рисуем
+      return 
     const map = mapApiRef.value?.mapInstance.value
     if (!map)
       return
@@ -29,7 +29,6 @@ export function useGeolocationDrawing(mapApiRef: Ref<GeolocationMapApi | undefin
       drawInteraction = null
     }
 
-    // Возвращаем стандартные взаимодействия
     mapApiRef.value?.modifyInteraction.setActive(true)
     isDrawing.value = false
   }
@@ -46,10 +45,8 @@ export function useGeolocationDrawing(mapApiRef: Ref<GeolocationMapApi | undefin
       return
     }
 
-    // Гарантированно останавливаем любое предыдущее рисование
     stopDrawing()
 
-    // Отключаем другие взаимодействия, чтобы избежать конфликтов
     mapApiRef.value?.modifyInteraction.setActive(false)
     isDrawing.value = true
 

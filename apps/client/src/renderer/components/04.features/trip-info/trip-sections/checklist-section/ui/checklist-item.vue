@@ -170,7 +170,6 @@ function handleLinkUpdate(value: string) {
   padding: 0.375rem 0.5rem;
   gap: 4px;
 
-  // --- Priority Styles ---
   border-left: 3px solid transparent;
   padding-left: calc(0.5rem - 2px);
 
@@ -338,7 +337,6 @@ function handleLinkUpdate(value: string) {
   word-break: break-word;
 }
 
-// --- Priority Picker Styles ---
 .priority-picker-wrapper {
   position: relative;
 }

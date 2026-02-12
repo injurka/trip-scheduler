@@ -37,10 +37,8 @@ function getBookingTimeRange(booking: Booking): { start: number, end: number } |
         endStr = booking.data.segments?.[booking.data.segments.length - 1]?.arrivalDateTime
         break
       case 'hotel':
-        // Для сортировки берем дату заезда
         if (booking.data.checkInDate)
           startStr = booking.data.checkInDate.includes('T') ? booking.data.checkInDate : `${booking.data.checkInDate}T14:00:00`
-        // Выезд для сортировки не критичен, так как отели исключены из highlight-логики
         break
       case 'train':
         startStr = booking.data.departureDateTime
@@ -67,7 +65,6 @@ function getBookingTimeRange(booking: Booking): { start: number, end: number } |
       }
     }
     else {
-      // Если конечной даты нет, даем условное "окно" в 1 час
       endDate = new Date(startDate.getTime() + 60 * 60 * 1000)
     }
 
@@ -137,39 +134,30 @@ export function useBookingSection(
     })
   })
 
-  // Логика подсветки
   const bookingHighlightMap = computed<Record<string, HighlightStatus>>(() => {
     const map: Record<string, HighlightStatus> = {}
     const now = Date.now()
 
-    // Фильтруем список для подсветки: исключаем отели и события без даты
     const highlightableBookings = allBookingsSorted.value.filter((b) => {
       if (b.type === 'hotel')
         return false
       return getBookingTimeRange(b) !== null
     })
 
-    // 1. Ищем активное событие (мы сейчас внутри него)
-    // Транспорт: от отправления до прибытия.
-    // Активности: в течение условного часа.
     const activeIndex = highlightableBookings.findIndex((b) => {
       const range = getBookingTimeRange(b)
       return range && now >= range.start && now <= range.end
     })
 
     if (activeIndex !== -1) {
-      // Мы сейчас в процессе активности
       const activeBooking = highlightableBookings[activeIndex]
       map[activeBooking.id] = 'active'
 
-      // Выделяем следующее за ним, если оно есть
       if (activeIndex + 1 < highlightableBookings.length) {
         map[highlightableBookings[activeIndex + 1].id] = 'next'
       }
     }
     else {
-      // Активных событий нет. Ищем ближайшее будущее.
-      // Первое событие, у которого start > now
       const closestBooking = highlightableBookings.find((b) => {
         const range = getBookingTimeRange(b)
         return range && range.start > now
@@ -219,7 +207,6 @@ export function useBookingSection(
 
     const initialData: any = {}
 
-    // Автоматическая простановка часового пояса для поездов
     if (type === 'train') {
       const tz = getCurrentTimeZoneOffset()
       initialData.departureTimeZone = tz

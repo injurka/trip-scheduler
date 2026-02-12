@@ -8,7 +8,6 @@ import { imageService } from '~/modules/image/image.service'
 import { postService } from '~/modules/post/post.service'
 import { blogRepository } from '~/repositories/blog.repository'
 import { postRepository } from '~/repositories/post.repository'
-// Импорт репозиториев и сервисов
 import { tripRepository } from '~/repositories/trip.repository'
 import { userRepository } from '~/repositories/user.repository'
 import { generateFilePaths, saveFile } from '~/services/file-storage.service'
@@ -118,7 +117,6 @@ const avatarHandler: IUploadHandler = {
   },
 }
 
-// Реестр хендлеров
 const handlers: Record<EntityType, IUploadHandler> = {
   trip: tripHandler,
   post: postHandler,
@@ -144,7 +142,6 @@ export class ImageUploadService {
 
     // 2. Генерация путей
     const folderPath = handler.getFolderPath(ctx)
-    // Для аватара имя фиксированное, для остальных - оригинальное или UUID
     const fileName = entityType === 'avatar' ? 'avatar.webp' : ctx.file.name
     const paths = generateFilePaths(folderPath, fileName)
 

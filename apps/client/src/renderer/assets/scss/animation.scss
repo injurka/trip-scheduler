@@ -9,7 +9,6 @@
   }
 }
 
-// --- PageTransitions --- //
 .faded-enter-active,
 .faded-leave-active {
   transition: all 0.2s !important;
@@ -30,8 +29,6 @@
   opacity: 0;
   filter: blur(4px);
 }
-
-// -- ComponentTransition --- //
 
 .slide-up-enter-active,
 .slide-up-leave-active {

@@ -29,7 +29,6 @@ export const useConfirmDialogStore = defineStore('confirmDialog', {
   actions: {
     open(options: ConfirmDialogOptions): Promise<boolean> {
       return new Promise((resolve, reject) => {
-        // Устанавливаем все опции, включая новые
         this.isOpen = true
         this.title = options.title
         this.description = options.description
@@ -54,7 +53,6 @@ export const useConfirmDialogStore = defineStore('confirmDialog', {
     },
 
     resetContent() {
-      // Сбрасываем все состояние к значениям по умолчанию
       Object.assign(this, defaultState)
     },
   },

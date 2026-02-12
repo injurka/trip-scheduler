@@ -41,7 +41,6 @@ function getImageUrl(image: ImageViewerImage | null, quality: ImageQuality): str
     case 'original':
       return url
     default:
-      // Запасной вариант для любых непредвиденных значений
       return variants?.large || url
   }
 }

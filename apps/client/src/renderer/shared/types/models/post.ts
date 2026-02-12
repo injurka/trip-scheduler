@@ -1,5 +1,3 @@
-// --- Типы для UI-компонентов (ViewModel) ---
-
 export type TimelineBlockType = 'text' | 'gallery' | 'location' | 'route'
 
 export interface PostMark {
@@ -58,8 +56,6 @@ export interface TimelineStage {
   blocks: TimelineBlock[]
 }
 
-// --- Типы, соответствующие ответу API ---
-
 interface PostContentBlockText {
   id: string
   type: 'markdown'
@@ -100,7 +96,6 @@ export interface PostElement {
   updatedAt: string
 }
 
-// --- Основная модель поста ---
 export interface PostDetail {
   id: string
   createdAt: string
@@ -125,7 +120,6 @@ export interface PostDetail {
     isSaved: boolean
   }
 
-  // Relations
   media: PostMedia[]
   elements: PostElement[]
   stages?: TimelineStage[]
@@ -139,7 +133,6 @@ export interface PostDetail {
 
 export type Post = Omit<PostDetail, 'stages' | 'elements' | 'description'>
 
-// Типы для фильтрации и создания/обновления
 export interface ListPostsFilters {
   limit?: number
   cursor?: string

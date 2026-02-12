@@ -7,18 +7,15 @@ export interface ToastState {
 }
 
 export const useToastStore = defineStore('toast', {
-  // --- STATE ---
   state: (): ToastState => ({
     messages: [],
   }),
 
-  // --- GETTERS ---
   getters: {
     allMessages: (state): ToastMessage[] => state.messages,
     messageCount: (state): number => state.messages.length,
   },
 
-  // --- ACTIONS ---
   actions: {
     add(message: Omit<Partial<ToastMessage>, 'id'>) {
       const id = uuidv4()

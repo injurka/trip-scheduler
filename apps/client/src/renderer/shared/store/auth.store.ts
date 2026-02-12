@@ -25,8 +25,6 @@ export interface IAuthState {
   isInitialized: boolean
 }
 
-// --- Хранилище ---
-
 export const useAuthStore = defineStore('auth', {
   state: (): IAuthState => {
     const accessToken = useStorage<string | null>(TOKEN_KEY, null)

@@ -103,8 +103,6 @@ export interface AttractionData {
   sourceUrl?: string
 }
 
-// --- Общий тип бронирования ---
-
 export type Booking
   = | (BookingBase & { type: 'flight', data: FlightData })
     | (BookingBase & { type: 'hotel', data: HotelData })

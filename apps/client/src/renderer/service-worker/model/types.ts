@@ -67,13 +67,12 @@ interface ApiCacheRule {
   maxEntries: number
 }
 
-// ИЗМЕНЕНИЯ ЗДЕСЬ: Увеличено время жизни кеша до 30 дней
 const API_CACHE_RULES: ApiCacheRule[] = [
   {
     path: 'trip.list',
     cacheName: 'trip-scheduler-api-trips',
     strategy: 'NetworkFirst',
-    maxAgeSeconds: 30 * 24 * 60 * 60, // Было 1 день, стало 30 дней
+    maxAgeSeconds: 30 * 24 * 60 * 60, // 30 дней
     maxEntries: 10,
   },
   {

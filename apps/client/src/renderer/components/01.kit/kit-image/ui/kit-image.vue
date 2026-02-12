@@ -84,12 +84,11 @@ function clearLoadTimeout() {
   }
 }
 
-// Таймер теперь запускается только тогда, когда загрузка действительно должна начаться
 function setLoadTimeout() {
   clearLoadTimeout()
+
   if (props.loadTimeout > 0) {
     loadTimeoutId.value = setTimeout(() => {
-      // Если изображение все еще в состоянии загрузки после таймаута, считаем это ошибкой
       if (isLoading.value)
         handleError()
     }, props.loadTimeout)
@@ -105,11 +104,8 @@ function setupIntersectionObserver() {
   imageObserver.value = new IntersectionObserver(
     (entries) => {
       entries.forEach((entry) => {
-        // Когда изображение попадает в область видимости
         if (entry.isIntersecting) {
-          // Запускаем таймер ожидания загрузки
           setLoadTimeout()
-          // И отключаем наблюдатель, так как он больше не нужен
           cleanupObserver()
         }
       })
@@ -133,7 +129,7 @@ watch(
     isLoading.value = true
     hasError.value = false
     cleanupObserver()
-    clearLoadTimeout() // Также сбрасываем таймер при смене src
+    clearLoadTimeout()
 
     if (!newSrc) {
       isLoading.value = false
@@ -142,17 +138,14 @@ watch(
 
     nextTick(() => {
       if (imageRef.value) {
-        // Если изображение уже загружено (из кеша), обрабатываем сразу
         if (imageRef.value.complete && imageRef.value.naturalWidth > 0) {
           handleLoad()
           return
         }
 
-        // Для eager-загрузки таймер запускается немедленно
         if (props.loading === 'eager') {
           setLoadTimeout()
         }
-        // Для lazy-загрузки мы ждем, пока IntersectionObserver не запустит таймер
         else {
           setupIntersectionObserver()
         }
@@ -172,9 +165,7 @@ defineExpose({
   hasError: readonly(hasError),
   retry: () => {
     if (props.src && hasError.value) {
-      // При повторной попытке сбрасываем состояние и логику как при первой загрузке
       const newSrc = props.src
-      // "Перезагружаем" watcher
       watch(() => newSrc, () => {}, { immediate: true })
     }
   },
@@ -182,7 +173,11 @@ defineExpose({
 </script>
 
 <template>
-  <component :is="aspectRatio ? AspectRatio : 'div'" :ratio="aspectRatio" class="kit-image-wrapper">
+  <component
+    :is="aspectRatio ? AspectRatio : 'div'"
+    :ratio="aspectRatio"
+    class="kit-image-wrapper"
+  >
     <div class="kit-image-container">
       <transition name="faded">
         <div v-if="isLoading" class="placeholder-wrapper">

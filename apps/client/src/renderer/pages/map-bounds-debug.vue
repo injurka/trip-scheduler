@@ -153,7 +153,6 @@ function onMapReady(map: OlMap) {
   }
 }
 
-// Уголки для сверки
 .corner-marker {
   position: absolute;
   width: 20px;

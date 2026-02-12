@@ -24,8 +24,6 @@ interface IptcMetadata {
   country?: string // Страна
 }
 
-// --- Расширенные существующие интерфейсы ---
-
 /**
  * Всеобъемлющий интерфейс для поля metadata (JSONB).
  */

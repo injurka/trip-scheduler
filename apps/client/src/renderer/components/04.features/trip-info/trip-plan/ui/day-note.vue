@@ -8,28 +8,22 @@ const { ui, plan } = useModuleStore(['ui', 'plan'])
 const { isViewMode } = storeToRefs(ui)
 const { getSelectedDay, isLoadingUpdateNote, isLoadingNote } = storeToRefs(plan)
 
-// Локальное состояние контента
 const noteContent = ref('')
 const isInitialized = ref(false)
 
-// 1. Загрузка данных при смене дня
 watch(getSelectedDay, async (newDay) => {
   if (!newDay)
     return
 
-  // Временно блокируем авто-сохранение, пока грузим данные
   isInitialized.value = false
 
-  // Сначала пробуем взять из кеша (если переключались между днями)
   const cachedNote = plan.getNoteForCurrentDay
   if (cachedNote !== null) {
     noteContent.value = cachedNote
   }
 
-  // Всегда подгружаем актуальные данные с сервера
   await plan.fetchDayNote(newDay.id)
 
-  // Обновляем контент, если пришло что-то новое
   if (plan.getNoteForCurrentDay !== null) {
     noteContent.value = plan.getNoteForCurrentDay
   }
@@ -37,18 +31,15 @@ watch(getSelectedDay, async (newDay) => {
   isInitialized.value = true
 }, { immediate: true })
 
-// 2. Функция сохранения с задержкой (Debounce)
 const saveToDb = useDebounceFn((val: string) => {
   if (!getSelectedDay.value)
     return
   plan.updateDayNote(getSelectedDay.value.id, val)
 }, 1000)
 
-// 3. Обработчик изменений в редакторе
 function onContentUpdate(val: string) {
   noteContent.value = val
 
-  // Сохраняем только если инициализация прошла и мы не в режиме просмотра
   if (isInitialized.value && !isViewMode.value) {
     saveToDb(val)
   }
@@ -58,9 +49,7 @@ function onContentUpdate(val: string) {
 <template>
   <div class="day-note">
     <div class="note-container">
-      <!-- Индикатор состояния (Загрузка / Сохранение) -->
       <div class="status-bar">
-        <!-- mode="out-in" обеспечивает плавную смену элементов -->
         <transition name="status-fade" mode="out-in">
           <span v-if="isLoadingNote && !isInitialized" key="loading" class="status loading">
             <Icon icon="mdi:loading" class="spin" /> Загрузка...

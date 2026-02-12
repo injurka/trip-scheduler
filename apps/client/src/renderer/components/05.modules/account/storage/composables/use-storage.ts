@@ -87,7 +87,6 @@ export function useStorageModule() {
   const filteredAndSortedFiles = computed(() => {
     let result = [...files.value]
 
-    // Фильтрация
     if (filters.value.search) {
       const search = filters.value.search.toLowerCase()
       result = result.filter(f => f.originalName?.toLowerCase().includes(search))
@@ -115,7 +114,6 @@ export function useStorageModule() {
       result = result.filter(f => f.sizeBytes <= maxBytes)
     }
 
-    // Сортировка
     result.sort((a, b) => {
       let aVal: any
       let bVal: any
@@ -158,7 +156,6 @@ export function useStorageModule() {
     return filteredAndSortedFiles.value.slice(start, end)
   })
 
-  // Сбрасываем страницу при изменении фильтров
   watch([filters, sortBy], () => {
     currentPage.value = 1
   }, { deep: true })

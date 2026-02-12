@@ -44,7 +44,6 @@ export function setupCssVariablesUpdater() {
   watchEffect(() => {
     const htmlElement = document.documentElement
 
-    // 1. Применяем настройки контента
     if (themeStore.backgroundSettings.enableContentDimming) {
       const opacity = themeStore.backgroundSettings.contentDimmingOpacity ?? 1
       const width = themeStore.backgroundSettings.contentGradientWidth ?? 100
@@ -52,12 +51,10 @@ export function setupCssVariablesUpdater() {
       htmlElement.style.setProperty('--content-gradient-width', `${width}px`)
     }
     else {
-      // Если выключено — полностью прозрачно и без градиентов
       htmlElement.style.setProperty('--content-bg-opacity', '0')
       htmlElement.style.setProperty('--content-gradient-width', '0px')
     }
 
-    // 2. Применяем настройки темы
     if (themeStore.isCustomThemeActive) {
       htmlElement.setAttribute('data-theme', 'custom')
 
@@ -68,7 +65,6 @@ export function setupCssVariablesUpdater() {
     else {
       htmlElement.setAttribute('data-theme', themeStore.activeThemeName)
 
-      // Чтобы не потерять переменные, которые мы установили в пункте 1, при очистке cssText:
       const currentOpacity = htmlElement.style.getPropertyValue('--content-bg-opacity')
       const currentWidth = htmlElement.style.getPropertyValue('--content-gradient-width')
 

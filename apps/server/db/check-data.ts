@@ -58,7 +58,6 @@ async function checkData() {
     })
     console.groupEnd()
 
-    // Проверка путешествий
     const tripCount = counts.find(c => c.name.includes('Путешествия'))?.count ?? 0
     if (tripCount > 0) {
       console.group('\n✅ Глубокая проверка первого путешествия:')
@@ -86,7 +85,6 @@ async function checkData() {
       console.groupEnd()
     }
 
-    // Проверка постов
     const postCount = counts.find(c => c.name.includes('Посты'))?.count ?? 0
     if (postCount > 0) {
       console.group('\n✅ Глубокая проверка первого поста:')

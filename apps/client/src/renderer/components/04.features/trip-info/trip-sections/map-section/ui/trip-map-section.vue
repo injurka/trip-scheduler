@@ -27,13 +27,10 @@ const mapController = ref<ReturnType<typeof useGeolocationMap>>()
 const selectedDayId = ref('all')
 const selectedItemId = ref<string | null>(null)
 
-// Breakpoints
 const isSmallScreen = useMediaQuery('(max-width: 1200px)')
 const isLargeScreen = useMediaQuery('(min-width: 1920px)')
 
 const isSidebarVisible = ref(!isSmallScreen.value)
-
-// --- Sidebar Resize Logic ---
 const sidebarWidth = ref(320)
 const isSidebarResizing = ref(false)
 
@@ -109,7 +106,6 @@ function startDetailsResize(e: MouseEvent) {
   document.body.style.userSelect = 'none'
 }
 
-// --- Collapsible Groups Logic ---
 const collapsedGroups = reactive({
   points: false,
   routes: false,
@@ -119,7 +115,6 @@ const collapsedGroups = reactive({
 function toggleGroup(group: keyof typeof collapsedGroups) {
   collapsedGroups[group] = !collapsedGroups[group]
 }
-// --------------------------------
 
 const dayOptions = computed(() => {
   const options: any[] = [{ value: 'all', label: 'Все дни', dayNumber: null }]
@@ -168,20 +163,15 @@ const selectedActivity = computed(() => {
   return day?.activities.find(a => a.id === geoSection.activityId) || null
 })
 
-// Динамический стиль для панели деталей
 const detailsPanelStyle = computed(() => {
   const style: Record<string, string> = {}
 
   if (isLargeScreen.value) {
-    // Large Screen Mode: Панель справа
     style.width = `${detailsPanelSize.value}px`
-    // Сброс высоты, так как она занимает 100% (минус отступы) через CSS
   }
   else {
-    // Standard Mode: Панель снизу
     style.height = `${detailsPanelSize.value}px`
 
-    // Логика смещения влево, если открыт сайдбар
     if (isSidebarVisible.value && !isSmallScreen.value) {
       style.left = `${sidebarWidth.value + 24}px`
     }

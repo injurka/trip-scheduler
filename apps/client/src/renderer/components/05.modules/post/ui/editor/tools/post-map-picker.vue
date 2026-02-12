@@ -43,7 +43,7 @@ function handleConfirm() {
 const mapCenter = computed((): [number, number] => {
   if (selectedCoords.value)
     return [selectedCoords.value.lon, selectedCoords.value.lat]
-  return [37.6173, 55.7558] // Москва по дефолту
+  return [37.6173, 55.7558] // Москва
 })
 
 watch(() => props.visible, (isOpen) => {
