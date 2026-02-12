@@ -461,6 +461,7 @@ onBeforeUnmount(() => {
   .drawer-header {
     padding: 16px;
     border-bottom: 1px solid var(--border-secondary-color);
+
     h2 {
       margin: 0;
       font-size: 1.25rem;
@@ -610,6 +611,7 @@ onBeforeUnmount(() => {
   display: flex;
   flex-direction: column;
   gap: 8px;
+
   label {
     display: block;
     margin-bottom: 6px;

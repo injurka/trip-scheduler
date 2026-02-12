@@ -22,6 +22,10 @@ import '~/assets/scss/fonts.scss'
 
 const route = useRoute()
 
+// --- Electron Logic ---
+const isElectron = typeof window !== 'undefined' && !!window.electronAPI
+const titleBarHeight = isElectron ? '32px' : '0px'
+
 const layout = computed(() => route.meta.layout || 'empty')
 const transition = computed(() => route.meta.transition)
 
@@ -34,99 +38,51 @@ const layouts = {
 // --- SEO Конфигурация ---
 const siteUrl = 'https://trip-scheduler.ru'
 const siteName = 'Trip Scheduler'
-
-const description = 'Trip Scheduler — удобный планировщик путешествий. Создавайте маршруты, сохраняйте воспоминания и организуйте свои поездки в одном месте.'
-
-const isElectron = typeof window !== 'undefined' && !!window.electronAPI
-const titleBarHeight = isElectron ? '32px' : '0px'
+const description = 'Trip Scheduler — удобный планировщик путешествий.'
 
 useHead({
-  titleTemplate: (titleChunk) => {
-    return titleChunk
-      ? `${titleChunk} | ${siteName}`
-      : `${siteName} — Планировщик путешествий и маршрутов`
-  },
-  htmlAttrs: {
-    lang: 'ru',
-  },
-  link: [
-    {
-      rel: 'canonical',
-      href: computed(() => `${siteUrl}${route.path}`),
-    },
-    {
-      rel: 'icon',
-      type: 'image/svg+xml',
-      href: '/trip-scheduler-logo.svg',
-    },
-  ],
-  script: [
-    {
-      type: 'application/ld+json',
-      children: JSON.stringify({
-        '@context': 'https://schema.org',
-        '@type': 'WebApplication',
-        'name': siteName,
-        'alternateName': ['TripScheduler', 'Планировщик путешествий'],
-        'url': siteUrl,
-        'description': description,
-        'applicationCategory': 'TravelApplication',
-        'operatingSystem': 'Any',
-        'offers': {
-          '@type': 'Offer',
-          'price': '0',
-          'priceCurrency': 'RUB',
-        },
-      }),
-    },
-  ],
+  titleTemplate: titleChunk => titleChunk ? `${titleChunk} | ${siteName}` : `${siteName}`,
+  htmlAttrs: { lang: 'ru' },
+  link: [{ rel: 'icon', type: 'image/svg+xml', href: '/trip-scheduler-logo.svg' }],
 })
 
 useSeoMeta({
   description,
-  keywords: 'путешествия, trip scheduler, планировщик, маршрут, trip planner, поездка, туризм',
-  ogTitle: `${siteName} — Планировщик путешествий`,
+  ogTitle: siteName,
   ogDescription: description,
-  ogType: 'website',
-  ogUrl: computed(() => `${siteUrl}${route.path}`),
-  ogImage: `${siteUrl}/og-image.jpg`,
-  ogSiteName: siteName,
-  twitterCard: 'summary_large_image',
-  twitterTitle: `${siteName} — Планировщик путешествий`,
-  twitterDescription: description,
-  twitterImage: `${siteUrl}/og-image.jpg`,
 })
 </script>
 
 <template>
-  <AppTitleBar />
-  <OfflineBanner />
+  <div id="app-root" :style="{ '--title-bar-height': titleBarHeight }">
+    <AppTitleBar />
 
-  <component :is="layouts[layout]">
-    <router-view v-slot="{ Component }">
-      <transition v-if="transition" :name="transition" mode="out-in">
-        <component :is="Component" />
-      </transition>
+    <div class="app-layout-wrapper">
+      <OfflineBanner />
 
-      <component :is="Component" v-else />
-    </router-view>
-  </component>
+      <component :is="layouts[layout]">
+        <router-view v-slot="{ Component }">
+          <transition v-if="transition" :name="transition" mode="out-in">
+            <component :is="Component" />
+          </transition>
+          <component :is="Component" v-else />
+        </router-view>
+      </component>
+    </div>
 
-  <FloatingMap />
-  <ReloadPrompt />
-  <ToastManager />
-
-  <ConfirmDialogManager />
-  <OfflineProgressDialog />
+    <FloatingMap />
+    <ReloadPrompt />
+    <ToastManager />
+    <ConfirmDialogManager />
+    <OfflineProgressDialog />
+  </div>
 </template>
 
 <style lang="scss">
-:root {
-  --title-bar-height: v-bind(titleBarHeight);
-}
-
-body {
+.app-layout-wrapper {
   padding-top: var(--title-bar-height);
-  background-color: var(--bg-primary-color);
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
 }
 </style>

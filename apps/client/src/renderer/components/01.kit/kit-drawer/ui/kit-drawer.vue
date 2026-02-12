@@ -57,6 +57,7 @@ const visible = defineModel<boolean>('open', { required: true })
   position: fixed;
   inset: 0;
   z-index: 1000;
+  top: var(--title-bar-height, 0px);
 
   &[data-state='open'] {
     animation: overlay-show 300ms cubic-bezier(0.16, 1, 0.3, 1) forwards;
@@ -77,13 +78,15 @@ const visible = defineModel<boolean>('open', { required: true })
   box-shadow: var(--s-xl);
   display: flex;
   flex-direction: column;
+  max-height: calc(100vh - var(--title-bar-height, 0px));
+  top: var(--title-bar-height, 0px);
 
   &:focus {
     outline: none;
   }
 
   &.drawer--left {
-    top: 0;
+    top: var(--title-bar-height, 0px);
     bottom: 0;
     left: 0;
     max-width: 80vw;
@@ -97,7 +100,7 @@ const visible = defineModel<boolean>('open', { required: true })
   }
 
   &.drawer--right {
-    top: 0;
+    top: var(--title-bar-height, 0px);
     bottom: 0;
     right: 0;
     max-width: 80vw;

@@ -59,6 +59,10 @@ hr {
   border: 1px solid var(--border-secondary-color);
 }
 
+.drawer-content-wrapper {
+  top: var(--title-bar-height, 0px) !important;
+}
+
 .milkdown {
   --crepe-color-background: transparent; /* Main background color */
 

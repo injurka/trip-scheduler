@@ -65,8 +65,7 @@ function startSidebarResize(e: MouseEvent) {
   document.body.style.userSelect = 'none'
 }
 
-// --- Details Panel Resize Logic ---
-const detailsPanelSize = ref(isLargeScreen ? 600 : 300) // Высота (стандарт) или Ширина (Large screen)
+const detailsPanelSize = ref(isLargeScreen ? 600 : 300)
 const isDetailsResizing = ref(false)
 
 function startDetailsResize(e: MouseEvent) {
@@ -81,8 +80,6 @@ function startDetailsResize(e: MouseEvent) {
       return
 
     if (isSideMode) {
-      // Режим боковой панели (справа): тянем за левый край.
-      // Движение влево (уменьшение X) -> увеличение ширины.
       const diff = startX - moveEvent.clientX
       const newWidth = startSize + diff
       if (newWidth > 300 && newWidth < 1000) {
@@ -90,8 +87,6 @@ function startDetailsResize(e: MouseEvent) {
       }
     }
     else {
-      // Режим нижней панели: тянем за верхний край.
-      // Движение вверх (уменьшение Y) -> увеличение высоты.
       const diff = startY - moveEvent.clientY
       const newHeight = startSize + diff
       if (newHeight > 150 && newHeight < 600) {
@@ -110,11 +105,9 @@ function startDetailsResize(e: MouseEvent) {
 
   document.addEventListener('mousemove', doResize)
   document.addEventListener('mouseup', stopResize)
-  // Курсор зависит от режима
   document.body.style.cursor = isSideMode ? 'col-resize' : 'row-resize'
   document.body.style.userSelect = 'none'
 }
-// --------------------
 
 // --- Collapsible Groups Logic ---
 const collapsedGroups = reactive({
@@ -397,10 +390,10 @@ function focusOnItem(item: MapPoint | MapRoute | DrawnRoute) {
 
 .is-fullscreen {
   position: fixed;
-  top: 0;
+  top: var(--title-bar-height, 0px) !important;
   left: 0;
   width: 100vw;
-  height: 100vh;
+  height: calc(100vh - var(--title-bar-height, 0px)) !important;
   z-index: 100;
   padding: 0;
   background-color: var(--bg-primary-color);
@@ -423,7 +416,7 @@ function focusOnItem(item: MapPoint | MapRoute | DrawnRoute) {
   height: 100%;
   flex: 1;
   background-color: var(--bg-primary-color);
-  overflow: hidden; // Важно, чтобы панели не вылезали
+  overflow: hidden;
 }
 
 .sidebar {
@@ -431,7 +424,6 @@ function focusOnItem(item: MapPoint | MapRoute | DrawnRoute) {
   top: 12px;
   left: 12px;
   bottom: 12px;
-  // width задается через style
   z-index: 20;
   display: flex;
   flex-direction: column;
@@ -445,7 +437,6 @@ function focusOnItem(item: MapPoint | MapRoute | DrawnRoute) {
   max-width: 80vw;
 }
 
-/* Общий стиль для ресайзеров */
 .resizer {
   position: absolute;
   z-index: 21;
@@ -459,7 +450,6 @@ function focusOnItem(item: MapPoint | MapRoute | DrawnRoute) {
   }
 }
 
-/* Ресайзер для сайдбара (правая граница) */
 .sidebar-resizer {
   top: 0;
   right: 0;
@@ -619,14 +609,11 @@ function focusOnItem(item: MapPoint | MapRoute | DrawnRoute) {
   display: flex;
   flex-direction: column;
 
-  // Standard Mode (Bottom) - Default
   bottom: 12px;
-  left: 12px; // Переопределяется JS-ом
+  left: 12px;
   right: 12px;
-  // height задается JS-ом
   max-height: 60%;
 
-  /* Ресайзер для нижней панели (верхняя граница) */
   .details-resizer {
     top: 0;
     left: 0;
@@ -635,16 +622,13 @@ function focusOnItem(item: MapPoint | MapRoute | DrawnRoute) {
     cursor: row-resize;
   }
 
-  // Large Screen Mode (Side Right)
   &.is-side-panel {
     top: 12px;
     bottom: 12px;
     right: 12px;
-    left: auto !important; // Сбрасываем left, который может прийти из JS логики sidebar
+    left: auto !important;
     max-height: 100%;
-    // width задается JS-ом
 
-    /* Ресайзер для боковой правой панели (левая граница) */
     .details-resizer {
       top: 0;
       left: 0;
@@ -699,7 +683,6 @@ function focusOnItem(item: MapPoint | MapRoute | DrawnRoute) {
   }
 }
 
-// Анимации
 .slide-left-enter-active,
 .slide-left-leave-active {
   transition: all 0.3s cubic-bezier(0.25, 0.8, 0.5, 1);
@@ -722,13 +705,13 @@ function focusOnItem(item: MapPoint | MapRoute | DrawnRoute) {
 
 @media (max-width: 1200px) {
   .resizer {
-    display: none !important; /* Отключаем ресайз на тач устройствах */
+    display: none !important;
   }
   .sidebar {
     width: 320px !important;
   }
   .details-panel {
-    height: auto !important; /* Возвращаем авто высоту */
+    height: auto !important;
     max-height: 40%;
   }
 }

@@ -234,7 +234,7 @@ onMounted(() => {
 <style lang="scss" scoped>
 .header {
   position: sticky;
-  top: var(--title-bar-height);
+  top: var(--title-bar-height, 0px);
   display: flex;
   flex-direction: row;
   width: 100%;

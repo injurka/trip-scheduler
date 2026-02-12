@@ -1,10 +1,7 @@
 <script setup lang="ts">
 import { Icon } from '@iconify/vue'
 
-// Проверяем, запущены ли мы в Electron
 const isElectron = computed(() => !!window.electronAPI?.window)
-
-// Проверяем платформу (опционально, чтобы скрыть кнопки на macOS, так как там есть свои "светофоры")
 const isMac = navigator.platform.toUpperCase().includes('MAC')
 
 const handleMinimize = () => window.electronAPI?.window.minimize()
@@ -14,17 +11,13 @@ const handleClose = () => window.electronAPI?.window.close()
 
 <template>
   <div v-if="isElectron" class="app-title-bar">
-    <!-- Иконка и название приложения (слева) -->
     <div class="app-info">
       <Icon icon="mdi:map-marker-path" class="app-icon" />
       <span class="app-title">Trip Scheduler</span>
     </div>
 
-    <!-- Область перетаскивания (занимает все свободное место) -->
     <div class="drag-region" />
 
-    <!-- Кнопки управления (только для Windows/Linux) -->
-    <!-- На macOS используем v-if="!isMac", так как там системные кнопки слева -->
     <div v-if="!isMac" class="window-controls">
       <button class="control-btn minimize" tabindex="-1" @click="handleMinimize">
         <Icon icon="mdi:minus" />
@@ -45,8 +38,8 @@ const handleClose = () => window.electronAPI?.window.close()
   top: 0;
   left: 0;
   width: 100%;
-  height: 32px; /* Стандартная высота заголовка */
-  background-color: var(--bg-secondary-color); /* Цвет фона шапки */
+  height: 32px;
+  background-color: var(--bg-secondary-color);
   border-bottom: 1px solid var(--border-secondary-color);
   display: flex;
   justify-content: space-between;
@@ -55,13 +48,10 @@ const handleClose = () => window.electronAPI?.window.close()
   user-select: none;
 }
 
-/* Самая важная часть: разрешает перетаскивание окна */
 .app-title-bar {
   -webkit-app-region: drag;
 }
 
-/* Элементы внутри шапки, которые должны быть кликабельными,
-   должны иметь no-drag, иначе клик не пройдет */
 .window-controls button,
 .app-info {
   -webkit-app-region: no-drag;
@@ -75,14 +65,10 @@ const handleClose = () => window.electronAPI?.window.close()
   font-size: 0.8rem;
   font-weight: 600;
   color: var(--fg-secondary-color);
-
-  /* Если macOS, добавляем отступ слева, чтобы не наехать на светофор */
-  /* padding-left: 80px; */
 }
 
 .drag-region {
   flex-grow: 1;
-  /* Эта область прозрачна для кликов и служит только для drag */
 }
 
 .window-controls {
@@ -99,7 +85,7 @@ const handleClose = () => window.electronAPI?.window.close()
   background: transparent;
   color: var(--fg-secondary-color);
   font-size: 1rem;
-  cursor: default; /* Нативная кнопка обычно имеет default курсор */
+  cursor: default;
   transition: background-color 0.2s;
 
   &:hover {

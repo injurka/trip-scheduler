@@ -75,7 +75,6 @@ const collapseRouteIcon = computed(() => allRouteBlocksCollapsed.value ? 'mdi:ch
 <template>
   <div class="plan-view" :class="{ 'is-full-screen': isFullScreen }">
     <div class="divider-with-action" :class="{ 'is-parallel-mode': isParallelPlanView }">
-      <!-- Левая панель управления видами -->
       <div v-if="!isFullScreen" class="view-mode-controls left">
         <div class="mode-group">
           <KitBtn
@@ -137,9 +136,7 @@ const collapseRouteIcon = computed(() => allRouteBlocksCollapsed.value ? 'mdi:ch
       </div>
     </div>
 
-    <!-- Основной контент -->
     <div class="plan-content" :class="{ 'is-parallel': isParallelPlanView }">
-      <!-- Шаблонный список (Plan) -->
       <div
         v-if="isParallelPlanView || viewMode === 'template'"
         class="plan-column"
@@ -147,7 +144,6 @@ const collapseRouteIcon = computed(() => allRouteBlocksCollapsed.value ? 'mdi:ch
         <DayActivitiesList @add="handleAddNewActivity" />
       </div>
 
-      <!-- Полотно (Canvas) -->
       <div
         v-if="isParallelPlanView || viewMode === 'canvas'"
         class="canvas-column"
@@ -167,7 +163,7 @@ const collapseRouteIcon = computed(() => allRouteBlocksCollapsed.value ? 'mdi:ch
 
   &.is-full-screen {
     position: fixed;
-    top: 0;
+    top: var(--title-bar-height, 0px);
     left: 0;
     width: 100vw;
     height: 100vh;
