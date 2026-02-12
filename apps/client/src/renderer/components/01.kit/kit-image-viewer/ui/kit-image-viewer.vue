@@ -464,8 +464,7 @@ onUnmounted(() => {
 <style scoped lang="scss">
 .image-viewer-overlay {
   position: fixed;
-  // top: var(--title-bar-height, 0px);
-  top: 100px;
+  top: var(--title-bar-height, 0px) !important;
   inset: 0;
   background: rgba(0, 0, 0, 0.95);
   z-index: 21;
