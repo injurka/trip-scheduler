@@ -14,8 +14,8 @@ function createWindow() {
     height: 800,
     minWidth: 800,
     minHeight: 600,
-    frame: false, // Убираем системную рамку и нативные кнопки
-    titleBarStyle: 'hidden', // Скрываем заголовок (для macOS светофоры останутся)
+    frame: true,
+    titleBarStyle: 'default',
     webPreferences: {
       preload: join(currentDir, '../preload/index.mjs'),
       sandbox: false,

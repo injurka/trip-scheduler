@@ -60,7 +60,7 @@ hr {
 }
 
 .drawer-content-wrapper {
-  top: var(--title-bar-height, 0px) !important;
+  top: env(safe-area-inset-top) !important;
 }
 
 .milkdown {
