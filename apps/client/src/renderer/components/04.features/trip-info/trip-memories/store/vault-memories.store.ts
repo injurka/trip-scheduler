@@ -3,16 +3,16 @@ import { defineStore } from 'pinia'
 
 export const useVaultMemoriesStore = defineStore('vaultMemories', {
   state: () => ({
-    vaultPath: ref<string | null>(null),
+    vaultPath: null as string | null,
     isLocalMode: useStorage('vault-local-mode', false),
-    localFilesSet: ref<Set<string>>(new Set()),
+    localFilesSet: new Set<string>(),
 
-    syncState: ref({
+    syncState: {
       isDownloading: false,
       current: 0,
       total: 0,
       loadedBytes: 0,
-    }),
+    },
   }),
 
   getters: {
@@ -31,6 +31,7 @@ export const useVaultMemoriesStore = defineStore('vaultMemories', {
     async selectFolder() {
       if (!this.isElectron)
         return
+
       const path = await window.electronAPI.vault.selectFolder()
       if (path) {
         this.vaultPath = path

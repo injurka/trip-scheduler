@@ -277,14 +277,14 @@ async function handleNotifyParticipants() {
           <button
             class="control-btn local-mode-btn"
             :class="{ 'is-active': vaultStore.isLocalMode && vaultStore.isConfigured }"
-            :title="vaultStore.isLocalMode ? 'Смотреть с сервера' : 'Смотреть с диска (Vault)'"
+            :title="vaultStore.isLocalMode ? 'Смотреть с сервера' : 'Смотреть с диска'"
             @click="handleToggleLocalMode"
           >
             <Icon :icon="vaultStore.isLocalMode ? 'mdi:harddisk' : 'mdi:cloud-outline'" />
           </button>
 
           <button
-            v-if="memoriesForSelectedDay.length > 0"
+            v-if="memoriesForSelectedDay.length > 0 && vaultStore.isLocalMode"
             class="control-btn sync-btn"
             :class="{ 'is-active': syncState.isDownloading }"
             :disabled="syncState.isDownloading"
@@ -502,11 +502,14 @@ async function handleNotifyParticipants() {
     opacity: 0.6;
     cursor: not-allowed;
   }
+}
 
-  .is-active {
+.sync-btn {
+  &.is-active {
     color: var(--fg-accent-color);
     border-color: var(--fg-accent-color);
   }
+
   .sync-progress {
     font-size: 0.8rem;
     font-family: monospace;
@@ -519,10 +522,10 @@ async function handleNotifyParticipants() {
   &.is-active {
     color: var(--fg-success-color);
     border-color: var(--fg-success-color);
-    background-color: rgba(var(--fg-success-color-rgb), 0.1);
+    background-color: var(--fg-success-color);
 
     &:hover {
-      background-color: rgba(var(--fg-success-color-rgb), 0.2);
+      background-color: var(--fg-success-color);
     }
   }
 }
