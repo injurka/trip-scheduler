@@ -8,7 +8,6 @@ import { KitImage } from '~/components/01.kit/kit-image'
 import { KitImageViewer } from '~/components/01.kit/kit-image-viewer'
 import { KitInlineMdEditorWrapper } from '~/components/01.kit/kit-inline-md-editor'
 import { KitTimeField } from '~/components/01.kit/kit-time-field'
-import { useModuleStore } from '~/components/05.modules/trip-info/composables/use-trip-info-module'
 import { useMemoryImageViewer, useMemoryItemActions, useMorph } from '../../composables'
 
 interface Props {

@@ -2,7 +2,7 @@ import type { IActivity } from '../models/types'
 import type { IImageViewerImageMeta, ImageViewerImage } from '~/components/01.kit/kit-image-viewer'
 import type { Memory } from '~/shared/types/models/memory'
 import type { TripImage } from '~/shared/types/models/trip'
-import { useVaultStore } from '~/components/04.features/trip-info/trip-memories/store/vault-memories.store'
+import { useVaultMemoriesStore } from '~/components/04.features/trip-info/trip-memories/store/vault-memories.store'
 import { EActivityTag } from '../models/types'
 
 export function getActivityDuration(activity: IActivity): number {
@@ -64,7 +64,7 @@ export function getTagInfo(tag?: EActivityTag) {
  * @returns Объект ImageViewerImage.
  */
 export function tripImageToViewerImage(image: TripImage): ImageViewerImage {
-  const vaultStore = useVaultStore()
+  const vaultStore = useVaultMemoriesStore()
 
   let url = image.url
   const variants = { ...image.variants }
