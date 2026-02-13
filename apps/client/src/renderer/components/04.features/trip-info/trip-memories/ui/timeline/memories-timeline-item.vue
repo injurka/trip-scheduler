@@ -8,7 +8,9 @@ import { KitImage } from '~/components/01.kit/kit-image'
 import { KitImageViewer } from '~/components/01.kit/kit-image-viewer'
 import { KitInlineMdEditorWrapper } from '~/components/01.kit/kit-inline-md-editor'
 import { KitTimeField } from '~/components/01.kit/kit-time-field'
+import { useModuleStore } from '~/components/05.modules/trip-info'
 import { useMemoryImageViewer, useMemoryItemActions, useMorph } from '../../composables'
+import { useVaultMemoriesStore } from '../../store'
 
 interface Props {
   memory: IMemory
@@ -25,6 +27,9 @@ const props = withDefaults(defineProps<Props>(), {
   timelineGroups: () => [],
   isFullScreen: false,
 })
+const vaultStore = useVaultMemoriesStore()
+const { plan: tripData } = useModuleStore(['plan'])
+const { getSelectedDay } = storeToRefs(tripData)
 
 const photoWrapperRef = ref<HTMLElement | null>(null)
 const commentEditorRef = ref(null)
@@ -37,27 +42,53 @@ const preferredQuality = useStorage<ImageQuality>('viewer-quality-preference', '
 
 const isDesktop = computed(() => windowWidth.value >= 1024)
 
-const imageSrc = computed(() => {
-  if (!props.memory.image)
-    return ''
+const imageSource = computed(() => {
+  const image = props.memory.image
+  if (!image)
+    return { url: '', variants: {} }
 
-  if (isMorphed.value || props.isFullScreen) {
-    switch (preferredQuality.value) {
-      case 'medium':
-        return props.memory.image.variants?.medium || props.memory.image.variants?.large || props.memory.image.url
-      case 'large':
-        return props.memory.image.variants?.large || props.memory.image.url
-      case 'original':
-        return props.memory.image.url
-      default:
-        return props.memory.image.variants?.large || props.memory.image.url
+  const serverUrl = resolveApiUrl(image.url)
+  const serverVariants = {
+    small: image.variants?.small ? resolveApiUrl(image.variants.small) : serverUrl,
+    medium: image.variants?.medium ? resolveApiUrl(image.variants.medium) : serverUrl,
+    large: image.variants?.large ? resolveApiUrl(image.variants.large) : serverUrl,
+  }
+
+  if (vaultStore.isLocalMode && vaultStore.isConfigured && tripData.currentTripId) {
+    const dayId = getSelectedDay.value?.id
+    if (dayId) {
+      const relPath = vaultStore.getRelPath(tripData.currentTripId, image.id, dayId)
+
+      const isFileAvailable = vaultStore.localFilesSet.has(relPath)
+
+      if (isFileAvailable) {
+        const localUrl = `trip-scheduler-vault://${relPath}`
+        return {
+          url: localUrl,
+          variants: { small: localUrl, medium: localUrl, large: localUrl },
+        }
+      }
     }
   }
 
-  if (isDesktop.value)
-    return props.memory.image.variants?.medium || props.memory.image.url
+  return {
+    url: serverUrl,
+    variants: serverVariants,
+  }
+})
 
-  return props.memory.image.variants?.small || props.memory.image.url
+const imageSrcForRender = computed(() => {
+  if (isMorphed.value || props.isFullScreen) {
+    switch (preferredQuality.value) {
+      case 'medium': return imageSource.value.variants.medium
+      case 'large': return imageSource.value.variants.large
+      case 'original': return imageSource.value.url
+      default: return imageSource.value.variants.large
+    }
+  }
+  if (isDesktop.value)
+    return imageSource.value.variants.medium
+  return imageSource.value.variants.small
 })
 
 function setQuality(quality: ImageQuality) {
@@ -159,7 +190,7 @@ onClickOutside(ratingMenuRef, () => isRatingMenuOpen.value = false)
         :style="isMorphed ? morphStyle : {}"
         @click="handleWrapperClick"
       >
-        <KitImage :src="imageSrc" object-fit="cover" />
+        <KitImage :src="imageSrcForRender" :variants="imageSource.variants" object-fit="cover" />
 
         <button
           v-if="isDesktop && !isFullScreen && !isMorphed"

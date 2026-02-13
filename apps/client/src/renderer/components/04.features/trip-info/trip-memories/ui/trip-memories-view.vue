@@ -129,17 +129,48 @@ const timelineGroups = computed(() => {
 })
 
 const galleryImages = computed<ImageViewerImage[]>(() => {
+  const isLocal = vaultStore.isLocalMode
   const currentDayId = getSelectedDay.value?.id
 
   return memoriesForSelectedDay.value
+    .filter(memory => memory.image)
     .map((memory: IMemory) => {
-      const img = memoryToViewerImage(memory, currentDayId)
-      if (!img)
-        return null
+      const image = memory.image!
+      let url = resolveApiUrl(image.url)
+      let variants = {
+        small: image.variants?.small ? resolveApiUrl(image.variants.small) : url,
+        medium: image.variants?.medium ? resolveApiUrl(image.variants.medium) : url,
+        large: image.variants?.large ? resolveApiUrl(image.variants.large) : url,
+      }
 
-      return img
+      if (isLocal && vaultStore.isConfigured && tripData.currentTripId && currentDayId) {
+        const relPath = vaultStore.getRelPath(tripData.currentTripId, image.id, currentDayId)
+        if (vaultStore.localFilesSet.has(relPath)) {
+          const localUrl = `trip-scheduler-vault://${relPath}`
+          url = localUrl
+          variants = { small: localUrl, medium: localUrl, large: localUrl }
+        }
+      }
+
+      const meta: any = {
+        ...(image.metadata || {}),
+        latitude: image.latitude,
+        longitude: image.longitude,
+        takenAt: image.takenAt,
+        width: image.width,
+        height: image.height,
+        imageId: image.id,
+        memoryId: memory.id,
+      }
+
+      return {
+        url,
+        variants,
+        alt: memory.comment || 'Trip Image',
+        caption: memory.comment || '',
+        meta,
+      }
     })
-    .filter((img): img is NonNullable<typeof img> => !!img)
 })
 
 const allMemoryGroupKeys = computed(() => timelineGroups.value.map(g => g.type + (g.activity?.id || g.title)))
