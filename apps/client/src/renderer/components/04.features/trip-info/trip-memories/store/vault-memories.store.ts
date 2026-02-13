@@ -43,11 +43,11 @@ export const useVaultMemoriesStore = defineStore('vaultMemories', {
       }
     },
 
-    async checkFilesAvailability(tripId: string, imageItems: { imageId: string, dayId?: string }[]) {
+    async checkFilesAvailability(tripId: string, items: { imageId: string, dayId?: string }[]) {
       if (!this.isElectron || !this.vaultPath)
         return
 
-      const paths = imageItems.map(item => this.getRelPath(tripId, item.imageId, item.dayId))
+      const paths = items.map(item => this.getRelPath(tripId, item.imageId, item.dayId))
       const existing = await window.electronAPI.vault.checkFiles(paths)
 
       existing.forEach(p => this.localFilesSet.add(p))
@@ -86,7 +86,7 @@ export const useVaultMemoriesStore = defineStore('vaultMemories', {
       const BATCH_SIZE = 5
       for (let i = 0; i < toDownload.length; i += BATCH_SIZE) {
         if (!this.syncState.isDownloading)
-          break // Возможность отмены
+          break
 
         const batch = toDownload.slice(i, i + BATCH_SIZE)
 

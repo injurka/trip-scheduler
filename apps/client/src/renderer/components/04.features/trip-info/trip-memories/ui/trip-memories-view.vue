@@ -524,10 +524,9 @@ async function handleNotifyParticipants() {
   &.is-active {
     color: var(--fg-success-color);
     border-color: var(--fg-success-color);
-    background-color: var(--fg-success-color);
 
     &:hover {
-      background-color: var(--fg-success-color);
+      background-color: var(--bg-hover-color);
     }
   }
 }

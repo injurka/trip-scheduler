@@ -1,9 +1,6 @@
 import fs from 'node:fs'
 import path, { dirname, join, normalize } from 'node:path'
 import process from 'node:process'
-
-import { Readable } from 'node:stream'
-import { pipeline } from 'node:stream/promises'
 import { fileURLToPath } from 'node:url'
 import { app, BrowserWindow, dialog, ipcMain, net, protocol, shell } from 'electron'
 import isDev from 'electron-is-dev'
@@ -19,7 +16,6 @@ function getVaultPath(): string | null {
     if (fs.existsSync(SETTINGS_FILE)) {
       const data = JSON.parse(fs.readFileSync(SETTINGS_FILE, 'utf-8'))
       const savedPath = data.vaultPath || null
-
       if (savedPath && !fs.existsSync(savedPath)) {
         return null
       }
@@ -80,20 +76,22 @@ function createWindow() {
 }
 
 app.whenReady().then(() => {
+  // Handle Custom Protocol
   protocol.handle('trip-scheduler-vault', (request) => {
     const vaultPath = getVaultPath()
     if (!vaultPath) {
       return new Response('Vault path not configured', { status: 404 })
     }
 
+    // URL приходит вида: trip-scheduler-vault://trips/UUID/days/UUID/img.jpg
     const urlPath = request.url.replace('trip-scheduler-vault://', '')
-
     const decodedPath = decodeURIComponent(urlPath)
 
+    // Формируем абсолютный путь. Фронтенд уже присылает путь начиная с trips/...
     const finalPath = normalize(join(vaultPath, decodedPath))
 
+    // Security check
     if (!finalPath.startsWith(vaultPath)) {
-      console.error(`Blocked access to ${finalPath}`)
       return new Response('Access denied', { status: 403 })
     }
 
@@ -159,7 +157,6 @@ ipcMain.handle('vault:check-files', async (_, relativePaths: string[]) => {
     return []
 
   const existing: string[] = []
-
   await Promise.all(relativePaths.map(async (relPath) => {
     const fullPath = join(root, relPath)
     try {
@@ -167,7 +164,7 @@ ipcMain.handle('vault:check-files', async (_, relativePaths: string[]) => {
       existing.push(relPath)
     }
     catch {
-      // file not found
+      // file missing
     }
   }))
 
@@ -185,19 +182,14 @@ ipcMain.handle('vault:download-file', async (_, url: string, relativePath: strin
   try {
     await fs.promises.mkdir(dir, { recursive: true })
 
-    // Важно: Node native fetch
     const response = await fetch(url)
     if (!response.ok)
       throw new Error(`Failed to fetch ${url}: ${response.statusText}`)
-    if (!response.body)
-      throw new Error('No body')
 
-    const fileStream = fs.createWriteStream(fullDest)
+    const arrayBuffer = await response.arrayBuffer()
+    const buffer = Buffer.from(arrayBuffer)
 
-    // @ts-expect-error - Readable.fromWeb существует в Node 18+, но типы могут отставать
-    const nodeStream = Readable.fromWeb(response.body)
-
-    await pipeline(nodeStream, fileStream)
+    await fs.promises.writeFile(fullDest, buffer)
 
     return true
   }
