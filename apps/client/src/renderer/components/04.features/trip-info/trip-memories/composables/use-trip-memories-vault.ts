@@ -80,9 +80,9 @@ export function useTripMemoriesVault() {
       .filter((m: any) => m.image && m.imageId)
       .map((m: any) => ({
         id: m.image!.id,
-        url: m.image!.url,
+        url: resolveApiUrl(m.image!.url),
         sizeBytes: m.image!.sizeBytes || 0,
-        dayId: currentDayId, 
+        dayId: currentDayId,
       }))
 
     if (imagesToSync.length === 0) {
