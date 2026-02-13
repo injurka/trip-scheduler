@@ -1,5 +1,5 @@
 import fs from 'node:fs'
-import path, { dirname, join, normalize } from 'node:path'
+import { dirname, join, normalize } from 'node:path'
 import process from 'node:process'
 import { fileURLToPath } from 'node:url'
 import { app, BrowserWindow, dialog, ipcMain, net, protocol, shell } from 'electron'
@@ -16,6 +16,7 @@ function getVaultPath(): string | null {
     if (fs.existsSync(SETTINGS_FILE)) {
       const data = JSON.parse(fs.readFileSync(SETTINGS_FILE, 'utf-8'))
       const savedPath = data.vaultPath || null
+      // Проверяем, существует ли путь физически (важно для Portable режима)
       if (savedPath && !fs.existsSync(savedPath)) {
         return null
       }
@@ -76,21 +77,20 @@ function createWindow() {
 }
 
 app.whenReady().then(() => {
-  // Handle Custom Protocol
+  // Handle Custom Protocol: отдаем файлы из папки
   protocol.handle('trip-scheduler-vault', (request) => {
     const vaultPath = getVaultPath()
     if (!vaultPath) {
       return new Response('Vault path not configured', { status: 404 })
     }
 
-    // URL приходит вида: trip-scheduler-vault://trips/UUID/days/UUID/img.jpg
     const urlPath = request.url.replace('trip-scheduler-vault://', '')
     const decodedPath = decodeURIComponent(urlPath)
 
-    // Формируем абсолютный путь. Фронтенд уже присылает путь начиная с trips/...
+    // Формируем полный путь к файлу на диске
     const finalPath = normalize(join(vaultPath, decodedPath))
 
-    // Security check
+    // Защита от выхода за пределы папки (Path Traversal)
     if (!finalPath.startsWith(vaultPath)) {
       return new Response('Access denied', { status: 403 })
     }
@@ -157,6 +157,8 @@ ipcMain.handle('vault:check-files', async (_, relativePaths: string[]) => {
     return []
 
   const existing: string[] = []
+
+  // Проверяем наличие файлов параллельно
   await Promise.all(relativePaths.map(async (relPath) => {
     const fullPath = join(root, relPath)
     try {
@@ -164,7 +166,7 @@ ipcMain.handle('vault:check-files', async (_, relativePaths: string[]) => {
       existing.push(relPath)
     }
     catch {
-      // file missing
+      // файл отсутствует
     }
   }))
 
@@ -176,29 +178,62 @@ ipcMain.handle('vault:download-file', async (_, url: string, relativePath: strin
   if (!root)
     throw new Error('Vault not set')
 
-  const fullDest = join(root, relativePath)
-  const dir = path.dirname(fullDest)
+  // Нормализуем путь (важно для Windows: '/' -> '\')
+  const fullDest = normalize(join(root, relativePath))
+  const dir = dirname(fullDest)
 
+  // 1. Создаем папку (это работает, судя по описанию)
   try {
     await fs.promises.mkdir(dir, { recursive: true })
-
-    const response = await fetch(url)
-    if (!response.ok)
-      throw new Error(`Failed to fetch ${url}: ${response.statusText}`)
-
-    const arrayBuffer = await response.arrayBuffer()
-    const buffer = Buffer.from(arrayBuffer)
-
-    await fs.promises.writeFile(fullDest, buffer)
-
-    return true
   }
-  catch (error) {
-    console.error(`Download failed for ${relativePath}:`, error)
-    try { await fs.promises.unlink(fullDest) }
-    catch { }
-    throw error
+  catch (err) {
+    console.error('Failed to create directory:', dir, err)
+    throw err
   }
+
+  // 2. Скачиваем файл через electron.net (надежнее чем Node fetch)
+  console.log(`[Vault] Downloading: ${url} -> ${fullDest}`)
+
+  return new Promise((resolve, reject) => {
+    const request = net.request(url)
+
+    request.on('response', (response) => {
+      if (response.statusCode !== 200) {
+        console.error(`[Vault] Failed download ${url}: HTTP ${response.statusCode}`)
+        reject(new Error(`Status: ${response.statusCode}`))
+        return
+      }
+
+      // Создаем поток записи в файл
+      const fileStream = fs.createWriteStream(fullDest)
+
+      // Пайпим ответ сети сразу в файл
+      response.pipe(fileStream)
+
+      fileStream.on('finish', () => {
+        // Закрываем файл после записи
+        fileStream.close(() => {
+          console.log(`[Vault] Saved: ${fullDest}`)
+          resolve(true)
+        })
+      })
+
+      fileStream.on('error', (err) => {
+        console.error(`[Vault] Write error for ${fullDest}:`, err)
+        // Удаляем битый файл, если не удалось записать
+        fs.unlink(fullDest, () => { })
+        reject(err)
+      })
+    })
+
+    request.on('error', (err) => {
+      console.error(`[Vault] Network error for ${url}:`, err)
+      reject(err)
+    })
+
+    // Завершаем формирование запроса
+    request.end()
+  })
 })
 
 ipcMain.handle('vault:delete-file', async (_, relativePath: string) => {
