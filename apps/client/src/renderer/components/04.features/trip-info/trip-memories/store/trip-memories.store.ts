@@ -341,7 +341,9 @@ export const useTripMemoriesStore = defineStore('tripMemories', {
     },
 
     async downloadAllPhotosToLocal() {
-      // TODO
+      // Этот метод можно использовать для скачивания вообще всего трипа,
+      // но пока логика реализована на уровне Дня в useTripMemoriesVault.
+      // Оставляем пустым или переносим логику туда.
     },
 
     toggleLocalMode() {

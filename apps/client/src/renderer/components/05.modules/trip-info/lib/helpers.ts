@@ -63,14 +63,14 @@ export function getTagInfo(tag?: EActivityTag) {
  * @param image - Объект TripImage.
  * @returns Объект ImageViewerImage.
  */
-export function tripImageToViewerImage(image: TripImage): ImageViewerImage {
+export function tripImageToViewerImage(image: TripImage, dayId?: string): ImageViewerImage {
   const vaultStore = useVaultMemoriesStore()
 
   let url = image.url
   const variants = { ...image.variants }
 
-  if (vaultStore.isLocalMode && vaultStore.isConfigured) {
-    const relPath = vaultStore.getRelPath(image.tripId, image.id)
+  if (vaultStore.isLocalMode && vaultStore.isConfigured && dayId) {
+    const relPath = vaultStore.getRelPath(image.tripId, image.id, dayId)
     if (vaultStore.localFilesSet.has(relPath)) {
       url = `trip-scheduler-vault://${relPath}`
 
@@ -104,11 +104,11 @@ export function tripImageToViewerImage(image: TripImage): ImageViewerImage {
  * @param memory - Объект Memory.
  * @returns Объект ImageViewerImage или null, если изображение отсутствует.
  */
-export function memoryToViewerImage(memory: Memory): ImageViewerImage | null {
+export function memoryToViewerImage(memory: Memory, dayId?: string): ImageViewerImage | null {
   if (!memory.image) {
     return null
   }
-  const viewerImage = tripImageToViewerImage(memory.image)
+  const viewerImage = tripImageToViewerImage(memory.image, dayId)
 
   viewerImage.alt = memory.comment || viewerImage.alt
   viewerImage.caption = memory.comment || viewerImage.caption

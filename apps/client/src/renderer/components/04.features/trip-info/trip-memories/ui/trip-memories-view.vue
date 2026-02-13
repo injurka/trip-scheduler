@@ -129,9 +129,11 @@ const timelineGroups = computed(() => {
 })
 
 const galleryImages = computed<ImageViewerImage[]>(() => {
+  const currentDayId = getSelectedDay.value?.id
+
   return memoriesForSelectedDay.value
     .map((memory: IMemory) => {
-      const img = memoryToViewerImage(memory)
+      const img = memoryToViewerImage(memory, currentDayId)
       if (!img)
         return null
 

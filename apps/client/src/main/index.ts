@@ -1,14 +1,14 @@
 import fs from 'node:fs'
 import path, { dirname, join, normalize } from 'node:path'
-
 import process from 'node:process'
+
+import { Readable } from 'node:stream'
 import { pipeline } from 'node:stream/promises'
 import { fileURLToPath } from 'node:url'
 import { app, BrowserWindow, dialog, ipcMain, net, protocol, shell } from 'electron'
 import isDev from 'electron-is-dev'
 
 const currentDir = dirname(fileURLToPath(import.meta.url))
-
 const VITE_DEV_SERVER_URL = process.env.VITE_DEV_SERVER_URL
 
 // --- Vault Settings Helper ---
@@ -18,7 +18,12 @@ function getVaultPath(): string | null {
   try {
     if (fs.existsSync(SETTINGS_FILE)) {
       const data = JSON.parse(fs.readFileSync(SETTINGS_FILE, 'utf-8'))
-      return data.vaultPath || null
+      const savedPath = data.vaultPath || null
+
+      if (savedPath && !fs.existsSync(savedPath)) {
+        return null
+      }
+      return savedPath
     }
   }
   catch (e) {
@@ -32,9 +37,8 @@ function saveVaultPath(vaultPath: string) {
 }
 
 // --- Protocol Registration ---
-// Важно зарегистрировать до события ready
 protocol.registerSchemesAsPrivileged([
-  { scheme: 'trip-scheduler-vault', privileges: { secure: true, supportFetchAPI: true, standard: true, bypassCSP: true } },
+  { scheme: 'trip-scheduler-vault', privileges: { secure: true, supportFetchAPI: true, standard: true, bypassCSP: true, stream: true } },
 ])
 
 function createWindow() {
@@ -76,21 +80,20 @@ function createWindow() {
 }
 
 app.whenReady().then(() => {
-  // Handle Custom Protocol
   protocol.handle('trip-scheduler-vault', (request) => {
     const vaultPath = getVaultPath()
     if (!vaultPath) {
       return new Response('Vault path not configured', { status: 404 })
     }
 
-    // URL: trip-scheduler-vault://TRIP_UUID/days/DAY_UUID/IMG.jpg
-    const url = request.url.replace('trip-scheduler-vault://', '')
-    // Декодируем URL (на случай пробелов и спецсимволов) и нормализуем путь
-    const relativePath = decodeURIComponent(url)
-    const finalPath = normalize(join(vaultPath, 'trips', relativePath))
+    const urlPath = request.url.replace('trip-scheduler-vault://', '')
 
-    // Security check: ensure we are not going outside vaultPath
+    const decodedPath = decodeURIComponent(urlPath)
+
+    const finalPath = normalize(join(vaultPath, decodedPath))
+
     if (!finalPath.startsWith(vaultPath)) {
+      console.error(`Blocked access to ${finalPath}`)
       return new Response('Access denied', { status: 403 })
     }
 
@@ -136,6 +139,7 @@ ipcMain.handle('window:close', () => {
 ipcMain.handle('vault:select-folder', async () => {
   const { canceled, filePaths } = await dialog.showOpenDialog({
     properties: ['openDirectory', 'createDirectory'],
+    title: 'Выберите папку для хранения фотографий',
   })
   if (canceled || filePaths.length === 0)
     return null
@@ -154,10 +158,10 @@ ipcMain.handle('vault:check-files', async (_, relativePaths: string[]) => {
   if (!root)
     return []
 
-  // Возвращаем список путей, которые существуют на диске
   const existing: string[] = []
-  for (const relPath of relativePaths) {
-    const fullPath = join(root, 'trips', relPath)
+
+  await Promise.all(relativePaths.map(async (relPath) => {
+    const fullPath = join(root, relPath)
     try {
       await fs.promises.access(fullPath, fs.constants.F_OK)
       existing.push(relPath)
@@ -165,7 +169,8 @@ ipcMain.handle('vault:check-files', async (_, relativePaths: string[]) => {
     catch {
       // file not found
     }
-  }
+  }))
+
   return existing
 })
 
@@ -174,13 +179,13 @@ ipcMain.handle('vault:download-file', async (_, url: string, relativePath: strin
   if (!root)
     throw new Error('Vault not set')
 
-  const fullDest = join(root, 'trips', relativePath)
+  const fullDest = join(root, relativePath)
   const dir = path.dirname(fullDest)
 
   try {
     await fs.promises.mkdir(dir, { recursive: true })
 
-    // Используем fetch для скачивания (Node 18+)
+    // Важно: Node native fetch
     const response = await fetch(url)
     if (!response.ok)
       throw new Error(`Failed to fetch ${url}: ${response.statusText}`)
@@ -189,14 +194,15 @@ ipcMain.handle('vault:download-file', async (_, url: string, relativePath: strin
 
     const fileStream = fs.createWriteStream(fullDest)
 
-    // @ts-ignore - stream web vs node typings
-    await pipeline(response.body, fileStream)
+    // @ts-expect-error - Readable.fromWeb существует в Node 18+, но типы могут отставать
+    const nodeStream = Readable.fromWeb(response.body)
+
+    await pipeline(nodeStream, fileStream)
 
     return true
   }
   catch (error) {
-    console.error('Download failed:', error)
-    // Clean up partial file if needed
+    console.error(`Download failed for ${relativePath}:`, error)
     try { await fs.promises.unlink(fullDest) }
     catch { }
     throw error
@@ -207,7 +213,7 @@ ipcMain.handle('vault:delete-file', async (_, relativePath: string) => {
   const root = getVaultPath()
   if (!root)
     return
-  const fullPath = join(root, 'trips', relativePath)
+  const fullPath = join(root, relativePath)
   try {
     await fs.promises.unlink(fullPath)
   }

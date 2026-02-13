@@ -13,20 +13,24 @@ export function useTripMemoriesVault() {
 
   const { plan: tripData, memories } = useModuleStore(['plan', 'memories'])
   const { memoriesForSelectedDay } = storeToRefs(memories)
+  const { getSelectedDay } = storeToRefs(tripData)
 
   onMounted(() => {
     vaultStore.init()
   })
 
   watch(
-    [() => tripData.currentTripId, () => memories.memories],
-    async ([tId, mems]) => {
-      if (tId && mems && mems.length > 0 && vaultStore.isConfigured) {
-        const imageIds = mems
+    [() => tripData.currentTripId, () => getSelectedDay.value, () => memories.memories],
+    async ([tId, day, mems]) => {
+      if (tId && day && mems && mems.length > 0 && vaultStore.isConfigured) {
+        const imageItems = mems
           .filter((m: any) => m.imageId && m.image)
-          .map((m: any) => m.image!.id)
+          .map((m: any) => ({
+            imageId: m.image!.id,
+            dayId: day.id,
+          }))
 
-        await vaultStore.checkFilesAvailability(tId as string, imageIds)
+        await vaultStore.checkFilesAvailability(tId as string, imageItems)
       }
     },
     { deep: true, immediate: true },
@@ -60,7 +64,7 @@ export function useTripMemoriesVault() {
   }
 
   async function handleDownloadVault() {
-    if (!tripData.currentTripId)
+    if (!tripData.currentTripId || !getSelectedDay.value)
       return
 
     const isConfigured = await ensureVaultConfigured(
@@ -70,12 +74,15 @@ export function useTripMemoriesVault() {
     if (!isConfigured)
       return
 
+    const currentDayId = getSelectedDay.value.id
+
     const imagesToSync = memoriesForSelectedDay.value
       .filter((m: any) => m.image && m.imageId)
       .map((m: any) => ({
         id: m.image!.id,
         url: m.image!.url,
         sizeBytes: m.image!.sizeBytes || 0,
+        dayId: currentDayId, 
       }))
 
     if (imagesToSync.length === 0) {

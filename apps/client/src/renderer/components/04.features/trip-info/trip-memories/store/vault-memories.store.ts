@@ -18,7 +18,12 @@ export const useVaultMemoriesStore = defineStore('vaultMemories', {
   getters: {
     isElectron: () => !!window.electronAPI,
     isConfigured: state => !!state.vaultPath,
-    getRelPath: () => (tripId: string, imageId: string) => `${tripId}/${imageId}.jpg`,
+    getRelPath: () => (tripId: string, imageId: string, dayId?: string) => {
+      if (dayId) {
+        return `trips/${tripId}/days/${dayId}/${imageId}.jpg`
+      }
+      return `trips/${tripId}/unsorted/${imageId}.jpg`
+    },
   },
 
   actions: {
@@ -38,17 +43,17 @@ export const useVaultMemoriesStore = defineStore('vaultMemories', {
       }
     },
 
-    async checkFilesAvailability(tripId: string, imageIds: string[]) {
+    async checkFilesAvailability(tripId: string, imageItems: { imageId: string, dayId?: string }[]) {
       if (!this.isElectron || !this.vaultPath)
         return
 
-      const paths = imageIds.map(id => this.getRelPath(tripId, id))
+      const paths = imageItems.map(item => this.getRelPath(tripId, item.imageId, item.dayId))
       const existing = await window.electronAPI.vault.checkFiles(paths)
 
       existing.forEach(p => this.localFilesSet.add(p))
     },
 
-    async syncImages(tripId: string, images: { id: string, url: string, sizeBytes: number }[]) {
+    async syncImages(tripId: string, images: { id: string, url: string, sizeBytes: number, dayId: string }[]) {
       if (!this.isElectron)
         return
 
@@ -61,11 +66,13 @@ export const useVaultMemoriesStore = defineStore('vaultMemories', {
 
       const tasks = images.map(img => ({
         ...img,
-        relPath: this.getRelPath(tripId, img.id),
+        relPath: this.getRelPath(tripId, img.id, img.dayId),
       }))
 
       const existingPaths = await window.electronAPI.vault.checkFiles(tasks.map(t => t.relPath))
       const existingSet = new Set(existingPaths)
+
+      existingPaths.forEach(p => this.localFilesSet.add(p))
 
       const toDownload = tasks.filter(t => !existingSet.has(t.relPath))
 
@@ -78,6 +85,9 @@ export const useVaultMemoriesStore = defineStore('vaultMemories', {
 
       const BATCH_SIZE = 5
       for (let i = 0; i < toDownload.length; i += BATCH_SIZE) {
+        if (!this.syncState.isDownloading)
+          break // Возможность отмены
+
         const batch = toDownload.slice(i, i + BATCH_SIZE)
 
         await Promise.all(batch.map(async (task) => {
