@@ -16,6 +16,13 @@ export interface IElectronAPI {
     toggleMaximize: () => Promise<void>
     close: () => Promise<void>
   }
+  vault: {
+    selectFolder: () => Promise<string | null>
+    getPath: () => Promise<string | null>
+    checkFiles: (paths: string[]) => Promise<string[]>
+    downloadFile: (url: string, path: string) => Promise<boolean>
+    deleteFile: (path: string) => Promise<void>
+  }
 }
 
 declare global {

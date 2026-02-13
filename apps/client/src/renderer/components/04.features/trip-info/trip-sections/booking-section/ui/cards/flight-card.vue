@@ -212,7 +212,7 @@ function updateSegmentField<K extends keyof FlightSegment>(segmentIndex: number,
           {{ totalDurationFormatted }}
         </div>
         <div class="route-line">
-          <template v-for="(part) in journeySegments" :key="part">
+          <template v-for="(part) in journeySegments" :key="part.tooltip">
             <KitTooltip
               :name="part.tooltip"
               :style="{ width: `${part.widthPercent}%` }"

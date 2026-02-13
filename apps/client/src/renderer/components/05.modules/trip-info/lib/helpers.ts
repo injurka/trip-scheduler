@@ -2,6 +2,7 @@ import type { IActivity } from '../models/types'
 import type { IImageViewerImageMeta, ImageViewerImage } from '~/components/01.kit/kit-image-viewer'
 import type { Memory } from '~/shared/types/models/memory'
 import type { TripImage } from '~/shared/types/models/trip'
+import { useVaultStore } from '~/components/04.features/trip-info/trip-memories/store/vault-memories.store'
 import { EActivityTag } from '../models/types'
 
 export function getActivityDuration(activity: IActivity): number {
@@ -63,6 +64,22 @@ export function getTagInfo(tag?: EActivityTag) {
  * @returns Объект ImageViewerImage.
  */
 export function tripImageToViewerImage(image: TripImage): ImageViewerImage {
+  const vaultStore = useVaultStore()
+
+  let url = image.url
+  const variants = { ...image.variants }
+
+  if (vaultStore.isLocalMode && vaultStore.isConfigured) {
+    const relPath = vaultStore.getRelPath(image.tripId, image.id)
+    if (vaultStore.localFilesSet.has(relPath)) {
+      url = `trip-scheduler-vault://${relPath}`
+
+      variants.small = url
+      variants.medium = url
+      variants.large = url
+    }
+  }
+
   const meta: CustomImageViewerImageMeta = {
     ...(image.metadata || {}),
     latitude: image.latitude,
@@ -74,8 +91,8 @@ export function tripImageToViewerImage(image: TripImage): ImageViewerImage {
   }
 
   return {
-    url: image.url,
-    variants: image.variants,
+    url,
+    variants,
     alt: image.metadata?.iptc?.headline || 'Trip Image',
     caption: image.metadata?.iptc?.caption,
     meta,

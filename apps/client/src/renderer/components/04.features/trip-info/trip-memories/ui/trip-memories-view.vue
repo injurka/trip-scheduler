@@ -17,6 +17,7 @@ import { getTagInfo, memoryToViewerImage } from '~/components/05.modules/trip-in
 import { useRequestError } from '~/plugins/request'
 import { useDisplay } from '~/shared/composables/use-display'
 import { useNotificationStore } from '~/shared/store/notification.store'
+import { useTripMemoriesVault } from '../composables/use-trip-memories-vault'
 import MemoriesList from './memories-list.vue'
 import DownloadStatusBanner from './state/download-status-banner.vue'
 import MemoriesEmpty from './state/memories-empty.vue'
@@ -31,13 +32,17 @@ const notificationStore = useNotificationStore()
 const confirm = useConfirm()
 
 const {
+  vaultStore,
+  handleDownloadVault,
+  handleToggleLocalMode,
+  isElectron,
+  syncState,
+} = useTripMemoriesVault()
+
+const {
   memoriesForSelectedDay,
   getProcessingMemories,
   isLoadingMemories,
-  downloadProgress,
-  isLocalModeEnabled,
-  canEnableLocalMode,
-  localBlobUrls,
 } = storeToRefs(memories)
 const { areAllMemoryGroupsCollapsed, isViewMode, activeView } = storeToRefs(ui)
 const { getActivitiesForSelectedDay, getSelectedDay } = storeToRefs(tripData)
@@ -129,21 +134,6 @@ const galleryImages = computed<ImageViewerImage[]>(() => {
       const img = memoryToViewerImage(memory)
       if (!img)
         return null
-
-      if (isLocalModeEnabled.value && memory.imageId && localBlobUrls.value.has(memory.imageId)) {
-        const localUrl = localBlobUrls.value.get(memory.imageId)!
-
-        return {
-          ...img,
-          url: localUrl,
-          variants: {
-            small: localUrl,
-            medium: localUrl,
-            large: localUrl,
-            original: localUrl,
-          },
-        }
-      }
 
       return img
     })
@@ -265,14 +255,6 @@ async function handleNotifyParticipants() {
     isNotifyLoading.value = false
   }
 }
-
-const localModeTooltip = computed(() => {
-  if (!canEnableLocalMode.value)
-    return 'Скачайте фото, чтобы включить локальный режим'
-  return isLocalModeEnabled.value
-    ? 'Локальный режим: фото открываются мгновенно (с диска)'
-    : 'Сетевой режим: фото загружаются с сервера'
-})
 </script>
 
 <template>
@@ -281,7 +263,7 @@ const localModeTooltip = computed(() => {
     class="memories-view"
     :class="{ 'is-fullscreen-mode': isFullScreen }"
   >
-    <DownloadStatusBanner :progress="downloadProgress" />
+    <DownloadStatusBanner :progress="syncState" />
 
     <div class="divider-with-action">
       <KitDivider
@@ -291,27 +273,27 @@ const localModeTooltip = computed(() => {
       </KitDivider>
 
       <div class="controls-wrapper">
-        <button
-          v-if="memoriesForSelectedDay.length > 0"
-          class="control-btn download-btn"
-          :class="{ 'is-active': downloadProgress.isDownloading }"
-          :disabled="downloadProgress.isDownloading"
-          title="Скачать оригиналы фото в папку"
-          @click="memories.downloadAllPhotosToFolder()"
-        >
-          <Icon icon="mdi:folder-download-outline" />
-        </button>
+        <template v-if="isElectron">
+          <button
+            class="control-btn local-mode-btn"
+            :class="{ 'is-active': vaultStore.isLocalMode && vaultStore.isConfigured }"
+            :title="vaultStore.isLocalMode ? 'Смотреть с сервера' : 'Смотреть с диска (Vault)'"
+            @click="handleToggleLocalMode"
+          >
+            <Icon :icon="vaultStore.isLocalMode ? 'mdi:harddisk' : 'mdi:cloud-outline'" />
+          </button>
 
-        <button
-          v-if="canEnableLocalMode || isLocalModeEnabled"
-          class="control-btn local-mode-btn"
-          :class="{ 'is-active': isLocalModeEnabled }"
-          :title="localModeTooltip"
-          :disabled="!canEnableLocalMode"
-          @click="memories.toggleLocalMode()"
-        >
-          <Icon :icon="isLocalModeEnabled ? 'mdi:harddisk' : 'mdi:cloud-outline'" />
-        </button>
+          <button
+            v-if="memoriesForSelectedDay.length > 0"
+            class="control-btn sync-btn"
+            :class="{ 'is-active': syncState.isDownloading }"
+            :disabled="syncState.isDownloading"
+            title="Скачать фото в локальное хранилище"
+            @click="handleDownloadVault"
+          >
+            <Icon :icon="syncState.isDownloading ? 'mdi:loading' : 'mdi:download-network-outline'" :class="{ spin: syncState.isDownloading }" />
+          </button>
+        </template>
 
         <button
           v-if="!isViewMode && memoriesForSelectedDay.length > 0"
@@ -520,12 +502,16 @@ const localModeTooltip = computed(() => {
     opacity: 0.6;
     cursor: not-allowed;
   }
-}
 
-.download-btn {
-  &.is-active {
+  .is-active {
     color: var(--fg-accent-color);
     border-color: var(--fg-accent-color);
+  }
+  .sync-progress {
+    font-size: 0.8rem;
+    font-family: monospace;
+    color: var(--fg-secondary-color);
+    margin-right: 8px;
   }
 }
 

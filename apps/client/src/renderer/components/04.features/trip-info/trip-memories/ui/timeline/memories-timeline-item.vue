@@ -32,9 +32,6 @@ const commentEditorRef = ref(null)
 const timeEditorRef = ref<HTMLElement | null>(null)
 const ratingMenuRef = ref<HTMLElement | null>(null)
 
-const { memories: memoriesStore } = useModuleStore(['memories'])
-const { isLocalModeEnabled, localBlobUrls } = storeToRefs(memoriesStore)
-
 const { width: windowWidth } = useWindowSize()
 const { isMorphed, morphStyle, placeholderStyle, enterMorph, leaveMorph } = useMorph(photoWrapperRef)
 const preferredQuality = useStorage<ImageQuality>('viewer-quality-preference', 'large')
@@ -44,10 +41,6 @@ const isDesktop = computed(() => windowWidth.value >= 1024)
 const imageSrc = computed(() => {
   if (!props.memory.image)
     return ''
-
-  if (isLocalModeEnabled.value && props.memory.imageId && localBlobUrls.value.has(props.memory.imageId)) {
-    return localBlobUrls.value.get(props.memory.imageId)
-  }
 
   if (isMorphed.value || props.isFullScreen) {
     switch (preferredQuality.value) {
@@ -180,7 +173,7 @@ onClickOutside(ratingMenuRef, () => isRatingMenuOpen.value = false)
           <span>Приблизить</span>
         </button>
 
-        <div v-if="isMorphed && !isLocalModeEnabled" class="quality-controls" @click.stop>
+        <div v-if="isMorphed" class="quality-controls" @click.stop>
           <button
             class="quality-btn"
             :class="{ active: preferredQuality === 'medium' }"
@@ -213,12 +206,6 @@ onClickOutside(ratingMenuRef, () => isRatingMenuOpen.value = false)
             </div>
             <span>Оригинал</span>
           </button>
-        </div>
-        <div v-else-if="isMorphed && isLocalModeEnabled" class="quality-controls" @click.stop>
-          <div class="quality-badge-local">
-            <Icon icon="mdi:harddisk" />
-            <span>Локальный файл</span>
-          </div>
         </div>
 
         <div class="photo-overlay">
