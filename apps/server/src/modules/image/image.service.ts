@@ -1,6 +1,7 @@
 import type { tripImagePlacementEnum } from 'db/schema'
 import type { EntityType } from '~/models/image-upload'
 import type { ImageMetadata } from '~/repositories/image.repository'
+import { existsSync } from 'node:fs'
 import { readdir, stat } from 'node:fs/promises'
 import { join } from 'node:path'
 import { createTRPCError } from '~/lib/trpc'
@@ -8,6 +9,7 @@ import { imageRepository } from '~/repositories/image.repository'
 import { postRepository } from '~/repositories/post.repository'
 import { deleteFileWithVariants } from '~/services/file-storage.service'
 import { quotaService } from '~/services/quota.service'
+import { s3Service } from '~/services/s3.service'
 
 type Placement = (typeof tripImagePlacementEnum.enumValues)[number]
 
@@ -29,9 +31,6 @@ interface ServiceImageResult {
 }
 
 export const imageService = {
-  /**
-   * Сервисный метод для создания изображения.
-   */
   async create(
     tripId: string,
     url: string,
@@ -54,9 +53,6 @@ export const imageService = {
     return await imageRepository.getMetadata(imageId)
   },
 
-  /**
-   * Универсальный метод получения изображений.
-   */
   async getByEntity(entityId: string, entityType: EntityType, placement?: string): Promise<ServiceImageResult[]> {
     if (entityType === 'trip') {
       return await imageRepository.getByTripId(entityId, placement as Placement)
@@ -80,36 +76,61 @@ export const imageService = {
 
     if (entityType === 'blog') {
       try {
-        const staticRoot = process.env.STATIC_PATH || 'static'
         const targetPlacement = placement || 'content'
+        const imagesMap = new Map<string, ServiceImageResult>()
+
+        // 1. Ищем локально (старые файлы)
+        const staticRoot = process.env.STATIC_PATH || 'static'
         const dirPath = join(process.cwd(), staticRoot, 'blogs', entityId, targetPlacement)
 
-        const files = await readdir(dirPath)
-        const images: ServiceImageResult[] = []
+        if (existsSync(dirPath)) {
+          const files = await readdir(dirPath)
+          for (const file of files) {
+            if (!file.match(/\.(jpg|jpeg|png|webp|gif|avif)$/i))
+              continue
+            if (file.includes('-small') || file.includes('-medium') || file.includes('-large'))
+              continue
 
-        for (const file of files) {
-          if (!file.match(/\.(jpg|jpeg|png|webp|gif|avif)$/i))
+            const stats = await stat(join(dirPath, file))
+            imagesMap.set(file, {
+              id: file,
+              tripId: '',
+              url: `blogs/${entityId}/${targetPlacement}/${file}`,
+              originalName: file,
+              placement: targetPlacement as any,
+              createdAt: stats.ctime,
+              sizeBytes: stats.size,
+            })
+          }
+        }
+
+        // 2. Ищем в S3 (новые файлы)
+        const prefix = `blogs/${entityId}/${targetPlacement}/`
+        const s3Objects = await s3Service.listDirectory(prefix)
+
+        for (const obj of s3Objects) {
+          if (!obj.Key || !obj.Key.match(/\.(jpg|jpeg|png|webp|gif|avif)$/i))
+            continue
+          if (obj.Key.includes('-small') || obj.Key.includes('-medium') || obj.Key.includes('-large'))
             continue
 
-          if (file.includes('-small') || file.includes('-medium') || file.includes('-large'))
-            continue
-
-          const stats = await stat(join(dirPath, file))
-
-          images.push({
-            id: file,
+          const fileName = obj.Key.split('/').pop()!
+          imagesMap.set(fileName, {
+            id: fileName,
             tripId: '',
-            url: `blogs/${entityId}/${targetPlacement}/${file}`,
-            originalName: file,
+            url: obj.Key,
+            originalName: fileName,
             placement: targetPlacement as any,
-            createdAt: stats.ctime,
-            sizeBytes: stats.size,
+            createdAt: obj.LastModified || new Date(),
+            sizeBytes: obj.Size || 0,
           })
         }
 
-        return images.sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime())
+        // 3. Возвращаем объединенный массив, сортируя по дате
+        return Array.from(imagesMap.values()).sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime())
       }
-      catch {
+      catch (error) {
+        console.error('Error fetching blog images:', error)
         return []
       }
     }

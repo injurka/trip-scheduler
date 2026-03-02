@@ -7,8 +7,8 @@ import { imageUploadService } from '~/services/image-upload.service'
 export async function uploadFileController(c: Context) {
   // 1. Проверка размера (Fail fast)
   const contentLength = c.req.header('content-length')
-  if (contentLength && Number.parseInt(contentLength, 10) > 25 * 1024 * 1024) {
-    throw new HTTPException(413, { message: 'Файл слишком большой (максимум 25MB)' })
+  if (contentLength && Number.parseInt(contentLength, 10) > 35 * 1024 * 1024) {
+    throw new HTTPException(413, { message: 'Файл слишком большой (максимум 35MB)' })
   }
 
   // 2. Аутентификация
@@ -20,6 +20,7 @@ export async function uploadFileController(c: Context) {
   const payload = await authUtils.verifyToken(token)
   if (!payload)
     throw new HTTPException(401, { message: 'Невалидный токен.' })
+
   const userId = payload.id
 
   // 3. Парсинг FormData
@@ -53,6 +54,8 @@ export async function uploadFileController(c: Context) {
       buffer,
       placement,
     })
+
+    console.log('result', result)
 
     return c.json(result.dbRecord || { url: result.url, variants: result.variants })
   }

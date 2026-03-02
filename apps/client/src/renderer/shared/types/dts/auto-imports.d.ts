@@ -48,6 +48,7 @@ declare global {
   const getCurrentInstance: typeof import('vue').getCurrentInstance
   const getCurrentScope: typeof import('vue').getCurrentScope
   const getCurrentWatcher: typeof import('vue').getCurrentWatcher
+  const getImageUrl: typeof import('../../lib/url').getImageUrl
   const getLocalDate: typeof import('../../lib/date-time').getLocalDate
   const h: typeof import('vue').h
   const ignorableWatch: typeof import('@vueuse/core').ignorableWatch
@@ -341,6 +342,9 @@ declare global {
   export type { TileSourceId } from '../../lib/map-styles-sources'
   import('../../lib/map-styles-sources')
   // @ts-ignore
+  export type { ImageOptions } from '../../lib/url'
+  import('../../lib/url')
+  // @ts-ignore
   export type { RouterInput, RouterOutput, AppRouter } from '../trpc'
   import('../trpc')
   // @ts-ignore
@@ -395,6 +399,7 @@ declare module 'vue' {
     readonly getCurrentInstance: UnwrapRef<typeof import('vue')['getCurrentInstance']>
     readonly getCurrentScope: UnwrapRef<typeof import('vue')['getCurrentScope']>
     readonly getCurrentWatcher: UnwrapRef<typeof import('vue')['getCurrentWatcher']>
+    readonly getImageUrl: UnwrapRef<typeof import('../../lib/url')['getImageUrl']>
     readonly getLocalDate: UnwrapRef<typeof import('../../lib/date-time')['getLocalDate']>
     readonly h: UnwrapRef<typeof import('vue')['h']>
     readonly ignorableWatch: UnwrapRef<typeof import('@vueuse/core')['ignorableWatch']>

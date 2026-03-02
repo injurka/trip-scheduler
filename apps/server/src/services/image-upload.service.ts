@@ -4,7 +4,6 @@ import { HTTPException } from 'hono/http-exception'
 import sharp from 'sharp'
 import { blogService } from '~/modules/blog/blog.service'
 import { imageService } from '~/modules/image/image.service'
-
 import { postService } from '~/modules/post/post.service'
 import { blogRepository } from '~/repositories/blog.repository'
 import { postRepository } from '~/repositories/post.repository'
@@ -152,14 +151,12 @@ export class ImageUploadService {
 
     try {
       if (entityType === 'avatar') {
-        // Специфичная логика для аватара: ресайз + конвертация в webp
         processedBuffer = await sharp(ctx.buffer)
           .resize({ width: 400, height: 400, fit: 'cover' })
           .webp({ quality: 90 })
           .toBuffer()
       }
       else {
-        // Общая логика: метаданные + варианты
         const metaResult = await extractAndStructureMetadata(ctx.buffer)
         metadata = metaResult.metadata
         variants = await generateImageVariants(ctx.buffer)
@@ -170,22 +167,22 @@ export class ImageUploadService {
       throw new HTTPException(415, { message: 'Ошибка обработки изображения.' })
     }
 
-    // 4. Сохранение на диск (или S3)
+    // 4. Сохранение в S3
     const variantUrls: Record<string, string> = {}
     let variantsTotalSize = 0
 
-    // Сохраняем варианты
+    // Сохраняем варианты, используем dbPath (ключ S3)
     await Promise.all(
       Object.entries(variants).map(async ([name, variantBuffer]) => {
         const vPaths = paths.getVariantPaths(name)
-        await saveFile(vPaths.diskPath, variantBuffer)
+        await saveFile(vPaths.dbPath, variantBuffer)
         variantUrls[name] = vPaths.dbPath
         variantsTotalSize += variantBuffer.length
       }),
     )
 
-    // Сохраняем оригинал (или обработанный оригинал для аватара)
-    await saveFile(paths.original.diskPath, processedBuffer)
+    // Сохраняем оригинал
+    await saveFile(paths.original.dbPath, processedBuffer)
 
     const totalSize = processedBuffer.length + variantsTotalSize
 
@@ -197,9 +194,7 @@ export class ImageUploadService {
       metadata,
     })
 
-    // Обновляем метрики и квоты (если применимо)
     if (entityType !== 'avatar' && entityType !== 'blog') {
-      // Обычно блоги и аватары не едят пользовательскую квоту так же как файлы постов/трипов
       await quotaService.incrementStorageUsage(ctx.userId, totalSize)
     }
 

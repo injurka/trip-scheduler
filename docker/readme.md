@@ -96,7 +96,6 @@ echo "--- Сборка образа клиента с тегом: trip-scheduler
 docker build -f ./docker/Dockerfile.client -t trip-scheduler-client:$VERSION . \
   --build-arg VITE_APP_SERVER_URL=https://api.trip-scheduler.ru \
   --build-arg VITE_APP_API_MODE=trpc \
-  --build-arg VITE_APP_SERVER_STATIC_PATH=static/images \
   --build-arg VITE_MAPTILER_KEY=
 
 echo "--- Сборка образа клиента trip-scheduler-client:$VERSION завершена успешно! ---"

@@ -11,8 +11,7 @@ import application from './app.vue'
 import { requestPlugin } from './plugins/request'
 import { restoreSession } from './plugins/session-restore'
 import { themePlugin } from './plugins/theme'
-import { resolveSrc } from './shared/directives/resolve-src'
-
+import { vImage, vResolveSrc } from './shared/directives/image'
 import { TRPCDatabaseClient } from './shared/services/api'
 
 /**
@@ -26,7 +25,8 @@ async function initializeApp() {
   const head = createHead()
   const databaseService = new TRPCDatabaseClient()
 
-  app.directive('resolve-src', resolveSrc)
+  app.directive('resolve-src', vResolveSrc)
+  app.directive('image', vImage)
 
   app.use(pinia)
   app.use(head)
