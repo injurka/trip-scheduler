@@ -42,15 +42,21 @@ export function useMemoryImageViewer(props: UseMemoryImageViewerProps) {
     if (imageList.length === 0)
       return
 
-    const startIndex = imageList.findIndex(img => img.url === props.memory.image?.url)
+    const startIndex = imageList.findIndex((img) => {
+      const meta = img.meta as CustomImageViewerImageMeta | undefined
+      return meta?.memoryId === props.memory.id
+    })
+
     if (startIndex !== -1)
       imageViewer.open(imageList, startIndex)
   }
 
   function saveViewerComment() {
     const meta = imageViewer.currentImage.value?.meta as CustomImageViewerImageMeta | undefined
+
     if (meta?.memoryId) {
       const originalMemory = memories.memories.find((m: IMemory) => m.id === meta.memoryId)
+
       if (originalMemory && activeViewerComment.value !== (originalMemory.comment || ''))
         updateMemory({ id: meta.memoryId, comment: activeViewerComment.value })
     }

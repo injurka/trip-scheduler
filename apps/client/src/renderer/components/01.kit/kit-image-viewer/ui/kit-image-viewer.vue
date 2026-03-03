@@ -1,5 +1,3 @@
---- File: ui/kit-image-viewer.vue ---
-
 <script setup lang="ts">
 import type { IImageViewerImageMeta, ImageQuality, ImageViewerImage } from '../models/types'
 import { Icon } from '@iconify/vue'
@@ -662,14 +660,11 @@ onUnmounted(() => {
   display: flex;
   gap: 10px;
   padding: 10px 20px;
-  /* Убрали фон и бордер, как просил пользователь */
   background: transparent;
   border: none;
 
-  /* Исправляем скролл */
   overflow-x: auto;
   max-width: 100%;
-  /* Маска для красивого затухания по краям */
   mask-image: linear-gradient(to right, transparent, black 5%, black 95%, transparent);
   -webkit-mask-image: linear-gradient(to right, transparent, black 5%, black 95%, transparent);
 

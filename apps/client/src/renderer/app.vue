@@ -94,7 +94,6 @@ useSeoMeta({
 </script>
 
 <template>
-  <WindowControls />
   <OfflineBanner />
 
   <component :is="layouts[layout]">
