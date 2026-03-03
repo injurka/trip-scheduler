@@ -79,31 +79,6 @@ export const imageService = {
         const targetPlacement = placement || 'content'
         const imagesMap = new Map<string, ServiceImageResult>()
 
-        // 1. Ищем локально (старые файлы)
-        const staticRoot = process.env.STATIC_PATH || 'static'
-        const dirPath = join(process.cwd(), staticRoot, 'blogs', entityId, targetPlacement)
-
-        if (existsSync(dirPath)) {
-          const files = await readdir(dirPath)
-          for (const file of files) {
-            if (!file.match(/\.(jpg|jpeg|png|webp|gif|avif)$/i))
-              continue
-            if (file.includes('-small') || file.includes('-medium') || file.includes('-large'))
-              continue
-
-            const stats = await stat(join(dirPath, file))
-            imagesMap.set(file, {
-              id: file,
-              tripId: '',
-              url: `blogs/${entityId}/${targetPlacement}/${file}`,
-              originalName: file,
-              placement: targetPlacement as any,
-              createdAt: stats.ctime,
-              sizeBytes: stats.size,
-            })
-          }
-        }
-
         // 2. Ищем в S3 (новые файлы)
         const prefix = `blogs/${entityId}/${targetPlacement}/`
         const s3Objects = await s3Service.listDirectory(prefix)

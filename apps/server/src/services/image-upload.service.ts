@@ -175,20 +175,20 @@ export class ImageUploadService {
     await Promise.all(
       Object.entries(variants).map(async ([name, variantBuffer]) => {
         const vPaths = paths.getVariantPaths(name)
-        await saveFile(vPaths.dbPath, variantBuffer)
-        variantUrls[name] = vPaths.dbPath
+        await saveFile(vPaths, variantBuffer)
+        variantUrls[name] = vPaths
         variantsTotalSize += variantBuffer.length
       }),
     )
 
     // Сохраняем оригинал
-    await saveFile(paths.original.dbPath, processedBuffer)
+    await saveFile(paths.path, processedBuffer)
 
     const totalSize = processedBuffer.length + variantsTotalSize
 
     // 5. Пост-обработка (Запись в БД, обновление квот)
     const dbRecord = await handler.afterSave(ctx, {
-      url: paths.original.dbPath,
+      url: paths.path,
       variants: variantUrls,
       size: totalSize,
       metadata,
@@ -202,7 +202,7 @@ export class ImageUploadService {
     fileUploadSizeBytesHistogram.observe({ placement: entityType }, totalSize)
 
     return {
-      url: paths.original.dbPath,
+      url: paths.path,
       variants: variantUrls,
       dbRecord,
       metadata,

@@ -1,5 +1,4 @@
 import type { tripImages } from 'db/schema'
-import { unlink } from 'node:fs/promises'
 import { extname, join } from 'node:path'
 import { s3Service } from './s3.service'
 
@@ -25,16 +24,10 @@ export function generateFilePaths(
   relativeDirPath: string,
   originalFilename: string,
 ) {
-  const staticRoot = process.env.STATIC_PATH || 'static'
-
   const { base, ext } = createUniqueFilename(originalFilename)
   const filename = `${base}${ext}`
 
-  // Пути для оригинала
-  const original = {
-    dbPath: join(relativeDirPath, filename).replace(/\\/g, '/'),
-    diskPath: join(staticRoot, relativeDirPath, filename),
-  }
+  const path = join(relativeDirPath, filename).replace(/\\/g, '/')
 
   /**
    * Генерирует пути для конкретного варианта.
@@ -42,15 +35,12 @@ export function generateFilePaths(
    */
   const getVariantPaths = (variantName: string) => {
     const variantFilename = `${base}-${variantName}.webp`
-    
-    return {
-      dbPath: join(relativeDirPath, variantFilename).replace(/\\/g, '/'),
-      diskPath: join(staticRoot, relativeDirPath, variantFilename),
-    }
+
+    return join(relativeDirPath, variantFilename).replace(/\\/g, '/')
   }
 
   return {
-    original,
+    path,
     getVariantPaths,
   }
 }
@@ -77,23 +67,7 @@ export async function saveFile(dbPath: string, fileBuffer: Buffer): Promise<void
  * @param dbPath - Относительный путь к файлу, как он хранится в БД.
  */
 async function deleteFileFromStorage(dbPath: string) {
-  // 1. Удаляем из S3
   await s3Service.deleteFile(dbPath)
-
-  // 2. Пытаемся удалить локально (для старых файлов)
-  const staticRoot = process.env.STATIC_PATH
-  if (!staticRoot)
-    return
-
-  try {
-    const fullPath = join(process.cwd(), staticRoot, dbPath)
-    await unlink(fullPath)
-  }
-  catch (error) {
-    if (error instanceof Error && 'code' in error && error.code !== 'ENOENT') {
-      console.error(`Не удалось удалить локальный файл: ${dbPath}`, error)
-    }
-  }
 }
 
 /**
