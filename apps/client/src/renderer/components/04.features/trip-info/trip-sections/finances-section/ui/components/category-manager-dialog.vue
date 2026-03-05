@@ -20,8 +20,6 @@ const emit = defineEmits<{
 
 const newCategoryName = ref('')
 const newCategoryIcon = ref('mdi:tag-outline')
-const isIconPickerOpen = ref(false)
-const categoryToPickIconFor = ref<Category | null>(null)
 
 function handleAddCategory() {
   if (!newCategoryName.value.trim())
@@ -30,21 +28,6 @@ function handleAddCategory() {
   newCategoryName.value = ''
   newCategoryIcon.value = 'mdi:tag-outline'
 }
-
-function handleIconSelect(icon: string) {
-  if (categoryToPickIconFor.value) {
-    emit('save', { ...categoryToPickIconFor.value, icon })
-    categoryToPickIconFor.value = null
-  }
-  else {
-    newCategoryIcon.value = icon
-  }
-}
-
-function openIconPicker(cat: Category | null = null) {
-  categoryToPickIconFor.value = cat
-  isIconPickerOpen.value = true
-}
 </script>
 
 <template>
@@ -52,9 +35,10 @@ function openIconPicker(cat: Category | null = null) {
     <div class="category-manager">
       <ul class="categories-list">
         <li v-for="cat in categories" :key="cat.id" class="category-item">
-          <button class="icon-btn" @click="openIconPicker(cat)">
-            <Icon :icon="cat.icon" />
-          </button>
+          <FinancesIconPicker
+            :model-value="cat.icon"
+            @update:model-value="(icon: string) => emit('save', { ...cat, icon })"
+          />
           <KitEditable :model-value="cat.name" class="category-name" :readonly="cat.isDefault" @update:model-value="emit('save', { ...cat, name: $event })" />
           <button v-if="!cat.isDefault" class="delete-btn" @click="emit('delete', cat.id)">
             <Icon icon="mdi:trash-can-outline" />
@@ -62,21 +46,13 @@ function openIconPicker(cat: Category | null = null) {
         </li>
       </ul>
       <form class="add-category-form" @submit.prevent="handleAddCategory">
-        <button type="button" class="icon-btn" @click="openIconPicker(null)">
-          <Icon :icon="newCategoryIcon" />
-        </button>
+        <FinancesIconPicker v-model="newCategoryIcon" />
         <KitInput v-model="newCategoryName" placeholder="Новая категория" />
         <KitBtn type="submit" :disabled="!newCategoryName.trim()">
           Добавить
         </KitBtn>
       </form>
     </div>
-
-    <FinancesIconPicker
-      v-model:visible="isIconPickerOpen"
-      :current-icon="categoryToPickIconFor ? categoryToPickIconFor.icon : newCategoryIcon"
-      @select="handleIconSelect"
-    />
   </KitDialogWithClose>
 </template>
 

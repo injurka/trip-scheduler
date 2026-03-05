@@ -6,7 +6,6 @@ import { storeToRefs } from 'pinia'
 import { useRoute, useRouter } from 'vue-router'
 import { useModuleStore } from '~/components/05.modules/trip-info/composables/use-trip-info-module'
 import { SECTION_TYPE_MAP } from '~/components/05.modules/trip-info/composables/use-trip-info-view'
-import { useIconPicker } from './use-icon-picker'
 
 export function useTripInfoLayout() {
   const store = useModuleStore(['sections', 'plan'])
@@ -27,11 +26,6 @@ export function useTripInfoLayout() {
 
   const isEditSectionDialogOpen = ref(false)
   const sectionToEdit = ref<{ id: string, title: string, icon: string } | null>(null)
-
-  const {
-    iconSearchQuery: iconSearchQueryEdit,
-    filteredIcons: filteredIconsEdit,
-  } = useIconPicker()
 
   const tabItems = computed((): ViewSwitcherItem<string>[] => {
     const overviewTab: ViewSwitcherItem<string> = {
@@ -165,19 +159,17 @@ export function useTripInfoLayout() {
       title: section.title,
       icon: section.icon || 'mdi:file-document-outline',
     }
-    iconSearchQueryEdit.value = ''
     isEditSectionDialogOpen.value = true
   }
 
-  async function handleUpdateSection() {
-    if (!sectionToEdit.value || !sectionToEdit.value.title.trim())
-      return
-    const section = sortedSections.value.find((s: TripSection) => s.id === sectionToEdit.value!.id)
+  async function handleUpdateSection(data: { id: string, title: string, icon: string }) {
+    const section = sortedSections.value.find((s: TripSection) => s.id === data.id)
+
     if (section) {
       await store.sections.updateSection({
         ...section,
-        title: sectionToEdit.value.title,
-        icon: sectionToEdit.value.icon,
+        title: data.title,
+        icon: data.icon,
       })
     }
     isEditSectionDialogOpen.value = false
@@ -295,13 +287,11 @@ export function useTripInfoLayout() {
     isNavigationVisible,
     isEditSectionDialogOpen,
     sectionToEdit,
-    iconSearchQueryEdit,
 
     // Computed
     tabItems,
     activeTab,
     menuItems,
-    filteredIconsEdit,
 
     // Methods
     selectSection,

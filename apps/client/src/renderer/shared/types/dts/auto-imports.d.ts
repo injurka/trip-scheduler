@@ -44,13 +44,17 @@ declare global {
   const effectScope: typeof import('vue').effectScope
   const extendRef: typeof import('@vueuse/core').extendRef
   const formatDate: typeof import('../../lib/date-time').formatDate
+  const formatTime: typeof import('../../lib/date-time').formatTime
+  const formatTimestamp: typeof import('../../lib/date-time').formatTimestamp
   const getActivePinia: typeof import('pinia').getActivePinia
   const getCurrentInstance: typeof import('vue').getCurrentInstance
   const getCurrentScope: typeof import('vue').getCurrentScope
   const getCurrentWatcher: typeof import('vue').getCurrentWatcher
   const getImageUrl: typeof import('../../lib/url').getImageUrl
   const getLocalDate: typeof import('../../lib/date-time').getLocalDate
+  const getTimeFromTimestamp: typeof import('../../lib/date-time').getTimeFromTimestamp
   const h: typeof import('vue').h
+  const iconCategories: typeof import('../../constants/icon-list').iconCategories
   const ignorableWatch: typeof import('@vueuse/core').ignorableWatch
   const inject: typeof import('vue').inject
   const injectLocal: typeof import('@vueuse/core').injectLocal
@@ -245,6 +249,7 @@ declare global {
   const useOffsetPagination: typeof import('@vueuse/core').useOffsetPagination
   const useOnline: typeof import('@vueuse/core').useOnline
   const usePageLeave: typeof import('@vueuse/core').usePageLeave
+  const usePagination: typeof import('../../composables/use-pagination').usePagination
   const useParallax: typeof import('@vueuse/core').useParallax
   const useParentElement: typeof import('@vueuse/core').useParentElement
   const usePerformanceObserver: typeof import('@vueuse/core').usePerformanceObserver
@@ -348,6 +353,12 @@ declare global {
   export type { RouterInput, RouterOutput, AppRouter } from '../trpc'
   import('../trpc')
   // @ts-ignore
+  export type { UsePaginationReturn } from '../../composables/use-pagination'
+  import('../../composables/use-pagination')
+  // @ts-ignore
+  export type { IconCategory } from '../../constants/icon-list'
+  import('../../constants/icon-list')
+  // @ts-ignore
   export type { AppRouteNames } from '../../constants/routes'
   import('../../constants/routes')
 }
@@ -395,13 +406,17 @@ declare module 'vue' {
     readonly effectScope: UnwrapRef<typeof import('vue')['effectScope']>
     readonly extendRef: UnwrapRef<typeof import('@vueuse/core')['extendRef']>
     readonly formatDate: UnwrapRef<typeof import('../../lib/date-time')['formatDate']>
+    readonly formatTime: UnwrapRef<typeof import('../../lib/date-time')['formatTime']>
+    readonly formatTimestamp: UnwrapRef<typeof import('../../lib/date-time')['formatTimestamp']>
     readonly getActivePinia: UnwrapRef<typeof import('pinia')['getActivePinia']>
     readonly getCurrentInstance: UnwrapRef<typeof import('vue')['getCurrentInstance']>
     readonly getCurrentScope: UnwrapRef<typeof import('vue')['getCurrentScope']>
     readonly getCurrentWatcher: UnwrapRef<typeof import('vue')['getCurrentWatcher']>
     readonly getImageUrl: UnwrapRef<typeof import('../../lib/url')['getImageUrl']>
     readonly getLocalDate: UnwrapRef<typeof import('../../lib/date-time')['getLocalDate']>
+    readonly getTimeFromTimestamp: UnwrapRef<typeof import('../../lib/date-time')['getTimeFromTimestamp']>
     readonly h: UnwrapRef<typeof import('vue')['h']>
+    readonly iconCategories: UnwrapRef<typeof import('../../constants/icon-list')['iconCategories']>
     readonly ignorableWatch: UnwrapRef<typeof import('@vueuse/core')['ignorableWatch']>
     readonly inject: UnwrapRef<typeof import('vue')['inject']>
     readonly injectLocal: UnwrapRef<typeof import('@vueuse/core')['injectLocal']>
@@ -594,6 +609,7 @@ declare module 'vue' {
     readonly useOffsetPagination: UnwrapRef<typeof import('@vueuse/core')['useOffsetPagination']>
     readonly useOnline: UnwrapRef<typeof import('@vueuse/core')['useOnline']>
     readonly usePageLeave: UnwrapRef<typeof import('@vueuse/core')['usePageLeave']>
+    readonly usePagination: UnwrapRef<typeof import('../../composables/use-pagination')['usePagination']>
     readonly useParallax: UnwrapRef<typeof import('@vueuse/core')['useParallax']>
     readonly useParentElement: UnwrapRef<typeof import('@vueuse/core')['useParentElement']>
     readonly usePerformanceObserver: UnwrapRef<typeof import('@vueuse/core')['usePerformanceObserver']>

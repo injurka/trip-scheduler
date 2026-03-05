@@ -1,9 +1,11 @@
 <script setup lang="ts">
+import type { IProcessingMemory } from '../types'
 import type { ImageViewerImage } from '~/components/01.kit/kit-image-viewer'
-import type { IProcessingMemory } from '~/components/04.features/trip-info/trip-memories/store'
 import type { IMemory } from '~/components/05.modules/trip-info/models/types'
 import type { Activity } from '~/shared/types/models/activity'
 import { Icon } from '@iconify/vue'
+import { useMediaQuery } from '@vueuse/core'
+import { KitBottomSheet } from '~/components/01.kit/kit-bottom-sheet'
 import { KitBtn } from '~/components/01.kit/kit-btn'
 import { KitDropdown } from '~/components/01.kit/kit-dropdown'
 import { useModuleStore } from '~/components/05.modules/trip-info/composables/use-trip-info-module'
@@ -37,6 +39,13 @@ const { memories: memoriesStore } = useModuleStore(['memories'])
 const { memoriesWithGeoForSelectedDay, memoriesToProcess } = storeToRefs(memoriesStore)
 
 const isMapVisible = ref(false)
+const showImportSheet = ref(false)
+const isMobile = useMediaQuery('(max-width: 768px)')
+
+function handleImportSelect(activity: Activity) {
+  emit('import', activity)
+  showImportSheet.value = false
+}
 </script>
 
 <template>
@@ -46,16 +55,53 @@ const isMapVisible = ref(false)
         <Icon :icon="isProcessing ? 'mdi:loading' : 'mdi:camera-plus-outline'" :class="{ spin: isProcessing }" />
         <span>{{ isProcessing ? `Загрузка (${processingMemories.length})...` : 'Загрузить фотографии' }}</span>
       </button>
+
       <button class="add-note-button" @click="emit('addActivity')">
         <Icon icon="mdi:plus-box-outline" />
         <span>Добавить активность</span>
       </button>
+
       <button class="add-note-button" @click="emit('addNote')">
         <Icon icon="mdi:note-plus-outline" />
         <span>Добавить заметку</span>
       </button>
 
-      <KitDropdown :items="importOptions" align="end" @update:model-value="emit('import', $event)">
+      <template v-if="isMobile">
+        <button
+          class="add-note-button"
+          :disabled="importOptions.length === 0"
+          @click="showImportSheet = true"
+        >
+          <Icon icon="mdi:import" />
+          <span>Импорт из плана</span>
+        </button>
+
+        <KitBottomSheet
+          v-model="showImportSheet"
+          title="Импорт из плана"
+        >
+          <div class="import-sheet-list">
+            <button
+              v-for="item in importOptions"
+              :key="String(item.value)"
+              class="import-sheet-item"
+              @click="handleImportSelect(item.value)"
+            >
+              <span class="import-sheet-item-icon-wrap">
+                <Icon v-if="item.icon" :icon="item.icon" />
+              </span>
+              <span class="import-sheet-item-label">{{ item.label }}</span>
+            </button>
+          </div>
+        </KitBottomSheet>
+      </template>
+
+      <KitDropdown
+        v-else
+        :items="importOptions"
+        align="end"
+        @update:model-value="emit('import', $event)"
+      >
         <template #trigger>
           <button class="add-note-button" :disabled="importOptions.length === 0">
             <Icon icon="mdi:import" />
@@ -77,7 +123,6 @@ const isMapVisible = ref(false)
 
     <MemoriesTimeline
       v-if="memories.length > 0"
-      :memories="memories"
       :is-view-mode="isViewMode"
       :gallery-images="galleryImages"
       :is-full-screen="isFullScreen"
@@ -181,12 +226,58 @@ const isMapVisible = ref(false)
   background-color: var(--bg-tertiary-color);
   border: 2px solid var(--bg-tertiary-color);
   color: var(--fg-primary-color);
+
   &:hover:not(:disabled) {
     background-color: var(--bg-hover-color);
   }
   &:disabled {
     opacity: 0.5;
     cursor: not-allowed;
+  }
+}
+
+.import-sheet-list {
+  display: flex;
+  flex-direction: column;
+  padding: 8px 0 16px;
+}
+
+.import-sheet-item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 8px;
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  text-align: left;
+  transition: background-color 0.15s ease;
+  width: 100%;
+
+  &:hover,
+  &:active {
+    background-color: var(--bg-hover-color);
+  }
+
+  &-icon-wrap {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 36px;
+    height: 36px;
+    border-radius: var(--r-s);
+    background-color: var(--bg-secondary-color);
+    color: var(--fg-secondary-color);
+    font-size: 1.2rem;
+    flex-shrink: 0;
+  }
+
+  &-label {
+    flex-grow: 1;
+    font-size: 0.95rem;
+    color: var(--fg-primary-color);
+    line-height: 1.4;
+    text-align: left;
   }
 }
 

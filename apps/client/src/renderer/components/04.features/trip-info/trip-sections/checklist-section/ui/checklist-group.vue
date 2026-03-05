@@ -22,7 +22,6 @@ const emit = defineEmits<{
 }>()
 
 const newItemText = ref('')
-const isIconPickerOpen = ref(false)
 const isCollapsed = ref(false)
 const newItemInputRef = ref<HTMLInputElement | null>(null)
 
@@ -70,7 +69,7 @@ function onAddItem() {
         <button v-if="!readonly" class="drag-handle-group" title="Перетащить группу">
           <Icon icon="mdi:drag" />
         </button>
-        <button class="group-icon-btn" :disabled="readonly" @click="isIconPickerOpen = true">
+        <button class="group-icon-btn" :disabled="readonly">
           <Icon :icon="group.icon" class="group-icon" />
         </button>
         <span
@@ -142,9 +141,9 @@ function onAddItem() {
     </div>
 
     <ChecklistIconPicker
-      v-model:visible="isIconPickerOpen"
-      :current-icon="group.icon"
-      @select="icon => handleUpdateGroup('icon', icon)"
+      :model-value="group.icon"
+      :disabled="readonly"
+      @update:model-value="(icon: string) => handleUpdateGroup('icon', icon)"
     />
   </div>
 </template>

@@ -9,8 +9,6 @@ const { memoriesToProcess } = storeToRefs(memoriesStore)
 
 const isCollapsed = ref(false)
 const isFullScreen = ref(false)
-const BATCH_SIZE = 9
-const visibleCount = ref(BATCH_SIZE)
 
 const filters = reactive({
   showWithDate: true,
@@ -39,13 +37,11 @@ const filteredMemories = computed(() => {
   })
 })
 
-const paginatedMemories = computed(() => {
-  return filteredMemories.value.slice(0, visibleCount.value)
-})
-
-function showMore() {
-  visibleCount.value += BATCH_SIZE
-}
+const {
+  visibleItems: paginatedMemories,
+  hasMore: hasMoreMemories,
+  loadMore: showMore,
+} = usePagination(filteredMemories, 9)
 </script>
 
 <template>
@@ -73,7 +69,7 @@ function showMore() {
           Снятые в другой день
         </KitCheckbox>
       </div>
-      <div v-if="paginatedMemories.length > 0" class="queue-grid">
+      <div v-if="hasMoreMemories" class="queue-grid">
         <MemoryProcessingCard v-for="memory in paginatedMemories" :key="memory.id" :memory="memory" />
       </div>
       <div v-else class="empty-queue">

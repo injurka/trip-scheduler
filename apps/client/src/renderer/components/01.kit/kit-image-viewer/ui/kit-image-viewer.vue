@@ -1,10 +1,9 @@
 <script setup lang="ts">
-import type { IImageViewerImageMeta, ImageQuality, ImageViewerImage } from '../models/types'
+import type { IImageViewerImageMeta, ImageViewerImage } from '../models/types'
 import { Icon } from '@iconify/vue'
 import { onClickOutside, toRef, useIdle } from '@vueuse/core'
 import { useRequest } from '~/plugins/request'
-import { resolveApiUrl } from '~/shared/lib/url'
-import { useImageViewerTransform, useSwipeNavigation } from '../composables'
+import { useImageViewerSwipe, useImageViewerTransform, useImageViewerUi } from '../composables'
 import ImageMetadataPanel from './kit-image-metadata-panel.vue'
 import KitViewerControls from './kit-viewer-controls.vue'
 
@@ -51,42 +50,31 @@ const props = withDefaults(defineProps<Props>(), {
 
 const emit = defineEmits<Emits>()
 
-const preferredQuality = useStorage<ImageQuality>('viewer-quality-preference', 'large')
-
-const { idle: isIdle } = useIdle(3000, {
-  events: ['mousemove', 'mousedown', 'resize', 'touchstart', 'wheel'],
-})
-
 const viewerContentRef = ref<HTMLElement | null>(null)
 const imageRef = ref<HTMLImageElement | null>(null)
 const containerRef = ref<HTMLElement | null>(null)
+const thumbnailsRef = ref<HTMLElement | null>(null) 
 const naturalSize = reactive({ width: 0, height: 0 })
 const isUiVisible = ref(true)
-const isMetadataPanelVisible = ref(false)
 const isMetadataLoading = ref(false)
 
-const isCurrentImageLoading = ref(true)
-const isCurrentImageInError = ref(false)
-
-const currentImage = computed(() => props.images[props.currentIndex])
-const currentImageSrc = computed(() => {
-  const image = currentImage.value
-  if (!image)
-    return ''
-
-  switch (preferredQuality.value) {
-    case 'medium':
-      return image.variants?.medium || image.variants?.large || image.url
-    case 'large':
-      return image.variants?.large || image.url
-    case 'original':
-      return image.url
-    default:
-      return image.variants?.large || image.url
-  }
-})
-
+const currentImage = computed(() => props.images[props.currentIndex] ?? null)
 const hasMultipleImages = computed(() => props.images.length > 1)
+
+const {
+  selectedQuality,
+  displayUrl,
+  isImageLoaded,
+  isImageError,
+  onImageLoad,
+  onImageError,
+  isMetadataPanelOpen,
+  hasMetadata,
+  closeMetadataPanel,
+  scrollThumbnailIntoView,
+  isDownloading,
+  downloadCurrentImage,
+} = useImageViewerUi({ currentImage, containerRef, thumbnailsRef })
 
 const {
   transform,
@@ -114,16 +102,17 @@ const {
 
 const isZoomed = computed(() => transform.scale > props.minZoom)
 
+const { idle: isIdle } = useIdle(3000, {
+  events: ['mousemove', 'mousedown', 'resize', 'touchstart', 'wheel'],
+})
+
 const areControlsVisible = computed(() => {
   if (!isUiVisible.value)
     return false
-
-  if (isMetadataPanelVisible.value)
+  if (isMetadataPanelOpen.value)
     return true
-
   if (isDragging.value || isZoomed.value)
     return true
-
   return !isIdle.value
 })
 
@@ -136,13 +125,13 @@ const {
   handleTouchStart: handleSwipeTouchStart,
   handleTouchMove: handleSwipeTouchMove,
   handleTouchEnd: handleSwipeTouchEnd,
-} = useSwipeNavigation({
+} = useImageViewerSwipe({
   onNext: next,
   onPrev: prev,
   images: toRef(props, 'images'),
   currentIndex: toRef(props, 'currentIndex'),
   isZoomed,
-  preferredQuality,
+  preferredQuality: selectedQuality,
   threshold: 80,
   velocity: 0.3,
   baseTransform: computed(() => imageStyle.value.transform),
@@ -164,62 +153,8 @@ function handleTouchEndCombined(event: TouchEvent) {
 }
 
 const currentImageMeta = computed((): IImageViewerImageMeta | null => {
-  return toRaw(props.images[props.currentIndex]?.meta) || null
+  return toRaw(props.images[props.currentIndex]?.meta) ?? null
 })
-
-watch(currentImageSrc, (src) => {
-  if (src) {
-    isCurrentImageLoading.value = true
-    isCurrentImageInError.value = false
-  }
-}, { immediate: true })
-
-watch(() => props.currentIndex, () => {
-  resetTransform()
-  isMetadataPanelVisible.value = false
-  scrollToActiveThumbnail()
-})
-
-watch(areControlsVisible, (visible) => {
-  if (visible) {
-    nextTick(() => scrollToActiveThumbnail())
-  }
-})
-
-watch(() => props.visible, (isVisible) => {
-  if (isVisible) {
-    document.body.style.overflow = 'hidden'
-    isUiVisible.value = true
-    nextTick(() => scrollToActiveThumbnail())
-  }
-  else {
-    document.body.style.overflow = ''
-    resetTransform()
-    isMetadataPanelVisible.value = false
-  }
-})
-
-function handleImageLoad(event: Event) {
-  const target = event.target as HTMLImageElement | null
-  if (target && target.src === resolveApiUrl(currentImageSrc.value)) {
-    isCurrentImageLoading.value = false
-    isCurrentImageInError.value = false
-    if (imageRef.value) {
-      naturalSize.width = imageRef.value.naturalWidth
-      naturalSize.height = imageRef.value.naturalHeight
-      emit('imageLoad', currentImage.value)
-    }
-  }
-}
-
-function handleImageError(event: Event) {
-  const target = event.target as HTMLImageElement | null
-  if (target && target.src === resolveApiUrl(currentImageSrc.value)) {
-    isCurrentImageLoading.value = false
-    isCurrentImageInError.value = true
-    emit('imageError', event)
-  }
-}
 
 async function handleShowMetadata() {
   const image = currentImage.value
@@ -227,14 +162,12 @@ async function handleShowMetadata() {
     return
 
   const hasFullMetadata = image.meta && (image.meta.camera || image.meta.settings)
-
   if (hasFullMetadata) {
-    isMetadataPanelVisible.value = true
+    isMetadataPanelOpen.value = true
     return
   }
 
   const imageId = (image.meta as any)?.imageId
-
   if (imageId) {
     isMetadataLoading.value = true
     try {
@@ -247,13 +180,12 @@ async function handleShowMetadata() {
               image.meta = {}
             Object.assign(image.meta, fullMetadata)
           }
-          isMetadataPanelVisible.value = true
+          isMetadataPanelOpen.value = true
         },
         onError: ({ error }) => {
-          console.error('Failed to load metadata', error.customMessage)
-
+          console.error('[ImageViewer] Failed to load metadata:', error.customMessage)
           if (image.meta)
-            isMetadataPanelVisible.value = true
+            isMetadataPanelOpen.value = true
         },
       })
     }
@@ -262,8 +194,22 @@ async function handleShowMetadata() {
     }
   }
   else if (image.meta) {
-    isMetadataPanelVisible.value = true
+    isMetadataPanelOpen.value = true
   }
+}
+
+function handleImageLoad(event: Event) {
+  onImageLoad()
+  const target = event.target as HTMLImageElement
+  naturalSize.width = target.naturalWidth
+  naturalSize.height = target.naturalHeight
+  if (currentImage.value)
+    emit('imageLoad', currentImage.value)
+}
+
+function handleImageError(event: Event) {
+  onImageError()
+  emit('imageError', event)
 }
 
 function close() {
@@ -274,15 +220,13 @@ function close() {
 function next() {
   if (!hasMultipleImages.value)
     return
-  const newIndex = (props.currentIndex + 1) % props.images.length
-  emit('update:currentIndex', newIndex)
+  emit('update:currentIndex', (props.currentIndex + 1) % props.images.length)
 }
 
 function prev() {
   if (!hasMultipleImages.value)
     return
-  const newIndex = (props.currentIndex - 1 + props.images.length) % props.images.length
-  emit('update:currentIndex', newIndex)
+  emit('update:currentIndex', (props.currentIndex - 1 + props.images.length) % props.images.length)
 }
 
 function goToIndex(index: number) {
@@ -290,19 +234,40 @@ function goToIndex(index: number) {
     emit('update:currentIndex', index)
 }
 
-const thumbnailsWrapperRef = ref<HTMLElement | null>(null)
-function scrollToActiveThumbnail() {
-  if (!thumbnailsWrapperRef.value)
-    return
-  const activeBtn = thumbnailsWrapperRef.value.children[props.currentIndex] as HTMLElement
-  if (activeBtn) {
-    activeBtn.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'center' })
+watch(() => props.currentIndex, (index) => {
+  resetTransform()
+  closeMetadataPanel()
+  scrollThumbnailIntoView(index)
+})
+
+watch(areControlsVisible, (visible) => {
+  if (visible)
+    scrollThumbnailIntoView(props.currentIndex)
+})
+
+watch(() => props.visible, (isVisible) => {
+  if (isVisible) {
+    document.body.style.overflow = 'hidden'
+    isUiVisible.value = true
+    scrollThumbnailIntoView(props.currentIndex)
   }
-}
+  else {
+    document.body.style.overflow = ''
+    resetTransform()
+    closeMetadataPanel()
+  }
+})
 
 onClickOutside(viewerContentRef, () => {
-  if (props.closeOnOverlayClick && props.visible && !isDragging.value && transform.scale <= props.minZoom && !isMetadataPanelVisible.value)
+  if (
+    props.closeOnOverlayClick
+    && props.visible
+    && !isDragging.value
+    && transform.scale <= props.minZoom
+    && !isMetadataPanelOpen.value
+  ) {
     close()
+  }
 })
 
 onUnmounted(() => {
@@ -323,7 +288,6 @@ onUnmounted(() => {
         @touchcancel="handleTouchEndCombined"
       >
         <div ref="viewerContentRef" class="viewer-wrapper">
-          <!-- Header -->
           <Transition name="controls-fade">
             <div v-if="areControlsVisible" class="viewer-header">
               <div class="header-content-wrapper">
@@ -341,17 +305,19 @@ onUnmounted(() => {
               <div class="header-right">
                 <KitViewerControls
                   v-model:is-ui-visible="isUiVisible"
-                  v-model:quality="preferredQuality"
+                  v-model:quality="selectedQuality"
                   :can-zoom-in="canZoomIn"
                   :can-zoom-out="canZoomOut"
                   :is-zoomed="isZoomed"
-                  :has-metadata="true"
+                  :has-metadata="hasMetadata"
                   :is-metadata-loading="isMetadataLoading"
                   :show-quality-selector="showQualitySelector"
                   :show-info-button="showInfoButton"
+                  :is-downloading="isDownloading"
                   @reset-transform="resetTransform"
                   @show-metadata="handleShowMetadata"
                   @close="close"
+                  @download="downloadCurrentImage"
                 />
               </div>
             </div>
@@ -361,17 +327,22 @@ onUnmounted(() => {
             <div ref="containerRef" class="image-container">
               <div class="swipe-container" :style="containerStyle">
                 <div class="preview-image prev-preview">
-                  <img v-if="prevImageSrc" v-resolve-src="prevImageSrc" class="preview-img" :style="adjacentImageStyle">
+                  <img
+                    v-if="prevImageSrc"
+                    v-resolve-src="prevImageSrc"
+                    class="preview-img"
+                    :style="adjacentImageStyle"
+                  >
                 </div>
 
                 <div class="current-image-wrapper">
                   <Transition name="loader-fade">
-                    <div v-if="isCurrentImageLoading || isCurrentImageInError" class="placeholder-wrapper">
-                      <div v-if="isCurrentImageInError" class="image-error">
+                    <div v-if="!isImageLoaded" class="placeholder-wrapper">
+                      <div v-if="isImageError" class="image-error">
                         <Icon width="64" height="64" icon="mdi:image-broken-variant" />
                         <span>Не удалось загрузить изображение</span>
                       </div>
-                      <div v-else-if="isCurrentImageLoading" class="image-placeholder">
+                      <div v-else class="image-placeholder">
                         <div class="loading-spinner">
                           <Icon width="64" height="64" icon="mdi:loading" class="spinning" />
                         </div>
@@ -382,12 +353,12 @@ onUnmounted(() => {
 
                   <img
                     v-if="currentImage"
-                    :key="currentImageSrc"
+                    :key="displayUrl"
                     ref="imageRef"
-                    v-resolve-src="currentImageSrc"
+                    v-resolve-src="displayUrl"
                     :alt="currentImage.alt || `Image ${currentIndex + 1}`"
                     class="viewer-image"
-                    :class="{ loaded: !isCurrentImageLoading && !isCurrentImageInError }"
+                    :class="{ loaded: isImageLoaded }"
                     :style="[imageStyle, currentImageStyle]"
                     @load="handleImageLoad"
                     @error="handleImageError"
@@ -398,9 +369,15 @@ onUnmounted(() => {
                 </div>
 
                 <div class="preview-image next-preview">
-                  <img v-if="nextImageSrc" v-resolve-src="nextImageSrc" class="preview-img" :style="adjacentImageStyle">
+                  <img
+                    v-if="nextImageSrc"
+                    v-resolve-src="nextImageSrc"
+                    class="preview-img"
+                    :style="adjacentImageStyle"
+                  >
                 </div>
               </div>
+
               <div
                 v-if="hasMultipleImages && transform.scale <= minZoom"
                 class="nav-zone prev-zone"
@@ -413,6 +390,7 @@ onUnmounted(() => {
               />
             </div>
           </div>
+
           <div v-if="$slots.footer && areControlsVisible" class="viewer-footer">
             <slot
               name="footer"
@@ -421,10 +399,10 @@ onUnmounted(() => {
               :transform="transform"
             />
           </div>
-          <!-- Thumbnails -->
+
           <Transition name="controls-fade">
             <div v-if="enableThumbnails && hasMultipleImages && areControlsVisible" class="thumbnails-container">
-              <div ref="thumbnailsWrapperRef" class="thumbnails-wrapper">
+              <div ref="thumbnailsRef" class="thumbnails-wrapper">
                 <button
                   v-for="(image, index) in images"
                   :key="`thumb-${index}`"
@@ -439,11 +417,12 @@ onUnmounted(() => {
             </div>
           </Transition>
         </div>
+
         <ImageMetadataPanel
           v-if="currentImageMeta"
           :meta="currentImageMeta"
-          :visible="isMetadataPanelVisible"
-          @close="isMetadataPanelVisible = false"
+          :visible="isMetadataPanelOpen"
+          @close="closeMetadataPanel"
         />
       </div>
     </Transition>
@@ -773,11 +752,9 @@ onUnmounted(() => {
 .controls-fade-leave-to {
   opacity: 0;
 }
-/* Header slides up slightly when hiding */
 .viewer-header.controls-fade-leave-to {
   transform: translateY(-10px);
 }
-/* Thumbnails slide down slightly when hiding */
 .thumbnails-container.controls-fade-leave-to {
   transform: translateY(10px);
 }
@@ -793,6 +770,7 @@ onUnmounted(() => {
 .loader-fade-leave-to {
   opacity: 0;
 }
+
 @keyframes spin {
   from {
     transform: rotate(0deg);
@@ -809,9 +787,8 @@ onUnmounted(() => {
     justify-content: flex-end;
     top: env(safe-area-inset-top);
     left: 0px;
-    right: 0px;
-    padding: 16px 0;
     right: 8px;
+    padding: 16px 0;
   }
   .header-left {
     justify-content: flex-start;
@@ -857,6 +834,7 @@ onUnmounted(() => {
     height: 44px;
   }
 }
+
 @include media-down(sm) {
   .viewer-header {
     display: block;

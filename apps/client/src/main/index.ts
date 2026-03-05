@@ -1,3 +1,4 @@
+/* eslint-disable no-console */
 import fs from 'node:fs'
 import { dirname, join, normalize } from 'node:path'
 import process from 'node:process'
@@ -16,7 +17,6 @@ function getVaultPath(): string | null {
     if (fs.existsSync(SETTINGS_FILE)) {
       const data = JSON.parse(fs.readFileSync(SETTINGS_FILE, 'utf-8'))
       const savedPath = data.vaultPath || null
-      // Проверяем, существует ли путь физически (важно для Portable режима)
       if (savedPath && !fs.existsSync(savedPath)) {
         return null
       }
@@ -77,7 +77,6 @@ function createWindow() {
 }
 
 app.whenReady().then(() => {
-  // Handle Custom Protocol: отдаем файлы из папки
   protocol.handle('trip-scheduler-vault', (request) => {
     const vaultPath = getVaultPath()
     if (!vaultPath) {
@@ -87,10 +86,8 @@ app.whenReady().then(() => {
     const urlPath = request.url.replace('trip-scheduler-vault://', '')
     const decodedPath = decodeURIComponent(urlPath)
 
-    // Формируем полный путь к файлу на диске
     const finalPath = normalize(join(vaultPath, decodedPath))
 
-    // Защита от выхода за пределы папки (Path Traversal)
     if (!finalPath.startsWith(vaultPath)) {
       return new Response('Access denied', { status: 403 })
     }
@@ -158,7 +155,6 @@ ipcMain.handle('vault:check-files', async (_, relativePaths: string[]) => {
 
   const existing: string[] = []
 
-  // Проверяем наличие файлов параллельно
   await Promise.all(relativePaths.map(async (relPath) => {
     const fullPath = join(root, relPath)
     try {
@@ -166,7 +162,6 @@ ipcMain.handle('vault:check-files', async (_, relativePaths: string[]) => {
       existing.push(relPath)
     }
     catch {
-      // файл отсутствует
     }
   }))
 
@@ -178,11 +173,9 @@ ipcMain.handle('vault:download-file', async (_, url: string, relativePath: strin
   if (!root)
     throw new Error('Vault not set')
 
-  // Нормализуем путь (важно для Windows: '/' -> '\')
   const fullDest = normalize(join(root, relativePath))
   const dir = dirname(fullDest)
 
-  // 1. Создаем папку (это работает, судя по описанию)
   try {
     await fs.promises.mkdir(dir, { recursive: true })
   }
@@ -191,7 +184,6 @@ ipcMain.handle('vault:download-file', async (_, url: string, relativePath: strin
     throw err
   }
 
-  // 2. Скачиваем файл через electron.net (надежнее чем Node fetch)
   console.log(`[Vault] Downloading: ${url} -> ${fullDest}`)
 
   return new Promise((resolve, reject) => {
@@ -204,14 +196,12 @@ ipcMain.handle('vault:download-file', async (_, url: string, relativePath: strin
         return
       }
 
-      // Создаем поток записи в файл
       const fileStream = fs.createWriteStream(fullDest)
 
-      // Пайпим ответ сети сразу в файл
+      // @ts-expect-error не знаю как исправить
       response.pipe(fileStream)
 
       fileStream.on('finish', () => {
-        // Закрываем файл после записи
         fileStream.close(() => {
           console.log(`[Vault] Saved: ${fullDest}`)
           resolve(true)
@@ -220,7 +210,6 @@ ipcMain.handle('vault:download-file', async (_, url: string, relativePath: strin
 
       fileStream.on('error', (err) => {
         console.error(`[Vault] Write error for ${fullDest}:`, err)
-        // Удаляем битый файл, если не удалось записать
         fs.unlink(fullDest, () => { })
         reject(err)
       })
@@ -231,7 +220,6 @@ ipcMain.handle('vault:download-file', async (_, url: string, relativePath: strin
       reject(err)
     })
 
-    // Завершаем формирование запроса
     request.end()
   })
 })

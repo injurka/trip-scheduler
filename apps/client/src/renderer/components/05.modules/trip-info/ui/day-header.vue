@@ -53,6 +53,10 @@ function handleTitleBlur(newTitle: string) {
   margin-bottom: 32px;
   margin-top: 16px;
 
+  @include media-down(sm) {
+    padding: 20px;
+  }
+
   &::before {
     content: '';
     position: absolute;
@@ -110,12 +114,6 @@ function handleTitleBlur(newTitle: string) {
       font-size: 0.9rem;
       margin: 0;
     }
-  }
-}
-
-@include media-down(sm) {
-  .day-header {
-    padding: 24px;
   }
 }
 </style>

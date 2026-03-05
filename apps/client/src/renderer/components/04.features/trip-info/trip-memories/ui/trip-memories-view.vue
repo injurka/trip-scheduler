@@ -1,23 +1,21 @@
 <script setup lang="ts">
+import type { Time } from '@internationalized/date'
 import type { ImageViewerImage } from '~/components/01.kit/kit-image-viewer'
-import type { EActivityTag, IMemory } from '~/components/05.modules/trip-info/models/types'
 import type { Activity } from '~/shared/types/models/activity'
 import { Icon } from '@iconify/vue'
-import { Time } from '@internationalized/date'
 import { useDropZone, useFileDialog } from '@vueuse/core'
-import { KitBtn } from '~/components/01.kit/kit-btn'
-import { KitDialogWithClose } from '~/components/01.kit/kit-dialog-with-close'
 import { KitDivider } from '~/components/01.kit/kit-divider'
-import { KitInput } from '~/components/01.kit/kit-input'
-import { KitTimeField } from '~/components/01.kit/kit-time-field'
 import { AsyncStateWrapper } from '~/components/02.shared/async-state-wrapper'
 import { ETripMemoriesKeys } from '~/components/04.features/trip-info/trip-memories/store/trip-memories.store'
 import { useModuleStore } from '~/components/05.modules/trip-info/composables/use-trip-info-module'
-import { getTagInfo, memoryToViewerImage } from '~/components/05.modules/trip-info/lib/helpers'
+import { getTagInfo } from '~/components/05.modules/trip-info/lib/helpers'
 import { useRequestError } from '~/plugins/request'
 import { useDisplay } from '~/shared/composables/use-display'
 import { useNotificationStore } from '~/shared/store/notification.store'
 import { useTripMemoriesVault } from '../composables/use-trip-memories-vault'
+import { resolveMemoryImageSource } from '../lib/resolve-memory-image'
+import AddActivityDialog from './dialogs/add-activity-dialog.vue'
+import AddNoteDialog from './dialogs/add-note-dialog.vue'
 import MemoriesList from './memories-list.vue'
 import DownloadStatusBanner from './state/download-status-banner.vue'
 import MemoriesEmpty from './state/memories-empty.vue'
@@ -62,98 +60,35 @@ function onDrop(files: File[] | null) {
 onChange((files) => {
   if (!files || files.length === 0)
     return
-
   memories.enqueueFilesForUpload(Array.from(files))
-
   reset()
 })
 
 const isProcessing = computed(() => getProcessingMemories.value.length > 0)
 
 const memoriesData = computed(() => {
-  if (memoriesForSelectedDay.value.length > 0 || isProcessing.value) {
+  if (memoriesForSelectedDay.value.length > 0 || isProcessing.value)
     return memoriesForSelectedDay.value
-  }
   return null
 })
 
-const timelineGroups = computed(() => {
-  const memoriesList = memoriesForSelectedDay.value
-  if (memoriesList.length === 0)
-    return []
-
-  const groups: any[] = []
-  let currentGroup: any = null
-
-  const ensureStartGroup = () => {
-    let startGroup = groups.find(g => g.type === 'start')
-    if (!startGroup) {
-      startGroup = {
-        type: 'start',
-        title: 'Начало дня',
-        memories: [],
-        activity: null,
-      }
-      groups.unshift(startGroup)
-    }
-    return startGroup
-  }
-
-  for (const memory of memoriesList) {
-    if (memory.title) {
-      currentGroup = {
-        type: 'activity',
-        activity: memory,
-        title: memory.title,
-        memories: [],
-      }
-      if (memory.imageId || memory.comment)
-        currentGroup.memories.push(memory)
-      groups.push(currentGroup)
-    }
-    else {
-      if (currentGroup) {
-        currentGroup.memories.push(memory)
-      }
-      else {
-        const startGroup = ensureStartGroup()
-        startGroup.memories.push(memory)
-      }
-    }
-  }
-  const startGroup = groups.find(g => g.type === 'start')
-  if (startGroup && startGroup.memories.length === 0)
-    return groups.filter(g => g.type !== 'start')
-
-  return groups
-})
+const { timelineGroupsForSelectedDay: timelineGroups } = storeToRefs(memories)
 
 const galleryImages = computed<ImageViewerImage[]>(() => {
-  const isLocal = vaultStore.isLocalMode
   const currentDayId = getSelectedDay.value?.id
 
   return memoriesForSelectedDay.value
     .filter(memory => memory.image)
-    .map((memory: IMemory) => {
+    .map((memory) => {
       const image = memory.image!
-      let url = resolveApiUrl(image.url)
-      let variants = {
-        small: image.variants?.small ? resolveApiUrl(image.variants.small) : url,
-        medium: image.variants?.medium ? resolveApiUrl(image.variants.medium) : url,
-        large: image.variants?.large ? resolveApiUrl(image.variants.large) : url,
-      }
-
-      if (isLocal && vaultStore.isConfigured && tripData.currentTripId && currentDayId) {
-        const relPath = vaultStore.getRelPath(tripData.currentTripId, image.id, currentDayId)
-        if (vaultStore.localFilesSet.has(relPath)) {
-          const localUrl = `trip-scheduler-vault://${relPath}`
-          url = localUrl
-          variants = { small: localUrl, medium: localUrl, large: localUrl }
-        }
-      }
-
-      const meta: any = {
-        ...(image.metadata || {}),
+      const { url, variants } = resolveMemoryImageSource(
+        image,
+        vaultStore,
+        tripData.currentTripId,
+        currentDayId,
+      )
+      const meta = {
+        ...image.metadata,
         latitude: image.latitude,
         longitude: image.longitude,
         takenAt: image.takenAt,
@@ -162,19 +97,22 @@ const galleryImages = computed<ImageViewerImage[]>(() => {
         imageId: image.id,
         memoryId: memory.id,
       }
-
       return {
         url,
         variants,
         alt: memory.comment || 'Trip Image',
-        caption: memory.comment || '',
+        caption: memory.comment ?? null,
         meta,
       }
     })
 })
 
-const allMemoryGroupKeys = computed(() => timelineGroups.value.map(g => g.type + (g.activity?.id || g.title)))
-const allMemoryBlocksCollapsed = computed(() => areAllMemoryGroupsCollapsed.value(allMemoryGroupKeys.value))
+const allMemoryGroupKeys = computed(() =>
+  timelineGroups.value.map(g => g.type + (g.activity?.id || g.title)),
+)
+const allMemoryBlocksCollapsed = computed(() =>
+  areAllMemoryGroupsCollapsed.value(allMemoryGroupKeys.value),
+)
 const collapseMemoriesIcon = computed(() =>
   allMemoryBlocksCollapsed.value ? 'mdi:chevron-double-down' : 'mdi:chevron-double-up',
 )
@@ -189,67 +127,50 @@ function toggleFullScreen() {
   isFullScreen.value = !isFullScreen.value
 }
 
-const isAddNoteModalVisible = ref(false)
-const newNoteText = ref('')
-const isAddActivityModalVisible = ref(false)
-const newNoteTime = shallowRef<Time | null>(null)
-const newActivity = shallowReactive<{ title: string, time: Time | null, tag: EActivityTag | null }>({
-  title: '',
-  time: new Time(12, 0),
-  tag: null,
-})
+const isAddNoteDialogVisible = ref(false)
+const isAddActivityDialogVisible = ref(false)
 
 function handleAddTextNote() {
-  newNoteText.value = ''
-  newNoteTime.value = new Time(12, 0)
-  isAddNoteModalVisible.value = true
-}
-
-function saveNewNote() {
-  if (!newNoteTime.value || !tripData.currentTripId || !getSelectedDay.value)
-    return
-
-  const datePart = getSelectedDay.value.date.split('T')[0]
-  const timePart = `${newNoteTime.value.hour.toString().padStart(2, '0')}:${newNoteTime.value.minute.toString().padStart(2, '0')}:00`
-  const newTimestamp = `${datePart}T${timePart}.000Z`
-
-  memories.createMemory({
-    tripId: tripData.currentTripId,
-    comment: newNoteText.value.trim(),
-    timestamp: newTimestamp,
-  })
-  isAddNoteModalVisible.value = false
+  isAddNoteDialogVisible.value = true
 }
 
 function handleAddActivity() {
-  newActivity.title = ''
-  newActivity.time = new Time(12, 0)
-  newActivity.tag = null
-  isAddActivityModalVisible.value = true
+  isAddActivityDialogVisible.value = true
 }
 
-function saveNewActivity() {
-  if (!newActivity.time || !newActivity.title.trim() || !tripData.currentTripId || !getSelectedDay.value)
+function handleSaveNote(text: string, time: Time) {
+  if (!tripData.currentTripId || !getSelectedDay.value)
     return
-
   const datePart = getSelectedDay.value.date.split('T')[0]
-  const timePart = `${newActivity.time.hour.toString().padStart(2, '0')}:${newActivity.time.minute.toString().padStart(2, '0')}:00`
-  const newTimestamp = `${datePart}T${timePart}.000Z`
-
+  const h = time.hour.toString().padStart(2, '0')
+  const m = time.minute.toString().padStart(2, '0')
   memories.createMemory({
     tripId: tripData.currentTripId,
-    title: newActivity.title.trim(),
-    tag: newActivity.tag,
-    timestamp: newTimestamp,
+    comment: text,
+    timestamp: `${datePart}T${h}:${m}:00.000Z`,
   })
-  isAddActivityModalVisible.value = false
+}
+
+function handleSaveActivity(title: string, time: Time) {
+  if (!tripData.currentTripId || !getSelectedDay.value)
+    return
+  const datePart = getSelectedDay.value.date.split('T')[0]
+  const h = time.hour.toString().padStart(2, '0')
+  const m = time.minute.toString().padStart(2, '0')
+  memories.createMemory({
+    tripId: tripData.currentTripId,
+    title,
+    timestamp: `${datePart}T${h}:${m}:00.000Z`,
+  })
 }
 
 const importOptions = computed(() => {
-  const existingSourceIds = new Set(memories.memories.map(m => m.sourceActivityId).filter(Boolean))
+  const existingSourceIds = new Set(
+    memories.memories.map((m: any) => m.sourceActivityId).filter(Boolean),
+  )
   return getActivitiesForSelectedDay.value
-    .filter(act => !existingSourceIds.has(act.id))
-    .map(activity => ({
+    .filter((act: any) => !existingSourceIds.has(act.id))
+    .map((activity: any) => ({
       value: activity,
       label: `${activity.startTime} - ${activity.title}`,
       icon: getTagInfo(activity.tag)?.icon,
@@ -269,7 +190,7 @@ async function handleNotifyParticipants() {
 
   const isConfirmed = await confirm({
     title: 'Уведомить участников?',
-    description: 'Все участники путешествия получат Push-уведомление о том, что добавлены новые воспоминания в этот день.',
+    description: 'Push-уведомления будут отправлены всем участникам поездки.',
     confirmText: 'Отправить',
     type: 'default',
   })
@@ -291,26 +212,19 @@ async function handleNotifyParticipants() {
 </script>
 
 <template>
-  <div
-    ref="dropZoneRef"
-    class="memories-view"
-    :class="{ 'is-fullscreen-mode': isFullScreen }"
-  >
+  <div ref="dropZoneRef" class="memories-view" :class="{ 'is-fullscreen-mode': isFullScreen }">
     <DownloadStatusBanner :progress="syncState" />
 
     <div class="divider-with-action">
       <KitDivider
         :is-loading="isLoadingMemories || memories.isCreatingMemory || memories.isMutateMemory"
-      >
-        воспоминания дня
-      </KitDivider>
-
+      />
       <div class="controls-wrapper">
         <template v-if="isElectron">
           <button
             class="control-btn local-mode-btn"
             :class="{ 'is-active': vaultStore.isLocalMode && vaultStore.isConfigured }"
-            :title="vaultStore.isLocalMode ? 'Смотреть с сервера' : 'Смотреть с диска'"
+            :title="vaultStore.isLocalMode ? 'Локальный режим включён' : 'Включить локальный режим'"
             @click="handleToggleLocalMode"
           >
             <Icon :icon="vaultStore.isLocalMode ? 'mdi:harddisk' : 'mdi:cloud-outline'" />
@@ -321,10 +235,13 @@ async function handleNotifyParticipants() {
             class="control-btn sync-btn"
             :class="{ 'is-active': syncState.isDownloading }"
             :disabled="syncState.isDownloading"
-            title="Скачать фото в локальное хранилище"
+            :title="syncState.isDownloading ? 'Скачивание...' : 'Скачать фото локально'"
             @click="handleDownloadVault"
           >
-            <Icon :icon="syncState.isDownloading ? 'mdi:loading' : 'mdi:download-network-outline'" :class="{ spin: syncState.isDownloading }" />
+            <Icon
+              :icon="syncState.isDownloading ? 'mdi:loading' : 'mdi:download-network-outline'"
+              :class="{ spin: syncState.isDownloading }"
+            />
           </button>
         </template>
 
@@ -333,20 +250,24 @@ async function handleNotifyParticipants() {
           class="control-btn notify-btn"
           :class="{ 'is-loading': isNotifyLoading }"
           :disabled="isNotifyLoading"
-          title="Уведомить участников об обновлении"
+          title="Уведомить участников"
           @click="handleNotifyParticipants"
         >
-          <Icon :icon="isNotifyLoading ? 'mdi:loading' : 'mdi:bell-ring-outline'" :class="{ spin: isNotifyLoading }" />
+          <Icon
+            :icon="isNotifyLoading ? 'mdi:loading' : 'mdi:bell-ring-outline'"
+            :class="{ spin: isNotifyLoading }"
+          />
         </button>
 
         <button
           v-if="mdAndUp && memoriesForSelectedDay.length > 0"
           class="control-btn fullscreen-btn"
-          :title="isFullScreen ? 'Выйти из полноэкранного режима' : 'На весь экран'"
+          :title="isFullScreen ? 'Свернуть' : 'На весь экран'"
           @click="toggleFullScreen"
         >
           <Icon :icon="isFullScreen ? 'mdi:fullscreen-exit' : 'mdi:fullscreen'" />
         </button>
+
         <button
           v-if="allMemoryGroupKeys.length > 0"
           class="control-btn collapse-btn"
@@ -371,7 +292,7 @@ async function handleNotifyParticipants() {
         </template>
 
         <template #error="{ error, retry }">
-          <MemoriesError :error="error" @retry="retry" />
+          <MemoriesError :error="error" :retry="retry" />
         </template>
 
         <template #success>
@@ -383,7 +304,7 @@ async function handleNotifyParticipants() {
             :is-processing="isProcessing"
             :processing-memories="getProcessingMemories"
             :is-full-screen="isFullScreen"
-            @upload="() => openFileDialog()"
+            @upload="openFileDialog"
             @add-note="handleAddTextNote"
             @add-activity="handleAddActivity"
             @import="handleImport"
@@ -393,172 +314,133 @@ async function handleNotifyParticipants() {
         <template #empty>
           <MemoriesEmpty
             :is-view-mode="isViewMode"
-            @upload="() => openFileDialog()"
+            :import-options="importOptions"
+            @upload="openFileDialog"
             @add-note="handleAddTextNote"
             @add-activity="handleAddActivity"
+            @import="handleImport"
           />
         </template>
       </AsyncStateWrapper>
-    </div>
 
-    <div v-if="isOverDropZone && !isViewMode" class="drop-overlay">
-      <div class="drop-overlay-content">
-        <Icon icon="mdi:upload-multiple" />
-        <span>Перетащите файлы сюда для загрузки</span>
-      </div>
-    </div>
-
-    <KitDialogWithClose
-      v-model:visible="isAddNoteModalVisible"
-      title="Добавить заметку"
-      icon="mdi:note-plus-outline"
-      @update:visible="!$event && (isAddNoteModalVisible = false)"
-    >
-      <div class="add-note-content">
-        <textarea v-model="newNoteText" placeholder="Введите текст заметки..." class="note-textarea" />
-        <div class="time-picker">
-          <label>Время:</label>
-          <KitTimeField v-model="newNoteTime" />
+      <div v-if="isOverDropZone && !isViewMode" class="drop-overlay">
+        <div class="drop-overlay-content">
+          <Icon icon="mdi:upload-multiple" />
+          <span>Отпустите, чтобы загрузить</span>
         </div>
       </div>
-      <div class="add-note-footer">
-        <KitBtn variant="text" @click="isAddNoteModalVisible = false">
-          Отмена
-        </KitBtn>
-        <KitBtn :disabled="!newNoteText.trim()" @click="saveNewNote">
-          Сохранить
-        </KitBtn>
-      </div>
-    </KitDialogWithClose>
+    </div>
 
-    <KitDialogWithClose
-      v-model:visible="isAddActivityModalVisible"
-      title="Добавить активность"
-      icon="mdi:plus-box-outline"
-      @update:visible="!$event && (isAddActivityModalVisible = false)"
-    >
-      <div class="add-note-content">
-        <KitInput v-model="newActivity.title" placeholder="Название активности..." />
-        <div class="time-picker">
-          <label>Время:</label>
-          <KitTimeField v-model="newActivity.time" />
-        </div>
-      </div>
-      <div class="add-note-footer">
-        <KitBtn variant="text" @click="isAddActivityModalVisible = false">
-          Отмена
-        </KitBtn>
-        <KitBtn :disabled="!newActivity.title.trim()" @click="saveNewActivity">
-          Сохранить
-        </KitBtn>
-      </div>
-    </KitDialogWithClose>
+    <AddNoteDialog
+      v-model:visible="isAddNoteDialogVisible"
+      @save="handleSaveNote"
+    />
+
+    <AddActivityDialog
+      v-model:visible="isAddActivityDialogVisible"
+      @save="handleSaveActivity"
+    />
   </div>
 </template>
 
 <style scoped lang="scss">
 .memories-view {
+  display: flex;
+  flex-direction: column;
+  flex-grow: 1;
+  overflow: hidden;
   position: relative;
-  min-height: 200px;
-  transition: all 0.3s ease;
 
   &.is-fullscreen-mode {
     position: fixed;
     inset: 0;
-    z-index: 15;
+    z-index: 100;
     background-color: var(--bg-primary-color);
-    padding: 20px 32px;
-    display: flex;
-    flex-direction: column;
-    overflow: hidden;
-
-    .memories-content-scroll {
-      flex: 1;
-      overflow-y: auto;
-      padding-right: 8px;
-      padding-bottom: 40px;
-
-      &::-webkit-scrollbar {
-        width: 6px;
-      }
-      &::-webkit-scrollbar-thumb {
-        background-color: var(--border-secondary-color);
-        border-radius: 4px;
-      }
-    }
+    overflow-y: auto;
+    padding: 24px;
   }
 }
 
 .divider-with-action {
-  position: relative;
-  display: flex;
-  align-items: center;
-  margin-bottom: 16px;
-
-  .kit-divider {
-    flex-grow: 1;
-  }
-}
-
-.controls-wrapper {
-  position: absolute;
-  right: 0;
-  top: 50%;
-  transform: translateY(-50%);
   display: flex;
   align-items: center;
   gap: 8px;
-  z-index: 1;
+  padding: 8px 0;
+}
+
+.controls-wrapper {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  flex-shrink: 0;
 }
 
 .control-btn {
-  background: var(--bg-secondary-color);
-  border: 1px solid var(--border-secondary-color);
-  border-radius: var(--r-s);
-  color: var(--fg-secondary-color);
-  width: 28px;
-  height: 28px;
   display: flex;
   align-items: center;
   justify-content: center;
+  width: 32px;
+  height: 32px;
+  border-radius: var(--r-s);
+  background: transparent;
+  border: 1px solid var(--border-secondary-color);
+  color: var(--fg-secondary-color);
   cursor: pointer;
-  font-size: 1.1rem;
+  font-size: 1rem;
   transition: all 0.2s ease;
 
   &:hover:not(:disabled) {
-    color: var(--fg-accent-color);
-    border-color: var(--fg-accent-color);
     background-color: var(--bg-hover-color);
+    color: var(--fg-primary-color);
   }
 
   &:disabled {
-    opacity: 0.6;
+    opacity: 0.5;
     cursor: not-allowed;
   }
-}
 
-.sync-btn {
   &.is-active {
+    background-color: color-mix(in srgb, var(--fg-accent-color) 15%, transparent);
     color: var(--fg-accent-color);
     border-color: var(--fg-accent-color);
   }
-
-  .sync-progress {
-    font-size: 0.8rem;
-    font-family: monospace;
-    color: var(--fg-secondary-color);
-    margin-right: 8px;
-  }
 }
 
-.local-mode-btn {
-  &.is-active {
-    color: var(--fg-success-color);
-    border-color: var(--fg-success-color);
+.memories-content-scroll {
+  flex-grow: 1;
+  overflow-y: auto;
+  padding-bottom: 32px;
+  position: relative;
+}
 
-    &:hover {
-      background-color: var(--bg-hover-color);
-    }
+.async-wrapper {
+  height: 100%;
+}
+
+.drop-overlay {
+  position: absolute;
+  inset: 0;
+  background-color: color-mix(in srgb, var(--fg-accent-color) 10%, transparent);
+  border: 2px dashed var(--fg-accent-color);
+  border-radius: var(--r-l);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 10;
+  pointer-events: none;
+}
+
+.drop-overlay-content {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+  color: var(--fg-accent-color);
+  font-size: 1.1rem;
+  font-weight: 600;
+
+  .iconify {
+    font-size: 3rem;
   }
 }
 
@@ -573,67 +455,5 @@ async function handleNotifyParticipants() {
   to {
     transform: rotate(360deg);
   }
-}
-
-.drop-overlay {
-  position: absolute;
-  inset: 0;
-  background-color: rgba(var(--bg-primary-color-rgb), 0.8);
-  backdrop-filter: blur(4px);
-  border: 2px dashed var(--fg-accent-color);
-  border-radius: var(--r-m);
-  z-index: 100;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  pointer-events: none;
-
-  &-content {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    gap: 16px;
-    color: var(--fg-accent-color);
-    font-size: 1.2rem;
-    font-weight: 600;
-
-    .iconify {
-      font-size: 3rem;
-    }
-  }
-}
-
-.add-note-content {
-  display: flex;
-  flex-direction: column;
-  gap: 16px;
-  padding: 16px 0;
-}
-.note-textarea {
-  width: 100%;
-  min-height: 120px;
-  border-radius: var(--r-s);
-  border: 1px solid var(--border-secondary-color);
-  background-color: var(--bg-primary-color);
-  color: var(--fg-primary-color);
-  padding: 8px;
-  font-family: inherit;
-  resize: vertical;
-  &:focus {
-    outline: none;
-    border-color: var(--fg-accent-color);
-  }
-}
-.time-picker {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  color: var(--fg-secondary-color);
-}
-.add-note-footer {
-  padding-top: 16px;
-  display: flex;
-  justify-content: flex-end;
-  gap: 12px;
 }
 </style>

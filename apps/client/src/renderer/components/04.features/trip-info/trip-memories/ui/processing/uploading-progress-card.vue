@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import type { IProcessingMemory } from '~/components/04.features/trip-info/trip-memories/store'
+import type { IProcessingMemory } from '../../types'
 import { Icon } from '@iconify/vue'
 
 interface Props {

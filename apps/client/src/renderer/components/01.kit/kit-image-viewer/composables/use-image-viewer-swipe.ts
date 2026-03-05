@@ -45,7 +45,7 @@ function getImageUrl(image: ImageViewerImage | null, quality: ImageQuality): str
   }
 }
 
-export function useSwipeNavigation(options: UseSwipeNavigationOptions) {
+export function useImageViewerSwipe(options: UseSwipeNavigationOptions) {
   const {
     onNext,
     onPrev,

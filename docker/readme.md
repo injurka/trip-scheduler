@@ -199,17 +199,17 @@ echo "--- Контейнер $CONTAINER_NAME успешно запущен! ---"
 
 <!-- НАДО -->
 
-./docker/build_client.sh v59
+./docker/build_client.sh v61
 ./docker/build_server.sh v48
 
 docker compose down
 
-V_CLIENT=v59 V_SERVER=v48 docker compose up -d
+V_CLIENT=v61 V_SERVER=v48 docker compose up -d
 
 ---
 
-docker tag trip-scheduler-client:v59 injurka/trip-scheduler-client:v59
-docker push injurka/trip-scheduler-client:v59
+docker tag trip-scheduler-client:v61 injurka/trip-scheduler-client:v61
+docker push injurka/trip-scheduler-client:v61
 
 docker tag trip-scheduler-server:v48 injurka/trip-scheduler-server:v48
 docker push injurka/trip-scheduler-server:v48

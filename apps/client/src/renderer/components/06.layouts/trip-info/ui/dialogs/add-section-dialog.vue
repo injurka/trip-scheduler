@@ -5,7 +5,7 @@ import { KitDialogWithClose } from '~/components/01.kit/kit-dialog-with-close'
 import { KitInput } from '~/components/01.kit/kit-input'
 import { useModuleStore } from '~/components/05.modules/trip-info/composables'
 import { TripSectionType } from '~/shared/types/models/trip'
-import { useIconPicker } from '../composables/use-icon-picker'
+import { useIconPicker } from '../../composables/use-icon-picker'
 
 const props = defineProps<{ visible: boolean }>()
 const emit = defineEmits(['update:visible', 'addSection'])

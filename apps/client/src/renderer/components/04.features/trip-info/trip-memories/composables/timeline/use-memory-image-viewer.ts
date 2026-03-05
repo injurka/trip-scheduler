@@ -28,10 +28,7 @@ export function useMemoryImageViewer(props: UseMemoryImageViewerProps) {
     if (!activeViewerTime.value)
       return ''
 
-    const hours = String(activeViewerTime.value.hour).padStart(2, '0')
-    const minutes = String(activeViewerTime.value.minute).padStart(2, '0')
-
-    return `${hours}:${minutes}`
+    return formatTime(activeViewerTime.value.hour, activeViewerTime.value.minute)
   })
 
   function openImageViewer() {

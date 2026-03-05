@@ -1,3 +1,4 @@
+import type { IProcessingMemory, TimelineGroup } from '../types'
 import type { Activity } from '~/shared/types/models/activity'
 import type { CreateMemoryInput, Memory, UpdateMemoryInput } from '~/shared/types/models/memory'
 import type { TripImage } from '~/shared/types/models/trip'
@@ -7,15 +8,6 @@ import { useTripPlanStore } from '~/components/04.features/trip-info/trip-plan'
 import { useAbortRequest, useRequest, useRequestStatus } from '~/plugins/request'
 import { getLocalDate } from '~/shared/lib/date-time'
 import { TripImagePlacement } from '~/shared/types/models/trip'
-
-export interface IProcessingMemory {
-  tempId: string
-  file: File
-  previewUrl: string
-  status: 'queued' | 'uploading' | 'error' | 'success'
-  progress: number
-  error?: string
-}
 
 export enum ETripMemoriesKeys {
   FETCH = 'memories:fetch',
@@ -81,6 +73,45 @@ export const useTripMemoriesStore = defineStore('tripMemories', {
         (m): m is Memory & { image: TripImage & { latitude: number, longitude: number } } =>
           !!m.image?.latitude && !!m.image?.longitude,
       )
+    },
+
+    timelineGroupsForSelectedDay(): TimelineGroup[] {
+      const memoriesList = this.memoriesForSelectedDay
+      if (!memoriesList.length)
+        return []
+
+      const groups: TimelineGroup[] = []
+      let currentGroup: TimelineGroup | null = null
+
+      const ensureStartGroup = (): TimelineGroup => {
+        let startGroup = groups.find(g => g.type === 'start')
+        if (!startGroup) {
+          startGroup = { type: 'start', title: '', memories: [], activity: null }
+          groups.unshift(startGroup)
+        }
+        return startGroup
+      }
+
+      for (const memory of memoriesList) {
+        if (memory.title) {
+          currentGroup = { type: 'activity', activity: memory, title: memory.title, memories: [] }
+          if (memory.imageId || memory.comment)
+            currentGroup.memories.push(memory)
+          groups.push(currentGroup)
+        }
+        else if (currentGroup) {
+          currentGroup.memories.push(memory)
+        }
+        else {
+          ensureStartGroup().memories.push(memory)
+        }
+      }
+
+      const startGroup = groups.find(g => g.type === 'start')
+      if (startGroup && startGroup.memories.length === 0)
+        return groups.filter(g => g.type !== 'start')
+      
+      return groups
     },
   },
 

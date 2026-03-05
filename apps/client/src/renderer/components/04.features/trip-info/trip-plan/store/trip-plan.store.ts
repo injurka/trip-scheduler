@@ -110,7 +110,7 @@ export const useTripPlanStore = defineStore('tripPlan', {
         this.setCurrentDay(this.getPreviousDayId)
     },
 
-    fetchTripDetails(tripId: string, initialDayIdFromQuery: string | undefined, onSectionsLoad: (sections: TripSection[]) => void) {
+    fetchTripDetails(tripId: string, initialDayIdFromQuery: string | undefined, onSectionsLoad?: (sections: TripSection[]) => void) {
       this.currentTripId = tripId
 
       useRequest({
@@ -122,8 +122,9 @@ export const useTripPlanStore = defineStore('tripPlan', {
             this.trip = null
             this.days = []
             this.currentDayId = null
-            onSectionsLoad([])
+            onSectionsLoad?.([])
             useToast().error('Путешествие не найдено.')
+
             return
           }
 
@@ -140,7 +141,7 @@ export const useTripPlanStore = defineStore('tripPlan', {
             }
           })
 
-          onSectionsLoad(result.sections || [])
+          onSectionsLoad?.(result.sections || [])
 
           const dayFromQueryIsValid = initialDayIdFromQuery && sortedDays.some(d => d.id === initialDayIdFromQuery)
 
@@ -155,7 +156,7 @@ export const useTripPlanStore = defineStore('tripPlan', {
           this.trip = null
           this.days = []
           this.currentDayId = null
-          onSectionsLoad([])
+          onSectionsLoad?.([])
 
           console.error(`Ошибка при загрузке данных для путешествия ${tripId}: `, error)
           useToast().error(`Ошибка при загрузке данных: ${error.customMessage}`)

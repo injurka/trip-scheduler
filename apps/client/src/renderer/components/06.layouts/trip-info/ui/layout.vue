@@ -1,11 +1,8 @@
 <script setup lang="ts">
 import type { TripSection } from '~/shared/types/models/trip'
 import { Icon } from '@iconify/vue'
-import { KitBtn } from '~/components/01.kit/kit-btn'
-import { KitDialogWithClose } from '~/components/01.kit/kit-dialog-with-close'
+import { KitBottomSheet } from '~/components/01.kit/kit-bottom-sheet'
 import { KitDivider } from '~/components/01.kit/kit-divider'
-import { KitDrawer } from '~/components/01.kit/kit-drawer'
-import { KitInput } from '~/components/01.kit/kit-input'
 import { KitSkeleton } from '~/components/01.kit/kit-skeleton'
 import { AppFooter } from '~/components/02.shared/app-footer'
 import { AppHeader } from '~/components/02.shared/app-header'
@@ -14,15 +11,15 @@ import { ThemeManager } from '~/components/02.shared/theme-manager'
 import { TripCommentsWidget } from '~/components/04.features/trip-info/trip-comments'
 import { useModuleStore } from '~/components/05.modules/trip-info'
 import { useTripPermissions } from '~/components/05.modules/trip-info/composables/use-trip-permissions'
-import AddSectionDialog from '~/components/06.layouts/trip-info/ui/add-section-dialog.vue'
 import { vRipple } from '~/shared/directives/ripple'
 import { CommentParentType } from '~/shared/types/models/comment'
 import { useTripInfoLayout } from '../composables'
+import AddSectionDialog from './dialogs/add-section-dialog.vue'
+import EditSectionDialog from './dialogs/edit-section-dialog.vue'
 
 const layout = useTripInfoLayout()
 const route = useRoute()
 const router = useRouter()
-const { smAndDown } = useDisplay()
 
 // @ts-expect-error используются в template
 const { mainNavigationRef, navigationWrapperRef } = layout
@@ -155,6 +152,7 @@ onBeforeUnmount(() => {
             </template>
           </div>
         </div>
+
         <KitDivider class="trip-info-divider">
           <Icon width="16" height="16" icon="mdi-axis-arrow-info" />
         </KitDivider>
@@ -169,71 +167,39 @@ onBeforeUnmount(() => {
 
   <ThemeManager />
 
-  <KitDrawer
-    v-model:open="layout.isDrawerOpen.value"
-    side="right"
-    class="sections-drawer"
-    :width="smAndDown ? '100%' : '400px'"
+  <KitBottomSheet
+    v-model="layout.isDrawerOpen.value"
+    title="Разделы"
   >
-    <div class="drawer-header">
-      <h2>
-        <span>Разделы</span>
-      </h2>
-    </div>
-    <ul class="drawer-list">
-      <li v-for="item in layout.tabItems.value" :key="item.id" @click="layout.selectSection(item.id)">
-        <Icon :icon="item.icon!" class="drawer-item-icon" />
+    <ul class="sheet-sections-list">
+      <li
+        v-for="item in layout.tabItems.value"
+        :key="item.id"
+        @click="layout.selectSection(item.id), layout.isDrawerOpen.value = false"
+      >
+        <Icon :icon="item.icon!" class="sheet-section-icon" />
         <span>{{ item.label }}</span>
       </li>
     </ul>
-    <div v-if="canEdit" class="drawer-footer">
+
+    <template v-if="canEdit && !ui.isViewMode" #footer>
       <button
         class="add-section-btn"
-        @click=" ui.openAddSectionDialog(), layout.isDrawerOpen.value = false "
+        @click="ui.openAddSectionDialog(), layout.isDrawerOpen.value = false"
       >
         <Icon icon="mdi:plus-circle-outline" />
         <span>Добавить раздел</span>
       </button>
-    </div>
-  </KitDrawer>
+    </template>
+  </KitBottomSheet>
 
   <AddSectionDialog v-model:visible="ui.isAddSectionDialogOpen" @add-section="handleAddSection" />
 
-  <KitDialogWithClose
-    v-if="layout.sectionToEdit.value"
+  <EditSectionDialog
     v-model:visible="layout.isEditSectionDialogOpen.value"
-    title="Редактировать раздел"
-    icon="mdi:pencil"
-    :max-width="400"
-  >
-    <form class="add-section-form" @submit.prevent="layout.handleUpdateSection">
-      <KitInput
-        v-model="layout.sectionToEdit.value.title"
-        label="Название раздела"
-        placeholder="Например, 'Билеты' или 'Отели'"
-        required
-      />
-      <div class="icon-picker">
-        <label>Иконка</label>
-        <KitInput v-model="layout.iconSearchQueryEdit.value" placeholder="Поиск иконки (напр. 'car')" icon="mdi:magnify" />
-        <div class="icon-picker-grid">
-          <button
-            v-for="icon in layout.filteredIconsEdit.value"
-            :key="icon"
-            type="button"
-            class="icon-option"
-            :class="{ 'is-active': layout.sectionToEdit.value.icon === icon }"
-            @click="layout.sectionToEdit.value.icon = icon"
-          >
-            <Icon :icon="icon" />
-          </button>
-        </div>
-      </div>
-      <KitBtn type="submit" :disabled="!layout.sectionToEdit.value.title.trim()">
-        Сохранить
-      </KitBtn>
-    </form>
-  </KitDialogWithClose>
+    :section="layout.sectionToEdit.value"
+    @save="layout.handleUpdateSection"
+  />
 </template>
 
 <style scoped lang="scss">
@@ -395,6 +361,7 @@ onBeforeUnmount(() => {
       width: 136px;
     }
   }
+
   &-content {
     height: 100%;
     display: flex;
@@ -457,51 +424,32 @@ onBeforeUnmount(() => {
   }
 }
 
-.sections-drawer {
-  .drawer-header {
-    padding: 16px;
-    border-bottom: 1px solid var(--border-secondary-color);
+.sheet-sections-list {
+  list-style: none;
+  padding: 8px;
+  margin: 0;
 
-    h2 {
-      margin: 0;
-      font-size: 1.25rem;
-      font-weight: 600;
-    }
-  }
+  li {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    padding: 12px 16px;
+    border-radius: var(--r-m);
+    cursor: pointer;
+    transition: background-color 0.2s ease;
+    font-size: 1rem;
+    color: var(--fg-secondary-color);
 
-  .drawer-list {
-    list-style: none;
-    padding: 8px;
-    margin: 0;
-    flex: 1;
-    overflow-y: auto;
-
-    li {
-      display: flex;
-      align-items: center;
-      gap: 16px;
-      padding: 12px 16px;
-      border-radius: var(--r-m);
-      cursor: pointer;
-      transition: background-color 0.2s ease;
-      font-size: 1rem;
+    .sheet-section-icon {
+      font-size: 1.2rem;
       color: var(--fg-secondary-color);
-
-      .drawer-item-icon {
-        font-size: 1.2rem;
-        color: var(--fg-secondary-color);
-      }
-
-      &:hover {
-        background-color: var(--bg-hover-color);
-        color: var(--fg-primary-color);
-      }
+      flex-shrink: 0;
     }
-  }
 
-  .drawer-footer {
-    padding: 16px;
-    border-top: 1px solid var(--border-secondary-color);
+    &:hover {
+      background-color: var(--bg-hover-color);
+      color: var(--fg-primary-color);
+    }
   }
 }
 
@@ -600,72 +548,6 @@ onBeforeUnmount(() => {
   transform: translateX(-50%) translateY(-10px);
 }
 
-.add-section-form {
-  display: flex;
-  flex-direction: column;
-  gap: 16px;
-  padding: 8px;
-}
-
-.icon-picker {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-
-  label {
-    display: block;
-    margin-bottom: 6px;
-    font-size: 0.875rem;
-    font-weight: 500;
-    color: var(--fg-secondary-color);
-  }
-}
-.icon-picker-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(36px, 1fr));
-  gap: 8px;
-  max-height: 142px;
-  overflow-y: auto;
-  background-color: var(--bg-secondary-color);
-  padding: 8px;
-  border-radius: var(--r-s);
-
-  &::-webkit-scrollbar {
-    width: 6px;
-  }
-  &::-webkit-scrollbar-thumb {
-    background: var(--border-primary-color);
-    border-radius: 3px;
-  }
-  &::-webkit-scrollbar-track {
-    background: transparent;
-  }
-}
-.icon-option {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  width: 36px;
-  height: 36px;
-  border-radius: var(--r-s);
-  border: 1px solid transparent;
-  background-color: var(--bg-tertiary-color);
-  color: var(--fg-secondary-color);
-  cursor: pointer;
-  font-size: 1.4rem;
-  transition: all 0.2s ease;
-
-  &:hover {
-    background-color: var(--bg-hover-color);
-    color: var(--fg-primary-color);
-  }
-  &.is-active {
-    color: var(--fg-accent-color);
-    border-color: var(--fg-accent-color);
-    background-color: var(--bg-hover-color);
-  }
-}
-
 @include media-down(lg) {
   .sections-dropdown-panel {
     width: calc(100vw - 48px);
@@ -702,10 +584,6 @@ onBeforeUnmount(() => {
     &-right {
       width: auto;
     }
-  }
-
-  .sections-list {
-    column-count: 1;
   }
 }
 </style>
