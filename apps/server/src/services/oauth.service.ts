@@ -4,18 +4,12 @@ import { TRPCError } from '@trpc/server'
 import { authUtils } from '~/lib/auth.utils'
 import { userRepository } from '~/repositories/user.repository'
 
-// Интерфейс TelegramUserData больше не нужен для входящих параметров,
-// так как мы работаем с сырой строкой initData.
-
 export class OAuthService {
   constructor(private readonly userRepo: typeof userRepository) { }
 
   public async handleGoogle(code: string) {
-    // 1. Обменять код на токен
     const tokenData = await this.exchangeGoogleCodeForToken(code)
-    // 2. Получить информацию о пользователе
     const userInfo = await this.getGoogleUserInfo(tokenData.access_token)
-    // 3. Найти или создать пользователя в нашей БД
     const user = await this.userRepo.findOrCreateFromOAuth({
       provider: 'google',
       providerId: userInfo.sub,
@@ -23,7 +17,6 @@ export class OAuthService {
       name: userInfo.name,
       avatarUrl: userInfo.picture,
     })
-    // 4. Сгенерировать наши JWT-токены
     const token = await authUtils.generateTokens({ id: user.id, email: user.email! })
     return { token, user }
   }
@@ -53,13 +46,11 @@ export class OAuthService {
       throw new TRPCError({ code: 'INTERNAL_SERVER_ERROR', message: 'Telegram Bot Token не настроен на сервере.' })
     }
     try {
-      // 1. Отделяем хэш от остальных данных
       const { hash, ...dataToCheck } = authData
       if (!hash) {
         throw new Error('Параметр hash отсутствует в данных авторизации.')
       }
 
-      // 2. Создаём строку для проверки (сортируем ключи и соединяем через \n)
       const dataCheckString = Object.keys(dataToCheck)
         .sort()
         .map((key) => {
@@ -69,12 +60,10 @@ export class OAuthService {
         .join('\n')
       const secretKey = createHash('sha256').update(botToken).digest()
 
-      // 4. Вычисляем хэш
       const calculatedHash = createHmac('sha256', secretKey)
         .update(dataCheckString)
         .digest('hex')
 
-      // 5. Сравниваем хэши
       if (calculatedHash !== hash) {
         console.error('--- ОШИБКА ПРОВЕРКИ ХЕША TELEGRAM ---')
         console.error('Ожидаемый хеш:', hash)
@@ -85,13 +74,11 @@ export class OAuthService {
         throw new TRPCError({ code: 'UNAUTHORIZED', message: 'Данные от Telegram не прошли проверку: неверный хэш.' })
       }
 
-      // 6. Проверка времени (auth_date не должен быть старше 24 часов)
       const authDate = new Date(authData.auth_date * 1000)
       if (Date.now() - authDate.getTime() > 24 * 60 * 60 * 1000) {
         throw new TRPCError({ code: 'UNAUTHORIZED', message: 'Данные от Telegram устарели.' })
       }
 
-      // 7. Создаём или находим пользователя
       const user = await this.userRepo.findOrCreateFromOAuth({
         provider: 'telegram',
         providerId: authData.id.toString(),
@@ -99,7 +86,7 @@ export class OAuthService {
         name: `${authData.first_name} ${authData.last_name || ''}`.trim(),
         avatarUrl: authData.photo_url,
       })
-      // 8. Генерируем токены
+      
       const token = await authUtils.generateTokens({ id: user.id, email: user.email! })
 
       return { token, user }

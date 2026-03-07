@@ -5,8 +5,10 @@ import type { TripImage } from '~/shared/types/models/trip'
 import { Icon } from '@iconify/vue'
 import { useRoute } from 'vue-router'
 import { KitBtn } from '~/components/01.kit/kit-btn'
+import { KitDialogWithClose } from '~/components/01.kit/kit-dialog-with-close'
 import { KitImage } from '~/components/01.kit/kit-image'
 import { KitImageViewer, useImageViewer } from '~/components/01.kit/kit-image-viewer'
+import { KitInput } from '~/components/01.kit/kit-input'
 import { KitSkeleton } from '~/components/01.kit/kit-skeleton'
 import { AsyncStateWrapper } from '~/components/02.shared/async-state-wrapper'
 import { useModuleStore } from '~/components/05.modules/trip-info/composables/use-trip-info-module'
@@ -29,6 +31,9 @@ const { isViewMode } = storeToRefs(store.ui)
 
 const fileInput = ref<HTMLInputElement | null>(null)
 const isImagePickerOpen = ref(false)
+const isLinkDialogOpen = ref(false)
+const linkInput = ref('')
+
 const fetchError = useRequestError(ETripGalleryKeys.FETCH_IMAGES)
 
 const imageUrls = computed(() => props.section.imageUrls || [])
@@ -46,9 +51,23 @@ onMounted(() => {
 })
 
 const fullImagesData = computed(() => {
-  return imageUrls.value
-    .map(url => tripImages.value.find(tripImg => tripImg.url === url))
-    .filter((img): img is TripImage => !!img)
+  return imageUrls.value.map((url) => {
+    const existingImg = tripImages.value.find(tripImg => tripImg.url === url)
+    if (existingImg)
+      return existingImg
+
+    return {
+      id: `ext-${btoa(url).slice(0, 10)}`,
+      tripId: tripId.value,
+      url,
+      originalName: 'Внешнее изображение',
+      name: 'Внешнее изображение',
+      fileType: 'link',
+      placement: 'route',
+      sizeBytes: 0,
+      createdAt: new Date().toISOString(),
+    } as TripImage
+  })
 })
 
 const displayData = computed(() => fullImagesData.value.length > 0 ? fullImagesData.value : null)
@@ -124,25 +143,59 @@ function handlePickerConfirm(selectedUrls: string[]) {
 function openViewer(index: number) {
   imageViewer.open(viewerImages.value, index)
 }
+
+function isValidUrl(str: string) {
+  try {
+    // eslint-disable-next-line no-new
+    new URL(str)
+    return true
+  }
+  catch {
+    return false
+  }
+}
+
+function handleAddLink() {
+  if (!isValidUrl(linkInput.value))
+    return
+
+  const updatedUrls = [...imageUrls.value, linkInput.value]
+  emit('updateSection', { ...props.section, imageUrls: updatedUrls })
+
+  linkInput.value = ''
+  isLinkDialogOpen.value = false
+}
 </script>
 
 <template>
   <div class="gallery-section">
     <div v-if="!isViewMode" class="edit-controls">
-      <KitBtn
-        variant="subtle"
-        icon="mdi:upload"
-        :loading="isUploadingImage"
-        @click="triggerFileUpload"
-      >
-        {{ isUploadingImage ? 'Загрузка...' : 'Загрузить новое' }}
-      </KitBtn>
+      <div class="controls-group">
+        <KitBtn
+          variant="subtle"
+          icon="mdi:upload"
+          :loading="isUploadingImage"
+          @click="triggerFileUpload"
+        >
+          {{ isUploadingImage ? 'Загрузка...' : 'С устройства' }}
+        </KitBtn>
+        <KitBtn
+          variant="subtle"
+          icon="mdi:link-variant"
+          :disabled="isUploadingImage"
+          @click="isLinkDialogOpen = true"
+        >
+          По ссылке
+        </KitBtn>
+      </div>
+
       <KitBtn
         icon="mdi:image-multiple-outline"
         variant="tonal"
+        :disabled="isUploadingImage"
         @click="isImagePickerOpen = true"
       >
-        Выбрать из галереи
+        Из галереи
       </KitBtn>
     </div>
 
@@ -152,6 +205,7 @@ function openViewer(index: number) {
       accept=".jpg,.jpeg,.png,.webp,.heic,.heif"
       multiple
       class="hidden-file-input"
+      :disabled="isUploadingImage"
       @change="handleFileUpload"
     >
 
@@ -219,7 +273,7 @@ function openViewer(index: number) {
           <Icon icon="mdi:image-multiple-outline" class="empty-icon" />
           <p>В этой галерее пока нет изображений.</p>
           <span v-if="!isViewMode" class="empty-hint">
-            Загрузите новые или выберите из общей галереи путешествия.
+            Загрузите новые, прикрепите ссылку или выберите из общей галереи.
           </span>
           <span v-else class="empty-hint">
             Владелец может добавить их в режиме редактирования.
@@ -239,12 +293,35 @@ function openViewer(index: number) {
       :show-info-button="false"
     />
 
-    <!-- Использование нового компонента -->
     <GalleryPicker
       v-model:visible="isImagePickerOpen"
       :initial-selected-urls="imageUrls"
       @confirm="handlePickerConfirm"
     />
+
+    <KitDialogWithClose
+      v-model:visible="isLinkDialogOpen"
+      title="Добавить по ссылке"
+      icon="mdi:link-variant"
+      :max-width="400"
+    >
+      <div class="link-dialog-content">
+        <KitInput
+          v-model="linkInput"
+          placeholder="https://example.com/image.jpg"
+          label="Прямая ссылка на фото"
+          @keydown.enter="handleAddLink"
+        />
+        <div class="dialog-actions">
+          <KitBtn variant="outlined" color="secondary" @click="isLinkDialogOpen = false">
+            Отмена
+          </KitBtn>
+          <KitBtn :disabled="!isValidUrl(linkInput)" @click="handleAddLink">
+            Добавить
+          </KitBtn>
+        </div>
+      </div>
+    </KitDialogWithClose>
   </div>
 </template>
 
@@ -253,9 +330,29 @@ function openViewer(index: number) {
   display: flex;
   gap: 12px;
   justify-content: space-between;
+  flex-wrap: wrap;
   padding-bottom: 8px;
   border-bottom: 1px solid var(--border-secondary-color);
   margin-bottom: 8px;
+}
+
+.controls-group {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.link-dialog-content {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  padding-top: 8px;
+}
+
+.dialog-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
 }
 
 .hidden-file-input {

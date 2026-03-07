@@ -28,3 +28,16 @@ export interface TelegramAuthPayload {
   auth_date: number
   hash: string
 }
+
+export interface TelegramBotAuthConfirmed {
+  status: 'confirmed'
+  token: { accessToken: string, refreshToken: string }
+  user: any
+}
+
+export type TelegramBotAuthStatus
+  = | { status: 'pending' }
+  | { status: 'cancelled' }
+  | { status: 'expired' }
+  | { status: 'not_found' }
+  | TelegramBotAuthConfirmed

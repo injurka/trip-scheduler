@@ -2,6 +2,7 @@ import { Hono } from 'hono'
 import { getCookie, setCookie } from 'hono/cookie'
 import { HTTPException } from 'hono/http-exception'
 import { oAuthService } from '~/services/oauth.service'
+import { telegramAuthService } from '~/services/telegram-auth.service'
 
 const authController = new Hono()
 
@@ -15,8 +16,7 @@ authController.get('/google/login', (c) => {
   url.searchParams.set('scope', 'openid email profile')
   url.searchParams.set('state', state)
 
-  setCookie(c, 'oauth_state', state, { httpOnly: true, secure: true, path: '/', sameSite: 'Lax', maxAge: 600 }) // 10 минут
-
+  setCookie(c, 'oauth_state', state, { httpOnly: true, secure: true, path: '/', sameSite: 'Lax', maxAge: 600 })
   return c.redirect(url.toString())
 })
 
@@ -24,9 +24,8 @@ authController.get('/google/callback', async (c) => {
   const { code, state } = c.req.query()
   const savedState = getCookie(c, 'oauth_state')
 
-  if (!state || !savedState || state !== savedState) {
+  if (!state || !savedState || state !== savedState)
     throw new HTTPException(401, { message: 'Invalid state parameter. CSRF attack detected.' })
-  }
 
   setCookie(c, 'oauth_state', '', { expires: new Date(0) })
 
@@ -40,7 +39,7 @@ authController.get('/google/callback', async (c) => {
     secure: process.env.NODE_ENV === 'production',
     path: '/',
     sameSite: 'Lax',
-    maxAge: 60 * 60 * 24 * 7, // 7 дней
+    maxAge: 60 * 60 * 24 * 7,
   })
 
   return c.redirect(redirectUrl.toString())
@@ -56,7 +55,6 @@ authController.get('/github/login', (c) => {
   url.searchParams.set('state', state)
 
   setCookie(c, 'oauth_state', state, { httpOnly: true, secure: true, path: '/', sameSite: 'Lax', maxAge: 600 })
-
   return c.redirect(url.toString())
 })
 
@@ -64,9 +62,8 @@ authController.get('/github/callback', async (c) => {
   const { code, state } = c.req.query()
   const savedState = getCookie(c, 'oauth_state')
 
-  if (!state || !savedState || state !== savedState) {
+  if (!state || !savedState || state !== savedState)
     throw new HTTPException(401, { message: 'Invalid state parameter. CSRF attack detected.' })
-  }
 
   setCookie(c, 'oauth_state', '', { expires: new Date(0) })
 
@@ -80,10 +77,49 @@ authController.get('/github/callback', async (c) => {
     secure: process.env.NODE_ENV === 'production',
     path: '/',
     sameSite: 'Lax',
-    maxAge: 60 * 60 * 24 * 7, // 7 дней
+    maxAge: 60 * 60 * 24 * 7,
   })
 
   return c.redirect(redirectUrl.toString())
+})
+
+/**
+ * Инициализирует сессию авторизации через Telegram-бота.
+ * Возвращает { token, url } — url ведёт на бота с deeplink.
+ */
+authController.post('/telegram/init', (c) => {
+  const result = telegramAuthService.initAuth()
+  return c.json(result)
+})
+
+/**
+ * Проверяет статус авторизации по токену сессии.
+ * Статусы: pending | confirmed | cancelled | expired | not_found
+ */
+authController.get('/telegram/status', async (c) => {
+  const token = c.req.query('token')
+  if (!token)
+    throw new HTTPException(400, { message: 'token query param is required' })
+
+  const result = await telegramAuthService.getStatus(token)
+  return c.json(result)
+})
+
+/**
+ * Webhook для получения обновлений от Telegram.
+ * Telegram отправляет сюда все входящие сообщения и callback'и.
+ */
+authController.post('/telegram/webhook', async (c) => {
+  const webhookSecret = process.env.TELEGRAM_WEBHOOK_SECRET
+  if (webhookSecret) {
+    const incomingSecret = c.req.header('X-Telegram-Bot-Api-Secret-Token')
+    if (incomingSecret !== webhookSecret)
+      throw new HTTPException(403, { message: 'Invalid webhook secret' })
+  }
+
+  const update = await c.req.json()
+  await telegramAuthService.handleUpdate(update)
+  return c.json({ ok: true })
 })
 
 export { authController }

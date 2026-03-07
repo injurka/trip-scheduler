@@ -5,9 +5,6 @@ import { tripImages, trips } from '../../db/schema'
 
 type Placement = (typeof tripImagePlacementEnum.enumValues)[number]
 
-/**
- * Определяет структуру метаданных, извлекаемых из изображения.
- */
 export interface ImageMetadata {
   takenAt: Date | null
   latitude: number | null
@@ -29,11 +26,6 @@ export interface ImageMetadata {
   } | null
 }
 
-/**
- * Колонки для оптимизированной выдачи (например, для маршрута).
- * Исключены тяжелые поля: metadata, variants, геоданные.
- * Исключены избыточные поля: tripId, placement (они известны из контекста запроса).
- */
 const ROUTE_COLUMNS = {
   id: true,
   url: true,
@@ -44,9 +36,6 @@ const ROUTE_COLUMNS = {
   height: true,
 } as const
 
-/**
- * Полный набор колонок для детального просмотра или галереи.
- */
 const FULL_COLUMNS = {
   id: true,
   tripId: true,
@@ -94,9 +83,6 @@ export const imageRepository = {
     return newImage
   },
 
-  /**
-   * Получает метаданные конкретного изображения.
-   */
   async getMetadata(id: string) {
     const image = await db.query.tripImages.findFirst({
       where: eq(tripImages.id, id),
@@ -107,17 +93,12 @@ export const imageRepository = {
     return image?.metadata || null
   },
 
-  /**
-   * Получает все изображения для конкретного путешествия.
-   * Если placement === 'route', возвращает облегченный набор данных.
-   */
   async getByTripId(tripId: string, placement?: Placement) {
     const conditions = [eq(tripImages.tripId, tripId)]
     if (placement) {
       conditions.push(eq(tripImages.placement, placement))
     }
 
-    // Выбираем набор колонок в зависимости от типа размещения
     const columnsToSelect = placement === 'route' ? ROUTE_COLUMNS : FULL_COLUMNS
 
     const result = await db.query.tripImages.findMany({
@@ -129,9 +110,6 @@ export const imageRepository = {
     return result
   },
 
-  /**
-   * Получает все изображения для конкретного пользователя.
-   */
   async getAllByUserId(userId: string) {
     const userTrips = await db.select({ id: trips.id }).from(trips).where(eq(trips.userId, userId))
     if (userTrips.length === 0) {
@@ -150,14 +128,21 @@ export const imageRepository = {
         },
       },
       orderBy: (images, { desc }) => [desc(images.createdAt)],
-      columns: FULL_COLUMNS,
+      columns: {
+        id: true,
+        tripId: true,
+        url: true,
+        originalName: true,
+        placement: true,
+        createdAt: true,
+        sizeBytes: true,
+        variants: true,
+        width: true,
+        height: true,
+      },
     })
   },
 
-  /**
-   * Получает одно изображение по ID.
-   * Возвращает полный объект (используется при удалении и т.д.).
-   */
   async getById(id: string) {
     return await db.query.tripImages.findFirst({
       where: eq(tripImages.id, id),

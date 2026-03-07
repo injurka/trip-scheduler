@@ -1,13 +1,16 @@
 <script setup lang="ts">
 import type { KitDropdownItem } from '~/components/01.kit/kit-dropdown'
+import type { ImageViewerImage } from '~/components/01.kit/kit-image-viewer'
 import type { ViewSwitcherItem } from '~/components/01.kit/kit-view-switcher'
 import type { TripImagePlacement } from '~/shared/types/models/trip'
 import { Icon } from '@iconify/vue'
 import { KitBtn } from '~/components/01.kit/kit-btn'
 import { KitImage } from '~/components/01.kit/kit-image'
+import { KitImageViewer, useImageViewer } from '~/components/01.kit/kit-image-viewer'
 import { KitInput } from '~/components/01.kit/kit-input'
 import { KitPagination } from '~/components/01.kit/kit-pagination'
 import { KitSelectWithSearch } from '~/components/01.kit/kit-select-with-search'
+import { KitSkeleton } from '~/components/01.kit/kit-skeleton'
 import { KitViewSwitcher } from '~/components/01.kit/kit-view-switcher'
 import { AsyncStateWrapper } from '~/components/02.shared/async-state-wrapper'
 import { NavigationBack } from '~/components/02.shared/navigation-back'
@@ -55,6 +58,34 @@ const itemsPerPageOptions = [
   { value: 96, label: '96 на странице' },
 ]
 
+// --- Инициализация просмотрщика ---
+const imageViewer = useImageViewer({ enableKeyboard: true })
+
+const viewerImages = computed<ImageViewerImage[]>(() => {
+  // Формируем список для просмотрщика на основе ВСЕХ отфильтрованных файлов,
+  // чтобы можно было листать дальше текущей страницы
+  return filteredAndSortedFiles.value.map(file => ({
+    url: file.url,
+    variants: file.variants,
+    alt: file.originalName,
+    caption: file.trip ? `Из путешествия: ${file.trip.title}` : 'Без путешествия',
+    meta: {
+      imageId: file.id,
+      latitude: file.latitude,
+      longitude: file.longitude,
+      takenAt: file.takenAt,
+    },
+  }))
+})
+
+function openViewer(fileId: string) {
+  const index = filteredAndSortedFiles.value.findIndex(f => f.id === fileId)
+  if (index !== -1) {
+    imageViewer.open(viewerImages.value, index)
+  }
+}
+// ---------------------------------
+
 function formatPlacement(placement: TripImagePlacement) {
   const map: Record<TripImagePlacement, string> = {
     route: 'Маршрут',
@@ -94,12 +125,21 @@ onMounted(() => {
     <header class="storage-header">
       <NavigationBack />
       <h1>Управление хранилищем</h1>
-      <p>Общий размер файлов: <strong>{{ formatBytes(totalStorageUsed) }}</strong></p>
+      <div class="size-info">
+        <span>Общий размер файлов:</span>
+        <KitSkeleton v-if="isLoading" width="80px" height="22px" border-radius="4px" />
+        <strong v-else>{{ formatBytes(totalStorageUsed) }}</strong>
+      </div>
     </header>
 
     <div class="chart-section">
       <KitViewSwitcher v-model="activeChart" :items="chartViewItems" full-width />
-      <Transition name="slide-fade" mode="out-in">
+
+      <div v-if="isLoading" class="chart-skeleton-wrapper">
+        <KitSkeleton width="100%" height="330px" border-radius="16px" />
+      </div>
+
+      <Transition v-else name="slide-fade" mode="out-in">
         <StorageChart
           v-if="activeChart === 'byTrip'"
           key="byTrip"
@@ -155,14 +195,51 @@ onMounted(() => {
 
     <AsyncStateWrapper :loading="isLoading" :error="error" :data="filteredAndSortedFiles">
       <template #loading>
-        <div class="loading-state">
-          Загрузка файлов...
+        <!-- Скелетоны для сетки -->
+        <div v-if="viewMode === 'grid'" class="files-grid">
+          <div v-for="i in itemsPerPage" :key="i" class="file-card-skeleton">
+            <KitSkeleton width="100%" height="150px" />
+            <div class="file-card-info">
+              <KitSkeleton width="80%" height="16px" border-radius="4px" />
+              <KitSkeleton width="40%" height="14px" border-radius="4px" />
+            </div>
+          </div>
+        </div>
+
+        <!-- Скелетоны для списка -->
+        <div v-if="viewMode === 'list'" class="files-list-wrapper">
+          <div class="files-list">
+            <div class="list-header-row">
+              <span class="sortable-header">Файл</span>
+              <span class="sortable-header">Путешествие</span>
+              <span class="sortable-header">Тип</span>
+              <span class="sortable-header">Дата</span>
+              <span class="sortable-header">Размер</span>
+              <span />
+            </div>
+            <div v-for="i in 10" :key="i" class="list-item-row">
+              <div class="file-info-cell">
+                <KitSkeleton width="40px" height="40px" border-radius="var(--r-s)" />
+                <KitSkeleton width="150px" height="16px" border-radius="4px" />
+              </div>
+              <div><KitSkeleton width="100px" height="16px" border-radius="4px" /></div>
+              <div><KitSkeleton width="80px" height="16px" border-radius="4px" /></div>
+              <div><KitSkeleton width="80px" height="16px" border-radius="4px" /></div>
+              <div><KitSkeleton width="60px" height="16px" border-radius="4px" /></div>
+              <div class="actions-cell" />
+            </div>
+          </div>
         </div>
       </template>
 
       <template #success="{ data }">
         <div v-if="viewMode === 'grid'" class="files-grid">
-          <div v-for="file in paginatedFiles" :key="file.id" class="file-card">
+          <div
+            v-for="file in paginatedFiles"
+            :key="file.id"
+            class="file-card"
+            @click="openViewer(file.id)"
+          >
             <div class="file-card-image">
               <KitImage :src="file.variants?.small || file.url" :alt="file.originalName" />
             </div>
@@ -170,7 +247,7 @@ onMounted(() => {
               <span class="file-name" :title="file.originalName">{{ file.originalName }}</span>
               <span class="file-size">{{ formatBytes(file.sizeBytes) }}</span>
             </div>
-            <button class="delete-btn" title="Удалить" @click="handleDeleteFile(file.id, file.originalName)">
+            <button class="delete-btn" title="Удалить" @click.stop="handleDeleteFile(file.id, file.originalName)">
               <Icon icon="mdi:trash-can-outline" />
             </button>
           </div>
@@ -201,7 +278,12 @@ onMounted(() => {
               </button>
               <span />
             </div>
-            <div v-for="file in paginatedFiles" :key="file.id" class="list-item-row">
+            <div
+              v-for="file in paginatedFiles"
+              :key="file.id"
+              class="list-item-row clickable"
+              @click="openViewer(file.id)"
+            >
               <div class="file-info-cell">
                 <KitImage :src="file.variants?.small || file.url" :alt="file.originalName" class="file-thumbnail" />
                 <span>{{ file.originalName }}</span>
@@ -211,7 +293,7 @@ onMounted(() => {
               <div>{{ formatDate(file.createdAt, { dateStyle: 'short' }) }}</div>
               <div>{{ formatBytes(file.sizeBytes) }}</div>
               <div class="actions-cell">
-                <button class="delete-btn" title="Удалить" @click="handleDeleteFile(file.id, file.originalName)">
+                <button class="delete-btn" title="Удалить" @click.stop="handleDeleteFile(file.id, file.originalName)">
                   <Icon icon="mdi:trash-can-outline" />
                 </button>
               </div>
@@ -243,6 +325,15 @@ onMounted(() => {
         </div>
       </template>
     </AsyncStateWrapper>
+
+    <!-- Просмотрщик изображений -->
+    <KitImageViewer
+      v-model:visible="imageViewer.isOpen.value"
+      v-model:current-index="imageViewer.currentIndex.value"
+      :images="viewerImages"
+      :show-counter="true"
+      :enable-thumbnails="true"
+    />
   </div>
 </template>
 
@@ -265,19 +356,20 @@ onMounted(() => {
     color: var(--fg-primary-color);
     line-height: 1.2;
   }
-  p {
+
+  .size-info {
+    display: flex;
+    align-items: center;
+    gap: 8px;
     font-size: 1.1rem;
     color: var(--fg-secondary-color);
-    max-width: 600px;
-    margin: 0 auto;
-    line-height: 1.5;
   }
 
   @include media-down(sm) {
     h1 {
       font-size: 2rem;
     }
-    p {
+    .size-info {
       font-size: 1rem;
     }
   }
@@ -339,16 +431,28 @@ onMounted(() => {
   gap: 1rem;
 }
 
-.file-card {
+.file-card,
+.file-card-skeleton {
   position: relative;
   border-radius: var(--r-xs);
   background-color: var(--bg-secondary-color);
   border: 1px solid var(--border-secondary-color);
   overflow: hidden;
+}
 
-  &:hover .delete-btn {
-    opacity: 1;
-    transform: translateY(0);
+.file-card {
+  cursor: pointer;
+  transition: all 0.2s ease;
+
+  &:hover {
+    border-color: var(--border-primary-color);
+    transform: translateY(-2px);
+    box-shadow: var(--s-m);
+
+    .delete-btn {
+      opacity: 1;
+      transform: translateY(0);
+    }
   }
 }
 
@@ -462,9 +566,16 @@ onMounted(() => {
 
 .list-item-row {
   border-bottom: 1px solid var(--border-secondary-color);
+
+  &.clickable {
+    cursor: pointer;
+    transition: background-color 0.2s ease;
+  }
+
   &:last-child {
     border-bottom: none;
   }
+
   &:hover {
     background-color: var(--bg-hover-color);
   }

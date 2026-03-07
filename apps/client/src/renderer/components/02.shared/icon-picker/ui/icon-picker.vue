@@ -10,6 +10,7 @@ interface Props {
   disabled?: boolean
   align?: 'start' | 'center' | 'end'
   inline?: boolean
+  chevron?: boolean
 }
 
 const props = withDefaults(defineProps<Props>(), {
@@ -18,6 +19,7 @@ const props = withDefaults(defineProps<Props>(), {
   disabled: false,
   align: 'center',
   inline: false,
+  chevron: true,
 })
 
 const emit = defineEmits<{
@@ -43,7 +45,7 @@ function updateAlignment() {
   if (!wrapperRef.value)
     return
 
-  const vw = window.innerWidth
+  const vw = document.documentElement.clientWidth
   const rect = wrapperRef.value.getBoundingClientRect()
 
   const startRight = rect.left + PANEL_WIDTH
@@ -70,9 +72,12 @@ function updateAlignment() {
 function open() {
   if (props.disabled)
     return
+
+  updateAlignment()
+
   isOpen.value = true
+
   nextTick(() => {
-    updateAlignment()
     searchInputRef.value?.focus()
   })
 }
@@ -170,6 +175,7 @@ onClickOutside(wrapperRef, () => {
         :class="{ placeholder: !modelValue }"
       />
       <Icon
+        v-if="chevron"
         icon="mdi:chevron-down"
         class="trigger-chevron"
         :class="{ rotated: isOpen }"
@@ -305,10 +311,10 @@ onClickOutside(wrapperRef, () => {
 .icon-picker-panel {
   position: absolute;
   top: calc(100% + 6px);
-  z-index: 100;
+  z-index: 9999;
   width: 320px;
   max-width: min(320px, calc(100vw - 16px));
-  background-color: var(--bg-tertiary-color);
+  background-color: var(--bg-secondary-color);
   border: 1px solid var(--border-secondary-color);
   border-radius: var(--r-m);
   box-shadow: var(--s-l);
@@ -398,6 +404,8 @@ onClickOutside(wrapperRef, () => {
   overflow-x: auto;
   border-bottom: 1px solid var(--border-secondary-color);
   scrollbar-width: none;
+  display: none;
+
   &::-webkit-scrollbar {
     display: none;
   }

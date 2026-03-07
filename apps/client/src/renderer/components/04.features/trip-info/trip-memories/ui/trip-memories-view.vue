@@ -348,7 +348,6 @@ async function handleNotifyParticipants() {
   display: flex;
   flex-direction: column;
   flex-grow: 1;
-  overflow: hidden;
   position: relative;
 
   &.is-fullscreen-mode {
@@ -408,8 +407,6 @@ async function handleNotifyParticipants() {
 
 .memories-content-scroll {
   flex-grow: 1;
-  overflow-y: auto;
-  padding-bottom: 32px;
   position: relative;
 }
 

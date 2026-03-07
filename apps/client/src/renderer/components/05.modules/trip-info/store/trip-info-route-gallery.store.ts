@@ -1,6 +1,6 @@
 import type { TripImage } from '~/shared/types/models/trip'
 import { defineStore } from 'pinia'
-import { useRequest, useRequestStatus } from '~/plugins/request'
+import { useRequest, useRequestStatus, useRequestStatusByPrefix } from '~/plugins/request'
 import { TripImagePlacement } from '~/shared/types/models/trip'
 
 export enum ETripGalleryKeys {
@@ -26,15 +26,10 @@ export const useTripInfoGalleryStore = defineStore('tripInfoRouteGallery', {
 
   getters: {
     isFetchingImages: () => useRequestStatus(ETripGalleryKeys.FETCH_IMAGES).value,
-    isUploadingImage: () => useRequestStatus(ETripGalleryKeys.UPLOAD_IMAGE).value,
+    isUploadingImage: () => useRequestStatusByPrefix(ETripGalleryKeys.UPLOAD_IMAGE).value,
   },
 
   actions: {
-    /**
-     * Устанавливает ID текущего путешествия и сбрасывает состояние,
-     * если ID изменился.
-     * @param tripId - ID путешествия
-     */
     setTripId(tripId: string) {
       if (this.currentTripId !== tripId) {
         this.currentTripId = tripId
@@ -43,10 +38,6 @@ export const useTripInfoGalleryStore = defineStore('tripInfoRouteGallery', {
       }
     },
 
-    /**
-     * Загружает изображения для текущего путешествия.
-     * Не выполняет запрос, если данные уже загружены для этого ID.
-     */
     async fetchTripImages() {
       if (!this.currentTripId) {
         console.error('Trip ID не установлен для загрузки изображений.')
@@ -71,19 +62,17 @@ export const useTripInfoGalleryStore = defineStore('tripInfoRouteGallery', {
       })
     },
 
-    /**
-     * Загружает новое изображение в галерею путешествия.
-     * @param file - Загружаемый файл
-     * @returns Promise с загруженным изображением или null в случае ошибки.
-     */
     async uploadImage(file: File): Promise<TripImage | null> {
       if (!this.currentTripId) {
         console.error('Trip ID не установлен для загрузки изображения.')
         return null
       }
 
+      const uniqueRequestKey = `${ETripGalleryKeys.UPLOAD_IMAGE}:${crypto.randomUUID()}`
+
       const newImage = await useRequest<TripImage>({
-        key: ETripGalleryKeys.UPLOAD_IMAGE,
+        key: uniqueRequestKey,
+        cancelPrevious: false, 
         fn: db => db.files.uploadFile(
           file,
           this.currentTripId!,
@@ -101,9 +90,6 @@ export const useTripInfoGalleryStore = defineStore('tripInfoRouteGallery', {
       return newImage
     },
 
-    /**
-     * Сбрасывает состояние стора к исходному.
-     */
     reset() {
       this.tripImages = []
       this.currentTripId = null

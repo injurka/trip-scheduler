@@ -9,6 +9,7 @@ import { MOCK_METRO_DATA } from './mock/02.metro'
 import { SUBSCRIPTION_MOCK } from './mock/03.subscription'
 import { LLM_MOCK } from './mock/04.llm'
 import { MOCK_BLOG_DATA } from './mock/06.blog'
+
 import {
   activities,
   blogs,
@@ -17,6 +18,7 @@ import {
   emailVerificationTokens,
   llmModels,
   llmTokenUsage,
+  marks,
   memories,
   metroLines,
   metroLineStations,
@@ -62,6 +64,7 @@ async function discoverAndSelectData() {
     users: new Map<string, any>(),
     trips: new Map<string, any>(),
     posts: new Map<string, any>(),
+    marks: new Map<string, any>(),
   }
 
   console.log('🔍 Поиск и загрузка доступных мок-данных...')
@@ -107,6 +110,12 @@ async function discoverAndSelectData() {
             discovered.posts.set(post.id, post)
           }
         }
+
+        if (module.MOCK_MARKS_DATA) {
+          module.MOCK_MARKS_DATA.forEach((mark: any) =>
+            discovered.marks.set(mark.id, mark),
+          )
+        }
       }
     }
     catch (e) {
@@ -114,9 +123,9 @@ async function discoverAndSelectData() {
     }
   }
 
-  if ([...discovered.users.values(), ...discovered.trips.values(), ...discovered.posts.values()].length === 0) {
+  if ([...discovered.users.values(), ...discovered.trips.values(), ...discovered.posts.values(), ...discovered.marks.values()].length === 0) {
     console.warn('⚠️ Моковые данные не найдены.')
-    return { selectedUsers: [], selectedTrips: [], selectedPosts: [] }
+    return { selectedUsers: [], selectedTrips: [], selectedPosts: [], selectedMarks: [] }
   }
 
   const questions: prompts.PromptObject[] = [
@@ -154,6 +163,18 @@ async function discoverAndSelectData() {
       })),
       hint: '- Пробел для выбора, Enter для подтверждения',
     },
+    {
+      type: discovered.marks.size > 0 ? 'multiselect' : null,
+      name: 'selectedMarks',
+      message: 'Выберите МЕТКИ (Карта Активностей) для добавления',
+      choices: [...discovered.marks.values()].map(mark => ({
+        title: mark.title,
+        description: `(${mark.duration === 0 ? 'Статика/Место' : `Событие: ${mark.duration}ч`})`,
+        value: mark,
+        selected: true,
+      })),
+      hint: '- Пробел для выбора, Enter для подтверждения',
+    },
   ]
 
   const response = await prompts(questions, {
@@ -167,6 +188,7 @@ async function discoverAndSelectData() {
     selectedUsers: response.selectedUsers || [],
     selectedTrips: response.selectedTrips || [],
     selectedPosts: response.selectedPosts || [],
+    selectedMarks: response.selectedMarks || [], 
   }
 }
 
@@ -174,9 +196,10 @@ async function seed() {
   await copyStaticFiles()
   console.log('🌱 Начало интерактивного заполнения базы данных...')
 
-  const { selectedUsers, selectedTrips, selectedPosts } = await discoverAndSelectData()
+  const { selectedUsers, selectedTrips, selectedPosts, selectedMarks } = await discoverAndSelectData()
 
   console.log('\n🗑️  Очистка старых данных...')
+
   await db.delete(blogs)
   await db.delete(savedPosts)
   await db.delete(postMedia)
@@ -192,6 +215,7 @@ async function seed() {
   await db.delete(tripImages)
   await db.delete(tripParticipants)
   await db.delete(trips)
+  await db.delete(marks) // <-- ДОБАВЛЕНО
   await db.delete(refreshTokens)
   await db.delete(emailVerificationTokens)
   await db.delete(users)
@@ -258,11 +282,10 @@ async function seed() {
   const memoriesToInsert: (typeof memories.$inferInsert)[] = []
   const participantsToInsert: (typeof tripParticipants.$inferInsert)[] = []
   const sectionsToInsert: (typeof tripSections.$inferInsert)[] = []
-
-  // Arrays for Posts
   const postsToInsert: (typeof posts.$inferInsert)[] = []
   const elementsToInsert: (typeof postElements.$inferInsert)[] = []
   const postMediaToInsert: (typeof postMedia.$inferInsert)[] = []
+  const marksToInsert: (typeof marks.$inferInsert)[] = []
 
   // --- TRIPS PROCESSING ---
   for (const tripData of selectedTrips) {
@@ -362,7 +385,7 @@ async function seed() {
           postMediaToInsert.push(...itemMedia.map((m: any) => ({
             ...m,
             postId: postDetails.id,
-            elementId: item.id, 
+            elementId: item.id,
           })))
         }
       }
@@ -377,10 +400,19 @@ async function seed() {
     }
   }
 
+  for (const mark of selectedMarks) {
+    marksToInsert.push({
+      ...mark,
+      startAt: mark.startAt ? new Date(mark.startAt) : null,
+      createdAt: new Date(),
+    })
+  }
+
   console.log(`\n✍️  Запись данных в базу...`)
   console.log(`   - Пользователей: ${selectedUsers.length}`)
   console.log(`   - Путешествий: ${tripsToInsert.length}`)
   console.log(`   - Постов: ${postsToInsert.length}`)
+  console.log(`   - Меток на карте: ${marksToInsert.length}`)
 
   console.log('📰 Заполнение блога...')
   const blogsToInsert = MOCK_BLOG_DATA.map(blog => ({
@@ -414,6 +446,8 @@ async function seed() {
     await db.insert(postElements).values(elementsToInsert)
   if (postMediaToInsert.length > 0)
     await db.insert(postMedia).values(postMediaToInsert)
+  if (marksToInsert.length > 0)
+    await db.insert(marks).values(marksToInsert)
 
   console.log('\n🎉 База данных успешно заполнена выбранными данными!')
   process.exit(0)

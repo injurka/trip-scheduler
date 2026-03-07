@@ -6,6 +6,7 @@ import Server from './app'
 import { updateDatabaseMetrics } from './lib/db-monitoring'
 import { Logger } from './lib/logger'
 import { s3Service } from './services/s3.service'
+import { telegramAuthService } from './services/telegram-auth.service'
 
 const logger = new Logger()
 const app: Hono = Server.getApp()
@@ -27,6 +28,8 @@ try {
 
   setInterval(updateDatabaseMetrics, 30_000)
   await updateDatabaseMetrics()
+
+  await telegramAuthService.setupWebhook()
 
   logger.success('Server is ready 🚀')
 }

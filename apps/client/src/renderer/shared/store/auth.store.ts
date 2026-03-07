@@ -1,4 +1,11 @@
-import type { SignInPayload, SignUpPayload, TelegramAuthPayload, TokenPair, User } from '../types/models/auth'
+import type {
+  SignInPayload,
+  SignUpPayload,
+  TelegramAuthPayload,
+  TelegramBotAuthStatus,
+  TokenPair,
+  User,
+} from '../types/models/auth'
 import { useStorage } from '@vueuse/core'
 import { defineStore } from 'pinia'
 import { useRequest, useRequestStatus } from '~/plugins/request'
@@ -12,6 +19,7 @@ export enum EAuthRequestKeys {
   SIGN_IN = 'auth:sign-in',
   SIGN_UP = 'auth:sign-up',
   SIGN_IN_TG = 'auth:sign-in-telegram',
+  CHECK_TG = 'auth:check-telegram-status',
   VERIFY_EMAIL = 'auth:verify-email',
   SIGN_OUT = 'auth:sign-out',
   UPDATE_STATUS = 'auth:update-status',
@@ -33,14 +41,16 @@ export const useAuthStore = defineStore('auth', {
     return {
       isInitialized: false,
       user: null,
-      tokenPair: { accessToken: accessToken.value ?? null, refreshToken: refreshToken.value ?? null } as Partial<TokenPair>,
+      tokenPair: {
+        accessToken: accessToken.value ?? null,
+        refreshToken: refreshToken.value ?? null,
+      } as Partial<TokenPair>,
     }
   },
 
   getters: {
     isLoading: () => useRequestStatus(Object.values(EAuthRequestKeys)).value,
     isAuthenticated: state => !!state.user,
-
     canCreateTrip(state): boolean {
       if (!state.user || !state.user.plan)
         return false
@@ -54,16 +64,11 @@ export const useAuthStore = defineStore('auth', {
   },
 
   actions: {
-    /**
-     * Получает информацию о текущем пользователе с сервера через tRPC.
-     */
     async me() {
       return useRequest<User>({
         key: EAuthRequestKeys.ME,
         fn: db => db.auth.me(),
-        onSuccess: (data) => {
-          this.user = data
-        },
+        onSuccess: (data) => { this.user = data },
         onError: ({ error }) => {
           this.user = null
           throw error
@@ -71,21 +76,15 @@ export const useAuthStore = defineStore('auth', {
       })
     },
 
-    /**
-     * Обновляет токен доступа, используя токен обновления из состояния.
-     */
     async refresh() {
       const refreshToken = this.tokenPair?.refreshToken
-      if (!refreshToken) {
+      if (!refreshToken)
         return Promise.reject(new Error('Refresh token is not available.'))
-      }
 
       return useRequest({
         key: EAuthRequestKeys.REFRESH,
         fn: db => db.auth.refresh(refreshToken),
-        onSuccess: (data) => {
-          this.saveTokens(data.token)
-        },
+        onSuccess: (data) => { this.saveTokens(data.token) },
         onError: ({ error }) => {
           this.clearAuth()
           throw error
@@ -93,16 +92,11 @@ export const useAuthStore = defineStore('auth', {
       })
     },
 
-    /**
-     * Выход пользователя из системы через tRPC.
-     */
     async signOut() {
       return useRequest<void>({
         key: EAuthRequestKeys.SIGN_OUT,
         fn: db => db.auth.signOut(),
-        onSuccess: () => {
-          this.clearAuth()
-        },
+        onSuccess: () => { this.clearAuth() },
         onError: ({ error }) => {
           this.clearAuth()
           throw error
@@ -110,27 +104,6 @@ export const useAuthStore = defineStore('auth', {
       })
     },
 
-    /**
-     * Авторизует пользователя через Telegram.
-     */
-    async signInWithTelegram(authData: TelegramAuthPayload) {
-      return useRequest({
-        key: EAuthRequestKeys.SIGN_IN_TG,
-        fn: db => db.auth.signInWithTelegram(authData),
-        onSuccess: (data) => {
-          this.user = data.user
-          this.saveTokens(data.token)
-        },
-        onError: ({ error }) => {
-          this.clearAuth()
-          throw error
-        },
-      })
-    },
-
-    /**
-     * Авторизует пользователя по email и паролю через tRPC.
-     */
     async signIn(payload: SignInPayload) {
       return useRequest({
         key: EAuthRequestKeys.SIGN_IN,
@@ -146,22 +119,14 @@ export const useAuthStore = defineStore('auth', {
       })
     },
 
-    /**
-     * Регистрирует нового пользователя.
-     */
     async signUp(payload: SignUpPayload) {
       return useRequest({
         key: EAuthRequestKeys.SIGN_UP,
         fn: db => db.auth.signUp(payload),
-        onError: ({ error }) => {
-          throw error
-        },
+        onError: ({ error }) => { throw error },
       })
     },
 
-    /**
-     * Подтверждает email и завершает регистрацию.
-     */
     async verifyEmail(payload: { email: string, token: string }) {
       return useRequest({
         key: EAuthRequestKeys.VERIFY_EMAIL,
@@ -178,8 +143,36 @@ export const useAuthStore = defineStore('auth', {
     },
 
     /**
-     * Обновляет статус пользователя.
+     * Инициализирует сессию входа через Telegram-бота.
+     * Возвращает deeplink url для открытия бота.
      */
+    async initTelegramLogin() {
+      return useRequest({
+        key: EAuthRequestKeys.SIGN_IN_TG,
+        fn: db => db.auth.initTelegramLogin(),
+      })
+    },
+
+    /**
+     * Проверяет статус авторизации через Telegram-бота.
+     * Если confirmed — автоматически сохраняет токены и пользователя.
+     */
+    async checkTelegramStatus(token: string) {
+      return useRequest({
+        key: EAuthRequestKeys.CHECK_TG,
+        fn: db => db.auth.checkTelegramStatus(token),
+        onSuccess: (result) => {
+          if (result.status === 'confirmed') {
+            this.saveTokens(result.token)
+            this.user = result.user
+          }
+        },
+        onError: ({ error }) => {
+          throw error
+        },
+      })
+    },
+
     async updateStatus(data: { statusText?: string | null, statusEmoji?: string | null }) {
       return useRequest<User>({
         key: EAuthRequestKeys.UPDATE_STATUS,
@@ -197,107 +190,65 @@ export const useAuthStore = defineStore('auth', {
       })
     },
 
-    /**
-     * Сохраняет пару токенов в состояние и в localStorage.
-     */
     saveTokens(tokens: TokenPair) {
       this.tokenPair = tokens
       useStorage(TOKEN_KEY, '').value = tokens.accessToken
       useStorage(REFRESH_TOKEN_KEY, '').value = tokens.refreshToken
     },
 
-    /**
-     * Очищает токены из состояния и из localStorage.
-     */
     clearTokens() {
-      this.tokenPair = {
-        accessToken: '',
-        refreshToken: '',
-      }
+      this.tokenPair = { accessToken: '', refreshToken: '' }
       useStorage(TOKEN_KEY, null).value = null
       useStorage(REFRESH_TOKEN_KEY, null).value = null
     },
 
-    /**
-     * Полностью очищает данные аутентификации.
-     */
     clearAuth() {
       this.user = null
       this.clearTokens()
     },
 
-    /**
-     * Увеличивает счетчик путешествий на клиенте.
-     */
     incrementTripCount() {
-      if (this.user) {
+      if (this.user)
         this.user.currentTripsCount++
-      }
     },
 
-    /**
-     * Уменьшает счетчик путешествий на клиенте.
-     */
     decrementTripCount() {
-      if (this.user && this.user.currentTripsCount > 0) {
+      if (this.user && this.user.currentTripsCount > 0)
         this.user.currentTripsCount--
-      }
     },
 
-    /**
-     * Увеличивает использование хранилища на клиенте.
-     * @param bytes - Размер добавленного файла в байтах.
-     */
     incrementStorageUsage(bytes: number) {
-      if (this.user) {
+      if (this.user)
         this.user.currentStorageBytes += bytes
-      }
     },
 
-    /**
-     * Обновляет данные профиля пользователя (имя, аватар).
-     */
+    decrementStorageUsage(bytes: number) {
+      if (this.user)
+        this.user.currentStorageBytes = Math.max(0, this.user.currentStorageBytes - bytes)
+    },
+
     async updateUser(data: { name?: string, avatarUrl?: string }) {
       return useRequest<User>({
         key: EAuthRequestKeys.UPDATE_USER,
         fn: db => db.auth.updateUser(data),
         onSuccess: (updatedUser) => {
-          if (this.user && updatedUser) {
+          if (this.user && updatedUser)
             this.user = { ...this.user, ...updatedUser }
-          }
         },
-        onError: ({ error }) => {
-          throw error
-        },
+        onError: ({ error }) => { throw error },
       })
     },
 
-    /**
-     * Загружает аватар пользователя.
-     */
     async uploadAvatar(file: File) {
       await useRequest<User>({
         key: EAuthRequestKeys.UPLOAD_AVATAR,
         fn: db => db.auth.uploadAvatar(file),
         onSuccess: (updatedUser) => {
-          if (this.user && updatedUser) {
+          if (this.user && updatedUser)
             this.user = { ...this.user, ...updatedUser }
-          }
         },
-        onError: ({ error }) => {
-          throw error
-        },
+        onError: ({ error }) => { throw error },
       })
-    },
-
-    /**
-     * Уменьшает использование хранилища на клиенте.
-     * @param bytes - Размер удаленного файла в байтах.
-     */
-    decrementStorageUsage(bytes: number) {
-      if (this.user) {
-        this.user.currentStorageBytes = Math.max(0, this.user.currentStorageBytes - bytes)
-      }
     },
   },
 })

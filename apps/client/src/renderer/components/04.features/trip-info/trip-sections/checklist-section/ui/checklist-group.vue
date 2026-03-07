@@ -69,9 +69,14 @@ function onAddItem() {
         <button v-if="!readonly" class="drag-handle-group" title="Перетащить группу">
           <Icon icon="mdi:drag" />
         </button>
-        <button class="group-icon-btn" :disabled="readonly">
-          <Icon :icon="group.icon" class="group-icon" />
-        </button>
+        <ChecklistIconPicker
+          v-if="!readonly"
+          :model-value="group.icon"
+          :disabled="readonly"
+          @click.stop
+          @update:model-value="(icon: string) => handleUpdateGroup('icon', icon)"
+        />
+        <Icon v-else :icon="group.icon" class="group-icon" />
         <span
           v-if="readonly"
           class="group-name"
@@ -139,12 +144,6 @@ function onAddItem() {
         </KitBtn>
       </form>
     </div>
-
-    <ChecklistIconPicker
-      :model-value="group.icon"
-      :disabled="readonly"
-      @update:model-value="(icon: string) => handleUpdateGroup('icon', icon)"
-    />
   </div>
 </template>
 
@@ -187,23 +186,6 @@ function onAddItem() {
   &:active {
     cursor: grabbing;
   }
-}
-
-.group-icon-btn {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  padding: 4px;
-  border-radius: var(--r-s);
-  transition: background-color 0.2s;
-  &:not(:disabled):hover {
-    background-color: var(--bg-hover-color);
-  }
-}
-
-.group-icon {
-  font-size: 1.1rem;
-  color: var(--fg-secondary-color);
 }
 
 .group-name {

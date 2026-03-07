@@ -33,12 +33,10 @@ function handleImportSelect(activity: Activity) {
 <template>
   <div class="memories-empty">
     <div class="empty-card">
-      <!-- Иконка -->
       <div class="empty-icon-wrap">
         <Icon icon="mdi:camera-iris" class="empty-icon" />
       </div>
 
-      <!-- Текст -->
       <div class="empty-text">
         <p class="empty-title">
           В этом дне пока нет воспоминаний
@@ -118,7 +116,7 @@ function handleImportSelect(activity: Activity) {
   display: flex;
   justify-content: center;
   align-items: center;
-  padding: 8px 0 24px;
+  padding: 24px 0;
 }
 
 .empty-card {

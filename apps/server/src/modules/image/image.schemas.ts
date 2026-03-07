@@ -20,6 +20,13 @@ export const TripImageSchema = z.object({
   metadata: z.any().nullable().optional(),
 })
 
+export const TripImageWithTripSchema = TripImageSchema.extend({
+  trip: z.object({
+    id: z.string(),
+    title: z.string(),
+  }).nullable().optional(),
+})
+
 export const GetImagesByTripIdInputSchema = z.object({
   tripId: z.string().uuid(),
   placement: z.enum(['route', 'memories']).optional(),
