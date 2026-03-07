@@ -41,12 +41,11 @@ function getImageUrl(image: ImageViewerImage | null, quality: ImageQuality): str
     case 'original':
       return url
     default:
-      // Запасной вариант для любых непредвиденных значений
       return variants?.large || url
   }
 }
 
-export function useSwipeNavigation(options: UseSwipeNavigationOptions) {
+export function useImageViewerSwipe(options: UseSwipeNavigationOptions) {
   const {
     onNext,
     onPrev,

@@ -1,5 +1,4 @@
 <script setup lang="ts">
-import type { PostDetail } from '~/shared/types/models/post'
 import { Icon } from '@iconify/vue'
 import { storeToRefs } from 'pinia'
 import { useRoute, useRouter } from 'vue-router'

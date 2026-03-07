@@ -232,10 +232,9 @@ onMounted(() => {
 </template>
 
 <style lang="scss" scoped>
-
 .header {
   position: sticky;
-  top: 0;
+  top: env(safe-area-inset-top);
   display: flex;
   flex-direction: row;
   width: 100%;

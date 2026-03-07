@@ -341,8 +341,6 @@ async function seed() {
 
   // --- POSTS PROCESSING ---
   for (const postData of selectedPosts) {
-    // В моковых данных поле может называться timelineItems или elements.
-    // Адаптируем под новую схему postElements.
     const { timelineItems, elements, media, ...postDetails } = postData
     const items = elements || timelineItems || []
 
@@ -352,10 +350,8 @@ async function seed() {
       updatedAt: new Date(),
     })
 
-    // Обработка элементов поста
     if (items) {
       for (const item of items) {
-        // Если в моке есть media внутри элемента (для старых структур), выносим их
         const { media: itemMedia, ...itemDetails } = item
         elementsToInsert.push({
           ...itemDetails,
@@ -366,13 +362,12 @@ async function seed() {
           postMediaToInsert.push(...itemMedia.map((m: any) => ({
             ...m,
             postId: postDetails.id,
-            elementId: item.id, // Связываем медиа с конкретным элементом
+            elementId: item.id, 
           })))
         }
       }
     }
 
-    // Обработка общих медиа поста (без привязки к элементам или если структура такая)
     if (media) {
       postMediaToInsert.push(...media.map((m: any) => ({
         ...m,
@@ -399,7 +394,6 @@ async function seed() {
   if (selectedUsers.length > 0)
     await db.insert(users).values(selectedUsers.map((u: any) => ({ ...u, planId: plansData[0].id })))
 
-  // Insert Trips
   if (tripsToInsert.length > 0)
     await db.insert(trips).values(tripsToInsert)
   if (sectionsToInsert.length > 0)
@@ -414,8 +408,6 @@ async function seed() {
     await db.insert(activities).values(activitiesToInsert)
   if (memoriesToInsert.length > 0)
     await db.insert(memories).values(memoriesToInsert)
-
-  // Insert Posts
   if (postsToInsert.length > 0)
     await db.insert(posts).values(postsToInsert)
   if (elementsToInsert.length > 0)

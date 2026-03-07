@@ -29,7 +29,6 @@ export function useChecklistSection(
 ) {
   const confirm = useConfirm()
 
-  // --- Локальное состояние ---
   const initialItems = (props.section.content?.items || []).map((item: any): ChecklistItem => {
     let priority: ChecklistPriority = 1
     if (item.priority === 'high') {
@@ -51,7 +50,6 @@ export function useChecklistSection(
   const groups = ref<ChecklistGroup[]>(JSON.parse(JSON.stringify(props.section.content?.groups || [])))
   const activeTab = ref<ChecklistTab>('preparation')
 
-  // --- Состояния для UI ---
   const hideCompleted = ref(false)
   const searchQuery = ref('')
 
@@ -60,7 +58,6 @@ export function useChecklistSection(
     { id: 'in-trip', label: 'В путешествии', icon: 'mdi:map-marker-path' },
   ]
 
-  // --- Логика ---
   const debouncedUpdate = useDebounceFn(() => {
     emit('updateSection', {
       ...props.section,
@@ -68,7 +65,6 @@ export function useChecklistSection(
     })
   }, 700)
 
-  // --- Управление элементами ---
   function addItem(text: string, tab: ChecklistTab, groupId: string | null = null) {
     if (props.readonly || !text.trim())
       return
@@ -79,7 +75,7 @@ export function useChecklistSection(
       completed: false,
       type: tab,
       groupId,
-      priority: 1, // Приоритет по умолчанию - "Без приоритета"
+      priority: 1, 
     })
   }
 
@@ -97,7 +93,6 @@ export function useChecklistSection(
       items.value[index] = updatedItem
   }
 
-  // --- Управление группами ---
   function addGroup(tab: ChecklistTab) {
     if (props.readonly)
       return
@@ -134,24 +129,20 @@ export function useChecklistSection(
       groups.value[index] = updatedGroup
   }
 
-  // --- Логика пресетов ---
   function applyPreset(preset: ChecklistPreset) {
     if (props.readonly)
       return
 
-    // Проходим по группам пресета
     preset.groups.forEach((groupData) => {
       const newGroupId = uuidv4()
 
-      // Добавляем группу
       groups.value.push({
         id: newGroupId,
         name: groupData.name,
         icon: groupData.icon,
-        type: activeTab.value, // Добавляем в текущую вкладку
+        type: activeTab.value,
       })
 
-      // Добавляем элементы группы
       groupData.items.forEach((itemData) => {
         items.value.push({
           id: uuidv4(),
@@ -164,7 +155,6 @@ export function useChecklistSection(
       })
     })
 
-    // Принудительный апдейт
     debouncedUpdate()
   }
 

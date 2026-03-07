@@ -45,7 +45,6 @@ class AssetAnalyzer {
     else if (this.isVendorAsset(url))
       type = 'vendor'
 
-    // Ограничиваем размер кеша
     if (this.cache.size > 1000) {
       this.cache.clear()
     }

@@ -20,7 +20,6 @@ function useGeolocationMap() {
   const mapInstance: Ref<Map | null> = ref(null)
   const isMapLoaded = ref(false)
 
-  // --- Источники и слои ---
   const tileLayerRef = ref<TileLayer<OSM | XYZ> | null>(null)
   const pointSource = new VectorSource()
   const routeSource = new VectorSource()
@@ -31,16 +30,14 @@ function useGeolocationMap() {
   const pointLayer = new VectorLayer({ source: pointSource, zIndex: 10 })
   const routeLayer = new VectorLayer({ source: routeSource, zIndex: 5 })
   const drawLayer = new VectorLayer({ source: drawSource, zIndex: 6 })
-  const searchResultLayer = new VectorLayer({ source: searchResultSource, zIndex: 11 }) // Слой для результатов поиска
-  const currentLocationLayer = new VectorLayer({ source: currentLocationSource, zIndex: 12 }) // Слой для местоположения
+  const searchResultLayer = new VectorLayer({ source: searchResultSource, zIndex: 11 })
+  const currentLocationLayer = new VectorLayer({ source: currentLocationSource, zIndex: 12 })
 
-  // --- Взаимодействия (Interactions) ---
   const modifyInteraction = new Modify({ source: pointSource })
 
   const popups: Ref<Overlay[]> = ref([])
   let resizeObserver: ResizeObserver | null = null
 
-  // --- Инициализация и уничтожение ---
   const initMap = async (options: GeolocationMapOptions) => {
     if (!options.container) {
       console.error('Map container is required')
@@ -50,10 +47,8 @@ function useGeolocationMap() {
     await nextTick()
 
     try {
-      // Проверяем доступность MapTiler
       const isMapTilerWorking = await checkMapTilerAvailability()
 
-      // Выбираем источник: если MapTiler работает - используем его, иначе OSM
       const initialSource = isMapTilerWorking
         ? TILE_SOURCES.maptilerStreets.source
         : TILE_SOURCES.osm.source
@@ -115,18 +110,16 @@ function useGeolocationMap() {
     }
   }
 
-  // --- Управление точками (маркерами) ---
   function getPointStyle(point: MapPoint): Style {
     const colors = {
       poi: '#3498db',
       start: '#2ecc71',
       via: '#f1c40f',
       end: '#e74c3c',
-      connect: '#95a5a6', // Цвет по умолчанию для соединительной точки
+      connect: '#95a5a6',
     }
     const color = point.style?.color || colors[point.type] || '#3498db'
 
-    // Стиль для соединительной точки (маленький кружок)
     if (point.type === 'connect') {
       return new Style({
         image: new CircleStyle({
@@ -141,7 +134,6 @@ function useGeolocationMap() {
       })
     }
 
-    // Стиль для полноценных меток (пин)
     const svg = `
       <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
         <path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7z" fill="${color}"/>
@@ -213,7 +205,6 @@ function useGeolocationMap() {
     popups.value = []
   }
 
-  // --- Управление маршрутами ---
   const addOrUpdateRoute = (route: MapRoute) => {
     if (!mapInstance.value || !route.geometry)
       return
@@ -232,7 +223,6 @@ function useGeolocationMap() {
     }
 
     feature.setStyle([
-      // Style for the line
       new Style({
         stroke: new Stroke({
           color: route.color || '#4363D8',
@@ -240,7 +230,6 @@ function useGeolocationMap() {
           lineDash: route.isDirect ? [10, 10] : undefined,
         }),
       }),
-      // Style for the start point
       new Style({
         geometry: new Point(lineGeometry.getFirstCoordinate()),
         image: new CircleStyle({
@@ -252,7 +241,6 @@ function useGeolocationMap() {
           }),
         }),
       }),
-      // Style for the end point
       new Style({
         geometry: new Point(lineGeometry.getLastCoordinate()),
         image: new CircleStyle({
@@ -288,14 +276,12 @@ function useGeolocationMap() {
     const lineStrings = multiLineGeometry.getLineStrings()
     if (lineStrings.length > 0) {
       feature.setStyle([
-        // Style for the line
         new Style({
           stroke: new Stroke({
             color: route.color || '#4363D8',
             width: 4,
           }),
         }),
-        // Style for the start point
         new Style({
           geometry: new Point(lineStrings[0].getFirstCoordinate()),
           image: new CircleStyle({
@@ -307,7 +293,6 @@ function useGeolocationMap() {
             }),
           }),
         }),
-        // Style for the end point
         new Style({
           geometry: new Point(lineStrings[lineStrings.length - 1].getLastCoordinate()),
           image: new CircleStyle({
@@ -343,7 +328,6 @@ function useGeolocationMap() {
     routeSource.clear()
   }
 
-  // --- Взаимодействие с API ---
   const fetchRoute = async (
     waypoints: MapPoint[],
   ): Promise<(Partial<MapRoute> & { isDirect?: boolean }) | null> => {
@@ -406,7 +390,6 @@ function useGeolocationMap() {
     }
   }
 
-  // --- Утилиты ---
   function showPopup(
     coordinates: Coordinate,
     content: string,

@@ -22,7 +22,6 @@ const emit = defineEmits<{
   (e: 'refreshAddress', pointId: string): void
 }>()
 
-// --- Логика для меню карт ---
 const mapChoicePanelRef = ref<HTMLElement | null>(null)
 const mapIframeContainerRef = ref<HTMLElement | null>(null)
 const isMapChoiceVisible = ref(false)

@@ -43,10 +43,8 @@ const BlogEdit = () => import('~/pages/blog/edit/[id].vue')
 
 const ActivityMapPage = () => import('~/pages/activity-map.vue')
 
-// Guard для проверки, что пользователь заходит в свои настройки
 async function requireOwner(to: any, _from: any, next: any) {
   const authStore = useAuthStore()
-  // Ждем инициализации, если перезагрузили страницу
   if (!authStore.isInitialized) {
     await new Promise<void>((resolve) => {
       const unsubscribe = authStore.$subscribe((_, state) => {
@@ -62,7 +60,6 @@ async function requireOwner(to: any, _from: any, next: any) {
     next()
   }
   else {
-    // Если пытаются зайти в чужие настройки -> редирект на профиль этого пользователя
     next({ name: AppRouteNames.UserProfile, params: { id: to.params.id } })
   }
 }

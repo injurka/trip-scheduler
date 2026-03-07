@@ -5,7 +5,6 @@ function useProfile() {
 
   const user = computed(() => store.auth.user)
 
-  // --- Profile Info Form ---
   const profileForm = reactive({
     name: user.value?.name || '',
     email: user.value?.email || '',
@@ -14,7 +13,6 @@ function useProfile() {
   const isProfileChanged = computed(() => profileForm.name !== user.value?.name)
   const isUpdatingProfile = ref(false)
 
-  // --- Password Change Form ---
   const passwordForm = reactive({
     currentPassword: '',
     newPassword: '',
@@ -28,13 +26,11 @@ function useProfile() {
     && passwordForm.newPassword === passwordForm.confirmPassword,
   )
 
-  // --- Delete Account Form ---
   const deleteForm = reactive({
     password: '',
   })
   const isDeletingAccount = ref(false)
 
-  // --- Methods ---
   async function updateProfile(data?: { name?: string, avatarUrl?: string }) {
     isUpdatingProfile.value = true
     try {

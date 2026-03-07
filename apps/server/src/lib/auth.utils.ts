@@ -32,6 +32,7 @@ async function generateTokens(user: { id: string, email: string }) {
   const accessToken = await sign(
     { ...accessTokenPayload, exp: Math.floor(Date.now() / 1000) + ACCESS_TOKEN_EXPIRY },
     JWT_SECRET,
+    'HS256',
   )
 
   // 2. Создаем Refresh Token (уникальная строка)
@@ -92,11 +93,8 @@ async function refreshUserTokens(token: string) {
  */
 async function verifyAccessToken(token: string): Promise<AccessTokenPayload | null> {
   try {
-    // `verify` выбрасывает ошибку, если токен невалиден (истек, подпись неверна)
-    const payload = await verify(token, JWT_SECRET)
+    const payload = await verify(token, JWT_SECRET, 'HS256')
 
-    // Используем `as unknown as Type` для безопасного приведения типов,
-    // так как мы уверены в структуре, которую сами же и создали в `sign`.
     return payload as unknown as AccessTokenPayload
   }
   catch (error) {

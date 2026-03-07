@@ -143,18 +143,15 @@ export const useThemeStore = defineStore('theme', () => {
   const customThemeShadows = useStorage<ShadowPalette>('custom-theme-shadows', defaultLightShadows)
   const backgroundSettings = useStorage<BackgroundSettings>('custom-theme-background', defaultBackgroundSettings)
 
-  // --- GETTERS ---
   const isCustomThemeActive = computed(() => activeThemeName.value === 'custom')
   const currentTheme = computed(() => activeThemeName.value)
 
-  // --- ACTIONS ---
   function resetBackgroundSettings() {
     backgroundSettings.value = { ...defaultBackgroundSettings }
   }
 
   function setTheme(name: ThemeType) {
     activeThemeName.value = name
-    // Если выбирается стандартная тема (не кастомная), сбрасываем настройки фона на дефолтные
     if (name !== 'custom') {
       resetBackgroundSettings()
     }

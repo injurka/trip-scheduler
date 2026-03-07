@@ -14,7 +14,6 @@ const { plan, ui } = useModuleStore(['plan', 'ui'])
 const { getActivitiesForSelectedDay, getSelectedDay } = storeToRefs(plan)
 const { isViewMode, areAllActivitiesCollapsed, isParallelPlanView } = storeToRefs(ui)
 
-// --- View Modes ---
 const viewMode = ref<'template' | 'canvas'>('template')
 const isFullScreen = ref(false)
 
@@ -66,7 +65,6 @@ onKeyStroke('Escape', (e) => {
   }
 })
 
-// --- Логика для сворачивания ---
 const allActivityIds = computed(() => getActivitiesForSelectedDay.value.map((a: IActivity) => a.id))
 const allRouteBlocksCollapsed = computed(() => areAllActivitiesCollapsed.value(allActivityIds.value))
 const collapseRouteIcon = computed(() => allRouteBlocksCollapsed.value ? 'mdi:chevron-double-down' : 'mdi:chevron-double-up')
@@ -75,7 +73,6 @@ const collapseRouteIcon = computed(() => allRouteBlocksCollapsed.value ? 'mdi:ch
 <template>
   <div class="plan-view" :class="{ 'is-full-screen': isFullScreen }">
     <div class="divider-with-action" :class="{ 'is-parallel-mode': isParallelPlanView }">
-      <!-- Левая панель управления видами -->
       <div v-if="!isFullScreen" class="view-mode-controls left">
         <div class="mode-group">
           <KitBtn
@@ -137,9 +134,7 @@ const collapseRouteIcon = computed(() => allRouteBlocksCollapsed.value ? 'mdi:ch
       </div>
     </div>
 
-    <!-- Основной контент -->
     <div class="plan-content" :class="{ 'is-parallel': isParallelPlanView }">
-      <!-- Шаблонный список (Plan) -->
       <div
         v-if="isParallelPlanView || viewMode === 'template'"
         class="plan-column"
@@ -147,7 +142,6 @@ const collapseRouteIcon = computed(() => allRouteBlocksCollapsed.value ? 'mdi:ch
         <DayActivitiesList @add="handleAddNewActivity" />
       </div>
 
-      <!-- Полотно (Canvas) -->
       <div
         v-if="isParallelPlanView || viewMode === 'canvas'"
         class="canvas-column"
@@ -167,7 +161,7 @@ const collapseRouteIcon = computed(() => allRouteBlocksCollapsed.value ? 'mdi:ch
 
   &.is-full-screen {
     position: fixed;
-    top: 0;
+    top: env(safe-area-inset-top);
     left: 0;
     width: 100vw;
     height: 100vh;

@@ -30,7 +30,7 @@ export function useLastCounts() {
       console.warn(`[useLastCounts] Неверное значение для ключа "${key}". Ожидалось число.`)
       return
     }
-    // Обновляем объект, сохраняя предыдущие значения для других ключей
+
     lastCounts.value = {
       ...lastCounts.value,
       [key]: count,
@@ -46,7 +46,7 @@ export function useLastCounts() {
   function getComputedCount(key: string, defaultValue: number = 0) {
     return computed(() => {
       const storedValue = lastCounts.value[key]
-      // Проверяем, что значение является числом
+
       if (typeof storedValue === 'number' && !Number.isNaN(storedValue)) {
         return storedValue
       }
@@ -72,10 +72,6 @@ export function useLastCounts() {
   }
 
   return {
-    /**
-     * Реактивный ref на весь объект с каунтерами.
-     * Может быть полезен для отладки или сложных сценариев.
-     */
     counts: lastCounts,
     setCount,
     getComputedCount,

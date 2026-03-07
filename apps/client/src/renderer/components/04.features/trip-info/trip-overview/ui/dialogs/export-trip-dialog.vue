@@ -28,7 +28,6 @@ type ExportFormat = 'json' | 'text'
 const selectedFormat = ref<ExportFormat>('text')
 const isExporting = ref(false)
 
-// Опции экспорта
 const options = ref({
   includeActivityDetails: true, // Текстовые заметки внутри активностей
   includeDayMeta: true, // Мета-информация дня (бейджи)
@@ -42,12 +41,10 @@ const formats = [
   { id: 'json', label: 'JSON', description: 'Структурированные данные. Подходит для резервного копирования.', icon: 'mdi:code-json' },
 ]
 
-// --- Helpers for Text Generation ---
-
 function stripMarkdown(text: string): string {
   if (!text)
     return ''
-  // Простая очистка от базового Markdown
+
   return text
     .replace(/\*\*(.*?)\*\*/g, '$1') // Bold
     .replace(/\*(.*?)\*/g, '$1') // Italic
@@ -76,7 +73,7 @@ function getBookingsText(sections: TripSection[]): string[] {
 
   content.bookings.forEach((b) => {
     lines.push(`• ${b.title} (${b.type.toUpperCase()})`)
-    // Упрощенный вывод деталей
+
     if (b.type === 'flight') {
       const segs = b.data.segments || []
       if (segs.length) {
@@ -111,7 +108,6 @@ function getChecklistText(sections: TripSection[]): string[] {
   const groups = content.groups || []
   const items = content.items || []
 
-  // Группировка
   const groupedItems: Record<string, typeof items> = {}
   items.forEach((item) => {
     const gid = item.groupId || 'ungrouped'
@@ -120,7 +116,6 @@ function getChecklistText(sections: TripSection[]): string[] {
     groupedItems[gid].push(item)
   })
 
-  // Вывод групп
   groups.forEach((g) => {
     const gItems = groupedItems[g.id]
     if (gItems && gItems.length > 0) {
@@ -132,7 +127,6 @@ function getChecklistText(sections: TripSection[]): string[] {
     }
   })
 
-  // Вывод без группы
   if (groupedItems.ungrouped && groupedItems.ungrouped.length > 0) {
     lines.push('\n[ПРОЧЕЕ]')
     groupedItems.ungrouped.forEach((i) => {
@@ -165,13 +159,10 @@ function getFinancesText(sections: TripSection[]): string[] {
   return lines
 }
 
-// --- Main Generator ---
-
 function generateTextContent(): string {
   const { trip, days, sections } = props
   const lines: string[] = []
 
-  // 1. Header
   lines.push(`${trip.title.toUpperCase()}`)
   const start = new Date(trip.startDate).toLocaleDateString('ru-RU')
   const end = new Date(trip.endDate).toLocaleDateString('ru-RU')
@@ -185,7 +176,6 @@ function generateTextContent(): string {
 
   lines.push(`\n${'='.repeat(30)}`)
 
-  // 2. Sections (Bookings, Checklist, Finances)
   if (options.value.includeBookings) {
     lines.push(...getBookingsText(sections))
   }
@@ -199,7 +189,6 @@ function generateTextContent(): string {
   lines.push(`\n${'='.repeat(30)}\n`)
   lines.push('--- 🗺 МАРШРУТ ПО ДНЯМ ---')
 
-  // 3. Days & Activities
   days.forEach((day, index) => {
     const date = new Date(day.date).toLocaleDateString('ru-RU', { weekday: 'long', day: 'numeric', month: 'long' })
     lines.push(`\nДЕНЬ ${index + 1}: ${day.title || 'Без названия'} (${date})`)
@@ -207,7 +196,6 @@ function generateTextContent(): string {
     if (day.description)
       lines.push(`  > ${stripMarkdown(day.description)}`)
 
-    // Day Meta
     if (options.value.includeDayMeta && day.meta && day.meta.length > 0) {
       const metaStrings = day.meta.map(m => `${m.title}: ${m.subtitle || ''}`).join(' | ')
       lines.push(`  [Инфо: ${metaStrings}]`)
@@ -217,7 +205,6 @@ function generateTextContent(): string {
       day.activities.forEach((act) => {
         lines.push(`  ● [${act.startTime} - ${act.endTime}] ${act.title}`)
 
-        // Activity Details
         if (options.value.includeActivityDetails && act.sections) {
           act.sections.forEach((sec) => {
             if (sec.type === EActivitySectionType.DESCRIPTION) {
@@ -248,9 +235,6 @@ function handleExport() {
     let extension = ''
 
     if (selectedFormat.value === 'json') {
-      // Для JSON можно просто фильтровать ненужные ключи, если нужно,
-      // но обычно JSON экспорт подразумевает полный бэкап.
-      // Однако, можно убрать глобальные секции, если пользователь их отключил.
       const filteredSections = sections.filter((s) => {
         if (s.type === TripSectionType.BOOKINGS && !options.value.includeBookings)
           return false
@@ -265,8 +249,6 @@ function handleExport() {
         trip,
         days: days.map(d => ({
           ...d,
-          // Если нужно, можно фильтровать meta или контент активностей и тут,
-          // но для JSON лучше оставить структуру максимально полной
         })),
         sections: filteredSections,
         exportedAt: new Date().toISOString(),
@@ -281,10 +263,10 @@ function handleExport() {
       extension = 'txt'
     }
 
-    // Trigger Download
     const blob = new Blob([content], { type: mimeType })
     const url = URL.createObjectURL(blob)
     const link = document.createElement('a')
+
     // eslint-disable-next-line regexp/no-obscure-range
     const sanitizedTitle = trip.title.replace(/[^a-zа-яё0-9]/gi, '_').toLowerCase()
     link.href = url
@@ -318,7 +300,6 @@ function handleExport() {
         Выберите формат и состав данных для сохранения на ваше устройство.
       </p>
 
-      <!-- Выбор формата -->
       <div class="formats-list">
         <div
           v-for="format in formats"
@@ -344,7 +325,6 @@ function handleExport() {
 
       <KitDivider />
 
-      <!-- Настройки содержимого (только для Text, для JSON можно скрывать или оставлять) -->
       <div class="export-settings">
         <h4 class="settings-title">
           Состав экспорта

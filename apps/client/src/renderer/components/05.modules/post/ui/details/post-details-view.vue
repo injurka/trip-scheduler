@@ -32,7 +32,6 @@ const menuItems: KitDropdownItem[] = [
   { label: 'Удалить', value: 'delete', icon: 'mdi:trash-can-outline', isDestructive: true },
 ]
 
-// --- Логика для градиентов скролла ---
 const navScrollerRef = ref<HTMLElement | null>(null)
 const canScrollLeft = ref(false)
 const canScrollRight = ref(false)
@@ -42,7 +41,7 @@ function updateScrollState() {
   if (!el)
     return
 
-  const scrollLeeway = 5 // Небольшой допуск, чтобы избежать мерцания по краям
+  const scrollLeeway = 5
   canScrollLeft.value = el.scrollLeft > scrollLeeway
   canScrollRight.value = el.scrollLeft < (el.scrollWidth - el.clientWidth - scrollLeeway)
 }
@@ -56,7 +55,6 @@ onMounted(() => {
     updateScrollState()
   }, 150)
 })
-// --- Конец логики для градиентов ---
 
 async function handleMenuAction(action: string) {
   if (action === 'edit') {

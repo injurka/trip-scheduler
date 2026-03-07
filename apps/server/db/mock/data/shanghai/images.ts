@@ -133,7 +133,6 @@ const ALL_IMAGE_FILENAMES = [
   '20250226215018.png',
 ]
 
-// Преобразуем имена файлов в объекты для вставки в БД, удаляя дубликаты
 export const MOCK_IMAGES = [...new Set(ALL_IMAGE_FILENAMES)].map(filename => ({
   id: crypto.randomUUID(),
   tripId: TRIP_ID,

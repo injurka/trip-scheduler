@@ -1,33 +1,37 @@
 <script setup lang="ts">
-import type { ImageViewerImage } from '~/components/01.kit/kit-image-viewer'
 import type { ImageQuality } from '~/components/01.kit/kit-image-viewer/models/types'
 import type { IMemory } from '~/components/05.modules/trip-info/models/types'
 import { Icon } from '@iconify/vue'
 import { onClickOutside, useStorage, useWindowSize } from '@vueuse/core'
 import { KitImage } from '~/components/01.kit/kit-image'
-import { KitImageViewer } from '~/components/01.kit/kit-image-viewer'
 import { KitInlineMdEditorWrapper } from '~/components/01.kit/kit-inline-md-editor'
 import { KitTimeField } from '~/components/01.kit/kit-time-field'
-import { useMemoryImageViewer, useMemoryItemActions, useMorph } from '../../composables'
+import { useModuleStore } from '~/components/05.modules/trip-info'
+import { useMemoryItemActions, useMorph } from '../../composables'
+import { SHARED_VIEWER_KEY } from '../../lib'
+import { resolveMemoryImageSource } from '../../lib/resolve-memory-image'
+import { useVaultMemoriesStore } from '../../store'
 
 interface Props {
   memory: IMemory
-  galleryImages?: ImageViewerImage[]
   isUnsorted?: boolean
   isViewMode?: boolean
-  timelineGroups?: any[]
   isFullScreen?: boolean
 }
+
 const props = withDefaults(defineProps<Props>(), {
-  galleryImages: () => [],
   isUnsorted: false,
   isViewMode: false,
-  timelineGroups: () => [],
   isFullScreen: false,
 })
 
+const sharedViewer = inject(SHARED_VIEWER_KEY)
+
+const vaultStore = useVaultMemoriesStore()
+const { plan: tripData } = useModuleStore(['plan'])
+const { getSelectedDay } = storeToRefs(tripData)
+
 const photoWrapperRef = ref<HTMLElement | null>(null)
-const commentEditorRef = ref(null)
 const timeEditorRef = ref<HTMLElement | null>(null)
 const ratingMenuRef = ref<HTMLElement | null>(null)
 
@@ -36,26 +40,33 @@ const { isMorphed, morphStyle, placeholderStyle, enterMorph, leaveMorph } = useM
 const preferredQuality = useStorage<ImageQuality>('viewer-quality-preference', 'large')
 
 const isDesktop = computed(() => windowWidth.value >= 1024)
-const imageSrc = computed(() => {
-  if (!props.memory.image)
-    return ''
 
+const imageSource = computed(() => {
+  const image = props.memory.image
+
+  if (!image)
+    return { url: '', variants: { small: '', medium: '', large: '' } }
+
+  return resolveMemoryImageSource(
+    image,
+    vaultStore,
+    tripData.currentTripId,
+    getSelectedDay.value?.id,
+  )
+})
+
+const imageSrcForRender = computed(() => {
   if (isMorphed.value || props.isFullScreen) {
     switch (preferredQuality.value) {
-      case 'medium':
-        return props.memory.image.variants?.medium || props.memory.image.variants?.large || props.memory.image.url
-      case 'large':
-        return props.memory.image.variants?.large || props.memory.image.url
-      case 'original':
-        return props.memory.image.url
-      default:
-        return props.memory.image.variants?.large || props.memory.image.url
+      case 'medium': return imageSource.value.variants.medium
+      case 'large': return imageSource.value.variants.large
+      case 'original': return imageSource.value.url
+      default: return imageSource.value.variants.large
     }
   }
-
-  if (isDesktop.value)
-    return props.memory.image.variants?.medium || props.memory.image.url
-  return props.memory.image.variants?.small || props.memory.image.url
+  return isDesktop.value
+    ? imageSource.value.variants.medium
+    : imageSource.value.variants.small
 })
 
 function setQuality(quality: ImageQuality) {
@@ -80,31 +91,16 @@ const {
   handleRemoveTimestamp,
 } = useMemoryItemActions({
   memory: props.memory,
-  isViewMode: props.isViewMode,
-})
-
-const {
-  imageViewer,
-  activeViewerComment,
-  activeViewerActivityTitle,
-  activeViewerTime,
-  formattedActiveViewerTime,
-  openImageViewer,
-  saveViewerComment,
-  saveViewerTime,
-} = useMemoryImageViewer({
-  memory: props.memory,
-  galleryImages: props.galleryImages,
-  timelineGroups: props.timelineGroups,
-  isTimeEditing,
-  isMorphed,
+  isViewMode: () => props.isViewMode,
 })
 
 function handleWrapperClick() {
-  if (isMorphed.value)
+  if (isMorphed.value) {
     leaveMorph()
-  else
-    openImageViewer()
+  }
+  else if (!isTimeEditing.value) {
+    sharedViewer?.openImageViewer(props.memory)
+  }
 }
 
 const isRatingMenuOpen = ref(false)
@@ -131,7 +127,6 @@ watch(() => props.isFullScreen, () => {
     leaveMorph()
 })
 
-onClickOutside(commentEditorRef, saveViewerComment)
 onClickOutside(timeEditorRef, saveTime)
 onClickOutside(ratingMenuRef, () => isRatingMenuOpen.value = false)
 </script>
@@ -157,7 +152,7 @@ onClickOutside(ratingMenuRef, () => isRatingMenuOpen.value = false)
         :style="isMorphed ? morphStyle : {}"
         @click="handleWrapperClick"
       >
-        <KitImage :src="imageSrc" object-fit="cover" />
+        <KitImage :src="imageSrcForRender" :variants="imageSource.variants" object-fit="cover" />
 
         <button
           v-if="isDesktop && !isFullScreen && !isMorphed"
@@ -319,55 +314,6 @@ onClickOutside(ratingMenuRef, () => isRatingMenuOpen.value = false)
     </template>
 
     <template v-if="memory.title && memory.imageId" />
-
-    <KitImageViewer
-      v-model:visible="imageViewer.isOpen.value"
-      v-model:current-index="imageViewer.currentIndex.value"
-      :images="imageViewer.images.value"
-      :close-on-overlay-click="true"
-    >
-      <template #footer="{ image }">
-        <div v-if="image.meta" class="viewer-custom-footer" :class="{ 'is-readonly': isViewMode }">
-          <div class="viewer-comment-section">
-            <div v-if="!isViewMode" ref="commentEditorRef">
-              <KitInlineMdEditorWrapper
-                v-model="activeViewerComment"
-                :readonly="isViewMode"
-                :features="{
-                  'block-edit': false,
-                  'image-block': false,
-                  'list-item': false,
-                  'link-tooltip': false,
-                  'toolbar': false,
-                }"
-                placeholder="Комментарий..."
-                class="viewer-comment-editor"
-              />
-            </div>
-            <div v-else>
-              <span class="activity-title">{{ activeViewerActivityTitle }}</span>
-              <hr v-if="activeViewerComment && activeViewerActivityTitle">
-              <span class="activity-comment">{{ activeViewerComment }}</span>
-            </div>
-          </div>
-
-          <div class="viewer-time-section">
-            <div v-if="!isViewMode || formattedActiveViewerTime" class="viewer-time-display">
-              <KitTimeField
-                v-if="!isViewMode"
-                v-model="activeViewerTime"
-                :readonly="isViewMode"
-                @blur="saveViewerTime"
-              />
-              <template v-else>
-                <span>{{ formattedActiveViewerTime }}</span>
-                <Icon height="19" width="19" icon="mdi:clock-outline" class="time-icon" />
-              </template>
-            </div>
-          </div>
-        </div>
-      </template>
-    </KitImageViewer>
   </div>
 </template>
 
@@ -411,6 +357,7 @@ onClickOutside(ratingMenuRef, () => isRatingMenuOpen.value = false)
           margin-top: auto;
         }
       }
+
       &:not(.isEditing) {
         right: 4px;
         bottom: 8px;
@@ -516,7 +463,6 @@ onClickOutside(ratingMenuRef, () => isRatingMenuOpen.value = false)
   align-items: center;
   justify-content: center;
   gap: 4px;
-
   height: 28px;
   padding: 0 8px;
   border-radius: 14px;
@@ -526,7 +472,6 @@ onClickOutside(ratingMenuRef, () => isRatingMenuOpen.value = false)
   border: none;
   cursor: pointer;
   transition: background-color 0.2s ease;
-
   font-size: 0.8rem;
   font-weight: 600;
 
@@ -593,7 +538,6 @@ onClickOutside(ratingMenuRef, () => isRatingMenuOpen.value = false)
   align-items: center;
   justify-content: center;
   gap: 4px;
-
   height: 28px;
   padding: 0 8px;
   border-radius: 14px;
@@ -655,10 +599,6 @@ onClickOutside(ratingMenuRef, () => isRatingMenuOpen.value = false)
     flex-shrink: 0;
   }
 
-  .morph-icon {
-    flex-shrink: 0;
-  }
-
   span {
     opacity: 0;
     white-space: nowrap;
@@ -680,7 +620,6 @@ onClickOutside(ratingMenuRef, () => isRatingMenuOpen.value = false)
     span {
       opacity: 1;
       max-width: 100px;
-      margin-left: 0px;
     }
   }
 }
@@ -724,8 +663,7 @@ onClickOutside(ratingMenuRef, () => isRatingMenuOpen.value = false)
   transition:
     background-color 0.2s ease,
     border-color 0.2s ease,
-    width 0.3s ease,
-    transform 0.2s ease;
+    width 0.3s ease;
 
   .icon-wrapper {
     width: 32px;
@@ -743,11 +681,9 @@ onClickOutside(ratingMenuRef, () => isRatingMenuOpen.value = false)
     overflow: hidden;
     font-size: 0.8rem;
     font-weight: 500;
-    margin-left: 0;
     transition:
       opacity 0.2s ease 0.1s,
-      max-width 0.3s ease,
-      margin-left 0.2s ease;
+      max-width 0.3s ease;
   }
 
   &:hover {
@@ -760,7 +696,6 @@ onClickOutside(ratingMenuRef, () => isRatingMenuOpen.value = false)
     span {
       opacity: 1;
       max-width: 80px;
-      margin-left: 0;
     }
   }
 
@@ -867,13 +802,16 @@ onClickOutside(ratingMenuRef, () => isRatingMenuOpen.value = false)
       white-space: pre-wrap;
       line-height: 1.5;
       min-height: 28px;
+
       p {
         margin: 0;
       }
+
       &:hover {
         background-color: var(--bg-hover-color);
       }
     }
+
     :deep(.prosemirror-editor-wrapper[readonly]) .editor:hover {
       background-color: transparent;
     }
@@ -903,7 +841,6 @@ onClickOutside(ratingMenuRef, () => isRatingMenuOpen.value = false)
     left: auto;
     opacity: 0;
     pointer-events: auto;
-    transition: opacity 0.2s ease;
 
     @include media-down(sm) {
       opacity: 1;
@@ -981,6 +918,7 @@ onClickOutside(ratingMenuRef, () => isRatingMenuOpen.value = false)
     font-weight: 500;
     font-size: 0.8rem;
   }
+
   .time-editor-container {
     display: flex;
     align-items: center;
@@ -997,120 +935,11 @@ onClickOutside(ratingMenuRef, () => isRatingMenuOpen.value = false)
   }
 }
 
-.viewer-custom-footer {
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  gap: 12px;
-  min-width: 210px;
-  padding: 12px;
-  background: var(--bg-tertiary-color);
-  backdrop-filter: blur(5px);
-  border-radius: var(--r-m);
-  border: 1px solid var(--border-primary-color);
-  color: var(--fg-primary-color);
-  max-width: 600px;
-  margin: 20px auto 0;
-  transition: all 0.2s ease;
-  width: 100%;
-  opacity: 0.7;
-
-  &.is-readonly {
-    gap: 8px;
-    background: var(--bg-tertiary-color);
-    padding: 12px 16px;
-    text-align: center;
-  }
-
-  &:hover {
-    opacity: 1;
-  }
-}
-
-.viewer-comment-section {
-  flex-grow: 1;
-  color: var(--fg-secondary-color);
-  transition: color 0.2s ease;
-
-  .activity-comment {
-    font-size: 0.9rem;
-  }
-  .activity-title {
-    font-size: 1rem;
-    color: var(--fg-primary-color);
-  }
-
-  hr {
-    border: 1px solid var(--border-secondary-color);
-    width: 90%;
-    margin: 8px auto;
-  }
-
-  &:hover {
-    color: var(--fg-primary-color);
-  }
-}
-
-.viewer-time-section {
-  flex-shrink: 0;
-}
-
-.viewer-comment-editor {
-  :deep(.milkdown) {
-    --crepe-color-on-background: var(--fg-primary-color);
-
-    .editor {
-      padding: 8px;
-      border-radius: var(--r-s);
-      min-height: 48px;
-      transition: background-color 0.2s ease;
-
-      p {
-        margin: 0;
-        font-size: 0.9rem;
-        border-radius: 10px;
-        overflow: hidden;
-      }
-    }
-
-    &:not([readonly]) .editor:hover {
-      background-color: var(--bg-hover-color);
-    }
-  }
-
-  &.is-readonly {
-    font-size: 1rem;
-    pointer-events: none;
-    :deep(.milkdown .editor) {
-      padding: 0;
-    }
-  }
-}
-
-.viewer-time-display {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 8px;
-  height: 100%;
-  width: 100px;
-  opacity: 0.7;
-
-  :deep(.kit-time-field) {
-    background-color: transparent;
-  }
-
-  .is-readonly & {
-    font-size: 1rem;
-    width: auto;
-    gap: 6px;
-  }
-}
-
 .fade-enter-active,
 .fade-leave-active {
   transition: opacity 0.2s ease;
 }
+
 .fade-enter-from,
 .fade-leave-to {
   opacity: 0;

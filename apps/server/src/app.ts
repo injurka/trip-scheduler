@@ -120,7 +120,7 @@ class Server {
       }
 
       const res = await createOpenApiFetchHandler({
-        endpoint: '/', // Корневой путь, так как в meta.openapi paths указаны от корня (например, /trips/cities)
+        endpoint: '/', 
         router: appRouter,
         createContext: () => createContext({} as any, c),
         req: c.req.raw,

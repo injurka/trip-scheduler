@@ -66,6 +66,7 @@ const emit = defineEmits<{
   position: fixed;
   inset: 0;
   z-index: 2000;
+  top: env(safe-area-inset-top);
 
   &[data-state='open'] {
     animation: overlay-show 200ms cubic-bezier(0.16, 1, 0.3, 1) forwards;

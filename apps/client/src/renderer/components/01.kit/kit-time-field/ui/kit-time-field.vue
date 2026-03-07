@@ -1,24 +1,34 @@
 <script setup lang="ts">
-import { Time } from '@internationalized/date'
+import type { Time } from '@internationalized/date'
 import { TimeFieldInput, TimeFieldRoot } from 'reka-ui'
+import { computed } from 'vue'
 
 interface Props {
   placeholder?: string
   disabled?: boolean
   readonly?: boolean
-  hourCycle?: '12' | '24'
+  hourCycle?: 12 | 24
 }
 
 const props = withDefaults(defineProps<Props>(), {
   placeholder: '--:--',
-  hourCycle: '24',
+  hourCycle: 24,
 })
 
 const model = defineModel<Time | null | undefined>({ required: true })
 
-watch(model, (newValue) => {
-  if (newValue === null)
-    model.value = new Time(0, 0)
+/**
+ * Reka UI ожидает `Time | undefined`, а не `Time | null`.
+ * Когда model = null, важно передавать undefined — иначе Time(0,0)
+ * инициализирует segmentValues.hour = 0 вместо null,
+ * из-за чего updateHour считает "0" первой введённой цифрой
+ * и прыгает на следующий сегмент уже после первого нажатия.
+ */
+const internalModel = computed({
+  get: (): Time | undefined => model.value ?? undefined,
+  set: (val: Time | undefined) => {
+    model.value = val ?? null
+  },
 })
 </script>
 
@@ -27,31 +37,20 @@ watch(model, (newValue) => {
     <TimeFieldRoot
       id="time-field"
       v-slot="{ segments }"
-      v-model="model"
+      v-model="internalModel"
       granularity="minute"
       :disabled="props.disabled"
       :readonly="props.readonly"
+      :hour-cycle="props.hourCycle"
       class="kit-time-field"
-      :hour-cycle="24"
-      part="dayPeriod"
     >
-      <template
+      <TimeFieldInput
         v-for="item in segments"
         :key="item.part"
+        :part="item.part"
       >
-        <TimeFieldInput
-          v-if="item.part === 'literal'"
-          :part="item.part"
-        >
-          {{ item.value }}
-        </TimeFieldInput>
-        <TimeFieldInput
-          v-else
-          :part="item.part"
-        >
-          {{ item.value }}
-        </TimeFieldInput>
-      </template>
+        {{ item.value }}
+      </TimeFieldInput>
     </TimeFieldRoot>
   </div>
 </template>

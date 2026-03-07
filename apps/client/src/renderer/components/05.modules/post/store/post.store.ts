@@ -104,18 +104,14 @@ export const usePostStore = defineStore('post-main', {
     },
 
     async fetchPostById(id: string): Promise<PostDetail | undefined> {
-      // --- ИСПРАВЛЕНИЕ ЗДЕСЬ ---
-      // Убрана всякая проверка. Мы всегда запрашиваем свежие данные.
       let post: PostDetail | undefined
       await useRequest<PostDetail>({
         key: EPostRequestKeys.GET_BY_ID,
         fn: db => db.posts.getById({ id }),
         onSuccess: (data) => {
           if (data) {
-            // Трансформируем данные в удобный для UI вид
             data.stages = transformElementsToStages(data.elements, data.media)
 
-            // Обновляем или добавляем пост в локальное хранилище
             const existingIndex = this.posts.findIndex(p => p.id === id)
             if (existingIndex !== -1) {
               this.posts.splice(existingIndex, 1, data)

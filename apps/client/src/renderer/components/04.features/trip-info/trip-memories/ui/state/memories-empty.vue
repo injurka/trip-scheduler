@@ -1,46 +1,114 @@
 <script setup lang="ts">
+import type { Activity } from '~/shared/types/models/activity'
 import { Icon } from '@iconify/vue'
-import { KitBtn } from '~/components/01.kit/kit-btn'
+import { useMediaQuery } from '@vueuse/core'
+import { KitBottomSheet } from '~/components/01.kit/kit-bottom-sheet'
+import { KitDropdown } from '~/components/01.kit/kit-dropdown'
 
 interface Props {
   isViewMode: boolean
+  importOptions?: { value: Activity, label: string, icon?: string }[]
 }
-defineProps<Props>()
+
+withDefaults(defineProps<Props>(), {
+  importOptions: () => [],
+})
 
 const emit = defineEmits<{
   (e: 'upload'): void
   (e: 'addNote'): void
   (e: 'addActivity'): void
+  (e: 'import', activity: Activity): void
 }>()
+
+const showImportSheet = ref(false)
+const isMobile = useMediaQuery('(max-width: 768px)')
+
+function handleImportSelect(activity: Activity) {
+  emit('import', activity)
+  showImportSheet.value = false
+}
 </script>
 
 <template>
   <div class="memories-empty">
-    <div class="empty-content">
-      <Icon icon="mdi:camera-iris" class="empty-icon" />
-      <p class="empty-title">
-        В этом дне пока нет воспоминаний
-      </p>
-      <p v-if="!isViewMode" class="empty-description">
-        Загрузите фотографии или добавьте заметки, чтобы создать ленту дня.
-      </p>
-      <p v-else class="empty-description">
-        Автор пока не добавил ничего в этот день.
-      </p>
-
-      <div v-if="!isViewMode" class="actions">
-        <KitBtn icon="mdi:camera-plus-outline" @click="emit('upload')">
-          Загрузить фото
-        </KitBtn>
-        <div class="secondary-actions">
-          <KitBtn variant="outlined" color="secondary" icon="mdi:plus-box-outline" @click="emit('addActivity')">
-            Активность
-          </KitBtn>
-          <KitBtn variant="outlined" color="secondary" icon="mdi:note-plus-outline" @click="emit('addNote')">
-            Заметка
-          </KitBtn>
-        </div>
+    <div class="empty-card">
+      <!-- Иконка -->
+      <div class="empty-icon-wrap">
+        <Icon icon="mdi:camera-iris" class="empty-icon" />
       </div>
+
+      <!-- Текст -->
+      <div class="empty-text">
+        <p class="empty-title">
+          В этом дне пока нет воспоминаний
+        </p>
+        <p class="empty-subtitle">
+          Загрузите фотографии или добавьте заметки, чтобы создать ленту дня.
+        </p>
+      </div>
+
+      <template v-if="!isViewMode">
+        <div class="empty-actions">
+          <button class="btn-upload" @click="emit('upload')">
+            <Icon icon="mdi:camera-plus-outline" class="btn-icon" />
+            <span>Загрузить фото</span>
+          </button>
+
+          <div class="btn-secondary-group">
+            <button class="btn-secondary" @click="emit('addActivity')">
+              <Icon icon="mdi:plus-box-outline" class="btn-icon" />
+              <span>Активность</span>
+            </button>
+
+            <button class="btn-secondary" @click="emit('addNote')">
+              <Icon icon="mdi:note-plus-outline" class="btn-icon" />
+              <span>Заметка</span>
+            </button>
+
+            <template v-if="isMobile">
+              <button
+                class="btn-secondary"
+                :disabled="importOptions.length === 0"
+                @click="showImportSheet = true"
+              >
+                <Icon icon="mdi:import" class="btn-icon" />
+                <span>Из плана</span>
+              </button>
+
+              <KitBottomSheet v-model="showImportSheet" title="Импорт из плана">
+                <div class="import-sheet-list">
+                  <button
+                    v-for="item in importOptions"
+                    :key="String(item.value)"
+                    class="import-sheet-item"
+                    @click="handleImportSelect(item.value)"
+                  >
+                    <span class="import-sheet-item-icon-wrap">
+                      <Icon v-if="item.icon" :icon="item.icon" />
+                    </span>
+                    <span class="import-sheet-item-label">{{ item.label }}</span>
+                  </button>
+                </div>
+              </KitBottomSheet>
+            </template>
+
+            <KitDropdown
+              v-else
+              :items="importOptions"
+              align="end"
+              @update:model-value="emit('import', $event)"
+            >
+              <template #trigger>
+                <button class="btn-secondary" :disabled="importOptions.length === 0">
+                  <Icon icon="mdi:import" class="btn-icon" />
+                  <span>Из плана</span>
+                </button>
+              </template>
+            </KitDropdown>
+          </div>
+        </div>
+      </template>
     </div>
   </div>
 </template>
@@ -50,59 +118,183 @@ const emit = defineEmits<{
   display: flex;
   justify-content: center;
   align-items: center;
-  min-height: 400px;
-  padding: 24px;
-  margin-top: 16px;
+  padding: 8px 0 24px;
 }
 
-.empty-content {
+.empty-card {
   display: flex;
   flex-direction: column;
   align-items: center;
-  text-align: center;
-  max-width: 400px;
+  gap: 20px;
+  padding: 40px 32px 32px;
+  width: 100%;
+  max-width: 560px;
   background-color: var(--bg-secondary-color);
-  padding: 48px 32px;
+  border: 1.5px dashed var(--border-secondary-color);
   border-radius: var(--r-l);
-  border: 2px dashed var(--border-secondary-color);
+  text-align: center;
+}
+
+.empty-icon-wrap {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 64px;
+  height: 64px;
+  border-radius: 50%;
+  background-color: var(--bg-tertiary-color);
 }
 
 .empty-icon {
-  font-size: 4rem;
-  color: var(--fg-tertiary-color);
-  margin-bottom: 24px;
-  opacity: 0.5;
+  font-size: 2rem;
+  color: var(--fg-secondary-color);
+  opacity: 0.6;
+}
+
+.empty-text {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
 }
 
 .empty-title {
-  font-size: 1.25rem;
-  font-weight: 600;
+  font-size: 1.05rem;
+  font-weight: 700;
   color: var(--fg-primary-color);
-  margin: 0 0 8px;
+  margin: 0;
+  line-height: 1.4;
 }
 
-.empty-description {
-  font-size: 1rem;
+.empty-subtitle {
+  font-size: 0.875rem;
   color: var(--fg-secondary-color);
-  margin: 0 0 32px;
-  line-height: 1.5;
+  margin: 0;
+  line-height: 1.6;
 }
 
-.actions {
+.empty-actions {
   display: flex;
   flex-direction: column;
-  gap: 12px;
+  gap: 10px;
   width: 100%;
 }
 
-.secondary-actions {
+.btn-upload {
   display: flex;
-  gap: 12px;
+  align-items: center;
   justify-content: center;
+  gap: 8px;
   width: 100%;
+  padding: 14px 20px;
+  background-color: var(--fg-accent-color);
+  color: #fff;
+  border: none;
+  border-radius: var(--r-s);
+  font-size: 0.9rem;
+  font-weight: 600;
+  font-family: inherit;
+  cursor: pointer;
+  transition:
+    opacity 0.2s ease,
+    transform 0.1s ease;
 
-  .kit-btn {
-    flex: 1;
+  &:hover {
+    opacity: 0.88;
+  }
+
+  &:active {
+    transform: scale(0.99);
+  }
+}
+
+.btn-secondary-group {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 8px;
+  width: 100%;
+}
+
+.btn-secondary {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 12px 8px;
+  background-color: var(--bg-primary-color);
+  border: 1.5px solid var(--border-secondary-color);
+  border-radius: var(--r-s);
+  font-size: 0.8rem;
+  font-weight: 500;
+  font-family: inherit;
+  color: var(--fg-primary-color);
+  cursor: pointer;
+  transition:
+    background-color 0.15s ease,
+    border-color 0.15s ease;
+
+  &:hover:not(:disabled) {
+    background-color: var(--bg-hover-color);
+    border-color: var(--border-primary-color);
+  }
+
+  &:disabled {
+    opacity: 0.45;
+    cursor: not-allowed;
+  }
+}
+
+.btn-icon {
+  font-size: 1.2rem;
+  color: var(--fg-secondary-color);
+
+  .btn-upload & {
+    color: #fff;
+  }
+}
+
+.import-sheet-list {
+  display: flex;
+  flex-direction: column;
+  padding: 8px 0 16px;
+}
+
+.import-sheet-item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 8px;
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  text-align: left;
+  transition: background-color 0.15s ease;
+  width: 100%;
+  border-radius: var(--r-s);
+
+  &:hover,
+  &:active {
+    background-color: var(--bg-hover-color);
+  }
+
+  &-icon-wrap {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 36px;
+    height: 36px;
+    border-radius: var(--r-s);
+    background-color: var(--bg-secondary-color);
+    color: var(--fg-secondary-color);
+    font-size: 1.2rem;
+    flex-shrink: 0;
+  }
+
+  &-label {
+    flex-grow: 1;
+    font-size: 0.95rem;
+    color: var(--fg-primary-color);
+    line-height: 1.4;
   }
 }
 </style>

@@ -74,7 +74,6 @@ const secondaryMenuItems = computed(() => [
   },
 ])
 
-// ... (остальной код без изменений)
 async function handleLogout() {
   await store.auth.signOut()
   open.value = false
@@ -190,7 +189,6 @@ const logoutItem = { label: 'Выйти', icon: 'mdi:logout', action: () => hand
 </template>
 
 <style lang="scss" scoped>
-/* Стили остаются без изменений */
 .profile-drawer {
   display: flex;
   flex-direction: column;

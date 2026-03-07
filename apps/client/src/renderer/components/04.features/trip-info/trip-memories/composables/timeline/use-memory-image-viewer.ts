@@ -27,11 +27,8 @@ export function useMemoryImageViewer(props: UseMemoryImageViewerProps) {
   const formattedActiveViewerTime = computed(() => {
     if (!activeViewerTime.value)
       return ''
-    
-    const hours = String(activeViewerTime.value.hour).padStart(2, '0')
-    const minutes = String(activeViewerTime.value.minute).padStart(2, '0')
 
-    return `${hours}:${minutes}`
+    return formatTime(activeViewerTime.value.hour, activeViewerTime.value.minute)
   })
 
   function openImageViewer() {
@@ -42,15 +39,21 @@ export function useMemoryImageViewer(props: UseMemoryImageViewerProps) {
     if (imageList.length === 0)
       return
 
-    const startIndex = imageList.findIndex(img => img.url === props.memory.image?.url)
+    const startIndex = imageList.findIndex((img) => {
+      const meta = img.meta as CustomImageViewerImageMeta | undefined
+      return meta?.memoryId === props.memory.id
+    })
+
     if (startIndex !== -1)
       imageViewer.open(imageList, startIndex)
   }
 
   function saveViewerComment() {
     const meta = imageViewer.currentImage.value?.meta as CustomImageViewerImageMeta | undefined
+
     if (meta?.memoryId) {
       const originalMemory = memories.memories.find((m: IMemory) => m.id === meta.memoryId)
+
       if (originalMemory && activeViewerComment.value !== (originalMemory.comment || ''))
         updateMemory({ id: meta.memoryId, comment: activeViewerComment.value })
     }

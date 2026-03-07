@@ -8,7 +8,7 @@ defineProps<{
 }>()
 
 const emit = defineEmits<{
-  (e: 'click-image', id: string): void
+  (e: 'clickImage', id: string): void
 }>()
 </script>
 
@@ -25,7 +25,7 @@ const emit = defineEmits<{
         v-for="item in group.items"
         :key="item.id"
         class="photo-card"
-        @click="emit('click-image', item.id)"
+        @click="emit('clickImage', item.id)"
       >
         <KitImage
           :src="item.image?.variants?.medium || item.image?.url"

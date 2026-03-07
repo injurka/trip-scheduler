@@ -11,7 +11,7 @@ export interface IImageViewerImageMeta extends ImageMetadata {
 export interface ImageViewerImage {
   url: string
   alt?: string
-  caption?: string
+  caption?: string | null
   meta?: IImageViewerImageMeta
   variants?: {
     small?: string

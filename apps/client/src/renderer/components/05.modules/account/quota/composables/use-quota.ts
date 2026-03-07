@@ -1,7 +1,6 @@
 import type { Plan } from '~/shared/types/models/trip'
 import { useRequest, useRequestStatus } from '~/plugins/request'
 
-// Mock-данные для price, т.к. их нет в схеме БД
 const planPrices: Record<number, { monthly: number, yearly: number }> = {
   1: { monthly: 0, yearly: 0 },
   2: { monthly: 0, yearly: 0 },
@@ -31,13 +30,11 @@ export function useQuota() {
   const isLoading = useRequestStatus(EAccountKeys.FETCH_PLANS)
 
   const plans = computed(() => {
-    // Обогащаем планы данными, которые хранятся только на фронте (цены, описания)
     return rawPlans.value.map(plan => ({
       ...plan,
       price: planPrices[plan.id] || { monthly: 0, yearly: 0 },
       description: planDescriptions[plan.id] || 'Описание для этого тарифа не найдено.',
       features: planFeatures[plan.id] || [],
-      // ЗАГЛУШКА: Логика определения текущего тарифа
       isCurrent: plan.id === 1,
     }))
   })

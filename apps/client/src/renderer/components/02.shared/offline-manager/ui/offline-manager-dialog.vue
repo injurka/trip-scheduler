@@ -18,7 +18,6 @@ const emit = defineEmits<{
 
 const offlineStore = useOfflineStore()
 const router = useRouter()
-// Для обновления текущего открытого путешествия, если мы в нем
 const moduleStore = useModuleStore(['plan'])
 
 function goToTrip(id: string) {
@@ -31,8 +30,6 @@ function handleDelete(id: string) {
 }
 
 async function handleUpdate(id: string) {
-  // Чтобы обновить, нам нужно сначала скачать свежие данные с сервера.
-  // Если мы уже на странице этого путешествия, берем данные из стора
   if (moduleStore.plan.currentTripId === id && moduleStore.plan.trip) {
     await offlineStore.saveTripForOffline({
       ...moduleStore.plan.trip,
@@ -42,9 +39,6 @@ async function handleUpdate(id: string) {
     })
   }
   else {
-    // Если мы не в этом путешествии, сложнее.
-    // В идеале нужно сделать fetchTripDetails(id) во временную переменную.
-    // Покажем тост, что нужно открыть путешествие.
     const toast = useToast()
     toast.info('Откройте путешествие, чтобы обновить его кэш.')
     goToTrip(id)

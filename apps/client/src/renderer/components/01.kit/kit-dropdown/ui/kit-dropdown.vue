@@ -58,7 +58,7 @@ function handleSelect(item: KitDropdownItem<T>) {
         class="kit-dropdown-content"
         :side-offset="props.sideOffset"
         :align="props.align"
-        предотвращает нежелательный фокус после закрытия @close-auto-focus.prevent
+        @close-auto-focus.prevent
       >
         <template v-if="props.items.length > 0">
           <DropdownMenuItem
@@ -88,8 +88,11 @@ function handleSelect(item: KitDropdownItem<T>) {
   box-shadow: var(--s-l);
   z-index: 2100;
   min-width: 200px;
-}
 
+  max-height: var(--reka-dropdown-menu-content-available-height);
+  max-width: var(--reka-dropdown-menu-content-available-width);
+  overflow-y: auto;
+}
 .kit-dropdown-item {
   display: flex;
   align-items: center;
@@ -102,6 +105,7 @@ function handleSelect(item: KitDropdownItem<T>) {
   &--sm {
     padding: 6px 10px;
     font-size: 0.875rem;
+
     .item-icon {
       font-size: 1rem;
     }
@@ -149,9 +153,14 @@ function handleSelect(item: KitDropdownItem<T>) {
 
 .item-icon {
   color: var(--fg-secondary-color);
+  flex-shrink: 0;
 }
 
 .item-label {
   flex-grow: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 </style>

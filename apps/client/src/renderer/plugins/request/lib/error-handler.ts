@@ -58,7 +58,6 @@ export function createApiErrorHandler(options: IApiErrorHandlerOptions = {}) {
   return (payload: IErrorCallback) => {
     const { error } = payload
 
-    // Извлекаем статус-код из разных возможных полей для универсальности
     const statusCode = error?.data?.httpStatus
       || error?.shape?.data?.httpStatus
       || error?.statusCode
@@ -69,25 +68,21 @@ export function createApiErrorHandler(options: IApiErrorHandlerOptions = {}) {
 
     console.error('[API Error Handler]', error)
 
-    // 1. Кастомный обработчик
     if (options.handlers?.custom) {
       const result = options.handlers.custom(error, addToast)
       if (result === false)
         return
     }
 
-    // 2. Проверяем, есть ли кастомный обработчик для этого кода
     if (options.handlers && options.handlers[statusCode]) {
       const result = options.handlers[statusCode](error, addToast)
       if (result === false)
         return
     }
 
-    // 3. Проверяем, нужно ли игнорировать эту ошибку
     if (options.ignoreCodes?.includes(statusCode))
       return
 
-    // 4. Стандартная логика определения сообщения
     let description = ''
 
     if (trpcCode === 'FORBIDDEN' || statusCode === 403) {
@@ -118,7 +113,6 @@ export function createApiErrorHandler(options: IApiErrorHandlerOptions = {}) {
       }
     }
 
-    // 5. Показываем toast-уведомление
     if (options.showToast ?? true)
       addToast({ type: 'error', detail: description, expire: 5000 })
   }

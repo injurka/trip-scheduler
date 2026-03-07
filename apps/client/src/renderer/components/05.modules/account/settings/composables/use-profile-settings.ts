@@ -1,3 +1,4 @@
+import { useVaultMemoriesStore } from '~/components/04.features/trip-info/trip-memories/store/vault-memories.store'
 import { useRequestStatus } from '~/plugins/request'
 import { AppRouteNames } from '~/shared/constants/routes'
 import { trpc } from '~/shared/services/trpc/trpc.service'
@@ -8,6 +9,7 @@ export function useProfileSettings() {
   const toast = useToast()
   const confirm = useConfirm()
   const router = useRouter()
+  const vaultStore = useVaultMemoriesStore()
 
   const user = computed(() => authStore.user)
 
@@ -115,7 +117,14 @@ export function useProfileSettings() {
     }
   })
 
+  onMounted(() => {
+    vaultStore.init()
+  })
+
   return {
+    vaultPath: vaultStore.vaultPath,
+    selectVaultFolder: vaultStore.selectFolder,
+    isElectron: vaultStore.isElectron,
     user,
     profileForm,
     passwordForm,

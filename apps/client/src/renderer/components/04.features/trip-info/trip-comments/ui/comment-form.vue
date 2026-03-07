@@ -9,6 +9,7 @@ const emit = defineEmits<{
 }>()
 
 const authStore = useAuthStore()
+// @ts-expect-error используется в template
 const { textarea, input: newCommentText } = useTextareaAutosize()
 
 function handleSubmit() {

@@ -68,20 +68,6 @@ export default defineConfig({
       input: {
         main: resolve(__dirname, '../src/renderer/index.html'),
       },
-      // output: {
-      //   manualChunks(id) {
-      //     // Выделяем тяжелые библиотеки в отдельные файлы
-      //     if (id.includes('node_modules')) {
-      //       if (id.includes('openlayers') || id.includes('ol')) {
-      //         return 'ol' // Карты отдельно
-      //       }
-      //       if (id.includes('chart.js') || id.includes('vue-chartjs')) {
-      //         return 'chart' // Графики отдельно
-      //       }
-      //       return 'vendor' // Всё остальное
-      //     }
-      //   },
-      // },
     },
   },
 })

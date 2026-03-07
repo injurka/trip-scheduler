@@ -40,7 +40,6 @@ const confirm = useConfirm()
 const store = useModuleStore(['plan', 'sections'])
 const { getSelectedDay } = storeToRefs(store.plan)
 
-// --- State ---
 const isEditorOpen = ref(false)
 const isViewerOpen = ref(false)
 const currentItem = ref<DayMetaInfo | null>(null)
@@ -48,7 +47,6 @@ const iconSearchQuery = ref('')
 const isAddMenuOpen = ref(false)
 const isBookingsModalOpen = ref(false)
 
-// --- Constants ---
 const defaultColors = [
   'var(--bg-secondary-color)',
   'var(--bg-tertiary-color)',

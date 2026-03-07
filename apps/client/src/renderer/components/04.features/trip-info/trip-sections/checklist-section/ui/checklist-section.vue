@@ -12,7 +12,6 @@ import ChecklistGroupComponent from './checklist-group.vue'
 import ChecklistItemComponent from './checklist-item.vue'
 import ChecklistPresetsModal from './checklist-presets-modal.vue'
 
-// --- Типы ---
 interface Props {
   section: {
     id: string
@@ -27,7 +26,6 @@ const emit = defineEmits<{
   (e: 'updateSection', value: { id: string, type: 'checklist', content: ChecklistSectionContent }): void
 }>()
 
-// --- Логика из хука ---
 const {
   items,
   groups,

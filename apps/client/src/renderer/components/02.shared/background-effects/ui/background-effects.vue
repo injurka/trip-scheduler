@@ -95,7 +95,6 @@ onMounted(() => {
     background-position: center;
     background-repeat: no-repeat;
     filter: blur(8px) grayscale(30%);
-    // opacity управляется через inline-style
     z-index: 0;
     transition: opacity 0.3s ease;
   }

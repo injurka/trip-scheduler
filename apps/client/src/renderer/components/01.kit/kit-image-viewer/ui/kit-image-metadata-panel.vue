@@ -16,10 +16,7 @@ const emit = defineEmits<{
 }>()
 
 const panelRef = ref<HTMLElement | null>(null)
-
 const showExtended = ref(false)
-
-// --- Состояния для управления картой ---
 const showMap = ref(false)
 
 onClickOutside(panelRef, () => {
@@ -42,8 +39,8 @@ function toggleMap() {
 const mapCenter = computed((): [number, number] => {
   const coords = gpsCoordinates.value
   if (!coords)
-    return [0, 0] // Default, should not be visible anyway
-  // [longitude, latitude] for OpenLayers
+    return [0, 0]
+
   return [coords.longitude, coords.latitude]
 })
 
@@ -109,8 +106,6 @@ function formatFlash(flashValue: number | boolean | undefined): string {
 
   return flashMap[flashValue] ?? `Код ${flashValue}`
 }
-
-// --- Вычисляемые свойства для категорий ---
 
 const cameraInfo = computed(() => {
   const meta = props.meta

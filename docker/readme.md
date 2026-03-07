@@ -96,7 +96,6 @@ echo "--- Сборка образа клиента с тегом: trip-scheduler
 docker build -f ./docker/Dockerfile.client -t trip-scheduler-client:$VERSION . \
   --build-arg VITE_APP_SERVER_URL=https://api.trip-scheduler.ru \
   --build-arg VITE_APP_API_MODE=trpc \
-  --build-arg VITE_APP_SERVER_STATIC_PATH=static/images \
   --build-arg VITE_MAPTILER_KEY=
 
 echo "--- Сборка образа клиента trip-scheduler-client:$VERSION завершена успешно! ---"
@@ -198,20 +197,19 @@ echo "--- Контейнер $CONTAINER_NAME успешно запущен! ---"
 
 ## Deploy
 
-./docker/build_client.sh v54
-./docker/build_server.sh v45
+<!-- НАДО -->
+
+./docker/build_client.sh v61
+./docker/build_server.sh v48
 
 docker compose down
 
-V_CLIENT=v54 V_SERVER=v45 docker compose up -d
+V_CLIENT=v61 V_SERVER=v48 docker compose up -d
 
 ---
 
-docker tag trip-scheduler-client:v54 injurka/trip-scheduler-client:v54
-docker push injurka/trip-scheduler-client:v54
+docker tag trip-scheduler-client:v61 injurka/trip-scheduler-client:v61
+docker push injurka/trip-scheduler-client:v61
 
-docker tag trip-scheduler-server:v45 injurka/trip-scheduler-server:v45
-docker push injurka/trip-scheduler-server:v45
-
-
-
+docker tag trip-scheduler-server:v48 injurka/trip-scheduler-server:v48
+docker push injurka/trip-scheduler-server:v48

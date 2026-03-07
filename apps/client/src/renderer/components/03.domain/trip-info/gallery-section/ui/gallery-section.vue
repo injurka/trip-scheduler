@@ -34,7 +34,6 @@ const fetchError = useRequestError(ETripGalleryKeys.FETCH_IMAGES)
 const imageUrls = computed(() => props.section.imageUrls || [])
 const tripId = computed(() => route.params.id as string)
 
-// --- Data Loading ---
 function loadImages() {
   if (tripId.value) {
     store.routeGallery.setTripId(tripId.value)
@@ -46,14 +45,12 @@ onMounted(() => {
   loadImages()
 })
 
-// --- Computed Data ---
 const fullImagesData = computed(() => {
   return imageUrls.value
     .map(url => tripImages.value.find(tripImg => tripImg.url === url))
     .filter((img): img is TripImage => !!img)
 })
 
-// Для AsyncStateWrapper
 const displayData = computed(() => fullImagesData.value.length > 0 ? fullImagesData.value : null)
 
 const viewerImages = computed<ImageViewerImage[]>(() =>
@@ -64,7 +61,6 @@ const imageViewer = useImageViewer({
   enableKeyboard: true,
 })
 
-// CSS классы для сетки в зависимости от кол-ва изображений
 const galleryClass = computed(() => {
   const count = imageUrls.value.length
   if (count <= 3)
@@ -87,7 +83,6 @@ const visibleImages = computed(() =>
   imageUrls.value.slice(0, maxVisibleImages.value),
 )
 
-// --- Actions ---
 function deleteImage(index: number) {
   const updatedUrls = imageUrls.value.filter((_, i) => i !== index)
   emit('updateSection', { ...props.section, imageUrls: updatedUrls })
@@ -122,7 +117,6 @@ async function handleFileUpload(event: Event) {
   target.value = ''
 }
 
-// Обновление секции после выбора в пикере
 function handlePickerConfirm(selectedUrls: string[]) {
   emit('updateSection', { ...props.section, imageUrls: selectedUrls })
 }

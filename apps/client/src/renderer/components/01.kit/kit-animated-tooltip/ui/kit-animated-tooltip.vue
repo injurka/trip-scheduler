@@ -1,9 +1,11 @@
 <script setup lang="ts">
-const props = withDefaults(defineProps<{
+interface Props {
   name: string
   offset?: number
-}>(), {
-  offset: 8, // Расстояние от аватара в пикселях
+}
+
+const props = withDefaults(defineProps<Props>(), {
+  offset: 8,
 })
 
 const isHovered = ref(false)

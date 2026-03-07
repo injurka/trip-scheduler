@@ -1,8 +1,13 @@
+import type { MaybeRefOrGetter } from 'vue'
 import type { IMemory } from '~/components/05.modules/trip-info/models/types'
 import { Time } from '@internationalized/date'
+import { toValue } from 'vue'
 import { useModuleStore } from '~/components/05.modules/trip-info/composables/use-trip-info-module'
 
-export function useMemoryItemActions(props: { memory: IMemory, isViewMode: boolean }) {
+export function useMemoryItemActions(props: {
+  memory: IMemory
+  isViewMode: MaybeRefOrGetter<boolean>
+}) {
   const confirm = useConfirm()
   const { memories, plan } = useModuleStore(['memories', 'plan'])
 
@@ -18,25 +23,22 @@ export function useMemoryItemActions(props: { memory: IMemory, isViewMode: boole
     if (!props.memory.timestamp)
       return ''
 
-    const d = new Date(props.memory.timestamp)
-    const hours = d.getUTCHours().toString().padStart(2, '0')
-    const minutes = d.getUTCMinutes().toString().padStart(2, '0')
-    const formattedTime = `${hours}:${minutes}`
-
     if (props.memory.title)
       return ''
-    if (formattedTime === '00:00')
-      return ''
-    return formattedTime
+
+    const formatted = formatTimestamp(props.memory.timestamp)
+
+    return formatted === '00:00' ? '' : formatted
   })
 
   function handleTimeClick() {
-    if (props.isViewMode)
+    if (toValue(props.isViewMode))
       return
+
     isTimeEditing.value = true
+
     if (props.memory.timestamp) {
-      const d = new Date(props.memory.timestamp)
-      editingTime.value = new Time(d.getUTCHours(), d.getUTCMinutes())
+      editingTime.value = getTimeFromTimestamp(props.memory.timestamp)
     }
     else {
       editingTime.value = new Time()
@@ -61,7 +63,7 @@ export function useMemoryItemActions(props: { memory: IMemory, isViewMode: boole
   }
 
   function saveRating(rating: number) {
-    if (props.isViewMode)
+    if (toValue(props.isViewMode))
       return
 
     const newRating = props.memory.rating === rating ? null : rating

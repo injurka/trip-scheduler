@@ -18,7 +18,6 @@ const emit = defineEmits<{
 
 const expandedPresetId = ref<string | null>(null)
 
-// Фильтруем пресеты в зависимости от активной вкладки
 const filteredPresets = computed(() => {
   return HARDCODED_PRESETS.filter(preset => preset.tab === props.currentTab)
 })

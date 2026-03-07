@@ -56,7 +56,6 @@ const {
 
 const mapContainerRef = ref<HTMLElement>()
 
-// --- Логика активации карты по клику ---
 const isMapActive = ref(!props.interactiveOnClick)
 const showActivateMessage = ref(false)
 
@@ -71,7 +70,6 @@ function activateMap() {
   modifyInteraction.setActive(!props.readonly)
 }
 
-// --- Контекстное меню ---
 const contextMenuRef = ref<HTMLElement | null>(null)
 const isContextMenuVisible = ref(false)
 const contextMenuPosition = reactive({ top: 0, left: 0, coords: [0, 0] as Coordinate })
@@ -97,7 +95,6 @@ function handleContextMenuAction(actionId: string) {
   emit('contextMenuAction', actionId, contextMenuPosition.coords)
 }
 
-// --- Синхронизация с состоянием ---
 watch(() => props.points, (newPoints, oldPoints = []) => {
   if (!isMapLoaded.value)
     return

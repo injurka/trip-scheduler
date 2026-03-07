@@ -1,12 +1,11 @@
 <script setup lang="ts">
-import type { ImageViewerImage } from '~/components/01.kit/kit-image-viewer'
+import type { Time } from '@internationalized/date'
 import type { Memory } from '~/shared/types/models/memory'
 import { Icon } from '@iconify/vue'
-import { Time } from '@internationalized/date'
 import { onClickOutside } from '@vueuse/core'
 import { KitInput } from '~/components/01.kit/kit-input'
 import { KitTimeField } from '~/components/01.kit/kit-time-field'
-import { useModuleStore } from '~/components/05.modules/trip-info/composables/use-trip-info-module'
+import { useModuleStore } from '~/components/05.modules/trip-info'
 import { getTagInfo } from '~/components/05.modules/trip-info/lib/helpers'
 import MemoriesItem from './memories-timeline-item.vue'
 
@@ -17,13 +16,9 @@ interface TimelineGroup {
   activity: Memory | null
 }
 
-type TimelineGroups = TimelineGroup[]
-
 interface Props {
   group: TimelineGroup
   isViewMode: boolean
-  galleryImages: ImageViewerImage[]
-  timelineGroups: TimelineGroups
   isCollapsed: boolean
   isFullScreen?: boolean
 }
@@ -32,20 +27,16 @@ const props = withDefaults(defineProps<Props>(), {
   isFullScreen: false,
 })
 
-defineEmits<{
-  (e: 'toggleCollapse'): void
-}>()
+defineEmits<{ toggleCollapse: [] }>()
 
 const { memories: memoriesStore, plan: tripPlanStore } = useModuleStore(['memories', 'plan'])
 const confirm = useConfirm()
 
 const isEditingTime = ref(false)
 const timeEditorRef = ref(null)
-
 const isEditingTitle = ref(false)
 const editableTitle = ref('')
 const titleEditorRef = ref(null)
-
 const editableTime = shallowRef<Time | null>(null)
 
 function handleTimeClick() {
@@ -53,8 +44,7 @@ function handleTimeClick() {
     return
 
   isEditingTime.value = true
-  const d = new Date(props.group.activity.timestamp)
-  editableTime.value = new Time(d.getUTCHours(), d.getUTCMinutes())
+  editableTime.value = getTimeFromTimestamp(props.group.activity.timestamp)
 }
 
 function handleTitleClick() {
@@ -69,20 +59,17 @@ function saveTime() {
     isEditingTime.value = false
     return
   }
-
   const day = tripPlanStore.getSelectedDay
   if (!day) {
     isEditingTime.value = false
     return
   }
-
   const datePart = day.date.split('T')[0]
-  const timePart = `${editableTime.value.hour.toString().padStart(2, '0')}:${editableTime.value.minute.toString().padStart(2, '0')}:00`
-  const newTimestamp = `${datePart}T${timePart}.000Z`
-
+  const h = editableTime.value.hour.toString().padStart(2, '0')
+  const m = editableTime.value.minute.toString().padStart(2, '0')
+  const newTimestamp = `${datePart}T${h}:${m}:00.000Z`
   if (newTimestamp !== props.group.activity.timestamp)
     memoriesStore.updateMemory({ id: props.group.activity.id, timestamp: newTimestamp })
-
   isEditingTime.value = false
 }
 
@@ -91,26 +78,21 @@ function saveTitle() {
     isEditingTitle.value = false
     return
   }
-
   const newTitle = editableTitle.value.trim()
-
   if (newTitle && newTitle !== props.group.title)
     memoriesStore.updateMemory({ id: props.group.activity.id, title: newTitle })
-
   isEditingTitle.value = false
 }
 
 async function handleDeleteActivity() {
   if (!props.group.activity)
     return
-
   const isConfirmed = await confirm({
-    title: `Удалить активность "${props.group.title}"?`,
-    description: 'Связанные с ней фото и заметки будут перемещены в предыдущую группу в ленте. Это действие нельзя отменить.',
+    title: `Удалить «${props.group.title}»?`,
+    description: 'Активность будет удалена без возможности восстановления.',
     type: 'danger',
     confirmText: 'Удалить',
   })
-
   if (isConfirmed)
     await memoriesStore.deleteMemory(props.group.activity.id)
 }
@@ -123,13 +105,9 @@ const tagInfo = computed(() => {
 
 const displayTime = computed(() => {
   if (!props.group.activity?.timestamp)
-    return '...'
+    return ''
 
-  const d = new Date(props.group.activity.timestamp)
-  const hours = d.getUTCHours().toString().padStart(2, '0')
-  const minutes = d.getUTCMinutes().toString().padStart(2, '0')
-
-  return `${hours}:${minutes}`
+  return formatTimestamp(props.group.activity.timestamp)
 })
 
 onClickOutside(timeEditorRef, saveTime)
@@ -139,17 +117,20 @@ onClickOutside(titleEditorRef, saveTitle)
 <template>
   <div
     class="activity-timeline-node"
-    :class="{
-      'is-collapsed': isCollapsed,
-      'is-fullscreen-node': isFullScreen,
-    }"
+    :class="{ 'is-collapsed': isCollapsed, 'is-fullscreen-node': isFullScreen }"
   >
     <div class="activity-header">
-      <div v-if="group.type === 'activity'" class="activity-time" :class="{ 'is-editable': !isViewMode }" @click="handleTimeClick">
+      <div
+        v-if="group.type === 'activity'"
+        class="activity-time"
+        :class="{ 'is-editable': !isViewMode }"
+        @click="handleTimeClick"
+      >
         <div v-if="isEditingTime" ref="timeEditorRef" class="time-editor-inline" @click.stop>
           <KitTimeField v-model="editableTime" />
+
           <button class="save-btn" @click="saveTime">
-            <Icon icon="mdi:check" />
+            <Icon icon="mdi:check" width="16" height="16" />
           </button>
         </div>
         <span v-else>{{ displayTime }}</span>
@@ -167,22 +148,22 @@ onClickOutside(titleEditorRef, saveTitle)
           title="Удалить активность"
           @click.stop="handleDeleteActivity"
         >
-          <Icon icon="mdi:trash-can-outline" />
+          <Icon icon="mdi:trash-can-outline" width="16" height="16" />
         </button>
-
         <button class="collapse-toggle-btn" @click="$emit('toggleCollapse')">
           <Icon :icon="isCollapsed ? 'mdi:chevron-down' : 'mdi:chevron-up'" />
         </button>
       </div>
     </div>
 
-    <h5 v-if="group.type === 'activity'" class="activity-title" :class="{ 'is-editable': !isViewMode }" @click="handleTitleClick">
+    <h5
+      v-if="group.type === 'activity'"
+      class="activity-title"
+      :class="{ 'is-editable': !isViewMode }"
+      @click="handleTitleClick"
+    >
       <div v-if="isEditingTitle" ref="titleEditorRef" class="title-editor-wrapper" @click.stop>
-        <KitInput
-          v-model="editableTitle"
-          class="title-editor"
-          @keydown.enter="saveTitle"
-        />
+        <KitInput v-model="editableTitle" class="title-editor" @keydown.enter="saveTitle" />
         <button class="save-btn" @click="saveTitle">
           <Icon icon="mdi:check" />
         </button>
@@ -196,17 +177,19 @@ onClickOutside(titleEditorRef, saveTitle)
     <div v-show="!isCollapsed" class="collapsible-content">
       <div v-if="group.activity?.sourceActivityId" class="imported-badge">
         <Icon width="18" height="18" icon="mdi:import" />
-        <span>Взято из плана</span>
+        <span>Импортировано из плана</span>
       </div>
 
-      <div v-if="group.memories.length > 0" class="memories-for-activity" :class="{ 'fullscreen-grid': isFullScreen }">
+      <div
+        v-if="group.memories.length > 0"
+        class="memories-for-activity"
+        :class="{ 'fullscreen-grid': isFullScreen }"
+      >
         <MemoriesItem
           v-for="memory in group.memories"
           :key="memory.id"
           :memory="memory"
           :is-view-mode="isViewMode"
-          :gallery-images="galleryImages"
-          :timeline-groups="timelineGroups"
           :is-full-screen="isFullScreen"
         />
       </div>
@@ -223,16 +206,22 @@ onClickOutside(titleEditorRef, saveTitle)
   padding-top: 24px;
   transition: padding-bottom 0.3s ease;
 
+  @include media-down(sm) {
+    padding-left: 12px;
+    padding-bottom: 12px;
+    padding-top: 12px;
+  }
+
   &.is-collapsed {
     padding-bottom: 0;
+  }
 
-    .activity-title:not(.in-header) {
-      margin-bottom: 0;
-    }
+  .activity-title:not(.in-header) {
+    margin-bottom: 0;
+  }
 
-    &:not(:last-child) {
-      border-left-style: dashed;
-    }
+  &:not(:last-child) {
+    border-left-style: dashed;
   }
 
   &.is-fullscreen-node {
@@ -253,7 +242,7 @@ onClickOutside(titleEditorRef, saveTitle)
       margin-bottom: 24px;
     }
 
-    .activity-time > span {
+    .activity-time span {
       font-size: 1.1rem;
     }
   }
@@ -262,108 +251,64 @@ onClickOutside(titleEditorRef, saveTitle)
     content: '';
     position: absolute;
     left: -9px;
-    top: 36px;
+    top: 30px;
     width: 16px;
     height: 16px;
+    background-color: var(--bg-primary-color);
+    border: 3px solid var(--border-secondary-color);
     border-radius: 50%;
-    background-color: var(--bg-secondary-color);
-    border: 3px solid var(--fg-accent-color);
-  }
-
-  &:first-child {
-    padding-top: 16px;
-
-    &::before {
-      top: 30px;
-    }
-
-    &.is-fullscreen-node::before {
-      top: 30px;
-    }
-  }
-
-  &:last-child {
-    margin-bottom: 32px;
-  }
-
-  @include media-down(sm) {
-    padding-left: 12px;
-
-    &::before {
-      content: '';
-      position: absolute;
-      left: -7px;
-      top: 38px;
-      width: 12px;
-      height: 12px;
-      border-radius: 50%;
-      background-color: var(--bg-secondary-color);
-      border: 3px solid var(--fg-accent-color);
-    }
   }
 }
 
 .activity-header {
   display: flex;
   align-items: center;
-  justify-content: space-between;
-  gap: 12px;
-  width: 100%;
-  border-radius: var(--r-xs) var(--r-l) var(--r-l) var(--r-xs);
-  min-height: 40px;
+  gap: 8px;
+  margin-bottom: 4px;
+}
 
-  .activity-time {
-    background-color: var(--bg-secondary-color);
-    padding: 2px 10px;
-    border: 1px solid var(--border-secondary-color);
-    border-radius: var(--r-s);
-    flex-shrink: 0;
-    transition: background-color 0.2s ease;
+.activity-header-actions {
+  display: flex;
+  gap: 4px;
+  margin-left: auto;
+  flex-shrink: 0;
+}
 
-    &.is-editable:hover {
-      cursor: pointer;
-      background-color: var(--bg-hover-color);
-    }
+.activity-time {
+  font-size: 0.85rem;
+  color: var(--fg-secondary-color);
+  font-weight: 500;
 
-    > span {
-      white-space: nowrap;
-      font-size: 0.9rem;
-      font-weight: 600;
-      color: var(--fg-secondary-color);
-    }
-  }
-
-  .activity-header-actions {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    margin-left: auto;
-  }
-
-  .collapse-toggle-btn,
-  .delete-activity-btn {
-    background: none;
-    border: none;
+  &.is-editable:hover {
     cursor: pointer;
-    color: var(--fg-secondary-color);
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    padding: 4px;
-    border-radius: 50%;
-    transition: all 0.2s ease;
-    background-color: rgba(var(--bg-secondary-color-rgb), 0.8);
+    color: var(--fg-primary-color);
   }
+}
 
-  .collapse-toggle-btn:hover {
+.collapse-toggle-btn,
+.delete-activity-btn {
+  background: none;
+  border: 1px solid transparent;
+  border-radius: var(--r-s);
+  color: var(--fg-secondary-color);
+  cursor: pointer;
+  width: 28px;
+  height: 28px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s ease;
+  padding: 4px;
+
+  &:hover {
     background-color: var(--bg-hover-color);
     color: var(--fg-primary-color);
   }
+}
 
-  .delete-activity-btn:hover {
-    color: var(--fg-error-color);
-    background-color: var(--bg-hover-color);
-  }
+.delete-activity-btn:hover {
+  color: var(--fg-error-color);
+  background-color: var(--bg-hover-color);
 }
 
 .activity-title {
@@ -377,6 +322,7 @@ onClickOutside(titleEditorRef, saveTitle)
 
   &.is-editable {
     border-radius: var(--r-xs);
+
     &:hover {
       cursor: pointer;
       background-color: var(--bg-hover-color);
@@ -386,11 +332,11 @@ onClickOutside(titleEditorRef, saveTitle)
   &.in-header {
     margin: 0;
   }
+}
 
-  .title-icon {
-    font-size: 1.2rem;
-    color: var(--fg-secondary-color);
-  }
+.title-icon {
+  font-size: 1.2rem;
+  color: var(--fg-secondary-color);
 }
 
 .time-editor-inline {
@@ -411,17 +357,17 @@ onClickOutside(titleEditorRef, saveTitle)
   align-items: center;
   gap: 8px;
   width: 100%;
-}
 
-.title-editor {
-  flex-grow: 1;
+  .title-editor {
+    flex-grow: 1;
 
-  :deep(input) {
-    font-size: 1rem;
-    font-weight: 600;
-    font-family: inherit;
-    padding: 4px 8px;
-    height: 32px;
+    :deep(input) {
+      font-size: 1rem;
+      font-weight: 600;
+      font-family: inherit;
+      padding: 4px 8px;
+      height: 32px;
+    }
   }
 }
 
@@ -429,6 +375,7 @@ onClickOutside(titleEditorRef, saveTitle)
   background: var(--fg-accent-color);
   color: white;
   border-radius: 50%;
+  padding: 4px;
   width: 24px;
   height: 24px;
   display: flex;
@@ -451,9 +398,9 @@ onClickOutside(titleEditorRef, saveTitle)
   border: 1px solid var(--border-secondary-color);
   height: 34px;
 
-  > span {
+  span {
     font-size: 0.75rem;
-    font-family: 'Sansation';
+    font-family: Sansation;
     line-height: 34px;
   }
 }

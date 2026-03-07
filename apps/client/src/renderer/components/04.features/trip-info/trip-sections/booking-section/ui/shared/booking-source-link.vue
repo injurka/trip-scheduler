@@ -8,7 +8,6 @@ interface Props {
 
 const props = defineProps<Props>()
 
-// A configuration for known booking sources
 const SOURCE_CONFIG = {
   'booking.com': { name: 'Booking.com', icon: 'simple-icons:bookingdotcom', color: '#003580' },
   'trip.com': { name: 'Trip.com', icon: 'simple-icons:tripdotcom', color: '#3264ff' },
@@ -17,7 +16,7 @@ const SOURCE_CONFIG = {
   'expedia.com': { name: 'Expedia', icon: 'simple-icons:expedia', color: '#1a1a1a' },
   'kayak.com': { name: 'Kayak', icon: 'simple-icons:kayak', color: '#ff6700' },
   'aviasales.ru': { name: 'Aviasales', icon: 'arcticons:aviasales', color: '#00b1e1' },
-  'tutu.ru': { name: 'Tutu.ru', icon: 'mdi:tram', color: '#ff4a14' }, // No specific icon, using a generic one
+  'tutu.ru': { name: 'Tutu.ru', icon: 'mdi:tram', color: '#ff4a14' },
   'rzd.ru': { name: 'РЖД', icon: 'mdi:train', color: '#e31e24' },
 } as const
 
@@ -29,19 +28,18 @@ const sourceInfo = computed(() => {
 
   try {
     const urlObject = new URL(props.url)
-    const hostname = urlObject.hostname.replace(/^www\./, '') // remove www.
+    const hostname = urlObject.hostname.replace(/^www\./, '')
 
     for (const key in SOURCE_CONFIG) {
       if (hostname.includes(key))
         return SOURCE_CONFIG[key as KnownSource]
     }
 
-    // Generic fallback
     return { name: 'Перейти по ссылке', icon: 'mdi:open-in-new', color: 'var(--fg-secondary-color)' }
   }
   catch {
     console.error('Invalid URL:', props.url)
-    return null // Don't render if URL is invalid
+    return null
   }
 })
 

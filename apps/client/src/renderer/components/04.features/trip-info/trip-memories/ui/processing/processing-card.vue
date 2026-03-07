@@ -28,21 +28,19 @@ const comment = ref(props.memory.comment || '')
 
 function initializeDateTime() {
   if (props.memory.image?.takenAt) {
-    const takenAtDate = getLocalDate(
-      props.memory.image.takenAt,
-      props.memory.image.metadata?.timezoneOffset ?? 0,
-    )
+    const takenAtDate = getLocalDate(props.memory.image.takenAt, props.memory.image.metadata?.timezoneOffset ?? 0)
+
     return {
       date: parseDate(takenAtDate.toISOString().split('T')[0]),
       time: new Time(takenAtDate.getUTCHours(), takenAtDate.getUTCMinutes()),
     }
   }
-
   if (props.memory.timestamp) {
     const tsDate = new Date(props.memory.timestamp)
+
     return {
       date: parseDate(tsDate.toISOString().split('T')[0]),
-      time: new Time(tsDate.getUTCHours(), tsDate.getUTCMinutes()),
+      time: getTimeFromTimestamp(props.memory.timestamp),
     }
   }
 

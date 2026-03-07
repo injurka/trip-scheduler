@@ -64,15 +64,7 @@ function toggleAttached() {
 function updatePinSettings() {
   if (editableTitle.value !== ((props.section as CustomActivitySection).title || '')
     || editableIcon.value !== ((props.section as CustomActivitySection).icon || 'mdi:map-marker')
-    || editableColor.value !== ((props.section as CustomActivitySection).color || defaultColors[0])
-  ) {
-    emit('updateSection', {
-      ...props.section,
-      title: editableTitle.value,
-      icon: editableIcon.value,
-      color: editableColor.value,
-    })
-  }
+    || editableColor.value !== ((props.section as CustomActivitySection).color || defaultColors[0])) { emit('updateSection', { ...props.section, title: editableTitle.value, icon: editableIcon.value, color: editableColor.value }) }
 }
 
 watch(editableIcon, () => {

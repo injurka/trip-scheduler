@@ -88,6 +88,7 @@ import { AppRouteNames } from '~/shared/constants/routes'
   align-items: center;
   flex-wrap: wrap;
   gap: 12px;
+  padding: 8px 0;
   color: var(--fg-secondary-color);
   font-size: 0.8rem;
 

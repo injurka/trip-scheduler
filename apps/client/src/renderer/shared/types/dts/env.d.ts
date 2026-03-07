@@ -11,9 +11,17 @@ interface ImportMeta {
 }
 
 export interface IElectronAPI {
-  db: {
-    query: (sql: string, params?: any[]) => Promise<{ data: any[], error: string | null }>
-    execute: (sql: string, params?: any[]) => Promise<{ data: { rowsAffected: number, lastInsertId: number }, error: string | null }>
+  window: {
+    minimize: () => Promise<void>
+    toggleMaximize: () => Promise<void>
+    close: () => Promise<void>
+  }
+  vault: {
+    selectFolder: () => Promise<string | null>
+    getPath: () => Promise<string | null>
+    checkFiles: (paths: string[]) => Promise<string[]>
+    downloadFile: (url: string, path: string) => Promise<boolean>
+    deleteFile: (path: string) => Promise<void>
   }
 }
 

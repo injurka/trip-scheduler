@@ -24,14 +24,13 @@ const isLoadingCoords = ref(false)
 
 const NOMINATIM_SEARCH_URL = 'https://nominatim.openstreetmap.org/search'
 
-// --- Map Logic ---
 const mapInstance = ref<Map | null>(null)
 const markerSource = new VectorSource()
 const markerLayer = new VectorLayer({ source: markerSource, zIndex: 10 })
 
 const centerForMapProjected = computed((): [number, number] => {
-  const lon = selectedCityCoords.value?.lon ?? 37.61 // Default to Moscow lon
-  const lat = selectedCityCoords.value?.lat ?? 55.75 // Default to Moscow lat
+  const lon = selectedCityCoords.value?.lon ?? 37.61 // Moscow lon
+  const lat = selectedCityCoords.value?.lat ?? 55.75 // Moscow lat
 
   return fromLonLat([lon, lat]) as [number, number]
 })
@@ -79,7 +78,6 @@ watch(isMapViewerVisible, (isOpen) => {
   }
 })
 
-// --- City Logic ---
 async function showMapForCity(city: string) {
   if (!city)
     return

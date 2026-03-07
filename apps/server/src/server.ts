@@ -1,72 +1,38 @@
 /* eslint-disable antfu/no-top-level-await */
-/* eslint-disable no-console */
 import type { Hono } from 'hono'
-import { gte, sql } from 'drizzle-orm'
-import { db } from '../db'
-import { refreshTokens, trips, users } from '../db/schema'
+import { db } from 'db'
+import { sql } from 'drizzle-orm'
 import Server from './app'
-import {
-  activeSessionsGauge,
-  totalTripsGauge,
-  totalUsersGauge,
-  uncaughtExceptionsCounter,
-} from './services/metrics.service'
+import { updateDatabaseMetrics } from './lib/db-monitoring'
+import { Logger } from './lib/logger'
+import { s3Service } from './services/s3.service'
 
+const logger = new Logger()
 const app: Hono = Server.getApp()
 const port = Number(process.env.PORT) || 8080
 const host = process.env.HOST || '0.0.0.0'
 
-/**
- * Асинхронная функция для обновления метрик, основанных на данных из БД.
- */
-async function updateDatabaseMetrics() {
-  try {
-    const [userCountResult] = await db.select({ count: sql<number>`count(*)` }).from(users)
-    totalUsersGauge.set(Number(userCountResult.count))
-
-    const [tripCountResult] = await db.select({ count: sql<number>`count(*)` }).from(trips)
-    totalTripsGauge.set(Number(tripCountResult.count))
-
-    const [activeTokensResult] = await db
-      .select({ count: sql<number>`count(*)` })
-      .from(refreshTokens)
-      .where(gte(refreshTokens.expiresAt, new Date()))
-    activeSessionsGauge.set(Number(activeTokensResult.count))
-  }
-  catch (error) {
-    console.error('❌ Ошибка при обновлении метрик из базы данных:', error)
-  }
+export async function checkService(name: string, fn: () => Promise<void>, logger: Logger): Promise<void> {
+  logger.info(`Checking ${name}...`)
+  const start = Date.now()
+  await fn()
+  logger.success(`${name} ready (${Date.now() - start}ms)`)
 }
 
-console.log(`🚀 Trip Scheduler API starting...`)
-console.log(`📍 Server running at http://${host}:${port}`)
-
-process.on('uncaughtException', (err, origin) => {
-  console.error(`[Uncaught Exception] Origin: ${origin}, Error:`, err)
-  uncaughtExceptionsCounter.inc()
-  process.exit(1)
-})
-
-process.on('unhandledRejection', (reason, promise) => {
-  console.error('[Unhandled Rejection] At:', promise, 'reason:', reason)
-  uncaughtExceptionsCounter.inc()
-})
+logger.log(`Trip Scheduler API starting on http://${host}:${port}`)
 
 try {
-  console.log('🟡 Проверяем соединение с базой данных...')
-  await db.execute(sql`SELECT 1`)
-  console.log('✅ Соединение с базой данных успешно установлено!')
+  await checkService('PostgreSQL', () => db.execute(sql`SELECT 1`).then(() => { }), logger)
+  await checkService('S3', () => s3Service.checkConnection(), logger)
 
-  setInterval(updateDatabaseMetrics, 30000)
+  setInterval(updateDatabaseMetrics, 30_000)
   await updateDatabaseMetrics()
+
+  logger.success('Server is ready 🚀')
 }
 catch (error) {
-  console.error('❌ Ошибка: Не удалось подключиться к базе данных. Сервер будет остановлен.', error)
+  logger.error('Startup failed — shutting down', error)
   process.exit(1)
 }
 
-export default {
-  port,
-  hostname: host,
-  fetch: app.fetch,
-}
+export default { port, hostname: host, fetch: app.fetch }

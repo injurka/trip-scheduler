@@ -62,7 +62,6 @@ export class FileRepository implements IFileRepository {
       const accessToken = useStorage<string | null>(TOKEN_KEY, null)
       xhr.setRequestHeader('Authorization', `Bearer ${accessToken.value}`)
 
-      // Обработчик прогресса
       xhr.upload.onprogress = (event) => {
         if (event.lengthComputable) {
           const percentage = Math.round((event.loaded * 100) / event.total)

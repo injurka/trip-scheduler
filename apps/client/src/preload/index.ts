@@ -1,14 +1,20 @@
 import { contextBridge, ipcRenderer } from 'electron'
 
-// API, которое будет доступно в вашем Vue-приложении через `window.electronAPI`
 const electronAPI = {
-  db: {
-    query: (sql: string, params?: any[]) => ipcRenderer.invoke('db:query', sql, params),
-    execute: (sql: string, params?: any[]) => ipcRenderer.invoke('db:execute', sql, params),
+  window: {
+    minimize: () => ipcRenderer.invoke('window:minimize'),
+    toggleMaximize: () => ipcRenderer.invoke('window:maximize'),
+    close: () => ipcRenderer.invoke('window:close'),
+  },
+  vault: {
+    selectFolder: () => ipcRenderer.invoke('vault:select-folder'),
+    getPath: () => ipcRenderer.invoke('vault:get-path'),
+    checkFiles: (paths: string[]) => ipcRenderer.invoke('vault:check-files', paths),
+    downloadFile: (url: string, path: string) => ipcRenderer.invoke('vault:download-file', url, path),
+    deleteFile: (path: string) => ipcRenderer.invoke('vault:delete-file', path),
   },
 }
 
-// Безопасно предоставляем API процессу рендеринга
 try {
   contextBridge.exposeInMainWorld('electronAPI', electronAPI)
 }

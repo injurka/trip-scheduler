@@ -15,7 +15,6 @@ export const MOCK_IMAGES = ALL_IMAGE_FILENAMES.map(filename => ({
   placement: 'route' as const,
   originalName: filename,
   sizeBytes: 0,
-  // Добавляем остальные поля для соответствия схеме
   takenAt: null,
   latitude: null,
   longitude: null,

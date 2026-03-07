@@ -19,7 +19,6 @@ export const MOCK_TRIP_PHUKET = {
   visibility: 'private' as const,
   participantIds: [USER_ID],
 
-  // --- Собираем все импортированные части вместе ---
   images: MOCK_IMAGES,
   sections: MOCK_SECTIONS,
   days: MOCK_DAYS,

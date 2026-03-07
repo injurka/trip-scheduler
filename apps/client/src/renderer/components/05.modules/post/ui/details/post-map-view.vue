@@ -37,7 +37,7 @@ const mapCenter = computed((): [number, number] => {
   if (mapPoints.value.length > 0) {
     return mapPoints.value[0].coordinates
   }
-  // Используем корневые lat/lng поста
+
   return [props.post.longitude, props.post.latitude]
 })
 

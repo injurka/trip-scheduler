@@ -89,7 +89,6 @@ const formattedDates = computed(() => {
   }
 })
 
-// Информация о статусе
 const statusInfo = computed(() => {
   switch (props.status) {
     case 'completed':
@@ -101,7 +100,6 @@ const statusInfo = computed(() => {
   }
 })
 
-// Форматирование бюджета
 const formattedBudget = computed(() => {
   if (!props.budget || !props.currency)
     return null
@@ -113,7 +111,6 @@ const formattedBudget = computed(() => {
   }).format(props.budget)
 })
 
-// Иконка для приватности
 const visibilityIcon = computed(() => {
   switch (props.visibility) {
     case 'public':

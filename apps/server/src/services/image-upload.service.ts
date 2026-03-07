@@ -4,11 +4,9 @@ import { HTTPException } from 'hono/http-exception'
 import sharp from 'sharp'
 import { blogService } from '~/modules/blog/blog.service'
 import { imageService } from '~/modules/image/image.service'
-
 import { postService } from '~/modules/post/post.service'
 import { blogRepository } from '~/repositories/blog.repository'
 import { postRepository } from '~/repositories/post.repository'
-// Импорт репозиториев и сервисов
 import { tripRepository } from '~/repositories/trip.repository'
 import { userRepository } from '~/repositories/user.repository'
 import { generateFilePaths, saveFile } from '~/services/file-storage.service'
@@ -118,7 +116,6 @@ const avatarHandler: IUploadHandler = {
   },
 }
 
-// Реестр хендлеров
 const handlers: Record<EntityType, IUploadHandler> = {
   trip: tripHandler,
   post: postHandler,
@@ -144,7 +141,6 @@ export class ImageUploadService {
 
     // 2. Генерация путей
     const folderPath = handler.getFolderPath(ctx)
-    // Для аватара имя фиксированное, для остальных - оригинальное или UUID
     const fileName = entityType === 'avatar' ? 'avatar.webp' : ctx.file.name
     const paths = generateFilePaths(folderPath, fileName)
 
@@ -155,14 +151,12 @@ export class ImageUploadService {
 
     try {
       if (entityType === 'avatar') {
-        // Специфичная логика для аватара: ресайз + конвертация в webp
         processedBuffer = await sharp(ctx.buffer)
           .resize({ width: 400, height: 400, fit: 'cover' })
           .webp({ quality: 90 })
           .toBuffer()
       }
       else {
-        // Общая логика: метаданные + варианты
         const metaResult = await extractAndStructureMetadata(ctx.buffer)
         metadata = metaResult.metadata
         variants = await generateImageVariants(ctx.buffer)
@@ -173,36 +167,34 @@ export class ImageUploadService {
       throw new HTTPException(415, { message: 'Ошибка обработки изображения.' })
     }
 
-    // 4. Сохранение на диск (или S3)
+    // 4. Сохранение в S3
     const variantUrls: Record<string, string> = {}
     let variantsTotalSize = 0
 
-    // Сохраняем варианты
+    // Сохраняем варианты, используем dbPath (ключ S3)
     await Promise.all(
       Object.entries(variants).map(async ([name, variantBuffer]) => {
         const vPaths = paths.getVariantPaths(name)
-        await saveFile(vPaths.diskPath, variantBuffer)
-        variantUrls[name] = vPaths.dbPath
+        await saveFile(vPaths, variantBuffer)
+        variantUrls[name] = vPaths
         variantsTotalSize += variantBuffer.length
       }),
     )
 
-    // Сохраняем оригинал (или обработанный оригинал для аватара)
-    await saveFile(paths.original.diskPath, processedBuffer)
+    // Сохраняем оригинал
+    await saveFile(paths.path, processedBuffer)
 
     const totalSize = processedBuffer.length + variantsTotalSize
 
     // 5. Пост-обработка (Запись в БД, обновление квот)
     const dbRecord = await handler.afterSave(ctx, {
-      url: paths.original.dbPath,
+      url: paths.path,
       variants: variantUrls,
       size: totalSize,
       metadata,
     })
 
-    // Обновляем метрики и квоты (если применимо)
     if (entityType !== 'avatar' && entityType !== 'blog') {
-      // Обычно блоги и аватары не едят пользовательскую квоту так же как файлы постов/трипов
       await quotaService.incrementStorageUsage(ctx.userId, totalSize)
     }
 
@@ -210,7 +202,7 @@ export class ImageUploadService {
     fileUploadSizeBytesHistogram.observe({ placement: entityType }, totalSize)
 
     return {
-      url: paths.original.dbPath,
+      url: paths.path,
       variants: variantUrls,
       dbRecord,
       metadata,

@@ -16,7 +16,6 @@ export function useGeolocationPoints(mapApiRef: Ref<GeolocationMapApi | undefine
   const pointToMoveId = ref<string | null>(null)
   const mode = ref<'pan' | 'add_point' | 'add_route_point' | 'draw_route' | 'move_point'>('pan')
 
-  // --- Управление точками (POI) ---
 
   async function addPoiPoint(coords: Coordinate) {
     if (!mapApiRef.value)
@@ -34,7 +33,6 @@ export function useGeolocationPoints(mapApiRef: Ref<GeolocationMapApi | undefine
       address: addressInfo.address,
       comment: '',
     }
-    // ЗАМЕНА: Создаем новый массив для надежности реактивности
     points.value = [...points.value, newPoint]
     mapApiRef.value.addOrUpdatePoint(newPoint)
   }
@@ -90,7 +88,6 @@ export function useGeolocationPoints(mapApiRef: Ref<GeolocationMapApi | undefine
     if (!mapApiRef.value)
       return
     mapApiRef.value.addOrUpdatePoint(point)
-    // ЗАМЕНА: Заменяем элемент, создавая новый массив, чтобы гарантировать срабатывание watcher'а
     points.value = points.value.map(p => (p.id === point.id ? { ...point } : p))
   }
 
@@ -109,7 +106,6 @@ export function useGeolocationPoints(mapApiRef: Ref<GeolocationMapApi | undefine
       address: addressInfo?.address || 'Адрес не найден',
     }
 
-    // Создаем новый массив для запуска реактивности
     points.value = [
       ...points.value.slice(0, pointIndex),
       updatedPoint,

@@ -35,8 +35,8 @@ export function variableNameToHumanReadable(name: string): string {
   }
 
   return name
-    .replace(/-/g, ' ') // Превращаем 'r-2xl' в 'r 2xl'
-    .split(' ') // Превращаем 'r 2xl' в массив ['r', '2xl']
+    .replace(/-/g, ' ')
+    .split(' ')
     .map(word => translations[word.toLowerCase()] || word)
     .join(' ')
     .replace(/\b\w/g, l => l.toUpperCase())

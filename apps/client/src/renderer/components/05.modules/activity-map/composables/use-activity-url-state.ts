@@ -35,14 +35,22 @@ export function useActivityUrlState(options: UseActivityUrlStateOptions) {
 
   const startQuery = getQueryString(route.query.start)
   if (startQuery) {
-    try { dateRange.value.start = parseDate(startQuery) }
-    catch (e) { console.error(e) }
+    try {
+      dateRange.value.start = parseDate(startQuery)
+    }
+    catch (e) {
+      console.error(e)
+    }
   }
 
   const endQuery = getQueryString(route.query.end)
   if (endQuery) {
-    try { dateRange.value.end = parseDate(endQuery) }
-    catch (e) { console.error(e) }
+    try {
+      dateRange.value.end = parseDate(endQuery)
+    }
+    catch (e) {
+      console.error(e)
+    }
   }
 
   const urlLat = Number(getQueryString(route.query.lat)) || defaultCenter[1]

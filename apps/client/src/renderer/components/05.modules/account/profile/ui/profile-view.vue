@@ -93,7 +93,7 @@ watch(userId, (newId) => {
             unit="items"
           />
           <UserQuotaWidget
-            title="Хранилище"
+            title="Память"
             icon="mdi:database-outline"
             :current="userProfile.currentStorageBytes"
             :limit="userProfile.plan.maxStorageBytes"
@@ -101,7 +101,7 @@ watch(userId, (newId) => {
             :to="{ path: AppRoutePaths.User.Storage(userProfile.id) }"
           />
           <UserQuotaWidget
-            title="LLM Токены"
+            title="Токены"
             icon="mdi:robot-outline"
             :current="userProfile.llmCreditsUsed"
             :limit="userProfile.plan.monthlyLlmCredits"
@@ -183,7 +183,7 @@ watch(userId, (newId) => {
     align-items: center;
     gap: 0.5rem;
     color: var(--fg-secondary-color);
-    margin-bottom: 0.5rem;
+    margin: 0.5rem 0;
   }
   .user-bio {
     font-size: 0.9rem;
@@ -210,6 +210,7 @@ watch(userId, (newId) => {
   border: 1px solid var(--border-secondary-color);
   border-radius: var(--r-l);
   padding: 1.5rem;
+  overflow: hidden;
 }
 
 .widget-title {

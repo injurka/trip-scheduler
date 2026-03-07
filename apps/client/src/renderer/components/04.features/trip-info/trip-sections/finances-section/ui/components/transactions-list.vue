@@ -23,7 +23,6 @@ function getCategory(id: string | null, categories: Category[]) {
 const { format: formatCurrency } = useCurrencyFormatter()
 
 function getConvertedAmountInMainCurrency(transaction: Transaction): string | null {
-  // Check if currency is the same as main, if so, no need to convert
   if (transaction.currency === props.settings.mainCurrency)
     return null
 

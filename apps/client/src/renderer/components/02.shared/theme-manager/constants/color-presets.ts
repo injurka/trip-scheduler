@@ -406,7 +406,7 @@ export const themePresets: ThemePreset[] = [
     },
   },
   {
-    name: 'Zedokai',
+    name: 'Yeap',
     palette: {
       // BG
       'bg-primary-color': '#faf4f2',

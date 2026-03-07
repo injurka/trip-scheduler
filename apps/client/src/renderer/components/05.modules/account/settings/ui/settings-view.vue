@@ -21,6 +21,9 @@ const {
   isUpdatingProfile,
   isChangingPassword,
   isDeletingAccount,
+  vaultPath,
+  selectVaultFolder,
+  isElectron,
 } = useProfileSettings()
 
 const avatarInput = ref<HTMLInputElement | null>(null)
@@ -35,6 +38,27 @@ const avatarInput = ref<HTMLInputElement | null>(null)
     </header>
 
     <section class="profile-section">
+      <template v-if="isElectron">
+        <h2 class="section-title">
+          Папка для медиафайлов
+        </h2>
+        <div class="section-content">
+          <p>Выберите папку на вашем устройстве, куда будут сохраняться фотографии для оффлайн-доступа. Это позволит просматривать их без интернета и быстрее загружать.</p>
+
+          <div class="vault-control">
+            <KitInput
+              :model-value="vaultPath || 'Не выбрано'"
+              readonly
+              label="Текущая папка"
+              icon="mdi:folder-outline"
+            />
+            <KitBtn @click="selectVaultFolder">
+              {{ vaultPath ? 'Изменить' : 'Выбрать папку' }}
+            </KitBtn>
+          </div>
+        </div>
+      </template>
+
       <h2 class="section-title">
         Основная информация
       </h2>
@@ -52,6 +76,7 @@ const avatarInput = ref<HTMLInputElement | null>(null)
           <KitInput v-model="profileForm.email" label="Email" icon="mdi:email-outline" disabled />
         </div>
       </div>
+
       <footer class="section-footer">
         <KitBtn size="sm" :disabled="!isProfileChanged || isUpdatingProfile" :loading="isUpdatingProfile" @click="updateProfile()">
           Сохранить изменения
@@ -130,6 +155,15 @@ const avatarInput = ref<HTMLInputElement | null>(null)
   flex-direction: column;
   gap: 2rem;
   padding-bottom: 4rem;
+}
+
+.vault-control {
+  display: flex;
+  align-items: flex-end;
+  gap: 16px;
+}
+.vault-control .kit-input-group {
+  flex-grow: 1;
 }
 
 .profile-header {

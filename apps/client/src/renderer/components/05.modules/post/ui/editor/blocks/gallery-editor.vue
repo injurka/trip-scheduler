@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import type { PostMedia } from  '~/shared/types/models/post'
+import type { PostMedia } from '~/shared/types/models/post'
 import { Icon } from '@iconify/vue'
 import draggable from 'vuedraggable'
 import { KitImage } from '~/components/01.kit/kit-image'

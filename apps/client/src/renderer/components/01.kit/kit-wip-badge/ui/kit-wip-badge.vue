@@ -27,14 +27,16 @@ withDefaults(defineProps<Props>(), {
   position: relative;
   display: flex;
   align-items: center;
+  justify-content: center;
   padding: 8px 16px;
   background-color: var(--bg-warning-color);
   border: 1px solid var(--border-warning-color);
   border-radius: var(--r-m);
   overflow: hidden;
   margin-bottom: 16px;
-  width: fit-content;
   box-shadow: var(--s-s);
+  width: 100%;
+  margin-top: 16px;
 }
 
 .wip-content {

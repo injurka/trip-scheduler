@@ -30,7 +30,6 @@ const emit = defineEmits<{
   (e: 'updateSection', value: ActivitySectionGeolocation): void
 }>()
 
-// --- Состояние компонента ---
 const isInitialized = ref(false)
 
 const sectionContainerRef = ref<HTMLElement | null>(null)
@@ -41,9 +40,8 @@ const isMapFullscreen = ref(false)
 const isPanelVisible = ref(false)
 const routeIdForNewSegment = ref<string | null>(null)
 const searchQuery = ref('')
-const routePointType = ref<'via' | 'connect'>('via') // Тип добавляемой точки
+const routePointType = ref<'via' | 'connect'>('via')
 
-// --- Композиции ---
 const {
   points,
   isLoading: isPointsLoading,
@@ -107,13 +105,8 @@ const allMapPoints = computed(() => {
   const routePoints = routes.value.flatMap(r => r.points.map((p, index) => {
     let type: MapPoint['type'] = p.type
 
-    // Если тип явно не задан как connect или start, и это первая/последняя точка...
-    // Но теперь мы храним тип явно в p.type, поэтому старая логика перезаписи type может быть излишней,
-    // кроме случая первой точки (всегда start для логики цвета).
     if (index === 0)
       type = 'start'
-
-    // Для остальных полагаемся на p.type (via, end, connect), который устанавливается в useGeolocationRoutes
 
     return {
       ...p,
@@ -128,7 +121,6 @@ const allMapPoints = computed(() => {
   return [...poiPointsWithStyle.value, ...routePoints]
 })
 
-// --- Вычисляемые свойства ---
 const areItemsEmpty = computed(() => {
   return points.value.length === 0 && routes.value.length === 0 && drawnRoutes.value.length === 0
 })
@@ -151,7 +143,6 @@ const viewItems: ViewSwitcherItem[] = [
   { id: 'routes', icon: 'mdi:directions', label: 'Маршруты' },
 ]
 
-// --- Обработчики ---
 function toggleMode(targetMode: typeof mode.value) {
   if (mode.value === targetMode)
     mode.value = 'pan'
@@ -165,7 +156,7 @@ async function handleMapClick(coords: Coordinate) {
 
   if (mode.value === 'add_point') {
     await addPoiPoint(coords)
-    mode.value = 'pan' // Сбрасываем после добавления для удобства
+    mode.value = 'pan'
   }
   else if (mode.value === 'add_route_point') {
     if (!activeRouteId.value) {
@@ -263,7 +254,6 @@ function setActiveRoute(routeId: string | null) {
     mode.value = 'pan'
 }
 
-// --- Полноэкранный режим ---
 function handleToggleFullscreen() {
   if (!sectionContainerRef.value)
     return
@@ -282,7 +272,6 @@ function handleFullscreenChange() {
   isMapFullscreen.value = document.fullscreenElement === sectionContainerRef.value
 }
 
-// --- Инициализация и синхронизация ---
 async function onMapReady(controller: ReturnType<typeof useGeolocationMap>) {
   mapController.value = controller
   setInitialPoints(props.section.points)

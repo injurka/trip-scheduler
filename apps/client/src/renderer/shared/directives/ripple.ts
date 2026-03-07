@@ -1,6 +1,5 @@
 import type { Directive } from 'vue'
 
-// Стили для ripple-элемента добавим динамически или можно вынести в глобальный SCSS
 const rippleStyle = `
 .kit-ripple-container {
   position: absolute;
@@ -32,7 +31,6 @@ const rippleStyle = `
 }
 `
 
-// Добавляем стили в head один раз
 if (typeof document !== 'undefined') {
   const style = document.createElement('style')
   style.innerHTML = rippleStyle
@@ -41,19 +39,15 @@ if (typeof document !== 'undefined') {
 
 const vRipple: Directive = {
   mounted(el) {
-    // Убедимся, что родитель имеет позиционирование (хотя контейнер риппла будет абсолютным)
     const computedStyle = window.getComputedStyle(el)
     if (computedStyle.position === 'static') {
       el.style.position = 'relative'
     }
 
-    // Создаем контейнер для рипплов, чтобы они не вылезали за границы,
-    // если у самого элемента нет overflow: hidden
     const container = document.createElement('div')
     container.className = 'kit-ripple-container'
     el.appendChild(container)
 
-    // Сохраняем ссылку на контейнер для использования в обработчике
     el._rippleContainer = container
 
     el.addEventListener('mousedown', createRipple)
@@ -78,7 +72,6 @@ function createRipple(event: MouseEvent) {
   const diameter = Math.max(el.clientWidth, el.clientHeight)
   const radius = diameter / 2
 
-  // Вычисляем позицию клика относительно элемента
   const rect = el.getBoundingClientRect()
   const x = event.clientX - rect.left
   const y = event.clientY - rect.top
@@ -90,7 +83,6 @@ function createRipple(event: MouseEvent) {
 
   container.appendChild(circle)
 
-  // Удаляем элемент после завершения анимации (0.6s = 600ms)
   setTimeout(() => {
     circle.remove()
   }, 600)

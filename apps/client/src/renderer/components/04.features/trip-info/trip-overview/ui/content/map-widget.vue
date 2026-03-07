@@ -22,7 +22,7 @@ const { smAndDown } = useDisplay()
 
 const isLoading = ref(true)
 const mapMarkers = ref<MapMarker[]>([])
-const mapCenter = ref<[number, number]>([37.6176, 55.7558]) // Default Moscow
+const mapCenter = ref<[number, number]>([37.6176, 55.7558]) // Moscow
 
 const NOMINATIM_SEARCH_URL = 'https://nominatim.openstreetmap.org/search'
 
