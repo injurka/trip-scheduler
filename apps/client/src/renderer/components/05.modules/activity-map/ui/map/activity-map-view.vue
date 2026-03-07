@@ -24,6 +24,7 @@ const props = withDefaults(defineProps<IProps>(), {
 const emit = defineEmits<{
   (e: 'switchToList'): void
   (e: 'mapClick', coords: [number, number]): void
+  (e: 'contextMenu', coords: [number, number]): void
   (e: 'boundsChange', bounds: MapBounds): void
   (e: 'focusItem', coords: [number, number]): void
 }>()
@@ -48,9 +49,7 @@ function startResize() {
 function onResize(e: MouseEvent) {
   if (!isResizing.value)
     return
-
   const newWidth = e.clientX - sidebarLeftOffset
-
   sidebarWidth.value = Math.max(minWidth, Math.min(maxWidth, newWidth))
 }
 
@@ -79,6 +78,20 @@ function onMapReady(map: OlMap) {
   map.on('moveend', () => {
     updateBoundsAndFetch(map)
   })
+
+  // Добавляем слушатель контекстного меню для карты
+  const mapElement = map.getTargetElement()
+  if (mapElement) {
+    mapElement.addEventListener('contextmenu', (e) => {
+      e.preventDefault()
+      const rect = mapElement.getBoundingClientRect()
+      const x = e.clientX - rect.left
+      const y = e.clientY - rect.top
+      const coordinate = map.getCoordinateFromPixel([x, y])
+      emit('contextMenu', toLonLat(coordinate) as [number, number])
+    })
+  }
+
   updateBoundsAndFetch(map)
 }
 
@@ -120,17 +133,14 @@ const controlsLeftPosition = computed(() => `${sidebarWidth.value + 32}px`)
 
 <template>
   <div class="activity-map-view">
-    <aside
-      class="floating-sidebar"
-      :style="{ width: `${sidebarWidth}px` }"
-    >
+    <aside class="floating-sidebar" :style="{ width: `${sidebarWidth}px` }">
       <div class="sidebar-header">
-        <h3>Активности</h3>
+        <h3>Метки на экране</h3>
         <span class="count">{{ activities.length }}</span>
       </div>
       <div class="sidebar-scroll">
         <div v-if="activities.length === 0" class="empty-sidebar">
-          В этой области пусто
+          В этой области пусто. Кликните правой кнопкой мыши по карте, чтобы добавить метку.
         </div>
         <div
           v-for="act in activities"
@@ -138,8 +148,10 @@ const controlsLeftPosition = computed(() => `${sidebarWidth.value + 32}px`)
           class="sidebar-item"
           @click="handleSidebarItemClick(act)"
         >
-          <div class="item-icon">
-            <Icon icon="mdi:map-marker" />
+          <div class="item-icon" :class="`icon-${act.status}`">
+            <Icon v-if="act.isStatic" icon="mdi:map-marker" />
+            <Icon v-else-if="act.status === 'active'" icon="mdi:fire" />
+            <Icon v-else icon="mdi:clock-outline" />
           </div>
           <div class="item-content">
             <div class="item-title">
@@ -147,7 +159,7 @@ const controlsLeftPosition = computed(() => `${sidebarWidth.value + 32}px`)
             </div>
             <div v-if="act.date" class="item-meta">
               <Icon icon="mdi:calendar-blank" class="meta-icon" />
-              <span> {{ act.date }} </span>
+              <span>{{ act.date }}</span>
             </div>
           </div>
           <div class="item-arrow">
@@ -155,23 +167,13 @@ const controlsLeftPosition = computed(() => `${sidebarWidth.value + 32}px`)
           </div>
         </div>
       </div>
-
       <div class="resize-handle" @mousedown.prevent="startResize" />
     </aside>
 
-    <div
-      class="floating-controls"
-      :style="{ left: controlsLeftPosition }"
-    >
-      <KitBtn
-        icon="mdi:format-list-bulleted"
-        variant="tonal"
-        class="glass-btn"
-        @click="emit('switchToList')"
-      >
+    <div class="floating-controls" :style="{ left: controlsLeftPosition }">
+      <KitBtn icon="mdi:format-list-bulleted" variant="tonal" class="glass-btn" @click="emit('switchToList')">
         Список
       </KitBtn>
-
       <ActivityFilters v-model:date-range="dateRange" transparent />
     </div>
 
@@ -194,14 +196,19 @@ const controlsLeftPosition = computed(() => `${sidebarWidth.value + 32}px`)
       @mouseleave="onTooltipMouseLeave"
     >
       <div v-if="hoveredActivity" class="hover-card-content">
-        <div class="hover-title">
-          {{ hoveredActivity.markName }}
+        <div class="hover-header">
+          <div class="hover-title">
+            {{ hoveredActivity.title }}
+          </div>
+          <div v-if="hoveredActivity.status === 'active'" class="hover-badge" :class="`badge-${hoveredActivity.status}`">
+            Сейчас
+          </div>
         </div>
-        <div v-if="hoveredActivity.additionalInfo" class="hover-desc">
-          {{ hoveredActivity.additionalInfo }}
+        <div v-if="hoveredActivity.description" class="hover-desc">
+          {{ hoveredActivity.description }}
         </div>
-        <div v-if="hoveredActivity.endAt" class="hover-meta">
-          {{ new Date(hoveredActivity.endAt).toLocaleDateString() }}
+        <div class="hover-meta">
+          <Icon icon="mdi:calendar" /> {{ hoveredActivity.date }}
         </div>
       </div>
     </div>
@@ -221,7 +228,6 @@ const controlsLeftPosition = computed(() => `${sidebarWidth.value + 32}px`)
       border-radius: 0;
       border: none;
     }
-
     .kit-map-wrapper {
       border-radius: 0;
       border: none;
@@ -252,7 +258,6 @@ const controlsLeftPosition = computed(() => `${sidebarWidth.value + 32}px`)
   display: flex;
   flex-direction: column;
   box-shadow: var(--s-xl);
-  overflow: visible;
   overflow: hidden;
 
   @include media-down(sm) {
@@ -269,7 +274,6 @@ const controlsLeftPosition = computed(() => `${sidebarWidth.value + 32}px`)
   cursor: col-resize;
   z-index: 20;
   transition: background-color 0.2s;
-
   &:hover,
   &:active {
     background-color: rgba(var(--fg-primary-color-rgb), 0.2);
@@ -331,15 +335,9 @@ const controlsLeftPosition = computed(() => `${sidebarWidth.value + 32}px`)
     border-color: var(--border-secondary-color);
     transform: translateX(4px);
     box-shadow: var(--s-s);
-
     .item-arrow {
       opacity: 1;
       transform: translateX(0);
-    }
-
-    .item-icon {
-      color: var(--fg-accent-color);
-      background-color: var(--bg-accent-overlay-color);
     }
   }
 
@@ -353,14 +351,25 @@ const controlsLeftPosition = computed(() => `${sidebarWidth.value + 32}px`)
     border-radius: 50%;
     background-color: var(--bg-tertiary-color);
     color: var(--fg-secondary-color);
-    transition: all 0.2s;
+    &.icon-active {
+      color: #f43f5e;
+      background-color: rgba(244, 63, 94, 0.15);
+      animation: pulse-icon 2s infinite;
+    }
+    &.icon-static {
+      color: #10b981;
+      background-color: rgba(16, 185, 129, 0.15);
+    }
+    &.icon-upcoming {
+      color: #3b82f6;
+      background-color: rgba(59, 130, 246, 0.15);
+    }
   }
 
   .item-content {
     flex-grow: 1;
     min-width: 0;
   }
-
   .item-title {
     font-weight: 600;
     font-size: 0.95rem;
@@ -370,19 +379,13 @@ const controlsLeftPosition = computed(() => `${sidebarWidth.value + 32}px`)
     overflow: hidden;
     text-overflow: ellipsis;
   }
-
   .item-meta {
     font-size: 0.8rem;
     color: var(--fg-secondary-color);
     display: flex;
     align-items: center;
     gap: 4px;
-
-    .meta-icon {
-      font-size: 0.9rem;
-    }
   }
-
   .item-arrow {
     opacity: 0;
     transform: translateX(-4px);
@@ -396,6 +399,7 @@ const controlsLeftPosition = computed(() => `${sidebarWidth.value + 32}px`)
   padding: 24px;
   color: var(--fg-secondary-color);
   font-size: 0.9rem;
+  line-height: 1.5;
 }
 
 .floating-controls {
@@ -418,7 +422,6 @@ const controlsLeftPosition = computed(() => `${sidebarWidth.value + 32}px`)
   backdrop-filter: blur(8px);
   border: 1px solid rgba(var(--border-secondary-color-rgb), 0.5);
   box-shadow: var(--s-s);
-
   &:hover {
     background-color: rgba(var(--bg-secondary-color-rgb), 0.95) !important;
   }
@@ -428,17 +431,15 @@ const controlsLeftPosition = computed(() => `${sidebarWidth.value + 32}px`)
   position: absolute;
   background-color: var(--bg-primary-color);
   border-radius: var(--r-m);
-  padding: 10px 14px;
+  padding: 12px;
   box-shadow: var(--s-xl);
   border: 1px solid var(--border-secondary-color);
   pointer-events: auto;
-  white-space: nowrap;
-  min-width: 150px;
-  max-width: 250px;
+  min-width: 200px;
+  max-width: 280px;
   transform: translate(-50%, -100%);
   margin-bottom: 12px;
   z-index: 100;
-  cursor: default;
 
   &::after {
     content: '';
@@ -457,15 +458,29 @@ const controlsLeftPosition = computed(() => `${sidebarWidth.value + 32}px`)
 .hover-card-content {
   display: flex;
   flex-direction: column;
-  gap: 4px;
+  gap: 6px;
 }
-
+.hover-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 8px;
+}
 .hover-title {
   font-weight: 600;
-  font-size: 0.9rem;
+  font-size: 0.95rem;
   color: var(--fg-primary-color);
+  white-space: normal;
+  line-height: 1.2;
 }
-
+.hover-badge {
+  font-size: 0.7rem;
+  padding: 2px 6px;
+  border-radius: 4px;
+  font-weight: bold;
+  background: #f43f5e;
+  color: white;
+}
 .hover-desc {
   font-size: 0.8rem;
   color: var(--fg-secondary-color);
@@ -476,10 +491,24 @@ const controlsLeftPosition = computed(() => `${sidebarWidth.value + 32}px`)
   -webkit-box-orient: vertical;
   overflow: hidden;
 }
-
 .hover-meta {
-  font-size: 0.75rem;
+  font-size: 0.8rem;
   color: var(--fg-tertiary-color);
   margin-top: 2px;
+  display: flex;
+  align-items: center;
+  gap: 4px;
 }
-</style>```
+
+@keyframes pulse-icon {
+  0% {
+    box-shadow: 0 0 0 0 rgba(244, 63, 94, 0.4);
+  }
+  70% {
+    box-shadow: 0 0 0 6px rgba(244, 63, 94, 0);
+  }
+  100% {
+    box-shadow: 0 0 0 0 rgba(244, 63, 94, 0);
+  }
+}
+</style>

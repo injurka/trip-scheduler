@@ -1,5 +1,13 @@
 import type { Activity, Day } from '~/shared/types/models/activity'
-import type { SignInPayload, SignUpPayload, TelegramAuthPayload, TokenPair, User } from '~/shared/types/models/auth'
+import type {
+  SignInPayload,
+  SignUpPayload,
+  TelegramAuthPayload,
+  TelegramBotAuthStatus,
+  TelegramLoginInitResult,
+  TokenPair,
+  User,
+} from '~/shared/types/models/auth'
 import type { BlogListItems, BlogPost, CreateBlogPostInput, UpdateBlogPostInput } from '~/shared/types/models/blog'
 import type { Comment, CreateCommentInput, UpdateCommentInput } from '~/shared/types/models/comment'
 import type {
@@ -55,6 +63,7 @@ export interface IPlacesRepository {
   getPlacesByCity: (city: string, filters?: { tags?: string[] }) => Promise<Place[]>
   getAvailableTags: (city: string) => Promise<PlaceTag[]>
 }
+
 export interface TripListFilters {
   search?: string
   statuses?: TripStatus[]
@@ -121,7 +130,6 @@ export interface IFileRepository {
     timestamp?: string | null,
     comment?: string | null,
   ) => Promise<TripImage>
-
   uploadFileWithProgress: (
     file: File,
     entityId: string,
@@ -130,10 +138,8 @@ export interface IFileRepository {
     onProgress: (percentage: number) => void,
     signal: AbortSignal,
   ) => Promise<TripImage>
-
   listImages: (entityId: string, entityType: EntityType, placement?: string) => Promise<TripImage[]>
   listImageByTrip: (tripId: string, placement: TripImagePlacement) => Promise<TripImage[]>
-
   getAllUserFiles: () => Promise<TripImage[]>
   deleteFile: (id: string) => Promise<void>
   getMetadata: (id: string) => Promise<ImageMetadata | null>
@@ -150,6 +156,8 @@ export interface IAuthRepository {
   updateStatus: (data: { statusText?: string | null, statusEmoji?: string | null }) => Promise<User>
   updateUser: (data: { name?: string, avatarUrl?: string }) => Promise<User>
   uploadAvatar: (file: File) => Promise<User>
+  initTelegramLogin: () => Promise<TelegramLoginInitResult>
+  checkTelegramStatus: (token: string) => Promise<TelegramBotAuthStatus>
 }
 
 export interface IUserRepository {

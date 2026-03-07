@@ -95,13 +95,10 @@ watch(() => props.section, (newSection) => {
           @blur="updatePinSettings"
           @keydown.enter="($event.target as HTMLInputElement).blur()"
         />
-        <div class="icon-picker-wrapper">
-          <IconPicker
-            v-model="editableIcon"
-            size="sm"
-            @update:model-value="updatePinSettings"
-          />
-        </div>
+        <IconPicker
+          v-model="editableIcon"
+          @update:model-value="updatePinSettings"
+        />
         <KitDropdown :side-offset="8" align="end" class="color-picker-dropdown">
           <template #trigger>
             <button class="color-picker-trigger" type="button" title="Выбрать цвет">
@@ -237,12 +234,12 @@ watch(() => props.section, (newSection) => {
   flex-grow: 1;
 
   :deep(input) {
-    height: 38px;
+    height: 40px;
     font-size: 0.9rem;
   }
 }
 
-.icon-picker-wrapper {
+:deep(.icon-picker-wrapper) {
   flex-shrink: 0;
 }
 
@@ -251,8 +248,8 @@ watch(() => props.section, (newSection) => {
 }
 
 .color-picker-trigger {
-  width: 38px;
-  height: 38px;
+  width: 40px;
+  height: 40px;
   border-radius: var(--r-s);
   border: 1px solid var(--border-secondary-color);
   background-color: var(--bg-secondary-color);
@@ -265,8 +262,9 @@ watch(() => props.section, (newSection) => {
   .color-preview {
     width: 100%;
     height: 100%;
-    border-radius: var(--r-2xs);
+    border-radius: var(--r-full);
     border: 1px solid var(--border-primary-color);
+    width: 30px;
   }
 }
 
@@ -336,7 +334,7 @@ watch(() => props.section, (newSection) => {
 
 .section-controls-wrapper {
   position: absolute;
-  top: -20px;
+  top: -24px;
   right: 4px;
   z-index: 10;
 

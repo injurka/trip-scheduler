@@ -5,6 +5,7 @@ import { commentRouter } from './modules/comment/comment.router'
 import { dayRouter } from './modules/day/day.router'
 import { imageRouter } from './modules/image/image.router'
 import { llmUsageRouter } from './modules/llm-usage/llm-usage.router'
+import { markRouter } from './modules/mark/mark.router'
 import { memoryRouter } from './modules/memory/memory.router'
 import { metroRouter } from './modules/metro/metro.router'
 import { notificationRouter } from './modules/notification/notification.router'
@@ -27,6 +28,7 @@ export const appRouter = router({
   post: postRouter,
   blog: blogRouter,
   notification: notificationRouter,
+  mark: markRouter,
 })
 
 export type AppRouter = typeof appRouter

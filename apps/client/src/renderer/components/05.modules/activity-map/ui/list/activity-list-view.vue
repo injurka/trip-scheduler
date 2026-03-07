@@ -22,13 +22,9 @@ const dateRange = defineModel<DateRange>('dateRange', { required: true })
 <template>
   <div class="activity-list-view">
     <header class="toolbar">
-      <KitBtn
-        icon="mdi:map-search-outline"
-        @click="emit('switchToMap')"
-      >
+      <KitBtn icon="mdi:map-search-outline" @click="emit('switchToMap')">
         Посмотреть на карте
       </KitBtn>
-
       <div class="filters">
         <ActivityFilters v-model:date-range="dateRange" />
       </div>
@@ -41,27 +37,37 @@ const dateRange = defineModel<DateRange>('dateRange', { required: true })
       </div>
 
       <div v-else class="activities-grid">
-        <div v-for="act in activities" :key="act.id" class="activity-card">
+        <div v-for="act in activities" :key="act.id" class="activity-card" :class="`status-${act.status}`">
+          <div class="card-status-line" />
           <div class="card-content">
+            <div class="card-header">
+              <div class="badge" :class="`badge-${act.status}`">
+                <Icon v-if="act.isStatic" icon="mdi:map-marker" />
+                <Icon v-else-if="act.status === 'active'" icon="mdi:fire" />
+                <Icon v-else-if="act.status === 'upcoming'" icon="mdi:calendar-clock" />
+                <Icon v-else icon="mdi:check-all" />
+                <span>{{ act.isStatic ? 'Место' : (act.status === 'active' ? 'Идёт сейчас' : (act.status === 'upcoming' ? 'Ожидается' : 'Завершено')) }}</span>
+              </div>
+              <button class="delete-btn" @click="emit('delete', act.id)">
+                <Icon icon="mdi:close" />
+              </button>
+            </div>
+
             <h3 class="card-title">
               {{ act.title }}
             </h3>
+
             <div class="card-meta">
               <span v-if="act.date" class="meta-item">
                 <Icon icon="mdi:calendar-blank" /> {{ act.date }}
               </span>
-              <span v-if="act.duration" class="meta-item">
-                <Icon icon="mdi:clock-outline" /> {{ act.duration }}
+              <span v-if="act.durationHours > 0" class="meta-item">
+                <Icon icon="mdi:clock-outline" /> {{ act.durationHours }} ч.
               </span>
             </div>
             <p v-if="act.description" class="card-desc">
               {{ act.description }}
             </p>
-          </div>
-          <div class="card-actions">
-            <button class="delete-btn" @click="emit('delete', act.id)">
-              <Icon icon="mdi:close" />
-            </button>
           </div>
         </div>
       </div>
@@ -96,22 +102,81 @@ const dateRange = defineModel<DateRange>('dateRange', { required: true })
   background-color: var(--bg-tertiary-color);
   border: 1px solid var(--border-secondary-color);
   border-radius: var(--r-m);
-  padding: 16px;
+  position: relative;
   display: flex;
-  justify-content: space-between;
-  align-items: flex-start;
   transition: all 0.2s;
+  overflow: hidden;
 
   &:hover {
     border-color: var(--border-primary-color);
     transform: translateY(-2px);
+    box-shadow: var(--s-m);
+  }
+
+  .card-status-line {
+    width: 4px;
+    flex-shrink: 0;
+  }
+
+  &.status-active {
+    border-color: rgba(244, 63, 94, 0.4);
+    background-color: rgba(244, 63, 94, 0.05);
+    .card-status-line {
+      background-color: #f43f5e;
+    }
+  }
+  &.status-upcoming .card-status-line {
+    background-color: #3b82f6;
+  }
+  &.status-past .card-status-line {
+    background-color: #9ca3af;
+  }
+  &.status-static .card-status-line {
+    background-color: #10b981;
   }
 }
 
 .card-content {
+  padding: 16px;
   display: flex;
   flex-direction: column;
   gap: 8px;
+  flex-grow: 1;
+}
+
+.card-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  margin-bottom: 4px;
+}
+
+.badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 2px 8px;
+  border-radius: var(--r-full);
+  font-size: 0.75rem;
+  font-weight: 600;
+
+  &.badge-active {
+    background-color: #f43f5e;
+    color: white;
+    animation: pulse 2s infinite;
+  }
+  &.badge-upcoming {
+    background-color: rgba(59, 130, 246, 0.15);
+    color: #3b82f6;
+  }
+  &.badge-past {
+    background-color: rgba(156, 163, 175, 0.15);
+    color: #9ca3af;
+  }
+  &.badge-static {
+    background-color: rgba(16, 185, 129, 0.15);
+    color: #10b981;
+  }
 }
 
 .card-title {
@@ -161,6 +226,18 @@ const dateRange = defineModel<DateRange>('dateRange', { required: true })
   font-size: 1.2rem;
   .iconify {
     font-size: 3rem;
+  }
+}
+
+@keyframes pulse {
+  0% {
+    box-shadow: 0 0 0 0 rgba(244, 63, 94, 0.4);
+  }
+  70% {
+    box-shadow: 0 0 0 6px rgba(244, 63, 94, 0);
+  }
+  100% {
+    box-shadow: 0 0 0 0 rgba(244, 63, 94, 0);
   }
 }
 </style>

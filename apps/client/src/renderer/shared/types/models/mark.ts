@@ -13,20 +13,7 @@ export interface CreateMarkInput {
   additionalInfo?: string
   startAt?: string // ISO date string
   duration?: number // hours
-  photos?: File[]
-}
-
-export interface Mark {
-  id: number
-  markName: string
-  ownerId: number
-  geom: MarkGeo
-  endAt: string // ISO date string
-  isEnded: boolean
-  category: MarkCategory
-  additionalInfo?: string
-  photo?: string[]
-  owner?: MarkUser
+  photos?: File[] // Временно оставляем, но загрузку файлов лучше делать через file.repository
 }
 
 export interface MarkCategory {
@@ -39,22 +26,24 @@ export interface MarkCategory {
 export interface MarkGeo {
   bbox: number[] | null
   type: 'Point'
-  coordinates: [number, number]
+  coordinates: [number, number] // [lon, lat]
 }
 
 export interface MarkUser {
-  id: number
+  id: string // Было number
   username: string
   email?: string
   avatar?: string
 }
 
 export interface Mark {
-  id: number
+  id: string // Было number
   markName: string
-  ownerId: number
+  ownerId: string // Было number
   geom: MarkGeo
-  endAt: string
+  startAt?: string
+  endAt?: string
+  duration?: number
   isEnded: boolean
   category: MarkCategory
   additionalInfo?: string
@@ -63,16 +52,7 @@ export interface Mark {
 }
 
 export interface ScreenPosition {
-  leftTop: {
-    lat: number
-    lon: number
-  }
-  center: {
-    lat: number
-    lon: number
-  }
-  rightBottom: {
-    lat: number
-    lon: number
-  }
+  leftTop: { lat: number, lon: number }
+  center: { lat: number, lon: number }
+  rightBottom: { lat: number, lon: number }
 }

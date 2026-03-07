@@ -42,3 +42,19 @@ export type SignInPayload = RouterInput['user']['signIn']
  * @example RouterInput['user']['signUp']
  */
 export type SignUpPayload = RouterInput['user']['signUp']
+
+export interface TelegramLoginInitResult {
+  token: string
+  url: string
+}
+
+export type TelegramBotAuthStatus
+  = | { status: 'pending' }
+  | { status: 'cancelled' }
+  | { status: 'expired' }
+  | { status: 'not_found' }
+  | {
+    status: 'confirmed'
+    token: TokenPair
+    user: User
+  }

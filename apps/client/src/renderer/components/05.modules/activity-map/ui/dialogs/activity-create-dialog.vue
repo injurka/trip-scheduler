@@ -1,3 +1,4 @@
+// File: components/05.modules/activity-map/ui/dialogs/activity-create-dialog.vue
 <script setup lang="ts">
 import type { CalendarDate } from '@internationalized/date'
 import { Icon } from '@iconify/vue'
@@ -7,6 +8,7 @@ import { KitBtn } from '~/components/01.kit/kit-btn'
 import { KitDialogWithClose } from '~/components/01.kit/kit-dialog-with-close'
 import { KitInput } from '~/components/01.kit/kit-input'
 import { KitTimeField } from '~/components/01.kit/kit-time-field'
+import { KitViewSwitcher } from '~/components/01.kit/kit-view-switcher'
 import { CalendarPopover } from '~/components/02.shared/calendar-popover'
 
 interface Props {
@@ -24,6 +26,12 @@ const emit = defineEmits<{
 
 const visible = defineModel<boolean>('visible', { required: true })
 
+const typeItems = [
+  { id: 'dynamic', label: 'Событие', icon: 'mdi:clock-outline' },
+  { id: 'static', label: 'Локация (Статика)', icon: 'mdi:map-marker' },
+]
+
+const markType = ref<'dynamic' | 'static'>('dynamic')
 const title = ref('')
 const description = ref('')
 const selectedDate = shallowRef<CalendarDate>(today(getLocalTimeZone()))
@@ -37,32 +45,28 @@ const formattedDate = computed(() => {
 
 function getIsoDateTime(date: CalendarDate, time: Time): string {
   const d = date.toDate(getLocalTimeZone())
-
   d.setHours(time.hour, time.minute, 0, 0)
-
   const offset = d.getTimezoneOffset()
   const localTime = new Date(d.getTime() - offset * 60 * 1000)
   return localTime.toISOString()
 }
 
 function handleSave() {
-  if (props.isLoading)
+  if (props.isLoading || !title.value.trim())
     return
-
-  if (!title.value.trim()) {
-    return
-  }
 
   const startIso = getIsoDateTime(selectedDate.value, startTime.value)
   const endIso = getIsoDateTime(selectedDate.value, endTime.value)
 
-  if (new Date(endIso) <= new Date(startIso)) {
+  if (markType.value === 'dynamic' && new Date(endIso) <= new Date(startIso)) {
+    useToast().error('Время окончания должно быть позже времени начала')
     return
   }
 
   const payload = {
     title: title.value,
     description: description.value,
+    isStatic: markType.value === 'static',
     startAt: startIso,
     endAt: endIso,
     coords: props.initialCoords,
@@ -74,7 +78,6 @@ function handleSave() {
 function handleUpdateVisible(value: boolean) {
   if (props.isLoading && !value)
     return
-
   visible.value = value
 }
 
@@ -85,11 +88,11 @@ watch(
       const now = new Date()
       title.value = ''
       description.value = ''
+      markType.value = 'dynamic'
       selectedDate.value = parseDate(now.toISOString().split('T')[0])
       startTime.value = new Time(now.getHours(), now.getMinutes())
-      
+
       const oneHourLater = new Date(now.getTime() + 60 * 60 * 1000)
-      
       endTime.value = new Time(oneHourLater.getHours(), oneHourLater.getMinutes())
     }
   },
@@ -99,21 +102,23 @@ watch(
 <template>
   <KitDialogWithClose
     :visible="visible"
-    title="Новая активность"
+    :title="initialCoords ? 'Создать по координатам' : 'Новая метка'"
     icon="mdi:map-marker-plus"
     :max-width="500"
     @update:visible="handleUpdateVisible"
   >
     <div class="form-content" :class="{ 'is-loading': isLoading }">
+      <KitViewSwitcher v-model="markType" :items="typeItems" full-width />
+
       <KitInput
         v-model="title"
-        label="Название"
-        placeholder="Например: Обед"
+        :label="markType === 'dynamic' ? 'Название события' : 'Название места'"
+        placeholder="Например: Завтрак / Музей"
         required
         :disabled="isLoading"
       />
 
-      <div class="date-time-row">
+      <div v-if="markType === 'dynamic'" class="date-time-row">
         <div class="field-group date-group">
           <label class="field-label">Дата</label>
           <CalendarPopover v-model="selectedDate" :clearable="false">
@@ -150,24 +155,11 @@ watch(
       />
 
       <div class="form-actions">
-        <KitBtn
-          variant="text"
-          :disabled="isLoading"
-          @click="handleUpdateVisible(false)"
-        >
+        <KitBtn variant="text" :disabled="isLoading" @click="handleUpdateVisible(false)">
           Отмена
         </KitBtn>
-        <KitBtn
-          :disabled="isLoading || !title.trim()"
-          :loading="isLoading"
-          @click="handleSave"
-        >
-          <template v-if="isLoading">
-            Сохранение...
-          </template>
-          <template v-else>
-            Сохранить
-          </template>
+        <KitBtn :disabled="isLoading || !title.trim()" :loading="isLoading" @click="handleSave">
+          Сохранить
         </KitBtn>
       </div>
     </div>
@@ -220,7 +212,7 @@ watch(
   align-items: center;
   gap: 8px;
   width: 100%;
-  height: 46px; /* Высота md инпута */
+  height: 46px;
   padding: 0 12px;
   background-color: var(--bg-secondary-color);
   border: 1px solid var(--border-secondary-color);

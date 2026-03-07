@@ -1,3 +1,4 @@
+// File: seed-from-json.ts
 /* eslint-disable no-console */
 import fs from 'node:fs/promises'
 import path from 'node:path'
@@ -7,6 +8,7 @@ import { db } from './index'
 import { MOCK_METRO_DATA } from './mock/02.metro'
 import { SUBSCRIPTION_MOCK } from './mock/03.subscription'
 import { LLM_MOCK } from './mock/04.llm'
+import { MOCK_MARKS_DATA } from './mock/08.marks'
 import {
   activities,
   blogs,
@@ -15,6 +17,7 @@ import {
   emailVerificationTokens,
   llmModels,
   llmTokenUsage,
+  marks,
   memories,
   metroLines,
   metroLineStations,
@@ -125,6 +128,7 @@ async function seedFromJson() {
     posts: sourcePosts,
     blogs: sourceBlogs,
     metro: sourceMetro,
+    marks: sourceMarks,
   } = dumpData
 
   if (!Array.isArray(sourceUsers)) {
@@ -140,6 +144,7 @@ async function seedFromJson() {
   await db.delete(posts)
   await db.delete(llmTokenUsage)
   await db.delete(llmModels)
+  await db.delete(marks)
   await db.delete(memories)
   await db.delete(activities)
   await db.delete(days)
@@ -165,7 +170,6 @@ async function seedFromJson() {
   await db.insert(llmModels).values(LLM_MOCK).onConflictDoNothing()
 
   console.log('🚇 Восстановление данных Метро...')
-
   if (sourceMetro && Array.isArray(sourceMetro) && sourceMetro.length > 0) {
     console.log(`   📂 Найдено систем метро в дампе: ${sourceMetro.length}. Восстанавливаем...`)
 
@@ -236,7 +240,6 @@ async function seedFromJson() {
   }
 
   console.log('✈️  Восстановление пользовательских данных...')
-
   if (sourceUsers.length > 0) {
     console.log(`👤 Вставка ${sourceUsers.length} пользователей...`)
     const usersToInsert = sourceUsers.map((user: any) => ({
@@ -247,6 +250,29 @@ async function seedFromJson() {
       updatedAt: new Date(user.updatedAt),
     }))
     await db.insert(users).values(usersToInsert)
+  }
+
+  console.log('📍 Восстановление меток (Marks)...')
+  if (sourceMarks && Array.isArray(sourceMarks) && sourceMarks.length > 0) {
+    console.log(`   📂 Найдено меток в дампе: ${sourceMarks.length}. Восстанавливаем...`)
+    const marksToInsert = sourceMarks.map((mark: any) => ({
+      ...mark,
+      startAt: mark.startAt ? new Date(mark.startAt) : null,
+      createdAt: mark.createdAt ? new Date(mark.createdAt) : new Date(),
+    }))
+    await db.insert(marks).values(marksToInsert)
+  }
+  else if (MOCK_MARKS_DATA && sourceUsers.length > 0) {
+    console.log('   ⚠️ В дампе нет меток. Используем встроенный MOCK_MARKS_DATA.')
+    // Берем ID первого попавшегося юзера из дампа, чтобы не было ошибки внешнего ключа
+    const fallbackUserId = sourceUsers[0].id
+    const marksToInsert = MOCK_MARKS_DATA.map((mark: any) => ({
+      ...mark,
+      userId: fallbackUserId,
+      startAt: mark.startAt ? new Date(mark.startAt) : null,
+      createdAt: new Date(),
+    }))
+    await db.insert(marks).values(marksToInsert)
   }
 
   // --- TRIPS ---

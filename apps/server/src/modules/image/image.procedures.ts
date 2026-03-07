@@ -6,6 +6,7 @@ import {
   GetImagesByEntityInputSchema,
   GetImagesByTripIdInputSchema,
   TripImageSchema,
+  TripImageWithTripSchema,
 } from './image.schemas'
 import { imageService } from './image.service'
 
@@ -49,7 +50,7 @@ export const imageProcedures = {
         summary: 'Получить все изображения пользователя',
       },
     })
-    .output(z.array(TripImageSchema))
+    .output(z.array(TripImageWithTripSchema))
     .query(async ({ ctx }) => {
       return imageService.getAll(ctx.user.id)
     }),

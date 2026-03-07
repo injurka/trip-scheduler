@@ -7,6 +7,7 @@ import {
   bigint,
   boolean,
   date,
+  doublePrecision,
   index,
   integer,
   jsonb,
@@ -308,11 +309,23 @@ export const posts = pgTable('posts', {
     budget: '',
     duration: '',
   }),
-
 }, t => ({
   countryIdx: index('posts_country_idx').on(t.country),
   tagsIdx: index('posts_tags_idx').on(t.tags),
 }))
+
+export const marks = pgTable('marks', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  userId: uuid('user_id').notNull().references(() => users.id, { onDelete: 'cascade' }),
+  title: text('title').notNull(),
+  description: text('description'),
+  latitude: doublePrecision('latitude').notNull(),
+  longitude: doublePrecision('longitude').notNull(),
+  categoryId: integer('category_id').notNull().default(1),
+  startAt: timestamp('start_at', { withTimezone: true }),
+  duration: integer('duration').default(0), // в часах. 0 = статика
+  createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
+})
 
 export const postElements = pgTable('post_elements', {
   id: uuid('id').primaryKey().defaultRandom(),

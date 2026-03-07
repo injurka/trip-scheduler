@@ -11,5 +11,6 @@ const model = defineModel<string>({ required: true })
     :disabled="props.disabled"
     size="sm"
     align="start"
+    :chevron="false"
   />
 </template>
