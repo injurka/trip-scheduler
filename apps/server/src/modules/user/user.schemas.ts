@@ -34,6 +34,10 @@ export const RefreshTokenInputSchema = z.object({
   refreshToken: z.string(),
 })
 
+export const SearchUserInputSchema = z.object({
+  query: z.string().min(2, 'Минимум 2 символа'),
+})
+
 // --- Схема для получения пользователя по ID ---
 export const GetUserByIdInputSchema = z.object({
   id: z.string().uuid(),
@@ -71,6 +75,13 @@ export const UserSchema = createSelectSchema(users)
       trips: z.number(),
     }).optional(),
   })
+
+export const UserSearchResultSchema = z.object({
+  id: z.string().uuid(),
+  name: z.string(),
+  email: z.string().nullable(),
+  avatarUrl: z.string().nullable(),
+})
 
 // Схема для пары токенов
 export const TokenPairSchema = z.object({

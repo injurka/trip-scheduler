@@ -27,13 +27,11 @@ const email = ref('')
 const password = ref('')
 const terms = ref(false)
 const formError = ref<string | null>(null)
-const isPasswordVisible = ref(false)
-const isTelegramLoading = ref(false)
 
-let telegramPollInterval: ReturnType<typeof setInterval> | null = null
-let telegramPollTimeout: ReturnType<typeof setTimeout> | null = null
+const isPasswordVisible = ref(false)
 
 const isLoading = computed(() => store.auth.isLoading)
+
 const passwordInputType = computed(() => isPasswordVisible.value ? 'text' : 'password')
 const passwordToggleIcon = computed(() => isPasswordVisible.value ? 'mdi-eye-off-outline' : 'mdi-eye-outline')
 
@@ -67,71 +65,10 @@ async function submitSignIn() {
   }
 }
 
-function stopTelegramPolling() {
-  if (telegramPollInterval) {
-    clearInterval(telegramPollInterval)
-    telegramPollInterval = null
-  }
-  if (telegramPollTimeout) {
-    clearTimeout(telegramPollTimeout)
-    telegramPollTimeout = null
-  }
-  isTelegramLoading.value = false
-}
-
-async function loginViaTelegram() {
-  if (isTelegramLoading.value)
-    return
-
-  try {
-    isTelegramLoading.value = true
-    const { token, url } = await store.auth.initTelegramLogin()
-
-    // Открываем Telegram (десктоп или мобайл)
-    window.open(url, '_blank')
-
-    // Поллим статус каждые 2 секунды
-    telegramPollInterval = setInterval(async () => {
-      try {
-        const result = await store.auth.checkTelegramStatus(token)
-
-        if (result.status === 'confirmed') {
-          stopTelegramPolling()
-          const returnUrl = route.query.returnUrl as string
-          await router.push(returnUrl || AppRoutePaths.Trip.List)
-        }
-        else if (result.status === 'cancelled') {
-          stopTelegramPolling()
-          toast.error('Вход через Telegram отменён.')
-        }
-        else if (result.status === 'expired' || result.status === 'not_found') {
-          stopTelegramPolling()
-          toast.error('Сессия авторизации истекла. Попробуйте снова.')
-        }
-      }
-      catch {
-        stopTelegramPolling()
-        toast.error('Ошибка при проверке статуса Telegram.')
-      }
-    }, 2000)
-
-    // Таймаут — 5 минут
-    telegramPollTimeout = setTimeout(() => {
-      if (isTelegramLoading.value) {
-        stopTelegramPolling()
-        toast.error('Время ожидания входа через Telegram истекло.')
-      }
-    }, 5 * 60 * 1000)
-  }
-  catch (error: any) {
-    stopTelegramPolling()
-    toast.error(error.message || 'Не удалось запустить вход через Telegram.')
-  }
-}
-
 watch(formError, (newError) => {
-  if (newError)
+  if (newError) {
     toast.error(newError, { expire: 4000 })
+  }
 })
 
 onMounted(() => {
@@ -150,14 +87,10 @@ onMounted(() => {
     router.replace({ query: {} })
   }
 })
-
-onUnmounted(() => {
-  stopTelegramPolling()
-})
 </script>
 
 <template>
-  <AuthSignLayout :is-loading="isLoading || isTelegramLoading">
+  <AuthSignLayout :is-loading="isLoading">
     <template #form>
       <form class="form" @submit.prevent="submitSignIn">
         <KitInput
@@ -210,7 +143,6 @@ onUnmounted(() => {
         </KitBtn>
       </form>
     </template>
-
     <template #utils>
       <div class="utils">
         <router-link :to="AppRoutePaths.Auth.ForgotPassword" class="util-link">
@@ -219,39 +151,6 @@ onUnmounted(() => {
         <router-link :to="{ path: AppRoutePaths.Auth.SignUp, query: route.query }" class="util-link">
           Создать аккаунт
         </router-link>
-      </div>
-    </template>
-
-    <template #social>
-      <div class="social">
-        <div class="social-divider">
-          <span>или</span>
-        </div>
-
-        <div class="social-row">
-          <a class="social-btn" href="/api/auth/google/login">
-            <Icon icon="flat-color-icons:google" class="social-icon" />
-            Google
-          </a>
-          <a class="social-btn" href="/api/auth/github/login">
-            <Icon icon="mdi:github" class="social-icon" />
-            GitHub
-          </a>
-        </div>
-
-        <KitBtn
-          class="tg-btn"
-          :disabled="isTelegramLoading"
-          style="width: 100%;"
-          @click="loginViaTelegram"
-        >
-          <Icon
-            :icon="isTelegramLoading ? 'mdi:loading' : 'mdi:send'"
-            :class="{ spin: isTelegramLoading }"
-            class="tg-icon"
-          />
-          {{ isTelegramLoading ? 'Ожидание подтверждения в Telegram...' : 'Войти через Telegram' }}
-        </KitBtn>
       </div>
     </template>
   </AuthSignLayout>
@@ -303,77 +202,6 @@ onUnmounted(() => {
   text-decoration: none;
   &:hover {
     text-decoration: underline;
-  }
-}
-
-.social {
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
-}
-
-.social-divider {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  color: var(--fg-secondary-color);
-  font-size: 0.875rem;
-
-  &::before,
-  &::after {
-    content: '';
-    flex: 1;
-    height: 1px;
-    background-color: var(--border-secondary-color);
-  }
-}
-
-.social-row {
-  display: flex;
-  gap: 12px;
-}
-
-.social-btn {
-  flex: 1;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 8px;
-  padding: 10px 16px;
-  border: 1px solid var(--border-secondary-color);
-  border-radius: var(--r-m);
-  color: var(--fg-primary-color);
-  font-size: 0.875rem;
-  font-weight: 500;
-  text-decoration: none;
-  transition:
-    background-color 0.2s ease,
-    border-color 0.2s ease;
-
-  &:hover {
-    background-color: rgba(var(--fg-primary-color-rgb), 0.05);
-    border-color: var(--border-primary-color);
-  }
-
-  .social-icon {
-    font-size: 1.25rem;
-  }
-}
-
-.tg-btn {
-  .tg-icon {
-    font-size: 1.1rem;
-    margin-right: 4px;
-  }
-
-  .spin {
-    animation: spin 1s linear infinite;
-  }
-}
-
-@keyframes spin {
-  to {
-    transform: rotate(360deg);
   }
 }
 </style>

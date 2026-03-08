@@ -82,7 +82,7 @@ export const tripService = {
     return updatedTrip
   },
 
-  async addParticipant(tripId: string, email: string, currentUserId: string) {
+  async addParticipant(tripId: string, participantId: string, currentUserId: string) {
     const trip = await tripRepository.getById(tripId)
     if (!trip)
       throw createTRPCError('NOT_FOUND', `Путешествие с ID ${tripId} не найдено.`)
@@ -90,9 +90,9 @@ export const tripService = {
     if (trip.userId !== currentUserId)
       throw createTRPCError('FORBIDDEN', 'Только владелец путешествия может добавлять участников.')
 
-    const userToAdd = await userRepository.findByEmail(email)
+    const userToAdd = await userRepository.getById(participantId)
     if (!userToAdd)
-      throw createTRPCError('NOT_FOUND', `Пользователь с email ${email} не найден.`)
+      throw createTRPCError('NOT_FOUND', `Пользователь не найден.`)
 
     await tripRepository.addParticipant(tripId, userToAdd.id)
   },

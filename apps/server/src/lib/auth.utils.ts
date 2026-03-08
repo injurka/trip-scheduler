@@ -26,9 +26,9 @@ export const passwordUtils = {
   verify: async (password: string, hash: string) => await Bun.password.verify(password, hash),
 }
 
-async function generateTokens(user: { id: string, email: string }) {
+async function generateTokens(user: { id: string, email: string | null }) {
   // 1. Создаем Access Token с коротким сроком жизни
-  const accessTokenPayload: AccessTokenPayload = { id: user.id, email: user.email }
+  const accessTokenPayload = { id: user.id, email: user.email ?? '' }
   const accessToken = await sign(
     { ...accessTokenPayload, exp: Math.floor(Date.now() / 1000) + ACCESS_TOKEN_EXPIRY },
     JWT_SECRET,

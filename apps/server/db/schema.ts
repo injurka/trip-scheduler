@@ -53,7 +53,7 @@ export const users = pgTable('users', {
   id: uuid('id').primaryKey().defaultRandom(),
 
   role: userRoleEnum('role').notNull().default('user'),
-  email: text('email').notNull().unique(),
+  email: text('email').unique(),
   emailVerified: timestamp('email_verified', { withTimezone: true }),
   password: text('password'),
 
@@ -85,7 +85,7 @@ export const users = pgTable('users', {
 export const emailVerificationTokens = pgTable('email_verification_tokens', {
   id: uuid('id').primaryKey().defaultRandom(),
   token: text('token').notNull(), // 6-значный код
-  email: text('email').notNull().unique(),
+  email: text('email').unique(),
   name: text('name').notNull(),
   password: text('password').notNull(), // Хешированный пароль
   expiresAt: timestamp('expires_at', { withTimezone: true }).notNull(),

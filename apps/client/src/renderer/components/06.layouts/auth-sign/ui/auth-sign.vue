@@ -1,5 +1,4 @@
 <script setup lang="ts">
-import type { TelegramAuthPayload } from '~/shared/types/models/auth'
 import { Icon } from '@iconify/vue'
 import { KitBtn } from '~/components/01.kit/kit-btn'
 import { KitDivider } from '~/components/01.kit/kit-divider'
@@ -17,44 +16,76 @@ const store = useAppStore(['auth'])
 const toast = useToast()
 const route = useRoute()
 
-const telegramContainer = ref<HTMLElement | null>(null)
+const isTelegramLoading = ref(false)
+
+let telegramPollInterval: ReturnType<typeof setInterval> | null = null
+let telegramPollTimeout: ReturnType<typeof setTimeout> | null = null
 
 async function handleOAuth(_provider: OAuthProviders) {
   toast.warn('В процессе разработки :)')
 }
 
-async function onTelegramAuth(authData: TelegramAuthPayload) {
+function stopTelegramPolling() {
+  if (telegramPollInterval) {
+    clearInterval(telegramPollInterval)
+    telegramPollInterval = null
+  }
+  if (telegramPollTimeout) {
+    clearTimeout(telegramPollTimeout)
+    telegramPollTimeout = null
+  }
+  isTelegramLoading.value = false
+}
+
+async function loginViaTelegram() {
+  if (isTelegramLoading.value)
+    return
+
   try {
-    await store.auth.signInWithTelegram(authData)
-    const returnUrl = route.query.returnUrl as string
-    router.push(returnUrl || AppRoutePaths.Trip.List)
+    isTelegramLoading.value = true
+    const { token, url } = await store.auth.initTelegramLogin()
+
+    window.open(url, '_blank', 'noopener,noreferrer')
+
+    telegramPollInterval = setInterval(async () => {
+      try {
+        const result = await store.auth.checkTelegramStatus(token)
+
+        if (result?.status === 'confirmed') {
+          stopTelegramPolling()
+          const returnUrl = route.query.returnUrl as string
+          await router.push(returnUrl || AppRoutePaths.Trip.List)
+        }
+        else if (result?.status === 'cancelled') {
+          stopTelegramPolling()
+          toast.error('Вход через Telegram отменён.')
+        }
+        else if (result?.status === 'expired' || result?.status === 'not_found') {
+          stopTelegramPolling()
+          toast.error('Сессия авторизации истекла. Попробуйте снова.')
+        }
+      }
+      catch {
+        stopTelegramPolling()
+        toast.error('Ошибка при проверке статуса Telegram.')
+      }
+    }, 2000)
+
+    telegramPollTimeout = setTimeout(() => {
+      if (isTelegramLoading.value) {
+        stopTelegramPolling()
+        toast.error('Время ожидания входа через Telegram истекло.')
+      }
+    }, 5 * 60 * 1000)
   }
   catch (error: any) {
-    toast.error(error.message || 'Ошибка входа через Telegram.')
+    stopTelegramPolling()
+    toast.error(error.message || 'Не удалось запустить вход через Telegram.')
   }
 }
 
-onMounted(() => {
-  (window as any).onTelegramAuth = onTelegramAuth
-
-  if (telegramContainer.value) {
-    const script = document.createElement('script')
-    script.async = true
-    script.src = 'https://telegram.org/js/telegram-widget.js?22'
-    script.setAttribute('data-telegram-login', 'trip_scheduler_bot')
-    script.setAttribute('data-size', 'large')
-    script.setAttribute('data-onauth', 'onTelegramAuth(user)')
-    script.setAttribute('data-request-access', 'write')
-
-    telegramContainer.value.innerHTML = ''
-    telegramContainer.value.appendChild(script)
-  }
-})
-
 onUnmounted(() => {
-  if ((window as any).onTelegramAuth) {
-    delete (window as any).onTelegramAuth
-  }
+  stopTelegramPolling()
 })
 </script>
 
@@ -78,7 +109,7 @@ onUnmounted(() => {
         ИЛИ
       </KitDivider>
 
-      <div class="additional-oauth">
+      <div v-if="false" class="additional-oauth">
         <KitBtn
           variant="outlined"
           color="secondary"
@@ -102,17 +133,16 @@ onUnmounted(() => {
         </KitBtn>
       </div>
 
-      <div class="custom-telegram-wrapper">
+      <div class="telegram-oauth">
         <KitBtn
           variant="outlined"
           color="secondary"
-          :disabled="isLoading"
-          icon="mdi:telegram"
-          class="my-custom-telegram-button"
+          :disabled="isTelegramLoading"
+          icon="mdi:send"
+          @click="loginViaTelegram"
         >
-          Войти через Telegram
+          {{ isTelegramLoading ? 'Ожидание подтверждения' : 'Войти через Telegram' }}
         </KitBtn>
-        <div ref="telegramContainer" class="telegram-login-wrapper" />
       </div>
     </div>
   </section>
@@ -199,36 +229,11 @@ onUnmounted(() => {
   margin-top: 24px;
 }
 
-.custom-telegram-wrapper {
-  position: relative;
-  width: 238px;
-  height: 42px;
+.telegram-oauth {
   margin: 16px auto 0;
-  cursor: pointer;
 
-  .my-custom-telegram-button {
+  > button {
     width: 100%;
-    height: 100%;
-    pointer-events: none;
-    transition: all 0.2s ease-in-out;
-  }
-
-  .telegram-login-wrapper {
-    position: absolute;
-    top: 0;
-    left: 0;
-    width: 100%;
-    height: 100%;
-    opacity: 0.0001;
-    overflow: hidden;
-  }
-
-  &:hover .my-custom-telegram-button {
-    transform: translateY(-2px);
-    box-shadow: var(--s-l);
-    background-color: var(--bg-hover-color);
-    color: var(--fg-primary-color);
-    border-color: var(--border-primary-color);
   }
 }
 </style>

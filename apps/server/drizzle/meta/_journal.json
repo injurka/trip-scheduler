@@ -71,6 +71,20 @@
       "when": 1767039389457,
       "tag": "0009_neat_madame_hydra",
       "breakpoints": true
+    },
+    {
+      "idx": 10,
+      "version": "7",
+      "when": 1772923621006,
+      "tag": "0010_aberrant_old_lace",
+      "breakpoints": true
+    },
+    {
+      "idx": 11,
+      "version": "7",
+      "when": 1772927895953,
+      "tag": "0011_mighty_nehzno",
+      "breakpoints": true
     }
   ]
 }

@@ -1,6 +1,6 @@
 import type { z } from 'zod'
 import type { SignUpInputSchema, UpdateUserInputSchema } from '~/modules/user/user.schemas'
-import { eq, sql } from 'drizzle-orm'
+import { eq, ilike, or, sql } from 'drizzle-orm'
 import { db } from '~/../db'
 import { tripParticipants, users } from '~/../db/schema'
 import { authUtils } from '~/lib/auth.utils'
@@ -103,12 +103,11 @@ export const userRepository = {
       }
     }
 
-    const finalEmail = email || `telegram_${providerId}@telegram.user`
     const newUserPayload: typeof users.$inferInsert = {
-      email: finalEmail,
+      email: email ?? null,
       name,
       avatarUrl: avatarUrl || undefined,
-      emailVerified: new Date(),
+      emailVerified: email ? new Date() : null,
       planId: FREE_PLAN_ID,
     }
 
@@ -207,5 +206,24 @@ export const userRepository = {
     }
     await db.delete(users).where(eq(users.id, id))
     return true
+  },
+
+  async searchUsers(query: string, limit = 5) {
+    const searchPattern = `%${query}%`
+
+    const results = await db.query.users.findMany({
+      where: or(
+        ilike(users.name, searchPattern),
+        ilike(users.email, searchPattern),
+      ),
+      limit,
+      columns: {
+        id: true,
+        name: true,
+        email: true,
+        avatarUrl: true,
+      },
+    })
+    return results
   },
 }

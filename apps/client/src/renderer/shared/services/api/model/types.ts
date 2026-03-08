@@ -102,7 +102,7 @@ export interface ITripRepository {
   getUniqueCities: () => Promise<string[]>
   getUniqueTags: (params: { query?: string }) => Promise<string[]>
   listByUser: (params: { userId: string, limit: number }) => Promise<Trip[]>
-  addParticipant: (tripId: string, email: string) => Promise<void>
+  addParticipant: (tripId: string, userId: string) => Promise<void>
 }
 
 export interface IDayRepository {
@@ -163,6 +163,7 @@ export interface IAuthRepository {
 export interface IUserRepository {
   getById: (id: string) => Promise<User>
   listPlans: () => Promise<Plan[]>
+  search: (query: string) => Promise<{ id: string, name: string, email: string | null, avatarUrl: string | null }[]>
 }
 
 export interface ITripSectionRepository {

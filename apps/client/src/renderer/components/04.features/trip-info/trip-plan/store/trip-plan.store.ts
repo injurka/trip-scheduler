@@ -189,15 +189,15 @@ export const useTripPlanStore = defineStore('tripPlan', {
       })
     },
 
-    async addParticipant(email: string) {
+    async addParticipant(userId: string) {
       if (!this.trip)
         return
 
       await useRequest({
         key: ETripPlanKeys.ADD_PARTICIPANT,
-        fn: db => db.trips.addParticipant(this.trip!.id, email),
+        fn: db => db.trips.addParticipant(this.trip!.id, userId),
         onSuccess: () => {
-          useToast().success(`Пользователь ${email} добавлен в путешествие`)
+          useToast().success(`Участник успешно добавлен в путешествие`)
           this.fetchTripDetails(this.trip!.id, this.currentDayId!, () => { })
         },
       })
