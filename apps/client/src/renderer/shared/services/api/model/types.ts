@@ -45,6 +45,7 @@ export interface IPostRepository {
   delete: (params: { id: string }) => Promise<{ id: string }>
   toggleSave: (params: { postId: string }) => Promise<{ isSaved: boolean }>
   toggleLike: (params: { postId: string }) => Promise<{ isLiked: boolean }>
+  getUniqueTags: (params: { query?: string }) => Promise<string[]>
 }
 
 export interface INotificationRepository {
@@ -102,7 +103,7 @@ export interface ITripRepository {
   getUniqueCities: () => Promise<string[]>
   getUniqueTags: (params: { query?: string }) => Promise<string[]>
   listByUser: (params: { userId: string, limit: number }) => Promise<Trip[]>
-  addParticipant: (tripId: string, email: string) => Promise<void>
+  addParticipant: (tripId: string, userId: string) => Promise<void>
 }
 
 export interface IDayRepository {
@@ -163,6 +164,7 @@ export interface IAuthRepository {
 export interface IUserRepository {
   getById: (id: string) => Promise<User>
   listPlans: () => Promise<Plan[]>
+  search: (query: string) => Promise<{ id: string, name: string, email: string | null, avatarUrl: string | null }[]>
 }
 
 export interface ITripSectionRepository {

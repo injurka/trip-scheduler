@@ -10,7 +10,6 @@ export const markService = {
   async getMarks(params: z.infer<typeof GetMarksInputSchema>) {
     return measureDbQuery('marks', 'select', async () => {
       const { screen } = params
-
       const minLat = Math.min(screen.leftTop.lat, screen.rightBottom.lat)
       const maxLat = Math.max(screen.leftTop.lat, screen.rightBottom.lat)
       const minLon = Math.min(screen.leftTop.lon, screen.rightBottom.lon)
@@ -24,9 +23,7 @@ export const markService = {
           lte(marks.longitude, maxLon),
         ),
         with: {
-          user: {
-            columns: { id: true, name: true, avatarUrl: true },
-          },
+          user: true,
         },
         limit: 500,
       })
@@ -47,27 +44,27 @@ export const markService = {
           markName: mark.title,
           ownerId: mark.userId,
           geom: {
-            type: 'Point',
+            type: 'Point' as const,
             bbox: null,
-            coordinates: [mark.longitude, mark.latitude],
+            coordinates: [mark.longitude, mark.latitude] as [number, number],
           },
           startAt: mark.startAt?.toISOString(),
           endAt: endAtDate?.toISOString(),
-          duration: mark.duration,
+          duration: mark.duration ?? 0,
           isEnded,
           category: {
             id: mark.categoryId,
-            categoryName: mark.duration === 0 ? 'Место' : 'Событие',
-            color: mark.duration === 0 ? '#10B981' : '#3B82F6',
+            categoryName: mark.duration && mark.duration > 0 ? 'Событие' : 'Место',
+            color: mark.duration && mark.duration > 0 ? '#10B981' : '#3B82F6',
             icon: 'mdi:map-marker',
           },
-          additionalInfo: mark.description || undefined,
-          photo: [],
+          additionalInfo: mark.description ?? undefined,
+          photo: [] as string[],
           owner: mark.user
             ? {
-              id: mark.user.id,
-              username: mark.user.name || 'Аноним',
-              avatar: mark.user.avatarUrl || undefined,
+              id: (mark as any).user.id,
+              username: (mark as any).user.name,
+              avatar: (mark as any).user.avatarUrl ?? undefined,
             }
             : undefined,
         }
@@ -77,31 +74,45 @@ export const markService = {
 
   async create(data: z.infer<typeof CreateMarkInputSchema>, userId: string) {
     return measureDbQuery('marks', 'insert', async () => {
-      const [newMark] = await db.insert(marks).values({
-        userId,
-        title: data.markName,
-        description: data.additionalInfo,
-        latitude: data.latitude,
-        longitude: data.longitude,
-        categoryId: data.categoryId,
-        startAt: data.startAt ? new Date(data.startAt) : undefined,
-        duration: data.duration,
-      }).returning()
+      const newMark = await db
+        .insert(marks)
+        .values({
+          userId,
+          title: data.markName,
+          description: data.additionalInfo,
+          latitude: data.latitude,
+          longitude: data.longitude,
+          categoryId: data.categoryId,
+          startAt: data.startAt ? new Date(data.startAt) : undefined,
+          duration: data.duration,
+        })
+        .returning()
 
-      if (!newMark) {
+      if (!newMark[0])
         throw createTRPCError('INTERNAL_SERVER_ERROR', 'Не удалось создать метку')
-      }
+
+      const mark = newMark[0]
 
       return {
-        id: newMark.id,
-        markName: newMark.title,
-        ownerId: newMark.userId,
-        geom: { type: 'Point', bbox: null, coordinates: [newMark.longitude, newMark.latitude] },
-        startAt: newMark.startAt?.toISOString(),
-        duration: newMark.duration,
+        id: mark.id,
+        markName: mark.title,
+        ownerId: mark.userId,
+        geom: {
+          type: 'Point' as const,
+          bbox: null,
+          coordinates: [mark.longitude, mark.latitude] as [number, number],
+        },
+        startAt: mark.startAt?.toISOString(),
+        duration: mark.duration ?? 0,
         isEnded: false,
-        category: { id: newMark.categoryId, categoryName: 'Событие', color: '#3B82F6', icon: '' },
-        additionalInfo: newMark.description || undefined,
+        category: {
+          id: mark.categoryId,
+          categoryName: 'Место',
+          color: '#3B82F6',
+          icon: 'mdi:map-marker',
+        },
+        additionalInfo: mark.description ?? undefined,
+        photo: [] as string[],
       }
     })
   },

@@ -9,6 +9,7 @@ import {
   PlanSchema,
   RefreshOutputSchema,
   RefreshTokenInputSchema,
+  SearchUserInputSchema,
   SignInInputSchema,
   SignOutResponseSchema,
   SignUpInputSchema,
@@ -17,6 +18,7 @@ import {
   UpdateUserInputSchema,
   UpdateUserStatusInputSchema,
   UserSchema,
+  UserSearchResultSchema,
   UserStatsSchema,
   VerifyEmailInputSchema,
 } from './user.schemas'
@@ -227,5 +229,20 @@ export const userProcedures = {
     .output(SuccessResponseSchema)
     .mutation(async ({ ctx, input }) => {
       return userService.deleteAccount(ctx.user.id, input)
+    }),
+
+  search: protectedProcedure
+    .meta({
+      openapi: {
+        method: 'GET',
+        path: '/users/search',
+        tags: ['Users'],
+        summary: 'Поиск пользователей по имени или email',
+      },
+    })
+    .input(SearchUserInputSchema)
+    .output(z.array(UserSearchResultSchema))
+    .query(async ({ input }) => {
+      return userService.search(input.query)
     }),
 }

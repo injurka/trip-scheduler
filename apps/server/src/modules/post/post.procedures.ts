@@ -74,4 +74,12 @@ export const postProcedures = {
     .mutation(async ({ input, ctx }) => {
       return postService.toggleLike(input.postId, ctx.user.id)
     }),
+
+  getUniqueTags: publicProcedure
+    .meta({ openapi: { method: 'GET', path: '/posts/tags', tags: ['Posts'], summary: 'Получить уникальные теги постов' } })
+    .input(z.object({ query: z.string().optional() }))
+    .output(z.array(z.string()))
+    .query(async ({ input }) => {
+      return postService.getUniqueTags(input.query)
+    }),
 }

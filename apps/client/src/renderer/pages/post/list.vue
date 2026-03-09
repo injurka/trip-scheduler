@@ -3,7 +3,6 @@ import { Icon } from '@iconify/vue'
 import { storeToRefs } from 'pinia'
 import { useRouter } from 'vue-router'
 import { KitBtn } from '~/components/01.kit/kit-btn'
-import { KitWipBadge } from '~/components/01.kit/kit-wip-badge'
 import { NavigationBack } from '~/components/02.shared/navigation-back'
 import { PostCard } from '~/components/05.modules/post'
 import { usePostStore } from '~/components/05.modules/post/store/post.store'
@@ -55,8 +54,6 @@ onMounted(() => {
 
 <template>
   <section class="content-wrapper">
-    <KitWipBadge />
-
     <div class="page-header-row">
       <div class="left">
         <NavigationBack />

@@ -20,3 +20,33 @@ export const CreateMarkInputSchema = z.object({
   startAt: z.string().datetime().optional(),
   duration: z.number().default(0),
 })
+
+export const MarkOutputSchema = z.object({
+  id: z.string(),
+  markName: z.string(),
+  ownerId: z.string(),
+  geom: z.object({
+    type: z.literal('Point'),
+    bbox: z.any().nullable().optional(),
+    coordinates: z.tuple([z.number(), z.number()]),
+  }),
+  startAt: z.string().optional(),
+  endAt: z.string().optional(),
+  duration: z.number().nullable().optional(),
+  isEnded: z.boolean(),
+  category: z.object({
+    id: z.number(),
+    categoryName: z.string(),
+    color: z.string(),
+    icon: z.string(),
+  }),
+  additionalInfo: z.string().optional(),
+  photo: z.array(z.string()).optional(),
+  owner: z.object({
+    id: z.string(),
+    username: z.string(),
+    avatar: z.string().optional(),
+  }).optional(),
+})
+
+export const MarkListOutputSchema = z.array(MarkOutputSchema)

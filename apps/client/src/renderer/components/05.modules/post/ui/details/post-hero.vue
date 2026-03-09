@@ -8,7 +8,23 @@ interface IProps {
   post: PostDetail
 }
 
-defineProps<IProps>()
+const props = defineProps<IProps>()
+
+const formattedStartDate = computed(() => {
+  if (!props.post.startDate)
+    return ''
+  const d = new Date(props.post.startDate)
+  return d.toLocaleDateString('ru-RU', { day: 'numeric', month: 'short', year: 'numeric' })
+})
+
+const formattedDuration = computed(() => {
+  const hours = props.post.statsDetail?.duration || 0
+  if (!hours)
+    return ''
+  if (hours >= 24 && hours % 24 === 0)
+    return `${hours / 24} дн.`
+  return `${hours} ч.`
+})
 </script>
 
 <template>
@@ -20,7 +36,6 @@ defineProps<IProps>()
     <div class="hero-content">
       <div class="tags">
         <span v-if="post.city" class="tag-geo"><Icon icon="mdi:map-marker" /> {{ post.city }}</span>
-        <!-- Категории больше нет -->
       </div>
 
       <h1 class="hero-title">
@@ -38,14 +53,14 @@ defineProps<IProps>()
           <span>{{ post.statsDetail?.views || 0 }}</span>
         </div>
 
-        <div v-if="post.statsDetail?.duration " class="stat-item">
+        <div v-if="formattedDuration" class="stat-item">
           <Icon icon="mdi:clock-outline" />
-          <span>{{ post.statsDetail.duration }}</span>
+          <span>{{ formattedDuration }}</span>
         </div>
 
-        <div v-if="post.statsDetail?.budget " class="stat-item">
-          <Icon icon="mdi:wallet-outline" />
-          <span>{{ post.statsDetail.budget }}</span>
+        <div v-if="formattedStartDate" class="stat-item">
+          <Icon icon="mdi:calendar" />
+          <span>{{ formattedStartDate }}</span>
         </div>
       </div>
     </div>

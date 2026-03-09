@@ -70,6 +70,7 @@ export const postService = {
     }
     return await postRepository.delete(id)
   },
+
   async toggleSave(postId: string, userId: string) {
     const post = await postRepository.findById(postId)
     if (!post) {
@@ -91,5 +92,9 @@ export const postService = {
   async incrementView(postId: string) {
     await postRepository.incrementViewCount(postId)
     return { success: true }
+  },
+
+  async getUniqueTags(query?: string) {
+    return await postRepository.getUniqueTags(query)
   },
 }

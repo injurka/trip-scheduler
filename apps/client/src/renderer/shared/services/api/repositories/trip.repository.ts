@@ -50,8 +50,8 @@ class TripRepository implements ITripRepository {
   }
 
   @throttle(500)
-  async addParticipant(tripId: string, email: string): Promise<void> {
-    await trpc.trip.addParticipant.mutate({ tripId, email })
+  async addParticipant(tripId: string, userId: string): Promise<void> {
+    await trpc.trip.addParticipant.mutate({ tripId, userId })
   }
 }
 

@@ -158,7 +158,7 @@ export class TelegramAuthService {
       }
 
       await this.answerCallback(cbId, '✅ Вход выполнен!')
-      await this.editMessage(chatId, messageId, '✅ Вы успешно вошли на trip-scheduler.ru')
+      await this.editMessage(chatId, messageId, '✅  на trip-scheduler.ru')
     }
     else if (data?.startsWith('cancel:')) {
       const token = data.replace('cancel:', '')
@@ -188,6 +188,7 @@ export class TelegramAuthService {
 
     const data = await res.json()
     if (data.ok) {
+      // eslint-disable-next-line no-console
       console.info('[TelegramAuth] Webhook зарегистрирован:', webhookUrl)
     }
     else {

@@ -8,14 +8,14 @@ export enum EPostRequestKeys {
   DELETE = 'post:delete',
   TOGGLE_SAVE = 'post:toggle-save',
   TOGGLE_LIKE = 'post:toggle-like',
+  CREATE = 'post:create',
+  UPDATE = 'post:update',
+  UNIQUE_TAGS = 'post:unique-tags',
 }
 
-/**
- * Преобразует `elements` из ответа API в `stages` для использования в UI.
- */
 function transformElementsToStages(elements: PostElement[], allMedia: PostMedia[]): TimelineStage[] {
   return elements.map((element): TimelineStage => {
-    const blocks: TimelineBlock[] = element.content.map((contentBlock): TimelineBlock => {
+    const blocks: TimelineBlock[] = element.content.map((contentBlock: any): TimelineBlock => {
       switch (contentBlock.type) {
         case 'markdown':
           return { id: contentBlock.id, type: 'text', content: contentBlock.text }
@@ -51,10 +51,12 @@ function transformElementsToStages(elements: PostElement[], allMedia: PostMedia[
 
     return {
       id: element.id,
-      title: element.title,
+      title: element.title || '',
+      day: element.day,
+      time: element.time,
       order: element.order,
       blocks,
-    }
+    } as TimelineStage
   })
 }
 

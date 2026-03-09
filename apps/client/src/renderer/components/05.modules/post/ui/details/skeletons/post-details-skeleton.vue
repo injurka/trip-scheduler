@@ -4,16 +4,13 @@ import { KitSkeleton } from '~/components/01.kit/kit-skeleton'
 
 <template>
   <div class="post-details-skeleton">
-    <!-- Skeleton for Hero -->
     <KitSkeleton height="400px" width="100%" class="hero-skeleton" />
 
     <div class="content-container">
-      <!-- Skeleton for Sticky Nav -->
       <div class="sticky-nav-skeleton">
         <KitSkeleton v-for="i in 3" :key="i" width="80px" height="28px" border-radius="99px" />
       </div>
 
-      <!-- Skeleton for Timeline -->
       <div class="timeline-skeleton">
         <div v-for="i in 2" :key="i" class="stage-skeleton">
           <div class="connector-column">

@@ -43,6 +43,22 @@ function handleMenuAction(action: string) {
 const currentMedia = computed(() => props.post.media[activeMediaIndex.value])
 const hasMultipleMedia = computed(() => props.post.media.length > 1)
 
+const formattedStartDate = computed(() => {
+  if (!props.post.startDate)
+    return ''
+  const d = new Date(props.post.startDate)
+  return d.toLocaleDateString('ru-RU', { day: 'numeric', month: 'short', year: 'numeric' })
+})
+
+const formattedDuration = computed(() => {
+  const hours = props.post.statsDetail?.duration || 0
+  if (!hours)
+    return ''
+  if (hours >= 24 && hours % 24 === 0)
+    return `${hours / 24} дн.`
+  return `${hours} ч.`
+})
+
 function nextImage() {
   if (activeMediaIndex.value < props.post.media.length - 1) {
     activeMediaIndex.value++
@@ -268,11 +284,10 @@ const cardStyle = computed(() => ({
         </button>
       </div>
 
-      <!-- Статистика для превью -->
-      <div v-if="post.statsDetail" class="stats-preview">
-        <span v-if="post.statsDetail.duration">{{ post.statsDetail.duration }}</span>
-        <span v-if="post.statsDetail.budget" class="divider">•</span>
-        <span v-if="post.statsDetail.budget">{{ post.statsDetail.budget }}</span>
+      <div v-if="formattedDuration || formattedStartDate" class="stats-preview">
+        <span v-if="formattedDuration">{{ formattedDuration }}</span>
+        <span v-if="formattedDuration && formattedStartDate" class="divider">•</span>
+        <span v-if="formattedStartDate">{{ formattedStartDate }}</span>
       </div>
     </footer>
   </article>

@@ -41,8 +41,8 @@ export interface Mark {
   markName: string
   ownerId: string // Было number
   geom: MarkGeo
-  startAt?: string
-  endAt?: string
+  startAt: string
+  endAt: string
   duration?: number
   isEnded: boolean
   category: MarkCategory

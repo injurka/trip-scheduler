@@ -1,14 +1,19 @@
 <script setup lang="ts">
 import { Icon } from '@iconify/vue'
+import { parseDate } from '@internationalized/date'
+import { onClickOutside } from '@vueuse/core'
 import { storeToRefs } from 'pinia'
+import { computed, nextTick, onMounted, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import draggable from 'vuedraggable'
 import { KitBtn } from '~/components/01.kit/kit-btn'
+import { KitCalendar } from '~/components/01.kit/kit-calendar'
+import { KitDropdown } from '~/components/01.kit/kit-dropdown'
 import { KitImage } from '~/components/01.kit/kit-image'
 import { KitInput } from '~/components/01.kit/kit-input'
 import { KitSelectWithSearch } from '~/components/01.kit/kit-select-with-search'
-
 import { NavigationBack } from '~/components/02.shared/navigation-back'
+import { useRequest } from '~/plugins/request'
 import { useToast } from '~/shared/composables/use-toast'
 import { MOCK_COUNTRY_DATA } from '../../data/countries'
 import { usePostDraftStore } from '../../store/post-draft.store'
@@ -33,6 +38,40 @@ const isLoading = ref(true)
 const isMediaLibraryOpen = ref(false)
 const isMapPickerOpen = ref(false)
 
+const durationType = ref<'hours' | 'days'>('hours')
+const durationValue = ref<number | null>(null)
+
+const tempTag = ref('')
+const suggestedTags = ref<string[]>([])
+const tagsWrapperRef = ref<HTMLElement | null>(null)
+const isTagInputFocused = ref(false)
+
+// Computed для KitCalendar
+const calendarDateModel = computed({
+  get: () => {
+    if (!post.value?.startDate)
+      return null
+    try {
+      return parseDate(post.value.startDate)
+    }
+    catch {
+      return null
+    }
+  },
+  set: (val) => {
+    if (post.value) {
+      post.value.startDate = val ? val.toString() : ''
+    }
+  },
+})
+
+const formattedStartDate = computed(() => {
+  if (!post.value?.startDate)
+    return ''
+  const d = new Date(post.value.startDate)
+  return d.toLocaleDateString('ru-RU', { day: 'numeric', month: 'short', year: 'numeric' })
+})
+
 function openLibraryManage() {
   isMediaLibraryOpen.value = true
 }
@@ -44,19 +83,64 @@ function handleMapConfirm(coords: { lat: number, lng: number }) {
   }
 }
 
-const tempTag = ref('')
+async function fetchTags(query: string) {
+  await useRequest<string[]>({
+    key: 'post:unique-tags',
+    fn: db => db.posts.getUniqueTags({ query }),
+    onSuccess: (res) => {
+      suggestedTags.value = res || []
+    },
+  })
+}
 
-function addTag() {
-  const val = tempTag.value.trim()
-  if (val && post.value) {
-    if (post.value.tags.includes(val)) {
-      toast.warn(`Тег "${val}" уже добавлен`)
-      tempTag.value = ''
-      return
+watch(tempTag, (val) => {
+  if (val && isTagInputFocused.value)
+    fetchTags(val)
+  else suggestedTags.value = []
+})
+
+onClickOutside(tagsWrapperRef, () => {
+  isTagInputFocused.value = false
+})
+
+function addTag(val?: string) {
+  const tagToAdd = (val || tempTag.value).trim().toLowerCase()
+  if (tagToAdd && post.value) {
+    if (post.value.tags.includes(tagToAdd)) {
+      toast.warn(`Тег "${tagToAdd}" уже добавлен`)
     }
-    draftStore.addTag(val)
+    else {
+      draftStore.addTag(tagToAdd)
+    }
     tempTag.value = ''
+    suggestedTags.value = []
   }
+}
+
+watch(() => post.value?.statsDetail?.duration, (val) => {
+  if (val && !durationValue.value) {
+    if (val >= 24 && val % 24 === 0) {
+      durationType.value = 'days'
+      durationValue.value = val / 24
+    }
+    else {
+      durationType.value = 'hours'
+      durationValue.value = val
+    }
+  }
+}, { immediate: true })
+
+function updateDuration() {
+  nextTick(() => {
+    if (!post.value)
+      return
+    if (!durationValue.value) {
+      post.value.statsDetail.duration = 0
+    }
+    else {
+      post.value.statsDetail.duration = durationType.value === 'days' ? durationValue.value * 24 : durationValue.value
+    }
+  })
 }
 
 const countryOptions = computed(() => {
@@ -84,6 +168,7 @@ async function handlePublish() {
   try {
     const postId = await draftStore.savePost(!isEditMode.value, 'completed')
     toast.success(isEditMode.value ? 'Пост обновлен!' : 'Пост успешно опубликован!')
+
     if (postId) {
       router.push(AppRoutePaths.Post.Details(postId))
     }
@@ -159,7 +244,7 @@ onMounted(() => {
     </div>
 
     <div v-else-if="isPreviewMode && post" class="preview-container">
-      <PostDetailsView :post="previewData" />
+      <PostDetailsView :post="previewData" :is-preview-mode="true" />
     </div>
 
     <div v-else-if="post" class="editor-container">
@@ -181,7 +266,7 @@ onMounted(() => {
         </div>
 
         <div class="main-inputs">
-          <KitInput v-model="post.title" label="Название маршрута" />
+          <KitInput v-model="post.title" label="Название маршрута" placeholder="Заголовок..." />
           <KitInput v-model="post.insight" label="Главный инсайт" placeholder="Короткий совет..." type="textarea" :rows="2" />
         </div>
       </section>
@@ -197,10 +282,11 @@ onMounted(() => {
             <div class="location-inputs">
               <div class="country-selector">
                 <KitSelectWithSearch
-                  v-model="post.country"
+                  :model-value="post.country ?? null"
                   :items="countryOptions"
                   placeholder="Страна"
                   size="sm"
+                  @update:model-value="val => { if (post) post.country = val as string }"
                 >
                   <template #item="{ item }">
                     <img
@@ -228,29 +314,71 @@ onMounted(() => {
 
           <div class="field-group dual">
             <div>
-              <label>Бюджет</label>
-              <KitInput v-model="post.statsDetail.budget" placeholder="Напр. $50 / Бесплатно" size="sm" />
+              <label>Дата начала</label>
+              <KitDropdown align="start" :side-offset="4">
+                <template #trigger>
+                  <div class="date-trigger-wrapper" :class="{ 'is-empty': !post.startDate }">
+                    <Icon icon="mdi:calendar" class="input-icon-prefix" />
+                    <div class="trigger-text">
+                      {{ formattedStartDate || 'Выберите дату...' }}
+                    </div>
+                  </div>
+                </template>
+                <div class="calendar-dropdown-content">
+                  <KitCalendar v-model="calendarDateModel" />
+                </div>
+              </KitDropdown>
             </div>
             <div>
-              <label>Время</label>
-              <KitInput v-model="post.statsDetail.duration" placeholder="Напр. 2 часа / Весь день" size="sm" />
+              <label>Время в пути</label>
+              <div class="duration-editor">
+                <KitInput
+                  v-model.number="durationValue"
+                  type="number"
+                  placeholder="0"
+                  size="sm"
+                  class="duration-val-input"
+                  @input="updateDuration"
+                />
+                <KitSelectWithSearch
+                  v-model="durationType"
+                  :items="[
+                    { value: 'hours', label: 'Часов' },
+                    { value: 'days', label: 'Дней' },
+                  ]"
+                  size="sm"
+                  class="duration-type-select"
+                  :clearable="false"
+                  @update:model-value="updateDuration"
+                />
+              </div>
             </div>
           </div>
 
           <div class="field-group">
-            <label>Теги (#Прогулка, #Архитектура)</label>
-            <div class="tags-input-wrapper">
-              <div v-for="tag in post.tags" :key="tag" class="tag-chip">
-                #{{ tag }}
-                <span class="remove" @click="draftStore.removeTag(tag)">×</span>
+            <label>Теги (#прогулка, #архитектура)</label>
+            <div ref="tagsWrapperRef" class="tags-input-container">
+              <div class="tags-input-wrapper">
+                <div v-for="tag in post.tags" :key="tag" class="tag-chip">
+                  #{{ tag }}
+                  <span class="remove" @click="draftStore.removeTag(tag)">×</span>
+                </div>
+                <input
+                  v-model="tempTag"
+                  placeholder="+ Добавить"
+                  class="tag-input"
+                  @keydown.enter="addTag()"
+                  @focus="isTagInputFocused = true; fetchTags('')"
+                >
               </div>
-              <input
-                v-model="tempTag"
-                placeholder="+ Добавить"
-                class="tag-input"
-                @keydown.enter="addTag"
-                @blur="addTag"
-              >
+
+              <div v-if="suggestedTags.length > 0 && isTagInputFocused" class="tags-dropdown">
+                <div class="suggested-tags-wrapper">
+                  <button v-for="tag in suggestedTags" :key="tag" class="suggested-tag-btn" @click.stop="addTag(tag)">
+                    #{{ tag }}
+                  </button>
+                </div>
+              </div>
             </div>
           </div>
         </div>
@@ -382,9 +510,10 @@ onMounted(() => {
   padding: 6px 12px;
   border-radius: var(--r-s);
   transition: all 0.2s;
+  height: 36px;
 
   &:hover {
-    background-color: var(--bg-hover-color);
+    background: var(--bg-hover-color);
     color: var(--fg-primary-color);
   }
 }
@@ -515,6 +644,62 @@ onMounted(() => {
   }
 }
 
+.date-trigger-wrapper {
+  background-color: var(--bg-primary-color);
+  border: 1px solid var(--border-secondary-color);
+  border-radius: var(--r-s);
+  padding: 0 12px;
+  display: flex;
+  align-items: center;
+  cursor: pointer;
+  min-height: 38px;
+  transition: border-color 0.2s;
+
+  &:hover {
+    border-color: var(--border-focus-color);
+  }
+
+  .input-icon-prefix {
+    color: var(--fg-tertiary-color);
+    margin-right: 8px;
+    font-size: 1.1rem;
+  }
+
+  .trigger-text {
+    color: var(--fg-primary-color);
+    font-size: 0.875rem;
+    user-select: none;
+  }
+
+  &.is-empty .trigger-text {
+    color: var(--fg-tertiary-color);
+  }
+}
+
+.calendar-dropdown-content {
+  :deep(.calendar) {
+    background-color: transparent;
+    border: none;
+    box-shadow: none;
+    padding: 4px;
+  }
+}
+
+.duration-editor {
+  display: flex;
+  gap: 8px;
+  align-items: stretch;
+
+  .duration-val-input {
+    width: 90px;
+    flex-shrink: 0;
+  }
+  .duration-type-select {
+    flex-grow: 1;
+    min-width: 110px;
+  }
+}
+
 .location-inputs {
   display: flex;
   gap: 8px;
@@ -524,6 +709,10 @@ onMounted(() => {
 .country-selector {
   flex: 1;
   min-width: 200px;
+
+  :deep(.chip-input-wrapper) {
+    background-color: var(--bg-primary-color) !important;
+  }
 }
 
 .option-flag {
@@ -560,6 +749,46 @@ onMounted(() => {
   }
 }
 
+.tags-input-container {
+  position: relative;
+}
+
+.tags-dropdown {
+  position: absolute;
+  top: calc(100% + 4px);
+  left: 0;
+  width: 100%;
+  background: var(--bg-primary-color);
+  border: 1px solid var(--border-secondary-color);
+  border-radius: var(--r-s);
+  padding: 8px;
+  box-shadow: var(--s-l);
+  z-index: 10;
+}
+
+.suggested-tags-wrapper {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.suggested-tag-btn {
+  background: var(--bg-tertiary-color);
+  color: var(--fg-primary-color);
+  border: 1px solid var(--border-secondary-color);
+  border-radius: var(--r-s);
+  padding: 4px 10px;
+  font-size: 0.85rem;
+  cursor: pointer;
+  transition: all 0.2s;
+
+  &:hover {
+    background: rgba(var(--fg-accent-color-rgb), 0.1);
+    color: var(--fg-accent-color);
+    border-color: var(--fg-accent-color);
+  }
+}
+
 .tags-input-wrapper {
   display: flex;
   flex-wrap: wrap;
@@ -578,7 +807,7 @@ onMounted(() => {
 .tag-chip {
   background: rgba(var(--fg-accent-color-rgb), 0.1);
   color: var(--fg-accent-color);
-  padding: 4px 8px;
+  padding: 0px 8px;
   border-radius: 4px;
   font-size: 0.85rem;
   display: flex;

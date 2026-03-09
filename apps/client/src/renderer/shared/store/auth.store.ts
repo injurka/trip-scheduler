@@ -1,8 +1,7 @@
 import type {
   SignInPayload,
   SignUpPayload,
-  TelegramAuthPayload,
-  TelegramBotAuthStatus,
+  TelegramLoginInitResult,
   TokenPair,
   User,
 } from '../types/models/auth'
@@ -150,7 +149,7 @@ export const useAuthStore = defineStore('auth', {
       return useRequest({
         key: EAuthRequestKeys.SIGN_IN_TG,
         fn: db => db.auth.initTelegramLogin(),
-      })
+      }) as unknown as TelegramLoginInitResult
     },
 
     /**

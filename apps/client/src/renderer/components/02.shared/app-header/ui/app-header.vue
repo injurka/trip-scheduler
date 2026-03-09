@@ -101,6 +101,11 @@ function goToSignIn() {
   })
 }
 
+function handleClickProfile() {
+  if (appStore.auth.isAuthenticated)
+    isProfileDrawerOpen.value = true
+}
+
 onMounted(() => {
   let ticking = false
   const handleScroll = () => {
@@ -207,7 +212,7 @@ onMounted(() => {
 
         <div class="vr" />
 
-        <div class="profile" @click="isProfileDrawerOpen = true">
+        <div class="profile" @click="handleClickProfile">
           <KitAvatar
             v-if="appStore.auth.isAuthenticated"
             :src="`${appStore.auth.user?.avatarUrl}`"

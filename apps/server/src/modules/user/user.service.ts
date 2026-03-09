@@ -53,7 +53,7 @@ export const userService = {
 
     const user = await userRepository.create({
       name: verificationRecord.name,
-      email: verificationRecord.email,
+      email: verificationRecord.email!,
       password: verificationRecord.password,
     })
 
@@ -154,5 +154,10 @@ export const userService = {
   async deleteAccount(id: string, data: z.infer<typeof DeleteAccountInputSchema>) {
     await userRepository.delete(id, data.password)
     return { success: true }
+  },
+
+  async search(query: string) {
+    if (!query || query.length < 2) return []
+    return await userRepository.searchUsers(query)
   },
 }

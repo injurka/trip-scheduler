@@ -30,4 +30,8 @@ export class PostRepository implements IPostRepository {
   async toggleLike(params: { postId: string }) {
     return trpc.post.toggleLike.mutate(params)
   }
+
+  async getUniqueTags(params: { query?: string }) {
+    return trpc.post.getUniqueTags.query(params)
+  }
 }
