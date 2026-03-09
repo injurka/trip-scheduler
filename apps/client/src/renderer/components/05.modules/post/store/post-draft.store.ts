@@ -11,9 +11,39 @@ import type { TripImage } from '~/shared/types/models/trip'
 import { defineStore } from 'pinia'
 import { v4 as uuidv4 } from 'uuid'
 import { useRequest } from '~/plugins/request'
+import { useToast } from '~/shared/composables/use-toast'
 import { EPostRequestKeys } from './post.store'
 
 type ClientPostMedia = PostMedia & { file?: File }
+
+export interface AiGeneratedBlock {
+  type: 'text' | 'location' | 'route'
+  content?: string | null
+  name?: string | null
+  address?: string | null
+  coords?: { lat: number, lng: number } | null
+  from?: string | null
+  to?: string | null
+  transport?: 'walk' | 'transit' | 'car' | null
+  distance?: string | null
+  duration?: string | null
+}
+
+export interface AiGeneratedStage {
+  title?: string | null
+  day?: number | null
+  time?: string | null
+  blocks?: AiGeneratedBlock[] | null
+}
+
+export interface AiGeneratedPostData {
+  title?: string | null
+  insight?: string | null
+  description?: string | null
+  country?: string | null
+  tags?: string[] | null
+  stages?: AiGeneratedStage[] | null
+}
 
 function defaultPostState(): PostDetail {
   return {
@@ -64,6 +94,67 @@ export const usePostDraftStore = defineStore('post-draft', {
       this.isDirty = false
     },
 
+    applyAiGeneratedData(data: AiGeneratedPostData) {
+      if (data.title)
+        this.post.title = data.title
+      if (data.insight)
+        this.post.insight = data.insight
+      if (data.description)
+        this.post.description = data.description
+      if (data.country)
+        this.post.country = data.country
+
+      if (data.tags) {
+        data.tags.forEach(tag => this.addTag(tag))
+      }
+
+      if (data.stages && data.stages.length > 0) {
+        this.post.stages = data.stages.map((stage, sIdx) => {
+          const blocks: TimelineBlock[] = stage.blocks
+            ? stage.blocks.map((block) => {
+              const baseId = uuidv4()
+              if (block.type === 'text') {
+                return { id: baseId, type: 'text', content: block.content || '' } as TimelineBlock
+              }
+              if (block.type === 'location') {
+                return { id: baseId, type: 'location', coords: block.coords || { lat: 0, lng: 0 }, name: block.name || '', address: block.address || '' } as TimelineBlock
+              }
+              if (block.type === 'route') {
+                return { id: baseId, type: 'route', from: block.from || '', to: block.to || '', distance: block.distance || '', duration: block.duration || '', transport: block.transport || 'walk' } as TimelineBlock
+              }
+              return { id: baseId, type: 'text', content: '' } as TimelineBlock
+            })
+            : []
+
+          return {
+            id: uuidv4(),
+            title: stage.title || `Этап ${sIdx + 1}`,
+            day: stage.day || 1,
+            time: stage.time || '',
+            order: sIdx,
+            blocks,
+          } as unknown as TimelineStage
+        })
+      }
+      this.isDirty = true
+    },
+
+    async generateWithAi(text: string) {
+      await useRequest<AiGeneratedPostData>({
+        key: EPostRequestKeys.GENERATE,
+        fn: db => db.posts.generateFromText({ text }),
+        onSuccess: (data) => {
+          if (data) {
+            this.applyAiGeneratedData(data)
+            useToast().success('Пост успешно сгенерирован!')
+          }
+        },
+        onError: ({ error }) => {
+          useToast().error(error.customMessage || 'Ошибка при генерации поста.')
+        },
+      })
+    },
+
     addGlobalMedia(files: File[]): ClientPostMedia[] {
       const newMedia: ClientPostMedia[] = files.map(file => ({
         id: uuidv4(),
@@ -111,7 +202,7 @@ export const usePostDraftStore = defineStore('post-draft', {
       if (!this.post.stages)
         this.post.stages = []
 
-      const lastDay = this.post.stages.length > 0 ? this.post.stages[this.post.stages.length - 1].day : 1
+      const lastDay = this.post.stages.length > 0 ? (this.post.stages[this.post.stages.length - 1] as any).day : 1
 
       this.post.stages.push({
         id: uuidv4(),
@@ -205,7 +296,6 @@ export const usePostDraftStore = defineStore('post-draft', {
       try {
         let postId = this.post.id
 
-        // 1. Создаем базовую сущность поста в БД, чтобы получить валидный ID (избегаем 404 ошибки)
         if (isNew) {
           const initialPayload: CreatePostInput = {
             title: this.post.title || 'Новый маршрут',
@@ -243,7 +333,6 @@ export const usePostDraftStore = defineStore('post-draft', {
           postId = createdPostId
         }
 
-        // 2. Загружаем файлы
         const filesToUpload = this.post.media.filter(m => (m as ClientPostMedia).file) as ClientPostMedia[]
         const idMap = new Map<string, string>()
 
@@ -272,7 +361,6 @@ export const usePostDraftStore = defineStore('post-draft', {
           await Promise.all(uploadPromises)
         }
 
-        // 3. Формируем элементы без any и без внешних TS-типов (используем вывод типов TS)
         const elements = this.post.stages.map((stage: TimelineStage) => {
           const content = stage.blocks.map((block: TimelineBlock) => {
             if (block.type === 'text') {
@@ -305,12 +393,12 @@ export const usePostDraftStore = defineStore('post-draft', {
                 route: { points: [] },
               }
             }
-            throw new Error(`Неизвестный тип блока`) // Убрали block.type из ошибки, чтобы избежать type 'never'
+            throw new Error(`Неизвестный тип блока`)
           })
 
           return {
             title: stage.title,
-            day: stage.day || 1,
+            day: (stage as any).day || 1,
             time: stage.time || null,
             content,
           }

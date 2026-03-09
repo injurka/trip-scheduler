@@ -7,16 +7,24 @@ import GeolocationMap from '~/components/03.domain/trip-info/geolocation-section
 
 interface Props {
   visible: boolean
+  pinned?: boolean
   post: PostDetail
 }
 
-const props = defineProps<Props>()
-const emit = defineEmits<{ (e: 'update:visible', value: boolean): void }>()
+const props = withDefaults(defineProps<Props>(), {
+  pinned: false,
+})
+
+const emit = defineEmits<{
+  (e: 'update:visible', value: boolean): void
+  (e: 'update:pinned', value: boolean): void
+}>()
 
 const isDragging = ref(false)
 const position = ref({ x: 0, y: 0 })
 const dragStart = ref({ x: 0, y: 0 })
 const initialPos = ref({ x: 0, y: 0 })
+const isMapFullscreen = ref(false)
 
 const mapPoints = computed<MapPoint[]>(() => {
   const points: MapPoint[] = []
@@ -29,10 +37,12 @@ const mapPoints = computed<MapPoint[]>(() => {
           coordinates: [block.location.lng, block.location.lat],
           address: block.location.address,
           comment: block.location.label,
+          isDraggable: false,
+          draggable: false,
           style: {
             color: getColorForIndex(sIndex),
           },
-        })
+        } as unknown as MapPoint)
       }
     })
   })
@@ -52,8 +62,11 @@ function getColorForIndex(index: number) {
 }
 
 function startDrag(e: MouseEvent) {
+  if (props.pinned || isMapFullscreen.value)
+    return
   if (e.target instanceof HTMLButtonElement || (e.target as HTMLElement).closest('button'))
     return
+
   isDragging.value = true
   dragStart.value = { x: e.clientX, y: e.clientY }
   initialPos.value = { ...position.value }
@@ -76,15 +89,31 @@ function stopDrag() {
   document.removeEventListener('mouseup', stopDrag)
 }
 
+function toggleFullscreen() {
+  isMapFullscreen.value = !isMapFullscreen.value
+}
+
+function handleKeydown(e: KeyboardEvent) {
+  if (e.key === 'Escape' && isMapFullscreen.value) {
+    isMapFullscreen.value = false
+  }
+}
+
+function closeMap() {
+  isMapFullscreen.value = false
+  emit('update:visible', false)
+}
+
 onMounted(() => {
   position.value = {
     x: window.innerWidth > 600 ? window.innerWidth - 450 : 10,
     y: 80,
   }
+  document.addEventListener('keydown', handleKeydown)
 })
 
 watch(() => props.visible, (val) => {
-  if (val) {
+  if (val && !props.pinned) {
     const maxLeft = window.innerWidth - 300
     const maxTop = window.innerHeight - 300
     position.value = {
@@ -92,23 +121,50 @@ watch(() => props.visible, (val) => {
       y: Math.min(position.value.y, maxTop),
     }
   }
+  if (!val) {
+    isMapFullscreen.value = false
+  }
 })
 
 onBeforeUnmount(() => {
   document.removeEventListener('mousemove', onDrag)
   document.removeEventListener('mouseup', stopDrag)
+  document.removeEventListener('keydown', handleKeydown)
 })
 </script>
 
 <template>
-  <Teleport to="body">
+  <Teleport to="body" :disabled="pinned">
     <Transition name="fade">
-      <div v-if="visible" class="floating-map-window" :style="{ left: `${position.x}px`, top: `${position.y}px` }">
-        <div class="map-drag-handle" @mousedown="startDrag">
-          <button class="close-btn" title="Закрыть" @click="emit('update:visible', false)">
-            <Icon icon="mdi:close" />
-          </button>
+      <div
+        v-if="visible || pinned"
+        class="floating-map-window"
+        :class="{ 'is-pinned': pinned, 'is-fullscreen': isMapFullscreen }"
+        :style="(pinned || isMapFullscreen) ? {} : { left: `${position.x}px`, top: `${position.y}px` }"
+      >
+        <div v-if="!pinned && !isMapFullscreen" class="map-drag-handle" @mousedown="startDrag">
+          <div class="drag-indicator">
+            <Icon icon="mdi:drag-horizontal" />
+          </div>
+          <div class="header-actions">
+            <button class="action-btn" title="Закрепить" @click="emit('update:pinned', true)">
+              <Icon icon="mdi:pin" />
+            </button>
+            <button class="action-btn" title="Закрыть" @click="closeMap">
+              <Icon icon="mdi:close" />
+            </button>
+          </div>
         </div>
+
+        <button
+          v-if="pinned && !isMapFullscreen"
+          class="unpin-floating-btn"
+          title="Открепить карту"
+          @click="emit('update:pinned', false)"
+        >
+          <Icon icon="mdi:pin-off" />
+        </button>
+
         <div class="map-body">
           <div v-if="mapPoints.length === 0" class="empty-map">
             <p>В этом посте нет отмеченных локаций.</p>
@@ -123,8 +179,9 @@ onBeforeUnmount(() => {
             height="100%"
             :is-loading="false"
             :readonly="true"
-            :is-fullscreen="false"
+            :is-fullscreen="isMapFullscreen"
             :with-panel="false"
+            @toggle-fullscreen="toggleFullscreen"
           />
         </div>
       </div>
@@ -149,23 +206,50 @@ onBeforeUnmount(() => {
   overflow: hidden;
   border: 1px solid var(--border-secondary-color);
 
-  @include media-down(sm) {
-    width: calc(100vw - 20px);
-    height: 60vh;
+  &.is-pinned {
+    position: relative;
+    width: 100% !important;
+    height: 100% !important;
+    left: auto !important;
+    top: auto !important;
     resize: none;
-    left: 10px !important;
-    top: 10vh !important;
+    box-shadow: var(--s-m);
+    z-index: 1;
+    border-radius: var(--r-l);
+  }
+
+  &.is-fullscreen {
+    position: fixed !important;
+    top: 0 !important;
+    left: 0 !important;
+    width: 100vw !important;
+    height: 100vh !important;
+    z-index: 99999 !important;
+    border-radius: 0 !important;
+    resize: none !important;
+    box-shadow: none !important;
+    border: none !important;
+  }
+
+  @include media-down(sm) {
+    &:not(.is-pinned):not(.is-fullscreen) {
+      width: calc(100vw - 20px);
+      height: 60vh;
+      resize: none;
+      left: 10px !important;
+      top: 10vh !important;
+    }
   }
 }
 
 .map-drag-handle {
-  height: 32px;
+  height: 38px;
   background: var(--bg-tertiary-color);
   cursor: grab;
   position: relative;
   display: flex;
   align-items: center;
-  justify-content: flex-end;
+  justify-content: space-between;
   padding: 0 8px;
   border-bottom: 1px solid var(--border-secondary-color);
 
@@ -174,7 +258,20 @@ onBeforeUnmount(() => {
   }
 }
 
-.close-btn {
+.drag-indicator {
+  color: var(--fg-tertiary-color);
+  display: flex;
+  align-items: center;
+  margin-left: 4px;
+}
+
+.header-actions {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+}
+
+.action-btn {
   background: transparent;
   border: none;
   cursor: pointer;
@@ -182,13 +279,44 @@ onBeforeUnmount(() => {
   display: flex;
   align-items: center;
   justify-content: center;
-  padding: 4px;
+  padding: 6px;
   border-radius: 4px;
   transition: all 0.2s;
 
   &:hover {
     background: var(--bg-hover-color);
     color: var(--fg-primary-color);
+  }
+}
+
+.unpin-floating-btn {
+  position: absolute;
+  top: 12px;
+  left: 12px;
+  z-index: 10;
+  width: 36px;
+  height: 36px;
+  border-radius: 8px;
+  background: rgba(var(--bg-primary-color-rgb), 0.85);
+  backdrop-filter: blur(4px);
+  border: 1px solid var(--border-secondary-color);
+  color: var(--fg-primary-color);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  box-shadow: var(--s-s);
+  transition: all 0.2s;
+
+  .iconify {
+    font-size: 1.2rem;
+  }
+
+  &:hover {
+    background: var(--bg-primary-color);
+    color: var(--fg-accent-color);
+    border-color: var(--fg-accent-color);
+    transform: translateY(-2px);
   }
 }
 

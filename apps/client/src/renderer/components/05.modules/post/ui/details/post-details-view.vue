@@ -26,6 +26,7 @@ const confirm = useConfirm()
 
 const activeStageId = ref(props.post.stages?.[0]?.id)
 const isMapVisible = ref(false)
+const isMapPinned = ref(false)
 
 const menuItems: KitDropdownItem[] = [
   { label: 'Редактировать', value: 'edit', icon: 'mdi:pencil' },
@@ -83,6 +84,11 @@ function scrollToStage(id: string) {
     el.scrollIntoView({ behavior: 'smooth', block: 'center' })
   }
 }
+
+function pinMap() {
+  isMapVisible.value = true
+  isMapPinned.value = true
+}
 </script>
 
 <template>
@@ -105,77 +111,88 @@ function scrollToStage(id: string) {
 
     <PostHero :post="post" />
 
-    <div class="content-container">
-      <div
-        v-if="post.stages && post.stages.length > 0"
-        class="sticky-nav"
-        :class="{
-          'can-scroll-left': canScrollLeft,
-          'can-scroll-right': canScrollRight,
-        }"
-      >
+    <div class="layout-wrapper" :class="{ 'has-sidebar': isMapPinned }">
+      <div class="main-column">
         <div
-          ref="navScrollerRef"
-          class="nav-scroller"
-          @scroll="updateScrollState"
+          v-if="post.stages && post.stages.length > 0"
+          class="sticky-nav"
+          :class="{
+            'can-scroll-left': canScrollLeft,
+            'can-scroll-right': canScrollRight,
+          }"
         >
-          <button
-            v-for="stage in post.stages"
-            :key="stage.id"
-            class="nav-tab"
-            :class="{ active: activeStageId === stage.id }"
-            @click="scrollToStage(stage.id)"
+          <div
+            ref="navScrollerRef"
+            class="nav-scroller"
+            @scroll="updateScrollState"
           >
-            {{ stage.title }}
-          </button>
+            <button
+              v-for="stage in post.stages"
+              :key="stage.id"
+              class="nav-tab"
+              :class="{ active: activeStageId === stage.id }"
+              @click="scrollToStage(stage.id)"
+            >
+              {{ stage.title }}
+            </button>
+          </div>
+        </div>
+
+        <div class="timeline-container">
+          <slot name="timeline" />
+
+          <template v-if="post.stages">
+            <div
+              v-for="(stage, index) in post.stages"
+              :id="`stage-${stage.id}`"
+              :key="stage.id"
+              class="stage-wrapper"
+            >
+              <TimelineStage
+                :stage="stage"
+                :is-last="index === post.stages.length - 1"
+              />
+            </div>
+
+            <div v-if="post.stages.length === 0" class="empty-state">
+              <p>Автор еще не добавил этапы в этот маршрут.</p>
+            </div>
+          </template>
         </div>
       </div>
 
-      <div class="timeline-container">
-        <slot name="timeline" />
-
-        <template v-if="post.stages">
-          <div
-            v-for="(stage, index) in post.stages"
-            :id="`stage-${stage.id}`"
-            :key="stage.id"
-            class="stage-wrapper"
-          >
-            <TimelineStage
-              :stage="stage"
-              :is-last="index === post.stages.length - 1"
-            />
-          </div>
-
-          <div v-if="post.stages.length === 0" class="empty-state">
-            <p>Автор еще не добавил этапы в этот маршрут.</p>
-          </div>
-        </template>
+      <div class="sidebar-column" :class="{ 'is-active': isMapPinned }">
+        <PostMapView
+          v-model:visible="isMapVisible"
+          v-model:pinned="isMapPinned"
+          :post="post"
+        />
       </div>
-
-      <template v-if="!isPreviewMode">
-        <KitDivider class="comments-divider">
-          Обсуждение
-        </KitDivider>
-
-        <section class="comments-section">
-          <TripComments
-            :parent-id="post.id"
-            :parent-type="CommentParentType.POST"
-          />
-        </section>
-      </template>
     </div>
 
-    <button class="map-fab" title="Показать на карте" @click="isMapVisible = true">
-      <Icon icon="mdi:map" />
-      <span class="fab-text">Карта</span>
-    </button>
+    <div v-if="!isPreviewMode" class="bottom-container">
+      <KitDivider class="comments-divider">
+        Обсуждение
+      </KitDivider>
 
-    <PostMapView
-      v-model:visible="isMapVisible"
-      :post="post"
-    />
+      <section class="comments-section">
+        <TripComments
+          :parent-id="post.id"
+          :parent-type="CommentParentType.POST"
+        />
+      </section>
+    </div>
+
+    <div v-if="!isMapPinned" class="map-fab-group">
+      <button class="fab-main" title="Показать на карте" @click="isMapVisible = true">
+        <Icon icon="mdi:map" />
+        <span class="fab-text">Карта</span>
+      </button>
+      <div class="fab-divider" />
+      <button class="fab-pin" title="Закрепить рядом с текстом" @click="pinMap">
+        <Icon icon="mdi:pin" />
+      </button>
+    </div>
   </div>
 </template>
 
@@ -212,11 +229,48 @@ function scrollToStage(id: string) {
     }
   }
 }
-.content-container {
+
+/* Обновленный Layout для поддержки сайдбара */
+.layout-wrapper {
+  max-width: 800px;
+  margin: 0 auto;
+  padding: 0 8px;
+  transition: max-width 0.3s ease;
+
+  &.has-sidebar {
+    max-width: 1240px;
+    display: grid;
+    grid-template-columns: 1fr 400px;
+    gap: 32px;
+    align-items: start;
+  }
+}
+
+.main-column {
+  width: 100%;
+  min-width: 0;
+}
+
+.sidebar-column {
+  display: none;
+
+  &.is-active {
+    display: block;
+    position: sticky;
+    top: 24px;
+    height: calc(100vh - 48px);
+    align-self: start; /* Ключевое свойство для работы sticky внутри grid */
+    z-index: 10;
+  }
+}
+
+/* Контейнер под сеткой (Комментарии) */
+.bottom-container {
   max-width: 800px;
   margin: 0 auto;
   padding: 0 8px;
 }
+
 .sticky-nav {
   position: relative;
   background: rgba(var(--bg-primary-color-rgb), 0.8);
@@ -292,7 +346,7 @@ function scrollToStage(id: string) {
 }
 .timeline-container {
   margin-top: 16px;
-  min-height: calc(100vh - 500px);
+  /* Убрана минимальная высота, чтобы комментарии подтягивались ближе, если контента мало */
 }
 .empty-state {
   text-align: center;
@@ -309,50 +363,102 @@ function scrollToStage(id: string) {
   padding: 16px;
   border: 1px solid var(--border-secondary-color);
 }
-.map-fab {
+
+/* Стили плавающей кнопки FAB */
+.map-fab-group {
   position: fixed;
   bottom: 24px;
   right: 24px;
   display: flex;
   align-items: center;
-  gap: 8px;
   background-color: var(--fg-accent-color);
-  color: white;
-  border: none;
   border-radius: 30px;
-  padding: 12px 20px;
-  font-size: 1rem;
-  font-weight: 600;
   box-shadow: 0 4px 15px rgba(var(--fg-accent-color-rgb), 0.4);
-  cursor: pointer;
+  z-index: 20;
+  overflow: hidden;
   transition:
     transform 0.2s,
     box-shadow 0.2s;
-  z-index: 20;
 
   &:hover {
     transform: translateY(-2px);
     box-shadow: 0 6px 20px rgba(var(--fg-accent-color-rgb), 0.5);
   }
+}
 
-  &:active {
-    transform: translateY(0);
-  }
+.fab-main {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: white;
+  background: transparent;
+  border: none;
+  padding: 12px 16px 12px 20px;
+  font-size: 1rem;
+  font-weight: 600;
+  cursor: pointer;
 
   .iconify {
     font-size: 1.2rem;
   }
 }
+
+.fab-divider {
+  width: 1px;
+  height: 24px;
+  background-color: rgba(255, 255, 255, 0.3);
+}
+
+.fab-pin {
+  color: white;
+  background: transparent;
+  border: none;
+  padding: 12px 20px 12px 16px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  .iconify {
+    font-size: 1.2rem;
+    transition: transform 0.2s;
+  }
+
+  &:hover .iconify {
+    transform: scale(1.1);
+  }
+}
+
+@include media-down(md) {
+  .layout-wrapper.has-sidebar {
+    grid-template-columns: 1fr;
+    max-width: 800px;
+  }
+
+  .sidebar-column.is-active {
+    position: relative;
+    top: 0;
+    height: 400px;
+    margin-bottom: 24px;
+    z-index: 1;
+  }
+}
+
 @include media-down(sm) {
-  .map-fab {
+  .map-fab-group {
     bottom: 20px;
     right: 20px;
-    padding: 12px;
     border-radius: 50%;
-
+  }
+  .fab-main {
+    padding: 14px;
     .fab-text {
       display: none;
     }
+  }
+  .fab-divider,
+  .fab-pin {
+    display: none;
   }
 }
 </style>

@@ -34,4 +34,8 @@ export class PostRepository implements IPostRepository {
   async getUniqueTags(params: { query?: string }) {
     return trpc.post.getUniqueTags.query(params)
   }
+
+  async generateFromText(params: { text: string }) {
+    return trpc.post.generateFromText.mutate(params)
+  }
 }
