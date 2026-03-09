@@ -59,8 +59,7 @@ export const PostElementContentSchema = z.discriminatedUnion('type', [
 
 export const PostStatsDetailSchema = z.object({
   views: z.number().default(0),
-  budget: z.string().default(''),
-  duration: z.string().default(''),
+  duration: z.number().default(0),
 })
 
 export const PostMediaSchema = createSelectSchema(postMedia)
@@ -88,6 +87,8 @@ export const PostSchema = BasePostSchema
 
 export const CreatePostElementInput = z.object({
   title: z.string().optional(),
+  day: z.number().default(1),
+  time: z.string().optional().nullable(),
   content: z.array(PostElementContentSchema),
 })
 
@@ -96,6 +97,7 @@ export const CreatePostInputSchema = z.object({
   insight: z.string().optional(),
   description: z.string().optional(),
   country: z.string().optional(),
+  startDate: z.string().optional().nullable(),
   tags: z.array(z.string()).default([]),
   status: z.enum(['draft', 'completed', 'planned']).default('draft'),
   elements: z.array(CreatePostElementInput).optional(),

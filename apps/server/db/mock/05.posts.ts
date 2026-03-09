@@ -28,6 +28,7 @@ export const MOCK_POST_DATA = [
     insight: 'Лучшее время для посещения — середина ноября, когда клены становятся ярко-красными.',
     description: 'Небольшой отчет о нашей поездке в древнюю столицу Японии. Храмы, еда и невероятные краски осени.',
     country: 'Япония',
+    startDate: '2024-11-15', // Добавлено поле даты
     tags: ['travel', 'japan', 'kyoto', 'autumn', 'photography'],
     status: 'completed' as const,
     viewsCount: 1250,
@@ -39,14 +40,15 @@ export const MOCK_POST_DATA = [
     longitude: 135.7681,
     statsDetail: {
       views: 1250,
-      budget: '¥150,000',
-      duration: '5 дней',
+      duration: 120, // 5 дней в часах
     },
     elements: [
       {
         id: EL_ID_1_TEXT,
         postId: POST_ID_1,
         order: 0,
+        day: 1, // Обязательное поле теперь
+        time: '10:00',
         title: 'Вступление',
         content: [
           {
@@ -62,6 +64,8 @@ export const MOCK_POST_DATA = [
         id: EL_ID_1_GALLERY,
         postId: POST_ID_1,
         order: 1,
+        day: 1,
+        time: '14:30',
         title: 'Краски осени',
         content: [
           {
@@ -83,6 +87,8 @@ export const MOCK_POST_DATA = [
         id: EL_ID_1_LOCATION,
         postId: POST_ID_1,
         order: 2,
+        day: 2,
+        time: '09:00',
         title: 'Где это находится',
         content: [
           {
@@ -146,6 +152,7 @@ export const MOCK_POST_DATA = [
     insight: 'Погода меняется каждые 15 минут. Берите многослойную одежду и непромокаемый верх — это не шутка!',
     description: '7-дневное путешествие на машине по знаменитому южному побережью Исландии: водопады, ледники, черные пляжи и вулканы.',
     country: 'Исландия',
+    startDate: '2025-08-08',
     tags: ['iceland', 'roadtrip', 'nature', 'waterfalls', 'glacier'],
     status: 'completed' as const,
     viewsCount: 2800,
@@ -157,14 +164,15 @@ export const MOCK_POST_DATA = [
     longitude: -19.019,
     statsDetail: {
       views: 2800,
-      budget: '€2,500',
-      duration: '7 дней',
+      duration: 168, // 7 дней
     },
     elements: [
       {
         id: EL_ID_2_INTRO,
         postId: POST_ID_2,
         order: 0,
+        day: 1,
+        time: '08:00',
         title: 'Дорога огня и льда',
         content: [
           {
@@ -180,6 +188,8 @@ export const MOCK_POST_DATA = [
         id: EL_ID_2_WATERFALLS,
         postId: POST_ID_2,
         order: 1,
+        day: 2,
+        time: '11:00',
         title: 'Могучие водопады: Сельяландсфосс и Скогафосс',
         content: [
           {
@@ -201,6 +211,8 @@ export const MOCK_POST_DATA = [
         id: EL_ID_2_BEACH,
         postId: POST_ID_2,
         order: 2,
+        day: 3,
+        time: '15:45',
         title: 'Пляж Рейнисфьяра',
         content: [
           {
@@ -233,6 +245,8 @@ export const MOCK_POST_DATA = [
         id: EL_ID_2_LAGOON,
         postId: POST_ID_2,
         order: 3,
+        day: 5,
+        time: '12:00',
         title: 'Ледниковая лагуна Йокульсарлон',
         content: [
           {

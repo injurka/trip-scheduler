@@ -1,8 +1,17 @@
-import type { PostDetail, PostMedia, TimelineBlockType, TimelineStage } from '~/shared/types/models/post'
+import type {
+  CreatePostInput,
+  PostDetail,
+  PostMedia,
+  TimelineBlock,
+  TimelineBlockType,
+  TimelineStage,
+  UpdatePostInput,
+} from '~/shared/types/models/post'
 import type { TripImage } from '~/shared/types/models/trip'
 import { defineStore } from 'pinia'
 import { v4 as uuidv4 } from 'uuid'
 import { useRequest } from '~/plugins/request'
+import { EPostRequestKeys } from './post.store'
 
 type ClientPostMedia = PostMedia & { file?: File }
 
@@ -15,12 +24,13 @@ function defaultPostState(): PostDetail {
     country: '',
     latitude: 0,
     longitude: 0,
+    startDate: '',
     tags: [],
     media: [],
     elements: [],
-    statsDetail: { views: 0, budget: '', duration: '' },
+    statsDetail: { views: 0, duration: 0 },
     stages: [
-      { id: uuidv4(), title: 'Начало', order: 0, blocks: [] },
+      { id: uuidv4(), day: 1, time: '', title: 'Начало', order: 0, blocks: [] } as unknown as TimelineStage,
     ],
     user: { id: '', name: '', avatarUrl: '' },
     stats: { likes: 0, saves: 0, isLiked: false, isSaved: false },
@@ -42,7 +52,7 @@ export const usePostDraftStore = defineStore('post-draft', {
       if (existingPost) {
         this.post = JSON.parse(JSON.stringify(existingPost))
         if (!this.post.statsDetail) {
-          this.post.statsDetail = { views: 0, budget: '', duration: '' }
+          this.post.statsDetail = { views: 0, duration: 0 }
         }
         if (!this.post.stages) {
           this.post.stages = []
@@ -74,7 +84,7 @@ export const usePostDraftStore = defineStore('post-draft', {
         return
       this.post.stages.forEach((stage) => {
         stage.blocks.forEach((block) => {
-          if (block.type === 'gallery' && 'images' in block) {
+          if (block.type === 'gallery') {
             block.images = block.images.filter(img => img.id !== mediaId)
           }
         })
@@ -83,9 +93,12 @@ export const usePostDraftStore = defineStore('post-draft', {
     },
 
     addTag(tag: string) {
-      if (!tag || this.post.tags.includes(tag))
+      if (!tag)
         return
-      this.post.tags.push(tag)
+      const lowerTag = tag.trim().toLowerCase()
+      if (this.post.tags.includes(lowerTag))
+        return
+      this.post.tags.push(lowerTag)
       this.isDirty = true
     },
 
@@ -97,12 +110,17 @@ export const usePostDraftStore = defineStore('post-draft', {
     addStage() {
       if (!this.post.stages)
         this.post.stages = []
+
+      const lastDay = this.post.stages.length > 0 ? this.post.stages[this.post.stages.length - 1].day : 1
+
       this.post.stages.push({
         id: uuidv4(),
+        day: lastDay,
+        time: '',
         title: 'Новый этап',
         order: this.post.stages.length,
         blocks: [],
-      })
+      } as unknown as TimelineStage)
       this.isDirty = true
     },
 
@@ -135,30 +153,25 @@ export const usePostDraftStore = defineStore('post-draft', {
       if (!stage)
         return
 
-      const newBlock: any = { id: uuidv4(), type }
+      let newBlock: TimelineBlock | null = null
 
       if (type === 'text') {
-        newBlock.content = ''
+        newBlock = { id: uuidv4(), type: 'text', content: '' }
       }
       else if (type === 'gallery') {
-        newBlock.images = []
-        newBlock.comment = ''
+        newBlock = { id: uuidv4(), type: 'gallery', images: [], comment: '' }
       }
       else if (type === 'location') {
-        newBlock.coords = { lat: 0, lng: 0 }
-        newBlock.name = ''
-        newBlock.address = ''
+        newBlock = { id: uuidv4(), type: 'location', coords: { lat: 0, lng: 0 }, name: '', address: '' }
       }
       else if (type === 'route') {
-        newBlock.from = ''
-        newBlock.to = ''
-        newBlock.distance = ''
-        newBlock.duration = ''
-        newBlock.transport = 'walk'
+        newBlock = { id: uuidv4(), type: 'route', from: '', to: '', distance: '', duration: '', transport: 'walk' }
       }
 
-      stage.blocks.push(newBlock)
-      this.isDirty = true
+      if (newBlock) {
+        stage.blocks.push(newBlock)
+        this.isDirty = true
+      }
     },
 
     removeBlock(stageId: string, blockId: string) {
@@ -173,7 +186,7 @@ export const usePostDraftStore = defineStore('post-draft', {
       }
     },
 
-    updateBlock(stageId: string, blockId: string, payload: any) {
+    updateBlock(stageId: string, blockId: string, payload: Partial<TimelineBlock>) {
       if (!this.post.stages)
         return
       const stage = this.post.stages.find(s => s.id === stageId)
@@ -192,6 +205,45 @@ export const usePostDraftStore = defineStore('post-draft', {
       try {
         let postId = this.post.id
 
+        // 1. Создаем базовую сущность поста в БД, чтобы получить валидный ID (избегаем 404 ошибки)
+        if (isNew) {
+          const initialPayload: CreatePostInput = {
+            title: this.post.title || 'Новый маршрут',
+            insight: this.post.insight || undefined,
+            description: this.post.description || undefined,
+            country: this.post.country || undefined,
+            startDate: this.post.startDate || undefined,
+            latitude: this.post.latitude || undefined,
+            longitude: this.post.longitude || undefined,
+            tags: this.post.tags || [],
+            status: 'draft',
+            statsDetail: {
+              duration: this.post.statsDetail.duration || 0,
+            },
+          }
+
+          let createdPostId: string | null = null
+          await useRequest<{ id: string }>({
+            key: EPostRequestKeys.CREATE,
+            fn: db => db.posts.create(initialPayload),
+            onSuccess: (data) => {
+              if (data) {
+                createdPostId = data.id
+                this.post.id = createdPostId
+              }
+            },
+            onError: ({ error }) => {
+              throw new Error(error.customMessage || 'Ошибка при создании поста.')
+            },
+          })
+
+          if (!createdPostId) {
+            throw new Error('Не удалось получить ID созданного поста.')
+          }
+          postId = createdPostId
+        }
+
+        // 2. Загружаем файлы
         const filesToUpload = this.post.media.filter(m => (m as ClientPostMedia).file) as ClientPostMedia[]
         const idMap = new Map<string, string>()
 
@@ -220,72 +272,73 @@ export const usePostDraftStore = defineStore('post-draft', {
           await Promise.all(uploadPromises)
         }
 
-        const elements = this.post.stages.map(stage => ({
-          title: stage.title,
-          content: stage.blocks.map((block: any) => {
-            const mappedBlock: any = { id: block.id }
-
+        // 3. Формируем элементы без any и без внешних TS-типов (используем вывод типов TS)
+        const elements = this.post.stages.map((stage: TimelineStage) => {
+          const content = stage.blocks.map((block: TimelineBlock) => {
             if (block.type === 'text') {
-              mappedBlock.type = 'markdown'
-              mappedBlock.text = block.content || ''
+              return { id: block.id, type: 'markdown' as const, text: block.content || '' }
             }
-            else if (block.type === 'gallery') {
-              mappedBlock.type = 'gallery'
-              mappedBlock.displayType = 'grid'
-              mappedBlock.imageIds = block.images.map((img: any) => idMap.get(img.id) || img.id)
-            }
-            else if (block.type === 'location') {
-              mappedBlock.type = 'location'
-              mappedBlock.location = {
-                lat: block.coords.lat,
-                lng: block.coords.lng,
-                label: block.name,
-                address: block.address,
+            if (block.type === 'gallery') {
+              return {
+                id: block.id,
+                type: 'gallery' as const,
+                displayType: 'grid' as const,
+                imageIds: block.images.map(img => idMap.get(img.id) || img.id),
               }
             }
-            else if (block.type === 'route') {
-              mappedBlock.type = 'route'
-              mappedBlock.route = { points: [] }
+            if (block.type === 'location') {
+              return {
+                id: block.id,
+                type: 'location' as const,
+                location: {
+                  lat: block.coords.lat,
+                  lng: block.coords.lng,
+                  label: block.name,
+                  address: block.address,
+                },
+              }
             }
-            return mappedBlock
-          }),
-        }))
+            if (block.type === 'route') {
+              return {
+                id: block.id,
+                type: 'route' as const,
+                route: { points: [] },
+              }
+            }
+            throw new Error(`Неизвестный тип блока`) // Убрали block.type из ошибки, чтобы избежать type 'never'
+          })
+
+          return {
+            title: stage.title,
+            day: stage.day || 1,
+            time: stage.time || null,
+            content,
+          }
+        })
 
         const finalMediaIds = this.post.media.map(m => idMap.get(m.id) || m.id)
 
-        const payload = {
-          title: this.post.title,
-          insight: this.post.insight,
-          description: this.post.description,
-          country: this.post.country,
-          latitude: this.post.latitude,
-          longitude: this.post.longitude,
-          tags: this.post.tags,
+        const payload: Partial<UpdatePostInput> = {
+          title: this.post.title || 'Новый маршрут',
+          insight: this.post.insight || undefined,
+          description: this.post.description || undefined,
+          country: this.post.country || undefined,
+          startDate: this.post.startDate || undefined,
+          latitude: this.post.latitude || undefined,
+          longitude: this.post.longitude || undefined,
+          tags: this.post.tags || [],
           status: publishStatus,
           statsDetail: {
-            budget: this.post.statsDetail.budget,
-            duration: this.post.statsDetail.duration,
+            duration: this.post.statsDetail.duration || 0,
           },
           mediaIds: finalMediaIds,
           elements,
         }
 
-        if (isNew) {
-          await useRequest<{ id: string }>({
-            key: 'post:create',
-            fn: db => db.posts.create(payload),
-            onSuccess: (data) => {
-              if (data)
-                postId = data.id
-            },
-          })
-        }
-        else {
-          await useRequest({
-            key: 'post:update',
-            fn: db => db.posts.update({ id: postId, data: payload }),
-          })
-        }
+        await useRequest({
+          key: EPostRequestKeys.UPDATE,
+          fn: db => db.posts.update({ id: postId, data: payload }),
+        })
 
         this.isDirty = false
         return postId

@@ -78,7 +78,7 @@ export const UserSchema = createSelectSchema(users)
 
 export const UserSearchResultSchema = z.object({
   id: z.string().uuid(),
-  name: z.string(),
+  name: z.string().nullable(),
   email: z.string().nullable(),
   avatarUrl: z.string().nullable(),
 })

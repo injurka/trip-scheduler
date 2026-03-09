@@ -70,6 +70,7 @@ const internalModel = computed({
   text-align: center;
   background-color: var(--bg-tertiary-color);
   user-select: none;
+  font-variant-numeric: tabular-nums;
 
   .TimeFieldLiteral {
     &:last-of-type {

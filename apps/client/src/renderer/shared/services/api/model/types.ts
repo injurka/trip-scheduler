@@ -45,6 +45,7 @@ export interface IPostRepository {
   delete: (params: { id: string }) => Promise<{ id: string }>
   toggleSave: (params: { postId: string }) => Promise<{ isSaved: boolean }>
   toggleLike: (params: { postId: string }) => Promise<{ isLiked: boolean }>
+  getUniqueTags: (params: { query?: string }) => Promise<string[]>
 }
 
 export interface INotificationRepository {

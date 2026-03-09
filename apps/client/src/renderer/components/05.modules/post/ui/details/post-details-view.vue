@@ -17,7 +17,7 @@ import PostHero from './post-hero.vue'
 import PostMapView from './post-map-view.vue'
 import TimelineStage from './timeline-stage.vue'
 
-const props = defineProps<{ post: PostDetail }>()
+const props = defineProps<{ post: PostDetail, isPreviewMode?: boolean }>()
 
 const router = useRouter()
 const store = usePostStore()
@@ -65,7 +65,7 @@ async function handleMenuAction(action: string) {
       title: 'Вы уверены, что хотите удалить этот пост?',
       description: 'Это действие необратимо. Все ваши данные будут удалены.',
       type: 'danger',
-      confirmText: 'Да, удалить мой аккаунт',
+      confirmText: 'Да, удалить пост',
     })
 
     if (isConfirmed) {
@@ -87,11 +87,11 @@ function scrollToStage(id: string) {
 
 <template>
   <div class="post-details-page">
-    <div class="nav-overlay">
+    <div v-if="!isPreviewMode" class="nav-overlay">
       <NavigationBack />
     </div>
 
-    <div class="actions-overlay">
+    <div v-if="!isPreviewMode" class="actions-overlay">
       <KitDropdown
         :items="menuItems"
         align="end"
@@ -153,16 +153,18 @@ function scrollToStage(id: string) {
         </template>
       </div>
 
-      <KitDivider class="comments-divider">
-        Обсуждение
-      </KitDivider>
+      <template v-if="!isPreviewMode">
+        <KitDivider class="comments-divider">
+          Обсуждение
+        </KitDivider>
 
-      <section class="comments-section">
-        <TripComments
-          :parent-id="post.id"
-          :parent-type="CommentParentType.POST"
-        />
-      </section>
+        <section class="comments-section">
+          <TripComments
+            :parent-id="post.id"
+            :parent-type="CommentParentType.POST"
+          />
+        </section>
+      </template>
     </div>
 
     <button class="map-fab" title="Показать на карте" @click="isMapVisible = true">

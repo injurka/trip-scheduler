@@ -3,7 +3,6 @@ import type { AnyPgColumn } from 'drizzle-orm/pg-core'
 import type { ActivitySection, DayMetaInfo, PostElementContent, PostStatsDetail } from './schema.type'
 import { relations } from 'drizzle-orm'
 import {
-
   bigint,
   boolean,
   date,
@@ -293,6 +292,7 @@ export const posts = pgTable('posts', {
   insight: text('insight'),
   description: text('description'),
   country: text('country'),
+  startDate: date('start_date'),
   tags: jsonb('tags').$type<string[]>().notNull().default([]),
   status: statusEnum('status').notNull().default('draft'),
   viewsCount: integer('views_count').default(0).notNull(),
@@ -306,8 +306,7 @@ export const posts = pgTable('posts', {
 
   statsDetail: jsonb('stats_detail').$type<PostStatsDetail>().notNull().default({
     views: 0,
-    budget: '',
-    duration: '',
+    duration: 0,
   }),
 }, t => ({
   countryIdx: index('posts_country_idx').on(t.country),
@@ -327,11 +326,20 @@ export const marks = pgTable('marks', {
   createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
 })
 
+export const marksRelations = relations(marks, ({ one }) => ({
+  user: one(users, {
+    fields: [marks.userId],
+    references: [users.id],
+  }),
+}))
+
 export const postElements = pgTable('post_elements', {
   id: uuid('id').primaryKey().defaultRandom(),
   postId: uuid('post_id').notNull().references(() => posts.id, { onDelete: 'cascade' }),
   order: integer('order').notNull().default(0),
   title: text('title'),
+  day: integer('day').notNull().default(1),
+  time: text('time'),
   content: jsonb('content').$type<PostElementContent[]>().notNull().default([]),
   createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
   updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow().notNull(),
@@ -468,6 +476,7 @@ export const usersRelations = relations(users, ({ many, one }) => ({
   posts: many(posts),
   savedPosts: many(savedPosts),
   likedPosts: many(postLikes),
+  marks: many(marks),
 }))
 
 export const llmTokenUsageRelations = relations(llmTokenUsage, ({ one }) => ({

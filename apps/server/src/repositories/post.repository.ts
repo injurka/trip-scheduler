@@ -1,3 +1,4 @@
+// == File: src/repositories/post.repository.ts ==
 import type { SQL } from 'drizzle-orm'
 import type { z } from 'zod'
 import type { CreatePostInputSchema, ListPostsInputSchema, UpdatePostInputSchema } from '~/modules/post/post.schemas'
@@ -13,6 +14,37 @@ const userRelationQuery = {
     name: true,
     avatarUrl: true,
   },
+}
+
+type DbClient = typeof db
+type DbTransaction = Parameters<Parameters<DbClient['transaction']>[0]>[0]
+
+async function _fetchPostData<T extends DbClient | DbTransaction>(txOrDb: T, id: string, currentUserId?: string) {
+  const post = await txOrDb.query.posts.findFirst({
+    where: eq(posts.id, id),
+    with: {
+      user: userRelationQuery,
+      elements: { orderBy: (elements, { asc }) => [asc(elements.order)] },
+      media: { orderBy: (media, { asc }) => [asc(media.order)] },
+      savedBy: currentUserId ? { where: eq(savedPosts.userId, currentUserId), limit: 1 } : undefined,
+      likedBy: currentUserId ? { where: eq(postLikes.userId, currentUserId), limit: 1 } : undefined,
+    },
+  })
+
+  if (!post)
+    return null
+
+  const { savedBy, likedBy, likesCount, savesCount, ...rest } = post
+  return {
+    ...rest,
+    user: post.user as { id: string, name: string | null, avatarUrl: string | null },
+    stats: {
+      likes: likesCount,
+      saves: savesCount,
+      isLiked: !!likedBy?.length,
+      isSaved: !!savedBy?.length,
+    },
+  }
 }
 
 export const postRepository = {
@@ -93,37 +125,16 @@ export const postRepository = {
 
   async findById(id: string, currentUserId?: string) {
     return measureDbQuery('posts', 'select', async () => {
-      const post = await db.query.posts.findFirst({
-        where: eq(posts.id, id),
-        with: {
-          user: userRelationQuery,
-          elements: { orderBy: (elements, { asc }) => [asc(elements.order)] },
-          media: { orderBy: (media, { asc }) => [asc(media.order)] },
-          savedBy: currentUserId ? { where: eq(savedPosts.userId, currentUserId), limit: 1 } : undefined,
-          likedBy: currentUserId ? { where: eq(postLikes.userId, currentUserId), limit: 1 } : undefined,
-        },
-      })
-
-      if (!post)
-        return null
-
-      const { savedBy, likedBy, likesCount, savesCount, ...rest } = post
-      return {
-        ...rest,
-        user: post.user as { id: string, name: string | null, avatarUrl: string | null },
-        stats: {
-          likes: likesCount,
-          saves: savesCount,
-          isLiked: !!likedBy?.length,
-          isSaved: !!savedBy?.length,
-        },
-      }
+      return await _fetchPostData(db, id, currentUserId)
     })
   },
 
   async create(data: z.infer<typeof CreatePostInputSchema>, userId: string) {
     return measureDbQuery('posts', 'insert', async () => {
       return await db.transaction(async (tx) => {
+        const lowerTags = data.tags.map(t => t.toLowerCase())
+        const startDate = data.startDate ? new Date(data.startDate).toISOString().split('T')[0] : null
+
         const inserted = await tx.insert(posts).values({
           id: uuidv4(),
           userId,
@@ -131,12 +142,13 @@ export const postRepository = {
           insight: data.insight,
           description: data.description,
           country: data.country,
-          tags: data.tags,
+          startDate,
+          tags: lowerTags,
           status: data.status,
           latitude: data.latitude,
           longitude: data.longitude,
-          statsDetail: { views: 0, budget: '', duration: '', ...data.statsDetail },
-        }).returning() as (typeof posts.$inferSelect)[]
+          statsDetail: { views: 0, duration: 0, ...data.statsDetail },
+        }).returning()
 
         const post = inserted[0]
         if (!post)
@@ -147,8 +159,10 @@ export const postRepository = {
             id: uuidv4(),
             postId: post.id,
             order: index,
+            day: el.day,
+            time: el.time,
             title: el.title,
-            content: el.content as any,
+            content: el.content,
           }))
           if (elementsToInsert.length > 0) {
             await tx.insert(postElements).values(elementsToInsert)
@@ -162,7 +176,8 @@ export const postRepository = {
           await Promise.all(updates)
         }
 
-        return this.findById(post.id, userId)
+        // Вызываем с tx, чтобы транзакция "видела" только что созданные записи
+        return await _fetchPostData(tx, post.id, userId)
       })
     })
   },
@@ -183,12 +198,18 @@ export const postRepository = {
   async update(id: string, updateInput: z.infer<typeof UpdatePostInputSchema>['data']) {
     return measureDbQuery('posts', 'update', async () => {
       return await db.transaction(async (tx) => {
-        const { elements, mediaIds, statsDetail, ...postData } = updateInput
+        const { elements, mediaIds, statsDetail, startDate, tags, ...postData } = updateInput
 
-        if (Object.keys(postData).length > 0 || statsDetail) {
-          const payload: Record<string, any> = { ...postData, updatedAt: new Date() }
+        if (Object.keys(postData).length > 0 || statsDetail || startDate !== undefined || tags) {
+          const payload: Record<string, unknown> = { ...postData, updatedAt: new Date() }
           if (statsDetail) {
             payload.statsDetail = sql`${posts.statsDetail} || ${JSON.stringify(statsDetail)}::jsonb`
+          }
+          if (startDate !== undefined) {
+            payload.startDate = startDate ? new Date(startDate).toISOString().split('T')[0] : null
+          }
+          if (tags) {
+            payload.tags = tags.map(t => t.toLowerCase())
           }
           await tx.update(posts)
             .set(payload)
@@ -203,8 +224,10 @@ export const postRepository = {
               id: uuidv4(),
               postId: id,
               order: index,
+              day: el.day,
+              time: el.time,
               title: el.title,
-              content: el.content as any,
+              content: el.content,
             }))
             await tx.insert(postElements).values(elementsToInsert)
           }
@@ -218,7 +241,9 @@ export const postRepository = {
         }
 
         const userResult = await tx.query.posts.findFirst({ where: eq(posts.id, id), columns: { userId: true } })
-        return this.findById(id, userResult?.userId)
+
+        // Вызываем с tx, чтобы вернуть обновленные данные до коммита
+        return await _fetchPostData(tx, id, userResult?.userId)
       })
     })
   },
@@ -269,6 +294,18 @@ export const postRepository = {
   async getMediaByPostId(postId: string) {
     return await db.query.postMedia.findMany({
       where: eq(postMedia.postId, postId),
+    })
+  },
+
+  async getUniqueTags(query?: string) {
+    return measureDbQuery('posts', 'select', async () => {
+      const tagExpression = sql<string>`jsonb_array_elements_text(${posts.tags})`
+      const baseQuery = db.selectDistinct({ tag: tagExpression }).from(posts).orderBy(tagExpression).limit(20)
+      if (query) {
+        baseQuery.where(ilike(tagExpression, `%${query}%`))
+      }
+      const result = await baseQuery
+      return result.map(row => row.tag).filter(Boolean)
     })
   },
 }

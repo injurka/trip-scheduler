@@ -1,16 +1,18 @@
 <script setup lang="ts">
 import type { PostMedia, TimelineBlockType, TimelineStage } from '~/shared/types/models/post'
 import { Icon } from '@iconify/vue'
+import { parseTime } from '@internationalized/date'
 import draggable from 'vuedraggable'
 import { KitInlineMdEditorWrapper } from '~/components/01.kit/kit-inline-md-editor'
 import { KitInput } from '~/components/01.kit/kit-input'
+import { KitTimeField } from '~/components/01.kit/kit-time-field'
 import { usePostDraftStore } from '../../store/post-draft.store'
 import AddBlockMenu from './add-block-menu.vue'
 import GalleryEditor from './blocks/gallery-editor.vue'
 import LocationEditor from './blocks/location-editor.vue'
 import RouteEditor from './blocks/route-editor.vue'
 
-const props = defineProps<{ stage: TimelineStage, index: number }>()
+const props = defineProps<{ stage: TimelineStage & { day?: number }, index: number }>()
 const store = usePostDraftStore()
 
 const blocksModel = computed({
@@ -18,6 +20,22 @@ const blocksModel = computed({
   set: (val) => {
     // eslint-disable-next-line vue/no-mutating-props
     props.stage.blocks = val
+  },
+})
+
+const stageTimeModel = computed({
+  get: () => {
+    if (!props.stage.time)
+      return null
+    try {
+      return parseTime(props.stage.time.length === 5 ? `${props.stage.time}:00` : props.stage.time)
+    }
+    catch {
+      return null
+    }
+  },
+  set: (val) => {
+    store.updateStage(props.stage.id, { time: val ? val.toString().slice(0, 5) : '' })
   },
 })
 
@@ -33,19 +51,29 @@ function handleAddBlock(type: TimelineBlockType) {
         <Icon icon="mdi:drag" />
       </div>
       <div class="stage-meta">
+        <div class="compact-day-time">
+          <div class="day-wrapper" title="День маршрута">
+            <span class="label">Дн</span>
+            <input
+              :value="(stage as any).day"
+              type="number"
+              class="bare-input"
+              @input="e => store.updateStage(stage.id, { day: Number((e.target as HTMLInputElement).value) })"
+            >
+          </div>
+          <div class="divider" />
+          <KitTimeField
+            v-model="stageTimeModel"
+            class="bare-time"
+          />
+        </div>
+
         <KitInput
           :model-value="stage.title"
           placeholder="Название этапа (напр. Завтрак)"
           class="stage-title-input"
           size="sm"
           @update:model-value="val => store.updateStage(stage.id, { title: val as string })"
-        />
-        <KitInput
-          :model-value="stage.time"
-          placeholder="Время (опц.)"
-          class="stage-time-input"
-          size="sm"
-          @update:model-value="val => store.updateStage(stage.id, { time: val as string })"
         />
       </div>
       <button class="delete-btn" @click="store.removeStage(index)">
@@ -87,7 +115,7 @@ function handleAddBlock(type: TimelineBlockType) {
                   placeholder="Комментарий к галерее..."
                   size="sm"
                   class="mt-2"
-                  @update:model-value="val => store.updateBlock(stage.id, block.id, { comment: val })"
+                  @update:model-value="val => store.updateBlock(stage.id, block.id, { comment: val ? String(val) : '' })"
                 />
               </template>
 
@@ -154,13 +182,77 @@ function handleAddBlock(type: TimelineBlockType) {
   flex: 1;
   display: flex;
   gap: 8px;
+  align-items: center;
 }
+
+.compact-day-time {
+  display: flex;
+  align-items: center;
+  background: var(--bg-primary-color);
+  border: 1px solid var(--border-secondary-color);
+  border-radius: var(--r-s);
+  height: 38px;
+  gap: 4px;
+  flex-shrink: 0;
+  transition: border-color 0.2s;
+
+  &:focus-within {
+    border-color: var(--border-focus-color);
+  }
+
+  .divider {
+    width: 1px;
+    height: 20px;
+    background: var(--border-secondary-color);
+    margin: 0 2px;
+  }
+
+  .day-wrapper {
+    display: flex;
+    align-items: center;
+    padding-left: 8px;
+
+    .label {
+      font-size: 0.75rem;
+      color: var(--fg-tertiary-color);
+      font-weight: 600;
+      margin-right: 2px;
+    }
+
+    .bare-input {
+      border: none;
+      background: transparent;
+      color: var(--fg-primary-color);
+      font-weight: 600;
+      font-size: 0.875rem;
+      width: 24px;
+      text-align: center;
+      outline: none;
+      padding: 0;
+
+      &::-webkit-outer-spin-button,
+      &::-webkit-inner-spin-button {
+        -webkit-appearance: none;
+        margin: 0;
+      }
+    }
+  }
+
+  :deep(.bare-time.kit-time-field) {
+    border: none;
+    background: transparent;
+    padding: 0 8px 0 4px;
+    height: 100%;
+    min-height: unset;
+  }
+
+  .bare-time {
+    margin-right: 8px;
+  }
+}
+
 .stage-title-input {
-  flex: 2;
-}
-.stage-time-input {
   flex: 1;
-  max-width: 100px;
 }
 
 .delete-btn {
@@ -228,26 +320,6 @@ function handleAddBlock(type: TimelineBlockType) {
   justify-content: center;
 }
 
-.gallery-placeholder {
-  border: 2px dashed var(--border-secondary-color);
-  border-radius: var(--r-s);
-  padding: 16px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 8px;
-  color: var(--fg-tertiary-color);
-}
-
-.route-inputs {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  .arrow-icon {
-    color: var(--fg-tertiary-color);
-  }
-}
-
 .ghost-block {
   opacity: 0.5;
   background: var(--bg-accent-color);
@@ -257,22 +329,23 @@ function handleAddBlock(type: TimelineBlockType) {
   margin-top: 8px;
 }
 
-/* === Mobile Adaptations === */
 @media (max-width: 600px) {
   .stage-header {
-    align-items: flex-start; /* Align drag/del icons to top */
+    align-items: flex-start;
   }
 
   .stage-meta {
-    flex-direction: column; /* Stack Title and Time vertically */
+    flex-wrap: wrap;
     gap: 8px;
   }
 
-  .stage-title-input,
-  .stage-time-input {
-    flex: 1;
-    max-width: 100%;
+  .compact-day-time {
     width: 100%;
+  }
+
+  .stage-title-input {
+    width: 100%;
+    flex: 100%;
   }
 
   .drag-handle,

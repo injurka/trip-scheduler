@@ -6,7 +6,7 @@ import GeoBlock from './blocks/geo-block.vue'
 import TextBlock from './blocks/text-block.vue'
 
 interface IProps {
-  stage: TimelineStage
+  stage: TimelineStage & { day?: number }
   isLast: boolean
 }
 
@@ -27,7 +27,10 @@ defineProps<IProps>()
         <h4 class="stage-title">
           {{ stage.title }}
         </h4>
-        <span v-if="stage.time" class="stage-time">{{ stage.time }}</span>
+        <div class="stage-meta">
+          <span v-if="stage.day" class="stage-day">День {{ stage.day }}</span>
+          <span v-if="stage.time" class="stage-time">{{ stage.time }}</span>
+        </div>
       </header>
 
       <div class="blocks-list">
@@ -46,7 +49,7 @@ defineProps<IProps>()
           <GeoBlock
             v-if="block.type === 'location'"
             type="location"
-            :title="block.name"
+            :title="block.name || 'Локация'"
             :subtitle="block.address"
           />
 
@@ -127,6 +130,19 @@ defineProps<IProps>()
   font-weight: 700;
   color: var(--fg-primary-color);
   margin: 0;
+}
+
+.stage-meta {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+}
+
+.stage-day {
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: var(--fg-accent-color);
+  text-transform: uppercase;
 }
 
 .stage-time {

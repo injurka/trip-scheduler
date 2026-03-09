@@ -1,4 +1,67 @@
+export interface PostStatsDetail {
+  views: number
+  duration: number
+}
+
+export interface MapPoint {
+  lat: number
+  lng: number
+  label?: string
+  address?: string
+  color?: string
+}
+
+export interface MapRoute {
+  points: MapPoint[]
+  color?: string
+  title?: string
+}
+
 export type TimelineBlockType = 'text' | 'gallery' | 'location' | 'route'
+
+export interface TimelineBlockBase {
+  id: string
+  type: TimelineBlockType
+}
+
+export interface TextBlock extends TimelineBlockBase {
+  type: 'text'
+  content: string
+}
+
+export interface GalleryBlock extends TimelineBlockBase {
+  type: 'gallery'
+  images: PostMedia[]
+  comment?: string
+}
+
+export interface LocationBlock extends TimelineBlockBase {
+  type: 'location'
+  coords: { lat: number, lng: number }
+  name?: string
+  address?: string
+}
+
+export interface RouteBlock extends TimelineBlockBase {
+  type: 'route'
+  from: string
+  to: string
+  distance?: string
+  duration?: string
+  transport: 'walk' | 'transit' | 'car'
+}
+
+export type TimelineBlock = TextBlock | GalleryBlock | LocationBlock | RouteBlock
+
+export interface TimelineStage {
+  id: string
+  title: string
+  day?: number
+  time?: string | null
+  order: number
+  blocks: TimelineBlock[]
+  icon?: string
+}
 
 export interface PostMark {
   id: string
@@ -9,109 +72,44 @@ export interface PostMark {
 
 export interface PostMedia {
   id: string
-  url: string
   type: 'image' | 'video'
+  url: string
   marks?: PostMark[]
+  originalName?: string
+  width?: number
+  height?: number
+  metadata?: any
 }
-
-export interface TextBlock {
-  id: string
-  type: 'text'
-  content: string
-}
-
-export interface GalleryBlock {
-  id: string
-  type: 'gallery'
-  images: PostMedia[]
-  comment?: string
-}
-
-export interface LocationBlock {
-  id: string
-  type: 'location'
-  coords: { lat: number, lng: number }
-  name: string
-  address: string
-}
-
-export interface RouteBlock {
-  id: string
-  type: 'route'
-  from: string
-  to: string
-  distance: string
-  duration: string
-  transport: 'walk' | 'car' | 'transit'
-}
-
-export type TimelineBlock = TextBlock | GalleryBlock | LocationBlock | RouteBlock
-
-export interface TimelineStage {
-  id: string
-  title: string
-  time?: string
-  icon?: string
-  order: number
-  blocks: TimelineBlock[]
-}
-
-interface PostContentBlockText {
-  id: string
-  type: 'markdown'
-  text: string
-}
-interface PostContentBlockGallery {
-  id: string
-  type: 'gallery'
-  imageIds: string[]
-  displayType: 'grid' | 'carousel'
-}
-interface MapPoint {
-  lat: number
-  lng: number
-  label?: string
-  address?: string
-}
-interface PostContentBlockLocation {
-  id: string
-  type: 'location'
-  location: MapPoint
-}
-interface PostContentBlockRoute {
-  id: string
-  type: 'route'
-  route: any
-}
-
-type PostElementContent = PostContentBlockText | PostContentBlockGallery | PostContentBlockLocation | PostContentBlockRoute
 
 export interface PostElement {
   id: string
-  postId: string
+  title?: string
+  day: number
+  time?: string | null
   order: number
-  title: string
-  content: PostElementContent[]
-  createdAt: string
-  updatedAt: string
+  content: any[]
 }
 
 export interface PostDetail {
   id: string
-  createdAt: string
-  country: string
+  title: string
+  insight?: string
+  description?: string
+  country?: string
   city?: string
   latitude: number
   longitude: number
-  title: string
-  insight: string
-  description: string
-  status: 'draft' | 'completed' | 'planned'
+  startDate?: string | null
   tags: string[]
-  statsDetail: {
-    views: number
-    budget: string
-    duration: string
+  status: 'draft' | 'completed' | 'planned'
+  statsDetail: PostStatsDetail
+  media: PostMedia[]
+  elements: PostElement[]
+  stages?: TimelineStage[]
+  user: {
+    id: string
+    name: string | null
+    avatarUrl?: string | null
   }
   stats: {
     likes: number
@@ -119,19 +117,8 @@ export interface PostDetail {
     isLiked: boolean
     isSaved: boolean
   }
-
-  media: PostMedia[]
-  elements: PostElement[]
-  stages?: TimelineStage[]
-
-  user: {
-    id: string
-    name: string
-    avatarUrl: string
-  }
+  createdAt: string
 }
-
-export type Post = Omit<PostDetail, 'stages' | 'elements' | 'description'>
 
 export interface ListPostsFilters {
   limit?: number
@@ -148,19 +135,14 @@ export interface CreatePostInput {
   insight?: string
   description?: string
   country?: string
+  startDate?: string | null
+  tags: string[]
+  status: 'draft' | 'completed' | 'planned'
+  elements?: any[]
+  mediaIds?: string[]
   latitude?: number
   longitude?: number
-  tags?: string[]
-  status?: 'draft' | 'completed' | 'planned'
-  statsDetail?: {
-    budget?: string
-    duration?: string
-  }
-  elements?: {
-    title?: string
-    content: any[]
-  }[]
-  mediaIds?: string[]
+  statsDetail?: Partial<PostStatsDetail>
 }
 
 export interface UpdatePostInput extends Partial<CreatePostInput> { }

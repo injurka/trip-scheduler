@@ -94,7 +94,7 @@ function handleModeChange(newMode: 'list' | 'map') {
   viewMode.value = newMode
 }
 
-function handleMapClick(coords: [number, number]) {
+function handleMapClick(_coords: [number, number]) {
   // Убрано автоматическое открытие при клике. Оставлено для контекстного меню.
 }
 

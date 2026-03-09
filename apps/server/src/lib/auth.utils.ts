@@ -6,7 +6,7 @@ import { refreshTokens, users } from '~/../db/schema'
 
 interface AccessTokenPayload {
   id: string
-  email: string
+  email: string | null
 }
 
 // Время жизни токенов в секундах
@@ -28,7 +28,7 @@ export const passwordUtils = {
 
 async function generateTokens(user: { id: string, email: string | null }) {
   // 1. Создаем Access Token с коротким сроком жизни
-  const accessTokenPayload = { id: user.id, email: user.email ?? '' }
+  const accessTokenPayload = { id: user.id, email: user.email ?? null }
   const accessToken = await sign(
     { ...accessTokenPayload, exp: Math.floor(Date.now() / 1000) + ACCESS_TOKEN_EXPIRY },
     JWT_SECRET,

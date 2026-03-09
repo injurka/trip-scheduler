@@ -140,14 +140,14 @@ export const tripProcedures = {
         method: 'POST',
         path: '/trips/{tripId}/participants',
         tags: ['Trips'],
-        summary: 'Добавить участника в путешествие по email',
+        summary: 'Добавить участника в путешествие по ID',
         protect: true,
       },
     })
     .input(AddParticipantInputSchema)
     .output(z.void())
     .mutation(async ({ input, ctx }) => {
-      return tripService.addParticipant(input.tripId, input.email, ctx.user.id)
+      return tripService.addParticipant(input.tripId, input.userId, ctx.user.id)
     }),
 
   delete: protectedProcedure

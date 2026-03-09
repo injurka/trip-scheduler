@@ -1,5 +1,5 @@
 {
-  "id": "3f4ac2e0-b3e8-4b80-8b60-e563629a6afc",
+  "id": "e5634c83-ddde-453e-a3f0-05d83f87d705",
   "prevId": "f3658805-1d12-4cea-b7e6-97594513b30a",
   "version": "7",
   "dialect": "postgresql",
@@ -1068,6 +1068,19 @@
           "primaryKey": false,
           "notNull": false
         },
+        "day": {
+          "name": "day",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "default": 1
+        },
+        "time": {
+          "name": "time",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
         "content": {
           "name": "content",
           "type": "jsonb",
@@ -1375,6 +1388,12 @@
           "primaryKey": false,
           "notNull": false
         },
+        "start_date": {
+          "name": "start_date",
+          "type": "date",
+          "primaryKey": false,
+          "notNull": false
+        },
         "tags": {
           "name": "tags",
           "type": "jsonb",
@@ -1442,7 +1461,7 @@
           "type": "jsonb",
           "primaryKey": false,
           "notNull": true,
-          "default": "'{\"views\":0,\"budget\":\"\",\"duration\":\"\"}'::jsonb"
+          "default": "'{\"views\":0,\"duration\":0}'::jsonb"
         }
       },
       "indexes": {

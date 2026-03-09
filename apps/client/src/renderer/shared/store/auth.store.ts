@@ -1,8 +1,6 @@
 import type {
   SignInPayload,
   SignUpPayload,
-  TelegramAuthPayload,
-  TelegramBotAuthStatus,
   TelegramLoginInitResult,
   TokenPair,
   User,
