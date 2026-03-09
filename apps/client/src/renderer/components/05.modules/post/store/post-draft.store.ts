@@ -303,8 +303,8 @@ export const usePostDraftStore = defineStore('post-draft', {
             description: this.post.description || undefined,
             country: this.post.country || undefined,
             startDate: this.post.startDate || undefined,
-            latitude: this.post.latitude || undefined,
-            longitude: this.post.longitude || undefined,
+            latitude: this.post.latitude ?? undefined, // Исправлено: 0 не превратится в undefined
+            longitude: this.post.longitude ?? undefined,
             tags: this.post.tags || [],
             status: 'draft',
             statsDetail: {
@@ -412,8 +412,8 @@ export const usePostDraftStore = defineStore('post-draft', {
           description: this.post.description || undefined,
           country: this.post.country || undefined,
           startDate: this.post.startDate || undefined,
-          latitude: this.post.latitude || undefined,
-          longitude: this.post.longitude || undefined,
+          latitude: this.post.latitude ?? undefined,
+          longitude: this.post.longitude ?? undefined,
           tags: this.post.tags || [],
           status: publishStatus,
           statsDetail: {

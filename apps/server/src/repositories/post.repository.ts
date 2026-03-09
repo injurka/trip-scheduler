@@ -93,7 +93,6 @@ export const postRepository = {
         with: {
           user: userRelationQuery,
           media: { limit: 1, orderBy: (media, { asc }) => [asc(media.order)] },
-          // ИСПОЛЬЗУЕМ CALLBACK ДЛЯ WHERE, ЧТОБЫ ИЗБЕЖАТЬ ОШИБОК С АЛИАСАМИ ТАБЛИЦ
           savedBy: currentUserId ? { where: (sp, { eq }) => eq(sp.userId, currentUserId), limit: 1 } : undefined,
           likedBy: currentUserId ? { where: (pl, { eq }) => eq(pl.userId, currentUserId), limit: 1 } : undefined,
         },
@@ -133,21 +132,22 @@ export const postRepository = {
     return measureDbQuery('posts', 'insert', async () => {
       return await db.transaction(async (tx) => {
         const lowerTags = data.tags.map(t => t.toLowerCase())
-        const startDate = data.startDate ? new Date(data.startDate).toISOString().split('T')[0] : null
+
+        const startDate = data.startDate ? new Date(data.startDate).toISOString().split('T')[0] : undefined
 
         const inserted = await tx.insert(posts).values({
           id: uuidv4(),
           userId,
           title: data.title,
-          insight: data.insight,
-          description: data.description,
-          country: data.country,
+          insight: data.insight ?? undefined,
+          description: data.description ?? undefined,
+          country: data.country ?? undefined,
           startDate,
           tags: lowerTags,
           status: data.status,
-          latitude: data.latitude,
-          longitude: data.longitude,
-          statsDetail: { views: 0, duration: 0, ...data.statsDetail },
+          latitude: data.latitude ?? undefined,
+          longitude: data.longitude ?? undefined,
+          statsDetail: { views: 0, duration: 0, ...(data.statsDetail || {}) },
         }).returning()
 
         const post = inserted[0]
