@@ -11,7 +11,9 @@ export enum EPostRequestKeys {
   CREATE = 'post:create',
   UPDATE = 'post:update',
   UNIQUE_TAGS = 'post:unique-tags',
+  GENERATE = 'post:generate',
 }
+
 
 function transformElementsToStages(elements: PostElement[], allMedia: PostMedia[]): TimelineStage[] {
   return elements.map((element): TimelineStage => {
@@ -72,6 +74,7 @@ export const usePostStore = defineStore('post-main', {
 
   getters: {
     isLoading: () => useRequestStatus([EPostRequestKeys.LIST]).value,
+    isGenerating: () => useRequestStatus([EPostRequestKeys.GENERATE]).value,
     getPostById: state => (id: string) => state.posts.find(p => p.id === id),
   },
 

@@ -46,6 +46,7 @@ export interface IPostRepository {
   toggleSave: (params: { postId: string }) => Promise<{ isSaved: boolean }>
   toggleLike: (params: { postId: string }) => Promise<{ isLiked: boolean }>
   getUniqueTags: (params: { query?: string }) => Promise<string[]>
+  generateFromText: (params: { text: string }) => Promise<any>
 }
 
 export interface INotificationRepository {

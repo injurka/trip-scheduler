@@ -133,3 +133,37 @@ export const ToggleSavePostInputSchema = z.object({
 export const ToggleLikePostInputSchema = z.object({
   postId: z.string().uuid(),
 })
+
+// --- Схемы для ИИ генерации постов (Заменено .optional() на .nullish() для защиты от null) ---
+export const GeneratePostInputSchema = z.object({
+  text: z.string().min(10, 'Опишите ваше путешествие подробнее (минимум 10 символов)'),
+})
+
+export const AiGeneratedBlockSchema = z.object({
+  type: z.enum(['text', 'location', 'route']),
+  content: z.string().nullish(),
+  name: z.string().nullish(),
+  address: z.string().nullish(),
+  coords: z.object({ lat: z.number(), lng: z.number() }).nullish(),
+  from: z.string().nullish(),
+  to: z.string().nullish(),
+  transport: z.enum(['walk', 'transit', 'car']).nullish(),
+  distance: z.string().nullish(),
+  duration: z.string().nullish(),
+})
+
+export const AiGeneratedStageSchema = z.object({
+  title: z.string().nullish(),
+  day: z.number().nullish(),
+  time: z.string().nullish(),
+  blocks: z.array(AiGeneratedBlockSchema).nullish(),
+})
+
+export const AiGeneratedPostOutputSchema = z.object({
+  title: z.string().nullish(),
+  insight: z.string().nullish(),
+  description: z.string().nullish(),
+  country: z.string().nullish(),
+  tags: z.array(z.string()).nullish(),
+  stages: z.array(AiGeneratedStageSchema).nullish(),
+})

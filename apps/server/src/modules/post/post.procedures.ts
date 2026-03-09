@@ -1,7 +1,10 @@
 import { z } from 'zod'
 import { protectedProcedure, publicProcedure } from '~/lib/trpc'
+import { postGenerationService } from '~/services/llm/post-generation.service'
 import {
+  AiGeneratedPostOutputSchema,
   CreatePostInputSchema,
+  GeneratePostInputSchema,
   GetPostByIdInputSchema,
   ListPostsInputSchema,
   PostSchema,
@@ -81,5 +84,13 @@ export const postProcedures = {
     .output(z.array(z.string()))
     .query(async ({ input }) => {
       return postService.getUniqueTags(input.query)
+    }),
+
+  generateFromText: protectedProcedure
+    .meta({ openapi: { method: 'POST', path: '/posts/generate', tags: ['Posts'], summary: 'Сгенерировать структуру поста с помощью ИИ' } })
+    .input(GeneratePostInputSchema)
+    .output(AiGeneratedPostOutputSchema)
+    .mutation(async ({ input, ctx }) => {
+      return postGenerationService.generateFromText(ctx.user.id, input.text)
     }),
 }
