@@ -1,4 +1,3 @@
-// == File: src/repositories/post.repository.ts ==
 import type { SQL } from 'drizzle-orm'
 import type { z } from 'zod'
 import type { CreatePostInputSchema, ListPostsInputSchema, UpdatePostInputSchema } from '~/modules/post/post.schemas'
@@ -26,8 +25,8 @@ async function _fetchPostData<T extends DbClient | DbTransaction>(txOrDb: T, id:
       user: userRelationQuery,
       elements: { orderBy: (elements, { asc }) => [asc(elements.order)] },
       media: { orderBy: (media, { asc }) => [asc(media.order)] },
-      savedBy: currentUserId ? { where: eq(savedPosts.userId, currentUserId), limit: 1 } : undefined,
-      likedBy: currentUserId ? { where: eq(postLikes.userId, currentUserId), limit: 1 } : undefined,
+      savedBy: currentUserId ? { where: (sp, { eq }) => eq(sp.userId, currentUserId), limit: 1 } : undefined,
+      likedBy: currentUserId ? { where: (pl, { eq }) => eq(pl.userId, currentUserId), limit: 1 } : undefined,
     },
   })
 
@@ -94,8 +93,9 @@ export const postRepository = {
         with: {
           user: userRelationQuery,
           media: { limit: 1, orderBy: (media, { asc }) => [asc(media.order)] },
-          savedBy: currentUserId ? { where: eq(savedPosts.userId, currentUserId), limit: 1 } : undefined,
-          likedBy: currentUserId ? { where: eq(postLikes.userId, currentUserId), limit: 1 } : undefined,
+          // ИСПОЛЬЗУЕМ CALLBACK ДЛЯ WHERE, ЧТОБЫ ИЗБЕЖАТЬ ОШИБОК С АЛИАСАМИ ТАБЛИЦ
+          savedBy: currentUserId ? { where: (sp, { eq }) => eq(sp.userId, currentUserId), limit: 1 } : undefined,
+          likedBy: currentUserId ? { where: (pl, { eq }) => eq(pl.userId, currentUserId), limit: 1 } : undefined,
         },
       })
 
@@ -176,7 +176,6 @@ export const postRepository = {
           await Promise.all(updates)
         }
 
-        // Вызываем с tx, чтобы транзакция "видела" только что созданные записи
         return await _fetchPostData(tx, post.id, userId)
       })
     })
@@ -242,7 +241,6 @@ export const postRepository = {
 
         const userResult = await tx.query.posts.findFirst({ where: eq(posts.id, id), columns: { userId: true } })
 
-        // Вызываем с tx, чтобы вернуть обновленные данные до коммита
         return await _fetchPostData(tx, id, userResult?.userId)
       })
     })
