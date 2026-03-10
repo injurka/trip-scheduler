@@ -113,20 +113,15 @@ export const tripRepository = {
    */
   async getUniqueTags(query?: string) {
     return measureDbQuery('trips', 'select', async () => {
-      const tagExpression = sql<string>`jsonb_array_elements_text(${trips.tags})`
-
-      const baseQuery = db
-        .selectDistinct({ tag: tagExpression })
-        .from(trips)
-        .orderBy(tagExpression)
-        .limit(20)
-
-      if (query) {
-        baseQuery.where(ilike(tagExpression, `%${query}%`))
-      }
-
-      const result = await baseQuery
-      return result.map(row => row.tag).filter(Boolean)
+      const searchParam = query ? `%${query}%` : '%'
+      const result = await db.execute(sql`
+        SELECT DISTINCT tag
+        FROM ${trips}, jsonb_array_elements_text(${trips.tags}) AS tag
+        WHERE tag ILIKE ${searchParam}
+        ORDER BY tag
+        LIMIT 20
+      `)
+      return result.rows.map(row => row.tag as string).filter(Boolean)
     })
   },
 

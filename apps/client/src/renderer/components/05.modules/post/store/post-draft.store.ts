@@ -70,6 +70,10 @@ function defaultPostState(): PostDetail {
   }
 }
 
+function isClientMedia(media: PostMedia | ClientPostMedia): media is ClientPostMedia {
+  return 'file' in media && media.file instanceof File
+}
+
 export const usePostDraftStore = defineStore('post-draft', {
   state: () => ({
     post: defaultPostState() as PostDetail,
@@ -162,6 +166,7 @@ export const usePostDraftStore = defineStore('post-draft', {
         url: URL.createObjectURL(file),
         marks: [],
         file,
+        originalName: file.name,
       }))
 
       this.post.media.push(...newMedia)
@@ -202,7 +207,8 @@ export const usePostDraftStore = defineStore('post-draft', {
       if (!this.post.stages)
         this.post.stages = []
 
-      const lastDay = this.post.stages.length > 0 ? (this.post.stages[this.post.stages.length - 1] as any).day : 1
+      const lastStage = this.post.stages.length > 0 ? this.post.stages[this.post.stages.length - 1] : null
+      const lastDay = lastStage && 'day' in lastStage && typeof lastStage.day === 'number' ? lastStage.day : 1
 
       this.post.stages.push({
         id: uuidv4(),
@@ -250,7 +256,7 @@ export const usePostDraftStore = defineStore('post-draft', {
         newBlock = { id: uuidv4(), type: 'text', content: '' }
       }
       else if (type === 'gallery') {
-        newBlock = { id: uuidv4(), type: 'gallery', images: [], comment: '' }
+        newBlock = { id: uuidv4(), type: 'gallery', images: [], comment: '', displayType: 'grid' }
       }
       else if (type === 'location') {
         newBlock = { id: uuidv4(), type: 'location', coords: { lat: 0, lng: 0 }, name: '', address: '' }
@@ -303,7 +309,7 @@ export const usePostDraftStore = defineStore('post-draft', {
             description: this.post.description || undefined,
             country: this.post.country || undefined,
             startDate: this.post.startDate || undefined,
-            latitude: this.post.latitude ?? undefined, // Исправлено: 0 не превратится в undefined
+            latitude: this.post.latitude ?? undefined,
             longitude: this.post.longitude ?? undefined,
             tags: this.post.tags || [],
             status: 'draft',
@@ -333,7 +339,7 @@ export const usePostDraftStore = defineStore('post-draft', {
           postId = createdPostId
         }
 
-        const filesToUpload = this.post.media.filter(m => (m as ClientPostMedia).file) as ClientPostMedia[]
+        const filesToUpload = this.post.media.filter(isClientMedia)
         const idMap = new Map<string, string>()
 
         if (filesToUpload.length > 0) {
@@ -370,8 +376,8 @@ export const usePostDraftStore = defineStore('post-draft', {
               return {
                 id: block.id,
                 type: 'gallery' as const,
-                displayType: 'grid' as const,
                 imageIds: block.images.map(img => idMap.get(img.id) || img.id),
+                displayType: block.displayType || 'grid',
               }
             }
             if (block.type === 'location') {
@@ -393,12 +399,14 @@ export const usePostDraftStore = defineStore('post-draft', {
                 route: { points: [] },
               }
             }
-            throw new Error(`Неизвестный тип блока`)
+            throw new Error(`Неизвестный тип блока: ${block}`)
           })
+
+          const day = 'day' in stage && typeof stage.day === 'number' ? stage.day : 1
 
           return {
             title: stage.title,
-            day: (stage as any).day || 1,
+            day,
             time: stage.time || null,
             content,
           }

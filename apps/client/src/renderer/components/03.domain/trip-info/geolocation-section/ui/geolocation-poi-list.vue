@@ -95,7 +95,6 @@ onClickOutside(mapIframeContainerRef, () => {
       </div>
 
       <div class="poi-info">
-        <!-- Если это обычная точка (marker) -->
         <template v-if="point.type !== 'connect'">
           <div class="poi-field">
             <Icon icon="mdi:map-marker-outline" class="field-icon" />
@@ -166,7 +165,6 @@ onClickOutside(mapIframeContainerRef, () => {
   </div>
 
   <Teleport to="body">
-    <!-- Модальное окно выбора карты -->
     <Transition name="fade">
       <div v-if="isMapChoiceVisible" class="map-choice-overlay">
         <div ref="mapChoicePanelRef" class="map-choice-panel">
@@ -185,7 +183,6 @@ onClickOutside(mapIframeContainerRef, () => {
       </div>
     </Transition>
 
-    <!-- Карта в iframe -->
     <Transition name="fade">
       <div v-if="isMapVisible" class="map-overlay-iframe">
         <div ref="mapIframeContainerRef" class="map-container">

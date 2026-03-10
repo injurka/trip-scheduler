@@ -1,8 +1,11 @@
 <script setup lang="ts">
 import type { MapMarker } from '~/components/01.kit/kit-map'
+import { computed, ref, watch } from 'vue'
 import { KitBtn } from '~/components/01.kit/kit-btn'
 import { KitDialogWithClose } from '~/components/01.kit/kit-dialog-with-close'
-import { KitMap } from '~/components/01.kit/kit-map'
+import { KitInput } from '~/components/01.kit/kit-input'
+import { KitMap, useKitMapSearch } from '~/components/01.kit/kit-map'
+import { useToast } from '~/shared/composables/use-toast'
 
 interface Props {
   visible: boolean
@@ -17,6 +20,9 @@ const emit = defineEmits<{
 
 const selectedCoords = ref<{ lat: number, lon: number } | null>(null)
 const markers = ref<MapMarker[]>([])
+const searchQuery = ref('')
+
+const { searchLocation, isSearching } = useKitMapSearch()
 
 function handleMapClick(coords: [number, number]) {
   selectedCoords.value = { lat: coords[1], lon: coords[0] }
@@ -33,6 +39,27 @@ function updateMarker() {
   }]
 }
 
+async function handleSearch() {
+  if (!searchQuery.value.trim())
+    return
+
+  try {
+    const result = await searchLocation(searchQuery.value)
+
+    if (result) {
+      selectedCoords.value = { lat: result.lat, lon: result.lon }
+      updateMarker()
+      useToast().success(`Найдено: ${result.displayName.split(',')[0]}`)
+    }
+    else {
+      useToast().error('Место не найдено')
+    }
+  }
+  catch (e) {
+    useToast().error('Ошибка при поиске локации')
+  }
+}
+
 function handleConfirm() {
   if (selectedCoords.value) {
     emit('confirm', { lat: selectedCoords.value.lat, lng: selectedCoords.value.lon })
@@ -43,7 +70,7 @@ function handleConfirm() {
 const mapCenter = computed((): [number, number] => {
   if (selectedCoords.value)
     return [selectedCoords.value.lon, selectedCoords.value.lat]
-  return [37.6173, 55.7558] // Москва
+  return [37.6173, 55.7558] // Москва по умолчанию
 })
 
 watch(() => props.visible, (isOpen) => {
@@ -56,6 +83,7 @@ watch(() => props.visible, (isOpen) => {
       selectedCoords.value = null
       markers.value = []
     }
+    searchQuery.value = ''
   }
 })
 </script>
@@ -68,6 +96,22 @@ watch(() => props.visible, (isOpen) => {
     @update:visible="emit('update:visible', $event)"
   >
     <div class="picker-content">
+      <div class="search-bar">
+        <KitInput
+          v-model="searchQuery"
+          placeholder="Введите адрес или место..."
+          size="sm"
+          @keydown.enter="handleSearch"
+        />
+        <KitBtn
+          icon="mdi:magnify"
+          size="xs"
+          variant="solid"
+          :loading="isSearching"
+          @click="handleSearch"
+        />
+      </div>
+
       <div class="map-wrapper">
         <KitMap
           :center="mapCenter"
@@ -83,7 +127,7 @@ watch(() => props.visible, (isOpen) => {
           {{ selectedCoords.lat.toFixed(6) }}, {{ selectedCoords.lon.toFixed(6) }}
         </div>
         <div v-else class="coords-info placeholder">
-          Кликните на карту, чтобы поставить точку
+          Кликните на карту или используйте поиск
         </div>
 
         <div class="actions">
@@ -104,6 +148,16 @@ watch(() => props.visible, (isOpen) => {
   display: flex;
   flex-direction: column;
   height: 60vh;
+  gap: 12px;
+}
+
+.search-bar {
+  display: flex;
+  gap: 8px;
+
+  :deep(.kit-input-wrapper) {
+    flex: 1;
+  }
 }
 
 .map-wrapper {
@@ -112,10 +166,10 @@ watch(() => props.visible, (isOpen) => {
   overflow: hidden;
   border: 1px solid var(--border-secondary-color);
   background: var(--bg-tertiary-color);
+  min-height: 200px;
 }
 
 .picker-footer {
-  margin-top: 16px;
   display: flex;
   justify-content: space-between;
   align-items: center;

@@ -9,10 +9,12 @@ interface Props {
   visible: boolean
   pinned?: boolean
   post: PostDetail
+  focusCoords?: [number, number] | null
 }
 
 const props = withDefaults(defineProps<Props>(), {
   pinned: false,
+  focusCoords: null,
 })
 
 const emit = defineEmits<{
@@ -25,11 +27,12 @@ const position = ref({ x: 0, y: 0 })
 const dragStart = ref({ x: 0, y: 0 })
 const initialPos = ref({ x: 0, y: 0 })
 const isMapFullscreen = ref(false)
+const dynamicCenter = ref<[number, number] | null>(null)
 
 const mapPoints = computed<MapPoint[]>(() => {
   const points: MapPoint[] = []
   props.post.elements.forEach((element, sIndex) => {
-    element.content.forEach((block) => {
+    element.content.forEach((block: any) => {
       if (block.type === 'location' && block.location && block.location.lat) {
         points.push({
           id: block.id,
@@ -50,10 +53,19 @@ const mapPoints = computed<MapPoint[]>(() => {
 })
 
 const mapCenter = computed((): [number, number] => {
+  if (dynamicCenter.value) {
+    return dynamicCenter.value
+  }
   if (mapPoints.value.length > 0) {
     return mapPoints.value[0].coordinates
   }
   return [props.post.longitude, props.post.latitude]
+})
+
+watch(() => props.focusCoords, (coords) => {
+  if (coords) {
+    dynamicCenter.value = coords
+  }
 })
 
 function getColorForIndex(index: number) {

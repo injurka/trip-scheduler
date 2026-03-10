@@ -22,7 +22,7 @@ const PostContentBlockImageSchema = PostContentBlockBaseSchema.extend({
 const PostContentBlockGallerySchema = PostContentBlockBaseSchema.extend({
   type: z.literal('gallery'),
   imageIds: z.array(z.string().uuid()),
-  displayType: z.enum(['grid', 'carousel']),
+  displayType: z.enum(['grid', 'panorama', 'masonry', 'slider']),
 })
 
 const MapPointSchema = z.object({

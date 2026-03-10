@@ -11,6 +11,7 @@ interface IProps {
 }
 
 defineProps<IProps>()
+const emit = defineEmits<{ (e: 'focus-location', coords: [number, number]): void }>()
 </script>
 
 <template>
@@ -28,7 +29,7 @@ defineProps<IProps>()
           {{ stage.title }}
         </h4>
         <div class="stage-meta">
-          <span v-if="stage.day" class="stage-day">День {{ stage.day }}</span>
+          <span v-if="'day' in stage && stage.day" class="stage-day">День {{ stage.day }}</span>
           <span v-if="stage.time" class="stage-time">{{ stage.time }}</span>
         </div>
       </header>
@@ -44,6 +45,7 @@ defineProps<IProps>()
             v-if="block.type === 'gallery'"
             :images="block.images"
             :comment="block.comment"
+            :display-type="block.displayType"
           />
 
           <GeoBlock
@@ -51,6 +53,7 @@ defineProps<IProps>()
             type="location"
             :title="block.name || 'Локация'"
             :subtitle="block.address"
+            @click="block.coords ? emit('focus-location', [block.coords.lng, block.coords.lat]) : null"
           />
 
           <GeoBlock

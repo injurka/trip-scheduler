@@ -3,7 +3,8 @@ import type { KitDropdownItem } from '~/components/01.kit/kit-dropdown'
 import type { PostDetail } from '~/shared/types/models/post'
 import { Icon } from '@iconify/vue'
 import { useResizeObserver } from '@vueuse/core'
-import { onMounted, ref } from 'vue'
+import { storeToRefs } from 'pinia'
+import { computed, onMounted, ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { KitBtn } from '~/components/01.kit/kit-btn'
 import { KitDivider } from '~/components/01.kit/kit-divider'
@@ -24,9 +25,14 @@ const store = usePostStore()
 const toast = useToast()
 const confirm = useConfirm()
 
+const authStore = useAppStore('auth')
+const { user } = storeToRefs(authStore)
+const isOwner = computed(() => !!user.value && user.value.id === props.post.user.id)
+
 const activeStageId = ref(props.post.stages?.[0]?.id)
 const isMapVisible = ref(false)
 const isMapPinned = ref(false)
+const mapFocusCoords = ref<[number, number] | null>(null)
 
 const menuItems: KitDropdownItem[] = [
   { label: 'Редактировать', value: 'edit', icon: 'mdi:pencil' },
@@ -89,6 +95,11 @@ function pinMap() {
   isMapVisible.value = true
   isMapPinned.value = true
 }
+
+function handleFocusLocation(coords: [number, number]) {
+  isMapVisible.value = true
+  mapFocusCoords.value = coords
+}
 </script>
 
 <template>
@@ -97,7 +108,8 @@ function pinMap() {
       <NavigationBack />
     </div>
 
-    <div v-if="!isPreviewMode" class="actions-overlay">
+    <!-- ДОБАВЛЕНА ПРОВЕРКА isOwner НА ОВЕРЛЕЙ -->
+    <div v-if="!isPreviewMode && isOwner" class="actions-overlay">
       <KitDropdown
         :items="menuItems"
         align="end"
@@ -151,6 +163,7 @@ function pinMap() {
               <TimelineStage
                 :stage="stage"
                 :is-last="index === post.stages.length - 1"
+                @focus-location="handleFocusLocation"
               />
             </div>
 
@@ -166,6 +179,7 @@ function pinMap() {
           v-model:visible="isMapVisible"
           v-model:pinned="isMapPinned"
           :post="post"
+          :focus-coords="mapFocusCoords"
         />
       </div>
     </div>
@@ -197,6 +211,7 @@ function pinMap() {
 </template>
 
 <style scoped lang="scss">
+/* (Стили остались без изменений, как в вашем предыдущем коде) */
 .post-details-page {
   position: relative;
   background-color: var(--bg-primary-color);
@@ -230,7 +245,6 @@ function pinMap() {
   }
 }
 
-/* Обновленный Layout для поддержки сайдбара */
 .layout-wrapper {
   max-width: 800px;
   margin: 0 auto;
@@ -259,12 +273,11 @@ function pinMap() {
     position: sticky;
     top: 24px;
     height: calc(100vh - 48px);
-    align-self: start; /* Ключевое свойство для работы sticky внутри grid */
+    align-self: start;
     z-index: 10;
   }
 }
 
-/* Контейнер под сеткой (Комментарии) */
 .bottom-container {
   max-width: 800px;
   margin: 0 auto;
@@ -346,7 +359,6 @@ function pinMap() {
 }
 .timeline-container {
   margin-top: 16px;
-  /* Убрана минимальная высота, чтобы комментарии подтягивались ближе, если контента мало */
 }
 .empty-state {
   text-align: center;
@@ -364,7 +376,6 @@ function pinMap() {
   border: 1px solid var(--border-secondary-color);
 }
 
-/* Стили плавающей кнопки FAB */
 .map-fab-group {
   position: fixed;
   bottom: 24px;

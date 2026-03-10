@@ -33,6 +33,7 @@ export interface GalleryBlock extends TimelineBlockBase {
   type: 'gallery'
   images: PostMedia[]
   comment?: string
+  displayType?: 'grid' | 'panorama' | 'masonry' | 'slider'
 }
 
 export interface LocationBlock extends TimelineBlockBase {

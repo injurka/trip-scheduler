@@ -2,8 +2,10 @@
 import type { PostMark, PostMedia } from '~/shared/types/models/post'
 import { Icon } from '@iconify/vue'
 import { v4 as uuidv4 } from 'uuid'
+import { computed, ref, watch } from 'vue'
 import { KitBtn } from '~/components/01.kit/kit-btn'
 import { KitDialogWithClose } from '~/components/01.kit/kit-dialog-with-close'
+import { resolveApiUrl } from '~/shared/lib/url'
 
 interface Props {
   visible: boolean
@@ -20,6 +22,10 @@ const currentMedia = ref<PostMedia>(JSON.parse(JSON.stringify(props.media)))
 const imageContainerRef = ref<HTMLElement | null>(null)
 const activeMarkId = ref<string | null>(null)
 const markLabelInput = ref('')
+
+const resolvedImageUrl = computed(() => {
+  return resolveApiUrl(currentMedia.value.url)
+})
 
 function handleImageClick(event: MouseEvent) {
   if (!imageContainerRef.value)
@@ -107,7 +113,7 @@ watch(() => props.visible, (isOpen) => {
           class="image-canvas"
           @click="handleImageClick"
         >
-          <img :src="currentMedia.url" alt="Edit" class="target-image">
+          <img :src="resolvedImageUrl" alt="" class="target-image">
 
           <div
             v-for="mark in currentMedia.marks"
@@ -172,26 +178,29 @@ watch(() => props.visible, (isOpen) => {
 }
 
 .canvas-wrapper {
-  background: var(--bg-primary-color);
+  background: var(--bg-tertiary-color);
   display: flex;
   justify-content: center;
   border: 1px solid var(--border-secondary-color);
   border-radius: var(--r-m);
   overflow: hidden;
   user-select: none;
+  min-height: 200px;
 }
 
 .image-canvas {
   position: relative;
   display: inline-block;
   cursor: crosshair;
-  max-height: 60vh;
+  max-width: 100%;
 }
 
 .target-image {
+  display: block;
   max-width: 100%;
   max-height: 60vh;
-  display: block;
+  width: auto;
+  height: auto;
 }
 
 .mark-point {
@@ -235,23 +244,26 @@ watch(() => props.visible, (isOpen) => {
   top: 24px;
   left: 50%;
   transform: translateX(-50%);
-  background: white;
-  padding: 4px;
-  border-radius: 8px;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+  background: var(--bg-primary-color);
+  padding: 6px;
+  border-radius: var(--r-m);
+  box-shadow: var(--s-l);
   display: flex;
   align-items: center;
-  gap: 4px;
+  gap: 6px;
   z-index: 10;
+  border: 1px solid var(--border-secondary-color);
   cursor: default;
 }
 
 .mini-input {
-  border: 1px solid #ddd;
-  border-radius: 4px;
-  padding: 4px 8px;
+  border: 1px solid var(--border-secondary-color);
+  border-radius: var(--r-s);
+  padding: 6px 10px;
   font-size: 14px;
-  width: 120px;
+  width: 160px;
+  background: var(--bg-secondary-color);
+  color: var(--fg-primary-color);
   outline: none;
   &:focus {
     border-color: var(--fg-accent-color);
@@ -262,19 +274,28 @@ watch(() => props.visible, (isOpen) => {
   display: flex;
   align-items: center;
   justify-content: center;
-  width: 24px;
-  height: 24px;
+  width: 28px;
+  height: 28px;
   border: none;
-  border-radius: 4px;
+  border-radius: var(--r-s);
   cursor: pointer;
+  transition: all 0.2s;
 
   &.save {
-    background: var(--bg-success-color);
+    background: rgba(var(--bg-success-color-rgb), 0.1);
     color: var(--fg-success-color);
+    &:hover {
+      background: var(--bg-success-color);
+      color: white;
+    }
   }
   &.delete {
-    background: var(--bg-error-color);
+    background: rgba(var(--bg-error-color-rgb), 0.1);
     color: var(--fg-error-color);
+    &:hover {
+      background: var(--bg-error-color);
+      color: white;
+    }
   }
 }
 

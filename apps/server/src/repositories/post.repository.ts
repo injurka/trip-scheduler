@@ -286,7 +286,16 @@ export const postRepository = {
   },
 
   async incrementViewCount(id: string) {
-    await db.update(posts).set({ viewsCount: sql`${posts.viewsCount} + 1` }).where(eq(posts.id, id))
+    await db.execute(sql`
+      UPDATE ${posts}
+      SET views_count = views_count + 1,
+          stats_detail = jsonb_set(
+            stats_detail,
+            '{views}',
+            (COALESCE((stats_detail->>'views')::int, 0) + 1)::text::jsonb
+          )
+      WHERE id = ${id}
+    `)
   },
 
   async getMediaByPostId(postId: string) {
@@ -297,13 +306,15 @@ export const postRepository = {
 
   async getUniqueTags(query?: string) {
     return measureDbQuery('posts', 'select', async () => {
-      const tagExpression = sql<string>`jsonb_array_elements_text(${posts.tags})`
-      const baseQuery = db.selectDistinct({ tag: tagExpression }).from(posts).orderBy(tagExpression).limit(20)
-      if (query) {
-        baseQuery.where(ilike(tagExpression, `%${query}%`))
-      }
-      const result = await baseQuery
-      return result.map(row => row.tag).filter(Boolean)
+      const searchParam = query ? `%${query}%` : '%'
+      const result = await db.execute(sql`
+        SELECT DISTINCT tag
+        FROM ${posts}, jsonb_array_elements_text(${posts.tags}) AS tag
+        WHERE tag ILIKE ${searchParam}
+        ORDER BY tag
+        LIMIT 20
+      `)
+      return result.rows.map(row => row.tag as string).filter(Boolean)
     })
   },
 }

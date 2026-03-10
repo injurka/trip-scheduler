@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import type { KitDropdownItem } from '~/components/01.kit/kit-dropdown'
-import type { PostDetail } from '~/shared/types/models/post'
+import type { PostDetail, PostMedia } from '~/shared/types/models/post'
 import { Icon } from '@iconify/vue'
 import { useTimeAgo } from '@vueuse/core'
 import { KitAvatar } from '~/components/01.kit/kit-avatar'
@@ -22,6 +22,11 @@ const emit = defineEmits<{
   (e: 'edit', id: string): void
   (e: 'delete', id: string): void
 }>()
+
+const authStore = useAppStore('auth')
+const { user } = storeToRefs(authStore)
+
+const isOwner = computed(() => !!user.value && user.value.id === props.post.user.id)
 
 const timeAgo = useTimeAgo(new Date(props.post.createdAt))
 const activeMediaIndex = ref(0)
@@ -77,6 +82,22 @@ function toggleMark(markId: string) {
   activeMarkId.value = activeMarkId.value === markId ? null : markId
 }
 
+interface MediaVariants {
+  small?: string
+  medium?: string
+  large?: string
+}
+
+function getMainImgUrl(media: PostMedia) {
+  const variants = (media as PostMedia & { variants?: MediaVariants | null }).variants
+  return variants?.medium || media.url
+}
+
+function getBlurImgUrl(media: PostMedia) {
+  const variants = (media as PostMedia & { variants?: MediaVariants | null }).variants
+  return variants?.small || variants?.medium || media.url
+}
+
 async function extractAverageColor(url: string) {
   if (!url)
     return
@@ -127,9 +148,9 @@ function onClickLocation() {
   emit('clickLocation', { city, country, lat: latitude, lng: longitude })
 }
 
-watch(() => props.post.media[0]?.url, (newUrl) => {
-  if (newUrl) {
-    extractAverageColor(newUrl)
+watch(() => props.post.media[0], (newMedia) => {
+  if (newMedia) {
+    extractAverageColor(getBlurImgUrl(newMedia))
   }
 }, { immediate: true })
 
@@ -157,6 +178,7 @@ const cardStyle = computed(() => ({
         <div class="spacer" />
 
         <KitDropdown
+          v-if="isOwner"
           :items="menuItems"
           align="end"
           @update:model-value="handleMenuAction"
@@ -188,8 +210,9 @@ const cardStyle = computed(() => ({
           <div :key="currentMedia?.id || 'empty'" class="image-wrapper">
             <template v-if="currentMedia">
               <div class="blur-backdrop">
+                <!-- Оптимизация: берем маленькую версию для фона -->
                 <KitImage
-                  :src="currentMedia.url"
+                  :src="getBlurImgUrl(currentMedia)"
                   object-fit="cover"
                   class="backdrop-img"
                 />
@@ -198,7 +221,7 @@ const cardStyle = computed(() => ({
 
               <div class="main-img-wrapper">
                 <KitImage
-                  :src="currentMedia.url"
+                  :src="getMainImgUrl(currentMedia)"
                   class="main-img"
                   object-fit="contain"
                 />
@@ -306,7 +329,6 @@ const cardStyle = computed(() => ({
     transform 0.2s,
     box-shadow 0.2s;
   border: 1px solid var(--border-secondary-color);
-  /* Левая граница динамического цвета */
   border-left: 4px solid var(--post-card-accent);
 
   &:hover {
@@ -381,7 +403,7 @@ const cardStyle = computed(() => ({
 .media-zone {
   position: relative;
   width: 100%;
-  aspect-ratio: 4/3;
+  aspect-ratio: 3 / 2;
   overflow: hidden;
   background-color: #1a1a1a;
 }
@@ -567,7 +589,7 @@ const cardStyle = computed(() => ({
   left: 0;
   right: 0;
   padding: 40px 16px 12px;
-  background: linear-gradient(to top, rgba(0, 0, 0, 0.8) 0%, rgba(0, 0, 0, 0) 100%);
+  background: linear-gradient(to top, var(--bg-tertiary-color) 0%, transparent 80%);
   color: white;
   pointer-events: none;
   z-index: 15;

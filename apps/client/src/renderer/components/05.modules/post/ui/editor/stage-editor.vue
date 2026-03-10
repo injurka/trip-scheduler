@@ -2,6 +2,7 @@
 import type { PostMedia, TimelineBlockType, TimelineStage } from '~/shared/types/models/post'
 import { Icon } from '@iconify/vue'
 import { parseTime } from '@internationalized/date'
+import { computed } from 'vue'
 import draggable from 'vuedraggable'
 import { KitInlineMdEditorWrapper } from '~/components/01.kit/kit-inline-md-editor'
 import { KitInput } from '~/components/01.kit/kit-input'
@@ -42,6 +43,26 @@ const stageTimeModel = computed({
 function handleAddBlock(type: TimelineBlockType) {
   store.addBlock(props.stage.id, type)
 }
+
+function getBlockIcon(type: TimelineBlockType) {
+  switch (type) {
+    case 'text': return 'mdi:text'
+    case 'gallery': return 'mdi:image-multiple'
+    case 'location': return 'mdi:map-marker'
+    case 'route': return 'mdi:directions'
+    default: return 'mdi:cube-outline'
+  }
+}
+
+function getBlockTitle(type: TimelineBlockType) {
+  switch (type) {
+    case 'text': return 'Текст'
+    case 'gallery': return 'Галерея'
+    case 'location': return 'Локация'
+    case 'route': return 'Маршрут'
+    default: return 'Блок'
+  }
+}
 </script>
 
 <template>
@@ -55,10 +76,10 @@ function handleAddBlock(type: TimelineBlockType) {
           <div class="day-wrapper" title="День маршрута">
             <span class="label">Дн</span>
             <input
-              :value="(stage as any).day"
+              :value="'day' in stage ? stage.day : 1"
               type="number"
               class="bare-input"
-              @input="e => store.updateStage(stage.id, { day: Number((e.target as HTMLInputElement).value) })"
+              @input="e => store.updateStage(stage.id, { day: Number((e.target as HTMLInputElement).value) } as any)"
             >
           </div>
           <div class="divider" />
@@ -92,8 +113,18 @@ function handleAddBlock(type: TimelineBlockType) {
       >
         <template #item="{ element: block }">
           <div class="block-item">
-            <div class="block-drag-handle">
-              <Icon icon="mdi:drag-horizontal" />
+            <!-- НОВАЯ ШАПКА БЛОКА ДЛЯ УЛУЧШЕНИЯ UI/UX -->
+            <div class="block-actions-bar">
+              <div class="block-drag-handle" title="Потяните для сортировки">
+                <Icon icon="mdi:drag-horizontal" />
+              </div>
+              <div class="block-type-label">
+                <Icon :icon="getBlockIcon(block.type)" class="type-icon" />
+                <span>{{ getBlockTitle(block.type) }}</span>
+              </div>
+              <button class="remove-block-btn" title="Удалить блок" @click="store.removeBlock(stage.id, block.id)">
+                <Icon icon="mdi:close" width="16" height="16" />
+              </button>
             </div>
 
             <div class="block-content">
@@ -108,7 +139,9 @@ function handleAddBlock(type: TimelineBlockType) {
               <template v-if="block.type === 'gallery'">
                 <GalleryEditor
                   :images="block.images"
+                  :display-type="block.displayType"
                   @update:images="(val: PostMedia[]) => store.updateBlock(stage.id, block.id, { images: val })"
+                  @update:display-type="(val: string) => store.updateBlock(stage.id, block.id, { displayType: val as any })"
                 />
                 <KitInput
                   :model-value="block.comment"
@@ -133,10 +166,6 @@ function handleAddBlock(type: TimelineBlockType) {
                 />
               </template>
             </div>
-
-            <button class="remove-block-btn" @click="store.removeBlock(stage.id, block.id)">
-              <Icon icon="mdi:trash-can-outline" width="16" height="16" />
-            </button>
           </div>
         </template>
       </draggable>
@@ -272,52 +301,100 @@ function handleAddBlock(type: TimelineBlockType) {
   padding: 12px;
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: 12px;
 
   &-wrapper {
     display: flex;
     flex-direction: column;
-    gap: 8px;
+    gap: 12px;
   }
 }
 
+/* === ОБНОВЛЕННЫЙ ВНЕШНИЙ ВИД БЛОКОВ === */
 .block-item {
   display: flex;
-  align-items: flex-start;
-  gap: 8px;
+  flex-direction: column;
   background: var(--bg-primary-color);
   border: 1px solid var(--border-secondary-color);
   border-radius: var(--r-s);
-  padding: 8px;
+  overflow: hidden;
+  transition:
+    border-color 0.2s,
+    box-shadow 0.2s;
 
   &:hover {
     border-color: var(--border-primary-color);
+    box-shadow: var(--s-s);
   }
+}
+
+.block-actions-bar {
+  display: flex;
+  align-items: center;
+  background: var(--bg-tertiary-color);
+  padding: 4px 8px;
+  border-bottom: 1px solid var(--border-secondary-color);
 }
 
 .block-drag-handle {
   cursor: grab;
   color: var(--fg-tertiary-color);
-  padding-top: 4px;
   display: flex;
   align-items: center;
   justify-content: center;
+  padding: 4px;
+  margin-right: 4px;
+  border-radius: 4px;
+
+  &:hover {
+    background: var(--bg-hover-color);
+    color: var(--fg-primary-color);
+  }
+
+  &:active {
+    cursor: grabbing;
+  }
 }
 
-.block-content {
+.block-type-label {
   flex: 1;
   display: flex;
-  flex-direction: column;
-  gap: 8px;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--fg-secondary-color);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+
+  .type-icon {
+    font-size: 1rem;
+  }
 }
 
 .remove-block-btn {
-  color: var(--fg-error-color);
-  transition: opacity 0.2s;
-  height: 24px;
+  color: var(--fg-tertiary-color);
   display: flex;
   align-items: center;
   justify-content: center;
+  padding: 4px;
+  border-radius: var(--r-xs);
+  border: none;
+  background: transparent;
+  cursor: pointer;
+  transition: all 0.2s;
+
+  &:hover {
+    color: var(--fg-error-color);
+    background: rgba(var(--bg-error-color-rgb), 0.1);
+  }
+}
+
+.block-content {
+  padding: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
 }
 
 .ghost-block {

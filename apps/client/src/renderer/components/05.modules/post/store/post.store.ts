@@ -1,6 +1,8 @@
 import type { ListPostsFilters, PostDetail, PostElement, PostMedia, TimelineBlock, TimelineStage } from '~/shared/types/models/post'
 import { defineStore } from 'pinia'
+import { v4 as uuidv4 } from 'uuid'
 import { useRequest, useRequestStatus } from '~/plugins/request'
+import { useToast } from '~/shared/composables/use-toast'
 
 export enum EPostRequestKeys {
   LIST = 'post:list',
@@ -14,10 +16,9 @@ export enum EPostRequestKeys {
   GENERATE = 'post:generate',
 }
 
-
 function transformElementsToStages(elements: PostElement[], allMedia: PostMedia[]): TimelineStage[] {
   return elements.map((element): TimelineStage => {
-    const blocks: TimelineBlock[] = element.content.map((contentBlock: any): TimelineBlock => {
+    const blocks: TimelineBlock[] = element.content.map((contentBlock): TimelineBlock => {
       switch (contentBlock.type) {
         case 'markdown':
           return { id: contentBlock.id, type: 'text', content: contentBlock.text }
@@ -27,6 +28,7 @@ function transformElementsToStages(elements: PostElement[], allMedia: PostMedia[
             type: 'gallery',
             images: allMedia.filter(media => contentBlock.imageIds.includes(media.id)),
             comment: '',
+            displayType: contentBlock.displayType,
           }
         case 'location':
           return {
@@ -47,7 +49,11 @@ function transformElementsToStages(elements: PostElement[], allMedia: PostMedia[
             transport: 'walk',
           }
         default:
-          return { id: (contentBlock as any).id, type: 'text', content: '[Неподдерживаемый тип блока]' }
+          return {
+            id: 'id' in contentBlock ? String(contentBlock.id) : uuidv4(),
+            type: 'text',
+            content: '[Неподдерживаемый тип блока]',
+          }
       }
     })
 
@@ -58,7 +64,7 @@ function transformElementsToStages(elements: PostElement[], allMedia: PostMedia[
       time: element.time,
       order: element.order,
       blocks,
-    } as TimelineStage
+    }
   })
 }
 

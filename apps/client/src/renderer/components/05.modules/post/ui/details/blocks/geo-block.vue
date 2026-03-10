@@ -10,10 +10,11 @@ interface Props {
 }
 
 defineProps<Props>()
+const emit = defineEmits<{ (e: 'click'): void }>()
 </script>
 
 <template>
-  <button v-ripple class="geo-block">
+  <button v-ripple class="geo-block" @click="emit('click')">
     <div class="icon-box">
       <Icon :icon="icon || (type === 'route' ? 'mdi:map-marker-path' : 'mdi:map-marker')" />
     </div>
