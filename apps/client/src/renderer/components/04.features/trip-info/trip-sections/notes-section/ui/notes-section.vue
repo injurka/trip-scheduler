@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import type { NoteType } from '~/shared/services/api/model/types'
 import { Icon } from '@iconify/vue'
-import { useWindowSize } from '@vueuse/core'
+import { onKeyStroke, useWindowSize } from '@vueuse/core'
 import { KitBtn } from '~/components/01.kit/kit-btn'
 import { useNotesSection } from '../composables/use-notes-section'
 import NoteEditorExcalidraw from './components/note-editor-excalidraw.vue'
@@ -38,11 +38,19 @@ const {
 
 const { width } = useWindowSize()
 const isMobile = computed(() => width.value <= 768)
-const showSidebar = ref(true)
+const isSidebarOpen = ref(false)
+const isFullscreen = ref(false)
 
-watch(activeNoteId, (id) => {
-  if (id && isMobile.value)
-    showSidebar.value = false
+watch([isMobile, activeNoteId], ([mobile, noteId]) => {
+  if (mobile && !noteId) {
+    isSidebarOpen.value = true
+  }
+}, { immediate: true })
+
+onKeyStroke('Escape', () => {
+  if (isFullscreen.value) {
+    isFullscreen.value = false
+  }
 })
 
 const isCreateDialogOpen = ref(false)
@@ -79,6 +87,10 @@ function handleInsertImage(markdownSnippet: string): void {
 function selectNote(id: string): void {
   flushPendingSave()
   activeNoteId.value = id
+  // Закрываем меню на мобильных после выбора файла
+  if (isMobile.value) {
+    isSidebarOpen.value = false
+  }
 }
 
 onMounted(() => {
@@ -97,10 +109,16 @@ onBeforeUnmount(() => {
       Загрузка заметок...
     </div>
 
-    <div v-else class="notes-layout">
+    <div v-else class="notes-layout" :class="{ 'is-fullscreen': isFullscreen }">
+      <div
+        v-if="isMobile && isSidebarOpen"
+        class="sidebar-overlay"
+        @click="isSidebarOpen = false"
+      />
+
       <aside
         class="notes-sidebar"
-        :class="{ 'is-hidden-mobile': isMobile && !showSidebar }"
+        :class="{ 'is-open': isSidebarOpen }"
       >
         <div class="sidebar-header">
           <span class="sidebar-title">Файлы</span>
@@ -156,44 +174,58 @@ onBeforeUnmount(() => {
         </div>
       </aside>
 
-      <main
-        class="notes-editor"
-        :class="{ 'is-hidden-mobile': isMobile && showSidebar }"
-      >
-        <div v-if="isMobile && !showSidebar" class="mobile-back">
-          <KitBtn
-            icon="mdi:chevron-left"
-            variant="text"
-            size="sm"
-            @click="showSidebar = true"
-          >
-            К файлам
-          </KitBtn>
-        </div>
-
-        <template v-if="activeNote">
-          <div class="editor-header">
-            <Icon
-              :icon="activeNote.type === 'excalidraw' ? 'mdi:draw' : 'mdi:file-document-outline'"
-              class="editor-type-icon"
-              :class="activeNote.type"
+      <main class="notes-editor">
+        <div class="editor-header">
+          <div class="editor-header-left">
+            <KitBtn
+              v-if="isMobile"
+              icon="mdi:menu"
+              variant="text"
+              size="sm"
+              class="mobile-menu-btn"
+              @click="isSidebarOpen = true"
             />
-            <span class="editor-title">{{ activeNote.title }}</span>
 
-            <div class="editor-header-actions">
+            <template v-if="activeNote">
+              <Icon
+                :icon="activeNote.type === 'excalidraw' ? 'mdi:draw' : 'mdi:file-document-outline'"
+                class="editor-type-icon"
+                :class="activeNote.type"
+              />
+              <span class="editor-title">{{ activeNote.title }}</span>
+            </template>
+            <span v-else class="editor-title is-empty">
+              Нет открытого файла
+            </span>
+          </div>
+
+          <div class="editor-header-actions">
+            <template v-if="activeNote">
               <KitBtn
                 v-if="!readonly && activeNote.type === 'markdown'"
                 icon="mdi:image-plus-outline"
                 variant="tonal"
                 size="xs"
+                title="Вставить фото"
                 @click="openGallery"
               >
-                Вставить фото
+                <!-- Текст кнопки скроется/ужмется на мобилках за счет flex -->
+                <span v-if="!isMobile">Вставить фото</span>
               </KitBtn>
-            </div>
-          </div>
+            </template>
 
-          <div class="editor-body">
+            <KitBtn
+              :icon="isFullscreen ? 'mdi:fullscreen-exit' : 'mdi:fullscreen'"
+              variant="text"
+              size="sm"
+              :title="isFullscreen ? 'Свернуть' : 'На весь экран'"
+              @click="isFullscreen = !isFullscreen"
+            />
+          </div>
+        </div>
+
+        <div class="editor-body">
+          <template v-if="activeNote">
             <NoteEditorMd
               v-if="activeNote.type === 'markdown'"
               :key="activeNote.id"
@@ -210,12 +242,12 @@ onBeforeUnmount(() => {
               :readonly="readonly"
               @update:content="saveContent"
             />
-          </div>
-        </template>
+          </template>
 
-        <div v-else class="editor-empty">
-          <Icon icon="mdi:note-edit-outline" class="editor-empty-icon" />
-          <p>Выберите файл слева для редактирования</p>
+          <div v-else class="editor-empty">
+            <Icon icon="mdi:note-edit-outline" class="editor-empty-icon" />
+            <p>Выберите файл слева для редактирования</p>
+          </div>
         </div>
       </main>
     </div>
@@ -248,18 +280,8 @@ onBeforeUnmount(() => {
   margin: 0 auto;
   flex-direction: column;
   padding: 10px;
-
-  .notes-layout {
-    display: flex;
-    height: 100%;
-    width: 100%;
-    overflow: hidden;
-
-    border: 1px solid var(--border-secondary-color);
-    border-radius: var(--r-m);
-    background: var(--bg-primary-color);
-  }
 }
+
 .loading-state {
   display: flex;
   align-items: center;
@@ -269,6 +291,7 @@ onBeforeUnmount(() => {
   color: var(--fg-secondary-color);
   font-size: 0.9rem;
 }
+
 .loading-spinner {
   width: 18px;
   height: 18px;
@@ -277,6 +300,39 @@ onBeforeUnmount(() => {
   border-radius: 50%;
   animation: spin 0.8s linear infinite;
   flex-shrink: 0;
+}
+
+.notes-layout {
+  display: flex;
+  height: 100%;
+  width: 100%;
+  overflow: hidden;
+  position: relative;
+
+  border: 1px solid var(--border-secondary-color);
+  border-radius: var(--r-m);
+  background: var(--bg-primary-color);
+
+  &.is-fullscreen {
+    position: fixed;
+    inset: 0;
+    z-index: 9999;
+    border-radius: 0;
+    border: none;
+    margin: 0;
+    top: 0px;
+    left: 0;
+    bottom: 0;
+    right: 0;
+  }
+}
+
+.sidebar-overlay {
+  position: absolute;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.4);
+  z-index: 40;
+  backdrop-filter: blur(2px);
 }
 
 .notes-sidebar {
@@ -288,11 +344,24 @@ onBeforeUnmount(() => {
   display: flex;
   flex-direction: column;
   overflow: hidden;
+  z-index: 50;
 
-  &.is-hidden-mobile {
-    display: none;
+  @include media-down(sm) {
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    left: 0;
+    width: 280px;
+    max-width: 85%;
+    transform: translateX(-100%);
+    transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+
+    &.is-open {
+      transform: translateX(0);
+    }
   }
 }
+
 .sidebar-header {
   display: flex;
   align-items: center;
@@ -303,22 +372,26 @@ onBeforeUnmount(() => {
   flex-shrink: 0;
   min-height: 45px;
 }
+
 .sidebar-title {
   font-size: 0.875rem;
   font-weight: 600;
   color: var(--fg-primary-color);
   white-space: nowrap;
 }
+
 .sidebar-actions {
   display: flex;
   gap: 2px;
   flex-shrink: 0;
 }
+
 .tree-wrapper {
   flex: 1;
   overflow-y: auto;
   padding: 6px;
 }
+
 .empty-tree {
   padding: 24px 12px;
   text-align: center;
@@ -326,6 +399,7 @@ onBeforeUnmount(() => {
   font-size: 0.825rem;
   margin: 0;
 }
+
 .notes-editor {
   flex: 1;
   display: flex;
@@ -333,20 +407,12 @@ onBeforeUnmount(() => {
   min-width: 0;
   overflow: hidden;
   background: var(--bg-primary-color);
+}
 
-  &.is-hidden-mobile {
-    display: none;
-  }
-}
-.mobile-back {
-  padding: 6px 8px;
-  border-bottom: 1px solid var(--border-secondary-color);
-  background: var(--bg-secondary-color);
-  flex-shrink: 0;
-}
 .editor-header {
   display: flex;
   align-items: center;
+  justify-content: space-between;
   gap: 10px;
   padding: 10px 16px;
   border-bottom: 1px solid var(--border-secondary-color);
@@ -359,15 +425,25 @@ onBeforeUnmount(() => {
     width: auto;
   }
 }
+
+.editor-header-left {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex: 1;
+  min-width: 0;
+}
+
+.mobile-menu-btn {
+  margin-left: -8px;
+}
+
 .editor-type-icon {
   font-size: 1.1rem;
   flex-shrink: 0;
   color: var(--fg-secondary-color);
-
-  &.excalidraw {
-    color: var(--c-purple-500, #9b59b6);
-  }
 }
+
 .editor-title {
   flex: 1;
   font-size: 1rem;
@@ -376,17 +452,26 @@ onBeforeUnmount(() => {
   overflow: hidden;
   text-overflow: ellipsis;
   min-width: 0;
+
+  &.is-empty {
+    color: var(--fg-tertiary-color);
+    font-weight: normal;
+    font-size: 0.9rem;
+  }
 }
+
 .editor-header-actions {
   display: flex;
   gap: 8px;
   flex-shrink: 0;
 }
+
 .editor-body {
   flex: 1;
   overflow: hidden;
   position: relative;
 }
+
 .editor-empty {
   display: flex;
   flex-direction: column;
@@ -401,6 +486,7 @@ onBeforeUnmount(() => {
     font-size: 0.9rem;
   }
 }
+
 .editor-empty-icon {
   font-size: 3rem;
   opacity: 0.35;

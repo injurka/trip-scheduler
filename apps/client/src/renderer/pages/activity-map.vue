@@ -1,5 +1,4 @@
 <script setup lang="ts">
-import { KitWipBadge } from '~/components/01.kit/kit-wip-badge'
 import { ActivityMap } from '~/components/05.modules/activity-map'
 
 const route = useRoute()
@@ -16,7 +15,6 @@ function handleModeChange(mode: 'list' | 'map') {
     class="content-wrapper"
     :class="{ 'is-map-mode': isMapMode }"
   >
-    <KitWipBadge />
     <ActivityMap @mode-change="handleModeChange" />
   </section>
 </template>

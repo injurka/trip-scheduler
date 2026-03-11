@@ -5,10 +5,10 @@ export const GetMarksInputSchema = z.object({
     leftTop: z.object({ lat: z.number(), lon: z.number() }),
     rightBottom: z.object({ lat: z.number(), lon: z.number() }),
     center: z.object({ lat: z.number(), lon: z.number() }).optional(),
-  }),
-  zoomlevel: z.number(),
-  startAt: z.string().datetime(),
-  endAt: z.string().datetime(),
+  }).optional(),
+  zoomlevel: z.number().optional(),
+  startAt: z.string().datetime().optional(),
+  endAt: z.string().datetime().optional(),
 })
 
 export const CreateMarkInputSchema = z.object({

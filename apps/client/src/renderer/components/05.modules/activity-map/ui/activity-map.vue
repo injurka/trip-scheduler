@@ -2,7 +2,6 @@
 import type { MapBounds } from '../models/types'
 import type { MapMarker } from '~/components/01.kit/kit-map'
 import type { CreateMarkInput } from '~/shared/types/models/mark'
-import { toLonLat } from 'ol/proj'
 import { useToast } from '~/shared/composables/use-toast'
 import { useActivityUrlState } from '../composables/use-activity-url-state'
 import { useActivityMapStore } from '../store/activity-map.store'
@@ -73,7 +72,7 @@ const activities = computed<ActivityItem[]>(() => {
       description: mark.additionalInfo || '',
       isStatic,
       status: determineStatus(mark.startAt, mark.endAt, isStatic),
-      date: mark.startAt ? new Date(mark.startAt).toLocaleString('ru-RU', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' }) : new Date(mark.endAt).toLocaleDateString('ru-RU'),
+      date: mark.startAt ? new Date(mark.startAt).toLocaleString('ru-RU', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' }) : new Date(mark.endAt || '').toLocaleDateString('ru-RU'),
       startIso: mark.startAt,
       endIso: mark.endAt,
       coords: mark.geom.coordinates,
@@ -139,19 +138,17 @@ async function handleCreate(data: CreatePayload) {
     mappedDuration = mapDurationToAllowedValue(durationHours)
   }
   else {
-    // Если статика, делаем вид, что начинается сейчас и длится 0 (бесконечно)
     startIso = new Date().toISOString()
   }
 
   if (coords) {
-    const lonLatCoords = toLonLat(coords)
     const input: CreateMarkInput = {
       markName: data.title,
       additionalInfo: data.description,
       duration: mappedDuration,
-      latitude: lonLatCoords[1],
-      longitude: lonLatCoords[0],
-      categoryId: data.isStatic ? 2 : 1, // Допустим 2 - это POI
+      latitude: coords[1],
+      longitude: coords[0],
+      categoryId: data.isStatic ? 2 : 1,
       startAt: startIso,
     }
 
@@ -200,26 +197,17 @@ watch(
   },
   { immediate: true },
 )
-
-onMounted(() => {
-  store.fetchMarks()
-})
 </script>
 
 <template>
   <div class="activity-module">
-    <div v-if="viewMode === 'list'" class="header-actions">
-      <KitBtn icon="mdi:plus" @click="isCreateDialogOpen = true">
-        Создать метку
-      </KitBtn>
-    </div>
-
     <ActivityListView
       v-if="viewMode === 'list'"
       v-model:date-range="dateRange"
       :activities="activities"
       @delete="handleDelete"
       @switch-to-map="handleModeChange('map')"
+      @create-mark="isCreateDialogOpen = true"
     />
 
     <ActivityMapView
@@ -251,10 +239,5 @@ onMounted(() => {
   height: 100%;
   display: flex;
   flex-direction: column;
-}
-.header-actions {
-  display: flex;
-  justify-content: flex-end;
-  margin-bottom: 16px;
 }
 </style>

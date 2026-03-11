@@ -1,15 +1,18 @@
 <script setup lang="ts">
 import { useRoute } from 'vue-router'
 import { KitSkeleton } from '~/components/01.kit/kit-skeleton'
+import TripGenericSectionSkeleton from './trip-generic-section-skeleton.vue'
+import TripMapSkeleton from './trip-map-skeleton.vue'
+import TripNotesSkeleton from './trip-notes-skeleton.vue'
 import TripOverviewSkeleton from './trip-overview-skeleton.vue'
 
 const route = useRoute()
 const dayQuery = computed(() => route.query.day)
+const sectionQuery = computed(() => route.query.section as string)
 </script>
 
 <template>
-  <TripOverviewSkeleton v-if="!dayQuery" />
-  <div v-else class="trip-info-day-skeleton">
+  <div v-if="dayQuery" class="trip-info-day-skeleton">
     <div class="divider-skeleton">
       <KitSkeleton width="80px" height="12px" border-radius="4px" type="wave" />
     </div>
@@ -44,6 +47,13 @@ const dayQuery = computed(() => route.query.day)
       <KitSkeleton width="180px" height="20px" border-radius="4px" type="wave" />
     </div>
   </div>
+
+  <!-- Новые состояния для конкретных секций -->
+  <TripNotesSkeleton v-else-if="sectionQuery === 'notes'" />
+  <TripMapSkeleton v-else-if="sectionQuery === 'map'" />
+  <TripGenericSectionSkeleton v-else-if="sectionQuery && sectionQuery !== 'overview'" />
+
+  <TripOverviewSkeleton v-else />
 </template>
 
 <style scoped lang="scss">

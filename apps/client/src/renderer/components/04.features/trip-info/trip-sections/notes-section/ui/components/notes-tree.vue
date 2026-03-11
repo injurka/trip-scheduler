@@ -147,6 +147,8 @@ function onDragChange(event: DraggableChangeEvent): void {
     ghost-class="ghost-node"
     drag-class="dragging-node"
     class="tree-list"
+    :class="{ 'is-empty': nodes.length === 0 && parentId }"
+    :style="nodes.length === 0 && parentId ? { '--empty-depth': `${depth * 16 + 8}px` } as any : {}"
     @change="onDragChange"
   >
     <template #item="{ element: node }">
@@ -226,7 +228,35 @@ function onDragChange(event: DraggableChangeEvent): void {
 .tree-list {
   display: flex;
   flex-direction: column;
-  min-height: 4px;
+  min-height: 10px;
+  margin-bottom: 4px;
+
+  &.is-empty {
+    min-height: 34px;
+    margin: 2px 0;
+    border: 1px dashed var(--border-secondary-color);
+    border-radius: var(--r-s);
+    background-color: rgba(var(--bg-hover-color-rgb), 0.3);
+    transition: all 0.2s ease;
+    display: flex;
+    justify-content: center;
+
+    &:empty::after {
+      content: 'Вложить файл...';
+      height: 100%;
+      padding-left: calc(var(--empty-depth, 8px) + 6px);
+      font-size: 0.8rem;
+      padding-top: 4px;
+      color: var(--fg-tertiary-color);
+      pointer-events: none;
+    }
+
+    &:not(:empty) {
+      border-color: var(--fg-accent-color);
+      background-color: var(--bg-accent-overlay-color);
+      border-style: solid;
+    }
+  }
 }
 
 .tree-node {
