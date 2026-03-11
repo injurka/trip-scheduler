@@ -22,7 +22,7 @@ const PostContentBlockImageSchema = PostContentBlockBaseSchema.extend({
 const PostContentBlockGallerySchema = PostContentBlockBaseSchema.extend({
   type: z.literal('gallery'),
   imageIds: z.array(z.string().uuid()),
-  displayType: z.enum(['grid', 'panorama', 'masonry', 'slider']),
+  displayType: z.enum(['grid', 'panorama', 'masonry', 'slider']).default('grid'),
 })
 
 const MapPointSchema = z.object({
@@ -134,7 +134,6 @@ export const ToggleLikePostInputSchema = z.object({
   postId: z.string().uuid(),
 })
 
-// --- Схемы для ИИ генерации постов (Заменено .optional() на .nullish() для защиты от null) ---
 export const GeneratePostInputSchema = z.object({
   text: z.string().min(10, 'Опишите ваше путешествие подробнее (минимум 10 символов)'),
 })

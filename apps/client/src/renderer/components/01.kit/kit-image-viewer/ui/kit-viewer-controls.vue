@@ -70,7 +70,7 @@ const currentQuality = computed({
         :class="{ loading: isMetadataLoading }"
         :disabled="isMetadataLoading"
         title="Информация о снимке"
-        @click="emit('showMetadata')"
+        @click.stop="emit('showMetadata')"
       >
         <Icon v-if="isMetadataLoading" icon="mdi:loading" class="spin" />
         <Icon v-else icon="mdi:information-outline" />

@@ -1,22 +1,13 @@
 <script setup lang="ts">
 import { Icon } from '@iconify/vue'
-import { KitBtn } from '~/components/01.kit/kit-btn'
 import { KitDialogWithClose } from '~/components/01.kit/kit-dialog-with-close'
-import { KitInput } from '~/components/01.kit/kit-input'
 import { useModuleStore } from '~/components/05.modules/trip-info/composables'
 import { TripSectionType } from '~/shared/types/models/trip'
-import { useIconPicker } from '../../composables/use-icon-picker'
 
-const props = defineProps<{ visible: boolean }>()
+defineProps<{ visible: boolean }>()
 const emit = defineEmits(['update:visible', 'addSection'])
 
 const { sections: sectionsStore } = useModuleStore(['sections'])
-
-const isCustomMode = ref(false)
-const newSectionTitle = ref('')
-const newSectionIcon = ref('mdi:note-text-outline')
-
-const { iconSearchQuery, filteredIcons } = useIconPicker()
 
 interface SectionPreset {
   type: TripSectionType
@@ -58,6 +49,13 @@ const sectionPresets = computed((): SectionPreset[] => {
       isAvailable: !existingTypes.has(TripSectionType.MEMORIES),
     },
     {
+      type: TripSectionType.NOTES,
+      title: 'Заметки',
+      description: 'Файлы и папки с markdown-заметками и скетчами.',
+      icon: 'mdi:note-edit-outline',
+      isAvailable: !existingTypes.has(TripSectionType.NOTES),
+    },
+    {
       type: TripSectionType.DOCUMENTS,
       title: 'Документы',
       description: 'Хранение важных файлов: билеты, страховки.',
@@ -73,35 +71,7 @@ const availablePresets = computed(() => {
 
 function handleAddSection(payload: TripSectionType | { type: TripSectionType, title: string, icon: string }) {
   emit('addSection', payload)
-  isCustomMode.value = false
-  newSectionTitle.value = ''
-  newSectionIcon.value = 'mdi:file-document-outline'
-  iconSearchQuery.value = ''
 }
-
-function handleAddCustomSection() {
-  if (!newSectionTitle.value.trim())
-    return
-
-  handleAddSection({
-    type: TripSectionType.NOTES,
-    title: newSectionTitle.value,
-    icon: newSectionIcon.value,
-  })
-}
-
-watch(() => props.visible, (isVisible) => {
-  if (!isVisible) {
-    isCustomMode.value = false
-    newSectionTitle.value = ''
-    newSectionIcon.value = 'mdi:file-document-outline'
-    iconSearchQuery.value = ''
-  }
-  else {
-    if (availablePresets.value.length === 0)
-      isCustomMode.value = true
-  }
-})
 </script>
 
 <template>
@@ -112,7 +82,7 @@ watch(() => props.visible, (isVisible) => {
     :max-width="600"
     @update:visible="emit('update:visible', $event)"
   >
-    <div v-if="!isCustomMode" class="presets-grid">
+    <div class="presets-grid">
       <template v-for="preset in availablePresets" :key="preset.type">
         <button
           class="preset-card"
@@ -131,50 +101,7 @@ watch(() => props.visible, (isVisible) => {
           </div>
         </button>
       </template>
-      <button class="preset-card custom-card" @click="isCustomMode = true">
-        <div class="preset-icon">
-          <Icon icon="mdi:pencil-plus-outline" />
-        </div>
-        <div class="preset-info">
-          <h3 class="preset-title">
-            Свой вариант
-          </h3>
-          <p class="preset-description">
-            Создать раздел с собственным названием и иконкой.
-          </p>
-        </div>
-      </button>
     </div>
-    <form v-else class="add-section-form" @submit.prevent="handleAddCustomSection">
-      <KitBtn v-if="availablePresets.length > 0" variant="text" class="back-btn" @click="isCustomMode = false">
-        <Icon icon="mdi:arrow-left" /> Назад к пресетам
-      </KitBtn>
-      <KitInput
-        v-model="newSectionTitle"
-        label="Название раздела"
-        placeholder="Например, 'Билеты' или 'Отели'"
-        required
-      />
-      <div class="icon-picker">
-        <label>Иконка</label>
-        <KitInput v-model="iconSearchQuery" placeholder="Поиск иконки (напр. 'car')" icon="mdi:magnify" />
-        <div class="icon-picker-grid">
-          <button
-            v-for="icon in filteredIcons"
-            :key="icon"
-            type="button"
-            class="icon-option"
-            :class="{ 'is-active': newSectionIcon === icon }"
-            @click="newSectionIcon = icon"
-          >
-            <Icon :icon="icon" />
-          </button>
-        </div>
-      </div>
-      <KitBtn type="submit" :disabled="!newSectionTitle.trim()">
-        Создать раздел
-      </KitBtn>
-    </form>
   </KitDialogWithClose>
 </template>
 
@@ -236,87 +163,5 @@ watch(() => props.visible, (isVisible) => {
   color: var(--fg-secondary-color);
   margin: 0;
   line-height: 1.4;
-}
-
-.custom-card {
-  border-style: dashed;
-  .preset-icon {
-    background-color: var(--bg-secondary-color);
-  }
-}
-
-.add-section-form {
-  display: flex;
-  flex-direction: column;
-  gap: 16px;
-  padding: 8px;
-}
-
-.back-btn {
-  justify-content: flex-start;
-  padding-left: 0;
-  color: var(--fg-secondary-color);
-  &:hover {
-    color: var(--fg-accent-color);
-  }
-}
-
-.icon-picker {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-  label {
-    display: block;
-    margin-bottom: 6px;
-    font-size: 0.875rem;
-    font-weight: 500;
-    color: var(--fg-secondary-color);
-  }
-}
-.icon-picker-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(36px, 1fr));
-  gap: 8px;
-  max-height: 142px;
-  overflow-y: auto;
-  background-color: var(--bg-secondary-color);
-  padding: 8px;
-  border-radius: var(--r-s);
-
-  &::-webkit-scrollbar {
-    width: 6px;
-  }
-  &::-webkit-scrollbar-thumb {
-    background: var(--border-primary-color);
-    border-radius: 3px;
-  }
-  &::-webkit-scrollbar-track {
-    background: transparent;
-  }
-}
-
-.icon-option {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  width: 36px;
-  height: 36px;
-  border-radius: var(--r-s);
-  border: 1px solid transparent;
-  background-color: var(--bg-tertiary-color);
-  color: var(--fg-secondary-color);
-  cursor: pointer;
-  font-size: 1.4rem;
-  transition: all 0.2s ease;
-
-  &:hover {
-    background-color: var(--bg-hover-color);
-    color: var(--fg-primary-color);
-  }
-  &.is-active {
-    color: var(--fg-accent-color);
-    border-color: var(--fg-accent-color);
-    background-color: var(--bg-hover-color);
-  }
 }
 </style>

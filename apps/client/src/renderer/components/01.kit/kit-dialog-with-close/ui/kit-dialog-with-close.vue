@@ -8,14 +8,16 @@ import {
   DialogRoot,
   DialogTitle,
 } from 'reka-ui'
+import { computed } from 'vue'
 
 interface Props {
   maxWidth?: number
   title?: string
   icon?: string
+  persistent?: boolean
 }
 
-const { maxWidth = 700, title, icon } = defineProps<Props>()
+const { maxWidth = 700, title, icon, persistent = false } = defineProps<Props>()
 
 const visible = defineModel<boolean>('visible', { required: true })
 
@@ -30,10 +32,17 @@ const maxWidthPx = computed(() => `${maxWidth}px`)
         class="dialog-content-wrapper"
         :style="{ maxWidth: maxWidthPx }"
         @pointer-down-outside="(event) => {
+          if (persistent) {
+            event.preventDefault()
+            return
+          }
+
           const originalEvent = event.detail.originalEvent
           const target = originalEvent.target as HTMLElement
-          if (originalEvent.offsetX > target.clientWidth || originalEvent.offsetY > target.clientHeight)
+
+          if (originalEvent.offsetX > target.clientWidth || originalEvent.offsetY > target.clientHeight) {
             event.preventDefault()
+          }
         }"
       >
         <div class="dialog-header">

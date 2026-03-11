@@ -37,6 +37,76 @@ import type {
   UpdateTripInput,
 } from '~/shared/types/models/trip'
 
+export type NoteType = 'folder' | 'markdown' | 'excalidraw'
+
+export interface NoteImage {
+  id: string
+  sources: Record<string, string>
+}
+
+export interface TripNote {
+  id: string
+  tripId: string
+  parentId: string | null
+  type: NoteType
+  title: string
+  content: string | null
+  order: number
+  createdAt: string
+  updatedAt: string
+  images?: NoteImage[]
+}
+
+export interface NoteImageUsageRef {
+  id: string
+  title: string
+  type: NoteType
+}
+
+export interface NoteImageUsage {
+  id: string
+  width?: number | null
+  height?: number | null
+  sources: Record<string, string>
+  usedIn: NoteImageUsageRef[]
+}
+
+export interface CreateNoteInput {
+  tripId: string
+  parentId: string | null
+  type: NoteType
+  title: string
+  order: number
+}
+
+export interface UpdateNoteInput {
+  id: string
+  title?: string
+  content?: string | null
+  parentId?: string | null
+  imageIds?: string[]
+}
+
+export interface ReorderNoteUpdate {
+  id: string
+  parentId: string | null
+  order: number
+}
+
+export interface ReorderNotesInput {
+  tripId: string
+  updates: ReorderNoteUpdate[]
+}
+
+export interface INoteRepository {
+  getByTripId: (tripId: string) => Promise<TripNote[]>
+  create: (data: CreateNoteInput) => Promise<TripNote>
+  update: (data: UpdateNoteInput) => Promise<TripNote>
+  delete: (id: string) => Promise<void>
+  reorder: (data: ReorderNotesInput) => Promise<void>
+  getImagesUsage: (tripId: string) => Promise<NoteImageUsage[]>
+}
+
 export interface IPostRepository {
   list: (filters: ListPostsFilters) => Promise<{ items: PostDetail[], nextCursor?: string }>
   getById: (params: { id: string }) => Promise<PostDetail>
@@ -220,4 +290,5 @@ export interface IDatabaseClient {
   marks: IMarksRepository
   notification: INotificationRepository
   posts: IPostRepository
+  notes: INoteRepository
 }

@@ -85,6 +85,13 @@
       "when": 1773019251488,
       "tag": "0011_military_namora",
       "breakpoints": true
+    },
+    {
+      "idx": 12,
+      "version": "7",
+      "when": 1773177188247,
+      "tag": "0012_married_shooting_star",
+      "breakpoints": true
     }
   ]
 }

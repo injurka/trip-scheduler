@@ -1,9 +1,6 @@
 import type { tripImagePlacementEnum } from 'db/schema'
 import type { EntityType } from '~/models/image-upload'
 import type { ImageMetadata } from '~/repositories/image.repository'
-import { existsSync } from 'node:fs'
-import { readdir, stat } from 'node:fs/promises'
-import { join } from 'node:path'
 import { createTRPCError } from '~/lib/trpc'
 import { imageRepository } from '~/repositories/image.repository'
 import { postRepository } from '~/repositories/post.repository'
@@ -18,7 +15,7 @@ interface ServiceImageResult {
   tripId?: string
   url: string
   originalName: string
-  placement?: 'route' | 'memories' | 'content' | 'cover'
+  placement?: 'route' | 'memories' | 'content' | 'cover' | 'notes'
   createdAt: Date
   sizeBytes: number
   width?: number | null
@@ -79,7 +76,6 @@ export const imageService = {
         const targetPlacement = placement || 'content'
         const imagesMap = new Map<string, ServiceImageResult>()
 
-        // 2. Ищем в S3 (новые файлы)
         const prefix = `blogs/${entityId}/${targetPlacement}/`
         const s3Objects = await s3Service.listDirectory(prefix)
 
@@ -101,7 +97,7 @@ export const imageService = {
           })
         }
 
-        // 3. Возвращаем объединенный массив, сортируя по дате
+        // eslint-disable-next-line e18e/prefer-spread-syntax
         return Array.from(imagesMap.values()).sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime())
       }
       catch (error) {

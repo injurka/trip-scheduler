@@ -234,7 +234,7 @@ const extendedInfo = computed(() => {
               <Icon icon="mdi:image-text" />
               <h3>Информация о снимке</h3>
             </div>
-            <button class="close-btn-panel" title="Закрыть" @click="$emit('close')">
+            <button class="close-btn-panel" title="Закрыть" @click.stop="$emit('close')">
               <Icon icon="mdi:close" />
             </button>
           </header>

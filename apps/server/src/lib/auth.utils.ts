@@ -97,8 +97,12 @@ async function verifyAccessToken(token: string): Promise<AccessTokenPayload | nu
 
     return payload as unknown as AccessTokenPayload
   }
-  catch (error) {
-    console.error('Ошибка верификации Access Token:', error)
+  catch (error: any) {
+    if (error?.name === 'JwtTokenExpired') {
+      return null
+    }
+
+    console.error('Ошибка верификации Access Token:', error?.message || error)
     return null
   }
 }

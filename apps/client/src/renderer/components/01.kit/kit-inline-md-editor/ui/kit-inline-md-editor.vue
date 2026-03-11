@@ -20,7 +20,7 @@ const emit = defineEmits<{
   (e: 'focus'): void
   (e: 'blur'): void
 }>()
-const markdown = defineModel<string>({ required: true })
+const markdown = defineModel<string | null>({ required: true })
 
 if (markdown.value === undefined) {
   markdown.value = ``
@@ -48,7 +48,7 @@ function getEditorAttributes(prevAttributes: any) {
 useEditor((root) => {
   const crepe = new Crepe({
     root,
-    defaultValue: markdown.value,
+    defaultValue: markdown.value || '',
     featureConfigs: {
       [Crepe.Feature.Placeholder]: {
         text: props.placeholder || 'Начните вводить текст...',

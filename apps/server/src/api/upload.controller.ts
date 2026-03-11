@@ -55,8 +55,6 @@ export async function uploadFileController(c: Context) {
       placement,
     })
 
-    console.log('result', result)
-
     return c.json(result.dbRecord || { url: result.url, variants: result.variants })
   }
   catch (error: any) {

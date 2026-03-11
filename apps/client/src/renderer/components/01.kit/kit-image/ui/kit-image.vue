@@ -47,6 +47,7 @@ const imageObserver = ref<IntersectionObserver | undefined>()
 const resolvedVariants = computed(() => {
   if (!props.variants)
     return {}
+
   return {
     small: resolveApiUrl(props.variants.small),
     medium: resolveApiUrl(props.variants.medium),

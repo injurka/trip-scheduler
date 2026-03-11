@@ -1,5 +1,7 @@
-import { resolve } from 'node:path'
+import { createRequire } from 'node:module'
+import path, { resolve } from 'node:path'
 import { fileURLToPath, URL } from 'node:url'
+import React from '@vitejs/plugin-react'
 import Vue from '@vitejs/plugin-vue'
 import AutoImport from 'unplugin-auto-import/vite'
 import Icons from 'unplugin-icons/vite'
@@ -11,18 +13,20 @@ import { iconsCfg } from './cfg/icons'
 import { pwaCfg } from './cfg/pwa'
 import { visualizerPlugin } from './lib/helpers'
 
-// Конфигурация для Web и PWA
+const require = createRequire(import.meta.url)
+
 export default defineConfig({
   base: '/',
   root: resolve(__dirname, '../src/renderer'),
   publicDir: resolve(__dirname, '../public'),
   envDir: '../..',
   plugins: [
-    Vue({}),
+    Vue(),
+    React(),
     AutoImport(autoImportOptionsCfg),
     Compression({
       algorithms: ['gzip'],
-      exclude: [/\.(br)$/, /\.(gz)$/],
+      exclude: [/\\.(br)$/, /\\.(gz)$/],
     }),
     Icons(iconsCfg),
     VitePWA(pwaCfg),
@@ -36,7 +40,6 @@ export default defineConfig({
     },
   },
   server: {
-    // allowedHosts: [],
     port: 1420,
     proxy: {
       '/api/rm': {
@@ -54,13 +57,14 @@ export default defineConfig({
       },
     },
   },
-
   resolve: {
+    dedupe: ['react', 'react-dom', 'react/jsx-runtime', 'react/jsx-dev-runtime'],
     alias: {
       '~': fileURLToPath(new URL('../src/renderer', import.meta.url)),
+      'react': path.dirname(require.resolve('react/package.json')),
+      'react-dom': path.dirname(require.resolve('react-dom/package.json')),
     },
   },
-
   build: {
     outDir: resolve(__dirname, '../dist'),
     emptyOutDir: true,

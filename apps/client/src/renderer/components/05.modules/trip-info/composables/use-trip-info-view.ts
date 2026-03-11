@@ -8,6 +8,7 @@ export const SECTION_SLUG_MAP: Record<string, TripSectionType> = {
   checklist: TripSectionType.CHECKLIST,
   documents: TripSectionType.DOCUMENTS,
   gallery: TripSectionType.MEMORIES,
+  notes: TripSectionType.NOTES,
 }
 
 export const SECTION_TYPE_MAP: Record<string, string> = Object.entries(SECTION_SLUG_MAP).reduce((acc, [slug, type]) => {
