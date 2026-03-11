@@ -53,7 +53,7 @@ class Server {
       }
       finally {
         const duration = (Date.now() - start) / 1000
-        const path = new URL(c.req.url).pathname
+        const path = c.req.path
 
         if (path !== '/metrics') {
           httpRequestDurationHistogram.observe(
@@ -104,13 +104,12 @@ class Server {
         router: appRouter,
         createContext,
         onError: ({ error, path }) => {
-          console.error(`tRPC Error on ${path}:`, error)
+          console.error(`tRPC Error on ${path}:`, error.message)
         },
       }),
     )
 
     // REST-обработчик для OpenAPI (Swagger) endpoints
-    // Перехватывает запросы, не попавшие в предыдущие роуты, и пытается выполнить их через tRPC
     this.app.all('/*', async (c, next) => {
       if (c.req.path.startsWith('/static/')
         || c.req.path === '/metrics'
@@ -119,19 +118,29 @@ class Server {
         return next()
       }
 
-      const res = await createOpenApiFetchHandler({
-        endpoint: '/', 
-        router: appRouter,
-        createContext: () => createContext({} as any, c),
-        req: c.req.raw,
-        onError: () => { },
-      })
+      const rawUrl = c.req.url
+      const safeUrl = rawUrl.startsWith('http') ? rawUrl : `http://localhost${rawUrl.startsWith('/') ? '' : '/'}${rawUrl}`
+      const safeReq = new Request(safeUrl, c.req.raw)
 
-      if (!res || res.status === 404) {
+      try {
+        const res = await createOpenApiFetchHandler({
+          endpoint: '/',
+          router: appRouter,
+          createContext: () => createContext({} as any, c),
+          req: safeReq,
+          onError: () => { },
+        })
+
+        if (!res || res.status === 404) {
+          return next()
+        }
+
+        return res
+      }
+      catch (err) {
+        console.error('OpenAPI fetch handler error:', err)
         return next()
       }
-
-      return res
     })
 
     // Маршрут для метрик

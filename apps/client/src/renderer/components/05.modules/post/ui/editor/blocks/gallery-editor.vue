@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import type { PostMedia } from '~/shared/types/models/post'
 import { Icon } from '@iconify/vue'
+import { computed, ref } from 'vue'
 import draggable from 'vuedraggable'
 import { KitImage } from '~/components/01.kit/kit-image'
 import MediaLibraryPicker from '../tools/media-library-picker.vue'
@@ -8,12 +9,16 @@ import SmartMarkEditor from '../tools/smart-mark-editor.vue'
 
 interface IProps {
   images: PostMedia[]
+  displayType?: 'grid' | 'panorama' | 'masonry' | 'slider'
 }
 
-const props = defineProps<IProps>()
+const props = withDefaults(defineProps<IProps>(), {
+  displayType: 'grid',
+})
 
 const emit = defineEmits<{
   (e: 'update:images', images: PostMedia[]): void
+  (e: 'update:displayType', type: string): void
 }>()
 
 const isLibraryOpen = ref(false)
@@ -49,6 +54,12 @@ function handleLibraryConfirm(selected: PostMedia[]) {
 }
 
 const currentSelectedIds = computed(() => props.images.map(i => i.id))
+
+function getEditorThumbUrl(img: PostMedia) {
+  const variants = img.metadata.variants
+
+  return variants?.small || variants?.medium || img.url
+}
 </script>
 
 <template>
@@ -68,7 +79,7 @@ const currentSelectedIds = computed(() => props.images.map(i => i.id))
             </div>
 
             <div class="image-preview" @click="openMarkEditor(element, index)">
-              <KitImage :src="element.url" object-fit="cover" />
+              <KitImage :src="getEditorThumbUrl(element)" object-fit="cover" />
 
               <div v-if="element.marks?.length" class="marks-badge">
                 <Icon icon="mdi:target" /> {{ element.marks.length }}
@@ -86,6 +97,21 @@ const currentSelectedIds = computed(() => props.images.map(i => i.id))
           </div>
         </template>
       </draggable>
+    </div>
+
+    <div v-if="images.length > 0" class="display-type-tabs">
+      <button :class="{ active: displayType === 'grid' }" title="Сетка" @click="emit('update:displayType', 'grid')">
+        <Icon icon="mdi:grid" />
+      </button>
+      <button :class="{ active: displayType === 'slider' }" title="Слайдер" @click="emit('update:displayType', 'slider')">
+        <Icon icon="mdi:view-carousel-outline" />
+      </button>
+      <button :class="{ active: displayType === 'masonry' }" title="Коллаж" @click="emit('update:displayType', 'masonry')">
+        <Icon icon="mdi:view-dashboard-outline" />
+      </button>
+      <button :class="{ active: displayType === 'panorama' }" title="Панорама" @click="emit('update:displayType', 'panorama')">
+        <Icon icon="mdi:panorama-horizontal-outline" />
+      </button>
     </div>
 
     <button class="add-image-btn" @click="isLibraryOpen = true">
@@ -168,6 +194,11 @@ const currentSelectedIds = computed(() => props.images.map(i => i.id))
   position: absolute;
   top: 4px;
   left: 4px;
+  width: 22px;
+  height: 22px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
   background: rgba(0, 0, 0, 0.5);
   color: white;
   border-radius: 4px;
@@ -215,6 +246,42 @@ const currentSelectedIds = computed(() => props.images.map(i => i.id))
   gap: 2px;
 }
 
+.display-type-tabs {
+  display: flex;
+  gap: 4px;
+  background: var(--bg-tertiary-color);
+  padding: 4px;
+  border-radius: var(--r-s);
+  border: 1px solid var(--border-secondary-color);
+  margin-bottom: 8px;
+
+  button {
+    flex: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 6px;
+    background: transparent;
+    border: none;
+    border-radius: var(--r-s);
+    color: var(--fg-secondary-color);
+    cursor: pointer;
+    transition: all 0.2s;
+    font-size: 1.2rem;
+
+    &:hover {
+      color: var(--fg-primary-color);
+      background: var(--bg-hover-color);
+    }
+
+    &.active {
+      background: var(--bg-secondary-color);
+      color: var(--fg-accent-color);
+      box-shadow: var(--s-s);
+    }
+  }
+}
+
 .add-image-btn {
   width: 100%;
   padding: 12px;
@@ -237,6 +304,7 @@ const currentSelectedIds = computed(() => props.images.map(i => i.id))
     justify-content: center;
     gap: 8px;
     font-weight: 500;
+    font-size: 0.9rem;
   }
 }
 </style>

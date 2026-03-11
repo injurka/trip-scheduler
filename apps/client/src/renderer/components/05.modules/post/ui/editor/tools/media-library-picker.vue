@@ -144,7 +144,11 @@ watch(() => props.visible, (isOpen) => {
             <div v-if="mode === 'manage'" class="drag-handle">
               <Icon icon="mdi:drag" />
             </div>
-            <KitImage :src="media.url" object-fit="cover" class="media-img" />
+            <KitImage
+              :src="media.metadata.variants.small ?? media.url"
+              object-fit="cover"
+              class="media-img"
+            />
 
             <div v-if="mode === 'select'" class="selection-overlay">
               <div class="checkbox">
@@ -255,8 +259,8 @@ watch(() => props.visible, (isOpen) => {
   position: absolute;
   top: 8px;
   left: 8px;
-  width: 28px;
-  height: 28px;
+  width: 22px;
+  height: 22px;
   background: rgba(0, 0, 0, 0.5);
   color: white;
   border-radius: 6px;

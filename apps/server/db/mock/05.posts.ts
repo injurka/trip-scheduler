@@ -200,7 +200,7 @@ export const MOCK_POST_DATA = [
           {
             id: 'block-is3',
             type: 'gallery',
-            displayType: 'carousel',
+            displayType: 'masonry',
             imageIds: [MEDIA_ID_3, MEDIA_ID_4],
           },
         ],

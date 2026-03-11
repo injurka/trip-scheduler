@@ -9,7 +9,7 @@ export const TripImageSchema = z.object({
   createdAt: z.date(),
 
   tripId: z.string().optional(),
-  placement: z.enum(['route', 'memories', 'cover', 'content']).optional(),
+  placement: z.enum(['route', 'memories', 'notes', 'cover', 'content']).optional(),
   variants: z.any().nullable().optional(),
   takenAt: z.date().nullable().optional(),
   latitude: z.number().nullable().optional(),
@@ -29,7 +29,7 @@ export const TripImageWithTripSchema = TripImageSchema.extend({
 
 export const GetImagesByTripIdInputSchema = z.object({
   tripId: z.string().uuid(),
-  placement: z.enum(['route', 'memories']).optional(),
+  placement: z.enum(['route', 'memories', 'notes']).optional(),
 })
 
 export const GetImagesByEntityInputSchema = z.object({

@@ -26,7 +26,7 @@ export const visibilityEnum = pgEnum('visibility', ['public', 'private'])
 export const activityTagEnum = pgEnum('activity_tag', ['transport', 'walk', 'food', 'attraction', 'relax'])
 export const activitySectionTypeEnum = pgEnum('activity_section_type', ['description', 'gallery', 'geolocation', 'metro'])
 export const activityStatusEnum = pgEnum('activity_status', ['none', 'completed', 'skipped'])
-export const tripImagePlacementEnum = pgEnum('trip_image_placement', ['route', 'memories'])
+export const tripImagePlacementEnum = pgEnum('trip_image_placement', ['route', 'memories', 'notes'])
 export const userRoleEnum = pgEnum('user_role', ['user', 'admin'])
 
 export const tripSectionTypeEnum = pgEnum('trip_section_type', [
@@ -37,6 +37,8 @@ export const tripSectionTypeEnum = pgEnum('trip_section_type', [
   'notes', // Общие заметки (гибкий/кастомный раздел)
   'memories', // Галерея воспоминаний
 ])
+
+export const noteTypeEnum = pgEnum('note_type', ['folder', 'markdown', 'excalidraw'])
 
 // Таблица для тарифных планов
 export const plans = pgTable('plans', {
@@ -127,11 +129,26 @@ export const tripSections = pgTable('trip_sections', {
   type: tripSectionTypeEnum('type').notNull(),
   title: text('title').notNull(),
   icon: text('icon'),
-  content: jsonb('content').$type<any>().default('{}'), // Позволяет хранить любую структуру
+  content: jsonb('content').$type<any>().default('{}'), 
   order: integer('order').notNull().default(0),
   createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
   updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow().notNull(),
 })
+
+export const tripNotes = pgTable('trip_notes', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  tripId: uuid('trip_id').notNull().references(() => trips.id, { onDelete: 'cascade' }),
+  parentId: uuid('parent_id').references((): AnyPgColumn => tripNotes.id, { onDelete: 'cascade' }),
+  type: noteTypeEnum('type').notNull(),
+  title: text('title').notNull(),
+  content: text('content'), // JSON или Markdown строка
+  order: integer('order').notNull().default(0),
+  createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
+  updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow().notNull(),
+}, t => ({
+  parentIdx: index('trip_notes_parent_idx').on(t.parentId),
+  tripIdx: index('trip_notes_trip_idx').on(t.tripId),
+}))
 
 export const tripParticipants = pgTable('trip_participants', {
   tripId: uuid('trip_id').notNull().references(() => trips.id, { onDelete: 'cascade' }),
@@ -160,6 +177,13 @@ export const tripImages = pgTable('trip_images', {
 
   metadata: jsonb('metadata'),
 })
+
+export const tripNoteImages = pgTable('trip_note_images', {
+  noteId: uuid('note_id').notNull().references(() => tripNotes.id, { onDelete: 'cascade' }),
+  imageId: uuid('image_id').notNull().references(() => tripImages.id, { onDelete: 'cascade' }),
+}, t => ({
+  pk: primaryKey({ columns: [t.noteId, t.imageId] }),
+}))
 
 // Таблица для дней (Days)
 export const days = pgTable('days', {
@@ -403,6 +427,7 @@ export const tripsRelations = relations(trips, ({ one, many }) => ({
   memories: many(memories),
   participants: many(tripParticipants),
   sections: many(tripSections),
+  notes: many(tripNotes),
 }))
 
 export const tripSectionsRelations = relations(tripSections, ({ one }) => ({
@@ -410,6 +435,22 @@ export const tripSectionsRelations = relations(tripSections, ({ one }) => ({
     fields: [tripSections.tripId],
     references: [trips.id],
   }),
+}))
+
+export const tripNotesRelations = relations(tripNotes, ({ one, many }) => ({
+  trip: one(trips, {
+    fields: [tripNotes.tripId],
+    references: [trips.id],
+  }),
+  parent: one(tripNotes, {
+    fields: [tripNotes.parentId],
+    references: [tripNotes.id],
+    relationName: 'parent_child',
+  }),
+  children: many(tripNotes, {
+    relationName: 'parent_child',
+  }),
+  noteImages: many(tripNoteImages),
 }))
 
 export const tripParticipantsRelations = relations(tripParticipants, ({ one }) => ({
@@ -438,10 +479,22 @@ export const activitiesRelations = relations(activities, ({ one }) => ({
   }),
 }))
 
-export const tripImagesRelations = relations(tripImages, ({ one }) => ({
+export const tripImagesRelations = relations(tripImages, ({ one, many }) => ({
   trip: one(trips, {
     fields: [tripImages.tripId],
     references: [trips.id],
+  }),
+  noteImages: many(tripNoteImages),
+}))
+
+export const tripNoteImagesRelations = relations(tripNoteImages, ({ one }) => ({
+  note: one(tripNotes, {
+    fields: [tripNoteImages.noteId],
+    references: [tripNotes.id],
+  }),
+  image: one(tripImages, {
+    fields: [tripNoteImages.imageId],
+    references: [tripImages.id],
   }),
 }))
 

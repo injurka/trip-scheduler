@@ -16,7 +16,6 @@ export function useGeolocationPoints(mapApiRef: Ref<GeolocationMapApi | undefine
   const pointToMoveId = ref<string | null>(null)
   const mode = ref<'pan' | 'add_point' | 'add_route_point' | 'draw_route' | 'move_point'>('pan')
 
-
   async function addPoiPoint(coords: Coordinate) {
     if (!mapApiRef.value)
       return

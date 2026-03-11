@@ -8,6 +8,7 @@ import { llmUsageRouter } from './modules/llm-usage/llm-usage.router'
 import { markRouter } from './modules/mark/mark.router'
 import { memoryRouter } from './modules/memory/memory.router'
 import { metroRouter } from './modules/metro/metro.router'
+import { noteRouter } from './modules/note/note.router'
 import { notificationRouter } from './modules/notification/notification.router'
 import { postRouter } from './modules/post/post.router'
 import { tripSectionRouter } from './modules/trip-section/trip-section.router'
@@ -29,6 +30,7 @@ export const appRouter = router({
   blog: blogRouter,
   notification: notificationRouter,
   mark: markRouter,
+  note: noteRouter,
 })
 
 export type AppRouter = typeof appRouter

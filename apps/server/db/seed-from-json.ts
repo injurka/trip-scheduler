@@ -36,10 +36,116 @@ import {
   users,
 } from './schema'
 
+// ─────────────────────────────────────────────────────────────
+// Утилиты
+// ─────────────────────────────────────────────────────────────
+
+const MAX_PG_PARAMS = 65_535
+
+/** Конвертирует любое значение в Date или null */
+function toDate(value: string | Date | null | undefined): Date | null {
+  if (!value)
+    return null
+  const d = new Date(value)
+  return Number.isNaN(d.getTime()) ? null : d
+}
+
+/** Конвертирует любое значение в строку YYYY-MM-DD или null */
+function toDateString(value: string | Date | null | undefined): string | null {
+  const d = toDate(value)
+  return d ? d.toISOString().split('T')[0] : null
+}
+
+/** Форматирует миллисекунды в читаемую строку */
+function formatDuration(ms: number): string {
+  return ms < 1000 ? `${ms}мс` : `${(ms / 1000).toFixed(1)}с`
+}
+
 /**
- * Сканирует директорию 'dump', находит все JSON-дампы и предлагает пользователю
- * выбрать один для восстановления.
+ * Вставляет строки чанками с учётом лимита параметров PostgreSQL (65 535).
+ * При ошибке чанка автоматически переходит на поштучную вставку.
  */
+async function safeInsert<T extends Record<string, any>>(
+  label: string,
+  table: any,
+  rows: T[],
+): Promise<{ success: number, failed: number }> {
+  if (rows.length === 0) {
+    console.log(`   ⏭️  [${label}] нет данных`)
+    return { success: 0, failed: 0 }
+  }
+
+  const columnCount = Object.keys(rows[0]).length
+  const chunkSize = Math.max(1, Math.floor(MAX_PG_PARAMS / columnCount) - 10)
+  const chunks: T[][] = []
+  for (let i = 0; i < rows.length; i += chunkSize)
+    chunks.push(rows.slice(i, i + chunkSize))
+
+  const start = Date.now()
+
+  try {
+    for (const chunk of chunks)
+      await db.insert(table).values(chunk)
+
+    console.log(
+      `   ✅ [${label}] ${rows.length} записей${chunks.length > 1 ? ` (${chunks.length} чанков)` : ''
+      } — ${formatDuration(Date.now() - start)}`,
+    )
+    return { success: rows.length, failed: 0 }
+  }
+  catch {
+    console.warn(`   ⚠️  [${label}] Chunk-вставка упала, переходим к поштучной...`)
+    let successCount = 0
+    let failCount = 0
+
+    for (let i = 0; i < rows.length; i++) {
+      try {
+        await db.insert(table).values([rows[i]])
+        successCount++
+      }
+      catch (err) {
+        failCount++
+        console.error(`   ❌ [${label}] Запись #${i}:`, JSON.stringify(rows[i], null, 2))
+        console.error(`      Причина:`, err instanceof Error ? err.message : err)
+      }
+    }
+
+    const icon = failCount === 0 ? '✅' : '⚠️ '
+    console.log(`   ${icon} [${label}] ✅ ${successCount} успешно, ❌ ${failCount} ошибок — ${formatDuration(Date.now() - start)}`)
+    return { success: successCount, failed: failCount }
+  }
+}
+
+// ─────────────────────────────────────────────────────────────
+// Валидаторы
+// ─────────────────────────────────────────────────────────────
+
+function validateTrip(trip: any, index: number): void {
+  const errors: string[] = []
+  if (!trip.id)
+    errors.push('нет id')
+  if (!trip.userId)
+    errors.push('нет userId')
+  if (!trip.title)
+    errors.push('нет title')
+  if (!trip.startDate)
+    errors.push('нет startDate')
+  if (!trip.endDate)
+    errors.push('нет endDate')
+  if (trip.startDate && Number.isNaN(new Date(trip.startDate).getTime()))
+    errors.push(`невалидный startDate: "${trip.startDate}"`)
+  if (trip.endDate && Number.isNaN(new Date(trip.endDate).getTime()))
+    errors.push(`невалидный endDate: "${trip.endDate}"`)
+
+  if (errors.length > 0) {
+    console.error(`   ❌ [Trip #${index}] id=${trip.id ?? '?'}: ${errors.join(', ')}`)
+  }
+}
+
+// ─────────────────────────────────────────────────────────────
+// Выбор файла дампа
+// ─────────────────────────────────────────────────────────────
+
 async function discoverAndSelectDumpFile(): Promise<string | null> {
   const dumpDir = path.join(__dirname, 'dump')
   try {
@@ -50,16 +156,11 @@ async function discoverAndSelectDumpFile(): Promise<string | null> {
         .map(async (file) => {
           const filePath = path.join(dumpDir, file)
           const stats = await fs.stat(filePath)
-          return {
-            name: file,
-            path: filePath,
-            time: stats.mtime.getTime(),
-          }
+          return { name: file, path: filePath, time: stats.mtime.getTime() }
         }),
     )
 
     const sortedFiles = jsonFilesWithStats.sort((a, b) => b.time - a.time)
-
     if (sortedFiles.length === 0)
       return null
 
@@ -70,55 +171,305 @@ async function discoverAndSelectDumpFile(): Promise<string | null> {
         message: 'Выберите файл дампа для восстановления',
         choices: sortedFiles.map(file => ({
           title: file.name,
-          description: `(создан: ${new Date(file.time).toLocaleString()})`,
+          description: `(изменён: ${new Date(file.time).toLocaleString()})`,
           value: file.path,
         })),
-        hint: '- Используйте стрелки для выбора, Enter для подтверждения',
+        hint: '- Стрелки для выбора, Enter для подтверждения',
       },
       {
         onCancel: () => {
-          console.log('🚫 Операция отменена пользователем.')
+          console.log('🚫 Операция отменена.')
           process.exit(0)
         },
       },
     )
 
-    return response.selectedDump
+    return response.selectedDump ?? null
   }
   catch (error) {
-    if (error instanceof Error && 'code' in error && error.code === 'ENOENT')
+    if (error instanceof Error && 'code' in error && (error as any).code === 'ENOENT')
       return null
     throw error
   }
 }
 
-async function seedFromJson() {
-  console.log('🌱 Начало заполнения базы данных из JSON дампа...')
+// ─────────────────────────────────────────────────────────────
+// Секции восстановления
+// ─────────────────────────────────────────────────────────────
 
+async function restoreMetro(sourceMetro: any[]): Promise<void> {
+  console.log('\n🚇 Восстановление данных Метро...')
+
+  if (sourceMetro.length > 0) {
+    console.log(`   📂 В дампе: ${sourceMetro.length} систем`)
+    for (const system of sourceMetro) {
+      await db.insert(metroSystems)
+        .values({ id: system.id, city: system.city, country: system.country })
+        .onConflictDoNothing()
+
+      if (!Array.isArray(system.lines))
+        continue
+
+      for (const line of system.lines) {
+        await db.insert(metroLines)
+          .values({ id: line.id, systemId: system.id, name: line.name, color: line.color, lineNumber: line.lineNumber })
+          .onConflictDoNothing()
+
+        if (!Array.isArray(line.lineStations))
+          continue
+
+        for (const ls of line.lineStations) {
+          if (!ls.station)
+            continue
+          await db.insert(metroStations)
+            .values({ id: ls.station.id, systemId: system.id, name: ls.station.name })
+            .onConflictDoNothing()
+          await db.insert(metroLineStations)
+            .values({ lineId: line.id, stationId: ls.station.id, order: ls.order })
+            .onConflictDoNothing()
+        }
+      }
+    }
+    console.log('   ✅ Метро из дампа восстановлено')
+  }
+  else {
+    console.log('   ⚠️  В дампе нет данных метро. Используем MOCK_METRO_DATA...')
+    for (const system of MOCK_METRO_DATA) {
+      const [insertedSystem] = await db.insert(metroSystems)
+        .values({ id: system.id, city: system.city, country: system.country })
+        .returning()
+
+      for (const line of system.lines) {
+        const [insertedLine] = await db.insert(metroLines)
+          .values({ id: line.id, systemId: insertedSystem.id, name: line.name, color: line.color, lineNumber: line.lineNumber })
+          .returning()
+
+        const stationsToInsert = line.stations.map((s: any) => ({
+          id: s.id,
+          systemId: insertedSystem.id,
+          name: s.name,
+        }))
+        if (stationsToInsert.length > 0)
+          await db.insert(metroStations).values(stationsToInsert).onConflictDoNothing()
+
+        const lineStationsToInsert = line.stations.map((s: any, idx: number) => ({
+          lineId: insertedLine.id,
+          stationId: s.id,
+          order: idx,
+        }))
+        if (lineStationsToInsert.length > 0)
+          await db.insert(metroLineStations).values(lineStationsToInsert).onConflictDoNothing()
+      }
+    }
+    console.log('   ✅ MOCK_METRO_DATA восстановлен')
+  }
+}
+
+async function restoreTrips(sourceTrips: any[]): Promise<void> {
+  console.log('\n✈️  Восстановление путешествий...')
+
+  const tripsToInsert: (typeof trips.$inferInsert)[] = []
+  const sectionsToInsert: (typeof tripSections.$inferInsert)[] = []
+  const participantsToInsert: (typeof tripParticipants.$inferInsert)[] = []
+  const daysToInsert: (typeof days.$inferInsert)[] = []
+  const activitiesToInsert: (typeof activities.$inferInsert)[] = []
+  const imagesToInsert: (typeof tripImages.$inferInsert)[] = []
+  const memoriesToInsert: (typeof memories.$inferInsert)[] = []
+
+  for (let i = 0; i < sourceTrips.length; i++) {
+    const {
+      days: tripDays,
+      images: tripImagesData,
+      memories: tripMemories,
+      sections,
+      participants,
+      user: _user, // исключаем join-поле
+      ...tripDetails
+    } = sourceTrips[i]
+
+    validateTrip(tripDetails, i)
+
+    tripsToInsert.push({
+      ...tripDetails,
+      startDate: toDateString(tripDetails.startDate),
+      endDate: toDateString(tripDetails.endDate),
+      createdAt: toDate(tripDetails.createdAt) ?? new Date(),
+      updatedAt: toDate(tripDetails.updatedAt) ?? new Date(),
+    })
+
+    sections?.forEach((section: any) => {
+      if (!section.id || !section.tripId)
+        console.warn(`   ⚠️  [TripSection] trip=${tripDetails.id}: секция без id/tripId`)
+      sectionsToInsert.push({
+        ...section,
+        createdAt: toDate(section.createdAt) ?? new Date(),
+        updatedAt: toDate(section.updatedAt) ?? new Date(),
+      })
+    })
+
+    participants?.forEach((p: any) => {
+      if (!p.tripId || !p.userId)
+        console.warn(`   ⚠️  [TripParticipant] trip=${tripDetails.id}: участник без tripId/userId`)
+      participantsToInsert.push(p)
+    })
+
+    tripDays?.forEach((day: any) => {
+      const { activities: dayActivities, ...dayDetails } = day
+      if (!day.id || !day.tripId)
+        console.warn(`   ⚠️  [Day] trip=${tripDetails.id}: день без id/tripId`)
+
+      daysToInsert.push({
+        ...dayDetails,
+        date: toDateString(day.date),
+        createdAt: toDate(dayDetails.createdAt) ?? new Date(),
+        updatedAt: toDate(dayDetails.updatedAt) ?? new Date(),
+      })
+
+      dayActivities?.forEach((activity: any) => {
+        if (!activity.id || !activity.dayId)
+          console.warn(`   ⚠️  [Activity] day=${day.id}: активность без id/dayId`)
+        activitiesToInsert.push({
+          ...activity,
+          createdAt: toDate(activity.createdAt) ?? new Date(),
+          updatedAt: toDate(activity.updatedAt) ?? new Date(),
+        })
+      })
+    })
+
+    tripImagesData?.forEach((image: any) => {
+      imagesToInsert.push({
+        ...image,
+        createdAt: toDate(image.createdAt) ?? new Date(),
+        takenAt: toDate(image.takenAt),
+      })
+    })
+
+    tripMemories?.forEach((memory: any) => {
+      memoriesToInsert.push({
+        ...memory,
+        timestamp: toDate(memory.timestamp),
+        createdAt: toDate(memory.createdAt) ?? new Date(),
+        updatedAt: toDate(memory.updatedAt) ?? new Date(),
+      })
+    })
+  }
+
+  console.log(`   📊 trips=${tripsToInsert.length} | sections=${sectionsToInsert.length} | participants=${participantsToInsert.length}`)
+  console.log(`   📊 days=${daysToInsert.length} | activities=${activitiesToInsert.length} | images=${imagesToInsert.length} | memories=${memoriesToInsert.length}`)
+
+  // FK-порядок: trips → sections/participants/days → activities/images/memories
+  await safeInsert('trips', trips, tripsToInsert)
+  await Promise.all([
+    safeInsert('tripSections', tripSections, sectionsToInsert),
+    safeInsert('tripParticipants', tripParticipants, participantsToInsert),
+  ])
+  await safeInsert('days', days, daysToInsert)
+  await Promise.all([
+    safeInsert('activities', activities, activitiesToInsert),
+    safeInsert('tripImages', tripImages, imagesToInsert),
+  ])
+  await safeInsert('memories', memories, memoriesToInsert)
+}
+
+async function restorePosts(sourcePosts: any[]): Promise<void> {
+  console.log('\n📝 Восстановление постов...')
+
+  const postsToInsert: (typeof posts.$inferInsert)[] = []
+  const elementsToInsert: (typeof postElements.$inferInsert)[] = []
+  const mediaToInsert: (typeof postMedia.$inferInsert)[] = []
+  const savedPostsToInsert: (typeof savedPosts.$inferInsert)[] = []
+
+  for (const postData of sourcePosts) {
+    const { elements, media, savedBy, ...postDetails } = postData
+
+    postsToInsert.push({
+      ...postDetails,
+      createdAt: toDate(postDetails.createdAt) ?? new Date(),
+      updatedAt: toDate(postDetails.updatedAt) ?? new Date(),
+    })
+
+    elements?.forEach((el: any) => {
+      elementsToInsert.push({
+        ...el,
+        createdAt: toDate(el.createdAt) ?? new Date(),
+        updatedAt: toDate(el.updatedAt) ?? new Date(),
+      })
+    })
+
+    media?.forEach((m: any) => {
+      mediaToInsert.push({
+        ...m,
+        createdAt: toDate(m.createdAt) ?? new Date(),
+        takenAt: toDate(m.takenAt),
+      })
+    })
+
+    savedBy?.forEach((s: any) => {
+      savedPostsToInsert.push({
+        ...s,
+        createdAt: toDate(s.createdAt) ?? new Date(),
+      })
+    })
+  }
+
+  console.log(`   📊 posts=${postsToInsert.length} | elements=${elementsToInsert.length} | media=${mediaToInsert.length} | saved=${savedPostsToInsert.length}`)
+
+  // FK-порядок: posts → elements/media/savedPosts (параллельно)
+  await safeInsert('posts', posts, postsToInsert)
+  await Promise.all([
+    safeInsert('postElements', postElements, elementsToInsert),
+    safeInsert('postMedia', postMedia, mediaToInsert),
+    safeInsert('savedPosts', savedPosts, savedPostsToInsert),
+  ])
+}
+
+async function restoreBlogs(sourceBlogs: any[]): Promise<void> {
+  console.log('\n📰 Восстановление блогов...')
+  const blogsToInsert = sourceBlogs.map((blog: any) => ({
+    ...blog,
+    publishedAt: toDate(blog.publishedAt),
+    createdAt: toDate(blog.createdAt) ?? new Date(),
+    updatedAt: toDate(blog.updatedAt) ?? new Date(),
+  }))
+  await safeInsert('blogs', blogs, blogsToInsert)
+}
+
+// ─────────────────────────────────────────────────────────────
+// Главная функция
+// ─────────────────────────────────────────────────────────────
+
+async function seedFromJson(): Promise<void> {
+  const startTime = Date.now()
+  console.log('🌱 Восстановление базы данных из JSON дампа...\n')
+
+  // 1. Выбор файла
   const filePathArg = process.argv[2]
   let dumpFile: string | null
 
   if (filePathArg) {
     dumpFile = path.resolve(process.cwd(), filePathArg)
-    console.log(`🔍 Используется указанный файл дампа: ${path.basename(dumpFile)}`)
+    console.log(`🔍 Используется файл: ${path.basename(dumpFile)}`)
   }
   else {
     dumpFile = await discoverAndSelectDumpFile()
     if (!dumpFile) {
-      console.error('❌ Не найдены файлы дампа в директории `db/dump`.')
-      console.log('ℹ️  Сначала создайте дамп с помощью команды `bun run db:dump`.')
+      console.error('❌ Файлы дампа не найдены в `db/dump`.')
+      console.log('ℹ️  Создайте дамп: `bun run db:dump`')
       process.exit(1)
     }
-    console.log(`🔍 Выбран файл дампа: ${path.basename(dumpFile)}`)
+    console.log(`🔍 Выбран файл: ${path.basename(dumpFile)}`)
   }
 
-  let dumpData
+  // 2. Чтение и парсинг
+  let dumpData: any
   try {
     const fileContent = await fs.readFile(dumpFile, 'utf-8')
+    const fileSizeKb = (Buffer.byteLength(fileContent, 'utf-8') / 1024).toFixed(1)
     dumpData = JSON.parse(fileContent)
+    console.log(`📁 Размер файла: ${fileSizeKb} KB`)
   }
   catch (error) {
-    console.error(`❌ Ошибка при чтении или парсинге файла дампа ${dumpFile}:`, error)
+    console.error('❌ Ошибка чтения/парсинга файла дампа:', error)
     process.exit(1)
   }
 
@@ -132,11 +483,12 @@ async function seedFromJson() {
   } = dumpData
 
   if (!Array.isArray(sourceUsers)) {
-    console.warn('⚠️ Файл дампа имеет неверный формат (отсутствуют users). Заполнение базы данных пропущено.')
-    process.exit(0)
+    console.error('❌ Неверный формат дампа: отсутствует поле `users`.')
+    process.exit(1)
   }
 
-  console.log('🗑️  Очистка всех данных...')
+  // 3. Очистка (строго по FK: дочерние → родительские)
+  console.log('\n🗑️  Очистка таблиц...')
   await db.delete(blogs)
   await db.delete(savedPosts)
   await db.delete(postMedia)
@@ -161,278 +513,71 @@ async function seedFromJson() {
   await db.delete(metroStations)
   await db.delete(metroLines)
   await db.delete(metroSystems)
+  console.log('   ✅ Все таблицы очищены')
 
-  console.log('⭐ Восстановление тарифных планов (Plans)...')
+  // 4. Справочники (независимы — параллельно)
+  console.log('\n⭐ Восстановление справочников...')
   const plansData = SUBSCRIPTION_MOCK.map(p => ({ ...p, id: Number(p.id) }))
-  await db.insert(plans).values(plansData)
+  await Promise.all([
+    db.insert(plans).values(plansData).then(() => console.log(`   ✅ [plans] ${plansData.length} записей`)),
+    db.insert(llmModels).values(LLM_MOCK).onConflictDoNothing().then(() => console.log(`   ✅ [llmModels] ${LLM_MOCK.length} записей`)),
+  ])
 
-  console.log('🤖 Восстановление LLM моделей...')
-  await db.insert(llmModels).values(LLM_MOCK).onConflictDoNothing()
+  // 5. Метро
+  await restoreMetro(Array.isArray(sourceMetro) ? sourceMetro : [])
 
-  console.log('🚇 Восстановление данных Метро...')
-  if (sourceMetro && Array.isArray(sourceMetro) && sourceMetro.length > 0) {
-    console.log(`   📂 Найдено систем метро в дампе: ${sourceMetro.length}. Восстанавливаем...`)
-
-    for (const system of sourceMetro) {
-      await db.insert(metroSystems)
-        .values({ id: system.id, city: system.city, country: system.country })
-        .onConflictDoNothing()
-
-      if (system.lines && Array.isArray(system.lines)) {
-        for (const line of system.lines) {
-          await db.insert(metroLines)
-            .values({
-              id: line.id,
-              systemId: system.id,
-              name: line.name,
-              color: line.color,
-              lineNumber: line.lineNumber,
-            })
-            .onConflictDoNothing()
-
-          if (line.lineStations && Array.isArray(line.lineStations)) {
-            for (const ls of line.lineStations) {
-              if (ls.station) {
-                await db.insert(metroStations)
-                  .values({
-                    id: ls.station.id,
-                    systemId: system.id,
-                    name: ls.station.name,
-                  })
-                  .onConflictDoNothing()
-
-                await db.insert(metroLineStations)
-                  .values({
-                    lineId: line.id,
-                    stationId: ls.station.id,
-                    order: ls.order,
-                  })
-                  .onConflictDoNothing()
-              }
-            }
-          }
-        }
-      }
-    }
-  }
-  else if (MOCK_METRO_DATA) {
-    console.log('   ⚠️ В дампе нет данных метро. Используем встроенный MOCK_METRO_DATA.')
-    for (const system of MOCK_METRO_DATA) {
-      const [insertedSystem] = await db.insert(metroSystems).values({ id: system.id, city: system.city, country: system.country }).returning()
-      for (const line of system.lines) {
-        const [insertedLine] = await db.insert(metroLines).values({ id: line.id, systemId: insertedSystem.id, name: line.name, color: line.color, lineNumber: line.lineNumber }).returning()
-
-        const stationsToInsert = line.stations.map((station: any) => ({ id: station.id, systemId: insertedSystem.id, name: station.name }))
-        if (stationsToInsert.length > 0) {
-          await db.insert(metroStations).values(stationsToInsert).onConflictDoNothing()
-        }
-
-        const lineStationsToInsert = line.stations.map((station: any, index: number) => ({
-          lineId: insertedLine.id,
-          stationId: station.id,
-          order: index,
-        }))
-        if (lineStationsToInsert.length > 0) {
-          await db.insert(metroLineStations).values(lineStationsToInsert).onConflictDoNothing()
-        }
-      }
-    }
-  }
-
-  console.log('✈️  Восстановление пользовательских данных...')
+  // 6. Пользователи (нужны раньше всего остального — FK source)
+  console.log('\n👤 Восстановление пользователей...')
   if (sourceUsers.length > 0) {
-    console.log(`👤 Вставка ${sourceUsers.length} пользователей...`)
     const usersToInsert = sourceUsers.map((user: any) => ({
       ...user,
-      emailVerified: user.emailVerified ? new Date(user.emailVerified) : null,
-      llmCreditsPeriodStartDate: user.llmCreditsPeriodStartDate ? new Date(user.llmCreditsPeriodStartDate) : null,
-      createdAt: new Date(user.createdAt),
-      updatedAt: new Date(user.updatedAt),
+      emailVerified: toDate(user.emailVerified),
+      llmCreditsPeriodStartDate: toDate(user.llmCreditsPeriodStartDate),
+      createdAt: toDate(user.createdAt) ?? new Date(),
+      updatedAt: toDate(user.updatedAt) ?? new Date(),
     }))
-    await db.insert(users).values(usersToInsert)
+    await safeInsert('users', users, usersToInsert)
   }
 
-  console.log('📍 Восстановление меток (Marks)...')
-  if (sourceMarks && Array.isArray(sourceMarks) && sourceMarks.length > 0) {
-    console.log(`   📂 Найдено меток в дампе: ${sourceMarks.length}. Восстанавливаем...`)
+  // 7. Метки
+  console.log('\n📍 Восстановление меток...')
+  if (Array.isArray(sourceMarks) && sourceMarks.length > 0) {
     const marksToInsert = sourceMarks.map((mark: any) => ({
       ...mark,
-      startAt: mark.startAt ? new Date(mark.startAt) : null,
-      createdAt: mark.createdAt ? new Date(mark.createdAt) : new Date(),
+      startAt: toDate(mark.startAt),
+      createdAt: toDate(mark.createdAt) ?? new Date(),
     }))
-    await db.insert(marks).values(marksToInsert)
+    await safeInsert('marks', marks, marksToInsert)
   }
   else if (MOCK_MARKS_DATA && sourceUsers.length > 0) {
-    console.log('   ⚠️ В дампе нет меток. Используем встроенный MOCK_MARKS_DATA.')
-    // Берем ID первого попавшегося юзера из дампа, чтобы не было ошибки внешнего ключа
+    console.log('   ⚠️  Нет меток в дампе. Используем MOCK_MARKS_DATA...')
     const fallbackUserId = sourceUsers[0].id
     const marksToInsert = MOCK_MARKS_DATA.map((mark: any) => ({
       ...mark,
       userId: fallbackUserId,
-      startAt: mark.startAt ? new Date(mark.startAt) : null,
+      startAt: toDate(mark.startAt),
       createdAt: new Date(),
     }))
-    await db.insert(marks).values(marksToInsert)
+    await safeInsert('marks', marks, marksToInsert)
   }
 
-  // --- TRIPS ---
-  if (sourceTrips && Array.isArray(sourceTrips)) {
-    const tripsToInsert: (typeof trips.$inferInsert)[] = []
-    const daysToInsert: (typeof days.$inferInsert)[] = []
-    const activitiesToInsert: (typeof activities.$inferInsert)[] = []
-    const imagesToInsert: (typeof tripImages.$inferInsert)[] = []
-    const memoriesToInsert: (typeof memories.$inferInsert)[] = []
-    const sectionsToInsert: (typeof tripSections.$inferInsert)[] = []
-    const participantsToInsert: (typeof tripParticipants.$inferInsert)[] = []
+  // 8. Путешествия
+  if (Array.isArray(sourceTrips) && sourceTrips.length > 0)
+    await restoreTrips(sourceTrips)
 
-    const toDateString = (d: string | Date) => new Date(d).toISOString().split('T')[0]
+  // 9. Посты
+  if (Array.isArray(sourcePosts) && sourcePosts.length > 0)
+    await restorePosts(sourcePosts)
 
-    for (const tripData of sourceTrips) {
-      const { days: tripDays, images: tripImagesData, memories: tripMemories, sections, participants, user, ...tripDetails } = tripData
+  // 10. Блоги
+  if (Array.isArray(sourceBlogs) && sourceBlogs.length > 0)
+    await restoreBlogs(sourceBlogs)
 
-      tripsToInsert.push({
-        ...tripDetails,
-        startDate: toDateString(tripDetails.startDate),
-        endDate: toDateString(tripDetails.endDate),
-        createdAt: new Date(tripDetails.createdAt),
-        updatedAt: new Date(tripDetails.updatedAt),
-      })
-
-      if (sections) {
-        sectionsToInsert.push(...sections.map((section: any) => ({
-          ...section,
-          createdAt: new Date(section.createdAt),
-          updatedAt: new Date(section.updatedAt),
-        })))
-      }
-
-      if (participants)
-        participantsToInsert.push(...participants)
-
-      if (tripDays) {
-        for (const day of tripDays) {
-          const { activities: dayActivities, ...dayDetails } = day
-          daysToInsert.push({
-            ...dayDetails,
-            date: toDateString(day.date),
-            createdAt: new Date(dayDetails.createdAt),
-            updatedAt: new Date(dayDetails.updatedAt),
-          })
-          if (dayActivities) {
-            activitiesToInsert.push(...dayActivities.map((activity: any) => ({
-              ...activity,
-              createdAt: activity.createdAt ? new Date(activity.createdAt) : new Date(),
-              updatedAt: activity.updatedAt ? new Date(activity.updatedAt) : new Date(),
-            })))
-          }
-        }
-      }
-
-      if (tripImagesData) {
-        imagesToInsert.push(...tripImagesData.map((image: any) => ({
-          ...image,
-          createdAt: image.createdAt ? new Date(image.createdAt) : new Date(),
-          takenAt: image.takenAt ? new Date(image.takenAt) : null,
-        })))
-      }
-
-      if (tripMemories) {
-        memoriesToInsert.push(...tripMemories.map((memory: any) => ({
-          ...memory,
-          timestamp: memory.timestamp ? new Date(memory.timestamp) : null,
-          createdAt: memory.createdAt ? new Date(memory.createdAt) : new Date(),
-          updatedAt: memory.updatedAt ? new Date(memory.updatedAt) : new Date(),
-        })))
-      }
-    }
-
-    console.log(`✈️  Вставка ${tripsToInsert.length} путешествий и связанных данных...`)
-    if (tripsToInsert.length > 0)
-      await db.insert(trips).values(tripsToInsert)
-    if (sectionsToInsert.length > 0)
-      await db.insert(tripSections).values(sectionsToInsert)
-    if (participantsToInsert.length > 0)
-      await db.insert(tripParticipants).values(participantsToInsert)
-    if (daysToInsert.length > 0)
-      await db.insert(days).values(daysToInsert)
-    if (imagesToInsert.length > 0)
-      await db.insert(tripImages).values(imagesToInsert)
-    if (activitiesToInsert.length > 0)
-      await db.insert(activities).values(activitiesToInsert)
-    if (memoriesToInsert.length > 0)
-      await db.insert(memories).values(memoriesToInsert)
-  }
-
-  // --- POSTS ---
-  if (sourcePosts && Array.isArray(sourcePosts)) {
-    const postsToInsert: (typeof posts.$inferInsert)[] = []
-    const elementsToInsert: (typeof postElements.$inferInsert)[] = []
-    const mediaToInsert: (typeof postMedia.$inferInsert)[] = []
-    const savedPostsToInsert: (typeof savedPosts.$inferInsert)[] = []
-
-    for (const postData of sourcePosts) {
-      const { elements, media, savedBy, ...postDetails } = postData
-
-      postsToInsert.push({
-        ...postDetails,
-        createdAt: new Date(postDetails.createdAt),
-        updatedAt: new Date(postDetails.updatedAt),
-      })
-
-      if (elements) {
-        elementsToInsert.push(...elements.map((el: any) => ({
-          ...el,
-          createdAt: new Date(el.createdAt),
-          updatedAt: new Date(el.updatedAt),
-        })))
-      }
-
-      if (media) {
-        mediaToInsert.push(...media.map((m: any) => ({
-          ...m,
-          createdAt: new Date(m.createdAt),
-          takenAt: m.takenAt ? new Date(m.takenAt) : null,
-        })))
-      }
-
-      if (savedBy) {
-        savedPostsToInsert.push(...savedBy.map((s: any) => ({
-          ...s,
-          createdAt: new Date(s.createdAt),
-        })))
-      }
-    }
-
-    console.log(`📝 Вставка ${postsToInsert.length} постов и связанных данных...`)
-    if (postsToInsert.length > 0)
-      await db.insert(posts).values(postsToInsert)
-    if (elementsToInsert.length > 0)
-      await db.insert(postElements).values(elementsToInsert)
-    if (mediaToInsert.length > 0)
-      await db.insert(postMedia).values(mediaToInsert)
-    if (savedPostsToInsert.length > 0)
-      await db.insert(savedPosts).values(savedPostsToInsert)
-  }
-
-  if (sourceBlogs && Array.isArray(sourceBlogs)) {
-    const blogsToInsert = sourceBlogs.map((blog: any) => ({
-      ...blog,
-      publishedAt: blog.publishedAt ? new Date(blog.publishedAt) : null,
-      createdAt: new Date(blog.createdAt),
-      updatedAt: new Date(blog.updatedAt),
-    }))
-
-    console.log(`📰 Вставка ${blogsToInsert.length} статей блога...`)
-    if (blogsToInsert.length > 0) {
-      await db.insert(blogs).values(blogsToInsert)
-    }
-  }
-
-  console.log('✅ База данных успешно восстановлена из JSON дампа!')
+  console.log(`\n✅ База данных восстановлена за ${formatDuration(Date.now() - startTime)}!`)
   process.exit(0)
 }
 
 seedFromJson().catch((e) => {
-  console.error('❌ Ошибка при заполнении базы данных из JSON:', e)
+  console.error('❌ Критическая ошибка:', e)
   process.exit(1)
 })

@@ -343,7 +343,6 @@ onUnmounted(() => {
       class="main-panel"
       :class="{ 'fullscreen-panel': isMapFullscreen }"
     >
-      <!-- ПАНЕЛЬ УПРАВЛЕНИЯ -->
       <div v-if="!readonly">
         <div class="geolocation-controls-panel">
           <div class="search-control">
@@ -354,7 +353,6 @@ onUnmounted(() => {
 
           <KitViewSwitcher v-model="activeView" :items="viewItems" />
 
-          <!-- Инструменты управления в зависимости от вида -->
           <div class="tools-panel">
             <template v-if="activeView === 'points'">
               <KitBtn
@@ -408,7 +406,6 @@ onUnmounted(() => {
         </div>
       </div>
 
-      <!-- СПИСКИ -->
       <div class="lists-container">
         <p v-if="areItemsEmpty" class="no-items-message">
           Маршруты или маркеры не созданы.

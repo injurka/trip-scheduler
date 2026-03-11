@@ -80,7 +80,7 @@ interface PostContentBlockImage extends PostContentBlockBase {
 interface PostContentBlockGallery extends PostContentBlockBase {
   type: 'gallery'
   imageIds: string[]
-  displayType: 'grid' | 'carousel'
+  displayType?: 'grid' | 'panorama' | 'masonry' | 'slider'
 }
 interface MapPoint {
   lat: number

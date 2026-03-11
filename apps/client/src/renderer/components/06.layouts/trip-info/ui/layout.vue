@@ -30,6 +30,7 @@ const { mdAndDown } = useDisplay()
 const tripId = computed(() => route.params.id as string)
 const dayId = computed(() => route.query.day as string)
 const isMapView = computed(() => route.query.section === 'map')
+const isNotesView = computed(() => route.query.section === 'notes')
 
 const { isLoading: isTripLoading, fetchError } = storeToRefs(plan)
 const { isDaysPanelPinned, activeView, isParallelPlanView } = storeToRefs(ui)
@@ -76,7 +77,7 @@ onBeforeUnmount(() => {
         :class="[
           { 'has-error': fetchError },
           { 'is-panel-pinned': isDaysPanelPinned && !mdAndDown },
-          { 'is-wide-mode': isParallelPlanView || isMapView },
+          { 'is-wide-mode': isParallelPlanView || isMapView || isNotesView },
           activeView,
         ]"
       >
@@ -152,7 +153,6 @@ onBeforeUnmount(() => {
             </template>
           </div>
         </div>
-
         <KitDivider class="trip-info-divider">
           <Icon width="16" height="16" icon="mdi-axis-arrow-info" />
         </KitDivider>

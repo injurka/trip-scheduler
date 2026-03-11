@@ -435,7 +435,7 @@ onUnmounted(() => {
   top: env(safe-area-inset-top) !important;
   inset: 0;
   background: rgba(0, 0, 0, 0.95);
-  z-index: 21;
+  z-index: 1002;
   display: flex;
   flex-direction: column;
   touch-action: none;
