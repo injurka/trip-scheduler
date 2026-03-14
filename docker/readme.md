@@ -217,6 +217,9 @@ docker push injurka/trip-scheduler-server:v62
 
 ## Общая архитектура пайплайна
 
+git tag v1.2.3
+git push origin v1.2.3
+
 git push (tag v1.2.3)
        ↓
 GitHub Actions

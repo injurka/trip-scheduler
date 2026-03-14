@@ -22,6 +22,17 @@ export async function checkService(name: string, fn: () => Promise<void>, logger
   logger.success(`${name} ready (${Date.now() - start}ms)`)
 }
 
+async function createDump(info: string) {
+  logger.info(`⏰ ${info}`, )
+
+  try {
+    await dumpService.generateAndUploadDump()
+  }
+  catch (err) {
+    logger.error('Сбой при выполнении крона для дампа', err)
+  }
+}
+
 logger.log(`Trip Scheduler API starting on http://${host}:${port}`)
 
 try {
@@ -33,14 +44,9 @@ try {
 
   await telegramAuthService.setupWebhook()
 
+  createDump('Запуск дампа базы данных...')
   cron.schedule('0 3 * * 0', async () => {
-    logger.info('⏰ Запуск еженедельного дампа базы данных по расписанию...')
-    try {
-      await dumpService.generateAndUploadDump()
-    }
-    catch (err) {
-      logger.error('Сбой при выполнении крона для дампа', err)
-    }
+    createDump('Запуск еженедельного дампа базы данных по расписанию...')
   })
 
   logger.success('Server is ready 🚀')

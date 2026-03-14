@@ -1,0 +1,1 @@
+ALTER TABLE "trip_notes" ADD COLUMN "color" text;

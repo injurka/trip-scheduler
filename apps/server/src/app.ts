@@ -88,6 +88,10 @@ class Server {
   }
 
   private initializeRoutes() {
+    // Эндпоинты для Docker Healthcheck
+    this.app.get('/health', c => c.text('OK'))
+    this.app.get('/ping', c => c.text('pong'))
+
     // Определение API маршрутов
     const apiRoutes = new Hono()
       .post('/upload', uploadFileController)
@@ -104,6 +108,13 @@ class Server {
         router: appRouter,
         createContext,
         onError: ({ error, path }) => {
+          if (error.code === 'UNAUTHORIZED') {
+            return
+          }
+
+          if (error.code === 'NOT_FOUND' || error.code === 'BAD_REQUEST')
+            return
+
           console.error(`tRPC Error on ${path}:`, error.message)
         },
       }),
