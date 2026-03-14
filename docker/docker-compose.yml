@@ -51,7 +51,7 @@ services:
       - "traefik.http.middlewares.server-limit.buffering.maxRequestBodyBytes=16777216"
 
   directus:
-    image: directus/directus:11.14.0
+    image: directus/directus:11.16.1
     container_name: trip-scheduler-admin
     networks:
       - trip-net
@@ -64,6 +64,7 @@ services:
     volumes:
       - directus-uploads:/directus/uploads
       - directus-extensions:/directus/extensions
+      - ./snapshots:/directus/snapshots
     env_file:
       - .env.database
       - .env.directus
@@ -145,7 +146,7 @@ services:
     volumes:
       - grafana-data:/var/lib/grafana
       - ./grafana/provisioning/:/etc/grafana/provisioning/
-      - ./grafana/dashboards/:/etc/grafana/provisioning/dashboards/
+      - ./grafana/dashboards/:/var/lib/grafana/dashboards/
     restart: always
     depends_on:
       prometheus:
