@@ -10,6 +10,7 @@ const props = defineProps<{
 
 const emit = defineEmits<{
   'update:content': [noteId: string, value: string]
+  'uploadImage': [file: File]
 }>()
 
 const localContent = ref(props.content ?? '')
@@ -25,10 +26,28 @@ function handleUpdate(val: string) {
   localContent.value = val
   emit('update:content', props.noteId, val)
 }
+
+function handlePaste(event: ClipboardEvent) {
+  if (props.readonly)
+    return
+  const items = event.clipboardData?.items
+  if (!items)
+    return
+
+  for (const item of items) {
+    if (item.type.startsWith('image/')) {
+      const file = item.getAsFile()
+      if (file) {
+        event.preventDefault()
+        emit('uploadImage', file)
+      }
+    }
+  }
+}
 </script>
 
 <template>
-  <div class="md-editor-container">
+  <div class="md-editor-container" @paste="handlePaste">
     <KitInlineMdEditorWrapper
       :model-value="localContent"
       :readonly="readonly"
@@ -40,7 +59,8 @@ function handleUpdate(val: string) {
 
 <style scoped lang="scss">
 .md-editor-container {
-  height: 100%;
+  min-height: 100%;
+  height: auto;
   padding: 24px;
 }
 </style>

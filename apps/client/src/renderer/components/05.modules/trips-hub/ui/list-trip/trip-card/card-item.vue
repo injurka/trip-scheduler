@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import type { ITrip } from '../../../models/types'
 import type { KitDropdownItem } from '~/components/01.kit/kit-dropdown'
-import type { UpdateTripInput } from '~/shared/types/models/trip'
+import type { Trip, TripSection, UpdateTripInput } from '~/shared/types/models/trip'
 import { Icon } from '@iconify/vue'
 import { KitAnimatedTooltip } from '~/components/01.kit/kit-animated-tooltip'
 import { KitAvatar } from '~/components/01.kit/kit-avatar'
@@ -13,7 +13,11 @@ import { AppRoutePaths } from '~/shared/constants/routes'
 import { CommentParentType } from '~/shared/types/models/comment'
 import { TripsHubKey } from '../../../composables'
 
-interface Props extends ITrip {
+interface Props extends Omit<ITrip, 'userId' | 'sections' | 'createdAt' | 'updatedAt'> {
+  userId?: string
+  sections?: TripSection[]
+  createdAt?: string
+  updatedAt?: string
   isHighlight?: boolean
 }
 
@@ -121,6 +125,26 @@ const visibilityIcon = computed(() => {
       return { icon: 'mdi:lock-outline', title: 'Приватное путешествие' }
   }
 })
+
+const tripData = computed<Trip>(() => ({
+  id: props.id,
+  userId: props.userId ?? '',
+  title: props.title,
+  imageUrl: props.imageUrl,
+  description: props.description,
+  startDate: props.startDate,
+  endDate: props.endDate,
+  cities: props.cities,
+  status: props.status,
+  budget: props.budget,
+  currency: props.currency,
+  participants: props.participants,
+  tags: props.tags,
+  visibility: props.visibility,
+  createdAt: props.createdAt ?? new Date().toISOString(),
+  updatedAt: props.updatedAt ?? new Date().toISOString(),
+  sections: props.sections ?? [],
+}))
 </script>
 
 <template>
@@ -238,7 +262,7 @@ const visibilityIcon = computed(() => {
     <TripEditInfoDialog
       v-if="isEditModalOpen"
       v-model:visible="isEditModalOpen"
-      :trip="props"
+      :trip="tripData"
       @save="handleSave"
     />
   </div>

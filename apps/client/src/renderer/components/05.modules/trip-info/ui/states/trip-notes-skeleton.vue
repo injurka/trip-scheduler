@@ -65,7 +65,7 @@ import { KitSkeleton } from '~/components/01.kit/kit-skeleton'
 }
 
 .notes-sidebar {
-  width: 280px;
+  width: 300px;
   min-width: 220px;
   flex-shrink: 0;
   border-right: 1px solid var(--border-secondary-color);

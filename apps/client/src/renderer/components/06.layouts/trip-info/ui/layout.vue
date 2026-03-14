@@ -93,7 +93,7 @@ onBeforeUnmount(() => {
 
           <div ref="navigationWrapperRef" class="navigation-wrapper">
             <template v-if="isTripLoading">
-              <KitSkeleton width="250px" height="40px" border-radius="12px" />
+              <KitSkeleton height="40px" border-radius="12px" />
             </template>
             <template v-else>
               <button class="nav-arrow left" title="Предыдущая секция" @click="layout.navigate('prev')">

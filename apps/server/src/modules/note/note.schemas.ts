@@ -7,8 +7,11 @@ export const NoteImageSchema = z.object({
   sources: z.record(z.string(), z.string()),
 })
 
+// Если tripNotes из Drizzle еще не содержит color,
+// мы расширяем схему вручную.
 export const NoteSchema = createSelectSchema(tripNotes).extend({
   images: z.array(NoteImageSchema).optional(),
+  color: z.string().optional().nullable(),
 })
 
 export const CreateNoteInputSchema = z.object({
@@ -17,6 +20,7 @@ export const CreateNoteInputSchema = z.object({
   type: z.enum(['folder', 'markdown', 'excalidraw']),
   title: z.string().min(1, 'Название обязательно'),
   order: z.number().optional().default(0),
+  color: z.string().optional().nullable(),
 })
 
 export const UpdateNoteInputSchema = z.object({
@@ -25,6 +29,7 @@ export const UpdateNoteInputSchema = z.object({
   content: z.string().optional().nullable(),
   parentId: z.string().uuid().optional().nullable(),
   order: z.number().optional(),
+  color: z.string().optional().nullable(),
   imageIds: z.array(z.string().uuid()).optional(),
 })
 

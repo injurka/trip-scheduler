@@ -137,6 +137,7 @@ function openPreview(index: number): void {
     icon="mdi:image-multiple-outline"
     :max-width="820"
     :persistent="viewerVisible"
+    description="Управление изображениями для заметок"
     @update:visible="emit('update:visible', $event)"
   >
     <div class="gallery-wrapper">

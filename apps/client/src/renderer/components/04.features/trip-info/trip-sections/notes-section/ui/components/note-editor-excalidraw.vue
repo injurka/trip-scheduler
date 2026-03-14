@@ -180,6 +180,51 @@ function handleChange(
   debouncedSave(newContent)
 }
 
+async function exportImage(format: 'png' | 'svg', title: string) {
+  if (!props.content && !lastComputedContent)
+    return
+
+  try {
+    const data = JSON.parse(lastComputedContent || props.content!)
+    const excalidrawModule = await import('@excalidraw/excalidraw')
+
+    const download = (blob: Blob, ext: string) => {
+      const url = URL.createObjectURL(blob)
+      const a = document.createElement('a')
+      a.href = url
+      a.download = `${title}.${ext}`
+      a.click()
+      URL.revokeObjectURL(url)
+    }
+
+    if (format === 'png') {
+      const blob = await excalidrawModule.exportToBlob({
+        elements: data.elements,
+        appState: data.appState,
+        files: data.files,
+        mimeType: 'image/png',
+      })
+      if (blob)
+        download(blob, 'png')
+    }
+    else if (format === 'svg') {
+      const svg = await excalidrawModule.exportToSvg({
+        elements: data.elements,
+        appState: { ...data.appState, exportBackground: true },
+        files: data.files,
+      })
+      const svgString = new XMLSerializer().serializeToString(svg)
+      const blob = new Blob([svgString], { type: 'image/svg+xml' })
+      download(blob, 'svg')
+    }
+  }
+  catch (err) {
+    console.error('Ошибка экспорта Excalidraw:', err)
+  }
+}
+
+defineExpose({ exportImage })
+
 onMounted(async () => {
   try {
     const [{ applyPureReactInVue }, excalidrawModule] = await Promise.all([

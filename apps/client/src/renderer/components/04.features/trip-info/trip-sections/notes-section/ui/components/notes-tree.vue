@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import type { NoteTreeNode } from '../../composables/use-notes-section'
+import type { NoteTreeNode, SortMode } from '../../composables/use-notes-section'
 import type { NoteType } from '~/shared/services/api/model/types'
 import { Icon } from '@iconify/vue'
 import draggable from 'vuedraggable'
@@ -9,6 +9,7 @@ interface Props {
   nodes: NoteTreeNode[]
   activeId: string | null
   readonly: boolean
+  sortMode: SortMode
   parentId?: string | null
   depth?: number
 }
@@ -24,6 +25,7 @@ const emit = defineEmits<{
   delete: [id: string]
   rename: [id: string, title: string]
   reorder: [updates: ReorderUpdate[]]
+  updateColor: [id: string, color: string | null]
 }>()
 
 interface ReorderUpdate {
@@ -35,6 +37,7 @@ interface ReorderUpdate {
 const expandedFolders = ref(new Set<string>())
 const renamingId = ref<string | null>(null)
 const renameTitle = ref('')
+const openDropdownId = ref<string | null>(null)
 
 function toggleFolder(id: string): void {
   if (expandedFolders.value.has(id))
@@ -65,6 +68,7 @@ function getIcon(node: NoteTreeNode): string {
 }
 
 function startRename(node: NoteTreeNode): void {
+  openDropdownId.value = null
   renamingId.value = node.id
   renameTitle.value = node.title
   nextTick(() => {
@@ -95,6 +99,8 @@ interface DraggableChangeEvent {
 }
 
 function onDragChange(event: DraggableChangeEvent): void {
+  if (props.sortMode !== 'manual')
+    return // Защита на всякий случай
   const currentParentId = props.parentId ?? null
 
   if (event.moved) {
@@ -143,10 +149,13 @@ function onDragChange(event: DraggableChangeEvent): void {
     :model-value="nodes"
     item-key="id"
     :group="{ name: 'notes', pull: true, put: true }"
-    :disabled="readonly"
+    :disabled="readonly || sortMode !== 'manual'"
     ghost-class="ghost-node"
     drag-class="dragging-node"
     class="tree-list"
+    :delay="250"
+    :delay-on-touch-only="true"
+    :touch-start-threshold="5"
     :class="{ 'is-empty': nodes.length === 0 && parentId }"
     :style="nodes.length === 0 && parentId ? { '--empty-depth': `${depth * 16 + 8}px` } as any : {}"
     @change="onDragChange"
@@ -158,6 +167,7 @@ function onDragChange(event: DraggableChangeEvent): void {
           :class="{ 'is-active': activeId === node.id }"
           :style="{ paddingLeft: `${depth * 16 + 8}px` }"
           @click="handleNodeClick(node)"
+          @contextmenu.prevent="!readonly && (openDropdownId = node.id)"
         >
           <Icon :icon="getIcon(node)" class="node-icon" :class="node.type" />
 
@@ -175,7 +185,15 @@ function onDragChange(event: DraggableChangeEvent): void {
             {{ node.title }}
           </span>
 
-          <KitDropdown v-if="!readonly" align="end" class="node-actions">
+          <div v-if="node.color" class="node-color-marker" :style="{ backgroundColor: node.color }" />
+
+          <KitDropdown
+            v-if="!readonly"
+            align="end"
+            class="node-actions"
+            :open="openDropdownId === node.id"
+            @update:open="(val) => openDropdownId = val ? node.id : null"
+          >
             <template #trigger>
               <button class="action-btn" @click.stop>
                 <Icon icon="mdi:dots-vertical" />
@@ -201,6 +219,17 @@ function onDragChange(event: DraggableChangeEvent): void {
                 <Icon icon="mdi:trash-can-outline" />
                 Удалить
               </button>
+
+              <div class="menu-divider" />
+              <div class="color-picker" @click.stop>
+                <button class="color-btn none" title="Без метки" @click="emit('updateColor', node.id, null)">
+                  <Icon icon="mdi:close" />
+                </button>
+                <button class="color-btn" style="background-color: #ef4444" title="Важное" @click="emit('updateColor', node.id, '#ef4444')" />
+                <button class="color-btn" style="background-color: #eab308" title="Черновик" @click="emit('updateColor', node.id, '#eab308')" />
+                <button class="color-btn" style="background-color: #22c55e" title="Готово" @click="emit('updateColor', node.id, '#22c55e')" />
+                <button class="color-btn" style="background-color: #3b82f6" title="Инфо" @click="emit('updateColor', node.id, '#3b82f6')" />
+              </div>
             </div>
           </KitDropdown>
         </div>
@@ -210,6 +239,7 @@ function onDragChange(event: DraggableChangeEvent): void {
             :nodes="node.children"
             :active-id="activeId"
             :readonly="readonly"
+            :sort-mode="sortMode"
             :parent-id="node.id"
             :depth="depth + 1"
             @select="id => emit('select', id)"
@@ -217,6 +247,7 @@ function onDragChange(event: DraggableChangeEvent): void {
             @delete="id => emit('delete', id)"
             @rename="(id, title) => emit('rename', id, title)"
             @reorder="updates => emit('reorder', updates)"
+            @update-color="(id, color) => emit('updateColor', id, color)"
           />
         </div>
       </div>
@@ -315,6 +346,14 @@ function onDragChange(event: DraggableChangeEvent): void {
   text-overflow: ellipsis;
 }
 
+.node-color-marker {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  flex-shrink: 0;
+  box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.1);
+}
+
 .rename-input {
   flex: 1;
   font-size: 0.875rem;
@@ -392,6 +431,42 @@ function onDragChange(event: DraggableChangeEvent): void {
   height: 1px;
   background: var(--border-secondary-color);
   margin: 4px 0;
+}
+
+.color-picker {
+  display: flex;
+  gap: 8px;
+  padding: 8px;
+  justify-content: center;
+
+  .color-btn {
+    width: 18px;
+    height: 18px;
+    border-radius: 50%;
+    border: 1px solid rgba(0, 0, 0, 0.1);
+    cursor: pointer;
+    padding: 0;
+    transition: transform 0.15s;
+
+    &:hover {
+      transform: scale(1.15);
+      background: var(--bg-hover-color) !important;
+    }
+
+    &.none {
+      background: transparent;
+      color: var(--fg-tertiary-color);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      border: 1px solid var(--border-secondary-color);
+
+      .iconify {
+        font-size: 12px;
+        margin: 0;
+      }
+    }
+  }
 }
 
 .ghost-node {

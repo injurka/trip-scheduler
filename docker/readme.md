@@ -213,3 +213,17 @@ docker push injurka/trip-scheduler-client:v74
 
 docker tag trip-scheduler-server:v62 injurka/trip-scheduler-server:v62
 docker push injurka/trip-scheduler-server:v62
+
+
+## Общая архитектура пайплайна
+
+git push (tag v1.2.3)
+       ↓
+GitHub Actions
+  ├── build client image → push injurka/trip-scheduler-client:v1.2.3
+  └── build server image → push injurka/trip-scheduler-server:v1.2.3
+       ↓
+SSH → VDS
+  └── docker compose pull client server
+  └── docker compose up -d client server
+

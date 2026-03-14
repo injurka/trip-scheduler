@@ -51,6 +51,7 @@ export interface TripNote {
   type: NoteType
   title: string
   content: string | null
+  color?: string | null
   order: number
   createdAt: string
   updatedAt: string
@@ -77,6 +78,7 @@ export interface CreateNoteInput {
   type: NoteType
   title: string
   order: number
+  color?: string | null
 }
 
 export interface UpdateNoteInput {
@@ -84,6 +86,7 @@ export interface UpdateNoteInput {
   title?: string
   content?: string | null
   parentId?: string | null
+  color?: string | null
   imageIds?: string[]
 }
 
