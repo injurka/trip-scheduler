@@ -1,9 +1,13 @@
 import type { NoteImageUsage, NoteType, ReorderNoteUpdate, TripNote } from '~/shared/services/api/model/types'
+import { useStorage } from '@vueuse/core'
 import { useRequest, useRequestStatus } from '~/plugins/request'
 
 export interface NoteTreeNode extends TripNote {
   children: NoteTreeNode[]
 }
+
+export type SaveStatus = 'saved' | 'pending' | 'saving' | 'error'
+export type SortMode = 'manual' | 'name' | 'date'
 
 export const NOTES_KEYS = {
   FETCH_NOTES: 'notes:fetch',
@@ -36,6 +40,8 @@ export function useNotesSection(tripId: string, readonly: boolean) {
   const notes = ref<TripNote[]>([])
   const imageUsage = ref<NoteImageUsage[]>([])
   const activeNoteId = ref<string | null>(null)
+  const saveStatus = ref<SaveStatus>('saved')
+  const sortMode = useStorage<SortMode>(`notes:sort:${tripId}`, 'manual')
 
   const isNotesLoading = useRequestStatus(NOTES_KEYS.FETCH_NOTES)
   const isSaving = useRequestStatus(NOTES_KEYS.CREATE_NOTE)
@@ -44,6 +50,8 @@ export function useNotesSection(tripId: string, readonly: boolean) {
   const activeNote = computed((): TripNote | null =>
     notes.value.find(n => n.id === activeNoteId.value) ?? null,
   )
+
+  const flatFiles = computed(() => notes.value.filter(n => n.type !== 'folder'))
 
   const notesTree = computed((): NoteTreeNode[] => {
     const map = new Map<string, NoteTreeNode>()
@@ -64,10 +72,23 @@ export function useNotesSection(tripId: string, readonly: boolean) {
 
     const sortNodes = (nodes: NoteTreeNode[]): void => {
       nodes.sort((a, b) => {
+        // Папки всегда сверху
         if (a.type === 'folder' && b.type !== 'folder')
           return -1
         if (a.type !== 'folder' && b.type === 'folder')
           return 1
+
+        // Применяем выбранную сортировку
+        if (sortMode.value === 'name') {
+          return a.title.localeCompare(b.title)
+        }
+        if (sortMode.value === 'date') {
+          const dateA = new Date(a.updatedAt || a.createdAt).getTime()
+          const dateB = new Date(b.updatedAt || b.createdAt).getTime()
+          return dateB - dateA // Новые измененные сверху
+        }
+
+        // По умолчанию (вручную)
         return a.order - b.order
       })
       for (const node of nodes) sortNodes(node.children)
@@ -132,7 +153,7 @@ export function useNotesSection(tripId: string, readonly: boolean) {
 
   async function updateNote(
     id: string,
-    data: { title?: string, content?: string | null, parentId?: string | null },
+    data: { title?: string, content?: string | null, parentId?: string | null, color?: string | null },
   ): Promise<void> {
     if (readonly)
       return
@@ -155,8 +176,10 @@ export function useNotesSection(tripId: string, readonly: boolean) {
         if (updated && index !== -1) {
           notes.value[index] = updated
         }
+        saveStatus.value = 'saved'
       },
       onError: ({ error }) => {
+        saveStatus.value = 'error'
         useToast().error(`Ошибка при обновлении: ${error.customMessage}`)
         if (backup && index !== -1)
           notes.value[index] = backup
@@ -174,6 +197,8 @@ export function useNotesSection(tripId: string, readonly: boolean) {
       notes.value[noteIndex].content = content
     }
 
+    saveStatus.value = 'pending'
+
     const existing = pendingSaves.get(id)
     if (existing?.timer) {
       clearTimeout(existing.timer)
@@ -181,6 +206,7 @@ export function useNotesSection(tripId: string, readonly: boolean) {
 
     const timer = setTimeout(() => {
       pendingSaves.delete(id)
+      saveStatus.value = 'saving'
       updateNote(id, { content })
     }, 1200)
 
@@ -190,6 +216,7 @@ export function useNotesSection(tripId: string, readonly: boolean) {
   function flushPendingSave(): void {
     for (const [id, pending] of pendingSaves.entries()) {
       clearTimeout(pending.timer)
+      saveStatus.value = 'saving'
       updateNote(id, { content: pending.content })
     }
     pendingSaves.clear()
@@ -270,12 +297,15 @@ export function useNotesSection(tripId: string, readonly: boolean) {
   return {
     notes,
     notesTree,
+    flatFiles,
     activeNoteId,
     activeNote,
     imageUsage,
+    sortMode,
     isLoading: isNotesLoading,
     isSaving,
     isUpdating,
+    saveStatus,
     fetchNotes,
     fetchImagesUsage,
     createNote,

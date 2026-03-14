@@ -30,23 +30,24 @@ export const useActivityMapStore = defineStore('activityMap', {
     isLoading: () => useRequestStatus(EActivityMapKeys.FETCH_MARKS).value,
     isCreating: () => useRequestStatus(EActivityMapKeys.CREATE_MARK).value,
 
-    apiDateParams(state): { startAt: string, endAt: string } {
-      const now = new Date()
-      let startAt = now.toISOString()
-      let endAt = now.toISOString()
-
-      if (state.dateRange.start) {
-        const startDate = state.dateRange.start.toDate(getLocalTimeZone())
-        startDate.setHours(0, 0, 0, 0)
-        startAt = startDate.toISOString()
-
-        const endDate = state.dateRange.end
-          ? state.dateRange.end.toDate(getLocalTimeZone())
-          : state.dateRange.start.toDate(getLocalTimeZone())
-
-        endDate.setHours(23, 59, 59, 999)
-        endAt = endDate.toISOString()
+    apiDateParams(state): { startAt?: string, endAt?: string } {
+      if (!state.dateRange.start) {
+        return {}
       }
+
+      let startAt = new Date().toISOString()
+      let endAt = new Date().toISOString()
+
+      const startDate = state.dateRange.start.toDate(getLocalTimeZone())
+      startDate.setHours(0, 0, 0, 0)
+      startAt = startDate.toISOString()
+
+      const endDate = state.dateRange.end
+        ? state.dateRange.end.toDate(getLocalTimeZone())
+        : state.dateRange.start.toDate(getLocalTimeZone())
+
+      endDate.setHours(23, 59, 59, 999)
+      endAt = endDate.toISOString()
 
       return { startAt, endAt }
     },
@@ -58,13 +59,13 @@ export const useActivityMapStore = defineStore('activityMap', {
         this.currentMapParams = mapBounds
       }
 
-      if (!this.currentMapParams)
-        return
-
       const params: GetMarksParams = {
-        screen: this.currentMapParams.screen,
-        zoomlevel: Math.round(this.currentMapParams.zoomlevel),
         ...this.apiDateParams,
+      }
+
+      if (this.currentMapParams) {
+        params.screen = this.currentMapParams.screen
+        params.zoomlevel = Math.round(this.currentMapParams.zoomlevel)
       }
 
       await useRequest({
@@ -94,7 +95,7 @@ export const useActivityMapStore = defineStore('activityMap', {
     },
 
     resetFilters() {
-      this.dateRange = { start: today(getLocalTimeZone()), end: today(getLocalTimeZone()) }
+      this.dateRange = { start: null, end: null }
       this.fetchMarks()
     },
   },

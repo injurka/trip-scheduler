@@ -1,0 +1,122 @@
+name: Build & Deploy
+
+on:
+  push:
+    tags:
+      - 'v*.*.*'
+
+env:
+  REGISTRY: docker.io
+  CLIENT_IMAGE: injurka/trip-scheduler-client
+  SERVER_IMAGE: injurka/trip-scheduler-server
+
+jobs:
+  # ─── JOB 1: Сборка и пуш клиента ───────────────────────────────
+  build-client:
+    runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.meta.outputs.version }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Docker meta
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ env.CLIENT_IMAGE }}
+          tags: |
+            type=semver,pattern={{version}}
+            type=raw,value=latest
+
+      - name: Login to Docker Hub
+        uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Build & Push Client
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          file: ./docker/Dockerfile.client
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          build-args: |
+            VITE_APP_SERVER_URL=https://api.trip-scheduler.ru
+            VITE_APP_MOCK_MODE=false
+            VITE_MAPTILER_KEY=${{ secrets.VITE_MAPTILER_KEY }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+  # ─── JOB 2: Сборка и пуш сервера ───────────────────────────────
+  build-server:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Docker meta
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ env.SERVER_IMAGE }}
+          tags: |
+            type=semver,pattern={{version}}
+            type=raw,value=latest
+
+      - name: Login to Docker Hub
+        uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Build & Push Server
+        uses: docker/build-push-action@v5
+        with:
+          context: ./apps/server
+          file: ./apps/server/Dockerfile
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+  # ─── JOB 3: Деплой на VDS ───────────────────────────────────────
+  deploy:
+    runs-on: ubuntu-latest
+    needs: [build-client, build-server]
+    steps:
+      - name: Get version from tag
+        id: version
+        run: echo "VERSION=${GITHUB_REF#refs/tags/v}" >> $GITHUB_OUTPUT
+
+      - name: Deploy via SSH
+        uses: appleboy/ssh-action@v1
+        with:
+          host: ${{ secrets.VDS_HOST }}
+          username: ${{ secrets.VDS_USER }}
+          key: ${{ secrets.VDS_SSH_KEY }}
+          port: ${{ secrets.VDS_PORT }}
+          script: |
+            cd /path/to/your/docker-compose
+
+            # Обновляем версии в .env (или передаём через export)
+            export V_CLIENT=${{ steps.version.outputs.VERSION }}
+            export V_SERVER=${{ steps.version.outputs.VERSION }}
+
+            # Тянем только обновлённые образы
+            docker compose pull client server
+
+            # Перезапускаем только client и server (без остановки db/redis/etc)
+            docker compose up -d --no-deps client server
+
+            # Удаляем старые образы
+            docker image prune -f

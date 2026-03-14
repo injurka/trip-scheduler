@@ -26,7 +26,9 @@ export interface GroupedMark {
   count: number
 }
 
-export interface GetMarksParams extends MapBounds {
-  startAt: string
-  endAt: string
+export interface GetMarksParams {
+  screen?: ScreenPosition
+  zoomlevel?: number
+  startAt?: string
+  endAt?: string
 }

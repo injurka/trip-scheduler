@@ -129,7 +129,7 @@ export const tripSections = pgTable('trip_sections', {
   type: tripSectionTypeEnum('type').notNull(),
   title: text('title').notNull(),
   icon: text('icon'),
-  content: jsonb('content').$type<any>().default('{}'), 
+  content: jsonb('content').$type<any>().default('{}'),
   order: integer('order').notNull().default(0),
   createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
   updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow().notNull(),
@@ -142,6 +142,7 @@ export const tripNotes = pgTable('trip_notes', {
   type: noteTypeEnum('type').notNull(),
   title: text('title').notNull(),
   content: text('content'), // JSON или Markdown строка
+  color: text('color'), // Цветовая метка (важное, черновик и т.д.)
   order: integer('order').notNull().default(0),
   createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
   updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow().notNull(),

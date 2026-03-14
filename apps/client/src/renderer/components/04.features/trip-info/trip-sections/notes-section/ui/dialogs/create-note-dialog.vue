@@ -16,6 +16,10 @@ const emit = defineEmits<{
   'create': [title: string]
 }>()
 
+const vFocus = {
+  mounted: (el: HTMLElement) => el.focus(),
+}
+
 const title = ref('')
 
 watch(() => props.visible, (v) => {
@@ -62,6 +66,7 @@ function submit(): void {
     :title="dialogTitle"
     :icon="icon"
     :max-width="400"
+    description="Введите название для нового элемента"
     @update:visible="emit('update:visible', $event)"
   >
     <form class="create-form" @submit.prevent="submit">

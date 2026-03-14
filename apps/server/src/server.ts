@@ -2,9 +2,11 @@
 import type { Hono } from 'hono'
 import { db } from 'db'
 import { sql } from 'drizzle-orm'
+import cron from 'node-cron'
 import Server from './app'
 import { updateDatabaseMetrics } from './lib/db-monitoring'
 import { Logger } from './lib/logger'
+import { dumpService } from './services/dump.service'
 import { s3Service } from './services/s3.service'
 import { telegramAuthService } from './services/telegram-auth.service'
 
@@ -30,6 +32,16 @@ try {
   await updateDatabaseMetrics()
 
   await telegramAuthService.setupWebhook()
+
+  cron.schedule('0 3 * * 0', async () => {
+    logger.info('⏰ Запуск еженедельного дампа базы данных по расписанию...')
+    try {
+      await dumpService.generateAndUploadDump()
+    }
+    catch (err) {
+      logger.error('Сбой при выполнении крона для дампа', err)
+    }
+  })
 
   logger.success('Server is ready 🚀')
 }

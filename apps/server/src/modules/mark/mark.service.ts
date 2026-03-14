@@ -1,6 +1,6 @@
 import type { z } from 'zod'
 import type { CreateMarkInputSchema, GetMarksInputSchema } from './mark.schemas'
-import { and, gte, lte } from 'drizzle-orm'
+import { and, gte, isNull, lte, or, sql } from 'drizzle-orm'
 import { db } from '~/../db'
 import { marks } from '~/../db/schema'
 import { measureDbQuery } from '~/lib/db-monitoring'
@@ -9,19 +9,41 @@ import { createTRPCError } from '~/lib/trpc'
 export const markService = {
   async getMarks(params: z.infer<typeof GetMarksInputSchema>) {
     return measureDbQuery('marks', 'select', async () => {
-      const { screen } = params
-      const minLat = Math.min(screen.leftTop.lat, screen.rightBottom.lat)
-      const maxLat = Math.max(screen.leftTop.lat, screen.rightBottom.lat)
-      const minLon = Math.min(screen.leftTop.lon, screen.rightBottom.lon)
-      const maxLon = Math.max(screen.leftTop.lon, screen.rightBottom.lon)
+      const conditions: any[] = []
 
-      const foundMarks = await db.query.marks.findMany({
-        where: and(
+      if (params.screen) {
+        const { screen } = params
+        const minLat = Math.min(screen.leftTop.lat, screen.rightBottom.lat)
+        const maxLat = Math.max(screen.leftTop.lat, screen.rightBottom.lat)
+        const minLon = Math.min(screen.leftTop.lon, screen.rightBottom.lon)
+        const maxLon = Math.max(screen.leftTop.lon, screen.rightBottom.lon)
+
+        conditions.push(
           gte(marks.latitude, minLat),
           lte(marks.latitude, maxLat),
           gte(marks.longitude, minLon),
           lte(marks.longitude, maxLon),
-        ),
+        )
+      }
+
+      // Фильтруем по датам ТОЛЬКО если они были переданы
+      if (params.startAt && params.endAt) {
+        const startDate = new Date(params.startAt).toISOString()
+        const endDate = new Date(params.endAt).toISOString()
+
+        conditions.push(
+          or(
+            isNull(marks.duration),
+            sql`${marks.duration} = 0`,
+            isNull(marks.startAt),
+            sql`${marks.startAt} <= ${endDate}::timestamp AND ${marks.startAt} + (${marks.duration} * interval '1 hour') >= ${startDate}::timestamp`,
+          ),
+        )
+      }
+
+      const foundMarks = await db.query.marks.findMany({
+        // Если условий нет (ни экрана, ни дат), вернёт все, но с лимитом
+        where: conditions.length > 0 ? and(...conditions) : undefined,
         with: {
           user: true,
         },
@@ -107,8 +129,8 @@ export const markService = {
         isEnded: false,
         category: {
           id: mark.categoryId,
-          categoryName: 'Место',
-          color: '#3B82F6',
+          categoryName: mark.duration && mark.duration > 0 ? 'Событие' : 'Место',
+          color: mark.duration && mark.duration > 0 ? '#10B981' : '#3B82F6',
           icon: 'mdi:map-marker',
         },
         additionalInfo: mark.description ?? undefined,

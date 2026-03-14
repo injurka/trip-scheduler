@@ -493,7 +493,7 @@ function focusOnItem(item: MapPoint | MapRoute | DrawnRoute) {
   position: absolute;
   top: 12px;
   left: 12px;
-  z-index: 15;
+  z-index: 7;
   box-shadow: var(--s-m);
 }
 

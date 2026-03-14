@@ -14,6 +14,7 @@ defineProps<IProps>()
 const emit = defineEmits<{
   (e: 'delete', id: string): void
   (e: 'switchToMap'): void
+  (e: 'createMark'): void
 }>()
 
 const dateRange = defineModel<DateRange>('dateRange', { required: true })
@@ -22,12 +23,18 @@ const dateRange = defineModel<DateRange>('dateRange', { required: true })
 <template>
   <div class="activity-list-view">
     <header class="toolbar">
-      <KitBtn icon="mdi:map-search-outline" @click="emit('switchToMap')">
-        Посмотреть на карте
-      </KitBtn>
-      <div class="filters">
-        <ActivityFilters v-model:date-range="dateRange" />
+      <div class="toolbar-group">
+        <KitBtn icon="mdi:map-search-outline" @click="emit('switchToMap')">
+          Посмотреть на карте
+        </KitBtn>
+        <div class="filters">
+          <ActivityFilters v-model:date-range="dateRange" />
+        </div>
       </div>
+
+      <KitBtn variant="text" icon="mdi:plus" @click="emit('createMark')">
+        Создать метку
+      </KitBtn>
     </header>
 
     <div class="list-content">
@@ -85,11 +92,27 @@ const dateRange = defineModel<DateRange>('dateRange', { required: true })
 .toolbar {
   display: flex;
   align-items: center;
+  justify-content: space-between;
   gap: 16px;
   background-color: var(--bg-secondary-color);
   padding: 16px;
   border-radius: var(--r-l);
   border: 1px solid var(--border-secondary-color);
+
+  @include media-down(sm) {
+    flex-direction: column;
+    align-items: stretch;
+  }
+}
+
+.toolbar-group {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+
+  @include media-down(sm) {
+    flex-wrap: wrap;
+  }
 }
 
 .activities-grid {

@@ -41,8 +41,9 @@ export const noteRepository = {
     })
   },
 
-  async create(data: { tripId: string, parentId?: string | null, type: 'folder' | 'markdown' | 'excalidraw', title: string, order?: number }) {
+  async create(data: { tripId: string, parentId?: string | null, type: 'folder' | 'markdown' | 'excalidraw', title: string, order?: number, color?: string | null }) {
     return measureDbQuery('tripNotes', 'insert', async () => {
+      // @ts-ignore - ожидаем, что вы добавите color в БД
       const [note] = await db.insert(tripNotes).values({
         id: uuidv4(),
         tripId: data.tripId,
@@ -50,6 +51,7 @@ export const noteRepository = {
         type: data.type,
         title: data.title,
         order: data.order ?? 0,
+        color: data.color ?? null,
         createdAt: new Date(),
         updatedAt: new Date(),
       }).returning()
@@ -57,7 +59,7 @@ export const noteRepository = {
     })
   },
 
-  async update(id: string, data: { title?: string, content?: string | null, parentId?: string | null, order?: number, imageIds?: string[] }) {
+  async update(id: string, data: { title?: string, content?: string | null, parentId?: string | null, order?: number, color?: string | null, imageIds?: string[] }) {
     return measureDbQuery('tripNotes', 'update', async () => {
       return await db.transaction(async (tx) => {
         const { imageIds, ...updateData } = data

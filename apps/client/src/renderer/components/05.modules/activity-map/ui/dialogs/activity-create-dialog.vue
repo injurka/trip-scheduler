@@ -1,4 +1,3 @@
-// File: components/05.modules/activity-map/ui/dialogs/activity-create-dialog.vue
 <script setup lang="ts">
 import type { CalendarDate } from '@internationalized/date'
 import { Icon } from '@iconify/vue'
@@ -8,7 +7,6 @@ import { KitBtn } from '~/components/01.kit/kit-btn'
 import { KitDialogWithClose } from '~/components/01.kit/kit-dialog-with-close'
 import { KitInput } from '~/components/01.kit/kit-input'
 import { KitTimeField } from '~/components/01.kit/kit-time-field'
-import { KitViewSwitcher } from '~/components/01.kit/kit-view-switcher'
 import { CalendarPopover } from '~/components/02.shared/calendar-popover'
 
 interface Props {
@@ -26,12 +24,7 @@ const emit = defineEmits<{
 
 const visible = defineModel<boolean>('visible', { required: true })
 
-const typeItems = [
-  { id: 'dynamic', label: 'Событие', icon: 'mdi:clock-outline' },
-  { id: 'static', label: 'Локация (Статика)', icon: 'mdi:map-marker' },
-]
-
-const markType = ref<'dynamic' | 'static'>('dynamic')
+const markType = 'dynamic'
 const title = ref('')
 const description = ref('')
 const selectedDate = shallowRef<CalendarDate>(today(getLocalTimeZone()))
@@ -58,15 +51,10 @@ function handleSave() {
   const startIso = getIsoDateTime(selectedDate.value, startTime.value)
   const endIso = getIsoDateTime(selectedDate.value, endTime.value)
 
-  if (markType.value === 'dynamic' && new Date(endIso) <= new Date(startIso)) {
-    useToast().error('Время окончания должно быть позже времени начала')
-    return
-  }
-
   const payload = {
     title: title.value,
     description: description.value,
-    isStatic: markType.value === 'static',
+    isStatic: false,
     startAt: startIso,
     endAt: endIso,
     coords: props.initialCoords,
@@ -88,7 +76,6 @@ watch(
       const now = new Date()
       title.value = ''
       description.value = ''
-      markType.value = 'dynamic'
       selectedDate.value = parseDate(now.toISOString().split('T')[0])
       startTime.value = new Time(now.getHours(), now.getMinutes())
 
@@ -108,8 +95,6 @@ watch(
     @update:visible="handleUpdateVisible"
   >
     <div class="form-content" :class="{ 'is-loading': isLoading }">
-      <KitViewSwitcher v-model="markType" :items="typeItems" full-width />
-
       <KitInput
         v-model="title"
         :label="markType === 'dynamic' ? 'Название события' : 'Название места'"

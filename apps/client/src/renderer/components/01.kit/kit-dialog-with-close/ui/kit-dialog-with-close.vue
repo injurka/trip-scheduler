@@ -1,8 +1,10 @@
 <script lang="ts" setup>
+import type { PointerDownOutsideEvent } from 'reka-ui'
 import { Icon } from '@iconify/vue'
 import {
   DialogClose,
   DialogContent,
+  DialogDescription,
   DialogOverlay,
   DialogPortal,
   DialogRoot,
@@ -15,13 +17,34 @@ interface Props {
   title?: string
   icon?: string
   persistent?: boolean
+  description?: string
 }
 
-const { maxWidth = 700, title, icon, persistent = false } = defineProps<Props>()
+const {
+  maxWidth = 700,
+  title,
+  icon,
+  persistent = false,
+  description,
+} = defineProps<Props>()
 
 const visible = defineModel<boolean>('visible', { required: true })
 
 const maxWidthPx = computed(() => `${maxWidth}px`)
+
+function handlePointerDownOutside(event: PointerDownOutsideEvent) {
+  if (persistent) {
+    event.preventDefault()
+    return
+  }
+
+  const originalEvent = event.detail.originalEvent
+  const target = originalEvent.target as HTMLElement
+
+  if (originalEvent.offsetX > target.clientWidth || originalEvent.offsetY > target.clientHeight) {
+    event.preventDefault()
+  }
+}
 </script>
 
 <template>
@@ -31,19 +54,7 @@ const maxWidthPx = computed(() => `${maxWidth}px`)
       <DialogContent
         class="dialog-content-wrapper"
         :style="{ maxWidth: maxWidthPx }"
-        @pointer-down-outside="(event) => {
-          if (persistent) {
-            event.preventDefault()
-            return
-          }
-
-          const originalEvent = event.detail.originalEvent
-          const target = originalEvent.target as HTMLElement
-
-          if (originalEvent.offsetX > target.clientWidth || originalEvent.offsetY > target.clientHeight) {
-            event.preventDefault()
-          }
-        }"
+        @pointer-down-outside="handlePointerDownOutside"
       >
         <div class="dialog-header">
           <slot v-if="$slots.header" name="header" />
@@ -56,14 +67,20 @@ const maxWidthPx = computed(() => `${maxWidth}px`)
             </div>
           </template>
           <DialogClose as-child>
-            <button class="close-button">
+            <button class="close-button" :aria-label="`Закрыть диалог ${title ?? ''}`">
               <Icon icon="mdi:close" />
             </button>
           </DialogClose>
         </div>
+
+        <DialogDescription :class="description ? 'dialog-description' : 'sr-only'">
+          {{ description ?? title }}
+        </DialogDescription>
+
         <div class="dialog-body">
           <slot />
         </div>
+
         <div v-if="$slots.footer" class="dialog-footer">
           <slot name="footer" />
         </div>
@@ -73,6 +90,18 @@ const maxWidthPx = computed(() => `${maxWidth}px`)
 </template>
 
 <style lang="scss" scoped>
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
 .dialog-overlay {
   background-color: rgba(0, 0, 0, 0.4);
   position: fixed;
@@ -118,6 +147,24 @@ const maxWidthPx = computed(() => `${maxWidth}px`)
 
   @include media-down(sm) {
     padding: 12px;
+    // На мобиле диалог прилипает к низу экрана вместо центра
+    top: auto;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    transform: none;
+    width: 100%;
+    max-width: 100% !important;
+    border-bottom-left-radius: 0;
+    border-bottom-right-radius: 0;
+    max-height: 92dvh;
+
+    &[data-state='open'] {
+      animation: content-slide-up 300ms cubic-bezier(0.22, 1, 0.36, 1) forwards;
+    }
+    &[data-state='closed'] {
+      animation: content-slide-down 200ms cubic-bezier(0.7, 0, 0.84, 0) forwards;
+    }
   }
 }
 
@@ -142,6 +189,12 @@ const maxWidthPx = computed(() => `${maxWidth}px`)
 .dialog-title {
   font-size: 1.125rem;
   font-weight: 600;
+}
+
+.dialog-description {
+  font-size: 0.875rem;
+  color: var(--fg-secondary-color);
+  margin-top: -8px;
 }
 
 .close-button {
@@ -216,6 +269,27 @@ const maxWidthPx = computed(() => `${maxWidth}px`)
     opacity: 0;
     transform: translate(-50%, -48%) scale(0.85) rotateX(10deg) skewX(4deg);
     filter: blur(8px);
+  }
+}
+
+@keyframes content-slide-up {
+  from {
+    opacity: 0;
+    transform: translateY(100%);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+@keyframes content-slide-down {
+  from {
+    opacity: 1;
+    transform: translateY(0);
+  }
+  to {
+    opacity: 0;
+    transform: translateY(100%);
   }
 }
 </style>
