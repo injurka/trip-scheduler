@@ -18,7 +18,7 @@ jobs:
       version: ${{ steps.meta.outputs.version }}
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
 
       - name: Docker meta
         id: meta
@@ -39,7 +39,7 @@ jobs:
         uses: docker/setup-buildx-action@v3
 
       - name: Build & Push Client
-        uses: docker/build-push-action@v5
+        uses: docker/build-push-action@v6
         with:
           context: .
           file: ./docker/Dockerfile.client
@@ -58,7 +58,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
 
       - name: Docker meta
         id: meta
@@ -79,7 +79,7 @@ jobs:
         uses: docker/setup-buildx-action@v3
 
       - name: Build & Push Server
-        uses: docker/build-push-action@v5
+        uses: docker/build-push-action@v6
         with:
           context: ./apps/server
           file: ./apps/server/Dockerfile
@@ -106,7 +106,7 @@ jobs:
           key: ${{ secrets.VDS_SSH_KEY }}
           port: ${{ secrets.VDS_PORT }}
           script: |
-            cd /path/to/your/docker-compose
+            cd /root/sources/trip-scheduler/docker
 
             # Обновляем версии в .env (или передаём через export)
             export V_CLIENT=${{ steps.version.outputs.VERSION }}
