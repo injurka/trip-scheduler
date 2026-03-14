@@ -38,7 +38,10 @@
     // Это предотвращает предупреждение о max-width: -1px.
     $keys: map.keys($breakpoints);
     $index: list.index($keys, $name);
-    $next-key: if(list.length($keys) > $index, list.nth($keys, $index + 1), null);
+    $next-key: null;
+    @if list.length($keys) > $index {
+      $next-key: list.nth($keys, $index + 1);
+    }
 
     @if $next-key {
       $upper-bound: map.get($breakpoints, $next-key) - 1;
@@ -59,7 +62,10 @@
 
   $keys: map.keys($breakpoints);
   $index: list.index($keys, $name);
-  $next-key: if(list.length($keys) > $index, list.nth($keys, $index + 1), null);
+  $next-key: null;
+  @if list.length($keys) > $index {
+    $next-key: list.nth($keys, $index + 1);
+  }
 
   // Случай для xs (от 0 до sm - 1)
   @if $min-width == 0 {
