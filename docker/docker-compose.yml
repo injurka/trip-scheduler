@@ -37,6 +37,8 @@ services:
     volumes:
       - "$HOME/static-data:/usr/src/app/static"
     restart: always
+    healthcheck:
+      disable: true
     depends_on:
       db:
         condition: service_healthy
