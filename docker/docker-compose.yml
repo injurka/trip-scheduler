@@ -1,18 +1,34 @@
 services:
+  traefik:
+    image: traefik:v3.3
+    container_name: traefik
+    restart: always
+    ports:
+      - "80:80"
+      - "443:443"
+    networks:
+      - trip-net
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+      - ./traefik.yml:/traefik.yml:ro
+      - ./letsencrypt:/letsencrypt
+
   client:
     image: injurka/trip-scheduler-client:${V_CLIENT:-latest}
     container_name: trip-scheduler-client
-    ports:
-      - "1420:1420"
     restart: always
     networks:
       - trip-net
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.client.rule=Host(`trip-scheduler.ru`)"
+      - "traefik.http.routers.client.entrypoints=websecure"
+      - "traefik.http.routers.client.tls.certresolver=letsencrypt"
+      - "traefik.http.services.client.loadbalancer.server.port=1420"
 
   server:
     image: injurka/trip-scheduler-server:${V_SERVER:-latest}
     container_name: trip-scheduler-server
-    ports:
-      - "8080:8080"
     networks:
       - trip-net
     env_file:
@@ -23,12 +39,18 @@ services:
     depends_on:
       db:
         condition: service_healthy
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.server.rule=Host(`api.trip-scheduler.ru`)"
+      - "traefik.http.routers.server.entrypoints=websecure"
+      - "traefik.http.routers.server.tls.certresolver=letsencrypt"
+      - "traefik.http.services.server.loadbalancer.server.port=8080"
+      - "traefik.http.routers.server.middlewares=server-limit"
+      - "traefik.http.middlewares.server-limit.buffering.maxRequestBodyBytes=16777216"
 
   directus:
     image: directus/directus:11.14.0
     container_name: trip-scheduler-admin
-    ports:
-      - "8055:8055"
     networks:
       - trip-net
     restart: always
@@ -43,6 +65,14 @@ services:
     env_file:
       - .env.database
       - .env.directus
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.directus.rule=Host(`directus.trip-scheduler.ru`)"
+      - "traefik.http.routers.directus.entrypoints=websecure"
+      - "traefik.http.routers.directus.tls.certresolver=letsencrypt"
+      - "traefik.http.services.directus.loadbalancer.server.port=8055"
+      - "traefik.http.routers.directus.middlewares=directus-limit"
+      - "traefik.http.middlewares.directus-limit.buffering.maxRequestBodyBytes=16777216"
 
   cache:
     image: redis:7-alpine
