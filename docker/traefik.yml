@@ -21,10 +21,9 @@ providers:
 certificatesResolvers:
   letsencrypt:
     acme:
-      email: injurka@gmail.com
+      email: your@email.com
       storage: /letsencrypt/acme.json
-      httpChallenge:
-        entryPoint: web
+      tlsChallenge: {}
 
 log:
   level: INFO
