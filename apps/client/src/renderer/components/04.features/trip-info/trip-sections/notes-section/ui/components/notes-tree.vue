@@ -2,6 +2,7 @@
 import type { NoteTreeNode, SortMode } from '../../composables/use-notes-section'
 import type { NoteType } from '~/shared/services/api/model/types'
 import { Icon } from '@iconify/vue'
+import { computed, nextTick, ref } from 'vue'
 import draggable from 'vuedraggable'
 import { KitDropdown } from '~/components/01.kit/kit-dropdown'
 
@@ -24,26 +25,30 @@ const emit = defineEmits<{
   createIn: [parentId: string | null, type: NoteType]
   delete: [id: string]
   rename: [id: string, title: string]
-  reorder: [updates: ReorderUpdate[]]
   updateColor: [id: string, color: string | null]
+  updateList: [parentId: string | null, nodes: NoteTreeNode[]]
 }>()
-
-interface ReorderUpdate {
-  id: string
-  parentId: string | null
-  order: number
-}
 
 const expandedFolders = ref(new Set<string>())
 const renamingId = ref<string | null>(null)
 const renameTitle = ref('')
 const openDropdownId = ref<string | null>(null)
 
+// Используем get/set для VueDraggable. При перетаскивании он полностью
+// заменяет массив нужного уровня, что мы и отдаем наверх.
+const localNodes = computed({
+  get: () => props.nodes,
+  set: (newNodes) => {
+    if (props.sortMode !== 'manual')
+      return
+    emit('updateList', props.parentId ?? null, newNodes)
+  },
+})
+
 function toggleFolder(id: string): void {
   if (expandedFolders.value.has(id))
     expandedFolders.value.delete(id)
-  else
-    expandedFolders.value.add(id)
+  else expandedFolders.value.add(id)
 }
 
 function isFolderExpanded(id: string): boolean {
@@ -53,17 +58,14 @@ function isFolderExpanded(id: string): boolean {
 function handleNodeClick(node: NoteTreeNode): void {
   if (node.type === 'folder')
     toggleFolder(node.id)
-  else
-    emit('select', node.id)
+  else emit('select', node.id)
 }
 
 function getIcon(node: NoteTreeNode): string {
   if (node.type === 'folder')
     return isFolderExpanded(node.id) ? 'mdi:folder-open-outline' : 'mdi:folder-outline'
-
   if (node.type === 'excalidraw')
     return 'mdi:draw'
-
   return 'mdi:file-document-outline'
 }
 
@@ -91,62 +93,11 @@ function commitRename(id: string): void {
 function cancelRename(): void {
   renamingId.value = null
 }
-
-interface DraggableChangeEvent {
-  moved?: { element: NoteTreeNode, oldIndex: number, newIndex: number }
-  added?: { element: NoteTreeNode, newIndex: number }
-  removed?: { element: NoteTreeNode, oldIndex: number }
-}
-
-function onDragChange(event: DraggableChangeEvent): void {
-  if (props.sortMode !== 'manual')
-    return // Защита на всякий случай
-  const currentParentId = props.parentId ?? null
-
-  if (event.moved) {
-    const reordered = [...props.nodes]
-    const [item] = reordered.splice(event.moved.oldIndex, 1)
-    if (item)
-      reordered.splice(event.moved.newIndex, 0, item)
-
-    emit('reorder', reordered.map((node, index) => ({
-      id: node.id,
-      parentId: currentParentId,
-      order: index,
-    })))
-    return
-  }
-
-  if (event.added) {
-    const withAdded = [...props.nodes]
-    withAdded.splice(event.added.newIndex, 0, event.added.element)
-
-    emit('reorder', withAdded.map((node, index) => ({
-      id: node.id,
-      parentId: currentParentId,
-      order: index,
-    })))
-    return
-  }
-
-  if (event.removed) {
-    const remaining = [...props.nodes]
-    remaining.splice(event.removed.oldIndex, 1)
-
-    if (remaining.length > 0) {
-      emit('reorder', remaining.map((node, index) => ({
-        id: node.id,
-        parentId: currentParentId,
-        order: index,
-      })))
-    }
-  }
-}
 </script>
 
 <template>
   <draggable
-    :model-value="nodes"
+    v-model="localNodes"
     item-key="id"
     :group="{ name: 'notes', pull: true, put: true }"
     :disabled="readonly || sortMode !== 'manual'"
@@ -158,7 +109,6 @@ function onDragChange(event: DraggableChangeEvent): void {
     :touch-start-threshold="5"
     :class="{ 'is-empty': nodes.length === 0 && parentId }"
     :style="nodes.length === 0 && parentId ? { '--empty-depth': `${depth * 16 + 8}px` } as any : {}"
-    @change="onDragChange"
   >
     <template #item="{ element: node }">
       <div class="tree-node">
@@ -194,6 +144,7 @@ function onDragChange(event: DraggableChangeEvent): void {
             :open="openDropdownId === node.id"
             @update:open="(val) => openDropdownId = val ? node.id : null"
           >
+            <!-- ... Шаблон KitDropdown без изменений ... -->
             <template #trigger>
               <button class="action-btn" @click.stop>
                 <Icon icon="mdi:dots-vertical" />
@@ -202,24 +153,19 @@ function onDragChange(event: DraggableChangeEvent): void {
             <div class="menu-content">
               <template v-if="node.type === 'folder'">
                 <button @click.stop="emit('createIn', node.id, 'markdown')">
-                  <Icon icon="mdi:file-document-plus-outline" />
-                  Новая заметка
+                  <Icon icon="mdi:file-document-plus-outline" /> Новая заметка
                 </button>
                 <button @click.stop="emit('createIn', node.id, 'excalidraw')">
-                  <Icon icon="mdi:draw-pen" width="20" height="20" />
-                  Новый скетч
+                  <Icon icon="mdi:draw-pen" width="20" height="20" /> Новый скетч
                 </button>
                 <div class="menu-divider" />
               </template>
               <button @click.stop="startRename(node)">
-                <Icon icon="mdi:pencil-outline" />
-                Переименовать
+                <Icon icon="mdi:pencil-outline" /> Переименовать
               </button>
               <button class="danger" @click.stop="emit('delete', node.id)">
-                <Icon icon="mdi:trash-can-outline" />
-                Удалить
+                <Icon icon="mdi:trash-can-outline" /> Удалить
               </button>
-
               <div class="menu-divider" />
               <div class="color-picker" @click.stop>
                 <button class="color-btn none" title="Без метки" @click="emit('updateColor', node.id, null)">
@@ -246,8 +192,8 @@ function onDragChange(event: DraggableChangeEvent): void {
             @create-in="(id, type) => emit('createIn', id, type)"
             @delete="id => emit('delete', id)"
             @rename="(id, title) => emit('rename', id, title)"
-            @reorder="updates => emit('reorder', updates)"
             @update-color="(id, color) => emit('updateColor', id, color)"
+            @update-list="(p, n) => emit('updateList', p, n)"
           />
         </div>
       </div>

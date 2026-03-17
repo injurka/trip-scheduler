@@ -65,7 +65,7 @@ function handleSectionUpdate(updatedSectionData: TripSection) {
 }
 .section-content {
   position: relative;
-  z-index: 8;
+  z-index: 6;
 }
 .section-not-found {
   text-align: center;
