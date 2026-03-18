@@ -3,6 +3,8 @@ import fs from 'node:fs/promises'
 import path from 'node:path'
 import process from 'node:process'
 import prompts from 'prompts'
+// ПРИМЕЧАНИЕ: путь до s3.service может отличаться (укажите правильный)
+import { s3Service } from '../src/services/s3.service'
 import { db } from './index'
 import { MOCK_METRO_DATA } from './mock/02.metro'
 import { SUBSCRIPTION_MOCK } from './mock/03.subscription'
@@ -151,7 +153,77 @@ function validateTrip(trip: any, index: number): void {
 }
 
 // ─────────────────────────────────────────────────────────────
-// Чтение дампа из папочной структуры
+// Чтение дампа из S3
+// ─────────────────────────────────────────────────────────────
+
+async function discoverAndSelectS3Dump(): Promise<string | null> {
+  console.log('☁️  Получение списка дампов из S3...')
+  try {
+    const folders = await s3Service.listDumpFolders('dumps/')
+    if (!folders || folders.length === 0)
+      return null
+
+    const sorted = folders.sort((a, b) => b.localeCompare(a))
+
+    const response = await prompts({
+      type: 'select',
+      name: 'selected',
+      message: 'Выберите S3 дамп для восстановления',
+      choices: sorted.map(f => ({
+        title: `☁️ ${f}`,
+        value: f,
+      })),
+      hint: '- Стрелки для выбора, Enter для подтверждения',
+    })
+
+    return response.selected ?? null
+  }
+  catch (error) {
+    console.error('❌ Ошибка при работе с S3:', error)
+    return null
+  }
+}
+
+async function readJsonFilesFromS3Dir(prefix: string): Promise<any[]> {
+  try {
+    const files = await s3Service.listFilesInFolder(prefix)
+    const jsonFiles = files.filter(f => f.endsWith('.json'))
+
+    const items = await Promise.all(
+      jsonFiles.map(async (key) => {
+        const content = await s3Service.getFileContent(key)
+        return JSON.parse(content)
+      }),
+    )
+    return items
+  }
+  catch {
+    return []
+  }
+}
+
+async function readDumpFromS3(prefix: string): Promise<DumpData> {
+  console.log('☁️ Чтение папочного дампа из S3...')
+
+  // Убедимся, что префикс заканчивается на слеш
+  const basePath = prefix.endsWith('/') ? prefix : `${prefix}/`
+
+  const [usersRaw, trips, posts, blogs, metro] = await Promise.all([
+    s3Service.getFileContent(`${basePath}users/all.json`).then(JSON.parse).catch(() => []),
+    readJsonFilesFromS3Dir(`${basePath}trips/`),
+    readJsonFilesFromS3Dir(`${basePath}posts/`),
+    readJsonFilesFromS3Dir(`${basePath}blogs/`),
+    readJsonFilesFromS3Dir(`${basePath}metro/`),
+  ])
+
+  const users = Array.isArray(usersRaw) ? usersRaw : []
+  console.log(`   👤 users: ${users.length} | ✈️  trips: ${trips.length} | 📝 posts: ${posts.length} | 📰 blogs: ${blogs.length} | 🚇 metro: ${metro.length}`)
+
+  return { users, trips, posts, blogs, metro }
+}
+
+// ─────────────────────────────────────────────────────────────
+// Чтение дампа из папочной структуры (ЛОКАЛЬНО)
 // ─────────────────────────────────────────────────────────────
 
 async function readJsonFilesFromDir(dir: string): Promise<any[]> {
@@ -190,11 +262,7 @@ async function readDumpFromFolder(folderPath: string): Promise<DumpData> {
   return { users, trips, posts, blogs, metro }
 }
 
-// ─────────────────────────────────────────────────────────────
-// Выбор дампа (папка или legacy-файл)
-// ─────────────────────────────────────────────────────────────
-
-async function discoverAndSelectDump(): Promise<SelectedDump | null> {
+async function discoverAndSelectLocalDump(): Promise<SelectedDump | null> {
   const dumpDir = path.join(__dirname, 'dump')
 
   try {
@@ -224,19 +292,13 @@ async function discoverAndSelectDump(): Promise<SelectedDump | null> {
       {
         type: 'select',
         name: 'selected',
-        message: 'Выберите дамп для восстановления',
+        message: 'Выберите локальный дамп для восстановления',
         choices: sorted.map(item => ({
           title: item.isFolder ? `📁 ${item.name}/` : `📄 ${item.name}`,
           description: `изменён: ${new Date(item.time).toLocaleString()}${item.isFolder ? '' : ' [устаревший формат]'}`,
           value: { path: item.path, isFolder: item.isFolder } satisfies SelectedDump,
         })),
         hint: '- Стрелки для выбора, Enter для подтверждения',
-      },
-      {
-        onCancel: () => {
-          console.log('🚫 Операция отменена.')
-          process.exit(0)
-        },
       },
     )
 
@@ -493,47 +555,71 @@ async function restoreBlogs(sourceBlogs: any[]): Promise<void> {
 // ─────────────────────────────────────────────────────────────
 
 async function seedFromJson(): Promise<void> {
-  const startTime = Date.now()
   console.log('🌱 Восстановление базы данных из JSON дампа...\n')
 
-  // 1. Определяем источник данных
-  const filePathArg = process.argv[2]
   let dumpData: DumpData
 
-  if (filePathArg) {
-    const resolvedPath = path.resolve(process.cwd(), filePathArg)
-    const stat = await fs.stat(resolvedPath)
+  // Выбор источника (Local / S3)
+  const sourceResponse = await prompts({
+    type: 'select',
+    name: 'source',
+    message: 'Откуда вы хотите восстановить дамп?',
+    choices: [
+      { title: 'Локальная папка (db/dump)', value: 'local' },
+      { title: 'S3 Хранилище', value: 's3' },
+    ],
+  })
 
-    if (stat.isDirectory()) {
-      console.log(`📁 Используется папка: ${path.basename(resolvedPath)}/`)
-      dumpData = await readDumpFromFolder(resolvedPath)
-    }
-    else {
-      console.log(`📄 Используется legacy-файл: ${path.basename(resolvedPath)}`)
-      const fileContent = await fs.readFile(resolvedPath, 'utf-8')
-      const fileSizeKb = (Buffer.byteLength(fileContent, 'utf-8') / 1024).toFixed(1)
-      console.log(`   📁 Размер файла: ${fileSizeKb} KB`)
-      dumpData = JSON.parse(fileContent)
-    }
+  if (!sourceResponse.source) {
+    console.log('🚫 Операция отменена.')
+    process.exit(0)
   }
-  else {
-    const selected = await discoverAndSelectDump()
-    if (!selected) {
-      console.error('❌ Дампы не найдены в `db/dump`.')
-      console.log('ℹ️  Создайте дамп: `bun run db:dump`')
+
+  // S3
+  if (sourceResponse.source === 's3') {
+    const selectedS3Prefix = await discoverAndSelectS3Dump()
+    if (!selectedS3Prefix) {
+      console.error('❌ В S3 дампы не найдены или операция прервана.')
       process.exit(1)
     }
+    console.log(`📁 Выбран S3 дамп: ${selectedS3Prefix}`)
+    dumpData = await readDumpFromS3(selectedS3Prefix)
+  }
+  // Local
+  else {
+    const filePathArg = process.argv[2]
 
-    if (selected.isFolder) {
-      console.log(`📁 Выбрана папка: ${path.basename(selected.path)}/`)
-      dumpData = await readDumpFromFolder(selected.path)
+    if (filePathArg) {
+      const resolvedPath = path.resolve(process.cwd(), filePathArg)
+      const stat = await fs.stat(resolvedPath)
+
+      if (stat.isDirectory()) {
+        console.log(`📁 Используется папка: ${path.basename(resolvedPath)}/`)
+        dumpData = await readDumpFromFolder(resolvedPath)
+      }
+      else {
+        console.log(`📄 Используется legacy-файл: ${path.basename(resolvedPath)}`)
+        const fileContent = await fs.readFile(resolvedPath, 'utf-8')
+        dumpData = JSON.parse(fileContent)
+      }
     }
     else {
-      console.log(`📄 Выбран legacy-файл: ${path.basename(selected.path)}`)
-      const fileContent = await fs.readFile(selected.path, 'utf-8')
-      const fileSizeKb = (Buffer.byteLength(fileContent, 'utf-8') / 1024).toFixed(1)
-      console.log(`   📁 Размер файла: ${fileSizeKb} KB`)
-      dumpData = JSON.parse(fileContent)
+      const selected = await discoverAndSelectLocalDump()
+      if (!selected) {
+        console.error('❌ Локальные дампы не найдены в `db/dump`.')
+        console.log('ℹ️  Создайте дамп: `bun run db:dump`')
+        process.exit(1)
+      }
+
+      if (selected.isFolder) {
+        console.log(`📁 Выбрана папка: ${path.basename(selected.path)}/`)
+        dumpData = await readDumpFromFolder(selected.path)
+      }
+      else {
+        console.log(`📄 Выбран legacy-файл: ${path.basename(selected.path)}`)
+        const fileContent = await fs.readFile(selected.path, 'utf-8')
+        dumpData = JSON.parse(fileContent)
+      }
     }
   }
 
@@ -550,6 +636,8 @@ async function seedFromJson(): Promise<void> {
     console.error('❌ Неверный формат дампа: отсутствует поле `users`.')
     process.exit(1)
   }
+
+  const startTime = Date.now()
 
   // 2. Очистка (строго по FK: дочерние → родительские)
   console.log('\n🗑️  Очистка таблиц...')
