@@ -36,12 +36,29 @@ import {
 } from './schema'
 
 // ─────────────────────────────────────────────────────────────
+// Типы
+// ─────────────────────────────────────────────────────────────
+
+interface DumpData {
+  users: any[]
+  trips: any[]
+  posts: any[]
+  blogs: any[]
+  metro: any[]
+  marks?: any[]
+}
+
+interface SelectedDump {
+  path: string
+  isFolder: boolean
+}
+
+// ─────────────────────────────────────────────────────────────
 // Утилиты
 // ─────────────────────────────────────────────────────────────
 
 const MAX_PG_PARAMS = 65_535
 
-/** Конвертирует любое значение в Date или null */
 function toDate(value: string | Date | null | undefined): Date | null {
   if (!value)
     return null
@@ -49,21 +66,15 @@ function toDate(value: string | Date | null | undefined): Date | null {
   return Number.isNaN(d.getTime()) ? null : d
 }
 
-/** Конвертирует любое значение в строку YYYY-MM-DD или null */
 function toDateString(value: string | Date | null | undefined): string | null {
   const d = toDate(value)
   return d ? d.toISOString().split('T')[0] : null
 }
 
-/** Форматирует миллисекунды в читаемую строку */
 function formatDuration(ms: number): string {
   return ms < 1000 ? `${ms}мс` : `${(ms / 1000).toFixed(1)}с`
 }
 
-/**
- * Вставляет строки чанками с учётом лимита параметров PostgreSQL (65 535).
- * При ошибке чанка автоматически переходит на поштучную вставку.
- */
 async function safeInsert<T extends Record<string, any>>(
   label: string,
   table: any,
@@ -87,8 +98,7 @@ async function safeInsert<T extends Record<string, any>>(
       await db.insert(table).values(chunk)
 
     console.log(
-      `   ✅ [${label}] ${rows.length} записей${chunks.length > 1 ? ` (${chunks.length} чанков)` : ''
-      } — ${formatDuration(Date.now() - start)}`,
+      `   ✅ [${label}] ${rows.length} записей${chunks.length > 1 ? ` (${chunks.length} чанков)` : ''} — ${formatDuration(Date.now() - start)}`,
     )
     return { success: rows.length, failed: 0 }
   }
@@ -136,42 +146,89 @@ function validateTrip(trip: any, index: number): void {
   if (trip.endDate && Number.isNaN(new Date(trip.endDate).getTime()))
     errors.push(`невалидный endDate: "${trip.endDate}"`)
 
-  if (errors.length > 0) {
+  if (errors.length > 0)
     console.error(`   ❌ [Trip #${index}] id=${trip.id ?? '?'}: ${errors.join(', ')}`)
-  }
 }
 
 // ─────────────────────────────────────────────────────────────
-// Выбор файла дампа
+// Чтение дампа из папочной структуры
 // ─────────────────────────────────────────────────────────────
 
-async function discoverAndSelectDumpFile(): Promise<string | null> {
-  const dumpDir = path.join(__dirname, 'dump')
+async function readJsonFilesFromDir(dir: string): Promise<any[]> {
   try {
-    const allFiles = await fs.readdir(dumpDir)
-    const jsonFilesWithStats = await Promise.all(
-      allFiles
-        .filter(file => file.endsWith('.json'))
-        .map(async (file) => {
-          const filePath = path.join(dumpDir, file)
-          const stats = await fs.stat(filePath)
-          return { name: file, path: filePath, time: stats.mtime.getTime() }
+    const files = await fs.readdir(dir)
+    const items = await Promise.all(
+      files
+        .filter(f => f.endsWith('.json'))
+        .map(async (f) => {
+          const content = await fs.readFile(path.join(dir, f), 'utf-8')
+          return JSON.parse(content)
+        }),
+    )
+    return items
+  }
+  catch {
+    return []
+  }
+}
+
+async function readDumpFromFolder(folderPath: string): Promise<DumpData> {
+  console.log('📂 Чтение папочного дампа...')
+
+  const [usersRaw, trips, posts, blogs, metro] = await Promise.all([
+    fs.readFile(path.join(folderPath, 'users', 'all.json'), 'utf-8').then(JSON.parse).catch(() => []),
+    readJsonFilesFromDir(path.join(folderPath, 'trips')),
+    readJsonFilesFromDir(path.join(folderPath, 'posts')),
+    readJsonFilesFromDir(path.join(folderPath, 'blogs')),
+    readJsonFilesFromDir(path.join(folderPath, 'metro')),
+  ])
+
+  const users = Array.isArray(usersRaw) ? usersRaw : []
+
+  console.log(`   👤 users: ${users.length} | ✈️  trips: ${trips.length} | 📝 posts: ${posts.length} | 📰 blogs: ${blogs.length} | 🚇 metro: ${metro.length}`)
+
+  return { users, trips, posts, blogs, metro }
+}
+
+// ─────────────────────────────────────────────────────────────
+// Выбор дампа (папка или legacy-файл)
+// ─────────────────────────────────────────────────────────────
+
+async function discoverAndSelectDump(): Promise<SelectedDump | null> {
+  const dumpDir = path.join(__dirname, 'dump')
+
+  try {
+    const entries = await fs.readdir(dumpDir, { withFileTypes: true })
+
+    interface DumpOption { name: string, path: string, time: number, isFolder: boolean }
+    const options: DumpOption[] = await Promise.all(
+      entries
+        .filter(e => e.isDirectory() || (e.isFile() && e.name.endsWith('.json')))
+        .map(async (e) => {
+          const fullPath = path.join(dumpDir, e.name)
+          const stats = await fs.stat(fullPath)
+          return {
+            name: e.name,
+            path: fullPath,
+            time: stats.mtime.getTime(),
+            isFolder: e.isDirectory(),
+          }
         }),
     )
 
-    const sortedFiles = jsonFilesWithStats.sort((a, b) => b.time - a.time)
-    if (sortedFiles.length === 0)
+    const sorted = options.sort((a, b) => b.time - a.time)
+    if (sorted.length === 0)
       return null
 
     const response = await prompts(
       {
         type: 'select',
-        name: 'selectedDump',
-        message: 'Выберите файл дампа для восстановления',
-        choices: sortedFiles.map(file => ({
-          title: file.name,
-          description: `(изменён: ${new Date(file.time).toLocaleString()})`,
-          value: file.path,
+        name: 'selected',
+        message: 'Выберите дамп для восстановления',
+        choices: sorted.map(item => ({
+          title: item.isFolder ? `📁 ${item.name}/` : `📄 ${item.name}`,
+          description: `изменён: ${new Date(item.time).toLocaleString()}${item.isFolder ? '' : ' [устаревший формат]'}`,
+          value: { path: item.path, isFolder: item.isFolder } satisfies SelectedDump,
         })),
         hint: '- Стрелки для выбора, Enter для подтверждения',
       },
@@ -183,7 +240,7 @@ async function discoverAndSelectDumpFile(): Promise<string | null> {
       },
     )
 
-    return response.selectedDump ?? null
+    return response.selected ?? null
   }
   catch (error) {
     if (error instanceof Error && 'code' in error && (error as any).code === 'ENOENT')
@@ -282,7 +339,7 @@ async function restoreTrips(sourceTrips: any[]): Promise<void> {
       memories: tripMemories,
       sections,
       participants,
-      user: _user, // исключаем join-поле
+      user: _user,
       ...tripDetails
     } = sourceTrips[i]
 
@@ -356,7 +413,6 @@ async function restoreTrips(sourceTrips: any[]): Promise<void> {
   console.log(`   📊 trips=${tripsToInsert.length} | sections=${sectionsToInsert.length} | participants=${participantsToInsert.length}`)
   console.log(`   📊 days=${daysToInsert.length} | activities=${activitiesToInsert.length} | images=${imagesToInsert.length} | memories=${memoriesToInsert.length}`)
 
-  // FK-порядок: trips → sections/participants/days → activities/images/memories
   await safeInsert('trips', trips, tripsToInsert)
   await Promise.all([
     safeInsert('tripSections', tripSections, sectionsToInsert),
@@ -413,7 +469,6 @@ async function restorePosts(sourcePosts: any[]): Promise<void> {
 
   console.log(`   📊 posts=${postsToInsert.length} | elements=${elementsToInsert.length} | media=${mediaToInsert.length} | saved=${savedPostsToInsert.length}`)
 
-  // FK-порядок: posts → elements/media/savedPosts (параллельно)
   await safeInsert('posts', posts, postsToInsert)
   await Promise.all([
     safeInsert('postElements', postElements, elementsToInsert),
@@ -441,35 +496,45 @@ async function seedFromJson(): Promise<void> {
   const startTime = Date.now()
   console.log('🌱 Восстановление базы данных из JSON дампа...\n')
 
-  // 1. Выбор файла
+  // 1. Определяем источник данных
   const filePathArg = process.argv[2]
-  let dumpFile: string | null
+  let dumpData: DumpData
 
   if (filePathArg) {
-    dumpFile = path.resolve(process.cwd(), filePathArg)
-    console.log(`🔍 Используется файл: ${path.basename(dumpFile)}`)
+    const resolvedPath = path.resolve(process.cwd(), filePathArg)
+    const stat = await fs.stat(resolvedPath)
+
+    if (stat.isDirectory()) {
+      console.log(`📁 Используется папка: ${path.basename(resolvedPath)}/`)
+      dumpData = await readDumpFromFolder(resolvedPath)
+    }
+    else {
+      console.log(`📄 Используется legacy-файл: ${path.basename(resolvedPath)}`)
+      const fileContent = await fs.readFile(resolvedPath, 'utf-8')
+      const fileSizeKb = (Buffer.byteLength(fileContent, 'utf-8') / 1024).toFixed(1)
+      console.log(`   📁 Размер файла: ${fileSizeKb} KB`)
+      dumpData = JSON.parse(fileContent)
+    }
   }
   else {
-    dumpFile = await discoverAndSelectDumpFile()
-    if (!dumpFile) {
-      console.error('❌ Файлы дампа не найдены в `db/dump`.')
+    const selected = await discoverAndSelectDump()
+    if (!selected) {
+      console.error('❌ Дампы не найдены в `db/dump`.')
       console.log('ℹ️  Создайте дамп: `bun run db:dump`')
       process.exit(1)
     }
-    console.log(`🔍 Выбран файл: ${path.basename(dumpFile)}`)
-  }
 
-  // 2. Чтение и парсинг
-  let dumpData: any
-  try {
-    const fileContent = await fs.readFile(dumpFile, 'utf-8')
-    const fileSizeKb = (Buffer.byteLength(fileContent, 'utf-8') / 1024).toFixed(1)
-    dumpData = JSON.parse(fileContent)
-    console.log(`📁 Размер файла: ${fileSizeKb} KB`)
-  }
-  catch (error) {
-    console.error('❌ Ошибка чтения/парсинга файла дампа:', error)
-    process.exit(1)
+    if (selected.isFolder) {
+      console.log(`📁 Выбрана папка: ${path.basename(selected.path)}/`)
+      dumpData = await readDumpFromFolder(selected.path)
+    }
+    else {
+      console.log(`📄 Выбран legacy-файл: ${path.basename(selected.path)}`)
+      const fileContent = await fs.readFile(selected.path, 'utf-8')
+      const fileSizeKb = (Buffer.byteLength(fileContent, 'utf-8') / 1024).toFixed(1)
+      console.log(`   📁 Размер файла: ${fileSizeKb} KB`)
+      dumpData = JSON.parse(fileContent)
+    }
   }
 
   const {
@@ -486,7 +551,7 @@ async function seedFromJson(): Promise<void> {
     process.exit(1)
   }
 
-  // 3. Очистка (строго по FK: дочерние → родительские)
+  // 2. Очистка (строго по FK: дочерние → родительские)
   console.log('\n🗑️  Очистка таблиц...')
   await db.delete(blogs)
   await db.delete(savedPosts)
@@ -514,7 +579,7 @@ async function seedFromJson(): Promise<void> {
   await db.delete(metroSystems)
   console.log('   ✅ Все таблицы очищены')
 
-  // 4. Справочники (независимы — параллельно)
+  // 3. Справочники (независимы — параллельно)
   console.log('\n⭐ Восстановление справочников...')
   const plansData = SUBSCRIPTION_MOCK.map(p => ({ ...p, id: Number(p.id) }))
   await Promise.all([
@@ -522,10 +587,10 @@ async function seedFromJson(): Promise<void> {
     db.insert(llmModels).values(LLM_MOCK).onConflictDoNothing().then(() => console.log(`   ✅ [llmModels] ${LLM_MOCK.length} записей`)),
   ])
 
-  // 5. Метро
+  // 4. Метро
   await restoreMetro(Array.isArray(sourceMetro) ? sourceMetro : [])
 
-  // 6. Пользователи (нужны раньше всего остального — FK source)
+  // 5. Пользователи
   console.log('\n👤 Восстановление пользователей...')
   if (sourceUsers.length > 0) {
     const usersToInsert = sourceUsers.map((user: any) => ({
@@ -538,7 +603,7 @@ async function seedFromJson(): Promise<void> {
     await safeInsert('users', users, usersToInsert)
   }
 
-  // 7. Метки
+  // 6. Метки
   console.log('\n📍 Восстановление меток...')
   if (Array.isArray(sourceMarks) && sourceMarks.length > 0) {
     const marksToInsert = sourceMarks.map((mark: any) => ({
@@ -560,15 +625,15 @@ async function seedFromJson(): Promise<void> {
     await safeInsert('marks', marks, marksToInsert)
   }
 
-  // 8. Путешествия
+  // 7. Путешествия
   if (Array.isArray(sourceTrips) && sourceTrips.length > 0)
     await restoreTrips(sourceTrips)
 
-  // 9. Посты
+  // 8. Посты
   if (Array.isArray(sourcePosts) && sourcePosts.length > 0)
     await restorePosts(sourcePosts)
 
-  // 10. Блоги
+  // 9. Блоги
   if (Array.isArray(sourceBlogs) && sourceBlogs.length > 0)
     await restoreBlogs(sourceBlogs)
 
