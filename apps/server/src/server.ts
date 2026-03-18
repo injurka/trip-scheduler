@@ -23,10 +23,10 @@ export async function checkService(name: string, fn: () => Promise<void>, logger
 }
 
 async function createDump(info: string) {
-  logger.info(`⏰ ${info}`, )
+  logger.info(`⏰ ${info}`)
 
   try {
-    await dumpService.generateAndUploadDump()
+    await dumpService.generateAndUploadDump('s3')
   }
   catch (err) {
     logger.error('Сбой при выполнении крона для дампа', err)

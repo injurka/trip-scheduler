@@ -20,7 +20,7 @@
     "db:dump": "bun run db/create-dump.ts",
     "db:check": "bun run db/check-data.ts",
     "db:seed-mock": "bun run db/seed-from-mock.ts",
-    "db:seed-json": "bun run db/seed-from-json.ts",
+    "db:seed-dump": "bun run db/seed-from-dump.ts",
     "db:studio": "bunx drizzle-kit studio",
     "db:reset": "bunx drizzle-kit drop",
     "--------------------------------< LINT & FORMAT >---------------------------------": "",
