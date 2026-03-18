@@ -3,9 +3,9 @@ import { dumpService } from '../src/services/dump.service'
 
 async function runManualDump() {
   try {
-    await dumpService.generateAndUploadDump()
+    const prefix = await dumpService.generateAndUploadDump()
     // eslint-disable-next-line no-console
-    console.log('👋 Завершение работы скрипта.')
+    console.log(`👋 Дамп завершён. S3-путь: ${prefix}/`)
     process.exit(0)
   }
   catch (error) {

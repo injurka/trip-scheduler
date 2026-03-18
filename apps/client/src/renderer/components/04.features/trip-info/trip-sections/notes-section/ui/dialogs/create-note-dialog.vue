@@ -99,7 +99,6 @@ function submit(): void {
   display: flex;
   flex-direction: column;
   gap: 16px;
-  padding-top: 16px;
 }
 
 .hint {

@@ -2,6 +2,7 @@
 import type { NoteType } from '~/shared/services/api/model/types'
 import { Icon } from '@iconify/vue'
 import { onKeyStroke, useClipboard, useWindowSize } from '@vueuse/core'
+import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { KitBtn } from '~/components/01.kit/kit-btn'
 import { KitDropdown } from '~/components/01.kit/kit-dropdown'
 import { useRequest } from '~/plugins/request'
@@ -24,6 +25,9 @@ const props = defineProps<{
   readonly: boolean
 }>()
 
+const tripIdRef = computed(() => props.section.tripId)
+const readonlyRef = computed(() => props.readonly)
+
 const {
   notesTree,
   flatFiles,
@@ -39,9 +43,9 @@ const {
   saveContent,
   flushPendingSave,
   deleteNote,
-  reorderNotes,
+  applyListUpdate,
   imageUsage,
-} = useNotesSection(props.section.tripId, props.readonly)
+} = useNotesSection(tripIdRef, readonlyRef)
 
 const { width } = useWindowSize()
 const isMobile = computed(() => width.value <= 768)
@@ -56,9 +60,8 @@ const excalidrawRef = ref<InstanceType<typeof NoteEditorExcalidraw> | null>(null
 const { copy } = useClipboard()
 
 watch([isMobile, activeNoteId], ([mobile, noteId]) => {
-  if (mobile && !noteId) {
+  if (mobile && !noteId)
     isSidebarOpen.value = true
-  }
 }, { immediate: true })
 
 watch(isLoading, (loading) => {
@@ -66,17 +69,15 @@ watch(isLoading, (loading) => {
     const hash = window.location.hash
     if (hash && hash.startsWith('#note-')) {
       const id = hash.replace('#note-', '')
-      if (flatFiles.value.some(f => f.id === id)) {
+      if (flatFiles.value.some(f => f.id === id))
         selectNote(id)
-      }
     }
   }
 })
 
 onKeyStroke('Escape', () => {
-  if (isFullscreen.value) {
+  if (isFullscreen.value)
     isFullscreen.value = false
-  }
 })
 
 onKeyStroke('p', (e) => {
@@ -115,7 +116,6 @@ function handleInsertImage(markdownSnippet: string): void {
 
   const current = activeNote.value.content ?? ''
   const newContent = `${current}\n${markdownSnippet}`
-
   saveContent(activeNote.value.id, newContent)
 }
 
@@ -137,7 +137,6 @@ async function handlePasteImage(file: File) {
         handleInsertImage(markdownSnippet)
         toast.success('Изображение загружено')
       }
-
       isUploadingPastedImage.value = false
     },
     onError: ({ error }) => {
@@ -150,9 +149,8 @@ function selectNote(id: string): void {
   flushPendingSave()
   activeNoteId.value = id
   window.history.replaceState(null, '', `#note-${id}`)
-  if (isMobile.value) {
+  if (isMobile.value)
     isSidebarOpen.value = false
-  }
 }
 
 function copyDirectLink(): void {
@@ -184,13 +182,8 @@ function exportExcalidraw(format: 'png' | 'svg'): void {
   isExportMenuOpen.value = false
 }
 
-onMounted(() => {
-  fetchNotes()
-})
-
-onBeforeUnmount(() => {
-  flushPendingSave()
-})
+onMounted(() => fetchNotes())
+onBeforeUnmount(() => flushPendingSave())
 </script>
 
 <template>
@@ -201,32 +194,17 @@ onBeforeUnmount(() => {
     </div>
 
     <div v-else class="notes-layout" :class="{ 'is-fullscreen': isFullscreen }">
-      <div
-        v-if="isMobile && isSidebarOpen"
-        class="sidebar-overlay"
-        @click="isSidebarOpen = false"
-      />
+      <div v-if="isMobile && isSidebarOpen" class="sidebar-overlay" @click="isSidebarOpen = false" />
 
-      <aside
-        class="notes-sidebar"
-        :class="{ 'is-open': isSidebarOpen }"
-      >
+      <aside class="notes-sidebar" :class="{ 'is-open': isSidebarOpen }">
         <div class="sidebar-header">
           <span class="sidebar-title">Файлы</span>
 
           <div v-if="!readonly" class="sidebar-actions">
-            <KitDropdown
-              align="end"
-              :open="isSortMenuOpen"
-              @update:open="val => isSortMenuOpen = val!"
-            >
+            <!-- ... Шаблон сайдбара без изменений ... -->
+            <KitDropdown align="end" :open="isSortMenuOpen" @update:open="val => isSortMenuOpen = val!">
               <template #trigger>
-                <KitBtn
-                  icon="mdi:sort-variant"
-                  variant="text"
-                  size="sm"
-                  title="Сортировка"
-                />
+                <KitBtn icon="mdi:sort-variant" variant="text" size="sm" title="Сортировка" />
               </template>
               <div class="sort-menu">
                 <button :class="{ active: sortMode === 'manual' }" @click="sortMode = 'manual'; isSortMenuOpen = false">
@@ -241,41 +219,11 @@ onBeforeUnmount(() => {
               </div>
             </KitDropdown>
 
-            <KitBtn
-              icon="mdi:magnify"
-              variant="text"
-              size="sm"
-              title="Поиск (Ctrl+P)"
-              @click="isCommandPaletteOpen = true"
-            />
-            <KitBtn
-              icon="mdi:image-multiple-outline"
-              variant="text"
-              size="sm"
-              title="Галерея изображений"
-              @click="openGallery"
-            />
-            <KitBtn
-              icon="mdi:folder-plus-outline"
-              variant="text"
-              size="sm"
-              title="Новая папка"
-              @click="openCreateDialog('folder')"
-            />
-            <KitBtn
-              icon="mdi:file-document-plus-outline"
-              variant="text"
-              size="sm"
-              title="Новая заметка"
-              @click="openCreateDialog('markdown')"
-            />
-            <KitBtn
-              icon="mdi:draw-pen"
-              variant="text"
-              size="sm"
-              title="Новый скетч"
-              @click="openCreateDialog('excalidraw')"
-            />
+            <KitBtn icon="mdi:magnify" variant="text" size="sm" title="Поиск (Ctrl+P)" @click="isCommandPaletteOpen = true" />
+            <KitBtn icon="mdi:image-multiple-outline" variant="text" size="sm" title="Галерея изображений" @click="openGallery" />
+            <KitBtn icon="mdi:folder-plus-outline" variant="text" size="sm" title="Новая папка" @click="openCreateDialog('folder')" />
+            <KitBtn icon="mdi:file-document-plus-outline" variant="text" size="sm" title="Новая заметка" @click="openCreateDialog('markdown')" />
+            <KitBtn icon="mdi:draw-pen" variant="text" size="sm" title="Новый скетч" @click="openCreateDialog('excalidraw')" />
           </div>
         </div>
 
@@ -291,9 +239,8 @@ onBeforeUnmount(() => {
             @delete="deleteNote"
             @rename="(id, title) => updateNote(id, { title })"
             @update-color="(id, color) => updateNote(id, { color })"
-            @reorder="reorderNotes"
+            @update-list="applyListUpdate"
           />
-
           <p v-if="notesTree.length === 0" class="empty-tree">
             Создайте первую заметку или папку
           </p>
@@ -301,96 +248,44 @@ onBeforeUnmount(() => {
       </aside>
 
       <main class="notes-editor">
+        <!-- ... Шаблон редактора без изменений ... -->
         <div class="editor-header">
           <div class="editor-header-left">
-            <KitBtn
-              v-if="isMobile"
-              icon="mdi:menu"
-              variant="text"
-              size="sm"
-              class="mobile-menu-btn"
-              @click="isSidebarOpen = true"
-            />
-
+            <KitBtn v-if="isMobile" icon="mdi:menu" variant="text" size="sm" class="mobile-menu-btn" @click="isSidebarOpen = true" />
             <template v-if="activeNote">
-              <Icon
-                :icon="activeNote.type === 'excalidraw' ? 'mdi:draw' : 'mdi:file-document-outline'"
-                class="editor-type-icon"
-                :class="activeNote.type"
-              />
+              <Icon :icon="activeNote.type === 'excalidraw' ? 'mdi:draw' : 'mdi:file-document-outline'" class="editor-type-icon" :class="activeNote.type" />
               <div class="editor-title-wrapper">
                 <span class="editor-title">{{ activeNote.title }}</span>
               </div>
-
               <div v-if="!readonly" class="save-status-indicator">
                 <template v-if="isUploadingPastedImage">
-                  <Icon icon="mdi:loading" class="spin status-icon text-accent" />
-                  <span>Загрузка...</span>
+                  <Icon icon="mdi:loading" class="spin status-icon text-accent" /><span>Загрузка...</span>
                 </template>
                 <template v-else-if="saveStatus === 'saving'">
-                  <Icon icon="mdi:loading" class="spin status-icon text-accent" />
-                  <span>Сохраняется...</span>
+                  <Icon icon="mdi:loading" class="spin status-icon text-accent" /><span>Сохраняется...</span>
                 </template>
                 <template v-else-if="saveStatus === 'pending'">
-                  <Icon icon="mdi:pencil-outline" class="status-icon text-tertiary" />
-                  <span class="text-tertiary">Изменено</span>
+                  <Icon icon="mdi:pencil-outline" class="status-icon text-tertiary" /><span class="text-tertiary">Изменено</span>
                 </template>
                 <template v-else-if="saveStatus === 'error'">
-                  <Icon icon="mdi:cloud-alert" class="status-icon text-error" />
-                  <span class="text-error">Ошибка</span>
+                  <Icon icon="mdi:cloud-alert" class="status-icon text-error" /><span class="text-error">Ошибка</span>
                 </template>
                 <template v-else>
-                  <Icon icon="mdi:cloud-check-outline" class="status-icon text-success" />
-                  <span class="text-success">Сохранено</span>
+                  <Icon icon="mdi:cloud-check-outline" class="status-icon text-success" /><span class="text-success">Сохранено</span>
                 </template>
               </div>
             </template>
-            <span v-else class="editor-title is-empty">
-              Нет открытого файла
-            </span>
+            <span v-else class="editor-title is-empty">Нет открытого файла</span>
           </div>
 
           <div class="editor-header-actions">
             <template v-if="activeNote">
-              <KitBtn
-                icon="mdi:link-variant"
-                variant="text"
-                size="sm"
-                title="Скопировать ссылку"
-                @click="copyDirectLink"
-              />
-
-              <KitBtn
-                v-if="!readonly && activeNote.type === 'markdown'"
-                icon="mdi:image-plus-outline"
-                variant="text"
-                size="sm"
-                title="Вставить фото"
-                @click="openGallery"
-              />
-
-              <KitBtn
-                v-if="activeNote.type === 'markdown'"
-                icon="mdi:download-outline"
-                variant="text"
-                size="sm"
-                title="Скачать .md"
-                @click="exportMarkdown"
-              />
-
-              <KitDropdown
-                v-if="activeNote.type === 'excalidraw'"
-                :open="isExportMenuOpen"
-                align="end"
-                @update:open="val => isExportMenuOpen = val!"
-              >
+              <KitBtn icon="mdi:link-variant" variant="text" size="sm" title="Скопировать ссылку" @click="copyDirectLink" />
+              <KitBtn v-if="!readonly && activeNote.type === 'markdown'" icon="mdi:image-plus-outline" variant="text" size="sm" title="Вставить фото" @click="openGallery" />
+              <KitBtn v-if="activeNote.type === 'markdown'" icon="mdi:download-outline" variant="text" size="sm" title="Скачать .md" @click="exportMarkdown" />
+              <KitDropdown v-if="activeNote.type === 'excalidraw'" :open="isExportMenuOpen" align="end" @update:open="val => isExportMenuOpen = val!">
                 <template #trigger>
-                  <KitBtn
-                    icon="mdi:download-outline"
-                    variant="text"
-                    size="sm"
-                    title="Скачать скетч"
-                  />
+                  <KitBtn icon="mdi:download-outline" variant="text" size="sm" title="Скачать скетч" />
                 </template>
                 <div class="export-menu">
                   <button @click="exportExcalidraw('png')">
@@ -402,39 +297,15 @@ onBeforeUnmount(() => {
                 </div>
               </KitDropdown>
             </template>
-
-            <KitBtn
-              :icon="isFullscreen ? 'mdi:fullscreen-exit' : 'mdi:fullscreen'"
-              variant="text"
-              size="sm"
-              :title="isFullscreen ? 'Свернуть' : 'На весь экран'"
-              @click="isFullscreen = !isFullscreen"
-            />
+            <KitBtn :icon="isFullscreen ? 'mdi:fullscreen-exit' : 'mdi:fullscreen'" variant="text" size="sm" :title="isFullscreen ? 'Свернуть' : 'На весь экран'" @click="isFullscreen = !isFullscreen" />
           </div>
         </div>
 
         <div class="editor-body">
           <template v-if="activeNote">
-            <NoteEditorMd
-              v-if="activeNote.type === 'markdown'"
-              :key="activeNote.id"
-              :note-id="activeNote.id"
-              :content="activeNote.content"
-              :readonly="readonly"
-              @update:content="saveContent"
-              @upload-image="handlePasteImage"
-            />
-            <NoteEditorExcalidraw
-              v-else-if="activeNote.type === 'excalidraw'"
-              :key="activeNote.id + 2"
-              ref="excalidrawRef"
-              :note-id="activeNote.id"
-              :content="activeNote.content"
-              :readonly="readonly"
-              @update:content="saveContent"
-            />
+            <NoteEditorMd v-if="activeNote.type === 'markdown'" :key="activeNote.id" :note-id="activeNote.id" :content="activeNote.content" :readonly="readonly" @update:content="saveContent" @upload-image="handlePasteImage" />
+            <NoteEditorExcalidraw v-else-if="activeNote.type === 'excalidraw'" :key="activeNote.id + 2" ref="excalidrawRef" :note-id="activeNote.id" :content="activeNote.content" :readonly="readonly" @update:content="saveContent" />
           </template>
-
           <div v-else class="editor-empty">
             <Icon icon="mdi:note-edit-outline" class="editor-empty-icon" />
             <p>Выберите файл слева для редактирования</p>
@@ -446,27 +317,9 @@ onBeforeUnmount(() => {
       </main>
     </div>
 
-    <CreateNoteDialog
-      v-model:visible="isCreateDialogOpen"
-      :type="createType"
-      :parent-id="createParentId"
-      @create="handleCreate"
-    />
-
-    <NotesGalleryDialog
-      v-model:visible="isGalleryOpen"
-      :trip-id="section.tripId"
-      :images="imageUsage"
-      :readonly="readonly"
-      @refresh="fetchImagesUsage"
-      @insert-image="handleInsertImage"
-    />
-
-    <CommandPaletteDialog
-      v-model:visible="isCommandPaletteOpen"
-      :files="flatFiles"
-      @select="selectNote"
-    />
+    <CreateNoteDialog v-model:visible="isCreateDialogOpen" :type="createType" :parent-id="createParentId" @create="handleCreate" />
+    <NotesGalleryDialog v-model:visible="isGalleryOpen" :trip-id="section.tripId" :images="imageUsage" :readonly="readonly" @refresh="fetchImagesUsage" @insert-image="handleInsertImage" />
+    <CommandPaletteDialog v-model:visible="isCommandPaletteOpen" :files="flatFiles" @select="selectNote" />
   </div>
 </template>
 

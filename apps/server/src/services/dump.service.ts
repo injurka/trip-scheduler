@@ -4,6 +4,11 @@ import { s3Service } from './s3.service'
 
 const logger = new Logger()
 
+async function uploadJson(key: string, data: unknown): Promise<void> {
+  const buffer = Buffer.from(JSON.stringify(data, null, 2), 'utf-8')
+  await s3Service.uploadFile(key, buffer, 'application/json')
+}
+
 export const dumpService = {
   async generateAndUploadDump() {
     logger.info('🎬 Начало создания дампа базы данных...')
@@ -53,30 +58,49 @@ export const dumpService = {
         }),
       ])
 
-      logger.info(`🔍 Найдено для дампа: 
-      Пользователей: ${allUsers.length}, Путешествий: ${allTrips.length}, 
-      Постов: ${allPosts.length}, Статей: ${allBlogs.length}, Метро: ${allMetro.length}`)
+      logger.info(`🔍 Найдено для дампа:
+      Пользователей: ${allUsers.length}, Путешествий: ${allTrips.length},
+      Постов: ${allPosts.length}, Статей: ${allBlogs.length}, Метро систем: ${allMetro.length}`)
 
-      const serializableData = {
-        users: allUsers,
-        trips: allTrips,
-        posts: allPosts,
-        blogs: allBlogs,
-        metro: allMetro,
-      }
+      const dateFolder = new Date().toISOString().split('T')[0]
+      const basePrefix = `dumps/${dateFolder}`
+      let totalFiles = 0
 
-      // 2. Сериализация в JSON и создание Buffer
-      const jsonString = JSON.stringify(serializableData, null, 2)
-      const buffer = Buffer.from(jsonString, 'utf-8')
+      // 2. users/ — один файл со всеми пользователями
+      await uploadJson(`${basePrefix}/users/all.json`, allUsers)
+      totalFiles += 1
+      logger.info(`   📁 users/all.json (${allUsers.length} пользователей)`)
 
-      // 3. Формирование имени файла и загрузка в S3
-      // Сохраняем в папку dumps в S3 с текущей датой
-      const fileName = `dumps/db-dump-${new Date().toISOString().split('T')[0]}.json`
+      // 3. trips/ — по файлу на каждое путешествие
+      await Promise.all(
+        allTrips.map(trip => uploadJson(`${basePrefix}/trips/${trip.id}.json`, trip)),
+      )
+      totalFiles += allTrips.length
+      logger.info(`   📁 trips/ (${allTrips.length} файлов)`)
 
-      await s3Service.uploadFile(fileName, buffer, 'application/json')
+      // 4. posts/ — по файлу на каждый пост
+      await Promise.all(
+        allPosts.map(post => uploadJson(`${basePrefix}/posts/${post.id}.json`, post)),
+      )
+      totalFiles += allPosts.length
+      logger.info(`   📁 posts/ (${allPosts.length} файлов)`)
 
-      logger.success(`✅ Дамп успешно создан и загружен в S3: ${fileName}`)
-      return fileName
+      // 5. blogs/ — по файлу на каждый блог
+      await Promise.all(
+        allBlogs.map(blog => uploadJson(`${basePrefix}/blogs/${blog.id}.json`, blog)),
+      )
+      totalFiles += allBlogs.length
+      logger.info(`   📁 blogs/ (${allBlogs.length} файлов)`)
+
+      // 6. metro/ — по файлу на каждый город
+      await Promise.all(
+        allMetro.map(system => uploadJson(`${basePrefix}/metro/${system.city}.json`, system)),
+      )
+      totalFiles += allMetro.length
+      logger.info(`   📁 metro/ (${allMetro.length} файлов)`)
+
+      logger.success(`✅ Дамп создан: ${totalFiles} файлов → s3://${basePrefix}/`)
+      return basePrefix
     }
     catch (error) {
       logger.error('❌ Ошибка при создании дампа:', error)

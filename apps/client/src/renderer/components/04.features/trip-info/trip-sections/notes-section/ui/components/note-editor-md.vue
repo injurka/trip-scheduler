@@ -15,10 +15,16 @@ const emit = defineEmits<{
 
 const localContent = ref(props.content ?? '')
 
+// Обновляем локальный контент ТОЛЬКО при смене самой заметки.
+// Если сервер возвращает ответ, пока мы печатаем - мы его игнорируем
+watch(() => props.noteId, () => {
+  localContent.value = props.content ?? ''
+}, { immediate: true })
+
+// Если мы в ReadOnly - разрешаем обновление извне
 watch(() => props.content, (newVal) => {
-  const val = newVal ?? ''
-  if (val !== localContent.value) {
-    localContent.value = val
+  if (props.readonly && newVal !== localContent.value) {
+    localContent.value = newVal ?? ''
   }
 })
 
