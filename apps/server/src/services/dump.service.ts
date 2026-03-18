@@ -80,7 +80,7 @@ export const dumpService = {
       Постов: ${allPosts.length}, Статей: ${allBlogs.length}, Метро систем: ${allMetro.length}`)
 
       const dateFolder = new Date().toISOString().split('T')[0]
-      const baseDir = path.resolve(__dirname, '../db/dump', dateFolder)
+      const baseDir = path.resolve(__dirname, '../../db/dump', dateFolder)
       const s3Prefix = `dumps/${dateFolder}`
       let totalFiles = 0
 

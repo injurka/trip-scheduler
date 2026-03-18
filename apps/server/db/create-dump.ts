@@ -1,3 +1,4 @@
+/* eslint-disable no-console */
 import type { DumpTarget } from '../src/services/dump.service'
 import process from 'node:process'
 import prompts from 'prompts'
@@ -23,7 +24,6 @@ async function runManualDump() {
 
     const { baseDir, s3Prefix } = await dumpService.generateAndUploadDump(response.target as DumpTarget)
 
-    // eslint-disable-next-line no-console
     console.log(`👋 Дамп завершён.`)
     if (baseDir)
       console.log(`   💾 Локально: ${baseDir}`)
