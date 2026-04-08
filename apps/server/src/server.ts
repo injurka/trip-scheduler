@@ -14,6 +14,7 @@ const logger = new Logger()
 const app: Hono = Server.getApp()
 const port = Number(process.env.PORT) || 8080
 const host = process.env.HOST || '0.0.0.0'
+const dumpEnabled = (process.env.DUMP_ENABLED ?? 'true') === 'true'
 
 export async function checkService(name: string, fn: () => Promise<void>, logger: Logger): Promise<void> {
   logger.info(`Checking ${name}...`)
@@ -23,14 +24,17 @@ export async function checkService(name: string, fn: () => Promise<void>, logger
 }
 
 async function createDump(info: string) {
-  // logger.info(`⏰ ${info}`)
+  if (!dumpEnabled)
+    return
 
-  // try {
-  //   await dumpService.generateAndUploadDump('s3')
-  // }
-  // catch (err) {
-  //   logger.error('Сбой при выполнении крона для дампа', err)
-  // }
+  logger.info(`⏰ ${info}`)
+
+  try {
+    await dumpService.generateAndUploadDump('s3')
+  }
+  catch (err) {
+    logger.error('Сбой при выполнении крона для дампа', err)
+  }
 }
 
 logger.log(`Trip Scheduler API starting on http://${host}:${port}`)
