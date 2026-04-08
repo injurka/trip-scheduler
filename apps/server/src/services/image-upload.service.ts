@@ -20,7 +20,7 @@ import { quotaService } from '~/services/quota.service'
 const tripHandler: IUploadHandler = {
   async validate({ userId, entityId, placement, buffer }) {
     if (!placement || !tripImagePlacementEnum.enumValues.includes(placement as any)) {
-      throw new HTTPException(400, { message: 'Некорректный тип размещения (route, memories или notes).' })
+      throw new HTTPException(400, { message: 'Некорректный тип размещения.' })
     }
     const trip = await tripRepository.getById(entityId)
     if (!trip)
@@ -38,7 +38,7 @@ const tripHandler: IUploadHandler = {
       entityId,
       url,
       metadata.originalName || 'image',
-      placement as 'route' | 'memories' | 'notes',
+      placement as 'route' | 'memories' | 'notes' | 'documents',
       size,
       { ...metadata, variants },
     )

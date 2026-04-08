@@ -11,6 +11,7 @@ import { KitAvatar } from '~/components/01.kit/kit-avatar'
 import { KitDivider } from '~/components/01.kit/kit-divider'
 import { KitDropdown } from '~/components/01.kit/kit-dropdown'
 import { KitImage } from '~/components/01.kit/kit-image'
+import { KitInlineMdEditorWrapper } from '~/components/01.kit/kit-inline-md-editor'
 import { KitTooltip } from '~/components/01.kit/kit-tooltip'
 import { useModuleStore } from '~/components/05.modules/trip-info/composables/use-trip-info-module'
 import { useTripPermissions } from '~/components/05.modules/trip-info/composables/use-trip-permissions'
@@ -25,7 +26,6 @@ import StatsWidget from './content/stats-widget.vue'
 import WeatherWidget from './content/weather-widget.vue'
 
 import {
-
   AttractionsListDialog,
   CitiesListDialog,
   DaysListDialog,
@@ -50,10 +50,8 @@ const confirm = useConfirm()
 const toast = useToast()
 const appStore = useAppStore(['auth', 'notif'])
 const { canEdit } = useTripPermissions()
-
 const { share, isSupported: isShareSupported } = useShare()
 const { copy } = useClipboard()
-
 const offlineStore = useOfflineStore()
 const moduleStore = useModuleStore(['plan'])
 
@@ -64,6 +62,30 @@ const isCitiesDialogVisible = ref(false)
 const isParticipantsDialogVisible = ref(false)
 const isAttractionsDialogVisible = ref(false)
 const isExportDialogVisible = ref(false)
+
+const isDescriptionExpanded = ref(false)
+const descriptionShortText = ref('')
+const descriptionFullText = ref('')
+
+function formatTag(tag: string): string {
+  if (!tag)
+    return ''
+
+  return tag.charAt(0).toUpperCase() + tag.slice(1).toLowerCase()
+}
+
+watch(
+  () => props.trip,
+  (newTrip) => {
+    descriptionShortText.value = newTrip?.descriptionShort || newTrip?.description || ''
+    descriptionFullText.value = newTrip?.description || ''
+  },
+  { immediate: true, deep: true },
+)
+
+const hasExpandableDescription = computed(
+  () => !!props.trip?.descriptionShort && !!props.trip?.description,
+)
 
 const isTripUpcoming = computed(() => {
   if (!props.trip)
@@ -411,13 +433,49 @@ watch(() => props.trip?.id, (newId) => {
         </div>
 
         <div v-if="trip.tags?.length" class="trip-tags">
-          <span v-for="tag in trip.tags" :key="tag" v-ripple class="tag">{{ tag }}</span>
+          <span v-for="tag in trip.tags" :key="tag" v-ripple class="tag">{{ formatTag(tag) }}</span>
         </div>
       </div>
     </div>
 
-    <div v-if="trip.description" class="trip-description-summary">
-      <p>{{ trip.description }}</p>
+    <div
+      v-if="trip.descriptionShort || trip.description"
+      class="trip-description-summary"
+    >
+      <KitInlineMdEditorWrapper
+        :key="`desc-short-${trip.id}`"
+        v-model="descriptionShortText"
+        :readonly="true"
+        :disabled="true"
+        class="description-md-view description-md-view--short"
+      />
+
+      <Transition name="description-expand">
+        <div v-if="isDescriptionExpanded" class="description-expand-container">
+          <div class="description-full-wrapper">
+            <div class="description-separator" />
+            <KitInlineMdEditorWrapper
+              :key="`desc-full-${trip.id}`"
+              v-model="descriptionFullText"
+              :readonly="true"
+              :disabled="true"
+              class="description-md-view description-md-view--full"
+            />
+          </div>
+        </div>
+      </Transition>
+
+      <button
+        v-if="hasExpandableDescription"
+        class="description-toggle-btn"
+        @click="isDescriptionExpanded = !isDescriptionExpanded"
+      >
+        <span>{{ isDescriptionExpanded ? 'Свернуть' : 'Подробнее' }}</span>
+        <Icon
+          :icon="isDescriptionExpanded ? 'mdi:chevron-up' : 'mdi:chevron-down'"
+          class="toggle-icon"
+        />
+      </button>
     </div>
 
     <div class="info-widgets">
@@ -872,12 +930,119 @@ watch(() => props.trip?.id, (newId) => {
 }
 
 .trip-description-summary {
+  animation-delay: 0.2s;
   padding: 1rem;
   background-color: var(--bg-secondary-color);
   border-radius: var(--r-m);
-  color: var(--fg-secondary-color);
-  font-size: 0.95rem;
-  line-height: 1.6;
+  border: 1px solid var(--border-secondary-color);
+  display: flex;
+  flex-direction: column;
+}
+
+.description-md-view {
+  :deep(.milkdown) {
+    > div {
+      padding: 0;
+    }
+  }
+
+  :deep(.ProseMirror) {
+    cursor: default;
+  }
+
+  :deep(.milkdown div) {
+    &:hover {
+      background-color: transparent !important;
+    }
+  }
+}
+
+.description-md-view--short {
+  :deep(.ProseMirror p) {
+    color: var(--fg-secondary-color);
+    font-size: 0.95rem;
+    line-height: 1.6;
+    margin: 0;
+  }
+}
+
+.description-md-view--full {
+  :deep(.ProseMirror p) {
+    color: var(--fg-primary-color);
+    font-size: 0.9rem;
+    line-height: 1.7;
+    margin: 0;
+  }
+}
+
+.description-separator {
+  height: 1px;
+  background-color: var(--border-secondary-color);
+  margin: 0.25rem 0;
+}
+
+.description-toggle-btn {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  margin-top: 0.25rem;
+  padding: 0;
+  background: none;
+  border: none;
+  color: var(--fg-accent-color);
+  font-size: 0.85rem;
+  font-weight: 500;
+  font-family: inherit;
+  cursor: pointer;
+  transition: opacity 0.2s ease;
+  align-self: flex-start;
+  margin-left: auto;
+
+  &:hover {
+    opacity: 0.75;
+  }
+
+  .toggle-icon {
+    font-size: 1rem;
+    transition: transform 0.25s ease;
+  }
+}
+
+.description-expand-container {
+  display: grid;
+  grid-template-rows: 1fr;
+}
+
+.description-full-wrapper {
+  min-height: 0;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.description-expand-enter-active {
+  transition:
+    grid-template-rows 0.3s cubic-bezier(0.4, 0, 0.2, 1),
+    opacity 0.3s ease;
+}
+
+.description-expand-leave-active {
+  transition:
+    grid-template-rows 0.25s cubic-bezier(0.4, 0, 0.2, 1),
+    opacity 0.25s ease;
+}
+
+.description-expand-enter-from,
+.description-expand-leave-to {
+  grid-template-rows: 0fr;
+  opacity: 0;
+}
+
+.description-expand-enter-to,
+.description-expand-leave-from {
+  grid-template-rows: 1fr;
+  opacity: 1;
 }
 
 .info-widgets {

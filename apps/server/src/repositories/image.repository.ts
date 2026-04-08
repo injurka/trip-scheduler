@@ -1,6 +1,8 @@
 import type { tripImagePlacementEnum } from '../../db/schema'
+import type { DocumentMetadata, TripDocument } from '~/models/image'
 import { and, eq, inArray } from 'drizzle-orm'
 import { db } from '../../db'
+
 import { tripImages, trips } from '../../db/schema'
 
 type Placement = (typeof tripImagePlacementEnum.enumValues)[number]
@@ -25,6 +27,16 @@ export interface ImageMetadata {
     [key: string]: unknown
   } | null
 }
+
+const DOCUMENT_COLUMNS = {
+  id: true,
+  tripId: true,
+  url: true,
+  originalName: true,
+  sizeBytes: true,
+  createdAt: true,
+  metadata: true,
+} as const
 
 const ROUTE_COLUMNS = {
   id: true,
@@ -163,5 +175,64 @@ export const imageRepository = {
       .returning()
 
     return deletedImage || null
+  },
+
+  /**
+   * Получает все документы путешествия, мапя их в строгий тип TripDocument
+   */
+  async listDocuments(tripId: string): Promise<TripDocument[]> {
+    const docs = await db.query.tripImages.findMany({
+      where: and(eq(tripImages.tripId, tripId), eq(tripImages.placement, 'documents')),
+      columns: DOCUMENT_COLUMNS,
+      orderBy: (images, { desc }) => [desc(images.createdAt)],
+    })
+
+    return docs.map(doc => ({
+      id: doc.id,
+      tripId: doc.tripId,
+      url: doc.url,
+      originalName: doc.originalName,
+      sizeBytes: doc.sizeBytes,
+      createdAt: doc.createdAt,
+      metadata: {
+        access: (doc.metadata as any)?.access || 'private',
+        folderId: (doc.metadata as any)?.folderId || null,
+      },
+    }))
+  },
+
+  /**
+   * Обновляет специфичные для документа метаданные
+   */
+  async updateDocumentMeta(id: string, newMetadata: Partial<DocumentMetadata>): Promise<TripDocument | null> {
+    const current = await this.getById(id)
+    if (!current)
+      return null
+
+    const mergedMetadata = {
+      ...(current.metadata as Record<string, any> || {}),
+      ...newMetadata,
+    }
+
+    const [updated] = await db.update(tripImages)
+      .set({ metadata: mergedMetadata })
+      .where(eq(tripImages.id, id))
+      .returning()
+
+    if (!updated)
+      return null
+
+    return {
+      id: updated.id,
+      tripId: updated.tripId,
+      url: updated.url,
+      originalName: updated.originalName,
+      sizeBytes: updated.sizeBytes,
+      createdAt: updated.createdAt,
+      metadata: {
+        access: (updated.metadata as any)?.access || 'private',
+        folderId: (updated.metadata as any)?.folderId || null,
+      },
+    }
   },
 }

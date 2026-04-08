@@ -38,6 +38,7 @@ import type {
 } from '~/shared/types/models/trip'
 
 export type NoteType = 'folder' | 'markdown' | 'excalidraw'
+export type DocumentAccess = 'public' | 'private'
 
 export interface NoteImage {
   id: string
@@ -196,6 +197,19 @@ export interface IActivityRepository {
 
 export type EntityType = 'trip' | 'post' | 'blog' | 'avatar'
 
+export interface TripDocumentResponse {
+  id: string
+  tripId: string
+  url: string
+  originalName: string
+  sizeBytes: number
+  createdAt: string
+  metadata: {
+    access: DocumentAccess
+    folderId: string | null
+  }
+}
+
 export interface IFileRepository {
   uploadFile: (
     file: File,
@@ -204,6 +218,7 @@ export interface IFileRepository {
     placement?: string | null,
     timestamp?: string | null,
     comment?: string | null,
+    metadata?: Record<string, any>,
   ) => Promise<TripImage>
   uploadFileWithProgress: (
     file: File,
@@ -218,6 +233,11 @@ export interface IFileRepository {
   getAllUserFiles: () => Promise<TripImage[]>
   deleteFile: (id: string) => Promise<void>
   getMetadata: (id: string) => Promise<ImageMetadata | null>
+  listDocuments: (tripId: string) => Promise<TripDocumentResponse[]>
+  updateDocumentMeta: (
+    id: string,
+    metadata: { access?: DocumentAccess, folderId?: string | null },
+  ) => Promise<TripDocumentResponse>
 }
 
 export interface IAuthRepository {

@@ -1,9 +1,11 @@
 import type { tripImagePlacementEnum } from 'db/schema'
+import type { DocumentMetadata } from '~/models/image'
 import type { EntityType } from '~/models/image-upload'
 import type { ImageMetadata } from '~/repositories/image.repository'
 import { createTRPCError } from '~/lib/trpc'
 import { imageRepository } from '~/repositories/image.repository'
 import { postRepository } from '~/repositories/post.repository'
+import { tripRepository } from '~/repositories/trip.repository'
 import { deleteFileWithVariants } from '~/services/file-storage.service'
 import { quotaService } from '~/services/quota.service'
 import { s3Service } from '~/services/s3.service'
@@ -80,7 +82,7 @@ export const imageService = {
         const s3Objects = await s3Service.listDirectory(prefix)
 
         for (const obj of s3Objects) {
-          if (!obj.Key || !obj.Key.match(/\.(jpg|jpeg|png|webp|gif|avif)$/i))
+          if (!obj.Key || !/\.(jpg|jpeg|png|webp|gif|avif)$/i.test(obj.Key))
             continue
           if (obj.Key.includes('-small') || obj.Key.includes('-medium') || obj.Key.includes('-large'))
             continue
@@ -131,4 +133,41 @@ export const imageService = {
 
     throw createTRPCError('NOT_FOUND', 'Файл не найден в базе данных.')
   },
+
+  async listDocuments(tripId: string, userId?: string) {
+    let isParticipantOrOwner = false
+
+    if (userId) {
+      isParticipantOrOwner = await tripRepository.hasAccess(tripId, userId)
+    }
+
+    const documents = await imageRepository.listDocuments(tripId)
+
+    if (isParticipantOrOwner) {
+      return documents
+    }
+    else {
+      return documents.filter(doc => doc.metadata.access === 'public')
+    }
+  },
+
+  async updateDocumentMeta(id: string, newMetadata: Partial<DocumentMetadata>, userId: string) {
+    const image = await imageRepository.getById(id)
+    if (!image) {
+      throw createTRPCError('NOT_FOUND', 'Файл не найден')
+    }
+
+    const hasAccess = await tripRepository.hasAccess(image.tripId, userId)
+    if (!hasAccess) {
+      throw createTRPCError('FORBIDDEN', 'Нет прав для редактирования')
+    }
+
+    const updated = await imageRepository.updateDocumentMeta(id, newMetadata)
+    if (!updated) {
+      throw createTRPCError('INTERNAL_SERVER_ERROR', 'Не удалось обновить файл')
+    }
+
+    return updated
+  },
+
 }

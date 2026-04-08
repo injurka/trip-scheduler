@@ -257,9 +257,9 @@ onClickOutside(dateFilterWrapperRef, () => {
   display: flex;
   flex-direction: column;
   gap: 1.5rem;
+  z-index: 6;
 }
 
-/* Category Filters */
 .category-filter-pills {
   display: flex;
   flex-wrap: wrap;
@@ -292,7 +292,6 @@ onClickOutside(dateFilterWrapperRef, () => {
   }
 }
 
-/* Toolbar (Actions + Date) */
 .toolbar {
   display: flex;
   justify-content: space-between;
@@ -312,7 +311,6 @@ onClickOutside(dateFilterWrapperRef, () => {
   gap: 0.5rem;
 }
 
-/* Date Filter Popover */
 .date-filter-wrapper {
   position: relative;
 }
@@ -339,7 +337,6 @@ onClickOutside(dateFilterWrapperRef, () => {
   border-top: 1px solid var(--border-secondary-color);
 }
 
-/* AI Creator */
 .ai-creator-wrapper {
   padding: 1rem;
   border: 1px solid var(--border-secondary-color);

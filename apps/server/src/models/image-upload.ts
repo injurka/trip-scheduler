@@ -8,6 +8,7 @@ export interface UploadContext {
   file: File
   buffer: Buffer
   placement?: string | null
+  customMetadata?: Record<string, any>
 }
 
 export interface UploadResult {

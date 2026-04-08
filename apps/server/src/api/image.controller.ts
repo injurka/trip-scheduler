@@ -1,7 +1,11 @@
 import { extname } from 'node:path'
+import { and, eq } from 'drizzle-orm'
 import { Hono } from 'hono'
 import { HTTPException } from 'hono/http-exception'
 import sharp from 'sharp'
+import { db } from '~/../db'
+import { tripImages, tripParticipants } from '~/../db/schema'
+import { authUtils } from '~/lib/auth.utils'
 import {
   imageOutputSizeBytesHistogram,
   imageProcessingDurationHistogram,
@@ -14,8 +18,33 @@ const ALLOWED_FORMATS = ['jpeg', 'jpg', 'png', 'webp', 'avif', 'gif']
 
 imageController.get('/*', async (c) => {
   const endTimer = imageProcessingDurationHistogram.startTimer()
-
   const filePath = c.req.path.replace(/^\/+/, '').replace(/^image\//, '')
+
+  // --- SECURITY CHECK FOR DOCUMENTS ---
+  if (filePath.includes('/documents/')) {
+    const imageRecord = await db.query.tripImages.findFirst({ where: eq(tripImages.url, filePath) })
+    if (imageRecord && (imageRecord.metadata as any)?.access === 'private') {
+      const token = c.req.query('token') || c.req.header('authorization')?.split(' ')[1]
+      if (!token)
+        throw new HTTPException(401, { message: 'Unauthorized' })
+
+      const payload = await authUtils.verifyToken(token)
+      if (!payload)
+        throw new HTTPException(401, { message: 'Invalid token' })
+
+      const participant = await db.query.tripParticipants.findFirst({
+        where: and(eq(tripParticipants.tripId, imageRecord.tripId), eq(tripParticipants.userId, payload.id)),
+      })
+
+      // Allow access if owner or participant
+      const trip = await db.query.trips.findFirst({ where: eq(tripImages.id, imageRecord.tripId) })
+      const isOwner = trip?.userId === payload.id
+
+      if (!participant && !isOwner)
+        throw new HTTPException(403, { message: 'Forbidden' })
+    }
+  }
+  // ------------------------------------
 
   const width = c.req.query('w') ? Number.parseInt(c.req.query('w')!) : undefined
   const height = c.req.query('h') ? Number.parseInt(c.req.query('h')!) : undefined

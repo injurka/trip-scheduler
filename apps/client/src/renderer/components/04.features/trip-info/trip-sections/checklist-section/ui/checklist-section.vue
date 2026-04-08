@@ -327,6 +327,7 @@ watch(activeTab, () => {
   display: flex;
   flex-direction: column;
   gap: 0.75rem;
+  z-index: 6;
 }
 
 .tab-content-wrapper {

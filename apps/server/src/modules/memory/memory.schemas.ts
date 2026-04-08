@@ -8,7 +8,7 @@ export const MemorySchema = z.object({
   comment: z.string().nullable(),
   imageId: z.string().uuid().nullable(),
   title: z.string().nullable(),
-  tag: z.enum(['transport', 'walk', 'food', 'attraction', 'relax']).nullable(),
+  tag: z.enum(['activity', 'transport', 'walk', 'food', 'attraction', 'relax']).nullable(),
   sourceActivityId: z.string().uuid().nullable(),
   createdAt: z.date(),
   updatedAt: z.date(),
@@ -24,7 +24,7 @@ export const CreateMemoryInputSchema = z.object({
   comment: z.string().optional().nullable(),
   imageId: z.string().uuid().optional().nullable(),
   title: z.string().optional().nullable(),
-  tag: z.enum(['transport', 'walk', 'food', 'attraction', 'relax']).optional().nullable(),
+  tag: z.enum(['activity', 'transport', 'walk', 'food', 'attraction', 'relax']).optional().nullable(),
   sourceActivityId: z.string().uuid().optional().nullable(),
 
   rating: z.number().min(1).max(5).optional(),
@@ -36,7 +36,7 @@ export const UpdateMemoryInputSchema = z.object({
   timestamp: z.string().datetime().optional().nullable(),
   comment: z.string().optional().nullable(),
   title: z.string().optional().nullable(),
-  tag: z.enum(['transport', 'walk', 'food', 'attraction', 'relax']).optional().nullable(),
+  tag: z.enum(['activity', 'transport', 'walk', 'food', 'attraction', 'relax']).optional().nullable(),
 
   rating: z.number().min(1).max(5).optional().nullable(),
   tags: z.array(z.string()).optional(),

@@ -6,6 +6,8 @@ import type { Day } from './activity'
 export enum TripImagePlacement {
   ROUTE = 'route',
   MEMORIES = 'memories',
+  NOTES = 'notes',
+  DOCUMENTS = 'documents',
 }
 
 /**
@@ -155,6 +157,7 @@ export interface Trip {
   title: string
   imageUrl: string | null
   description: string | null
+  descriptionShort: string | null
   startDate: string
   endDate: string
   cities: string[]

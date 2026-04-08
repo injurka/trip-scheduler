@@ -108,6 +108,7 @@ onMounted(() => {
   flex-direction: column;
   gap: 16px;
   min-height: 400px;
+  z-index: 6;
 }
 
 .gallery-content {

@@ -18,6 +18,7 @@ interface Props {
   icon?: string
   persistent?: boolean
   description?: string
+  contentClass?: string | Record<string, boolean> | string[]
 }
 
 const {
@@ -26,6 +27,7 @@ const {
   icon,
   persistent = false,
   description,
+  contentClass,
 } = defineProps<Props>()
 
 const visible = defineModel<boolean>('visible', { required: true })
@@ -53,6 +55,7 @@ function handlePointerDownOutside(event: PointerDownOutsideEvent) {
       <DialogOverlay class="dialog-overlay" />
       <DialogContent
         class="dialog-content-wrapper"
+        :class="contentClass"
         :style="{ maxWidth: maxWidthPx }"
         @pointer-down-outside="handlePointerDownOutside"
       >
@@ -147,7 +150,6 @@ function handlePointerDownOutside(event: PointerDownOutsideEvent) {
 
   @include media-down(sm) {
     padding: 12px;
-    // На мобиле диалог прилипает к низу экрана вместо центра
     top: auto;
     bottom: 0;
     left: 0;

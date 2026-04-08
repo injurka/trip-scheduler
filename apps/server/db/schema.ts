@@ -23,10 +23,10 @@ import { ONE_GIGABYTE_IN_BYTES } from '~/lib/constants'
 
 export const statusEnum = pgEnum('status', ['completed', 'planned', 'draft'])
 export const visibilityEnum = pgEnum('visibility', ['public', 'private'])
-export const activityTagEnum = pgEnum('activity_tag', ['transport', 'walk', 'food', 'attraction', 'relax'])
+export const activityTagEnum = pgEnum('activity_tag', ['activity', 'transport', 'walk', 'food', 'attraction', 'relax'])
 export const activitySectionTypeEnum = pgEnum('activity_section_type', ['description', 'gallery', 'geolocation', 'metro'])
 export const activityStatusEnum = pgEnum('activity_status', ['none', 'completed', 'skipped'])
-export const tripImagePlacementEnum = pgEnum('trip_image_placement', ['route', 'memories', 'notes'])
+export const tripImagePlacementEnum = pgEnum('trip_image_placement', ['route', 'memories', 'notes', 'documents'])
 export const userRoleEnum = pgEnum('user_role', ['user', 'admin'])
 
 export const tripSectionTypeEnum = pgEnum('trip_section_type', [
@@ -108,6 +108,7 @@ export const trips = pgTable('trips', {
   title: text('title').notNull(),
   imageUrl: text('image_url'),
   description: text('description'),
+  descriptionShort: text('description_short'),
   startDate: date('start_date').notNull(),
   endDate: date('end_date').notNull(),
   cities: jsonb('cities').$type<string[]>().notNull().default([]),

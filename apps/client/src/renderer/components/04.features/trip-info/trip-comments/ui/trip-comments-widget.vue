@@ -30,7 +30,7 @@ watch(isPanelOpen, (isOpen) => {
 <template>
   <div class="comments-widget">
     <button class="widget-trigger" @click="isPanelOpen = true">
-      <Icon icon="mdi:forum-outline" />
+      <Icon icon="mdi:forum-outline" width="18" height="18" />
     </button>
 
     <KitDrawer
@@ -90,6 +90,8 @@ watch(isPanelOpen, (isOpen) => {
   padding: 8px;
   border-radius: 50%;
   transition: all 0.2s ease;
+  width: 40px;
+  height: 40px;
 
   &:hover {
     color: var(--fg-accent-color);

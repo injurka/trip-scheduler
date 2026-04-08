@@ -1,12 +1,16 @@
 <script setup lang="ts">
 import type { CalendarDate } from '@internationalized/date'
 import type { KitDropdownItem } from '~/components/01.kit/kit-dropdown'
+import type { KitRadioOption } from '~/components/01.kit/kit-radio-group'
 import type { Trip, TripImage, UpdateTripInput } from '~/shared/types/models/trip'
+import { Icon } from '@iconify/vue'
 import { parseDate } from '@internationalized/date'
 import { KitBtn } from '~/components/01.kit/kit-btn'
 import { KitDialogWithClose } from '~/components/01.kit/kit-dialog-with-close'
 import { KitImage } from '~/components/01.kit/kit-image'
+import { KitInlineMdEditorWrapper } from '~/components/01.kit/kit-inline-md-editor'
 import { KitInput } from '~/components/01.kit/kit-input'
+import { KitRadioGroup } from '~/components/01.kit/kit-radio-group'
 import { KitSelectWithSearch } from '~/components/01.kit/kit-select-with-search'
 import { CalendarPopover } from '~/components/02.shared/calendar-popover'
 import { useRequest, useRequestStatus } from '~/plugins/request'
@@ -33,6 +37,7 @@ interface Props {
 const fieldsToCompare: (keyof UpdateTripInput)[] = [
   'title',
   'description',
+  'descriptionShort',
   'cities',
   'startDate',
   'endDate',
@@ -50,9 +55,20 @@ const statusOptions = [
   { value: TripStatus.DRAFT, label: 'Черновик' },
 ]
 
-const visibilityOptions: KitDropdownItem<TripVisibility>[] = [
-  { value: TripVisibility.PRIVATE, label: 'Приватное', icon: 'mdi:lock-outline' },
-  { value: TripVisibility.PUBLIC, label: 'Публичное', icon: 'mdi:earth' },
+// Обновленные опции видимости для нового компонента KitRadioGroup
+const visibilityOptions: KitRadioOption<TripVisibility>[] = [
+  {
+    value: TripVisibility.PRIVATE,
+    label: 'Приватное',
+    description: 'Путешествие видите только вы и приглашенные участники',
+    icon: 'mdi:lock-outline',
+  },
+  {
+    value: TripVisibility.PUBLIC,
+    label: 'Публичное',
+    description: 'Доступно всем, у кого есть ссылка на путешествие',
+    icon: 'mdi:earth',
+  },
 ]
 
 const availableCities = ref<KitDropdownItem<string>[]>([])
@@ -61,7 +77,16 @@ const coverImages = ref<TripImage[]>([])
 
 const isLoadingCities = useRequestStatus(ETripEditInfoDialogKeys.FETCH_CITIES)
 const isLoadingTags = useRequestStatus(ETripEditInfoDialogKeys.FETCH_TAGS)
-const isLoadingImages = useRequestStatus(`${ETripEditInfoDialogKeys.FETCH_IMAGES}:${props.trip!.id}`)
+const isLoadingImages = useRequestStatus(`${ETripEditInfoDialogKeys.FETCH_IMAGES}:${props.trip?.id}`)
+
+const isCoverDialogOpen = ref(false)
+const hasFetchedImages = ref(false)
+
+function formatTag(tag: string): string {
+  if (!tag)
+    return ''
+  return tag.charAt(0).toUpperCase() + tag.slice(1).toLowerCase()
+}
 
 async function fetchDialogData() {
   if (!props.trip)
@@ -81,17 +106,32 @@ async function fetchDialogData() {
     force: false,
     fn: db => db.trips.getUniqueTags({}),
     onSuccess: (tags) => {
-      availableTags.value = tags.map(tag => ({ value: tag, label: tag }))
+      availableTags.value = tags.map(tag => ({
+        value: tag.toLowerCase(),
+        label: formatTag(tag),
+      }))
     },
   })
+}
 
-  useRequest({
-    key: `${ETripEditInfoDialogKeys.FETCH_IMAGES}:${props.trip.id}`,
-    fn: db => db.files.listImageByTrip(props.trip!.id, TripImagePlacement.ROUTE),
-    onSuccess: (images) => {
-      coverImages.value = images
-    },
-  })
+function openCoverDialog() {
+  isCoverDialogOpen.value = true
+
+  if (!hasFetchedImages.value && props.trip) {
+    useRequest({
+      key: `${ETripEditInfoDialogKeys.FETCH_IMAGES}:${props.trip.id}`,
+      fn: db => db.files.listImageByTrip(props.trip!.id, TripImagePlacement.ROUTE),
+      onSuccess: (images) => {
+        coverImages.value = images
+        hasFetchedImages.value = true
+      },
+    })
+  }
+}
+
+function selectCover(url: string | null) {
+  editableTrip.value.imageUrl = url
+  isCoverDialogOpen.value = false
 }
 
 const editableTrip = ref<Partial<UpdateTripInput>>({})
@@ -131,6 +171,27 @@ const endDate = computed({
   },
 })
 
+const descriptionShortModel = computed({
+  get: () => editableTrip.value.descriptionShort ?? '',
+  set: (val: string) => {
+    editableTrip.value.descriptionShort = val
+  },
+})
+
+const descriptionModel = computed({
+  get: () => editableTrip.value.description ?? '',
+  set: (val: string) => {
+    editableTrip.value.description = val
+  },
+})
+
+const tagsModel = computed({
+  get: () => editableTrip.value.tags ?? [],
+  set: (val: string[]) => {
+    editableTrip.value.tags = val.map(t => t.toLowerCase())
+  },
+})
+
 function handleSave() {
   const updatedFields: Partial<UpdateTripInput> = {}
   if (!props.trip)
@@ -153,16 +214,18 @@ watch(() => props.visible, (isVisible) => {
     editableTrip.value = {
       title: props.trip.title,
       description: props.trip.description,
+      descriptionShort: props.trip.descriptionShort,
       cities: props.trip.cities ?? [],
       startDate: props.trip.startDate,
       endDate: props.trip.endDate,
       status: props.trip.status,
       budget: props.trip.budget,
       currency: props.trip.currency,
-      tags: props.trip.tags ?? [],
+      tags: props.trip.tags?.map(t => t.toLowerCase()) ?? [],
       imageUrl: props.trip.imageUrl,
       visibility: props.trip.visibility,
     }
+    hasFetchedImages.value = false
     fetchDialogData()
   }
 }, { immediate: true })
@@ -174,12 +237,36 @@ watch(() => props.visible, (isVisible) => {
     title="Редактировать путешествие"
     icon="mdi:pencil-outline"
     :max-width="600"
+    :content-class="isCoverDialogOpen ? 'edit-trip-bg-state' : ''"
     @update:visible="$emit('update:visible', $event)"
   >
     <div v-if="editableTrip" class="edit-trip-form">
       <KitInput v-model="editableTrip.title" label="Название" />
-      <KitInput v-model="editableTrip.description" type="textarea" label="Описание" />
+      <div class="field-group">
+        <label class="field-label">Краткое описание</label>
+        <p class="field-hint">
+          Отображается сразу — лаконичная суть путешествия.
+        </p>
+        <div class="md-field-editor">
+          <KitInlineMdEditorWrapper
+            v-model="descriptionShortModel"
+            placeholder="Краткое описание..."
+          />
+        </div>
+      </div>
 
+      <div class="field-group">
+        <label class="field-label">Подробное описание</label>
+        <p class="field-hint">
+          Раскрывается по кнопке «Подробнее» — детали, история, впечатления.
+        </p>
+        <div class="md-field-editor">
+          <KitInlineMdEditorWrapper
+            v-model="descriptionModel"
+            placeholder="Подробное описание..."
+          />
+        </div>
+      </div>
       <KitSelectWithSearch
         v-model="editableTrip.cities!"
         :items="availableCities"
@@ -219,12 +306,14 @@ watch(() => props.visible, (isVisible) => {
         label="Статус"
       />
 
-      <KitSelectWithSearch
-        v-model="editableTrip.visibility!"
-        :items="visibilityOptions"
-        label="Видимость"
-        :clearable="false"
-      />
+      <!-- Использование нового KitRadioGroup -->
+      <div class="field-group">
+        <label class="field-label">Видимость</label>
+        <KitRadioGroup
+          v-model="editableTrip.visibility!"
+          :options="visibilityOptions"
+        />
+      </div>
 
       <div class="budget-fields">
         <KitInput v-model.number="editableTrip.budget" type="number" label="Бюджет" placeholder="10000" />
@@ -232,7 +321,7 @@ watch(() => props.visible, (isVisible) => {
       </div>
 
       <KitSelectWithSearch
-        v-model="editableTrip.tags!"
+        v-model="tagsModel"
         :items="availableTags"
         :loading="isLoadingTags"
         label="Теги"
@@ -241,34 +330,26 @@ watch(() => props.visible, (isVisible) => {
         creatable
       />
 
-      <div class="image-selector">
-        <label>Обложка путешествия</label>
-        <div v-if="isLoadingImages" class="loading-placeholder">
-          Загрузка изображений...
-        </div>
-        <div v-else-if="coverImages.length > 0" class="image-grid">
-          <div
-            class="image-option"
-            :class="{ selected: !editableTrip.imageUrl }"
-            @click="editableTrip.imageUrl = null"
-          >
-            <div class="no-image-placeholder">
-              <Icon icon="mdi:image-off-outline" />
-            </div>
+      <div class="field-group">
+        <label class="field-label">Обложка путешествия</label>
+        <div class="current-cover-preview">
+          <div v-if="editableTrip.imageUrl" class="cover-image-wrapper">
+            <KitImage :src="editableTrip.imageUrl" object-fit="cover" />
           </div>
-          <div
-            v-for="image in coverImages"
-            :key="image.id"
-            class="image-option"
-            :class="{ selected: editableTrip.imageUrl === image.url }"
-            @click="editableTrip.imageUrl = image.url"
-          >
-            <KitImage :src="image.variants?.small || image.url" />
+          <div v-else class="no-cover-placeholder">
+            <Icon icon="mdi:image-outline" class="placeholder-icon" />
+            <span>Обложка не выбрана</span>
+          </div>
+          <div class="cover-actions">
+            <KitBtn variant="outlined" color="secondary" size="sm" @click="openCoverDialog">
+              <Icon icon="mdi:image-edit-outline" />
+              {{ editableTrip.imageUrl ? 'Изменить обложку' : 'Выбрать обложку' }}
+            </KitBtn>
+            <KitBtn v-if="editableTrip.imageUrl" variant="text" color="secondary" size="sm" @click="editableTrip.imageUrl = null">
+              Удалить
+            </KitBtn>
           </div>
         </div>
-        <p v-else class="no-images-text">
-          Добавьте фотографии в путешествие, чтобы выбрать обложку.
-        </p>
       </div>
 
       <div class="form-actions">
@@ -281,7 +362,51 @@ watch(() => props.visible, (isVisible) => {
       </div>
     </div>
   </KitDialogWithClose>
+
+  <KitDialogWithClose
+    :visible="isCoverDialogOpen"
+    title="Выбор обложки"
+    icon="mdi:image-multiple-outline"
+    :max-width="500"
+    @update:visible="isCoverDialogOpen = $event"
+  >
+    <div v-if="isLoadingImages" class="loading-placeholder">
+      Загрузка изображений...
+    </div>
+    <div v-else-if="coverImages.length > 0" class="image-grid">
+      <div
+        class="image-option"
+        :class="{ selected: !editableTrip.imageUrl }"
+        @click="selectCover(null)"
+      >
+        <div class="no-image-placeholder-grid">
+          <Icon icon="mdi:image-off-outline" />
+        </div>
+      </div>
+      <div
+        v-for="image in coverImages"
+        :key="image.id"
+        class="image-option"
+        :class="{ selected: editableTrip.imageUrl === image.url }"
+        @click="selectCover(image.url)"
+      >
+        <KitImage :src="image.variants?.small || image.url" />
+      </div>
+    </div>
+    <p v-else class="no-images-text">
+      Добавьте фотографии в путешествие, чтобы выбрать обложку.
+    </p>
+  </KitDialogWithClose>
 </template>
+
+<style lang="scss">
+.edit-trip-bg-state {
+  opacity: 0.7 !important;
+  filter: blur(2px) !important;
+  pointer-events: none !important;
+  user-select: none !important;
+}
+</style>
 
 <style lang="scss" scoped>
 .edit-trip-form {
@@ -306,6 +431,38 @@ watch(() => props.visible, (isVisible) => {
     font-size: 0.875rem;
     font-weight: 500;
     color: var(--fg-secondary-color);
+  }
+}
+
+.field-group {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+
+  .field-label {
+    font-size: 0.875rem;
+    font-weight: 500;
+    color: var(--fg-secondary-color);
+  }
+
+  .field-hint {
+    font-size: 0.8rem;
+    color: var(--fg-tertiary-color);
+    margin: 0 0 2px;
+  }
+}
+
+.md-field-editor {
+  min-height: 80px;
+  padding: 8px 12px;
+  background-color: var(--bg-secondary-color);
+  border: 1px solid var(--border-secondary-color);
+  border-radius: var(--r-s);
+  transition: border-color 0.2s ease;
+  cursor: text;
+
+  &:focus-within {
+    border-color: var(--border-focus-color);
   }
 }
 
@@ -334,15 +491,67 @@ watch(() => props.visible, (isVisible) => {
   border-top: 1px solid var(--border-secondary-color);
 }
 
-.image-selector {
+.current-cover-preview {
   display: flex;
-  flex-direction: column;
-  gap: 6px;
+  align-items: center;
+  gap: 16px;
+  background-color: var(--bg-secondary-color);
+  border: 1px solid var(--border-secondary-color);
+  padding: 12px;
+  border-radius: var(--r-s);
 
-  label {
-    font-size: 0.875rem;
-    font-weight: 500;
-    color: var(--fg-secondary-color);
+  .cover-image-wrapper {
+    width: 140px;
+    height: 80px;
+    border-radius: var(--r-xs);
+    overflow: hidden;
+    flex-shrink: 0;
+  }
+
+  .no-cover-placeholder {
+    width: 140px;
+    height: 80px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 4px;
+    background-color: var(--bg-tertiary-color);
+    color: var(--fg-tertiary-color);
+    border-radius: var(--r-xs);
+    flex-shrink: 0;
+
+    .placeholder-icon {
+      font-size: 1.5rem;
+    }
+
+    span {
+      font-size: 0.75rem;
+      text-align: center;
+    }
+  }
+
+  .cover-actions {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 8px;
+  }
+
+  @include media-down(sm) {
+    flex-direction: column;
+    align-items: flex-start;
+
+    .cover-image-wrapper,
+    .no-cover-placeholder {
+      width: 100%;
+      height: 120px;
+    }
+
+    .cover-actions {
+      width: 100%;
+      flex-direction: row;
+    }
   }
 }
 
@@ -350,7 +559,7 @@ watch(() => props.visible, (isVisible) => {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(100px, 1fr));
   gap: 8px;
-  max-height: 240px;
+  max-height: 400px;
   overflow-y: auto;
   background-color: var(--bg-tertiary-color);
   padding: 8px;
@@ -358,20 +567,26 @@ watch(() => props.visible, (isVisible) => {
 }
 
 .image-option {
-  height: 80px;
+  height: 90px;
   border-radius: var(--r-s);
   overflow: hidden;
   cursor: pointer;
   border: 2px solid transparent;
-  transition: border-color 0.2s ease;
+  background-color: var(--bg-secondary-color);
+  transition: all 0.2s ease;
   position: relative;
+
+  &:hover {
+    transform: translateY(-2px);
+  }
 
   &.selected {
     border-color: var(--fg-accent-color);
+    box-shadow: 0 0 0 2px var(--bg-primary-color) inset;
   }
 }
 
-.no-image-placeholder {
+.no-image-placeholder-grid {
   width: 100%;
   height: 100%;
   display: flex;

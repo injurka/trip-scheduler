@@ -50,7 +50,7 @@ function handleAddNewActivity() {
     title: 'Новая активность',
     startTime: minutesToTime(startTimeMinutes),
     endTime: minutesToTime(endTimeMinutes),
-    tag: EActivityTag.ATTRACTION,
+    tag: EActivityTag.ACTIVITY,
     sections: [],
     status: EActivityStatus.NONE,
   }
@@ -96,7 +96,7 @@ const collapseRouteIcon = computed(() => allRouteBlocksCollapsed.value ? 'mdi:ch
         </div>
         <KitBtn
           class="mode-parallel"
-          variant="outlined"
+          variant="subtle"
           size="xs"
           color="secondary"
           :class="{ active: isParallelPlanView }"
@@ -291,6 +291,11 @@ const collapseRouteIcon = computed(() => allRouteBlocksCollapsed.value ? 'mdi:ch
           transform: none;
         }
       }
+    }
+
+    .mode-parallel {
+      background-color: var(--bg-secondary-color);
+      padding: 6px;
     }
 
     .kit-btn.active {

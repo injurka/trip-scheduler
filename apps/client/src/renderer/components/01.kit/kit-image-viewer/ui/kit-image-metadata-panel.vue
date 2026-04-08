@@ -353,7 +353,7 @@ const extendedInfo = computed(() => {
 .metadata-overlay {
   position: fixed;
   inset: 0;
-  z-index: 21;
+  z-index: 9999;
   display: flex;
   justify-content: flex-end;
   pointer-events: none;

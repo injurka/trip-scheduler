@@ -39,6 +39,35 @@ function mapTripParticipants<T extends { participants: Array<{ user: any }> }>(t
 
 export const tripRepository = {
   /**
+   * Проверяет, имеет ли пользователь полный доступ к путешествию
+   * (является ли он создателем или добавленным участником).
+   */
+  async hasAccess(tripId: string, userId: string): Promise<boolean> {
+    return measureDbQuery('trips', 'select', async () => {
+      // 1. Проверяем, является ли пользователь создателем
+      const trip = await db.query.trips.findFirst({
+        where: eq(trips.id, tripId),
+        columns: { userId: true }, // Берем только userId для экономии памяти
+      })
+
+      if (trip?.userId === userId) {
+        return true
+      }
+
+      // 2. Если не создатель, проверяем, есть ли он в таблице участников
+      const participant = await db.query.tripParticipants.findFirst({
+        where: and(
+          eq(tripParticipants.tripId, tripId),
+          eq(tripParticipants.userId, userId),
+        ),
+        columns: { userId: true },
+      })
+
+      return !!participant
+    })
+  },
+
+  /**
    * Получает все путешествия с применением фильтров.
    */
   async getAll(filters?: z.infer<typeof ListTripsInputSchema>, userId?: string) {

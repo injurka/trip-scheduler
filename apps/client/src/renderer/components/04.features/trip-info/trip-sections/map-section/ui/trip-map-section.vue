@@ -376,6 +376,7 @@ function focusOnItem(item: MapPoint | MapRoute | DrawnRoute) {
   justify-content: center;
   width: 100%;
   position: relative;
+  z-index: 6;
 }
 
 .is-fullscreen {
@@ -586,7 +587,6 @@ function focusOnItem(item: MapPoint | MapRoute | DrawnRoute) {
   }
 }
 
-/* DETAILS PANEL */
 .details-panel {
   position: absolute;
   background-color: rgba(var(--bg-secondary-color-rgb), 0.9);

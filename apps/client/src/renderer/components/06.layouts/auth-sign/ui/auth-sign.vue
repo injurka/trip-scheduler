@@ -105,7 +105,7 @@ onUnmounted(() => {
 
       <slot name="utils" />
 
-      <KitDivider :is-loading="isLoading">
+      <KitDivider v-if="false" :is-loading="isLoading">
         ИЛИ
       </KitDivider>
 

@@ -7,8 +7,10 @@ export interface IconCategory {
 
 export interface IconPickerProps {
   modelValue?: string
+  mode?: 'dropdown' | 'modal'
   size?: 'sm' | 'md' | 'lg'
   disabled?: boolean
   align?: 'start' | 'center' | 'end'
   inline?: boolean
+  chevron?: boolean
 }

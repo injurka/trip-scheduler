@@ -32,7 +32,6 @@ const layouts = {
 
 const siteUrl = 'https://trip-scheduler.ru'
 const siteName = 'Trip Scheduler'
-
 const description = 'Trip Scheduler — удобный планировщик путешествий. Создавайте маршруты, сохраняйте воспоминания и организуйте свои поездки в одном месте.'
 
 useHead({
