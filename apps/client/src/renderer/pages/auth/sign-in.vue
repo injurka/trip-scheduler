@@ -91,7 +91,7 @@ onMounted(() => {
 
 <template>
   <AuthSignLayout :is-loading="isLoading">
-    <template v-if="true" #form>
+    <template v-if="false" #form>
       <form class="form" @submit.prevent="submitSignIn">
         <KitInput
           v-model="email"
