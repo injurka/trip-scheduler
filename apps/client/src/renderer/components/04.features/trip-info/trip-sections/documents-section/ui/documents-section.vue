@@ -4,7 +4,6 @@ import { Icon } from '@iconify/vue'
 import { useDropZone, useFileDialog } from '@vueuse/core'
 import { ref } from 'vue'
 import { KitBtn } from '~/components/01.kit/kit-btn'
-import { KitEditable } from '~/components/01.kit/kit-editable'
 import { useDocumentsSection } from '../composables/use-documents-section'
 import DocumentItem from './document-item.vue'
 
@@ -41,6 +40,13 @@ const isAddingFolder = ref(false)
 const newFolderName = ref('')
 const dropZoneRef = ref<HTMLElement>()
 
+const editingFolderId = ref<string | null>(null)
+const editingFolderName = ref('')
+
+const vFocus = {
+  mounted: (el: HTMLElement) => el.focus(),
+}
+
 const { open: openFileDialog, onChange: onFileChange, reset: resetFileDialog } = useFileDialog({
   multiple: true,
 })
@@ -70,6 +76,27 @@ function handleAddFolder() {
     isAddingFolder.value = false
   }
 }
+
+function startEditing(folder: { id: string, name: string }) {
+  if (props.readonly)
+    return
+  editingFolderId.value = folder.id
+  editingFolderName.value = folder.name
+}
+
+function saveEditing(folder: { id: string, name: string }) {
+  if (editingFolderId.value === folder.id) {
+    const trimmed = editingFolderName.value.trim()
+    if (trimmed && trimmed !== folder.name) {
+      updateFolder({ ...folder, name: trimmed })
+    }
+    editingFolderId.value = null
+  }
+}
+
+function cancelEditing() {
+  editingFolderId.value = null
+}
 </script>
 
 <template>
@@ -92,7 +119,8 @@ function handleAddFolder() {
       <KitBtn
         v-if="!readonly"
         icon="mdi:upload"
-        size="sm"
+        size="xs"
+        variant="subtle"
         :loading="isUploading"
         @click="openFileDialog()"
       >
@@ -118,21 +146,40 @@ function handleAddFolder() {
             class="folder-item"
             @click="setCurrentFolder(folder.id)"
           >
-            <Icon icon="mdi:folder" class="folder-icon" />
-            <KitEditable
-              :model-value="folder.name"
-              class="folder-name"
-              :readonly="readonly"
-              @click.stop
-              @update:model-value="updateFolder({ ...folder, name: $event })"
-            />
+            <Icon width="24" height="24" icon="mdi:folder" class="folder-icon" />
+
+            <span v-if="readonly" class="folder-name" :title="folder.name">
+              {{ folder.name }}
+            </span>
+            <template v-else>
+              <span
+                v-if="editingFolderId !== folder.id"
+                class="folder-name editable-name"
+                :title="folder.name"
+                @click.stop="startEditing(folder)"
+              >
+                {{ folder.name }}
+              </span>
+              <input
+                v-else
+                v-model="editingFolderName"
+                v-focus
+                type="text"
+                class="folder-name-input"
+                @click.stop
+                @blur="saveEditing(folder)"
+                @keydown.enter="saveEditing(folder)"
+                @keydown.esc="cancelEditing"
+              >
+            </template>
+
             <button v-if="!readonly" class="delete-folder-btn" title="Удалить папку" @click.stop="deleteFolder(folder.id)">
-              <Icon icon="mdi:close" />
+              <Icon width="24" height="24" icon="mdi:close" />
             </button>
           </div>
 
           <div v-if="isAddingFolder" class="folder-item new-folder">
-            <Icon icon="mdi:folder-plus" class="folder-icon" />
+            <Icon width="24" height="24" icon="mdi:folder-plus" class="folder-icon" />
             <input
               v-model="newFolderName"
               v-focus
@@ -150,8 +197,6 @@ function handleAddFolder() {
             <span>Новая папка</span>
           </button>
         </div>
-
-        <div v-if="visibleFolders.length > 0 && visibleDocuments.length > 0" class="section-divider" />
 
         <div v-if="visibleDocuments.length > 0" class="documents-list">
           <DocumentItem
@@ -197,8 +242,11 @@ function handleAddFolder() {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding-bottom: 0.75rem;
-  border-bottom: 1px solid var(--border-secondary-color);
+  height: 38px;
+  padding: 0 4px;
+  background-color: var(--bg-secondary-color);
+  border-radius: var(--r-s);
+  border: 1px solid var(--border-secondary-color);
 }
 
 .breadcrumbs {
@@ -272,12 +320,14 @@ function handleAddFolder() {
   display: flex;
   align-items: center;
   gap: 10px;
-  padding: 12px 16px;
+  padding: 8px 16px;
   border-radius: var(--r-m);
   background-color: var(--bg-secondary-color);
   border: 1px solid var(--border-secondary-color);
   cursor: pointer;
   transition: all 0.2s;
+  height: 50px;
+  min-width: 0;
 
   &:hover {
     border-color: var(--fg-accent-color);
@@ -301,9 +351,35 @@ function handleAddFolder() {
     font-weight: 500;
     color: var(--fg-primary-color);
     font-size: 0.95rem;
+
+    display: block;
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
+    min-width: 0;
+  }
+
+  .editable-name {
+    cursor: text;
+    transition: color 0.2s;
+
+    &:hover {
+      color: var(--fg-accent-color);
+    }
+  }
+
+  .folder-name-input {
+    flex-grow: 1;
+    font-weight: 500;
+    color: var(--fg-primary-color);
+    font-size: 0.95rem;
+    background: transparent;
+    border: none;
+    border-bottom: 1px dashed var(--fg-accent-color);
+    outline: none;
+    min-width: 0;
+    width: 100%;
+    padding: 0;
   }
 }
 
@@ -360,18 +436,13 @@ function handleAddFolder() {
   font-weight: 500;
   transition: all 0.2s;
   cursor: pointer;
+  height: 50px;
 
   &:hover {
     color: var(--fg-accent-color);
     border-color: var(--fg-accent-color);
     background-color: rgba(var(--fg-accent-color-rgb), 0.05);
   }
-}
-
-.section-divider {
-  height: 1px;
-  background-color: var(--border-secondary-color);
-  margin: 0.5rem 0;
 }
 
 .documents-list {

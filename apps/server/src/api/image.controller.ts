@@ -14,13 +14,12 @@ import { s3Service } from '~/services/s3.service'
 
 const imageController = new Hono()
 
-const ALLOWED_FORMATS = ['jpeg', 'jpg', 'png', 'webp', 'avif', 'gif']
+const ALLOWED_IMAGE_FORMATS = ['jpeg', 'jpg', 'png', 'webp', 'avif', 'gif']
 
 imageController.get('/*', async (c) => {
   const endTimer = imageProcessingDurationHistogram.startTimer()
   const filePath = c.req.path.replace(/^\/+/, '').replace(/^image\//, '')
 
-  // --- SECURITY CHECK FOR DOCUMENTS ---
   if (filePath.includes('/documents/')) {
     const imageRecord = await db.query.tripImages.findFirst({ where: eq(tripImages.url, filePath) })
     if (imageRecord && (imageRecord.metadata as any)?.access === 'private') {
@@ -36,7 +35,6 @@ imageController.get('/*', async (c) => {
         where: and(eq(tripParticipants.tripId, imageRecord.tripId), eq(tripParticipants.userId, payload.id)),
       })
 
-      // Allow access if owner or participant
       const trip = await db.query.trips.findFirst({ where: eq(tripImages.id, imageRecord.tripId) })
       const isOwner = trip?.userId === payload.id
 
@@ -44,7 +42,6 @@ imageController.get('/*', async (c) => {
         throw new HTTPException(403, { message: 'Forbidden' })
     }
   }
-  // ------------------------------------
 
   const width = c.req.query('w') ? Number.parseInt(c.req.query('w')!) : undefined
   const height = c.req.query('h') ? Number.parseInt(c.req.query('h')!) : undefined
@@ -52,13 +49,32 @@ imageController.get('/*', async (c) => {
   const format = c.req.query('fmt') || null
 
   const fileExt = extname(filePath).slice(1).toLowerCase()
-  const targetFormat = (format && ALLOWED_FORMATS.includes(format)) ? format : fileExt
+  const targetFormat = (format && ALLOWED_IMAGE_FORMATS.includes(format)) ? format : fileExt
 
   const s3Result = await s3Service.getFile(filePath)
 
   if (!s3Result) {
     endTimer({ status: 'error', format: 'unknown', type: 'not_found' })
     return c.notFound()
+  }
+
+  // Является ли файл изображением, которое умеет ресайзить Sharp
+  const isProcessableImage = ALLOWED_IMAGE_FORMATS.includes(fileExt) || s3Result.contentType.startsWith('image/')
+
+  // Если это ДОКУМЕНТ (PDF, DOCX, TXT и др.) или не картинка, обходим Sharp и отдаем "как есть"
+  if (!isProcessableImage) {
+    endTimer({ status: 'success', format: fileExt || 'doc', type: 'skipped' })
+    imageOutputSizeBytesHistogram.observe({ format: fileExt || 'doc', type: 'skipped' }, s3Result.buffer.byteLength)
+
+    // Для PDF и TXT браузер может открыть их внутри вкладки (inline)
+    // Для тяжелых форматов (docx, xlsx) делаем скачивание (attachment)
+    const disposition = (fileExt === 'pdf' || fileExt === 'txt') ? 'inline' : 'attachment'
+
+    return c.body(s3Result.buffer as any, 200, {
+      'Content-Type': s3Result.contentType || 'application/octet-stream',
+      'Cache-Control': 'public, max-age=31536000, immutable',
+      'Content-Disposition': `${disposition}; filename="document.${fileExt || 'bin'}"`,
+    })
   }
 
   if (!width && !height && !format) {
@@ -77,21 +93,16 @@ imageController.get('/*', async (c) => {
       pipeline = pipeline.resize({ width, height, fit: 'cover', withoutEnlargement: true })
     }
 
-    if (targetFormat === 'webp') {
+    if (targetFormat === 'webp')
       pipeline = pipeline.webp({ quality, effort: 4, smartSubsample: true })
-    }
-    else if (targetFormat === 'avif') {
+    else if (targetFormat === 'avif')
       pipeline = pipeline.avif({ quality, effort: 3 })
-    }
-    else if (targetFormat === 'jpeg' || targetFormat === 'jpg') {
+    else if (targetFormat === 'jpeg' || targetFormat === 'jpg')
       pipeline = pipeline.jpeg({ quality, mozjpeg: true })
-    }
-    else if (targetFormat === 'png') {
+    else if (targetFormat === 'png')
       pipeline = pipeline.png({ quality, compressionLevel: 8 })
-    }
-    else if (targetFormat === 'gif') {
+    else if (targetFormat === 'gif')
       pipeline = pipeline.gif({ effort: 7, reuse: true })
-    }
 
     const processedBuffer = await pipeline.toBuffer()
 

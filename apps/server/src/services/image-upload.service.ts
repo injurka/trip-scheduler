@@ -14,40 +14,30 @@ import { extractAndStructureMetadata, generateImageVariants } from '~/services/i
 import { fileUploadsCounter, fileUploadSizeBytesHistogram } from '~/services/metrics.service'
 import { quotaService } from '~/services/quota.service'
 
-/**
- * Стратегия для Путешествий
- */
 const tripHandler: IUploadHandler = {
   async validate({ userId, entityId, placement, buffer }) {
-    if (!placement || !tripImagePlacementEnum.enumValues.includes(placement as any)) {
+    if (!placement || !tripImagePlacementEnum.enumValues.includes(placement as any))
       throw new HTTPException(400, { message: 'Некорректный тип размещения.' })
-    }
     const trip = await tripRepository.getById(entityId)
     if (!trip)
       throw new HTTPException(404, { message: 'Путешествие не найдено.' })
     if (trip.userId !== userId)
       throw new HTTPException(403, { message: 'Нет прав.' })
-
     await quotaService.checkStorageQuota(userId, buffer.length)
   },
-
   getFolderPath: ({ entityId, placement }) => `trips/${entityId}/${placement}`,
-
   async afterSave({ entityId, placement }, { url, size, metadata, variants }) {
     return await imageService.create(
       entityId,
       url,
-      metadata.originalName || 'image',
-      placement as 'route' | 'memories' | 'notes' | 'documents',
+      metadata.originalName || 'file',
+      placement as any,
       size,
       { ...metadata, variants },
     )
   },
 }
 
-/**
- * Стратегия для Постов
- */
 const postHandler: IUploadHandler = {
   async validate({ userId, entityId, buffer }) {
     const post = await postRepository.findById(entityId)
@@ -55,62 +45,37 @@ const postHandler: IUploadHandler = {
       throw new HTTPException(404, { message: 'Пост не найден.' })
     if (post.userId !== userId)
       throw new HTTPException(403, { message: 'Нет прав.' })
-
     await quotaService.checkStorageQuota(userId, buffer.length)
   },
-
   getFolderPath: ({ entityId }) => `posts/${entityId}`,
-
   async afterSave({ entityId }, { url, size, metadata, variants }) {
-    return await postService.createMedia(
-      entityId,
-      url,
-      metadata.originalName || 'image',
-      size,
-      { ...metadata, variants },
-    )
+    return await postService.createMedia(entityId, url, metadata.originalName || 'file', size, { ...metadata, variants })
   },
 }
 
-/**
- * Стратегия для Блога
- */
 const blogHandler: IUploadHandler = {
   async validate({ userId, entityId }) {
     const user = await userRepository.getById(userId)
     if (user?.role !== 'admin')
       throw new HTTPException(403, { message: 'Доступ запрещен' })
-
     const blog = await blogRepository.findById(entityId)
     if (!blog)
       throw new HTTPException(404, { message: 'Блог не найден.' })
   },
-
-  getFolderPath: ({ entityId, placement }) => {
-    const subFolder = placement === 'cover' ? 'cover' : 'content'
-    return `blogs/${entityId}/${subFolder}`
-  },
-
+  getFolderPath: ({ entityId, placement }) => `blogs/${entityId}/${placement === 'cover' ? 'cover' : 'content'}`,
   async afterSave({ entityId, placement }, { url, variants, metadata }) {
-    if (placement === 'cover') {
+    if (placement === 'cover')
       await blogService.updateCoverImage(entityId, url)
-    }
-
     return { url, variants, metadata }
   },
 }
 
-/**
- * Стратегия для Аватара
- */
 const avatarHandler: IUploadHandler = {
   async validate({ userId, entityId }) {
     if (userId !== entityId)
       throw new HTTPException(403, { message: 'Нельзя менять чужой аватар.' })
   },
-
   getFolderPath: ({ userId }) => `avatars/${userId}`,
-
   async afterSave({ userId }, { url }) {
     return await userRepository.update(userId, { avatarUrl: url })
   },
@@ -123,76 +88,62 @@ const handlers: Record<EntityType, IUploadHandler> = {
   avatar: avatarHandler,
 }
 
-/**
- * Основной класс сервиса загрузок
- */
 export class ImageUploadService {
-  /**
-   * Центральный метод обработки загрузки
-   */
   async processUpload(entityType: EntityType, ctx: UploadContext): Promise<UploadResult> {
     const handler = handlers[entityType]
-    if (!handler) {
+    if (!handler)
       throw new HTTPException(400, { message: 'Неизвестный тип сущности.' })
-    }
 
-    // 1. Валидация (права, квоты, существование)
     await handler.validate(ctx)
 
-    // 2. Генерация путей
     const folderPath = handler.getFolderPath(ctx)
     const fileName = entityType === 'avatar' ? 'avatar.webp' : ctx.file.name
     const paths = generateFilePaths(folderPath, fileName)
 
-    // 3. Обработка изображения (Sharp)
     let processedBuffer = ctx.buffer
     let variants: Record<string, Buffer> = {}
-    let metadata: any = {}
+    let metadata: any = { originalName: ctx.file.name }
 
-    try {
-      if (entityType === 'avatar') {
-        processedBuffer = await sharp(ctx.buffer)
-          .resize({ width: 400, height: 400, fit: 'cover' })
-          .webp({ quality: 90 })
-          .toBuffer()
+    // Проверяем по MIME или расширению, является ли файл картинкой
+    const isImage = ctx.file.type.startsWith('image/') || /\.(jpg|jpeg|png|webp|avif|gif)$/i.test(fileName)
+
+    if (isImage) {
+      try {
+        if (entityType === 'avatar') {
+          processedBuffer = await sharp(ctx.buffer).resize({ width: 400, height: 400, fit: 'cover' }).webp({ quality: 90 }).toBuffer()
+        }
+        else {
+          const metaResult = await extractAndStructureMetadata(ctx.buffer)
+          metadata = { ...metadata, ...metaResult.metadata }
+          variants = await generateImageVariants(ctx.buffer)
+        }
       }
-      else {
-        const metaResult = await extractAndStructureMetadata(ctx.buffer)
-        metadata = metaResult.metadata
-        variants = await generateImageVariants(ctx.buffer)
+      catch (e: any) {
+        console.error('Sharp error:', e)
+        throw new HTTPException(415, { message: 'Ошибка обработки изображения.' })
       }
     }
-    catch (e: any) {
-      console.error('Sharp error:', e)
-      throw new HTTPException(415, { message: 'Ошибка обработки изображения.' })
-    }
 
-    // 4. Сохранение в S3
     const variantUrls: Record<string, string> = {}
     let variantsTotalSize = 0
 
-    // Сохраняем варианты, используем dbPath (ключ S3)
+    // Сохраняем варианты картинок
     await Promise.all(
       Object.entries(variants).map(async ([name, variantBuffer]) => {
         const vPaths = paths.getVariantPaths(name)
-        await saveFile(vPaths, variantBuffer)
+        await saveFile(vPaths, variantBuffer, 'image/webp')
         variantUrls[name] = vPaths
         variantsTotalSize += variantBuffer.length
       }),
     )
 
-    // Сохраняем оригинал
-    await saveFile(paths.path, processedBuffer)
+    // Сохраняем оригинал. Передаем MIME от клиента. Если это аватар, то принудительно webp
+    const originalMime = entityType === 'avatar' ? 'image/webp' : ctx.file.type
+    await saveFile(paths.path, processedBuffer, originalMime)
 
     const totalSize = processedBuffer.length + variantsTotalSize
 
-    // 5. Пост-обработка (Запись в БД, обновление квот)
-    const dbRecord = await handler.afterSave(ctx, {
-      url: paths.path,
-      variants: variantUrls,
-      size: totalSize,
-      metadata,
-    })
+    const dbRecord = await handler.afterSave(ctx, { url: paths.path, variants: variantUrls, size: totalSize, metadata })
 
     if (entityType !== 'avatar' && entityType !== 'blog') {
       await quotaService.incrementStorageUsage(ctx.userId, totalSize)
@@ -201,12 +152,7 @@ export class ImageUploadService {
     fileUploadsCounter.inc({ placement: entityType })
     fileUploadSizeBytesHistogram.observe({ placement: entityType }, totalSize)
 
-    return {
-      url: paths.path,
-      variants: variantUrls,
-      dbRecord,
-      metadata,
-    }
+    return { url: paths.path, variants: variantUrls, dbRecord, metadata }
   }
 }
 

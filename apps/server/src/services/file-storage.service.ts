@@ -29,60 +29,76 @@ export function generateFilePaths(
 
   const path = join(relativeDirPath, filename).replace(/\\/g, '/')
 
-  /**
-   * Генерирует пути для конкретного варианта.
-   * @param variantName - Название варианта (e.g., 'small').
-   */
   const getVariantPaths = (variantName: string) => {
     const variantFilename = `${base}-${variantName}.webp`
-
     return join(relativeDirPath, variantFilename).replace(/\\/g, '/')
   }
 
-  return {
-    path,
-    getVariantPaths,
-  }
+  return { path, getVariantPaths }
 }
 
 /**
  * Сохраняет буфер напрямую в S3 облако.
- * Функция принимает dbPath (относительный путь), который становится ключом (Key) в S3.
+ * @param dbPath - относительный путь (Key в S3)
+ * @param fileBuffer - буфер файла
+ * @param explicitContentType - явный MIME-тип (если есть)
  */
-export async function saveFile(dbPath: string, fileBuffer: Buffer): Promise<void> {
-  let contentType = 'application/octet-stream'
-  if (dbPath.endsWith('.webp'))
-    contentType = 'image/webp'
-  else if (dbPath.endsWith('.jpg') || dbPath.endsWith('.jpeg'))
-    contentType = 'image/jpeg'
-  else if (dbPath.endsWith('.png'))
-    contentType = 'image/png'
+export async function saveFile(dbPath: string, fileBuffer: Buffer, explicitContentType?: string): Promise<void> {
+  let contentType = explicitContentType || 'application/octet-stream'
+
+  // Фоллбэк, если MIME-тип не передан или передан базовый octet-stream
+  if (!explicitContentType || explicitContentType === 'application/octet-stream') {
+    const lowerPath = dbPath.toLowerCase()
+
+    // Изображения
+    if (lowerPath.endsWith('.webp'))
+      contentType = 'image/webp'
+    else if (lowerPath.endsWith('.jpg') || lowerPath.endsWith('.jpeg'))
+      contentType = 'image/jpeg'
+    else if (lowerPath.endsWith('.png'))
+      contentType = 'image/png'
+    else if (lowerPath.endsWith('.gif'))
+      contentType = 'image/gif'
+    else if (lowerPath.endsWith('.avif'))
+      contentType = 'image/avif'
+    else if (lowerPath.endsWith('.pdf'))
+      contentType = 'application/pdf'
+    else if (lowerPath.endsWith('.doc'))
+      contentType = 'application/msword'
+    else if (lowerPath.endsWith('.docx'))
+      contentType = 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'
+    else if (lowerPath.endsWith('.xls'))
+      contentType = 'application/vnd.ms-excel'
+    else if (lowerPath.endsWith('.xlsx'))
+      contentType = 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+    else if (lowerPath.endsWith('.txt'))
+      contentType = 'text/plain'
+    else if (lowerPath.endsWith('.csv'))
+      contentType = 'text/csv'
+    else if (lowerPath.endsWith('.rtf'))
+      contentType = 'application/rtf'
+  }
 
   await s3Service.uploadFile(dbPath, fileBuffer, contentType)
 }
 
 /**
- * Удаляет файл. Пытается удалить из S3, и на всякий случай проверяет локальный диск
- * для плавного перехода.
- * @param dbPath - Относительный путь к файлу, как он хранится в БД.
+ * Удаляет файл из S3.
  */
 async function deleteFileFromStorage(dbPath: string) {
   await s3Service.deleteFile(dbPath)
 }
 
 /**
- * Удаляет основной файл изображения и все его варианты.
- * @param image - Объект изображения из БД.
+ * Удаляет основной файл и все его варианты.
  */
 export async function deleteFileWithVariants(image: Pick<TripImage, 'url' | 'variants'>) {
   const filesToDelete: string[] = []
 
-  if (image.url) {
+  if (image.url)
     filesToDelete.push(image.url)
-  }
-  if (image.variants) {
+  if (image.variants)
     filesToDelete.push(...Object.values(image.variants))
-  }
 
   await Promise.all(filesToDelete.map(filePath => deleteFileFromStorage(filePath)))
 }
