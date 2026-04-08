@@ -370,8 +370,12 @@ const collapseRouteIcon = computed(() => allRouteBlocksCollapsed.value ? 'mdi:ch
     display: flex;
     align-items: center;
     gap: 8px;
-    padding: 0 12px;
     border-radius: 4px;
+
+    .divider-label {
+      background: var(--bg-primary-color);
+      padding: 0 12px;
+    }
   }
 }
 
