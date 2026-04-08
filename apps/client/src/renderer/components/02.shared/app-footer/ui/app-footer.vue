@@ -65,7 +65,7 @@ import { AppRouteNames } from '~/shared/constants/routes'
   background-color: rgba(var(--bg-primary-color-rgb), 0.5);
   padding: 0.5rem 1rem;
   margin-top: auto;
-  z-index: 10;
+  z-index: 9;
 }
 
 .footer-content {

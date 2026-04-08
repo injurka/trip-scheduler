@@ -11,7 +11,7 @@ export function useTripInfoLayout() {
   const store = useModuleStore(['sections', 'plan'])
   const { sortedSections } = storeToRefs(store.sections)
   const confirm = useConfirm()
-  const isMobile = useMediaQuery('(max-width: 768px)')
+  const { smAndDown: isMobile } = useDisplay()
   const router = useRouter()
   const route = useRoute()
 

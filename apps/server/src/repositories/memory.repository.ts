@@ -96,7 +96,7 @@ export const memoryRepository = {
 
     const payload: Record<string, any> = { ...updateData, updatedAt: new Date() }
 
-    if (Object.prototype.hasOwnProperty.call(updateData, 'timestamp')) {
+    if (Object.hasOwn(updateData, 'timestamp')) {
       payload.timestamp = updateData.timestamp ? new Date(updateData.timestamp) : null
     }
 

@@ -97,3 +97,18 @@ export interface TripImage {
   // --- Все остальные метаданные в одном поле JSONB ---
   metadata?: ImageMetadata | null
 }
+
+export interface DocumentMetadata {
+  access: 'public' | 'private'
+  folderId: string | null
+}
+
+export interface TripDocument {
+  id: string
+  tripId: string
+  url: string
+  originalName: string
+  sizeBytes: number
+  createdAt: Date
+  metadata: DocumentMetadata
+}

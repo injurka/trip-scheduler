@@ -14,6 +14,7 @@ export const TripSchema = z.object({
   title: z.string(),
   imageUrl: z.string().nullable(),
   description: z.string().nullable(),
+  descriptionShort: z.string().nullable(),
   startDate: z.union([z.date(), z.string()]),
   endDate: z.union([z.date(), z.string()]),
   cities: z.array(z.string()),
@@ -41,6 +42,7 @@ export const UpdateTripInputSchema = z.object({
   details: TripSchema.pick({
     title: true,
     description: true,
+    descriptionShort: true,
     startDate: true,
     endDate: true,
     cities: true,

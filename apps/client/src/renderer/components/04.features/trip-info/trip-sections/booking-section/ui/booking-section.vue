@@ -154,6 +154,7 @@ function getCardComponent(type: Booking['type']) {
   display: flex;
   flex-direction: column;
   gap: 1rem;
+  z-index: 6;
 }
 
 .actions-panel {

@@ -1,11 +1,13 @@
 <script setup lang="ts">
 import { Icon } from '@iconify/vue'
-import { onClickOutside } from '@vueuse/core'
+import { KitDialogWithClose } from '~/components/01.kit/kit-dialog-with-close'
+import { KitDropdown } from '~/components/01.kit/kit-dropdown'
 import { iconCategories } from '~/shared/constants/icon-list'
 import { useIconPicker } from '../composables/use-icon-picker'
 
 interface Props {
   modelValue?: string
+  mode?: 'dropdown' | 'modal'
   size?: 'sm' | 'md' | 'lg'
   disabled?: boolean
   align?: 'start' | 'center' | 'end'
@@ -15,6 +17,7 @@ interface Props {
 
 const props = withDefaults(defineProps<Props>(), {
   modelValue: '',
+  mode: 'dropdown',
   size: 'md',
   disabled: false,
   align: 'center',
@@ -26,10 +29,8 @@ const emit = defineEmits<{
   (e: 'update:modelValue', icon: string): void
 }>()
 
-const wrapperRef = ref<HTMLElement | null>(null)
 const searchInputRef = ref<HTMLInputElement | null>(null)
 const isOpen = ref(false)
-const adjustedAlign = ref(props.align)
 
 const { searchQuery, activeCategoryId, filteredIcons, reset } = useIconPicker()
 
@@ -38,57 +39,29 @@ const ALL_ID = 'all'
 const allCategoryTab = { id: ALL_ID, label: 'Все', icon: 'mdi:dots-grid' }
 const categoryTabs = computed(() => [allCategoryTab, ...iconCategories])
 
-const PANEL_WIDTH = 320
-const MARGIN = 8
-
-function updateAlignment() {
-  if (!wrapperRef.value)
-    return
-
-  const vw = document.documentElement.clientWidth
-  const rect = wrapperRef.value.getBoundingClientRect()
-
-  const startRight = rect.left + PANEL_WIDTH
-  const endLeft = rect.right - PANEL_WIDTH
-  const centerLeft = rect.left + rect.width / 2 - PANEL_WIDTH / 2
-  const centerRight = centerLeft + PANEL_WIDTH
-
-  if (props.align === 'center') {
-    if (centerLeft < MARGIN)
-      adjustedAlign.value = 'start'
-    else if (centerRight > vw - MARGIN)
-      adjustedAlign.value = 'end'
-    else
-      adjustedAlign.value = 'center'
+// Синхронизация: фокусируем поиск при открытии, сбрасываем при закрытии
+watch(isOpen, (val) => {
+  if (val) {
+    nextTick(() => {
+      searchInputRef.value?.focus()
+    })
   }
-  else if (props.align === 'start') {
-    adjustedAlign.value = startRight > vw - MARGIN ? 'end' : 'start'
+  else {
+    // Небольшая задержка, чтобы контент не менялся во время анимации закрытия
+    setTimeout(() => {
+      reset()
+    }, 200)
   }
-  else if (props.align === 'end') {
-    adjustedAlign.value = endLeft < MARGIN ? 'start' : 'end'
-  }
-}
+})
 
 function open() {
   if (props.disabled)
     return
-
-  updateAlignment()
-
   isOpen.value = true
-
-  nextTick(() => {
-    searchInputRef.value?.focus()
-  })
 }
 
 function close() {
   isOpen.value = false
-  reset()
-}
-
-function toggle() {
-  isOpen.value ? close() : open()
 }
 
 function selectIcon(icon: string) {
@@ -100,21 +73,22 @@ function selectIcon(icon: string) {
 function setCategory(id: string) {
   activeCategoryId.value = id
   searchQuery.value = ''
+  nextTick(() => {
+    searchInputRef.value?.focus()
+  })
 }
 
 function clearSearch() {
   searchQuery.value = ''
-  searchInputRef.value?.focus()
+  nextTick(() => {
+    searchInputRef.value?.focus()
+  })
 }
-
-onClickOutside(wrapperRef, () => {
-  if (!props.inline)
-    close()
-})
 </script>
 
 <template>
-  <div v-if="inline" class="icon-picker-panel is-inline">
+  <!-- INLINE MODE -->
+  <div v-if="inline" class="icon-picker-body is-inline">
     <div class="picker-search">
       <Icon icon="mdi:magnify" class="search-icon" />
       <input
@@ -162,33 +136,35 @@ onClickOutside(wrapperRef, () => {
     </div>
   </div>
 
-  <div v-else ref="wrapperRef" class="icon-picker-wrapper" :class="`size-${size}`">
-    <button
-      class="picker-trigger"
-      :class="[`size-${size}`, { disabled, active: isOpen }]"
-      :disabled="disabled"
-      @click="toggle"
+  <div v-else class="icon-picker-wrapper" :class="`size-${size}`">
+    <!-- DROPDOWN MODE -->
+    <KitDropdown
+      v-if="mode === 'dropdown'"
+      v-model:open="isOpen"
+      :align="align"
     >
-      <Icon
-        :icon="modelValue || 'mdi:image-off-outline'"
-        class="trigger-icon"
-        :class="{ placeholder: !modelValue }"
-      />
-      <Icon
-        v-if="chevron"
-        icon="mdi:chevron-down"
-        class="trigger-chevron"
-        :class="{ rotated: isOpen }"
-      />
-    </button>
+      <template #trigger>
+        <button
+          class="picker-trigger"
+          :class="[`size-${size}`, { disabled, active: isOpen }]"
+          :disabled="disabled"
+        >
+          <Icon
+            :icon="modelValue || 'mdi:image-off-outline'"
+            class="trigger-icon"
+            :class="{ placeholder: !modelValue }"
+          />
+          <Icon
+            v-if="chevron"
+            icon="mdi:chevron-down"
+            class="trigger-chevron"
+            :class="{ rotated: isOpen }"
+          />
+        </button>
+      </template>
 
-    <Transition name="picker-fade">
-      <div
-        v-if="isOpen"
-        ref="panelRef"
-        class="icon-picker-panel"
-        :class="`align-${adjustedAlign}`"
-      >
+      <!-- Dropdown Content -->
+      <div class="icon-picker-body is-dropdown">
         <div class="picker-search">
           <Icon icon="mdi:magnify" class="search-icon" />
           <input
@@ -197,6 +173,7 @@ onClickOutside(wrapperRef, () => {
             class="search-input"
             placeholder="Поиск иконок..."
             type="text"
+            @keydown.stop
           >
           <button v-if="searchQuery" class="search-clear" @click="clearSearch">
             <Icon icon="mdi:close" />
@@ -235,7 +212,79 @@ onClickOutside(wrapperRef, () => {
           </div>
         </div>
       </div>
-    </Transition>
+    </KitDropdown>
+
+    <!-- MODAL MODE -->
+    <template v-else-if="mode === 'modal'">
+      <button
+        class="picker-trigger"
+        :class="[`size-${size}`, { disabled, active: isOpen }]"
+        :disabled="disabled"
+        @click="open"
+      >
+        <Icon
+          :icon="modelValue || 'mdi:image-off-outline'"
+          class="trigger-icon"
+          :class="{ placeholder: !modelValue }"
+        />
+        <!-- Без chevron согласно ТЗ -->
+      </button>
+
+      <KitDialogWithClose
+        v-model:visible="isOpen"
+        title="Выберите иконку"
+        icon="mdi:image-outline"
+        :max-width="400"
+      >
+        <div class="icon-picker-body is-modal">
+          <div class="picker-search">
+            <Icon icon="mdi:magnify" class="search-icon" />
+            <input
+              ref="searchInputRef"
+              v-model="searchQuery"
+              class="search-input"
+              placeholder="Поиск иконок..."
+              type="text"
+            >
+            <button v-if="searchQuery" class="search-clear" @click="clearSearch">
+              <Icon icon="mdi:close" />
+            </button>
+          </div>
+
+          <div class="picker-categories">
+            <button
+              v-for="cat in categoryTabs"
+              :key="cat.id"
+              class="cat-chip"
+              :class="{ active: activeCategoryId === cat.id }"
+              @click="setCategory(cat.id)"
+            >
+              <Icon :icon="cat.icon" class="cat-icon" />
+              <span class="cat-label">{{ cat.label }}</span>
+            </button>
+          </div>
+
+          <div class="picker-grid-wrap">
+            <div v-if="filteredIcons.length" class="picker-grid">
+              <button
+                v-for="icon in filteredIcons"
+                :key="icon"
+                class="icon-btn"
+                :class="{ selected: icon === modelValue }"
+                :title="icon.replace('mdi:', '')"
+                @click="selectIcon(icon)"
+              >
+                <Icon :icon="icon" />
+              </button>
+            </div>
+            <div v-else class="picker-empty">
+              <Icon icon="mdi:emoticon-sad-outline" class="empty-icon" />
+              <span>Иконки не найдены</span>
+            </div>
+          </div>
+        </div>
+      </KitDialogWithClose>
+    </template>
   </div>
 </template>
 
@@ -278,7 +327,7 @@ onClickOutside(wrapperRef, () => {
     padding: 0 10px;
   }
   &.size-lg {
-    height: 48px;
+    height: 46px;
     padding: 0 14px;
   }
 
@@ -308,40 +357,41 @@ onClickOutside(wrapperRef, () => {
   }
 }
 
-.icon-picker-panel {
-  position: absolute;
-  top: calc(100% + 6px);
-  z-index: 9999;
-  width: 320px;
-  max-width: min(320px, calc(100vw - 16px));
-  background-color: var(--bg-secondary-color);
-  border: 1px solid var(--border-secondary-color);
-  border-radius: var(--r-m);
-  box-shadow: var(--s-l);
-  overflow: hidden;
+.icon-picker-body {
   display: flex;
   flex-direction: column;
 
-  &.align-start {
-    left: 0;
-  }
-  &.align-center {
-    left: 50%;
-    transform: translateX(-50%);
-  }
-  &.align-end {
-    right: 0;
+  &.is-dropdown {
+    width: 320px;
+    /* Компенсация базовых отступов от kit-dropdown, чтобы строка поиска прилипала к краям */
+    margin: -6px;
+    background-color: var(--bg-secondary-color);
+    border-radius: calc(var(--r-s) - 1px);
+    overflow: hidden;
   }
 
   &.is-inline {
-    position: static;
     width: 100%;
-    max-width: 100%;
-    transform: none;
-    box-shadow: none;
     border: 1px solid var(--border-secondary-color);
     border-radius: var(--r-m);
     background-color: var(--bg-secondary-color);
+  }
+
+  &.is-modal {
+    width: 100%;
+
+    .picker-search {
+      /* В модалке лучше убрать нижнюю рамку и сделать заливку для поиска */
+      border-bottom: none;
+      background-color: var(--bg-tertiary-color);
+      border-radius: var(--r-m);
+      margin-bottom: 8px;
+    }
+
+    .picker-grid-wrap {
+      max-height: 50vh; /* Позволяем сетке расти внутри модалки */
+      padding: 0 4px;
+    }
   }
 }
 
@@ -497,38 +547,6 @@ onClickOutside(wrapperRef, () => {
 
   .empty-icon {
     font-size: 2rem;
-  }
-}
-
-.picker-fade-enter-active,
-.picker-fade-leave-active {
-  transition:
-    opacity 0.15s ease,
-    transform 0.15s ease;
-}
-
-.picker-fade-enter-from,
-.picker-fade-leave-to {
-  opacity: 0;
-  transform: translateY(-6px) scale(0.97);
-}
-
-.picker-fade-enter-to,
-.picker-fade-leave-from {
-  opacity: 1;
-  transform: translateY(0) scale(1);
-}
-
-.align-center {
-  &.picker-fade-enter-from,
-  &.picker-fade-leave-to {
-    opacity: 0;
-    transform: translateX(-50%) translateY(-6px) scale(0.97);
-  }
-  &.picker-fade-enter-to,
-  &.picker-fade-leave-from {
-    opacity: 1;
-    transform: translateX(-50%) translateY(0) scale(1);
   }
 }
 </style>

@@ -5,13 +5,11 @@ import { authUtils } from '~/lib/auth.utils'
 import { imageUploadService } from '~/services/image-upload.service'
 
 export async function uploadFileController(c: Context) {
-  // 1. Проверка размера (Fail fast)
   const contentLength = c.req.header('content-length')
   if (contentLength && Number.parseInt(contentLength, 10) > 35 * 1024 * 1024) {
     throw new HTTPException(413, { message: 'Файл слишком большой (максимум 35MB)' })
   }
 
-  // 2. Аутентификация
   const authHeader = c.req.header('authorization')
   const token = authHeader?.split(' ')[1]
   if (!token)
@@ -23,7 +21,6 @@ export async function uploadFileController(c: Context) {
 
   const userId = payload.id
 
-  // 3. Парсинг FormData
   const formData = await c.req.formData()
   const file = formData.get('file')
 
@@ -35,6 +32,13 @@ export async function uploadFileController(c: Context) {
   let entityId = formData.get('entityId') as string | null
   const placement = formData.get('placement') as string | null
 
+  const customMetadataStr = formData.get('metadata') as string | null
+  let customMetadata: Record<string, any> | undefined
+  if (customMetadataStr) {
+    try { customMetadata = JSON.parse(customMetadataStr) }
+    catch { }
+  }
+
   if (entityType === 'avatar' && !entityId) {
     entityId = userId
   }
@@ -45,7 +49,6 @@ export async function uploadFileController(c: Context) {
 
   const buffer = Buffer.from(await file.arrayBuffer())
 
-  // 4. Делегирование в сервис
   try {
     const result = await imageUploadService.processUpload(entityType, {
       userId,
@@ -53,6 +56,7 @@ export async function uploadFileController(c: Context) {
       file,
       buffer,
       placement,
+      customMetadata,
     })
 
     return c.json(result.dbRecord || { url: result.url, variants: result.variants })

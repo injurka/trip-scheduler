@@ -333,6 +333,7 @@ onBeforeUnmount(() => flushPendingSave())
   margin: 0 auto;
   flex-direction: column;
   padding: 10px;
+  z-index: 6;
 }
 
 .loading-state {

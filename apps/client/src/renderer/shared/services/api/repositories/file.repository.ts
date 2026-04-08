@@ -1,4 +1,4 @@
-import type { EntityType, IFileRepository } from '../model/types'
+import type { EntityType, IFileRepository, TripDocumentResponse } from '../model/types'
 import type { ImageMetadata, TripImage, TripImagePlacement } from '~/shared/types/models/trip'
 import { ofetch } from 'ofetch'
 import { trpc } from '~/shared/services/trpc/trpc.service'
@@ -17,6 +17,7 @@ export class FileRepository implements IFileRepository {
     placement?: string | null,
     timestamp?: string | null,
     comment?: string | null,
+    metadata?: Record<string, any>,
   ): Promise<TripImage> {
     const formData = new FormData()
     formData.append('file', file)
@@ -29,15 +30,15 @@ export class FileRepository implements IFileRepository {
       formData.append('timestamp', timestamp)
     if (comment)
       formData.append('comment', comment)
+    if (metadata)
+      formData.append('metadata', JSON.stringify(metadata))
 
     const accessToken = useStorage<string | null>(TOKEN_KEY, null)
 
     return ofetch<TripImage>(`${import.meta.env.VITE_APP_SERVER_URL}/api/upload`, {
       method: 'POST',
       body: formData,
-      headers: {
-        Authorization: `Bearer ${accessToken.value}`,
-      },
+      headers: { Authorization: `Bearer ${accessToken.value}` },
     })
   }
 
@@ -133,5 +134,20 @@ export class FileRepository implements IFileRepository {
   @throttle(300)
   async getMetadata(id: string): Promise<ImageMetadata | null> {
     return await trpc.image.getMetadata.query({ id }) as ImageMetadata | null
+  }
+
+  @throttle(500)
+  async listDocuments(tripId: string): Promise<TripDocumentResponse[]> {
+    const result = await trpc.image.listDocuments.query({ tripId })
+    return result as unknown as TripDocumentResponse[]
+  }
+
+  @throttle(500)
+  async updateDocumentMeta(
+    id: string,
+    metadata: { access?: 'public' | 'private', folderId?: string | null },
+  ): Promise<TripDocumentResponse> {
+    const result = await trpc.image.updateDocumentMeta.mutate({ id, metadata })
+    return result as unknown as TripDocumentResponse
   }
 }

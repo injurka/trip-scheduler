@@ -91,7 +91,7 @@ onMounted(() => {
 
 <template>
   <AuthSignLayout :is-loading="isLoading">
-    <template #form>
+    <template v-if="false" #form>
       <form class="form" @submit.prevent="submitSignIn">
         <KitInput
           v-model="email"
@@ -143,7 +143,7 @@ onMounted(() => {
         </KitBtn>
       </form>
     </template>
-    <template #utils>
+    <template v-if="false" #utils>
       <div class="utils">
         <router-link :to="AppRoutePaths.Auth.ForgotPassword" class="util-link">
           Забыли пароль?

@@ -1,8 +1,11 @@
-import type { TripImage } from '~/shared/types/models/trip'
+import type { DocumentAccess } from '~/shared/services/api/model/types'
 
-export type DocumentAccess = 'public' | 'private'
-
-export interface DocumentFile extends TripImage {
+export interface DocumentFile {
+  id: string
+  url: string
+  originalName: string
+  sizeBytes: number
+  createdAt: string
   access: DocumentAccess
   folderId: string | null
 }
@@ -13,6 +16,5 @@ export interface DocumentFolder {
 }
 
 export interface DocumentsSectionContent {
-  documents: DocumentFile[]
   folders: DocumentFolder[]
 }
