@@ -1,4 +1,4 @@
-import { getRoutePath, TRIP_ID, USER_ID_1, USER_ID_2 } from './constants'
+import { getRoutePath, TRIP_ID, USER_ID_1 } from './constants'
 import { MOCK_DAYS } from './days'
 import { MOCK_IMAGES } from './images'
 import { MOCK_SECTIONS } from './sections'
@@ -17,7 +17,7 @@ const MOCK_TRIP_SHANGHAI = {
   currency: 'RUB',
   tags: ['Китай', 'Шанхай', 'Урумчи', 'культура', 'еда', 'приключения'],
   visibility: 'public' as const,
-  participantIds: [USER_ID_1, USER_ID_2],
+  participantIds: [USER_ID_1],
 
   images: MOCK_IMAGES,
   sections: MOCK_SECTIONS,

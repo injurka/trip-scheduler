@@ -37,7 +37,7 @@
     "@antfu/eslint-config": "6.2.0",
     "@types/bun": "latest",
     "@types/cheerio": "^1.0.0",
-    "@types/node": "^24.10.1",
+    "@types/node": "24.10.1",
     "@types/prompts": "^2.4.9",
     "@types/selenium-webdriver": "^4.35.4",
     "@types/uuid": "^11.0.0",
