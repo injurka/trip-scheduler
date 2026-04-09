@@ -9,7 +9,6 @@ export class FileRepository implements IFileRepository {
   /**
    * Загружает файл на сервер (используя FormData) с указанием типа сущности.
    */
-  @throttle(500)
   async uploadFile(
     file: File,
     entityId: string,
@@ -33,12 +32,12 @@ export class FileRepository implements IFileRepository {
     if (metadata)
       formData.append('metadata', JSON.stringify(metadata))
 
-    const accessToken = useStorage<string | null>(TOKEN_KEY, null)
+    const accessToken = localStorage.getItem(TOKEN_KEY)
 
     return ofetch<TripImage>(`${import.meta.env.VITE_APP_SERVER_URL}/api/upload`, {
       method: 'POST',
       body: formData,
-      headers: { Authorization: `Bearer ${accessToken.value}` },
+      headers: { Authorization: `Bearer ${accessToken}` },
     })
   }
 
@@ -55,13 +54,12 @@ export class FileRepository implements IFileRepository {
   ): Promise<TripImage> {
     return new Promise((resolve, reject) => {
       const xhr = new XMLHttpRequest()
-
       const url = `${import.meta.env.VITE_APP_SERVER_URL}/api/upload`
 
       xhr.open('POST', url, true)
 
-      const accessToken = useStorage<string | null>(TOKEN_KEY, null)
-      xhr.setRequestHeader('Authorization', `Bearer ${accessToken.value}`)
+      const accessToken = localStorage.getItem(TOKEN_KEY)
+      xhr.setRequestHeader('Authorization', `Bearer ${accessToken}`)
 
       xhr.upload.onprogress = (event) => {
         if (event.lengthComputable) {
@@ -94,7 +92,6 @@ export class FileRepository implements IFileRepository {
       }
 
       xhr.onerror = () => reject(new Error('Сетевая ошибка при загрузке файла.'))
-
       xhr.onabort = () => reject(new DOMException('Загрузка отменена', 'AbortError'))
 
       signal.addEventListener('abort', () => xhr.abort())

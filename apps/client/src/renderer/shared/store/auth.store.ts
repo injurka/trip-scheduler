@@ -5,7 +5,6 @@ import type {
   TokenPair,
   User,
 } from '../types/models/auth'
-import { useStorage } from '@vueuse/core'
 import { defineStore } from 'pinia'
 import { useRequest, useRequestStatus } from '~/plugins/request'
 
@@ -34,15 +33,20 @@ export interface IAuthState {
 
 export const useAuthStore = defineStore('auth', {
   state: (): IAuthState => {
-    const accessToken = useStorage<string | null>(TOKEN_KEY, null)
-    const refreshToken = useStorage<string | null>(REFRESH_TOKEN_KEY, null)
+    let accessToken: string | null = null
+    let refreshToken: string | null = null
+
+    if (typeof window !== 'undefined') {
+      accessToken = localStorage.getItem(TOKEN_KEY)
+      refreshToken = localStorage.getItem(REFRESH_TOKEN_KEY)
+    }
 
     return {
       isInitialized: false,
       user: null,
       tokenPair: {
-        accessToken: accessToken.value ?? null,
-        refreshToken: refreshToken.value ?? null,
+        accessToken,
+        refreshToken,
       } as Partial<TokenPair>,
     }
   },
@@ -141,10 +145,6 @@ export const useAuthStore = defineStore('auth', {
       })
     },
 
-    /**
-     * Инициализирует сессию входа через Telegram-бота.
-     * Возвращает deeplink url для открытия бота.
-     */
     async initTelegramLogin() {
       return useRequest({
         key: EAuthRequestKeys.SIGN_IN_TG,
@@ -152,10 +152,6 @@ export const useAuthStore = defineStore('auth', {
       }) as unknown as TelegramLoginInitResult
     },
 
-    /**
-     * Проверяет статус авторизации через Telegram-бота.
-     * Если confirmed — автоматически сохраняет токены и пользователя.
-     */
     async checkTelegramStatus(token: string) {
       return useRequest({
         key: EAuthRequestKeys.CHECK_TG,
@@ -191,14 +187,18 @@ export const useAuthStore = defineStore('auth', {
 
     saveTokens(tokens: TokenPair) {
       this.tokenPair = tokens
-      useStorage(TOKEN_KEY, '').value = tokens.accessToken
-      useStorage(REFRESH_TOKEN_KEY, '').value = tokens.refreshToken
+      if (typeof window !== 'undefined') {
+        localStorage.setItem(TOKEN_KEY, tokens.accessToken)
+        localStorage.setItem(REFRESH_TOKEN_KEY, tokens.refreshToken)
+      }
     },
 
     clearTokens() {
-      this.tokenPair = { accessToken: '', refreshToken: '' }
-      useStorage(TOKEN_KEY, null).value = null
-      useStorage(REFRESH_TOKEN_KEY, null).value = null
+      this.tokenPair = { accessToken: undefined, refreshToken: undefined }
+      if (typeof window !== 'undefined') {
+        localStorage.removeItem(TOKEN_KEY)
+        localStorage.removeItem(REFRESH_TOKEN_KEY)
+      }
     },
 
     clearAuth() {

@@ -63,12 +63,12 @@ export class AuthRepository implements IAuthRepository {
     formData.append('file', file)
     formData.append('entityType', 'avatar')
 
-    const accessToken = useStorage<string | null>(TOKEN_KEY, null)
+    const accessToken = localStorage.getItem(TOKEN_KEY)
 
     const response = await fetch(`${import.meta.env.VITE_APP_SERVER_URL}/api/upload`, {
       method: 'POST',
       body: formData,
-      headers: { Authorization: `Bearer ${accessToken.value}` },
+      headers: { Authorization: `Bearer ${accessToken}` },
     })
 
     if (!response.ok) {
