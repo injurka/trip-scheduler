@@ -12,5 +12,8 @@ export default antfu({
     'auto-imports.d.ts',
     'bun.lock',
   ],
+  rules: {
+    'e18e/prefer-static-regex': 'off',
+  },
   plugins: [storybook],
 })
