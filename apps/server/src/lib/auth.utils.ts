@@ -108,6 +108,29 @@ async function verifyAccessToken(token: string): Promise<AccessTokenPayload | nu
 }
 
 /**
+ * Проверяет токен и возвращает полный объект пользователя из БД.
+ * @param token - Строка access token.
+ * @returns Полный объект пользователя или null.
+ */
+async function getUserFromToken(token: string | undefined) {
+  if (!token) {
+    return null
+  }
+  const payload = await verifyAccessToken(token)
+  if (!payload) {
+    return null
+  }
+  const user = await db.query.users.findFirst({
+    where: eq(users.id, payload.id),
+    with: {
+      plan: true,
+    },
+  })
+  return user || null
+}
+
+
+/**
  * Аннулирует все refresh токены для конкретного пользователя (используется при выходе).
  * @param userId - ID пользователя.
  */
@@ -121,4 +144,5 @@ export const authUtils = {
   refreshTokens: refreshUserTokens,
   invalidateTokens: invalidateUserTokens,
   verifyToken: verifyAccessToken,
+  getUserFromToken
 }

@@ -8,17 +8,11 @@ import { financesGenerationService } from '~/services/llm/finances-generation.se
 const llmController = new Hono()
 
 async function generateBookingController(c: Context) {
-  // 1. Authentication
-  const authHeader = c.req.header('authorization')
-  const token = authHeader?.split(' ')[1]
-  if (!token)
-    throw new HTTPException(401, { message: 'Токен аутентификации не предоставлен.' })
-
-  const payload = await authUtils.verifyToken(token)
-  if (!payload)
+  const token = c.req.header('authorization')?.split(' ')[1]
+  const user = await authUtils.getUserFromToken(token)
+  if (!user)
     throw new HTTPException(401, { message: 'Невалидный или истекший токен.' })
 
-  // 2. Form Data Validation
   const formData = await c.req.formData()
   const file = formData.get('file')
   const bookingType = formData.get('bookingType') as string
@@ -30,11 +24,10 @@ async function generateBookingController(c: Context) {
   if (!bookingType)
     throw new HTTPException(400, { message: 'Необходимо указать тип бронирования (bookingType).' })
 
-  // 3. Call Service Layer
   try {
     const fileBuffer = Buffer.from(await file.arrayBuffer())
     const generatedData = await bookingGenerationService.generateBookingFromFile({
-      userId: payload.id,
+      userId: user.id,
       fileBuffer,
       fileName: file.name,
       bookingType,
@@ -49,32 +42,25 @@ async function generateBookingController(c: Context) {
 }
 
 async function generateFinancesController(c: Context) {
-  // 1. Authentication
-  const authHeader = c.req.header('authorization')
-  const token = authHeader?.split(' ')[1]
-  if (!token)
-    throw new HTTPException(401, { message: 'Токен аутентификации не предоставлен.' })
-
-  const payload = await authUtils.verifyToken(token)
-  if (!payload)
+  const token = c.req.header('authorization')?.split(' ')[1]
+  const user = await authUtils.getUserFromToken(token)
+  if (!user)
     throw new HTTPException(401, { message: 'Невалидный или истекший токен.' })
 
-  // 2. Form Data Validation
   const formData = await c.req.formData()
   const file = formData.get('file') as File | null
   const text = formData.get('text') as string | null
-  const notes = formData.get('notes') as string | null // notes можно передавать для доп. контекста
+  const notes = formData.get('notes') as string | null
 
   if (!file && !text) {
     throw new HTTPException(400, { message: 'Необходимо предоставить либо текст, либо файл для анализа.' })
   }
 
-  // 3. Call Service Layer
   try {
     const fileBuffer = file ? Buffer.from(await file.arrayBuffer()) : undefined
 
     const generatedData = await financesGenerationService.generateTransactionsFromData({
-      userId: payload.id,
+      userId: user.id,
       fileBuffer,
       fileName: file?.name,
       text,

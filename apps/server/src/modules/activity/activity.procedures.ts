@@ -20,7 +20,7 @@ export const activityProcedures = {
     .input(CreateActivityInputSchema)
     .output(ActivitySchema)
     .mutation(async ({ input, ctx }) => {
-      return activityService.create(input, ctx.user.id)
+      return activityService.create(input, ctx.user.id, ctx.user.role)
     }),
 
   update: protectedProcedure
@@ -35,7 +35,7 @@ export const activityProcedures = {
     .input(UpdateActivityInputSchema)
     .output(ActivitySchema)
     .mutation(async ({ input, ctx }) => {
-      return activityService.update(input, ctx.user.id)
+      return activityService.update(input, ctx.user.id, ctx.user.role)
     }),
 
   delete: protectedProcedure
@@ -50,6 +50,6 @@ export const activityProcedures = {
     .input(DeleteActivityInputSchema)
     .output(ActivitySchema)
     .mutation(async ({ input, ctx }) => {
-      return activityService.delete(input.id, ctx.user.id)
+      return activityService.delete(input.id, ctx.user.id, ctx.user.role)
     }),
 }

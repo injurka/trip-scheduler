@@ -28,22 +28,22 @@ export const noteService = {
     return notes.map(formatNote)
   },
 
-  async create(data: z.infer<typeof CreateNoteInputSchema>, userId: string) {
+  async create(data: z.infer<typeof CreateNoteInputSchema>, userId: string, userRole: string) {
     const trip = await tripRepository.getById(data.tripId)
     if (!trip)
       throw createTRPCError('NOT_FOUND', 'Путешествие не найдено')
-    if (trip.userId !== userId)
+    if (trip.userId !== userId && userRole !== 'admin')
       throw createTRPCError('FORBIDDEN', 'Нет прав')
 
     const note = await noteRepository.create(data)
     return formatNote(note)
   },
 
-  async update(data: z.infer<typeof UpdateNoteInputSchema>, userId: string) {
+  async update(data: z.infer<typeof UpdateNoteInputSchema>, userId: string, userRole: string) {
     const note = await noteRepository.getById(data.id)
     if (!note)
       throw createTRPCError('NOT_FOUND', 'Заметка не найдена')
-    if (note.trip.userId !== userId)
+    if (note.trip.userId !== userId && userRole !== 'admin')
       throw createTRPCError('FORBIDDEN', 'Нет прав')
 
     if (data.parentId) {
@@ -60,11 +60,11 @@ export const noteService = {
     return formatNote(updated)
   },
 
-  async delete(id: string, userId: string) {
+  async delete(id: string, userId: string, userRole: string) {
     const note = await noteRepository.getById(id)
     if (!note)
       throw createTRPCError('NOT_FOUND', 'Заметка не найдена')
-    if (note.trip.userId !== userId)
+    if (note.trip.userId !== userId && userRole !== 'admin')
       throw createTRPCError('FORBIDDEN', 'Нет прав')
 
     const deleted = await noteRepository.delete(id)
@@ -73,11 +73,11 @@ export const noteService = {
     return formatNote(deleted)
   },
 
-  async reorder(data: z.infer<typeof ReorderNotesInputSchema>, userId: string) {
+  async reorder(data: z.infer<typeof ReorderNotesInputSchema>, userId: string, userRole: string) {
     const trip = await tripRepository.getById(data.tripId)
     if (!trip)
       throw createTRPCError('NOT_FOUND', 'Путешествие не найдено')
-    if (trip.userId !== userId)
+    if (trip.userId !== userId && userRole !== 'admin')
       throw createTRPCError('FORBIDDEN', 'Нет прав')
 
     await noteRepository.reorder(data.tripId, data.updates)

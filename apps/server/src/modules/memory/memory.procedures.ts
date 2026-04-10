@@ -37,7 +37,7 @@ export const memoryProcedures = {
     .input(CreateMemoryInputSchema)
     .output(MemorySchema.nullable())
     .mutation(async ({ input, ctx }) => {
-      return memoryService.create(input, ctx.user.id)
+      return memoryService.create(input, ctx.user.id, ctx.user.role)
     }),
 
   update: protectedProcedure
@@ -52,7 +52,7 @@ export const memoryProcedures = {
     .input(UpdateMemoryInputSchema)
     .output(MemorySchema.nullable())
     .mutation(async ({ input, ctx }) => {
-      return memoryService.update(input, ctx.user.id)
+      return memoryService.update(input, ctx.user.id, ctx.user.role)
     }),
 
   delete: protectedProcedure
@@ -67,7 +67,7 @@ export const memoryProcedures = {
     .input(DeleteMemoryInputSchema)
     .output(MemorySchema.nullable())
     .mutation(async ({ input, ctx }) => {
-      return memoryService.delete(input.id, ctx.user.id)
+      return memoryService.delete(input.id, ctx.user.id, ctx.user.role)
     }),
 
   applyTakenAt: protectedProcedure

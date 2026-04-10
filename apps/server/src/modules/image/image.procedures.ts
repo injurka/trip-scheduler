@@ -45,20 +45,20 @@ export const imageProcedures = {
     .input(DeleteImageInputSchema)
     .output(z.object({ success: z.boolean(), id: z.string() }))
     .mutation(async ({ input, ctx }) => {
-      return imageService.delete(input.id, ctx.user.id)
+      return imageService.delete(input.id, ctx.user.id, ctx.user.role)
     }),
 
   listDocuments: publicProcedure
     .input(ListDocumentsInputSchema)
     .output(z.array(TripDocumentSchema))
     .query(async ({ input, ctx }) => {
-      return imageService.listDocuments(input.tripId, ctx.user?.id)
+      return imageService.listDocuments(input.tripId, ctx.user?.id, ctx.user?.role)
     }),
 
   updateDocumentMeta: protectedProcedure
     .input(UpdateDocumentMetaInputSchema)
     .output(TripDocumentSchema)
     .mutation(async ({ input, ctx }) => {
-      return imageService.updateDocumentMeta(input.id, input.metadata, ctx.user.id)
+      return imageService.updateDocumentMeta(input.id, input.metadata, ctx.user.id, ctx.user.role)
     }),
 }

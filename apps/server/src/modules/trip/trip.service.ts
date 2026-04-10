@@ -4,6 +4,7 @@ import { createTRPCError } from '~/lib/trpc'
 import { dayRepository } from '~/repositories/day.repository'
 import { tripRepository } from '~/repositories/trip.repository'
 import { userRepository } from '~/repositories/user.repository'
+import { accessControlService } from '~/services/access-control.service'
 import { quotaService } from '~/services/quota.service'
 
 export const tripService = {
@@ -68,42 +69,26 @@ export const tripService = {
     userId: string,
     userRole: string,
   ) {
-    const trip = await tripRepository.getById(id)
-    if (!trip)
-      throw createTRPCError('NOT_FOUND', `Путешествие с ID ${id} не найдено.`)
-
-    if (trip.userId !== userId && userRole !== 'admin')
-      throw createTRPCError('FORBIDDEN', 'У вас нет прав на изменение этого путешествия.')
-
+    await accessControlService.getTripAndVerifyAccess(id, userId, userRole)
     const updatedTrip = await tripRepository.update(id, details)
-    if (!updatedTrip)
+    if (!updatedTrip) {
       throw createTRPCError('NOT_FOUND', `Путешествие с ID ${id} не найдено.`)
-
+    }
     return updatedTrip
   },
 
-  async addParticipant(tripId: string, participantId: string, currentUserId: string) {
-    const trip = await tripRepository.getById(tripId)
-    if (!trip)
-      throw createTRPCError('NOT_FOUND', `Путешествие с ID ${tripId} не найдено.`)
-
-    if (trip.userId !== currentUserId)
-      throw createTRPCError('FORBIDDEN', 'Только владелец путешествия может добавлять участников.')
-
+  async addParticipant(tripId: string, participantId: string, currentUserId: string, userRole: string) {
+    await accessControlService.getTripAndVerifyAccess(tripId, currentUserId, userRole)
     const userToAdd = await userRepository.getById(participantId)
-    if (!userToAdd)
+    if (!userToAdd) {
       throw createTRPCError('NOT_FOUND', `Пользователь не найден.`)
-
+    }
     await tripRepository.addParticipant(tripId, userToAdd.id)
   },
 
   async delete(id: string, userId: string, userRole: string) {
-    const tripToDelete = await tripRepository.getByIdWithImages(id)
-    if (!tripToDelete)
-      throw createTRPCError('NOT_FOUND', `Путешествие с ID ${id} для удаления не найдено.`)
-
-    if (tripToDelete.userId !== userId && userRole !== 'admin')
-      throw createTRPCError('FORBIDDEN', 'У вас нет прав на удаление этого путешествия.')
+    const tripToDelete = await accessControlService.getTripAndVerifyAccess(id, userId, userRole)
+    const tripWithImages = await tripRepository.getByIdWithImages(id)
 
     const deletedTrip = await tripRepository.delete(id)
     if (!deletedTrip) {
@@ -111,11 +96,10 @@ export const tripService = {
     }
 
     await quotaService.decrementTripCount(tripToDelete.userId)
-
-    const totalImageSize = tripToDelete.images.reduce((sum, image) => sum + (image.sizeBytes || 0), 0)
-    if (totalImageSize > 0)
+    const totalImageSize = tripWithImages?.images.reduce((sum, image) => sum + (image.sizeBytes || 0), 0) ?? 0
+    if (totalImageSize > 0) {
       await quotaService.decrementStorageUsage(tripToDelete.userId, totalImageSize)
-
+    }
     return deletedTrip
   },
 

@@ -58,7 +58,7 @@ export const dayProcedures = {
     .input(CreateDayInputSchema)
     .output(DayWithActivitiesSchema)
     .mutation(async ({ input, ctx }) => {
-      return dayService.create(input, ctx.user.id)
+      return dayService.create(input, ctx.user.id, ctx.user.role)
     }),
 
   update: protectedProcedure
@@ -73,7 +73,7 @@ export const dayProcedures = {
     .input(UpdateDayInputSchema)
     .output(DaySchema)
     .mutation(async ({ input, ctx }) => {
-      return dayService.update(input.id, input.details, ctx.user.id)
+      return dayService.update(input.id, input.details, ctx.user.id, ctx.user.role)
     }),
 
   delete: protectedProcedure
@@ -88,6 +88,6 @@ export const dayProcedures = {
     .input(DeleteDayInputSchema)
     .output(DaySchema)
     .mutation(async ({ input, ctx }) => {
-      return dayService.delete(input.id, ctx.user.id)
+      return dayService.delete(input.id, ctx.user.id, ctx.user.role)
     }),
 }

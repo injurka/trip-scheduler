@@ -147,7 +147,7 @@ export const tripProcedures = {
     .input(AddParticipantInputSchema)
     .output(z.void())
     .mutation(async ({ input, ctx }) => {
-      return tripService.addParticipant(input.tripId, input.userId, ctx.user.id)
+      return tripService.addParticipant(input.tripId, input.userId, ctx.user.id, ctx.user.role)
     }),
 
   delete: protectedProcedure

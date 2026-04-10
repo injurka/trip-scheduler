@@ -119,10 +119,10 @@ export const imageService = {
     return await imageRepository.getAllByUserId(userId)
   },
 
-  async delete(fileId: string, userId: string) {
+  async delete(fileId: string, userId: string, userRole: string) {
     const tripImage = await imageRepository.getById(fileId)
     if (tripImage) {
-      if (tripImage.trip?.userId !== userId) {
+      if (tripImage.trip?.userId !== userId && userRole !== 'admin') {
         throw createTRPCError('FORBIDDEN', 'У вас нет прав на удаление этого файла.')
       }
       await deleteFileWithVariants(tripImage)
@@ -134,11 +134,16 @@ export const imageService = {
     throw createTRPCError('NOT_FOUND', 'Файл не найден в базе данных.')
   },
 
-  async listDocuments(tripId: string, userId?: string) {
+  async listDocuments(tripId: string, userId?: string, userRole?: string) {
     let isParticipantOrOwner = false
 
     if (userId) {
-      isParticipantOrOwner = await tripRepository.hasAccess(tripId, userId)
+      if (userRole === 'admin') {
+        isParticipantOrOwner = true
+      }
+      else {
+        isParticipantOrOwner = await tripRepository.hasAccess(tripId, userId)
+      }
     }
 
     const documents = await imageRepository.listDocuments(tripId)
@@ -151,14 +156,14 @@ export const imageService = {
     }
   },
 
-  async updateDocumentMeta(id: string, newMetadata: Partial<DocumentMetadata>, userId: string) {
+  async updateDocumentMeta(id: string, newMetadata: Partial<DocumentMetadata>, userId: string, userRole: string) {
     const image = await imageRepository.getById(id)
     if (!image) {
       throw createTRPCError('NOT_FOUND', 'Файл не найден')
     }
 
     const hasAccess = await tripRepository.hasAccess(image.tripId, userId)
-    if (!hasAccess) {
+    if (!hasAccess && userRole !== 'admin') {
       throw createTRPCError('FORBIDDEN', 'Нет прав для редактирования')
     }
 

@@ -10,16 +10,14 @@ export async function uploadFileController(c: Context) {
     throw new HTTPException(413, { message: 'Файл слишком большой (максимум 35MB)' })
   }
 
-  const authHeader = c.req.header('authorization')
-  const token = authHeader?.split(' ')[1]
-  if (!token)
-    throw new HTTPException(401, { message: 'Токен не предоставлен.' })
+  const token = c.req.header('authorization')?.split(' ')[1]
+  const user = await authUtils.getUserFromToken(token)
 
-  const payload = await authUtils.verifyToken(token)
-  if (!payload)
-    throw new HTTPException(401, { message: 'Невалидный токен.' })
+  if (!user) {
+    throw new HTTPException(401, { message: 'Невалидный токен или пользователь не найден.' })
+  }
 
-  const userId = payload.id
+  const { id: userId, role: userRole } = user
 
   const formData = await c.req.formData()
   const file = formData.get('file')
@@ -52,6 +50,7 @@ export async function uploadFileController(c: Context) {
   try {
     const result = await imageUploadService.processUpload(entityType, {
       userId,
+      userRole,
       entityId,
       file,
       buffer,

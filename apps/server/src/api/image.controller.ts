@@ -4,7 +4,7 @@ import { Hono } from 'hono'
 import { HTTPException } from 'hono/http-exception'
 import sharp from 'sharp'
 import { db } from '~/../db'
-import { tripImages, tripParticipants } from '~/../db/schema'
+import { tripImages, tripParticipants, trips } from '~/../db/schema'
 import { authUtils } from '~/lib/auth.utils'
 import {
   imageOutputSizeBytesHistogram,
@@ -24,21 +24,20 @@ imageController.get('/*', async (c) => {
     const imageRecord = await db.query.tripImages.findFirst({ where: eq(tripImages.url, filePath) })
     if (imageRecord && (imageRecord.metadata as any)?.access === 'private') {
       const token = c.req.query('token') || c.req.header('authorization')?.split(' ')[1]
-      if (!token)
+      const user = await authUtils.getUserFromToken(token)
+
+      if (!user)
         throw new HTTPException(401, { message: 'Unauthorized' })
 
-      const payload = await authUtils.verifyToken(token)
-      if (!payload)
-        throw new HTTPException(401, { message: 'Invalid token' })
-
+      const isAdmin = user.role === 'admin'
       const participant = await db.query.tripParticipants.findFirst({
-        where: and(eq(tripParticipants.tripId, imageRecord.tripId), eq(tripParticipants.userId, payload.id)),
+        where: and(eq(tripParticipants.tripId, imageRecord.tripId), eq(tripParticipants.userId, user.id)),
       })
 
-      const trip = await db.query.trips.findFirst({ where: eq(tripImages.id, imageRecord.tripId) })
-      const isOwner = trip?.userId === payload.id
+      const trip = await db.query.trips.findFirst({ where: eq(trips.id, imageRecord.tripId) })
+      const isOwner = trip?.userId === user.id
 
-      if (!participant && !isOwner)
+      if (!participant && !isOwner && !isAdmin)
         throw new HTTPException(403, { message: 'Forbidden' })
     }
   }
@@ -58,16 +57,12 @@ imageController.get('/*', async (c) => {
     return c.notFound()
   }
 
-  // Является ли файл изображением, которое умеет ресайзить Sharp
   const isProcessableImage = ALLOWED_IMAGE_FORMATS.includes(fileExt) || s3Result.contentType.startsWith('image/')
 
-  // Если это ДОКУМЕНТ (PDF, DOCX, TXT и др.) или не картинка, обходим Sharp и отдаем "как есть"
   if (!isProcessableImage) {
     endTimer({ status: 'success', format: fileExt || 'doc', type: 'skipped' })
     imageOutputSizeBytesHistogram.observe({ format: fileExt || 'doc', type: 'skipped' }, s3Result.buffer.byteLength)
 
-    // Для PDF и TXT браузер может открыть их внутри вкладки (inline)
-    // Для тяжелых форматов (docx, xlsx) делаем скачивание (attachment)
     const disposition = (fileExt === 'pdf' || fileExt === 'txt') ? 'inline' : 'attachment'
 
     return c.body(s3Result.buffer as any, 200, {

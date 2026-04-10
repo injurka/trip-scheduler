@@ -25,7 +25,7 @@ export const noteProcedures = {
     .input(CreateNoteInputSchema)
     .output(NoteSchema)
     .mutation(async ({ input, ctx }) => {
-      return noteService.create(input, ctx.user.id)
+      return noteService.create(input, ctx.user.id, ctx.user.role)
     }),
 
   update: protectedProcedure
@@ -33,7 +33,7 @@ export const noteProcedures = {
     .input(UpdateNoteInputSchema)
     .output(NoteSchema)
     .mutation(async ({ input, ctx }) => {
-      return noteService.update(input, ctx.user.id)
+      return noteService.update(input, ctx.user.id, ctx.user.role)
     }),
 
   delete: protectedProcedure
@@ -41,7 +41,7 @@ export const noteProcedures = {
     .input(DeleteNoteInputSchema)
     .output(NoteSchema)
     .mutation(async ({ input, ctx }) => {
-      return noteService.delete(input.id, ctx.user.id)
+      return noteService.delete(input.id, ctx.user.id, ctx.user.role)
     }),
 
   reorder: protectedProcedure
@@ -49,7 +49,7 @@ export const noteProcedures = {
     .input(ReorderNotesInputSchema)
     .output(z.object({ success: z.boolean() }))
     .mutation(async ({ input, ctx }) => {
-      return noteService.reorder(input, ctx.user.id)
+      return noteService.reorder(input, ctx.user.id, ctx.user.role)
     }),
 
   getImagesUsage: publicProcedure
