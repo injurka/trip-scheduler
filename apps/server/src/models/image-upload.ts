@@ -4,6 +4,7 @@ export type EntityType = 'trip' | 'post' | 'blog' | 'avatar'
 
 export interface UploadContext {
   userId: string
+  userRole?: string
   entityId: string
   file: File
   buffer: Buffer

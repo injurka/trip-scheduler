@@ -15,14 +15,16 @@ import { fileUploadsCounter, fileUploadSizeBytesHistogram } from '~/services/met
 import { quotaService } from '~/services/quota.service'
 
 const tripHandler: IUploadHandler = {
-  async validate({ userId, entityId, placement, buffer }) {
+  async validate({ userId, userRole, entityId, placement, buffer }) {
     if (!placement || !tripImagePlacementEnum.enumValues.includes(placement as any))
       throw new HTTPException(400, { message: 'Некорректный тип размещения.' })
     const trip = await tripRepository.getById(entityId)
     if (!trip)
       throw new HTTPException(404, { message: 'Путешествие не найдено.' })
-    if (trip.userId !== userId)
+
+    if (trip.userId !== userId && userRole !== 'admin')
       throw new HTTPException(403, { message: 'Нет прав.' })
+
     await quotaService.checkStorageQuota(userId, buffer.length)
   },
   getFolderPath: ({ entityId, placement }) => `trips/${entityId}/${placement}`,
@@ -39,12 +41,14 @@ const tripHandler: IUploadHandler = {
 }
 
 const postHandler: IUploadHandler = {
-  async validate({ userId, entityId, buffer }) {
+  async validate({ userId, userRole, entityId, buffer }) {
     const post = await postRepository.findById(entityId)
     if (!post)
       throw new HTTPException(404, { message: 'Пост не найден.' })
-    if (post.userId !== userId)
+
+    if (post.userId !== userId && userRole !== 'admin')
       throw new HTTPException(403, { message: 'Нет прав.' })
+
     await quotaService.checkStorageQuota(userId, buffer.length)
   },
   getFolderPath: ({ entityId }) => `posts/${entityId}`,
@@ -54,9 +58,8 @@ const postHandler: IUploadHandler = {
 }
 
 const blogHandler: IUploadHandler = {
-  async validate({ userId, entityId }) {
-    const user = await userRepository.getById(userId)
-    if (user?.role !== 'admin')
+  async validate({ userRole, entityId }) {
+    if (userRole !== 'admin')
       throw new HTTPException(403, { message: 'Доступ запрещен' })
     const blog = await blogRepository.findById(entityId)
     if (!blog)
@@ -104,8 +107,7 @@ export class ImageUploadService {
     let variants: Record<string, Buffer> = {}
     let metadata: any = { originalName: ctx.file.name }
 
-    // Проверяем по MIME или расширению, является ли файл картинкой
-    const isImage = ctx.file.type.startsWith('image/') || /\.(jpg|jpeg|png|webp|avif|gif)$/i.test(fileName)
+    const isImage = ctx.file.type.startsWith('image/') || /\.(?:jpg|jpeg|png|webp|avif|gif)$/i.test(fileName)
 
     if (isImage) {
       try {
@@ -127,7 +129,6 @@ export class ImageUploadService {
     const variantUrls: Record<string, string> = {}
     let variantsTotalSize = 0
 
-    // Сохраняем варианты картинок
     await Promise.all(
       Object.entries(variants).map(async ([name, variantBuffer]) => {
         const vPaths = paths.getVariantPaths(name)
@@ -137,7 +138,6 @@ export class ImageUploadService {
       }),
     )
 
-    // Сохраняем оригинал. Передаем MIME от клиента. Если это аватар, то принудительно webp
     const originalMime = entityType === 'avatar' ? 'image/webp' : ctx.file.type
     await saveFile(paths.path, processedBuffer, originalMime)
 
