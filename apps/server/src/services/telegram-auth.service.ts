@@ -1,4 +1,5 @@
 import { authUtils } from '~/lib/auth.utils'
+import { Logger } from '~/lib/logger'
 import { userRepository } from '~/repositories/user.repository'
 
 interface TelegramUser {
@@ -25,7 +26,10 @@ setInterval(() => {
 }, 5 * 60 * 1000)
 
 export class TelegramAuthService {
-  constructor(private readonly userRepo: typeof userRepository) { }
+  constructor(
+    private readonly userRepo: typeof userRepository,
+    private readonly logger: Logger,
+  ) { }
 
   private get botToken(): string {
     const t = process.env.TELEGRAM_BOT_TOKEN
@@ -174,25 +178,32 @@ export class TelegramAuthService {
   async setupWebhook(): Promise<void> {
     const backendUrl = process.env.BACKEND_URL
     if (!backendUrl) {
-      console.warn('[TelegramAuth] BACKEND_URL not set, webhook не зарегистрирован')
+      this.logger.warn('[TelegramAuth] BACKEND_URL not set, webhook не зарегистрирован')
       return
     }
+
     const webhookUrl = `${backendUrl}/api/auth/telegram/webhook`
     const secret = process.env.TELEGRAM_WEBHOOK_SECRET ?? ''
 
-    const res = await fetch(`https://api.telegram.org/bot${this.botToken}/setWebhook`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ url: webhookUrl, secret_token: secret }),
-    })
+    try {
+      const telegramApiUrl = process.env.TELEGRAM_API_URL || 'https://api.telegram.org'
 
-    const data = await res.json()
-    if (data.ok) {
-      // eslint-disable-next-line no-console
-      console.info('[TelegramAuth] Webhook зарегистрирован:', webhookUrl)
+      const res = await fetch(`${telegramApiUrl}/bot${this.botToken}/setWebhook`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ url: webhookUrl, secret_token: secret }),
+      })
+
+      const data = await res.json()
+      if (data.ok) {
+        this.logger.info(`[TelegramAuth] Webhook зарегистрирован: ${webhookUrl}`)
+      }
+      else {
+        this.logger.error('[TelegramAuth] Ошибка регистрации webhook:', data)
+      }
     }
-    else {
-      console.error('[TelegramAuth] Ошибка регистрации webhook:', data)
+    catch (error) {
+      this.logger.error('[TelegramAuth] Критическая ошибка сети при регистрации webhook (возможно блокировка):', error)
     }
   }
 
@@ -201,7 +212,8 @@ export class TelegramAuthService {
     if (replyMarkup)
       body.reply_markup = replyMarkup
 
-    await fetch(`https://api.telegram.org/bot${this.botToken}/sendMessage`, {
+    const telegramApiUrl = process.env.TELEGRAM_API_URL || 'https://api.telegram.org'
+    await fetch(`${telegramApiUrl}/bot${this.botToken}/sendMessage`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(body),
@@ -209,7 +221,8 @@ export class TelegramAuthService {
   }
 
   private async answerCallback(callbackQueryId: string, text: string): Promise<void> {
-    await fetch(`https://api.telegram.org/bot${this.botToken}/answerCallbackQuery`, {
+    const telegramApiUrl = process.env.TELEGRAM_API_URL || 'https://api.telegram.org'
+    await fetch(`${telegramApiUrl}/bot${this.botToken}/answerCallbackQuery`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ callback_query_id: callbackQueryId, text }),
@@ -217,7 +230,8 @@ export class TelegramAuthService {
   }
 
   private async editMessage(chatId: number, messageId: number, text: string): Promise<void> {
-    await fetch(`https://api.telegram.org/bot${this.botToken}/editMessageText`, {
+    const telegramApiUrl = process.env.TELEGRAM_API_URL || 'https://api.telegram.org'
+    await fetch(`${telegramApiUrl}/bot${this.botToken}/editMessageText`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ chat_id: chatId, message_id: messageId, text }),
@@ -225,4 +239,4 @@ export class TelegramAuthService {
   }
 }
 
-export const telegramAuthService = new TelegramAuthService(userRepository)
+export const telegramAuthService = new TelegramAuthService(userRepository, new Logger())
