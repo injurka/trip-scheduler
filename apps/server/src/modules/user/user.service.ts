@@ -157,7 +157,8 @@ export const userService = {
   },
 
   async search(query: string) {
-    if (!query || query.length < 2) return []
+    if (!query || query.length < 2)
+      return []
     return await userRepository.searchUsers(query)
   },
 }

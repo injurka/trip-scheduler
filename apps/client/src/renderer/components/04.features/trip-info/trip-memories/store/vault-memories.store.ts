@@ -79,7 +79,9 @@ export const useVaultMemoriesStore = defineStore('vaultMemories', {
       this.syncState.total = toDownload.length
 
       if (toDownload.length === 0) {
-        setTimeout(() => { this.syncState.isDownloading = false }, 500)
+        setTimeout(() => {
+          this.syncState.isDownloading = false
+        }, 500)
         return
       }
 

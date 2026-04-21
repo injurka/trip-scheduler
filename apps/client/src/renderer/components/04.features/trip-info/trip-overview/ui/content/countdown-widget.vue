@@ -22,7 +22,7 @@ const timeLeft = ref({
 
 function updateCountdown() {
   const target = new Date(props.targetDate).getTime()
-  const now = new Date().getTime()
+  const now = Date.now()
   const difference = target - now
 
   if (difference <= 0) {

@@ -43,7 +43,6 @@ export const noteRepository = {
 
   async create(data: { tripId: string, parentId?: string | null, type: 'folder' | 'markdown' | 'excalidraw', title: string, order?: number, color?: string | null }) {
     return measureDbQuery('tripNotes', 'insert', async () => {
-      // @ts-ignore - ожидаем, что вы добавите color в БД
       const [note] = await db.insert(tripNotes).values({
         id: uuidv4(),
         tripId: data.tripId,

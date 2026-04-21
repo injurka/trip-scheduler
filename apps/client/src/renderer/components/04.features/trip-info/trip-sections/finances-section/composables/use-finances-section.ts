@@ -26,7 +26,6 @@ interface UseFinancesSectionProps {
   readonly: boolean
 }
 
-
 export function useFinancesSection(
   props: UseFinancesSectionProps,
   emit: (event: 'updateSection', payload: any) => void,
@@ -75,7 +74,6 @@ export function useFinancesSection(
     }
     isTransactionFormOpen.value = false
   }
-
 
   function addMultipleTransactions(newTransactions: Partial<Transaction>[]) {
     const transactionsToAdd = newTransactions.map(tx => ({
@@ -147,7 +145,7 @@ export function useFinancesSection(
     if (start || end) {
       result = result.filter((tx) => {
         if (!tx.date)
-          return false 
+          return false
 
         const txDate = tx.date.split('T')[0]
         const isAfterStart = start ? txDate >= start : true
@@ -194,9 +192,9 @@ export function useFinancesSection(
     const spendingMap = new Map<string, number>()
 
     filteredTransactions.value
-      .filter(tx => tx.date) 
+      .filter(tx => tx.date)
       .forEach((tx) => {
-        const date = tx.date!.split('T')[0] 
+        const date = tx.date!.split('T')[0]
         const amountInMain = convertToMainCurrency(tx.amount, tx.currency)
 
         if (spendingMap.has(date))

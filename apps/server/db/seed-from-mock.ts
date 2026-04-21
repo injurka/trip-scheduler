@@ -188,7 +188,7 @@ async function discoverAndSelectData() {
     selectedUsers: response.selectedUsers || [],
     selectedTrips: response.selectedTrips || [],
     selectedPosts: response.selectedPosts || [],
-    selectedMarks: response.selectedMarks || [], 
+    selectedMarks: response.selectedMarks || [],
   }
 }
 

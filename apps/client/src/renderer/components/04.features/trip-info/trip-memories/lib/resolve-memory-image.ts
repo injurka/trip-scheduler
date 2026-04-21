@@ -23,7 +23,7 @@ export function resolveMemoryImageSource(
   dayId: string | undefined,
 ): MemoryImageSource {
   const serverUrl = resolveApiUrl(image.url)
-  
+
   const variants = {
     small: image.variants?.small ? resolveApiUrl(image.variants.small) : serverUrl,
     medium: image.variants?.medium ? resolveApiUrl(image.variants.medium) : serverUrl,

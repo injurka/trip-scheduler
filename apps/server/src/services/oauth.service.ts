@@ -86,7 +86,7 @@ export class OAuthService {
         name: `${authData.first_name} ${authData.last_name || ''}`.trim(),
         avatarUrl: authData.photo_url,
       })
-      
+
       const token = await authUtils.generateTokens({ id: user.id, email: user.email! })
 
       return { token, user }

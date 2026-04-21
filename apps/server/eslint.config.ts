@@ -7,5 +7,5 @@ export default antfu({
     'node/prefer-global/buffer': 'off',
     'e18e/prefer-static-regex': 'off',
   },
-  ignores: ['**/dump/**', '**/drizzle/**', 'bun.lock'],
+  ignores: ['**/dump/**', '**/drizzle/**', 'bun.lock', 'readme.md'],
 })

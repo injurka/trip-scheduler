@@ -57,9 +57,9 @@ export type ActivitySection = ActivitySectionText | ActivitySectionGallery | Act
 
 export type PostElementBlock
   = | PostContentBlockText
-  | PostContentBlockGallery
-  | PostContentBlockLocation
-  | PostContentBlockRoute
+    | PostContentBlockGallery
+    | PostContentBlockLocation
+    | PostContentBlockRoute
 
 type PostContentBlockType = 'markdown' | 'image' | 'gallery' | 'location' | 'route'
 
@@ -104,10 +104,10 @@ interface PostContentBlockRoute extends PostContentBlockBase {
 }
 export type PostElementContent
   = | PostContentBlockText
-  | PostContentBlockImage
-  | PostContentBlockGallery
-  | PostContentBlockLocation
-  | PostContentBlockRoute
+    | PostContentBlockImage
+    | PostContentBlockGallery
+    | PostContentBlockLocation
+    | PostContentBlockRoute
 
 export interface PostStatsDetail {
   views: number

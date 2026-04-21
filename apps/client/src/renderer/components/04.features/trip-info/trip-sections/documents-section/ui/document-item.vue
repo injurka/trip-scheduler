@@ -21,7 +21,7 @@ const isDownloading = ref(false)
 
 const extension = computed(() => {
   const urlExt = props.document.url.split('.').pop()?.toLowerCase() || ''
-  return urlExt.split('?')[0] 
+  return urlExt.split('?')[0]
 })
 
 const displayName = computed(() => {

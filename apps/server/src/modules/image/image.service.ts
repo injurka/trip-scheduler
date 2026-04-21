@@ -82,7 +82,7 @@ export const imageService = {
         const s3Objects = await s3Service.listDirectory(prefix)
 
         for (const obj of s3Objects) {
-          if (!obj.Key || !/\.(jpg|jpeg|png|webp|gif|avif)$/i.test(obj.Key))
+          if (!obj.Key || !/\.(?:jpg|jpeg|png|webp|gif|avif)$/i.test(obj.Key))
             continue
           if (obj.Key.includes('-small') || obj.Key.includes('-medium') || obj.Key.includes('-large'))
             continue
@@ -99,7 +99,6 @@ export const imageService = {
           })
         }
 
-        // eslint-disable-next-line e18e/prefer-spread-syntax
         return Array.from(imagesMap.values()).sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime())
       }
       catch (error) {

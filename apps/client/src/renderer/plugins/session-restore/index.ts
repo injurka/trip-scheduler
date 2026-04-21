@@ -1,4 +1,5 @@
 import type { Pinia } from 'pinia'
+import { isNetworkOrServerError } from '~/shared/lib/error'
 import { useAuthStore } from '~/shared/store/auth.store'
 
 /**
@@ -14,6 +15,13 @@ export async function restoreSession(pinia: Pinia): Promise<void> {
   }
 
   try {
+    if (typeof navigator !== 'undefined' && !navigator.onLine) {
+      if (authStore.tokenPair?.accessToken && authStore.user) {
+        console.warn('Приложение оффлайн. Восстановлена кэшированная сессия.')
+        return
+      }
+    }
+
     // Если есть access-токен, пытаемся получить пользователя
     if (authStore.tokenPair?.accessToken) {
       await authStore.me()
@@ -24,7 +32,12 @@ export async function restoreSession(pinia: Pinia): Promise<void> {
       await authStore.me()
     }
   }
-  catch {
+  catch (error) {
+    if (isNetworkOrServerError(error)) {
+      console.warn('Сетевая ошибка при восстановлении сессии. Используем локальные данные.')
+      return
+    }
+
     // Если первая попытка не удалась (например, access-токен истек)
     // и у нас все еще есть refresh-токен (т.к. me() его больше не удаляет).
     if (authStore.tokenPair?.refreshToken) {
@@ -34,9 +47,14 @@ export async function restoreSession(pinia: Pinia): Promise<void> {
         await authStore.me()
       }
       catch (refreshError) {
-        // Если и обновление не помогло, то все очищаем
-        console.error('Не удалось восстановить сессию даже после обновления токена:', refreshError)
-        authStore.clearAuth()
+        if (isNetworkOrServerError(refreshError)) {
+          console.warn('Сетевая ошибка при обновлении токена. Используем локальные данные.')
+        }
+        else {
+          // Если и обновление не помогло, то все очищаем
+          console.error('Не удалось восстановить сессию даже после обновления токена:', refreshError)
+          authStore.clearAuth()
+        }
       }
     }
     else {

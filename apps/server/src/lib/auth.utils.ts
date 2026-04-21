@@ -129,7 +129,6 @@ async function getUserFromToken(token: string | undefined) {
   return user || null
 }
 
-
 /**
  * Аннулирует все refresh токены для конкретного пользователя (используется при выходе).
  * @param userId - ID пользователя.
@@ -144,5 +143,5 @@ export const authUtils = {
   refreshTokens: refreshUserTokens,
   invalidateTokens: invalidateUserTokens,
   verifyToken: verifyAccessToken,
-  getUserFromToken
+  getUserFromToken,
 }

@@ -55,7 +55,7 @@ async function handleSearch() {
       useToast().error('Место не найдено')
     }
   }
-  catch (e) {
+  catch {
     useToast().error('Ошибка при поиске локации')
   }
 }

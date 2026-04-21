@@ -130,6 +130,7 @@ function openCoverDialog() {
 }
 
 function selectCover(url: string | null) {
+  // eslint-disable-next-line ts/no-use-before-define
   editableTrip.value.imageUrl = url
   isCoverDialogOpen.value = false
 }

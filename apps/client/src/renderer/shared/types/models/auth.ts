@@ -50,11 +50,11 @@ export interface TelegramLoginInitResult {
 
 export type TelegramBotAuthStatus
   = | { status: 'pending' }
-  | { status: 'cancelled' }
-  | { status: 'expired' }
-  | { status: 'not_found' }
-  | {
-    status: 'confirmed'
-    token: TokenPair
-    user: User
-  }
+    | { status: 'cancelled' }
+    | { status: 'expired' }
+    | { status: 'not_found' }
+    | {
+      status: 'confirmed'
+      token: TokenPair
+      user: User
+    }

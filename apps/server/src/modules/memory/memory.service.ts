@@ -3,7 +3,6 @@ import type { CreateMemoryInputSchema, GetMemoriesInputSchema, UpdateMemoryInput
 import { createTRPCError } from '~/lib/trpc'
 import { imageRepository } from '~/repositories/image.repository'
 import { memoryRepository } from '~/repositories/memory.repository'
-import { tripRepository } from '~/repositories/trip.repository'
 import { accessControlService } from '~/services/access-control.service'
 import { deleteFileWithVariants } from '~/services/file-storage.service'
 import { quotaService } from '~/services/quota.service'

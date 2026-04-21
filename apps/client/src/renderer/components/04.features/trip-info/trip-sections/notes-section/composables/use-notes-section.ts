@@ -27,6 +27,7 @@ function parseImageIds(content: string | null): string[] {
   const ids = new Set<string>()
   let match: RegExpExecArray | null
 
+  // eslint-disable-next-line no-cond-assign
   while ((match = pattern.exec(content)) !== null) {
     if (match[1])
       ids.add(match[1].toLowerCase())

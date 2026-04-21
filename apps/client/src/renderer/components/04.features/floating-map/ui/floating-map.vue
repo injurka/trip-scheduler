@@ -14,7 +14,7 @@ const windowRef = ref<HTMLElement | null>(null)
 const headerRef = ref<HTMLElement | null>(null)
 
 const { width: windowWidth, height: windowHeight } = useWindowSize()
-const isMobile = computed(() => windowWidth.value < 768) 
+const isMobile = computed(() => windowWidth.value < 768)
 
 const mapCenter = ref<[number, number]>([37.6176, 55.7558])
 
@@ -245,7 +245,7 @@ const windowStyle = computed(() => {
     position: relative;
     left: auto;
     top: auto;
-    resize: none; 
+    resize: none;
     width: 90vw;
     height: 70vh;
     max-width: 500px;

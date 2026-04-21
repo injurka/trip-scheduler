@@ -16,7 +16,7 @@ export class UserRepository implements IUserRepository {
   }
 
   @throttle(300)
-  async search(query: string): Promise<{ id: string; name: string; email: string | null; avatarUrl: string | null }[]> {
+  async search(query: string): Promise<{ id: string, name: string, email: string | null, avatarUrl: string | null }[]> {
     const result = await trpc.user.search.query({ query })
     return result
   }

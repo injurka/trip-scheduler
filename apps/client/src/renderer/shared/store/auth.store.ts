@@ -7,9 +7,11 @@ import type {
 } from '../types/models/auth'
 import { defineStore } from 'pinia'
 import { useRequest, useRequestStatus } from '~/plugins/request'
+import { isNetworkOrServerError } from '../lib/error'
 
 export const TOKEN_KEY = 'auth_token'
 export const REFRESH_TOKEN_KEY = 'auth_refresh_token'
+export const USER_KEY = 'auth_user'
 
 export enum EAuthRequestKeys {
   ME = 'auth:me',
@@ -35,15 +37,26 @@ export const useAuthStore = defineStore('auth', {
   state: (): IAuthState => {
     let accessToken: string | null = null
     let refreshToken: string | null = null
+    let user: User | null = null
 
     if (typeof window !== 'undefined') {
       accessToken = localStorage.getItem(TOKEN_KEY)
       refreshToken = localStorage.getItem(REFRESH_TOKEN_KEY)
+
+      const userStr = localStorage.getItem(USER_KEY)
+      if (userStr) {
+        try {
+          user = JSON.parse(userStr)
+        }
+        catch {
+          // Игнорируем ошибки парсинга
+        }
+      }
     }
 
     return {
       isInitialized: false,
-      user: null,
+      user,
       tokenPair: {
         accessToken,
         refreshToken,
@@ -71,9 +84,13 @@ export const useAuthStore = defineStore('auth', {
       return useRequest<User>({
         key: EAuthRequestKeys.ME,
         fn: db => db.auth.me(),
-        onSuccess: (data) => { this.user = data },
+        onSuccess: (data) => {
+          this.saveUser(data)
+        },
         onError: ({ error }) => {
-          this.user = null
+          if (!isNetworkOrServerError(error)) {
+            this.clearAuth()
+          }
           throw error
         },
       })
@@ -89,7 +106,9 @@ export const useAuthStore = defineStore('auth', {
         fn: db => db.auth.refresh(refreshToken),
         onSuccess: (data) => { this.saveTokens(data.token) },
         onError: ({ error }) => {
-          this.clearAuth()
+          if (!isNetworkOrServerError(error)) {
+            this.clearAuth()
+          }
           throw error
         },
       })
@@ -112,7 +131,7 @@ export const useAuthStore = defineStore('auth', {
         key: EAuthRequestKeys.SIGN_IN,
         fn: db => db.auth.signIn(payload),
         onSuccess: (data) => {
-          this.user = data.user
+          this.saveUser(data.user)
           this.saveTokens(data.token)
         },
         onError: ({ error }) => {
@@ -135,7 +154,7 @@ export const useAuthStore = defineStore('auth', {
         key: EAuthRequestKeys.VERIFY_EMAIL,
         fn: db => db.auth.verifyEmail(payload),
         onSuccess: (data) => {
-          this.user = data.user
+          this.saveUser(data.user)
           this.saveTokens(data.token)
         },
         onError: ({ error }) => {
@@ -159,7 +178,7 @@ export const useAuthStore = defineStore('auth', {
         onSuccess: (result) => {
           if (result.status === 'confirmed') {
             this.saveTokens(result.token)
-            this.user = result.user
+            this.saveUser(result.user)
           }
         },
         onError: ({ error }) => {
@@ -174,7 +193,7 @@ export const useAuthStore = defineStore('auth', {
         fn: db => db.auth.updateStatus(data),
         onSuccess: (updatedUser) => {
           if (updatedUser) {
-            this.user = updatedUser
+            this.saveUser(updatedUser)
             useToast().success('Статус обновлен')
           }
         },
@@ -183,6 +202,13 @@ export const useAuthStore = defineStore('auth', {
           throw error
         },
       })
+    },
+
+    saveUser(user: User) {
+      this.user = user
+      if (typeof window !== 'undefined') {
+        localStorage.setItem(USER_KEY, JSON.stringify(user))
+      }
     },
 
     saveTokens(tokens: TokenPair) {
@@ -204,26 +230,37 @@ export const useAuthStore = defineStore('auth', {
     clearAuth() {
       this.user = null
       this.clearTokens()
+      if (typeof window !== 'undefined') {
+        localStorage.removeItem(USER_KEY)
+      }
     },
 
     incrementTripCount() {
-      if (this.user)
+      if (this.user) {
         this.user.currentTripsCount++
+        this.saveUser(this.user)
+      }
     },
 
     decrementTripCount() {
-      if (this.user && this.user.currentTripsCount > 0)
+      if (this.user && this.user.currentTripsCount > 0) {
         this.user.currentTripsCount--
+        this.saveUser(this.user)
+      }
     },
 
     incrementStorageUsage(bytes: number) {
-      if (this.user)
+      if (this.user) {
         this.user.currentStorageBytes += bytes
+        this.saveUser(this.user)
+      }
     },
 
     decrementStorageUsage(bytes: number) {
-      if (this.user)
+      if (this.user) {
         this.user.currentStorageBytes = Math.max(0, this.user.currentStorageBytes - bytes)
+        this.saveUser(this.user)
+      }
     },
 
     async updateUser(data: { name?: string, avatarUrl?: string }) {
@@ -231,8 +268,9 @@ export const useAuthStore = defineStore('auth', {
         key: EAuthRequestKeys.UPDATE_USER,
         fn: db => db.auth.updateUser(data),
         onSuccess: (updatedUser) => {
-          if (this.user && updatedUser)
-            this.user = { ...this.user, ...updatedUser }
+          if (this.user && updatedUser) {
+            this.saveUser({ ...this.user, ...updatedUser })
+          }
         },
         onError: ({ error }) => { throw error },
       })
@@ -243,8 +281,9 @@ export const useAuthStore = defineStore('auth', {
         key: EAuthRequestKeys.UPLOAD_AVATAR,
         fn: db => db.auth.uploadAvatar(file),
         onSuccess: (updatedUser) => {
-          if (this.user && updatedUser)
-            this.user = { ...this.user, ...updatedUser }
+          if (this.user && updatedUser) {
+            this.saveUser({ ...this.user, ...updatedUser })
+          }
         },
         onError: ({ error }) => { throw error },
       })

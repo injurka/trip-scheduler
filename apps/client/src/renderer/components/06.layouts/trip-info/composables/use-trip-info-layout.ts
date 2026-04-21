@@ -1,7 +1,7 @@
 import type { KitDropdownItem } from '~/components/01.kit/kit-dropdown'
 import type { ViewSwitcherItem } from '~/components/01.kit/kit-view-switcher'
 import type { TripSection } from '~/shared/types/models/trip'
-import { onClickOutside, useMediaQuery } from '@vueuse/core'
+import { onClickOutside } from '@vueuse/core'
 import { storeToRefs } from 'pinia'
 import { useRoute, useRouter } from 'vue-router'
 import { useModuleStore } from '~/components/05.modules/trip-info/composables/use-trip-info-module'

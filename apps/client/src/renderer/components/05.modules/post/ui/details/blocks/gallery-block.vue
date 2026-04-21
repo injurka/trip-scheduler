@@ -56,7 +56,9 @@ function startDrag(e: MouseEvent) {
 
 function stopDrag() {
   isDown = false
-  setTimeout(() => { isDragging.value = false }, 50)
+  setTimeout(() => {
+    isDragging.value = false
+  }, 50)
 }
 
 function onDrag(e: MouseEvent) {

@@ -33,7 +33,9 @@ export async function uploadFileController(c: Context) {
   const customMetadataStr = formData.get('metadata') as string | null
   let customMetadata: Record<string, any> | undefined
   if (customMetadataStr) {
-    try { customMetadata = JSON.parse(customMetadataStr) }
+    try {
+      customMetadata = JSON.parse(customMetadataStr)
+    }
     catch { }
   }
 

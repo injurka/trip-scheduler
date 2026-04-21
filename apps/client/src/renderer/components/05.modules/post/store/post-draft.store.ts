@@ -116,18 +116,18 @@ export const usePostDraftStore = defineStore('post-draft', {
         this.post.stages = data.stages.map((stage, sIdx) => {
           const blocks: TimelineBlock[] = stage.blocks
             ? stage.blocks.map((block) => {
-              const baseId = uuidv4()
-              if (block.type === 'text') {
-                return { id: baseId, type: 'text', content: block.content || '' } as TimelineBlock
-              }
-              if (block.type === 'location') {
-                return { id: baseId, type: 'location', coords: block.coords || { lat: 0, lng: 0 }, name: block.name || '', address: block.address || '' } as TimelineBlock
-              }
-              if (block.type === 'route') {
-                return { id: baseId, type: 'route', from: block.from || '', to: block.to || '', distance: block.distance || '', duration: block.duration || '', transport: block.transport || 'walk' } as TimelineBlock
-              }
-              return { id: baseId, type: 'text', content: '' } as TimelineBlock
-            })
+                const baseId = uuidv4()
+                if (block.type === 'text') {
+                  return { id: baseId, type: 'text', content: block.content || '' } as TimelineBlock
+                }
+                if (block.type === 'location') {
+                  return { id: baseId, type: 'location', coords: block.coords || { lat: 0, lng: 0 }, name: block.name || '', address: block.address || '' } as TimelineBlock
+                }
+                if (block.type === 'route') {
+                  return { id: baseId, type: 'route', from: block.from || '', to: block.to || '', distance: block.distance || '', duration: block.duration || '', transport: block.transport || 'walk' } as TimelineBlock
+                }
+                return { id: baseId, type: 'text', content: '' } as TimelineBlock
+              })
             : []
 
           return {
