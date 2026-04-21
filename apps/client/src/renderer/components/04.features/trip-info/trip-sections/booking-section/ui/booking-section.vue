@@ -203,4 +203,12 @@ function getCardComponent(type: Booking['type']) {
   font-size: 3.5rem;
   margin-bottom: 1rem;
 }
+
+@include media-down(sm) {
+  .actions-panel {
+    button:first-of-type {
+      flex-grow: 1;
+    }
+  }
+}
 </style>

@@ -159,6 +159,7 @@ export interface GeneratedTransaction {
   amount: number
   currency: string
   categorySuggestion?: string
+  categoryId?: string | null 
   date?: string
   notes?: string
 }

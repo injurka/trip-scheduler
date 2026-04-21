@@ -168,7 +168,7 @@ onClickOutside(dateFilterWrapperRef, () => {
 
     <div class="toolbar">
       <div class="main-actions">
-        <KitBtn v-if="!readonly" icon="mdi:plus" @click="openTransactionForm()">
+        <KitBtn v-if="!readonly" icon="mdi:plus" variant="subtle" @click="openTransactionForm()">
           Добавить трату
         </KitBtn>
         <KitBtn v-if="!readonly" icon="mdi:auto-fix" variant="tonal" @click="isAiCreatorOpen = !isAiCreatorOpen">
@@ -177,13 +177,13 @@ onClickOutside(dateFilterWrapperRef, () => {
       </div>
 
       <div class="secondary-actions">
-        <KitBtn v-if="!readonly" icon="mdi:tag-outline" variant="text" title="Управление категориями" @click="handleOpenCategoryManager" />
-        <KitBtn v-if="!readonly" icon="mdi:cog-outline" variant="text" title="Настройки" @click="isSettingsOpen = true" />
+        <KitBtn v-if="!readonly" icon="mdi:tag-outline" variant="tonal" title="Управление категориями" @click="handleOpenCategoryManager" />
+        <KitBtn v-if="!readonly" icon="mdi:cog-outline" variant="tonal" title="Настройки" @click="isSettingsOpen = true" />
 
         <div ref="dateFilterWrapperRef" class="date-filter-wrapper">
           <KitBtn
             icon="mdi:calendar-blank-outline"
-            variant="text"
+            variant="tonal"
             @click="isDateFilterOpen = !isDateFilterOpen"
           >
             {{ formattedDateFilter }}
@@ -348,13 +348,21 @@ onClickOutside(dateFilterWrapperRef, () => {
   .toolbar {
     flex-direction: column;
     align-items: stretch;
+    gap: 8px;
   }
   .main-actions {
     justify-content: flex-start;
+
+    button:first-of-type {
+      width: 100%;
+    }
   }
   .secondary-actions {
     justify-content: space-between;
     width: 100%;
+    > button {
+      min-width: 46px;
+    }
   }
   .date-filter-wrapper {
     flex-grow: 1;

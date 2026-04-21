@@ -176,6 +176,7 @@ onMounted(() => {
   justify-content: space-between;
   align-items: center;
   gap: 1rem;
+
   h4 {
     margin: 0;
   }
@@ -187,6 +188,7 @@ onMounted(() => {
   background-color: var(--bg-tertiary-color);
   border-radius: var(--r-s);
   padding: 2px;
+
   button {
     display: flex;
     align-items: center;
@@ -195,6 +197,7 @@ onMounted(() => {
     border-radius: var(--r-s);
     font-size: 0.875rem;
     color: var(--fg-secondary-color);
+
     &.active {
       background-color: var(--bg-primary-color);
       color: var(--fg-primary-color);
@@ -281,6 +284,17 @@ onMounted(() => {
   }
   .legend {
     width: 100%;
+  }
+  .card-header {
+    flex-direction: column;
+  }
+  .view-switcher {
+    width: 100%;
+    button {
+      width: 50%;
+      align-items: center;
+      justify-content: center;
+    }
   }
 }
 </style>

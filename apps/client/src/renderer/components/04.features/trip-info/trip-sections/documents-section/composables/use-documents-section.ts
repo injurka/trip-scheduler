@@ -109,27 +109,38 @@ export function useDocumentsSection(
 
     isUploading.value = true
     try {
-      const uploadedDocs = await Promise.all(files.map(file =>
+      const uploadedDocs = await Promise.all(files.map((file, idx) =>
         useRequest({
-          key: `documents:upload:${Date.now()}`,
+          key: `documents:upload:${Date.now()}_${idx}`,
           cancelPrevious: false,
           fn: api => api.files.uploadFile(file, props.section.tripId, 'trip', 'documents', null, null, { access, folderId }),
         }),
       )) as (TripDocumentResponse | null)[]
 
-      uploadedDocs.forEach((res) => {
+      for (const res of uploadedDocs) {
         if (res) {
-          documents.value.unshift({
+          const docAccess = res.metadata?.access || access
+          const docFolderId = res.metadata?.folderId !== undefined ? res.metadata.folderId : folderId
+
+          const newDoc: DocumentFile = {
             id: res.id,
             url: res.url,
             originalName: res.originalName,
             sizeBytes: res.sizeBytes,
             createdAt: res.createdAt,
-            access: res.metadata?.access || access,
-            folderId: res.metadata?.folderId || folderId,
-          })
+            access: docAccess,
+            folderId: docFolderId,
+          }
+
+          documents.value.unshift(newDoc)
+
+          // WORKAROUND: Если сервер не сохранил folderId из multipart payload'а,
+          // принудительно обновляем метаданные через JSON endpoint.
+          if (folderId && res.metadata?.folderId !== folderId) {
+            await updateDocument(newDoc)
+          }
         }
-      })
+      }
       toast.success(`Успешно загружено ${files.length} файла(ов).`)
     }
     finally {

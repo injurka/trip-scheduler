@@ -90,7 +90,12 @@ async function handleGenerate() {
     if (uploadedFile.value)
       formData.append('file', uploadedFile.value)
 
-    const response = await useRequest<Omit<GeneratedTransaction, 'categoryId'>[]>({
+    // Передаем текущие категории для подсказки ИИ
+    const catsForAi = props.categories.map(c => ({ id: c.id, name: c.name }))
+    formData.append('categories', JSON.stringify(catsForAi))
+
+    // Убираем явный generic параметр, чтобы использовать тип ответа из репозитория
+    const response = await useRequest({
       key: GENERATE_FINANCES_KEY,
       fn: db => db.llm.generateFinancesFromData(formData),
     })
@@ -101,7 +106,12 @@ async function handleGenerate() {
     const availableCurrencies = new Set([props.settings.mainCurrency, ...Object.keys(props.settings.exchangeRates)])
 
     generatedTransactions.value = response.map((tx) => {
-      const foundCategory = props.categories.find(cat => cat.name === tx.categorySuggestion)
+      // Ищем сначала по categoryId, затем по fallback categorySuggestion
+      let foundCategory = tx.categoryId ? props.categories.find(cat => cat.id === tx.categoryId) : undefined
+      if (!foundCategory && tx.categorySuggestion) {
+        foundCategory = props.categories.find(cat => cat.name === tx.categorySuggestion)
+      }
+
       const otherCategory = props.categories.find(cat => cat.isDefault && cat.name === 'Прочее')
 
       const suggestedCurrency = tx.currency ? tx.currency.toUpperCase() : ''
@@ -272,6 +282,7 @@ function updateTransactionDate(tx: GeneratedTransaction, newDate: CalendarDate |
 </template>
 
 <style scoped lang="scss">
+// <... Стили остаются без изменений, они были опущены для экономии места ...>
 .ai-creator-content {
   display: flex;
   flex-direction: column;

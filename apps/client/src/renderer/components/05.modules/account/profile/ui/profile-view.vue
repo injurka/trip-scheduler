@@ -59,12 +59,12 @@ watch(userId, (newId) => {
         </div>
         <div v-if="isOwnProfile" class="actions-section">
           <KitBtn
-            variant="outlined"
+            variant="subtle"
             color="secondary"
+            size="md"
             @click="router.push(AppRoutePaths.User.Settings(userProfile.id))"
           >
-            <Icon icon="mdi:pencil-outline" />
-            Редактировать
+            <Icon width="20" height="20" icon="mdi:pencil-outline" />
           </KitBtn>
         </div>
       </div>
@@ -194,6 +194,13 @@ watch(userId, (newId) => {
 
 .actions-section {
   align-self: flex-end;
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  > button {
+    border-radius: 50%;
+    width: 46px;
+  }
 }
 
 .profile-body {
@@ -300,12 +307,7 @@ watch(userId, (newId) => {
   .info-section {
     padding-top: 50px;
   }
-  .actions-section {
-    width: 100%;
-    .kit-btn {
-      width: 100%;
-    }
-  }
+
   .profile-body {
     padding-top: 2rem;
   }

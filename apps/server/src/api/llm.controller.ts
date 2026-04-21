@@ -51,6 +51,7 @@ async function generateFinancesController(c: Context) {
   const file = formData.get('file') as File | null
   const text = formData.get('text') as string | null
   const notes = formData.get('notes') as string | null
+  const categories = formData.get('categories') as string | null
 
   if (!file && !text) {
     throw new HTTPException(400, { message: 'Необходимо предоставить либо текст, либо файл для анализа.' })
@@ -65,6 +66,7 @@ async function generateFinancesController(c: Context) {
       fileName: file?.name,
       text,
       notes,
+      categories,
     })
     return c.json(generatedData)
   }

@@ -127,7 +127,9 @@ function handleOpen() {
 
     <div class="doc-info">
       <span class="doc-name" :title="displayName">{{ displayName }}</span>
-      <span class="doc-meta">{{ formatBytes(document.sizeBytes) }} • {{ formatDate(document.createdAt) }}</span>
+      <span class="doc-meta" :title="`${formatBytes(document.sizeBytes)} • ${formatDate(document.createdAt)}`">
+        {{ formatBytes(document.sizeBytes) }} • {{ formatDate(document.createdAt) }}
+      </span>
     </div>
 
     <div class="doc-actions">
@@ -172,7 +174,8 @@ function handleOpen() {
 
 <style scoped lang="scss">
 .document-item {
-  display: flex;
+  display: grid;
+  grid-template-columns: auto 1fr auto;
   align-items: center;
   gap: 12px;
   padding: 12px;
@@ -181,7 +184,11 @@ function handleOpen() {
   border: 1px solid var(--border-secondary-color);
   transition: all 0.2s;
   cursor: pointer;
-  margin-bottom: 8px;
+
+  /* Фикс растягивания на мобильных */
+  min-width: 0;
+  width: 100%;
+  box-sizing: border-box;
 
   &:hover:not(.readonly) {
     background-color: var(--bg-hover-color);
@@ -212,11 +219,11 @@ function handleOpen() {
 }
 
 .doc-info {
-  flex-grow: 1;
   min-width: 0;
   display: flex;
   flex-direction: column;
   gap: 2px;
+  overflow: hidden;
 }
 
 .doc-name {
@@ -226,18 +233,26 @@ function handleOpen() {
   overflow: hidden;
   text-overflow: ellipsis;
   color: var(--fg-primary-color);
+
+  /* Важно для корректного ellipsis внутри flex child */
+  display: block;
+  max-width: 100%;
 }
 
 .doc-meta {
   font-size: 0.8rem;
   color: var(--fg-tertiary-color);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  display: block;
+  max-width: 100%;
 }
 
 .doc-actions {
   display: flex;
   align-items: center;
-  gap: 12px;
-  margin-left: auto;
+  gap: 8px;
 }
 
 .access-badge {
