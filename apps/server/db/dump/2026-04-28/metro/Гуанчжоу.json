@@ -1,0 +1,3120 @@
+{
+  "id": "0433295a-d816-4d42-a2dc-72e6ccf17f3a",
+  "city": "Гуанчжоу",
+  "country": "Китай",
+  "lines": [
+    {
+      "id": "gz-l1",
+      "systemId": "0433295a-d816-4d42-a2dc-72e6ccf17f3a",
+      "name": "Линия 1 (Line 1)",
+      "lineNumber": "1",
+      "color": "#F3D03E",
+      "lineStations": [
+        {
+          "lineId": "gz-l1",
+          "stationId": "gz-s1-1",
+          "order": 0,
+          "station": {
+            "id": "gz-s1-1",
+            "systemId": "0433295a-d816-4d42-a2dc-72e6ccf17f3a",
+            "name": "Силан (Xilang)"
+          }
+        },
+        {
+          "lineId": "gz-l1",
+          "stationId": "gz-s1-2",
+          "order": 1,
+          "station": {
+            "id": "gz-s1-2",
+            "systemId": "0433295a-d816-4d42-a2dc-72e6ccf17f3a",
+            "name": "Кэнкоу (Kengkou)"
+          }
+        },
+        {
+          "lineId": "gz-l1",
+          "stationId": "gz-s1-3",
+          "order": 2,
+          "station": {
+            "id": "gz-s1-3",
+            "systemId": "0433295a-d816-4d42-a2dc-72e6ccf17f3a",
+            "name": "Хуадивань (Huadiwan)"
+          }
+        },
+        {
+          "lineId": "gz-l1",
+          "stationId": "gz-s1-4",
+          "order": 3,
+          "station": {
+            "id": "gz-s1-4",
+            "systemId": "0433295a-d816-4d42-a2dc-72e6ccf17f3a",
+            "name": "Фанцунь (Fangcun)"
+          }
+        },
+        {
+          "lineId": "gz-l1",
+          "stationId": "gz-s1-5",
+          "order": 4,
+          "station": {
+            "id": "gz-s1-5",
+            "systemId": "0433295a-d816-4d42-a2dc-72e6ccf17f3a",
+            "name": "Хуанша (Huangsha)"
+          }
+        },
+        {
+          "lineId": "gz-l1",
+          "stationId": "gz-s1-6",
+          "order": 5,
+          "station": {
+            "id": "gz-s1-6",
+            "systemId": "0433295a-d816-4d42-a2dc-72e6ccf17f3a",
+            "name": "Чаншоу Лу (Changshou Lu)"
+          }
+        },
+        {
+          "lineId": "gz-l1",
+          "stationId": "gz-s1-7",
+          "order": 6,
+          "station": {
+            "id": "gz-s1-7",
+            "systemId": "0433295a-d816-4d42-a2dc-72e6ccf17f3a",
+            "name": "Академия клана Чэнь (Chen Clan Academy)"
+          }
+        },
+        {
+          "lineId": "gz-l1",
+          "stationId": "gz-s1-8",
+          "order": 7,
+          "station": {
+            "id": "gz-s1-8",
+            "systemId": "0433295a-d816-4d42-a2dc-72e6ccf17f3a",
+            "name": "Симэнькоу (Ximenkou)"
+          }
+        },
+        {
+          "lineId": "gz-l1",
+          "stationId": "gz-s1-9",
+          "order": 8,
+          "station": {
+            "id": "gz-s1-9",
+            "systemId": "0433295a-d816-4d42-a2dc-72e6ccf17f3a",
+            "name": "Гунъюаньцянь (Gongyuanqian)"
+          }
+        },
+        {
+          "lineId": "gz-l1",
+          "stationId": "gz-s1-10",
+          "order": 9,
+          "station": {
+            "id": "gz-s1-10",
+            "systemId": "0433295a-d816-4d42-a2dc-72e6ccf17f3a",
+            "name": "Институт крестьянского движения (Peasant Movement Institute)"
+          }
+        },
+        {
+          "lineId": "gz-l1",
+          "stationId": "gz-s1-11",
+          "order": 10,
+          "station": {
+            "id": "gz-s1-11",
+            "systemId": "0433295a-d816-4d42-a2dc-72e6ccf17f3a",
+            "name": "Парк мучеников (Martyrs' Park)"
+          }
+        },
+        {
+          "lineId": "gz-l1",
+          "stationId": "gz-s1-12",
+          "order": 11,
+          "station": {
+            "id": "gz-s1-12",
+            "systemId": "0433295a-d816-4d42-a2dc-72e6ccf17f3a",
+            "name": "Дуншанькоу (Dongshankou)"
+          }
+        },
+        {
+          "lineId": "gz-l1",
+          "stationId": "gz-s1-13",
+          "order": 12,
+          "station": {
+            "id": "gz-s1-13",
+            "systemId": "0433295a-d816-4d42-a2dc-72e6ccf17f3a",
+            "name": "Янцзи (Yangji)"
+          }
+        },
+        {
+          "lineId": "gz-l1",
+          "stationId": "gz-s1-14",
+          "order": 13,
+          "station": {
+            "id": "gz-s1-14",
+            "systemId": "0433295a-d816-4d42-a2dc-72e6ccf17f3a",
+            "name": "Тиюй Силу (Tiyu Xilu)"
+          }
+        },
+        {
+          "lineId": "gz-l1",
+          "stationId": "gz-s1-15",
+          "order": 14,
+          "station": {
+            "id": "gz-s1-15",
+            "systemId": "0433295a-d816-4d42-a2dc-72e6ccf17f3a",
+            "name": "Спортивный центр Тяньхэ (Tianhe Sports Center)"
+          }
+        },
+        {
+          "lineId": "gz-l1",
+          "stationId": "gz-s1-16",
+          "order": 15,
+          "station": {
+            "id": "gz-s1-16",
+            "systemId": "0433295a-d816-4d42-a2dc-72e6ccf17f3a",
+            "name": "Восточный вокзал Гуанчжоу (Guangzhou East Railway Station)"
+          }
+        }
+      ]
+    },
+    {
+      "id": "gz-l2",
+      "systemId": "0433295a-d816-4d42-a2dc-72e6ccf17f3a",
+      "name": "Линия 2 (Line 2)",
+      "lineNumber": "2",
+      "color": "#00629B",
+      "lineStations": [
+        {
+          "lineId": "gz-l2",
+          "stationId": "gz-s2-1",
+          "order": 0,
+          "station": {
+            "id": "gz-s2-1",
+            "systemId": "0433295a-d816-4d42-a2dc-72e6ccf17f3a",
+            "name": "Южный вокзал Гуанчжоу (Guangzhou South Railway Station)"
+          }
+        },
+        {
+          "lineId": "gz-l2",
+          "stationId": "gz-s2-2",
+          "order": 1,
+          "station": {
+            "id": "gz-s2-2",
+            "systemId": "0433295a-d816-4d42-a2dc-72e6ccf17f3a",
+            "name": "Шиби (Shibi)"
+          }
+        },
+        {
+          "lineId": "gz-l2",
+          "stationId": "gz-s2-3",
+          "order": 2,
+          "station": {
+            "id": "gz-s2-3",
+            "systemId": "0433295a-d816-4d42-a2dc-72e6ccf17f3a",
+            "name": "Хуэйцзян (Huijiang)"
+          }
+        },
+        {
+          "lineId": "gz-l2",
+          "stationId": "gz-s2-4",
+          "order": 3,
+          "station": {
+            "id": "gz-s2-4",
+            "systemId": "0433295a-d816-4d42-a2dc-72e6ccf17f3a",
+            "name": "Наньпу (Nanpu)"
+          }
+        },
+        {
+          "lineId": "gz-l2",
+          "stationId": "gz-s2-5",
+          "order": 4,
+          "station": {
+            "id": "gz-s2-5",
+            "systemId": "0433295a-d816-4d42-a2dc-72e6ccf17f3a",
+            "name": "Лоси (Luoxi)"
+          }
+        },
+        {
+          "lineId": "gz-l2",
+          "stationId": "gz-s2-6",
+          "order": 5,
+          "station": {
+            "id": "gz-s2-6",
+            "systemId": "0433295a-d816-4d42-a2dc-72e6ccf17f3a",
+            "name": "Наньчжоу (Nanzhou)"
+          }
+        },
+        {
+          "lineId": "gz-l2",
+          "stationId": "gz-s2-7",
+          "order": 6,
+          "station": {
+            "id": "gz-s2-7",
+            "systemId": "0433295a-d816-4d42-a2dc-72e6ccf17f3a",
+            "name": "Дунсяонань (Dongxiaonan)"
+          }
+        },
+        {
+          "lineId": "gz-l2",
+          "stationId": "gz-s2-8",
+          "order": 7,
+          "station": {
+            "id": "gz-s2-8",
+            "systemId": "0433295a-d816-4d42-a2dc-72e6ccf17f3a",
+            "name": "Цзянтай Лу (Jiangtai Lu)"
+          }
+        },
+        {
+          "lineId": "gz-l2",
+          "stationId": "gz-s2-9",
+          "order": 8,
+          "station": {
+            "id": "gz-s2-9",
+            "systemId": "0433295a-d816-4d42-a2dc-72e6ccf17f3a",
+            "name": "Чанган (Changgang)"
+          }
+        },
+        {
+          "lineId": "gz-l2",
+          "stationId": "gz-s2-10",
+          "order": 9,
+          "station": {
+            "id": "gz-s2-10",
+            "systemId": "0433295a-d816-4d42-a2dc-72e6ccf17f3a",
+            "name": "Цзяннаньси (Jiangnanxi)"
+          }
+        },
+        {
+          "lineId": "gz-l2",
+          "stationId": "gz-s2-11",
+          "order": 10,
+          "station": {
+            "id": "gz-s2-11",
+            "systemId": "0433295a-d816-4d42-a2dc-72e6ccf17f3a",
+            "name": "Второй дворец культуры трудящихся (The 2nd Workers' Cultural Palace)"
+          }
+        },
+        {
+          "lineId": "gz-l2",
+          "stationId": "gz-s2-12",
+          "order": 11,
+          "station": {
+            "id": "gz-s2-12",
+            "systemId": "0433295a-d816-4d42-a2dc-72e6ccf17f3a",
+            "name": "Площадь Хайчжу (Haizhu Square)"
+          }
+        },
+        {
+          "lineId": "gz-l2",
+          "stationId": "gz-s2-13",
+          "order": 12,
+          "station": {
+            "id": "gz-s2-13",
+            "systemId": "0433295a-d816-4d42-a2dc-72e6ccf17f3a",
+            "name": "Гунъюаньцянь (Gongyuanqian)"
+          }
+        },
+        {
+          "lineId": "gz-l2",
+          "stationId": "gz-s2-14",
+          "order": 13,
+          "station": {
+            "id": "gz-s2-14",
+            "systemId": "0433295a-d816-4d42-a2dc-72e6ccf17f3a",
+            "name": "Мемориальный зал Сунь Ятсена (Sun Yat-sen Memorial Hall)"
+          }
+        },
+        {
+          "lineId": "gz-l2",
+          "stationId": "gz-s2-15",
+          "order": 14,
+          "station": {
+            "id": "gz-s2-15",
+            "systemId": "0433295a-d816-4d42-a2dc-72e6ccf17f3a",
+            "name": "Парк Юэсю (Yuexiu Park)"
+          }
+        },
+        {
+          "lineId": "gz-l2",
+          "stationId": "gz-s2-16",
+          "order": 15,
+          "station": {
+            "id": "gz-s2-16",
+            "systemId": "0433295a-d816-4d42-a2dc-72e6ccf17f3a",
+            "name": "Саньюаньли (Sanyuanli)"
+          }
+        },
+        {
+          "lineId": "gz-l2",
+          "stationId": "gz-s2-17",
+          "order": 16,
+          "station": {
+            "id": "gz-s2-17",
+            "systemId": "0433295a-d816-4d42-a2dc-72e6ccf17f3a",
+            "name": "Фэйсян Парк (Feixiang Park)"
+          }
+        },
+        {
+          "lineId": "gz-l2",
+          "stationId": "gz-s2-18",
+          "order": 17,
+          "station": {
+            "id": "gz-s2-18",
+            "systemId": "0433295a-d816-4d42-a2dc-72e6ccf17f3a",
+            "name": "Байюнь Парк (Baiyun Park)"
+          }
+        },
+        {
+          "lineId": "gz-l2",
+          "stationId": "gz-s2-19",
+          "order": 18,
+          "station": {
+            "id": "gz-s2-19",
+            "systemId": "0433295a-d816-4d42-a2dc-72e6ccf17f3a",
+            "name": "Площадь культуры Байюнь (Baiyun Culture Square)"
+          }
+        },
+        {
+          "lineId": "gz-l2",
+          "stationId": "gz-s2-20",
+          "order": 19,
+          "station": {
+            "id": "gz-s2-20",
+            "systemId": "0433295a-d816-4d42-a2dc-72e6ccf17f3a",
+            "name": "Сяоган (Xiao-gang)"
+          }
+        },
+        {
+          "lineId": "gz-l2",
+          "stationId": "gz-s2-21",
+          "order": 20,
+          "station": {
+            "id": "gz-s2-21",
+            "systemId": "0433295a-d816-4d42-a2dc-72e6ccf17f3a",
+            "name": "Цзянся (Jiangxia)"
+          }
+        },
+        {
+          "lineId": "gz-l2",
+          "stationId": "gz-s2-22",
+          "order": 21,
+          "station": {
+            "id": "gz-s2-22",
+            "systemId": "0433295a-d816-4d42-a2dc-72e6ccf17f3a",
+            "name": "Хуанбянь (Huangbian)"
+          }
+        },
+        {
+          "lineId": "gz-l2",
+          "stationId": "gz-s2-23",
+          "order": 22,
+          "station": {
+            "id": "gz-s2-23",
+            "systemId": "0433295a-d816-4d42-a2dc-72e6ccf17f3a",
+            "name": "Цзяхэванган (Jiahewanggang)"
+          }
+        }
+      ]
+    },
+    {
+      "id": "gz-l3",
+      "systemId": "0433295a-d816-4d42-a2dc-72e6ccf17f3a",
+      "name": "Линия 3 (Line 3)",
+      "lineNumber": "3",
+      "color": "#FCA555",
+      "lineStations": [
+        {
+          "lineId": "gz-l3",
+          "stationId": "gz-s3-1",
+          "order": 0,
+          "station": {
+            "id": "gz-s3-1",
+            "systemId": "0433295a-d816-4d42-a2dc-72e6ccf17f3a",
+            "name": "Площадь Паньюй (Panyu Square)"
+          }
+        },
+        {
+          "lineId": "gz-l3",
+          "stationId": "gz-s3-2",
+          "order": 1,
+          "station": {
+            "id": "gz-s3-2",
+            "systemId": "0433295a-d816-4d42-a2dc-72e6ccf17f3a",
+            "name": "Даши (Dashi)"
+          }
+        },
+        {
+          "lineId": "gz-l3",
+          "stationId": "gz-s3-3",
+          "order": 2,
+          "station": {
+            "id": "gz-s3-3",
+            "systemId": "0433295a-d816-4d42-a2dc-72e6ccf17f3a",
+            "name": "Ханьси Чанлун (Hanxi Changlong)"
+          }
+        },
+        {
+          "lineId": "gz-l3",
+          "stationId": "gz-s3-4",
+          "order": 3,
+          "station": {
+            "id": "gz-s3-4",
+            "systemId": "0433295a-d816-4d42-a2dc-72e6ccf17f3a",
+            "name": "Кэцунь (Kecun)"
+          }
+        },
+        {
+          "lineId": "gz-l3",
+          "stationId": "gz-s3-5",
+          "order": 4,
+          "station": {
+            "id": "gz-s3-5",
+            "systemId": "0433295a-d816-4d42-a2dc-72e6ccf17f3a",
+            "name": "Гуанчжоу Та / Кантонская башня (Canton Tower)"
+          }
+        },
+        {
+          "lineId": "gz-l3",
+          "stationId": "gz-s3-6",
+          "order": 5,
+          "station": {
+            "id": "gz-s3-6",
+            "systemId": "0433295a-d816-4d42-a2dc-72e6ccf17f3a",
+            "name": "Чжуцзян Новый город (Zhujiang New Town)"
+          }
+        },
+        {
+          "lineId": "gz-l3",
+          "stationId": "gz-s3-7",
+          "order": 6,
+          "station": {
+            "id": "gz-s3-7",
+            "systemId": "0433295a-d816-4d42-a2dc-72e6ccf17f3a",
+            "name": "Тиюй Силу (Tiyu Xilu)"
+          }
+        },
+        {
+          "lineId": "gz-l3",
+          "stationId": "gz-s3-8",
+          "order": 7,
+          "station": {
+            "id": "gz-s3-8",
+            "systemId": "0433295a-d816-4d42-a2dc-72e6ccf17f3a",
+            "name": "Шипайцяо (Shipaiqiao)"
+          }
+        },
+        {
+          "lineId": "gz-l3",
+          "stationId": "gz-s3-9",
+          "order": 8,
+          "station": {
+            "id": "gz-s3-9",
+            "systemId": "0433295a-d816-4d42-a2dc-72e6ccf17f3a",
+            "name": "Гандин (Gangding)"
+          }
+        },
+        {
+          "lineId": "gz-l3",
+          "stationId": "gz-s3-10",
+          "order": 9,
+          "station": {
+            "id": "gz-s3-10",
+            "systemId": "0433295a-d816-4d42-a2dc-72e6ccf17f3a",
+            "name": "Южно-китайский педагогический университет (South China Normal University)"
+          }
+        },
+        {
+          "lineId": "gz-l3",
+          "stationId": "gz-s3-11",
+          "order": 10,
+          "station": {
+            "id": "gz-s3-11",
+            "systemId": "0433295a-d816-4d42-a2dc-72e6ccf17f3a",
+            "name": "Ушань (Wushan)"
+          }
+        },
+        {
+          "lineId": "gz-l3",
+          "stationId": "gz-s3-12",
+          "order": 11,
+          "station": {
+            "id": "gz-s3-12",
+            "systemId": "0433295a-d816-4d42-a2dc-72e6ccf17f3a",
+            "name": "Автовокзал Тяньхэ (Tianhe Coach Terminal)"
+          }
+        },
+        {
+          "lineId": "gz-l3",
+          "stationId": "gz-s3-13",
+          "order": 12,
+          "station": {
+            "id": "gz-s3-13",
+            "systemId": "0433295a-d816-4d42-a2dc-72e6ccf17f3a",
+            "name": "Линьхэси (Linhexi)"
+          }
+        },
+        {
+          "lineId": "gz-l3",
+          "stationId": "gz-s3-14",
+          "order": 13,
+          "station": {
+            "id": "gz-s3-14",
+            "systemId": "0433295a-d816-4d42-a2dc-72e6ccf17f3a",
+            "name": "Восточный вокзал Гуанчжоу (Guangzhou East Railway Station)"
+          }
+        },
+        {
+          "lineId": "gz-l3",
+          "stationId": "gz-s3-15",
+          "order": 14,
+          "station": {
+            "id": "gz-s3-15",
+            "systemId": "0433295a-d816-4d42-a2dc-72e6ccf17f3a",
+            "name": "Яньтан (Yantang)"
+          }
+        },
+        {
+          "lineId": "gz-l3",
+          "stationId": "gz-s3-16",
+          "order": 15,
+          "station": {
+            "id": "gz-s3-16",
+            "systemId": "0433295a-d816-4d42-a2dc-72e6ccf17f3a",
+            "name": "Мэйхуаюань (Meihuayuan)"
+          }
+        },
+        {
+          "lineId": "gz-l3",
+          "stationId": "gz-s3-17",
+          "order": 16,
+          "station": {
+            "id": "gz-s3-17",
+            "systemId": "0433295a-d816-4d42-a2dc-72e6ccf17f3a",
+            "name": "Больница Цзинси Наньфан (Jingxi Nanfang Hospital)"
+          }
+        },
+        {
+          "lineId": "gz-l3",
+          "stationId": "gz-s3-18",
+          "order": 17,
+          "station": {
+            "id": "gz-s3-18",
+            "systemId": "0433295a-d816-4d42-a2dc-72e6ccf17f3a",
+            "name": "Тунхэ (Tonghe)"
+          }
+        },
+        {
+          "lineId": "gz-l3",
+          "stationId": "gz-s3-19",
+          "order": 18,
+          "station": {
+            "id": "gz-s3-19",
+            "systemId": "0433295a-d816-4d42-a2dc-72e6ccf17f3a",
+            "name": "Юнтай (Yongtai)"
+          }
+        },
+        {
+          "lineId": "gz-l3",
+          "stationId": "gz-s3-20",
+          "order": 19,
+          "station": {
+            "id": "gz-s3-20",
+            "systemId": "0433295a-d816-4d42-a2dc-72e6ccf17f3a",
+            "name": "Байюнь Дадао Бэй (Baiyun Dadao Bei)"
+          }
+        },
+        {
+          "lineId": "gz-l3",
+          "stationId": "gz-s3-21",
+          "order": 20,
+          "station": {
+            "id": "gz-s3-21",
+            "systemId": "0433295a-d816-4d42-a2dc-72e6ccf17f3a",
+            "name": "Цзяхэванган (Jiahewanggang)"
+          }
+        },
+        {
+          "lineId": "gz-l3",
+          "stationId": "gz-s3-22",
+          "order": 21,
+          "station": {
+            "id": "gz-s3-22",
+            "systemId": "0433295a-d816-4d42-a2dc-72e6ccf17f3a",
+            "name": "Лунгуй (Longgui)"
+          }
+        },
+        {
+          "lineId": "gz-l3",
+          "stationId": "gz-s3-23",
+          "order": 22,
+          "station": {
+            "id": "gz-s3-23",
+            "systemId": "0433295a-d816-4d42-a2dc-72e6ccf17f3a",
+            "name": "Жэньхэ (Renhe)"
+          }
+        },
+        {
+          "lineId": "gz-l3",
+          "stationId": "gz-s3-24",
+          "order": 23,
+          "station": {
+            "id": "gz-s3-24",
+            "systemId": "0433295a-d816-4d42-a2dc-72e6ccf17f3a",
+            "name": "Гаоцзэн (Gaozeng)"
+          }
+        },
+        {
+          "lineId": "gz-l3",
+          "stationId": "gz-s3-25",
+          "order": 24,
+          "station": {
+            "id": "gz-s3-25",
+            "systemId": "0433295a-d816-4d42-a2dc-72e6ccf17f3a",
+            "name": "Аэропорт Южный (Airport South)"
+          }
+        },
+        {
+          "lineId": "gz-l3",
+          "stationId": "gz-s3-26",
+          "order": 25,
+          "station": {
+            "id": "gz-s3-26",
+            "systemId": "0433295a-d816-4d42-a2dc-72e6ccf17f3a",
+            "name": "Аэропорт Северный (Airport North)"
+          }
+        }
+      ]
+    },
+    {
+      "id": "gz-l4",
+      "systemId": "0433295a-d816-4d42-a2dc-72e6ccf17f3a",
+      "name": "Линия 4 (Line 4)",
+      "lineNumber": "4",
+      "color": "#00843D",
+      "lineStations": [
+        {
+          "lineId": "gz-l4",
+          "stationId": "gz-s4-1",
+          "order": 0,
+          "station": {
+            "id": "gz-s4-1",
+            "systemId": "0433295a-d816-4d42-a2dc-72e6ccf17f3a",
+            "name": "Пассажирский порт Наньша (Nansha Passenger Port)"
+          }
+        },
+        {
+          "lineId": "gz-l4",
+          "stationId": "gz-s4-2",
+          "order": 1,
+          "station": {
+            "id": "gz-s4-2",
+            "systemId": "0433295a-d816-4d42-a2dc-72e6ccf17f3a",
+            "name": "Наньхэн (Nanheng)"
+          }
+        },
+        {
+          "lineId": "gz-l4",
+          "stationId": "gz-s4-3",
+          "order": 2,
+          "station": {
+            "id": "gz-s4-3",
+            "systemId": "0433295a-d816-4d42-a2dc-72e6ccf17f3a",
+            "name": "Танкэн (Tangkeng)"
+          }
+        },
+        {
+          "lineId": "gz-l4",
+          "stationId": "gz-s4-4",
+          "order": 3,
+          "station": {
+            "id": "gz-s4-4",
+            "systemId": "0433295a-d816-4d42-a2dc-72e6ccf17f3a",
+            "name": "Гуанлун (Guanglong)"
+          }
+        },
+        {
+          "lineId": "gz-l4",
+          "stationId": "gz-s4-5",
+          "order": 4,
+          "station": {
+            "id": "gz-s4-5",
+            "systemId": "0433295a-d816-4d42-a2dc-72e6ccf17f3a",
+            "name": "Дачун (Dachong)"
+          }
+        },
+        {
+          "lineId": "gz-l4",
+          "stationId": "gz-s4-6",
+          "order": 5,
+          "station": {
+            "id": "gz-s4-6",
+            "systemId": "0433295a-d816-4d42-a2dc-72e6ccf17f3a",
+            "name": "Цзяомэнь (Jiaomen)"
+          }
+        },
+        {
+          "lineId": "gz-l4",
+          "stationId": "gz-s4-7",
+          "order": 6,
+          "station": {
+            "id": "gz-s4-7",
+            "systemId": "0433295a-d816-4d42-a2dc-72e6ccf17f3a",
+            "name": "Цзиньчжоу (Jinzhou)"
+          }
+        },
+        {
+          "lineId": "gz-l4",
+          "stationId": "gz-s4-8",
+          "order": 7,
+          "station": {
+            "id": "gz-s4-8",
+            "systemId": "0433295a-d816-4d42-a2dc-72e6ccf17f3a",
+            "name": "Фэйшацзяо (Feishajiao)"
+          }
+        },
+        {
+          "lineId": "gz-l4",
+          "stationId": "gz-s4-9",
+          "order": 8,
+          "station": {
+            "id": "gz-s4-9",
+            "systemId": "0433295a-d816-4d42-a2dc-72e6ccf17f3a",
+            "name": "Хуангэ (Huangge)"
+          }
+        },
+        {
+          "lineId": "gz-l4",
+          "stationId": "gz-s4-10",
+          "order": 9,
+          "station": {
+            "id": "gz-s4-10",
+            "systemId": "0433295a-d816-4d42-a2dc-72e6ccf17f3a",
+            "name": "Автоцентр Хуангэ (Huangge Auto Center)"
+          }
+        },
+        {
+          "lineId": "gz-l4",
+          "stationId": "gz-s4-11",
+          "order": 10,
+          "station": {
+            "id": "gz-s4-11",
+            "systemId": "0433295a-d816-4d42-a2dc-72e6ccf17f3a",
+            "name": "Дунчун (Dongchong)"
+          }
+        },
+        {
+          "lineId": "gz-l4",
+          "stationId": "gz-s4-12",
+          "order": 11,
+          "station": {
+            "id": "gz-s4-12",
+            "systemId": "0433295a-d816-4d42-a2dc-72e6ccf17f3a",
+            "name": "Циншэн (Qingsheng)"
+          }
+        },
+        {
+          "lineId": "gz-l4",
+          "stationId": "gz-s4-13",
+          "order": 12,
+          "station": {
+            "id": "gz-s4-13",
+            "systemId": "0433295a-d816-4d42-a2dc-72e6ccf17f3a",
+            "name": "Хайбан (Haibang)"
+          }
+        },
+        {
+          "lineId": "gz-l4",
+          "stationId": "gz-s4-14",
+          "order": 13,
+          "station": {
+            "id": "gz-s4-14",
+            "systemId": "0433295a-d816-4d42-a2dc-72e6ccf17f3a",
+            "name": "Дичун (Dichong)"
+          }
+        },
+        {
+          "lineId": "gz-l4",
+          "stationId": "gz-s4-15",
+          "order": 14,
+          "station": {
+            "id": "gz-s4-15",
+            "systemId": "0433295a-d816-4d42-a2dc-72e6ccf17f3a",
+            "name": "Шици (Shiqi)"
+          }
+        },
+        {
+          "lineId": "gz-l4",
+          "stationId": "gz-s4-16",
+          "order": 15,
+          "station": {
+            "id": "gz-s4-16",
+            "systemId": "0433295a-d816-4d42-a2dc-72e6ccf17f3a",
+            "name": "Синьцзао (Xinzao)"
+          }
+        },
+        {
+          "lineId": "gz-l4",
+          "stationId": "gz-s4-17",
+          "order": 16,
+          "station": {
+            "id": "gz-s4-17",
+            "systemId": "0433295a-d816-4d42-a2dc-72e6ccf17f3a",
+            "name": "Университетский городок Южный (Higher Education Mega Center South)"
+          }
+        },
+        {
+          "lineId": "gz-l4",
+          "stationId": "gz-s4-18",
+          "order": 17,
+          "station": {
+            "id": "gz-s4-18",
+            "systemId": "0433295a-d816-4d42-a2dc-72e6ccf17f3a",
+            "name": "Университетский городок Северный (Higher Education Mega Center North)"
+          }
+        },
+        {
+          "lineId": "gz-l4",
+          "stationId": "gz-s4-19",
+          "order": 18,
+          "station": {
+            "id": "gz-s4-19",
+            "systemId": "0433295a-d816-4d42-a2dc-72e6ccf17f3a",
+            "name": "Гуаньчжоу (Guanzhou)"
+          }
+        },
+        {
+          "lineId": "gz-l4",
+          "stationId": "gz-s4-20",
+          "order": 19,
+          "station": {
+            "id": "gz-s4-20",
+            "systemId": "0433295a-d816-4d42-a2dc-72e6ccf17f3a",
+            "name": "Ваньшэнвэй (Wanshengwei)"
+          }
+        },
+        {
+          "lineId": "gz-l4",
+          "stationId": "gz-s4-21",
+          "order": 20,
+          "station": {
+            "id": "gz-s4-21",
+            "systemId": "0433295a-d816-4d42-a2dc-72e6ccf17f3a",
+            "name": "Чэбэйнань (Chebeinan)"
+          }
+        },
+        {
+          "lineId": "gz-l4",
+          "stationId": "gz-s4-22",
+          "order": 21,
+          "station": {
+            "id": "gz-s4-22",
+            "systemId": "0433295a-d816-4d42-a2dc-72e6ccf17f3a",
+            "name": "Чэбэй (Chebei)"
+          }
+        },
+        {
+          "lineId": "gz-l4",
+          "stationId": "gz-s4-23",
+          "order": 22,
+          "station": {
+            "id": "gz-s4-23",
+            "systemId": "0433295a-d816-4d42-a2dc-72e6ccf17f3a",
+            "name": "Хуанцунь (Huangcun)"
+          }
+        }
+      ]
+    },
+    {
+      "id": "gz-l5",
+      "systemId": "0433295a-d816-4d42-a2dc-72e6ccf17f3a",
+      "name": "Линия 5 (Line 5)",
+      "lineNumber": "5",
+      "color": "#C5003E",
+      "lineStations": [
+        {
+          "lineId": "gz-l5",
+          "stationId": "gz-s5-1",
+          "order": 0,
+          "station": {
+            "id": "gz-s5-1",
+            "systemId": "0433295a-d816-4d42-a2dc-72e6ccf17f3a",
+            "name": "Цзяокоу (Jiaokou)"
+          }
+        },
+        {
+          "lineId": "gz-l5",
+          "stationId": "gz-s5-2",
+          "order": 1,
+          "station": {
+            "id": "gz-s5-2",
+            "systemId": "0433295a-d816-4d42-a2dc-72e6ccf17f3a",
+            "name": "Таньвэй (Tanwei)"
+          }
+        },
+        {
+          "lineId": "gz-l5",
+          "stationId": "gz-s5-3",
+          "order": 2,
+          "station": {
+            "id": "gz-s5-3",
+            "systemId": "0433295a-d816-4d42-a2dc-72e6ccf17f3a",
+            "name": "Чжуншаньба (Zhongshanba)"
+          }
+        },
+        {
+          "lineId": "gz-l5",
+          "stationId": "gz-s5-4",
+          "order": 3,
+          "station": {
+            "id": "gz-s5-4",
+            "systemId": "0433295a-d816-4d42-a2dc-72e6ccf17f3a",
+            "name": "Сичан (Xichang)"
+          }
+        },
+        {
+          "lineId": "gz-l5",
+          "stationId": "gz-s5-5",
+          "order": 4,
+          "station": {
+            "id": "gz-s5-5",
+            "systemId": "0433295a-d816-4d42-a2dc-72e6ccf17f3a",
+            "name": "Сицунь (Xicun)"
+          }
+        },
+        {
+          "lineId": "gz-l5",
+          "stationId": "gz-s5-6",
+          "order": 5,
+          "station": {
+            "id": "gz-s5-6",
+            "systemId": "0433295a-d816-4d42-a2dc-72e6ccf17f3a",
+            "name": "Вокзал Гуанчжоу (Guangzhou Railway Station)"
+          }
+        },
+        {
+          "lineId": "gz-l5",
+          "stationId": "gz-s5-7",
+          "order": 6,
+          "station": {
+            "id": "gz-s5-7",
+            "systemId": "0433295a-d816-4d42-a2dc-72e6ccf17f3a",
+            "name": "Сяобэй (Xiaobei)"
+          }
+        },
+        {
+          "lineId": "gz-l5",
+          "stationId": "gz-s5-8",
+          "order": 7,
+          "station": {
+            "id": "gz-s5-8",
+            "systemId": "0433295a-d816-4d42-a2dc-72e6ccf17f3a",
+            "name": "Таоцзинь (Taojin)"
+          }
+        },
+        {
+          "lineId": "gz-l5",
+          "stationId": "gz-s5-9",
+          "order": 8,
+          "station": {
+            "id": "gz-s5-9",
+            "systemId": "0433295a-d816-4d42-a2dc-72e6ccf17f3a",
+            "name": "Оучжуан (Ouzhuang)"
+          }
+        },
+        {
+          "lineId": "gz-l5",
+          "stationId": "gz-s5-10",
+          "order": 9,
+          "station": {
+            "id": "gz-s5-10",
+            "systemId": "0433295a-d816-4d42-a2dc-72e6ccf17f3a",
+            "name": "Зоопарк (Zoo)"
+          }
+        },
+        {
+          "lineId": "gz-l5",
+          "stationId": "gz-s5-11",
+          "order": 10,
+          "station": {
+            "id": "gz-s5-11",
+            "systemId": "0433295a-d816-4d42-a2dc-72e6ccf17f3a",
+            "name": "Янцзи (Yangji)"
+          }
+        },
+        {
+          "lineId": "gz-l5",
+          "stationId": "gz-s5-12",
+          "order": 11,
+          "station": {
+            "id": "gz-s5-12",
+            "systemId": "0433295a-d816-4d42-a2dc-72e6ccf17f3a",
+            "name": "Уянцунь (Wuyangcun)"
+          }
+        },
+        {
+          "lineId": "gz-l5",
+          "stationId": "gz-s5-13",
+          "order": 12,
+          "station": {
+            "id": "gz-s5-13",
+            "systemId": "0433295a-d816-4d42-a2dc-72e6ccf17f3a",
+            "name": "Чжуцзян Новый город (Zhujiang New Town)"
+          }
+        },
+        {
+          "lineId": "gz-l5",
+          "stationId": "gz-s5-14",
+          "order": 13,
+          "station": {
+            "id": "gz-s5-14",
+            "systemId": "0433295a-d816-4d42-a2dc-72e6ccf17f3a",
+            "name": "Ледэ (Liede)"
+          }
+        },
+        {
+          "lineId": "gz-l5",
+          "stationId": "gz-s5-15",
+          "order": 14,
+          "station": {
+            "id": "gz-s5-15",
+            "systemId": "0433295a-d816-4d42-a2dc-72e6ccf17f3a",
+            "name": "Таньцунь (Tancun)"
+          }
+        },
+        {
+          "lineId": "gz-l5",
+          "stationId": "gz-s5-16",
+          "order": 15,
+          "station": {
+            "id": "gz-s5-16",
+            "systemId": "0433295a-d816-4d42-a2dc-72e6ccf17f3a",
+            "name": "Юаньцунь (Yuancun)"
+          }
+        },
+        {
+          "lineId": "gz-l5",
+          "stationId": "gz-s5-17",
+          "order": 16,
+          "station": {
+            "id": "gz-s5-17",
+            "systemId": "0433295a-d816-4d42-a2dc-72e6ccf17f3a",
+            "name": "Кэюнь Лу (Keyun Lu)"
+          }
+        },
+        {
+          "lineId": "gz-l5",
+          "stationId": "gz-s5-18",
+          "order": 17,
+          "station": {
+            "id": "gz-s5-18",
+            "systemId": "0433295a-d816-4d42-a2dc-72e6ccf17f3a",
+            "name": "Чэбэйнань (Chebeinan)"
+          }
+        },
+        {
+          "lineId": "gz-l5",
+          "stationId": "gz-s5-19",
+          "order": 18,
+          "station": {
+            "id": "gz-s5-19",
+            "systemId": "0433295a-d816-4d42-a2dc-72e6ccf17f3a",
+            "name": "Дунпу (Dongpu)"
+          }
+        },
+        {
+          "lineId": "gz-l5",
+          "stationId": "gz-s5-20",
+          "order": 19,
+          "station": {
+            "id": "gz-s5-20",
+            "systemId": "0433295a-d816-4d42-a2dc-72e6ccf17f3a",
+            "name": "Саньси (Sanxi)"
+          }
+        },
+        {
+          "lineId": "gz-l5",
+          "stationId": "gz-s5-21",
+          "order": 20,
+          "station": {
+            "id": "gz-s5-21",
+            "systemId": "0433295a-d816-4d42-a2dc-72e6ccf17f3a",
+            "name": "Юйчжу (Yuzhu)"
+          }
+        },
+        {
+          "lineId": "gz-l5",
+          "stationId": "gz-s5-22",
+          "order": 21,
+          "station": {
+            "id": "gz-s5-22",
+            "systemId": "0433295a-d816-4d42-a2dc-72e6ccf17f3a",
+            "name": "Дашади (Dashadi)"
+          }
+        },
+        {
+          "lineId": "gz-l5",
+          "stationId": "gz-s5-23",
+          "order": 22,
+          "station": {
+            "id": "gz-s5-23",
+            "systemId": "0433295a-d816-4d42-a2dc-72e6ccf17f3a",
+            "name": "Дашадун (Dashadong)"
+          }
+        },
+        {
+          "lineId": "gz-l5",
+          "stationId": "gz-s5-24",
+          "order": 23,
+          "station": {
+            "id": "gz-s5-24",
+            "systemId": "0433295a-d816-4d42-a2dc-72e6ccf17f3a",
+            "name": "Вэньчун (Wenchong)"
+          }
+        }
+      ]
+    },
+    {
+      "id": "gz-l6",
+      "systemId": "0433295a-d816-4d42-a2dc-72e6ccf17f3a",
+      "name": "Линия 6 (Line 6)",
+      "lineNumber": "6",
+      "color": "#80225F",
+      "lineStations": [
+        {
+          "lineId": "gz-l6",
+          "stationId": "gz-s6-1",
+          "order": 0,
+          "station": {
+            "id": "gz-s6-1",
+            "systemId": "0433295a-d816-4d42-a2dc-72e6ccf17f3a",
+            "name": "Сюньфэнган (Xunfenggang)"
+          }
+        },
+        {
+          "lineId": "gz-l6",
+          "stationId": "gz-s6-2",
+          "order": 1,
+          "station": {
+            "id": "gz-s6-2",
+            "systemId": "0433295a-d816-4d42-a2dc-72e6ccf17f3a",
+            "name": "Хэнша (Hengsha)"
+          }
+        },
+        {
+          "lineId": "gz-l6",
+          "stationId": "gz-s6-3",
+          "order": 2,
+          "station": {
+            "id": "gz-s6-3",
+            "systemId": "0433295a-d816-4d42-a2dc-72e6ccf17f3a",
+            "name": "Шабэй (Shabei)"
+          }
+        },
+        {
+          "lineId": "gz-l6",
+          "stationId": "gz-s6-4",
+          "order": 3,
+          "station": {
+            "id": "gz-s6-4",
+            "systemId": "0433295a-d816-4d42-a2dc-72e6ccf17f3a",
+            "name": "Хэша (Hesha)"
+          }
+        },
+        {
+          "lineId": "gz-l6",
+          "stationId": "gz-s6-5",
+          "order": 4,
+          "station": {
+            "id": "gz-s6-5",
+            "systemId": "0433295a-d816-4d42-a2dc-72e6ccf17f3a",
+            "name": "Таньвэй (Tanwei)"
+          }
+        },
+        {
+          "lineId": "gz-l6",
+          "stationId": "gz-s6-6",
+          "order": 5,
+          "station": {
+            "id": "gz-s6-6",
+            "systemId": "0433295a-d816-4d42-a2dc-72e6ccf17f3a",
+            "name": "Жуифан (Ruyifang)"
+          }
+        },
+        {
+          "lineId": "gz-l6",
+          "stationId": "gz-s6-7",
+          "order": 6,
+          "station": {
+            "id": "gz-s6-7",
+            "systemId": "0433295a-d816-4d42-a2dc-72e6ccf17f3a",
+            "name": "Хуанша (Huangsha)"
+          }
+        },
+        {
+          "lineId": "gz-l6",
+          "stationId": "gz-s6-8",
+          "order": 7,
+          "station": {
+            "id": "gz-s6-8",
+            "systemId": "0433295a-d816-4d42-a2dc-72e6ccf17f3a",
+            "name": "Парк культуры (Cultural Park)"
+          }
+        },
+        {
+          "lineId": "gz-l6",
+          "stationId": "gz-s6-9",
+          "order": 8,
+          "station": {
+            "id": "gz-s6-9",
+            "systemId": "0433295a-d816-4d42-a2dc-72e6ccf17f3a",
+            "name": "Идэ Лу (Yide Lu)"
+          }
+        },
+        {
+          "lineId": "gz-l6",
+          "stationId": "gz-s6-10",
+          "order": 9,
+          "station": {
+            "id": "gz-s6-10",
+            "systemId": "0433295a-d816-4d42-a2dc-72e6ccf17f3a",
+            "name": "Площадь Хайчжу (Haizhu Square)"
+          }
+        },
+        {
+          "lineId": "gz-l6",
+          "stationId": "gz-s6-11",
+          "order": 10,
+          "station": {
+            "id": "gz-s6-11",
+            "systemId": "0433295a-d816-4d42-a2dc-72e6ccf17f3a",
+            "name": "Бэйцзин Лу (Beijing Lu)"
+          }
+        },
+        {
+          "lineId": "gz-l6",
+          "stationId": "gz-s6-12",
+          "order": 11,
+          "station": {
+            "id": "gz-s6-12",
+            "systemId": "0433295a-d816-4d42-a2dc-72e6ccf17f3a",
+            "name": "Площадь Туаньида (Tuanyida Square)"
+          }
+        },
+        {
+          "lineId": "gz-l6",
+          "stationId": "gz-s6-13",
+          "order": 12,
+          "station": {
+            "id": "gz-s6-13",
+            "systemId": "0433295a-d816-4d42-a2dc-72e6ccf17f3a",
+            "name": "Дунху (Donghu)"
+          }
+        },
+        {
+          "lineId": "gz-l6",
+          "stationId": "gz-s6-14",
+          "order": 13,
+          "station": {
+            "id": "gz-s6-14",
+            "systemId": "0433295a-d816-4d42-a2dc-72e6ccf17f3a",
+            "name": "Дуншанькоу (Dongshankou)"
+          }
+        },
+        {
+          "lineId": "gz-l6",
+          "stationId": "gz-s6-15",
+          "order": 14,
+          "station": {
+            "id": "gz-s6-15",
+            "systemId": "0433295a-d816-4d42-a2dc-72e6ccf17f3a",
+            "name": "Оучжуан (Ouzhuang)"
+          }
+        },
+        {
+          "lineId": "gz-l6",
+          "stationId": "gz-s6-16",
+          "order": 15,
+          "station": {
+            "id": "gz-s6-16",
+            "systemId": "0433295a-d816-4d42-a2dc-72e6ccf17f3a",
+            "name": "Хуанхуаган (Huanghuagang)"
+          }
+        },
+        {
+          "lineId": "gz-l6",
+          "stationId": "gz-s6-17",
+          "order": 16,
+          "station": {
+            "id": "gz-s6-17",
+            "systemId": "0433295a-d816-4d42-a2dc-72e6ccf17f3a",
+            "name": "Шахэдин (Shaheding)"
+          }
+        },
+        {
+          "lineId": "gz-l6",
+          "stationId": "gz-s6-18",
+          "order": 17,
+          "station": {
+            "id": "gz-s6-18",
+            "systemId": "0433295a-d816-4d42-a2dc-72e6ccf17f3a",
+            "name": "Тяньпинцзя (Tianpingjia)"
+          }
+        },
+        {
+          "lineId": "gz-l6",
+          "stationId": "gz-s6-19",
+          "order": 18,
+          "station": {
+            "id": "gz-s6-19",
+            "systemId": "0433295a-d816-4d42-a2dc-72e6ccf17f3a",
+            "name": "Яньтан (Yantang)"
+          }
+        },
+        {
+          "lineId": "gz-l6",
+          "stationId": "gz-s6-20",
+          "order": 19,
+          "station": {
+            "id": "gz-s6-20",
+            "systemId": "0433295a-d816-4d42-a2dc-72e6ccf17f3a",
+            "name": "Автовокзал Тяньхэ (Tianhe Coach Terminal)"
+          }
+        },
+        {
+          "lineId": "gz-l6",
+          "stationId": "gz-s6-21",
+          "order": 20,
+          "station": {
+            "id": "gz-s6-21",
+            "systemId": "0433295a-d816-4d42-a2dc-72e6ccf17f3a",
+            "name": "Чанбань (Changban)"
+          }
+        },
+        {
+          "lineId": "gz-l6",
+          "stationId": "gz-s6-22",
+          "order": 21,
+          "station": {
+            "id": "gz-s6-22",
+            "systemId": "0433295a-d816-4d42-a2dc-72e6ccf17f3a",
+            "name": "Ботанический сад (Botanical Garden)"
+          }
+        },
+        {
+          "lineId": "gz-l6",
+          "stationId": "gz-s6-23",
+          "order": 22,
+          "station": {
+            "id": "gz-s6-23",
+            "systemId": "0433295a-d816-4d42-a2dc-72e6ccf17f3a",
+            "name": "Лундун (Longdong)"
+          }
+        },
+        {
+          "lineId": "gz-l6",
+          "stationId": "gz-s6-24",
+          "order": 23,
+          "station": {
+            "id": "gz-s6-24",
+            "systemId": "0433295a-d816-4d42-a2dc-72e6ccf17f3a",
+            "name": "Кэхуан (Kehuang)"
+          }
+        },
+        {
+          "lineId": "gz-l6",
+          "stationId": "gz-s6-25",
+          "order": 24,
+          "station": {
+            "id": "gz-s6-25",
+            "systemId": "0433295a-d816-4d42-a2dc-72e6ccf17f3a",
+            "name": "Гаотанши (Gaotangshi)"
+          }
+        },
+        {
+          "lineId": "gz-l6",
+          "stationId": "gz-s6-26",
+          "order": 25,
+          "station": {
+            "id": "gz-s6-26",
+            "systemId": "0433295a-d816-4d42-a2dc-72e6ccf17f3a",
+            "name": "Хуанбэй (Huangbei)"
+          }
+        },
+        {
+          "lineId": "gz-l6",
+          "stationId": "gz-s6-27",
+          "order": 26,
+          "station": {
+            "id": "gz-s6-27",
+            "systemId": "0433295a-d816-4d42-a2dc-72e6ccf17f3a",
+            "name": "Цзиньфэн (Jinfeng)"
+          }
+        },
+        {
+          "lineId": "gz-l6",
+          "stationId": "gz-s6-28",
+          "order": 27,
+          "station": {
+            "id": "gz-s6-28",
+            "systemId": "0433295a-d816-4d42-a2dc-72e6ccf17f3a",
+            "name": "Сянган (Xiangang)"
+          }
+        },
+        {
+          "lineId": "gz-l6",
+          "stationId": "gz-s6-29",
+          "order": 28,
+          "station": {
+            "id": "gz-s6-29",
+            "systemId": "0433295a-d816-4d42-a2dc-72e6ccf17f3a",
+            "name": "Суюань (Suyuan)"
+          }
+        },
+        {
+          "lineId": "gz-l6",
+          "stationId": "gz-s6-30",
+          "order": 29,
+          "station": {
+            "id": "gz-s6-30",
+            "systemId": "0433295a-d816-4d42-a2dc-72e6ccf17f3a",
+            "name": "Логан (Luogang)"
+          }
+        },
+        {
+          "lineId": "gz-l6",
+          "stationId": "gz-s6-31",
+          "order": 30,
+          "station": {
+            "id": "gz-s6-31",
+            "systemId": "0433295a-d816-4d42-a2dc-72e6ccf17f3a",
+            "name": "Сянсюэ (Xiangxue)"
+          }
+        }
+      ]
+    },
+    {
+      "id": "gz-l7",
+      "systemId": "0433295a-d816-4d42-a2dc-72e6ccf17f3a",
+      "name": "Линия 7 (Line 7)",
+      "lineNumber": "7",
+      "color": "#95D26C",
+      "lineStations": [
+        {
+          "lineId": "gz-l7",
+          "stationId": "gz-s7-1",
+          "order": 0,
+          "station": {
+            "id": "gz-s7-1",
+            "systemId": "0433295a-d816-4d42-a2dc-72e6ccf17f3a",
+            "name": "Мэйди Дадао (Meidi Dadao)"
+          }
+        },
+        {
+          "lineId": "gz-l7",
+          "stationId": "gz-s7-2",
+          "order": 1,
+          "station": {
+            "id": "gz-s7-2",
+            "systemId": "0433295a-d816-4d42-a2dc-72e6ccf17f3a",
+            "name": "Парк Бэйцзяо (Beijiao Park)"
+          }
+        },
+        {
+          "lineId": "gz-l7",
+          "stationId": "gz-s7-3",
+          "order": 2,
+          "station": {
+            "id": "gz-s7-3",
+            "systemId": "0433295a-d816-4d42-a2dc-72e6ccf17f3a",
+            "name": "Мидеа (Midea)"
+          }
+        },
+        {
+          "lineId": "gz-l7",
+          "stationId": "gz-s7-4",
+          "order": 3,
+          "station": {
+            "id": "gz-s7-4",
+            "systemId": "0433295a-d816-4d42-a2dc-72e6ccf17f3a",
+            "name": "Наньчун (Nanchong)"
+          }
+        },
+        {
+          "lineId": "gz-l7",
+          "stationId": "gz-s7-5",
+          "order": 4,
+          "station": {
+            "id": "gz-s7-5",
+            "systemId": "0433295a-d816-4d42-a2dc-72e6ccf17f3a",
+            "name": "Цзиньлун (Jinlong)"
+          }
+        },
+        {
+          "lineId": "gz-l7",
+          "stationId": "gz-s7-6",
+          "order": 5,
+          "station": {
+            "id": "gz-s7-6",
+            "systemId": "0433295a-d816-4d42-a2dc-72e6ccf17f3a",
+            "name": "Чэньцунь (Chencun)"
+          }
+        },
+        {
+          "lineId": "gz-l7",
+          "stationId": "gz-s7-7",
+          "order": 6,
+          "station": {
+            "id": "gz-s7-7",
+            "systemId": "0433295a-d816-4d42-a2dc-72e6ccf17f3a",
+            "name": "Чэньцуньбэй (Chencunbei)"
+          }
+        },
+        {
+          "lineId": "gz-l7",
+          "stationId": "gz-s7-8",
+          "order": 7,
+          "station": {
+            "id": "gz-s7-8",
+            "systemId": "0433295a-d816-4d42-a2dc-72e6ccf17f3a",
+            "name": "Дачжоу (Dazhou)"
+          }
+        },
+        {
+          "lineId": "gz-l7",
+          "stationId": "gz-s7-9",
+          "order": 8,
+          "station": {
+            "id": "gz-s7-9",
+            "systemId": "0433295a-d816-4d42-a2dc-72e6ccf17f3a",
+            "name": "Южный вокзал Гуанчжоу (Guangzhou South Railway Station)"
+          }
+        },
+        {
+          "lineId": "gz-l7",
+          "stationId": "gz-s7-10",
+          "order": 9,
+          "station": {
+            "id": "gz-s7-10",
+            "systemId": "0433295a-d816-4d42-a2dc-72e6ccf17f3a",
+            "name": "Шиби (Shibi)"
+          }
+        },
+        {
+          "lineId": "gz-l7",
+          "stationId": "gz-s7-11",
+          "order": 10,
+          "station": {
+            "id": "gz-s7-11",
+            "systemId": "0433295a-d816-4d42-a2dc-72e6ccf17f3a",
+            "name": "Ханьси Чанлун (Hanxi Changlong)"
+          }
+        },
+        {
+          "lineId": "gz-l7",
+          "stationId": "gz-s7-12",
+          "order": 11,
+          "station": {
+            "id": "gz-s7-12",
+            "systemId": "0433295a-d816-4d42-a2dc-72e6ccf17f3a",
+            "name": "Наньцунь Ваньбо (Nancun Wanbo)"
+          }
+        },
+        {
+          "lineId": "gz-l7",
+          "stationId": "gz-s7-13",
+          "order": 12,
+          "station": {
+            "id": "gz-s7-13",
+            "systemId": "0433295a-d816-4d42-a2dc-72e6ccf17f3a",
+            "name": "Юаньган (Yuangang)"
+          }
+        },
+        {
+          "lineId": "gz-l7",
+          "stationId": "gz-s7-14",
+          "order": 13,
+          "station": {
+            "id": "gz-s7-14",
+            "systemId": "0433295a-d816-4d42-a2dc-72e6ccf17f3a",
+            "name": "Баньцяо (Banqiao)"
+          }
+        },
+        {
+          "lineId": "gz-l7",
+          "stationId": "gz-s7-15",
+          "order": 14,
+          "station": {
+            "id": "gz-s7-15",
+            "systemId": "0433295a-d816-4d42-a2dc-72e6ccf17f3a",
+            "name": "Университетский городок Южный (Higher Education Mega Center South)"
+          }
+        }
+      ]
+    },
+    {
+      "id": "gz-l8",
+      "systemId": "0433295a-d816-4d42-a2dc-72e6ccf17f3a",
+      "name": "Линия 8 (Line 8)",
+      "lineNumber": "8",
+      "color": "#008C95",
+      "lineStations": [
+        {
+          "lineId": "gz-l8",
+          "stationId": "gz-s8-1",
+          "order": 0,
+          "station": {
+            "id": "gz-s8-1",
+            "systemId": "0433295a-d816-4d42-a2dc-72e6ccf17f3a",
+            "name": "Цзяосинь (Jiaoxin)"
+          }
+        },
+        {
+          "lineId": "gz-l8",
+          "stationId": "gz-s8-2",
+          "order": 1,
+          "station": {
+            "id": "gz-s8-2",
+            "systemId": "0433295a-d816-4d42-a2dc-72e6ccf17f3a",
+            "name": "Тинган (Tinggang)"
+          }
+        },
+        {
+          "lineId": "gz-l8",
+          "stationId": "gz-s8-3",
+          "order": 2,
+          "station": {
+            "id": "gz-s8-3",
+            "systemId": "0433295a-d816-4d42-a2dc-72e6ccf17f3a",
+            "name": "Шицзин (Shijing)"
+          }
+        },
+        {
+          "lineId": "gz-l8",
+          "stationId": "gz-s8-4",
+          "order": 3,
+          "station": {
+            "id": "gz-s8-4",
+            "systemId": "0433295a-d816-4d42-a2dc-72e6ccf17f3a",
+            "name": "Сяопин (Xiaoping)"
+          }
+        },
+        {
+          "lineId": "gz-l8",
+          "stationId": "gz-s8-5",
+          "order": 4,
+          "station": {
+            "id": "gz-s8-5",
+            "systemId": "0433295a-d816-4d42-a2dc-72e6ccf17f3a",
+            "name": "Цзюйлун (Julong)"
+          }
+        },
+        {
+          "lineId": "gz-l8",
+          "stationId": "gz-s8-6",
+          "order": 5,
+          "station": {
+            "id": "gz-s8-6",
+            "systemId": "0433295a-d816-4d42-a2dc-72e6ccf17f3a",
+            "name": "Шанбу (Shangbu)"
+          }
+        },
+        {
+          "lineId": "gz-l8",
+          "stationId": "gz-s8-7",
+          "order": 6,
+          "station": {
+            "id": "gz-s8-7",
+            "systemId": "0433295a-d816-4d42-a2dc-72e6ccf17f3a",
+            "name": "Тундэ (Tongde)"
+          }
+        },
+        {
+          "lineId": "gz-l8",
+          "stationId": "gz-s8-8",
+          "order": 7,
+          "station": {
+            "id": "gz-s8-8",
+            "systemId": "0433295a-d816-4d42-a2dc-72e6ccf17f3a",
+            "name": "Эчжантань (Ezhangtan)"
+          }
+        },
+        {
+          "lineId": "gz-l8",
+          "stationId": "gz-s8-9",
+          "order": 8,
+          "station": {
+            "id": "gz-s8-9",
+            "systemId": "0433295a-d816-4d42-a2dc-72e6ccf17f3a",
+            "name": "Сицунь (Xicun)"
+          }
+        },
+        {
+          "lineId": "gz-l8",
+          "stationId": "gz-s8-10",
+          "order": 9,
+          "station": {
+            "id": "gz-s8-10",
+            "systemId": "0433295a-d816-4d42-a2dc-72e6ccf17f3a",
+            "name": "Цайхунцяо (Caihongqiao)"
+          }
+        },
+        {
+          "lineId": "gz-l8",
+          "stationId": "gz-s8-11",
+          "order": 10,
+          "station": {
+            "id": "gz-s8-11",
+            "systemId": "0433295a-d816-4d42-a2dc-72e6ccf17f3a",
+            "name": "Академия клана Чэнь (Chen Clan Academy)"
+          }
+        },
+        {
+          "lineId": "gz-l8",
+          "stationId": "gz-s8-12",
+          "order": 11,
+          "station": {
+            "id": "gz-s8-12",
+            "systemId": "0433295a-d816-4d42-a2dc-72e6ccf17f3a",
+            "name": "Хуалиньсы (Hualinsi Buddhist Temple)"
+          }
+        },
+        {
+          "lineId": "gz-l8",
+          "stationId": "gz-s8-13",
+          "order": 12,
+          "station": {
+            "id": "gz-s8-13",
+            "systemId": "0433295a-d816-4d42-a2dc-72e6ccf17f3a",
+            "name": "Парк культуры (Cultural Park)"
+          }
+        },
+        {
+          "lineId": "gz-l8",
+          "stationId": "gz-s8-14",
+          "order": 13,
+          "station": {
+            "id": "gz-s8-14",
+            "systemId": "0433295a-d816-4d42-a2dc-72e6ccf17f3a",
+            "name": "Тунфуси (Tongfuxi)"
+          }
+        },
+        {
+          "lineId": "gz-l8",
+          "stationId": "gz-s8-15",
+          "order": 14,
+          "station": {
+            "id": "gz-s8-15",
+            "systemId": "0433295a-d816-4d42-a2dc-72e6ccf17f3a",
+            "name": "Фэнхуан Синьцунь (Fenghuang Xincun)"
+          }
+        },
+        {
+          "lineId": "gz-l8",
+          "stationId": "gz-s8-16",
+          "order": 15,
+          "station": {
+            "id": "gz-s8-16",
+            "systemId": "0433295a-d816-4d42-a2dc-72e6ccf17f3a",
+            "name": "Шаюань (Shayuan)"
+          }
+        },
+        {
+          "lineId": "gz-l8",
+          "stationId": "gz-s8-17",
+          "order": 16,
+          "station": {
+            "id": "gz-s8-17",
+            "systemId": "0433295a-d816-4d42-a2dc-72e6ccf17f3a",
+            "name": "Баоган Дадао (Baogang Dadao)"
+          }
+        },
+        {
+          "lineId": "gz-l8",
+          "stationId": "gz-s8-18",
+          "order": 17,
+          "station": {
+            "id": "gz-s8-18",
+            "systemId": "0433295a-d816-4d42-a2dc-72e6ccf17f3a",
+            "name": "Чанган (Changgang)"
+          }
+        },
+        {
+          "lineId": "gz-l8",
+          "stationId": "gz-s8-19",
+          "order": 18,
+          "station": {
+            "id": "gz-s8-19",
+            "systemId": "0433295a-d816-4d42-a2dc-72e6ccf17f3a",
+            "name": "Сяоган (Xiaogang)"
+          }
+        },
+        {
+          "lineId": "gz-l8",
+          "stationId": "gz-s8-20",
+          "order": 19,
+          "station": {
+            "id": "gz-s8-20",
+            "systemId": "0433295a-d816-4d42-a2dc-72e6ccf17f3a",
+            "name": "Университет Сунь Ятсена (Sun Yat-Sen University)"
+          }
+        },
+        {
+          "lineId": "gz-l8",
+          "stationId": "gz-s8-21",
+          "order": 20,
+          "station": {
+            "id": "gz-s8-21",
+            "systemId": "0433295a-d816-4d42-a2dc-72e6ccf17f3a",
+            "name": "Луцзян (Lujiang)"
+          }
+        },
+        {
+          "lineId": "gz-l8",
+          "stationId": "gz-s8-22",
+          "order": 21,
+          "station": {
+            "id": "gz-s8-22",
+            "systemId": "0433295a-d816-4d42-a2dc-72e6ccf17f3a",
+            "name": "Кэцунь (Kecun)"
+          }
+        },
+        {
+          "lineId": "gz-l8",
+          "stationId": "gz-s8-23",
+          "order": 22,
+          "station": {
+            "id": "gz-s8-23",
+            "systemId": "0433295a-d816-4d42-a2dc-72e6ccf17f3a",
+            "name": "Чиган (Chigang)"
+          }
+        },
+        {
+          "lineId": "gz-l8",
+          "stationId": "gz-s8-24",
+          "order": 23,
+          "station": {
+            "id": "gz-s8-24",
+            "systemId": "0433295a-d816-4d42-a2dc-72e6ccf17f3a",
+            "name": "Модеша (Modiesha)"
+          }
+        },
+        {
+          "lineId": "gz-l8",
+          "stationId": "gz-s8-25",
+          "order": 24,
+          "station": {
+            "id": "gz-s8-25",
+            "systemId": "0433295a-d816-4d42-a2dc-72e6ccf17f3a",
+            "name": "Синьгандун (Xingangdong)"
+          }
+        },
+        {
+          "lineId": "gz-l8",
+          "stationId": "gz-s8-26",
+          "order": 25,
+          "station": {
+            "id": "gz-s8-26",
+            "systemId": "0433295a-d816-4d42-a2dc-72e6ccf17f3a",
+            "name": "Пачжоу (Pazhou)"
+          }
+        },
+        {
+          "lineId": "gz-l8",
+          "stationId": "gz-s8-27",
+          "order": 26,
+          "station": {
+            "id": "gz-s8-27",
+            "systemId": "0433295a-d816-4d42-a2dc-72e6ccf17f3a",
+            "name": "Ваньшэнвэй (Wanshengwei)"
+          }
+        }
+      ]
+    },
+    {
+      "id": "gz-l9",
+      "systemId": "0433295a-d816-4d42-a2dc-72e6ccf17f3a",
+      "name": "Линия 9 (Line 9)",
+      "lineNumber": "9",
+      "color": "#72C787",
+      "lineStations": [
+        {
+          "lineId": "gz-l9",
+          "stationId": "gz-s9-1",
+          "order": 0,
+          "station": {
+            "id": "gz-s9-1",
+            "systemId": "0433295a-d816-4d42-a2dc-72e6ccf17f3a",
+            "name": "Фэйэлин (Fei'eling)"
+          }
+        },
+        {
+          "lineId": "gz-l9",
+          "stationId": "gz-s9-2",
+          "order": 1,
+          "station": {
+            "id": "gz-s9-2",
+            "systemId": "0433295a-d816-4d42-a2dc-72e6ccf17f3a",
+            "name": "Автоград Хуаду (Huadu Auto City)"
+          }
+        },
+        {
+          "lineId": "gz-l9",
+          "stationId": "gz-s9-3",
+          "order": 2,
+          "station": {
+            "id": "gz-s9-3",
+            "systemId": "0433295a-d816-4d42-a2dc-72e6ccf17f3a",
+            "name": "Северный вокзал Гуанчжоу (Guangzhou North Railway Station)"
+          }
+        },
+        {
+          "lineId": "gz-l9",
+          "stationId": "gz-s9-4",
+          "order": 3,
+          "station": {
+            "id": "gz-s9-4",
+            "systemId": "0433295a-d816-4d42-a2dc-72e6ccf17f3a",
+            "name": "Хуачэнлу (Huachenglu)"
+          }
+        },
+        {
+          "lineId": "gz-l9",
+          "stationId": "gz-s9-5",
+          "order": 4,
+          "station": {
+            "id": "gz-s9-5",
+            "systemId": "0433295a-d816-4d42-a2dc-72e6ccf17f3a",
+            "name": "Парк Хуагошань (Huaguoshan Park)"
+          }
+        },
+        {
+          "lineId": "gz-l9",
+          "stationId": "gz-s9-6",
+          "order": 5,
+          "station": {
+            "id": "gz-s9-6",
+            "systemId": "0433295a-d816-4d42-a2dc-72e6ccf17f3a",
+            "name": "Площадь Хуаду (Huadu Square)"
+          }
+        },
+        {
+          "lineId": "gz-l9",
+          "stationId": "gz-s9-7",
+          "order": 6,
+          "station": {
+            "id": "gz-s9-7",
+            "systemId": "0433295a-d816-4d42-a2dc-72e6ccf17f3a",
+            "name": "Парк Мааньшань (Ma'anshan Park)"
+          }
+        },
+        {
+          "lineId": "gz-l9",
+          "stationId": "gz-s9-8",
+          "order": 7,
+          "station": {
+            "id": "gz-s9-8",
+            "systemId": "0433295a-d816-4d42-a2dc-72e6ccf17f3a",
+            "name": "Ляньтан (Liantang)"
+          }
+        },
+        {
+          "lineId": "gz-l9",
+          "stationId": "gz-s9-9",
+          "order": 8,
+          "station": {
+            "id": "gz-s9-9",
+            "systemId": "0433295a-d816-4d42-a2dc-72e6ccf17f3a",
+            "name": "Цинбу (Qingbu)"
+          }
+        },
+        {
+          "lineId": "gz-l9",
+          "stationId": "gz-s9-10",
+          "order": 9,
+          "station": {
+            "id": "gz-s9-10",
+            "systemId": "0433295a-d816-4d42-a2dc-72e6ccf17f3a",
+            "name": "Цинтан (Qingtang)"
+          }
+        },
+        {
+          "lineId": "gz-l9",
+          "stationId": "gz-s9-11",
+          "order": 10,
+          "station": {
+            "id": "gz-s9-11",
+            "systemId": "0433295a-d816-4d42-a2dc-72e6ccf17f3a",
+            "name": "Гаоцзэн (Gaozeng)"
+          }
+        }
+      ]
+    },
+    {
+      "id": "gz-l13",
+      "systemId": "0433295a-d816-4d42-a2dc-72e6ccf17f3a",
+      "name": "Линия 13 (Line 13)",
+      "lineNumber": "13",
+      "color": "#8E8C13",
+      "lineStations": [
+        {
+          "lineId": "gz-l13",
+          "stationId": "gz-s13-1",
+          "order": 0,
+          "station": {
+            "id": "gz-s13-1",
+            "systemId": "0433295a-d816-4d42-a2dc-72e6ccf17f3a",
+            "name": "Юйчжу (Yuzhu)"
+          }
+        },
+        {
+          "lineId": "gz-l13",
+          "stationId": "gz-s13-2",
+          "order": 1,
+          "station": {
+            "id": "gz-s13-2",
+            "systemId": "0433295a-d816-4d42-a2dc-72e6ccf17f3a",
+            "name": "Юйфэнвэй (Yufengwei)"
+          }
+        },
+        {
+          "lineId": "gz-l13",
+          "stationId": "gz-s13-3",
+          "order": 2,
+          "station": {
+            "id": "gz-s13-3",
+            "systemId": "0433295a-d816-4d42-a2dc-72e6ccf17f3a",
+            "name": "Шуанган (Shuanggang)"
+          }
+        },
+        {
+          "lineId": "gz-l13",
+          "stationId": "gz-s13-4",
+          "order": 3,
+          "station": {
+            "id": "gz-s13-4",
+            "systemId": "0433295a-d816-4d42-a2dc-72e6ccf17f3a",
+            "name": "Храм Бога Наньхай (Nanhai God Temple)"
+          }
+        },
+        {
+          "lineId": "gz-l13",
+          "stationId": "gz-s13-5",
+          "order": 4,
+          "station": {
+            "id": "gz-s13-5",
+            "systemId": "0433295a-d816-4d42-a2dc-72e6ccf17f3a",
+            "name": "Сяюань (Xiayuan)"
+          }
+        },
+        {
+          "lineId": "gz-l13",
+          "stationId": "gz-s13-6",
+          "order": 5,
+          "station": {
+            "id": "gz-s13-6",
+            "systemId": "0433295a-d816-4d42-a2dc-72e6ccf17f3a",
+            "name": "Наньган (Nangang)"
+          }
+        },
+        {
+          "lineId": "gz-l13",
+          "stationId": "gz-s13-7",
+          "order": 6,
+          "station": {
+            "id": "gz-s13-7",
+            "systemId": "0433295a-d816-4d42-a2dc-72e6ccf17f3a",
+            "name": "Шацунь (Shacun)"
+          }
+        },
+        {
+          "lineId": "gz-l13",
+          "stationId": "gz-s13-8",
+          "order": 7,
+          "station": {
+            "id": "gz-s13-8",
+            "systemId": "0433295a-d816-4d42-a2dc-72e6ccf17f3a",
+            "name": "Байцзян (Baijiang)"
+          }
+        },
+        {
+          "lineId": "gz-l13",
+          "stationId": "gz-s13-9",
+          "order": 8,
+          "station": {
+            "id": "gz-s13-9",
+            "systemId": "0433295a-d816-4d42-a2dc-72e6ccf17f3a",
+            "name": "Синьтан (Xintang)"
+          }
+        },
+        {
+          "lineId": "gz-l13",
+          "stationId": "gz-s13-10",
+          "order": 9,
+          "station": {
+            "id": "gz-s13-10",
+            "systemId": "0433295a-d816-4d42-a2dc-72e6ccf17f3a",
+            "name": "Гуаньху (Guanhu)"
+          }
+        },
+        {
+          "lineId": "gz-l13",
+          "stationId": "gz-s13-11",
+          "order": 10,
+          "station": {
+            "id": "gz-s13-11",
+            "systemId": "0433295a-d816-4d42-a2dc-72e6ccf17f3a",
+            "name": "Синьша (Xinsha)"
+          }
+        }
+      ]
+    },
+    {
+      "id": "gz-l14",
+      "systemId": "0433295a-d816-4d42-a2dc-72e6ccf17f3a",
+      "name": "Линия 14 (Line 14)",
+      "lineNumber": "14",
+      "color": "#81312F",
+      "lineStations": [
+        {
+          "lineId": "gz-l14",
+          "stationId": "gz-s14-1",
+          "order": 0,
+          "station": {
+            "id": "gz-s14-1",
+            "systemId": "0433295a-d816-4d42-a2dc-72e6ccf17f3a",
+            "name": "Цзяхэванган (Jiahewanggang)"
+          }
+        },
+        {
+          "lineId": "gz-l14",
+          "stationId": "gz-s14-2",
+          "order": 1,
+          "station": {
+            "id": "gz-s14-2",
+            "systemId": "0433295a-d816-4d42-a2dc-72e6ccf17f3a",
+            "name": "Байюнь Дунпин (Baiyun Dongping)"
+          }
+        },
+        {
+          "lineId": "gz-l14",
+          "stationId": "gz-s14-3",
+          "order": 2,
+          "station": {
+            "id": "gz-s14-3",
+            "systemId": "0433295a-d816-4d42-a2dc-72e6ccf17f3a",
+            "name": "Сяхэ (Xiahe)"
+          }
+        },
+        {
+          "lineId": "gz-l14",
+          "stationId": "gz-s14-4",
+          "order": 3,
+          "station": {
+            "id": "gz-s14-4",
+            "systemId": "0433295a-d816-4d42-a2dc-72e6ccf17f3a",
+            "name": "Тайхэ (Taihe)"
+          }
+        },
+        {
+          "lineId": "gz-l14",
+          "stationId": "gz-s14-5",
+          "order": 4,
+          "station": {
+            "id": "gz-s14-5",
+            "systemId": "0433295a-d816-4d42-a2dc-72e6ccf17f3a",
+            "name": "Чжуляо (Zhuliao)"
+          }
+        },
+        {
+          "lineId": "gz-l14",
+          "stationId": "gz-s14-6",
+          "order": 5,
+          "station": {
+            "id": "gz-s14-6",
+            "systemId": "0433295a-d816-4d42-a2dc-72e6ccf17f3a",
+            "name": "Чжунлотань (Zhongluotan)"
+          }
+        },
+        {
+          "lineId": "gz-l14",
+          "stationId": "gz-s14-7",
+          "order": 6,
+          "station": {
+            "id": "gz-s14-7",
+            "systemId": "0433295a-d816-4d42-a2dc-72e6ccf17f3a",
+            "name": "Мали (Mali)"
+          }
+        },
+        {
+          "lineId": "gz-l14",
+          "stationId": "gz-s14-8",
+          "order": 7,
+          "station": {
+            "id": "gz-s14-8",
+            "systemId": "0433295a-d816-4d42-a2dc-72e6ccf17f3a",
+            "name": "Синьхэ (Xinhe)"
+          }
+        },
+        {
+          "lineId": "gz-l14",
+          "stationId": "gz-s14-9",
+          "order": 8,
+          "station": {
+            "id": "gz-s14-9",
+            "systemId": "0433295a-d816-4d42-a2dc-72e6ccf17f3a",
+            "name": "Тайпин (Taiping)"
+          }
+        },
+        {
+          "lineId": "gz-l14",
+          "stationId": "gz-s14-10",
+          "order": 9,
+          "station": {
+            "id": "gz-s14-10",
+            "systemId": "0433295a-d816-4d42-a2dc-72e6ccf17f3a",
+            "name": "Шэньган (Shengang)"
+          }
+        },
+        {
+          "lineId": "gz-l14",
+          "stationId": "gz-s14-11",
+          "order": 10,
+          "station": {
+            "id": "gz-s14-11",
+            "systemId": "0433295a-d816-4d42-a2dc-72e6ccf17f3a",
+            "name": "Автовокзал Цунхуа (Conghua Coach Terminal)"
+          }
+        },
+        {
+          "lineId": "gz-l14",
+          "stationId": "gz-s14-12",
+          "order": 11,
+          "station": {
+            "id": "gz-s14-12",
+            "systemId": "0433295a-d816-4d42-a2dc-72e6ccf17f3a",
+            "name": "Дунфэн (Dongfeng)"
+          }
+        }
+      ]
+    },
+    {
+      "id": "gz-l14a",
+      "systemId": "0433295a-d816-4d42-a2dc-72e6ccf17f3a",
+      "name": "Линия 14 (Город знаний) (Line 14 Knowledge City)",
+      "lineNumber": "14 (Знания)",
+      "color": "#81312F",
+      "lineStations": [
+        {
+          "lineId": "gz-l14a",
+          "stationId": "gz-s14a-1",
+          "order": 0,
+          "station": {
+            "id": "gz-s14a-1",
+            "systemId": "0433295a-d816-4d42-a2dc-72e6ccf17f3a",
+            "name": "Синьхэ (Xinhe)"
+          }
+        },
+        {
+          "lineId": "gz-l14a",
+          "stationId": "gz-s14a-2",
+          "order": 1,
+          "station": {
+            "id": "gz-s14a-2",
+            "systemId": "0433295a-d816-4d42-a2dc-72e6ccf17f3a",
+            "name": "Хунвэй (Hongwei)"
+          }
+        },
+        {
+          "lineId": "gz-l14a",
+          "stationId": "gz-s14a-3",
+          "order": 2,
+          "station": {
+            "id": "gz-s14a-3",
+            "systemId": "0433295a-d816-4d42-a2dc-72e6ccf17f3a",
+            "name": "Синьнань (Xinnan)"
+          }
+        },
+        {
+          "lineId": "gz-l14a",
+          "stationId": "gz-s14a-4",
+          "order": 3,
+          "station": {
+            "id": "gz-s14a-4",
+            "systemId": "0433295a-d816-4d42-a2dc-72e6ccf17f3a",
+            "name": "Фэнся (Fengxia)"
+          }
+        },
+        {
+          "lineId": "gz-l14a",
+          "stationId": "gz-s14a-5",
+          "order": 4,
+          "station": {
+            "id": "gz-s14a-5",
+            "systemId": "0433295a-d816-4d42-a2dc-72e6ccf17f3a",
+            "name": "Китайско-сингапурский город знаний (Sino-Singapore Guangzhou Knowledge City)"
+          }
+        },
+        {
+          "lineId": "gz-l14a",
+          "stationId": "gz-s14a-6",
+          "order": 5,
+          "station": {
+            "id": "gz-s14a-6",
+            "systemId": "0433295a-d816-4d42-a2dc-72e6ccf17f3a",
+            "name": "Хэтанся (Hetangxia)"
+          }
+        },
+        {
+          "lineId": "gz-l14a",
+          "stationId": "gz-s14a-7",
+          "order": 6,
+          "station": {
+            "id": "gz-s14a-7",
+            "systemId": "0433295a-d816-4d42-a2dc-72e6ccf17f3a",
+            "name": "Ванцунь (Wangcun)"
+          }
+        },
+        {
+          "lineId": "gz-l14a",
+          "stationId": "gz-s14a-8",
+          "order": 7,
+          "station": {
+            "id": "gz-s14a-8",
+            "systemId": "0433295a-d816-4d42-a2dc-72e6ccf17f3a",
+            "name": "Танцунь (Tangcun)"
+          }
+        },
+        {
+          "lineId": "gz-l14a",
+          "stationId": "gz-s14a-9",
+          "order": 8,
+          "station": {
+            "id": "gz-s14a-9",
+            "systemId": "0433295a-d816-4d42-a2dc-72e6ccf17f3a",
+            "name": "Чжэньлунбэй (Zhenlongbei)"
+          }
+        },
+        {
+          "lineId": "gz-l14a",
+          "stationId": "gz-s14a-10",
+          "order": 9,
+          "station": {
+            "id": "gz-s14a-10",
+            "systemId": "0433295a-d816-4d42-a2dc-72e6ccf17f3a",
+            "name": "Чжэньлун (Zhenlong)"
+          }
+        }
+      ]
+    },
+    {
+      "id": "gz-l18",
+      "systemId": "0433295a-d816-4d42-a2dc-72e6ccf17f3a",
+      "name": "Линия 18 (Line 18)",
+      "lineNumber": "18",
+      "color": "#0045A3",
+      "lineStations": [
+        {
+          "lineId": "gz-l18",
+          "stationId": "gz-s18-1",
+          "order": 0,
+          "station": {
+            "id": "gz-s18-1",
+            "systemId": "0433295a-d816-4d42-a2dc-72e6ccf17f3a",
+            "name": "Сяньцунь (Xiancun)"
+          }
+        },
+        {
+          "lineId": "gz-l18",
+          "stationId": "gz-s18-2",
+          "order": 1,
+          "station": {
+            "id": "gz-s18-2",
+            "systemId": "0433295a-d816-4d42-a2dc-72e6ccf17f3a",
+            "name": "Модеша (Modiesha)"
+          }
+        },
+        {
+          "lineId": "gz-l18",
+          "stationId": "gz-s18-3",
+          "order": 2,
+          "station": {
+            "id": "gz-s18-3",
+            "systemId": "0433295a-d816-4d42-a2dc-72e6ccf17f3a",
+            "name": "Лунтан (Longtan)"
+          }
+        },
+        {
+          "lineId": "gz-l18",
+          "stationId": "gz-s18-4",
+          "order": 3,
+          "station": {
+            "id": "gz-s18-4",
+            "systemId": "0433295a-d816-4d42-a2dc-72e6ccf17f3a",
+            "name": "Шаси (Shaxi)"
+          }
+        },
+        {
+          "lineId": "gz-l18",
+          "stationId": "gz-s18-5",
+          "order": 4,
+          "station": {
+            "id": "gz-s18-5",
+            "systemId": "0433295a-d816-4d42-a2dc-72e6ccf17f3a",
+            "name": "Наньцунь Ваньбо (Nancun Wanbo)"
+          }
+        },
+        {
+          "lineId": "gz-l18",
+          "stationId": "gz-s18-6",
+          "order": 5,
+          "station": {
+            "id": "gz-s18-6",
+            "systemId": "0433295a-d816-4d42-a2dc-72e6ccf17f3a",
+            "name": "Площадь Паньюй (Panyu Square)"
+          }
+        },
+        {
+          "lineId": "gz-l18",
+          "stationId": "gz-s18-7",
+          "order": 6,
+          "station": {
+            "id": "gz-s18-7",
+            "systemId": "0433295a-d816-4d42-a2dc-72e6ccf17f3a",
+            "name": "Хэнли (Hengli)"
+          }
+        },
+        {
+          "lineId": "gz-l18",
+          "stationId": "gz-s18-8",
+          "order": 7,
+          "station": {
+            "id": "gz-s18-8",
+            "systemId": "0433295a-d816-4d42-a2dc-72e6ccf17f3a",
+            "name": "Ваньцинша (Wanqingsha)"
+          }
+        }
+      ]
+    },
+    {
+      "id": "gz-l21",
+      "systemId": "0433295a-d816-4d42-a2dc-72e6ccf17f3a",
+      "name": "Линия 21 (Line 21)",
+      "lineNumber": "21",
+      "color": "#2E1A4A",
+      "lineStations": [
+        {
+          "lineId": "gz-l21",
+          "stationId": "gz-s21-1",
+          "order": 0,
+          "station": {
+            "id": "gz-s21-1",
+            "systemId": "0433295a-d816-4d42-a2dc-72e6ccf17f3a",
+            "name": "Юаньцунь (Yuancun)"
+          }
+        },
+        {
+          "lineId": "gz-l21",
+          "stationId": "gz-s21-2",
+          "order": 1,
+          "station": {
+            "id": "gz-s21-2",
+            "systemId": "0433295a-d816-4d42-a2dc-72e6ccf17f3a",
+            "name": "Парк Тяньхэ (Tianhe Park)"
+          }
+        },
+        {
+          "lineId": "gz-l21",
+          "stationId": "gz-s21-3",
+          "order": 2,
+          "station": {
+            "id": "gz-s21-3",
+            "systemId": "0433295a-d816-4d42-a2dc-72e6ccf17f3a",
+            "name": "Тандун (Tangdong)"
+          }
+        },
+        {
+          "lineId": "gz-l21",
+          "stationId": "gz-s21-4",
+          "order": 3,
+          "station": {
+            "id": "gz-s21-4",
+            "systemId": "0433295a-d816-4d42-a2dc-72e6ccf17f3a",
+            "name": "Хуанцунь (Huangcun)"
+          }
+        },
+        {
+          "lineId": "gz-l21",
+          "stationId": "gz-s21-5",
+          "order": 4,
+          "station": {
+            "id": "gz-s21-5",
+            "systemId": "0433295a-d816-4d42-a2dc-72e6ccf17f3a",
+            "name": "Дагуаньнаньлу (Daguannanlu)"
+          }
+        },
+        {
+          "lineId": "gz-l21",
+          "stationId": "gz-s21-6",
+          "order": 5,
+          "station": {
+            "id": "gz-s21-6",
+            "systemId": "0433295a-d816-4d42-a2dc-72e6ccf17f3a",
+            "name": "Тяньхэ Смарт Сити (Tianhe Smart City)"
+          }
+        },
+        {
+          "lineId": "gz-l21",
+          "stationId": "gz-s21-7",
+          "order": 6,
+          "station": {
+            "id": "gz-s21-7",
+            "systemId": "0433295a-d816-4d42-a2dc-72e6ccf17f3a",
+            "name": "Шэньчжоулу (Shenzhoulu)"
+          }
+        },
+        {
+          "lineId": "gz-l21",
+          "stationId": "gz-s21-8",
+          "order": 7,
+          "station": {
+            "id": "gz-s21-8",
+            "systemId": "0433295a-d816-4d42-a2dc-72e6ccf17f3a",
+            "name": "Наукоград (Science City)"
+          }
+        },
+        {
+          "lineId": "gz-l21",
+          "stationId": "gz-s21-9",
+          "order": 8,
+          "station": {
+            "id": "gz-s21-9",
+            "systemId": "0433295a-d816-4d42-a2dc-72e6ccf17f3a",
+            "name": "Суюань (Suyuan)"
+          }
+        },
+        {
+          "lineId": "gz-l21",
+          "stationId": "gz-s21-10",
+          "order": 9,
+          "station": {
+            "id": "gz-s21-10",
+            "systemId": "0433295a-d816-4d42-a2dc-72e6ccf17f3a",
+            "name": "Шуйси (Shuixi)"
+          }
+        },
+        {
+          "lineId": "gz-l21",
+          "stationId": "gz-s21-11",
+          "order": 10,
+          "station": {
+            "id": "gz-s21-11",
+            "systemId": "0433295a-d816-4d42-a2dc-72e6ccf17f3a",
+            "name": "Чанпин (Changping)"
+          }
+        },
+        {
+          "lineId": "gz-l21",
+          "stationId": "gz-s21-12",
+          "order": 11,
+          "station": {
+            "id": "gz-s21-12",
+            "systemId": "0433295a-d816-4d42-a2dc-72e6ccf17f3a",
+            "name": "Цзинькэн (Jinkeng)"
+          }
+        },
+        {
+          "lineId": "gz-l21",
+          "stationId": "gz-s21-13",
+          "order": 12,
+          "station": {
+            "id": "gz-s21-13",
+            "systemId": "0433295a-d816-4d42-a2dc-72e6ccf17f3a",
+            "name": "Чжэньлунси (Zhenlongxi)"
+          }
+        },
+        {
+          "lineId": "gz-l21",
+          "stationId": "gz-s21-14",
+          "order": 13,
+          "station": {
+            "id": "gz-s21-14",
+            "systemId": "0433295a-d816-4d42-a2dc-72e6ccf17f3a",
+            "name": "Чжэньлун (Zhenlong)"
+          }
+        },
+        {
+          "lineId": "gz-l21",
+          "stationId": "gz-s21-15",
+          "order": 14,
+          "station": {
+            "id": "gz-s21-15",
+            "systemId": "0433295a-d816-4d42-a2dc-72e6ccf17f3a",
+            "name": "Чжунсинь (Zhongxin)"
+          }
+        },
+        {
+          "lineId": "gz-l21",
+          "stationId": "gz-s21-16",
+          "order": 15,
+          "station": {
+            "id": "gz-s21-16",
+            "systemId": "0433295a-d816-4d42-a2dc-72e6ccf17f3a",
+            "name": "Кэнбэй (Kengbei)"
+          }
+        },
+        {
+          "lineId": "gz-l21",
+          "stationId": "gz-s21-17",
+          "order": 16,
+          "station": {
+            "id": "gz-s21-17",
+            "systemId": "0433295a-d816-4d42-a2dc-72e6ccf17f3a",
+            "name": "Фэнган (Fenggang)"
+          }
+        },
+        {
+          "lineId": "gz-l21",
+          "stationId": "gz-s21-18",
+          "order": 17,
+          "station": {
+            "id": "gz-s21-18",
+            "systemId": "0433295a-d816-4d42-a2dc-72e6ccf17f3a",
+            "name": "Чжуцунь (Zhucun)"
+          }
+        },
+        {
+          "lineId": "gz-l21",
+          "stationId": "gz-s21-19",
+          "order": 18,
+          "station": {
+            "id": "gz-s21-19",
+            "systemId": "0433295a-d816-4d42-a2dc-72e6ccf17f3a",
+            "name": "Шаньтянь (Shantian)"
+          }
+        },
+        {
+          "lineId": "gz-l21",
+          "stationId": "gz-s21-20",
+          "order": 19,
+          "station": {
+            "id": "gz-s21-20",
+            "systemId": "0433295a-d816-4d42-a2dc-72e6ccf17f3a",
+            "name": "Чжунган (Zhonggang)"
+          }
+        },
+        {
+          "lineId": "gz-l21",
+          "stationId": "gz-s21-21",
+          "order": 20,
+          "station": {
+            "id": "gz-s21-21",
+            "systemId": "0433295a-d816-4d42-a2dc-72e6ccf17f3a",
+            "name": "Площадь Цзэнчэн (Zengcheng Square)"
+          }
+        }
+      ]
+    },
+    {
+      "id": "gz-l22",
+      "systemId": "0433295a-d816-4d42-a2dc-72e6ccf17f3a",
+      "name": "Линия 22 (Line 22)",
+      "lineNumber": "22",
+      "color": "#D15830",
+      "lineStations": [
+        {
+          "lineId": "gz-l22",
+          "stationId": "gz-s22-1",
+          "order": 0,
+          "station": {
+            "id": "gz-s22-1",
+            "systemId": "0433295a-d816-4d42-a2dc-72e6ccf17f3a",
+            "name": "Чэньтоуган (Chentougang)"
+          }
+        },
+        {
+          "lineId": "gz-l22",
+          "stationId": "gz-s22-2",
+          "order": 1,
+          "station": {
+            "id": "gz-s22-2",
+            "systemId": "0433295a-d816-4d42-a2dc-72e6ccf17f3a",
+            "name": "Южный вокзал Гуанчжоу (Guangzhou South Railway Station)"
+          }
+        },
+        {
+          "lineId": "gz-l22",
+          "stationId": "gz-s22-3",
+          "order": 2,
+          "station": {
+            "id": "gz-s22-3",
+            "systemId": "0433295a-d816-4d42-a2dc-72e6ccf17f3a",
+            "name": "Шигуанлу (Shiguanglu)"
+          }
+        },
+        {
+          "lineId": "gz-l22",
+          "stationId": "gz-s22-4",
+          "order": 3,
+          "station": {
+            "id": "gz-s22-4",
+            "systemId": "0433295a-d816-4d42-a2dc-72e6ccf17f3a",
+            "name": "Площадь Паньюй (Panyu Square)"
+          }
+        }
+      ]
+    },
+    {
+      "id": "gz-lapm",
+      "systemId": "0433295a-d816-4d42-a2dc-72e6ccf17f3a",
+      "name": "Линия APM (APM Line)",
+      "lineNumber": "APM",
+      "color": "#00B5E2",
+      "lineStations": [
+        {
+          "lineId": "gz-lapm",
+          "stationId": "gz-sapm-1",
+          "order": 0,
+          "station": {
+            "id": "gz-sapm-1",
+            "systemId": "0433295a-d816-4d42-a2dc-72e6ccf17f3a",
+            "name": "Гуанчжоу Та / Кантонская башня (Canton Tower)"
+          }
+        },
+        {
+          "lineId": "gz-lapm",
+          "stationId": "gz-sapm-2",
+          "order": 1,
+          "station": {
+            "id": "gz-sapm-2",
+            "systemId": "0433295a-d816-4d42-a2dc-72e6ccf17f3a",
+            "name": "Хайсиньша (Haixinsha)"
+          }
+        },
+        {
+          "lineId": "gz-lapm",
+          "stationId": "gz-sapm-3",
+          "order": 2,
+          "station": {
+            "id": "gz-sapm-3",
+            "systemId": "0433295a-d816-4d42-a2dc-72e6ccf17f3a",
+            "name": "Оперный театр (Opera House)"
+          }
+        },
+        {
+          "lineId": "gz-lapm",
+          "stationId": "gz-sapm-4",
+          "order": 3,
+          "station": {
+            "id": "gz-sapm-4",
+            "systemId": "0433295a-d816-4d42-a2dc-72e6ccf17f3a",
+            "name": "Хуачэн Дадао (Huacheng Dadao)"
+          }
+        },
+        {
+          "lineId": "gz-lapm",
+          "stationId": "gz-sapm-5",
+          "order": 4,
+          "station": {
+            "id": "gz-sapm-5",
+            "systemId": "0433295a-d816-4d42-a2dc-72e6ccf17f3a",
+            "name": "Центр женщин и детей (Women & Children's Center)"
+          }
+        },
+        {
+          "lineId": "gz-lapm",
+          "stationId": "gz-sapm-6",
+          "order": 5,
+          "station": {
+            "id": "gz-sapm-6",
+            "systemId": "0433295a-d816-4d42-a2dc-72e6ccf17f3a",
+            "name": "Хуанпу Дадао (Huangpu Dadao)"
+          }
+        },
+        {
+          "lineId": "gz-lapm",
+          "stationId": "gz-sapm-7",
+          "order": 6,
+          "station": {
+            "id": "gz-sapm-7",
+            "systemId": "0433295a-d816-4d42-a2dc-72e6ccf17f3a",
+            "name": "Тяньхэнань (Tianhenan)"
+          }
+        },
+        {
+          "lineId": "gz-lapm",
+          "stationId": "gz-sapm-8",
+          "order": 7,
+          "station": {
+            "id": "gz-sapm-8",
+            "systemId": "0433295a-d816-4d42-a2dc-72e6ccf17f3a",
+            "name": "Спортивный центр Тяньхэ Юг (Tianhe Sports Center South)"
+          }
+        },
+        {
+          "lineId": "gz-lapm",
+          "stationId": "gz-sapm-9",
+          "order": 8,
+          "station": {
+            "id": "gz-sapm-9",
+            "systemId": "0433295a-d816-4d42-a2dc-72e6ccf17f3a",
+            "name": "Линьхэси (Linhexi)"
+          }
+        }
+      ]
+    },
+    {
+      "id": "gz-lgf",
+      "systemId": "0433295a-d816-4d42-a2dc-72e6ccf17f3a",
+      "name": "Линия Гуанфо (Guangfo Line)",
+      "lineNumber": "GF",
+      "color": "#C4D600",
+      "lineStations": [
+        {
+          "lineId": "gz-lgf",
+          "stationId": "gz-sgf-1",
+          "order": 0,
+          "station": {
+            "id": "gz-sgf-1",
+            "systemId": "0433295a-d816-4d42-a2dc-72e6ccf17f3a",
+            "name": "Синьчэн Дун (Xincheng Dong)"
+          }
+        },
+        {
+          "lineId": "gz-lgf",
+          "stationId": "gz-sgf-2",
+          "order": 1,
+          "station": {
+            "id": "gz-sgf-2",
+            "systemId": "0433295a-d816-4d42-a2dc-72e6ccf17f3a",
+            "name": "Дунпин (Dongping)"
+          }
+        },
+        {
+          "lineId": "gz-lgf",
+          "stationId": "gz-sgf-3",
+          "order": 2,
+          "station": {
+            "id": "gz-sgf-3",
+            "systemId": "0433295a-d816-4d42-a2dc-72e6ccf17f3a",
+            "name": "Шицзилянь (Shijilian)"
+          }
+        },
+        {
+          "lineId": "gz-lgf",
+          "stationId": "gz-sgf-4",
+          "order": 3,
+          "station": {
+            "id": "gz-sgf-4",
+            "systemId": "0433295a-d816-4d42-a2dc-72e6ccf17f3a",
+            "name": "Ланьши (Lanshi)"
+          }
+        },
+        {
+          "lineId": "gz-lgf",
+          "stationId": "gz-sgf-5",
+          "order": 4,
+          "station": {
+            "id": "gz-sgf-5",
+            "systemId": "0433295a-d816-4d42-a2dc-72e6ccf17f3a",
+            "name": "Куйци Лу (Kuiqi Lu)"
+          }
+        },
+        {
+          "lineId": "gz-lgf",
+          "stationId": "gz-sgf-6",
+          "order": 5,
+          "station": {
+            "id": "gz-sgf-6",
+            "systemId": "0433295a-d816-4d42-a2dc-72e6ccf17f3a",
+            "name": "Парк Цзихуа (Jihua Park)"
+          }
+        },
+        {
+          "lineId": "gz-lgf",
+          "stationId": "gz-sgf-7",
+          "order": 6,
+          "station": {
+            "id": "gz-sgf-7",
+            "systemId": "0433295a-d816-4d42-a2dc-72e6ccf17f3a",
+            "name": "Тунцзи Лу (Tongji Lu)"
+          }
+        },
+        {
+          "lineId": "gz-lgf",
+          "stationId": "gz-sgf-8",
+          "order": 7,
+          "station": {
+            "id": "gz-sgf-8",
+            "systemId": "0433295a-d816-4d42-a2dc-72e6ccf17f3a",
+            "name": "Цзумяо (Zumiao)"
+          }
+        },
+        {
+          "lineId": "gz-lgf",
+          "stationId": "gz-sgf-9",
+          "order": 8,
+          "station": {
+            "id": "gz-sgf-9",
+            "systemId": "0433295a-d816-4d42-a2dc-72e6ccf17f3a",
+            "name": "Пуцзюнь Бэйлу (Pujun Beilu)"
+          }
+        },
+        {
+          "lineId": "gz-lgf",
+          "stationId": "gz-sgf-10",
+          "order": 9,
+          "station": {
+            "id": "gz-sgf-10",
+            "systemId": "0433295a-d816-4d42-a2dc-72e6ccf17f3a",
+            "name": "Чаоань (Chao'an)"
+          }
+        },
+        {
+          "lineId": "gz-lgf",
+          "stationId": "gz-sgf-11",
+          "order": 10,
+          "station": {
+            "id": "gz-sgf-11",
+            "systemId": "0433295a-d816-4d42-a2dc-72e6ccf17f3a",
+            "name": "Гуйчэн (Guicheng)"
+          }
+        },
+        {
+          "lineId": "gz-lgf",
+          "stationId": "gz-sgf-12",
+          "order": 11,
+          "station": {
+            "id": "gz-sgf-12",
+            "systemId": "0433295a-d816-4d42-a2dc-72e6ccf17f3a",
+            "name": "Наньгуй Лу (Nangui Lu)"
+          }
+        },
+        {
+          "lineId": "gz-lgf",
+          "stationId": "gz-sgf-13",
+          "order": 12,
+          "station": {
+            "id": "gz-sgf-13",
+            "systemId": "0433295a-d816-4d42-a2dc-72e6ccf17f3a",
+            "name": "Лэйган (Leigang)"
+          }
+        },
+        {
+          "lineId": "gz-lgf",
+          "stationId": "gz-sgf-14",
+          "order": 13,
+          "station": {
+            "id": "gz-sgf-14",
+            "systemId": "0433295a-d816-4d42-a2dc-72e6ccf17f3a",
+            "name": "Озеро Цяндэн (Qiandeng Lake)"
+          }
+        },
+        {
+          "lineId": "gz-lgf",
+          "stationId": "gz-sgf-15",
+          "order": 14,
+          "station": {
+            "id": "gz-sgf-15",
+            "systemId": "0433295a-d816-4d42-a2dc-72e6ccf17f3a",
+            "name": "Финансовая высокотехнологичная зона (Financial Hi-Tech Zone)"
+          }
+        },
+        {
+          "lineId": "gz-lgf",
+          "stationId": "gz-sgf-16",
+          "order": 15,
+          "station": {
+            "id": "gz-sgf-16",
+            "systemId": "0433295a-d816-4d42-a2dc-72e6ccf17f3a",
+            "name": "Лунси (Longxi)"
+          }
+        },
+        {
+          "lineId": "gz-lgf",
+          "stationId": "gz-sgf-17",
+          "order": 16,
+          "station": {
+            "id": "gz-sgf-17",
+            "systemId": "0433295a-d816-4d42-a2dc-72e6ccf17f3a",
+            "name": "Цзюйшу (Jushu)"
+          }
+        },
+        {
+          "lineId": "gz-lgf",
+          "stationId": "gz-sgf-18",
+          "order": 17,
+          "station": {
+            "id": "gz-sgf-18",
+            "systemId": "0433295a-d816-4d42-a2dc-72e6ccf17f3a",
+            "name": "Силан (Xilang)"
+          }
+        },
+        {
+          "lineId": "gz-lgf",
+          "stationId": "gz-sgf-19",
+          "order": 18,
+          "station": {
+            "id": "gz-sgf-19",
+            "systemId": "0433295a-d816-4d42-a2dc-72e6ccf17f3a",
+            "name": "Хэдун (Hedong)"
+          }
+        },
+        {
+          "lineId": "gz-lgf",
+          "stationId": "gz-sgf-20",
+          "order": 19,
+          "station": {
+            "id": "gz-sgf-20",
+            "systemId": "0433295a-d816-4d42-a2dc-72e6ccf17f3a",
+            "name": "Шачун (Shachong)"
+          }
+        },
+        {
+          "lineId": "gz-lgf",
+          "stationId": "gz-sgf-21",
+          "order": 20,
+          "station": {
+            "id": "gz-sgf-21",
+            "systemId": "0433295a-d816-4d42-a2dc-72e6ccf17f3a",
+            "name": "Шаюань (Shayuan)"
+          }
+        },
+        {
+          "lineId": "gz-lgf",
+          "stationId": "gz-sgf-22",
+          "order": 21,
+          "station": {
+            "id": "gz-sgf-22",
+            "systemId": "0433295a-d816-4d42-a2dc-72e6ccf17f3a",
+            "name": "Яньцзиган (Yanzigang)"
+          }
+        },
+        {
+          "lineId": "gz-lgf",
+          "stationId": "gz-sgf-23",
+          "order": 22,
+          "station": {
+            "id": "gz-sgf-23",
+            "systemId": "0433295a-d816-4d42-a2dc-72e6ccf17f3a",
+            "name": "Шиси (Shixi)"
+          }
+        },
+        {
+          "lineId": "gz-lgf",
+          "stationId": "gz-sgf-24",
+          "order": 23,
+          "station": {
+            "id": "gz-sgf-24",
+            "systemId": "0433295a-d816-4d42-a2dc-72e6ccf17f3a",
+            "name": "Наньчжоу (Nanzhou)"
+          }
+        },
+        {
+          "lineId": "gz-lgf",
+          "stationId": "gz-sgf-25",
+          "order": 24,
+          "station": {
+            "id": "gz-sgf-25",
+            "systemId": "0433295a-d816-4d42-a2dc-72e6ccf17f3a",
+            "name": "Лицзяо (Lijiao)"
+          }
+        }
+      ]
+    }
+  ]
+}

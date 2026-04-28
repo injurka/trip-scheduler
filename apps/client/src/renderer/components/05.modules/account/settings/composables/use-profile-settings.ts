@@ -17,6 +17,12 @@ export function useProfileSettings() {
     name: user.value?.name || '',
     email: user.value?.email || '',
   })
+
+  // Состояния для загрузки обложки профиля
+  const coverFile = ref<File | null>(null)
+  const coverPreviewUrl = ref<string | null>(null)
+  const isPreviewVisible = ref(false)
+
   const passwordForm = reactive({
     currentPassword: '',
     newPassword: '',
@@ -24,8 +30,10 @@ export function useProfileSettings() {
   })
   const isChangingPassword = ref(false)
 
-  const isProfileChanged = computed(() => profileForm.name !== user.value?.name)
   const isUpdatingProfile = useRequestStatus([EAuthRequestKeys.UPDATE_USER, EAuthRequestKeys.UPLOAD_AVATAR])
+
+  // Кнопка сохранения активна, если изменено имя ИЛИ выбрана новая обложка
+  const isProfileChanged = computed(() => profileForm.name !== user.value?.name || !!coverFile.value)
 
   const isPasswordFormValid = computed(() =>
     passwordForm.currentPassword
@@ -41,7 +49,14 @@ export function useProfileSettings() {
   async function updateProfile() {
     try {
       await authStore.updateUser({ name: profileForm.name })
+
+      // Предполагаем, что в authStore есть или будет добавлен метод uploadCover
+      if (coverFile.value && (authStore as any).uploadCover) {
+        await (authStore as any).uploadCover(coverFile.value)
+      }
+
       toast.success('Профиль успешно обновлен')
+      coverFile.value = null // Сбрасываем выбранный файл после успеха
     }
     catch (e: any) {
       toast.error(e.message || 'Ошибка при обновлении профиля')
@@ -110,6 +125,15 @@ export function useProfileSettings() {
     }
   }
 
+  function handleCoverSelect(event: Event) {
+    const file = (event.target as HTMLInputElement).files?.[0]
+    if (!file)
+      return
+    coverFile.value = file
+    coverPreviewUrl.value = URL.createObjectURL(file)
+    isPreviewVisible.value = true // Автоматически открываем превью при выборе новой обложки
+  }
+
   watch(user, (newUser) => {
     if (newUser) {
       profileForm.name = newUser.name || ''
@@ -129,6 +153,9 @@ export function useProfileSettings() {
     profileForm,
     passwordForm,
     deleteForm,
+    coverFile,
+    coverPreviewUrl,
+    isPreviewVisible,
     isProfileChanged,
     isPasswordFormValid,
     isUpdatingProfile,
@@ -138,5 +165,6 @@ export function useProfileSettings() {
     changePassword,
     deleteAccount,
     handleAvatarUpload,
+    handleCoverSelect,
   }
 }

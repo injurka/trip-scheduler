@@ -1,10 +1,11 @@
 import type { z } from 'zod'
-import type { ChangePasswordInputSchema, DeleteAccountInputSchema, SignInInputSchema, SignUpInputSchema, UpdateUserInputSchema, UpdateUserStatusInputSchema, VerifyEmailInputSchema } from './user.schemas'
+import type { ChangePasswordInputSchema, CreateHighlightInputSchema, DeleteAccountInputSchema, SignInInputSchema, SignUpInputSchema, UpdateUserInputSchema, UpdateUserStatusInputSchema, VerifyEmailInputSchema } from './user.schemas'
 import { and, eq, gte } from 'drizzle-orm'
 import { db } from '~/../db'
 import { emailVerificationTokens, users } from '~/../db/schema'
 import { authUtils } from '~/lib/auth.utils'
 import { createTRPCError } from '~/lib/trpc'
+import { highlightRepository } from '~/repositories/highlight.repository'
 import { userRepository } from '~/repositories/user.repository'
 import { emailService } from '~/services/email.service'
 
@@ -94,7 +95,6 @@ export const userService = {
 
   async signOut(userId: string) {
     await authUtils.invalidateTokens(userId)
-
     return { ok: true }
   },
 
@@ -113,7 +113,6 @@ export const userService = {
     if (!user) {
       throw createTRPCError('NOT_FOUND', `Пользователь не найден.`)
     }
-
     return user
   },
 
@@ -130,11 +129,10 @@ export const userService = {
     if (!updatedUser) {
       throw createTRPCError('INTERNAL_SERVER_ERROR', `Не удалось обновить пользователя.`)
     }
-
     return updatedUser
   },
 
-  async updateStatus(id: string, data: z.infer<typeof UpdateUserStatusInputSchema>) {
+  async updateStatus(id: string, data: { statusText?: string | null, statusEmoji?: string | null }) {
     const updatedUser = await userRepository.updateStatus(id, data)
     if (!updatedUser) {
       throw createTRPCError('INTERNAL_SERVER_ERROR', `Не удалось обновить статус пользователя.`)
@@ -160,5 +158,29 @@ export const userService = {
     if (!query || query.length < 2)
       return []
     return await userRepository.searchUsers(query)
+  },
+
+  async getHighlights(userId: string) {
+    return await highlightRepository.getByUserId(userId)
+  },
+
+  async createHighlight(data: z.infer<typeof CreateHighlightInputSchema>, userId: string) {
+    const newHighlight = await highlightRepository.create({
+      ...data,
+      userId,
+    })
+
+    if (!newHighlight) {
+      throw createTRPCError('INTERNAL_SERVER_ERROR', 'Не удалось сохранить фото в витрину.')
+    }
+    return newHighlight
+  },
+
+  async deleteHighlight(id: string, userId: string) {
+    const deleted = await highlightRepository.delete(id, userId)
+    if (!deleted) {
+      throw createTRPCError('NOT_FOUND', 'Фото не найдено или у вас нет прав на его удаление.')
+    }
+    return { success: true }
   },
 }

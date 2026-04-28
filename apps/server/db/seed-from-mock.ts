@@ -4,18 +4,23 @@ import path from 'node:path'
 import process from 'node:process'
 import url from 'node:url'
 import prompts from 'prompts'
+import { v4 as uuidv4 } from 'uuid'
 import { db } from './index'
 import { MOCK_METRO_DATA } from './mock/02.metro'
 import { SUBSCRIPTION_MOCK } from './mock/03.subscription'
 import { LLM_MOCK } from './mock/04.llm'
 import { MOCK_BLOG_DATA } from './mock/06.blog'
+import { MOCK_COUNTRY_DATA } from './mock/07.country'
 
 import {
   activities,
   blogs,
   comments,
+  countries,
   days,
+  destinationReviews,
   emailVerificationTokens,
+  highlights,
   llmModels,
   llmTokenUsage,
   marks,
@@ -65,6 +70,8 @@ async function discoverAndSelectData() {
     trips: new Map<string, any>(),
     posts: new Map<string, any>(),
     marks: new Map<string, any>(),
+    highlights: new Map<string, any>(),
+    destinationReviews: new Map<string, any>(),
   }
 
   console.log('🔍 Поиск и загрузка доступных мок-данных...')
@@ -75,7 +82,8 @@ async function discoverAndSelectData() {
         f.endsWith('.ts')
         && !f.startsWith('02.metro')
         && !f.startsWith('03.subscription')
-        && !f.startsWith('04.llm'),
+        && !f.startsWith('04.llm')
+        && !f.startsWith('07.country'),
       )
 
       for (const file of files) {
@@ -111,9 +119,24 @@ async function discoverAndSelectData() {
           }
         }
 
+        // 4. Загрузка Меток
         if (module.MOCK_MARKS_DATA) {
           module.MOCK_MARKS_DATA.forEach((mark: any) =>
             discovered.marks.set(mark.id, mark),
+          )
+        }
+
+        // 5. Загрузка Витрины (Highlights)
+        if (module.MOCK_HIGHLIGHTS_DATA) {
+          module.MOCK_HIGHLIGHTS_DATA.forEach((highlight: any) =>
+            discovered.highlights.set(highlight.id, highlight),
+          )
+        }
+
+        // 6. Загрузка Впечатлений (Destination Reviews) - ДОБАВЛЕНО
+        if (module.MOCK_DESTINATION_REVIEWS_DATA) {
+          module.MOCK_DESTINATION_REVIEWS_DATA.forEach((review: any) =>
+            discovered.destinationReviews.set(review.id, review),
           )
         }
       }
@@ -123,9 +146,25 @@ async function discoverAndSelectData() {
     }
   }
 
-  if ([...discovered.users.values(), ...discovered.trips.values(), ...discovered.posts.values(), ...discovered.marks.values()].length === 0) {
+  if (
+    [
+      ...discovered.users.values(),
+      ...discovered.trips.values(),
+      ...discovered.posts.values(),
+      ...discovered.marks.values(),
+      ...discovered.highlights.values(),
+      ...discovered.destinationReviews.values(),
+    ].length === 0
+  ) {
     console.warn('⚠️ Моковые данные не найдены.')
-    return { selectedUsers: [], selectedTrips: [], selectedPosts: [], selectedMarks: [] }
+    return {
+      selectedUsers: [],
+      selectedTrips: [],
+      selectedPosts: [],
+      selectedMarks: [],
+      selectedHighlights: [],
+      selectedDestinationReviews: [],
+    }
   }
 
   const questions: prompts.PromptObject[] = [
@@ -175,6 +214,31 @@ async function discoverAndSelectData() {
       })),
       hint: '- Пробел для выбора, Enter для подтверждения',
     },
+    {
+      type: discovered.highlights.size > 0 ? 'multiselect' : null,
+      name: 'selectedHighlights',
+      message: 'Выберите ФОТО ДЛЯ ВИТРИНЫ (Highlights) для добавления',
+      choices: [...discovered.highlights.values()].map(h => ({
+        title: `${h.city}, ${h.country}`,
+        description: h.comment || '',
+        value: h,
+        selected: true,
+      })),
+      hint: '- Пробел для выбора, Enter для подтверждения',
+    },
+    {
+      // ДОБАВЛЕНО
+      type: discovered.destinationReviews.size > 0 ? 'multiselect' : null,
+      name: 'selectedDestinationReviews',
+      message: 'Выберите ВПЕЧАТЛЕНИЯ (Рейтинги) для добавления',
+      choices: [...discovered.destinationReviews.values()].map(r => ({
+        title: r.type === 'city' ? r.city : `Страна (${r.countryId})`,
+        description: r.content ? `${r.content.substring(0, 40)}...` : '',
+        value: r,
+        selected: true,
+      })),
+      hint: '- Пробел для выбора, Enter для подтверждения',
+    },
   ]
 
   const response = await prompts(questions, {
@@ -189,6 +253,8 @@ async function discoverAndSelectData() {
     selectedTrips: response.selectedTrips || [],
     selectedPosts: response.selectedPosts || [],
     selectedMarks: response.selectedMarks || [],
+    selectedHighlights: response.selectedHighlights || [],
+    selectedDestinationReviews: response.selectedDestinationReviews || [], // ДОБАВЛЕНО
   }
 }
 
@@ -196,10 +262,20 @@ async function seed() {
   await copyStaticFiles()
   console.log('🌱 Начало интерактивного заполнения базы данных...')
 
-  const { selectedUsers, selectedTrips, selectedPosts, selectedMarks } = await discoverAndSelectData()
+  const {
+    selectedUsers,
+    selectedTrips,
+    selectedPosts,
+    selectedMarks,
+    selectedHighlights,
+    selectedDestinationReviews,
+  } = await discoverAndSelectData()
 
   console.log('\n🗑️  Очистка старых данных...')
 
+  await db.delete(highlights)
+  await db.delete(destinationReviews)
+  await db.delete(countries)
   await db.delete(blogs)
   await db.delete(savedPosts)
   await db.delete(postMedia)
@@ -215,7 +291,7 @@ async function seed() {
   await db.delete(tripImages)
   await db.delete(tripParticipants)
   await db.delete(trips)
-  await db.delete(marks) // <-- ДОБАВЛЕНО
+  await db.delete(marks)
   await db.delete(refreshTokens)
   await db.delete(emailVerificationTokens)
   await db.delete(users)
@@ -225,6 +301,15 @@ async function seed() {
   await db.delete(metroStations)
   await db.delete(metroLines)
   await db.delete(metroSystems)
+
+  console.log(`🌍 Заполнение справочника стран...`)
+
+  const countriesToInsert = MOCK_COUNTRY_DATA
+
+  if (countriesToInsert.length > 0) {
+    await db.insert(countries).values(countriesToInsert).onConflictDoNothing()
+    console.log(`   ✅ Добавлено стран: ${countriesToInsert.length}`)
+  }
 
   console.log('⭐ Создание тарифных планов...')
   const plansData = SUBSCRIPTION_MOCK.map(p => ({
@@ -286,6 +371,8 @@ async function seed() {
   const elementsToInsert: (typeof postElements.$inferInsert)[] = []
   const postMediaToInsert: (typeof postMedia.$inferInsert)[] = []
   const marksToInsert: (typeof marks.$inferInsert)[] = []
+  const highlightsToInsert: (typeof highlights.$inferInsert)[] = []
+  const destinationReviewsToInsert: (typeof destinationReviews.$inferInsert)[] = [] // ДОБАВЛЕНО
 
   // --- TRIPS PROCESSING ---
   for (const tripData of selectedTrips) {
@@ -395,11 +482,12 @@ async function seed() {
       postMediaToInsert.push(...media.map((m: any) => ({
         ...m,
         postId: postDetails.id,
-        elementId: null, // Медиа, привязанное к посту в целом
+        elementId: null,
       })))
     }
   }
 
+  // --- MARKS PROCESSING ---
   for (const mark of selectedMarks) {
     marksToInsert.push({
       ...mark,
@@ -408,11 +496,30 @@ async function seed() {
     })
   }
 
+  // --- HIGHLIGHTS PROCESSING ---
+  for (const h of selectedHighlights) {
+    highlightsToInsert.push({
+      ...h,
+      createdAt: h.createdAt ? new Date(h.createdAt) : new Date(),
+    })
+  }
+
+  // --- DESTINATION REVIEWS PROCESSING ---
+  for (const r of selectedDestinationReviews) {
+    destinationReviewsToInsert.push({
+      ...r,
+      createdAt: r.createdAt ? new Date(r.createdAt) : new Date(),
+      updatedAt: r.updatedAt ? new Date(r.updatedAt) : new Date(),
+    })
+  }
+
   console.log(`\n✍️  Запись данных в базу...`)
   console.log(`   - Пользователей: ${selectedUsers.length}`)
   console.log(`   - Путешествий: ${tripsToInsert.length}`)
   console.log(`   - Постов: ${postsToInsert.length}`)
   console.log(`   - Меток на карте: ${marksToInsert.length}`)
+  console.log(`   - Фото в витрину: ${highlightsToInsert.length}`)
+  console.log(`   - Впечатлений: ${destinationReviewsToInsert.length}`) // ДОБАВЛЕНО
 
   console.log('📰 Заполнение блога...')
   const blogsToInsert = MOCK_BLOG_DATA.map(blog => ({
@@ -448,6 +555,10 @@ async function seed() {
     await db.insert(postMedia).values(postMediaToInsert)
   if (marksToInsert.length > 0)
     await db.insert(marks).values(marksToInsert)
+  if (highlightsToInsert.length > 0)
+    await db.insert(highlights).values(highlightsToInsert)
+  if (destinationReviewsToInsert.length > 0)
+    await db.insert(destinationReviews).values(destinationReviewsToInsert)
 
   console.log('\n🎉 База данных успешно заполнена выбранными данными!')
   process.exit(0)

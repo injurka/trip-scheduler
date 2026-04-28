@@ -24,9 +24,6 @@ export async function checkService(name: string, fn: () => Promise<void>, logger
 }
 
 async function createDump(info: string) {
-  if (!dumpEnabled)
-    return
-
   logger.info(`⏰ ${info}`)
 
   try {
@@ -48,10 +45,12 @@ try {
 
   await telegramAuthService.setupWebhook()
 
-  createDump('Запуск дампа базы данных...')
-  cron.schedule('0 3 * * 0', async () => {
-    createDump('Запуск еженедельного дампа базы данных по расписанию...')
-  })
+  if (dumpEnabled) {
+    createDump('Запуск дампа базы данных...')
+    cron.schedule('0 3 * * 0', async () => {
+      createDump('Запуск еженедельного дампа базы данных по расписанию...')
+    })
+  }
 
   logger.success('Server is ready 🚀')
 }

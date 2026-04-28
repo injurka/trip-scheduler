@@ -21,22 +21,13 @@ const tripHandler: IUploadHandler = {
     const trip = await tripRepository.getById(entityId)
     if (!trip)
       throw new HTTPException(404, { message: 'Путешествие не найдено.' })
-
     if (trip.userId !== userId && userRole !== 'admin')
       throw new HTTPException(403, { message: 'Нет прав.' })
-
     await quotaService.checkStorageQuota(userId, buffer.length)
   },
   getFolderPath: ({ entityId, placement }) => `trips/${entityId}/${placement}`,
   async afterSave({ entityId, placement }, { url, size, metadata, variants }) {
-    return await imageService.create(
-      entityId,
-      url,
-      metadata.originalName || 'file',
-      placement as any,
-      size,
-      { ...metadata, variants },
-    )
+    return await imageService.create(entityId, url, metadata.originalName || 'file', placement as any, size, { ...metadata, variants })
   },
 }
 
@@ -45,10 +36,8 @@ const postHandler: IUploadHandler = {
     const post = await postRepository.findById(entityId)
     if (!post)
       throw new HTTPException(404, { message: 'Пост не найден.' })
-
     if (post.userId !== userId && userRole !== 'admin')
       throw new HTTPException(403, { message: 'Нет прав.' })
-
     await quotaService.checkStorageQuota(userId, buffer.length)
   },
   getFolderPath: ({ entityId }) => `posts/${entityId}`,
@@ -84,11 +73,34 @@ const avatarHandler: IUploadHandler = {
   },
 }
 
+const reviewHandler: IUploadHandler = {
+  async validate({ userId }) {
+    await quotaService.checkStorageQuota(userId, 5 * 1024 * 1024)
+  },
+  getFolderPath: ({ userId }) => `reviews/${userId}/covers`,
+  async afterSave(ctx, { url, variants, metadata }) {
+    return { url, variants, metadata }
+  },
+}
+
+const highlightHandler: IUploadHandler = {
+  async validate({ userId, buffer }) {
+    await quotaService.checkStorageQuota(userId, buffer.length)
+  },
+  getFolderPath: ({ userId }) => `highlights/${userId}`,
+  async afterSave(ctx, { url, variants, metadata }) {
+    // Возвращаем просто URL, сохраняться в БД будет через отдельный метод TRPC
+    return { url, variants, metadata }
+  },
+}
+
 const handlers: Record<EntityType, IUploadHandler> = {
   trip: tripHandler,
   post: postHandler,
   blog: blogHandler,
   avatar: avatarHandler,
+  review: reviewHandler,
+  highlight: highlightHandler,
 }
 
 export class ImageUploadService {

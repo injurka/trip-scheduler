@@ -123,6 +123,7 @@ const componentClasses = computed(() => ({
   justify-content: center;
   outline: none;
   min-height: 170px;
+  flex-grow: 1;
 
   &:hover,
   &.is-drag-over,

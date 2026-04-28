@@ -60,6 +60,7 @@ export const users = pgTable('users', {
 
   name: text('name'),
   avatarUrl: text('avatar_url'),
+  coverUrl: text('cover_url'),
 
   // Поля для OAuth
   githubId: text('github_id').unique(),
@@ -417,7 +418,84 @@ export const tripSubscriptions = pgTable('trip_subscriptions', {
   pk: primaryKey({ columns: [t.userId, t.tripId] }),
 }))
 
+export const destinationTypeEnum = pgEnum('destination_type', ['country', 'city'])
+
+// --- СПРАВОЧНИК СТРАН ---
+export const countries = pgTable('countries', {
+  id: text('id').primaryKey(), 
+  name: text('name').notNull(), 
+  flagUrl: text('flagUrl'), 
+})
+
+// --- ТАБЛИЦА ВПЕЧАТЛЕНИЙ ---
+export const destinationReviews = pgTable('destination_reviews', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  userId: uuid('user_id').notNull().references(() => users.id, { onDelete: 'cascade' }),
+
+  type: destinationTypeEnum('type').notNull(),
+
+  countryId: text('country_id').notNull().references(() => countries.id, { onDelete: 'restrict' }),
+  city: text('city'),
+
+  coverUrl: text('cover_url'),
+
+  latitude: real('latitude').notNull(),
+  longitude: real('longitude').notNull(),
+
+  content: text('content'),
+
+  // Гибкая система метрик (JSONB) .
+  metrics: jsonb('metrics').$type<Record<string, number>>().notNull().default({}),
+
+  createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
+  updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow().notNull(),
+}, t => ({
+  typeIdx: index('dest_reviews_type_idx').on(t.type),
+  countryIdx: index('dest_reviews_country_idx').on(t.countryId),
+  userIdx: index('dest_reviews_user_idx').on(t.userId),
+}))
+
+export const highlights = pgTable('highlights', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  userId: uuid('user_id').notNull().references(() => users.id, { onDelete: 'cascade' }),
+  imageUrl: text('image_url').notNull(),
+
+  countryId: text('country_id').notNull().references(() => countries.id, { onDelete: 'restrict' }),
+
+  city: text('city').notNull(),
+  address: text('address'),
+  comment: text('comment'),
+  latitude: real('latitude'),
+  longitude: real('longitude'),
+  createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
+}, (t) => ({
+  countryIdx: index('highlights_country_idx').on(t.countryId),
+  userIdIdx: index('highlights_user_idx').on(t.userId),
+}))
+
 // --- RELATIONS ---
+
+export const highlightsRelations = relations(highlights, ({ one }) => ({
+  user: one(users, {
+    fields: [highlights.userId],
+    references: [users.id],
+  }),
+  country: one(countries, {
+    fields: [highlights.countryId],
+    references: [countries.id],
+  }),
+}))
+
+export const destinationReviewsRelations = relations(destinationReviews, ({ one }) => ({
+  user: one(users, {
+    fields: [destinationReviews.userId],
+    references: [users.id],
+  }),
+  country: one(countries, {
+    fields: [destinationReviews.countryId],
+    references: [countries.id],
+  }),
+}))
 
 export const tripsRelations = relations(trips, ({ one, many }) => ({
   user: one(users, {

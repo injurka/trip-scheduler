@@ -3,6 +3,7 @@ import { activityRouter } from './modules/activity/activity.router'
 import { blogRouter } from './modules/blog/blog.router'
 import { commentRouter } from './modules/comment/comment.router'
 import { dayRouter } from './modules/day/day.router'
+import { destinationReviewRouter } from './modules/destination-review/destination-review.router'
 import { imageRouter } from './modules/image/image.router'
 import { llmUsageRouter } from './modules/llm-usage/llm-usage.router'
 import { markRouter } from './modules/mark/mark.router'
@@ -16,6 +17,7 @@ import { tripRouter } from './modules/trip/trip.router'
 import { userRouter } from './modules/user/user.router'
 
 export const appRouter = router({
+  destinationReview: destinationReviewRouter,
   trip: tripRouter,
   day: dayRouter,
   activity: activityRouter,

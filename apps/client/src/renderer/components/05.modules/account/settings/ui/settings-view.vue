@@ -18,6 +18,10 @@ const {
   changePassword,
   deleteAccount,
   handleAvatarUpload,
+  handleCoverSelect,
+  coverFile,
+  coverPreviewUrl,
+  isPreviewVisible,
   isUpdatingProfile,
   isChangingPassword,
   isDeletingAccount,
@@ -27,6 +31,21 @@ const {
 } = useProfileSettings()
 
 const avatarInput = ref<HTMLInputElement | null>(null)
+const coverInput = ref<HTMLInputElement | null>(null)
+
+// Генерируем стиль для блочного превью обложки
+const previewHeaderStyle = computed(() => {
+  const targetCoverUrl = coverPreviewUrl.value || (user.value as any)?.coverUrl
+  if (targetCoverUrl) {
+    return {
+      backgroundImage: `linear-gradient(to top, var(--bg-secondary-color) 10%, transparent 80%), url(${targetCoverUrl})`,
+      backgroundSize: 'cover',
+      backgroundPosition: 'center',
+      backgroundRepeat: 'no-repeat',
+    }
+  }
+  return {}
+})
 </script>
 
 <template>
@@ -62,18 +81,63 @@ const avatarInput = ref<HTMLInputElement | null>(null)
       <h2 class="section-title">
         Основная информация
       </h2>
-      <div class="section-content info-grid">
-        <div class="avatar-uploader">
-          <KitAvatar :src="user.avatarUrl" :name="user.name" :size="120" />
-          <input ref="avatarInput" type="file" accept="image/*" hidden @change="handleAvatarUpload">
-          <KitBtn variant="outlined" color="secondary" class="upload-btn" @click="avatarInput?.click()">
-            <Icon icon="mdi:camera-outline" />
-            Сменить фото
-          </KitBtn>
+      <div class="section-content">
+        <div class="info-grid">
+          <div class="avatar-uploader">
+            <KitAvatar :src="user.avatarUrl" :name="user.name" :size="120" />
+            <input ref="avatarInput" type="file" accept="image/*" hidden @change="handleAvatarUpload">
+            <KitBtn variant="outlined" color="secondary" class="upload-btn" @click="avatarInput?.click()">
+              <Icon icon="mdi:camera-outline" />
+              Сменить фото
+            </KitBtn>
+          </div>
+          <div class="info-fields">
+            <KitInput v-model="profileForm.name" label="Имя" icon="mdi:account-outline" />
+            <KitInput v-model="profileForm.email" label="Email" icon="mdi:email-outline" disabled />
+          </div>
         </div>
-        <div class="info-fields">
-          <KitInput v-model="profileForm.name" label="Имя" icon="mdi:account-outline" />
-          <KitInput v-model="profileForm.email" label="Email" icon="mdi:email-outline" disabled />
+
+        <KitDivider class="divider-spaced" />
+
+        <!-- Настройки обложки -->
+        <div class="cover-uploader-section">
+          <div class="cover-info">
+            <h3>Обложка профиля</h3>
+            <p>Установите изображение, которое будет отображаться в шапке вашего профиля. Лучше использовать горизонтальные фото.</p>
+            <div class="cover-actions">
+              <input ref="coverInput" type="file" accept="image/*" hidden @change="handleCoverSelect">
+              <KitBtn variant="outlined" color="secondary" @click="coverInput?.click()">
+                <Icon icon="mdi:image-outline" />
+                {{ coverFile ? 'Выбрать другую обложку' : 'Загрузить обложку' }}
+              </KitBtn>
+              <KitBtn
+                v-if="coverPreviewUrl || (user as any).coverUrl"
+                variant="subtle"
+                color="secondary"
+                @click="isPreviewVisible = !isPreviewVisible"
+              >
+                <Icon :icon="isPreviewVisible ? 'mdi:eye-off-outline' : 'mdi:eye-outline'" />
+                {{ isPreviewVisible ? 'Скрыть превью' : 'Предпросмотр' }}
+              </KitBtn>
+            </div>
+          </div>
+        </div>
+
+        <!-- Блок Предпросмотра -->
+        <div v-if="isPreviewVisible" class="preview-wrapper">
+          <div class="profile-header-mock" :style="previewHeaderStyle">
+            <div class="avatar-section">
+              <KitAvatar :src="user.avatarUrl" :name="profileForm.name || user.name" :size="100" class="profile-avatar" />
+            </div>
+            <div class="info-section-mock">
+              <h1 class="user-name">
+                {{ profileForm.name || user.name }}
+              </h1>
+              <p class="user-bio">
+                Путешественник и исследователь. В поисках новых горизонтов и незабываемых впечатлений.
+              </p>
+            </div>
+          </div>
         </div>
       </div>
 
@@ -231,6 +295,83 @@ const avatarInput = ref<HTMLInputElement | null>(null)
   gap: 1rem;
 }
 
+.divider-spaced {
+  margin: 2rem 0;
+}
+
+.cover-uploader-section {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+
+  h3 {
+    margin: 0 0 0.5rem;
+    font-size: 1.1rem;
+    color: var(--fg-primary-color);
+  }
+  p {
+    margin: 0 0 1rem;
+    font-size: 0.95rem;
+    color: var(--fg-secondary-color);
+  }
+
+  .cover-actions {
+    display: flex;
+    gap: 1rem;
+    align-items: center;
+  }
+}
+
+.preview-wrapper {
+  margin-top: 1.5rem;
+  padding: 1rem;
+  border: 1px dashed var(--border-secondary-color);
+  border-radius: var(--r-l);
+  background-color: var(--bg-tertiary-color);
+}
+
+.profile-header-mock {
+  position: relative;
+  display: flex;
+  align-items: flex-end;
+  gap: 1.5rem;
+  width: 100%;
+  min-height: 200px;
+  padding: 0 1.5rem 1.5rem;
+  border-radius: var(--r-m);
+  background-image: linear-gradient(to right, var(--bg-tertiary-color), var(--bg-secondary-color));
+  background-color: var(--bg-secondary-color);
+  border: 1px solid var(--border-secondary-color);
+  overflow: hidden;
+
+  .avatar-section {
+    z-index: 2;
+    .profile-avatar {
+      border: 4px solid var(--bg-primary-color);
+    }
+  }
+
+  .info-section-mock {
+    flex-grow: 1;
+    z-index: 2;
+
+    .user-name {
+      margin: 0 0 0.25rem;
+      font-size: 1.5rem;
+      font-weight: 700;
+      color: var(--fg-primary-color);
+      text-shadow: 0 1px 4px rgba(0, 0, 0, 0.4);
+    }
+
+    .user-bio {
+      max-width: 400px;
+      font-size: 0.85rem;
+      color: var(--fg-tertiary-color);
+      text-shadow: 0 1px 3px rgba(0, 0, 0, 0.5);
+    }
+  }
+}
+
 .password-grid {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
@@ -270,6 +411,13 @@ const avatarInput = ref<HTMLInputElement | null>(null)
     flex-direction: column;
     align-items: center;
     text-align: center;
+  }
+
+  .profile-header-mock {
+    flex-direction: column;
+    align-items: center;
+    text-align: center;
+    padding-top: 2rem;
   }
 }
 </style>

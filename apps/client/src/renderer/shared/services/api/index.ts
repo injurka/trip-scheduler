@@ -5,6 +5,7 @@ import type {
   ICommentRepository,
   IDatabaseClient,
   IDayRepository,
+  IDestinationReviewRepository,
   IFileRepository,
   ILLMRepository,
   IMarksRepository,
@@ -22,6 +23,7 @@ import { AuthRepository } from './repositories/auth.repository'
 import { BlogRepository } from './repositories/blog.repository'
 import { CommentRepository } from './repositories/comment.repository'
 import { DayRepository } from './repositories/day.repository'
+import { DestinationReviewRepository } from './repositories/destination-review.repository' // <-- НОВЫЙ ИМПОРТ
 import { FileRepository } from './repositories/file.repository'
 import { LLMRepository } from './repositories/llm.repository'
 import { MarksRepository } from './repositories/marks.repository'
@@ -54,6 +56,7 @@ class TRPCDatabaseClient implements IDatabaseClient {
   notification: INotificationRepository = new NotificationRepository()
   posts: IPostRepository = new PostRepository()
   notes: INoteRepository = new NoteRepository()
+  destinationReviews: IDestinationReviewRepository = new DestinationReviewRepository()
 }
 
 export { TRPCDatabaseClient }

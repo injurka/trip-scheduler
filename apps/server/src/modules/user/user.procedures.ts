@@ -4,8 +4,12 @@ import { oAuthService } from '~/services/oauth.service'
 import {
   AuthOutputSchema,
   ChangePasswordInputSchema,
+  CreateHighlightInputSchema,
   DeleteAccountInputSchema,
+  DeleteHighlightInputSchema,
   GetUserByIdInputSchema,
+  GetUserHighlightsInputSchema,
+  HighlightSchema,
   PlanSchema,
   RefreshOutputSchema,
   RefreshTokenInputSchema,
@@ -27,12 +31,7 @@ import { userService } from './user.service'
 export const userProcedures = {
   listPlans: publicProcedure
     .meta({
-      openapi: {
-        method: 'GET',
-        path: '/users/plans',
-        tags: ['Users'],
-        summary: 'Получить список тарифных планов',
-      },
+      openapi: { method: 'GET', path: '/users/plans', tags: ['Users'], summary: 'Получить список тарифных планов' },
     })
     .output(z.array(PlanSchema))
     .query(async () => {
@@ -41,12 +40,7 @@ export const userProcedures = {
 
   signUp: publicProcedure
     .meta({
-      openapi: {
-        method: 'POST',
-        path: '/auth/signup',
-        tags: ['Auth'],
-        summary: 'Регистрация пользователя',
-      },
+      openapi: { method: 'POST', path: '/auth/signup', tags: ['Auth'], summary: 'Регистрация пользователя' },
     })
     .input(SignUpInputSchema)
     .output(SuccessResponseSchema)
@@ -56,12 +50,7 @@ export const userProcedures = {
 
   verifyEmail: publicProcedure
     .meta({
-      openapi: {
-        method: 'POST',
-        path: '/auth/verify',
-        tags: ['Auth'],
-        summary: 'Подтверждение email',
-      },
+      openapi: { method: 'POST', path: '/auth/verify', tags: ['Auth'], summary: 'Подтверждение email' },
     })
     .input(VerifyEmailInputSchema)
     .output(AuthOutputSchema)
@@ -71,12 +60,7 @@ export const userProcedures = {
 
   signIn: publicProcedure
     .meta({
-      openapi: {
-        method: 'POST',
-        path: '/auth/signin',
-        tags: ['Auth'],
-        summary: 'Вход по email/паролю',
-      },
+      openapi: { method: 'POST', path: '/auth/signin', tags: ['Auth'], summary: 'Вход по email/паролю' },
     })
     .input(SignInInputSchema)
     .output(AuthOutputSchema)
@@ -86,12 +70,7 @@ export const userProcedures = {
 
   signOut: protectedProcedure
     .meta({
-      openapi: {
-        method: 'POST',
-        path: '/auth/signout',
-        tags: ['Auth'],
-        summary: 'Выход (аннулирование токенов)',
-      },
+      openapi: { method: 'POST', path: '/auth/signout', tags: ['Auth'], summary: 'Выход (аннулирование токенов)' },
     })
     .output(SignOutResponseSchema)
     .mutation(async ({ ctx }) => {
@@ -100,12 +79,7 @@ export const userProcedures = {
 
   signInWithTelegram: publicProcedure
     .meta({
-      openapi: {
-        method: 'POST',
-        path: '/auth/telegram',
-        tags: ['Auth'],
-        summary: 'Вход через Telegram',
-      },
+      openapi: { method: 'POST', path: '/auth/telegram', tags: ['Auth'], summary: 'Вход через Telegram' },
     })
     .input(TelegramAuthPayloadSchema)
     .output(AuthOutputSchema)
@@ -115,12 +89,7 @@ export const userProcedures = {
 
   refresh: publicProcedure
     .meta({
-      openapi: {
-        method: 'POST',
-        path: '/auth/refresh',
-        tags: ['Auth'],
-        summary: 'Обновление токенов',
-      },
+      openapi: { method: 'POST', path: '/auth/refresh', tags: ['Auth'], summary: 'Обновление токенов' },
     })
     .input(RefreshTokenInputSchema)
     .output(RefreshOutputSchema)
@@ -130,12 +99,7 @@ export const userProcedures = {
 
   me: protectedProcedure
     .meta({
-      openapi: {
-        method: 'GET',
-        path: '/users/me',
-        tags: ['Users'],
-        summary: 'Получить текущего пользователя',
-      },
+      openapi: { method: 'GET', path: '/users/me', tags: ['Users'], summary: 'Получить текущего пользователя' },
     })
     .output(UserSchema.nullable())
     .query(async ({ ctx }) => {
@@ -144,12 +108,7 @@ export const userProcedures = {
 
   getById: publicProcedure
     .meta({
-      openapi: {
-        method: 'GET',
-        path: '/users/{id}',
-        tags: ['Users'],
-        summary: 'Получить пользователя по ID',
-      },
+      openapi: { method: 'GET', path: '/users/{id}', tags: ['Users'], summary: 'Получить пользователя по ID' },
     })
     .input(GetUserByIdInputSchema)
     .output(UserSchema.nullable())
@@ -159,12 +118,7 @@ export const userProcedures = {
 
   getStats: protectedProcedure
     .meta({
-      openapi: {
-        method: 'GET',
-        path: '/users/me/stats',
-        tags: ['Users'],
-        summary: 'Получить статистику текущего пользователя',
-      },
+      openapi: { method: 'GET', path: '/users/me/stats', tags: ['Users'], summary: 'Получить статистику текущего пользователя' },
     })
     .output(UserStatsSchema)
     .query(async ({ ctx }) => {
@@ -173,12 +127,7 @@ export const userProcedures = {
 
   update: protectedProcedure
     .meta({
-      openapi: {
-        method: 'PATCH',
-        path: '/users/me',
-        tags: ['Users'],
-        summary: 'Обновить профиль пользователя',
-      },
+      openapi: { method: 'PATCH', path: '/users/me', tags: ['Users'], summary: 'Обновить профиль пользователя' },
     })
     .input(UpdateUserInputSchema)
     .output(UserSchema)
@@ -188,12 +137,7 @@ export const userProcedures = {
 
   updateStatus: protectedProcedure
     .meta({
-      openapi: {
-        method: 'PATCH',
-        path: '/users/me/status',
-        tags: ['Users'],
-        summary: 'Обновить статус пользователя',
-      },
+      openapi: { method: 'PATCH', path: '/users/me/status', tags: ['Users'], summary: 'Обновить статус пользователя' },
     })
     .input(UpdateUserStatusInputSchema)
     .output(UserSchema.nullable())
@@ -203,12 +147,7 @@ export const userProcedures = {
 
   changePassword: protectedProcedure
     .meta({
-      openapi: {
-        method: 'POST',
-        path: '/users/me/password',
-        tags: ['Users'],
-        summary: 'Сменить пароль',
-      },
+      openapi: { method: 'POST', path: '/users/me/password', tags: ['Users'], summary: 'Сменить пароль' },
     })
     .input(ChangePasswordInputSchema)
     .output(SuccessResponseSchema)
@@ -218,12 +157,7 @@ export const userProcedures = {
 
   deleteAccount: protectedProcedure
     .meta({
-      openapi: {
-        method: 'DELETE',
-        path: '/users/me',
-        tags: ['Users'],
-        summary: 'Удалить аккаунт',
-      },
+      openapi: { method: 'DELETE', path: '/users/me', tags: ['Users'], summary: 'Удалить аккаунт' },
     })
     .input(DeleteAccountInputSchema)
     .output(SuccessResponseSchema)
@@ -233,16 +167,42 @@ export const userProcedures = {
 
   search: protectedProcedure
     .meta({
-      openapi: {
-        method: 'GET',
-        path: '/users/search',
-        tags: ['Users'],
-        summary: 'Поиск пользователей по имени или email',
-      },
+      openapi: { method: 'GET', path: '/users/search', tags: ['Users'], summary: 'Поиск пользователей' },
     })
     .input(SearchUserInputSchema)
     .output(z.array(UserSearchResultSchema))
     .query(async ({ input }) => {
       return userService.search(input.query)
+    }),
+
+
+  getHighlights: publicProcedure
+    .meta({
+      openapi: { method: 'GET', path: '/users/{userId}/highlights', tags: ['Users'], summary: 'Получить витрину пользователя' },
+    })
+    .input(GetUserHighlightsInputSchema)
+    .output(z.array(HighlightSchema))
+    .query(async ({ input }) => {
+      return userService.getHighlights(input.userId)
+    }),
+
+  createHighlight: protectedProcedure
+    .meta({
+      openapi: { method: 'POST', path: '/users/highlights', tags: ['Users'], summary: 'Добавить фото в витрину' },
+    })
+    .input(CreateHighlightInputSchema)
+    .output(HighlightSchema)
+    .mutation(async ({ input, ctx }) => {
+      return userService.createHighlight(input, ctx.user.id)
+    }),
+
+  deleteHighlight: protectedProcedure
+    .meta({
+      openapi: { method: 'DELETE', path: '/users/highlights/{id}', tags: ['Users'], summary: 'Удалить фото из витрины' },
+    })
+    .input(DeleteHighlightInputSchema)
+    .output(z.object({ success: z.boolean() }))
+    .mutation(async ({ input, ctx }) => {
+      return userService.deleteHighlight(input.id, ctx.user.id)
     }),
 }

@@ -19,6 +19,7 @@
     "db:generate": "bunx drizzle-kit generate",
     "db:dump": "bun run db/create-dump.ts",
     "db:check": "bun run db/check-data.ts",
+    "db:clean": "bun run db/reset.ts",
     "db:seed-mock": "bun run db/seed-from-mock.ts",
     "db:seed-dump": "bun run db/seed-from-dump.ts",
     "db:studio": "bunx drizzle-kit studio",

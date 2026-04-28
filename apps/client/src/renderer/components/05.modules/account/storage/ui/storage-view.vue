@@ -400,6 +400,18 @@ onMounted(() => {
     border-color: var(--border-accent-color);
     color: var(--fg-accent-color);
   }
+
+  @include media-down(sm) {
+    flex-wrap: wrap;
+
+    .search-input {
+      flex-basis: 100%;
+    }
+
+    :deep(.kit-view-switcher) {
+      flex-grow: 1;
+    }
+  }
 }
 
 .advanced-filters {

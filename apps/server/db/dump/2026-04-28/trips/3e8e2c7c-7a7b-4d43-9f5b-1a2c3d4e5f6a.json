@@ -1,0 +1,3777 @@
+{
+  "id": "3e8e2c7c-7a7b-4d43-9f5b-1a2c3d4e5f6a",
+  "title": "От Шанхая до Шелкового пути",
+  "imageUrl": "trips/3e8e2c7c-7a7b-4d43-9f5b-1a2c3d4e5f6a/route/20250217214032.png",
+  "description": "Двухнедельное приключение, охватывающее футуристический Шанхай, классические сады Сучжоу и Ханчжоу, и заканчивающееся в сердце древнего Шелкового пути — Урумчи.",
+  "descriptionShort": null,
+  "startDate": "2025-05-10",
+  "endDate": "2025-05-23",
+  "cities": [
+    "Шанхай",
+    "Сучжоу",
+    "Ханчжоу",
+    "Урумчи"
+  ],
+  "status": "completed",
+  "budget": 150000,
+  "currency": "RUB",
+  "tags": [
+    "Китай",
+    "Шанхай",
+    "Урумчи",
+    "культура",
+    "еда",
+    "приключения"
+  ],
+  "visibility": "public",
+  "userId": "1a97d95a-0158-4171-8258-52c7a917e3f0",
+  "createdAt": "2026-04-28T10:59:23.303Z",
+  "updatedAt": "2026-04-28T10:59:23.303Z",
+  "user": {
+    "id": "1a97d95a-0158-4171-8258-52c7a917e3f0",
+    "role": "admin",
+    "email": "dev@dev.dev",
+    "emailVerified": "2026-04-28T10:59:19.917Z",
+    "password": "$argon2id$v=19$m=65536,t=2,p=1$9cSm+KIHJMY82nsu2L7IxA$SVFSIsvCOOwy5q5PIawXubwYbk+Q4jTiE5YeiWp8gKg",
+    "name": "Иван",
+    "avatarUrl": "/avatars/ghoul.gif",
+    "coverUrl": null,
+    "githubId": null,
+    "googleId": null,
+    "telegramId": null,
+    "planId": 1,
+    "currentTripsCount": 0,
+    "currentStorageBytes": 0,
+    "llmCreditsUsed": 0,
+    "llmCreditsPeriodStartDate": "2026-04-28T10:59:23.301Z",
+    "statusText": null,
+    "statusEmoji": null,
+    "createdAt": "2026-04-28T10:59:23.301Z",
+    "updatedAt": "2026-04-28T10:59:23.301Z"
+  },
+  "days": [
+    {
+      "id": "b5aa4222-c6d6-453d-8a29-6fa467e12b21",
+      "date": "2025-05-10",
+      "title": "Начало пути",
+      "description": "Наше китайское приключение начинается с прибытия в аэропорт Хунцяо. Вечерняя программа идеально подходит для первого знакомства с городом без лишней нагрузки: спокойная прогулка по современному парку и ужин у архитектурного шедевра \"Тысяча Деревьев\".",
+      "note": null,
+      "tripId": "3e8e2c7c-7a7b-4d43-9f5b-1a2c3d4e5f6a",
+      "meta": [],
+      "createdAt": "2026-04-28T10:59:23.296Z",
+      "updatedAt": "2026-04-28T10:59:23.296Z",
+      "activities": [
+        {
+          "id": "a2e2e629-9894-4572-9609-e982a065acbf",
+          "startTime": "16:00",
+          "endTime": "17:00",
+          "title": "Прибытие в Аэропорт Хунцяо (SHA)",
+          "sections": [
+            {
+              "id": "064c0fcf-24c1-420d-8621-9a277c38bf30",
+              "text": "Прибытие и трансфер в отель.",
+              "type": "description"
+            }
+          ],
+          "tag": "transport",
+          "status": "none",
+          "dayId": "b5aa4222-c6d6-453d-8a29-6fa467e12b21"
+        },
+        {
+          "id": "f2275926-2bd7-464b-8cf6-dd06adae9e84",
+          "startTime": "17:00",
+          "endTime": "18:15",
+          "title": "Заселение в отель Yunhe Yebo Hotel",
+          "sections": [
+            {
+              "id": "d7ed42a1-46c4-48fd-a06c-433be5607459",
+              "text": "Заселение, короткий отдых после перелета.\nАдрес: `2-5F, Area C, 1F, No.503 Wuning Road, Путуо, Шанхай`",
+              "type": "description"
+            }
+          ],
+          "tag": "relax",
+          "status": "none",
+          "dayId": "b5aa4222-c6d6-453d-8a29-6fa467e12b21"
+        },
+        {
+          "id": "7a5f15e4-94d1-475b-97b1-017e55d59a05",
+          "startTime": "18:15",
+          "endTime": "18:30",
+          "title": "Путь к метро Caoyang Road",
+          "sections": [
+            {
+              "id": "1c842bd3-fe3e-42aa-9941-147116df15ae",
+              "text": "Прогулка до станции метро **Caoyang Road (曹杨路)** или **Fengqiao Rd. (枫桥路)**. \n\n*Совет*: Приобретите транспортную карту Shanghai Transportation Card для удобства передвижения по городу (доступна в AliPay).",
+              "type": "description"
+            },
+            {
+              "id": "44bdfca6-9203-485e-a75c-808aa349a420",
+              "type": "gallery",
+              "imageUrls": [
+                "trips/3e8e2c7c-7a7b-4d43-9f5b-1a2c3d4e5f6a/route/20250216013656.png"
+              ]
+            }
+          ],
+          "tag": "walk",
+          "status": "none",
+          "dayId": "b5aa4222-c6d6-453d-8a29-6fa467e12b21"
+        },
+        {
+          "id": "e445ce95-4e90-4fef-8cb4-72ba5bfc85dd",
+          "startTime": "18:30",
+          "endTime": "19:30",
+          "title": "Прогулка по парку Suzhouhe Mengqing Garden",
+          "sections": [
+            {
+              "id": "ff4d9248-2a97-4ddc-9528-6efd22c41c46",
+              "text": "**Environmental Theme Park of Suzhouhe Mengqing Garden(苏州河梦清园环保主题公园)**\n\nЖивописный парк вдоль реки Сучжоу — идеальное место для акклиматизации. \n*Что посмотреть*: Красивый ландшафтный дизайн, пешеходные мостики, местные растения, виды на реку.",
+              "type": "description"
+            },
+            {
+              "id": "7812acf2-a460-4165-9f15-6cb106f9455a",
+              "type": "gallery",
+              "imageUrls": [
+                "trips/3e8e2c7c-7a7b-4d43-9f5b-1a2c3d4e5f6a/route/20250216013458.png",
+                "trips/3e8e2c7c-7a7b-4d43-9f5b-1a2c3d4e5f6a/route/20250221130326.png"
+              ]
+            }
+          ],
+          "tag": "walk",
+          "status": "none",
+          "dayId": "b5aa4222-c6d6-453d-8a29-6fa467e12b21"
+        },
+        {
+          "id": "446f0a10-f969-4269-ac22-4e2c7610938e",
+          "startTime": "19:30",
+          "endTime": "22:00",
+          "title": "Ужин в Tian'an Thousand Trees",
+          "sections": [
+            {
+              "id": "618885a8-9149-44e4-ac38-12f51c3c784d",
+              "text": "Посещение уникального архитектурного комплекса **Ocean Jewel · Tian'an Thousand Trees (大洋晶典·天安千树)**, напоминающего \"вертикальный лес\". \n\n**Рекомендуемые заведения:**\n* *Element Fresh* — европейская кухня с легкими блюдами\n* *Haidilao (海底捞)* — знаменитый китайский хотпот (требуется бронирование)\n* *Costa Coffee* — для любителей кофе и легких закусок",
+              "type": "description"
+            },
+            {
+              "id": "f019fe49-41b0-4a5c-95c3-cf4f6f396ed6",
+              "type": "gallery",
+              "imageUrls": [
+                "trips/3e8e2c7c-7a7b-4d43-9f5b-1a2c3d4e5f6a/route/20250216013213.png"
+              ]
+            }
+          ],
+          "tag": "food",
+          "status": "none",
+          "dayId": "b5aa4222-c6d6-453d-8a29-6fa467e12b21"
+        },
+        {
+          "id": "d35361fa-1ecb-4a7c-acf2-f9a0923a0c7c",
+          "startTime": "22:00",
+          "endTime": "22:30",
+          "title": "Возвращение в отель",
+          "sections": [
+            {
+              "id": "51f745dd-cae2-4679-ace4-5fee2ec66371",
+              "text": "Поездка на метро обратно в отель для отдыха. \n\n**Важно:** Последние поезда метро отправляются примерно в 22:30-23:00!",
+              "type": "description"
+            }
+          ],
+          "tag": "transport",
+          "status": "none",
+          "dayId": "b5aa4222-c6d6-453d-8a29-6fa467e12b21"
+        }
+      ]
+    },
+    {
+      "id": "e08b600b-0459-4a02-8ae3-210d91a514c2",
+      "date": "2025-05-11",
+      "title": "Привет Шанхай (Waitan)",
+      "description": "Насыщенный день, который начнется с Народной площади, проведет через шумную торговую улицу Nanjing Road к знаменитой набережной Вайтан с ее колониальной архитектурой, а завершится посещением храмов и ночной прогулкой.",
+      "note": null,
+      "tripId": "3e8e2c7c-7a7b-4d43-9f5b-1a2c3d4e5f6a",
+      "meta": [],
+      "createdAt": "2026-04-28T10:59:23.296Z",
+      "updatedAt": "2026-04-28T10:59:23.296Z",
+      "activities": [
+        {
+          "id": "ae130670-eb09-4ffb-bd8d-d6ee4a64e67f",
+          "startTime": "10:00",
+          "endTime": "10:30",
+          "title": "Народная площадь и People's Park",
+          "sections": [
+            {
+              "id": "f8b60359-faf4-4543-9192-9f47e9312224",
+              "text": "Начало дня с прогулки по центральному парку города (**People's Park 上海人民公园**).",
+              "type": "description"
+            },
+            {
+              "id": "f22281e0-ee23-4c52-82af-c8ef1b505070",
+              "type": "gallery",
+              "imageUrls": [
+                "trips/3e8e2c7c-7a7b-4d43-9f5b-1a2c3d4e5f6a/route/20250217210256.png",
+                "trips/3e8e2c7c-7a7b-4d43-9f5b-1a2c3d4e5f6a/route/20250217212046.png",
+                "trips/3e8e2c7c-7a7b-4d43-9f5b-1a2c3d4e5f6a/route/20250217212501.png",
+                "trips/3e8e2c7c-7a7b-4d43-9f5b-1a2c3d4e5f6a/route/20250217212416.png"
+              ]
+            }
+          ],
+          "tag": "walk",
+          "status": "none",
+          "dayId": "e08b600b-0459-4a02-8ae3-210d91a514c2"
+        },
+        {
+          "id": "1e6b2e82-805c-4fc5-a21e-754d1ed4c0cf",
+          "startTime": "10:30",
+          "endTime": "11:30",
+          "title": "Прогулка по Nanjing Road Pedestrian Street",
+          "sections": [
+            {
+              "id": "7e16521f-1225-4605-8dbe-1564ba163a72",
+              "text": "Исследование главной торговой улицы Шанхая **(南京路步行街)**, проба местных закусок. Будьте готовы к толпам!",
+              "type": "description"
+            },
+            {
+              "id": "bdd59a21-ac7b-41f3-8eb4-a50b3d7f4be1",
+              "type": "gallery",
+              "imageUrls": [
+                "trips/3e8e2c7c-7a7b-4d43-9f5b-1a2c3d4e5f6a/route/20250217213525.png",
+                "trips/3e8e2c7c-7a7b-4d43-9f5b-1a2c3d4e5f6a/route/20250217213134.png",
+                "trips/3e8e2c7c-7a7b-4d43-9f5b-1a2c3d4e5f6a/route/20250217222310.png"
+              ]
+            }
+          ],
+          "tag": "walk",
+          "status": "none",
+          "dayId": "e08b600b-0459-4a02-8ae3-210d91a514c2"
+        },
+        {
+          "id": "93e9e555-8db1-4105-ac3f-0fc1118d2547",
+          "startTime": "11:30",
+          "endTime": "13:00",
+          "title": "Набережная Вайтан и мост Waibaidu",
+          "sections": [
+            {
+              "id": "08bc82ee-b72f-4d8c-aa7d-0417b67ff9b9",
+              "text": "Прогулка вдоль набережной с видом на небоскребы Пудуна, фото у исторического моста **Waibaidu Bridge** и в парке **North Bund Green Land (北外滩滨江绿地)**.",
+              "type": "description"
+            },
+            {
+              "id": "f83c8ff1-70cd-4062-9d72-6e404d219c20",
+              "type": "gallery",
+              "imageUrls": [
+                "trips/3e8e2c7c-7a7b-4d43-9f5b-1a2c3d4e5f6a/route/20250217214524.png",
+                "trips/3e8e2c7c-7a7b-4d43-9f5b-1a2c3d4e5f6a/route/20250217214032.png",
+                "trips/3e8e2c7c-7a7b-4d43-9f5b-1a2c3d4e5f6a/route/20250217214445.png",
+                "trips/3e8e2c7c-7a7b-4d43-9f5b-1a2c3d4e5f6a/route/20250217223336.png",
+                "trips/3e8e2c7c-7a7b-4d43-9f5b-1a2c3d4e5f6a/route/20250217223428.png",
+                "trips/3e8e2c7c-7a7b-4d43-9f5b-1a2c3d4e5f6a/route/20250217223444.png"
+              ]
+            }
+          ],
+          "tag": "attraction",
+          "status": "none",
+          "dayId": "e08b600b-0459-4a02-8ae3-210d91a514c2"
+        },
+        {
+          "id": "27345b27-26c5-4be7-b8e2-91deea024630",
+          "startTime": "13:30",
+          "endTime": "15:00",
+          "title": "Обед",
+          "sections": [
+            {
+              "id": "67a5a8ea-9ee3-4954-80a8-e7ce67c627f8",
+              "text": "Обед в районе **Changshou Rd. (长寿路)**, например, в **Miss Fu in Chengdu (付小姐在成都)**.",
+              "type": "description"
+            },
+            {
+              "id": "c0bc9a19-eb19-44e8-8c65-7f3265624235",
+              "type": "gallery",
+              "imageUrls": [
+                "trips/3e8e2c7c-7a7b-4d43-9f5b-1a2c3d4e5f6a/route/20250217230124.png",
+                "trips/3e8e2c7c-7a7b-4d43-9f5b-1a2c3d4e5f6a/route/20250217225444.png",
+                "trips/3e8e2c7c-7a7b-4d43-9f5b-1a2c3d4e5f6a/route/20250217230103.png"
+              ]
+            }
+          ],
+          "tag": "food",
+          "status": "none",
+          "dayId": "e08b600b-0459-4a02-8ae3-210d91a514c2"
+        },
+        {
+          "id": "17044d76-ee15-4926-a9f6-4b8e4f076e6d",
+          "startTime": "15:00",
+          "endTime": "16:00",
+          "title": "Посещение храма Нефритового Будды",
+          "sections": [
+            {
+              "id": "e032cf15-968b-439e-a12c-95c81e7e693a",
+              "text": "Визит в один из самых известных действующих буддийских храмов Шанхая **(Jade Buddha Temple 玉佛禅寺)**. Работает до 16:30.",
+              "type": "description"
+            },
+            {
+              "id": "18e98ec1-8086-4719-aeeb-ad89085a69a0",
+              "type": "gallery",
+              "imageUrls": [
+                "trips/3e8e2c7c-7a7b-4d43-9f5b-1a2c3d4e5f6a/route/20250217230859.png",
+                "trips/3e8e2c7c-7a7b-4d43-9f5b-1a2c3d4e5f6a/route/20250217223609.png"
+              ]
+            }
+          ],
+          "tag": "attraction",
+          "status": "none",
+          "dayId": "e08b600b-0459-4a02-8ae3-210d91a514c2"
+        },
+        {
+          "id": "2446a200-3d31-4a02-852e-1623a13532bd",
+          "startTime": "17:10",
+          "endTime": "18:50",
+          "title": "Храм и парк Цзинъань (Jing'an)",
+          "sections": [
+            {
+              "id": "6bb6b445-24f1-46a5-b50b-54cdb4eef75d",
+              "text": "Осмотр древнего храма **Jing'an Temple (静安寺)**, который дал название всему району, и прогулка по прилегающему парку.",
+              "type": "description"
+            },
+            {
+              "id": "6af7f132-6fd9-48f2-a216-0a4cef8a2fab",
+              "type": "gallery",
+              "imageUrls": [
+                "trips/3e8e2c7c-7a7b-4d43-9f5b-1a2c3d4e5f6a/route/20250220190555.png",
+                "trips/3e8e2c7c-7a7b-4d43-9f5b-1a2c3d4e5f6a/route/20250220190346.png",
+                "trips/3e8e2c7c-7a7b-4d43-9f5b-1a2c3d4e5f6a/route/20250220190301.png"
+              ]
+            }
+          ],
+          "tag": "attraction",
+          "status": "none",
+          "dayId": "e08b600b-0459-4a02-8ae3-210d91a514c2"
+        },
+        {
+          "id": "ad1201f6-bffc-4633-bf86-74802e1ebf3c",
+          "startTime": "19:00",
+          "endTime": "20:30",
+          "title": "Ночная Nanjing Road",
+          "sections": [
+            {
+              "id": "aec63781-60fd-4273-8215-2cde0bc7f2d4",
+              "text": "Возвращение на главную пешеходную улицу, чтобы увидеть ее в сиянии неоновых огней.",
+              "type": "description"
+            },
+            {
+              "id": "0c6083d2-0d54-4551-a841-712cd4477ad3",
+              "type": "gallery",
+              "imageUrls": [
+                "trips/3e8e2c7c-7a7b-4d43-9f5b-1a2c3d4e5f6a/route/20250217232059.png",
+                "trips/3e8e2c7c-7a7b-4d43-9f5b-1a2c3d4e5f6a/route/20250217232335.png"
+              ]
+            }
+          ],
+          "tag": "walk",
+          "status": "none",
+          "dayId": "e08b600b-0459-4a02-8ae3-210d91a514c2"
+        }
+      ]
+    },
+    {
+      "id": "f0debee5-1689-4138-b19c-7e45749e7e0d",
+      "date": "2025-05-12",
+      "title": "Ура небоскребам (Pudong)",
+      "description": "День, посвященный футуристическому району Пудун. Подъем на один из самых высоких небоскребов мира, посещение огромного океанариума и парков, и, конечно, классический вид на ночной Пудун с набережной Вайтан.",
+      "note": null,
+      "tripId": "3e8e2c7c-7a7b-4d43-9f5b-1a2c3d4e5f6a",
+      "meta": [],
+      "createdAt": "2026-04-28T10:59:23.296Z",
+      "updatedAt": "2026-04-28T10:59:23.296Z",
+      "activities": [
+        {
+          "id": "bebabf41-7ee0-402c-904d-0f82e55d3efa",
+          "startTime": "10:00",
+          "endTime": "11:00",
+          "title": "Дорога в Пудун",
+          "sections": [
+            {
+              "id": "def1b1ed-05a3-4106-84b0-a2d470ef79ec",
+              "text": "Поездка на метро до станции **Lujiazui (陆家嘴)**, финансового центра Шанхая.",
+              "type": "description"
+            },
+            {
+              "id": "2973fdde-a599-48cd-83bd-1c0f23fd985c",
+              "type": "gallery",
+              "imageUrls": [
+                "trips/3e8e2c7c-7a7b-4d43-9f5b-1a2c3d4e5f6a/route/20250313233958.png",
+                "trips/3e8e2c7c-7a7b-4d43-9f5b-1a2c3d4e5f6a/route/20250313234517.png",
+                "trips/3e8e2c7c-7a7b-4d43-9f5b-1a2c3d4e5f6a/route/20250313233753.png"
+              ]
+            }
+          ],
+          "tag": "transport",
+          "status": "none",
+          "dayId": "f0debee5-1689-4138-b19c-7e45749e7e0d"
+        },
+        {
+          "id": "8eee7d4e-eb54-4725-98a1-2162a1fb04dc",
+          "startTime": "11:00",
+          "endTime": "12:30",
+          "title": "Подъем на небоскреб",
+          "sections": [
+            {
+              "id": "7cf23834-2b4d-48fd-a8bd-db8cb2af1e2b",
+              "text": "**Варианты:**\n\n*   **Shanghai Tower (上海中心):** Самый высокий вид (546 м). *Цена: 180 CNY*. [Билеты](https://us.trip.com/travel-guide/attraction/shanghai/shanghai-tower-24591219/?locale=en-XX&curr=CNY)\n*   **Oriental Pearl Tower (东方明珠):** Самая узнаваемая башня со стеклянным полом. *Цена: 160 CNY*. [Билеты](https://us.trip.com/travel-guide/attraction/shanghai/oriental-pearl-radio-and-television-tower-75627/?locale=en-US&curr=CNY)",
+              "type": "description"
+            },
+            {
+              "id": "09c938d4-6675-4b6c-a976-9eedd462e7c4",
+              "type": "gallery",
+              "imageUrls": [
+                "trips/3e8e2c7c-7a7b-4d43-9f5b-1a2c3d4e5f6a/route/20250313234400.png",
+                "trips/3e8e2c7c-7a7b-4d43-9f5b-1a2c3d4e5f6a/route/20250313234435.png"
+              ]
+            }
+          ],
+          "tag": "attraction",
+          "status": "none",
+          "dayId": "f0debee5-1689-4138-b19c-7e45749e7e0d"
+        },
+        {
+          "id": "263d7b86-2542-482d-a4a0-ae39b4f0fd0a",
+          "startTime": "12:30",
+          "endTime": "14:00",
+          "title": "Обед в IFC Mall",
+          "sections": [
+            {
+              "id": "4c906b3d-4d3e-40d3-8d58-1d8dae413951",
+              "text": "Обед в одном из лучших торговых центров Пудуна **(国金中心商场)**. \n\n**Рекомендация:** Ресторан **Din Tai Fung (鼎泰丰)** на 3 этаже для дегустации знаменитых пельменей сяолунбао.",
+              "type": "description"
+            },
+            {
+              "id": "b69a0050-51b1-45ce-be7d-61208b5d21e9",
+              "type": "gallery",
+              "imageUrls": [
+                "trips/3e8e2c7c-7a7b-4d43-9f5b-1a2c3d4e5f6a/route/20250313234851.png"
+              ]
+            }
+          ],
+          "tag": "food",
+          "status": "none",
+          "dayId": "f0debee5-1689-4138-b19c-7e45749e7e0d"
+        },
+        {
+          "id": "81bca3ab-cb5d-4ad6-ab9b-fff49ea3f54a",
+          "startTime": "14:30",
+          "endTime": "16:00",
+          "title": "Прогулка по Century Park",
+          "sections": [
+            {
+              "id": "2ac57eff-8ff2-48d8-a4b9-2afb5e8fa082",
+              "text": "Крупнейший городской парк Шанхая **(世纪公园)** с озерами и садами. Вход: 10 юаней.",
+              "type": "description"
+            },
+            {
+              "id": "62662be2-78aa-4b69-b3c6-542d6826064b",
+              "type": "gallery",
+              "imageUrls": [
+                "trips/3e8e2c7c-7a7b-4d43-9f5b-1a2c3d4e5f6a/route/20250314004804.png",
+                "trips/3e8e2c7c-7a7b-4d43-9f5b-1a2c3d4e5f6a/route/20250314004824.png",
+                "trips/3e8e2c7c-7a7b-4d43-9f5b-1a2c3d4e5f6a/route/20250314004848.png"
+              ]
+            }
+          ],
+          "tag": "walk",
+          "status": "none",
+          "dayId": "f0debee5-1689-4138-b19c-7e45749e7e0d"
+        },
+        {
+          "id": "302d32c2-5b41-4a41-bbf4-6f85734851b4",
+          "startTime": "16:30",
+          "endTime": "20:00",
+          "title": "Прогулка по району и ужин",
+          "sections": [
+            {
+              "id": "666ecb09-9da9-4d5e-b0f0-bd55fe9945d5",
+              "text": "Свободное время для исследования района и ужин в **Super Brand Mall (正大广场)**. Попробуйте **Shanghai Min (小南国)** для аутентичной шанхайской кухни.",
+              "type": "description"
+            }
+          ],
+          "tag": "food",
+          "status": "none",
+          "dayId": "f0debee5-1689-4138-b19c-7e45749e7e0d"
+        },
+        {
+          "id": "d046f1b5-6df2-4da8-973f-8bbc41231e27",
+          "startTime": "20:30",
+          "endTime": "21:30",
+          "title": "Вечерняя прогулка по набережной The Bund",
+          "sections": [
+            {
+              "id": "af573941-0060-4aba-a4ff-77aec7f9f1d6",
+              "text": "Возвращение на другую сторону реки, чтобы насладиться культовым видом на освещенные небоскребы Пудуна. Лучшие фото получаются именно отсюда!",
+              "type": "description"
+            },
+            {
+              "id": "8c0c07fa-b215-4977-808b-35589ee7ca7f",
+              "type": "gallery",
+              "imageUrls": [
+                "trips/3e8e2c7c-7a7b-4d43-9f5b-1a2c3d4e5f6a/route/20250314004632.png"
+              ]
+            }
+          ],
+          "tag": "walk",
+          "status": "none",
+          "dayId": "f0debee5-1689-4138-b19c-7e45749e7e0d"
+        }
+      ]
+    },
+    {
+      "id": "af0da271-6be1-42c7-a33d-2def8ac0ca2a",
+      "date": "2025-05-13",
+      "title": "Сады, Храмы и Чаи",
+      "description": "День погружения в традиционный Китай в самом сердце Шанхая. Мы исследуем классический сад Юй Юань, прогуляемся по отреставрированным кварталам Xintiandi и затеряемся в лабиринте узких улочек Tian Zi Fang.",
+      "note": null,
+      "tripId": "3e8e2c7c-7a7b-4d43-9f5b-1a2c3d4e5f6a",
+      "meta": [],
+      "createdAt": "2026-04-28T10:59:23.296Z",
+      "updatedAt": "2026-04-28T10:59:23.296Z",
+      "activities": [
+        {
+          "id": "40c89324-ca3b-4040-ad4e-ed8d9ce103ba",
+          "startTime": "10:00",
+          "endTime": "13:00",
+          "title": "Посещение сада Юй Юань (Yu Garden)",
+          "sections": [
+            {
+              "id": "e4f278c9-6e8d-4d1e-be0c-b80343343e32",
+              "text": "Исследование классического китайского сада династии Мин **(豫园)** с его прудами, павильонами и мостиками. \n\n**Обязательно к посещению:**\n* *Sansui Hall (三穗堂)*\n* *Wanhua Chamber (万花楼)*\n* *Dianchun Hall (点春堂)*",
+              "type": "description"
+            },
+            {
+              "id": "4ed084d4-6bb0-4f69-815a-7b570b59d756",
+              "text": "**Бронирование:** Настоятельно рекомендуется бронировать билеты заранее, особенно в выходные, через Trip.com или Klook. Цена: ~30-40 CNY.",
+              "type": "description"
+            },
+            {
+              "id": "618a2a37-6707-4c5c-b1b9-9acfb1b1756c",
+              "type": "gallery",
+              "imageUrls": [
+                "trips/3e8e2c7c-7a7b-4d43-9f5b-1a2c3d4e5f6a/route/20250309004803.png",
+                "trips/3e8e2c7c-7a7b-4d43-9f5b-1a2c3d4e5f6a/route/20250309004958.png",
+                "trips/3e8e2c7c-7a7b-4d43-9f5b-1a2c3d4e5f6a/route/20250309005052.png",
+                "trips/3e8e2c7c-7a7b-4d43-9f5b-1a2c3d4e5f6a/route/20250309005112.png",
+                "trips/3e8e2c7c-7a7b-4d43-9f5b-1a2c3d4e5f6a/route/20250309005133.png"
+              ]
+            }
+          ],
+          "tag": "attraction",
+          "status": "none",
+          "dayId": "af0da271-6be1-42c7-a33d-2def8ac0ca2a"
+        },
+        {
+          "id": "ceaa4ad5-e5f3-4b92-850b-b711edb9a555",
+          "startTime": "13:00",
+          "endTime": "14:00",
+          "title": "Старый город и улица Fangbang",
+          "sections": [
+            {
+              "id": "784a752c-2b2c-4371-b120-ca8ea14bc674",
+              "text": "Прогулка мимо Даосского храма городского божества **(上海城隍庙)** по старинной улочке **Fangbang Middle Road (方浜中路)**.",
+              "type": "description"
+            },
+            {
+              "id": "d337c184-69a5-4ace-93c7-07bc64c026bd",
+              "type": "gallery",
+              "imageUrls": [
+                "trips/3e8e2c7c-7a7b-4d43-9f5b-1a2c3d4e5f6a/route/20250309005739.png",
+                "trips/3e8e2c7c-7a7b-4d43-9f5b-1a2c3d4e5f6a/route/20250309005903.png",
+                "trips/3e8e2c7c-7a7b-4d43-9f5b-1a2c3d4e5f6a/route/20250309010228.png",
+                "trips/3e8e2c7c-7a7b-4d43-9f5b-1a2c3d4e5f6a/route/20250309010246.png"
+              ]
+            }
+          ],
+          "tag": "walk",
+          "status": "none",
+          "dayId": "af0da271-6be1-42c7-a33d-2def8ac0ca2a"
+        },
+        {
+          "id": "abde6f09-7c9c-4ff3-96b2-be8725ff1081",
+          "startTime": "14:00",
+          "endTime": "16:00",
+          "title": "Прогулка и обед в Xintiandi",
+          "sections": [
+            {
+              "id": "d0d68d75-7582-4b39-9068-bb75fccbc76e",
+              "text": "Исследование пешеходного района **(新天地)** с домами \"шикумен\", где история встречается с современностью. Обед в одном из модных кафе.",
+              "type": "description"
+            },
+            {
+              "id": "2d12da08-59fc-4785-adb8-0b8616803d83",
+              "type": "gallery",
+              "imageUrls": [
+                "trips/3e8e2c7c-7a7b-4d43-9f5b-1a2c3d4e5f6a/route/20250309171231.png",
+                "trips/3e8e2c7c-7a7b-4d43-9f5b-1a2c3d4e5f6a/route/20250309163606.png",
+                "trips/3e8e2c7c-7a7b-4d43-9f5b-1a2c3d4e5f6a/route/20250309163617.png",
+                "trips/3e8e2c7c-7a7b-4d43-9f5b-1a2c3d4e5f6a/route/20250309171739.png",
+                "trips/3e8e2c7c-7a7b-4d43-9f5b-1a2c3d4e5f6a/route/20250309171818.png"
+              ]
+            }
+          ],
+          "tag": "food",
+          "status": "none",
+          "dayId": "af0da271-6be1-42c7-a33d-2def8ac0ca2a"
+        },
+        {
+          "id": "6823d2ad-9984-4b71-af2a-d9759986b5a4",
+          "startTime": "16:30",
+          "endTime": "19:00",
+          "title": "Исследование района Tian Zi Fang",
+          "sections": [
+            {
+              "id": "5e5bc277-329d-4347-91d6-c7969c4fe102",
+              "text": "Погружение в лабиринт узких улочек **(田子坊)** бывшей французской концессии, наполненных художественными галереями, крафтовыми магазинами, кафе и чайными домами. \n\n*Ищите:* уникальные сувениры, уличную еду (например, жареные булочки *生煎包*) и многочисленных кошек!",
+              "type": "description"
+            },
+            {
+              "id": "da72fb1f-94fd-489b-b9b3-d4fdac4b3dfc",
+              "type": "gallery",
+              "imageUrls": [
+                "trips/3e8e2c7c-7a7b-4d43-9f5b-1a2c3d4e5f6a/route/20250223152330.png",
+                "trips/3e8e2c7c-7a7b-4d43-9f5b-1a2c3d4e5f6a/route/20250309174226.png"
+              ]
+            }
+          ],
+          "tag": "walk",
+          "status": "none",
+          "dayId": "af0da271-6be1-42c7-a33d-2def8ac0ca2a"
+        }
+      ]
+    },
+    {
+      "id": "a0e7c923-c866-4df6-a197-6e20fc286706",
+      "date": "2025-05-14",
+      "title": "Древний город (Zhujiajiao Water Town)",
+      "description": "Однодневная поездка в Чжуцзяцзяо, \"шанхайскую Венецию\". Мы будем гулять по старинным улочкам, пересекать каменные мосты, обедать с видом на каналы и наслаждаться аутентичной чайной церемонией.",
+      "note": null,
+      "tripId": "3e8e2c7c-7a7b-4d43-9f5b-1a2c3d4e5f6a",
+      "meta": [],
+      "createdAt": "2026-04-28T10:59:23.296Z",
+      "updatedAt": "2026-04-28T10:59:23.296Z",
+      "activities": [
+        {
+          "id": "adc95182-7d7a-482d-990d-b7a4d28a19e0",
+          "startTime": "09:30",
+          "endTime": "11:30",
+          "title": "Дорога в Zhujiajiao",
+          "sections": [
+            {
+              "id": "9e546d96-12de-491c-aa80-ede91e24ce0a",
+              "text": "Поездка на метро (17 линия) до древнего города на воде **(朱家角)**.",
+              "type": "description"
+            },
+            {
+              "id": "ab1833fc-a98b-4d7f-8459-2c96a56933eb",
+              "type": "gallery",
+              "imageUrls": [
+                "trips/3e8e2c7c-7a7b-4d43-9f5b-1a2c3d4e5f6a/route/20250309174651.png"
+              ]
+            }
+          ],
+          "tag": "transport",
+          "status": "none",
+          "dayId": "a0e7c923-c866-4df6-a197-6e20fc286706"
+        },
+        {
+          "id": "014540e0-7d75-481d-9223-034a6a6a6d6e",
+          "startTime": "11:30",
+          "endTime": "13:00",
+          "title": "Исследование North Street и моста Fangsheng",
+          "sections": [
+            {
+              "id": "ef6e2c4b-4789-4ee2-a71a-26aee1723e7b",
+              "text": "Прогулка по главной улице **(北大街)** с магазинами и чайными домиками, подъем на самый известный мост **Fangsheng Bridge (放生桥)** для панорамных видов.",
+              "type": "description"
+            },
+            {
+              "id": "41b37ab9-bf9f-4d94-97d7-a1fd449a9af6",
+              "type": "gallery",
+              "imageUrls": [
+                "trips/3e8e2c7c-7a7b-4d43-9f5b-1a2c3d4e5f6a/route/20250309181742.png"
+              ]
+            }
+          ],
+          "tag": "walk",
+          "status": "none",
+          "dayId": "a0e7c923-c866-4df6-a197-6e20fc286706"
+        },
+        {
+          "id": "331cf061-bcdc-4068-91d7-d254b69b645f",
+          "startTime": "13:00",
+          "endTime": "15:00",
+          "title": "Прогулка по турзоне и обед",
+          "sections": [
+            {
+              "id": "8498def9-99bf-423b-959c-a5a5bb7d6d6a",
+              "text": "Обед в одном из ресторанов с видом на воду в **Shanghai Zhujiajiao Ancient Town Tourist Zone (上海朱家角古镇旅游区)**.",
+              "type": "description"
+            },
+            {
+              "id": "6f76503e-7cfc-4cb1-ab6c-f64b94d46938",
+              "type": "gallery",
+              "imageUrls": [
+                "trips/3e8e2c7c-7a7b-4d43-9f5b-1a2c3d4e5f6a/route/20250309175314.png",
+                "trips/3e8e2c7c-7a7b-4d43-9f5b-1a2c3d4e5f6a/route/20250309181154.png",
+                "trips/3e8e2c7c-7a7b-4d43-9f5b-1a2c3d4e5f6a/route/20250309182313.png",
+                "trips/3e8e2c7c-7a7b-4d43-9f5b-1a2c3d4e5f6a/route/20250309175856.png",
+                "trips/3e8e2c7c-7a7b-4d43-9f5b-1a2c3d4e5f6a/route/20250309180345.png"
+              ]
+            }
+          ],
+          "tag": "food",
+          "status": "none",
+          "dayId": "a0e7c923-c866-4df6-a197-6e20fc286706"
+        },
+        {
+          "id": "7ad963e9-0791-4279-b9a9-8df5aba46b40",
+          "startTime": "15:00",
+          "endTime": "16:30",
+          "title": "Прогулка по секретным переулкам или посещение храма",
+          "sections": [
+            {
+              "id": "1bc9ea67-16ff-4e0b-9544-ce0d61bfd6a3",
+              "text": "**Вариант 1 (Переулки):** Откройте для себя **Yujia Lane (郁家弄)** с резными ручками XVIII века и мастерской гончара Mr. Chen.\n\n**Вариант 2 (Храм):** Посетите маленький действующий **Храм городского божества (城隍庙)** недалеко от моста Fangsheng.",
+              "type": "description"
+            }
+          ],
+          "tag": "walk",
+          "status": "none",
+          "dayId": "a0e7c923-c866-4df6-a197-6e20fc286706"
+        },
+        {
+          "id": "841b6182-ea4c-4a73-8a50-74cebfea2dda",
+          "startTime": "16:30",
+          "endTime": "18:00",
+          "title": "Чайная церемония в Zhuxi Teahouse",
+          "sections": [
+            {
+              "id": "fd4d776a-49c4-4d66-8979-5730393fbffe",
+              "text": "Посещение аутентичного чайного дома **Zhuxi Teahouse (竹溪茶楼)** (Адрес: 92 Xihe Street). \nЗакажите набор «Четыре сезона» (80 RMB) и попробуйте закуску «лунный кролик».",
+              "type": "description"
+            }
+          ],
+          "tag": "relax",
+          "status": "none",
+          "dayId": "a0e7c923-c866-4df6-a197-6e20fc286706"
+        },
+        {
+          "id": "7888c911-c085-4db6-963f-62248eb4f2f9",
+          "startTime": "18:00",
+          "endTime": "19:30",
+          "title": "Ужин и дегустация рисового вина",
+          "sections": [
+            {
+              "id": "907b37ea-c890-4f5f-923b-b627386dc78a",
+              "text": "Ужин в ресторане **Shui Mian Lou (睡面楼)** со столиками над водой. \n\nПосле этого — дегустация местного рисового вина в лавке **Qian Niang Jiu Fang (前酿酒坊)**.",
+              "type": "description"
+            }
+          ],
+          "tag": "food",
+          "status": "none",
+          "dayId": "a0e7c923-c866-4df6-a197-6e20fc286706"
+        }
+      ]
+    },
+    {
+      "id": "af067daf-f686-4645-8bcf-0a109d5daf3a",
+      "date": "2025-05-15",
+      "title": "Искусство и Архитектура",
+      "description": "Свободный день для отдыха, самостоятельного исследования или повторного посещения наиболее понравившихся мест. Отличная возможность отойти от плотного графика и насладиться городом в собственном темпе.",
+      "note": null,
+      "tripId": "3e8e2c7c-7a7b-4d43-9f5b-1a2c3d4e5f6a",
+      "meta": [],
+      "createdAt": "2026-04-28T10:59:23.296Z",
+      "updatedAt": "2026-04-28T10:59:23.296Z",
+      "activities": [
+        {
+          "id": "90259ca1-7985-4fad-88ec-2f864d6868c9",
+          "startTime": "10:00",
+          "endTime": "22:00",
+          "title": "Свободный день",
+          "sections": [
+            {
+              "id": "7694c21f-7956-4b57-ac78-01499997b137",
+              "text": "Этот день оставлен свободным для того, чтобы вы могли повторить то, что понравилось больше всего, или исследовать что-то новое по своему усмотрению.",
+              "type": "description"
+            }
+          ],
+          "tag": "relax",
+          "status": "none",
+          "dayId": "af067daf-f686-4645-8bcf-0a109d5daf3a"
+        }
+      ]
+    },
+    {
+      "id": "f5a79d2f-c33d-433f-b19d-66272cd91f8e",
+      "date": "2025-05-16",
+      "title": "Гимн Спокойствию (Suzhou)",
+      "description": "Однодневная поездка на скоростном поезде в Сучжоу, \"Восточную Венецию\". День будет посвящен исследованию шедевров китайского садово-паркового искусства, внесенных в список ЮНЕСКО, и прогулкам по живописным улицам вдоль каналов.",
+      "note": null,
+      "tripId": "3e8e2c7c-7a7b-4d43-9f5b-1a2c3d4e5f6a",
+      "meta": [],
+      "createdAt": "2026-04-28T10:59:23.296Z",
+      "updatedAt": "2026-04-28T10:59:23.296Z",
+      "activities": [
+        {
+          "id": "e47c2088-78a6-4aac-82e6-29ab683a53ae",
+          "startTime": "09:20",
+          "endTime": "10:20",
+          "title": "Дорога до вокзала и поездка в Сучжоу",
+          "sections": [
+            {
+              "id": "ea8bea29-df14-4e18-9fdb-79fb1ae5fad6",
+              "text": "Поездка на метро до вокзала **Hongqiao (虹桥火车站)** и 30-минутное путешествие на скоростном поезде.",
+              "type": "description"
+            },
+            {
+              "id": "b47e42ba-6aaf-4f33-b296-f71ea2a66a5d",
+              "type": "gallery",
+              "imageUrls": [
+                "trips/3e8e2c7c-7a7b-4d43-9f5b-1a2c3d4e5f6a/route/20250221144249.png"
+              ]
+            }
+          ],
+          "tag": "transport",
+          "status": "none",
+          "dayId": "f5a79d2f-c33d-433f-b19d-66272cd91f8e"
+        },
+        {
+          "id": "fe177561-e97f-440d-9f2f-d101d10277a2",
+          "startTime": "11:20",
+          "endTime": "13:00",
+          "title": "Сад Скромного Чиновника",
+          "sections": [
+            {
+              "id": "7c7d07c6-ad2b-4fac-94b9-f7b9a6e8122b",
+              "text": "Самый большой и знаменитый сад Сучжоу **(The Humble Administrator's Garden 拙政园)**. Вход: 70 CNY.",
+              "type": "description"
+            },
+            {
+              "id": "151c0b57-2597-4bd0-be05-61d66bb8c76c",
+              "type": "gallery",
+              "imageUrls": [
+                "trips/3e8e2c7c-7a7b-4d43-9f5b-1a2c3d4e5f6a/route/20250221154010.png",
+                "trips/3e8e2c7c-7a7b-4d43-9f5b-1a2c3d4e5f6a/route/20250221154201.png"
+              ]
+            }
+          ],
+          "tag": "attraction",
+          "status": "none",
+          "dayId": "f5a79d2f-c33d-433f-b19d-66272cd91f8e"
+        },
+        {
+          "id": "9c41a47e-33dd-4366-969b-43dd74e3f5bc",
+          "startTime": "11:20",
+          "endTime": "13:00",
+          "title": "Альтернатива: Сад Львиного Леса",
+          "sections": [
+            {
+              "id": "a3c3edaa-0457-45f4-be06-7099d66293e8",
+              "text": "Лабиринт из камней, напоминающих львов, в **Lion Grove Garden (狮子林)**. Вход: 40 CNY.",
+              "type": "description"
+            },
+            {
+              "id": "621664f3-3634-44cd-8f13-f97408a1d347",
+              "type": "gallery",
+              "imageUrls": [
+                "trips/3e8e2c7c-7a7b-4d43-9f5b-1a2c3d4e5f6a/route/20250221154416.png",
+                "trips/3e8e2c7c-7a7b-4d43-9f5b-1a2c3d4e5f6a/route/20250221154551.png",
+                "trips/3e8e2c7c-7a7b-4d43-9f5b-1a2c3d4e5f6a/route/20250221154742.png"
+              ]
+            }
+          ],
+          "tag": "attraction",
+          "status": "none",
+          "dayId": "f5a79d2f-c33d-433f-b19d-66272cd91f8e"
+        },
+        {
+          "id": "da6cb379-4cab-496a-93ad-e1a592a6a7db",
+          "startTime": "13:00",
+          "endTime": "14:50",
+          "title": "Прогулка и обед на Pingjiang Road",
+          "sections": [
+            {
+              "id": "61ba06f2-d6f8-45ef-8e07-260f9f4d4a8f",
+              "text": "Прогулка по мощеной исторической улице **Pingjiang Road** с чайными, мастерскими и сувенирными лавками. Обед в местной пельменной.",
+              "type": "description"
+            },
+            {
+              "id": "13fed027-42a9-4e9d-8483-50f99f41a205",
+              "type": "gallery",
+              "imageUrls": [
+                "trips/3e8e2c7c-7a7b-4d43-9f5b-1a2c3d4e5f6a/route/20250221155358.png",
+                "trips/3e8e2c7c-7a7b-4d43-9f5b-1a2c3d4e5f6a/route/20250221155028.png",
+                "trips/3e8e2c7c-7a7b-4d43-9f5b-1a2c3d4e5f6a/route/20250221155103.png",
+                "trips/3e8e2c7c-7a7b-4d43-9f5b-1a2c3d4e5f6a/route/20250221170009.png",
+                "trips/3e8e2c7c-7a7b-4d43-9f5b-1a2c3d4e5f6a/route/20250221170416.png"
+              ]
+            }
+          ],
+          "tag": "food",
+          "status": "none",
+          "dayId": "f5a79d2f-c33d-433f-b19d-66272cd91f8e"
+        },
+        {
+          "id": "5d27f474-f733-4774-8528-c723b6869e28",
+          "startTime": "15:30",
+          "endTime": "17:30",
+          "title": "Tiger Hill Pagoda (Пагода на Тигрином холме)",
+          "sections": [
+            {
+              "id": "ec15e848-af42-4731-bd5e-51b730af8c82",
+              "text": "Посещение \"китайской Пизанской башни\" - древней наклонной пагоды **(云岩寺塔)** с богатой историей. \n\n[Видео обзор](https://youtu.be/V69OAJ2gE5E?si=iO74r6JVdQeTRT35)",
+              "type": "description"
+            },
+            {
+              "id": "feb0699f-48d2-4dd7-8a1d-d3543b031766",
+              "type": "gallery",
+              "imageUrls": [
+                "trips/3e8e2c7c-7a7b-4d43-9f5b-1a2c3d4e5f6a/route/20250221164850.png",
+                "trips/3e8e2c7c-7a7b-4d43-9f5b-1a2c3d4e5f6a/route/20250221164918.png",
+                "trips/3e8e2c7c-7a7b-4d43-9f5b-1a2c3d4e5f6a/route/20250221164947.png",
+                "trips/3e8e2c7c-7a7b-4d43-9f5b-1a2c3d4e5f6a/route/20250221171153.png",
+                "trips/3e8e2c7c-7a7b-4d43-9f5b-1a2c3d4e5f6a/route/20250221161326.png",
+                "trips/3e8e2c7c-7a7b-4d43-9f5b-1a2c3d4e5f6a/route/20250221161351.png"
+              ]
+            }
+          ],
+          "tag": "attraction",
+          "status": "none",
+          "dayId": "f5a79d2f-c33d-433f-b19d-66272cd91f8e"
+        },
+        {
+          "id": "a25023f3-65cd-43e6-bc68-14edf587956e",
+          "startTime": "17:30",
+          "endTime": "19:42",
+          "title": "Ужин и возвращение на вокзал",
+          "sections": [
+            {
+              "id": "e8885819-81ae-48b5-b2ca-7656aaa5e9bd",
+              "text": "Ужин перед отправлением обратно в Шанхай.",
+              "type": "description"
+            },
+            {
+              "id": "7752631d-71a7-498a-a540-482149d71b85",
+              "type": "gallery",
+              "imageUrls": [
+                "trips/3e8e2c7c-7a7b-4d43-9f5b-1a2c3d4e5f6a/route/20250221171445.png"
+              ]
+            }
+          ],
+          "tag": "food",
+          "status": "none",
+          "dayId": "f5a79d2f-c33d-433f-b19d-66272cd91f8e"
+        },
+        {
+          "id": "bcb98cfd-67b2-4d80-ad42-248d37c33b55",
+          "startTime": "19:42",
+          "endTime": "20:15",
+          "title": "Скоростной поезд в Шанхай",
+          "sections": [
+            {
+              "id": "59a5c30f-e028-4ecb-b42a-3ccfe253f065",
+              "text": "Возвращение в Шанхай.",
+              "type": "description"
+            }
+          ],
+          "tag": "transport",
+          "status": "none",
+          "dayId": "f5a79d2f-c33d-433f-b19d-66272cd91f8e"
+        }
+      ]
+    },
+    {
+      "id": "e2b18cfe-8512-463b-a9d2-0810cf706a29",
+      "date": "2025-05-17",
+      "title": "Коммерческий мир",
+      "description": "День исследования района Сюйцзяхуэй, одного из крупнейших коммерческих центров Шанхая. Мы увидим впечатляющий неоготический собор, а затем переместимся на набережную West Bund — культурный коридор с множеством музеев современного искусства.",
+      "note": null,
+      "tripId": "3e8e2c7c-7a7b-4d43-9f5b-1a2c3d4e5f6a",
+      "meta": [],
+      "createdAt": "2026-04-28T10:59:23.296Z",
+      "updatedAt": "2026-04-28T10:59:23.296Z",
+      "activities": [
+        {
+          "id": "e85a2524-a241-47c0-993a-b50be2caaf71",
+          "startTime": "11:00",
+          "endTime": "12:00",
+          "title": "Собор Сюйцзяхуэй (Xujiahui Cathedral)",
+          "sections": [
+            {
+              "id": "6408c710-5eec-4129-a048-6dae4c9dbbfe",
+              "text": "Посещение впечатляющего католического собора **(徐家汇天主堂)** в неоготическом стиле.",
+              "type": "description"
+            },
+            {
+              "id": "efa025e7-1999-45e9-b0c5-8d1953fd303a",
+              "type": "gallery",
+              "imageUrls": [
+                "trips/3e8e2c7c-7a7b-4d43-9f5b-1a2c3d4e5f6a/route/20250223220410.png",
+                "trips/3e8e2c7c-7a7b-4d43-9f5b-1a2c3d4e5f6a/route/20250216165042.png"
+              ]
+            }
+          ],
+          "tag": "attraction",
+          "status": "none",
+          "dayId": "e2b18cfe-8512-463b-a9d2-0810cf706a29"
+        },
+        {
+          "id": "4bf1c64e-74d4-4379-9a9f-de3952a0d042",
+          "startTime": "12:00",
+          "endTime": "12:30",
+          "title": "Библиотека Xujiahui Origin",
+          "sections": [
+            {
+              "id": "4f1fe19c-e8f9-4402-ab9b-02f3dd8c58f9",
+              "text": "Посещение расположенной рядом живописной библиотеки **Xujiahui Origin Scenic Spot (徐家汇源景区)**.",
+              "type": "description"
+            },
+            {
+              "id": "4f38b3b0-e89d-40cf-95da-f4907e098db6",
+              "type": "gallery",
+              "imageUrls": [
+                "trips/3e8e2c7c-7a7b-4d43-9f5b-1a2c3d4e5f6a/route/20250223220711.png",
+                "trips/3e8e2c7c-7a7b-4d43-9f5b-1a2c3d4e5f6a/route/20250223231212.png"
+              ]
+            }
+          ],
+          "tag": "attraction",
+          "status": "none",
+          "dayId": "e2b18cfe-8512-463b-a9d2-0810cf706a29"
+        },
+        {
+          "id": "d7f65896-9f82-4dd0-bbf0-57e8baf0a682",
+          "startTime": "12:30",
+          "endTime": "14:00",
+          "title": "Обед и шопинг в Metro-City",
+          "sections": [
+            {
+              "id": "a1b44f30-d94e-4bb9-8b11-c583ed0e3bff",
+              "text": "Обед и прогулка по одному из самых узнаваемых торговых центров района **(美罗城)** с огромным шаром на крыше.",
+              "type": "description"
+            },
+            {
+              "id": "604bbe95-fd58-4e26-8ff4-360cad86c779",
+              "type": "gallery",
+              "imageUrls": [
+                "trips/3e8e2c7c-7a7b-4d43-9f5b-1a2c3d4e5f6a/route/20250223231820.png",
+                "trips/3e8e2c7c-7a7b-4d43-9f5b-1a2c3d4e5f6a/route/20250223161225.png",
+                "trips/3e8e2c7c-7a7b-4d43-9f5b-1a2c3d4e5f6a/route/20250223232114.png"
+              ]
+            }
+          ],
+          "tag": "food",
+          "status": "none",
+          "dayId": "e2b18cfe-8512-463b-a9d2-0810cf706a29"
+        },
+        {
+          "id": "020987f3-b7d8-4789-9095-b0b9cdb0a781",
+          "startTime": "14:00",
+          "endTime": "16:30",
+          "title": "Прогулка по набережной Xuhui Riverside",
+          "sections": [
+            {
+              "id": "7a5486c5-3684-4476-bebb-edb5ebfbc129",
+              "text": "Исследование **West Bund (西岸)** — зоны с музеями современного искусства и арт-объектами:\n\n*   **Long Museum West Bund (龙美术馆西岸馆)**\n*   **Yuz Museum (余德耀美术馆)**\n*   **Tank Shanghai (油罐艺术中心)**",
+              "type": "description"
+            },
+            {
+              "id": "213ee36c-502b-47d3-b2c9-e4d734fc8222",
+              "type": "gallery",
+              "imageUrls": [
+                "trips/3e8e2c7c-7a7b-4d43-9f5b-1a2c3d4e5f6a/route/20250223233156.png",
+                "trips/3e8e2c7c-7a7b-4d43-9f5b-1a2c3d4e5f6a/route/20250216022953.png"
+              ]
+            }
+          ],
+          "tag": "walk",
+          "status": "none",
+          "dayId": "e2b18cfe-8512-463b-a9d2-0810cf706a29"
+        },
+        {
+          "id": "38811af0-4285-4a6c-a055-d169c4c5380a",
+          "startTime": "16:50",
+          "endTime": "18:40",
+          "title": "World Expo Cultural Park",
+          "sections": [
+            {
+              "id": "5c985efe-21b9-47f1-8bf0-5b60f7fdceb0",
+              "text": "Прогулка по огромному парку **(世博文化公园)**, созданному на месте проведения Expo 2010.",
+              "type": "description"
+            },
+            {
+              "id": "dd047c5b-69dd-4d15-ab17-643e5048b549",
+              "type": "gallery",
+              "imageUrls": [
+                "trips/3e8e2c7c-7a7b-4d43-9f5b-1a2c3d4e5f6a/route/20250223233629.png",
+                "trips/3e8e2c7c-7a7b-4d43-9f5b-1a2c3d4e5f6a/route/20250223202038.png",
+                "trips/3e8e2c7c-7a7b-4d43-9f5b-1a2c3d4e5f6a/route/20250223234549.png",
+                "trips/3e8e2c7c-7a7b-4d43-9f5b-1a2c3d4e5f6a/route/20250223233825.png",
+                "trips/3e8e2c7c-7a7b-4d43-9f5b-1a2c3d4e5f6a/route/20250223202226.png"
+              ]
+            }
+          ],
+          "tag": "walk",
+          "status": "none",
+          "dayId": "e2b18cfe-8512-463b-a9d2-0810cf706a29"
+        },
+        {
+          "id": "ff11f122-8581-4d3e-99e9-a6a94c7d380d",
+          "startTime": "18:40",
+          "endTime": "20:30",
+          "title": "Ужин в The River Mall и вид на China Art Museum",
+          "sections": [
+            {
+              "id": "c9d2e16f-953c-47bf-8776-d1a14378d82f",
+              "text": "Ужин в ТЦ **The River Mall (世博源)** и наслаждение ночным видом на подсвеченный **Дворец искусств Китая (中华艺术宫)** (бывший павильон Китая).",
+              "type": "description"
+            },
+            {
+              "id": "7a802ad1-aa70-4f1b-a0e8-e42b92d7a050",
+              "type": "gallery",
+              "imageUrls": [
+                "trips/3e8e2c7c-7a7b-4d43-9f5b-1a2c3d4e5f6a/route/20250223235116.png",
+                "trips/3e8e2c7c-7a7b-4d43-9f5b-1a2c3d4e5f6a/route/20250223202356.png",
+                "trips/3e8e2c7c-7a7b-4d43-9f5b-1a2c3d4e5f6a/route/20250505090216.png",
+                "trips/3e8e2c7c-7a7b-4d43-9f5b-1a2c3d4e5f6a/route/20250505090316.png"
+              ]
+            }
+          ],
+          "tag": "food",
+          "status": "none",
+          "dayId": "e2b18cfe-8512-463b-a9d2-0810cf706a29"
+        }
+      ]
+    },
+    {
+      "id": "1bb1669a-372a-447f-a12b-2784a9f460da",
+      "date": "2025-05-18",
+      "title": "Культурный шок",
+      "description": "День отдыха и культурных развлечений. После свободного времени днем, вечер будет посвящен уникальному театрализованному представлению с ужином, а после — исследованию ночной жизни Шанхая в одном из популярных баров или клубов.",
+      "note": null,
+      "tripId": "3e8e2c7c-7a7b-4d43-9f5b-1a2c3d4e5f6a",
+      "meta": [],
+      "createdAt": "2026-04-28T10:59:23.296Z",
+      "updatedAt": "2026-04-28T10:59:23.296Z",
+      "activities": [
+        {
+          "id": "90c46c1e-0ee5-4c8c-ac40-b81b1f6685cf",
+          "startTime": "10:00",
+          "endTime": "16:00",
+          "title": "Свободное время",
+          "sections": [
+            {
+              "id": "e10a7b0b-784b-4bd3-9bbf-0f994f1197ec",
+              "text": "Время для отдыха или самостоятельных прогулок.",
+              "type": "description"
+            }
+          ],
+          "tag": "relax",
+          "status": "none",
+          "dayId": "1bb1669a-372a-447f-a12b-2784a9f460da"
+        },
+        {
+          "id": "e3e5a9a4-e775-4707-8100-6d71562a5a6b",
+          "startTime": "16:00",
+          "endTime": "20:00",
+          "title": "Представление в XUYAN Shanghai Signature Store",
+          "sections": [
+            {
+              "id": "5746872c-3452-4f2f-b9fc-5a09e8ffbb99",
+              "text": "Погружение в китайскую культуру через театральное представление **(XUYAN)**, совмещенное с ужином и напитками. \n\n*Цена:* ~400 CNY. [Забронировать на Trip.com](https://us.trip.com/travel-guide/attraction/shanghai/xuyan-145736045/?locale=en-XX&curr=CNY)",
+              "type": "description"
+            },
+            {
+              "id": "c17c2063-7b81-4244-90b1-fc4727f76ed6",
+              "type": "gallery",
+              "imageUrls": [
+                "trips/3e8e2c7c-7a7b-4d43-9f5b-1a2c3d4e5f6a/route/20250311220840.png"
+              ]
+            }
+          ],
+          "tag": "attraction",
+          "status": "none",
+          "dayId": "1bb1669a-372a-447f-a12b-2784a9f460da"
+        },
+        {
+          "id": "1fa71704-2d7d-44e7-8e08-796d7f15d82b",
+          "startTime": "20:00",
+          "endTime": "23:00",
+          "title": "Посещение бара / клуба",
+          "sections": [
+            {
+              "id": "33dc9725-680c-4aff-a769-a1282bcd4cbf",
+              "text": "Знакомство с ночной жизнью Шанхая. \n\n| Название | Примечания |\n| :--- | :--- |\n| **Dada** | Классика, недорогие напитки. |\n| **Celia by Pulse** | Техно и хаус до утра. |\n| **Bar Rogue** | Популярный клуб на набережной. |\n| **M1NT** | Премиум-клуб с панорамным видом и аквариумом с акулами. |\n\nБольше вариантов: [smartshanghai](https://www.smartshanghai.com/)",
+              "type": "description"
+            }
+          ],
+          "tag": "relax",
+          "status": "none",
+          "dayId": "1bb1669a-372a-447f-a12b-2784a9f460da"
+        }
+      ]
+    },
+    {
+      "id": "0bed62ea-2ede-425a-83a6-fb26a096fb1c",
+      "date": "2025-05-19",
+      "title": "Приход в чувства",
+      "description": "Свободный день для восстановления сил после насыщенной недели. Можно выспаться, неспешно прогуляться по городу, вернуться в любимые места или открыть для себя что-то совершенно новое, не придерживаясь плана.",
+      "note": null,
+      "tripId": "3e8e2c7c-7a7b-4d43-9f5b-1a2c3d4e5f6a",
+      "meta": [],
+      "createdAt": "2026-04-28T10:59:23.296Z",
+      "updatedAt": "2026-04-28T10:59:23.296Z",
+      "activities": [
+        {
+          "id": "293e9f07-28a4-4f0b-a9a7-8dcf05e1cf39",
+          "startTime": "10:00",
+          "endTime": "22:00",
+          "title": "Свободный день",
+          "sections": [
+            {
+              "id": "e92fac64-55c3-48ec-9cb0-d7dd7887df35",
+              "text": "Этот день оставлен свободным для того, чтобы вы могли отдохнуть, восстановиться и подготовиться к следующему этапу путешествия.",
+              "type": "description"
+            }
+          ],
+          "tag": "relax",
+          "status": "none",
+          "dayId": "0bed62ea-2ede-425a-83a6-fb26a096fb1c"
+        }
+      ]
+    },
+    {
+      "id": "29d76445-8a46-4d40-a4f5-7760e0bb490a",
+      "date": "2025-05-20",
+      "title": "Небесный Рай (Hangzhou)",
+      "description": "Однодневная поездка в Ханчжоу, который Марко Поло называл \"самым прекрасным городом в мире\". Мы совершим прогулку по живописному озеру Сиху, посетим знаменитый буддийский храм Линъинь и продегустируем один из лучших чаев Китая, Лунцзин, прямо на плантациях.",
+      "note": null,
+      "tripId": "3e8e2c7c-7a7b-4d43-9f5b-1a2c3d4e5f6a",
+      "meta": [],
+      "createdAt": "2026-04-28T10:59:23.296Z",
+      "updatedAt": "2026-04-28T10:59:23.296Z",
+      "activities": [
+        {
+          "id": "0111d6d8-594f-4114-a62f-7483ee2aa582",
+          "startTime": "09:00",
+          "endTime": "11:00",
+          "title": "Дорога до вокзала и поездка в Ханчжоу",
+          "sections": [
+            {
+              "id": "05da3a44-8950-4d02-a222-b07a79013101",
+              "text": "Поездка на метро до вокзала **Hongqiao (虹桥火车站)** и путешествие на скоростном поезде (G-серия).",
+              "type": "description"
+            },
+            {
+              "id": "7ef9b02c-9763-4f43-a76d-39520728e26e",
+              "type": "gallery",
+              "imageUrls": [
+                "trips/3e8e2c7c-7a7b-4d43-9f5b-1a2c3d4e5f6a/route/20250314010452.png",
+                "trips/3e8e2c7c-7a7b-4d43-9f5b-1a2c3d4e5f6a/route/20250314010555.png",
+                "trips/3e8e2c7c-7a7b-4d43-9f5b-1a2c3d4e5f6a/route/20250314010608.png"
+              ]
+            }
+          ],
+          "tag": "transport",
+          "status": "none",
+          "dayId": "29d76445-8a46-4d40-a4f5-7760e0bb490a"
+        },
+        {
+          "id": "f4cf965b-bc9e-4eb6-828c-871d5d967ca8",
+          "startTime": "11:30",
+          "endTime": "14:00",
+          "title": "Прогулка по озеру Сиху (West Lake)",
+          "sections": [
+            {
+              "id": "b84a6ac5-71ec-4988-8aae-e8505c31f178",
+              "text": "Осмотр озера **(西湖)**, включенного в список Всемирного наследия ЮНЕСКО, и прогулка по дамбе **Су (苏堤)**.",
+              "type": "description"
+            },
+            {
+              "id": "dfa16093-af15-49d3-9fd2-e73f3683f358",
+              "type": "gallery",
+              "imageUrls": [
+                "trips/3e8e2c7c-7a7b-4d43-9f5b-1a2c3d4e5f6a/route/20250314011414.png",
+                "trips/3e8e2c7c-7a7b-4d43-9f5b-1a2c3d4e5f6a/route/20250314011512.png"
+              ]
+            }
+          ],
+          "tag": "walk",
+          "status": "none",
+          "dayId": "29d76445-8a46-4d40-a4f5-7760e0bb490a"
+        },
+        {
+          "id": "87546e16-90b7-4c5b-8a2a-69d864937107",
+          "startTime": "14:30",
+          "endTime": "15:30",
+          "title": "Посещение храма Линъинь (Lingyin Temple)",
+          "sections": [
+            {
+              "id": "ac828622-3f6e-43cc-9008-fd7cdc04bbbe",
+              "text": "Визит в один из самых знаменитых буддийских храмов Китая **(灵隐寺)**, известный своими статуями, вырезанными в скалах. Вход: 45 CNY.",
+              "type": "description"
+            },
+            {
+              "id": "ae311aff-ec14-43ef-96ca-981a23b91b54",
+              "type": "gallery",
+              "imageUrls": [
+                "trips/3e8e2c7c-7a7b-4d43-9f5b-1a2c3d4e5f6a/route/20250314011957.png",
+                "trips/3e8e2c7c-7a7b-4d43-9f5b-1a2c3d4e5f6a/route/20250314011847.png"
+              ]
+            }
+          ],
+          "tag": "attraction",
+          "status": "none",
+          "dayId": "29d76445-8a46-4d40-a4f5-7760e0bb490a"
+        },
+        {
+          "id": "c786a316-832e-4189-89ba-3b6da5cc5959",
+          "startTime": "16:30",
+          "endTime": "19:50",
+          "title": "Посещение чайной деревни и ужин",
+          "sections": [
+            {
+              "id": "375f1621-7f77-4e3e-b6e0-eb8351d9d12a",
+              "text": "**Вариант 1: Деревня Мэйцзяу (Meijiawu Tea Village 梅家坞)**\nБолее аутентичная атмосфера, панорамные виды на плантации. Ужин в фермерском ресторане (*农家乐*).\n\n**Вариант 2: Деревня Лунцзин (Longjing Tea Village 龙井村)**\nПрогулка по знаменитым плантациям, дегустация чая \"Колодец Дракона\" и ужин в ресторане, где готовят блюда с чаем.",
+              "type": "description"
+            },
+            {
+              "id": "fc67a6d4-cdc5-4810-81d6-2269411d376e",
+              "type": "gallery",
+              "imageUrls": [
+                "trips/3e8e2c7c-7a7b-4d43-9f5b-1a2c3d4e5f6a/route/Meijiawu Tea Plantation Path.png",
+                "trips/3e8e2c7c-7a7b-4d43-9f5b-1a2c3d4e5f6a/route/Meijiawu Tea Plantation 1.jpg",
+                "trips/3e8e2c7c-7a7b-4d43-9f5b-1a2c3d4e5f6a/route/Meijiawu Tea Plantation 2.jpg",
+                "trips/3e8e2c7c-7a7b-4d43-9f5b-1a2c3d4e5f6a/route/20250314012046.png",
+                "trips/3e8e2c7c-7a7b-4d43-9f5b-1a2c3d4e5f6a/route/20250314012322.png"
+              ]
+            }
+          ],
+          "tag": "food",
+          "status": "none",
+          "dayId": "29d76445-8a46-4d40-a4f5-7760e0bb490a"
+        },
+        {
+          "id": "ef10183b-df48-4cd3-859a-5abf9450bbc8",
+          "startTime": "21:21",
+          "endTime": "22:22",
+          "title": "Возвращение в Шанхай",
+          "sections": [
+            {
+              "id": "d8295850-cebf-417b-9ce4-a0e1058901f1",
+              "text": "Поездка на скоростном поезде обратно в Шанхай.",
+              "type": "description"
+            }
+          ],
+          "tag": "transport",
+          "status": "none",
+          "dayId": "29d76445-8a46-4d40-a4f5-7760e0bb490a"
+        }
+      ]
+    },
+    {
+      "id": "27b87fc2-790f-45c3-90e7-5a77651482ef",
+      "date": "2025-05-21",
+      "title": "Побег",
+      "description": "День отъезда из Шанхая. После завтрака и сборов у нас будет немного свободного времени для последней прогулки перед отправлением в аэропорт Пудун для вылета в следующую точку нашего путешествия.",
+      "note": null,
+      "tripId": "3e8e2c7c-7a7b-4d43-9f5b-1a2c3d4e5f6a",
+      "meta": [],
+      "createdAt": "2026-04-28T10:59:23.296Z",
+      "updatedAt": "2026-04-28T10:59:23.296Z",
+      "activities": [
+        {
+          "id": "6b2bc7e8-59c0-400c-a59b-005fccea95e0",
+          "startTime": "09:30",
+          "endTime": "11:00",
+          "title": "Завтрак и выселение из отеля",
+          "sections": [
+            {
+              "id": "b221929f-7b75-4779-aad8-a6b1438f132c",
+              "text": "Собираем вещи, выселяемся из отеля. Можно попросить оставить багаж на ресепшене, если планируете еще погулять.",
+              "type": "description"
+            }
+          ],
+          "tag": "relax",
+          "status": "none",
+          "dayId": "27b87fc2-790f-45c3-90e7-5a77651482ef"
+        },
+        {
+          "id": "525c1c7e-1346-4ca2-aee6-7c83dc22a196",
+          "startTime": "11:00",
+          "endTime": "13:00",
+          "title": "Прощальная прогулка",
+          "sections": [
+            {
+              "id": "6e8da3aa-60b8-42b3-98ef-444fe0cebf0b",
+              "text": "Свободное время для покупки сувениров или прогулки.",
+              "type": "description"
+            }
+          ],
+          "tag": "walk",
+          "status": "none",
+          "dayId": "27b87fc2-790f-45c3-90e7-5a77651482ef"
+        },
+        {
+          "id": "c097091a-e4e4-4848-aeee-7fe22d904f3e",
+          "startTime": "14:00",
+          "endTime": "17:05",
+          "title": "Дорога в аэропорт и вылет",
+          "sections": [
+            {
+              "id": "294343c9-dac9-4929-893f-d2d08fbfad76",
+              "text": "Прибытие в Аэропорт Пудун (PVG) за 3 часа до вылета, регистрация на рейс и вылет.",
+              "type": "description"
+            }
+          ],
+          "tag": "transport",
+          "status": "none",
+          "dayId": "27b87fc2-790f-45c3-90e7-5a77651482ef"
+        }
+      ]
+    },
+    {
+      "id": "5d970745-0ff9-42c1-8dca-63649a4a4a70",
+      "date": "2025-05-22",
+      "title": "На распутье (Урумчи)",
+      "description": "После ночного прилета в Урумчи и короткого отдыха, мы отправимся в однодневную поездку к жемчужине Тянь-Шанских гор — Небесному озеру (Тяньчи). Нас ждут потрясающие виды высокогорного озера в окружении заснеженных пиков.",
+      "note": null,
+      "tripId": "3e8e2c7c-7a7b-4d43-9f5b-1a2c3d4e5f6a",
+      "meta": [],
+      "createdAt": "2026-04-28T10:59:23.296Z",
+      "updatedAt": "2026-04-28T10:59:23.296Z",
+      "activities": [
+        {
+          "id": "5888f7f0-e488-4419-82a4-9e3876f68a11",
+          "startTime": "00:20",
+          "endTime": "01:30",
+          "title": "Прилет в Урумчи и заселение в отель",
+          "sections": [
+            {
+              "id": "dbf68ced-fcd6-4ec6-8046-14be6e31b885",
+              "text": "Ночное прибытие, трансфер на такси и заселение в **Atour Hotel (乌鲁木齐北京南路中营工地铁站亚朵酒店)**. [Отель на карте](https://j.map.baidu.com/10/dMWg)",
+              "type": "description"
+            },
+            {
+              "id": "08d82e7f-9472-4bb2-becc-1d043e6f412f",
+              "type": "gallery",
+              "imageUrls": [
+                "trips/3e8e2c7c-7a7b-4d43-9f5b-1a2c3d4e5f6a/route/20250506095740.png",
+                "trips/3e8e2c7c-7a7b-4d43-9f5b-1a2c3d4e5f6a/route/0206a12000990mnse338F_W_1280_853_R5.webp",
+                "trips/3e8e2c7c-7a7b-4d43-9f5b-1a2c3d4e5f6a/route/0206112000990n39g16CC_W_1280_853_R5.webp"
+              ]
+            }
+          ],
+          "tag": "transport",
+          "status": "none",
+          "dayId": "5d970745-0ff9-42c1-8dca-63649a4a4a70"
+        },
+        {
+          "id": "25861411-69f1-47a4-a1fd-f88982d82878",
+          "startTime": "09:30",
+          "endTime": "12:30",
+          "title": "Поездка до Национального парка Тяньшань Тяньчи",
+          "sections": [
+            {
+              "id": "074952fd-08c6-4e82-bee9-eb89221280ef",
+              "text": "Дорога до **Международного автовокзала Урумчи Гаоте (乌鲁木齐高铁国际汽车客运站)**. \n\nТам нужно купить билет на туристический автобус до **Тяньчи (天山天池)**. Поездка на автобусе займет около 1.5 часов.",
+              "type": "description"
+            },
+            {
+              "id": "2e39fec7-78cb-4e58-87b2-c05a3a16b402",
+              "type": "gallery",
+              "imageUrls": [
+                "trips/3e8e2c7c-7a7b-4d43-9f5b-1a2c3d4e5f6a/route/20250506100018.png",
+                "trips/3e8e2c7c-7a7b-4d43-9f5b-1a2c3d4e5f6a/route/202505031601413.png",
+                "trips/3e8e2c7c-7a7b-4d43-9f5b-1a2c3d4e5f6a/route/unnamed.jpg"
+              ]
+            }
+          ],
+          "tag": "transport",
+          "status": "none",
+          "dayId": "5d970745-0ff9-42c1-8dca-63649a4a4a70"
+        },
+        {
+          "id": "5ea855f0-bd5f-4ca2-a983-6395cfae8241",
+          "startTime": "12:30",
+          "endTime": "17:00",
+          "title": "Исследование Небесного озера (Тяньчи)",
+          "sections": [
+            {
+              "id": "236f7719-ec52-4ba2-a7e5-318b3c2bf78a",
+              "text": "Поездка на шаттле до озера. \n\n**Возможные активности:**\n*   Прогулка по дорожкам\n*   Поездка на лодке (за доп. плату)\n*   Посещение даосского храма на берегу\n*   Обед в кафе на территории.",
+              "type": "description"
+            },
+            {
+              "id": "e8b97318-9359-4095-8255-ff05815ebe43",
+              "type": "gallery",
+              "imageUrls": [
+                "trips/3e8e2c7c-7a7b-4d43-9f5b-1a2c3d4e5f6a/route/tianchi2.jpg",
+                "trips/3e8e2c7c-7a7b-4d43-9f5b-1a2c3d4e5f6a/route/depositphotos_139790534-stock-photo-xinjiang-china-may-09-2015.webp"
+              ]
+            }
+          ],
+          "tag": "attraction",
+          "status": "none",
+          "dayId": "5d970745-0ff9-42c1-8dca-63649a4a4a70"
+        },
+        {
+          "id": "1d419452-480d-44be-9812-0f85adef8f01",
+          "startTime": "17:00",
+          "endTime": "19:00",
+          "title": "Возвращение в Урумчи",
+          "sections": [
+            {
+              "id": "1b81893a-f650-41e3-95c8-737ade5636ec",
+              "text": "Поездка на автобусе обратно в город. \n\n**Важно:** Уточните время отправления последнего автобуса при покупке билета! Обычно последние рейсы около 17:30-18:30.",
+              "type": "description"
+            }
+          ],
+          "tag": "transport",
+          "status": "none",
+          "dayId": "5d970745-0ff9-42c1-8dca-63649a4a4a70"
+        },
+        {
+          "id": "5f282c2c-ae79-4bdc-a243-429786f196b4",
+          "startTime": "19:00",
+          "endTime": "21:30",
+          "title": "Вечерняя прогулка и ужин",
+          "sections": [
+            {
+              "id": "a305d5e9-3fa2-4514-b9fc-a652625f7951",
+              "text": "Прогулка по парку **Liyu Mountain Park (鲤鱼山公园)** напротив отеля и ужин в одном из местных ресторанов.",
+              "type": "description"
+            },
+            {
+              "id": "6448bb15-f634-4f37-8760-80195ad77bea",
+              "type": "gallery",
+              "imageUrls": [
+                "trips/3e8e2c7c-7a7b-4d43-9f5b-1a2c3d4e5f6a/route/B62a46a9b9ffe8860d.jpeg"
+              ]
+            }
+          ],
+          "tag": "food",
+          "status": "none",
+          "dayId": "5d970745-0ff9-42c1-8dca-63649a4a4a70"
+        }
+      ]
+    },
+    {
+      "id": "7f29e17f-2944-4142-aee8-a3eab14c0108",
+      "date": "2025-05-23",
+      "title": "По базарам (Урумчи)",
+      "description": "Последний день нашего путешествия. Мы познакомимся с Урумчи: поднимемся на Красную гору для панорамного вида на город, прогуляемся по паркам и окунемся в атмосферу знаменитого Международного Большого Базара.",
+      "note": null,
+      "tripId": "3e8e2c7c-7a7b-4d43-9f5b-1a2c3d4e5f6a",
+      "meta": [],
+      "createdAt": "2026-04-28T10:59:23.296Z",
+      "updatedAt": "2026-04-28T10:59:23.296Z",
+      "activities": [
+        {
+          "id": "67a21cab-f1b8-4252-af81-bc8d28109ab6",
+          "startTime": "09:00",
+          "endTime": "10:00",
+          "title": "Завтрак и выселение",
+          "sections": [
+            {
+              "id": "4acb2ffc-170f-4a44-a58a-8ca0921bd05c",
+              "text": "Позавтракать, собрать вещи и оставить их на хранение в отеле. \n\n*Фраза для ресепшена:* \"Можно оставить багаж?\" (可以寄存行李吗? - Kěyǐ jìcún xínglǐ ma?).",
+              "type": "description"
+            }
+          ],
+          "tag": "relax",
+          "status": "none",
+          "dayId": "7f29e17f-2944-4142-aee8-a3eab14c0108"
+        },
+        {
+          "id": "1c16f268-69c9-43c7-a4ba-62467254ae7c",
+          "startTime": "10:30",
+          "endTime": "11:30",
+          "title": "Парк \"Красная гора\" (Hongshan Park)",
+          "sections": [
+            {
+              "id": "0da1655f-f41b-4b38-8efd-e799e4007771",
+              "text": "Осмотр парка **(红山公园)** и подъем на пагоду для панорамного вида на город.",
+              "type": "description"
+            },
+            {
+              "id": "2d0c733c-0e5b-42ba-9a4b-97b736ccca1d",
+              "type": "gallery",
+              "imageUrls": [
+                "trips/3e8e2c7c-7a7b-4d43-9f5b-1a2c3d4e5f6a/route/20250226210917.png",
+                "trips/3e8e2c7c-7a7b-4d43-9f5b-1a2c3d4e5f6a/route/20250226211046.png",
+                "trips/3e8e2c7c-7a7b-4d43-9f5b-1a2c3d4e5f6a/route/20250226211112.png"
+              ]
+            }
+          ],
+          "tag": "attraction",
+          "status": "none",
+          "dayId": "7f29e17f-2944-4142-aee8-a3eab14c0108"
+        },
+        {
+          "id": "340f7cd0-91a8-4bf6-b929-391d6d4e82f8",
+          "startTime": "11:30",
+          "endTime": "12:30",
+          "title": "Народный парк (People's Park)",
+          "sections": [
+            {
+              "id": "160dd77d-64f3-4b93-89a6-33efecca4dfa",
+              "text": "Прогулка по зеленому оазису в центре города **(乌鲁木齐人民公园)**.",
+              "type": "description"
+            },
+            {
+              "id": "df39e878-4e80-417b-8115-d29caf0c0dc0",
+              "type": "gallery",
+              "imageUrls": [
+                "trips/3e8e2c7c-7a7b-4d43-9f5b-1a2c3d4e5f6a/route/20250226211533.png",
+                "trips/3e8e2c7c-7a7b-4d43-9f5b-1a2c3d4e5f6a/route/20250226211619.png",
+                "trips/3e8e2c7c-7a7b-4d43-9f5b-1a2c3d4e5f6a/route/20250226212040.png"
+              ]
+            }
+          ],
+          "tag": "walk",
+          "status": "none",
+          "dayId": "7f29e17f-2944-4142-aee8-a3eab14c0108"
+        },
+        {
+          "id": "7b0145be-f0c3-4bd6-b902-92039a598987",
+          "startTime": "12:30",
+          "endTime": "15:30",
+          "title": "Обед и Большой Международный Базар",
+          "sections": [
+            {
+              "id": "eafdfe45-b301-4869-8b1d-e3fd7fa3fd3f",
+              "text": "Обед по пути и исследование знаменитого **International Grand Bazaar (国际大巴扎)**. \n\nДо базара можно доехать на метро (станция **Erdaoqiao / 二道桥**). Осмотр архитектуры, мечети и сувенирных лавок.",
+              "type": "description"
+            },
+            {
+              "id": "d49e2c98-7b76-4ff0-b1cc-3fdbcd2e080f",
+              "type": "gallery",
+              "imageUrls": [
+                "trips/3e8e2c7c-7a7b-4d43-9f5b-1a2c3d4e5f6a/route/20250226212249.png",
+                "trips/3e8e2c7c-7a7b-4d43-9f5b-1a2c3d4e5f6a/route/20250226213252.png",
+                "trips/3e8e2c7c-7a7b-4d43-9f5b-1a2c3d4e5f6a/route/20250226214429.png",
+                "trips/3e8e2c7c-7a7b-4d43-9f5b-1a2c3d4e5f6a/route/20250226214848.png",
+                "trips/3e8e2c7c-7a7b-4d43-9f5b-1a2c3d4e5f6a/route/20250226214829.png",
+                "trips/3e8e2c7c-7a7b-4d43-9f5b-1a2c3d4e5f6a/route/20250226215018.png"
+              ]
+            }
+          ],
+          "tag": "food",
+          "status": "none",
+          "dayId": "7f29e17f-2944-4142-aee8-a3eab14c0108"
+        },
+        {
+          "id": "816b4d87-e6b2-4a69-9670-a42b2bbb68e0",
+          "startTime": "15:30",
+          "endTime": "20:00",
+          "title": "Возвращение за багажом и вылет",
+          "sections": [
+            {
+              "id": "546686f0-86b1-4264-a0fb-c4be18b1a190",
+              "text": "**План действий:**\n1.  На метро от Базара доехать до станции отеля (**Zhongyinggong / 中营工**).\n2.  Забрать багаж из отеля.\n3.  Заказать такси до аэропорта (URC) и вылететь домой.",
+              "type": "description"
+            }
+          ],
+          "tag": "transport",
+          "status": "none",
+          "dayId": "7f29e17f-2944-4142-aee8-a3eab14c0108"
+        }
+      ]
+    }
+  ],
+  "images": [
+    {
+      "id": "569b18e4-2274-49d8-b9d0-30f56add8ebd",
+      "tripId": "3e8e2c7c-7a7b-4d43-9f5b-1a2c3d4e5f6a",
+      "originalName": "tianchi2.jpg",
+      "url": "trips/3e8e2c7c-7a7b-4d43-9f5b-1a2c3d4e5f6a/route/tianchi2.jpg",
+      "placement": "route",
+      "createdAt": "2026-04-28T10:59:23.382Z",
+      "sizeBytes": 0,
+      "takenAt": null,
+      "latitude": null,
+      "longitude": null,
+      "width": null,
+      "height": null,
+      "variants": null,
+      "metadata": null
+    },
+    {
+      "id": "bb46566b-62d4-4734-8c00-78be6e7196a0",
+      "tripId": "3e8e2c7c-7a7b-4d43-9f5b-1a2c3d4e5f6a",
+      "originalName": "20250216013656.png",
+      "url": "trips/3e8e2c7c-7a7b-4d43-9f5b-1a2c3d4e5f6a/route/20250216013656.png",
+      "placement": "route",
+      "createdAt": "2026-04-28T10:59:23.382Z",
+      "sizeBytes": 0,
+      "takenAt": null,
+      "latitude": null,
+      "longitude": null,
+      "width": null,
+      "height": null,
+      "variants": null,
+      "metadata": null
+    },
+    {
+      "id": "352086df-6674-4807-a9c1-f51e1a8b4da2",
+      "tripId": "3e8e2c7c-7a7b-4d43-9f5b-1a2c3d4e5f6a",
+      "originalName": "20250216013458.png",
+      "url": "trips/3e8e2c7c-7a7b-4d43-9f5b-1a2c3d4e5f6a/route/20250216013458.png",
+      "placement": "route",
+      "createdAt": "2026-04-28T10:59:23.382Z",
+      "sizeBytes": 0,
+      "takenAt": null,
+      "latitude": null,
+      "longitude": null,
+      "width": null,
+      "height": null,
+      "variants": null,
+      "metadata": null
+    },
+    {
+      "id": "919d2f53-eea5-45ce-9a76-a587e8b8fe70",
+      "tripId": "3e8e2c7c-7a7b-4d43-9f5b-1a2c3d4e5f6a",
+      "originalName": "20250221130326.png",
+      "url": "trips/3e8e2c7c-7a7b-4d43-9f5b-1a2c3d4e5f6a/route/20250221130326.png",
+      "placement": "route",
+      "createdAt": "2026-04-28T10:59:23.382Z",
+      "sizeBytes": 0,
+      "takenAt": null,
+      "latitude": null,
+      "longitude": null,
+      "width": null,
+      "height": null,
+      "variants": null,
+      "metadata": null
+    },
+    {
+      "id": "bbe39437-7390-4d3f-8d34-1dd80eb2165e",
+      "tripId": "3e8e2c7c-7a7b-4d43-9f5b-1a2c3d4e5f6a",
+      "originalName": "20250216013213.png",
+      "url": "trips/3e8e2c7c-7a7b-4d43-9f5b-1a2c3d4e5f6a/route/20250216013213.png",
+      "placement": "route",
+      "createdAt": "2026-04-28T10:59:23.382Z",
+      "sizeBytes": 0,
+      "takenAt": null,
+      "latitude": null,
+      "longitude": null,
+      "width": null,
+      "height": null,
+      "variants": null,
+      "metadata": null
+    },
+    {
+      "id": "d1506a21-4f0c-4703-8737-48e1a1c5f7e3",
+      "tripId": "3e8e2c7c-7a7b-4d43-9f5b-1a2c3d4e5f6a",
+      "originalName": "20250217210256.png",
+      "url": "trips/3e8e2c7c-7a7b-4d43-9f5b-1a2c3d4e5f6a/route/20250217210256.png",
+      "placement": "route",
+      "createdAt": "2026-04-28T10:59:23.382Z",
+      "sizeBytes": 0,
+      "takenAt": null,
+      "latitude": null,
+      "longitude": null,
+      "width": null,
+      "height": null,
+      "variants": null,
+      "metadata": null
+    },
+    {
+      "id": "dbc196ac-5be0-4971-af96-70d9ad888d27",
+      "tripId": "3e8e2c7c-7a7b-4d43-9f5b-1a2c3d4e5f6a",
+      "originalName": "20250217212046.png",
+      "url": "trips/3e8e2c7c-7a7b-4d43-9f5b-1a2c3d4e5f6a/route/20250217212046.png",
+      "placement": "route",
+      "createdAt": "2026-04-28T10:59:23.382Z",
+      "sizeBytes": 0,
+      "takenAt": null,
+      "latitude": null,
+      "longitude": null,
+      "width": null,
+      "height": null,
+      "variants": null,
+      "metadata": null
+    },
+    {
+      "id": "5b77323b-9690-4a72-92e9-aec0616bbfb2",
+      "tripId": "3e8e2c7c-7a7b-4d43-9f5b-1a2c3d4e5f6a",
+      "originalName": "20250217212501.png",
+      "url": "trips/3e8e2c7c-7a7b-4d43-9f5b-1a2c3d4e5f6a/route/20250217212501.png",
+      "placement": "route",
+      "createdAt": "2026-04-28T10:59:23.382Z",
+      "sizeBytes": 0,
+      "takenAt": null,
+      "latitude": null,
+      "longitude": null,
+      "width": null,
+      "height": null,
+      "variants": null,
+      "metadata": null
+    },
+    {
+      "id": "62f5e0bd-67f8-4318-9547-6bc9cab83b81",
+      "tripId": "3e8e2c7c-7a7b-4d43-9f5b-1a2c3d4e5f6a",
+      "originalName": "20250217212416.png",
+      "url": "trips/3e8e2c7c-7a7b-4d43-9f5b-1a2c3d4e5f6a/route/20250217212416.png",
+      "placement": "route",
+      "createdAt": "2026-04-28T10:59:23.382Z",
+      "sizeBytes": 0,
+      "takenAt": null,
+      "latitude": null,
+      "longitude": null,
+      "width": null,
+      "height": null,
+      "variants": null,
+      "metadata": null
+    },
+    {
+      "id": "fae9d225-07fa-4274-bb72-63d61abd9f0d",
+      "tripId": "3e8e2c7c-7a7b-4d43-9f5b-1a2c3d4e5f6a",
+      "originalName": "20250217213525.png",
+      "url": "trips/3e8e2c7c-7a7b-4d43-9f5b-1a2c3d4e5f6a/route/20250217213525.png",
+      "placement": "route",
+      "createdAt": "2026-04-28T10:59:23.382Z",
+      "sizeBytes": 0,
+      "takenAt": null,
+      "latitude": null,
+      "longitude": null,
+      "width": null,
+      "height": null,
+      "variants": null,
+      "metadata": null
+    },
+    {
+      "id": "7af13008-64e6-45c4-926e-182bc80fcaef",
+      "tripId": "3e8e2c7c-7a7b-4d43-9f5b-1a2c3d4e5f6a",
+      "originalName": "20250217213134.png",
+      "url": "trips/3e8e2c7c-7a7b-4d43-9f5b-1a2c3d4e5f6a/route/20250217213134.png",
+      "placement": "route",
+      "createdAt": "2026-04-28T10:59:23.382Z",
+      "sizeBytes": 0,
+      "takenAt": null,
+      "latitude": null,
+      "longitude": null,
+      "width": null,
+      "height": null,
+      "variants": null,
+      "metadata": null
+    },
+    {
+      "id": "08a9b73f-00a4-45c7-8211-79775abad5ba",
+      "tripId": "3e8e2c7c-7a7b-4d43-9f5b-1a2c3d4e5f6a",
+      "originalName": "20250217222310.png",
+      "url": "trips/3e8e2c7c-7a7b-4d43-9f5b-1a2c3d4e5f6a/route/20250217222310.png",
+      "placement": "route",
+      "createdAt": "2026-04-28T10:59:23.382Z",
+      "sizeBytes": 0,
+      "takenAt": null,
+      "latitude": null,
+      "longitude": null,
+      "width": null,
+      "height": null,
+      "variants": null,
+      "metadata": null
+    },
+    {
+      "id": "7c458923-3729-43e7-a947-a3e8a4799531",
+      "tripId": "3e8e2c7c-7a7b-4d43-9f5b-1a2c3d4e5f6a",
+      "originalName": "20250217214524.png",
+      "url": "trips/3e8e2c7c-7a7b-4d43-9f5b-1a2c3d4e5f6a/route/20250217214524.png",
+      "placement": "route",
+      "createdAt": "2026-04-28T10:59:23.382Z",
+      "sizeBytes": 0,
+      "takenAt": null,
+      "latitude": null,
+      "longitude": null,
+      "width": null,
+      "height": null,
+      "variants": null,
+      "metadata": null
+    },
+    {
+      "id": "8190b6a6-840e-44d7-879a-fe1d599484af",
+      "tripId": "3e8e2c7c-7a7b-4d43-9f5b-1a2c3d4e5f6a",
+      "originalName": "20250217214032.png",
+      "url": "trips/3e8e2c7c-7a7b-4d43-9f5b-1a2c3d4e5f6a/route/20250217214032.png",
+      "placement": "route",
+      "createdAt": "2026-04-28T10:59:23.382Z",
+      "sizeBytes": 0,
+      "takenAt": null,
+      "latitude": null,
+      "longitude": null,
+      "width": null,
+      "height": null,
+      "variants": null,
+      "metadata": null
+    },
+    {
+      "id": "6f91add5-85f2-4a18-8e82-f27fd96bd33d",
+      "tripId": "3e8e2c7c-7a7b-4d43-9f5b-1a2c3d4e5f6a",
+      "originalName": "20250217214445.png",
+      "url": "trips/3e8e2c7c-7a7b-4d43-9f5b-1a2c3d4e5f6a/route/20250217214445.png",
+      "placement": "route",
+      "createdAt": "2026-04-28T10:59:23.382Z",
+      "sizeBytes": 0,
+      "takenAt": null,
+      "latitude": null,
+      "longitude": null,
+      "width": null,
+      "height": null,
+      "variants": null,
+      "metadata": null
+    },
+    {
+      "id": "1595b57e-4590-4d39-a5bd-556129a92f22",
+      "tripId": "3e8e2c7c-7a7b-4d43-9f5b-1a2c3d4e5f6a",
+      "originalName": "20250217223336.png",
+      "url": "trips/3e8e2c7c-7a7b-4d43-9f5b-1a2c3d4e5f6a/route/20250217223336.png",
+      "placement": "route",
+      "createdAt": "2026-04-28T10:59:23.382Z",
+      "sizeBytes": 0,
+      "takenAt": null,
+      "latitude": null,
+      "longitude": null,
+      "width": null,
+      "height": null,
+      "variants": null,
+      "metadata": null
+    },
+    {
+      "id": "d3e90fc3-c847-48ba-a6ee-a49e9a72601a",
+      "tripId": "3e8e2c7c-7a7b-4d43-9f5b-1a2c3d4e5f6a",
+      "originalName": "20250217223428.png",
+      "url": "trips/3e8e2c7c-7a7b-4d43-9f5b-1a2c3d4e5f6a/route/20250217223428.png",
+      "placement": "route",
+      "createdAt": "2026-04-28T10:59:23.382Z",
+      "sizeBytes": 0,
+      "takenAt": null,
+      "latitude": null,
+      "longitude": null,
+      "width": null,
+      "height": null,
+      "variants": null,
+      "metadata": null
+    },
+    {
+      "id": "540f20a3-9eeb-4951-b718-5c0203e757a2",
+      "tripId": "3e8e2c7c-7a7b-4d43-9f5b-1a2c3d4e5f6a",
+      "originalName": "20250217223444.png",
+      "url": "trips/3e8e2c7c-7a7b-4d43-9f5b-1a2c3d4e5f6a/route/20250217223444.png",
+      "placement": "route",
+      "createdAt": "2026-04-28T10:59:23.382Z",
+      "sizeBytes": 0,
+      "takenAt": null,
+      "latitude": null,
+      "longitude": null,
+      "width": null,
+      "height": null,
+      "variants": null,
+      "metadata": null
+    },
+    {
+      "id": "738b29aa-4528-4b66-a0fb-d2a3e8c30ed8",
+      "tripId": "3e8e2c7c-7a7b-4d43-9f5b-1a2c3d4e5f6a",
+      "originalName": "20250217230124.png",
+      "url": "trips/3e8e2c7c-7a7b-4d43-9f5b-1a2c3d4e5f6a/route/20250217230124.png",
+      "placement": "route",
+      "createdAt": "2026-04-28T10:59:23.382Z",
+      "sizeBytes": 0,
+      "takenAt": null,
+      "latitude": null,
+      "longitude": null,
+      "width": null,
+      "height": null,
+      "variants": null,
+      "metadata": null
+    },
+    {
+      "id": "7c9984d5-d35c-4828-86ab-7d9f2635999c",
+      "tripId": "3e8e2c7c-7a7b-4d43-9f5b-1a2c3d4e5f6a",
+      "originalName": "20250217225444.png",
+      "url": "trips/3e8e2c7c-7a7b-4d43-9f5b-1a2c3d4e5f6a/route/20250217225444.png",
+      "placement": "route",
+      "createdAt": "2026-04-28T10:59:23.382Z",
+      "sizeBytes": 0,
+      "takenAt": null,
+      "latitude": null,
+      "longitude": null,
+      "width": null,
+      "height": null,
+      "variants": null,
+      "metadata": null
+    },
+    {
+      "id": "b83a3ccf-045f-40dc-9b9d-9ce427c896d0",
+      "tripId": "3e8e2c7c-7a7b-4d43-9f5b-1a2c3d4e5f6a",
+      "originalName": "20250217230103.png",
+      "url": "trips/3e8e2c7c-7a7b-4d43-9f5b-1a2c3d4e5f6a/route/20250217230103.png",
+      "placement": "route",
+      "createdAt": "2026-04-28T10:59:23.382Z",
+      "sizeBytes": 0,
+      "takenAt": null,
+      "latitude": null,
+      "longitude": null,
+      "width": null,
+      "height": null,
+      "variants": null,
+      "metadata": null
+    },
+    {
+      "id": "1bc7a333-6b17-44d9-9c79-ece69ff6ea5d",
+      "tripId": "3e8e2c7c-7a7b-4d43-9f5b-1a2c3d4e5f6a",
+      "originalName": "20250217230859.png",
+      "url": "trips/3e8e2c7c-7a7b-4d43-9f5b-1a2c3d4e5f6a/route/20250217230859.png",
+      "placement": "route",
+      "createdAt": "2026-04-28T10:59:23.382Z",
+      "sizeBytes": 0,
+      "takenAt": null,
+      "latitude": null,
+      "longitude": null,
+      "width": null,
+      "height": null,
+      "variants": null,
+      "metadata": null
+    },
+    {
+      "id": "19890822-008f-4dfa-a8a5-9d9c2589cce4",
+      "tripId": "3e8e2c7c-7a7b-4d43-9f5b-1a2c3d4e5f6a",
+      "originalName": "20250217223609.png",
+      "url": "trips/3e8e2c7c-7a7b-4d43-9f5b-1a2c3d4e5f6a/route/20250217223609.png",
+      "placement": "route",
+      "createdAt": "2026-04-28T10:59:23.382Z",
+      "sizeBytes": 0,
+      "takenAt": null,
+      "latitude": null,
+      "longitude": null,
+      "width": null,
+      "height": null,
+      "variants": null,
+      "metadata": null
+    },
+    {
+      "id": "3fc24582-66c0-4a85-9847-25097e35542c",
+      "tripId": "3e8e2c7c-7a7b-4d43-9f5b-1a2c3d4e5f6a",
+      "originalName": "20250220190555.png",
+      "url": "trips/3e8e2c7c-7a7b-4d43-9f5b-1a2c3d4e5f6a/route/20250220190555.png",
+      "placement": "route",
+      "createdAt": "2026-04-28T10:59:23.382Z",
+      "sizeBytes": 0,
+      "takenAt": null,
+      "latitude": null,
+      "longitude": null,
+      "width": null,
+      "height": null,
+      "variants": null,
+      "metadata": null
+    },
+    {
+      "id": "e55fa31c-1dd0-4a9b-98d8-b0ab7e2115ff",
+      "tripId": "3e8e2c7c-7a7b-4d43-9f5b-1a2c3d4e5f6a",
+      "originalName": "20250220190346.png",
+      "url": "trips/3e8e2c7c-7a7b-4d43-9f5b-1a2c3d4e5f6a/route/20250220190346.png",
+      "placement": "route",
+      "createdAt": "2026-04-28T10:59:23.382Z",
+      "sizeBytes": 0,
+      "takenAt": null,
+      "latitude": null,
+      "longitude": null,
+      "width": null,
+      "height": null,
+      "variants": null,
+      "metadata": null
+    },
+    {
+      "id": "9bb2a223-12b0-4b0c-931a-eb37e93fbf53",
+      "tripId": "3e8e2c7c-7a7b-4d43-9f5b-1a2c3d4e5f6a",
+      "originalName": "20250220190301.png",
+      "url": "trips/3e8e2c7c-7a7b-4d43-9f5b-1a2c3d4e5f6a/route/20250220190301.png",
+      "placement": "route",
+      "createdAt": "2026-04-28T10:59:23.382Z",
+      "sizeBytes": 0,
+      "takenAt": null,
+      "latitude": null,
+      "longitude": null,
+      "width": null,
+      "height": null,
+      "variants": null,
+      "metadata": null
+    },
+    {
+      "id": "31fb40df-cea2-44b4-95a7-d59a36da8eec",
+      "tripId": "3e8e2c7c-7a7b-4d43-9f5b-1a2c3d4e5f6a",
+      "originalName": "20250217232059.png",
+      "url": "trips/3e8e2c7c-7a7b-4d43-9f5b-1a2c3d4e5f6a/route/20250217232059.png",
+      "placement": "route",
+      "createdAt": "2026-04-28T10:59:23.382Z",
+      "sizeBytes": 0,
+      "takenAt": null,
+      "latitude": null,
+      "longitude": null,
+      "width": null,
+      "height": null,
+      "variants": null,
+      "metadata": null
+    },
+    {
+      "id": "4cd0a5e7-6492-4d94-9329-30f6cda5a73a",
+      "tripId": "3e8e2c7c-7a7b-4d43-9f5b-1a2c3d4e5f6a",
+      "originalName": "20250217232335.png",
+      "url": "trips/3e8e2c7c-7a7b-4d43-9f5b-1a2c3d4e5f6a/route/20250217232335.png",
+      "placement": "route",
+      "createdAt": "2026-04-28T10:59:23.382Z",
+      "sizeBytes": 0,
+      "takenAt": null,
+      "latitude": null,
+      "longitude": null,
+      "width": null,
+      "height": null,
+      "variants": null,
+      "metadata": null
+    },
+    {
+      "id": "9221f52d-37ef-4a3e-872a-1080e806b673",
+      "tripId": "3e8e2c7c-7a7b-4d43-9f5b-1a2c3d4e5f6a",
+      "originalName": "20250313233958.png",
+      "url": "trips/3e8e2c7c-7a7b-4d43-9f5b-1a2c3d4e5f6a/route/20250313233958.png",
+      "placement": "route",
+      "createdAt": "2026-04-28T10:59:23.382Z",
+      "sizeBytes": 0,
+      "takenAt": null,
+      "latitude": null,
+      "longitude": null,
+      "width": null,
+      "height": null,
+      "variants": null,
+      "metadata": null
+    },
+    {
+      "id": "0fe724ce-66e8-4f4d-b759-660989bd8fb7",
+      "tripId": "3e8e2c7c-7a7b-4d43-9f5b-1a2c3d4e5f6a",
+      "originalName": "20250313234517.png",
+      "url": "trips/3e8e2c7c-7a7b-4d43-9f5b-1a2c3d4e5f6a/route/20250313234517.png",
+      "placement": "route",
+      "createdAt": "2026-04-28T10:59:23.382Z",
+      "sizeBytes": 0,
+      "takenAt": null,
+      "latitude": null,
+      "longitude": null,
+      "width": null,
+      "height": null,
+      "variants": null,
+      "metadata": null
+    },
+    {
+      "id": "e362690d-5725-49ba-a0db-1a98773c36db",
+      "tripId": "3e8e2c7c-7a7b-4d43-9f5b-1a2c3d4e5f6a",
+      "originalName": "20250313233753.png",
+      "url": "trips/3e8e2c7c-7a7b-4d43-9f5b-1a2c3d4e5f6a/route/20250313233753.png",
+      "placement": "route",
+      "createdAt": "2026-04-28T10:59:23.382Z",
+      "sizeBytes": 0,
+      "takenAt": null,
+      "latitude": null,
+      "longitude": null,
+      "width": null,
+      "height": null,
+      "variants": null,
+      "metadata": null
+    },
+    {
+      "id": "1b535872-28fc-489b-bec4-a43d782a4ede",
+      "tripId": "3e8e2c7c-7a7b-4d43-9f5b-1a2c3d4e5f6a",
+      "originalName": "20250313234400.png",
+      "url": "trips/3e8e2c7c-7a7b-4d43-9f5b-1a2c3d4e5f6a/route/20250313234400.png",
+      "placement": "route",
+      "createdAt": "2026-04-28T10:59:23.382Z",
+      "sizeBytes": 0,
+      "takenAt": null,
+      "latitude": null,
+      "longitude": null,
+      "width": null,
+      "height": null,
+      "variants": null,
+      "metadata": null
+    },
+    {
+      "id": "6064ee93-6869-4621-bc8c-32ed08e3da2f",
+      "tripId": "3e8e2c7c-7a7b-4d43-9f5b-1a2c3d4e5f6a",
+      "originalName": "20250313234435.png",
+      "url": "trips/3e8e2c7c-7a7b-4d43-9f5b-1a2c3d4e5f6a/route/20250313234435.png",
+      "placement": "route",
+      "createdAt": "2026-04-28T10:59:23.382Z",
+      "sizeBytes": 0,
+      "takenAt": null,
+      "latitude": null,
+      "longitude": null,
+      "width": null,
+      "height": null,
+      "variants": null,
+      "metadata": null
+    },
+    {
+      "id": "08e92919-9015-41de-85af-9b927249e804",
+      "tripId": "3e8e2c7c-7a7b-4d43-9f5b-1a2c3d4e5f6a",
+      "originalName": "20250313234851.png",
+      "url": "trips/3e8e2c7c-7a7b-4d43-9f5b-1a2c3d4e5f6a/route/20250313234851.png",
+      "placement": "route",
+      "createdAt": "2026-04-28T10:59:23.382Z",
+      "sizeBytes": 0,
+      "takenAt": null,
+      "latitude": null,
+      "longitude": null,
+      "width": null,
+      "height": null,
+      "variants": null,
+      "metadata": null
+    },
+    {
+      "id": "15c89abd-4455-4d04-9055-0457faaa3c8a",
+      "tripId": "3e8e2c7c-7a7b-4d43-9f5b-1a2c3d4e5f6a",
+      "originalName": "20250314004804.png",
+      "url": "trips/3e8e2c7c-7a7b-4d43-9f5b-1a2c3d4e5f6a/route/20250314004804.png",
+      "placement": "route",
+      "createdAt": "2026-04-28T10:59:23.382Z",
+      "sizeBytes": 0,
+      "takenAt": null,
+      "latitude": null,
+      "longitude": null,
+      "width": null,
+      "height": null,
+      "variants": null,
+      "metadata": null
+    },
+    {
+      "id": "7a567da9-e2d9-4d2d-8708-45bff8482f05",
+      "tripId": "3e8e2c7c-7a7b-4d43-9f5b-1a2c3d4e5f6a",
+      "originalName": "20250314004824.png",
+      "url": "trips/3e8e2c7c-7a7b-4d43-9f5b-1a2c3d4e5f6a/route/20250314004824.png",
+      "placement": "route",
+      "createdAt": "2026-04-28T10:59:23.382Z",
+      "sizeBytes": 0,
+      "takenAt": null,
+      "latitude": null,
+      "longitude": null,
+      "width": null,
+      "height": null,
+      "variants": null,
+      "metadata": null
+    },
+    {
+      "id": "7dbe8767-f3a9-4d8f-80c9-16257231585e",
+      "tripId": "3e8e2c7c-7a7b-4d43-9f5b-1a2c3d4e5f6a",
+      "originalName": "20250314004848.png",
+      "url": "trips/3e8e2c7c-7a7b-4d43-9f5b-1a2c3d4e5f6a/route/20250314004848.png",
+      "placement": "route",
+      "createdAt": "2026-04-28T10:59:23.382Z",
+      "sizeBytes": 0,
+      "takenAt": null,
+      "latitude": null,
+      "longitude": null,
+      "width": null,
+      "height": null,
+      "variants": null,
+      "metadata": null
+    },
+    {
+      "id": "17b3bfbf-2aba-440c-8c15-d444e35d60eb",
+      "tripId": "3e8e2c7c-7a7b-4d43-9f5b-1a2c3d4e5f6a",
+      "originalName": "20250314004632.png",
+      "url": "trips/3e8e2c7c-7a7b-4d43-9f5b-1a2c3d4e5f6a/route/20250314004632.png",
+      "placement": "route",
+      "createdAt": "2026-04-28T10:59:23.382Z",
+      "sizeBytes": 0,
+      "takenAt": null,
+      "latitude": null,
+      "longitude": null,
+      "width": null,
+      "height": null,
+      "variants": null,
+      "metadata": null
+    },
+    {
+      "id": "1ebe5d46-a930-45d2-936d-3fa3b54768b2",
+      "tripId": "3e8e2c7c-7a7b-4d43-9f5b-1a2c3d4e5f6a",
+      "originalName": "20250309004803.png",
+      "url": "trips/3e8e2c7c-7a7b-4d43-9f5b-1a2c3d4e5f6a/route/20250309004803.png",
+      "placement": "route",
+      "createdAt": "2026-04-28T10:59:23.382Z",
+      "sizeBytes": 0,
+      "takenAt": null,
+      "latitude": null,
+      "longitude": null,
+      "width": null,
+      "height": null,
+      "variants": null,
+      "metadata": null
+    },
+    {
+      "id": "c96c561f-cba5-4fe0-9763-9165c6a5f9d0",
+      "tripId": "3e8e2c7c-7a7b-4d43-9f5b-1a2c3d4e5f6a",
+      "originalName": "20250309004958.png",
+      "url": "trips/3e8e2c7c-7a7b-4d43-9f5b-1a2c3d4e5f6a/route/20250309004958.png",
+      "placement": "route",
+      "createdAt": "2026-04-28T10:59:23.382Z",
+      "sizeBytes": 0,
+      "takenAt": null,
+      "latitude": null,
+      "longitude": null,
+      "width": null,
+      "height": null,
+      "variants": null,
+      "metadata": null
+    },
+    {
+      "id": "648497af-c715-4e38-a54c-62ab6b30324b",
+      "tripId": "3e8e2c7c-7a7b-4d43-9f5b-1a2c3d4e5f6a",
+      "originalName": "20250309005052.png",
+      "url": "trips/3e8e2c7c-7a7b-4d43-9f5b-1a2c3d4e5f6a/route/20250309005052.png",
+      "placement": "route",
+      "createdAt": "2026-04-28T10:59:23.382Z",
+      "sizeBytes": 0,
+      "takenAt": null,
+      "latitude": null,
+      "longitude": null,
+      "width": null,
+      "height": null,
+      "variants": null,
+      "metadata": null
+    },
+    {
+      "id": "9eaffaf6-dac1-409d-a7cc-075e90a7e8b8",
+      "tripId": "3e8e2c7c-7a7b-4d43-9f5b-1a2c3d4e5f6a",
+      "originalName": "20250309005112.png",
+      "url": "trips/3e8e2c7c-7a7b-4d43-9f5b-1a2c3d4e5f6a/route/20250309005112.png",
+      "placement": "route",
+      "createdAt": "2026-04-28T10:59:23.382Z",
+      "sizeBytes": 0,
+      "takenAt": null,
+      "latitude": null,
+      "longitude": null,
+      "width": null,
+      "height": null,
+      "variants": null,
+      "metadata": null
+    },
+    {
+      "id": "ae199e74-7187-4eff-85ef-81714d98c156",
+      "tripId": "3e8e2c7c-7a7b-4d43-9f5b-1a2c3d4e5f6a",
+      "originalName": "20250309005133.png",
+      "url": "trips/3e8e2c7c-7a7b-4d43-9f5b-1a2c3d4e5f6a/route/20250309005133.png",
+      "placement": "route",
+      "createdAt": "2026-04-28T10:59:23.382Z",
+      "sizeBytes": 0,
+      "takenAt": null,
+      "latitude": null,
+      "longitude": null,
+      "width": null,
+      "height": null,
+      "variants": null,
+      "metadata": null
+    },
+    {
+      "id": "3e01c1d1-1385-4296-9f84-f05105d32fad",
+      "tripId": "3e8e2c7c-7a7b-4d43-9f5b-1a2c3d4e5f6a",
+      "originalName": "20250309005739.png",
+      "url": "trips/3e8e2c7c-7a7b-4d43-9f5b-1a2c3d4e5f6a/route/20250309005739.png",
+      "placement": "route",
+      "createdAt": "2026-04-28T10:59:23.382Z",
+      "sizeBytes": 0,
+      "takenAt": null,
+      "latitude": null,
+      "longitude": null,
+      "width": null,
+      "height": null,
+      "variants": null,
+      "metadata": null
+    },
+    {
+      "id": "aa45e09d-378c-4d99-a153-d37e56b17957",
+      "tripId": "3e8e2c7c-7a7b-4d43-9f5b-1a2c3d4e5f6a",
+      "originalName": "20250309005903.png",
+      "url": "trips/3e8e2c7c-7a7b-4d43-9f5b-1a2c3d4e5f6a/route/20250309005903.png",
+      "placement": "route",
+      "createdAt": "2026-04-28T10:59:23.382Z",
+      "sizeBytes": 0,
+      "takenAt": null,
+      "latitude": null,
+      "longitude": null,
+      "width": null,
+      "height": null,
+      "variants": null,
+      "metadata": null
+    },
+    {
+      "id": "742e7f0c-6dc3-420e-8058-51257d23b5cb",
+      "tripId": "3e8e2c7c-7a7b-4d43-9f5b-1a2c3d4e5f6a",
+      "originalName": "20250309010228.png",
+      "url": "trips/3e8e2c7c-7a7b-4d43-9f5b-1a2c3d4e5f6a/route/20250309010228.png",
+      "placement": "route",
+      "createdAt": "2026-04-28T10:59:23.382Z",
+      "sizeBytes": 0,
+      "takenAt": null,
+      "latitude": null,
+      "longitude": null,
+      "width": null,
+      "height": null,
+      "variants": null,
+      "metadata": null
+    },
+    {
+      "id": "edfbe5f1-00de-43e7-b5a5-7417971468c3",
+      "tripId": "3e8e2c7c-7a7b-4d43-9f5b-1a2c3d4e5f6a",
+      "originalName": "20250309010246.png",
+      "url": "trips/3e8e2c7c-7a7b-4d43-9f5b-1a2c3d4e5f6a/route/20250309010246.png",
+      "placement": "route",
+      "createdAt": "2026-04-28T10:59:23.382Z",
+      "sizeBytes": 0,
+      "takenAt": null,
+      "latitude": null,
+      "longitude": null,
+      "width": null,
+      "height": null,
+      "variants": null,
+      "metadata": null
+    },
+    {
+      "id": "04308518-b097-4a70-b3dc-9bc0317ed1a5",
+      "tripId": "3e8e2c7c-7a7b-4d43-9f5b-1a2c3d4e5f6a",
+      "originalName": "20250309171231.png",
+      "url": "trips/3e8e2c7c-7a7b-4d43-9f5b-1a2c3d4e5f6a/route/20250309171231.png",
+      "placement": "route",
+      "createdAt": "2026-04-28T10:59:23.382Z",
+      "sizeBytes": 0,
+      "takenAt": null,
+      "latitude": null,
+      "longitude": null,
+      "width": null,
+      "height": null,
+      "variants": null,
+      "metadata": null
+    },
+    {
+      "id": "bab57ad0-6f38-4fbf-a6bb-49d9b822a84e",
+      "tripId": "3e8e2c7c-7a7b-4d43-9f5b-1a2c3d4e5f6a",
+      "originalName": "20250309163606.png",
+      "url": "trips/3e8e2c7c-7a7b-4d43-9f5b-1a2c3d4e5f6a/route/20250309163606.png",
+      "placement": "route",
+      "createdAt": "2026-04-28T10:59:23.382Z",
+      "sizeBytes": 0,
+      "takenAt": null,
+      "latitude": null,
+      "longitude": null,
+      "width": null,
+      "height": null,
+      "variants": null,
+      "metadata": null
+    },
+    {
+      "id": "ba9137b4-704b-4faa-b09a-16e2f86fa415",
+      "tripId": "3e8e2c7c-7a7b-4d43-9f5b-1a2c3d4e5f6a",
+      "originalName": "20250309163617.png",
+      "url": "trips/3e8e2c7c-7a7b-4d43-9f5b-1a2c3d4e5f6a/route/20250309163617.png",
+      "placement": "route",
+      "createdAt": "2026-04-28T10:59:23.382Z",
+      "sizeBytes": 0,
+      "takenAt": null,
+      "latitude": null,
+      "longitude": null,
+      "width": null,
+      "height": null,
+      "variants": null,
+      "metadata": null
+    },
+    {
+      "id": "460d518f-f9fa-48cf-a4f0-a9a2e035750f",
+      "tripId": "3e8e2c7c-7a7b-4d43-9f5b-1a2c3d4e5f6a",
+      "originalName": "20250309171739.png",
+      "url": "trips/3e8e2c7c-7a7b-4d43-9f5b-1a2c3d4e5f6a/route/20250309171739.png",
+      "placement": "route",
+      "createdAt": "2026-04-28T10:59:23.382Z",
+      "sizeBytes": 0,
+      "takenAt": null,
+      "latitude": null,
+      "longitude": null,
+      "width": null,
+      "height": null,
+      "variants": null,
+      "metadata": null
+    },
+    {
+      "id": "e374c934-da9c-45e9-b496-ab47c66e4cf4",
+      "tripId": "3e8e2c7c-7a7b-4d43-9f5b-1a2c3d4e5f6a",
+      "originalName": "20250309171818.png",
+      "url": "trips/3e8e2c7c-7a7b-4d43-9f5b-1a2c3d4e5f6a/route/20250309171818.png",
+      "placement": "route",
+      "createdAt": "2026-04-28T10:59:23.382Z",
+      "sizeBytes": 0,
+      "takenAt": null,
+      "latitude": null,
+      "longitude": null,
+      "width": null,
+      "height": null,
+      "variants": null,
+      "metadata": null
+    },
+    {
+      "id": "ad0180fa-095b-4a08-a9fc-28f75b6c0272",
+      "tripId": "3e8e2c7c-7a7b-4d43-9f5b-1a2c3d4e5f6a",
+      "originalName": "20250223152330.png",
+      "url": "trips/3e8e2c7c-7a7b-4d43-9f5b-1a2c3d4e5f6a/route/20250223152330.png",
+      "placement": "route",
+      "createdAt": "2026-04-28T10:59:23.382Z",
+      "sizeBytes": 0,
+      "takenAt": null,
+      "latitude": null,
+      "longitude": null,
+      "width": null,
+      "height": null,
+      "variants": null,
+      "metadata": null
+    },
+    {
+      "id": "f81fb973-e7ab-4812-8b8a-2c0439cc697e",
+      "tripId": "3e8e2c7c-7a7b-4d43-9f5b-1a2c3d4e5f6a",
+      "originalName": "20250309174226.png",
+      "url": "trips/3e8e2c7c-7a7b-4d43-9f5b-1a2c3d4e5f6a/route/20250309174226.png",
+      "placement": "route",
+      "createdAt": "2026-04-28T10:59:23.382Z",
+      "sizeBytes": 0,
+      "takenAt": null,
+      "latitude": null,
+      "longitude": null,
+      "width": null,
+      "height": null,
+      "variants": null,
+      "metadata": null
+    },
+    {
+      "id": "14435b32-1714-4524-81ec-2473fa758d88",
+      "tripId": "3e8e2c7c-7a7b-4d43-9f5b-1a2c3d4e5f6a",
+      "originalName": "20250309174651.png",
+      "url": "trips/3e8e2c7c-7a7b-4d43-9f5b-1a2c3d4e5f6a/route/20250309174651.png",
+      "placement": "route",
+      "createdAt": "2026-04-28T10:59:23.382Z",
+      "sizeBytes": 0,
+      "takenAt": null,
+      "latitude": null,
+      "longitude": null,
+      "width": null,
+      "height": null,
+      "variants": null,
+      "metadata": null
+    },
+    {
+      "id": "df0c16fa-9df2-4427-8189-b725a08d080e",
+      "tripId": "3e8e2c7c-7a7b-4d43-9f5b-1a2c3d4e5f6a",
+      "originalName": "20250309181742.png",
+      "url": "trips/3e8e2c7c-7a7b-4d43-9f5b-1a2c3d4e5f6a/route/20250309181742.png",
+      "placement": "route",
+      "createdAt": "2026-04-28T10:59:23.382Z",
+      "sizeBytes": 0,
+      "takenAt": null,
+      "latitude": null,
+      "longitude": null,
+      "width": null,
+      "height": null,
+      "variants": null,
+      "metadata": null
+    },
+    {
+      "id": "150ac656-8a2e-49ac-8f4e-1df07387a8eb",
+      "tripId": "3e8e2c7c-7a7b-4d43-9f5b-1a2c3d4e5f6a",
+      "originalName": "20250309175314.png",
+      "url": "trips/3e8e2c7c-7a7b-4d43-9f5b-1a2c3d4e5f6a/route/20250309175314.png",
+      "placement": "route",
+      "createdAt": "2026-04-28T10:59:23.382Z",
+      "sizeBytes": 0,
+      "takenAt": null,
+      "latitude": null,
+      "longitude": null,
+      "width": null,
+      "height": null,
+      "variants": null,
+      "metadata": null
+    },
+    {
+      "id": "83925361-5968-4f67-b057-8695392d7fc9",
+      "tripId": "3e8e2c7c-7a7b-4d43-9f5b-1a2c3d4e5f6a",
+      "originalName": "20250309181154.png",
+      "url": "trips/3e8e2c7c-7a7b-4d43-9f5b-1a2c3d4e5f6a/route/20250309181154.png",
+      "placement": "route",
+      "createdAt": "2026-04-28T10:59:23.382Z",
+      "sizeBytes": 0,
+      "takenAt": null,
+      "latitude": null,
+      "longitude": null,
+      "width": null,
+      "height": null,
+      "variants": null,
+      "metadata": null
+    },
+    {
+      "id": "f5f4529f-6b6e-4473-8848-4cbe669f01ff",
+      "tripId": "3e8e2c7c-7a7b-4d43-9f5b-1a2c3d4e5f6a",
+      "originalName": "20250309182313.png",
+      "url": "trips/3e8e2c7c-7a7b-4d43-9f5b-1a2c3d4e5f6a/route/20250309182313.png",
+      "placement": "route",
+      "createdAt": "2026-04-28T10:59:23.382Z",
+      "sizeBytes": 0,
+      "takenAt": null,
+      "latitude": null,
+      "longitude": null,
+      "width": null,
+      "height": null,
+      "variants": null,
+      "metadata": null
+    },
+    {
+      "id": "4453bb05-ca2f-4461-b3da-79e85880d085",
+      "tripId": "3e8e2c7c-7a7b-4d43-9f5b-1a2c3d4e5f6a",
+      "originalName": "20250309175856.png",
+      "url": "trips/3e8e2c7c-7a7b-4d43-9f5b-1a2c3d4e5f6a/route/20250309175856.png",
+      "placement": "route",
+      "createdAt": "2026-04-28T10:59:23.382Z",
+      "sizeBytes": 0,
+      "takenAt": null,
+      "latitude": null,
+      "longitude": null,
+      "width": null,
+      "height": null,
+      "variants": null,
+      "metadata": null
+    },
+    {
+      "id": "8eac25d4-4aa8-4f85-9556-742e0104405c",
+      "tripId": "3e8e2c7c-7a7b-4d43-9f5b-1a2c3d4e5f6a",
+      "originalName": "20250309180345.png",
+      "url": "trips/3e8e2c7c-7a7b-4d43-9f5b-1a2c3d4e5f6a/route/20250309180345.png",
+      "placement": "route",
+      "createdAt": "2026-04-28T10:59:23.382Z",
+      "sizeBytes": 0,
+      "takenAt": null,
+      "latitude": null,
+      "longitude": null,
+      "width": null,
+      "height": null,
+      "variants": null,
+      "metadata": null
+    },
+    {
+      "id": "6132bf17-9060-4e8f-9f4b-0bf46c58ffae",
+      "tripId": "3e8e2c7c-7a7b-4d43-9f5b-1a2c3d4e5f6a",
+      "originalName": "20250221144249.png",
+      "url": "trips/3e8e2c7c-7a7b-4d43-9f5b-1a2c3d4e5f6a/route/20250221144249.png",
+      "placement": "route",
+      "createdAt": "2026-04-28T10:59:23.382Z",
+      "sizeBytes": 0,
+      "takenAt": null,
+      "latitude": null,
+      "longitude": null,
+      "width": null,
+      "height": null,
+      "variants": null,
+      "metadata": null
+    },
+    {
+      "id": "63077005-2381-4dae-bae8-52cedd122e0a",
+      "tripId": "3e8e2c7c-7a7b-4d43-9f5b-1a2c3d4e5f6a",
+      "originalName": "20250221154010.png",
+      "url": "trips/3e8e2c7c-7a7b-4d43-9f5b-1a2c3d4e5f6a/route/20250221154010.png",
+      "placement": "route",
+      "createdAt": "2026-04-28T10:59:23.382Z",
+      "sizeBytes": 0,
+      "takenAt": null,
+      "latitude": null,
+      "longitude": null,
+      "width": null,
+      "height": null,
+      "variants": null,
+      "metadata": null
+    },
+    {
+      "id": "f1b76b43-bd90-4fa2-b4a3-0e31d663fb0e",
+      "tripId": "3e8e2c7c-7a7b-4d43-9f5b-1a2c3d4e5f6a",
+      "originalName": "20250221154201.png",
+      "url": "trips/3e8e2c7c-7a7b-4d43-9f5b-1a2c3d4e5f6a/route/20250221154201.png",
+      "placement": "route",
+      "createdAt": "2026-04-28T10:59:23.382Z",
+      "sizeBytes": 0,
+      "takenAt": null,
+      "latitude": null,
+      "longitude": null,
+      "width": null,
+      "height": null,
+      "variants": null,
+      "metadata": null
+    },
+    {
+      "id": "834e4a37-0a14-4d2e-a0a6-0196105c4816",
+      "tripId": "3e8e2c7c-7a7b-4d43-9f5b-1a2c3d4e5f6a",
+      "originalName": "20250221154416.png",
+      "url": "trips/3e8e2c7c-7a7b-4d43-9f5b-1a2c3d4e5f6a/route/20250221154416.png",
+      "placement": "route",
+      "createdAt": "2026-04-28T10:59:23.382Z",
+      "sizeBytes": 0,
+      "takenAt": null,
+      "latitude": null,
+      "longitude": null,
+      "width": null,
+      "height": null,
+      "variants": null,
+      "metadata": null
+    },
+    {
+      "id": "c52b3b30-c645-4413-89d6-8df0f1fdd5fa",
+      "tripId": "3e8e2c7c-7a7b-4d43-9f5b-1a2c3d4e5f6a",
+      "originalName": "20250221154551.png",
+      "url": "trips/3e8e2c7c-7a7b-4d43-9f5b-1a2c3d4e5f6a/route/20250221154551.png",
+      "placement": "route",
+      "createdAt": "2026-04-28T10:59:23.382Z",
+      "sizeBytes": 0,
+      "takenAt": null,
+      "latitude": null,
+      "longitude": null,
+      "width": null,
+      "height": null,
+      "variants": null,
+      "metadata": null
+    },
+    {
+      "id": "cd97bdcd-3ccc-4072-b866-bf89e5f260fc",
+      "tripId": "3e8e2c7c-7a7b-4d43-9f5b-1a2c3d4e5f6a",
+      "originalName": "20250221154742.png",
+      "url": "trips/3e8e2c7c-7a7b-4d43-9f5b-1a2c3d4e5f6a/route/20250221154742.png",
+      "placement": "route",
+      "createdAt": "2026-04-28T10:59:23.382Z",
+      "sizeBytes": 0,
+      "takenAt": null,
+      "latitude": null,
+      "longitude": null,
+      "width": null,
+      "height": null,
+      "variants": null,
+      "metadata": null
+    },
+    {
+      "id": "ec7ffec3-bd8c-48f3-9577-8d8c6c3a5bc1",
+      "tripId": "3e8e2c7c-7a7b-4d43-9f5b-1a2c3d4e5f6a",
+      "originalName": "20250221155358.png",
+      "url": "trips/3e8e2c7c-7a7b-4d43-9f5b-1a2c3d4e5f6a/route/20250221155358.png",
+      "placement": "route",
+      "createdAt": "2026-04-28T10:59:23.382Z",
+      "sizeBytes": 0,
+      "takenAt": null,
+      "latitude": null,
+      "longitude": null,
+      "width": null,
+      "height": null,
+      "variants": null,
+      "metadata": null
+    },
+    {
+      "id": "73921ea7-f36c-4712-8342-29a007065501",
+      "tripId": "3e8e2c7c-7a7b-4d43-9f5b-1a2c3d4e5f6a",
+      "originalName": "20250221155028.png",
+      "url": "trips/3e8e2c7c-7a7b-4d43-9f5b-1a2c3d4e5f6a/route/20250221155028.png",
+      "placement": "route",
+      "createdAt": "2026-04-28T10:59:23.382Z",
+      "sizeBytes": 0,
+      "takenAt": null,
+      "latitude": null,
+      "longitude": null,
+      "width": null,
+      "height": null,
+      "variants": null,
+      "metadata": null
+    },
+    {
+      "id": "52abac2a-93d7-435f-a96b-41ffdd0fa17b",
+      "tripId": "3e8e2c7c-7a7b-4d43-9f5b-1a2c3d4e5f6a",
+      "originalName": "20250221155103.png",
+      "url": "trips/3e8e2c7c-7a7b-4d43-9f5b-1a2c3d4e5f6a/route/20250221155103.png",
+      "placement": "route",
+      "createdAt": "2026-04-28T10:59:23.382Z",
+      "sizeBytes": 0,
+      "takenAt": null,
+      "latitude": null,
+      "longitude": null,
+      "width": null,
+      "height": null,
+      "variants": null,
+      "metadata": null
+    },
+    {
+      "id": "d8c732ca-effb-4a10-88ad-c14b31256edc",
+      "tripId": "3e8e2c7c-7a7b-4d43-9f5b-1a2c3d4e5f6a",
+      "originalName": "20250221170009.png",
+      "url": "trips/3e8e2c7c-7a7b-4d43-9f5b-1a2c3d4e5f6a/route/20250221170009.png",
+      "placement": "route",
+      "createdAt": "2026-04-28T10:59:23.382Z",
+      "sizeBytes": 0,
+      "takenAt": null,
+      "latitude": null,
+      "longitude": null,
+      "width": null,
+      "height": null,
+      "variants": null,
+      "metadata": null
+    },
+    {
+      "id": "10ee8fcd-23b0-47c4-982c-e10b47b358cc",
+      "tripId": "3e8e2c7c-7a7b-4d43-9f5b-1a2c3d4e5f6a",
+      "originalName": "20250221170416.png",
+      "url": "trips/3e8e2c7c-7a7b-4d43-9f5b-1a2c3d4e5f6a/route/20250221170416.png",
+      "placement": "route",
+      "createdAt": "2026-04-28T10:59:23.382Z",
+      "sizeBytes": 0,
+      "takenAt": null,
+      "latitude": null,
+      "longitude": null,
+      "width": null,
+      "height": null,
+      "variants": null,
+      "metadata": null
+    },
+    {
+      "id": "74dc48d2-c00d-44d7-ac05-c938d029a8d6",
+      "tripId": "3e8e2c7c-7a7b-4d43-9f5b-1a2c3d4e5f6a",
+      "originalName": "20250221164850.png",
+      "url": "trips/3e8e2c7c-7a7b-4d43-9f5b-1a2c3d4e5f6a/route/20250221164850.png",
+      "placement": "route",
+      "createdAt": "2026-04-28T10:59:23.382Z",
+      "sizeBytes": 0,
+      "takenAt": null,
+      "latitude": null,
+      "longitude": null,
+      "width": null,
+      "height": null,
+      "variants": null,
+      "metadata": null
+    },
+    {
+      "id": "33e557f4-5927-4c87-a156-be92750faf41",
+      "tripId": "3e8e2c7c-7a7b-4d43-9f5b-1a2c3d4e5f6a",
+      "originalName": "20250221164918.png",
+      "url": "trips/3e8e2c7c-7a7b-4d43-9f5b-1a2c3d4e5f6a/route/20250221164918.png",
+      "placement": "route",
+      "createdAt": "2026-04-28T10:59:23.382Z",
+      "sizeBytes": 0,
+      "takenAt": null,
+      "latitude": null,
+      "longitude": null,
+      "width": null,
+      "height": null,
+      "variants": null,
+      "metadata": null
+    },
+    {
+      "id": "0c1696ed-ab92-4e76-b8c5-8b0bd22a7a70",
+      "tripId": "3e8e2c7c-7a7b-4d43-9f5b-1a2c3d4e5f6a",
+      "originalName": "20250221164947.png",
+      "url": "trips/3e8e2c7c-7a7b-4d43-9f5b-1a2c3d4e5f6a/route/20250221164947.png",
+      "placement": "route",
+      "createdAt": "2026-04-28T10:59:23.382Z",
+      "sizeBytes": 0,
+      "takenAt": null,
+      "latitude": null,
+      "longitude": null,
+      "width": null,
+      "height": null,
+      "variants": null,
+      "metadata": null
+    },
+    {
+      "id": "c679831e-6b47-4de8-abe6-0ec3a45a37d0",
+      "tripId": "3e8e2c7c-7a7b-4d43-9f5b-1a2c3d4e5f6a",
+      "originalName": "20250221171153.png",
+      "url": "trips/3e8e2c7c-7a7b-4d43-9f5b-1a2c3d4e5f6a/route/20250221171153.png",
+      "placement": "route",
+      "createdAt": "2026-04-28T10:59:23.382Z",
+      "sizeBytes": 0,
+      "takenAt": null,
+      "latitude": null,
+      "longitude": null,
+      "width": null,
+      "height": null,
+      "variants": null,
+      "metadata": null
+    },
+    {
+      "id": "7b9cfe92-54ca-4bd3-8589-a52c589a1156",
+      "tripId": "3e8e2c7c-7a7b-4d43-9f5b-1a2c3d4e5f6a",
+      "originalName": "20250221161326.png",
+      "url": "trips/3e8e2c7c-7a7b-4d43-9f5b-1a2c3d4e5f6a/route/20250221161326.png",
+      "placement": "route",
+      "createdAt": "2026-04-28T10:59:23.382Z",
+      "sizeBytes": 0,
+      "takenAt": null,
+      "latitude": null,
+      "longitude": null,
+      "width": null,
+      "height": null,
+      "variants": null,
+      "metadata": null
+    },
+    {
+      "id": "75a63b44-56b2-4c4a-8e12-6f18e99489c0",
+      "tripId": "3e8e2c7c-7a7b-4d43-9f5b-1a2c3d4e5f6a",
+      "originalName": "20250221161351.png",
+      "url": "trips/3e8e2c7c-7a7b-4d43-9f5b-1a2c3d4e5f6a/route/20250221161351.png",
+      "placement": "route",
+      "createdAt": "2026-04-28T10:59:23.382Z",
+      "sizeBytes": 0,
+      "takenAt": null,
+      "latitude": null,
+      "longitude": null,
+      "width": null,
+      "height": null,
+      "variants": null,
+      "metadata": null
+    },
+    {
+      "id": "f55332a1-ec41-459a-a558-4021096bfb30",
+      "tripId": "3e8e2c7c-7a7b-4d43-9f5b-1a2c3d4e5f6a",
+      "originalName": "20250221171445.png",
+      "url": "trips/3e8e2c7c-7a7b-4d43-9f5b-1a2c3d4e5f6a/route/20250221171445.png",
+      "placement": "route",
+      "createdAt": "2026-04-28T10:59:23.382Z",
+      "sizeBytes": 0,
+      "takenAt": null,
+      "latitude": null,
+      "longitude": null,
+      "width": null,
+      "height": null,
+      "variants": null,
+      "metadata": null
+    },
+    {
+      "id": "1bcd02c0-080d-40db-8786-89ea6a0c2c4f",
+      "tripId": "3e8e2c7c-7a7b-4d43-9f5b-1a2c3d4e5f6a",
+      "originalName": "20250223220410.png",
+      "url": "trips/3e8e2c7c-7a7b-4d43-9f5b-1a2c3d4e5f6a/route/20250223220410.png",
+      "placement": "route",
+      "createdAt": "2026-04-28T10:59:23.382Z",
+      "sizeBytes": 0,
+      "takenAt": null,
+      "latitude": null,
+      "longitude": null,
+      "width": null,
+      "height": null,
+      "variants": null,
+      "metadata": null
+    },
+    {
+      "id": "3b59d591-b318-4739-89de-bf94da5ca5df",
+      "tripId": "3e8e2c7c-7a7b-4d43-9f5b-1a2c3d4e5f6a",
+      "originalName": "20250216165042.png",
+      "url": "trips/3e8e2c7c-7a7b-4d43-9f5b-1a2c3d4e5f6a/route/20250216165042.png",
+      "placement": "route",
+      "createdAt": "2026-04-28T10:59:23.382Z",
+      "sizeBytes": 0,
+      "takenAt": null,
+      "latitude": null,
+      "longitude": null,
+      "width": null,
+      "height": null,
+      "variants": null,
+      "metadata": null
+    },
+    {
+      "id": "abc26391-4e3a-4d54-804a-aaef095344e7",
+      "tripId": "3e8e2c7c-7a7b-4d43-9f5b-1a2c3d4e5f6a",
+      "originalName": "20250223220711.png",
+      "url": "trips/3e8e2c7c-7a7b-4d43-9f5b-1a2c3d4e5f6a/route/20250223220711.png",
+      "placement": "route",
+      "createdAt": "2026-04-28T10:59:23.382Z",
+      "sizeBytes": 0,
+      "takenAt": null,
+      "latitude": null,
+      "longitude": null,
+      "width": null,
+      "height": null,
+      "variants": null,
+      "metadata": null
+    },
+    {
+      "id": "a3e7c63a-50d3-4fe0-b316-e1bf7ab6ca07",
+      "tripId": "3e8e2c7c-7a7b-4d43-9f5b-1a2c3d4e5f6a",
+      "originalName": "20250223231212.png",
+      "url": "trips/3e8e2c7c-7a7b-4d43-9f5b-1a2c3d4e5f6a/route/20250223231212.png",
+      "placement": "route",
+      "createdAt": "2026-04-28T10:59:23.382Z",
+      "sizeBytes": 0,
+      "takenAt": null,
+      "latitude": null,
+      "longitude": null,
+      "width": null,
+      "height": null,
+      "variants": null,
+      "metadata": null
+    },
+    {
+      "id": "ed3b111e-4dfd-4a85-a6db-d51013718bc9",
+      "tripId": "3e8e2c7c-7a7b-4d43-9f5b-1a2c3d4e5f6a",
+      "originalName": "20250223231820.png",
+      "url": "trips/3e8e2c7c-7a7b-4d43-9f5b-1a2c3d4e5f6a/route/20250223231820.png",
+      "placement": "route",
+      "createdAt": "2026-04-28T10:59:23.382Z",
+      "sizeBytes": 0,
+      "takenAt": null,
+      "latitude": null,
+      "longitude": null,
+      "width": null,
+      "height": null,
+      "variants": null,
+      "metadata": null
+    },
+    {
+      "id": "f1449117-87bf-4d8f-878d-a5159e65379b",
+      "tripId": "3e8e2c7c-7a7b-4d43-9f5b-1a2c3d4e5f6a",
+      "originalName": "20250223161225.png",
+      "url": "trips/3e8e2c7c-7a7b-4d43-9f5b-1a2c3d4e5f6a/route/20250223161225.png",
+      "placement": "route",
+      "createdAt": "2026-04-28T10:59:23.382Z",
+      "sizeBytes": 0,
+      "takenAt": null,
+      "latitude": null,
+      "longitude": null,
+      "width": null,
+      "height": null,
+      "variants": null,
+      "metadata": null
+    },
+    {
+      "id": "f86124c2-d527-48d7-a3c9-72ab691cb9d3",
+      "tripId": "3e8e2c7c-7a7b-4d43-9f5b-1a2c3d4e5f6a",
+      "originalName": "20250223232114.png",
+      "url": "trips/3e8e2c7c-7a7b-4d43-9f5b-1a2c3d4e5f6a/route/20250223232114.png",
+      "placement": "route",
+      "createdAt": "2026-04-28T10:59:23.382Z",
+      "sizeBytes": 0,
+      "takenAt": null,
+      "latitude": null,
+      "longitude": null,
+      "width": null,
+      "height": null,
+      "variants": null,
+      "metadata": null
+    },
+    {
+      "id": "94790fe4-0d13-4d56-92bb-a6cd9b1255fe",
+      "tripId": "3e8e2c7c-7a7b-4d43-9f5b-1a2c3d4e5f6a",
+      "originalName": "20250223233156.png",
+      "url": "trips/3e8e2c7c-7a7b-4d43-9f5b-1a2c3d4e5f6a/route/20250223233156.png",
+      "placement": "route",
+      "createdAt": "2026-04-28T10:59:23.382Z",
+      "sizeBytes": 0,
+      "takenAt": null,
+      "latitude": null,
+      "longitude": null,
+      "width": null,
+      "height": null,
+      "variants": null,
+      "metadata": null
+    },
+    {
+      "id": "ee320dc5-5470-4068-a115-aed8630885c8",
+      "tripId": "3e8e2c7c-7a7b-4d43-9f5b-1a2c3d4e5f6a",
+      "originalName": "20250216022953.png",
+      "url": "trips/3e8e2c7c-7a7b-4d43-9f5b-1a2c3d4e5f6a/route/20250216022953.png",
+      "placement": "route",
+      "createdAt": "2026-04-28T10:59:23.382Z",
+      "sizeBytes": 0,
+      "takenAt": null,
+      "latitude": null,
+      "longitude": null,
+      "width": null,
+      "height": null,
+      "variants": null,
+      "metadata": null
+    },
+    {
+      "id": "8bd7f780-e057-4815-b735-878220baaa88",
+      "tripId": "3e8e2c7c-7a7b-4d43-9f5b-1a2c3d4e5f6a",
+      "originalName": "20250223233629.png",
+      "url": "trips/3e8e2c7c-7a7b-4d43-9f5b-1a2c3d4e5f6a/route/20250223233629.png",
+      "placement": "route",
+      "createdAt": "2026-04-28T10:59:23.382Z",
+      "sizeBytes": 0,
+      "takenAt": null,
+      "latitude": null,
+      "longitude": null,
+      "width": null,
+      "height": null,
+      "variants": null,
+      "metadata": null
+    },
+    {
+      "id": "ad2891ca-8be6-41a5-914e-b13186f45fe0",
+      "tripId": "3e8e2c7c-7a7b-4d43-9f5b-1a2c3d4e5f6a",
+      "originalName": "20250223202038.png",
+      "url": "trips/3e8e2c7c-7a7b-4d43-9f5b-1a2c3d4e5f6a/route/20250223202038.png",
+      "placement": "route",
+      "createdAt": "2026-04-28T10:59:23.382Z",
+      "sizeBytes": 0,
+      "takenAt": null,
+      "latitude": null,
+      "longitude": null,
+      "width": null,
+      "height": null,
+      "variants": null,
+      "metadata": null
+    },
+    {
+      "id": "e5d655f3-2e03-4bba-bde8-375478035ed5",
+      "tripId": "3e8e2c7c-7a7b-4d43-9f5b-1a2c3d4e5f6a",
+      "originalName": "20250223234549.png",
+      "url": "trips/3e8e2c7c-7a7b-4d43-9f5b-1a2c3d4e5f6a/route/20250223234549.png",
+      "placement": "route",
+      "createdAt": "2026-04-28T10:59:23.382Z",
+      "sizeBytes": 0,
+      "takenAt": null,
+      "latitude": null,
+      "longitude": null,
+      "width": null,
+      "height": null,
+      "variants": null,
+      "metadata": null
+    },
+    {
+      "id": "bbc37f52-64d5-4e37-b638-704172e16d13",
+      "tripId": "3e8e2c7c-7a7b-4d43-9f5b-1a2c3d4e5f6a",
+      "originalName": "20250223233825.png",
+      "url": "trips/3e8e2c7c-7a7b-4d43-9f5b-1a2c3d4e5f6a/route/20250223233825.png",
+      "placement": "route",
+      "createdAt": "2026-04-28T10:59:23.382Z",
+      "sizeBytes": 0,
+      "takenAt": null,
+      "latitude": null,
+      "longitude": null,
+      "width": null,
+      "height": null,
+      "variants": null,
+      "metadata": null
+    },
+    {
+      "id": "99e07d61-5b3e-4e62-a86d-797d02f6d860",
+      "tripId": "3e8e2c7c-7a7b-4d43-9f5b-1a2c3d4e5f6a",
+      "originalName": "20250223202226.png",
+      "url": "trips/3e8e2c7c-7a7b-4d43-9f5b-1a2c3d4e5f6a/route/20250223202226.png",
+      "placement": "route",
+      "createdAt": "2026-04-28T10:59:23.382Z",
+      "sizeBytes": 0,
+      "takenAt": null,
+      "latitude": null,
+      "longitude": null,
+      "width": null,
+      "height": null,
+      "variants": null,
+      "metadata": null
+    },
+    {
+      "id": "60f544dd-020a-449b-967a-c1e628733cfe",
+      "tripId": "3e8e2c7c-7a7b-4d43-9f5b-1a2c3d4e5f6a",
+      "originalName": "20250223235116.png",
+      "url": "trips/3e8e2c7c-7a7b-4d43-9f5b-1a2c3d4e5f6a/route/20250223235116.png",
+      "placement": "route",
+      "createdAt": "2026-04-28T10:59:23.382Z",
+      "sizeBytes": 0,
+      "takenAt": null,
+      "latitude": null,
+      "longitude": null,
+      "width": null,
+      "height": null,
+      "variants": null,
+      "metadata": null
+    },
+    {
+      "id": "a176a7a5-f0cd-4338-86da-2fc142f3b9cd",
+      "tripId": "3e8e2c7c-7a7b-4d43-9f5b-1a2c3d4e5f6a",
+      "originalName": "20250223202356.png",
+      "url": "trips/3e8e2c7c-7a7b-4d43-9f5b-1a2c3d4e5f6a/route/20250223202356.png",
+      "placement": "route",
+      "createdAt": "2026-04-28T10:59:23.382Z",
+      "sizeBytes": 0,
+      "takenAt": null,
+      "latitude": null,
+      "longitude": null,
+      "width": null,
+      "height": null,
+      "variants": null,
+      "metadata": null
+    },
+    {
+      "id": "d0b6f064-4ce0-4c6a-bcc1-a1298d176153",
+      "tripId": "3e8e2c7c-7a7b-4d43-9f5b-1a2c3d4e5f6a",
+      "originalName": "20250505090216.png",
+      "url": "trips/3e8e2c7c-7a7b-4d43-9f5b-1a2c3d4e5f6a/route/20250505090216.png",
+      "placement": "route",
+      "createdAt": "2026-04-28T10:59:23.382Z",
+      "sizeBytes": 0,
+      "takenAt": null,
+      "latitude": null,
+      "longitude": null,
+      "width": null,
+      "height": null,
+      "variants": null,
+      "metadata": null
+    },
+    {
+      "id": "d1014519-80ee-4ba0-a8e5-c290cdd207ad",
+      "tripId": "3e8e2c7c-7a7b-4d43-9f5b-1a2c3d4e5f6a",
+      "originalName": "20250505090316.png",
+      "url": "trips/3e8e2c7c-7a7b-4d43-9f5b-1a2c3d4e5f6a/route/20250505090316.png",
+      "placement": "route",
+      "createdAt": "2026-04-28T10:59:23.382Z",
+      "sizeBytes": 0,
+      "takenAt": null,
+      "latitude": null,
+      "longitude": null,
+      "width": null,
+      "height": null,
+      "variants": null,
+      "metadata": null
+    },
+    {
+      "id": "c5623bca-9cf7-4b16-a0fc-ef2910d819d8",
+      "tripId": "3e8e2c7c-7a7b-4d43-9f5b-1a2c3d4e5f6a",
+      "originalName": "20250311220840.png",
+      "url": "trips/3e8e2c7c-7a7b-4d43-9f5b-1a2c3d4e5f6a/route/20250311220840.png",
+      "placement": "route",
+      "createdAt": "2026-04-28T10:59:23.382Z",
+      "sizeBytes": 0,
+      "takenAt": null,
+      "latitude": null,
+      "longitude": null,
+      "width": null,
+      "height": null,
+      "variants": null,
+      "metadata": null
+    },
+    {
+      "id": "40cb9924-3690-4010-b0bd-32525ab301f8",
+      "tripId": "3e8e2c7c-7a7b-4d43-9f5b-1a2c3d4e5f6a",
+      "originalName": "20250314010452.png",
+      "url": "trips/3e8e2c7c-7a7b-4d43-9f5b-1a2c3d4e5f6a/route/20250314010452.png",
+      "placement": "route",
+      "createdAt": "2026-04-28T10:59:23.382Z",
+      "sizeBytes": 0,
+      "takenAt": null,
+      "latitude": null,
+      "longitude": null,
+      "width": null,
+      "height": null,
+      "variants": null,
+      "metadata": null
+    },
+    {
+      "id": "e15b46d0-3e77-4371-9d80-46279be5e2b5",
+      "tripId": "3e8e2c7c-7a7b-4d43-9f5b-1a2c3d4e5f6a",
+      "originalName": "20250314010555.png",
+      "url": "trips/3e8e2c7c-7a7b-4d43-9f5b-1a2c3d4e5f6a/route/20250314010555.png",
+      "placement": "route",
+      "createdAt": "2026-04-28T10:59:23.382Z",
+      "sizeBytes": 0,
+      "takenAt": null,
+      "latitude": null,
+      "longitude": null,
+      "width": null,
+      "height": null,
+      "variants": null,
+      "metadata": null
+    },
+    {
+      "id": "b35508f8-e01c-410a-b7c2-e3d46b75525f",
+      "tripId": "3e8e2c7c-7a7b-4d43-9f5b-1a2c3d4e5f6a",
+      "originalName": "20250314010608.png",
+      "url": "trips/3e8e2c7c-7a7b-4d43-9f5b-1a2c3d4e5f6a/route/20250314010608.png",
+      "placement": "route",
+      "createdAt": "2026-04-28T10:59:23.382Z",
+      "sizeBytes": 0,
+      "takenAt": null,
+      "latitude": null,
+      "longitude": null,
+      "width": null,
+      "height": null,
+      "variants": null,
+      "metadata": null
+    },
+    {
+      "id": "8ba9a1c9-eda1-416f-a176-ea995242843c",
+      "tripId": "3e8e2c7c-7a7b-4d43-9f5b-1a2c3d4e5f6a",
+      "originalName": "20250314011414.png",
+      "url": "trips/3e8e2c7c-7a7b-4d43-9f5b-1a2c3d4e5f6a/route/20250314011414.png",
+      "placement": "route",
+      "createdAt": "2026-04-28T10:59:23.382Z",
+      "sizeBytes": 0,
+      "takenAt": null,
+      "latitude": null,
+      "longitude": null,
+      "width": null,
+      "height": null,
+      "variants": null,
+      "metadata": null
+    },
+    {
+      "id": "17142b6a-9d4f-451d-a8c4-1dedc3aaa08b",
+      "tripId": "3e8e2c7c-7a7b-4d43-9f5b-1a2c3d4e5f6a",
+      "originalName": "20250314011512.png",
+      "url": "trips/3e8e2c7c-7a7b-4d43-9f5b-1a2c3d4e5f6a/route/20250314011512.png",
+      "placement": "route",
+      "createdAt": "2026-04-28T10:59:23.382Z",
+      "sizeBytes": 0,
+      "takenAt": null,
+      "latitude": null,
+      "longitude": null,
+      "width": null,
+      "height": null,
+      "variants": null,
+      "metadata": null
+    },
+    {
+      "id": "f08605f2-c0ad-433d-875b-3c6e5b7ce270",
+      "tripId": "3e8e2c7c-7a7b-4d43-9f5b-1a2c3d4e5f6a",
+      "originalName": "20250314011957.png",
+      "url": "trips/3e8e2c7c-7a7b-4d43-9f5b-1a2c3d4e5f6a/route/20250314011957.png",
+      "placement": "route",
+      "createdAt": "2026-04-28T10:59:23.382Z",
+      "sizeBytes": 0,
+      "takenAt": null,
+      "latitude": null,
+      "longitude": null,
+      "width": null,
+      "height": null,
+      "variants": null,
+      "metadata": null
+    },
+    {
+      "id": "bf529c19-6e2c-4b51-b0f7-2cb023848a97",
+      "tripId": "3e8e2c7c-7a7b-4d43-9f5b-1a2c3d4e5f6a",
+      "originalName": "20250314011847.png",
+      "url": "trips/3e8e2c7c-7a7b-4d43-9f5b-1a2c3d4e5f6a/route/20250314011847.png",
+      "placement": "route",
+      "createdAt": "2026-04-28T10:59:23.382Z",
+      "sizeBytes": 0,
+      "takenAt": null,
+      "latitude": null,
+      "longitude": null,
+      "width": null,
+      "height": null,
+      "variants": null,
+      "metadata": null
+    },
+    {
+      "id": "982cad58-8fb1-4d93-bf48-558efbda872d",
+      "tripId": "3e8e2c7c-7a7b-4d43-9f5b-1a2c3d4e5f6a",
+      "originalName": "Meijiawu Tea Plantation Path.png",
+      "url": "trips/3e8e2c7c-7a7b-4d43-9f5b-1a2c3d4e5f6a/route/Meijiawu Tea Plantation Path.png",
+      "placement": "route",
+      "createdAt": "2026-04-28T10:59:23.382Z",
+      "sizeBytes": 0,
+      "takenAt": null,
+      "latitude": null,
+      "longitude": null,
+      "width": null,
+      "height": null,
+      "variants": null,
+      "metadata": null
+    },
+    {
+      "id": "0e6eeda5-3490-4ff8-b7ca-bf3b8e8b2e1a",
+      "tripId": "3e8e2c7c-7a7b-4d43-9f5b-1a2c3d4e5f6a",
+      "originalName": "Meijiawu Tea Plantation 1.jpg",
+      "url": "trips/3e8e2c7c-7a7b-4d43-9f5b-1a2c3d4e5f6a/route/Meijiawu Tea Plantation 1.jpg",
+      "placement": "route",
+      "createdAt": "2026-04-28T10:59:23.382Z",
+      "sizeBytes": 0,
+      "takenAt": null,
+      "latitude": null,
+      "longitude": null,
+      "width": null,
+      "height": null,
+      "variants": null,
+      "metadata": null
+    },
+    {
+      "id": "7a7121eb-6cc2-4377-a259-df51df87d8d8",
+      "tripId": "3e8e2c7c-7a7b-4d43-9f5b-1a2c3d4e5f6a",
+      "originalName": "Meijiawu Tea Plantation 2.jpg",
+      "url": "trips/3e8e2c7c-7a7b-4d43-9f5b-1a2c3d4e5f6a/route/Meijiawu Tea Plantation 2.jpg",
+      "placement": "route",
+      "createdAt": "2026-04-28T10:59:23.382Z",
+      "sizeBytes": 0,
+      "takenAt": null,
+      "latitude": null,
+      "longitude": null,
+      "width": null,
+      "height": null,
+      "variants": null,
+      "metadata": null
+    },
+    {
+      "id": "81150f6d-c23f-46b2-89d3-ef59431b4dfe",
+      "tripId": "3e8e2c7c-7a7b-4d43-9f5b-1a2c3d4e5f6a",
+      "originalName": "20250314012046.png",
+      "url": "trips/3e8e2c7c-7a7b-4d43-9f5b-1a2c3d4e5f6a/route/20250314012046.png",
+      "placement": "route",
+      "createdAt": "2026-04-28T10:59:23.382Z",
+      "sizeBytes": 0,
+      "takenAt": null,
+      "latitude": null,
+      "longitude": null,
+      "width": null,
+      "height": null,
+      "variants": null,
+      "metadata": null
+    },
+    {
+      "id": "70fd3b21-368c-4888-a051-d372548462cb",
+      "tripId": "3e8e2c7c-7a7b-4d43-9f5b-1a2c3d4e5f6a",
+      "originalName": "20250314012322.png",
+      "url": "trips/3e8e2c7c-7a7b-4d43-9f5b-1a2c3d4e5f6a/route/20250314012322.png",
+      "placement": "route",
+      "createdAt": "2026-04-28T10:59:23.382Z",
+      "sizeBytes": 0,
+      "takenAt": null,
+      "latitude": null,
+      "longitude": null,
+      "width": null,
+      "height": null,
+      "variants": null,
+      "metadata": null
+    },
+    {
+      "id": "929bec1b-f31c-40fd-bd73-e2cb23c36535",
+      "tripId": "3e8e2c7c-7a7b-4d43-9f5b-1a2c3d4e5f6a",
+      "originalName": "20250506095740.png",
+      "url": "trips/3e8e2c7c-7a7b-4d43-9f5b-1a2c3d4e5f6a/route/20250506095740.png",
+      "placement": "route",
+      "createdAt": "2026-04-28T10:59:23.382Z",
+      "sizeBytes": 0,
+      "takenAt": null,
+      "latitude": null,
+      "longitude": null,
+      "width": null,
+      "height": null,
+      "variants": null,
+      "metadata": null
+    },
+    {
+      "id": "98b08dcd-fcf6-40c5-9bdf-3da60a616eed",
+      "tripId": "3e8e2c7c-7a7b-4d43-9f5b-1a2c3d4e5f6a",
+      "originalName": "0206a12000990mnse338F_W_1280_853_R5.webp",
+      "url": "trips/3e8e2c7c-7a7b-4d43-9f5b-1a2c3d4e5f6a/route/0206a12000990mnse338F_W_1280_853_R5.webp",
+      "placement": "route",
+      "createdAt": "2026-04-28T10:59:23.382Z",
+      "sizeBytes": 0,
+      "takenAt": null,
+      "latitude": null,
+      "longitude": null,
+      "width": null,
+      "height": null,
+      "variants": null,
+      "metadata": null
+    },
+    {
+      "id": "689b2fec-4894-4654-9c2f-734113e5eb45",
+      "tripId": "3e8e2c7c-7a7b-4d43-9f5b-1a2c3d4e5f6a",
+      "originalName": "0206112000990n39g16CC_W_1280_853_R5.webp",
+      "url": "trips/3e8e2c7c-7a7b-4d43-9f5b-1a2c3d4e5f6a/route/0206112000990n39g16CC_W_1280_853_R5.webp",
+      "placement": "route",
+      "createdAt": "2026-04-28T10:59:23.382Z",
+      "sizeBytes": 0,
+      "takenAt": null,
+      "latitude": null,
+      "longitude": null,
+      "width": null,
+      "height": null,
+      "variants": null,
+      "metadata": null
+    },
+    {
+      "id": "231babc0-030c-498a-9f4d-8a19c32b5987",
+      "tripId": "3e8e2c7c-7a7b-4d43-9f5b-1a2c3d4e5f6a",
+      "originalName": "20250506100018.png",
+      "url": "trips/3e8e2c7c-7a7b-4d43-9f5b-1a2c3d4e5f6a/route/20250506100018.png",
+      "placement": "route",
+      "createdAt": "2026-04-28T10:59:23.382Z",
+      "sizeBytes": 0,
+      "takenAt": null,
+      "latitude": null,
+      "longitude": null,
+      "width": null,
+      "height": null,
+      "variants": null,
+      "metadata": null
+    },
+    {
+      "id": "063a9650-faeb-4d56-9a3f-3db49b421ee3",
+      "tripId": "3e8e2c7c-7a7b-4d43-9f5b-1a2c3d4e5f6a",
+      "originalName": "202505031601413.png",
+      "url": "trips/3e8e2c7c-7a7b-4d43-9f5b-1a2c3d4e5f6a/route/202505031601413.png",
+      "placement": "route",
+      "createdAt": "2026-04-28T10:59:23.382Z",
+      "sizeBytes": 0,
+      "takenAt": null,
+      "latitude": null,
+      "longitude": null,
+      "width": null,
+      "height": null,
+      "variants": null,
+      "metadata": null
+    },
+    {
+      "id": "852f0902-36be-44c7-87c2-c1affe67a8e8",
+      "tripId": "3e8e2c7c-7a7b-4d43-9f5b-1a2c3d4e5f6a",
+      "originalName": "unnamed.jpg",
+      "url": "trips/3e8e2c7c-7a7b-4d43-9f5b-1a2c3d4e5f6a/route/unnamed.jpg",
+      "placement": "route",
+      "createdAt": "2026-04-28T10:59:23.382Z",
+      "sizeBytes": 0,
+      "takenAt": null,
+      "latitude": null,
+      "longitude": null,
+      "width": null,
+      "height": null,
+      "variants": null,
+      "metadata": null
+    },
+    {
+      "id": "cf627766-73bb-445b-842c-670fbf9bbb7f",
+      "tripId": "3e8e2c7c-7a7b-4d43-9f5b-1a2c3d4e5f6a",
+      "originalName": "depositphotos_139790534-stock-photo-xinjiang-china-may-09-2015.webp",
+      "url": "trips/3e8e2c7c-7a7b-4d43-9f5b-1a2c3d4e5f6a/route/depositphotos_139790534-stock-photo-xinjiang-china-may-09-2015.webp",
+      "placement": "route",
+      "createdAt": "2026-04-28T10:59:23.382Z",
+      "sizeBytes": 0,
+      "takenAt": null,
+      "latitude": null,
+      "longitude": null,
+      "width": null,
+      "height": null,
+      "variants": null,
+      "metadata": null
+    },
+    {
+      "id": "148bf147-9ae5-442d-b44b-25f63d96de28",
+      "tripId": "3e8e2c7c-7a7b-4d43-9f5b-1a2c3d4e5f6a",
+      "originalName": "B62a46a9b9ffe8860d.jpeg",
+      "url": "trips/3e8e2c7c-7a7b-4d43-9f5b-1a2c3d4e5f6a/route/B62a46a9b9ffe8860d.jpeg",
+      "placement": "route",
+      "createdAt": "2026-04-28T10:59:23.382Z",
+      "sizeBytes": 0,
+      "takenAt": null,
+      "latitude": null,
+      "longitude": null,
+      "width": null,
+      "height": null,
+      "variants": null,
+      "metadata": null
+    },
+    {
+      "id": "cc026267-420b-46ca-91cc-ae92a04cc0a1",
+      "tripId": "3e8e2c7c-7a7b-4d43-9f5b-1a2c3d4e5f6a",
+      "originalName": "20250226210917.png",
+      "url": "trips/3e8e2c7c-7a7b-4d43-9f5b-1a2c3d4e5f6a/route/20250226210917.png",
+      "placement": "route",
+      "createdAt": "2026-04-28T10:59:23.382Z",
+      "sizeBytes": 0,
+      "takenAt": null,
+      "latitude": null,
+      "longitude": null,
+      "width": null,
+      "height": null,
+      "variants": null,
+      "metadata": null
+    },
+    {
+      "id": "755693c0-86ea-4c5d-a530-2e1c6a0262e1",
+      "tripId": "3e8e2c7c-7a7b-4d43-9f5b-1a2c3d4e5f6a",
+      "originalName": "20250226211046.png",
+      "url": "trips/3e8e2c7c-7a7b-4d43-9f5b-1a2c3d4e5f6a/route/20250226211046.png",
+      "placement": "route",
+      "createdAt": "2026-04-28T10:59:23.382Z",
+      "sizeBytes": 0,
+      "takenAt": null,
+      "latitude": null,
+      "longitude": null,
+      "width": null,
+      "height": null,
+      "variants": null,
+      "metadata": null
+    },
+    {
+      "id": "434412f1-b182-463b-9f90-b52d84afb32b",
+      "tripId": "3e8e2c7c-7a7b-4d43-9f5b-1a2c3d4e5f6a",
+      "originalName": "20250226211112.png",
+      "url": "trips/3e8e2c7c-7a7b-4d43-9f5b-1a2c3d4e5f6a/route/20250226211112.png",
+      "placement": "route",
+      "createdAt": "2026-04-28T10:59:23.382Z",
+      "sizeBytes": 0,
+      "takenAt": null,
+      "latitude": null,
+      "longitude": null,
+      "width": null,
+      "height": null,
+      "variants": null,
+      "metadata": null
+    },
+    {
+      "id": "f0a1c157-43b6-4f9c-9332-0abb6000e420",
+      "tripId": "3e8e2c7c-7a7b-4d43-9f5b-1a2c3d4e5f6a",
+      "originalName": "20250226211533.png",
+      "url": "trips/3e8e2c7c-7a7b-4d43-9f5b-1a2c3d4e5f6a/route/20250226211533.png",
+      "placement": "route",
+      "createdAt": "2026-04-28T10:59:23.382Z",
+      "sizeBytes": 0,
+      "takenAt": null,
+      "latitude": null,
+      "longitude": null,
+      "width": null,
+      "height": null,
+      "variants": null,
+      "metadata": null
+    },
+    {
+      "id": "b2e6e0f0-1eab-4987-b134-4a7d5c9103e4",
+      "tripId": "3e8e2c7c-7a7b-4d43-9f5b-1a2c3d4e5f6a",
+      "originalName": "20250226211619.png",
+      "url": "trips/3e8e2c7c-7a7b-4d43-9f5b-1a2c3d4e5f6a/route/20250226211619.png",
+      "placement": "route",
+      "createdAt": "2026-04-28T10:59:23.382Z",
+      "sizeBytes": 0,
+      "takenAt": null,
+      "latitude": null,
+      "longitude": null,
+      "width": null,
+      "height": null,
+      "variants": null,
+      "metadata": null
+    },
+    {
+      "id": "3024b0eb-05cf-44c3-a959-65a34bf1d30a",
+      "tripId": "3e8e2c7c-7a7b-4d43-9f5b-1a2c3d4e5f6a",
+      "originalName": "20250226212040.png",
+      "url": "trips/3e8e2c7c-7a7b-4d43-9f5b-1a2c3d4e5f6a/route/20250226212040.png",
+      "placement": "route",
+      "createdAt": "2026-04-28T10:59:23.382Z",
+      "sizeBytes": 0,
+      "takenAt": null,
+      "latitude": null,
+      "longitude": null,
+      "width": null,
+      "height": null,
+      "variants": null,
+      "metadata": null
+    },
+    {
+      "id": "5bcb236d-1e22-4812-a495-468d8d0cd58d",
+      "tripId": "3e8e2c7c-7a7b-4d43-9f5b-1a2c3d4e5f6a",
+      "originalName": "20250226212249.png",
+      "url": "trips/3e8e2c7c-7a7b-4d43-9f5b-1a2c3d4e5f6a/route/20250226212249.png",
+      "placement": "route",
+      "createdAt": "2026-04-28T10:59:23.382Z",
+      "sizeBytes": 0,
+      "takenAt": null,
+      "latitude": null,
+      "longitude": null,
+      "width": null,
+      "height": null,
+      "variants": null,
+      "metadata": null
+    },
+    {
+      "id": "4a3b213d-6606-4ebf-8a09-cdd7be02c580",
+      "tripId": "3e8e2c7c-7a7b-4d43-9f5b-1a2c3d4e5f6a",
+      "originalName": "20250226213252.png",
+      "url": "trips/3e8e2c7c-7a7b-4d43-9f5b-1a2c3d4e5f6a/route/20250226213252.png",
+      "placement": "route",
+      "createdAt": "2026-04-28T10:59:23.382Z",
+      "sizeBytes": 0,
+      "takenAt": null,
+      "latitude": null,
+      "longitude": null,
+      "width": null,
+      "height": null,
+      "variants": null,
+      "metadata": null
+    },
+    {
+      "id": "2d930997-81bd-4705-89e4-023c8aefb026",
+      "tripId": "3e8e2c7c-7a7b-4d43-9f5b-1a2c3d4e5f6a",
+      "originalName": "20250226214429.png",
+      "url": "trips/3e8e2c7c-7a7b-4d43-9f5b-1a2c3d4e5f6a/route/20250226214429.png",
+      "placement": "route",
+      "createdAt": "2026-04-28T10:59:23.382Z",
+      "sizeBytes": 0,
+      "takenAt": null,
+      "latitude": null,
+      "longitude": null,
+      "width": null,
+      "height": null,
+      "variants": null,
+      "metadata": null
+    },
+    {
+      "id": "0446ecf7-78aa-41c1-958d-f7d649850716",
+      "tripId": "3e8e2c7c-7a7b-4d43-9f5b-1a2c3d4e5f6a",
+      "originalName": "20250226214848.png",
+      "url": "trips/3e8e2c7c-7a7b-4d43-9f5b-1a2c3d4e5f6a/route/20250226214848.png",
+      "placement": "route",
+      "createdAt": "2026-04-28T10:59:23.382Z",
+      "sizeBytes": 0,
+      "takenAt": null,
+      "latitude": null,
+      "longitude": null,
+      "width": null,
+      "height": null,
+      "variants": null,
+      "metadata": null
+    },
+    {
+      "id": "dcaaa568-c4a1-4ba2-ad91-efec1200f653",
+      "tripId": "3e8e2c7c-7a7b-4d43-9f5b-1a2c3d4e5f6a",
+      "originalName": "20250226214829.png",
+      "url": "trips/3e8e2c7c-7a7b-4d43-9f5b-1a2c3d4e5f6a/route/20250226214829.png",
+      "placement": "route",
+      "createdAt": "2026-04-28T10:59:23.382Z",
+      "sizeBytes": 0,
+      "takenAt": null,
+      "latitude": null,
+      "longitude": null,
+      "width": null,
+      "height": null,
+      "variants": null,
+      "metadata": null
+    },
+    {
+      "id": "b3b4f9b3-c89e-476f-ad80-3f7a4cb46527",
+      "tripId": "3e8e2c7c-7a7b-4d43-9f5b-1a2c3d4e5f6a",
+      "originalName": "20250226215018.png",
+      "url": "trips/3e8e2c7c-7a7b-4d43-9f5b-1a2c3d4e5f6a/route/20250226215018.png",
+      "placement": "route",
+      "createdAt": "2026-04-28T10:59:23.382Z",
+      "sizeBytes": 0,
+      "takenAt": null,
+      "latitude": null,
+      "longitude": null,
+      "width": null,
+      "height": null,
+      "variants": null,
+      "metadata": null
+    }
+  ],
+  "memories": [],
+  "participants": [
+    {
+      "tripId": "3e8e2c7c-7a7b-4d43-9f5b-1a2c3d4e5f6a",
+      "userId": "1a97d95a-0158-4171-8258-52c7a917e3f0"
+    }
+  ],
+  "sections": []
+}

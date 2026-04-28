@@ -27,6 +27,8 @@ import { AppRouteNames } from '~/shared/constants/routes'
         </nav>
       </div>
 
+      <div class="mobile-divider" />
+
       <div class="footer-socials">
         <router-link
           :to="{ name: AppRouteNames.UsefulLinks }"
@@ -79,7 +81,7 @@ import { AppRouteNames } from '~/shared/constants/routes'
 
   @include media-down(sm) {
     flex-direction: column-reverse;
-    gap: 16px;
+    gap: 6px;
   }
 }
 
@@ -112,6 +114,17 @@ import { AppRouteNames } from '~/shared/constants/routes'
 
   @include media-down(sm) {
     display: none;
+  }
+}
+
+.mobile-divider {
+  display: none;
+  width: 100%;
+  height: 1px;
+  background-color: rgba(var(--border-primary-color-rgb), 0.2);
+
+  @include media-down(sm) {
+    display: block;
   }
 }
 

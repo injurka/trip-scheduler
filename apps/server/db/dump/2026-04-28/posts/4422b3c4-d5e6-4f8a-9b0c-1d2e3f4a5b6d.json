@@ -1,0 +1,221 @@
+{
+  "id": "4422b3c4-d5e6-4f8a-9b0c-1d2e3f4a5b6d",
+  "userId": "1a97d95a-0158-4171-8258-52c7a917e3f0",
+  "title": "Ледяное сердце Исландии: Южное побережье",
+  "insight": "Погода меняется каждые 15 минут. Берите многослойную одежду и непромокаемый верх — это не шутка!",
+  "description": "7-дневное путешествие на машине по знаменитому южному побережью Исландии: водопады, ледники, черные пляжи и вулканы.",
+  "country": "Исландия",
+  "startDate": "2025-08-08",
+  "tags": [
+    "iceland",
+    "roadtrip",
+    "nature",
+    "waterfalls",
+    "glacier"
+  ],
+  "status": "completed",
+  "viewsCount": 2800,
+  "likesCount": 890,
+  "savesCount": 420,
+  "createdAt": "2025-08-15T18:00:00.000Z",
+  "updatedAt": "2026-04-28T10:59:23.297Z",
+  "latitude": 63.5321,
+  "longitude": -19.019,
+  "statsDetail": {
+    "views": 2800,
+    "duration": 168
+  },
+  "elements": [
+    {
+      "id": "b1b2c3d4-e5f6-4890-a234-567890abcde0",
+      "postId": "4422b3c4-d5e6-4f8a-9b0c-1d2e3f4a5b6d",
+      "order": 0,
+      "title": "Дорога огня и льда",
+      "day": 1,
+      "time": "08:00",
+      "content": [
+        {
+          "id": "block-is1",
+          "text": "Южное побережье Исландии — это концентрат невероятных пейзажей. Прямо с кольцевой дороги открываются виды, от которых захватывает дух. Наш маршрут начинался в Рейкьявике и пролегал до знаменитой ледниковой лагуны Йокульсарлон.",
+          "type": "markdown"
+        }
+      ],
+      "createdAt": "2025-08-15T18:00:00.000Z",
+      "updatedAt": "2025-08-15T18:00:00.000Z"
+    },
+    {
+      "id": "b1b2c3d4-e5f6-4890-a234-567890abcde1",
+      "postId": "4422b3c4-d5e6-4f8a-9b0c-1d2e3f4a5b6d",
+      "order": 1,
+      "title": "Могучие водопады: Сельяландсфосс и Скогафосс",
+      "day": 2,
+      "time": "11:00",
+      "content": [
+        {
+          "id": "block-is2",
+          "text": "Первые большие остановки — водопады **Сельяландсфосс**, за которым можно пройти, и **Скогафосс**, к вершине которого ведет длинная лестница. Готовьтесь промокнуть!",
+          "type": "markdown"
+        },
+        {
+          "id": "block-is3",
+          "type": "gallery",
+          "imageIds": [
+            "c1b2c3d4-e5f6-4a8b-9234-567890abcde0",
+            "c1b2c3d4-e5f6-4a8b-a234-567890abcde1"
+          ],
+          "displayType": "masonry"
+        }
+      ],
+      "createdAt": "2025-08-15T18:05:00.000Z",
+      "updatedAt": "2025-08-15T18:05:00.000Z"
+    },
+    {
+      "id": "b1b2c3d4-e5f6-4890-a234-567890abcde2",
+      "postId": "4422b3c4-d5e6-4f8a-9b0c-1d2e3f4a5b6d",
+      "order": 2,
+      "title": "Пляж Рейнисфьяра",
+      "day": 3,
+      "time": "15:45",
+      "content": [
+        {
+          "id": "block-is4",
+          "type": "location",
+          "location": {
+            "lat": 63.4043,
+            "lng": -19.0435,
+            "label": "Reynisfjara Beach",
+            "address": "Reynishverfisvegur, 871 Vík"
+          }
+        },
+        {
+          "id": "block-is5",
+          "text": "Знаменитый пляж с черным вулканическим песком и базальтовыми колоннами. *Осторожно:* волны здесь непредсказуемы и очень опасны, не подходите близко к воде.",
+          "type": "markdown"
+        },
+        {
+          "id": "block-is6",
+          "type": "image",
+          "caption": "Базальтовые скалы \"Пальцы тролля\"",
+          "imageId": "c1b2c3d4-e5f6-4a8b-b234-567890abcde2",
+          "viewMode": "full-width"
+        }
+      ],
+      "createdAt": "2025-08-15T18:10:00.000Z",
+      "updatedAt": "2025-08-15T18:10:00.000Z"
+    },
+    {
+      "id": "b1b2c3d4-e5f6-4890-a234-567890abcde3",
+      "postId": "4422b3c4-d5e6-4f8a-9b0c-1d2e3f4a5b6d",
+      "order": 3,
+      "title": "Ледниковая лагуна Йокульсарлон",
+      "day": 5,
+      "time": "12:00",
+      "content": [
+        {
+          "id": "block-is7",
+          "text": "Жемчужина маршрута. Огромные айсберги откалываются от ледника и дрейфуют в сторону океана. Рядом находится \"Бриллиантовый пляж\", где льдины выбрасывает на черный песок.",
+          "type": "markdown"
+        },
+        {
+          "id": "block-is8",
+          "type": "gallery",
+          "imageIds": [
+            "c1b2c3d4-e5f6-4a8b-8234-567890abcde3",
+            "c1b2c3d4-e5f6-4a8b-9abc-567890abcde4"
+          ],
+          "displayType": "grid"
+        }
+      ],
+      "createdAt": "2025-08-15T18:15:00.000Z",
+      "updatedAt": "2025-08-15T18:15:00.000Z"
+    }
+  ],
+  "media": [
+    {
+      "id": "c1b2c3d4-e5f6-4a8b-9234-567890abcde0",
+      "postId": "4422b3c4-d5e6-4f8a-9b0c-1d2e3f4a5b6d",
+      "originalName": "seljalandsfoss.jpg",
+      "url": "https://images.unsplash.com/photo-1547702311-6050450546a3?q=80&w=2574&auto=format&fit=crop",
+      "type": "image",
+      "sizeBytes": 345678,
+      "order": 0,
+      "createdAt": "2025-08-15T17:55:00.000Z",
+      "takenAt": null,
+      "latitude": null,
+      "longitude": null,
+      "width": 1920,
+      "height": 1080,
+      "variants": null,
+      "metadata": {}
+    },
+    {
+      "id": "c1b2c3d4-e5f6-4a8b-a234-567890abcde1",
+      "postId": "4422b3c4-d5e6-4f8a-9b0c-1d2e3f4a5b6d",
+      "originalName": "skogafoss.jpg",
+      "url": "https://images.unsplash.com/photo-1535546204-4849185d3457?q=80&w=2574&auto=format&fit=crop",
+      "type": "image",
+      "sizeBytes": 456789,
+      "order": 1,
+      "createdAt": "2025-08-15T17:56:00.000Z",
+      "takenAt": null,
+      "latitude": null,
+      "longitude": null,
+      "width": 1920,
+      "height": 1080,
+      "variants": null,
+      "metadata": {}
+    },
+    {
+      "id": "c1b2c3d4-e5f6-4a8b-b234-567890abcde2",
+      "postId": "4422b3c4-d5e6-4f8a-9b0c-1d2e3f4a5b6d",
+      "originalName": "reynisfjara.jpg",
+      "url": "https://images.unsplash.com/photo-1563807396039-6ce1405b635f?q=80&w=2574&auto=format&fit=crop",
+      "type": "image",
+      "sizeBytes": 567890,
+      "order": 2,
+      "createdAt": "2025-08-15T17:57:00.000Z",
+      "takenAt": null,
+      "latitude": null,
+      "longitude": null,
+      "width": 1920,
+      "height": 1080,
+      "variants": null,
+      "metadata": {}
+    },
+    {
+      "id": "c1b2c3d4-e5f6-4a8b-8234-567890abcde3",
+      "postId": "4422b3c4-d5e6-4f8a-9b0c-1d2e3f4a5b6d",
+      "originalName": "jokulsarlon.jpg",
+      "url": "https://images.unsplash.com/photo-1517411262332-9c989355433a?q=80&w=2574&auto=format&fit=crop",
+      "type": "image",
+      "sizeBytes": 678901,
+      "order": 3,
+      "createdAt": "2025-08-15T17:58:00.000Z",
+      "takenAt": null,
+      "latitude": null,
+      "longitude": null,
+      "width": 1920,
+      "height": 1080,
+      "variants": null,
+      "metadata": {}
+    },
+    {
+      "id": "c1b2c3d4-e5f6-4a8b-9abc-567890abcde4",
+      "postId": "4422b3c4-d5e6-4f8a-9b0c-1d2e3f4a5b6d",
+      "originalName": "diamond-beach.jpg",
+      "url": "https://images.unsplash.com/photo-1614082242135-e00b8c6274f8?q=80&w=2574&auto=format&fit=crop",
+      "type": "image",
+      "sizeBytes": 789012,
+      "order": 4,
+      "createdAt": "2025-08-15T17:59:00.000Z",
+      "takenAt": null,
+      "latitude": null,
+      "longitude": null,
+      "width": 1920,
+      "height": 1080,
+      "variants": null,
+      "metadata": {}
+    }
+  ],
+  "savedBy": []
+}

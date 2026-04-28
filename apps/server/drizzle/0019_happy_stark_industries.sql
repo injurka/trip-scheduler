@@ -1,0 +1,1 @@
+ALTER TABLE "countries" RENAME COLUMN "emoji" TO "flagUrl";

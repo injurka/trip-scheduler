@@ -1,0 +1,137 @@
+{
+  "id": "3322b3c4-d5e6-4f8a-9b0c-1d2e3f4a5b6c",
+  "userId": "1a97d95a-0158-4171-8258-52c7a917e3f0",
+  "title": "Магия Киото: Осенний сезон",
+  "insight": "Лучшее время для посещения — середина ноября, когда клены становятся ярко-красными.",
+  "description": "Небольшой отчет о нашей поездке в древнюю столицу Японии. Храмы, еда и невероятные краски осени.",
+  "country": "Япония",
+  "startDate": "2024-11-15",
+  "tags": [
+    "travel",
+    "japan",
+    "kyoto",
+    "autumn",
+    "photography"
+  ],
+  "status": "completed",
+  "viewsCount": 1250,
+  "likesCount": 340,
+  "savesCount": 152,
+  "createdAt": "2024-11-20T10:00:00.000Z",
+  "updatedAt": "2026-04-28T10:59:23.297Z",
+  "latitude": 35.0116,
+  "longitude": 135.7681,
+  "statsDetail": {
+    "views": 1250,
+    "duration": 120
+  },
+  "elements": [
+    {
+      "id": "5522b3c4-d5e6-4f8a-9b0c-1d2e3f4a5b60",
+      "postId": "3322b3c4-d5e6-4f8a-9b0c-1d2e3f4a5b6c",
+      "order": 0,
+      "title": "Вступление",
+      "day": 1,
+      "time": "10:00",
+      "content": [
+        {
+          "id": "block-1",
+          "text": "Киото встречает тишиной, даже несмотря на толпы туристов. **Золотой павильон (Кинкаку-дзи)** особенно прекрасен на закате, когда золото крыши отражается в пруду.",
+          "type": "markdown"
+        }
+      ],
+      "createdAt": "2024-11-20T10:00:00.000Z",
+      "updatedAt": "2024-11-20T10:00:00.000Z"
+    },
+    {
+      "id": "5522b3c4-d5e6-4f8a-9b0c-1d2e3f4a5b61",
+      "postId": "3322b3c4-d5e6-4f8a-9b0c-1d2e3f4a5b6c",
+      "order": 1,
+      "title": "Краски осени",
+      "day": 1,
+      "time": "14:30",
+      "content": [
+        {
+          "id": "block-2",
+          "type": "gallery",
+          "imageIds": [
+            "7722b3c4-d5e6-4f8a-9b0c-1d2e3f4a5b60",
+            "7722b3c4-d5e6-4f8a-9b0c-1d2e3f4a5b61"
+          ],
+          "displayType": "grid"
+        },
+        {
+          "id": "block-3",
+          "text": "На фотографиях выше — виды из сада при храме Тэнрю-дзи.",
+          "type": "markdown"
+        }
+      ],
+      "createdAt": "2024-11-20T10:05:00.000Z",
+      "updatedAt": "2024-11-20T10:05:00.000Z"
+    },
+    {
+      "id": "5522b3c4-d5e6-4f8a-9b0c-1d2e3f4a5b62",
+      "postId": "3322b3c4-d5e6-4f8a-9b0c-1d2e3f4a5b6c",
+      "order": 2,
+      "title": "Где это находится",
+      "day": 2,
+      "time": "09:00",
+      "content": [
+        {
+          "id": "block-4",
+          "type": "location",
+          "location": {
+            "lat": 35.0394,
+            "lng": 135.7292,
+            "color": "#FFD700",
+            "label": "Kinkaku-ji",
+            "address": "1 Kinkakujicho, Kita Ward, Kyoto"
+          }
+        }
+      ],
+      "createdAt": "2024-11-20T10:10:00.000Z",
+      "updatedAt": "2024-11-20T10:10:00.000Z"
+    }
+  ],
+  "media": [
+    {
+      "id": "7722b3c4-d5e6-4f8a-9b0c-1d2e3f4a5b60",
+      "postId": "3322b3c4-d5e6-4f8a-9b0c-1d2e3f4a5b6c",
+      "originalName": "kinkakuji_fall.jpg",
+      "url": "https://images.unsplash.com/photo-1624253321171-1be53e12f5f4?q=80&w=2574&auto=format&fit=crop",
+      "type": "image",
+      "sizeBytes": 123456,
+      "order": 0,
+      "createdAt": "2024-11-20T09:55:00.000Z",
+      "takenAt": null,
+      "latitude": null,
+      "longitude": null,
+      "width": 1920,
+      "height": 1080,
+      "variants": null,
+      "metadata": {
+        "caption": "Золотой павильон"
+      }
+    },
+    {
+      "id": "7722b3c4-d5e6-4f8a-9b0c-1d2e3f4a5b61",
+      "postId": "3322b3c4-d5e6-4f8a-9b0c-1d2e3f4a5b6c",
+      "originalName": "kyoto_leaves.jpg",
+      "url": "https://images.unsplash.com/photo-1493976040374-85c8e12f0c0e?q=80&w=2670&auto=format&fit=crop",
+      "type": "image",
+      "sizeBytes": 234567,
+      "order": 1,
+      "createdAt": "2024-11-20T09:56:00.000Z",
+      "takenAt": null,
+      "latitude": null,
+      "longitude": null,
+      "width": 1920,
+      "height": 1280,
+      "variants": null,
+      "metadata": {
+        "caption": "Красные клены"
+      }
+    }
+  ],
+  "savedBy": []
+}

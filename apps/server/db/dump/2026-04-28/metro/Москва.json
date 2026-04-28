@@ -1,0 +1,3190 @@
+{
+  "id": "c2a6b7c8-9d1e-4b8f-9c1d-8a7b6e5d4c3b",
+  "city": "Москва",
+  "country": "Россия",
+  "lines": [
+    {
+      "id": "l1",
+      "systemId": "c2a6b7c8-9d1e-4b8f-9c1d-8a7b6e5d4c3b",
+      "name": "Сокольническая (Sokolnicheskaya)",
+      "lineNumber": "1",
+      "color": "#EF161E",
+      "lineStations": [
+        {
+          "lineId": "l1",
+          "stationId": "s1-1",
+          "order": 0,
+          "station": {
+            "id": "s1-1",
+            "systemId": "c2a6b7c8-9d1e-4b8f-9c1d-8a7b6e5d4c3b",
+            "name": "Бульвар Рокоссовского (Bulvar Rokossovskogo)"
+          }
+        },
+        {
+          "lineId": "l1",
+          "stationId": "s1-2",
+          "order": 1,
+          "station": {
+            "id": "s1-2",
+            "systemId": "c2a6b7c8-9d1e-4b8f-9c1d-8a7b6e5d4c3b",
+            "name": "Черкизовская (Cherkizovskaya)"
+          }
+        },
+        {
+          "lineId": "l1",
+          "stationId": "s1-3",
+          "order": 2,
+          "station": {
+            "id": "s1-3",
+            "systemId": "c2a6b7c8-9d1e-4b8f-9c1d-8a7b6e5d4c3b",
+            "name": "Преображенская площадь (Preobrazhenskaya Ploshchad)"
+          }
+        },
+        {
+          "lineId": "l1",
+          "stationId": "s1-4",
+          "order": 3,
+          "station": {
+            "id": "s1-4",
+            "systemId": "c2a6b7c8-9d1e-4b8f-9c1d-8a7b6e5d4c3b",
+            "name": "Сокольники (Sokolniki)"
+          }
+        },
+        {
+          "lineId": "l1",
+          "stationId": "s1-5",
+          "order": 4,
+          "station": {
+            "id": "s1-5",
+            "systemId": "c2a6b7c8-9d1e-4b8f-9c1d-8a7b6e5d4c3b",
+            "name": "Красносельская (Krasnoselskaya)"
+          }
+        },
+        {
+          "lineId": "l1",
+          "stationId": "s1-6",
+          "order": 5,
+          "station": {
+            "id": "s1-6",
+            "systemId": "c2a6b7c8-9d1e-4b8f-9c1d-8a7b6e5d4c3b",
+            "name": "Комсомольская (Komsomolskaya)"
+          }
+        },
+        {
+          "lineId": "l1",
+          "stationId": "s1-7",
+          "order": 6,
+          "station": {
+            "id": "s1-7",
+            "systemId": "c2a6b7c8-9d1e-4b8f-9c1d-8a7b6e5d4c3b",
+            "name": "Красные Ворота (Krasnye Vorota)"
+          }
+        },
+        {
+          "lineId": "l1",
+          "stationId": "s1-8",
+          "order": 7,
+          "station": {
+            "id": "s1-8",
+            "systemId": "c2a6b7c8-9d1e-4b8f-9c1d-8a7b6e5d4c3b",
+            "name": "Чистые пруды (Chistye Prudy)"
+          }
+        },
+        {
+          "lineId": "l1",
+          "stationId": "s1-9",
+          "order": 8,
+          "station": {
+            "id": "s1-9",
+            "systemId": "c2a6b7c8-9d1e-4b8f-9c1d-8a7b6e5d4c3b",
+            "name": "Лубянка (Lubyanka)"
+          }
+        },
+        {
+          "lineId": "l1",
+          "stationId": "s1-10",
+          "order": 9,
+          "station": {
+            "id": "s1-10",
+            "systemId": "c2a6b7c8-9d1e-4b8f-9c1d-8a7b6e5d4c3b",
+            "name": "Охотный Ряд (Okhotny Ryad)"
+          }
+        },
+        {
+          "lineId": "l1",
+          "stationId": "s1-11",
+          "order": 10,
+          "station": {
+            "id": "s1-11",
+            "systemId": "c2a6b7c8-9d1e-4b8f-9c1d-8a7b6e5d4c3b",
+            "name": "Библиотека имени Ленина (Biblioteka Imeni Lenina)"
+          }
+        },
+        {
+          "lineId": "l1",
+          "stationId": "s1-12",
+          "order": 11,
+          "station": {
+            "id": "s1-12",
+            "systemId": "c2a6b7c8-9d1e-4b8f-9c1d-8a7b6e5d4c3b",
+            "name": "Кропоткинская (Kropotkinskaya)"
+          }
+        },
+        {
+          "lineId": "l1",
+          "stationId": "s1-13",
+          "order": 12,
+          "station": {
+            "id": "s1-13",
+            "systemId": "c2a6b7c8-9d1e-4b8f-9c1d-8a7b6e5d4c3b",
+            "name": "Парк культуры (Park Kultury)"
+          }
+        },
+        {
+          "lineId": "l1",
+          "stationId": "s1-14",
+          "order": 13,
+          "station": {
+            "id": "s1-14",
+            "systemId": "c2a6b7c8-9d1e-4b8f-9c1d-8a7b6e5d4c3b",
+            "name": "Фрунзенская (Frunzenskaya)"
+          }
+        },
+        {
+          "lineId": "l1",
+          "stationId": "s1-15",
+          "order": 14,
+          "station": {
+            "id": "s1-15",
+            "systemId": "c2a6b7c8-9d1e-4b8f-9c1d-8a7b6e5d4c3b",
+            "name": "Спортивная (Sportivnaya)"
+          }
+        },
+        {
+          "lineId": "l1",
+          "stationId": "s1-16",
+          "order": 15,
+          "station": {
+            "id": "s1-16",
+            "systemId": "c2a6b7c8-9d1e-4b8f-9c1d-8a7b6e5d4c3b",
+            "name": "Воробьёвы горы (Vorobyovy Gory)"
+          }
+        },
+        {
+          "lineId": "l1",
+          "stationId": "s1-17",
+          "order": 16,
+          "station": {
+            "id": "s1-17",
+            "systemId": "c2a6b7c8-9d1e-4b8f-9c1d-8a7b6e5d4c3b",
+            "name": "Университет (Universitet)"
+          }
+        },
+        {
+          "lineId": "l1",
+          "stationId": "s1-18",
+          "order": 17,
+          "station": {
+            "id": "s1-18",
+            "systemId": "c2a6b7c8-9d1e-4b8f-9c1d-8a7b6e5d4c3b",
+            "name": "Проспект Вернадского (Prospekt Vernadskogo)"
+          }
+        },
+        {
+          "lineId": "l1",
+          "stationId": "s1-19",
+          "order": 18,
+          "station": {
+            "id": "s1-19",
+            "systemId": "c2a6b7c8-9d1e-4b8f-9c1d-8a7b6e5d4c3b",
+            "name": "Юго-Западная (Yugo-Zapadnaya)"
+          }
+        },
+        {
+          "lineId": "l1",
+          "stationId": "s1-20",
+          "order": 19,
+          "station": {
+            "id": "s1-20",
+            "systemId": "c2a6b7c8-9d1e-4b8f-9c1d-8a7b6e5d4c3b",
+            "name": "Тропарёво (Troparyovo)"
+          }
+        },
+        {
+          "lineId": "l1",
+          "stationId": "s1-21",
+          "order": 20,
+          "station": {
+            "id": "s1-21",
+            "systemId": "c2a6b7c8-9d1e-4b8f-9c1d-8a7b6e5d4c3b",
+            "name": "Румянцево (Rumyantsevo)"
+          }
+        },
+        {
+          "lineId": "l1",
+          "stationId": "s1-22",
+          "order": 21,
+          "station": {
+            "id": "s1-22",
+            "systemId": "c2a6b7c8-9d1e-4b8f-9c1d-8a7b6e5d4c3b",
+            "name": "Саларьево (Salaryevo)"
+          }
+        },
+        {
+          "lineId": "l1",
+          "stationId": "s1-23",
+          "order": 22,
+          "station": {
+            "id": "s1-23",
+            "systemId": "c2a6b7c8-9d1e-4b8f-9c1d-8a7b6e5d4c3b",
+            "name": "Филатов Луг (Filatov Lug)"
+          }
+        },
+        {
+          "lineId": "l1",
+          "stationId": "s1-24",
+          "order": 23,
+          "station": {
+            "id": "s1-24",
+            "systemId": "c2a6b7c8-9d1e-4b8f-9c1d-8a7b6e5d4c3b",
+            "name": "Прокшино (Prokshino)"
+          }
+        },
+        {
+          "lineId": "l1",
+          "stationId": "s1-25",
+          "order": 24,
+          "station": {
+            "id": "s1-25",
+            "systemId": "c2a6b7c8-9d1e-4b8f-9c1d-8a7b6e5d4c3b",
+            "name": "Ольховая (Olkhovaya)"
+          }
+        },
+        {
+          "lineId": "l1",
+          "stationId": "s1-26",
+          "order": 25,
+          "station": {
+            "id": "s1-26",
+            "systemId": "c2a6b7c8-9d1e-4b8f-9c1d-8a7b6e5d4c3b",
+            "name": "Новомосковская (Novomoskovskaya)"
+          }
+        },
+        {
+          "lineId": "l1",
+          "stationId": "s1-27",
+          "order": 26,
+          "station": {
+            "id": "s1-27",
+            "systemId": "c2a6b7c8-9d1e-4b8f-9c1d-8a7b6e5d4c3b",
+            "name": "Потапово (Potapovo)"
+          }
+        }
+      ]
+    },
+    {
+      "id": "l2",
+      "systemId": "c2a6b7c8-9d1e-4b8f-9c1d-8a7b6e5d4c3b",
+      "name": "Замоскворецкая (Zamoskvoretskaya)",
+      "lineNumber": "2",
+      "color": "#009A3E",
+      "lineStations": [
+        {
+          "lineId": "l2",
+          "stationId": "s2-1",
+          "order": 0,
+          "station": {
+            "id": "s2-1",
+            "systemId": "c2a6b7c8-9d1e-4b8f-9c1d-8a7b6e5d4c3b",
+            "name": "Ховрино (Khovrino)"
+          }
+        },
+        {
+          "lineId": "l2",
+          "stationId": "s2-2",
+          "order": 1,
+          "station": {
+            "id": "s2-2",
+            "systemId": "c2a6b7c8-9d1e-4b8f-9c1d-8a7b6e5d4c3b",
+            "name": "Беломорская (Belomorskaya)"
+          }
+        },
+        {
+          "lineId": "l2",
+          "stationId": "s2-3",
+          "order": 2,
+          "station": {
+            "id": "s2-3",
+            "systemId": "c2a6b7c8-9d1e-4b8f-9c1d-8a7b6e5d4c3b",
+            "name": "Речной вокзал (Rechnoy Vokzal)"
+          }
+        },
+        {
+          "lineId": "l2",
+          "stationId": "s2-4",
+          "order": 3,
+          "station": {
+            "id": "s2-4",
+            "systemId": "c2a6b7c8-9d1e-4b8f-9c1d-8a7b6e5d4c3b",
+            "name": "Водный стадион (Vodny Stadion)"
+          }
+        },
+        {
+          "lineId": "l2",
+          "stationId": "s2-5",
+          "order": 4,
+          "station": {
+            "id": "s2-5",
+            "systemId": "c2a6b7c8-9d1e-4b8f-9c1d-8a7b6e5d4c3b",
+            "name": "Войковская (Voykovskaya)"
+          }
+        },
+        {
+          "lineId": "l2",
+          "stationId": "s2-6",
+          "order": 5,
+          "station": {
+            "id": "s2-6",
+            "systemId": "c2a6b7c8-9d1e-4b8f-9c1d-8a7b6e5d4c3b",
+            "name": "Сокол (Sokol)"
+          }
+        },
+        {
+          "lineId": "l2",
+          "stationId": "s2-7",
+          "order": 6,
+          "station": {
+            "id": "s2-7",
+            "systemId": "c2a6b7c8-9d1e-4b8f-9c1d-8a7b6e5d4c3b",
+            "name": "Аэропорт (Aeroport)"
+          }
+        },
+        {
+          "lineId": "l2",
+          "stationId": "s2-8",
+          "order": 7,
+          "station": {
+            "id": "s2-8",
+            "systemId": "c2a6b7c8-9d1e-4b8f-9c1d-8a7b6e5d4c3b",
+            "name": "Динамо (Dinamo)"
+          }
+        },
+        {
+          "lineId": "l2",
+          "stationId": "s2-9",
+          "order": 8,
+          "station": {
+            "id": "s2-9",
+            "systemId": "c2a6b7c8-9d1e-4b8f-9c1d-8a7b6e5d4c3b",
+            "name": "Белорусская (Belorusskaya)"
+          }
+        },
+        {
+          "lineId": "l2",
+          "stationId": "s2-10",
+          "order": 9,
+          "station": {
+            "id": "s2-10",
+            "systemId": "c2a6b7c8-9d1e-4b8f-9c1d-8a7b6e5d4c3b",
+            "name": "Маяковская (Mayakovskaya)"
+          }
+        },
+        {
+          "lineId": "l2",
+          "stationId": "s2-11",
+          "order": 10,
+          "station": {
+            "id": "s2-11",
+            "systemId": "c2a6b7c8-9d1e-4b8f-9c1d-8a7b6e5d4c3b",
+            "name": "Тверская (Tverskaya)"
+          }
+        },
+        {
+          "lineId": "l2",
+          "stationId": "s2-12",
+          "order": 11,
+          "station": {
+            "id": "s2-12",
+            "systemId": "c2a6b7c8-9d1e-4b8f-9c1d-8a7b6e5d4c3b",
+            "name": "Театральная (Teatralnaya)"
+          }
+        },
+        {
+          "lineId": "l2",
+          "stationId": "s2-13",
+          "order": 12,
+          "station": {
+            "id": "s2-13",
+            "systemId": "c2a6b7c8-9d1e-4b8f-9c1d-8a7b6e5d4c3b",
+            "name": "Новокузнецкая (Novokuznetskaya)"
+          }
+        },
+        {
+          "lineId": "l2",
+          "stationId": "s2-14",
+          "order": 13,
+          "station": {
+            "id": "s2-14",
+            "systemId": "c2a6b7c8-9d1e-4b8f-9c1d-8a7b6e5d4c3b",
+            "name": "Павелецкая (Paveletskaya)"
+          }
+        },
+        {
+          "lineId": "l2",
+          "stationId": "s2-15",
+          "order": 14,
+          "station": {
+            "id": "s2-15",
+            "systemId": "c2a6b7c8-9d1e-4b8f-9c1d-8a7b6e5d4c3b",
+            "name": "Автозаводская (Avtozavodskaya)"
+          }
+        },
+        {
+          "lineId": "l2",
+          "stationId": "s2-16",
+          "order": 15,
+          "station": {
+            "id": "s2-16",
+            "systemId": "c2a6b7c8-9d1e-4b8f-9c1d-8a7b6e5d4c3b",
+            "name": "Технопарк (Tekhnopark)"
+          }
+        },
+        {
+          "lineId": "l2",
+          "stationId": "s2-17",
+          "order": 16,
+          "station": {
+            "id": "s2-17",
+            "systemId": "c2a6b7c8-9d1e-4b8f-9c1d-8a7b6e5d4c3b",
+            "name": "Коломенская (Kolomenskaya)"
+          }
+        },
+        {
+          "lineId": "l2",
+          "stationId": "s2-18",
+          "order": 17,
+          "station": {
+            "id": "s2-18",
+            "systemId": "c2a6b7c8-9d1e-4b8f-9c1d-8a7b6e5d4c3b",
+            "name": "Каширская (Kashirskaya)"
+          }
+        },
+        {
+          "lineId": "l2",
+          "stationId": "s2-19",
+          "order": 18,
+          "station": {
+            "id": "s2-19",
+            "systemId": "c2a6b7c8-9d1e-4b8f-9c1d-8a7b6e5d4c3b",
+            "name": "Кантемировская (Kantemirovskaya)"
+          }
+        },
+        {
+          "lineId": "l2",
+          "stationId": "s2-20",
+          "order": 19,
+          "station": {
+            "id": "s2-20",
+            "systemId": "c2a6b7c8-9d1e-4b8f-9c1d-8a7b6e5d4c3b",
+            "name": "Царицыно (Tsaritsyno)"
+          }
+        },
+        {
+          "lineId": "l2",
+          "stationId": "s2-21",
+          "order": 20,
+          "station": {
+            "id": "s2-21",
+            "systemId": "c2a6b7c8-9d1e-4b8f-9c1d-8a7b6e5d4c3b",
+            "name": "Орехово (Orekhovo)"
+          }
+        },
+        {
+          "lineId": "l2",
+          "stationId": "s2-22",
+          "order": 21,
+          "station": {
+            "id": "s2-22",
+            "systemId": "c2a6b7c8-9d1e-4b8f-9c1d-8a7b6e5d4c3b",
+            "name": "Домодедовская (Domodedovskaya)"
+          }
+        },
+        {
+          "lineId": "l2",
+          "stationId": "s2-23",
+          "order": 22,
+          "station": {
+            "id": "s2-23",
+            "systemId": "c2a6b7c8-9d1e-4b8f-9c1d-8a7b6e5d4c3b",
+            "name": "Красногвардейская (Krasnogvardeyskaya)"
+          }
+        },
+        {
+          "lineId": "l2",
+          "stationId": "s2-24",
+          "order": 23,
+          "station": {
+            "id": "s2-24",
+            "systemId": "c2a6b7c8-9d1e-4b8f-9c1d-8a7b6e5d4c3b",
+            "name": "Алма-Атинская (Alma-Atinskaya)"
+          }
+        }
+      ]
+    },
+    {
+      "id": "l3",
+      "systemId": "c2a6b7c8-9d1e-4b8f-9c1d-8a7b6e5d4c3b",
+      "name": "Арбатско-Покровская (Arbatsko-Pokrovskaya)",
+      "lineNumber": "3",
+      "color": "#0078BF",
+      "lineStations": [
+        {
+          "lineId": "l3",
+          "stationId": "s3-1",
+          "order": 0,
+          "station": {
+            "id": "s3-1",
+            "systemId": "c2a6b7c8-9d1e-4b8f-9c1d-8a7b6e5d4c3b",
+            "name": "Пятницкое шоссе (Pyatnitskoye Shosse)"
+          }
+        },
+        {
+          "lineId": "l3",
+          "stationId": "s3-2",
+          "order": 1,
+          "station": {
+            "id": "s3-2",
+            "systemId": "c2a6b7c8-9d1e-4b8f-9c1d-8a7b6e5d4c3b",
+            "name": "Митино (Mitino)"
+          }
+        },
+        {
+          "lineId": "l3",
+          "stationId": "s3-3",
+          "order": 2,
+          "station": {
+            "id": "s3-3",
+            "systemId": "c2a6b7c8-9d1e-4b8f-9c1d-8a7b6e5d4c3b",
+            "name": "Волоколамская (Volokolamskaya)"
+          }
+        },
+        {
+          "lineId": "l3",
+          "stationId": "s3-4",
+          "order": 3,
+          "station": {
+            "id": "s3-4",
+            "systemId": "c2a6b7c8-9d1e-4b8f-9c1d-8a7b6e5d4c3b",
+            "name": "Мякинино (Myakinino)"
+          }
+        },
+        {
+          "lineId": "l3",
+          "stationId": "s3-5",
+          "order": 4,
+          "station": {
+            "id": "s3-5",
+            "systemId": "c2a6b7c8-9d1e-4b8f-9c1d-8a7b6e5d4c3b",
+            "name": "Строгино (Strogino)"
+          }
+        },
+        {
+          "lineId": "l3",
+          "stationId": "s3-6",
+          "order": 5,
+          "station": {
+            "id": "s3-6",
+            "systemId": "c2a6b7c8-9d1e-4b8f-9c1d-8a7b6e5d4c3b",
+            "name": "Крылатское (Krylatskoye)"
+          }
+        },
+        {
+          "lineId": "l3",
+          "stationId": "s3-7",
+          "order": 6,
+          "station": {
+            "id": "s3-7",
+            "systemId": "c2a6b7c8-9d1e-4b8f-9c1d-8a7b6e5d4c3b",
+            "name": "Молодёжная (Molodyozhnaya)"
+          }
+        },
+        {
+          "lineId": "l3",
+          "stationId": "s3-8",
+          "order": 7,
+          "station": {
+            "id": "s3-8",
+            "systemId": "c2a6b7c8-9d1e-4b8f-9c1d-8a7b6e5d4c3b",
+            "name": "Кунцевская (Kuntsevskaya)"
+          }
+        },
+        {
+          "lineId": "l3",
+          "stationId": "s3-9",
+          "order": 8,
+          "station": {
+            "id": "s3-9",
+            "systemId": "c2a6b7c8-9d1e-4b8f-9c1d-8a7b6e5d4c3b",
+            "name": "Славянский бульвар (Slavyansky Bulvar)"
+          }
+        },
+        {
+          "lineId": "l3",
+          "stationId": "s3-10",
+          "order": 9,
+          "station": {
+            "id": "s3-10",
+            "systemId": "c2a6b7c8-9d1e-4b8f-9c1d-8a7b6e5d4c3b",
+            "name": "Парк Победы (Park Pobedy)"
+          }
+        },
+        {
+          "lineId": "l3",
+          "stationId": "s3-11",
+          "order": 10,
+          "station": {
+            "id": "s3-11",
+            "systemId": "c2a6b7c8-9d1e-4b8f-9c1d-8a7b6e5d4c3b",
+            "name": "Киевская (Kiyevskaya)"
+          }
+        },
+        {
+          "lineId": "l3",
+          "stationId": "s3-12",
+          "order": 11,
+          "station": {
+            "id": "s3-12",
+            "systemId": "c2a6b7c8-9d1e-4b8f-9c1d-8a7b6e5d4c3b",
+            "name": "Смоленская (Smolenskaya)"
+          }
+        },
+        {
+          "lineId": "l3",
+          "stationId": "s3-13",
+          "order": 12,
+          "station": {
+            "id": "s3-13",
+            "systemId": "c2a6b7c8-9d1e-4b8f-9c1d-8a7b6e5d4c3b",
+            "name": "Арбатская (Arbatskaya)"
+          }
+        },
+        {
+          "lineId": "l3",
+          "stationId": "s3-14",
+          "order": 13,
+          "station": {
+            "id": "s3-14",
+            "systemId": "c2a6b7c8-9d1e-4b8f-9c1d-8a7b6e5d4c3b",
+            "name": "Площадь Революции (Ploshchad Revolyutsii)"
+          }
+        },
+        {
+          "lineId": "l3",
+          "stationId": "s3-15",
+          "order": 14,
+          "station": {
+            "id": "s3-15",
+            "systemId": "c2a6b7c8-9d1e-4b8f-9c1d-8a7b6e5d4c3b",
+            "name": "Курская (Kurskaya)"
+          }
+        },
+        {
+          "lineId": "l3",
+          "stationId": "s3-16",
+          "order": 15,
+          "station": {
+            "id": "s3-16",
+            "systemId": "c2a6b7c8-9d1e-4b8f-9c1d-8a7b6e5d4c3b",
+            "name": "Бауманская (Baumanskaya)"
+          }
+        },
+        {
+          "lineId": "l3",
+          "stationId": "s3-17",
+          "order": 16,
+          "station": {
+            "id": "s3-17",
+            "systemId": "c2a6b7c8-9d1e-4b8f-9c1d-8a7b6e5d4c3b",
+            "name": "Электрозаводская (Elektrozavodskaya)"
+          }
+        },
+        {
+          "lineId": "l3",
+          "stationId": "s3-18",
+          "order": 17,
+          "station": {
+            "id": "s3-18",
+            "systemId": "c2a6b7c8-9d1e-4b8f-9c1d-8a7b6e5d4c3b",
+            "name": "Семёновская (Semyonovskaya)"
+          }
+        },
+        {
+          "lineId": "l3",
+          "stationId": "s3-19",
+          "order": 18,
+          "station": {
+            "id": "s3-19",
+            "systemId": "c2a6b7c8-9d1e-4b8f-9c1d-8a7b6e5d4c3b",
+            "name": "Партизанская (Partizanskaya)"
+          }
+        },
+        {
+          "lineId": "l3",
+          "stationId": "s3-20",
+          "order": 19,
+          "station": {
+            "id": "s3-20",
+            "systemId": "c2a6b7c8-9d1e-4b8f-9c1d-8a7b6e5d4c3b",
+            "name": "Измайловская (Izmaylovskaya)"
+          }
+        },
+        {
+          "lineId": "l3",
+          "stationId": "s3-21",
+          "order": 20,
+          "station": {
+            "id": "s3-21",
+            "systemId": "c2a6b7c8-9d1e-4b8f-9c1d-8a7b6e5d4c3b",
+            "name": "Первомайская (Pervomayskaya)"
+          }
+        },
+        {
+          "lineId": "l3",
+          "stationId": "s3-22",
+          "order": 21,
+          "station": {
+            "id": "s3-22",
+            "systemId": "c2a6b7c8-9d1e-4b8f-9c1d-8a7b6e5d4c3b",
+            "name": "Щёлковская (Shchyolkovskaya)"
+          }
+        }
+      ]
+    },
+    {
+      "id": "l4",
+      "systemId": "c2a6b7c8-9d1e-4b8f-9c1d-8a7b6e5d4c3b",
+      "name": "Филёвская (Filyovskaya)",
+      "lineNumber": "4",
+      "color": "#00BFFF",
+      "lineStations": [
+        {
+          "lineId": "l4",
+          "stationId": "s4-1",
+          "order": 0,
+          "station": {
+            "id": "s4-1",
+            "systemId": "c2a6b7c8-9d1e-4b8f-9c1d-8a7b6e5d4c3b",
+            "name": "Александровский сад (Aleksandrovsky Sad)"
+          }
+        },
+        {
+          "lineId": "l4",
+          "stationId": "s4-2",
+          "order": 1,
+          "station": {
+            "id": "s4-2",
+            "systemId": "c2a6b7c8-9d1e-4b8f-9c1d-8a7b6e5d4c3b",
+            "name": "Арбатская (Arbatskaya)"
+          }
+        },
+        {
+          "lineId": "l4",
+          "stationId": "s4-3",
+          "order": 2,
+          "station": {
+            "id": "s4-3",
+            "systemId": "c2a6b7c8-9d1e-4b8f-9c1d-8a7b6e5d4c3b",
+            "name": "Смоленская (Smolenskaya)"
+          }
+        },
+        {
+          "lineId": "l4",
+          "stationId": "s4-4",
+          "order": 3,
+          "station": {
+            "id": "s4-4",
+            "systemId": "c2a6b7c8-9d1e-4b8f-9c1d-8a7b6e5d4c3b",
+            "name": "Киевская (Kiyevskaya)"
+          }
+        },
+        {
+          "lineId": "l4",
+          "stationId": "s4-5",
+          "order": 4,
+          "station": {
+            "id": "s4-5",
+            "systemId": "c2a6b7c8-9d1e-4b8f-9c1d-8a7b6e5d4c3b",
+            "name": "Студенческая (Studencheskaya)"
+          }
+        },
+        {
+          "lineId": "l4",
+          "stationId": "s4-6",
+          "order": 5,
+          "station": {
+            "id": "s4-6",
+            "systemId": "c2a6b7c8-9d1e-4b8f-9c1d-8a7b6e5d4c3b",
+            "name": "Кутузовская (Kutuzovskaya)"
+          }
+        },
+        {
+          "lineId": "l4",
+          "stationId": "s4-7",
+          "order": 6,
+          "station": {
+            "id": "s4-7",
+            "systemId": "c2a6b7c8-9d1e-4b8f-9c1d-8a7b6e5d4c3b",
+            "name": "Фили (Fili)"
+          }
+        },
+        {
+          "lineId": "l4",
+          "stationId": "s4-8",
+          "order": 7,
+          "station": {
+            "id": "s4-8",
+            "systemId": "c2a6b7c8-9d1e-4b8f-9c1d-8a7b6e5d4c3b",
+            "name": "Багратионовская (Bagrationovskaya)"
+          }
+        },
+        {
+          "lineId": "l4",
+          "stationId": "s4-9",
+          "order": 8,
+          "station": {
+            "id": "s4-9",
+            "systemId": "c2a6b7c8-9d1e-4b8f-9c1d-8a7b6e5d4c3b",
+            "name": "Филёвский парк (Filyovsky Park)"
+          }
+        },
+        {
+          "lineId": "l4",
+          "stationId": "s4-10",
+          "order": 9,
+          "station": {
+            "id": "s4-10",
+            "systemId": "c2a6b7c8-9d1e-4b8f-9c1d-8a7b6e5d4c3b",
+            "name": "Пионерская (Pionerskaya)"
+          }
+        },
+        {
+          "lineId": "l4",
+          "stationId": "s4-11",
+          "order": 10,
+          "station": {
+            "id": "s4-11",
+            "systemId": "c2a6b7c8-9d1e-4b8f-9c1d-8a7b6e5d4c3b",
+            "name": "Кунцевская (Kuntsevskaya)"
+          }
+        }
+      ]
+    },
+    {
+      "id": "l4a",
+      "systemId": "c2a6b7c8-9d1e-4b8f-9c1d-8a7b6e5d4c3b",
+      "name": "Филёвская (ответвление) (Filyovskaya branch)",
+      "lineNumber": "4А",
+      "color": "#00BFFF",
+      "lineStations": [
+        {
+          "lineId": "l4a",
+          "stationId": "s4a-1",
+          "order": 0,
+          "station": {
+            "id": "s4a-1",
+            "systemId": "c2a6b7c8-9d1e-4b8f-9c1d-8a7b6e5d4c3b",
+            "name": "Киевская (Kiyevskaya)"
+          }
+        },
+        {
+          "lineId": "l4a",
+          "stationId": "s4a-2",
+          "order": 1,
+          "station": {
+            "id": "s4a-2",
+            "systemId": "c2a6b7c8-9d1e-4b8f-9c1d-8a7b6e5d4c3b",
+            "name": "Деловой центр (Delovoy Tsentr)"
+          }
+        },
+        {
+          "lineId": "l4a",
+          "stationId": "s4a-3",
+          "order": 2,
+          "station": {
+            "id": "s4a-3",
+            "systemId": "c2a6b7c8-9d1e-4b8f-9c1d-8a7b6e5d4c3b",
+            "name": "Москва-Сити (Moskva-Siti)"
+          }
+        }
+      ]
+    },
+    {
+      "id": "l5",
+      "systemId": "c2a6b7c8-9d1e-4b8f-9c1d-8a7b6e5d4c3b",
+      "name": "Кольцевая (Koltsevaya)",
+      "lineNumber": "5",
+      "color": "#8D5B2D",
+      "lineStations": [
+        {
+          "lineId": "l5",
+          "stationId": "s5-1",
+          "order": 0,
+          "station": {
+            "id": "s5-1",
+            "systemId": "c2a6b7c8-9d1e-4b8f-9c1d-8a7b6e5d4c3b",
+            "name": "Парк культуры (Park Kultury)"
+          }
+        },
+        {
+          "lineId": "l5",
+          "stationId": "s5-2",
+          "order": 1,
+          "station": {
+            "id": "s5-2",
+            "systemId": "c2a6b7c8-9d1e-4b8f-9c1d-8a7b6e5d4c3b",
+            "name": "Октябрьская (Oktyabrskaya)"
+          }
+        },
+        {
+          "lineId": "l5",
+          "stationId": "s5-3",
+          "order": 2,
+          "station": {
+            "id": "s5-3",
+            "systemId": "c2a6b7c8-9d1e-4b8f-9c1d-8a7b6e5d4c3b",
+            "name": "Добрынинская (Dobryninskaya)"
+          }
+        },
+        {
+          "lineId": "l5",
+          "stationId": "s5-4",
+          "order": 3,
+          "station": {
+            "id": "s5-4",
+            "systemId": "c2a6b7c8-9d1e-4b8f-9c1d-8a7b6e5d4c3b",
+            "name": "Павелецкая (Paveletskaya)"
+          }
+        },
+        {
+          "lineId": "l5",
+          "stationId": "s5-5",
+          "order": 4,
+          "station": {
+            "id": "s5-5",
+            "systemId": "c2a6b7c8-9d1e-4b8f-9c1d-8a7b6e5d4c3b",
+            "name": "Таганская (Taganskaya)"
+          }
+        },
+        {
+          "lineId": "l5",
+          "stationId": "s5-6",
+          "order": 5,
+          "station": {
+            "id": "s5-6",
+            "systemId": "c2a6b7c8-9d1e-4b8f-9c1d-8a7b6e5d4c3b",
+            "name": "Курская (Kurskaya)"
+          }
+        },
+        {
+          "lineId": "l5",
+          "stationId": "s5-7",
+          "order": 6,
+          "station": {
+            "id": "s5-7",
+            "systemId": "c2a6b7c8-9d1e-4b8f-9c1d-8a7b6e5d4c3b",
+            "name": "Комсомольская (Komsomolskaya)"
+          }
+        },
+        {
+          "lineId": "l5",
+          "stationId": "s5-8",
+          "order": 7,
+          "station": {
+            "id": "s5-8",
+            "systemId": "c2a6b7c8-9d1e-4b8f-9c1d-8a7b6e5d4c3b",
+            "name": "Проспект Мира (Prospekt Mira)"
+          }
+        },
+        {
+          "lineId": "l5",
+          "stationId": "s5-9",
+          "order": 8,
+          "station": {
+            "id": "s5-9",
+            "systemId": "c2a6b7c8-9d1e-4b8f-9c1d-8a7b6e5d4c3b",
+            "name": "Новослободская (Novoslobodskaya)"
+          }
+        },
+        {
+          "lineId": "l5",
+          "stationId": "s5-10",
+          "order": 9,
+          "station": {
+            "id": "s5-10",
+            "systemId": "c2a6b7c8-9d1e-4b8f-9c1d-8a7b6e5d4c3b",
+            "name": "Белорусская (Belorusskaya)"
+          }
+        },
+        {
+          "lineId": "l5",
+          "stationId": "s5-11",
+          "order": 10,
+          "station": {
+            "id": "s5-11",
+            "systemId": "c2a6b7c8-9d1e-4b8f-9c1d-8a7b6e5d4c3b",
+            "name": "Краснопресненская (Krasnopresnenskaya)"
+          }
+        },
+        {
+          "lineId": "l5",
+          "stationId": "s5-12",
+          "order": 11,
+          "station": {
+            "id": "s5-12",
+            "systemId": "c2a6b7c8-9d1e-4b8f-9c1d-8a7b6e5d4c3b",
+            "name": "Киевская (Kiyevskaya)"
+          }
+        }
+      ]
+    },
+    {
+      "id": "l6",
+      "systemId": "c2a6b7c8-9d1e-4b8f-9c1d-8a7b6e5d4c3b",
+      "name": "Калужско-Рижская (Kaluzhsko-Rizhskaya)",
+      "lineNumber": "6",
+      "color": "#FBAA33",
+      "lineStations": [
+        {
+          "lineId": "l6",
+          "stationId": "s6-1",
+          "order": 0,
+          "station": {
+            "id": "s6-1",
+            "systemId": "c2a6b7c8-9d1e-4b8f-9c1d-8a7b6e5d4c3b",
+            "name": "Медведково (Medvedkovo)"
+          }
+        },
+        {
+          "lineId": "l6",
+          "stationId": "s6-2",
+          "order": 1,
+          "station": {
+            "id": "s6-2",
+            "systemId": "c2a6b7c8-9d1e-4b8f-9c1d-8a7b6e5d4c3b",
+            "name": "Бабушкинская (Babushkinskaya)"
+          }
+        },
+        {
+          "lineId": "l6",
+          "stationId": "s6-3",
+          "order": 2,
+          "station": {
+            "id": "s6-3",
+            "systemId": "c2a6b7c8-9d1e-4b8f-9c1d-8a7b6e5d4c3b",
+            "name": "Свиблово (Sviblovo)"
+          }
+        },
+        {
+          "lineId": "l6",
+          "stationId": "s6-4",
+          "order": 3,
+          "station": {
+            "id": "s6-4",
+            "systemId": "c2a6b7c8-9d1e-4b8f-9c1d-8a7b6e5d4c3b",
+            "name": "Ботанический сад (Botanichesky Sad)"
+          }
+        },
+        {
+          "lineId": "l6",
+          "stationId": "s6-5",
+          "order": 4,
+          "station": {
+            "id": "s6-5",
+            "systemId": "c2a6b7c8-9d1e-4b8f-9c1d-8a7b6e5d4c3b",
+            "name": "ВДНХ (VDNKh)"
+          }
+        },
+        {
+          "lineId": "l6",
+          "stationId": "s6-6",
+          "order": 5,
+          "station": {
+            "id": "s6-6",
+            "systemId": "c2a6b7c8-9d1e-4b8f-9c1d-8a7b6e5d4c3b",
+            "name": "Алексеевская (Alekseevskaya)"
+          }
+        },
+        {
+          "lineId": "l6",
+          "stationId": "s6-7",
+          "order": 6,
+          "station": {
+            "id": "s6-7",
+            "systemId": "c2a6b7c8-9d1e-4b8f-9c1d-8a7b6e5d4c3b",
+            "name": "Рижская (Rizhskaya)"
+          }
+        },
+        {
+          "lineId": "l6",
+          "stationId": "s6-8",
+          "order": 7,
+          "station": {
+            "id": "s6-8",
+            "systemId": "c2a6b7c8-9d1e-4b8f-9c1d-8a7b6e5d4c3b",
+            "name": "Проспект Мира (Prospekt Mira)"
+          }
+        },
+        {
+          "lineId": "l6",
+          "stationId": "s6-9",
+          "order": 8,
+          "station": {
+            "id": "s6-9",
+            "systemId": "c2a6b7c8-9d1e-4b8f-9c1d-8a7b6e5d4c3b",
+            "name": "Сухаревская (Sukharevskaya)"
+          }
+        },
+        {
+          "lineId": "l6",
+          "stationId": "s6-10",
+          "order": 9,
+          "station": {
+            "id": "s6-10",
+            "systemId": "c2a6b7c8-9d1e-4b8f-9c1d-8a7b6e5d4c3b",
+            "name": "Тургеневская (Turgenevskaya)"
+          }
+        },
+        {
+          "lineId": "l6",
+          "stationId": "s6-11",
+          "order": 10,
+          "station": {
+            "id": "s6-11",
+            "systemId": "c2a6b7c8-9d1e-4b8f-9c1d-8a7b6e5d4c3b",
+            "name": "Китай-город (Kitay-Gorod)"
+          }
+        },
+        {
+          "lineId": "l6",
+          "stationId": "s6-12",
+          "order": 11,
+          "station": {
+            "id": "s6-12",
+            "systemId": "c2a6b7c8-9d1e-4b8f-9c1d-8a7b6e5d4c3b",
+            "name": "Третьяковская (Tretyakovskaya)"
+          }
+        },
+        {
+          "lineId": "l6",
+          "stationId": "s6-13",
+          "order": 12,
+          "station": {
+            "id": "s6-13",
+            "systemId": "c2a6b7c8-9d1e-4b8f-9c1d-8a7b6e5d4c3b",
+            "name": "Октябрьская (Oktyabrskaya)"
+          }
+        },
+        {
+          "lineId": "l6",
+          "stationId": "s6-14",
+          "order": 13,
+          "station": {
+            "id": "s6-14",
+            "systemId": "c2a6b7c8-9d1e-4b8f-9c1d-8a7b6e5d4c3b",
+            "name": "Шаболовская (Shabolovskaya)"
+          }
+        },
+        {
+          "lineId": "l6",
+          "stationId": "s6-15",
+          "order": 14,
+          "station": {
+            "id": "s6-15",
+            "systemId": "c2a6b7c8-9d1e-4b8f-9c1d-8a7b6e5d4c3b",
+            "name": "Ленинский проспект (Leninsky Prospekt)"
+          }
+        },
+        {
+          "lineId": "l6",
+          "stationId": "s6-16",
+          "order": 15,
+          "station": {
+            "id": "s6-16",
+            "systemId": "c2a6b7c8-9d1e-4b8f-9c1d-8a7b6e5d4c3b",
+            "name": "Академическая (Akademicheskaya)"
+          }
+        },
+        {
+          "lineId": "l6",
+          "stationId": "s6-17",
+          "order": 16,
+          "station": {
+            "id": "s6-17",
+            "systemId": "c2a6b7c8-9d1e-4b8f-9c1d-8a7b6e5d4c3b",
+            "name": "Профсоюзная (Profsoyuznaya)"
+          }
+        },
+        {
+          "lineId": "l6",
+          "stationId": "s6-18",
+          "order": 17,
+          "station": {
+            "id": "s6-18",
+            "systemId": "c2a6b7c8-9d1e-4b8f-9c1d-8a7b6e5d4c3b",
+            "name": "Новые Черёмушки (Novye Cheryomushki)"
+          }
+        },
+        {
+          "lineId": "l6",
+          "stationId": "s6-19",
+          "order": 18,
+          "station": {
+            "id": "s6-19",
+            "systemId": "c2a6b7c8-9d1e-4b8f-9c1d-8a7b6e5d4c3b",
+            "name": "Калужская (Kaluzhskaya)"
+          }
+        },
+        {
+          "lineId": "l6",
+          "stationId": "s6-20",
+          "order": 19,
+          "station": {
+            "id": "s6-20",
+            "systemId": "c2a6b7c8-9d1e-4b8f-9c1d-8a7b6e5d4c3b",
+            "name": "Беляево (Belyayevo)"
+          }
+        },
+        {
+          "lineId": "l6",
+          "stationId": "s6-21",
+          "order": 20,
+          "station": {
+            "id": "s6-21",
+            "systemId": "c2a6b7c8-9d1e-4b8f-9c1d-8a7b6e5d4c3b",
+            "name": "Коньково (Konkovo)"
+          }
+        },
+        {
+          "lineId": "l6",
+          "stationId": "s6-22",
+          "order": 21,
+          "station": {
+            "id": "s6-22",
+            "systemId": "c2a6b7c8-9d1e-4b8f-9c1d-8a7b6e5d4c3b",
+            "name": "Тёплый Стан (Tyoply Stan)"
+          }
+        },
+        {
+          "lineId": "l6",
+          "stationId": "s6-23",
+          "order": 22,
+          "station": {
+            "id": "s6-23",
+            "systemId": "c2a6b7c8-9d1e-4b8f-9c1d-8a7b6e5d4c3b",
+            "name": "Ясенево (Yasenevo)"
+          }
+        },
+        {
+          "lineId": "l6",
+          "stationId": "s6-24",
+          "order": 23,
+          "station": {
+            "id": "s6-24",
+            "systemId": "c2a6b7c8-9d1e-4b8f-9c1d-8a7b6e5d4c3b",
+            "name": "Новоясеневская (Novoyasenevskaya)"
+          }
+        }
+      ]
+    },
+    {
+      "id": "l7",
+      "systemId": "c2a6b7c8-9d1e-4b8f-9c1d-8a7b6e5d4c3b",
+      "name": "Таганско-Краснопресненская (Tagansko-Krasnopresnenskaya)",
+      "lineNumber": "7",
+      "color": "#B61D8E",
+      "lineStations": [
+        {
+          "lineId": "l7",
+          "stationId": "s7-1",
+          "order": 0,
+          "station": {
+            "id": "s7-1",
+            "systemId": "c2a6b7c8-9d1e-4b8f-9c1d-8a7b6e5d4c3b",
+            "name": "Планерная (Planernaya)"
+          }
+        },
+        {
+          "lineId": "l7",
+          "stationId": "s7-2",
+          "order": 1,
+          "station": {
+            "id": "s7-2",
+            "systemId": "c2a6b7c8-9d1e-4b8f-9c1d-8a7b6e5d4c3b",
+            "name": "Сходненская (Skhodnenskaya)"
+          }
+        },
+        {
+          "lineId": "l7",
+          "stationId": "s7-3",
+          "order": 2,
+          "station": {
+            "id": "s7-3",
+            "systemId": "c2a6b7c8-9d1e-4b8f-9c1d-8a7b6e5d4c3b",
+            "name": "Тушинская (Tushinskaya)"
+          }
+        },
+        {
+          "lineId": "l7",
+          "stationId": "s7-4",
+          "order": 3,
+          "station": {
+            "id": "s7-4",
+            "systemId": "c2a6b7c8-9d1e-4b8f-9c1d-8a7b6e5d4c3b",
+            "name": "Спартак (Spartak)"
+          }
+        },
+        {
+          "lineId": "l7",
+          "stationId": "s7-5",
+          "order": 4,
+          "station": {
+            "id": "s7-5",
+            "systemId": "c2a6b7c8-9d1e-4b8f-9c1d-8a7b6e5d4c3b",
+            "name": "Щукинская (Shchukinskaya)"
+          }
+        },
+        {
+          "lineId": "l7",
+          "stationId": "s7-6",
+          "order": 5,
+          "station": {
+            "id": "s7-6",
+            "systemId": "c2a6b7c8-9d1e-4b8f-9c1d-8a7b6e5d4c3b",
+            "name": "Октябрьское Поле (Oktyabrskoye Pole)"
+          }
+        },
+        {
+          "lineId": "l7",
+          "stationId": "s7-7",
+          "order": 6,
+          "station": {
+            "id": "s7-7",
+            "systemId": "c2a6b7c8-9d1e-4b8f-9c1d-8a7b6e5d4c3b",
+            "name": "Полежаевская (Polezhayevskaya)"
+          }
+        },
+        {
+          "lineId": "l7",
+          "stationId": "s7-8",
+          "order": 7,
+          "station": {
+            "id": "s7-8",
+            "systemId": "c2a6b7c8-9d1e-4b8f-9c1d-8a7b6e5d4c3b",
+            "name": "Беговая (Begovaya)"
+          }
+        },
+        {
+          "lineId": "l7",
+          "stationId": "s7-9",
+          "order": 8,
+          "station": {
+            "id": "s7-9",
+            "systemId": "c2a6b7c8-9d1e-4b8f-9c1d-8a7b6e5d4c3b",
+            "name": "Улица 1905 года (Ulitsa 1905 Goda)"
+          }
+        },
+        {
+          "lineId": "l7",
+          "stationId": "s7-10",
+          "order": 9,
+          "station": {
+            "id": "s7-10",
+            "systemId": "c2a6b7c8-9d1e-4b8f-9c1d-8a7b6e5d4c3b",
+            "name": "Баррикадная (Barrikadnaya)"
+          }
+        },
+        {
+          "lineId": "l7",
+          "stationId": "s7-11",
+          "order": 10,
+          "station": {
+            "id": "s7-11",
+            "systemId": "c2a6b7c8-9d1e-4b8f-9c1d-8a7b6e5d4c3b",
+            "name": "Пушкинская (Pushkinskaya)"
+          }
+        },
+        {
+          "lineId": "l7",
+          "stationId": "s7-12",
+          "order": 11,
+          "station": {
+            "id": "s7-12",
+            "systemId": "c2a6b7c8-9d1e-4b8f-9c1d-8a7b6e5d4c3b",
+            "name": "Кузнецкий Мост (Kuznetsky Most)"
+          }
+        },
+        {
+          "lineId": "l7",
+          "stationId": "s7-13",
+          "order": 12,
+          "station": {
+            "id": "s7-13",
+            "systemId": "c2a6b7c8-9d1e-4b8f-9c1d-8a7b6e5d4c3b",
+            "name": "Китай-город (Kitay-Gorod)"
+          }
+        },
+        {
+          "lineId": "l7",
+          "stationId": "s7-14",
+          "order": 13,
+          "station": {
+            "id": "s7-14",
+            "systemId": "c2a6b7c8-9d1e-4b8f-9c1d-8a7b6e5d4c3b",
+            "name": "Таганская (Taganskaya)"
+          }
+        },
+        {
+          "lineId": "l7",
+          "stationId": "s7-15",
+          "order": 14,
+          "station": {
+            "id": "s7-15",
+            "systemId": "c2a6b7c8-9d1e-4b8f-9c1d-8a7b6e5d4c3b",
+            "name": "Пролетарская (Proletarskaya)"
+          }
+        },
+        {
+          "lineId": "l7",
+          "stationId": "s7-16",
+          "order": 15,
+          "station": {
+            "id": "s7-16",
+            "systemId": "c2a6b7c8-9d1e-4b8f-9c1d-8a7b6e5d4c3b",
+            "name": "Волгоградский проспект (Volgogradsky Prospekt)"
+          }
+        },
+        {
+          "lineId": "l7",
+          "stationId": "s7-17",
+          "order": 16,
+          "station": {
+            "id": "s7-17",
+            "systemId": "c2a6b7c8-9d1e-4b8f-9c1d-8a7b6e5d4c3b",
+            "name": "Текстильщики (Tekstilshchiki)"
+          }
+        },
+        {
+          "lineId": "l7",
+          "stationId": "s7-18",
+          "order": 17,
+          "station": {
+            "id": "s7-18",
+            "systemId": "c2a6b7c8-9d1e-4b8f-9c1d-8a7b6e5d4c3b",
+            "name": "Кузьминки (Kuzminki)"
+          }
+        },
+        {
+          "lineId": "l7",
+          "stationId": "s7-19",
+          "order": 18,
+          "station": {
+            "id": "s7-19",
+            "systemId": "c2a6b7c8-9d1e-4b8f-9c1d-8a7b6e5d4c3b",
+            "name": "Рязанский проспект (Ryazansky Prospekt)"
+          }
+        },
+        {
+          "lineId": "l7",
+          "stationId": "s7-20",
+          "order": 19,
+          "station": {
+            "id": "s7-20",
+            "systemId": "c2a6b7c8-9d1e-4b8f-9c1d-8a7b6e5d4c3b",
+            "name": "Выхино (Vykhino)"
+          }
+        },
+        {
+          "lineId": "l7",
+          "stationId": "s7-21",
+          "order": 20,
+          "station": {
+            "id": "s7-21",
+            "systemId": "c2a6b7c8-9d1e-4b8f-9c1d-8a7b6e5d4c3b",
+            "name": "Лермонтовский проспект (Lermontovsky Prospekt)"
+          }
+        },
+        {
+          "lineId": "l7",
+          "stationId": "s7-22",
+          "order": 21,
+          "station": {
+            "id": "s7-22",
+            "systemId": "c2a6b7c8-9d1e-4b8f-9c1d-8a7b6e5d4c3b",
+            "name": "Жулебино (Zhulebino)"
+          }
+        },
+        {
+          "lineId": "l7",
+          "stationId": "s7-23",
+          "order": 22,
+          "station": {
+            "id": "s7-23",
+            "systemId": "c2a6b7c8-9d1e-4b8f-9c1d-8a7b6e5d4c3b",
+            "name": "Котельники (Kotelniki)"
+          }
+        }
+      ]
+    },
+    {
+      "id": "l8",
+      "systemId": "c2a6b7c8-9d1e-4b8f-9c1d-8a7b6e5d4c3b",
+      "name": "Калининская (Kalininskaya)",
+      "lineNumber": "8",
+      "color": "#FFD803",
+      "lineStations": [
+        {
+          "lineId": "l8",
+          "stationId": "s8-1",
+          "order": 0,
+          "station": {
+            "id": "s8-1",
+            "systemId": "c2a6b7c8-9d1e-4b8f-9c1d-8a7b6e5d4c3b",
+            "name": "Новокосино (Novokosino)"
+          }
+        },
+        {
+          "lineId": "l8",
+          "stationId": "s8-2",
+          "order": 1,
+          "station": {
+            "id": "s8-2",
+            "systemId": "c2a6b7c8-9d1e-4b8f-9c1d-8a7b6e5d4c3b",
+            "name": "Новогиреево (Novogireyevo)"
+          }
+        },
+        {
+          "lineId": "l8",
+          "stationId": "s8-3",
+          "order": 2,
+          "station": {
+            "id": "s8-3",
+            "systemId": "c2a6b7c8-9d1e-4b8f-9c1d-8a7b6e5d4c3b",
+            "name": "Перово (Perovo)"
+          }
+        },
+        {
+          "lineId": "l8",
+          "stationId": "s8-4",
+          "order": 3,
+          "station": {
+            "id": "s8-4",
+            "systemId": "c2a6b7c8-9d1e-4b8f-9c1d-8a7b6e5d4c3b",
+            "name": "Шоссе Энтузиастов (Shosse Entuziastov)"
+          }
+        },
+        {
+          "lineId": "l8",
+          "stationId": "s8-5",
+          "order": 4,
+          "station": {
+            "id": "s8-5",
+            "systemId": "c2a6b7c8-9d1e-4b8f-9c1d-8a7b6e5d4c3b",
+            "name": "Авиамоторная (Aviamotornaya)"
+          }
+        },
+        {
+          "lineId": "l8",
+          "stationId": "s8-6",
+          "order": 5,
+          "station": {
+            "id": "s8-6",
+            "systemId": "c2a6b7c8-9d1e-4b8f-9c1d-8a7b6e5d4c3b",
+            "name": "Площадь Ильича (Ploshchad Ilicha)"
+          }
+        },
+        {
+          "lineId": "l8",
+          "stationId": "s8-7",
+          "order": 6,
+          "station": {
+            "id": "s8-7",
+            "systemId": "c2a6b7c8-9d1e-4b8f-9c1d-8a7b6e5d4c3b",
+            "name": "Марксистская (Marksistskaya)"
+          }
+        },
+        {
+          "lineId": "l8",
+          "stationId": "s8-8",
+          "order": 7,
+          "station": {
+            "id": "s8-8",
+            "systemId": "c2a6b7c8-9d1e-4b8f-9c1d-8a7b6e5d4c3b",
+            "name": "Третьяковская (Tretyakovskaya)"
+          }
+        }
+      ]
+    },
+    {
+      "id": "l8a",
+      "systemId": "c2a6b7c8-9d1e-4b8f-9c1d-8a7b6e5d4c3b",
+      "name": "Солнцевская (Solntsevskaya)",
+      "lineNumber": "8А",
+      "color": "#FFD803",
+      "lineStations": [
+        {
+          "lineId": "l8a",
+          "stationId": "s8a-1",
+          "order": 0,
+          "station": {
+            "id": "s8a-1",
+            "systemId": "c2a6b7c8-9d1e-4b8f-9c1d-8a7b6e5d4c3b",
+            "name": "Аэропорт Внуково (Aeroport Vnukovo)"
+          }
+        },
+        {
+          "lineId": "l8a",
+          "stationId": "s8a-2",
+          "order": 1,
+          "station": {
+            "id": "s8a-2",
+            "systemId": "c2a6b7c8-9d1e-4b8f-9c1d-8a7b6e5d4c3b",
+            "name": "Пыхтино (Pykhtino)"
+          }
+        },
+        {
+          "lineId": "l8a",
+          "stationId": "s8a-3",
+          "order": 2,
+          "station": {
+            "id": "s8a-3",
+            "systemId": "c2a6b7c8-9d1e-4b8f-9c1d-8a7b6e5d4c3b",
+            "name": "Рассказовка (Rasskazovka)"
+          }
+        },
+        {
+          "lineId": "l8a",
+          "stationId": "s8a-4",
+          "order": 3,
+          "station": {
+            "id": "s8a-4",
+            "systemId": "c2a6b7c8-9d1e-4b8f-9c1d-8a7b6e5d4c3b",
+            "name": "Новопеределкино (Novoperedelkino)"
+          }
+        },
+        {
+          "lineId": "l8a",
+          "stationId": "s8a-5",
+          "order": 4,
+          "station": {
+            "id": "s8a-5",
+            "systemId": "c2a6b7c8-9d1e-4b8f-9c1d-8a7b6e5d4c3b",
+            "name": "Боровское шоссе (Borovskoye Shosse)"
+          }
+        },
+        {
+          "lineId": "l8a",
+          "stationId": "s8a-6",
+          "order": 5,
+          "station": {
+            "id": "s8a-6",
+            "systemId": "c2a6b7c8-9d1e-4b8f-9c1d-8a7b6e5d4c3b",
+            "name": "Солнцево (Solntsevo)"
+          }
+        },
+        {
+          "lineId": "l8a",
+          "stationId": "s8a-7",
+          "order": 6,
+          "station": {
+            "id": "s8a-7",
+            "systemId": "c2a6b7c8-9d1e-4b8f-9c1d-8a7b6e5d4c3b",
+            "name": "Говорово (Govorovo)"
+          }
+        },
+        {
+          "lineId": "l8a",
+          "stationId": "s8a-8",
+          "order": 7,
+          "station": {
+            "id": "s8a-8",
+            "systemId": "c2a6b7c8-9d1e-4b8f-9c1d-8a7b6e5d4c3b",
+            "name": "Озёрная (Ozyornaya)"
+          }
+        },
+        {
+          "lineId": "l8a",
+          "stationId": "s8a-9",
+          "order": 8,
+          "station": {
+            "id": "s8a-9",
+            "systemId": "c2a6b7c8-9d1e-4b8f-9c1d-8a7b6e5d4c3b",
+            "name": "Мичуринский проспект (Michurinsky Prospekt)"
+          }
+        },
+        {
+          "lineId": "l8a",
+          "stationId": "s8a-10",
+          "order": 9,
+          "station": {
+            "id": "s8a-10",
+            "systemId": "c2a6b7c8-9d1e-4b8f-9c1d-8a7b6e5d4c3b",
+            "name": "Раменки (Ramenki)"
+          }
+        },
+        {
+          "lineId": "l8a",
+          "stationId": "s8a-11",
+          "order": 10,
+          "station": {
+            "id": "s8a-11",
+            "systemId": "c2a6b7c8-9d1e-4b8f-9c1d-8a7b6e5d4c3b",
+            "name": "Ломоносовский проспект (Lomonosovsky Prospekt)"
+          }
+        },
+        {
+          "lineId": "l8a",
+          "stationId": "s8a-12",
+          "order": 11,
+          "station": {
+            "id": "s8a-12",
+            "systemId": "c2a6b7c8-9d1e-4b8f-9c1d-8a7b6e5d4c3b",
+            "name": "Минская (Minskaya)"
+          }
+        },
+        {
+          "lineId": "l8a",
+          "stationId": "s8a-13",
+          "order": 12,
+          "station": {
+            "id": "s8a-13",
+            "systemId": "c2a6b7c8-9d1e-4b8f-9c1d-8a7b6e5d4c3b",
+            "name": "Парк Победы (Park Pobedy)"
+          }
+        },
+        {
+          "lineId": "l8a",
+          "stationId": "s8a-14",
+          "order": 13,
+          "station": {
+            "id": "s8a-14",
+            "systemId": "c2a6b7c8-9d1e-4b8f-9c1d-8a7b6e5d4c3b",
+            "name": "Деловой центр (Delovoy Tsentr)"
+          }
+        }
+      ]
+    },
+    {
+      "id": "l9",
+      "systemId": "c2a6b7c8-9d1e-4b8f-9c1d-8a7b6e5d4c3b",
+      "name": "Серпуховско-Тимирязевская (Serpukhovsko-Timiryazevskaya)",
+      "lineNumber": "9",
+      "color": "#A1A2A2",
+      "lineStations": [
+        {
+          "lineId": "l9",
+          "stationId": "s9-1",
+          "order": 0,
+          "station": {
+            "id": "s9-1",
+            "systemId": "c2a6b7c8-9d1e-4b8f-9c1d-8a7b6e5d4c3b",
+            "name": "Алтуфьево (Altufyevo)"
+          }
+        },
+        {
+          "lineId": "l9",
+          "stationId": "s9-2",
+          "order": 1,
+          "station": {
+            "id": "s9-2",
+            "systemId": "c2a6b7c8-9d1e-4b8f-9c1d-8a7b6e5d4c3b",
+            "name": "Бибирево (Bibirevo)"
+          }
+        },
+        {
+          "lineId": "l9",
+          "stationId": "s9-3",
+          "order": 2,
+          "station": {
+            "id": "s9-3",
+            "systemId": "c2a6b7c8-9d1e-4b8f-9c1d-8a7b6e5d4c3b",
+            "name": "Отрадное (Otradnoye)"
+          }
+        },
+        {
+          "lineId": "l9",
+          "stationId": "s9-4",
+          "order": 3,
+          "station": {
+            "id": "s9-4",
+            "systemId": "c2a6b7c8-9d1e-4b8f-9c1d-8a7b6e5d4c3b",
+            "name": "Владыкино (Vladykino)"
+          }
+        },
+        {
+          "lineId": "l9",
+          "stationId": "s9-5",
+          "order": 4,
+          "station": {
+            "id": "s9-5",
+            "systemId": "c2a6b7c8-9d1e-4b8f-9c1d-8a7b6e5d4c3b",
+            "name": "Петровско-Разумовская (Petrovsko-Razumovskaya)"
+          }
+        },
+        {
+          "lineId": "l9",
+          "stationId": "s9-6",
+          "order": 5,
+          "station": {
+            "id": "s9-6",
+            "systemId": "c2a6b7c8-9d1e-4b8f-9c1d-8a7b6e5d4c3b",
+            "name": "Тимирязевская (Timiryazevskaya)"
+          }
+        },
+        {
+          "lineId": "l9",
+          "stationId": "s9-7",
+          "order": 6,
+          "station": {
+            "id": "s9-7",
+            "systemId": "c2a6b7c8-9d1e-4b8f-9c1d-8a7b6e5d4c3b",
+            "name": "Дмитровская (Dmitrovskaya)"
+          }
+        },
+        {
+          "lineId": "l9",
+          "stationId": "s9-8",
+          "order": 7,
+          "station": {
+            "id": "s9-8",
+            "systemId": "c2a6b7c8-9d1e-4b8f-9c1d-8a7b6e5d4c3b",
+            "name": "Савёловская (Savyolovskaya)"
+          }
+        },
+        {
+          "lineId": "l9",
+          "stationId": "s9-9",
+          "order": 8,
+          "station": {
+            "id": "s9-9",
+            "systemId": "c2a6b7c8-9d1e-4b8f-9c1d-8a7b6e5d4c3b",
+            "name": "Менделеевская (Mendeleyevskaya)"
+          }
+        },
+        {
+          "lineId": "l9",
+          "stationId": "s9-10",
+          "order": 9,
+          "station": {
+            "id": "s9-10",
+            "systemId": "c2a6b7c8-9d1e-4b8f-9c1d-8a7b6e5d4c3b",
+            "name": "Цветной бульвар (Tsvetnoy Bulvar)"
+          }
+        },
+        {
+          "lineId": "l9",
+          "stationId": "s9-11",
+          "order": 10,
+          "station": {
+            "id": "s9-11",
+            "systemId": "c2a6b7c8-9d1e-4b8f-9c1d-8a7b6e5d4c3b",
+            "name": "Чеховская (Chekhovskaya)"
+          }
+        },
+        {
+          "lineId": "l9",
+          "stationId": "s9-12",
+          "order": 11,
+          "station": {
+            "id": "s9-12",
+            "systemId": "c2a6b7c8-9d1e-4b8f-9c1d-8a7b6e5d4c3b",
+            "name": "Боровицкая (Borovitskaya)"
+          }
+        },
+        {
+          "lineId": "l9",
+          "stationId": "s9-13",
+          "order": 12,
+          "station": {
+            "id": "s9-13",
+            "systemId": "c2a6b7c8-9d1e-4b8f-9c1d-8a7b6e5d4c3b",
+            "name": "Полянка (Polyanka)"
+          }
+        },
+        {
+          "lineId": "l9",
+          "stationId": "s9-14",
+          "order": 13,
+          "station": {
+            "id": "s9-14",
+            "systemId": "c2a6b7c8-9d1e-4b8f-9c1d-8a7b6e5d4c3b",
+            "name": "Серпуховская (Serpukhovskaya)"
+          }
+        },
+        {
+          "lineId": "l9",
+          "stationId": "s9-15",
+          "order": 14,
+          "station": {
+            "id": "s9-15",
+            "systemId": "c2a6b7c8-9d1e-4b8f-9c1d-8a7b6e5d4c3b",
+            "name": "Тульская (Tulskaya)"
+          }
+        },
+        {
+          "lineId": "l9",
+          "stationId": "s9-16",
+          "order": 15,
+          "station": {
+            "id": "s9-16",
+            "systemId": "c2a6b7c8-9d1e-4b8f-9c1d-8a7b6e5d4c3b",
+            "name": "Нагатинская (Nagatinskaya)"
+          }
+        },
+        {
+          "lineId": "l9",
+          "stationId": "s9-17",
+          "order": 16,
+          "station": {
+            "id": "s9-17",
+            "systemId": "c2a6b7c8-9d1e-4b8f-9c1d-8a7b6e5d4c3b",
+            "name": "Нагорная (Nagornaya)"
+          }
+        },
+        {
+          "lineId": "l9",
+          "stationId": "s9-18",
+          "order": 17,
+          "station": {
+            "id": "s9-18",
+            "systemId": "c2a6b7c8-9d1e-4b8f-9c1d-8a7b6e5d4c3b",
+            "name": "Нахимовский проспект (Nakhimovsky Prospekt)"
+          }
+        },
+        {
+          "lineId": "l9",
+          "stationId": "s9-19",
+          "order": 18,
+          "station": {
+            "id": "s9-19",
+            "systemId": "c2a6b7c8-9d1e-4b8f-9c1d-8a7b6e5d4c3b",
+            "name": "Севастопольская (Sevastopolskaya)"
+          }
+        },
+        {
+          "lineId": "l9",
+          "stationId": "s9-20",
+          "order": 19,
+          "station": {
+            "id": "s9-20",
+            "systemId": "c2a6b7c8-9d1e-4b8f-9c1d-8a7b6e5d4c3b",
+            "name": "Чертановская (Chertanovskaya)"
+          }
+        },
+        {
+          "lineId": "l9",
+          "stationId": "s9-21",
+          "order": 20,
+          "station": {
+            "id": "s9-21",
+            "systemId": "c2a6b7c8-9d1e-4b8f-9c1d-8a7b6e5d4c3b",
+            "name": "Южная (Yuzhnaya)"
+          }
+        },
+        {
+          "lineId": "l9",
+          "stationId": "s9-22",
+          "order": 21,
+          "station": {
+            "id": "s9-22",
+            "systemId": "c2a6b7c8-9d1e-4b8f-9c1d-8a7b6e5d4c3b",
+            "name": "Пражская (Prazhskaya)"
+          }
+        },
+        {
+          "lineId": "l9",
+          "stationId": "s9-23",
+          "order": 22,
+          "station": {
+            "id": "s9-23",
+            "systemId": "c2a6b7c8-9d1e-4b8f-9c1d-8a7b6e5d4c3b",
+            "name": "Улица Академика Янгеля (Ulitsa Akademika Yangelya)"
+          }
+        },
+        {
+          "lineId": "l9",
+          "stationId": "s9-24",
+          "order": 23,
+          "station": {
+            "id": "s9-24",
+            "systemId": "c2a6b7c8-9d1e-4b8f-9c1d-8a7b6e5d4c3b",
+            "name": "Аннино (Annino)"
+          }
+        },
+        {
+          "lineId": "l9",
+          "stationId": "s9-25",
+          "order": 24,
+          "station": {
+            "id": "s9-25",
+            "systemId": "c2a6b7c8-9d1e-4b8f-9c1d-8a7b6e5d4c3b",
+            "name": "Бульвар Дмитрия Донского (Bulvar Dmitriya Donskogo)"
+          }
+        }
+      ]
+    },
+    {
+      "id": "l10",
+      "systemId": "c2a6b7c8-9d1e-4b8f-9c1d-8a7b6e5d4c3b",
+      "name": "Люблинско-Дмитровская (Lyublinsko-Dmitrovskaya)",
+      "lineNumber": "10",
+      "color": "#B3D54C",
+      "lineStations": [
+        {
+          "lineId": "l10",
+          "stationId": "s10-1",
+          "order": 0,
+          "station": {
+            "id": "s10-1",
+            "systemId": "c2a6b7c8-9d1e-4b8f-9c1d-8a7b6e5d4c3b",
+            "name": "Физтех (Fiztekh)"
+          }
+        },
+        {
+          "lineId": "l10",
+          "stationId": "s10-2",
+          "order": 1,
+          "station": {
+            "id": "s10-2",
+            "systemId": "c2a6b7c8-9d1e-4b8f-9c1d-8a7b6e5d4c3b",
+            "name": "Лианозово (Lianozovo)"
+          }
+        },
+        {
+          "lineId": "l10",
+          "stationId": "s10-3",
+          "order": 2,
+          "station": {
+            "id": "s10-3",
+            "systemId": "c2a6b7c8-9d1e-4b8f-9c1d-8a7b6e5d4c3b",
+            "name": "Яхромская (Yakhromskaya)"
+          }
+        },
+        {
+          "lineId": "l10",
+          "stationId": "s10-4",
+          "order": 3,
+          "station": {
+            "id": "s10-4",
+            "systemId": "c2a6b7c8-9d1e-4b8f-9c1d-8a7b6e5d4c3b",
+            "name": "Селигерская (Seligerskaya)"
+          }
+        },
+        {
+          "lineId": "l10",
+          "stationId": "s10-5",
+          "order": 4,
+          "station": {
+            "id": "s10-5",
+            "systemId": "c2a6b7c8-9d1e-4b8f-9c1d-8a7b6e5d4c3b",
+            "name": "Верхние Лихоборы (Verkhniye Likhobory)"
+          }
+        },
+        {
+          "lineId": "l10",
+          "stationId": "s10-6",
+          "order": 5,
+          "station": {
+            "id": "s10-6",
+            "systemId": "c2a6b7c8-9d1e-4b8f-9c1d-8a7b6e5d4c3b",
+            "name": "Окружная (Okruzhnaya)"
+          }
+        },
+        {
+          "lineId": "l10",
+          "stationId": "s10-7",
+          "order": 6,
+          "station": {
+            "id": "s10-7",
+            "systemId": "c2a6b7c8-9d1e-4b8f-9c1d-8a7b6e5d4c3b",
+            "name": "Петровско-Разумовская (Petrovsko-Razumovskaya)"
+          }
+        },
+        {
+          "lineId": "l10",
+          "stationId": "s10-8",
+          "order": 7,
+          "station": {
+            "id": "s10-8",
+            "systemId": "c2a6b7c8-9d1e-4b8f-9c1d-8a7b6e5d4c3b",
+            "name": "Фонвизинская (Fonvizinskaya)"
+          }
+        },
+        {
+          "lineId": "l10",
+          "stationId": "s10-9",
+          "order": 8,
+          "station": {
+            "id": "s10-9",
+            "systemId": "c2a6b7c8-9d1e-4b8f-9c1d-8a7b6e5d4c3b",
+            "name": "Бутырская (Butyrskaya)"
+          }
+        },
+        {
+          "lineId": "l10",
+          "stationId": "s10-10",
+          "order": 9,
+          "station": {
+            "id": "s10-10",
+            "systemId": "c2a6b7c8-9d1e-4b8f-9c1d-8a7b6e5d4c3b",
+            "name": "Марьина Роща (Maryina Roshcha)"
+          }
+        },
+        {
+          "lineId": "l10",
+          "stationId": "s10-11",
+          "order": 10,
+          "station": {
+            "id": "s10-11",
+            "systemId": "c2a6b7c8-9d1e-4b8f-9c1d-8a7b6e5d4c3b",
+            "name": "Достоевская (Dostoyevskaya)"
+          }
+        },
+        {
+          "lineId": "l10",
+          "stationId": "s10-12",
+          "order": 11,
+          "station": {
+            "id": "s10-12",
+            "systemId": "c2a6b7c8-9d1e-4b8f-9c1d-8a7b6e5d4c3b",
+            "name": "Трубная (Trubnaya)"
+          }
+        },
+        {
+          "lineId": "l10",
+          "stationId": "s10-13",
+          "order": 12,
+          "station": {
+            "id": "s10-13",
+            "systemId": "c2a6b7c8-9d1e-4b8f-9c1d-8a7b6e5d4c3b",
+            "name": "Сретенский бульвар (Sretensky Bulvar)"
+          }
+        },
+        {
+          "lineId": "l10",
+          "stationId": "s10-14",
+          "order": 13,
+          "station": {
+            "id": "s10-14",
+            "systemId": "c2a6b7c8-9d1e-4b8f-9c1d-8a7b6e5d4c3b",
+            "name": "Чкаловская (Chkalovskaya)"
+          }
+        },
+        {
+          "lineId": "l10",
+          "stationId": "s10-15",
+          "order": 14,
+          "station": {
+            "id": "s10-15",
+            "systemId": "c2a6b7c8-9d1e-4b8f-9c1d-8a7b6e5d4c3b",
+            "name": "Римская (Rimskaya)"
+          }
+        },
+        {
+          "lineId": "l10",
+          "stationId": "s10-16",
+          "order": 15,
+          "station": {
+            "id": "s10-16",
+            "systemId": "c2a6b7c8-9d1e-4b8f-9c1d-8a7b6e5d4c3b",
+            "name": "Крестьянская Застава (Krestyanskaya Zastava)"
+          }
+        },
+        {
+          "lineId": "l10",
+          "stationId": "s10-17",
+          "order": 16,
+          "station": {
+            "id": "s10-17",
+            "systemId": "c2a6b7c8-9d1e-4b8f-9c1d-8a7b6e5d4c3b",
+            "name": "Дубровка (Dubrovka)"
+          }
+        },
+        {
+          "lineId": "l10",
+          "stationId": "s10-18",
+          "order": 17,
+          "station": {
+            "id": "s10-18",
+            "systemId": "c2a6b7c8-9d1e-4b8f-9c1d-8a7b6e5d4c3b",
+            "name": "Кожуховская (Kozhukhovskaya)"
+          }
+        },
+        {
+          "lineId": "l10",
+          "stationId": "s10-19",
+          "order": 18,
+          "station": {
+            "id": "s10-19",
+            "systemId": "c2a6b7c8-9d1e-4b8f-9c1d-8a7b6e5d4c3b",
+            "name": "Печатники (Pechatniki)"
+          }
+        },
+        {
+          "lineId": "l10",
+          "stationId": "s10-20",
+          "order": 19,
+          "station": {
+            "id": "s10-20",
+            "systemId": "c2a6b7c8-9d1e-4b8f-9c1d-8a7b6e5d4c3b",
+            "name": "Волжская (Volzhskaya)"
+          }
+        },
+        {
+          "lineId": "l10",
+          "stationId": "s10-21",
+          "order": 20,
+          "station": {
+            "id": "s10-21",
+            "systemId": "c2a6b7c8-9d1e-4b8f-9c1d-8a7b6e5d4c3b",
+            "name": "Люблино (Lyublino)"
+          }
+        },
+        {
+          "lineId": "l10",
+          "stationId": "s10-22",
+          "order": 21,
+          "station": {
+            "id": "s10-22",
+            "systemId": "c2a6b7c8-9d1e-4b8f-9c1d-8a7b6e5d4c3b",
+            "name": "Братиславская (Bratislavskaya)"
+          }
+        },
+        {
+          "lineId": "l10",
+          "stationId": "s10-23",
+          "order": 22,
+          "station": {
+            "id": "s10-23",
+            "systemId": "c2a6b7c8-9d1e-4b8f-9c1d-8a7b6e5d4c3b",
+            "name": "Марьино (Maryino)"
+          }
+        },
+        {
+          "lineId": "l10",
+          "stationId": "s10-24",
+          "order": 23,
+          "station": {
+            "id": "s10-24",
+            "systemId": "c2a6b7c8-9d1e-4b8f-9c1d-8a7b6e5d4c3b",
+            "name": "Борисово (Borisovo)"
+          }
+        },
+        {
+          "lineId": "l10",
+          "stationId": "s10-25",
+          "order": 24,
+          "station": {
+            "id": "s10-25",
+            "systemId": "c2a6b7c8-9d1e-4b8f-9c1d-8a7b6e5d4c3b",
+            "name": "Шипиловская (Shipilovskaya)"
+          }
+        },
+        {
+          "lineId": "l10",
+          "stationId": "s10-26",
+          "order": 25,
+          "station": {
+            "id": "s10-26",
+            "systemId": "c2a6b7c8-9d1e-4b8f-9c1d-8a7b6e5d4c3b",
+            "name": "Зябликово (Zyablikovo)"
+          }
+        }
+      ]
+    },
+    {
+      "id": "l11",
+      "systemId": "c2a6b7c8-9d1e-4b8f-9c1d-8a7b6e5d4c3b",
+      "name": "Большая кольцевая (Bolshaya Koltsevaya)",
+      "lineNumber": "11",
+      "color": "#82D4F2",
+      "lineStations": [
+        {
+          "lineId": "l11",
+          "stationId": "s11-1",
+          "order": 0,
+          "station": {
+            "id": "s11-1",
+            "systemId": "c2a6b7c8-9d1e-4b8f-9c1d-8a7b6e5d4c3b",
+            "name": "Савёловская (Savyolovskaya)"
+          }
+        },
+        {
+          "lineId": "l11",
+          "stationId": "s11-2",
+          "order": 1,
+          "station": {
+            "id": "s11-2",
+            "systemId": "c2a6b7c8-9d1e-4b8f-9c1d-8a7b6e5d4c3b",
+            "name": "Петровский парк (Petrovsky Park)"
+          }
+        },
+        {
+          "lineId": "l11",
+          "stationId": "s11-3",
+          "order": 2,
+          "station": {
+            "id": "s11-3",
+            "systemId": "c2a6b7c8-9d1e-4b8f-9c1d-8a7b6e5d4c3b",
+            "name": "ЦСКА (CSKA)"
+          }
+        },
+        {
+          "lineId": "l11",
+          "stationId": "s11-4",
+          "order": 3,
+          "station": {
+            "id": "s11-4",
+            "systemId": "c2a6b7c8-9d1e-4b8f-9c1d-8a7b6e5d4c3b",
+            "name": "Хорошёвская (Khoroshyovskaya)"
+          }
+        },
+        {
+          "lineId": "l11",
+          "stationId": "s11-5",
+          "order": 4,
+          "station": {
+            "id": "s11-5",
+            "systemId": "c2a6b7c8-9d1e-4b8f-9c1d-8a7b6e5d4c3b",
+            "name": "Народное Ополчение (Narodnoye Opolcheniye)"
+          }
+        },
+        {
+          "lineId": "l11",
+          "stationId": "s11-6",
+          "order": 5,
+          "station": {
+            "id": "s11-6",
+            "systemId": "c2a6b7c8-9d1e-4b8f-9c1d-8a7b6e5d4c3b",
+            "name": "Мнёвники (Mnyovniki)"
+          }
+        },
+        {
+          "lineId": "l11",
+          "stationId": "s11-7",
+          "order": 6,
+          "station": {
+            "id": "s11-7",
+            "systemId": "c2a6b7c8-9d1e-4b8f-9c1d-8a7b6e5d4c3b",
+            "name": "Терехово (Terekhovo)"
+          }
+        },
+        {
+          "lineId": "l11",
+          "stationId": "s11-8",
+          "order": 7,
+          "station": {
+            "id": "s11-8",
+            "systemId": "c2a6b7c8-9d1e-4b8f-9c1d-8a7b6e5d4c3b",
+            "name": "Кунцевская (Kuntsevskaya)"
+          }
+        },
+        {
+          "lineId": "l11",
+          "stationId": "s11-9",
+          "order": 8,
+          "station": {
+            "id": "s11-9",
+            "systemId": "c2a6b7c8-9d1e-4b8f-9c1d-8a7b6e5d4c3b",
+            "name": "Давыдково (Davydkovo)"
+          }
+        },
+        {
+          "lineId": "l11",
+          "stationId": "s11-10",
+          "order": 9,
+          "station": {
+            "id": "s11-10",
+            "systemId": "c2a6b7c8-9d1e-4b8f-9c1d-8a7b6e5d4c3b",
+            "name": "Аминьевская (Aminyevskaya)"
+          }
+        },
+        {
+          "lineId": "l11",
+          "stationId": "s11-11",
+          "order": 10,
+          "station": {
+            "id": "s11-11",
+            "systemId": "c2a6b7c8-9d1e-4b8f-9c1d-8a7b6e5d4c3b",
+            "name": "Мичуринский проспект (Michurinsky Prospekt)"
+          }
+        },
+        {
+          "lineId": "l11",
+          "stationId": "s11-12",
+          "order": 11,
+          "station": {
+            "id": "s11-12",
+            "systemId": "c2a6b7c8-9d1e-4b8f-9c1d-8a7b6e5d4c3b",
+            "name": "Проспект Вернадского (Prospekt Vernadskogo)"
+          }
+        },
+        {
+          "lineId": "l11",
+          "stationId": "s11-13",
+          "order": 12,
+          "station": {
+            "id": "s11-13",
+            "systemId": "c2a6b7c8-9d1e-4b8f-9c1d-8a7b6e5d4c3b",
+            "name": "Новаторская (Novatorskaya)"
+          }
+        },
+        {
+          "lineId": "l11",
+          "stationId": "s11-14",
+          "order": 13,
+          "station": {
+            "id": "s11-14",
+            "systemId": "c2a6b7c8-9d1e-4b8f-9c1d-8a7b6e5d4c3b",
+            "name": "Воронцовская (Vorontsovskaya)"
+          }
+        },
+        {
+          "lineId": "l11",
+          "stationId": "s11-15",
+          "order": 14,
+          "station": {
+            "id": "s11-15",
+            "systemId": "c2a6b7c8-9d1e-4b8f-9c1d-8a7b6e5d4c3b",
+            "name": "Зюзино (Zyuzino)"
+          }
+        },
+        {
+          "lineId": "l11",
+          "stationId": "s11-16",
+          "order": 15,
+          "station": {
+            "id": "s11-16",
+            "systemId": "c2a6b7c8-9d1e-4b8f-9c1d-8a7b6e5d4c3b",
+            "name": "Каховская (Kakhovskaya)"
+          }
+        },
+        {
+          "lineId": "l11",
+          "stationId": "s11-17",
+          "order": 16,
+          "station": {
+            "id": "s11-17",
+            "systemId": "c2a6b7c8-9d1e-4b8f-9c1d-8a7b6e5d4c3b",
+            "name": "Варшавская (Varshavskaya)"
+          }
+        },
+        {
+          "lineId": "l11",
+          "stationId": "s11-18",
+          "order": 17,
+          "station": {
+            "id": "s11-18",
+            "systemId": "c2a6b7c8-9d1e-4b8f-9c1d-8a7b6e5d4c3b",
+            "name": "Каширская (Kashirskaya)"
+          }
+        },
+        {
+          "lineId": "l11",
+          "stationId": "s11-19",
+          "order": 18,
+          "station": {
+            "id": "s11-19",
+            "systemId": "c2a6b7c8-9d1e-4b8f-9c1d-8a7b6e5d4c3b",
+            "name": "Кленовый бульвар (Klenovy Bulvar)"
+          }
+        },
+        {
+          "lineId": "l11",
+          "stationId": "s11-20",
+          "order": 19,
+          "station": {
+            "id": "s11-20",
+            "systemId": "c2a6b7c8-9d1e-4b8f-9c1d-8a7b6e5d4c3b",
+            "name": "Нагатинский Затон (Nagatinsky Zaton)"
+          }
+        },
+        {
+          "lineId": "l11",
+          "stationId": "s11-21",
+          "order": 20,
+          "station": {
+            "id": "s11-21",
+            "systemId": "c2a6b7c8-9d1e-4b8f-9c1d-8a7b6e5d4c3b",
+            "name": "Печатники (Pechatniki)"
+          }
+        },
+        {
+          "lineId": "l11",
+          "stationId": "s11-22",
+          "order": 21,
+          "station": {
+            "id": "s11-22",
+            "systemId": "c2a6b7c8-9d1e-4b8f-9c1d-8a7b6e5d4c3b",
+            "name": "Текстильщики (Tekstilshchiki)"
+          }
+        },
+        {
+          "lineId": "l11",
+          "stationId": "s11-23",
+          "order": 22,
+          "station": {
+            "id": "s11-23",
+            "systemId": "c2a6b7c8-9d1e-4b8f-9c1d-8a7b6e5d4c3b",
+            "name": "Нижегородская (Nizhegorodskaya)"
+          }
+        },
+        {
+          "lineId": "l11",
+          "stationId": "s11-24",
+          "order": 23,
+          "station": {
+            "id": "s11-24",
+            "systemId": "c2a6b7c8-9d1e-4b8f-9c1d-8a7b6e5d4c3b",
+            "name": "Авиамоторная (Aviamotornaya)"
+          }
+        },
+        {
+          "lineId": "l11",
+          "stationId": "s11-25",
+          "order": 24,
+          "station": {
+            "id": "s11-25",
+            "systemId": "c2a6b7c8-9d1e-4b8f-9c1d-8a7b6e5d4c3b",
+            "name": "Лефортово (Lefortovo)"
+          }
+        },
+        {
+          "lineId": "l11",
+          "stationId": "s11-26",
+          "order": 25,
+          "station": {
+            "id": "s11-26",
+            "systemId": "c2a6b7c8-9d1e-4b8f-9c1d-8a7b6e5d4c3b",
+            "name": "Электрозаводская (Elektrozavodskaya)"
+          }
+        },
+        {
+          "lineId": "l11",
+          "stationId": "s11-27",
+          "order": 26,
+          "station": {
+            "id": "s11-27",
+            "systemId": "c2a6b7c8-9d1e-4b8f-9c1d-8a7b6e5d4c3b",
+            "name": "Сокольники (Sokolniki)"
+          }
+        },
+        {
+          "lineId": "l11",
+          "stationId": "s11-28",
+          "order": 27,
+          "station": {
+            "id": "s11-28",
+            "systemId": "c2a6b7c8-9d1e-4b8f-9c1d-8a7b6e5d4c3b",
+            "name": "Рижская (Rizhskaya)"
+          }
+        },
+        {
+          "lineId": "l11",
+          "stationId": "s11-29",
+          "order": 28,
+          "station": {
+            "id": "s11-29",
+            "systemId": "c2a6b7c8-9d1e-4b8f-9c1d-8a7b6e5d4c3b",
+            "name": "Марьина Роща (Maryina Roshcha)"
+          }
+        }
+      ]
+    },
+    {
+      "id": "l12",
+      "systemId": "c2a6b7c8-9d1e-4b8f-9c1d-8a7b6e5d4c3b",
+      "name": "Бутовская (Butovskaya)",
+      "lineNumber": "12",
+      "color": "#99CCCC",
+      "lineStations": [
+        {
+          "lineId": "l12",
+          "stationId": "s12-1",
+          "order": 0,
+          "station": {
+            "id": "s12-1",
+            "systemId": "c2a6b7c8-9d1e-4b8f-9c1d-8a7b6e5d4c3b",
+            "name": "Битцевский парк (Bittsevsky Park)"
+          }
+        },
+        {
+          "lineId": "l12",
+          "stationId": "s12-2",
+          "order": 1,
+          "station": {
+            "id": "s12-2",
+            "systemId": "c2a6b7c8-9d1e-4b8f-9c1d-8a7b6e5d4c3b",
+            "name": "Лесопарковая (Lesoparkovaya)"
+          }
+        },
+        {
+          "lineId": "l12",
+          "stationId": "s12-3",
+          "order": 2,
+          "station": {
+            "id": "s12-3",
+            "systemId": "c2a6b7c8-9d1e-4b8f-9c1d-8a7b6e5d4c3b",
+            "name": "Улица Старокачаловская (Ulitsa Starokachalovskaya)"
+          }
+        },
+        {
+          "lineId": "l12",
+          "stationId": "s12-4",
+          "order": 3,
+          "station": {
+            "id": "s12-4",
+            "systemId": "c2a6b7c8-9d1e-4b8f-9c1d-8a7b6e5d4c3b",
+            "name": "Улица Скобелевская (Ulitsa Skobelevskaya)"
+          }
+        },
+        {
+          "lineId": "l12",
+          "stationId": "s12-5",
+          "order": 4,
+          "station": {
+            "id": "s12-5",
+            "systemId": "c2a6b7c8-9d1e-4b8f-9c1d-8a7b6e5d4c3b",
+            "name": "Бульвар Адмирала Ушакова (Bulvar Admirala Ushakova)"
+          }
+        },
+        {
+          "lineId": "l12",
+          "stationId": "s12-6",
+          "order": 5,
+          "station": {
+            "id": "s12-6",
+            "systemId": "c2a6b7c8-9d1e-4b8f-9c1d-8a7b6e5d4c3b",
+            "name": "Улица Горчакова (Ulitsa Gorchakova)"
+          }
+        },
+        {
+          "lineId": "l12",
+          "stationId": "s12-7",
+          "order": 6,
+          "station": {
+            "id": "s12-7",
+            "systemId": "c2a6b7c8-9d1e-4b8f-9c1d-8a7b6e5d4c3b",
+            "name": "Бунинская аллея (Buninskaya Alleya)"
+          }
+        }
+      ]
+    },
+    {
+      "id": "l14",
+      "systemId": "c2a6b7c8-9d1e-4b8f-9c1d-8a7b6e5d4c3b",
+      "name": "Московское центральное кольцо (Moscow Central Circle)",
+      "lineNumber": "14",
+      "color": "#E24A83",
+      "lineStations": [
+        {
+          "lineId": "l14",
+          "stationId": "s14-1",
+          "order": 0,
+          "station": {
+            "id": "s14-1",
+            "systemId": "c2a6b7c8-9d1e-4b8f-9c1d-8a7b6e5d4c3b",
+            "name": "Окружная (Okruzhnaya)"
+          }
+        },
+        {
+          "lineId": "l14",
+          "stationId": "s14-2",
+          "order": 1,
+          "station": {
+            "id": "s14-2",
+            "systemId": "c2a6b7c8-9d1e-4b8f-9c1d-8a7b6e5d4c3b",
+            "name": "Владыкино (Vladykino)"
+          }
+        },
+        {
+          "lineId": "l14",
+          "stationId": "s14-3",
+          "order": 2,
+          "station": {
+            "id": "s14-3",
+            "systemId": "c2a6b7c8-9d1e-4b8f-9c1d-8a7b6e5d4c3b",
+            "name": "Ботанический сад (Botanichesky Sad)"
+          }
+        },
+        {
+          "lineId": "l14",
+          "stationId": "s14-4",
+          "order": 3,
+          "station": {
+            "id": "s14-4",
+            "systemId": "c2a6b7c8-9d1e-4b8f-9c1d-8a7b6e5d4c3b",
+            "name": "Ростокино (Rostokino)"
+          }
+        },
+        {
+          "lineId": "l14",
+          "stationId": "s14-5",
+          "order": 4,
+          "station": {
+            "id": "s14-5",
+            "systemId": "c2a6b7c8-9d1e-4b8f-9c1d-8a7b6e5d4c3b",
+            "name": "Белокаменная (Belokamennaya)"
+          }
+        },
+        {
+          "lineId": "l14",
+          "stationId": "s14-6",
+          "order": 5,
+          "station": {
+            "id": "s14-6",
+            "systemId": "c2a6b7c8-9d1e-4b8f-9c1d-8a7b6e5d4c3b",
+            "name": "Бульвар Рокоссовского (Bulvar Rokossovskogo)"
+          }
+        },
+        {
+          "lineId": "l14",
+          "stationId": "s14-7",
+          "order": 6,
+          "station": {
+            "id": "s14-7",
+            "systemId": "c2a6b7c8-9d1e-4b8f-9c1d-8a7b6e5d4c3b",
+            "name": "Локомотив (Lokomotiv)"
+          }
+        },
+        {
+          "lineId": "l14",
+          "stationId": "s14-8",
+          "order": 7,
+          "station": {
+            "id": "s14-8",
+            "systemId": "c2a6b7c8-9d1e-4b8f-9c1d-8a7b6e5d4c3b",
+            "name": "Измайлово (Izmaylovo)"
+          }
+        },
+        {
+          "lineId": "l14",
+          "stationId": "s14-9",
+          "order": 8,
+          "station": {
+            "id": "s14-9",
+            "systemId": "c2a6b7c8-9d1e-4b8f-9c1d-8a7b6e5d4c3b",
+            "name": "Шоссе Энтузиастов (Shosse Entuziastov)"
+          }
+        },
+        {
+          "lineId": "l14",
+          "stationId": "s14-10",
+          "order": 9,
+          "station": {
+            "id": "s14-10",
+            "systemId": "c2a6b7c8-9d1e-4b8f-9c1d-8a7b6e5d4c3b",
+            "name": "Андроновка (Andronovka)"
+          }
+        },
+        {
+          "lineId": "l14",
+          "stationId": "s14-11",
+          "order": 10,
+          "station": {
+            "id": "s14-11",
+            "systemId": "c2a6b7c8-9d1e-4b8f-9c1d-8a7b6e5d4c3b",
+            "name": "Нижегородская (Nizhegorodskaya)"
+          }
+        },
+        {
+          "lineId": "l14",
+          "stationId": "s14-12",
+          "order": 11,
+          "station": {
+            "id": "s14-12",
+            "systemId": "c2a6b7c8-9d1e-4b8f-9c1d-8a7b6e5d4c3b",
+            "name": "Новохохловская (Novokhokhlovskaya)"
+          }
+        },
+        {
+          "lineId": "l14",
+          "stationId": "s14-13",
+          "order": 12,
+          "station": {
+            "id": "s14-13",
+            "systemId": "c2a6b7c8-9d1e-4b8f-9c1d-8a7b6e5d4c3b",
+            "name": "Угрешская (Ugreshskaya)"
+          }
+        },
+        {
+          "lineId": "l14",
+          "stationId": "s14-14",
+          "order": 13,
+          "station": {
+            "id": "s14-14",
+            "systemId": "c2a6b7c8-9d1e-4b8f-9c1d-8a7b6e5d4c3b",
+            "name": "Дубровка (Dubrovka)"
+          }
+        },
+        {
+          "lineId": "l14",
+          "stationId": "s14-15",
+          "order": 14,
+          "station": {
+            "id": "s14-15",
+            "systemId": "c2a6b7c8-9d1e-4b8f-9c1d-8a7b6e5d4c3b",
+            "name": "Автозаводская (Avtozavodskaya)"
+          }
+        },
+        {
+          "lineId": "l14",
+          "stationId": "s14-16",
+          "order": 15,
+          "station": {
+            "id": "s14-16",
+            "systemId": "c2a6b7c8-9d1e-4b8f-9c1d-8a7b6e5d4c3b",
+            "name": "ЗИЛ (ZIL)"
+          }
+        },
+        {
+          "lineId": "l14",
+          "stationId": "s14-17",
+          "order": 16,
+          "station": {
+            "id": "s14-17",
+            "systemId": "c2a6b7c8-9d1e-4b8f-9c1d-8a7b6e5d4c3b",
+            "name": "Верхние Котлы (Verkhniye Kotly)"
+          }
+        },
+        {
+          "lineId": "l14",
+          "stationId": "s14-18",
+          "order": 17,
+          "station": {
+            "id": "s14-18",
+            "systemId": "c2a6b7c8-9d1e-4b8f-9c1d-8a7b6e5d4c3b",
+            "name": "Крымская (Krymskaya)"
+          }
+        },
+        {
+          "lineId": "l14",
+          "stationId": "s14-19",
+          "order": 18,
+          "station": {
+            "id": "s14-19",
+            "systemId": "c2a6b7c8-9d1e-4b8f-9c1d-8a7b6e5d4c3b",
+            "name": "Площадь Гагарина (Ploshchad Gagarina)"
+          }
+        },
+        {
+          "lineId": "l14",
+          "stationId": "s14-20",
+          "order": 19,
+          "station": {
+            "id": "s14-20",
+            "systemId": "c2a6b7c8-9d1e-4b8f-9c1d-8a7b6e5d4c3b",
+            "name": "Лужники (Luzhniki)"
+          }
+        },
+        {
+          "lineId": "l14",
+          "stationId": "s14-21",
+          "order": 20,
+          "station": {
+            "id": "s14-21",
+            "systemId": "c2a6b7c8-9d1e-4b8f-9c1d-8a7b6e5d4c3b",
+            "name": "Кутузовская (Kutuzovskaya)"
+          }
+        },
+        {
+          "lineId": "l14",
+          "stationId": "s14-22",
+          "order": 21,
+          "station": {
+            "id": "s14-22",
+            "systemId": "c2a6b7c8-9d1e-4b8f-9c1d-8a7b6e5d4c3b",
+            "name": "Москва-Сити (Moskva-Siti)"
+          }
+        },
+        {
+          "lineId": "l14",
+          "stationId": "s14-23",
+          "order": 22,
+          "station": {
+            "id": "s14-23",
+            "systemId": "c2a6b7c8-9d1e-4b8f-9c1d-8a7b6e5d4c3b",
+            "name": "Шелепиха (Shelepikha)"
+          }
+        },
+        {
+          "lineId": "l14",
+          "stationId": "s14-24",
+          "order": 23,
+          "station": {
+            "id": "s14-24",
+            "systemId": "c2a6b7c8-9d1e-4b8f-9c1d-8a7b6e5d4c3b",
+            "name": "Хорошёво (Khoroshyovo)"
+          }
+        },
+        {
+          "lineId": "l14",
+          "stationId": "s14-25",
+          "order": 24,
+          "station": {
+            "id": "s14-25",
+            "systemId": "c2a6b7c8-9d1e-4b8f-9c1d-8a7b6e5d4c3b",
+            "name": "Зорге (Zorge)"
+          }
+        },
+        {
+          "lineId": "l14",
+          "stationId": "s14-26",
+          "order": 25,
+          "station": {
+            "id": "s14-26",
+            "systemId": "c2a6b7c8-9d1e-4b8f-9c1d-8a7b6e5d4c3b",
+            "name": "Панфиловская (Panfilovskaya)"
+          }
+        },
+        {
+          "lineId": "l14",
+          "stationId": "s14-27",
+          "order": 26,
+          "station": {
+            "id": "s14-27",
+            "systemId": "c2a6b7c8-9d1e-4b8f-9c1d-8a7b6e5d4c3b",
+            "name": "Стрешнево (Streshnevo)"
+          }
+        },
+        {
+          "lineId": "l14",
+          "stationId": "s14-28",
+          "order": 27,
+          "station": {
+            "id": "s14-28",
+            "systemId": "c2a6b7c8-9d1e-4b8f-9c1d-8a7b6e5d4c3b",
+            "name": "Балтийская (Baltiyskaya)"
+          }
+        },
+        {
+          "lineId": "l14",
+          "stationId": "s14-29",
+          "order": 28,
+          "station": {
+            "id": "s14-29",
+            "systemId": "c2a6b7c8-9d1e-4b8f-9c1d-8a7b6e5d4c3b",
+            "name": "Коптево (Koptevo)"
+          }
+        },
+        {
+          "lineId": "l14",
+          "stationId": "s14-30",
+          "order": 29,
+          "station": {
+            "id": "s14-30",
+            "systemId": "c2a6b7c8-9d1e-4b8f-9c1d-8a7b6e5d4c3b",
+            "name": "Лихоборы (Likhobory)"
+          }
+        }
+      ]
+    },
+    {
+      "id": "l15",
+      "systemId": "c2a6b7c8-9d1e-4b8f-9c1d-8a7b6e5d4c3b",
+      "name": "Некрасовская (Nekrasovskaya)",
+      "lineNumber": "15",
+      "color": "#E5559F",
+      "lineStations": [
+        {
+          "lineId": "l15",
+          "stationId": "s15-1",
+          "order": 0,
+          "station": {
+            "id": "s15-1",
+            "systemId": "c2a6b7c8-9d1e-4b8f-9c1d-8a7b6e5d4c3b",
+            "name": "Нижегородская (Nizhegorodskaya)"
+          }
+        },
+        {
+          "lineId": "l15",
+          "stationId": "s15-2",
+          "order": 1,
+          "station": {
+            "id": "s15-2",
+            "systemId": "c2a6b7c8-9d1e-4b8f-9c1d-8a7b6e5d4c3b",
+            "name": "Стахановская (Stakhanovskaya)"
+          }
+        },
+        {
+          "lineId": "l15",
+          "stationId": "s15-3",
+          "order": 2,
+          "station": {
+            "id": "s15-3",
+            "systemId": "c2a6b7c8-9d1e-4b8f-9c1d-8a7b6e5d4c3b",
+            "name": "Окская (Okskaya)"
+          }
+        },
+        {
+          "lineId": "l15",
+          "stationId": "s15-4",
+          "order": 3,
+          "station": {
+            "id": "s15-4",
+            "systemId": "c2a6b7c8-9d1e-4b8f-9c1d-8a7b6e5d4c3b",
+            "name": "Юго-Восточная (Yugo-Vostochnaya)"
+          }
+        },
+        {
+          "lineId": "l15",
+          "stationId": "s15-5",
+          "order": 4,
+          "station": {
+            "id": "s15-5",
+            "systemId": "c2a6b7c8-9d1e-4b8f-9c1d-8a7b6e5d4c3b",
+            "name": "Косино (Kosino)"
+          }
+        },
+        {
+          "lineId": "l15",
+          "stationId": "s15-6",
+          "order": 5,
+          "station": {
+            "id": "s15-6",
+            "systemId": "c2a6b7c8-9d1e-4b8f-9c1d-8a7b6e5d4c3b",
+            "name": "Улица Дмитриевского (Ulitsa Dmitriyevskogo)"
+          }
+        },
+        {
+          "lineId": "l15",
+          "stationId": "s15-7",
+          "order": 6,
+          "station": {
+            "id": "s15-7",
+            "systemId": "c2a6b7c8-9d1e-4b8f-9c1d-8a7b6e5d4c3b",
+            "name": "Лухмановская (Lukhmanovskaya)"
+          }
+        },
+        {
+          "lineId": "l15",
+          "stationId": "s15-8",
+          "order": 7,
+          "station": {
+            "id": "s15-8",
+            "systemId": "c2a6b7c8-9d1e-4b8f-9c1d-8a7b6e5d4c3b",
+            "name": "Некрасовка (Nekrasovka)"
+          }
+        }
+      ]
+    },
+    {
+      "id": "l16",
+      "systemId": "c2a6b7c8-9d1e-4b8f-9c1d-8a7b6e5d4c3b",
+      "name": "Троицкая (Troitskaya)",
+      "lineNumber": "16",
+      "color": "#32A284",
+      "lineStations": [
+        {
+          "lineId": "l16",
+          "stationId": "s16-1",
+          "order": 0,
+          "station": {
+            "id": "s16-1",
+            "systemId": "c2a6b7c8-9d1e-4b8f-9c1d-8a7b6e5d4c3b",
+            "name": "ЗИЛ (ZIL)"
+          }
+        },
+        {
+          "lineId": "l16",
+          "stationId": "s16-2",
+          "order": 1,
+          "station": {
+            "id": "s16-2",
+            "systemId": "c2a6b7c8-9d1e-4b8f-9c1d-8a7b6e5d4c3b",
+            "name": "Крымская (Krymskaya)"
+          }
+        },
+        {
+          "lineId": "l16",
+          "stationId": "s16-3",
+          "order": 2,
+          "station": {
+            "id": "s16-3",
+            "systemId": "c2a6b7c8-9d1e-4b8f-9c1d-8a7b6e5d4c3b",
+            "name": "Академическая (Akademicheskaya)"
+          }
+        },
+        {
+          "lineId": "l16",
+          "stationId": "s16-4",
+          "order": 3,
+          "station": {
+            "id": "s16-4",
+            "systemId": "c2a6b7c8-9d1e-4b8f-9c1d-8a7b6e5d4c3b",
+            "name": "Вавиловская (Vavilovskaya)"
+          }
+        },
+        {
+          "lineId": "l16",
+          "stationId": "s16-5",
+          "order": 4,
+          "station": {
+            "id": "s16-5",
+            "systemId": "c2a6b7c8-9d1e-4b8f-9c1d-8a7b6e5d4c3b",
+            "name": "Новаторская (Novatorskaya)"
+          }
+        },
+        {
+          "lineId": "l16",
+          "stationId": "s16-6",
+          "order": 5,
+          "station": {
+            "id": "s16-6",
+            "systemId": "c2a6b7c8-9d1e-4b8f-9c1d-8a7b6e5d4c3b",
+            "name": "Университет дружбы народов (Universitet Druzhby Narodov)"
+          }
+        },
+        {
+          "lineId": "l16",
+          "stationId": "s16-7",
+          "order": 6,
+          "station": {
+            "id": "s16-7",
+            "systemId": "c2a6b7c8-9d1e-4b8f-9c1d-8a7b6e5d4c3b",
+            "name": "Генерала Тюленева (Generala Tyuleneva)"
+          }
+        },
+        {
+          "lineId": "l16",
+          "stationId": "s16-8",
+          "order": 7,
+          "station": {
+            "id": "s16-8",
+            "systemId": "c2a6b7c8-9d1e-4b8f-9c1d-8a7b6e5d4c3b",
+            "name": "Тютчевская (Tyutchevskaya)"
+          }
+        },
+        {
+          "lineId": "l16",
+          "stationId": "s16-9",
+          "order": 8,
+          "station": {
+            "id": "s16-9",
+            "systemId": "c2a6b7c8-9d1e-4b8f-9c1d-8a7b6e5d4c3b",
+            "name": "Корниловская (Kornilovskaya)"
+          }
+        },
+        {
+          "lineId": "l16",
+          "stationId": "s16-10",
+          "order": 9,
+          "station": {
+            "id": "s16-10",
+            "systemId": "c2a6b7c8-9d1e-4b8f-9c1d-8a7b6e5d4c3b",
+            "name": "Новомосковская (Novomoskovskaya)"
+          }
+        }
+      ]
+    }
+  ]
+}
