@@ -51,7 +51,7 @@ export function useTripInfoView() {
 
   const isMapView = computed(() => sectionQuery.value === 'map')
 
-  function init() {
+  function fetchData() {
     if (tripId.value) {
       plan.fetchTripDetails(
         tripId.value,
@@ -62,6 +62,12 @@ export function useTripInfoView() {
       )
     }
   }
+
+  watch(tripId, (newId) => {
+    if (newId) {
+      fetchData()
+    }
+  }, { immediate: true })
 
   watch(
     () => plan.currentDayId,
@@ -127,7 +133,6 @@ export function useTripInfoView() {
     sectionQuery,
     resolvedSectionId,
     isMapView,
-    init,
     handleSaveTrip: (updatedData: UpdateTripInput) => plan.updateTrip(updatedData),
   }
 }

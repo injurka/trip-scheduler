@@ -23,11 +23,8 @@ const {
   dayId,
   resolvedSectionId,
   sectionQuery,
-  init,
   handleSaveTrip,
 } = useTripInfoView()
-
-init()
 
 const { plan, ui, sections } = useModuleStore(['plan', 'ui', 'sections'])
 const { days, isLoading, fetchError, getPreviousDayId, getNextDayId, getSelectedDay } = storeToRefs(plan)
