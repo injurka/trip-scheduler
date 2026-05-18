@@ -27,7 +27,6 @@ const { plan, ui, routeGallery, memories, sections } = useModuleStore(['plan', '
 const { canEdit } = useTripPermissions()
 const { mdAndDown } = useDisplay()
 
-const tripId = computed(() => route.params.id as string)
 const dayId = computed(() => route.query.day as string)
 const isMapView = computed(() => route.query.section === 'map')
 const isNotesView = computed(() => route.query.section === 'notes')
@@ -35,15 +34,8 @@ const isNotesView = computed(() => route.query.section === 'notes')
 const { isLoading: isTripLoading, fetchError } = storeToRefs(plan)
 const { isDaysPanelPinned, activeView, isParallelPlanView } = storeToRefs(ui)
 
-if (tripId.value) {
-  plan.fetchTripDetails(
-    tripId.value,
-    dayId.value,
-    (loadedSections: TripSection[]) => {
-      sections.setSections(loadedSections)
-    },
-  )
-}
+// БЫЛО ТУТ: plan.fetchTripDetails(...). Удалено, чтобы избежать батчинга двойных запросов.
+// useTripInfoView внутри trip-info.vue выполнит этот запрос за нас.
 
 function handleAddSection(type: any) {
   sections.addSection(type)

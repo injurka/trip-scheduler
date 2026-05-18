@@ -88,9 +88,6 @@ export const useAuthStore = defineStore('auth', {
           this.saveUser(data)
         },
         onError: ({ error }) => {
-          if (!isNetworkOrServerError(error)) {
-            this.clearAuth()
-          }
           throw error
         },
       })
