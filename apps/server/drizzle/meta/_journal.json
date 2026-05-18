@@ -148,6 +148,13 @@
       "when": 1777375123868,
       "tag": "0020_dark_giant_man",
       "breakpoints": true
+    },
+    {
+      "idx": 21,
+      "version": "7",
+      "when": 1777398088510,
+      "tag": "0021_moaning_johnny_blaze",
+      "breakpoints": true
     }
   ]
 }

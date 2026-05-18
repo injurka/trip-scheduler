@@ -1,44 +1,89 @@
 import type { Country, DestinationReview } from '~/shared/types/models/destination-review'
-import { computed, ref } from 'vue'
+import { computed, reactive, ref, watch } from 'vue'
 import { useRequest, useRequestStatus } from '~/plugins/request'
 import { useConfirm } from '~/shared/composables/use-confirm'
 import { useToast } from '~/shared/composables/use-toast'
+import { useAuthStore } from '~/shared/store/auth.store'
 
 export enum EDestinationReviewKeys {
   FETCH_COUNTRIES = 'destination-reviews:fetch-countries',
   FETCH_REVIEWS = 'destination-reviews:fetch-reviews',
-  DELETE_REVIEW = 'destination-reviews:delete-review',
+  CREATE_REVIEW = 'destination-reviews:create',
+  UPDATE_REVIEW = 'destination-reviews:update',
+  DELETE_REVIEW = 'destination-reviews:delete',
+  UPLOAD_COVER = 'destination-reviews:upload-cover',
+}
+
+export const METRIC_KEYS = ['safety', 'culture', 'infrastructure', 'food', 'prices', 'nature', 'vibe'] as const
+export const METRIC_LABELS: Record<string, string> = {
+  safety: 'Безопасность',
+  culture: 'Культура',
+  infrastructure: 'Инфраструктура',
+  food: 'Еда',
+  prices: 'Цены',
+  nature: 'Природа',
+  vibe: 'Атмосфера',
+}
+
+type ReviewFormState = {
+  type: 'city'
+  countryId: string
+  city: string
+  coverUrl: string | null
+  latitude: number | string
+  longitude: number | string
+  content: string
+  metrics: Record<string, number>
+  metricComments: Record<string, string>
+}
+
+function createEmptyForm(): ReviewFormState {
+  return {
+    type: 'city',
+    countryId: '',
+    city: '',
+    coverUrl: null,
+    latitude: '',
+    longitude: '',
+    content: '',
+    metrics: { safety: 3, culture: 3, infrastructure: 3, food: 3, prices: 3, nature: 3, vibe: 3 },
+    metricComments: {},
+  }
 }
 
 export function useDestinationReviews(userId: string) {
+  const authStore = useAuthStore()
   const toast = useToast()
   const confirm = useConfirm()
 
   const reviews = ref<DestinationReview[]>([])
   const countries = ref<Country[]>([])
-  const activeTab = ref<'city' | 'country'>('city')
 
-  const areReviewsLoading = useRequestStatus([
-    EDestinationReviewKeys.FETCH_REVIEWS,
-  ])
-  const areCountriesLoading = useRequestStatus([
-    EDestinationReviewKeys.FETCH_COUNTRIES,
-  ])
+  const isCreateModalOpen = ref(false)
+  const isEditModalOpen = ref(false)
+  const editingReview = ref<DestinationReview | null>(null)
+
+  const areReviewsLoading = useRequestStatus([EDestinationReviewKeys.FETCH_REVIEWS])
+  const areCountriesLoading = useRequestStatus([EDestinationReviewKeys.FETCH_COUNTRIES])
+  const isSubmitting = useRequestStatus([EDestinationReviewKeys.CREATE_REVIEW, EDestinationReviewKeys.UPDATE_REVIEW])
+  const isUploading = useRequestStatus([EDestinationReviewKeys.UPLOAD_COVER])
+
+  const form = reactive<ReviewFormState>(createEmptyForm())
+  const editForm = reactive<ReviewFormState>(createEmptyForm())
+
+  const formFile = ref<File | null>(null)
+  const editFormFile = ref<File | null>(null)
 
   const filteredReviews = computed(() => {
-    return reviews.value.filter(r => r.type === activeTab.value)
+    return reviews.value.filter(r => r.type === 'city')
   })
 
   async function fetchCountries() {
-    if (countries.value.length > 0)
-      return
-
+    if (countries.value.length > 0) return
     await useRequest({
       key: EDestinationReviewKeys.FETCH_COUNTRIES,
       fn: db => db.destinationReviews.getCountries(),
-      onSuccess: (data) => {
-        countries.value = data
-      },
+      onSuccess: (data) => { countries.value = data },
     })
   }
 
@@ -46,9 +91,112 @@ export function useDestinationReviews(userId: string) {
     await useRequest({
       key: EDestinationReviewKeys.FETCH_REVIEWS,
       fn: db => db.destinationReviews.getUserReviews({ userId }),
-      onSuccess: (data) => {
-        reviews.value = data
+      onSuccess: (data) => { reviews.value = data },
+    })
+  }
+
+  function resetCreateForm() {
+    Object.assign(form, createEmptyForm())
+    formFile.value = null
+  }
+
+  function resetEditForm() {
+    Object.assign(editForm, createEmptyForm())
+    editFormFile.value = null
+    editingReview.value = null
+  }
+
+  async function openCreateModal() {
+    resetCreateForm()
+    await fetchCountries()
+    isCreateModalOpen.value = true
+  }
+
+  async function openEditModal(review: DestinationReview) {
+    await fetchCountries()
+    editingReview.value = review
+
+    Object.assign(editForm, {
+      type: 'city',
+      countryId: review.country?.id || '',
+      city: review.city || '',
+      coverUrl: review.coverUrl || null,
+      latitude: review.latitude ?? '',
+      longitude: review.longitude ?? '',
+      content: review.content || '',
+      metrics: { ...createEmptyForm().metrics, ...review.metrics },
+      metricComments: { ...(review as any).metricComments },
+    })
+
+    editFormFile.value = null
+    isEditModalOpen.value = true
+  }
+
+  async function uploadCoverImage(file: File): Promise<string | null> {
+    if (!authStore.user?.id) return null
+    let uploadedUrl: string | null = null
+
+    await useRequest({
+      key: EDestinationReviewKeys.UPLOAD_COVER,
+      fn: db => db.files.uploadFile(file, authStore.user!.id, 'review', 'cover'),
+      onSuccess: (uploadedImage) => { uploadedUrl = uploadedImage.url },
+      onError: ({ error }) => { toast.error(error.customMessage || 'Ошибка загрузки обложки') },
+    })
+
+    return uploadedUrl
+  }
+
+  function normalizePayload(source: ReviewFormState, coverUrl: string | null) {
+    return {
+      type: source.type,
+      countryId: source.countryId,
+      city: source.city,
+      coverUrl,
+      latitude: Number(source.latitude),
+      longitude: Number(source.longitude),
+      content: source.content || null,
+      metrics: source.metrics,
+      metricComments: source.metricComments,
+    }
+  }
+
+  async function submitReview() {
+    let finalCoverUrl = form.coverUrl
+    if (formFile.value) {
+      const uploaded = await uploadCoverImage(formFile.value)
+      if (uploaded) finalCoverUrl = uploaded
+    }
+
+    await useRequest({
+      key: EDestinationReviewKeys.CREATE_REVIEW,
+      fn: db => db.destinationReviews.create(normalizePayload(form, finalCoverUrl) as any),
+      onSuccess: () => {
+        toast.success('Впечатление добавлено!')
+        isCreateModalOpen.value = false
+        fetchReviews()
       },
+      onError: ({ error }) => { toast.error(error.customMessage || 'Ошибка при сохранении') },
+    })
+  }
+
+  async function submitEditReview() {
+    if (!editingReview.value) return
+
+    let finalCoverUrl = editForm.coverUrl
+    if (editFormFile.value) {
+      const uploaded = await uploadCoverImage(editFormFile.value)
+      if (uploaded) finalCoverUrl = uploaded
+    }
+
+    await useRequest({
+      key: EDestinationReviewKeys.UPDATE_REVIEW,
+      fn: db => (db.destinationReviews as any).update({ id: editingReview.value!.id, ...normalizePayload(editForm, finalCoverUrl) }),
+      onSuccess: () => {
+        toast.success('Изменения сохранены!')
+        isEditModalOpen.value = false
+        fetchReviews()
+      },
+      onError: ({ error }) => { toast.error(error.customMessage || 'Ошибка при обновлении') },
     })
   }
 
@@ -60,8 +208,7 @@ export function useDestinationReviews(userId: string) {
       confirmText: 'Да, удалить',
     })
 
-    if (!isConfirmed)
-      return
+    if (!isConfirmed) return
 
     await useRequest({
       key: EDestinationReviewKeys.DELETE_REVIEW,
@@ -76,15 +223,28 @@ export function useDestinationReviews(userId: string) {
     })
   }
 
+  watch(isCreateModalOpen, (val) => { if (!val) setTimeout(resetCreateForm, 300) })
+  watch(isEditModalOpen, (val) => { if (!val) setTimeout(resetEditForm, 300) })
+
   return {
-    activeTab,
-    reviews,
     filteredReviews,
     countries,
     areReviewsLoading,
     areCountriesLoading,
+    isSubmitting,
+    isUploading,
+    isCreateModalOpen,
+    isEditModalOpen,
+    form,
+    editForm,
+    formFile,
+    editFormFile,
     fetchCountries,
     fetchReviews,
+    openCreateModal,
+    openEditModal,
+    submitReview,
+    submitEditReview,
     deleteReview,
   }
 }

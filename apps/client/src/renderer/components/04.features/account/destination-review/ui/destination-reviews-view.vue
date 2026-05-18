@@ -1,37 +1,39 @@
 <script setup lang="ts">
 import { Icon } from '@iconify/vue'
-import { onMounted, ref } from 'vue'
+import { onMounted } from 'vue'
 import { KitBtn } from '~/components/01.kit/kit-btn'
-import { KitViewSwitcher } from '~/components/01.kit/kit-view-switcher'
 import { AsyncStateWrapper } from '~/components/02.shared/async-state-wrapper'
 import { useDestinationReviews } from '../composables/use-destination-reviews'
 import DestinationReviewCard from './components/destination-review-card.vue'
-import DestinationReviewForm from './components/destination-review-form.vue'
+import DestinationReviewCreateDialog from './dialogs/destination-review-create-dialog.vue'
+import DestinationReviewEditDialog from './dialogs/destination-review-edit-dialog.vue'
 
-const props = defineProps<{ userId: string, isOwnProfile: boolean }>()
+interface Props {
+  userId: string
+  isOwnProfile: boolean
+}
+const props = defineProps<Props>()
 
 const {
-  activeTab,
   filteredReviews,
   countries,
   areReviewsLoading,
   areCountriesLoading,
-  fetchCountries,
+  isSubmitting,
+  isUploading,
+  isCreateModalOpen,
+  isEditModalOpen,
+  form,
+  editForm,
+  formFile,
+  editFormFile,
   fetchReviews,
+  openCreateModal,
+  openEditModal,
+  submitReview,
+  submitEditReview,
   deleteReview,
 } = useDestinationReviews(props.userId)
-
-const isFormOpen = ref(false)
-
-const tabs = [
-  { id: 'city', label: 'Города', icon: 'mdi:city-variant-outline' },
-  { id: 'country', label: 'Страны', icon: 'mdi:earth' },
-]
-
-async function openAddReviewForm() {
-  await fetchCountries()
-  isFormOpen.value = true
-}
 
 onMounted(() => {
   fetchReviews()
@@ -41,14 +43,14 @@ onMounted(() => {
 <template>
   <div class="reviews-view">
     <div class="toolbar">
-      <KitViewSwitcher v-model="activeTab" :items="tabs" />
+      <h2 class="title">Мои впечатления</h2>
       <div style="flex-grow: 1" />
       <KitBtn
         v-if="isOwnProfile"
         size="sm"
         icon="mdi:plus"
         :loading="areCountriesLoading"
-        @click="openAddReviewForm"
+        @click="openCreateModal"
       >
         Добавить
       </KitBtn>
@@ -61,6 +63,8 @@ onMounted(() => {
             v-for="review in data"
             :key="review.id"
             :review="review"
+            :is-owner="isOwnProfile"
+            @edit="openEditModal"
             @delete="deleteReview"
           />
         </div>
@@ -68,15 +72,29 @@ onMounted(() => {
       <template #empty>
         <div class="empty-state">
           <Icon icon="mdi:map-search-outline" />
-          <p>Пока нет добавленных впечатлений в этой категории.</p>
+          <p>Пока нет добавленных впечатлений.</p>
         </div>
       </template>
     </AsyncStateWrapper>
 
-    <DestinationReviewForm
-      v-model:visible="isFormOpen"
+    <DestinationReviewCreateDialog
+      v-model:visible="isCreateModalOpen"
+      v-model:file="formFile"
       :countries="countries"
-      @success="fetchReviews"
+      :form="form"
+      :is-uploading="isUploading"
+      :is-submitting="isSubmitting"
+      @submit="submitReview"
+    />
+
+    <DestinationReviewEditDialog
+      v-model:visible="isEditModalOpen"
+      v-model:file="editFormFile"
+      :countries="countries"
+      :form="editForm"
+      :is-uploading="isUploading"
+      :is-submitting="isSubmitting"
+      @submit="submitEditReview"
     />
   </div>
 </template>
@@ -92,12 +110,19 @@ onMounted(() => {
   display: flex;
   align-items: center;
   gap: 16px;
+
+  .title {
+    margin: 0;
+    font-size: 1.5rem;
+    font-weight: 700;
+  }
 }
 
 .reviews-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+  grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
   gap: 16px;
+  align-items: start;
 }
 
 .empty-state {

@@ -4,6 +4,7 @@ import { and, eq, gte } from 'drizzle-orm'
 import { db } from '~/../db'
 import { emailVerificationTokens, users } from '~/../db/schema'
 import { authUtils } from '~/lib/auth.utils'
+import { FREE_PLAN_ID } from '~/lib/constants'
 import { createTRPCError } from '~/lib/trpc'
 import { highlightRepository } from '~/repositories/highlight.repository'
 import { userRepository } from '~/repositories/user.repository'
@@ -165,8 +166,10 @@ export const userService = {
   },
 
   async createHighlight(data: z.infer<typeof CreateHighlightInputSchema>, userId: string) {
+    const { takenAt, ...restData } = data
     const newHighlight = await highlightRepository.create({
-      ...data,
+      ...restData,
+      takenAt: takenAt ? new Date(takenAt) : undefined,
       userId,
     })
 

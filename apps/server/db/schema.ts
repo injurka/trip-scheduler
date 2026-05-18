@@ -30,54 +30,44 @@ export const tripImagePlacementEnum = pgEnum('trip_image_placement', ['route', '
 export const userRoleEnum = pgEnum('user_role', ['user', 'admin'])
 
 export const tripSectionTypeEnum = pgEnum('trip_section_type', [
-  'bookings', // Бронирования (отели, авиа)
-  'finances', // Финансы
-  'checklist', // Чек-листы
-  'documents', // Документы
-  'notes', // Общие заметки (гибкий/кастомный раздел)
-  'memories', // Галерея воспоминаний
+  'bookings',
+  'finances',
+  'checklist',
+  'documents',
+  'notes',
+  'memories',
 ])
 
 export const noteTypeEnum = pgEnum('note_type', ['folder', 'markdown', 'excalidraw'])
 
-// Таблица для тарифных планов
 export const plans = pgTable('plans', {
   id: serial('id').primaryKey(),
-  name: text('name').notNull().unique(), // e.g., "Free", "Pro"
+  name: text('name').notNull().unique(),
   maxTrips: integer('max_trips').notNull().default(1),
   maxStorageBytes: bigint('max_storage_bytes', { mode: 'number' }).notNull().default(ONE_GIGABYTE_IN_BYTES),
-  monthlyLlmCredits: bigint('monthly_llm_credits', { mode: 'number' }).notNull().default(100000), // Лимит кредитов в месяц
+  monthlyLlmCredits: bigint('monthly_llm_credits', { mode: 'number' }).notNull().default(100000),
   isDeveloping: boolean('is_developing').default(false).notNull(),
 })
 
 export const users = pgTable('users', {
   id: uuid('id').primaryKey().defaultRandom(),
-
   role: userRoleEnum('role').notNull().default('user'),
   email: text('email').unique(),
   emailVerified: timestamp('email_verified', { withTimezone: true }),
   password: text('password'),
-
   name: text('name'),
   avatarUrl: text('avatar_url'),
   coverUrl: text('cover_url'),
-
-  // Поля для OAuth
   githubId: text('github_id').unique(),
   googleId: text('google_id').unique(),
   telegramId: text('telegram_id').unique(),
-
-  // --- ПОЛЯ ДЛЯ КВОТ ---
   planId: integer('plan_id').references(() => plans.id).notNull().default(1),
   currentTripsCount: integer('current_trips_count').notNull().default(0),
   currentStorageBytes: bigint('current_storage_bytes', { mode: 'number' }).notNull().default(0),
   llmCreditsUsed: bigint('llm_credits_used', { mode: 'number' }).notNull().default(0),
   llmCreditsPeriodStartDate: timestamp('llm_credits_period_start_date', { withTimezone: true }).defaultNow().notNull(),
-
-  // --- ПОЛЯ ДЛЯ СТАТУСА ---
   statusText: text('status_text'),
   statusEmoji: text('status_emoji'),
-
   createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
   updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow().notNull(),
 }, t => ({
@@ -86,10 +76,10 @@ export const users = pgTable('users', {
 
 export const emailVerificationTokens = pgTable('email_verification_tokens', {
   id: uuid('id').primaryKey().defaultRandom(),
-  token: text('token').notNull(), // 6-значный код
+  token: text('token').notNull(),
   email: text('email').unique(),
   name: text('name').notNull(),
-  password: text('password').notNull(), // Хешированный пароль
+  password: text('password').notNull(),
   expiresAt: timestamp('expires_at', { withTimezone: true }).notNull(),
 }, t => ({
   emailIndex: index('verification_email_idx').on(t.email),
@@ -103,7 +93,6 @@ export const refreshTokens = pgTable('refresh_tokens', {
   createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
 })
 
-// Таблица для путешествий (Trips)
 export const trips = pgTable('trips', {
   id: uuid('id').primaryKey(),
   title: text('title').notNull(),
@@ -118,9 +107,7 @@ export const trips = pgTable('trips', {
   currency: text('currency').default('RUB'),
   tags: jsonb('tags').$type<string[]>().notNull().default([]),
   visibility: visibilityEnum('visibility').notNull().default('private'),
-
   userId: uuid('user_id').notNull().references(() => users.id, { onDelete: 'cascade' }),
-
   createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
   updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow().notNull(),
 })
@@ -143,8 +130,8 @@ export const tripNotes = pgTable('trip_notes', {
   parentId: uuid('parent_id').references((): AnyPgColumn => tripNotes.id, { onDelete: 'cascade' }),
   type: noteTypeEnum('type').notNull(),
   title: text('title').notNull(),
-  content: text('content'), // JSON или Markdown строка
-  color: text('color'), // Цветовая метка (важное, черновик и т.д.)
+  content: text('content'),
+  color: text('color'),
   order: integer('order').notNull().default(0),
   createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
   updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow().notNull(),
@@ -167,17 +154,13 @@ export const tripImages = pgTable('trip_images', {
   url: text('url').notNull(),
   placement: tripImagePlacementEnum('placement').notNull(),
   createdAt: timestamp('created_at').defaultNow().notNull(),
-  sizeBytes: bigint('size_bytes', { mode: 'number' }).notNull().default(0), // Размер файла в байтах
-
+  sizeBytes: bigint('size_bytes', { mode: 'number' }).notNull().default(0),
   takenAt: timestamp('taken_at'),
-  latitude: real('latitude'), // Для отображения на карте
-  longitude: real('longitude'), // Для отображения на карте
-
+  latitude: real('latitude'),
+  longitude: real('longitude'),
   width: integer('width'),
   height: integer('height'),
-
-  variants: jsonb('variants').$type<Record<string, string>>(), // { small: '...', medium: '...', large: '...' }
-
+  variants: jsonb('variants').$type<Record<string, string>>(),
   metadata: jsonb('metadata'),
 })
 
@@ -188,7 +171,6 @@ export const tripNoteImages = pgTable('trip_note_images', {
   pk: primaryKey({ columns: [t.noteId, t.imageId] }),
 }))
 
-// Таблица для дней (Days)
 export const days = pgTable('days', {
   id: uuid('id').primaryKey(),
   date: date('date').notNull(),
@@ -201,7 +183,6 @@ export const days = pgTable('days', {
   updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow().notNull(),
 })
 
-// Таблица для активностей (Activities)
 export const activities = pgTable('activities', {
   id: uuid('id').primaryKey(),
   startTime: text('start_time').notNull(),
@@ -213,20 +194,19 @@ export const activities = pgTable('activities', {
   dayId: uuid('day_id').notNull().references(() => days.id, { onDelete: 'cascade' }),
 })
 
-// Таблица для воспоминаний (Memories)
 export const memories = pgTable('memories', {
   id: uuid('id').primaryKey().defaultRandom(),
   tripId: uuid('trip_id').notNull().references(() => trips.id, { onDelete: 'cascade' }),
-  timestamp: timestamp('timestamp'), // Может быть null для неотсортированных
+  timestamp: timestamp('timestamp'),
   comment: text('comment'),
-  imageId: uuid('image_id').references(() => tripImages.id, { onDelete: 'cascade' }), // Если null - это текстовая заметка
+  imageId: uuid('image_id').references(() => tripImages.id, { onDelete: 'cascade' }),
   title: text('title'),
   tag: activityTagEnum('tag'),
   sourceActivityId: uuid('source_activity_id').references(() => activities.id, { onDelete: 'set null' }),
   createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
   updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow().notNull(),
-  rating: integer('rating'), // Рейтинг 1-5
-  tags: jsonb('tags').$type<string[]>().default([]), // Массив произвольных тегов
+  rating: integer('rating'),
+  tags: jsonb('tags').$type<string[]>().default([]),
 })
 
 export const llmModels = pgTable('llm_models', {
@@ -327,10 +307,8 @@ export const posts = pgTable('posts', {
   savesCount: integer('saves_count').default(0).notNull(),
   createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
   updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow().notNull(),
-
   latitude: real('latitude'),
   longitude: real('longitude'),
-
   statsDetail: jsonb('stats_detail').$type<PostStatsDetail>().notNull().default({
     views: 0,
     duration: 0,
@@ -349,7 +327,7 @@ export const marks = pgTable('marks', {
   longitude: doublePrecision('longitude').notNull(),
   categoryId: integer('category_id').notNull().default(1),
   startAt: timestamp('start_at', { withTimezone: true }),
-  duration: integer('duration').default(0), // в часах. 0 = статика
+  duration: integer('duration').default(0),
   createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
 })
 
@@ -420,33 +398,23 @@ export const tripSubscriptions = pgTable('trip_subscriptions', {
 
 export const destinationTypeEnum = pgEnum('destination_type', ['country', 'city'])
 
-// --- СПРАВОЧНИК СТРАН ---
 export const countries = pgTable('countries', {
-  id: text('id').primaryKey(), 
-  name: text('name').notNull(), 
-  flagUrl: text('flagUrl'), 
+  id: text('id').primaryKey(),
+  name: text('name').notNull(),
+  flagUrl: text('flagUrl'),
 })
 
-// --- ТАБЛИЦА ВПЕЧАТЛЕНИЙ ---
 export const destinationReviews = pgTable('destination_reviews', {
   id: uuid('id').primaryKey().defaultRandom(),
   userId: uuid('user_id').notNull().references(() => users.id, { onDelete: 'cascade' }),
-
   type: destinationTypeEnum('type').notNull(),
-
   countryId: text('country_id').notNull().references(() => countries.id, { onDelete: 'restrict' }),
   city: text('city'),
-
   coverUrl: text('cover_url'),
-
   latitude: real('latitude').notNull(),
   longitude: real('longitude').notNull(),
-
   content: text('content'),
-
-  // Гибкая система метрик (JSONB) .
   metrics: jsonb('metrics').$type<Record<string, number>>().notNull().default({}),
-
   createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
   updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow().notNull(),
 }, t => ({
@@ -459,14 +427,20 @@ export const highlights = pgTable('highlights', {
   id: uuid('id').primaryKey().defaultRandom(),
   userId: uuid('user_id').notNull().references(() => users.id, { onDelete: 'cascade' }),
   imageUrl: text('image_url').notNull(),
-
   countryId: text('country_id').notNull().references(() => countries.id, { onDelete: 'restrict' }),
-
   city: text('city').notNull(),
   address: text('address'),
   comment: text('comment'),
+
+  // Гео и метаданные
   latitude: real('latitude'),
   longitude: real('longitude'),
+  takenAt: timestamp('taken_at'),
+  width: integer('width'),
+  height: integer('height'),
+  variants: jsonb('variants').$type<Record<string, string>>(),
+  metadata: jsonb('metadata'),
+
   createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
 }, (t) => ({
   countryIdx: index('highlights_country_idx').on(t.countryId),

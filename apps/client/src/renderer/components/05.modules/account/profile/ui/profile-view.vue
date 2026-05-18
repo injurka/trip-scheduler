@@ -1,6 +1,8 @@
 <script setup lang="ts">
+import type { TabItem } from '~/components/01.kit/kit-tabs'
 import type { ViewSwitcherItem } from '~/components/01.kit/kit-view-switcher'
 import { Icon } from '@iconify/vue'
+import { markRaw } from 'vue'
 import { KitAvatar } from '~/components/01.kit/kit-avatar'
 import { KitBtn } from '~/components/01.kit/kit-btn'
 import { KitTabs } from '~/components/01.kit/kit-tabs'
@@ -27,11 +29,30 @@ const isOwnProfile = computed(() => {
 
 const userId = computed(() => route.params.id as string)
 
-const tabItems: ViewSwitcherItem[] = [
-  { id: 'trip-map', label: 'Карта', icon: 'mdi:map-legend' },
-  { id: 'highlights', label: 'Витрина', icon: 'mdi:camera-outline' },
-  { id: 'ratings', label: 'Рейтинги', icon: 'mdi:trophy-outline' },
-]
+const tabItems = computed<TabItem[]>(() => [
+  {
+    id: 'trip-map',
+    label: 'Карта',
+    icon: 'mdi:map-legend',
+    component: markRaw(TripMapView),
+  },
+  {
+    id: 'highlights',
+    label: 'Витрина',
+    icon: 'mdi:camera-outline',
+    component: markRaw(HighlightsFeedView),
+  },
+  {
+    id: 'ratings',
+    label: 'Рейтинги',
+    icon: 'mdi:trophy-outline',
+    component: markRaw(DestinationReviewsView),
+    props: {
+      userId: userProfile.value?.id,
+      isOwnProfile: isOwnProfile.value,
+    },
+  },
+])
 
 const headerStyle = computed(() => {
   const cover = userProfile.value?.coverUrl ?? '/images/mock.png'
@@ -59,7 +80,12 @@ watch(userId, (newId) => {
     <div class="profile-cover">
       <div class="profile-header" :style="headerStyle">
         <div class="avatar-section">
-          <KitAvatar :src="userProfile.avatarUrl" :name="userProfile.name" :size="140" class="profile-avatar" />
+          <KitAvatar
+            :src="userProfile.avatarUrl"
+            :name="userProfile.name"
+            :size="140"
+            class="profile-avatar"
+          />
         </div>
         <div class="info-section">
           <h1 class="user-name">
@@ -126,28 +152,7 @@ watch(userId, (newId) => {
     </div>
 
     <main class="profile-body">
-      <KitTabs v-model="activeTab" :items="tabItems">
-        <template #trip-map>
-          <div class="tab-content">
-            <TripMapView />
-          </div>
-        </template>
-
-        <template #highlights>
-          <div class="tab-content">
-            <HighlightsFeedView />
-          </div>
-        </template>
-
-        <template #ratings>
-          <div class="tab-content">
-            <DestinationReviewsView
-              :user-id="userProfile.id"
-              :is-own-profile="isOwnProfile"
-            />
-          </div>
-        </template>
-      </KitTabs>
+      <KitTabs v-model="activeTab" :items="tabItems" cache />
     </main>
   </div>
 </template>
@@ -231,6 +236,7 @@ watch(userId, (newId) => {
   align-items: flex-start;
   padding: 32px 0 0 0;
   width: 100%;
+  margin-bottom: 24px;
 }
 
 .stats-widget {

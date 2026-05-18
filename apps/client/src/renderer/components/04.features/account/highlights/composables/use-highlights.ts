@@ -1,6 +1,8 @@
-import { computed, reactive, ref } from 'vue'
-import { useRoute } from 'vue-router'
+import type { Country } from '~/shared/types/models/destination-review'
+import type { TripImage } from '~/shared/types/models/trip'
+import type { CreateHighlightInput, Highlight } from '~/shared/types/models/user'
 import { useRequest, useRequestStatus } from '~/plugins/request'
+import { useConfirm } from '~/shared/composables/use-confirm'
 import { useToast } from '~/shared/composables/use-toast'
 import { useAuthStore } from '~/shared/store/auth.store'
 
@@ -8,42 +10,61 @@ enum EHighlightsKeys {
   FETCH = 'highlights:fetch',
   FETCH_COUNTRIES = 'highlights:fetch-countries',
   CREATE = 'highlights:create',
+  UPDATE = 'highlights:update',
   DELETE = 'highlights:delete',
   UPLOAD = 'highlights:upload',
+}
+
+export type HighlightImageQuality = 'original' | 'large' | 'medium'
+
+type HighlightFormState = Partial<CreateHighlightInput>
+
+function createEmptyForm(): HighlightFormState {
+  return {
+    imageUrl: '',
+    countryId: '',
+    city: '',
+    address: '',
+    comment: '',
+    latitude: null,
+    longitude: null,
+    takenAt: null,
+    width: null,
+    height: null,
+    variants: {},
+    metadata: null,
+  }
 }
 
 export function useHighlights() {
   const authStore = useAuthStore()
   const route = useRoute()
   const toast = useToast()
+  const confirm = useConfirm()
 
-  // Гарантируем, что получаем именно строку, а не прокси-объект или массив
-  const userId = computed(() => {
-    const idParam = route.params.id
-    const idStr = Array.isArray(idParam) ? idParam[0] : idParam
-    return (idStr as string) || authStore.user?.id || ''
-  })
+  const userId = computed(() => route.params.id as string || authStore.user?.id || '')
 
-  const highlights = ref<any[]>([])
-  const countries = ref<any[]>([]) // Справочник стран
+  const highlights = ref<Highlight[]>([])
+  const countries = ref<Country[]>([])
+  const quality = ref<HighlightImageQuality>('large')
+
   const isCreateModalOpen = ref(false)
+  const isEditModalOpen = ref(false)
+  const editingHighlight = ref<Highlight | null>(null)
 
-  // Автоматический трекинг состояния запросов
-  const isLoading = useRequestStatus([EHighlightsKeys.FETCH])
-  const isSubmitting = useRequestStatus([EHighlightsKeys.CREATE])
-  const isUploading = useRequestStatus([EHighlightsKeys.UPLOAD])
-  const areCountriesLoading = useRequestStatus([EHighlightsKeys.FETCH_COUNTRIES])
+  const isLoading = useRequestStatus(EHighlightsKeys.FETCH)
+  const isUploading = useRequestStatus(EHighlightsKeys.UPLOAD)
+  const isCreating = useRequestStatus(EHighlightsKeys.CREATE)
+  const isUpdating = useRequestStatus(EHighlightsKeys.UPDATE)
+  const areCountriesLoading = useRequestStatus(EHighlightsKeys.FETCH_COUNTRIES)
 
-  const form = reactive({
-    file: null as File | null,
-    imageUrl: '',
-    countryId: '', // Используем ID страны
-    city: '',
-    address: '',
-    comment: '',
-    latitude: null as number | null,
-    longitude: null as number | null,
-  })
+  const isSubmitting = computed(() => isCreating.value || isUpdating.value)
+
+  const form = reactive<HighlightFormState>(createEmptyForm())
+  const editForm = reactive<HighlightFormState>(createEmptyForm())
+
+  const formFile = ref<File | null>(null)
+  const editFormFile = ref<File | null>(null)
 
   async function fetchHighlights() {
     if (!userId.value)
@@ -51,13 +72,12 @@ export function useHighlights() {
 
     await useRequest({
       key: EHighlightsKeys.FETCH,
-      // ИСПРАВЛЕНИЕ: Передаем строку, а не объект
-      fn: db => db.user.getHighlights(String(userId.value)),
+      fn: db => db.user.getHighlights(userId.value),
       onSuccess: (data) => {
         highlights.value = data
       },
-      onError: () => {
-        toast.error('Не удалось загрузить витрину.')
+      onError: (error: any) => {
+        toast.error(error?.customMessage || 'Не удалось загрузить highlights.')
       },
     })
   }
@@ -68,128 +88,277 @@ export function useHighlights() {
 
     await useRequest({
       key: EHighlightsKeys.FETCH_COUNTRIES,
-      fn: db => db.destinationReview.getCountries(),
+      fn: db => db.destinationReviews.getCountries(),
       onSuccess: (data) => {
         countries.value = data
       },
+      onError: (error: any) => {
+        toast.error(error?.customMessage || 'Не удалось загрузить список стран.')
+      },
     })
+  }
+
+  function resetCreateForm() {
+    Object.assign(form, createEmptyForm())
+    formFile.value = null
+  }
+
+  function resetEditForm() {
+    Object.assign(editForm, createEmptyForm())
+    editFormFile.value = null
+    editingHighlight.value = null
+  }
+
+  function fillEditForm(highlight: Highlight) {
+    Object.assign(editForm, {
+      imageUrl: highlight.imageUrl || '',
+      countryId: (highlight as any).countryId || highlight.country?.id || '',
+      city: highlight.city || '',
+      address: highlight.address || '',
+      comment: highlight.comment || '',
+      latitude: highlight.latitude ?? null,
+      longitude: highlight.longitude ?? null,
+      takenAt: highlight.takenAt ?? null,
+      width: highlight.width ?? null,
+      height: highlight.height ?? null,
+      variants: highlight.variants || {},
+      metadata: highlight.metadata || null,
+    })
+  }
+
+  function restoreOriginalEditImage() {
+    if (!editingHighlight.value)
+      return
+
+    editForm.imageUrl = editingHighlight.value.imageUrl || ''
+    editForm.latitude = editingHighlight.value.latitude ?? null
+    editForm.longitude = editingHighlight.value.longitude ?? null
+    editForm.takenAt = editingHighlight.value.takenAt ?? null
+    editForm.width = editingHighlight.value.width ?? null
+    editForm.height = editingHighlight.value.height ?? null
+    editForm.variants = editingHighlight.value.variants || {}
+    editForm.metadata = editingHighlight.value.metadata || null
+  }
+
+  function syncCountryFromMetadata(target: HighlightFormState, data: TripImage) {
+    const exifCountry = data.metadata?.iptc?.country?.trim()
+    if (!exifCountry || target.countryId || countries.value.length === 0)
+      return
+
+    const normalized = exifCountry.toLowerCase()
+
+    const matchedCountry = countries.value.find(country =>
+      country.name.toLowerCase() === normalized,
+    )
+
+    if (matchedCountry)
+      target.countryId = matchedCountry.id
+  }
+
+  function applyUploadedImage(target: HighlightFormState, data: TripImage) {
+    target.imageUrl = data.url
+    target.variants = data.variants || {}
+    target.latitude = data.latitude ?? null
+    target.longitude = data.longitude ?? null
+    target.takenAt = data.takenAt ?? null
+    target.width = data.width ?? null
+    target.height = data.height ?? null
+    target.metadata = data.metadata || null
+
+    if (data.metadata?.iptc?.city && !target.city)
+      target.city = data.metadata.iptc.city
+
+    syncCountryFromMetadata(target, data)
+  }
+
+  async function uploadHighlightImage(file: File, target: HighlightFormState, fileRef: typeof formFile) {
+    if (!authStore.user?.id)
+      return
+
+    fileRef.value = file
+
+    await useRequest<TripImage>({
+      key: EHighlightsKeys.UPLOAD,
+      fn: db => db.files.uploadFile(file, authStore.user!.id, 'highlight', null),
+      onSuccess: (data) => {
+        applyUploadedImage(target, data)
+      },
+      onError: (error: any) => {
+        toast.error(error?.customMessage || error?.message || 'Не удалось загрузить файл.')
+        fileRef.value = null
+      },
+    })
+  }
+
+  async function handleFileSelect(file: File | null) {
+    if (!file) {
+      resetCreateForm()
+      return
+    }
+
+    await uploadHighlightImage(file, form, formFile)
+  }
+
+  async function handleEditFileSelect(file: File | null) {
+    if (!file) {
+      editFormFile.value = null
+      restoreOriginalEditImage()
+      return
+    }
+
+    await uploadHighlightImage(file, editForm, editFormFile)
+  }
+
+  function toNumberOrNull(value: unknown) {
+    if (value === '' || value === null || value === undefined)
+      return null
+
+    const normalized = Number(value)
+    return Number.isNaN(normalized) ? null : normalized
+  }
+
+  function normalizeForm(source: HighlightFormState): CreateHighlightInput {
+    return {
+      imageUrl: source.imageUrl || '',
+      countryId: source.countryId || '',
+      city: source.city?.trim() || '',
+      address: source.address?.trim() || '',
+      comment: source.comment?.trim() || '',
+      latitude: toNumberOrNull(source.latitude),
+      longitude: toNumberOrNull(source.longitude),
+      takenAt: source.takenAt || null,
+      width: toNumberOrNull(source.width),
+      height: toNumberOrNull(source.height),
+      variants: source.variants || {},
+      metadata: source.metadata || null,
+    } as CreateHighlightInput
+  }
+
+  function isFormValid(source: HighlightFormState) {
+    return Boolean(
+      source.imageUrl
+      && source.countryId
+      && source.city?.trim(),
+    )
   }
 
   async function openCreateModal() {
-    resetForm()
-    await fetchCountries() // Подгружаем страны перед открытием модалки
+    resetCreateForm()
+    await fetchCountries()
     isCreateModalOpen.value = true
   }
 
-  function resetForm() {
-    form.file = null
-    form.imageUrl = ''
-    form.countryId = ''
-    form.city = ''
-    form.address = ''
-    form.comment = ''
-    form.latitude = null
-    form.longitude = null
-  }
-
-  async function handleFileSelect(event: Event) {
-    const file = (event.target as HTMLInputElement).files?.[0]
-    if (!file)
-      return
-
-    form.file = file
-
-    await useRequest({
-      key: EHighlightsKeys.UPLOAD,
-      fn: db => db.files.uploadFile(
-        file,
-        authStore.user!.id,
-        'highlight',
-        null,
-      ),
-      onSuccess: (data: any) => {
-        form.imageUrl = data.url
-
-        // Авто-заполнение из EXIF
-        if (data.metadata?.latitude && !form.latitude)
-          form.latitude = data.metadata.latitude
-        if (data.metadata?.longitude && !form.longitude)
-          form.longitude = data.metadata.longitude
-        if (data.metadata?.iptc?.city && !form.city)
-          form.city = data.metadata.iptc.city
-
-        // Пытаемся найти ID страны по её текстовому названию из EXIF
-        if (data.metadata?.iptc?.country && !form.countryId && countries.value.length > 0) {
-          const exifCountryName = data.metadata.iptc.country.toLowerCase()
-          const matchedCountry = countries.value.find(c => c.name.toLowerCase() === exifCountryName)
-          if (matchedCountry) {
-            form.countryId = matchedCountry.id
-          }
-        }
-      },
-      onError: (e: any) => {
-        toast.error(e.message || 'Сбой при загрузке изображения')
-        form.file = null
-      },
-    })
+  async function openEditModal(highlight: Highlight) {
+    await fetchCountries()
+    editingHighlight.value = highlight
+    fillEditForm(highlight)
+    editFormFile.value = null
+    isEditModalOpen.value = true
   }
 
   async function submitHighlight() {
-    if (!form.imageUrl || !form.countryId || !form.city) {
-      toast.error('Пожалуйста, заполните фото, страну и город.')
+    if (!isFormValid(form)) {
+      toast.error('Заполни фото, страну и город.')
       return
     }
 
     await useRequest({
       key: EHighlightsKeys.CREATE,
-      fn: db => db.user.createHighlight({
-        imageUrl: form.imageUrl,
-        countryId: form.countryId,
-        city: form.city,
-        address: form.address || null,
-        comment: form.comment || null,
-        latitude: form.latitude || null,
-        longitude: form.longitude || null,
-      }),
-      onSuccess: () => {
-        toast.success('Фото успешно добавлено в витрину!')
+      fn: db => db.user.createHighlight(normalizeForm(form)),
+      onSuccess: async () => {
+        toast.success('Фото добавлено.')
         isCreateModalOpen.value = false
-        fetchHighlights()
+        setTimeout(resetCreateForm, 300)
+        await fetchHighlights()
       },
-      onError: () => {
-        toast.error('Не удалось сохранить фото.')
+      onError: (error: any) => {
+        toast.error(error?.customMessage || 'Не удалось создать фото.')
       },
     })
   }
 
+  async function submitEditHighlight() {
+    if (!editingHighlight.value)
+      return
+
+    if (!isFormValid(editForm)) {
+      toast.error('Заполни фото, страну и город.')
+    }
+
+    // Заглушка, если API не готово
+    // await useRequest({
+    //   key: EHighlightsKeys.UPDATE,
+    //   fn: db => db.user.updateHighlight(editingHighlight.value!.id, normalizeForm(editForm)),
+    //   onSuccess: async () => {
+    //     toast.success('Изменения сохранены.')
+    //     isEditModalOpen.value = false
+    //     setTimeout(() => resetEditForm(), 300)
+    //     await fetchHighlights()
+    //   },
+    //   onError: (error: any) => {
+    //     toast.error(error?.customMessage || 'Не удалось обновить фото.')
+    //   },
+    // })
+  }
+
   async function deleteHighlight(id: string) {
+    const isConfirmed = await confirm({
+      title: 'Удалить фото?',
+      description: 'Это действие нельзя отменить.',
+      type: 'danger',
+      confirmText: 'Удалить',
+    })
+
+    if (!isConfirmed)
+      return
+
     await useRequest({
       key: `${EHighlightsKeys.DELETE}:${id}`,
       fn: db => db.user.deleteHighlight(id),
       onSuccess: () => {
-        toast.success('Фото удалено')
-        highlights.value = highlights.value.filter(h => h.id !== id)
+        toast.success('Фото удалено.')
+        highlights.value = highlights.value.filter(item => item.id !== id)
       },
-      onError: () => {
-        toast.error('Ошибка при удалении')
+      onError: (error: any) => {
+        toast.error(error?.customMessage || 'Не удалось удалить фото.')
       },
     })
   }
+
+  watch(isCreateModalOpen, (visible) => {
+    if (!visible)
+      setTimeout(resetCreateForm, 300) // Ожидание окончания анимации закрытия
+  })
+
+  watch(isEditModalOpen, (visible) => {
+    if (!visible)
+      setTimeout(resetEditForm, 300)
+  })
 
   return {
     userId,
     highlights,
     countries,
+    quality,
     isLoading,
-    isCreateModalOpen,
     isUploading,
     isSubmitting,
     areCountriesLoading,
+    isCreateModalOpen,
+    isEditModalOpen,
+    editingHighlight,
     form,
+    editForm,
+    formFile,
+    editFormFile,
     fetchHighlights,
+    fetchCountries,
     openCreateModal,
+    openEditModal,
     handleFileSelect,
+    handleEditFileSelect,
     submitHighlight,
+    submitEditHighlight,
     deleteHighlight,
   }
 }

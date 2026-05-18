@@ -415,11 +415,6 @@ export const MOCK_COUNTRY_DATA = [
     flagUrl: 'https://upload.wikimedia.org/wikipedia/en/0/03/Flag_of_Italy.svg',
   },
   {
-    id: 'IT',
-    name: 'Италия',
-    flagUrl: '🇮🇹',
-  },
-  {
     id: '570c62e1-5383-4bbd-be0f-0c8420256063',
     name: 'Йемен',
     flagUrl: 'https://upload.wikimedia.org/wikipedia/commons/8/89/Flag_of_Yemen.svg',
@@ -1248,10 +1243,5 @@ export const MOCK_COUNTRY_DATA = [
     id: 'e30c61ad-ea40-423a-a8a2-4f39ac5a89d8',
     name: 'Япония',
     flagUrl: 'https://upload.wikimedia.org/wikipedia/en/9/9e/Flag_of_Japan.svg',
-  },
-  {
-    id: 'JP',
-    name: 'Япония',
-    flagUrl: '🇯🇵',
   },
 ]

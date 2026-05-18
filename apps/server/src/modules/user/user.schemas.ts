@@ -80,6 +80,12 @@ export const CreateHighlightInputSchema = z.object({
   comment: z.string().optional().nullable(),
   latitude: z.number().optional().nullable(),
   longitude: z.number().optional().nullable(),
+
+  takenAt: z.union([z.string(), z.date()]).optional().nullable(),
+  width: z.number().optional().nullable(),
+  height: z.number().optional().nullable(),
+  variants: z.record(z.string(), z.string()).optional().nullable(),
+  metadata: z.any().optional().nullable(),
 })
 
 export const DeleteHighlightInputSchema = z.object({
