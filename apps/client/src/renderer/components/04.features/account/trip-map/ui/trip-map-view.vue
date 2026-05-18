@@ -206,7 +206,6 @@ watch(dotPath, redraw)
 
 <style scoped lang="scss">
 .trip-map {
-  position: relative;
   width: 100%;
   height: 500px;
 

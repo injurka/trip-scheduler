@@ -1,6 +1,5 @@
 <script setup lang="ts">
-import type { TabItem } from '~/components/01.kit/kit-tabs'
-import type { ViewSwitcherItem } from '~/components/01.kit/kit-view-switcher'
+import type { TabItem } from '~/components/01.kit/kit-tabs/ui/kit-tabs.vue'
 import { Icon } from '@iconify/vue'
 import { markRaw } from 'vue'
 import { KitAvatar } from '~/components/01.kit/kit-avatar'
@@ -110,7 +109,7 @@ watch(userId, (newId) => {
         </div>
       </div>
 
-      <aside class="profile-sidebar">
+      <aside class="profile-sidebar" v-if="isOwnProfile">
         <div class="stats-widget">
           <div class="stat-item">
             <span class="stat-value">{{ userProfile._count?.trips ?? 0 }}</span>
@@ -122,7 +121,7 @@ watch(userId, (newId) => {
           </div>
         </div>
 
-        <div v-if="isOwnProfile && userProfile.plan" class="quota-section">
+        <div v-if="userProfile.plan" class="quota-section">
           <UserQuotaWidget
             title="Путешествия"
             icon="mdi:briefcase-outline"
