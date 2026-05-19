@@ -46,14 +46,8 @@ const sourceInfo = computed(() => {
 const isValidUrl = computed(() => {
   if (!props.url)
     return false
-  try {
-    // eslint-disable-next-line no-new
-    new URL(props.url)
-    return true
-  }
-  catch {
-    return false
-  }
+
+  return URL.canParse(props.url)
 })
 </script>
 

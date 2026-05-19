@@ -11,7 +11,7 @@ interface IProps {
 }
 
 defineProps<IProps>()
-const emit = defineEmits<{ (e: 'focus-location', coords: [number, number]): void }>()
+const emit = defineEmits<{ (e: 'focusLocation', coords: [number, number]): void }>()
 </script>
 
 <template>
@@ -53,7 +53,7 @@ const emit = defineEmits<{ (e: 'focus-location', coords: [number, number]): void
             type="location"
             :title="block.name || 'Локация'"
             :subtitle="block.address"
-            @click="block.coords ? emit('focus-location', [block.coords.lng, block.coords.lat]) : null"
+            @click="block.coords ? emit('focusLocation', [block.coords.lng, block.coords.lat]) : null"
           />
 
           <GeoBlock

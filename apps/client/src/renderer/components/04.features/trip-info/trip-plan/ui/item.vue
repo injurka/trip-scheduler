@@ -147,9 +147,13 @@ function updateActivity(newActivityData: Partial<Activity>) {
   emit('update', { ...props.activity, ...newActivityData })
 }
 
-function parseTime(timeStr: string): Time {
+function parseTime(timeStr?: string): Time {
+  if (!timeStr)
+    return new Time(0, 0)
+
   const [hour, minute] = timeStr.split(':').map(Number)
-  return new Time(hour, minute)
+
+  return new Time(hour || 0, minute || 0)
 }
 
 function editTime() {
@@ -165,8 +169,13 @@ function saveTimeChanges() {
   if (!isTimeEditing.value)
     return
 
-  const newStartTime = `${editingStartTime.value?.hour.toString().padStart(2, '0')}:${editingStartTime.value?.minute.toString().padStart(2, '0')}`
-  const newEndTime = `${editingEndTime.value?.hour.toString().padStart(2, '0')}:${editingEndTime.value?.minute.toString().padStart(2, '0')}`
+  const startHour = (editingStartTime.value?.hour ?? 0).toString().padStart(2, '0')
+  const startMinute = (editingStartTime.value?.minute ?? 0).toString().padStart(2, '0')
+  const endHour = (editingEndTime.value?.hour ?? 0).toString().padStart(2, '0')
+  const endMinute = (editingEndTime.value?.minute ?? 0).toString().padStart(2, '0')
+
+  const newStartTime = `${startHour}:${startMinute}`
+  const newEndTime = `${endHour}:${endMinute}`
 
   updateActivity({ startTime: newStartTime, endTime: newEndTime })
   isTimeEditing.value = false

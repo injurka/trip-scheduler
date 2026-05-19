@@ -72,7 +72,7 @@ export const useTripInfoGalleryStore = defineStore('tripInfoRouteGallery', {
 
       const newImage = await useRequest<TripImage>({
         key: uniqueRequestKey,
-        cancelPrevious: false, 
+        cancelPrevious: false,
         fn: db => db.files.uploadFile(
           file,
           this.currentTripId!,

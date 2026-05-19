@@ -1,7 +1,5 @@
-import type { Logger } from './logger'
 import { gte, sql } from 'drizzle-orm'
 import { activeSessionsGauge, dbActiveQueriesGauge, dbQueryDurationHistogram, totalTripsGauge, totalUsersGauge } from '~/services/metrics.service'
-import { s3Service } from '~/services/s3.service'
 import { db } from '../../db'
 import { refreshTokens, trips, users } from '../../db/schema'
 

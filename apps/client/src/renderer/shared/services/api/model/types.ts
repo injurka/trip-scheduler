@@ -10,11 +10,13 @@ import type {
 } from '~/shared/types/models/auth'
 import type { BlogListItems, BlogPost, CreateBlogPostInput, UpdateBlogPostInput } from '~/shared/types/models/blog'
 import type { Comment, CreateCommentInput, UpdateCommentInput } from '~/shared/types/models/comment'
+import type { Country, CreateDestinationReviewInput, DestinationReview } from '~/shared/types/models/destination-review'
 import type {
   CreateMarkInput,
   GetMarksParams,
   Mark,
 } from '~/shared/types/models/mark'
+
 import type { CreateMemoryInput, Memory, UpdateMemoryInput } from '~/shared/types/models/memory'
 import type { Place, PlaceTag } from '~/shared/types/models/place'
 import type {
@@ -36,6 +38,7 @@ import type {
   TripWithDays,
   UpdateTripInput,
 } from '~/shared/types/models/trip'
+import type { CreateHighlightInput, Highlight } from '~/shared/types/models/user'
 
 export type NoteType = 'folder' | 'markdown' | 'excalidraw'
 export type DocumentAccess = 'public' | 'private'
@@ -159,6 +162,7 @@ export interface GeneratedTransaction {
   amount: number
   currency: string
   categorySuggestion?: string
+  categoryId?: string | null
   date?: string
   notes?: string
 }
@@ -195,7 +199,7 @@ export interface IActivityRepository {
   remove: (id: string) => Promise<Activity>
 }
 
-export type EntityType = 'trip' | 'post' | 'blog' | 'avatar'
+export type EntityType = 'trip' | 'post' | 'blog' | 'avatar' | 'review' | 'highlight'
 
 export interface TripDocumentResponse {
   id: string
@@ -259,6 +263,9 @@ export interface IUserRepository {
   getById: (id: string) => Promise<User>
   listPlans: () => Promise<Plan[]>
   search: (query: string) => Promise<{ id: string, name: string, email: string | null, avatarUrl: string | null }[]>
+  getHighlights: (userId: string) => Promise<Highlight[]>
+  createHighlight: (data: CreateHighlightInput) => Promise<Highlight>
+  deleteHighlight: (id: string) => Promise<void>
 }
 
 export interface ITripSectionRepository {
@@ -292,6 +299,13 @@ export interface IMemoryRepository {
   unassignTimestamp: (id: string) => Promise<Memory>
 }
 
+export interface IDestinationReviewRepository {
+  getCountries: () => Promise<Country[]>
+  getUserReviews: (params: { userId: string, type?: 'country' | 'city' }) => Promise<DestinationReview[]>
+  create: (data: CreateDestinationReviewInput) => Promise<DestinationReview>
+  delete: (params: { id: string }) => Promise<void>
+}
+
 export enum DatabaseMode {
   REAL = 'real',
   MOCK = 'mock',
@@ -314,4 +328,5 @@ export interface IDatabaseClient {
   notification: INotificationRepository
   posts: IPostRepository
   notes: INoteRepository
+  destinationReviews: IDestinationReviewRepository
 }

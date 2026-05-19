@@ -7,12 +7,36 @@ import TripNotesSkeleton from './trip-notes-skeleton.vue'
 import TripOverviewSkeleton from './trip-overview-skeleton.vue'
 
 const route = useRoute()
+const { smAndDown: isMobile } = useDisplay()
+
 const dayQuery = computed(() => route.query.day)
 const sectionQuery = computed(() => route.query.section as string)
 </script>
 
 <template>
   <div v-if="dayQuery" class="trip-info-day-skeleton">
+    <div class="controls-skeleton">
+      <div class="left-controls-skeleton">
+        <KitSkeleton width="36px" height="36px" border-radius="8px" type="wave" />
+
+        <div class="day-info-skeleton">
+          <KitSkeleton width="100px" height="20px" border-radius="6px" type="wave" />
+          <KitSkeleton width="80px" height="18px" border-radius="6px" type="wave" />
+        </div>
+      </div>
+
+      <div class="spacer" />
+
+      <div class="right-controls-skeleton">
+        <KitSkeleton
+          :width="isMobile ? '92px' : '270px'"
+          height="36px"
+          border-radius="8px"
+          type="wave"
+        />
+      </div>
+    </div>
+
     <div class="divider-skeleton">
       <KitSkeleton width="80px" height="12px" border-radius="4px" type="wave" />
     </div>
@@ -48,7 +72,6 @@ const sectionQuery = computed(() => route.query.section as string)
     </div>
   </div>
 
-  <!-- Новые состояния для конкретных секций -->
   <TripNotesSkeleton v-else-if="sectionQuery === 'notes'" />
   <TripMapSkeleton v-else-if="sectionQuery === 'map'" />
   <TripGenericSectionSkeleton v-else-if="sectionQuery && sectionQuery !== 'overview'" />
@@ -67,13 +90,21 @@ const sectionQuery = computed(() => route.query.section as string)
   display: flex;
   align-items: center;
   gap: 16px;
-  padding: 16px 0;
+  padding-bottom: 8px;
+  min-height: 80px;
+  margin: 0 auto;
+  width: 100%;
 
-  .left-controls-skeleton {
+  .left-controls-skeleton,
+  .right-controls-skeleton {
     display: flex;
     align-items: center;
     gap: 16px;
   }
+
+  // .right-controls-skeleton {
+  //   width: 30%;
+  // }
 
   .day-info-skeleton {
     display: flex;

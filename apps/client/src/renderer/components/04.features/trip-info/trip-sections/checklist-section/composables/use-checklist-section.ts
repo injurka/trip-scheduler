@@ -75,7 +75,7 @@ export function useChecklistSection(
       completed: false,
       type: tab,
       groupId,
-      priority: 1, 
+      priority: 1,
     })
   }
 

@@ -1,0 +1,1266 @@
+{
+  "id": "a1b2c3d4-e5f6-4789-a0b1-c2d3e4f56789",
+  "city": "Гонконг",
+  "country": "Китай",
+  "lines": [
+    {
+      "id": "hk-l1",
+      "systemId": "a1b2c3d4-e5f6-4789-a0b1-c2d3e4f56789",
+      "name": "Линия Куньтхон (Kwun Tong Line)",
+      "lineNumber": "KTL",
+      "color": "#00AB4E",
+      "lineStations": [
+        {
+          "lineId": "hk-l1",
+          "stationId": "hk-s1-1",
+          "order": 0,
+          "station": {
+            "id": "hk-s1-1",
+            "systemId": "a1b2c3d4-e5f6-4789-a0b1-c2d3e4f56789",
+            "name": "Вампу (Whampoa)"
+          }
+        },
+        {
+          "lineId": "hk-l1",
+          "stationId": "hk-s1-2",
+          "order": 1,
+          "station": {
+            "id": "hk-s1-2",
+            "systemId": "a1b2c3d4-e5f6-4789-a0b1-c2d3e4f56789",
+            "name": "Хоманьтхинь (Ho Man Tin)"
+          }
+        },
+        {
+          "lineId": "hk-l1",
+          "stationId": "hk-s1-3",
+          "order": 2,
+          "station": {
+            "id": "hk-s1-3",
+            "systemId": "a1b2c3d4-e5f6-4789-a0b1-c2d3e4f56789",
+            "name": "Яуматэй (Yau Ma Tei)"
+          }
+        },
+        {
+          "lineId": "hk-l1",
+          "stationId": "hk-s1-4",
+          "order": 3,
+          "station": {
+            "id": "hk-s1-4",
+            "systemId": "a1b2c3d4-e5f6-4789-a0b1-c2d3e4f56789",
+            "name": "Вонкок (Mong Kok)"
+          }
+        },
+        {
+          "lineId": "hk-l1",
+          "stationId": "hk-s1-5",
+          "order": 4,
+          "station": {
+            "id": "hk-s1-5",
+            "systemId": "a1b2c3d4-e5f6-4789-a0b1-c2d3e4f56789",
+            "name": "Принс-Эдуард (Prince Edward)"
+          }
+        },
+        {
+          "lineId": "hk-l1",
+          "stationId": "hk-s1-6",
+          "order": 5,
+          "station": {
+            "id": "hk-s1-6",
+            "systemId": "a1b2c3d4-e5f6-4789-a0b1-c2d3e4f56789",
+            "name": "Сэккипмэй (Shek Kip Mei)"
+          }
+        },
+        {
+          "lineId": "hk-l1",
+          "stationId": "hk-s1-7",
+          "order": 6,
+          "station": {
+            "id": "hk-s1-7",
+            "systemId": "a1b2c3d4-e5f6-4789-a0b1-c2d3e4f56789",
+            "name": "Коулун-Тхон (Kowloon Tong)"
+          }
+        },
+        {
+          "lineId": "hk-l1",
+          "stationId": "hk-s1-8",
+          "order": 7,
+          "station": {
+            "id": "hk-s1-8",
+            "systemId": "a1b2c3d4-e5f6-4789-a0b1-c2d3e4f56789",
+            "name": "Локфу (Lok Fu)"
+          }
+        },
+        {
+          "lineId": "hk-l1",
+          "stationId": "hk-s1-9",
+          "order": 8,
+          "station": {
+            "id": "hk-s1-9",
+            "systemId": "a1b2c3d4-e5f6-4789-a0b1-c2d3e4f56789",
+            "name": "Вонтайсинь (Wong Tai Sin)"
+          }
+        },
+        {
+          "lineId": "hk-l1",
+          "stationId": "hk-s1-10",
+          "order": 9,
+          "station": {
+            "id": "hk-s1-10",
+            "systemId": "a1b2c3d4-e5f6-4789-a0b1-c2d3e4f56789",
+            "name": "Даймонд-Хилл (Diamond Hill)"
+          }
+        },
+        {
+          "lineId": "hk-l1",
+          "stationId": "hk-s1-11",
+          "order": 10,
+          "station": {
+            "id": "hk-s1-11",
+            "systemId": "a1b2c3d4-e5f6-4789-a0b1-c2d3e4f56789",
+            "name": "Чхойхун (Choi Hung)"
+          }
+        },
+        {
+          "lineId": "hk-l1",
+          "stationId": "hk-s1-12",
+          "order": 11,
+          "station": {
+            "id": "hk-s1-12",
+            "systemId": "a1b2c3d4-e5f6-4789-a0b1-c2d3e4f56789",
+            "name": "Коулун-Бей (Kowloon Bay)"
+          }
+        },
+        {
+          "lineId": "hk-l1",
+          "stationId": "hk-s1-13",
+          "order": 12,
+          "station": {
+            "id": "hk-s1-13",
+            "systemId": "a1b2c3d4-e5f6-4789-a0b1-c2d3e4f56789",
+            "name": "Нгаутхаукок (Ngau Tau Kok)"
+          }
+        },
+        {
+          "lineId": "hk-l1",
+          "stationId": "hk-s1-14",
+          "order": 13,
+          "station": {
+            "id": "hk-s1-14",
+            "systemId": "a1b2c3d4-e5f6-4789-a0b1-c2d3e4f56789",
+            "name": "Куньтхон (Kwun Tong)"
+          }
+        },
+        {
+          "lineId": "hk-l1",
+          "stationId": "hk-s1-15",
+          "order": 14,
+          "station": {
+            "id": "hk-s1-15",
+            "systemId": "a1b2c3d4-e5f6-4789-a0b1-c2d3e4f56789",
+            "name": "Ламтхинь (Lam Tin)"
+          }
+        },
+        {
+          "lineId": "hk-l1",
+          "stationId": "hk-s1-16",
+          "order": 15,
+          "station": {
+            "id": "hk-s1-16",
+            "systemId": "a1b2c3d4-e5f6-4789-a0b1-c2d3e4f56789",
+            "name": "Яутхон (Yau Tong)"
+          }
+        },
+        {
+          "lineId": "hk-l1",
+          "stationId": "hk-s1-17",
+          "order": 16,
+          "station": {
+            "id": "hk-s1-17",
+            "systemId": "a1b2c3d4-e5f6-4789-a0b1-c2d3e4f56789",
+            "name": "Тхиукинлэн (Tiu Keng Leng)"
+          }
+        }
+      ]
+    },
+    {
+      "id": "hk-l2",
+      "systemId": "a1b2c3d4-e5f6-4789-a0b1-c2d3e4f56789",
+      "name": "Линия Чхюньвань (Tsuen Wan Line)",
+      "lineNumber": "TWL",
+      "color": "#E2231A",
+      "lineStations": [
+        {
+          "lineId": "hk-l2",
+          "stationId": "hk-s2-1",
+          "order": 0,
+          "station": {
+            "id": "hk-s2-1",
+            "systemId": "a1b2c3d4-e5f6-4789-a0b1-c2d3e4f56789",
+            "name": "Сентрал (Central)"
+          }
+        },
+        {
+          "lineId": "hk-l2",
+          "stationId": "hk-s2-2",
+          "order": 1,
+          "station": {
+            "id": "hk-s2-2",
+            "systemId": "a1b2c3d4-e5f6-4789-a0b1-c2d3e4f56789",
+            "name": "Адмиралти (Admiralty)"
+          }
+        },
+        {
+          "lineId": "hk-l2",
+          "stationId": "hk-s2-3",
+          "order": 2,
+          "station": {
+            "id": "hk-s2-3",
+            "systemId": "a1b2c3d4-e5f6-4789-a0b1-c2d3e4f56789",
+            "name": "Чимсачёй (Tsim Sha Tsui)"
+          }
+        },
+        {
+          "lineId": "hk-l2",
+          "stationId": "hk-s2-4",
+          "order": 3,
+          "station": {
+            "id": "hk-s2-4",
+            "systemId": "a1b2c3d4-e5f6-4789-a0b1-c2d3e4f56789",
+            "name": "Джордан (Jordan)"
+          }
+        },
+        {
+          "lineId": "hk-l2",
+          "stationId": "hk-s2-5",
+          "order": 4,
+          "station": {
+            "id": "hk-s2-5",
+            "systemId": "a1b2c3d4-e5f6-4789-a0b1-c2d3e4f56789",
+            "name": "Яуматэй (Yau Ma Tei)"
+          }
+        },
+        {
+          "lineId": "hk-l2",
+          "stationId": "hk-s2-6",
+          "order": 5,
+          "station": {
+            "id": "hk-s2-6",
+            "systemId": "a1b2c3d4-e5f6-4789-a0b1-c2d3e4f56789",
+            "name": "Вонкок (Mong Kok)"
+          }
+        },
+        {
+          "lineId": "hk-l2",
+          "stationId": "hk-s2-7",
+          "order": 6,
+          "station": {
+            "id": "hk-s2-7",
+            "systemId": "a1b2c3d4-e5f6-4789-a0b1-c2d3e4f56789",
+            "name": "Принс-Эдуард (Prince Edward)"
+          }
+        },
+        {
+          "lineId": "hk-l2",
+          "stationId": "hk-s2-8",
+          "order": 7,
+          "station": {
+            "id": "hk-s2-8",
+            "systemId": "a1b2c3d4-e5f6-4789-a0b1-c2d3e4f56789",
+            "name": "Самсёйпоу (Sham Shui Po)"
+          }
+        },
+        {
+          "lineId": "hk-l2",
+          "stationId": "hk-s2-9",
+          "order": 8,
+          "station": {
+            "id": "hk-s2-9",
+            "systemId": "a1b2c3d4-e5f6-4789-a0b1-c2d3e4f56789",
+            "name": "Чхёнсавань (Cheung Sha Wan)"
+          }
+        },
+        {
+          "lineId": "hk-l2",
+          "stationId": "hk-s2-10",
+          "order": 9,
+          "station": {
+            "id": "hk-s2-10",
+            "systemId": "a1b2c3d4-e5f6-4789-a0b1-c2d3e4f56789",
+            "name": "Лайчикок (Lai Chi Kok)"
+          }
+        },
+        {
+          "lineId": "hk-l2",
+          "stationId": "hk-s2-11",
+          "order": 10,
+          "station": {
+            "id": "hk-s2-11",
+            "systemId": "a1b2c3d4-e5f6-4789-a0b1-c2d3e4f56789",
+            "name": "Мэйфу (Mei Foo)"
+          }
+        },
+        {
+          "lineId": "hk-l2",
+          "stationId": "hk-s2-12",
+          "order": 11,
+          "station": {
+            "id": "hk-s2-12",
+            "systemId": "a1b2c3d4-e5f6-4789-a0b1-c2d3e4f56789",
+            "name": "Лайкин (Lai King)"
+          }
+        },
+        {
+          "lineId": "hk-l2",
+          "stationId": "hk-s2-13",
+          "order": 12,
+          "station": {
+            "id": "hk-s2-13",
+            "systemId": "a1b2c3d4-e5f6-4789-a0b1-c2d3e4f56789",
+            "name": "Кхуайфон (Kwai Fong)"
+          }
+        },
+        {
+          "lineId": "hk-l2",
+          "stationId": "hk-s2-14",
+          "order": 13,
+          "station": {
+            "id": "hk-s2-14",
+            "systemId": "a1b2c3d4-e5f6-4789-a0b1-c2d3e4f56789",
+            "name": "Кхуайхин (Kwai Hing)"
+          }
+        },
+        {
+          "lineId": "hk-l2",
+          "stationId": "hk-s2-15",
+          "order": 14,
+          "station": {
+            "id": "hk-s2-15",
+            "systemId": "a1b2c3d4-e5f6-4789-a0b1-c2d3e4f56789",
+            "name": "Тайвохау (Tai Wo Hau)"
+          }
+        },
+        {
+          "lineId": "hk-l2",
+          "stationId": "hk-s2-16",
+          "order": 15,
+          "station": {
+            "id": "hk-s2-16",
+            "systemId": "a1b2c3d4-e5f6-4789-a0b1-c2d3e4f56789",
+            "name": "Чхюньвань (Tsuen Wan)"
+          }
+        }
+      ]
+    },
+    {
+      "id": "hk-l3",
+      "systemId": "a1b2c3d4-e5f6-4789-a0b1-c2d3e4f56789",
+      "name": "Линия Айленд (Island Line)",
+      "lineNumber": "ISL",
+      "color": "#0071CE",
+      "lineStations": [
+        {
+          "lineId": "hk-l3",
+          "stationId": "hk-s3-1",
+          "order": 0,
+          "station": {
+            "id": "hk-s3-1",
+            "systemId": "a1b2c3d4-e5f6-4789-a0b1-c2d3e4f56789",
+            "name": "Кеннеди-Таун (Kennedy Town)"
+          }
+        },
+        {
+          "lineId": "hk-l3",
+          "stationId": "hk-s3-2",
+          "order": 1,
+          "station": {
+            "id": "hk-s3-2",
+            "systemId": "a1b2c3d4-e5f6-4789-a0b1-c2d3e4f56789",
+            "name": "Гонконгский университет (HKU)"
+          }
+        },
+        {
+          "lineId": "hk-l3",
+          "stationId": "hk-s3-3",
+          "order": 2,
+          "station": {
+            "id": "hk-s3-3",
+            "systemId": "a1b2c3d4-e5f6-4789-a0b1-c2d3e4f56789",
+            "name": "Сайинпхунь (Sai Ying Pun)"
+          }
+        },
+        {
+          "lineId": "hk-l3",
+          "stationId": "hk-s3-4",
+          "order": 3,
+          "station": {
+            "id": "hk-s3-4",
+            "systemId": "a1b2c3d4-e5f6-4789-a0b1-c2d3e4f56789",
+            "name": "Сёнвань (Sheung Wan)"
+          }
+        },
+        {
+          "lineId": "hk-l3",
+          "stationId": "hk-s3-5",
+          "order": 4,
+          "station": {
+            "id": "hk-s3-5",
+            "systemId": "a1b2c3d4-e5f6-4789-a0b1-c2d3e4f56789",
+            "name": "Сентрал (Central)"
+          }
+        },
+        {
+          "lineId": "hk-l3",
+          "stationId": "hk-s3-6",
+          "order": 5,
+          "station": {
+            "id": "hk-s3-6",
+            "systemId": "a1b2c3d4-e5f6-4789-a0b1-c2d3e4f56789",
+            "name": "Адмиралти (Admiralty)"
+          }
+        },
+        {
+          "lineId": "hk-l3",
+          "stationId": "hk-s3-7",
+          "order": 6,
+          "station": {
+            "id": "hk-s3-7",
+            "systemId": "a1b2c3d4-e5f6-4789-a0b1-c2d3e4f56789",
+            "name": "Ваньчай (Wan Chai)"
+          }
+        },
+        {
+          "lineId": "hk-l3",
+          "stationId": "hk-s3-8",
+          "order": 7,
+          "station": {
+            "id": "hk-s3-8",
+            "systemId": "a1b2c3d4-e5f6-4789-a0b1-c2d3e4f56789",
+            "name": "Козуэй-Бей (Causeway Bay)"
+          }
+        },
+        {
+          "lineId": "hk-l3",
+          "stationId": "hk-s3-9",
+          "order": 8,
+          "station": {
+            "id": "hk-s3-9",
+            "systemId": "a1b2c3d4-e5f6-4789-a0b1-c2d3e4f56789",
+            "name": "Тхиньхау (Tin Hau)"
+          }
+        },
+        {
+          "lineId": "hk-l3",
+          "stationId": "hk-s3-10",
+          "order": 9,
+          "station": {
+            "id": "hk-s3-10",
+            "systemId": "a1b2c3d4-e5f6-4789-a0b1-c2d3e4f56789",
+            "name": "Фортресс-Хилл (Fortress Hill)"
+          }
+        },
+        {
+          "lineId": "hk-l3",
+          "stationId": "hk-s3-11",
+          "order": 10,
+          "station": {
+            "id": "hk-s3-11",
+            "systemId": "a1b2c3d4-e5f6-4789-a0b1-c2d3e4f56789",
+            "name": "Норт-Пойнт (North Point)"
+          }
+        },
+        {
+          "lineId": "hk-l3",
+          "stationId": "hk-s3-12",
+          "order": 11,
+          "station": {
+            "id": "hk-s3-12",
+            "systemId": "a1b2c3d4-e5f6-4789-a0b1-c2d3e4f56789",
+            "name": "Куорри-Бей (Quarry Bay)"
+          }
+        },
+        {
+          "lineId": "hk-l3",
+          "stationId": "hk-s3-13",
+          "order": 12,
+          "station": {
+            "id": "hk-s3-13",
+            "systemId": "a1b2c3d4-e5f6-4789-a0b1-c2d3e4f56789",
+            "name": "Тхайку (Tai Koo)"
+          }
+        },
+        {
+          "lineId": "hk-l3",
+          "stationId": "hk-s3-14",
+          "order": 13,
+          "station": {
+            "id": "hk-s3-14",
+            "systemId": "a1b2c3d4-e5f6-4789-a0b1-c2d3e4f56789",
+            "name": "Сайваньхо (Sai Wan Ho)"
+          }
+        },
+        {
+          "lineId": "hk-l3",
+          "stationId": "hk-s3-15",
+          "order": 14,
+          "station": {
+            "id": "hk-s3-15",
+            "systemId": "a1b2c3d4-e5f6-4789-a0b1-c2d3e4f56789",
+            "name": "Саукэйвань (Shau Kei Wan)"
+          }
+        },
+        {
+          "lineId": "hk-l3",
+          "stationId": "hk-s3-16",
+          "order": 15,
+          "station": {
+            "id": "hk-s3-16",
+            "systemId": "a1b2c3d4-e5f6-4789-a0b1-c2d3e4f56789",
+            "name": "Ханфачхюнь (Heng Fa Chuen)"
+          }
+        },
+        {
+          "lineId": "hk-l3",
+          "stationId": "hk-s3-17",
+          "order": 16,
+          "station": {
+            "id": "hk-s3-17",
+            "systemId": "a1b2c3d4-e5f6-4789-a0b1-c2d3e4f56789",
+            "name": "Чхайвань (Chai Wan)"
+          }
+        }
+      ]
+    },
+    {
+      "id": "hk-l4",
+      "systemId": "a1b2c3d4-e5f6-4789-a0b1-c2d3e4f56789",
+      "name": "Линия Тунчхун (Tung Chung Line)",
+      "lineNumber": "TCL",
+      "color": "#F38200",
+      "lineStations": [
+        {
+          "lineId": "hk-l4",
+          "stationId": "hk-s4-1",
+          "order": 0,
+          "station": {
+            "id": "hk-s4-1",
+            "systemId": "a1b2c3d4-e5f6-4789-a0b1-c2d3e4f56789",
+            "name": "Гонконг (Hong Kong)"
+          }
+        },
+        {
+          "lineId": "hk-l4",
+          "stationId": "hk-s4-2",
+          "order": 1,
+          "station": {
+            "id": "hk-s4-2",
+            "systemId": "a1b2c3d4-e5f6-4789-a0b1-c2d3e4f56789",
+            "name": "Коулун (Kowloon)"
+          }
+        },
+        {
+          "lineId": "hk-l4",
+          "stationId": "hk-s4-3",
+          "order": 2,
+          "station": {
+            "id": "hk-s4-3",
+            "systemId": "a1b2c3d4-e5f6-4789-a0b1-c2d3e4f56789",
+            "name": "Олимпик (Olympic)"
+          }
+        },
+        {
+          "lineId": "hk-l4",
+          "stationId": "hk-s4-4",
+          "order": 3,
+          "station": {
+            "id": "hk-s4-4",
+            "systemId": "a1b2c3d4-e5f6-4789-a0b1-c2d3e4f56789",
+            "name": "Намчхён (Nam Cheong)"
+          }
+        },
+        {
+          "lineId": "hk-l4",
+          "stationId": "hk-s4-5",
+          "order": 4,
+          "station": {
+            "id": "hk-s4-5",
+            "systemId": "a1b2c3d4-e5f6-4789-a0b1-c2d3e4f56789",
+            "name": "Лайкин (Lai King)"
+          }
+        },
+        {
+          "lineId": "hk-l4",
+          "stationId": "hk-s4-6",
+          "order": 5,
+          "station": {
+            "id": "hk-s4-6",
+            "systemId": "a1b2c3d4-e5f6-4789-a0b1-c2d3e4f56789",
+            "name": "Чхинъи (Tsing Yi)"
+          }
+        },
+        {
+          "lineId": "hk-l4",
+          "stationId": "hk-s4-7",
+          "order": 6,
+          "station": {
+            "id": "hk-s4-7",
+            "systemId": "a1b2c3d4-e5f6-4789-a0b1-c2d3e4f56789",
+            "name": "Санни-Бей (Sunny Bay)"
+          }
+        },
+        {
+          "lineId": "hk-l4",
+          "stationId": "hk-s4-8",
+          "order": 7,
+          "station": {
+            "id": "hk-s4-8",
+            "systemId": "a1b2c3d4-e5f6-4789-a0b1-c2d3e4f56789",
+            "name": "Тунчхун (Tung Chung)"
+          }
+        }
+      ]
+    },
+    {
+      "id": "hk-l5",
+      "systemId": "a1b2c3d4-e5f6-4789-a0b1-c2d3e4f56789",
+      "name": "Аэропорт-экспресс (Airport Express)",
+      "lineNumber": "AEL",
+      "color": "#007078",
+      "lineStations": [
+        {
+          "lineId": "hk-l5",
+          "stationId": "hk-s5-1",
+          "order": 0,
+          "station": {
+            "id": "hk-s5-1",
+            "systemId": "a1b2c3d4-e5f6-4789-a0b1-c2d3e4f56789",
+            "name": "Гонконг (Hong Kong)"
+          }
+        },
+        {
+          "lineId": "hk-l5",
+          "stationId": "hk-s5-2",
+          "order": 1,
+          "station": {
+            "id": "hk-s5-2",
+            "systemId": "a1b2c3d4-e5f6-4789-a0b1-c2d3e4f56789",
+            "name": "Коулун (Kowloon)"
+          }
+        },
+        {
+          "lineId": "hk-l5",
+          "stationId": "hk-s5-3",
+          "order": 2,
+          "station": {
+            "id": "hk-s5-3",
+            "systemId": "a1b2c3d4-e5f6-4789-a0b1-c2d3e4f56789",
+            "name": "Чхинъи (Tsing Yi)"
+          }
+        },
+        {
+          "lineId": "hk-l5",
+          "stationId": "hk-s5-4",
+          "order": 3,
+          "station": {
+            "id": "hk-s5-4",
+            "systemId": "a1b2c3d4-e5f6-4789-a0b1-c2d3e4f56789",
+            "name": "Аэропорт (Airport)"
+          }
+        },
+        {
+          "lineId": "hk-l5",
+          "stationId": "hk-s5-5",
+          "order": 4,
+          "station": {
+            "id": "hk-s5-5",
+            "systemId": "a1b2c3d4-e5f6-4789-a0b1-c2d3e4f56789",
+            "name": "Азия-Уорлд-Экспо (AsiaWorld-Expo)"
+          }
+        }
+      ]
+    },
+    {
+      "id": "hk-l6",
+      "systemId": "a1b2c3d4-e5f6-4789-a0b1-c2d3e4f56789",
+      "name": "Линия Чёнкуаньоу (Tseung Kwan O Line)",
+      "lineNumber": "TKL",
+      "color": "#A35EB5",
+      "lineStations": [
+        {
+          "lineId": "hk-l6",
+          "stationId": "hk-s6-1",
+          "order": 0,
+          "station": {
+            "id": "hk-s6-1",
+            "systemId": "a1b2c3d4-e5f6-4789-a0b1-c2d3e4f56789",
+            "name": "Норт-Пойнт (North Point)"
+          }
+        },
+        {
+          "lineId": "hk-l6",
+          "stationId": "hk-s6-2",
+          "order": 1,
+          "station": {
+            "id": "hk-s6-2",
+            "systemId": "a1b2c3d4-e5f6-4789-a0b1-c2d3e4f56789",
+            "name": "Куорри-Бей (Quarry Bay)"
+          }
+        },
+        {
+          "lineId": "hk-l6",
+          "stationId": "hk-s6-3",
+          "order": 2,
+          "station": {
+            "id": "hk-s6-3",
+            "systemId": "a1b2c3d4-e5f6-4789-a0b1-c2d3e4f56789",
+            "name": "Яутхон (Yau Tong)"
+          }
+        },
+        {
+          "lineId": "hk-l6",
+          "stationId": "hk-s6-4",
+          "order": 3,
+          "station": {
+            "id": "hk-s6-4",
+            "systemId": "a1b2c3d4-e5f6-4789-a0b1-c2d3e4f56789",
+            "name": "Тхиукинлэн (Tiu Keng Leng)"
+          }
+        },
+        {
+          "lineId": "hk-l6",
+          "stationId": "hk-s6-5",
+          "order": 4,
+          "station": {
+            "id": "hk-s6-5",
+            "systemId": "a1b2c3d4-e5f6-4789-a0b1-c2d3e4f56789",
+            "name": "Чёнкуаньоу (Tseung Kwan O)"
+          }
+        },
+        {
+          "lineId": "hk-l6",
+          "stationId": "hk-s6-6",
+          "order": 5,
+          "station": {
+            "id": "hk-s6-6",
+            "systemId": "a1b2c3d4-e5f6-4789-a0b1-c2d3e4f56789",
+            "name": "Ханхау (Hang Hau)"
+          }
+        },
+        {
+          "lineId": "hk-l6",
+          "stationId": "hk-s6-7",
+          "order": 6,
+          "station": {
+            "id": "hk-s6-7",
+            "systemId": "a1b2c3d4-e5f6-4789-a0b1-c2d3e4f56789",
+            "name": "Поулам (Po Lam)"
+          }
+        },
+        {
+          "lineId": "hk-l6",
+          "stationId": "hk-s6-8",
+          "order": 7,
+          "station": {
+            "id": "hk-s6-8",
+            "systemId": "a1b2c3d4-e5f6-4789-a0b1-c2d3e4f56789",
+            "name": "ЛОХАС-Парк (LOHAS Park)"
+          }
+        }
+      ]
+    },
+    {
+      "id": "hk-l7",
+      "systemId": "a1b2c3d4-e5f6-4789-a0b1-c2d3e4f56789",
+      "name": "Линия Диснейленд-Резорт (Disneyland Resort Line)",
+      "lineNumber": "DRL",
+      "color": "#F550A6",
+      "lineStations": [
+        {
+          "lineId": "hk-l7",
+          "stationId": "hk-s7-1",
+          "order": 0,
+          "station": {
+            "id": "hk-s7-1",
+            "systemId": "a1b2c3d4-e5f6-4789-a0b1-c2d3e4f56789",
+            "name": "Санни-Бей (Sunny Bay)"
+          }
+        },
+        {
+          "lineId": "hk-l7",
+          "stationId": "hk-s7-2",
+          "order": 1,
+          "station": {
+            "id": "hk-s7-2",
+            "systemId": "a1b2c3d4-e5f6-4789-a0b1-c2d3e4f56789",
+            "name": "Диснейленд-Резорт (Disneyland Resort)"
+          }
+        }
+      ]
+    },
+    {
+      "id": "hk-l8",
+      "systemId": "a1b2c3d4-e5f6-4789-a0b1-c2d3e4f56789",
+      "name": "Линия Саут-Айленд (South Island Line)",
+      "lineNumber": "SIL",
+      "color": "#B5BD00",
+      "lineStations": [
+        {
+          "lineId": "hk-l8",
+          "stationId": "hk-s8-1",
+          "order": 0,
+          "station": {
+            "id": "hk-s8-1",
+            "systemId": "a1b2c3d4-e5f6-4789-a0b1-c2d3e4f56789",
+            "name": "Адмиралти (Admiralty)"
+          }
+        },
+        {
+          "lineId": "hk-l8",
+          "stationId": "hk-s8-2",
+          "order": 1,
+          "station": {
+            "id": "hk-s8-2",
+            "systemId": "a1b2c3d4-e5f6-4789-a0b1-c2d3e4f56789",
+            "name": "Ошен-Парк (Ocean Park)"
+          }
+        },
+        {
+          "lineId": "hk-l8",
+          "stationId": "hk-s8-3",
+          "order": 2,
+          "station": {
+            "id": "hk-s8-3",
+            "systemId": "a1b2c3d4-e5f6-4789-a0b1-c2d3e4f56789",
+            "name": "Вончукхан (Wong Chuk Hang)"
+          }
+        },
+        {
+          "lineId": "hk-l8",
+          "stationId": "hk-s8-4",
+          "order": 3,
+          "station": {
+            "id": "hk-s8-4",
+            "systemId": "a1b2c3d4-e5f6-4789-a0b1-c2d3e4f56789",
+            "name": "Лэйтун (Lee Tung)"
+          }
+        },
+        {
+          "lineId": "hk-l8",
+          "stationId": "hk-s8-5",
+          "order": 4,
+          "station": {
+            "id": "hk-s8-5",
+            "systemId": "a1b2c3d4-e5f6-4789-a0b1-c2d3e4f56789",
+            "name": "Саут-Хорайзонс (South Horizons)"
+          }
+        }
+      ]
+    },
+    {
+      "id": "hk-l9",
+      "systemId": "a1b2c3d4-e5f6-4789-a0b1-c2d3e4f56789",
+      "name": "Восточная линия (East Rail Line)",
+      "lineNumber": "EAL",
+      "color": "#61B4E4",
+      "lineStations": [
+        {
+          "lineId": "hk-l9",
+          "stationId": "hk-s9-1",
+          "order": 0,
+          "station": {
+            "id": "hk-s9-1",
+            "systemId": "a1b2c3d4-e5f6-4789-a0b1-c2d3e4f56789",
+            "name": "Хунхам (Hung Hom)"
+          }
+        },
+        {
+          "lineId": "hk-l9",
+          "stationId": "hk-s9-2",
+          "order": 1,
+          "station": {
+            "id": "hk-s9-2",
+            "systemId": "a1b2c3d4-e5f6-4789-a0b1-c2d3e4f56789",
+            "name": "Вонкок-Ист (Mong Kok East)"
+          }
+        },
+        {
+          "lineId": "hk-l9",
+          "stationId": "hk-s9-3",
+          "order": 2,
+          "station": {
+            "id": "hk-s9-3",
+            "systemId": "a1b2c3d4-e5f6-4789-a0b1-c2d3e4f56789",
+            "name": "Коулун-Тхон (Kowloon Tong)"
+          }
+        },
+        {
+          "lineId": "hk-l9",
+          "stationId": "hk-s9-4",
+          "order": 3,
+          "station": {
+            "id": "hk-s9-4",
+            "systemId": "a1b2c3d4-e5f6-4789-a0b1-c2d3e4f56789",
+            "name": "Тайвай (Tai Wai)"
+          }
+        },
+        {
+          "lineId": "hk-l9",
+          "stationId": "hk-s9-5",
+          "order": 4,
+          "station": {
+            "id": "hk-s9-5",
+            "systemId": "a1b2c3d4-e5f6-4789-a0b1-c2d3e4f56789",
+            "name": "Сатхинь (Sha Tin)"
+          }
+        },
+        {
+          "lineId": "hk-l9",
+          "stationId": "hk-s9-6",
+          "order": 5,
+          "station": {
+            "id": "hk-s9-6",
+            "systemId": "a1b2c3d4-e5f6-4789-a0b1-c2d3e4f56789",
+            "name": "Фотхань (Fo Tan)"
+          }
+        },
+        {
+          "lineId": "hk-l9",
+          "stationId": "hk-s9-7",
+          "order": 6,
+          "station": {
+            "id": "hk-s9-7",
+            "systemId": "a1b2c3d4-e5f6-4789-a0b1-c2d3e4f56789",
+            "name": "Рейскорс (Racecourse)"
+          }
+        },
+        {
+          "lineId": "hk-l9",
+          "stationId": "hk-s9-8",
+          "order": 7,
+          "station": {
+            "id": "hk-s9-8",
+            "systemId": "a1b2c3d4-e5f6-4789-a0b1-c2d3e4f56789",
+            "name": "Университет (University)"
+          }
+        },
+        {
+          "lineId": "hk-l9",
+          "stationId": "hk-s9-9",
+          "order": 8,
+          "station": {
+            "id": "hk-s9-9",
+            "systemId": "a1b2c3d4-e5f6-4789-a0b1-c2d3e4f56789",
+            "name": "Тайпоу-маркет (Tai Po Market)"
+          }
+        },
+        {
+          "lineId": "hk-l9",
+          "stationId": "hk-s9-10",
+          "order": 9,
+          "station": {
+            "id": "hk-s9-10",
+            "systemId": "a1b2c3d4-e5f6-4789-a0b1-c2d3e4f56789",
+            "name": "Тхайво (Tai Wo)"
+          }
+        },
+        {
+          "lineId": "hk-l9",
+          "stationId": "hk-s9-11",
+          "order": 10,
+          "station": {
+            "id": "hk-s9-11",
+            "systemId": "a1b2c3d4-e5f6-4789-a0b1-c2d3e4f56789",
+            "name": "Фаньлэн (Fanling)"
+          }
+        },
+        {
+          "lineId": "hk-l9",
+          "stationId": "hk-s9-12",
+          "order": 11,
+          "station": {
+            "id": "hk-s9-12",
+            "systemId": "a1b2c3d4-e5f6-4789-a0b1-c2d3e4f56789",
+            "name": "Сёнсёй (Sheung Shui)"
+          }
+        },
+        {
+          "lineId": "hk-l9",
+          "stationId": "hk-s9-13",
+          "order": 12,
+          "station": {
+            "id": "hk-s9-13",
+            "systemId": "a1b2c3d4-e5f6-4789-a0b1-c2d3e4f56789",
+            "name": "Лову (Lo Wu)"
+          }
+        },
+        {
+          "lineId": "hk-l9",
+          "stationId": "hk-s9-14",
+          "order": 13,
+          "station": {
+            "id": "hk-s9-14",
+            "systemId": "a1b2c3d4-e5f6-4789-a0b1-c2d3e4f56789",
+            "name": "Локмачау (Lok Ma Chau)"
+          }
+        }
+      ]
+    },
+    {
+      "id": "hk-l10",
+      "systemId": "a1b2c3d4-e5f6-4789-a0b1-c2d3e4f56789",
+      "name": "Линия Маоньсань (Ma On Shan Line)",
+      "lineNumber": "MOL",
+      "color": "#9A3820",
+      "lineStations": [
+        {
+          "lineId": "hk-l10",
+          "stationId": "hk-s10-1",
+          "order": 0,
+          "station": {
+            "id": "hk-s10-1",
+            "systemId": "a1b2c3d4-e5f6-4789-a0b1-c2d3e4f56789",
+            "name": "Вукхайса (Wu Kai Sha)"
+          }
+        },
+        {
+          "lineId": "hk-l10",
+          "stationId": "hk-s10-2",
+          "order": 1,
+          "station": {
+            "id": "hk-s10-2",
+            "systemId": "a1b2c3d4-e5f6-4789-a0b1-c2d3e4f56789",
+            "name": "Маоньсань (Ma On Shan)"
+          }
+        },
+        {
+          "lineId": "hk-l10",
+          "stationId": "hk-s10-3",
+          "order": 2,
+          "station": {
+            "id": "hk-s10-3",
+            "systemId": "a1b2c3d4-e5f6-4789-a0b1-c2d3e4f56789",
+            "name": "Ханъон (Heng On)"
+          }
+        },
+        {
+          "lineId": "hk-l10",
+          "stationId": "hk-s10-4",
+          "order": 3,
+          "station": {
+            "id": "hk-s10-4",
+            "systemId": "a1b2c3d4-e5f6-4789-a0b1-c2d3e4f56789",
+            "name": "Тайсёйхан (Tai Shui Hang)"
+          }
+        },
+        {
+          "lineId": "hk-l10",
+          "stationId": "hk-s10-5",
+          "order": 4,
+          "station": {
+            "id": "hk-s10-5",
+            "systemId": "a1b2c3d4-e5f6-4789-a0b1-c2d3e4f56789",
+            "name": "Сэкмунь (Shek Mun)"
+          }
+        },
+        {
+          "lineId": "hk-l10",
+          "stationId": "hk-s10-6",
+          "order": 5,
+          "station": {
+            "id": "hk-s10-6",
+            "systemId": "a1b2c3d4-e5f6-4789-a0b1-c2d3e4f56789",
+            "name": "Сити-Уан (City One)"
+          }
+        },
+        {
+          "lineId": "hk-l10",
+          "stationId": "hk-s10-7",
+          "order": 6,
+          "station": {
+            "id": "hk-s10-7",
+            "systemId": "a1b2c3d4-e5f6-4789-a0b1-c2d3e4f56789",
+            "name": "Сатхиньвай (Sha Tin Wai)"
+          }
+        },
+        {
+          "lineId": "hk-l10",
+          "stationId": "hk-s10-8",
+          "order": 7,
+          "station": {
+            "id": "hk-s10-8",
+            "systemId": "a1b2c3d4-e5f6-4789-a0b1-c2d3e4f56789",
+            "name": "Чхекун-Темпл (Che Kung Temple)"
+          }
+        },
+        {
+          "lineId": "hk-l10",
+          "stationId": "hk-s10-9",
+          "order": 8,
+          "station": {
+            "id": "hk-s10-9",
+            "systemId": "a1b2c3d4-e5f6-4789-a0b1-c2d3e4f56789",
+            "name": "Тайвай (Tai Wai)"
+          }
+        },
+        {
+          "lineId": "hk-l10",
+          "stationId": "hk-s10-10",
+          "order": 9,
+          "station": {
+            "id": "hk-s10-10",
+            "systemId": "a1b2c3d4-e5f6-4789-a0b1-c2d3e4f56789",
+            "name": "Хинькин (Hin Keng)"
+          }
+        },
+        {
+          "lineId": "hk-l10",
+          "stationId": "hk-s10-11",
+          "order": 10,
+          "station": {
+            "id": "hk-s10-11",
+            "systemId": "a1b2c3d4-e5f6-4789-a0b1-c2d3e4f56789",
+            "name": "Даймонд-Хилл (Diamond Hill)"
+          }
+        },
+        {
+          "lineId": "hk-l10",
+          "stationId": "hk-s10-12",
+          "order": 11,
+          "station": {
+            "id": "hk-s10-12",
+            "systemId": "a1b2c3d4-e5f6-4789-a0b1-c2d3e4f56789",
+            "name": "Кхайтак (Kai Tak)"
+          }
+        }
+      ]
+    },
+    {
+      "id": "hk-l11",
+      "systemId": "a1b2c3d4-e5f6-4789-a0b1-c2d3e4f56789",
+      "name": "Западная линия (West Rail Line)",
+      "lineNumber": "WRL",
+      "color": "#AC29A5",
+      "lineStations": [
+        {
+          "lineId": "hk-l11",
+          "stationId": "hk-s11-1",
+          "order": 0,
+          "station": {
+            "id": "hk-s11-1",
+            "systemId": "a1b2c3d4-e5f6-4789-a0b1-c2d3e4f56789",
+            "name": "Хунхам (Hung Hom)"
+          }
+        },
+        {
+          "lineId": "hk-l11",
+          "stationId": "hk-s11-2",
+          "order": 1,
+          "station": {
+            "id": "hk-s11-2",
+            "systemId": "a1b2c3d4-e5f6-4789-a0b1-c2d3e4f56789",
+            "name": "Ист-Чимсачёй (East Tsim Sha Tsui)"
+          }
+        },
+        {
+          "lineId": "hk-l11",
+          "stationId": "hk-s11-3",
+          "order": 2,
+          "station": {
+            "id": "hk-s11-3",
+            "systemId": "a1b2c3d4-e5f6-4789-a0b1-c2d3e4f56789",
+            "name": "Остин (Austin)"
+          }
+        },
+        {
+          "lineId": "hk-l11",
+          "stationId": "hk-s11-4",
+          "order": 3,
+          "station": {
+            "id": "hk-s11-4",
+            "systemId": "a1b2c3d4-e5f6-4789-a0b1-c2d3e4f56789",
+            "name": "Намчхён (Nam Cheong)"
+          }
+        },
+        {
+          "lineId": "hk-l11",
+          "stationId": "hk-s11-5",
+          "order": 4,
+          "station": {
+            "id": "hk-s11-5",
+            "systemId": "a1b2c3d4-e5f6-4789-a0b1-c2d3e4f56789",
+            "name": "Мэйфу (Mei Foo)"
+          }
+        },
+        {
+          "lineId": "hk-l11",
+          "stationId": "hk-s11-6",
+          "order": 5,
+          "station": {
+            "id": "hk-s11-6",
+            "systemId": "a1b2c3d4-e5f6-4789-a0b1-c2d3e4f56789",
+            "name": "Чхюньвань-Уэст (Tsuen Wan West)"
+          }
+        },
+        {
+          "lineId": "hk-l11",
+          "stationId": "hk-s11-7",
+          "order": 6,
+          "station": {
+            "id": "hk-s11-7",
+            "systemId": "a1b2c3d4-e5f6-4789-a0b1-c2d3e4f56789",
+            "name": "Камсён-Роуд (Kam Sheung Road)"
+          }
+        },
+        {
+          "lineId": "hk-l11",
+          "stationId": "hk-s11-8",
+          "order": 7,
+          "station": {
+            "id": "hk-s11-8",
+            "systemId": "a1b2c3d4-e5f6-4789-a0b1-c2d3e4f56789",
+            "name": "Юньлон (Yuen Long)"
+          }
+        },
+        {
+          "lineId": "hk-l11",
+          "stationId": "hk-s11-9",
+          "order": 8,
+          "station": {
+            "id": "hk-s11-9",
+            "systemId": "a1b2c3d4-e5f6-4789-a0b1-c2d3e4f56789",
+            "name": "Лонпхин (Long Ping)"
+          }
+        },
+        {
+          "lineId": "hk-l11",
+          "stationId": "hk-s11-10",
+          "order": 9,
+          "station": {
+            "id": "hk-s11-10",
+            "systemId": "a1b2c3d4-e5f6-4789-a0b1-c2d3e4f56789",
+            "name": "Тхиньсёйвай (Tin Shui Wai)"
+          }
+        },
+        {
+          "lineId": "hk-l11",
+          "stationId": "hk-s11-11",
+          "order": 10,
+          "station": {
+            "id": "hk-s11-11",
+            "systemId": "a1b2c3d4-e5f6-4789-a0b1-c2d3e4f56789",
+            "name": "Сиухон (Siu Hong)"
+          }
+        },
+        {
+          "lineId": "hk-l11",
+          "stationId": "hk-s11-12",
+          "order": 11,
+          "station": {
+            "id": "hk-s11-12",
+            "systemId": "a1b2c3d4-e5f6-4789-a0b1-c2d3e4f56789",
+            "name": "Тхюньмунь (Tuen Mun)"
+          }
+        }
+      ]
+    }
+  ]
+}

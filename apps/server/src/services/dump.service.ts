@@ -32,7 +32,16 @@ export const dumpService = {
 
     try {
       // 1. Загрузка данных
-      const [allUsers, allTrips, allPosts, allBlogs, allMetro] = await Promise.all([
+      const [
+        allUsers,
+        allTrips,
+        allPosts,
+        allBlogs,
+        allMetro,
+        allHighlights,
+        allDestinationReviews,
+        allCountries,
+      ] = await Promise.all([
         db.query.users.findMany(),
         db.query.trips.findMany({
           with: {
@@ -73,11 +82,19 @@ export const dumpService = {
             },
           },
         }),
+        db.query.highlights.findMany({
+          with: { country: true }, // <-- Добавлено подтягивание страны
+          orderBy: (h, { desc }) => [desc(h.createdAt)],
+        }),
+        db.query.destinationReviews.findMany({ orderBy: (r, { desc }) => [desc(r.createdAt)] }),
+        db.query.countries.findMany({ orderBy: (c, { asc }) => [asc(c.name)] }),
       ])
 
       logger.info(`🔍 Найдено для дампа:
       Пользователей: ${allUsers.length}, Путешествий: ${allTrips.length},
-      Постов: ${allPosts.length}, Статей: ${allBlogs.length}, Метро систем: ${allMetro.length}`)
+      Постов: ${allPosts.length}, Статей: ${allBlogs.length}, Метро систем: ${allMetro.length},
+      Фото в витрине: ${allHighlights.length}, Впечатлений: ${allDestinationReviews.length},
+      Стран: ${allCountries.length}`)
 
       const dateFolder = new Date().toISOString().split('T')[0]
       const baseDir = path.resolve(__dirname, '../../db/dump', dateFolder)
@@ -149,6 +166,36 @@ export const dumpService = {
       )
       totalFiles += allMetro.length
       logger.info(`   📁 metro/ (${allMetro.length} файлов)`)
+
+      // 7. highlights/ — один файл на всех
+      await writeJson(
+        target,
+        path.join(baseDir, 'highlights', 'all.json'),
+        `${s3Prefix}/highlights/all.json`,
+        allHighlights,
+      )
+      totalFiles += 1
+      logger.info(`   📁 highlights/all.json (${allHighlights.length} фото)`)
+
+      // 8. destination-reviews/ — один файл на всех
+      await writeJson(
+        target,
+        path.join(baseDir, 'destination-reviews', 'all.json'),
+        `${s3Prefix}/destination-reviews/all.json`,
+        allDestinationReviews,
+      )
+      totalFiles += 1
+      logger.info(`   📁 destination-reviews/all.json (${allDestinationReviews.length} впечатлений)`)
+
+      // 9. countries/ — один файл на всех
+      await writeJson(
+        target,
+        path.join(baseDir, 'countries', 'all.json'),
+        `${s3Prefix}/countries/all.json`,
+        allCountries,
+      )
+      totalFiles += 1
+      logger.info(`   📁 countries/all.json (${allCountries.length} стран)`)
 
       logger.success(`✅ Дамп создан: ${totalFiles} файлов`)
       if (target === 'local' || target === 'both')

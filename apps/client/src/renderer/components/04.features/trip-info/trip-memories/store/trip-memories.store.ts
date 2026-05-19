@@ -110,7 +110,7 @@ export const useTripMemoriesStore = defineStore('tripMemories', {
       const startGroup = groups.find(g => g.type === 'start')
       if (startGroup && startGroup.memories.length === 0)
         return groups.filter(g => g.type !== 'start')
-      
+
       return groups
     },
   },

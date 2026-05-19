@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import type { IImageViewerImageMeta, ImageViewerImage } from '../models/types'
 import { Icon } from '@iconify/vue'
-import { onClickOutside, toRef, useIdle } from '@vueuse/core'
+import { onClickOutside, toRef, useEventListener, useIdle } from '@vueuse/core'
 import { useRequest } from '~/plugins/request'
 import { useImageViewerSwipe, useImageViewerTransform, useImageViewerUi } from '../composables'
 import ImageMetadataPanel from './kit-image-metadata-panel.vue'
@@ -53,7 +53,7 @@ const emit = defineEmits<Emits>()
 const viewerContentRef = ref<HTMLElement | null>(null)
 const imageRef = ref<HTMLImageElement | null>(null)
 const containerRef = ref<HTMLElement | null>(null)
-const thumbnailsRef = ref<HTMLElement | null>(null) 
+const thumbnailsRef = ref<HTMLElement | null>(null)
 const naturalSize = reactive({ width: 0, height: 0 })
 const isUiVisible = ref(true)
 const isMetadataLoading = ref(false)
@@ -107,8 +107,6 @@ const { idle: isIdle } = useIdle(3000, {
 })
 
 const areControlsVisible = computed(() => {
-  if (!isUiVisible.value)
-    return false
   if (isMetadataPanelOpen.value)
     return true
   if (isDragging.value || isZoomed.value)
@@ -270,6 +268,24 @@ onClickOutside(viewerContentRef, () => {
   }
 })
 
+useEventListener(document, 'keydown', (e: KeyboardEvent) => {
+  if (!props.visible)
+    return
+
+  const target = e.target as HTMLElement
+  const isEditing = target.isContentEditable || ['INPUT', 'TEXTAREA', 'SELECT'].includes(target.tagName)
+
+  if (e.key === 'Escape') {
+    if (isEditing)
+      return
+    e.preventDefault()
+    if (isMetadataPanelOpen.value)
+      closeMetadataPanel()
+    else
+      close()
+  }
+})
+
 onUnmounted(() => {
   document.body.style.overflow = ''
 })
@@ -292,12 +308,12 @@ onUnmounted(() => {
             <div v-if="areControlsVisible" class="viewer-header">
               <div class="header-content-wrapper">
                 <div class="header-left">
-                  <div v-if="showCounter && hasMultipleImages" class="viewer-counter">
+                  <div v-if="showCounter && hasMultipleImages && isUiVisible" class="viewer-counter">
                     {{ currentIndex + 1 }} / {{ images.length }}
                   </div>
                 </div>
                 <div class="header-center">
-                  <div v-if="transform.scale > minZoom" class="scale-indicator">
+                  <div v-if="transform.scale > minZoom && isUiVisible" class="scale-indicator">
                     {{ Math.round(transform.scale * 100) }}%
                   </div>
                 </div>
@@ -391,7 +407,7 @@ onUnmounted(() => {
             </div>
           </div>
 
-          <div v-if="$slots.footer && areControlsVisible" class="viewer-footer">
+          <div v-if="$slots.footer && areControlsVisible && isUiVisible" class="viewer-footer">
             <slot
               name="footer"
               :image="currentImage"
@@ -401,7 +417,7 @@ onUnmounted(() => {
           </div>
 
           <Transition name="controls-fade">
-            <div v-if="enableThumbnails && hasMultipleImages && areControlsVisible" class="thumbnails-container">
+            <div v-if="enableThumbnails && hasMultipleImages && areControlsVisible && isUiVisible" class="thumbnails-container">
               <div ref="thumbnailsRef" class="thumbnails-wrapper">
                 <button
                   v-for="(image, index) in images"

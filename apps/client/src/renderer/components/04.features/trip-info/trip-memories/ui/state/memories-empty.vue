@@ -1,7 +1,6 @@
 <script setup lang="ts">
 import type { Activity } from '~/shared/types/models/activity'
 import { Icon } from '@iconify/vue'
-import { useMediaQuery } from '@vueuse/core'
 import { KitBottomSheet } from '~/components/01.kit/kit-bottom-sheet'
 import { KitDropdown } from '~/components/01.kit/kit-dropdown'
 
@@ -22,7 +21,7 @@ const emit = defineEmits<{
 }>()
 
 const showImportSheet = ref(false)
-const isMobile = useMediaQuery('(max-width: 768px)')
+const { smAndDown: isMobile } = useDisplay()
 
 function handleImportSelect(activity: Activity) {
   emit('import', activity)

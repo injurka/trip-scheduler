@@ -18,6 +18,47 @@ const emit = defineEmits<{
 const currentUpload = computed(() => props.processingMemories.find(m => m.status === 'uploading'))
 const queuedUploads = computed(() => props.processingMemories.filter(m => m.status === 'queued'))
 const failedUploads = computed(() => props.processingMemories.filter(m => m.status === 'error'))
+
+const ITEM_MIN_WIDTH = 50
+const GAP = 8
+
+const queuedGridRef = ref<HTMLElement | null>(null)
+const gridColumns = ref(10)
+
+function recalcColumns() {
+  if (!queuedGridRef.value)
+    return
+  const width = queuedGridRef.value.clientWidth
+  gridColumns.value = Math.max(1, Math.floor((width + GAP) / (ITEM_MIN_WIDTH + GAP)))
+}
+
+let ro: ResizeObserver | null = null
+
+watch(queuedGridRef, (el) => {
+  ro?.disconnect()
+  if (!el)
+    return
+  ro = new ResizeObserver(recalcColumns)
+  ro.observe(el)
+  recalcColumns()
+})
+
+onBeforeUnmount(() => ro?.disconnect())
+
+const visibleItems = computed(() => {
+  const total = queuedUploads.value.length
+  if (total <= gridColumns.value)
+    return queuedUploads.value
+
+  return queuedUploads.value.slice(0, gridColumns.value - 1)
+})
+
+const remainingCount = computed(() => {
+  const total = queuedUploads.value.length
+  if (total <= gridColumns.value)
+    return 0
+  return total - (gridColumns.value - 1)
+})
 </script>
 
 <template>
@@ -34,12 +75,16 @@ const failedUploads = computed(() => props.processingMemories.filter(m => m.stat
         <Icon icon="mdi:timer-outline" />
         <span>В очереди: {{ queuedUploads.length }}</span>
       </div>
-      <div class="queued-grid">
-        <div v-for="item in queuedUploads.slice(0, 10)" :key="item.tempId" class="queued-item">
+      <div ref="queuedGridRef" class="queued-grid">
+        <div
+          v-for="item in visibleItems"
+          :key="item.tempId"
+          class="queued-item"
+        >
           <img :src="item.previewUrl" alt="В очереди">
         </div>
-        <div v-if="queuedUploads.length > 10" class="queued-item more-items">
-          +{{ queuedUploads.length - 10 }}
+        <div v-if="remainingCount > 0" class="queued-item more-items">
+          +{{ remainingCount }}
         </div>
       </div>
     </div>

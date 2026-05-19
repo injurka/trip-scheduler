@@ -113,6 +113,48 @@
       "when": 1775650519025,
       "tag": "0015_youthful_longshot",
       "breakpoints": true
+    },
+    {
+      "idx": 16,
+      "version": "7",
+      "when": 1777298062749,
+      "tag": "0016_famous_princess_powerful",
+      "breakpoints": true
+    },
+    {
+      "idx": 17,
+      "version": "7",
+      "when": 1777305166968,
+      "tag": "0017_breezy_thing",
+      "breakpoints": true
+    },
+    {
+      "idx": 18,
+      "version": "7",
+      "when": 1777372770009,
+      "tag": "0018_next_xorn",
+      "breakpoints": true
+    },
+    {
+      "idx": 19,
+      "version": "7",
+      "when": 1777374610303,
+      "tag": "0019_happy_stark_industries",
+      "breakpoints": true
+    },
+    {
+      "idx": 20,
+      "version": "7",
+      "when": 1777375123868,
+      "tag": "0020_dark_giant_man",
+      "breakpoints": true
+    },
+    {
+      "idx": 21,
+      "version": "7",
+      "when": 1777398088510,
+      "tag": "0021_moaning_johnny_blaze",
+      "breakpoints": true
     }
   ]
 }

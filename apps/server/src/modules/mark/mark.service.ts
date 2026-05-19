@@ -84,10 +84,10 @@ export const markService = {
           photo: [] as string[],
           owner: mark.user
             ? {
-              id: (mark as any).user.id,
-              username: (mark as any).user.name,
-              avatar: (mark as any).user.avatarUrl ?? undefined,
-            }
+                id: (mark as any).user.id,
+                username: (mark as any).user.name,
+                avatar: (mark as any).user.avatarUrl ?? undefined,
+              }
             : undefined,
         }
       })

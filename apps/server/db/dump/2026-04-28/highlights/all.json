@@ -1,0 +1,38 @@
+[
+  {
+    "id": "27456088-e2ed-4bda-ab5c-da130d7af20e",
+    "userId": "1a97d95a-0158-4171-8258-52c7a917e3f0",
+    "imageUrl": "https://images.unsplash.com/photo-1498307833015-e7b400441eb8?q=80&w=1200&auto=format&fit=crop",
+    "country": "Италия",
+    "city": "Рим",
+    "address": "Колизей",
+    "comment": "Невероятная архитектура и дух времени!",
+    "latitude": 41.8902,
+    "longitude": 12.4922,
+    "createdAt": "2026-04-28T10:59:19.921Z"
+  },
+  {
+    "id": "9a5132ee-1632-4401-9b98-9c370c293ff8",
+    "userId": "1a97d95a-0158-4171-8258-52c7a917e3f0",
+    "imageUrl": "https://images.unsplash.com/photo-1499856871958-5b9627545d1a?q=80&w=1200&auto=format&fit=crop",
+    "country": "Франция",
+    "city": "Париж",
+    "address": "Эйфелева башня",
+    "comment": "Романтика на каждом шагу.",
+    "latitude": 48.8584,
+    "longitude": 2.2945,
+    "createdAt": "2026-04-27T10:59:19.921Z"
+  },
+  {
+    "id": "a8c7bba8-774f-460e-ba18-59879db368b2",
+    "userId": "1a97d95a-0158-4171-8258-52c7a917e3f0",
+    "imageUrl": "https://images.unsplash.com/photo-1542051812-ba32e00f6b70?q=80&w=1200&auto=format&fit=crop",
+    "country": "Япония",
+    "city": "Токио",
+    "address": "Храм Сэнсо-дзи",
+    "comment": "Смешение современности и традиций.",
+    "latitude": 35.7147,
+    "longitude": 139.7966,
+    "createdAt": "2026-04-26T10:59:19.921Z"
+  }
+]

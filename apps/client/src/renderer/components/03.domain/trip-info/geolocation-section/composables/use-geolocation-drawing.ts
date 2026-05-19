@@ -19,7 +19,7 @@ export function useGeolocationDrawing(mapApiRef: Ref<GeolocationMapApi | undefin
    */
   const stopDrawing = () => {
     if (!isDrawing.value)
-      return 
+      return
     const map = mapApiRef.value?.mapInstance.value
     if (!map)
       return

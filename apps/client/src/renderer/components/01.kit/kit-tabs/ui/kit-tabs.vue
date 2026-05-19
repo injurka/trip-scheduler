@@ -1,10 +1,17 @@
 <script setup lang="ts" generic="T extends string | number">
+import type { Component } from 'vue'
 import type { ViewSwitcherItem } from '~/components/01.kit/kit-view-switcher'
 import { KitDivider } from '~/components/01.kit/kit-divider'
 import { KitViewSwitcher } from '~/components/01.kit/kit-view-switcher'
 
+export interface TabItem<T extends string | number = string | number> extends ViewSwitcherItem<T> {
+  component?: Component
+  props?: Record<string, any>
+}
+
 const props = defineProps<{
-  items: ViewSwitcherItem<T>[]
+  items: TabItem<T>[]
+  cache?: boolean
 }>()
 
 const model = defineModel<T>({ required: true })
@@ -16,6 +23,10 @@ const contentWrapperRef = ref<HTMLElement | null>(null)
 
 const currentTab = computed(() => {
   return props.items.find(item => item.id === model.value)
+})
+
+const currentProps = computed(() => {
+  return currentTab.value?.props || {}
 })
 
 function onBeforeLeave(el: Element) {
@@ -61,6 +72,7 @@ watch(model, (newVal, oldVal) => {
 
     <div ref="contentWrapperRef" class="kit-tabs-content-wrapper">
       <Transition
+        v-if="!cache"
         :name="transitionName"
         @before-leave="onBeforeLeave"
         @enter="onEnter"
@@ -69,6 +81,23 @@ watch(model, (newVal, oldVal) => {
         <div :key="model" class="kit-tabs-pane">
           <slot :name="model" />
         </div>
+      </Transition>
+
+      <Transition
+        v-else
+        :name="transitionName"
+        @before-leave="onBeforeLeave"
+        @enter="onEnter"
+        @after-enter="onAfterEnter"
+      >
+        <KeepAlive>
+          <component
+            :is="currentTab?.component"
+            v-bind="currentProps"
+            :key="model"
+            class="kit-tabs-pane"
+          />
+        </KeepAlive>
       </Transition>
     </div>
   </div>
@@ -80,6 +109,7 @@ watch(model, (newVal, oldVal) => {
   flex-direction: column;
   gap: 20px;
   width: 100%;
+  z-index: 10;
 
   &.single {
     :deep(.kit-view-switcher-glider) {
@@ -125,9 +155,6 @@ watch(model, (newVal, oldVal) => {
   width: 100%;
 }
 
-/*
- * Стили для анимации свайпа
- */
 .slide-left-enter-active,
 .slide-left-leave-active,
 .slide-right-enter-active,

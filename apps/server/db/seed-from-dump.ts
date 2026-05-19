@@ -3,19 +3,23 @@ import fs from 'node:fs/promises'
 import path from 'node:path'
 import process from 'node:process'
 import prompts from 'prompts'
-// ПРИМЕЧАНИЕ: путь до s3.service может отличаться (укажите правильный)
+import { v4 as uuidv4 } from 'uuid'
 import { s3Service } from '../src/services/s3.service'
 import { db } from './index'
 import { MOCK_METRO_DATA } from './mock/02.metro'
 import { SUBSCRIPTION_MOCK } from './mock/03.subscription'
 import { LLM_MOCK } from './mock/04.llm'
+import { MOCK_COUNTRY_DATA } from './mock/07.country'
 import { MOCK_MARKS_DATA } from './mock/08.marks'
 import {
   activities,
   blogs,
   comments,
+  countries,
   days,
+  destinationReviews,
   emailVerificationTokens,
+  highlights,
   llmModels,
   llmTokenUsage,
   marks,
@@ -48,6 +52,8 @@ interface DumpData {
   blogs: any[]
   metro: any[]
   marks?: any[]
+  highlights?: any[]
+  destinationReviews?: any[]
 }
 
 interface SelectedDump {
@@ -205,21 +211,22 @@ async function readJsonFilesFromS3Dir(prefix: string): Promise<any[]> {
 async function readDumpFromS3(prefix: string): Promise<DumpData> {
   console.log('☁️ Чтение папочного дампа из S3...')
 
-  // Убедимся, что префикс заканчивается на слеш
   const basePath = prefix.endsWith('/') ? prefix : `${prefix}/`
 
-  const [usersRaw, trips, posts, blogs, metro] = await Promise.all([
+  const [usersRaw, trips, posts, blogs, metro, highlightsData, destinationReviewsData] = await Promise.all([
     s3Service.getFileContent(`${basePath}users/all.json`).then(JSON.parse).catch(() => []),
     readJsonFilesFromS3Dir(`${basePath}trips/`),
     readJsonFilesFromS3Dir(`${basePath}posts/`),
     readJsonFilesFromS3Dir(`${basePath}blogs/`),
     readJsonFilesFromS3Dir(`${basePath}metro/`),
+    readJsonFilesFromS3Dir(`${basePath}highlights/`),
+    readJsonFilesFromS3Dir(`${basePath}destination-reviews/`),
   ])
 
   const users = Array.isArray(usersRaw) ? usersRaw : []
-  console.log(`   👤 users: ${users.length} | ✈️  trips: ${trips.length} | 📝 posts: ${posts.length} | 📰 blogs: ${blogs.length} | 🚇 metro: ${metro.length}`)
+  console.log(`   👤 users: ${users.length} | ✈️  trips: ${trips.length} | 📝 posts: ${posts.length} | 📰 blogs: ${blogs.length} | 🚇 metro: ${metro.length} | 📸 highlights: ${highlightsData.length} | ⭐ reviews: ${destinationReviewsData.length}`)
 
-  return { users, trips, posts, blogs, metro }
+  return { users, trips, posts, blogs, metro, highlights: highlightsData, destinationReviews: destinationReviewsData }
 }
 
 // ─────────────────────────────────────────────────────────────
@@ -247,19 +254,21 @@ async function readJsonFilesFromDir(dir: string): Promise<any[]> {
 async function readDumpFromFolder(folderPath: string): Promise<DumpData> {
   console.log('📂 Чтение папочного дампа...')
 
-  const [usersRaw, trips, posts, blogs, metro] = await Promise.all([
+  const [usersRaw, trips, posts, blogs, metro, highlightsData, destinationReviewsData] = await Promise.all([
     fs.readFile(path.join(folderPath, 'users', 'all.json'), 'utf-8').then(JSON.parse).catch(() => []),
     readJsonFilesFromDir(path.join(folderPath, 'trips')),
     readJsonFilesFromDir(path.join(folderPath, 'posts')),
     readJsonFilesFromDir(path.join(folderPath, 'blogs')),
     readJsonFilesFromDir(path.join(folderPath, 'metro')),
+    readJsonFilesFromDir(path.join(folderPath, 'highlights')),
+    readJsonFilesFromDir(path.join(folderPath, 'destination-reviews')),
   ])
 
   const users = Array.isArray(usersRaw) ? usersRaw : []
 
-  console.log(`   👤 users: ${users.length} | ✈️  trips: ${trips.length} | 📝 posts: ${posts.length} | 📰 blogs: ${blogs.length} | 🚇 metro: ${metro.length}`)
+  console.log(`   👤 users: ${users.length} | ✈️  trips: ${trips.length} | 📝 posts: ${posts.length} | 📰 blogs: ${blogs.length} | 🚇 metro: ${metro.length} | 📸 highlights: ${highlightsData.length} | ⭐ reviews: ${destinationReviewsData.length}`)
 
-  return { users, trips, posts, blogs, metro }
+  return { users, trips, posts, blogs, metro, highlights: highlightsData, destinationReviews: destinationReviewsData }
 }
 
 async function discoverAndSelectLocalDump(): Promise<SelectedDump | null> {
@@ -630,6 +639,8 @@ async function seedFromJson(): Promise<void> {
     blogs: sourceBlogs,
     metro: sourceMetro,
     marks: sourceMarks,
+    highlights: sourceHighlights,
+    destinationReviews: sourceReviews,
   } = dumpData
 
   if (!Array.isArray(sourceUsers)) {
@@ -641,6 +652,9 @@ async function seedFromJson(): Promise<void> {
 
   // 2. Очистка (строго по FK: дочерние → родительские)
   console.log('\n🗑️  Очистка таблиц...')
+  await db.delete(highlights)
+  await db.delete(destinationReviews)
+  await db.delete(countries)
   await db.delete(blogs)
   await db.delete(savedPosts)
   await db.delete(postMedia)
@@ -670,9 +684,30 @@ async function seedFromJson(): Promise<void> {
   // 3. Справочники (независимы — параллельно)
   console.log('\n⭐ Восстановление справочников...')
   const plansData = SUBSCRIPTION_MOCK.map(p => ({ ...p, id: Number(p.id) }))
+
+  // Страны (требуются для destinationReviews)
+  const countriesToInsert = MOCK_COUNTRY_DATA.map((c: any) => {
+    let rusName = ''
+    if (typeof c.name?.rus === 'string')
+      rusName = c.name.rus
+    else if (c.name?.rus?.common)
+      rusName = c.name.rus.common
+    else if (c.name?.rus?.official)
+      rusName = c.name.rus.official
+
+    const fallbackName = c.name?.common || c.name?.official || 'Неизвестная страна'
+    const finalName = rusName || fallbackName
+    const id = c.cca2 || c.cca3 || uuidv4()
+
+    return { id, name: finalName, emoji: c.flag || null }
+  }).filter(c => c.name !== 'Неизвестная страна' && c.name !== '')
+
   await Promise.all([
     db.insert(plans).values(plansData).then(() => console.log(`   ✅ [plans] ${plansData.length} записей`)),
     db.insert(llmModels).values(LLM_MOCK).onConflictDoNothing().then(() => console.log(`   ✅ [llmModels] ${LLM_MOCK.length} записей`)),
+    countriesToInsert.length > 0
+      ? db.insert(countries).values(countriesToInsert).onConflictDoNothing().then(() => console.log(`   ✅ [countries] ${countriesToInsert.length} записей`))
+      : Promise.resolve(),
   ])
 
   // 4. Метро
@@ -689,6 +724,27 @@ async function seedFromJson(): Promise<void> {
       updatedAt: toDate(user.updatedAt) ?? new Date(),
     }))
     await safeInsert('users', users, usersToInsert)
+  }
+
+  // 5.1 Highlights (Витрина)
+  console.log('\n📸 Восстановление витрины (highlights)...')
+  if (Array.isArray(sourceHighlights) && sourceHighlights.length > 0) {
+    const highlightsToInsert = sourceHighlights.map((h: any) => ({
+      ...h,
+      createdAt: toDate(h.createdAt) ?? new Date(),
+    }))
+    await safeInsert('highlights', highlights, highlightsToInsert)
+  }
+
+  // 5.2 Destination Reviews (Впечатления)
+  console.log('\n⭐ Восстановление впечатлений (destinationReviews)...')
+  if (Array.isArray(sourceReviews) && sourceReviews.length > 0) {
+    const reviewsToInsert = sourceReviews.map((r: any) => ({
+      ...r,
+      createdAt: toDate(r.createdAt) ?? new Date(),
+      updatedAt: toDate(r.updatedAt) ?? new Date(),
+    }))
+    await safeInsert('destinationReviews', destinationReviews, reviewsToInsert)
   }
 
   // 6. Метки

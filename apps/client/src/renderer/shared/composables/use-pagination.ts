@@ -30,7 +30,12 @@ export function usePagination<T>(
     visibleCount.value = batchSize
   }
 
-  watch(() => toValue(items), () => { reset() })
+  watch(
+    () => toValue(items),
+    () => {
+      reset()
+    },
+  )
 
   return { visibleItems, hasMore, loadMore, reset }
 }

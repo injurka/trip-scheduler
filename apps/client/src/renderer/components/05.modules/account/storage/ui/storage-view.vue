@@ -195,7 +195,6 @@ onMounted(() => {
 
     <AsyncStateWrapper :loading="isLoading" :error="error" :data="filteredAndSortedFiles">
       <template #loading>
-        <!-- Скелетоны для сетки -->
         <div v-if="viewMode === 'grid'" class="files-grid">
           <div v-for="i in itemsPerPage" :key="i" class="file-card-skeleton">
             <KitSkeleton width="100%" height="150px" />
@@ -206,7 +205,6 @@ onMounted(() => {
           </div>
         </div>
 
-        <!-- Скелетоны для списка -->
         <div v-if="viewMode === 'list'" class="files-list-wrapper">
           <div class="files-list">
             <div class="list-header-row">
@@ -399,6 +397,18 @@ onMounted(() => {
   .kit-btn.is-active {
     border-color: var(--border-accent-color);
     color: var(--fg-accent-color);
+  }
+
+  @include media-down(sm) {
+    flex-wrap: wrap;
+
+    .search-input {
+      flex-basis: 100%;
+    }
+
+    :deep(.kit-view-switcher) {
+      flex-grow: 1;
+    }
   }
 }
 

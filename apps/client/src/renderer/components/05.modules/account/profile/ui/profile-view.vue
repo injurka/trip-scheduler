@@ -1,23 +1,25 @@
 <script setup lang="ts">
-import type { ViewSwitcherItem } from '~/components/01.kit/kit-view-switcher'
+import type { TabItem } from '~/components/01.kit/kit-tabs/ui/kit-tabs.vue'
 import { Icon } from '@iconify/vue'
+import { markRaw } from 'vue'
 import { KitAvatar } from '~/components/01.kit/kit-avatar'
 import { KitBtn } from '~/components/01.kit/kit-btn'
 import { KitTabs } from '~/components/01.kit/kit-tabs'
-import { AsyncStateWrapper } from '~/components/02.shared/async-state-wrapper'
 import { UserQuotaWidget } from '~/components/02.shared/user-quota-widget'
-import { AppRouteNames } from '~/shared/constants/routes'
+import { DestinationReviewsView } from '~/components/04.features/account/destination-review'
+import { HighlightsFeedView } from '~/components/04.features/account/highlights'
+import { TripMapView } from '~/components/04.features/account/trip-map'
+import { AppRoutePaths } from '~/shared/constants/routes'
 import { useAuthStore } from '~/shared/store/auth.store'
 import { useProfileView } from '../composables/use-profile-view'
-import { RecentTripCard } from './components'
 
 const route = useRoute()
 const authStore = useAuthStore()
 const router = useRouter()
 const profileView = useProfileView()
 
-const activeTab = ref('trips')
-const { userProfile, recentTrips, isLoading } = profileView
+const activeTab = ref('trip-map')
+const { userProfile } = profileView
 const currentUser = computed(() => authStore.user)
 
 const isOwnProfile = computed(() => {
@@ -26,10 +28,44 @@ const isOwnProfile = computed(() => {
 
 const userId = computed(() => route.params.id as string)
 
-const tabItems: ViewSwitcherItem[] = [
-  { id: 'trips', label: 'Путешествия', icon: 'mdi:map-legend' },
-  { id: 'activity', label: 'Активность', icon: 'mdi:pulse' },
-]
+const tabItems = computed<TabItem[]>(() => [
+  {
+    id: 'trip-map',
+    label: 'Карта',
+    icon: 'mdi:map-legend',
+    component: markRaw(TripMapView),
+  },
+  {
+    id: 'highlights',
+    label: 'Витрина',
+    icon: 'mdi:camera-outline',
+    component: markRaw(HighlightsFeedView),
+  },
+  {
+    id: 'ratings',
+    label: 'Рейтинги',
+    icon: 'mdi:trophy-outline',
+    component: markRaw(DestinationReviewsView),
+    props: {
+      userId: userProfile.value?.id,
+      isOwnProfile: isOwnProfile.value,
+    },
+  },
+])
+
+const headerStyle = computed(() => {
+  const cover = userProfile.value?.coverUrl ?? '/images/mock.png'
+
+  if (cover) {
+    return {
+      backgroundImage: `linear-gradient(to top, var(--bg-secondary-color) 10%, transparent 80%), url(${cover})`,
+      backgroundSize: 'cover',
+      backgroundPosition: 'center',
+      backgroundRepeat: 'no-repeat',
+    }
+  }
+  return {}
+})
 
 watch(userId, (newId) => {
   if (newId) {
@@ -41,37 +77,39 @@ watch(userId, (newId) => {
 <template>
   <div v-if="userProfile" class="profile-view">
     <div class="profile-cover">
-      <div class="profile-header">
+      <div class="profile-header" :style="headerStyle">
         <div class="avatar-section">
-          <KitAvatar :src="userProfile.avatarUrl" :name="userProfile.name" :size="140" class="profile-avatar" />
+          <KitAvatar
+            :src="userProfile.avatarUrl"
+            :name="userProfile.name"
+            :size="140"
+            class="profile-avatar"
+          />
         </div>
         <div class="info-section">
           <h1 class="user-name">
             {{ userProfile.name }}
           </h1>
-          <div v-if="userProfile.statusEmoji || userProfile.statusText" class="user-status">
-            <span v-if="userProfile.statusEmoji">{{ userProfile.statusEmoji }}</span>
-            <span v-if="userProfile.statusText">{{ userProfile.statusText }}</span>
+          <div class="user-status">
+            <template v-if="userProfile.statusEmoji || userProfile.statusText">
+              <span v-if="userProfile.statusEmoji">{{ userProfile.statusEmoji }}</span>
+              <span v-if="userProfile.statusText">{{ userProfile.statusText }}</span>
+            </template>
           </div>
-          <p class="user-bio">
-            Путешественник и исследователь. В поисках новых горизонтов и незабываемых впечатлений.
-          </p>
         </div>
         <div v-if="isOwnProfile" class="actions-section">
           <KitBtn
-            variant="outlined"
+            variant="subtle"
             color="secondary"
+            size="md"
             @click="router.push(AppRoutePaths.User.Settings(userProfile.id))"
           >
-            <Icon icon="mdi:pencil-outline" />
-            Редактировать
+            <Icon width="20" height="20" icon="mdi:pencil-outline" />
           </KitBtn>
         </div>
       </div>
-    </div>
 
-    <div class="profile-body">
-      <aside class="profile-sidebar">
+      <aside class="profile-sidebar" v-if="isOwnProfile">
         <div class="stats-widget">
           <div class="stat-item">
             <span class="stat-value">{{ userProfile._count?.trips ?? 0 }}</span>
@@ -83,7 +121,7 @@ watch(userId, (newId) => {
           </div>
         </div>
 
-        <div v-if="isOwnProfile && userProfile.plan" class="quota-section">
+        <div v-if="userProfile.plan" class="quota-section">
           <UserQuotaWidget
             title="Путешествия"
             icon="mdi:briefcase-outline"
@@ -110,35 +148,11 @@ watch(userId, (newId) => {
           />
         </div>
       </aside>
-      <main class="profile-main-content">
-        <KitTabs v-model="activeTab" :items="tabItems">
-          <template #trips>
-            <div class="tab-content">
-              <AsyncStateWrapper :loading="isLoading" :data="recentTrips.length > 0 ? recentTrips : null">
-                <template #success="{ data }">
-                  <div class="recent-trips-list">
-                    <RecentTripCard v-for="trip in data" :key="trip.id" :trip="trip" />
-                  </div>
-                </template>
-                <template #empty>
-                  <div class="empty-trips">
-                    <p>Пока нет недавних путешествий для отображения.</p>
-                    <KitBtn @click="router.push({ name: AppRouteNames.TripList })">
-                      Посмотреть все путешествия
-                    </KitBtn>
-                  </div>
-                </template>
-              </AsyncStateWrapper>
-            </div>
-          </template>
-          <template #activity>
-            <div class="tab-content">
-              <p>Раздел в разработке</p>
-            </div>
-          </template>
-        </KitTabs>
-      </main>
     </div>
+
+    <main class="profile-body">
+      <KitTabs v-model="activeTab" :items="tabItems" cache />
+    </main>
   </div>
 </template>
 
@@ -148,75 +162,80 @@ watch(userId, (newId) => {
 }
 
 .profile-cover {
-  min-height: 250px;
-  background: linear-gradient(to right, var(--bg-tertiary-color), var(--bg-secondary-color));
-  border-radius: var(--r-l);
-  position: relative;
   display: flex;
-  align-items: flex-end;
-  padding: 0 2rem 2rem;
-}
+  gap: 8px;
 
-.profile-header {
-  display: flex;
-  align-items: flex-end;
-  gap: 2rem;
-  width: 100%;
-}
-
-.avatar-section {
-  .profile-avatar {
-    border: 4px solid var(--bg-primary-color);
-    z-index: 2;
-  }
-}
-
-.info-section {
-  flex-grow: 1;
-  .user-name {
-    font-size: 2rem;
-    font-weight: 700;
-    margin: 0 0 0.25rem;
-  }
-  .user-status {
+  .profile-header {
+    position: relative;
     display: flex;
-    align-items: center;
-    gap: 0.5rem;
-    color: var(--fg-secondary-color);
-    margin: 0.5rem 0;
-  }
-  .user-bio {
-    font-size: 0.9rem;
-    color: var(--fg-tertiary-color);
-    max-width: 500px;
-  }
-}
+    align-items: flex-end;
+    gap: 2rem;
+    width: 100%;
+    min-height: 250px;
+    padding: 0 2rem 2rem;
+    background-image: linear-gradient(to right, var(--bg-tertiary-color), var(--bg-secondary-color));
+    background-color: var(--bg-secondary-color);
+    border: 1px solid var(--border-secondary-color);
+    border-radius: var(--r-l);
+    overflow: hidden;
 
-.actions-section {
-  align-self: flex-end;
+    .avatar-section {
+      z-index: 2;
+      .profile-avatar {
+        border: 4px solid var(--bg-primary-color);
+      }
+    }
+
+    .info-section {
+      flex-grow: 1;
+      z-index: 2;
+
+      .user-name {
+        margin: 0 0 0.25rem;
+        font-size: 2rem;
+        font-weight: 700;
+        text-shadow: 0 1px 4px rgba(0, 0, 0, 0.4);
+      }
+
+      .user-status {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        height: 34px;
+        color: var(--fg-secondary-color);
+      }
+    }
+  }
+
+  .actions-section {
+    position: absolute;
+    top: 10px;
+    right: 10px;
+    align-self: flex-end;
+    z-index: 3;
+
+    > button {
+      width: 46px;
+      border-radius: 50%;
+      background: rgba(var(--bg-secondary-color-rgb), 0.8);
+    }
+  }
+
+  .profile-sidebar {
+    min-width: 280px;
+    padding: 16px;
+    background: linear-gradient(to left, var(--bg-tertiary-color), var(--bg-secondary-color));
+    border: 1px solid var(--border-secondary-color);
+    border-radius: var(--r-l);
+  }
 }
 
 .profile-body {
-  display: grid;
-  grid-template-columns: 300px 1fr;
-  gap: 2rem;
+  display: flex;
+  align-items: flex-start;
   padding: 32px 0 0 0;
-  align-items: start;
-}
-
-.profile-sidebar,
-.profile-main-content {
-  background-color: var(--bg-secondary-color);
-  border: 1px solid var(--border-secondary-color);
-  border-radius: var(--r-l);
-  padding: 1.5rem;
-  overflow: hidden;
-}
-
-.widget-title {
-  font-size: 1.1rem;
-  font-weight: 600;
-  margin: 0 0 1rem;
+  width: 100%;
+  margin-bottom: 24px;
 }
 
 .stats-widget {
@@ -228,10 +247,12 @@ watch(userId, (newId) => {
     display: flex;
     flex-direction: column;
   }
+
   .stat-value {
     font-size: 1.5rem;
     font-weight: 700;
   }
+
   .stat-label {
     font-size: 0.8rem;
     color: var(--fg-secondary-color);
@@ -242,15 +263,13 @@ watch(userId, (newId) => {
   display: flex;
   flex-direction: column;
   gap: 0.5rem;
-  border-top: 1px solid var(--border-secondary-color);
   margin-top: 24px;
   padding-top: 8px;
+  border-top: 1px solid var(--border-secondary-color);
 }
 
 .tab-content {
-  h3 {
-    margin-top: 0;
-  }
+  width: 100%;
   p {
     color: var(--fg-secondary-color);
   }
@@ -273,39 +292,30 @@ watch(userId, (newId) => {
 }
 
 @include media-down(md) {
-  .profile-body {
-    grid-template-columns: 1fr;
-  }
-  .profile-sidebar {
-    order: 2;
-  }
-  .profile-main-content {
-    padding: 8px;
-  }
-}
-@include media-down(sm) {
   .profile-cover {
-    height: auto;
-    padding-top: 1.5rem;
-  }
-  .profile-header {
     flex-direction: column;
-    align-items: center;
-    text-align: center;
-    margin-bottom: -20px;
+
+    .profile-header {
+      flex-direction: column;
+      align-items: center;
+      text-align: center;
+      background: var(--bg-secondary-color);
+      padding-top: 32px;
+    }
+
+    .profile-sidebar {
+      background: var(--bg-secondary-color);
+    }
   }
+
   .avatar-section .profile-avatar {
     margin-bottom: -70px;
   }
+
   .info-section {
     padding-top: 50px;
   }
-  .actions-section {
-    width: 100%;
-    .kit-btn {
-      width: 100%;
-    }
-  }
+
   .profile-body {
     padding-top: 2rem;
   }

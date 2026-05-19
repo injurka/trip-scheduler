@@ -15,13 +15,25 @@ const props = defineProps<Props>()
 
 const componentType = computed(() => (props.to ? 'router-link' : 'div'))
 
+// Обычное форматирование с пробелами (например: 5 000)
 function formatNumber(num: number): string {
   return new Intl.NumberFormat('ru-RU', { useGrouping: true }).format(num)
+}
+
+// Компактное форматирование для больших чисел (например: 5 млн, 1,5 тыс.)
+function formatCompactNumber(num: number): string {
+  return new Intl.NumberFormat('ru-RU', {
+    notation: 'compact',
+    compactDisplay: 'short',
+    maximumFractionDigits: 1, // Оставит 1 знак после запятой (1,5 млн)
+  }).format(num)
 }
 
 const formattedCurrent = computed(() => {
   if (props.unit === 'bytes')
     return formatBytes(props.current)
+  if (props.unit === 'tokens')
+    return formatCompactNumber(props.current)
 
   return formatNumber(props.current)
 })
@@ -29,6 +41,8 @@ const formattedCurrent = computed(() => {
 const formattedLimit = computed(() => {
   if (props.unit === 'bytes')
     return formatBytes(props.limit)
+  if (props.unit === 'tokens')
+    return formatCompactNumber(props.limit)
 
   return formatNumber(props.limit)
 })

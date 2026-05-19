@@ -23,12 +23,12 @@ export const commentProcedures = {
   update: protectedProcedure
     .input(UpdateCommentInputSchema)
     .mutation(async ({ input, ctx }) => {
-      return commentService.update(input, ctx.user.id)
+      return commentService.update(input, ctx.user.id, ctx.user.role)
     }),
 
   delete: protectedProcedure
     .input(DeleteCommentInputSchema)
     .mutation(async ({ input, ctx }) => {
-      return commentService.delete(input.commentId, ctx.user.id)
+      return commentService.delete(input.commentId, ctx.user.id, ctx.user.role)
     }),
 }

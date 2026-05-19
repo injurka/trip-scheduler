@@ -21,7 +21,7 @@ export const tripSectionProcedures = {
     })
     .input(CreateTripSectionInputSchema)
     .output(TripSectionSchema)
-    .mutation(({ input, ctx }) => tripSectionService.create(input, ctx.user.id)),
+    .mutation(({ input, ctx }) => tripSectionService.create(input, ctx.user.id, ctx.user.role)),
 
   update: protectedProcedure
     .meta({
@@ -34,7 +34,7 @@ export const tripSectionProcedures = {
     })
     .input(UpdateTripSectionInputSchema)
     .output(TripSectionSchema)
-    .mutation(({ input, ctx }) => tripSectionService.update(input, ctx.user.id)),
+    .mutation(({ input, ctx }) => tripSectionService.update(input, ctx.user.id, ctx.user.role)),
 
   delete: protectedProcedure
     .meta({
@@ -47,7 +47,7 @@ export const tripSectionProcedures = {
     })
     .input(DeleteTripSectionInputSchema)
     .output(TripSectionSchema)
-    .mutation(({ input, ctx }) => tripSectionService.delete(input.id, ctx.user.id)),
+    .mutation(({ input, ctx }) => tripSectionService.delete(input.id, ctx.user.id, ctx.user.role)),
 
   reorder: protectedProcedure
     .meta({
@@ -60,5 +60,5 @@ export const tripSectionProcedures = {
     })
     .input(ReorderTripSectionsInputSchema)
     .output(z.object({ success: z.boolean() }))
-    .mutation(({ input, ctx }) => tripSectionService.reorder(input, ctx.user.id)),
+    .mutation(({ input, ctx }) => tripSectionService.reorder(input, ctx.user.id, ctx.user.role)),
 }

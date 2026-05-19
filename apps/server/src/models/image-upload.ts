@@ -1,9 +1,10 @@
 import type { ImageMetadata } from '~/repositories/image.repository'
 
-export type EntityType = 'trip' | 'post' | 'blog' | 'avatar'
+export type EntityType = 'trip' | 'post' | 'blog' | 'avatar' | 'review' | 'highlight'
 
 export interface UploadContext {
   userId: string
+  userRole?: string
   entityId: string
   file: File
   buffer: Buffer

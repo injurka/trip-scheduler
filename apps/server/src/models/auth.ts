@@ -37,7 +37,7 @@ export interface TelegramBotAuthConfirmed {
 
 export type TelegramBotAuthStatus
   = | { status: 'pending' }
-  | { status: 'cancelled' }
-  | { status: 'expired' }
-  | { status: 'not_found' }
-  | TelegramBotAuthConfirmed
+    | { status: 'cancelled' }
+    | { status: 'expired' }
+    | { status: 'not_found' }
+    | TelegramBotAuthConfirmed

@@ -8,11 +8,13 @@ interface Props {
   disabled?: boolean
   readonly?: boolean
   hourCycle?: 12 | 24
+  locale?: string
 }
 
 const props = withDefaults(defineProps<Props>(), {
   placeholder: '--:--',
   hourCycle: 24,
+  locale: 'ru-RU',
 })
 
 const model = defineModel<Time | null | undefined>({ required: true })
@@ -42,6 +44,7 @@ const internalModel = computed({
       :disabled="props.disabled"
       :readonly="props.readonly"
       :hour-cycle="props.hourCycle"
+      :locale="props.locale"
       class="kit-time-field"
     >
       <TimeFieldInput

@@ -75,12 +75,11 @@ export function useTripsHub() {
     return trips.value
   })
 
-
   const currentActiveTrip = computed(() => {
     if (!authStore.isAuthenticated)
       return null
 
-    const now = new Date().getTime()
+    const now = Date.now()
 
     return trips.value.find((t) => {
       if (t.userId !== authStore.user?.id)

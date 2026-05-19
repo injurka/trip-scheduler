@@ -17,24 +17,24 @@ interface TripSectionResult {
 }
 
 export const tripSectionService = {
-  async create(data: z.infer<typeof CreateTripSectionInputSchema>, userId: string) {
+  async create(data: z.infer<typeof CreateTripSectionInputSchema>, userId: string, userRole: string) {
     const trip = await tripRepository.getById(data.tripId)
     if (!trip)
       throw createTRPCError('NOT_FOUND', `Путешествие с ID ${data.tripId} не найдено.`)
 
-    if (trip.userId !== userId)
+    if (trip.userId !== userId && userRole !== 'admin')
       throw createTRPCError('FORBIDDEN', 'У вас нет прав на добавление раздела в это путешествие.')
 
     const result = await tripSectionRepository.create(data)
     return result as unknown as TripSectionResult
   },
 
-  async update(data: z.infer<typeof UpdateTripSectionInputSchema>, userId: string) {
+  async update(data: z.infer<typeof UpdateTripSectionInputSchema>, userId: string, userRole: string) {
     const section = await tripSectionRepository.findByIdWithOwner(data.id)
     if (!section)
       throw createTRPCError('NOT_FOUND', `Раздел с ID ${data.id} не найден.`)
 
-    if (section.trip.userId !== userId)
+    if (section.trip.userId !== userId && userRole !== 'admin')
       throw createTRPCError('FORBIDDEN', 'У вас нет прав на изменение этого раздела.')
 
     const { id, ...updateData } = data
@@ -45,12 +45,12 @@ export const tripSectionService = {
     return updatedSection as unknown as TripSectionResult
   },
 
-  async delete(id: string, userId: string) {
+  async delete(id: string, userId: string, userRole: string) {
     const section = await tripSectionRepository.findByIdWithOwner(id)
     if (!section)
       throw createTRPCError('NOT_FOUND', `Раздел с ID ${id} не найден.`)
 
-    if (section.trip.userId !== userId)
+    if (section.trip.userId !== userId && userRole !== 'admin')
       throw createTRPCError('FORBIDDEN', 'У вас нет прав на удаление этого раздела.')
 
     const deletedSection = await tripSectionRepository.delete(id)
@@ -60,12 +60,12 @@ export const tripSectionService = {
     return deletedSection as unknown as TripSectionResult
   },
 
-  async reorder(data: z.infer<typeof ReorderTripSectionsInputSchema>, userId: string) {
+  async reorder(data: z.infer<typeof ReorderTripSectionsInputSchema>, userId: string, userRole: string) {
     const trip = await tripRepository.getById(data.tripId)
     if (!trip)
       throw createTRPCError('NOT_FOUND', `Путешествие с ID ${data.tripId} не найдено.`)
 
-    if (trip.userId !== userId)
+    if (trip.userId !== userId && userRole !== 'admin')
       throw createTRPCError('FORBIDDEN', 'У вас нет прав на изменение порядка разделов в этом путешествии.')
 
     await tripSectionRepository.reorder(data.tripId, data.updates)

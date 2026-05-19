@@ -34,7 +34,7 @@ export const postProcedures = {
     .output(PostSchema)
     .query(async ({ input, ctx }) => {
       postService.incrementView(input.id).catch(console.error)
-      return postService.getById(input.id, ctx.user?.id)
+      return postService.getById(input.id, ctx.user?.id, ctx.user?.role)
     }),
 
   create: protectedProcedure
@@ -50,7 +50,7 @@ export const postProcedures = {
     .input(UpdatePostInputSchema)
     .output(PostSchema)
     .mutation(async ({ input, ctx }) => {
-      return postService.update(input, ctx.user.id)
+      return postService.update(input, ctx.user.id, ctx.user.role)
     }),
 
   delete: protectedProcedure
@@ -58,7 +58,7 @@ export const postProcedures = {
     .input(GetPostByIdInputSchema)
     .output(z.object({ id: z.string() }))
     .mutation(async ({ input, ctx }) => {
-      const deleted = await postService.delete(input.id, ctx.user.id)
+      const deleted = await postService.delete(input.id, ctx.user.id, ctx.user.role)
       return { id: deleted?.id ?? input.id }
     }),
 

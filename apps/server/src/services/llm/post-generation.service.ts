@@ -80,7 +80,6 @@ export const postGenerationService = {
     }
 
     try {
-      // eslint-disable-next-line e18e/prefer-static-regex
       const cleanedResponse = jsonResponse.replace(/```json|```/g, '').trim()
       const parsedData = JSON.parse(cleanedResponse)
       return parsedData

@@ -1,4 +1,4 @@
-import { MOCK_USER_ID_1, MOCK_USER_ID_2 } from './00.users'
+import { MOCK_USER_ID_1 } from './00.users'
 
 const POST_ID_1 = '3322b3c4-d5e6-4f8a-9b0c-1d2e3f4a5b6c'
 const POST_ID_2 = '4422b3c4-d5e6-4f8a-9b0c-1d2e3f4a5b6d'
@@ -147,7 +147,7 @@ export const MOCK_POST_DATA = [
 
   {
     id: POST_ID_2,
-    userId: MOCK_USER_ID_2,
+    userId: MOCK_USER_ID_1,
     title: 'Ледяное сердце Исландии: Южное побережье',
     insight: 'Погода меняется каждые 15 минут. Берите многослойную одежду и непромокаемый верх — это не шутка!',
     description: '7-дневное путешествие на машине по знаменитому южному побережью Исландии: водопады, ледники, черные пляжи и вулканы.',

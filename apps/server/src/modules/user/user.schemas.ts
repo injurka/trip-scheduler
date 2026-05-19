@@ -1,9 +1,9 @@
 import { createSelectSchema } from 'drizzle-zod'
 import { z } from 'zod'
-import { plans, users } from '~/../db/schema'
+import { highlights, plans, users } from '~/../db/schema'
+import { CountrySchema } from '../destination-review/destination-review.schemas'
 
 // --- Входящие данные (Input) ---
-
 export const SignUpInputSchema = z.object({
   name: z.string().min(1, 'Имя не может быть пустым'),
   email: z.string().email('Некорректный формат email'),
@@ -38,7 +38,6 @@ export const SearchUserInputSchema = z.object({
   query: z.string().min(2, 'Минимум 2 символа'),
 })
 
-// --- Схема для получения пользователя по ID ---
 export const GetUserByIdInputSchema = z.object({
   id: z.string().uuid(),
 })
@@ -62,11 +61,41 @@ export const DeleteAccountInputSchema = z.object({
   password: z.string(),
 })
 
+// --- HIGHLIGHT SCHEMAS ---
+
+export const HighlightSchema = createSelectSchema(highlights).extend({
+  // Обязательно расширяем схему, чтобы tRPC не обрезал данные из JOIN
+  country: CountrySchema.optional().nullable(),
+})
+
+export const GetUserHighlightsInputSchema = z.object({
+  userId: z.string().uuid(),
+})
+
+export const CreateHighlightInputSchema = z.object({
+  imageUrl: z.string().url(),
+  countryId: z.string().min(2),
+  city: z.string().min(1),
+  address: z.string().optional().nullable(),
+  comment: z.string().optional().nullable(),
+  latitude: z.number().optional().nullable(),
+  longitude: z.number().optional().nullable(),
+
+  takenAt: z.union([z.string(), z.date()]).optional().nullable(),
+  width: z.number().optional().nullable(),
+  height: z.number().optional().nullable(),
+  variants: z.record(z.string(), z.string()).optional().nullable(),
+  metadata: z.any().optional().nullable(),
+})
+
+export const DeleteHighlightInputSchema = z.object({
+  id: z.string().uuid(),
+})
+
 // --- Исходящие данные (Output) ---
 
 export const PlanSchema = createSelectSchema(plans)
 
-// Безопасная схема пользователя (без пароля) для отправки на клиент
 export const UserSchema = createSelectSchema(users)
   .omit({ password: true })
   .extend({
@@ -83,19 +112,16 @@ export const UserSearchResultSchema = z.object({
   avatarUrl: z.string().nullable(),
 })
 
-// Схема для пары токенов
 export const TokenPairSchema = z.object({
   accessToken: z.string(),
   refreshToken: z.string(),
 })
 
-// Схема для ответа при успешном входе или обновлении токена
 export const AuthOutputSchema = z.object({
   user: UserSchema,
   token: TokenPairSchema,
 })
 
-// Схема для ответа при обновлении токена
 export const RefreshOutputSchema = z.object({
   token: TokenPairSchema,
 })

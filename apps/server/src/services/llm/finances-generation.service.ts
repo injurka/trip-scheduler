@@ -10,18 +10,29 @@ interface GenerateFinancesParams {
   fileName?: string
   text?: string | null
   notes?: string | null
+  categories?: string | null
 }
 
 interface GeneratedTransaction {
   title: string
   amount: number
   currency: string
+  categoryId?: string | null
   categorySuggestion?: string
   date?: string // YYYY-MM-DD
   notes?: string
 }
 
-function getSystemPrompt(): string {
+function getSystemPrompt(categories: string | null): string {
+  // Просим LLM возвращать ОБА поля: и свое предложение, и ID из списка
+  const categoriesInstruction = categories
+    ? `7. Suggest a general \`categorySuggestion\` (string) based on the expense type. THEN, match the expense to the most appropriate category from this JSON list: ${categories}. Return the \`categoryId\` of the matched category. If none match perfectly, set \`categoryId\` to null.`
+    : `7. Suggest a \`categorySuggestion\` (string) based on the expense type (e.g., 'Еда и напитки', 'Транспорт').`
+
+  const categoryField = categories
+    ? `    "categorySuggestion": "string (optional)",\n    "categoryId": "string (optional)",`
+    : `    "categorySuggestion": "string (optional)",`
+
   return `
 You are an expert financial assistant. Your task is to extract transactions from user input (which can be text, an image of a receipt, or both) and return them as a structured JSON array.
 
@@ -32,16 +43,15 @@ RULES:
 4.  \`amount\` must always be a positive number. Extract the total amount from receipts.
 5.  Infer the \`currency\` from context (e.g., 'руб', 'р.', '$', 'долларов', 'EUR' -> 'RUB', 'USD', 'EUR'). If not specified, default to 'RUB'.
 6.  \`title\` should be a concise description of the expense (e.g., "Обед в кафе", "Билеты в кино", "Продукты в супермаркете"). If analyzing a receipt, use the merchant's name as the title.
-7.  If possible, suggest a \`categorySuggestion\` from this list: 'Еда и напитки', 'Транспорт', 'Авиабилеты', 'Жильё', 'Развлечения', 'Покупки', 'Прочее'.
+${categoriesInstruction}
 8.  **Crucially, always include the 'date' field in 'YYYY-MM-DD' format if it can be determined from the text or receipt.** If the user mentions "вчера" or "сегодня", calculate it based on the current date: ${new Date().toISOString().split('T')[0]}. If no date information is available at all, you may omit the 'date' key.
 
-Here is the required structure for each object in the array:
-[
+Here is the required structure for each object in the array:[
   {
     "title": "string",
     "amount": number,
     "currency": "string (e.g., RUB, USD, EUR)",
-    "categorySuggestion": "string (optional)",
+${categoryField}
     "date": "YYYY-MM-DD",
     "notes": "string (optional, any extra details from the receipt like individual items)"
   }
@@ -66,12 +76,12 @@ function getUserPrompt(text: string | null, notes: string | null): AiRequestProm
   return parts
 }
 
-async function generateTransactionsFromData({ userId, fileBuffer, fileName, text, notes }: GenerateFinancesParams): Promise<GeneratedTransaction[]> {
+async function generateTransactionsFromData({ userId, fileBuffer, fileName, text, notes, categories }: GenerateFinancesParams): Promise<GeneratedTransaction[]> {
   await quotaService.checkLlmCreditQuota(userId)
 
   const prompts: AiRequestPrompts = {
-    system: getSystemPrompt(),
-    user: getUserPrompt(text!, notes!),
+    system: getSystemPrompt(categories || null),
+    user: getUserPrompt(text || null, notes || null),
   }
 
   const isImage = fileName && /\.(?:png|jpg|jpeg)$/i.test(fileName)

@@ -8,12 +8,12 @@ export const postService = {
     return await postRepository.findAll(filters, userId)
   },
 
-  async getById(id: string, userId?: string) {
+  async getById(id: string, userId?: string, userRole?: string) {
     const post = await postRepository.findById(id, userId)
     if (!post) {
       throw createTRPCError('NOT_FOUND', `Пост с ID ${id} не найден.`)
     }
-    if (post.status === 'draft' && post.user.id !== userId) {
+    if (post.status === 'draft' && post.user.id !== userId && userRole !== 'admin') {
       throw createTRPCError('FORBIDDEN', 'Этот пост еще не опубликован.')
     }
     return post
@@ -44,12 +44,12 @@ export const postService = {
     })
   },
 
-  async update(input: z.infer<typeof UpdatePostInputSchema>, userId: string) {
+  async update(input: z.infer<typeof UpdatePostInputSchema>, userId: string, userRole: string) {
     const existingPost = await postRepository.findById(input.id, userId)
     if (!existingPost) {
       throw createTRPCError('NOT_FOUND', 'Пост не найден.')
     }
-    if (existingPost.user.id !== userId) {
+    if (existingPost.user.id !== userId && userRole !== 'admin') {
       throw createTRPCError('FORBIDDEN', 'У вас нет прав на редактирование этого поста.')
     }
 
@@ -60,12 +60,12 @@ export const postService = {
     return updated
   },
 
-  async delete(id: string, userId: string) {
+  async delete(id: string, userId: string, userRole: string) {
     const existingPost = await postRepository.findById(id, userId)
     if (!existingPost) {
       throw createTRPCError('NOT_FOUND', 'Пост не найден.')
     }
-    if (existingPost.user.id !== userId) {
+    if (existingPost.user.id !== userId && userRole !== 'admin') {
       throw createTRPCError('FORBIDDEN', 'У вас нет прав на удаление этого поста.')
     }
     return await postRepository.delete(id)

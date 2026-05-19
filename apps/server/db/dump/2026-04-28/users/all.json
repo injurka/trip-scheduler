@@ -1,0 +1,24 @@
+[
+  {
+    "id": "1a97d95a-0158-4171-8258-52c7a917e3f0",
+    "role": "admin",
+    "email": "dev@dev.dev",
+    "emailVerified": "2026-04-28T10:59:19.917Z",
+    "password": "$argon2id$v=19$m=65536,t=2,p=1$9cSm+KIHJMY82nsu2L7IxA$SVFSIsvCOOwy5q5PIawXubwYbk+Q4jTiE5YeiWp8gKg",
+    "name": "Иван",
+    "avatarUrl": "/avatars/ghoul.gif",
+    "coverUrl": null,
+    "githubId": null,
+    "googleId": null,
+    "telegramId": null,
+    "planId": 1,
+    "currentTripsCount": 0,
+    "currentStorageBytes": 0,
+    "llmCreditsUsed": 0,
+    "llmCreditsPeriodStartDate": "2026-04-28T10:59:23.301Z",
+    "statusText": null,
+    "statusEmoji": null,
+    "createdAt": "2026-04-28T10:59:23.301Z",
+    "updatedAt": "2026-04-28T10:59:23.301Z"
+  }
+]

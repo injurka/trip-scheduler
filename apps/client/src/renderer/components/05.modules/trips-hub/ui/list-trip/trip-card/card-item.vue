@@ -132,6 +132,7 @@ const tripData = computed<Trip>(() => ({
   title: props.title,
   imageUrl: props.imageUrl,
   description: props.description,
+  descriptionShort: props.descriptionShort,
   startDate: props.startDate,
   endDate: props.endDate,
   cities: props.cities,
@@ -193,8 +194,8 @@ const tripData = computed<Trip>(() => ({
       </div>
 
       <div class="card-content">
-        <div v-if="description" class="card-description">
-          {{ description }}
+        <div v-if="descriptionShort" class="card-description">
+          {{ descriptionShort }}
         </div>
 
         <div class="card-meta">

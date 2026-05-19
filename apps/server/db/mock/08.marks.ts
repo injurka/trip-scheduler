@@ -1,7 +1,6 @@
 import { v4 as uuidv4 } from 'uuid'
 import { MOCK_USER_ID_1 } from './00.users'
 
-// Генерируем динамические даты, чтобы при каждом сидировании они были актуальными
 const now = Date.now()
 const oneHour = 60 * 60 * 1000
 

@@ -26,7 +26,7 @@ import PostMapPicker from './tools/post-map-picker.vue'
 const router = useRouter()
 const route = useRoute()
 const toast = useToast()
-const confirm = useConfirm() 
+const confirm = useConfirm()
 const draftStore = usePostDraftStore()
 const postStore = usePostStore()
 
@@ -54,8 +54,12 @@ const calendarDateModel = computed({
   get: () => {
     if (!post.value?.startDate)
       return null
-    try { return parseDate(post.value.startDate) }
-    catch { return null }
+    try {
+      return parseDate(post.value.startDate)
+    }
+    catch {
+      return null
+    }
   },
   set: (val) => {
     if (post.value)
@@ -66,20 +70,32 @@ const calendarDateModel = computed({
 const formattedStartDate = computed(() => {
   if (!post.value?.startDate)
     return ''
+
   const d = new Date(post.value.startDate)
+
   return d.toLocaleDateString('ru-RU', { day: 'numeric', month: 'short', year: 'numeric' })
 })
 
-function openLibraryManage() { isMediaLibraryOpen.value = true }
-function handleMapConfirm(coords: { lat: number, lng: number }) {
-  if (post.value) { post.value.latitude = coords.lat; post.value.longitude = coords.lng }
+function openLibraryManage() {
+  isMediaLibraryOpen.value = true
+}
+function handleMapConfirm(coords: {
+  lat: number
+  lng: number
+}) {
+  if (post.value) {
+    post.value.latitude = coords.lat
+    post.value.longitude = coords.lng
+  }
 }
 
 async function fetchTags(query: string) {
   await useRequest<string[]>({
     key: EPostRequestKeys.UNIQUE_TAGS,
     fn: db => db.posts.getUniqueTags({ query }),
-    onSuccess: (res) => { suggestedTags.value = res || [] },
+    onSuccess: (res) => {
+      suggestedTags.value = res || []
+    },
   })
 }
 
@@ -89,7 +105,9 @@ watch(tempTag, (val) => {
   else suggestedTags.value = []
 })
 
-onClickOutside(tagsWrapperRef, () => { isTagInputFocused.value = false })
+onClickOutside(tagsWrapperRef, () => {
+  isTagInputFocused.value = false
+})
 
 function addTag(val?: string) {
   const tagToAdd = (val || tempTag.value).trim().toLowerCase()
@@ -97,14 +115,22 @@ function addTag(val?: string) {
     if (post.value.tags.includes(tagToAdd))
       toast.warn(`Тег "${tagToAdd}" уже добавлен`)
     else draftStore.addTag(tagToAdd)
-    tempTag.value = ''; suggestedTags.value = []
+
+    tempTag.value = ''
+    suggestedTags.value = []
   }
 }
 
 watch(() => post.value?.statsDetail?.duration, (val) => {
   if (val && !durationValue.value) {
-    if (val >= 24 && val % 24 === 0) { durationType.value = 'days'; durationValue.value = val / 24 }
-    else { durationType.value = 'hours'; durationValue.value = val }
+    if (val >= 24 && val % 24 === 0) {
+      durationType.value = 'days'
+      durationValue.value = val / 24
+    }
+    else {
+      durationType.value = 'hours'
+      durationValue.value = val
+    }
   }
 }, { immediate: true })
 
@@ -112,9 +138,11 @@ function updateDuration() {
   nextTick(() => {
     if (!post.value)
       return
+
     if (!durationValue.value)
       post.value.statsDetail.duration = 0
-    else post.value.statsDetail.duration = durationType.value === 'days' ? durationValue.value * 24 : durationValue.value
+    else
+      post.value.statsDetail.duration = durationType.value === 'days' ? durationValue.value * 24 : durationValue.value
   })
 }
 
@@ -142,18 +170,30 @@ async function handleGenerate() {
 async function handlePublish() {
   if (!post.value)
     return
-  if (!post.value.title) { toast.error('Пожалуйста, укажите заголовок'); return }
-  if (!post.value.country) { toast.error('Пожалуйста, выберите страну'); return }
+  if (!post.value.title) {
+    toast.error('Пожалуйста, укажите заголовок')
+    return
+  }
+  if (!post.value.country) {
+    toast.error('Пожалуйста, выберите страну')
+    return
+  }
 
   isPublishing.value = true
   try {
     const postId = await draftStore.savePost(!isEditMode.value, 'completed')
     toast.success(isEditMode.value ? 'Пост обновлен!' : 'Пост успешно опубликован!')
+
     if (postId)
       router.push(AppRoutePaths.Post.Details(postId))
   }
-  catch (e) { console.error(e); toast.error('Ошибка при сохранении поста') }
-  finally { isPublishing.value = false }
+  catch (e) {
+    console.error(e)
+    toast.error('Ошибка при сохранении поста')
+  }
+  finally {
+    isPublishing.value = false
+  }
 }
 
 const previewData = computed(() => ({
@@ -172,9 +212,15 @@ async function loadPostForEditor() {
     if (fullPost) {
       draftStore.initDraft(fullPost)
     }
-    else { toast.error('Пост для редактирования не найден'); router.replace(AppRoutePaths.Post.List) }
+    else {
+      toast.error('Пост для редактирования не найден')
+      router.replace(AppRoutePaths.Post.List)
+    }
   }
-  else { isEditMode.value = false; draftStore.initDraft() }
+  else {
+    isEditMode.value = false
+    draftStore.initDraft()
+  }
   isLoading.value = false
 }
 

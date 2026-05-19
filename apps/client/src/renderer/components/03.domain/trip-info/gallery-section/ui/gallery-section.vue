@@ -145,14 +145,7 @@ function openViewer(index: number) {
 }
 
 function isValidUrl(str: string) {
-  try {
-    // eslint-disable-next-line no-new
-    new URL(str)
-    return true
-  }
-  catch {
-    return false
-  }
+  return URL.canParse(str)
 }
 
 function handleAddLink() {

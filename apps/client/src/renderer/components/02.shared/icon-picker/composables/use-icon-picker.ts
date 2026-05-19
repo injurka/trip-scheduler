@@ -15,7 +15,8 @@ export function useIconPicker() {
 
   const filteredIcons = computed(() => {
     const q = searchQuery.value.trim().toLowerCase()
-    if (!q) return currentCategoryIcons.value
+    if (!q)
+      return currentCategoryIcons.value
     return currentCategoryIcons.value.filter(icon =>
       icon.toLowerCase().includes(q),
     )
