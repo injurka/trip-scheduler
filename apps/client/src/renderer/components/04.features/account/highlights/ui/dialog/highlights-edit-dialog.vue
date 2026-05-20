@@ -65,7 +65,7 @@ const isSubmitDisabled = computed(() =>
   <KitDialogWithClose
     v-model:visible="visibleModel"
     title="Редактировать фото"
-    max-width="720"
+    :max-width="720"
   >
     <div class="dialog-body">
       <KitFileInput

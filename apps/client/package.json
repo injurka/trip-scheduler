@@ -80,7 +80,7 @@
     "vuedraggable": "^4.1.0"
   },
   "devDependencies": {
-    "@antfu/eslint-config": "8.1.1",
+    "@antfu/eslint-config": "8.2.0",
     "@capacitor/assets": "^3.0.5",
     "@capacitor/cli": "^8.3.0",
     "@iconify-json/mdi": "^1.2.3",
@@ -103,7 +103,7 @@
     "electron-builder": "^26.8.1",
     "electron-is-dev": "^3.0.1",
     "electron-vite": "^5.0.0",
-    "eslint": "10.2.0",
+    "eslint": "^9.29.0",
     "eslint-plugin-format": "2.0.1",
     "eslint-plugin-storybook": "^10.3.5",
     "jiti": "^2.6.1",

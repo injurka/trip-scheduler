@@ -86,6 +86,7 @@ watch(() => props.visible, (isVisible) => {
           title: '',
           amount: 0,
           notes: '',
+          isSpontaneous: false,
         }
     isTimeless.value = !form.value.date
   }
@@ -138,6 +139,15 @@ watch(isTimeless, (isNowTimeless) => {
           v-model="calendarDate"
           class="calendar-popover"
         />
+      </div>
+
+      <div class="span-2 type-switch-wrapper">
+        <KitCheckbox v-model="form.isSpontaneous">
+          <span class="ts-label">
+            Дополнительная трата <Icon icon="mdi:sparkles" class="ts-icon" />
+          </span>
+        </KitCheckbox>
+        <div class="ts-hint">Отметьте, если это сувениры, незапланированные развлечения или другие спонтанные покупки вне основного плана.</div>
       </div>
 
       <div class="note-wrapper span-2">
@@ -216,6 +226,32 @@ watch(isTimeless, (isNowTimeless) => {
   z-index: 100;
 }
 
+.type-switch-wrapper {
+  background-color: var(--bg-tertiary-color);
+  padding: 0.75rem;
+  border-radius: var(--r-m);
+  border: 1px dashed var(--border-secondary-color);
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+
+  .ts-label {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    font-weight: 500;
+    color: var(--fg-primary-color);
+
+    .ts-icon { color: #bd10e0; }
+  }
+
+  .ts-hint {
+    font-size: 0.8rem;
+    color: var(--fg-secondary-color);
+    margin-left: 28px;
+  }
+}
+
 .form-actions {
   display: flex;
   justify-content: flex-end;
@@ -223,6 +259,7 @@ watch(isTimeless, (isNowTimeless) => {
   padding-top: 1rem;
   border-top: 1px solid var(--border-secondary-color);
 }
+
 .category-select-wrapper {
   display: flex;
   align-items: flex-end;

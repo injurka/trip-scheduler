@@ -327,7 +327,7 @@ export function useHighlights() {
 
   watch(isCreateModalOpen, (visible) => {
     if (!visible)
-      setTimeout(resetCreateForm, 300) // Ожидание окончания анимации закрытия
+      setTimeout(resetCreateForm, 300) 
   })
 
   watch(isEditModalOpen, (visible) => {

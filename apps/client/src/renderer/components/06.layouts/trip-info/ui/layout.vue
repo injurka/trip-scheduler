@@ -1,5 +1,4 @@
 <script setup lang="ts">
-import type { TripSection } from '~/shared/types/models/trip'
 import { Icon } from '@iconify/vue'
 import { KitBottomSheet } from '~/components/01.kit/kit-bottom-sheet'
 import { KitDivider } from '~/components/01.kit/kit-divider'

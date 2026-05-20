@@ -9,7 +9,7 @@ const DEFAULT_CATEGORIES: Category[] = [
   { id: 'cat-housing', name: 'Жильё', icon: 'mdi:bed', isDefault: true },
   { id: 'cat-entertainment', name: 'Развлечения', icon: 'mdi:party-popper', isDefault: true },
   { id: 'cat-shopping', name: 'Покупки', icon: 'mdi:shopping-outline', isDefault: true },
-  { id: 'cat-other', name: 'Прочее', icon: 'mdi:dots-horizontal-circle-outline', isDefault: true },
+  { id: 'cat-other', name: 'Без категории', icon: 'mdi:dots-horizontal-circle-outline', isDefault: true },
 ]
 
 const DEFAULT_SETTINGS: FinancesSettings = {
@@ -38,6 +38,13 @@ export function useFinancesSection(
   const settings = ref<FinancesSettings>(JSON.parse(JSON.stringify(content.value?.settings || DEFAULT_SETTINGS)))
   const selectedCategoryFilters = ref<string[]>([])
   const dateFilter = ref<{ start: string | null, end: string | null }>({ start: null, end: null })
+  const typeFilter = ref<'all' | 'planned' | 'spontaneous'>('all')
+
+  const initialCategories = JSON.parse(JSON.stringify(content.value?.categories || DEFAULT_CATEGORIES))
+  const catOther = initialCategories.find((c: Category) => c.id === 'cat-other')
+  if (catOther && catOther.name === 'Прочее') {
+    catOther.name = 'Без категории'
+  }
 
   const isTransactionFormOpen = ref(false)
   const isCategoryManagerOpen = ref(false)
@@ -126,19 +133,15 @@ export function useFinancesSection(
 
   const sortedTransactions = computed(() => {
     return [...transactions.value].sort((a, b) => {
-      if (!a.date && b.date)
-        return -1
-      if (a.date && !b.date)
-        return 1
-
-      if (!a.date && !b.date)
-        return 0
-
+      if (!a.date && b.date) return -1
+      if (a.date && !b.date) return 1
+      if (!a.date && !b.date) return 0
       return new Date(b.date!).getTime() - new Date(a.date!).getTime()
     })
   })
 
-  const filteredTransactions = computed(() => {
+  // Фильтруем транзакции по всем фильтрам кроме type (для подсчета общих сумм)
+  const baseFilteredTransactions = computed(() => {
     let result = sortedTransactions.value
 
     const { start, end } = dateFilter.value
@@ -146,7 +149,6 @@ export function useFinancesSection(
       result = result.filter((tx) => {
         if (!tx.date)
           return false
-
         const txDate = tx.date.split('T')[0]
         const isAfterStart = start ? txDate >= start : true
         const isBeforeEnd = end ? txDate <= end : true
@@ -155,12 +157,38 @@ export function useFinancesSection(
     }
 
     if (selectedCategoryFilters.value.length > 0) {
-      result = result.filter(tx =>
-        tx.categoryId && selectedCategoryFilters.value.includes(tx.categoryId),
-      )
+      result = result.filter((tx) => {
+        const effectiveCategoryId = tx.categoryId || 'cat-other'
+        return selectedCategoryFilters.value.includes(effectiveCategoryId)
+      })
     }
 
     return result
+  })
+
+  // Итоговый фильтр с учетом typeFilter
+  const filteredTransactions = computed(() => {
+    let result = baseFilteredTransactions.value
+
+    if (typeFilter.value === 'planned') {
+      result = result.filter(tx => !tx.isSpontaneous)
+    } else if (typeFilter.value === 'spontaneous') {
+      result = result.filter(tx => tx.isSpontaneous)
+    }
+
+    return result
+  })
+
+  const plannedTotal = computed(() => {
+    return baseFilteredTransactions.value
+      .filter(tx => !tx.isSpontaneous)
+      .reduce((sum, tx) => sum + convertToMainCurrency(tx.amount, tx.currency), 0)
+  })
+
+  const spontaneousTotal = computed(() => {
+    return baseFilteredTransactions.value
+      .filter(tx => tx.isSpontaneous)
+      .reduce((sum, tx) => sum + convertToMainCurrency(tx.amount, tx.currency), 0)
   })
 
   const totalSpending = computed(() => {
@@ -243,9 +271,12 @@ export function useFinancesSection(
     transactionToEdit,
     selectedCategoryFilters,
     dateFilter,
+    typeFilter,
 
     // Computed
     totalSpending,
+    plannedTotal,
+    spontaneousTotal,
     spendingByCategory,
     spendingByDay,
     filteredTransactions,

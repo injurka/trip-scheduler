@@ -21,10 +21,10 @@ interface GeneratedTransaction {
   categorySuggestion?: string
   date?: string // YYYY-MM-DD
   notes?: string
+  isSpontaneous?: boolean
 }
 
 function getSystemPrompt(categories: string | null): string {
-  // Просим LLM возвращать ОБА поля: и свое предложение, и ID из списка
   const categoriesInstruction = categories
     ? `7. Suggest a general \`categorySuggestion\` (string) based on the expense type. THEN, match the expense to the most appropriate category from this JSON list: ${categories}. Return the \`categoryId\` of the matched category. If none match perfectly, set \`categoryId\` to null.`
     : `7. Suggest a \`categorySuggestion\` (string) based on the expense type (e.g., 'Еда и напитки', 'Транспорт').`
@@ -53,6 +53,7 @@ Here is the required structure for each object in the array:[
     "currency": "string (e.g., RUB, USD, EUR)",
 ${categoryField}
     "date": "YYYY-MM-DD",
+    "isSpontaneous": boolean (true if the expense looks like a souvenir, gift, entertainment, or an unplanned/spontaneous purchase),
     "notes": "string (optional, any extra details from the receipt like individual items)"
   }
 ]

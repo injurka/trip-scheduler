@@ -1,8 +1,19 @@
-import type { GitHubEmail, GitHubUser, GoogleUser, TelegramAuthPayload } from '~/models/auth'
-import { createHash, createHmac } from 'node:crypto'
+import type { GitHubEmail, GitHubUser, GoogleUser } from '~/models/auth'
 import { TRPCError } from '@trpc/server'
+import { eq } from 'drizzle-orm'
 import { authUtils } from '~/lib/auth.utils'
 import { userRepository } from '~/repositories/user.repository'
+import { db } from '~/../db'
+import { users } from '~/../db/schema'
+import { FREE_PLAN_ID } from '~/lib/constants'
+
+interface OAuthInput {
+  provider: 'google' | 'github'
+  providerId: string
+  email: string | null
+  name: string
+  avatarUrl?: string
+}
 
 export class OAuthService {
   constructor(private readonly userRepo: typeof userRepository) { }
@@ -10,7 +21,7 @@ export class OAuthService {
   public async handleGoogle(code: string) {
     const tokenData = await this.exchangeGoogleCodeForToken(code)
     const userInfo = await this.getGoogleUserInfo(tokenData.access_token)
-    const user = await this.userRepo.findOrCreateFromOAuth({
+    const user = await this.findOrCreateFromOAuth({
       provider: 'google',
       providerId: userInfo.sub,
       email: userInfo.email,
@@ -26,7 +37,7 @@ export class OAuthService {
     const userInfo = await this.getGithubUserInfo(tokenData.access_token)
     const primaryEmail = await this.getGithubUserPrimaryEmail(tokenData.access_token)
 
-    const user = await this.userRepo.findOrCreateFromOAuth({
+    const user = await this.findOrCreateFromOAuth({
       provider: 'github',
       providerId: userInfo.id.toString(),
       email: primaryEmail,
@@ -39,63 +50,63 @@ export class OAuthService {
     return { token, user }
   }
 
-  public async handleTelegram(authData: TelegramAuthPayload) {
-    const botToken = import.meta.env.TELEGRAM_BOT_TOKEN
-    if (!botToken) {
-      console.error('Ошибка: Переменная окружения TELEGRAM_BOT_TOKEN не установлена.')
-      throw new TRPCError({ code: 'INTERNAL_SERVER_ERROR', message: 'Telegram Bot Token не настроен на сервере.' })
+  private async findOrCreateFromOAuth({ provider, providerId, email, name, avatarUrl }: OAuthInput) {
+    let user: Awaited<ReturnType<typeof db.query.users.findFirst>> | undefined
+
+    if (provider === 'google') {
+      user = await db.query.users.findFirst({ where: eq(users.googleId, providerId), with: { plan: true } })
     }
-    try {
-      const { hash, ...dataToCheck } = authData
-      if (!hash) {
-        throw new Error('Параметр hash отсутствует в данных авторизации.')
-      }
+    else if (provider === 'github') {
+      user = await db.query.users.findFirst({ where: eq(users.githubId, providerId), with: { plan: true } })
+    }
 
-      const dataCheckString = Object.keys(dataToCheck)
-        .sort()
-        .map((key) => {
-          const value = (dataToCheck as any)[key]
-          return `${key}=${value}`
-        })
-        .join('\n')
-      const secretKey = createHash('sha256').update(botToken).digest()
+    if (user) {
+      const { password, ...userWithoutPassword } = user
+      return userWithoutPassword
+    }
 
-      const calculatedHash = createHmac('sha256', secretKey)
-        .update(dataCheckString)
-        .digest('hex')
-
-      if (calculatedHash !== hash) {
-        console.error('--- ОШИБКА ПРОВЕРКИ ХЕША TELEGRAM ---')
-        console.error('Ожидаемый хеш:', hash)
-        console.error('Вычисленный хеш:', calculatedHash)
-        console.error('Строка для проверки:', dataCheckString)
-        console.error('Secret key (hex):', secretKey.toString('hex'))
-        console.error('------------------------------------')
-        throw new TRPCError({ code: 'UNAUTHORIZED', message: 'Данные от Telegram не прошли проверку: неверный хэш.' })
-      }
-
-      const authDate = new Date(authData.auth_date * 1000)
-      if (Date.now() - authDate.getTime() > 24 * 60 * 60 * 1000) {
-        throw new TRPCError({ code: 'UNAUTHORIZED', message: 'Данные от Telegram устарели.' })
-      }
-
-      const user = await this.userRepo.findOrCreateFromOAuth({
-        provider: 'telegram',
-        providerId: authData.id.toString(),
-        email: null,
-        name: `${authData.first_name} ${authData.last_name || ''}`.trim(),
-        avatarUrl: authData.photo_url,
+    if (email) {
+      const userWithEmail = await db.query.users.findFirst({
+        where: eq(users.email, email),
+        with: { plan: true },
       })
 
-      const token = await authUtils.generateTokens({ id: user.id, email: user.email! })
+      if (userWithEmail) {
+        const updateData: Partial<typeof users.$inferInsert> = { updatedAt: new Date() }
+        if (provider === 'google')
+          updateData.googleId = providerId
+        else if (provider === 'github')
+          updateData.githubId = providerId
 
-      return { token, user }
+        const [updatedUser] = await db.update(users)
+          .set(updateData)
+          .where(eq(users.id, userWithEmail.id))
+          .returning()
+
+        const { password, ...userWithoutPassword } = updatedUser
+        return { ...userWithoutPassword, plan: userWithEmail.plan }
+      }
     }
-    catch (error: any) {
-      console.error('--- Ошибка верификации данных Telegram ---')
-      console.error(error)
-      throw new TRPCError({ code: 'UNAUTHORIZED', message: error.message || 'Данные от Telegram не прошли проверку.' })
+
+    const newUserPayload: typeof users.$inferInsert = {
+      email: email ?? null,
+      name,
+      avatarUrl: avatarUrl || undefined,
+      emailVerified: email ? new Date() : null,
+      planId: FREE_PLAN_ID,
     }
+
+    if (provider === 'google')
+      newUserPayload.googleId = providerId
+    else if (provider === 'github')
+      newUserPayload.githubId = providerId
+
+    const [newUser] = await db.insert(users)
+      .values(newUserPayload)
+      .returning()
+
+    const fullUser = await this.userRepo.getById(newUser.id)
+    return fullUser!
   }
 
   // Методы для взаимодействия с API Google

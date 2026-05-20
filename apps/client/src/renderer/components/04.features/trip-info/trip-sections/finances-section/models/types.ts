@@ -9,6 +9,7 @@ export interface Transaction {
   date?: string // ISO 8601 format
   categoryId: string | null
   notes?: string
+  isSpontaneous?: boolean
 }
 
 /**

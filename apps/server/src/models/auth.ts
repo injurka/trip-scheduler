@@ -18,26 +18,3 @@ export interface GitHubEmail {
   primary: boolean
   verified: boolean
 }
-
-export interface TelegramAuthPayload {
-  id: number
-  first_name: string
-  last_name?: string
-  username?: string
-  photo_url?: string
-  auth_date: number
-  hash: string
-}
-
-export interface TelegramBotAuthConfirmed {
-  status: 'confirmed'
-  token: { accessToken: string, refreshToken: string }
-  user: any
-}
-
-export type TelegramBotAuthStatus
-  = | { status: 'pending' }
-    | { status: 'cancelled' }
-    | { status: 'expired' }
-    | { status: 'not_found' }
-    | TelegramBotAuthConfirmed

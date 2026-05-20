@@ -161,7 +161,7 @@ export function useKitMap() {
       return
 
     const extent = vectorSource.getExtent()
-    mapInstance.value.getView().fit(extent, {
+    mapInstance.value.getView().fit(extent!, {
       padding: [50, 50, 50, 50],
       duration: 500,
       maxZoom: 15,

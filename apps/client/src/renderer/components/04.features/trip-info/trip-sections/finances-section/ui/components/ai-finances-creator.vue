@@ -22,6 +22,7 @@ type CreatorState = 'input' | 'loading' | 'preview' | 'error'
 type GeneratedTransaction = Omit<Transaction, 'id' | 'categoryId'> & {
   categorySuggestion?: string
   categoryId: string | null
+  isSpontaneous?: boolean
 }
 
 const props = defineProps<{
@@ -90,11 +91,9 @@ async function handleGenerate() {
     if (uploadedFile.value)
       formData.append('file', uploadedFile.value)
 
-    // Передаем текущие категории для подсказки ИИ
     const catsForAi = props.categories.map(c => ({ id: c.id, name: c.name }))
     formData.append('categories', JSON.stringify(catsForAi))
 
-    // Убираем явный generic параметр, чтобы использовать тип ответа из репозитория
     const response = await useRequest({
       key: GENERATE_FINANCES_KEY,
       fn: db => db.llm.generateFinancesFromData(formData),
@@ -105,14 +104,13 @@ async function handleGenerate() {
 
     const availableCurrencies = new Set([props.settings.mainCurrency, ...Object.keys(props.settings.exchangeRates)])
 
-    generatedTransactions.value = response.map((tx) => {
-      // Ищем сначала по categoryId, затем по fallback categorySuggestion
+    generatedTransactions.value = response.map((tx: any) => {
       let foundCategory = tx.categoryId ? props.categories.find(cat => cat.id === tx.categoryId) : undefined
       if (!foundCategory && tx.categorySuggestion) {
         foundCategory = props.categories.find(cat => cat.name === tx.categorySuggestion)
       }
 
-      const otherCategory = props.categories.find(cat => cat.isDefault && cat.name === 'Прочее')
+      const otherCategory = props.categories.find(cat => cat.id === 'cat-other')
 
       const suggestedCurrency = tx.currency ? tx.currency.toUpperCase() : ''
       const finalCurrency = availableCurrencies.has(suggestedCurrency)
@@ -124,6 +122,7 @@ async function handleGenerate() {
         currency: finalCurrency,
         date: tx.date || today(getLocalTimeZone()).toString(),
         categoryId: foundCategory ? foundCategory.id : (otherCategory ? otherCategory.id : null),
+        isSpontaneous: tx.isSpontaneous || false,
       }
     })
 
@@ -145,6 +144,7 @@ function handleSave() {
       date: tx.date,
       notes: tx.notes,
       categoryId: tx.categoryId,
+      isSpontaneous: tx.isSpontaneous,
     }))
     emit('save', transactionsToSave)
     resetState()
@@ -251,18 +251,29 @@ function updateTransactionDate(tx: GeneratedTransaction, newDate: CalendarDate |
                 />
               </div>
 
-              <CalendarPopover
-                :model-value="getCalendarDate(tx)"
-                clearable
-                @update:model-value="updateTransactionDate(tx, $event)"
-              >
-                <template #trigger>
-                  <button class="pi-date-trigger">
-                    <Icon icon="mdi:calendar-blank-outline" />
-                    <span>{{ tx.date ? formatDate(tx.date, { dateStyle: 'medium' }) : 'Нет даты' }}</span>
-                  </button>
-                </template>
-              </CalendarPopover>
+              <div class="pi-date-spontaneous-group">
+                <button
+                  class="pi-spontaneous-trigger"
+                  :class="{ active: tx.isSpontaneous }"
+                  @click="tx.isSpontaneous = !tx.isSpontaneous"
+                  title="Отметить как спонтанную трату"
+                >
+                  <Icon icon="mdi:sparkles" />
+                </button>
+
+                <CalendarPopover
+                  :model-value="getCalendarDate(tx)"
+                  clearable
+                  @update:model-value="updateTransactionDate(tx, $event)"
+                >
+                  <template #trigger>
+                    <button class="pi-date-trigger">
+                      <Icon icon="mdi:calendar-blank-outline" />
+                      <span>{{ tx.date ? formatDate(tx.date, { dateStyle: 'medium' }) : 'Нет даты' }}</span>
+                    </button>
+                  </template>
+                </CalendarPopover>
+              </div>
             </div>
           </div>
         </div>
@@ -282,7 +293,6 @@ function updateTransactionDate(tx: GeneratedTransaction, newDate: CalendarDate |
 </template>
 
 <style scoped lang="scss">
-// <... Стили остаются без изменений, они были опущены для экономии места ...>
 .ai-creator-content {
   display: flex;
   flex-direction: column;
@@ -498,6 +508,39 @@ function updateTransactionDate(tx: GeneratedTransaction, newDate: CalendarDate |
   }
 }
 
+.pi-date-spontaneous-group {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  justify-self: flex-end;
+}
+
+.pi-spontaneous-trigger {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  border-radius: var(--r-s);
+  background-color: transparent;
+  color: var(--fg-secondary-color);
+  border: 1px dashed var(--border-secondary-color);
+  transition: all 0.2s ease;
+  cursor: pointer;
+
+  &:hover {
+    background-color: rgba(189, 16, 224, 0.1);
+    color: #bd10e0;
+    border-color: #bd10e0;
+  }
+  &.active {
+    background-color: rgba(189, 16, 224, 0.1);
+    color: #bd10e0;
+    border-color: #bd10e0;
+    border-style: solid;
+  }
+}
+
 .pi-date-trigger {
   display: flex;
   align-items: center;
@@ -507,7 +550,6 @@ function updateTransactionDate(tx: GeneratedTransaction, newDate: CalendarDate |
   background-color: transparent;
   padding: 4px 8px;
   border-radius: var(--r-s);
-  justify-self: flex-end;
   white-space: nowrap;
   transition: all 0.2s ease;
 
@@ -568,6 +610,12 @@ function updateTransactionDate(tx: GeneratedTransaction, newDate: CalendarDate |
   .pi-amount-currency {
     width: 100%;
     min-width: unset;
+  }
+
+  .pi-date-spontaneous-group {
+    width: 100%;
+    justify-self: stretch;
+    justify-content: center;
   }
 
   .pi-date-trigger {

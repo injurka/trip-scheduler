@@ -4,7 +4,10 @@ import { KitBtn } from '~/components/01.kit/kit-btn'
 import { KitDivider } from '~/components/01.kit/kit-divider'
 import { AppRoutePaths } from '~/shared/constants/routes'
 
-enum OAuthProviders { GitHub = 'github', Google = 'google' }
+enum OAuthProviders {
+  GitHub = 'github',
+  Google = 'google',
+}
 
 interface Props {
   isLoading?: boolean
@@ -12,81 +15,10 @@ interface Props {
 
 defineProps<Props>()
 
-const store = useAppStore(['auth'])
-const toast = useToast()
-const route = useRoute()
-
-const isTelegramLoading = ref(false)
-
-let telegramPollInterval: ReturnType<typeof setInterval> | null = null
-let telegramPollTimeout: ReturnType<typeof setTimeout> | null = null
-
-async function handleOAuth(_provider: OAuthProviders) {
-  toast.warn('В процессе разработки :)')
+function handleOAuth(provider: OAuthProviders) {
+  const serverUrl = import.meta.env.VITE_APP_SERVER_URL || ''
+  window.location.href = `${serverUrl}/api/auth/${provider}/login`
 }
-
-function stopTelegramPolling() {
-  if (telegramPollInterval) {
-    clearInterval(telegramPollInterval)
-    telegramPollInterval = null
-  }
-  if (telegramPollTimeout) {
-    clearTimeout(telegramPollTimeout)
-    telegramPollTimeout = null
-  }
-  isTelegramLoading.value = false
-}
-
-async function loginViaTelegram() {
-  if (isTelegramLoading.value)
-    return
-
-  try {
-    isTelegramLoading.value = true
-    const { token, url } = await store.auth.initTelegramLogin()
-
-    window.open(url, '_blank', 'noopener,noreferrer')
-
-    telegramPollInterval = setInterval(async () => {
-      try {
-        const result = await store.auth.checkTelegramStatus(token)
-
-        if (result?.status === 'confirmed') {
-          stopTelegramPolling()
-          const returnUrl = route.query.returnUrl as string
-          await router.push(returnUrl || AppRoutePaths.Trip.List)
-        }
-        else if (result?.status === 'cancelled') {
-          stopTelegramPolling()
-          toast.error('Вход через Telegram отменён.')
-        }
-        else if (result?.status === 'expired' || result?.status === 'not_found') {
-          stopTelegramPolling()
-          toast.error('Сессия авторизации истекла. Попробуйте снова.')
-        }
-      }
-      catch {
-        stopTelegramPolling()
-        toast.error('Ошибка при проверке статуса Telegram.')
-      }
-    }, 2000)
-
-    telegramPollTimeout = setTimeout(() => {
-      if (isTelegramLoading.value) {
-        stopTelegramPolling()
-        toast.error('Время ожидания входа через Telegram истекло.')
-      }
-    }, 5 * 60 * 1000)
-  }
-  catch (error: any) {
-    stopTelegramPolling()
-    toast.error(error.message || 'Не удалось запустить вход через Telegram.')
-  }
-}
-
-onUnmounted(() => {
-  stopTelegramPolling()
-})
 </script>
 
 <template>
@@ -105,11 +37,11 @@ onUnmounted(() => {
 
       <slot name="utils" />
 
-      <KitDivider v-if="false" :is-loading="isLoading">
+      <KitDivider :is-loading="isLoading">
         ИЛИ
       </KitDivider>
 
-      <div v-if="false" class="additional-oauth">
+      <div class="additional-oauth">
         <KitBtn
           variant="outlined"
           color="secondary"
@@ -130,18 +62,6 @@ onUnmounted(() => {
           @click="handleOAuth(OAuthProviders.GitHub)"
         >
           GitHub
-        </KitBtn>
-      </div>
-
-      <div class="telegram-oauth">
-        <KitBtn
-          variant="outlined"
-          color="secondary"
-          :disabled="isTelegramLoading"
-          icon="mdi:send"
-          @click="loginViaTelegram"
-        >
-          {{ isTelegramLoading ? 'Ожидание подтверждения' : 'Войти через Telegram' }}
         </KitBtn>
       </div>
     </div>
@@ -227,13 +147,5 @@ onUnmounted(() => {
   display: flex;
   gap: 16px;
   margin-top: 24px;
-}
-
-.telegram-oauth {
-  margin: 16px auto 0;
-
-  > button {
-    width: 100%;
-  }
 }
 </style>

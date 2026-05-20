@@ -18,7 +18,7 @@ const emit = defineEmits<{
 }>()
 
 function getCategory(id: string | null, categories: Category[]) {
-  return categories.find(c => c.id === id)
+  return categories.find(c => c.id === (id || 'cat-other'))
 }
 const { format: formatCurrency } = useCurrencyFormatter()
 
@@ -51,7 +51,7 @@ function getConvertedAmountInMainCurrency(transaction: Transaction): string | nu
         </div>
         <div class="transaction-item">
           <div class="item-main">
-            <div class="item-icon">
+            <div class="item-icon" :class="{ 'is-spontaneous': tx.isSpontaneous }">
               <Icon :icon="getCategory(tx.categoryId, categories)?.icon || 'mdi:help-rhombus-outline'" />
             </div>
             <div class="item-details">
@@ -61,6 +61,9 @@ function getConvertedAmountInMainCurrency(transaction: Transaction): string | nu
                 <template v-if="tx.date">
                   • {{ formatDate(tx.date, { dateStyle: 'medium' }) }}
                 </template>
+                <span v-if="tx.isSpontaneous" class="spontaneous-badge" title="Спонтанная/дополнительная трата">
+                  <Icon icon="mdi:sparkles" />
+                </span>
               </span>
             </div>
           </div>
@@ -154,6 +157,19 @@ function getConvertedAmountInMainCurrency(transaction: Transaction): string | nu
   font-size: 1.25rem;
   background-color: var(--bg-tertiary-color);
   color: var(--fg-secondary-color);
+
+  &.is-spontaneous {
+    color: #bd10e0;
+    background-color: rgba(189, 16, 224, 0.1);
+    border: 1px dashed rgba(189, 16, 224, 0.3);
+  }
+}
+
+.spontaneous-badge {
+  color: #bd10e0;
+  margin-left: 4px;
+  font-size: 0.9rem;
+  vertical-align: middle;
 }
 
 .item-details {
@@ -193,9 +209,8 @@ function getConvertedAmountInMainCurrency(transaction: Transaction): string | nu
 
 .item-actions {
   display: flex;
-  gap: 0.25rem; /* Уменьшили gap, так как у кнопок есть свой padding */
+  gap: 0.25rem;
   transition: opacity 0.2s;
-  /* Убрали стили для button, так как KitBtn управляет ими сам */
 }
 
 .empty-state {
