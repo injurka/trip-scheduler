@@ -1,1 +1,0 @@
-ALTER TYPE "public"."trip_section_type" ADD VALUE 'documents' BEFORE 'notes';
