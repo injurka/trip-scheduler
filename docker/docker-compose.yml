@@ -50,46 +50,46 @@ services:
       - "traefik.http.routers.server.middlewares=server-limit"
       - "traefik.http.middlewares.server-limit.buffering.maxRequestBodyBytes=16777216"
 
-  directus:
-    image: directus/directus:11.16.1
-    container_name: trip-scheduler-admin
-    networks:
-      - trip-net
-    restart: always
-    depends_on:
-      db:
-        condition: service_healthy
-      cache:
-        condition: service_healthy
-    volumes:
-      - directus-uploads:/directus/uploads
-      - directus-extensions:/directus/extensions
-      - ./snapshots:/directus/snapshots
-    env_file:
-      - .env.database
-      - .env.directus
-    labels:
-      - "traefik.enable=true"
-      - "traefik.http.routers.directus.rule=Host(`directus.trip-scheduler.ru`)"
-      - "traefik.http.routers.directus.entrypoints=websecure"
-      - "traefik.http.routers.directus.tls.certresolver=letsencrypt"
-      - "traefik.http.services.directus.loadbalancer.server.port=8055"
-      - "traefik.http.routers.directus.middlewares=directus-limit"
-      - "traefik.http.middlewares.directus-limit.buffering.maxRequestBodyBytes=16777216"
+  # directus:
+  #   image: directus/directus:11.16.1
+  #   container_name: trip-scheduler-admin
+  #   networks:
+  #     - trip-net
+  #   restart: always
+  #   depends_on:
+  #     db:
+  #       condition: service_healthy
+  #     cache:
+  #       condition: service_healthy
+  #   volumes:
+  #     - directus-uploads:/directus/uploads
+  #     - directus-extensions:/directus/extensions
+  #     - ./snapshots:/directus/snapshots
+  #   env_file:
+  #     - .env.database
+  #     - .env.directus
+  #   labels:
+  #     - "traefik.enable=true"
+  #     - "traefik.http.routers.directus.rule=Host(`directus.trip-scheduler.ru`)"
+  #     - "traefik.http.routers.directus.entrypoints=websecure"
+  #     - "traefik.http.routers.directus.tls.certresolver=letsencrypt"
+  #     - "traefik.http.services.directus.loadbalancer.server.port=8055"
+  #     - "traefik.http.routers.directus.middlewares=directus-limit"
+  #     - "traefik.http.middlewares.directus-limit.buffering.maxRequestBodyBytes=16777216"
 
-  cache:
-    image: redis:7-alpine
-    container_name: trip-scheduler-cache
-    networks:
-      - trip-net
-    healthcheck:
-      test: ["CMD-SHELL", "[ $$(redis-cli ping) = 'PONG' ]"]
-      interval: 10s
-      timeout: 5s
-      retries: 5
-      start_interval: 5s
-      start_period: 30s
-    restart: always
+  # cache:
+  #   image: redis:7-alpine
+  #   container_name: trip-scheduler-cache
+  #   networks:
+  #     - trip-net
+  #   healthcheck:
+  #     test: ["CMD-SHELL", "[ $$(redis-cli ping) = 'PONG' ]"]
+  #     interval: 10s
+  #     timeout: 5s
+  #     retries: 5
+  #     start_interval: 5s
+  #     start_period: 30s
+  #   restart: always
 
   db:
     image: postgres:16-alpine
@@ -173,5 +173,5 @@ volumes:
   pgdata:
   prometheus-data:
   grafana-data:
-  directus-uploads:
-  directus-extensions:
+  # directus-uploads:
+  # directus-extensions:
