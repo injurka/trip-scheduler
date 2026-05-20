@@ -54,6 +54,7 @@ interface DumpData {
   marks?: any[]
   highlights?: any[]
   destinationReviews?: any[]
+  countries?: any[]
 }
 
 interface SelectedDump {
@@ -201,7 +202,7 @@ async function readJsonFilesFromS3Dir(prefix: string): Promise<any[]> {
         return JSON.parse(content)
       }),
     )
-    return items
+    return items.flat()
   }
   catch {
     return []
@@ -213,8 +214,10 @@ async function readDumpFromS3(prefix: string): Promise<DumpData> {
 
   const basePath = prefix.endsWith('/') ? prefix : `${prefix}/`
 
-  const [usersRaw, trips, posts, blogs, metro, highlightsData, destinationReviewsData] = await Promise.all([
+  const [usersRaw, countriesRaw, marksRaw, trips, posts, blogs, metro, highlightsData, destinationReviewsData] = await Promise.all([
     s3Service.getFileContent(`${basePath}users/all.json`).then(JSON.parse).catch(() => []),
+    readJsonFilesFromS3Dir(`${basePath}countries/`),
+    readJsonFilesFromS3Dir(`${basePath}marks/`),
     readJsonFilesFromS3Dir(`${basePath}trips/`),
     readJsonFilesFromS3Dir(`${basePath}posts/`),
     readJsonFilesFromS3Dir(`${basePath}blogs/`),
@@ -226,7 +229,7 @@ async function readDumpFromS3(prefix: string): Promise<DumpData> {
   const users = Array.isArray(usersRaw) ? usersRaw : []
   console.log(`   👤 users: ${users.length} | ✈️  trips: ${trips.length} | 📝 posts: ${posts.length} | 📰 blogs: ${blogs.length} | 🚇 metro: ${metro.length} | 📸 highlights: ${highlightsData.length} | ⭐ reviews: ${destinationReviewsData.length}`)
 
-  return { users, trips, posts, blogs, metro, highlights: highlightsData, destinationReviews: destinationReviewsData }
+  return { users, countries: countriesRaw, marks: marksRaw, trips, posts, blogs, metro, highlights: highlightsData, destinationReviews: destinationReviewsData }
 }
 
 // ─────────────────────────────────────────────────────────────
@@ -244,7 +247,7 @@ async function readJsonFilesFromDir(dir: string): Promise<any[]> {
           return JSON.parse(content)
         }),
     )
-    return items
+    return items.flat()
   }
   catch {
     return []
@@ -254,8 +257,10 @@ async function readJsonFilesFromDir(dir: string): Promise<any[]> {
 async function readDumpFromFolder(folderPath: string): Promise<DumpData> {
   console.log('📂 Чтение папочного дампа...')
 
-  const [usersRaw, trips, posts, blogs, metro, highlightsData, destinationReviewsData] = await Promise.all([
+  const [usersRaw, countriesRaw, marksRaw, trips, posts, blogs, metro, highlightsData, destinationReviewsData] = await Promise.all([
     fs.readFile(path.join(folderPath, 'users', 'all.json'), 'utf-8').then(JSON.parse).catch(() => []),
+    readJsonFilesFromDir(path.join(folderPath, 'countries')),
+    readJsonFilesFromDir(path.join(folderPath, 'marks')),
     readJsonFilesFromDir(path.join(folderPath, 'trips')),
     readJsonFilesFromDir(path.join(folderPath, 'posts')),
     readJsonFilesFromDir(path.join(folderPath, 'blogs')),
@@ -268,7 +273,7 @@ async function readDumpFromFolder(folderPath: string): Promise<DumpData> {
 
   console.log(`   👤 users: ${users.length} | ✈️  trips: ${trips.length} | 📝 posts: ${posts.length} | 📰 blogs: ${blogs.length} | 🚇 metro: ${metro.length} | 📸 highlights: ${highlightsData.length} | ⭐ reviews: ${destinationReviewsData.length}`)
 
-  return { users, trips, posts, blogs, metro, highlights: highlightsData, destinationReviews: destinationReviewsData }
+  return { users, countries: countriesRaw, marks: marksRaw, trips, posts, blogs, metro, highlights: highlightsData, destinationReviews: destinationReviewsData }
 }
 
 async function discoverAndSelectLocalDump(): Promise<SelectedDump | null> {
@@ -634,6 +639,7 @@ async function seedFromJson(): Promise<void> {
 
   const {
     users: sourceUsers,
+    countries: sourceCountries,
     trips: sourceTrips,
     posts: sourcePosts,
     blogs: sourceBlogs,
@@ -686,21 +692,27 @@ async function seedFromJson(): Promise<void> {
   const plansData = SUBSCRIPTION_MOCK.map(p => ({ ...p, id: Number(p.id) }))
 
   // Страны (требуются для destinationReviews)
-  const countriesToInsert = MOCK_COUNTRY_DATA.map((c: any) => {
-    let rusName = ''
-    if (typeof c.name?.rus === 'string')
-      rusName = c.name.rus
-    else if (c.name?.rus?.common)
-      rusName = c.name.rus.common
-    else if (c.name?.rus?.official)
-      rusName = c.name.rus.official
+  let countriesToInsert: any[] = []
+  if (Array.isArray(sourceCountries) && sourceCountries.length > 0) {
+    countriesToInsert = sourceCountries
+  }
+  else {
+    countriesToInsert = MOCK_COUNTRY_DATA.map((c: any) => {
+      let rusName = ''
+      if (typeof c.name?.rus === 'string')
+        rusName = c.name.rus
+      else if (c.name?.rus?.common)
+        rusName = c.name.rus.common
+      else if (c.name?.rus?.official)
+        rusName = c.name.rus.official
 
-    const fallbackName = c.name?.common || c.name?.official || 'Неизвестная страна'
-    const finalName = rusName || fallbackName
-    const id = c.cca2 || c.cca3 || uuidv4()
+      const fallbackName = c.name?.common || c.name?.official || 'Неизвестная страна'
+      const finalName = rusName || fallbackName
+      const id = c.cca2 || c.cca3 || uuidv4()
 
-    return { id, name: finalName, emoji: c.flag || null }
-  }).filter(c => c.name !== 'Неизвестная страна' && c.name !== '')
+      return { id, name: finalName, flagUrl: c.flag || null }
+    }).filter(c => c.name !== 'Неизвестная страна' && c.name !== '')
+  }
 
   await Promise.all([
     db.insert(plans).values(plansData).then(() => console.log(`   ✅ [plans] ${plansData.length} записей`)),
@@ -729,10 +741,19 @@ async function seedFromJson(): Promise<void> {
   // 5.1 Highlights (Витрина)
   console.log('\n📸 Восстановление витрины (highlights)...')
   if (Array.isArray(sourceHighlights) && sourceHighlights.length > 0) {
-    const highlightsToInsert = sourceHighlights.map((h: any) => ({
-      ...h,
-      createdAt: toDate(h.createdAt) ?? new Date(),
-    }))
+    const highlightsToInsert = sourceHighlights.map((h: any) => {
+      const { country, ...rest } = h
+      let cId = rest.countryId
+      if (!cId && country) {
+        const found = countriesToInsert.find(c => c.name === country)
+        cId = found?.id
+      }
+      return {
+        ...rest,
+        countryId: cId || 'IT',
+        createdAt: toDate(h.createdAt) ?? new Date(),
+      }
+    })
     await safeInsert('highlights', highlights, highlightsToInsert)
   }
 
