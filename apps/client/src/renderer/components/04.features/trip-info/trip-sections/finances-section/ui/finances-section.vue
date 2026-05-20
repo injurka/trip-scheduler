@@ -37,8 +37,11 @@ const {
   spendingByDay,
   filteredTransactions,
   filteredTotal,
+  plannedTotal,
+  spontaneousTotal,
   selectedCategoryFilters,
   dateFilter,
+  typeFilter,
   toggleCategoryFilter,
   openTransactionForm,
   saveTransaction,
@@ -67,8 +70,19 @@ function clearDateFilter() {
 }
 
 const categoryFilterItems = computed(() => {
-  const items = categories.value.map(c => ({ value: c.id, label: c.name, icon: c.icon }))
-  items.unshift({ value: null, label: 'Все категории', icon: 'mdi:format-list-bulleted' } as any)
+  const items = categories.value.map((c) => {
+    if (c.id === 'cat-other') {
+      return { value: c.id, label: 'Без категории', icon: c.icon }
+    }
+    return { value: c.id, label: c.name, icon: c.icon }
+  })
+
+  if (!items.some(i => i.value === 'cat-other')) {
+    items.push({ value: 'cat-other', label: 'Без категории', icon: 'mdi:dots-horizontal-circle-outline' })
+  }
+
+  items.unshift({ value: 'ALL', label: 'Все категории', icon: 'mdi:format-list-bulleted' } as any)
+
   return items
 })
 
@@ -147,13 +161,36 @@ onClickOutside(dateFilterWrapperRef, () => {
 <template>
   <div class="finances-section">
     <div class="category-filter-pills">
+      <!-- Фильтры по типу (основные/дополнительные) -->
+      <button
+        v-ripple
+        class="filter-pill type-pill planned"
+        :class="{ active: typeFilter === 'planned' }"
+        @click="typeFilter = typeFilter === 'planned' ? 'all' : 'planned'"
+      >
+        <Icon icon="mdi:target" />
+        <span>План</span>
+      </button>
+      <button
+        v-ripple
+        class="filter-pill type-pill spontaneous"
+        :class="{ active: typeFilter === 'spontaneous' }"
+        @click="typeFilter = typeFilter === 'spontaneous' ? 'all' : 'spontaneous'"
+      >
+        <Icon icon="mdi:sparkles" />
+        <span>Спонтанно</span>
+      </button>
+
+      <div class="pill-divider" />
+
+      <!-- Фильтры по категориям -->
       <button
         v-for="item in categoryFilterItems"
         :key="String(item.value)"
         v-ripple
         class="filter-pill"
-        :class="{ active: item.value === null ? selectedCategoryFilters.length === 0 : selectedCategoryFilters.includes(item.value) }"
-        @click="toggleCategoryFilter(item.value)"
+        :class="{ active: item.value === 'ALL' ? selectedCategoryFilters.length === 0 : selectedCategoryFilters.includes(item.value) }"
+        @click="item.value === 'ALL' ? toggleCategoryFilter(null) : toggleCategoryFilter(item.value)"
       >
         <Icon :icon="item.icon" />
         <span>{{ item.label }}</span>
@@ -164,6 +201,9 @@ onClickOutside(dateFilterWrapperRef, () => {
       :main-currency="settings.mainCurrency"
       :spending-by-category="spendingByCategory"
       :spending-by-day="spendingByDay"
+      :planned-total="plannedTotal"
+      :spontaneous-total="spontaneousTotal"
+      :filtered-total="filteredTotal"
     />
 
     <div class="toolbar">
@@ -264,6 +304,14 @@ onClickOutside(dateFilterWrapperRef, () => {
   display: flex;
   flex-wrap: wrap;
   gap: 0.5rem;
+  align-items: center;
+}
+
+.pill-divider {
+  width: 1px;
+  height: 24px;
+  background-color: var(--border-secondary-color);
+  margin: 0 4px;
 }
 
 .filter-pill {
@@ -289,6 +337,24 @@ onClickOutside(dateFilterWrapperRef, () => {
     background-color: var(--bg-accent-color);
     border-color: var(--bg-accent-color);
     color: var(--fg-on-accent-color);
+  }
+}
+
+.type-pill {
+  border-style: dashed;
+  
+  &.planned.active {
+    background-color: rgba(74, 144, 226, 0.15);
+    border-color: #4a90e2;
+    border-style: solid;
+    color: #4a90e2;
+  }
+  
+  &.spontaneous.active {
+    background-color: rgba(189, 16, 224, 0.15);
+    border-color: #bd10e0;
+    border-style: solid;
+    color: #bd10e0;
   }
 }
 

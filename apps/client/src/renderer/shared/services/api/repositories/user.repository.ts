@@ -1,7 +1,7 @@
 import type { IUserRepository } from '../model/types'
 import type { User } from '~/shared/types/models/auth'
 import type { Plan } from '~/shared/types/models/trip'
-import type { CreateHighlightInput, Highlight } from '~/ёshared/types/models/user'
+import type { CreateHighlightInput, Highlight } from '~/shared/types/models/user'
 import { trpc } from '~/shared/services/trpc/trpc.service'
 import { throttle } from '../lib/decorators'
 

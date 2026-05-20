@@ -1,6 +1,5 @@
 import { z } from 'zod'
 import { protectedProcedure, publicProcedure } from '~/lib/trpc'
-import { oAuthService } from '~/services/oauth.service'
 import {
   AuthOutputSchema,
   ChangePasswordInputSchema,
@@ -18,7 +17,6 @@ import {
   SignOutResponseSchema,
   SignUpInputSchema,
   SuccessResponseSchema,
-  TelegramAuthPayloadSchema,
   UpdateUserInputSchema,
   UpdateUserStatusInputSchema,
   UserSchema,
@@ -75,16 +73,6 @@ export const userProcedures = {
     .output(SignOutResponseSchema)
     .mutation(async ({ ctx }) => {
       return userService.signOut(ctx.user.id)
-    }),
-
-  signInWithTelegram: publicProcedure
-    .meta({
-      openapi: { method: 'POST', path: '/auth/telegram', tags: ['Auth'], summary: 'Вход через Telegram' },
-    })
-    .input(TelegramAuthPayloadSchema)
-    .output(AuthOutputSchema)
-    .mutation(async ({ input }) => {
-      return oAuthService.handleTelegram(input)
     }),
 
   refresh: publicProcedure
@@ -174,7 +162,6 @@ export const userProcedures = {
     .query(async ({ input }) => {
       return userService.search(input.query)
     }),
-
 
   getHighlights: publicProcedure
     .meta({

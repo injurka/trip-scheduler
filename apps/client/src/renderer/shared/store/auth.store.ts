@@ -1,7 +1,6 @@
 import type {
   SignInPayload,
   SignUpPayload,
-  TelegramLoginInitResult,
   TokenPair,
   User,
 } from '../types/models/auth'
@@ -18,8 +17,6 @@ export enum EAuthRequestKeys {
   REFRESH = 'auth:refresh',
   SIGN_IN = 'auth:sign-in',
   SIGN_UP = 'auth:sign-up',
-  SIGN_IN_TG = 'auth:sign-in-telegram',
-  CHECK_TG = 'auth:check-telegram-status',
   VERIFY_EMAIL = 'auth:verify-email',
   SIGN_OUT = 'auth:sign-out',
   UPDATE_STATUS = 'auth:update-status',
@@ -156,29 +153,6 @@ export const useAuthStore = defineStore('auth', {
         },
         onError: ({ error }) => {
           this.clearAuth()
-          throw error
-        },
-      })
-    },
-
-    async initTelegramLogin() {
-      return useRequest({
-        key: EAuthRequestKeys.SIGN_IN_TG,
-        fn: db => db.auth.initTelegramLogin(),
-      }) as unknown as TelegramLoginInitResult
-    },
-
-    async checkTelegramStatus(token: string) {
-      return useRequest({
-        key: EAuthRequestKeys.CHECK_TG,
-        fn: db => db.auth.checkTelegramStatus(token),
-        onSuccess: (result) => {
-          if (result.status === 'confirmed') {
-            this.saveTokens(result.token)
-            this.saveUser(result.user)
-          }
-        },
-        onError: ({ error }) => {
           throw error
         },
       })

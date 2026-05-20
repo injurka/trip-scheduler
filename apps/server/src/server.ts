@@ -8,7 +8,6 @@ import { updateDatabaseMetrics } from './lib/db-monitoring'
 import { Logger } from './lib/logger'
 import { dumpService } from './services/dump.service'
 import { s3Service } from './services/s3.service'
-import { telegramAuthService } from './services/telegram-auth.service'
 
 const logger = new Logger()
 const app: Hono = Server.getApp()
@@ -43,7 +42,8 @@ try {
   setInterval(updateDatabaseMetrics, 30_000)
   await updateDatabaseMetrics()
 
-  await telegramAuthService.setupWebhook()
+  // Роскомнадзор сделал дело...
+  // await telegramAuthService.setupWebhook()
 
   if (dumpEnabled) {
     createDump('Запуск дампа базы данных...')

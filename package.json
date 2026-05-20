@@ -20,7 +20,8 @@
     "lint": "bun run --filter='./apps/*' lint",
     "typecheck": "bun --filter='./apps/*' typecheck",
     "--------------------------------<     HELPERS   >---------------------------------": "",
-    "postinstall": "simple-git-hooks"
+    "postinstall": "simple-git-hooks",
+    "remove-prompt": "find . -type f -name 'src_prompt.md' -delete"
   },
   "devDependencies": {
     "simple-git-hooks": "^2.13.1"

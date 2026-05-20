@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { Icon } from '@iconify/vue'
 import { ArcElement, BarElement, CategoryScale, Chart as ChartJS, Legend, LinearScale, Title, Tooltip } from 'chart.js'
+import { computed, onMounted, ref } from 'vue'
 import { Bar, Doughnut } from 'vue-chartjs'
 import { useCurrencyFormatter } from '../../composables/use-currency-formatter'
 
@@ -8,6 +9,9 @@ interface Props {
   mainCurrency: string
   spendingByCategory: { name: string, icon: string, amount: number }[]
   spendingByDay: { date: string, amount: number }[]
+  plannedTotal: number
+  spontaneousTotal: number
+  filteredTotal: number
 }
 
 const props = defineProps<Props>()
@@ -20,6 +24,12 @@ const currentView = ref<'category' | 'day'>('category')
 const borderColor = ref('#E0E0E0')
 const secondaryTextColor = ref('#6B7280')
 const backgroundColor = ref('#FFFFFF')
+
+// Функция для форматирования дат в графике (предполагается, что она есть у вас глобально или импортирована)
+// Если используете встроенный API:
+function formatDate(dateString: string, options: Intl.DateTimeFormatOptions) {
+  return new Date(dateString).toLocaleDateString('ru-RU', options)
+}
 
 const doughnutChartData = computed(() => {
   const labels = props.spendingByCategory.map(cat => cat.name)
@@ -101,9 +111,9 @@ const barChartOptions = computed(() => ({
 }))
 
 function applyThemeStyles() {
-  borderColor.value = getComputedStyle(document.documentElement).getPropertyValue('--border-secondary-color').trim()
-  secondaryTextColor.value = getComputedStyle(document.documentElement).getPropertyValue('--fg-secondary-color').trim()
-  backgroundColor.value = getComputedStyle(document.documentElement).getPropertyValue('--bg-secondary-color').trim()
+  borderColor.value = getComputedStyle(document.documentElement).getPropertyValue('--border-secondary-color').trim() || '#E0E0E0'
+  secondaryTextColor.value = getComputedStyle(document.documentElement).getPropertyValue('--fg-secondary-color').trim() || '#6B7280'
+  backgroundColor.value = getComputedStyle(document.documentElement).getPropertyValue('--bg-secondary-color').trim() || '#FFFFFF'
 }
 
 onMounted(() => {
@@ -126,6 +136,21 @@ onMounted(() => {
         </button>
       </div>
     </header>
+
+    <div class="dashboard-summary" v-if="plannedTotal > 0 || spontaneousTotal > 0">
+      <div class="ds-amounts">
+         <!-- Основные расходы первыми -->
+         <div class="dsa-item">
+            <span class="dsa-label"><Icon icon="mdi:target" /> Основные:</span>
+            <span class="dsa-value">{{ formatCurrency(plannedTotal, mainCurrency) }}</span>
+         </div>
+         <!-- Дополнительные расходы вторыми -->
+         <div class="dsa-item spontaneous">
+            <span class="dsa-label"><Icon icon="mdi:sparkles" /> Дополнительные:</span>
+            <span class="dsa-value">{{ formatCurrency(spontaneousTotal, mainCurrency) }}</span>
+         </div>
+      </div>
+    </div>
 
     <div v-if="currentView === 'category'">
       <div v-if="spendingByCategory.length > 0" class="categories-content">
@@ -207,6 +232,61 @@ onMounted(() => {
   }
 }
 
+.dashboard-summary {
+  display: flex;
+  padding-bottom: 1rem;
+  border-bottom: 1px solid var(--border-secondary-color);
+}
+
+.ds-amounts {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  margin-left: auto;
+  padding: 0.75rem 1rem;
+  border-radius: var(--r-s);
+}
+
+.dsa-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between; 
+  width: 100%;
+}
+
+.dsa-label {
+  font-size: 0.85rem;
+  color: var(--fg-secondary-color);
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-right: 8px;
+  
+  svg {
+    font-size: 1.1rem;
+  }
+}
+
+.dsa-value {
+  font-weight: 600;
+  font-size: 1.1rem;
+  text-align: right;
+}
+
+.dsa-item.spontaneous {
+  .dsa-label {
+    font-size: 0.75rem;
+    svg {
+      font-size: 0.9rem;
+    }
+  }
+  
+  .dsa-value {
+    font-size: 0.9rem;
+    color: #bd10e0;
+  }
+}
+
 .categories-content {
   display: flex;
   gap: 1.5rem;
@@ -242,15 +322,18 @@ onMounted(() => {
   align-items: center;
   gap: 8px;
   padding: 4px 0;
+  
   .legend-color {
     width: 12px;
     height: 12px;
     border-radius: 3px;
   }
+  
   .legend-label {
     flex-grow: 1;
     color: var(--fg-secondary-color);
   }
+  
   .legend-value {
     font-weight: 500;
   }
@@ -267,6 +350,7 @@ onMounted(() => {
   padding: 1rem;
   min-height: 170px;
   font-size: 2.5rem;
+  
   p {
     font-size: 0.9rem;
   }
@@ -278,23 +362,33 @@ onMounted(() => {
     align-items: stretch;
     gap: 1rem;
   }
+  
   .chart-container {
     width: 100%;
     height: 150px;
   }
+  
   .legend {
     width: 100%;
   }
+  
   .card-header {
     flex-direction: column;
   }
+  
   .view-switcher {
     width: 100%;
+    
     button {
       width: 50%;
-      align-items: center;
       justify-content: center;
     }
+  }
+  
+  .ds-amounts {
+    width: 100%;
+    margin-left: 0;
+    min-width: auto;
   }
 }
 </style>

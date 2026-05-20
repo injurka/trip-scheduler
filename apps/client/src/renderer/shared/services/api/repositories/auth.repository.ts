@@ -2,9 +2,6 @@ import type { IAuthRepository } from '../model/types'
 import type {
   SignInPayload,
   SignUpPayload,
-  TelegramAuthPayload,
-  TelegramBotAuthStatus,
-  TelegramLoginInitResult,
   User,
 } from '~/shared/types/models/auth'
 import { trpc } from '~/shared/services/trpc/trpc.service'
@@ -30,11 +27,6 @@ export class AuthRepository implements IAuthRepository {
   @throttle(1000)
   async signOut() {
     await trpc.user.signOut.mutate()
-  }
-
-  @throttle(1000)
-  async signInWithTelegram(authData: TelegramAuthPayload) {
-    return trpc.user.signInWithTelegram.mutate(authData)
   }
 
   @throttle(1000)
@@ -75,28 +67,6 @@ export class AuthRepository implements IAuthRepository {
       const errorData = await response.json()
       throw new Error(errorData.message || 'Ошибка при загрузке аватара.')
     }
-
-    return response.json()
-  }
-
-  async initTelegramLogin(): Promise<TelegramLoginInitResult> {
-    const response = await fetch(`${import.meta.env.VITE_APP_SERVER_URL}/api/auth/telegram/init`, {
-      method: 'POST',
-    })
-
-    if (!response.ok)
-      throw new Error('Не удалось инициализировать вход через Telegram')
-
-    return response.json()
-  }
-
-  async checkTelegramStatus(token: string): Promise<TelegramBotAuthStatus> {
-    const response = await fetch(
-      `${import.meta.env.VITE_APP_SERVER_URL}/api/auth/telegram/status?token=${token}`,
-    )
-
-    if (!response.ok)
-      throw new Error('Ошибка при проверке статуса Telegram авторизации')
 
     return response.json()
   }

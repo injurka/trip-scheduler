@@ -91,8 +91,6 @@ export const userRepository = {
           updateData.googleId = providerId
         else if (provider === 'github')
           updateData.githubId = providerId
-        else if (provider === 'telegram')
-          updateData.telegramId = providerId
 
         const [updatedUser] = await db.update(users)
           .set(updateData)

@@ -2,7 +2,6 @@ import { Hono } from 'hono'
 import { getCookie, setCookie } from 'hono/cookie'
 import { HTTPException } from 'hono/http-exception'
 import { oAuthService } from '~/services/oauth.service'
-import { telegramAuthService } from '~/services/telegram-auth.service'
 
 const authController = new Hono()
 
@@ -81,45 +80,6 @@ authController.get('/github/callback', async (c) => {
   })
 
   return c.redirect(redirectUrl.toString())
-})
-
-/**
- * Инициализирует сессию авторизации через Telegram-бота.
- * Возвращает { token, url } — url ведёт на бота с deeplink.
- */
-authController.post('/telegram/init', (c) => {
-  const result = telegramAuthService.initAuth()
-  return c.json(result)
-})
-
-/**
- * Проверяет статус авторизации по токену сессии.
- * Статусы: pending | confirmed | cancelled | expired | not_found
- */
-authController.get('/telegram/status', async (c) => {
-  const token = c.req.query('token')
-  if (!token)
-    throw new HTTPException(400, { message: 'token query param is required' })
-
-  const result = await telegramAuthService.getStatus(token)
-  return c.json(result)
-})
-
-/**
- * Webhook для получения обновлений от Telegram.
- * Telegram отправляет сюда все входящие сообщения и callback'и.
- */
-authController.post('/telegram/webhook', async (c) => {
-  const webhookSecret = process.env.TELEGRAM_WEBHOOK_SECRET
-  if (webhookSecret) {
-    const incomingSecret = c.req.header('X-Telegram-Bot-Api-Secret-Token')
-    if (incomingSecret !== webhookSecret)
-      throw new HTTPException(403, { message: 'Invalid webhook secret' })
-  }
-
-  const update = await c.req.json()
-  await telegramAuthService.handleUpdate(update)
-  return c.json({ ok: true })
 })
 
 export { authController }

@@ -2,9 +2,6 @@ import type { Activity, Day } from '~/shared/types/models/activity'
 import type {
   SignInPayload,
   SignUpPayload,
-  TelegramAuthPayload,
-  TelegramBotAuthStatus,
-  TelegramLoginInitResult,
   TokenPair,
   User,
 } from '~/shared/types/models/auth'
@@ -165,6 +162,7 @@ export interface GeneratedTransaction {
   categoryId?: string | null
   date?: string
   notes?: string
+  isSpontaneous?: boolean
 }
 
 export interface ILLMRepository {
@@ -246,7 +244,6 @@ export interface IFileRepository {
 
 export interface IAuthRepository {
   verifyEmail: (payload: { email: string, token: string }) => Promise<{ user: User, token: TokenPair }>
-  signInWithTelegram: (authData: TelegramAuthPayload) => Promise<{ user: User, token: TokenPair }>
   signIn: (payload: SignInPayload) => Promise<{ user: User, token: TokenPair }>
   signOut: () => Promise<void>
   signUp: (payload: SignUpPayload) => Promise<{ success: boolean, message?: string }>
@@ -255,8 +252,6 @@ export interface IAuthRepository {
   updateStatus: (data: { statusText?: string | null, statusEmoji?: string | null }) => Promise<User>
   updateUser: (data: { name?: string, avatarUrl?: string }) => Promise<User>
   uploadAvatar: (file: File) => Promise<User>
-  initTelegramLogin: () => Promise<TelegramLoginInitResult>
-  checkTelegramStatus: (token: string) => Promise<TelegramBotAuthStatus>
 }
 
 export interface IUserRepository {
