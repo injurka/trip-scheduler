@@ -301,8 +301,8 @@ const componentClasses = computed(() => ({
 .preview-image {
   display: block;
   width: 100%;
-  max-height: 260px;
-  object-fit: cover;
+  max-height: 300px;
+  object-fit: contain;
 }
 
 .file-input-content {
