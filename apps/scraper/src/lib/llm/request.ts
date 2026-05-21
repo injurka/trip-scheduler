@@ -3,6 +3,7 @@ import OpenAI from 'openai'
 // Chat Models
 const AI_HUBMIX_MODELS_CHAT = [
   'gemini-2.5-pro',
+  'gemini-3.5-flash',
   'gemini-flash-latest',
   'gemini-flash-lite-latest',
 ] as const

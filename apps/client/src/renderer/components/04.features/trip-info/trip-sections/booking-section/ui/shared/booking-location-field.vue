@@ -4,6 +4,7 @@ import type { LocationCoords } from '../../models/types'
 import { Feature } from 'ol'
 import { Point } from 'ol/geom'
 import VectorLayer from 'ol/layer/Vector'
+import { fromLonLat } from 'ol/proj'
 import VectorSource from 'ol/source/Vector'
 import { Icon as OlIcon, Style } from 'ol/style'
 import { KitBtn } from '~/components/01.kit/kit-btn'
@@ -39,7 +40,7 @@ function updateMarkerPosition() {
     return
   markerSource.clear()
   const marker = new Feature({
-    geometry: new Point([tempCoords.value.lon, tempCoords.value.lat]),
+    geometry: new Point(fromLonLat([tempCoords.value.lon, tempCoords.value.lat])),
   })
   const svg = `
     <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
@@ -104,7 +105,7 @@ watch(() => props.visible, (isOpen) => {
     searchQuery.value = ''
     nextTick(() => {
       if (mapInstance.value) {
-        mapInstance.value.getView().setCenter([tempCoords.value.lon, tempCoords.value.lat])
+        mapInstance.value.getView().setCenter(fromLonLat([tempCoords.value.lon, tempCoords.value.lat]))
         updateMarkerPosition()
       }
     })

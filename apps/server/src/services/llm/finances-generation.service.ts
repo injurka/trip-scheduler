@@ -102,7 +102,7 @@ async function generateTransactionsFromData({ userId, fileBuffer, fileName, text
     throw new TRPCError({ code: 'BAD_REQUEST', message: 'No text or valid image provided for analysis.' })
   }
 
-  const modelId = 'gemini-2.5-pro'
+  const modelId = 'gemini-3.5-flash'
   const completion = await createAiChatRequest(prompts, {
     model: modelId,
     response_format: { type: 'json_object' },

@@ -51,7 +51,7 @@ export const postGenerationService = {
       user: `Analyze the following trip description and generate the rich JSON structure:\n\n---\n${text}\n---`,
     }
 
-    const modelId = 'gemini-2.5-pro'
+    const modelId = 'gemini-3.5-flash'
     const completion = await createAiChatRequest(prompts, {
       model: modelId,
       response_format: { type: 'json_object' },

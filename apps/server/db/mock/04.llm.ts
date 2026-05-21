@@ -6,6 +6,7 @@ const LLM_MOCK = [
   { id: 'o4-mini', costPerMillionInputTokens: 1.1, costPerMillionOutputTokens: 4.4 },
   { id: 'gpt-4.1', costPerMillionInputTokens: 2.0, costPerMillionOutputTokens: 8.0 },
   { id: 'gemini-flash-latest', costPerMillionInputTokens: 0.5, costPerMillionOutputTokens: 1.5 },
+  { id: 'gemini-3.5-flash', costPerMillionInputTokens: 1.5, costPerMillionOutputTokens: 9.0 },
 ]
 
 export { LLM_MOCK }

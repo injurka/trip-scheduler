@@ -16,7 +16,7 @@ async function scrapeSingleListPage(city: string, url: string): Promise<Attracti
   }
 
   try {
-    const response = await createAiChatRequest(prompt, { model: 'gemini-2.5-pro' })
+    const response = await createAiChatRequest(prompt, { model: 'gemini-3.5-flash' })
     const jsonContent = response.choices[0]?.message?.content
     console.log('jsonContent', jsonContent)
 

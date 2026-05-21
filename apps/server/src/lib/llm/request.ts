@@ -3,6 +3,7 @@ import { externalApiCallsCounter, externalApiDurationHistogram } from '~/service
 
 // Chat Models
 const AI_HUBMIX_MODELS_CHAT = [
+  'gemini-3.5-flash',
   'gemini-2.5-pro',
   'gemini-flash-latest',
   'gemini-flash-lite-latest',
@@ -13,6 +14,7 @@ const AI_HUBMIX_MODELS_CHAT = [
 // TTS Models (OpenAI compatible)
 export const AI_TTS_MODELS = [
   'tts-1-hd',
+  'gemini-3.5-flash',
   'gemini-2.5-pro',
   'gpt-4o-mini-tts',
 ] as const

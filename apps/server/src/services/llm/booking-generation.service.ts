@@ -24,6 +24,11 @@ RULES:
 3. Pay close attention to dates and times. Format dates as "YYYY-MM-DD" and datetimes as "YYYY-MM-DDTHH:mm:ss".
 4. Timezone Inference: For "departureTimeZone" and "arrivalTimeZone", if the timezone is not explicitly stated in the document, you MUST infer it from the provided city or station names (e.g., "departureStation", "arrivalStation"). Determine the location and find its standard UTC offset. For all locations within mainland China, the timezone is UTC+8.
 5. For flights, extract all segments if it's a multi-leg journey.
+6. Language and Format Rule for "title": The "title" field MUST always be in Russian and follow a strict pattern based on the booking type (use grammatical cases correctly for city names):
+   - For "hotel": "Отель в <Город>" (e.g., "Отель в Париже")
+   - For "flight": "Рейс в <Город>" (e.g., "Рейс в Токио")
+   - For "train": "Поезд в <Город>" (e.g., "Поезд в Санкт-Петербург")
+   - For "attraction": "Билет в <Место>" or "<Название места>" (e.g., "Билет в Лувр")
 
 Here is the schema you must follow:
 `
@@ -33,7 +38,7 @@ Here is the schema you must follow:
     case 'flight':
       schema = `{
               "type": "flight",
-              "title": "A short, descriptive title, e.g., 'Flight to Tokyo'",
+              "title": "Рейс в <Город> (например, 'Рейс в Токио')",
               "data": {
                 "bookingReference": "string",
                 "notes": "string",
@@ -54,7 +59,7 @@ Here is the schema you must follow:
     case 'hotel':
       schema = `{
               "type": "hotel",
-              "title": "A short, descriptive title, e.g., 'Hotel in Paris'",
+              "title": "Отель в <Город> (например, 'Отель в Париже')",
               "data": {
                 "hotelName": "string", "address": "string",
                 "checkInDate": "YYYY-MM-DD", "checkOutDate": "YYYY-MM-DD",
@@ -70,7 +75,7 @@ Here is the schema you must follow:
     case 'train':
       schema = `{
               "type": "train",
-              "title": "A short, descriptive title, e.g., 'Train to Saint Petersburg'",
+              "title": "Поезд в <Город> (например, 'Поезд в Санкт-Петербург')",
               "data": {
                 "departureStation": "string", "arrivalStation": "string",
                 "departureDateTime": "YYYY-MM-DDTHH:mm:ss", "arrivalDateTime": "YYYY-MM-DDTHH:mm:ss",
@@ -87,7 +92,7 @@ Here is the schema you must follow:
     case 'attraction':
       schema = `{
               "type": "attraction",
-              "title": "A short, descriptive title, e.g., 'Louvre Museum Ticket'",
+              "title": "Билет в <Место> (например, 'Билет в Лувр')",
               "data": {
                 "attractionName": "string", "address": "string",
                 "dateTime": "YYYY-MM-DDTHH:mm:ss", "bookingReference": "string",
@@ -163,7 +168,7 @@ async function generateBookingFromFile({ userId, fileBuffer, fileName, bookingTy
     throw new TRPCError({ code: 'BAD_REQUEST', message: 'Неподдерживаемый тип файла. Поддерживаются PDF, PNG, JPG.' })
   }
 
-  const modelId = 'gemini-2.5-pro'
+  const modelId = 'gemini-3.5-flash'
   const completion = await createAiChatRequest(prompts, {
     model: modelId,
   })
