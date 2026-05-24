@@ -149,6 +149,7 @@ watch(model, (newVal, oldVal) => {
   position: relative;
   transition: height 0.3s ease-in-out;
   min-height: 50px;
+  z-index: 6;
 }
 
 .kit-tabs-pane {

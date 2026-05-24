@@ -37,7 +37,7 @@ function handleOAuth(provider: OAuthProviders) {
 
       <slot name="utils" />
 
-      <KitDivider :is-loading="isLoading">
+      <KitDivider class="section-divider" :is-loading="isLoading">
         ИЛИ
       </KitDivider>
 
@@ -141,6 +141,10 @@ function handleOAuth(provider: OAuthProviders) {
     font-size: 1.5rem;
     font-weight: 600;
   }
+}
+
+.section-divider {
+  margin-top: 16px;
 }
 
 .additional-oauth {

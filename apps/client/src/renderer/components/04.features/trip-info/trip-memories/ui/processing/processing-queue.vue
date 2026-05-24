@@ -24,7 +24,7 @@ const filteredMemories = computed(() => {
   if (!memoriesToProcess.value)
     return []
 
-  return memoriesToProcess.value.filter((memory) => {
+  const result = memoriesToProcess.value.filter((memory) => {
     const hasTimestamp = !!memory.image?.takenAt
 
     if (hasTimestamp && filters.showWithDate)
@@ -35,6 +35,8 @@ const filteredMemories = computed(() => {
 
     return false
   })
+
+  return result
 })
 
 const {
@@ -69,6 +71,8 @@ const {
           Снятые в другой день
         </KitCheckbox>
       </div>
+      {{ hasMoreMemories }}
+      {{ filteredMemories }}
       <div v-if="hasMoreMemories" class="queue-grid">
         <MemoryProcessingCard v-for="memory in paginatedMemories" :key="memory.id" :memory="memory" />
       </div>

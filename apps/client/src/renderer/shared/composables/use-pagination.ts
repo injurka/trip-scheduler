@@ -32,9 +32,7 @@ export function usePagination<T>(
 
   watch(
     () => toValue(items),
-    () => {
-      reset()
-    },
+    () => reset(),
   )
 
   return { visibleItems, hasMore, loadMore, reset }
