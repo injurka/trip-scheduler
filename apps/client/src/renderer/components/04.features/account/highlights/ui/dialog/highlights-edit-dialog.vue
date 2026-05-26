@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import type { Country } from '~/shared/types/models/destination-review'
+import type { Country, DestinationReview } from '~/shared/types/models/destination-review'
 import type { CreateHighlightInput } from '~/shared/types/models/user'
 import { toLonLat } from 'ol/proj'
 import { computed, ref } from 'vue'
@@ -13,6 +13,7 @@ import { KitSelectWithSearch } from '~/components/01.kit/kit-select-with-search'
 const props = defineProps<{
   visible: boolean
   countries: Country[]
+  reviews: DestinationReview[]
   form: Partial<CreateHighlightInput>
   file: File | null
   isUploading: boolean
@@ -37,6 +38,30 @@ const countryOptions = computed(() =>
     flagUrl: country.flagUrl,
   })),
 )
+
+// Подсказки локаций на основе уже оставленных "Рейтингов"
+const locationSuggestions = computed(() => {
+  const map = new Map<string, { countryId: string, city: string, name: string, flagUrl: string | null }>()
+  for (const r of props.reviews || []) {
+    if (r.city && r.countryId) {
+      const key = `${r.countryId}-${r.city}`
+      if (!map.has(key)) {
+        map.set(key, {
+          countryId: r.countryId,
+          city: r.city,
+          name: r.city,
+          flagUrl: r.country?.flagUrl || null,
+        })
+      }
+    }
+  }
+  return Array.from(map.values())
+})
+
+function applySuggestion(loc: { countryId: string, city: string }) {
+  props.form.countryId = loc.countryId
+  props.form.city = loc.city
+}
 
 const mapCenter = ref<[number, number]>([20, 45])
 const mapMarkers = computed(() => {
@@ -99,6 +124,22 @@ const isSubmitDisabled = computed(() =>
           />
         </div>
 
+        <div v-if="locationSuggestions.length > 0" class="suggestions">
+          <span class="suggestions-label">Ранее посещенные:</span>
+          <div class="suggestions-list">
+            <button
+              v-for="loc in locationSuggestions"
+              :key="loc.countryId + loc.city"
+              class="suggestion-chip"
+              type="button"
+              @click="applySuggestion(loc)"
+            >
+              <img v-if="loc.flagUrl" :src="loc.flagUrl" class="chip-flag" alt="">
+              {{ loc.name }}
+            </button>
+          </div>
+        </div>
+
         <KitInput
           v-model="form.address"
           label="Адрес"
@@ -121,12 +162,14 @@ const isSubmitDisabled = computed(() =>
               placeholder="Долгота"
             />
           </div>
-          <p class="section-hint">Кликните по карте для изменения координат</p>
+          <p class="section-hint">
+            Кликните по карте для изменения координат
+          </p>
           <div class="map-container">
             <KitMap
               :center="mapCenter"
               :zoom="2"
-              height="240px"
+              height="400px"
               :markers="mapMarkers"
               :auto-pan="false"
               @click="handleMapClick"
@@ -180,6 +223,50 @@ const isSubmitDisabled = computed(() =>
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 16px;
+}
+
+.suggestions {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-top: -8px;
+}
+
+.suggestions-label {
+  font-size: 0.75rem;
+  color: var(--fg-tertiary-color);
+}
+
+.suggestions-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.suggestion-chip {
+  display: inline-flex;
+  align-items: center;
+  background: var(--bg-tertiary-color);
+  color: var(--fg-primary-color);
+  border: 1px solid var(--border-secondary-color);
+  border-radius: var(--r-m);
+  padding: 4px 10px;
+  font-size: 0.8rem;
+  cursor: pointer;
+  transition: all 0.2s;
+
+  &:hover {
+    background: var(--bg-hover-color);
+    border-color: var(--fg-accent-color);
+  }
+}
+
+.chip-flag {
+  width: 14px;
+  height: 10px;
+  object-fit: cover;
+  border-radius: 2px;
+  margin-right: 6px;
 }
 
 .map-section {

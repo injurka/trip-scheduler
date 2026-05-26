@@ -6,6 +6,7 @@ import {
   DeleteReviewInputSchema,
   DestinationReviewSchema,
   GetUserReviewsInputSchema,
+  UpdateReviewInputSchema,
 } from './destination-review.schemas'
 import { destinationReviewService } from './destination-review.service'
 
@@ -52,6 +53,22 @@ export const destinationReviewProcedures = {
     .output(DestinationReviewSchema)
     .mutation(async ({ input, ctx }) => {
       return destinationReviewService.create(input, ctx.user.id)
+    }),
+
+  update: protectedProcedure
+    .meta({
+      openapi: {
+        method: 'PATCH',
+        path: '/destination-reviews/{id}',
+        tags: ['Destination Reviews'],
+        summary: 'Обновить впечатление',
+      },
+    })
+    .input(UpdateReviewInputSchema)
+    .output(DestinationReviewSchema)
+    .mutation(async ({ input, ctx }) => {
+      const { id, ...data } = input
+      return destinationReviewService.update(id, data, ctx.user.id)
     }),
 
   delete: protectedProcedure

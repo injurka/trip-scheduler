@@ -1,11 +1,13 @@
 <script setup lang="ts">
 import { Icon } from '@iconify/vue'
+import { Cropper } from 'vue-advanced-cropper'
 import { KitAvatar } from '~/components/01.kit/kit-avatar'
 import { KitBtn } from '~/components/01.kit/kit-btn'
 import { KitDivider } from '~/components/01.kit/kit-divider'
 import { KitInput } from '~/components/01.kit/kit-input'
 import { NavigationBack } from '~/components/02.shared/navigation-back/index'
 import { useProfileSettings } from '../composables/use-profile-settings'
+import 'vue-advanced-cropper/dist/style.css'
 
 const {
   user,
@@ -19,9 +21,13 @@ const {
   deleteAccount,
   handleAvatarUpload,
   handleCoverSelect,
+  cancelCrop,
+  saveCroppedImage,
   coverFile,
   coverPreviewUrl,
   isPreviewVisible,
+  tempCoverUrl,
+  isCropperVisible,
   isUpdatingProfile,
   isChangingPassword,
   isDeletingAccount,
@@ -32,6 +38,7 @@ const {
 
 const avatarInput = ref<HTMLInputElement | null>(null)
 const coverInput = ref<HTMLInputElement | null>(null)
+const cropperRef = ref<InstanceType<typeof Cropper> | null>(null)
 
 // Генерируем стиль для блочного превью обложки
 const previewHeaderStyle = computed(() => {
@@ -46,6 +53,15 @@ const previewHeaderStyle = computed(() => {
   }
   return {}
 })
+
+function applyCrop() {
+  if (cropperRef.value) {
+    const { canvas } = cropperRef.value.getResult()
+    if (canvas) {
+      saveCroppedImage(canvas)
+    }
+  }
+}
 </script>
 
 <template>
@@ -209,6 +225,42 @@ const previewHeaderStyle = computed(() => {
         </KitBtn>
       </div>
     </section>
+
+    <!-- Модальное окно для обрезки (кроппер) -->
+    <Teleport to="body">
+      <div v-if="isCropperVisible" class="cropper-overlay">
+        <div class="cropper-modal">
+          <div class="cropper-header">
+            <h3>Кадрирование обложки</h3>
+            <button class="close-btn" @click="cancelCrop">
+              <Icon icon="mdi:close" width="24" />
+            </button>
+          </div>
+
+          <div class="cropper-body">
+            <!-- Пропорция 3:1 для шапки (примерно соответствует пропорциям profile-header-mock) -->
+            <Cropper
+              ref="cropperRef"
+              class="advanced-cropper"
+              :src="tempCoverUrl"
+              :stencil-props="{
+                aspectRatio: 3 / 1,
+              }"
+              image-restriction="stencil"
+            />
+          </div>
+
+          <div class="cropper-footer">
+            <KitBtn variant="outlined" color="secondary" @click="cancelCrop">
+              Отмена
+            </KitBtn>
+            <KitBtn color="primary" @click="applyCrop">
+              Применить
+            </KitBtn>
+          </div>
+        </div>
+      </div>
+    </Teleport>
   </div>
 </template>
 
@@ -404,6 +456,78 @@ const previewHeaderStyle = computed(() => {
   }
 }
 
+/* Стили для кроппера */
+.cropper-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100vw;
+  height: 100vh;
+  background: rgba(0, 0, 0, 0.7);
+  backdrop-filter: blur(4px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 9999;
+  padding: 24px;
+}
+
+.cropper-modal {
+  background: var(--bg-secondary-color);
+  border-radius: var(--r-l);
+  width: 100%;
+  max-width: 800px;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
+
+  .cropper-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 1rem 1.5rem;
+    border-bottom: 1px solid var(--border-secondary-color);
+
+    h3 {
+      margin: 0;
+      font-size: 1.2rem;
+      color: var(--fg-primary-color);
+    }
+
+    .close-btn {
+      background: none;
+      border: none;
+      color: var(--fg-secondary-color);
+      cursor: pointer;
+      display: flex;
+      padding: 4px;
+
+      &:hover {
+        color: var(--fg-primary-color);
+      }
+    }
+  }
+
+  .cropper-body {
+    background: #000;
+    height: 400px;
+
+    .advanced-cropper {
+      height: 100%;
+      width: 100%;
+    }
+  }
+
+  .cropper-footer {
+    display: flex;
+    justify-content: flex-end;
+    gap: 1rem;
+    padding: 1rem 1.5rem;
+    border-top: 1px solid var(--border-secondary-color);
+  }
+}
+
 @media (max-width: 768px) {
   .info-grid,
   .danger-content {
@@ -418,6 +542,21 @@ const previewHeaderStyle = computed(() => {
     align-items: center;
     text-align: center;
     padding-top: 2rem;
+  }
+
+  .cropper-overlay {
+    padding: 0;
+  }
+
+  .cropper-modal {
+    height: 100vh;
+    border-radius: 0;
+    justify-content: space-between;
+
+    .cropper-body {
+      flex-grow: 1;
+      height: auto;
+    }
   }
 }
 </style>

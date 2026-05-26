@@ -34,7 +34,7 @@ export const GetUserByIdInputSchema = z.object({
 
 export const UpdateUserInputSchema = z.object({
   name: z.string().min(1).optional(),
-  avatarUrl: z.string().url().optional(),
+  avatarUrl: z.string().optional(),
 }).strict()
 
 export const UpdateUserStatusInputSchema = z.object({
@@ -62,7 +62,7 @@ export const GetUserHighlightsInputSchema = z.object({
 })
 
 export const CreateHighlightInputSchema = z.object({
-  imageUrl: z.string().url(),
+  imageUrl: z.string(),
   countryId: z.string().min(2),
   city: z.string().min(1),
   address: z.string().optional().nullable(),

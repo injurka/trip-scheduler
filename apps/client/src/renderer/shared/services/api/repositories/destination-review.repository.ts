@@ -20,6 +20,11 @@ export class DestinationReviewRepository implements IDestinationReviewRepository
   }
 
   @throttle(500)
+  async update(params: { id: string } & Partial<CreateDestinationReviewInput>): Promise<DestinationReview> {
+    return await trpc.destinationReview.update.mutate(params)
+  }
+
+  @throttle(500)
   async delete(params: { id: string }): Promise<void> {
     await trpc.destinationReview.delete.mutate(params)
   }

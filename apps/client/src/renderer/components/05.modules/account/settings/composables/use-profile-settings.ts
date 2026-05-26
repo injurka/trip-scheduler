@@ -23,6 +23,10 @@ export function useProfileSettings() {
   const coverPreviewUrl = ref<string | null>(null)
   const isPreviewVisible = ref(false)
 
+  // Состояния для работы с кроппером
+  const tempCoverUrl = ref<string | null>(null)
+  const isCropperVisible = ref(false)
+
   const passwordForm = reactive({
     currentPassword: '',
     newPassword: '',
@@ -126,12 +130,51 @@ export function useProfileSettings() {
   }
 
   function handleCoverSelect(event: Event) {
-    const file = (event.target as HTMLInputElement).files?.[0]
+    const input = event.target as HTMLInputElement
+    const file = input.files?.[0]
     if (!file)
       return
-    coverFile.value = file
-    coverPreviewUrl.value = URL.createObjectURL(file)
-    isPreviewVisible.value = true // Автоматически открываем превью при выборе новой обложки
+
+    // Сохраняем во временный URL для отображения в кроппере
+    tempCoverUrl.value = URL.createObjectURL(file)
+    isCropperVisible.value = true
+
+    // Сбрасываем input
+    input.value = ''
+  }
+
+  function cancelCrop() {
+    isCropperVisible.value = false
+    if (tempCoverUrl.value) {
+      URL.revokeObjectURL(tempCoverUrl.value) // очистка памяти
+      tempCoverUrl.value = null
+    }
+  }
+
+  function saveCroppedImage(canvas: HTMLCanvasElement) {
+    canvas.toBlob((blob) => {
+      if (!blob)
+        return
+
+      const croppedFile = new File([blob], 'cover-cropped.jpg', {
+        type: 'image/jpeg',
+        lastModified: Date.now(),
+      })
+
+      coverFile.value = croppedFile
+      if (coverPreviewUrl.value) {
+        URL.revokeObjectURL(coverPreviewUrl.value) // очистка старого превью
+      }
+      coverPreviewUrl.value = URL.createObjectURL(croppedFile)
+
+      isCropperVisible.value = false
+      if (tempCoverUrl.value) {
+        URL.revokeObjectURL(tempCoverUrl.value) // очистка исходника
+        tempCoverUrl.value = null
+      }
+
+      isPreviewVisible.value = true // Автоматически открываем превью
+    }, 'image/jpeg', 0.9)
   }
 
   watch(user, (newUser) => {
@@ -156,6 +199,8 @@ export function useProfileSettings() {
     coverFile,
     coverPreviewUrl,
     isPreviewVisible,
+    tempCoverUrl,
+    isCropperVisible,
     isProfileChanged,
     isPasswordFormValid,
     isUpdatingProfile,
@@ -166,5 +211,7 @@ export function useProfileSettings() {
     deleteAccount,
     handleAvatarUpload,
     handleCoverSelect,
+    cancelCrop,
+    saveCroppedImage,
   }
 }

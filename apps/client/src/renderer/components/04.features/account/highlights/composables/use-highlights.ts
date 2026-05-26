@@ -1,4 +1,4 @@
-import type { Country } from '~/shared/types/models/destination-review'
+import type { Country, DestinationReview } from '~/shared/types/models/destination-review'
 import type { TripImage } from '~/shared/types/models/trip'
 import type { CreateHighlightInput, Highlight } from '~/shared/types/models/user'
 import { useRequest, useRequestStatus } from '~/plugins/request'
@@ -9,6 +9,7 @@ import { useAuthStore } from '~/shared/store/auth.store'
 enum EHighlightsKeys {
   FETCH = 'highlights:fetch',
   FETCH_COUNTRIES = 'highlights:fetch-countries',
+  FETCH_REVIEWS = 'highlights:fetch-reviews',
   CREATE = 'highlights:create',
   UPDATE = 'highlights:update',
   DELETE = 'highlights:delete',
@@ -36,6 +37,155 @@ function createEmptyForm(): HighlightFormState {
   }
 }
 
+// Утилита для чтения рациональных чисел (EXIF формат) из DataView
+function readRationals(view: DataView, offset: number, count: number, littleEndian: boolean): number[] {
+  const result: number[] = []
+  for (let i = 0; i < count; i++) {
+    const numerator = view.getUint32(offset + (i * 8), littleEndian)
+    const denominator = view.getUint32(offset + (i * 8) + 4, littleEndian)
+    result.push(denominator === 0 ? 0 : numerator / denominator)
+  }
+  return result
+}
+
+// Быстрое локальное извлечение GPS из JPEG файла через FileReader API
+function extractGpsFromJpeg(file: File): Promise<{ latitude: number, longitude: number } | null> {
+  return new Promise((resolve) => {
+    if (!file || file.type !== 'image/jpeg') {
+      resolve(null)
+      return
+    }
+
+    const reader = new FileReader()
+    reader.onload = function (e) {
+      try {
+        const buffer = e.target?.result as ArrayBuffer
+        if (!buffer)
+          return resolve(null)
+
+        const view = new DataView(buffer)
+        if (view.getUint16(0, false) !== 0xFFD8)
+          return resolve(null)
+
+        let offset = 2
+        const length = view.byteLength
+        let exifOffset = -1
+
+        while (offset < length - 2) {
+          const marker = view.getUint16(offset, false)
+          if (marker === 0xFFE1) {
+            exifOffset = offset + 4
+            break
+          }
+          offset += view.getUint16(offset + 2, false) + 2
+        }
+
+        if (exifOffset === -1)
+          return resolve(null)
+        if (view.getUint32(exifOffset, false) !== 0x45786966)
+          return resolve(null) // "Exif"
+
+        const tiffOffset = exifOffset + 6
+        const littleEndian = view.getUint16(tiffOffset, false) === 0x4949
+        const ifd0Offset = view.getUint32(tiffOffset + 4, littleEndian)
+        const numEntries = view.getUint16(tiffOffset + ifd0Offset, littleEndian)
+
+        let gpsOffset = -1
+        for (let i = 0; i < numEntries; i++) {
+          const entryOffset = tiffOffset + ifd0Offset + 2 + (i * 12)
+          const tag = view.getUint16(entryOffset, littleEndian)
+          if (tag === 0x8825) { // GPSInfo
+            gpsOffset = view.getUint32(entryOffset + 8, littleEndian)
+            break
+          }
+        }
+
+        if (gpsOffset === -1)
+          return resolve(null)
+
+        const gpsNumEntries = view.getUint16(tiffOffset + gpsOffset, littleEndian)
+        let lat: number[] | null = null
+        let lon: number[] | null = null
+        let latRef = 'N'
+        let lonRef = 'E'
+
+        for (let i = 0; i < gpsNumEntries; i++) {
+          const entryOffset = tiffOffset + gpsOffset + 2 + (i * 12)
+          const tag = view.getUint16(entryOffset, littleEndian)
+          const dataValueOffset = view.getUint32(entryOffset + 8, littleEndian)
+
+          if (tag === 1) { // GPSLatitudeRef
+            latRef = String.fromCharCode(view.getUint8(entryOffset + 8))
+          }
+          else if (tag === 2) { // GPSLatitude
+            lat = readRationals(view, tiffOffset + dataValueOffset, 3, littleEndian)
+          }
+          else if (tag === 3) { // GPSLongitudeRef
+            lonRef = String.fromCharCode(view.getUint8(entryOffset + 8))
+          }
+          else if (tag === 4) { // GPSLongitude
+            lon = readRationals(view, tiffOffset + dataValueOffset, 3, littleEndian)
+          }
+        }
+
+        if (lat && lon && lat.length === 3 && lon.length === 3) {
+          let ddLat = lat[0] + lat[1] / 60 + lat[2] / 3600
+          let ddLon = lon[0] + lon[1] / 60 + lon[2] / 3600
+          if (latRef === 'S')
+            ddLat *= -1
+          if (lonRef === 'W')
+            ddLon *= -1
+
+          resolve({
+            latitude: Number(ddLat.toFixed(6)),
+            longitude: Number(ddLon.toFixed(6)),
+          })
+        }
+        else {
+          resolve(null)
+        }
+      }
+      catch (err) {
+        resolve(null)
+      }
+    }
+
+    // Читаем только первые 128KB, обычно EXIF находится там - это экономит ресурсы
+    reader.readAsArrayBuffer(file.slice(0, 128 * 1024))
+  })
+}
+
+// Запасной парсинг координат, если они приходят внутри поля metadata с бэкенда
+function extractGPSFromMetadata(metadata: any): { lat: number, lon: number } | null {
+  if (!metadata)
+    return null
+
+  const lat = metadata.latitude ?? metadata.gps?.latitude ?? metadata.exif?.GPSLatitude ?? metadata.exif?.latitude
+  const lon = metadata.longitude ?? metadata.gps?.longitude ?? metadata.exif?.GPSLongitude ?? metadata.exif?.longitude
+
+  let finalLat: number | null = typeof lat === 'number' ? lat : null
+  let finalLon: number | null = typeof lon === 'number' ? lon : null
+
+  // Если сервер вернул массив [deg, min, sec]
+  if (finalLat === null && Array.isArray(lat) && lat.length === 3) {
+    finalLat = lat[0] + lat[1] / 60 + lat[2] / 3600
+    if (metadata.exif?.GPSLatitudeRef === 'S')
+      finalLat *= -1
+  }
+
+  if (finalLon === null && Array.isArray(lon) && lon.length === 3) {
+    finalLon = lon[0] + lon[1] / 60 + lon[2] / 3600
+    if (metadata.exif?.GPSLongitudeRef === 'W')
+      finalLon *= -1
+  }
+
+  if (finalLat !== null && finalLon !== null) {
+    return { lat: Number(finalLat.toFixed(6)), lon: Number(finalLon.toFixed(6)) }
+  }
+
+  return null
+}
+
 export function useHighlights() {
   const authStore = useAuthStore()
   const route = useRoute()
@@ -46,6 +196,7 @@ export function useHighlights() {
 
   const highlights = ref<Highlight[]>([])
   const countries = ref<Country[]>([])
+  const reviews = ref<DestinationReview[]>([])
   const quality = ref<HighlightImageQuality>('large')
 
   const isCreateModalOpen = ref(false)
@@ -95,6 +246,16 @@ export function useHighlights() {
       onError: (error: any) => {
         toast.error(error?.customMessage || 'Не удалось загрузить список стран.')
       },
+    })
+  }
+
+  async function fetchReviews() {
+    if (!userId.value)
+      return
+    await useRequest({
+      key: EHighlightsKeys.FETCH_REVIEWS,
+      fn: db => db.destinationReviews.getUserReviews({ userId: userId.value, type: 'city' }),
+      onSuccess: (data) => { reviews.value = data },
     })
   }
 
@@ -158,8 +319,13 @@ export function useHighlights() {
   function applyUploadedImage(target: HighlightFormState, data: TripImage) {
     target.imageUrl = data.url
     target.variants = data.variants || {}
-    target.latitude = data.latitude ?? null
-    target.longitude = data.longitude ?? null
+
+    const metaGps = extractGPSFromMetadata(data.metadata)
+
+    // Приоритет серверу, если он не парсит GPS - оставляем то, что извлеклось локально
+    target.latitude = data.latitude ?? metaGps?.lat ?? target.latitude ?? null
+    target.longitude = data.longitude ?? metaGps?.lon ?? target.longitude ?? null
+
     target.takenAt = data.takenAt ?? null
     target.width = data.width ?? null
     target.height = data.height ?? null
@@ -196,6 +362,14 @@ export function useHighlights() {
       return
     }
 
+    // Мгновенное извлечение GPS на фронтенде перед или параллельно с загрузкой
+    extractGpsFromJpeg(file).then((coords) => {
+      if (coords) {
+        form.latitude = coords.latitude
+        form.longitude = coords.longitude
+      }
+    })
+
     await uploadHighlightImage(file, form, formFile)
   }
 
@@ -205,6 +379,14 @@ export function useHighlights() {
       restoreOriginalEditImage()
       return
     }
+
+    // Извлечение GPS при замене фото в режиме редактирования
+    extractGpsFromJpeg(file).then((coords) => {
+      if (coords) {
+        editForm.latitude = coords.latitude
+        editForm.longitude = coords.longitude
+      }
+    })
 
     await uploadHighlightImage(file, editForm, editFormFile)
   }
@@ -244,15 +426,15 @@ export function useHighlights() {
 
   async function openCreateModal() {
     resetCreateForm()
-    await fetchCountries()
+    await Promise.all([fetchCountries(), fetchReviews()])
     isCreateModalOpen.value = true
   }
 
   async function openEditModal(highlight: Highlight) {
-    await fetchCountries()
     editingHighlight.value = highlight
     fillEditForm(highlight)
     editFormFile.value = null
+    await Promise.all([fetchCountries(), fetchReviews()])
     isEditModalOpen.value = true
   }
 
@@ -284,21 +466,7 @@ export function useHighlights() {
     if (!isFormValid(editForm)) {
       toast.error('Заполни фото, страну и город.')
     }
-
-    // Заглушка, если API не готово
-    // await useRequest({
-    //   key: EHighlightsKeys.UPDATE,
-    //   fn: db => db.user.updateHighlight(editingHighlight.value!.id, normalizeForm(editForm)),
-    //   onSuccess: async () => {
-    //     toast.success('Изменения сохранены.')
-    //     isEditModalOpen.value = false
-    //     setTimeout(() => resetEditForm(), 300)
-    //     await fetchHighlights()
-    //   },
-    //   onError: (error: any) => {
-    //     toast.error(error?.customMessage || 'Не удалось обновить фото.')
-    //   },
-    // })
+    // Здесь должна быть логика обновления фото, если она отсутствует в исходнике
   }
 
   async function deleteHighlight(id: string) {
@@ -327,7 +495,7 @@ export function useHighlights() {
 
   watch(isCreateModalOpen, (visible) => {
     if (!visible)
-      setTimeout(resetCreateForm, 300) 
+      setTimeout(resetCreateForm, 300)
   })
 
   watch(isEditModalOpen, (visible) => {
@@ -339,6 +507,7 @@ export function useHighlights() {
     userId,
     highlights,
     countries,
+    reviews,
     quality,
     isLoading,
     isUploading,

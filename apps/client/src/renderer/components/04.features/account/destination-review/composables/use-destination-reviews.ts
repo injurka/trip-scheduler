@@ -25,7 +25,7 @@ export const METRIC_LABELS: Record<string, string> = {
   vibe: 'Атмосфера',
 }
 
-type ReviewFormState = {
+interface ReviewFormState {
   type: 'city'
   countryId: string
   city: string
@@ -79,7 +79,8 @@ export function useDestinationReviews(userId: string) {
   })
 
   async function fetchCountries() {
-    if (countries.value.length > 0) return
+    if (countries.value.length > 0)
+      return
     await useRequest({
       key: EDestinationReviewKeys.FETCH_COUNTRIES,
       fn: db => db.destinationReviews.getCountries(),
@@ -116,6 +117,20 @@ export function useDestinationReviews(userId: string) {
     await fetchCountries()
     editingReview.value = review
 
+    const extractedMetrics: Record<string, number> = {}
+    const extractedComments: Record<string, string> = {}
+
+    if (review.metrics) {
+      for (const [key, value] of Object.entries(review.metrics)) {
+        if (key.endsWith('_comment') && typeof value === 'string') {
+          extractedComments[key.replace('_comment', '')] = value
+        }
+        else if (typeof value === 'number') {
+          extractedMetrics[key] = value
+        }
+      }
+    }
+
     Object.assign(editForm, {
       type: 'city',
       countryId: review.country?.id || '',
@@ -124,8 +139,8 @@ export function useDestinationReviews(userId: string) {
       latitude: review.latitude ?? '',
       longitude: review.longitude ?? '',
       content: review.content || '',
-      metrics: { ...createEmptyForm().metrics, ...review.metrics },
-      metricComments: { ...(review as any).metricComments },
+      metrics: { ...createEmptyForm().metrics, ...extractedMetrics },
+      metricComments: { ...extractedComments, ...(review as any).metricComments },
     })
 
     editFormFile.value = null
@@ -133,7 +148,8 @@ export function useDestinationReviews(userId: string) {
   }
 
   async function uploadCoverImage(file: File): Promise<string | null> {
-    if (!authStore.user?.id) return null
+    if (!authStore.user?.id)
+      return null
     let uploadedUrl: string | null = null
 
     await useRequest({
@@ -147,6 +163,13 @@ export function useDestinationReviews(userId: string) {
   }
 
   function normalizePayload(source: ReviewFormState, coverUrl: string | null) {
+    const combinedMetrics: Record<string, any> = { ...source.metrics }
+    for (const [key, val] of Object.entries(source.metricComments || {})) {
+      if (val) {
+        combinedMetrics[`${key}_comment`] = val
+      }
+    }
+
     return {
       type: source.type,
       countryId: source.countryId,
@@ -155,8 +178,7 @@ export function useDestinationReviews(userId: string) {
       latitude: Number(source.latitude),
       longitude: Number(source.longitude),
       content: source.content || null,
-      metrics: source.metrics,
-      metricComments: source.metricComments,
+      metrics: combinedMetrics,
     }
   }
 
@@ -164,7 +186,8 @@ export function useDestinationReviews(userId: string) {
     let finalCoverUrl = form.coverUrl
     if (formFile.value) {
       const uploaded = await uploadCoverImage(formFile.value)
-      if (uploaded) finalCoverUrl = uploaded
+      if (uploaded)
+        finalCoverUrl = uploaded
     }
 
     await useRequest({
@@ -180,17 +203,19 @@ export function useDestinationReviews(userId: string) {
   }
 
   async function submitEditReview() {
-    if (!editingReview.value) return
+    if (!editingReview.value)
+      return
 
     let finalCoverUrl = editForm.coverUrl
     if (editFormFile.value) {
       const uploaded = await uploadCoverImage(editFormFile.value)
-      if (uploaded) finalCoverUrl = uploaded
+      if (uploaded)
+        finalCoverUrl = uploaded
     }
 
     await useRequest({
       key: EDestinationReviewKeys.UPDATE_REVIEW,
-      fn: db => (db.destinationReviews as any).update({ id: editingReview.value!.id, ...normalizePayload(editForm, finalCoverUrl) }),
+      fn: db => db.destinationReviews.update({ id: editingReview.value!.id, ...normalizePayload(editForm, finalCoverUrl) }),
       onSuccess: () => {
         toast.success('Изменения сохранены!')
         isEditModalOpen.value = false
@@ -208,7 +233,8 @@ export function useDestinationReviews(userId: string) {
       confirmText: 'Да, удалить',
     })
 
-    if (!isConfirmed) return
+    if (!isConfirmed)
+      return
 
     await useRequest({
       key: EDestinationReviewKeys.DELETE_REVIEW,
@@ -223,8 +249,14 @@ export function useDestinationReviews(userId: string) {
     })
   }
 
-  watch(isCreateModalOpen, (val) => { if (!val) setTimeout(resetCreateForm, 300) })
-  watch(isEditModalOpen, (val) => { if (!val) setTimeout(resetEditForm, 300) })
+  watch(isCreateModalOpen, (val) => {
+    if (!val)
+      setTimeout(resetCreateForm, 300)
+  })
+  watch(isEditModalOpen, (val) => {
+    if (!val)
+      setTimeout(resetEditForm, 300)
+  })
 
   return {
     filteredReviews,

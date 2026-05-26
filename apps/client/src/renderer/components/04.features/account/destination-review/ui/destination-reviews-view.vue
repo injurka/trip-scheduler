@@ -4,6 +4,7 @@ import { onMounted } from 'vue'
 import { KitBtn } from '~/components/01.kit/kit-btn'
 import { AsyncStateWrapper } from '~/components/02.shared/async-state-wrapper'
 import { useDestinationReviews } from '../composables/use-destination-reviews'
+import DestinationReviewCardSkeleton from './components/destination-review-card-skeleton.vue'
 import DestinationReviewCard from './components/destination-review-card.vue'
 import DestinationReviewCreateDialog from './dialogs/destination-review-create-dialog.vue'
 import DestinationReviewEditDialog from './dialogs/destination-review-edit-dialog.vue'
@@ -43,7 +44,9 @@ onMounted(() => {
 <template>
   <div class="reviews-view">
     <div class="toolbar">
-      <h2 class="title">Мои впечатления</h2>
+      <h2 class="title">
+        Мои впечатления
+      </h2>
       <div style="flex-grow: 1" />
       <KitBtn
         v-if="isOwnProfile"
@@ -57,6 +60,12 @@ onMounted(() => {
     </div>
 
     <AsyncStateWrapper :loading="areReviewsLoading" :data="filteredReviews.length > 0 ? filteredReviews : null">
+      <template #loading>
+        <div class="reviews-grid">
+          <DestinationReviewCardSkeleton v-for="n in 4" :key="n" />
+        </div>
+      </template>
+
       <template #success="{ data }">
         <div class="reviews-grid">
           <DestinationReviewCard
@@ -69,6 +78,7 @@ onMounted(() => {
           />
         </div>
       </template>
+
       <template #empty>
         <div class="empty-state">
           <Icon icon="mdi:map-search-outline" />

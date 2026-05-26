@@ -7,21 +7,32 @@ export const CountrySchema = createSelectSchema(countries)
 
 const BaseDestinationReviewSchema = createSelectSchema(destinationReviews)
 
+// Строгая схема для метрик (только числа или строки-комментарии)
+const MetricsRecordSchema = z.record(
+  z.string(),
+  z.union([z.number(), z.string(), z.null()]),
+)
+
 export const DestinationReviewSchema = BaseDestinationReviewSchema.extend({
   country: CountrySchema.optional().nullable(),
 
   metrics: z.preprocess(
     (val) => {
       if (typeof val === 'string') {
-        try { return JSON.parse(val) } catch { return {} }
+        try {
+          return JSON.parse(val)
+        }
+        catch {
+          return {}
+        }
       }
       return val
     },
-    z.record(z.string(), z.number())
+    MetricsRecordSchema,
   ),
 
-  createdAt: z.preprocess((val) => (typeof val === 'string' ? new Date(val) : val), z.date()),
-  updatedAt: z.preprocess((val) => (typeof val === 'string' ? new Date(val) : val), z.date()),
+  createdAt: z.preprocess(val => (typeof val === 'string' ? new Date(val) : val), z.date()),
+  updatedAt: z.preprocess(val => (typeof val === 'string' ? new Date(val) : val), z.date()),
 })
 
 // --- Input Schemas ---
@@ -38,7 +49,11 @@ export const CreateReviewInputSchema = z.object({
   latitude: z.number(),
   longitude: z.number(),
   content: z.string().nullable(),
-  metrics: z.record(z.string(), z.number()),
+  metrics: MetricsRecordSchema,
+})
+
+export const UpdateReviewInputSchema = CreateReviewInputSchema.partial().extend({
+  id: z.string().uuid(),
 })
 
 export const DeleteReviewInputSchema = z.object({

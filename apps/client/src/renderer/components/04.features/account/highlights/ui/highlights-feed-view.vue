@@ -20,6 +20,7 @@ const {
   userId,
   highlights,
   countries,
+  reviews,
   quality,
   isLoading,
   isUploading,
@@ -154,6 +155,7 @@ onMounted(fetchHighlights)
     <HighlightsCreateDialog
       v-model:visible="isCreateModalOpen"
       :countries="countries"
+      :reviews="reviews"
       :form="form"
       :file="formFile"
       :is-uploading="isUploading"
@@ -165,6 +167,7 @@ onMounted(fetchHighlights)
     <HighlightsEditDialog
       v-model:visible="isEditModalOpen"
       :countries="countries"
+      :reviews="reviews"
       :form="editForm"
       :file="editFormFile"
       :is-uploading="isUploading"

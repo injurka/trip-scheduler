@@ -28,6 +28,14 @@ export const destinationReviewService = {
     return newReview
   },
 
+  async update(id: string, data: Partial<z.infer<typeof CreateReviewInputSchema>>, userId: string) {
+    const updated = await destinationReviewRepository.update(id, data, userId)
+    if (!updated) {
+      throw createTRPCError('NOT_FOUND', 'Впечатление не найдено или у вас нет прав на его редактирование.')
+    }
+    return updated
+  },
+
   async delete(id: string, userId: string) {
     const deleted = await destinationReviewRepository.delete(id, userId)
 

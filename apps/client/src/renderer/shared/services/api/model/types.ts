@@ -298,6 +298,7 @@ export interface IDestinationReviewRepository {
   getCountries: () => Promise<Country[]>
   getUserReviews: (params: { userId: string, type?: 'country' | 'city' }) => Promise<DestinationReview[]>
   create: (data: CreateDestinationReviewInput) => Promise<DestinationReview>
+  update: (params: { id: string } & Partial<CreateDestinationReviewInput>) => Promise<DestinationReview>
   delete: (params: { id: string }) => Promise<void>
 }
 

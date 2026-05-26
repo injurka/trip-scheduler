@@ -4,7 +4,7 @@ import type TileSource from 'ol/source/Tile'
 import type { MapLayerOption, MapMarker } from '../models/types'
 import type { TileSourceId } from '~/shared/lib/map-styles-sources'
 import { useFullscreen } from '@vueuse/core'
-import { fromLonLat, toLonLat } from 'ol/proj'
+import { fromLonLat } from 'ol/proj'
 import { KitBtn } from '~/components/01.kit/kit-btn'
 import { checkMapTilerAvailability, TILE_SOURCES } from '~/shared/lib/map-styles-sources'
 import { useKitMap } from '../composables/use-kit-map'
@@ -114,7 +114,7 @@ onMounted(async () => {
 
   if (mapInstance.value) {
     mapInstance.value.on('click', (event) => {
-      emit('click', toLonLat(event.coordinate) as [number, number])
+      emit('click', event.coordinate as [number, number])
     })
     emit('mapReady', mapInstance.value)
 
