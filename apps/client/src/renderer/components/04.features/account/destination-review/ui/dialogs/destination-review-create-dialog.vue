@@ -299,9 +299,8 @@ function getSliderColor(value: number) {
   gap: 12px;
 }
 .map-container {
-  border-radius: var(--r-s);
   overflow: hidden;
-  border: 1px solid var(--border-secondary-color);
+  box-shadow: none;
 }
 
 .metrics-grid {

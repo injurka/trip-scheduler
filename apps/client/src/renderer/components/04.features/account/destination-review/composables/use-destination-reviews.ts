@@ -14,8 +14,11 @@ export enum EDestinationReviewKeys {
   UPLOAD_COVER = 'destination-reviews:upload-cover',
 }
 
-export const METRIC_KEYS = ['safety', 'culture', 'infrastructure', 'food', 'prices', 'nature', 'vibe'] as const
-export const METRIC_LABELS: Record<string, string> = {
+export type DestinationMetricKey = 'safety' | 'culture' | 'infrastructure' | 'food' | 'prices' | 'nature' | 'vibe' | 'climate' | 'people' | 'entertainment'
+
+export const METRIC_KEYS: DestinationMetricKey[] = ['safety', 'culture', 'infrastructure', 'food', 'prices', 'nature', 'vibe', 'climate', 'people', 'entertainment']
+
+export const METRIC_LABELS: Record<DestinationMetricKey, string> = {
   safety: 'Безопасность',
   culture: 'Культура',
   infrastructure: 'Инфраструктура',
@@ -23,6 +26,9 @@ export const METRIC_LABELS: Record<string, string> = {
   prices: 'Цены',
   nature: 'Природа',
   vibe: 'Атмосфера',
+  climate: 'Климат',
+  people: 'Люди',
+  entertainment: 'Развлечения',
 }
 
 interface ReviewFormState {
@@ -46,7 +52,7 @@ function createEmptyForm(): ReviewFormState {
     latitude: '',
     longitude: '',
     content: '',
-    metrics: { safety: 3, culture: 3, infrastructure: 3, food: 3, prices: 3, nature: 3, vibe: 3 },
+    metrics: { safety: 3, culture: 3, infrastructure: 3, food: 3, prices: 3, nature: 3, vibe: 3, climate: 3, people: 3, entertainment: 3 },
     metricComments: {},
   }
 }
@@ -117,16 +123,16 @@ export function useDestinationReviews(userId: string) {
     await fetchCountries()
     editingReview.value = review
 
-    const extractedMetrics: Record<string, number> = {}
-    const extractedComments: Record<string, string> = {}
+    const extractedMetrics = {} as Record<DestinationMetricKey, number>
+    const extractedComments = {} as Record<DestinationMetricKey, string>
 
     if (review.metrics) {
       for (const [key, value] of Object.entries(review.metrics)) {
         if (key.endsWith('_comment') && typeof value === 'string') {
-          extractedComments[key.replace('_comment', '')] = value
+          extractedComments[key.replace('_comment', '') as DestinationMetricKey] = value
         }
         else if (typeof value === 'number') {
-          extractedMetrics[key] = value
+          extractedMetrics[key as DestinationMetricKey] = value
         }
       }
     }

@@ -1,8 +1,10 @@
 <script setup lang="ts">
+import type { DestinationMetricKey } from '../../composables/use-destination-reviews'
 import type { DestinationReview } from '~/shared/types/models/destination-review'
 import { Icon } from '@iconify/vue'
 import { computed, ref } from 'vue'
 import { KitDialogWithClose } from '~/components/01.kit/kit-dialog-with-close'
+import { KitImage } from '~/components/01.kit/kit-image'
 import { KitInlineMdEditorWrapper } from '~/components/01.kit/kit-inline-md-editor'
 import { KitMap } from '~/components/01.kit/kit-map'
 import { KitTooltip } from '~/components/01.kit/kit-tooltip'
@@ -13,7 +15,7 @@ const emit = defineEmits(['delete', 'edit'])
 
 const isExpanded = ref(false)
 
-const METRIC_ICONS: Record<string, string> = {
+const METRIC_ICONS: Record<DestinationMetricKey, string> = {
   safety: 'mdi:shield-check-outline',
   culture: 'mdi:bank-outline',
   infrastructure: 'mdi:city-variant-outline',
@@ -21,23 +23,29 @@ const METRIC_ICONS: Record<string, string> = {
   prices: 'mdi:wallet-outline',
   nature: 'mdi:pine-tree',
   vibe: 'mdi:emoticon-cool-outline',
+  climate: 'mdi:weather-partly-cloudy',
+  people: 'mdi:account-group-outline',
+  entertainment: 'mdi:glass-cocktail',
 }
 
-const METRIC_DESCRIPTIONS: Record<string, string> = {
-  safety: 'Уровень преступности, комфорт и безопасность на улицах.',
-  culture: 'Историческое наследие, музеи, архитектура и менталитет.',
-  infrastructure: 'Качество транспорта, дорог, доступность сервисов.',
-  food: 'Местная кухня, качество кафе, ресторанов и продуктов.',
-  prices: 'Общая стоимость жизни, жилья, развлечений и еды.',
-  nature: 'Экология, парки, скверы и близость к природе.',
-  vibe: 'Эстетика, комфорт нахождения и общая атмосфера места.',
+const METRIC_DESCRIPTIONS: Record<DestinationMetricKey, string> = {
+  safety: 'Уровень преступности, комфорт и общая безопасность на улицах.',
+  culture: 'Историческое наследие, музеи, театры, архитектура и традиции.',
+  infrastructure: 'Качество общественного транспорта, дорог, доступность городских сервисов.',
+  food: 'Местная кухня, разнообразие и качество кафе, ресторанов и продуктов в магазинах.',
+  prices: 'Общая стоимость жизни, аренды жилья, развлечений и еды.',
+  nature: 'Экология, чистота воздуха, наличие парков, скверов и близость к природе.',
+  vibe: 'Эстетика, ритм жизни, комфорт нахождения и общая уникальная атмосфера места.',
+  climate: 'Погодные условия в течение года, сезонность и количество солнечных дней.',
+  people: 'Приветливость местных жителей, уровень знания английского и открытость к приезжим.',
+  entertainment: 'Ночная жизнь, бары, концерты, шопинг и разнообразие активного досуга.',
 }
 
 const numericMetrics = computed(() => {
-  const res: Record<string, number> = {}
+  const res: Partial<Record<DestinationMetricKey, number>> = {}
   for (const [k, v] of Object.entries((props.review.metrics as Record<string, any>) || {})) {
     if (typeof v === 'number' && !k.endsWith('_comment')) {
-      res[k] = v
+      res[k as DestinationMetricKey] = v
     }
   }
   return res
@@ -52,10 +60,10 @@ const averageRating = computed(() => {
 })
 
 const metricComments = computed(() => {
-  const comments: Record<string, string> = {}
+  const comments: Partial<Record<DestinationMetricKey, string>> = {}
   for (const [key, value] of Object.entries((props.review.metrics as Record<string, any>) || {})) {
     if (key.endsWith('_comment')) {
-      comments[key.replace('_comment', '')] = String(value)
+      comments[key.replace('_comment', '') as DestinationMetricKey] = String(value)
     }
   }
   return comments
@@ -98,7 +106,7 @@ function openExpanded() {
     <!-- Мини-карточка (Превью) -->
     <div class="review-card" @click="openExpanded">
       <div class="card-bg">
-        <img v-if="review.coverUrl" :src="review.coverUrl" class="bg-image" alt="Cover">
+        <KitImage v-if="review.coverUrl" :src="review.coverUrl" class="bg-image" alt="Cover" />
         <div v-else class="bg-placeholder">
           <Icon icon="mdi:image-off-outline" />
         </div>
@@ -167,7 +175,7 @@ function openExpanded() {
       <div class="dialog-content-layout">
         <!-- Обложка внутри диалога -->
         <div class="dialog-banner">
-          <img v-if="review.coverUrl" :src="review.coverUrl" class="banner-image" alt="Cover">
+          <KitImage v-if="review.coverUrl" :src="review.coverUrl" class="banner-image" alt="Cover" />
           <div v-else class="banner-placeholder">
             <Icon icon="mdi:image-off-outline" />
           </div>
@@ -259,7 +267,7 @@ function openExpanded() {
             <KitMap
               :center="mapCenter"
               :zoom="12"
-              height="220px"
+              height="400px"
               :markers="mapMarkers"
               :auto-pan="false"
             />
@@ -306,7 +314,6 @@ function openExpanded() {
   .bg-image {
     width: 100%;
     height: 100%;
-    object-fit: cover;
     transition: transform 0.5s ease;
   }
   .bg-placeholder {
@@ -363,12 +370,15 @@ function openExpanded() {
 
 .mini-metrics-column {
   position: absolute;
-  top: 16px;
+  top: 0px;
   right: 12px;
   z-index: 10;
   display: flex;
   flex-direction: column;
   gap: 5px;
+  height: 240px;
+  flex-wrap: wrap-reverse;
+  justify-content: center;
 }
 
 .mini-metric-item {
@@ -511,7 +521,6 @@ function openExpanded() {
   .banner-image {
     width: 100%;
     height: 100%;
-    object-fit: cover;
   }
 
   .banner-placeholder {
@@ -573,7 +582,6 @@ function openExpanded() {
   }
 }
 
-/* Tooltip у секции оценок */
 .info-tooltip-wrapper {
   position: relative;
   display: inline-flex;
@@ -726,7 +734,7 @@ function openExpanded() {
   border-left: 4px solid var(--fg-accent-color);
 
   :deep(.ProseMirror p) {
-    font-size: 0.85rem;
+    font-size: 0.9rem;
     line-height: 1.5;
   }
 }

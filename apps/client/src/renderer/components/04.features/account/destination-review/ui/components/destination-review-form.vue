@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import type { DestinationMetricKey } from '../../composables/use-destination-reviews'
 import type { Country } from '~/shared/types/models/destination-review'
 import { toLonLat } from 'ol/proj'
 import { computed, reactive, ref } from 'vue'
@@ -13,6 +14,7 @@ import { KitSlider } from '~/components/01.kit/kit-slider'
 import { useRequest } from '~/plugins/request'
 import { useToast } from '~/shared/composables/use-toast'
 import { useAuthStore } from '~/shared/store/auth.store'
+import { METRIC_KEYS, METRIC_LABELS } from '../../composables/use-destination-reviews'
 
 const props = defineProps<{ countries: Country[] }>()
 const emit = defineEmits(['success'])
@@ -32,16 +34,8 @@ const form = reactive({
   latitude: '' as number | string,
   longitude: '' as number | string,
   content: '',
-  metrics: { infrastructure: 3, nature: 3, food: 3, prices: 3, vibe: 3 },
+  metrics: { safety: 3, culture: 3, infrastructure: 3, nature: 3, food: 3, prices: 3, vibe: 3, climate: 3, people: 3, entertainment: 3 } as Record<DestinationMetricKey, number>,
 })
-
-const metricLabels: Record<string, string> = {
-  infrastructure: 'Инфраструктура',
-  nature: 'Природа',
-  food: 'Еда',
-  prices: 'Цены',
-  vibe: 'Атмосфера',
-}
 
 const countryOptions = computed(() => {
   return props.countries.map(c => ({ value: c.id, label: c.name, flagUrl: c.flagUrl }))
@@ -213,12 +207,12 @@ function getSliderColor(value: number) {
         </h4>
         <div class="metrics-grid">
           <KitSlider
-            v-for="(val, key) in form.metrics" :key="key"
+            v-for="key in METRIC_KEYS" :key="key"
             v-model="form.metrics[key]"
-            :label="metricLabels[key]"
+            :label="METRIC_LABELS[key]"
             :min="1" :max="5" :step="1"
             :value-formatter="v => `${v} / 5`"
-            :color="getSliderColor(val)"
+            :color="getSliderColor(form.metrics[key])"
           />
         </div>
       </div>
@@ -363,7 +357,7 @@ function getSliderColor(value: number) {
   margin-bottom: 8px;
 }
 .map-container {
-  border-radius: var(--r-s);
+  box-shadow: none;
   overflow: hidden;
 }
 

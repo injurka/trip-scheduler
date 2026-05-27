@@ -214,13 +214,6 @@ function toggleTooltip(e: Event) {
   width: 100%;
 }
 
-.highlight-image :deep(img) {
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
-  display: block;
-}
-
 .card-actions {
   position: absolute;
   top: 10px;

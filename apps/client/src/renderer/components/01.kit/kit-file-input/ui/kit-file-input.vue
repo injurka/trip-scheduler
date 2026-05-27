@@ -184,7 +184,7 @@ const componentClasses = computed(() => ({
   >
     <div v-if="isImagePreview && previewUrl" class="preview-wrapper">
       <img
-        :src="previewUrl"
+        v-resolve-src="previewUrl"
         :alt="fileName || 'Preview'"
         class="preview-image"
       >
