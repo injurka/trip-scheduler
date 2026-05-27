@@ -36,6 +36,7 @@ interface ReviewFormState {
   countryId: string
   city: string
   coverUrl: string | null
+  coverVariants: Record<string, string> | null
   latitude: number | string
   longitude: number | string
   content: string
@@ -49,6 +50,7 @@ function createEmptyForm(): ReviewFormState {
     countryId: '',
     city: '',
     coverUrl: null,
+    coverVariants: null,
     latitude: '',
     longitude: '',
     content: '',
@@ -142,6 +144,7 @@ export function useDestinationReviews(userId: string) {
       countryId: review.country?.id || '',
       city: review.city || '',
       coverUrl: review.coverUrl || null,
+      coverVariants: (review as any).coverVariants || null,
       latitude: review.latitude ?? '',
       longitude: review.longitude ?? '',
       content: review.content || '',
@@ -153,22 +156,24 @@ export function useDestinationReviews(userId: string) {
     isEditModalOpen.value = true
   }
 
-  async function uploadCoverImage(file: File): Promise<string | null> {
+  async function uploadCoverImage(file: File): Promise<{ url: string, variants: Record<string, string> } | null> {
     if (!authStore.user?.id)
       return null
-    let uploadedUrl: string | null = null
+    let uploadedData: { url: string, variants: Record<string, string> } | null = null
 
     await useRequest({
       key: EDestinationReviewKeys.UPLOAD_COVER,
       fn: db => db.files.uploadFile(file, authStore.user!.id, 'review', 'cover'),
-      onSuccess: (uploadedImage) => { uploadedUrl = uploadedImage.url },
+      onSuccess: (uploadedImage) => {
+        uploadedData = { url: uploadedImage.url, variants: uploadedImage.variants || {} }
+      },
       onError: ({ error }) => { toast.error(error.customMessage || 'Ошибка загрузки обложки') },
     })
 
-    return uploadedUrl
+    return uploadedData
   }
 
-  function normalizePayload(source: ReviewFormState, coverUrl: string | null) {
+  function normalizePayload(source: ReviewFormState, coverUrl: string | null, coverVariants: Record<string, string> | null) {
     const combinedMetrics: Record<string, any> = { ...source.metrics }
     for (const [key, val] of Object.entries(source.metricComments || {})) {
       if (val) {
@@ -181,6 +186,7 @@ export function useDestinationReviews(userId: string) {
       countryId: source.countryId,
       city: source.city,
       coverUrl,
+      coverVariants,
       latitude: Number(source.latitude),
       longitude: Number(source.longitude),
       content: source.content || null,
@@ -190,15 +196,18 @@ export function useDestinationReviews(userId: string) {
 
   async function submitReview() {
     let finalCoverUrl = form.coverUrl
+    let finalCoverVariants = form.coverVariants
     if (formFile.value) {
       const uploaded = await uploadCoverImage(formFile.value)
-      if (uploaded)
-        finalCoverUrl = uploaded
+      if (uploaded) {
+        finalCoverUrl = uploaded.variants?.medium || uploaded.url
+        finalCoverVariants = uploaded.variants
+      }
     }
 
     await useRequest({
       key: EDestinationReviewKeys.CREATE_REVIEW,
-      fn: db => db.destinationReviews.create(normalizePayload(form, finalCoverUrl) as any),
+      fn: db => db.destinationReviews.create(normalizePayload(form, finalCoverUrl, finalCoverVariants) as any),
       onSuccess: () => {
         toast.success('Впечатление добавлено!')
         isCreateModalOpen.value = false
@@ -213,15 +222,18 @@ export function useDestinationReviews(userId: string) {
       return
 
     let finalCoverUrl = editForm.coverUrl
+    let finalCoverVariants = editForm.coverVariants
     if (editFormFile.value) {
       const uploaded = await uploadCoverImage(editFormFile.value)
-      if (uploaded)
-        finalCoverUrl = uploaded
+      if (uploaded) {
+        finalCoverUrl = uploaded.variants?.medium || uploaded.url
+        finalCoverVariants = uploaded.variants
+      }
     }
 
     await useRequest({
       key: EDestinationReviewKeys.UPDATE_REVIEW,
-      fn: db => db.destinationReviews.update({ id: editingReview.value!.id, ...normalizePayload(editForm, finalCoverUrl) }),
+      fn: db => db.destinationReviews.update({ id: editingReview.value!.id, ...normalizePayload(editForm, finalCoverUrl, finalCoverVariants) }),
       onSuccess: () => {
         toast.success('Изменения сохранены!')
         isEditModalOpen.value = false

@@ -1,14 +1,19 @@
 <script setup lang="ts">
 import type { Country, DestinationReview } from '~/shared/types/models/destination-review'
 import type { CreateHighlightInput } from '~/shared/types/models/user'
+import { Icon } from '@iconify/vue'
+import { CalendarDate, Time } from '@internationalized/date'
+import { onClickOutside } from '@vueuse/core'
 import { toLonLat } from 'ol/proj'
-import { computed, ref } from 'vue'
+import { computed, ref, watch } from 'vue'
 import { KitBtn } from '~/components/01.kit/kit-btn'
+import { KitCalendar } from '~/components/01.kit/kit-calendar'
 import { KitDialogWithClose } from '~/components/01.kit/kit-dialog-with-close'
 import { KitFileInput } from '~/components/01.kit/kit-file-input'
 import { KitInput } from '~/components/01.kit/kit-input'
 import { KitMap } from '~/components/01.kit/kit-map'
 import { KitSelectWithSearch } from '~/components/01.kit/kit-select-with-search'
+import { KitTimeField } from '~/components/01.kit/kit-time-field'
 
 const props = defineProps<{
   visible: boolean
@@ -63,6 +68,73 @@ function applySuggestion(loc: { countryId: string, city: string }) {
   props.form.city = loc.city
 }
 
+// --- Логика кастомного выбора Даты и Времени ---
+const datePickerWrapperRef = ref<HTMLElement | null>(null)
+const showDatePicker = ref(false)
+const calendarDate = ref<CalendarDate | null>(null)
+const timeValue = ref<Time | null>(null)
+let isInternalDateUpdate = false
+
+onClickOutside(datePickerWrapperRef, () => {
+  showDatePicker.value = false
+})
+
+watch(() => props.form.takenAt, (val) => {
+  if (isInternalDateUpdate) {
+    isInternalDateUpdate = false
+    return
+  }
+  if (val) {
+    const d = new Date(val)
+    if (!Number.isNaN(d.getTime())) {
+      calendarDate.value = new CalendarDate(d.getFullYear(), d.getMonth() + 1, d.getDate())
+      timeValue.value = new Time(d.getHours(), d.getMinutes())
+    }
+  }
+  else {
+    calendarDate.value = null
+    timeValue.value = null
+  }
+}, { immediate: true })
+
+watch([calendarDate, timeValue], ([newDate, newTime]) => {
+  isInternalDateUpdate = true
+  if (newDate) {
+    const d = new Date(
+      newDate.year,
+      newDate.month - 1,
+      newDate.day,
+      newTime?.hour || 0,
+      newTime?.minute || 0,
+    )
+    props.form.takenAt = d.toISOString()
+  }
+  else {
+    props.form.takenAt = null
+  }
+}, { deep: true })
+
+const formattedTakenAt = computed(() => {
+  if (!props.form.takenAt)
+    return ''
+  const d = new Date(props.form.takenAt)
+  if (Number.isNaN(d.getTime()))
+    return ''
+  return d.toLocaleString('ru-RU', {
+    year: 'numeric',
+    month: 'short',
+    day: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit',
+  })
+})
+
+watch(visibleModel, (val) => {
+  if (!val)
+    showDatePicker.value = false
+})
+// -------------------------------------------------
+
 const mapCenter = ref<[number, number]>([20, 45])
 const mapMarkers = computed(() => {
   const lat = Number(props.form.latitude)
@@ -91,7 +163,16 @@ const isSubmitDisabled = computed(() =>
     v-model:visible="visibleModel"
     title="Добавить фото"
     :max-width="720"
+    :persistent="isSubmitting || isUploading"
   >
+    <div v-if="isSubmitting || isUploading" class="dialog-overlay-loader">
+      <div class="dialog-overlay-loader-bg" />
+      <div class="dialog-overlay-loader-content">
+        <Icon icon="mdi:loading" class="spinner" />
+        <span>{{ isUploading ? 'Загрузка фото...' : 'Сохранение...' }}</span>
+      </div>
+    </div>
+
     <div class="dialog-body">
       <KitFileInput
         :model-value="file"
@@ -140,11 +221,36 @@ const isSubmitDisabled = computed(() =>
           </div>
         </div>
 
-        <KitInput
-          v-model="form.address"
-          label="Адрес"
-          placeholder="Улица, район или точка на карте"
-        />
+        <div class="row row--aligned">
+          <KitInput
+            v-model="form.address"
+            label="Адрес"
+            placeholder="Улица, район или точка на карте"
+          />
+          <div ref="datePickerWrapperRef" class="custom-datetime-picker">
+            <label class="section-label">Дата и время съемки</label>
+            <div
+              class="date-trigger"
+              :class="{ 'is-active': showDatePicker }"
+              @click="showDatePicker = !showDatePicker"
+            >
+              <span class="date-text" :class="{ 'is-empty': !formattedTakenAt }">
+                {{ formattedTakenAt || 'Не указано' }}
+              </span>
+              <Icon icon="mdi:calendar-blank" class="date-icon" />
+            </div>
+
+            <Transition name="dropdown-fade">
+              <div v-if="showDatePicker" class="picker-inline">
+                <KitCalendar v-model="calendarDate" />
+                <div class="time-row">
+                  <span class="time-label">Время:</span>
+                  <KitTimeField v-model="timeValue" />
+                </div>
+              </div>
+            </Transition>
+          </div>
+        </div>
 
         <div class="map-section">
           <label class="section-label">Координаты</label>
@@ -198,7 +304,7 @@ const isSubmitDisabled = computed(() =>
             :loading="isSubmitting"
             @click="emit('submit')"
           >
-            Сохранить
+            Загрузить
           </KitBtn>
         </div>
       </div>
@@ -207,6 +313,46 @@ const isSubmitDisabled = computed(() =>
 </template>
 
 <style scoped lang="scss">
+.dialog-overlay-loader {
+  position: absolute;
+  inset: 0;
+  z-index: 50;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: inherit;
+
+  &-bg {
+    position: absolute;
+    inset: 0;
+    background: var(--bg-primary-color);
+    opacity: 0.7;
+    border-radius: inherit;
+  }
+
+  &-content {
+    position: relative;
+    z-index: 51;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 12px;
+    color: var(--fg-primary-color);
+    font-weight: 500;
+
+    .spinner {
+      font-size: 2.5rem;
+      color: var(--fg-accent-color);
+      animation: spin 1s linear infinite;
+    }
+  }
+}
+@keyframes spin {
+  100% {
+    transform: rotate(360deg);
+  }
+}
+
 .dialog-body {
   display: flex;
   flex-direction: column;
@@ -223,6 +369,109 @@ const isSubmitDisabled = computed(() =>
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 16px;
+
+  &--aligned {
+    align-items: start;
+  }
+}
+
+.custom-datetime-picker {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  position: relative;
+}
+
+.date-trigger {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  min-height: 46px;
+  padding: 0 12px;
+  background-color: var(--bg-secondary-color);
+  border: 1px solid var(--border-secondary-color);
+  border-radius: var(--r-s);
+  cursor: pointer;
+  transition: border-color 0.2s;
+
+  &:hover {
+    border-color: var(--border-focus-color);
+  }
+  &.is-active {
+    border-color: var(--border-focus-color);
+  }
+  .date-text {
+    font-size: 1rem;
+    color: var(--fg-primary-color);
+    &.is-empty {
+      color: var(--fg-tertiary-color);
+    }
+  }
+  .date-icon {
+    color: var(--fg-tertiary-color);
+    font-size: 1.25rem;
+  }
+}
+
+.picker-inline {
+  position: absolute;
+  top: 100%;
+  right: 0;
+  z-index: 100;
+  box-shadow: var(--s-l);
+  margin-top: 8px;
+  background: var(--bg-secondary-color);
+  border: 1px solid var(--border-secondary-color);
+  border-radius: var(--r-m);
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+
+  :deep(.calendar) {
+    border: none;
+    box-shadow: none;
+    padding: 0;
+    background: transparent;
+    width: 100%;
+    max-width: 300px;
+  }
+
+  @media (max-width: 720px) {
+    left: 0;
+    right: auto;
+  }
+}
+
+.dropdown-fade-enter-active,
+.dropdown-fade-leave-active {
+  transition:
+    opacity 0.2s ease,
+    transform 0.2s ease;
+}
+
+.dropdown-fade-enter-from,
+.dropdown-fade-leave-to {
+  opacity: 0;
+  transform: translateY(-5px);
+}
+
+.time-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  max-width: 300px;
+  padding-top: 16px;
+  margin-top: 8px;
+  border-top: 1px solid var(--border-secondary-color);
+
+  .time-label {
+    font-size: 0.95rem;
+    font-weight: 500;
+    color: var(--fg-secondary-color);
+  }
 }
 
 .suggestions {
@@ -280,8 +529,8 @@ const isSubmitDisabled = computed(() =>
 }
 
 .section-label {
-  font-size: 0.9rem;
-  font-weight: 600;
+  font-size: 0.875rem;
+  font-weight: 500;
   color: var(--fg-secondary-color);
   margin-bottom: 4px;
 }

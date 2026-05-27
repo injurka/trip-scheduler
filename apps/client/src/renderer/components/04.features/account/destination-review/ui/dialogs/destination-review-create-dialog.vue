@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import type { Country } from '~/shared/types/models/destination-review'
+import { Icon } from '@iconify/vue'
 import { toLonLat } from 'ol/proj'
 import { computed, ref } from 'vue'
 import { KitBtn } from '~/components/01.kit/kit-btn'
@@ -61,17 +62,23 @@ function handleMapClick(coords: [number, number]) {
   props.form.latitude = Number(lat.toFixed(6))
 }
 
-const isNextDisabled = computed(() => {
-  if (step.value === 1) {
-    if (!props.form.countryId)
-      return true
-    if (!props.form.city)
-      return true
-    if (props.form.latitude === '' || props.form.longitude === '')
-      return true
-  }
+const isStep1Invalid = computed(() => {
+  if (!props.form.countryId)
+    return true
+  if (!props.form.city)
+    return true
+  if (props.form.latitude === '' || props.form.longitude === '')
+    return true
   return false
 })
+
+function goToStep(targetStep: number) {
+  if (props.isSubmitting || props.isUploading)
+    return
+  if (targetStep > 1 && isStep1Invalid.value)
+    return
+  step.value = targetStep
+}
 
 function getSliderColor(value: number) {
   if (value <= 2)
@@ -83,31 +90,48 @@ function getSliderColor(value: number) {
 </script>
 
 <template>
-  <KitDialogWithClose v-model:visible="visibleModel" title="Добавить впечатление" :max-width="600">
+  <KitDialogWithClose
+    v-model:visible="visibleModel"
+    title="Добавить впечатление"
+    :max-width="600"
+    :persistent="isSubmitting || isUploading"
+  >
+    <div v-if="isSubmitting || isUploading" class="dialog-overlay-loader">
+      <div class="dialog-overlay-loader__bg" />
+      <div class="dialog-overlay-loader__content">
+        <Icon icon="mdi:loading" class="spinner" />
+        <span>{{ isUploading ? 'Загрузка фото...' : 'Сохранение...' }}</span>
+      </div>
+    </div>
+
     <div class="form-wizard">
       <div class="stepper">
-        <div class="step" :class="{ active: step >= 1, completed: step > 1 }">
+        <div class="step" :class="{ active: step >= 1, completed: step > 1, disabled: isSubmitting || isUploading }" @click="goToStep(1)">
           <div class="step-circle">
             1
-          </div><span class="step-label">Место</span>
+          </div>
+          <span class="step-label">Место</span>
         </div>
         <div class="step-line" :class="{ active: step > 1 }" />
-        <div class="step" :class="{ active: step >= 2, completed: step > 2 }">
+        <div class="step" :class="{ active: step >= 2, completed: step > 2, disabled: isSubmitting || isUploading || isStep1Invalid }" @click="goToStep(2)">
           <div class="step-circle">
             2
-          </div><span class="step-label">Фото</span>
+          </div>
+          <span class="step-label">Фото</span>
         </div>
         <div class="step-line" :class="{ active: step > 2 }" />
-        <div class="step" :class="{ active: step >= 3, completed: step > 3 }">
+        <div class="step" :class="{ active: step >= 3, completed: step > 3, disabled: isSubmitting || isUploading || isStep1Invalid }" @click="goToStep(3)">
           <div class="step-circle">
             3
-          </div><span class="step-label">Оценки</span>
+          </div>
+          <span class="step-label">Оценки</span>
         </div>
         <div class="step-line" :class="{ active: step > 3 }" />
-        <div class="step" :class="{ active: step >= 4 }">
+        <div class="step" :class="{ active: step >= 4, disabled: isSubmitting || isUploading || isStep1Invalid }" @click="goToStep(4)">
           <div class="step-circle">
             4
-          </div><span class="step-label">Отзыв</span>
+          </div>
+          <span class="step-label">Отзыв</span>
         </div>
       </div>
 
@@ -193,7 +217,7 @@ function getSliderColor(value: number) {
           Назад
         </KitBtn>
         <div style="flex-grow: 1" />
-        <KitBtn v-if="step < 4" :disabled="isNextDisabled" @click="step++">
+        <KitBtn v-if="step < 4" :disabled="step === 1 && isStep1Invalid" @click="step++">
           Далее
         </KitBtn>
         <KitBtn v-if="step === 4" color="primary" :loading="isSubmitting" @click="emit('submit')">
@@ -205,6 +229,46 @@ function getSliderColor(value: number) {
 </template>
 
 <style scoped lang="scss">
+.dialog-overlay-loader {
+  position: absolute;
+  inset: 0;
+  z-index: 50;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: inherit;
+
+  &__bg {
+    position: absolute;
+    inset: 0;
+    background: var(--bg-primary-color);
+    opacity: 0.7;
+    border-radius: inherit;
+  }
+
+  &__content {
+    position: relative;
+    z-index: 51;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 12px;
+    color: var(--fg-primary-color);
+    font-weight: 500;
+
+    .spinner {
+      font-size: 2.5rem;
+      color: var(--fg-accent-color);
+      animation: spin 1s linear infinite;
+    }
+  }
+}
+@keyframes spin {
+  100% {
+    transform: rotate(360deg);
+  }
+}
+
 .stepper {
   display: flex;
   align-items: center;
@@ -218,6 +282,16 @@ function getSliderColor(value: number) {
   align-items: center;
   gap: 6px;
   z-index: 2;
+  cursor: pointer;
+  transition: transform 0.2s;
+
+  &:hover:not(.disabled) {
+    transform: translateY(-2px);
+  }
+  &.disabled {
+    cursor: not-allowed;
+    opacity: 0.8;
+  }
 }
 .step-circle {
   width: 32px;

@@ -21,13 +21,13 @@ export class UserRepository implements IUserRepository {
   @throttle(300)
   async search(query: string): Promise<{ id: string, name: string, email: string | null, avatarUrl: string | null }[]> {
     const result = await trpc.user.search.query({ query })
-    return result
+    return result as { id: string, name: string, email: string | null, avatarUrl: string | null }[]
   }
 
   @throttle(500)
-  async getHighlights(userId: string): Promise<Highlight[]> {
-    const result = await trpc.user.getHighlights.query({ userId })
-    return result as Highlight[]
+  async getHighlights(userId: string, limit: number, page: number): Promise<{ items: Highlight[], total: number }> {
+    const result = await trpc.user.getHighlights.query({ userId, limit, page })
+    return result as { items: Highlight[], total: number }
   }
 
   @throttle(500)

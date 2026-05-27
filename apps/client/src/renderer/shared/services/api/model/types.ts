@@ -258,7 +258,7 @@ export interface IUserRepository {
   getById: (id: string) => Promise<User>
   listPlans: () => Promise<Plan[]>
   search: (query: string) => Promise<{ id: string, name: string, email: string | null, avatarUrl: string | null }[]>
-  getHighlights: (userId: string) => Promise<Highlight[]>
+  getHighlights: (userId: string, limit: number, page: number) => Promise<{ items: Highlight[], total: number }>
   createHighlight: (data: CreateHighlightInput) => Promise<Highlight>
   deleteHighlight: (id: string) => Promise<void>
 }

@@ -168,9 +168,9 @@ export const userProcedures = {
       openapi: { method: 'GET', path: '/users/{userId}/highlights', tags: ['Users'], summary: 'Получить витрину пользователя' },
     })
     .input(GetUserHighlightsInputSchema)
-    .output(z.array(HighlightSchema))
+    .output(z.object({ items: z.array(HighlightSchema), total: z.number() }))
     .query(async ({ input }) => {
-      return userService.getHighlights(input.userId)
+      return userService.getHighlights(input.userId, input.limit, input.page)
     }),
 
   createHighlight: protectedProcedure

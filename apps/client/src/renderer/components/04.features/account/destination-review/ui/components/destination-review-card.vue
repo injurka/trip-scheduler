@@ -8,6 +8,7 @@ import { KitImage } from '~/components/01.kit/kit-image'
 import { KitInlineMdEditorWrapper } from '~/components/01.kit/kit-inline-md-editor'
 import { KitMap } from '~/components/01.kit/kit-map'
 import { KitTooltip } from '~/components/01.kit/kit-tooltip'
+import { getImageUrl } from '~/shared/lib/url'
 import { METRIC_LABELS } from '../../composables/use-destination-reviews'
 
 const props = defineProps<{ review: DestinationReview, isOwner: boolean }>()
@@ -82,6 +83,15 @@ const ratingLevelClass = computed(() => {
 const flagSrc = computed(() => props.review.country?.flagUrl || '')
 const placeName = computed(() => `${props.review.city}, ${props.review.country?.name}`)
 
+const coverMediumUrl = computed(() => {
+  const variants = (props.review as any).coverVariants as Record<string, string> | undefined
+  let src = props.review.coverUrl
+  if (variants?.medium) {
+    src = variants.medium
+  }
+  return src ? (getImageUrl(src) || src) : ''
+})
+
 const mapCenter = computed<[number, number]>(() => [Number(props.review.longitude), Number(props.review.latitude)])
 const mapMarkers = computed(() => [{
   id: 'review-pin',
@@ -106,7 +116,7 @@ function openExpanded() {
     <!-- Мини-карточка (Превью) -->
     <div class="review-card" @click="openExpanded">
       <div class="card-bg">
-        <KitImage v-if="review.coverUrl" :src="review.coverUrl" class="bg-image" alt="Cover" />
+        <KitImage v-if="review.coverUrl" :src="coverMediumUrl" class="bg-image" alt="Cover" />
         <div v-else class="bg-placeholder">
           <Icon icon="mdi:image-off-outline" />
         </div>

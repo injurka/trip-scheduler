@@ -1,9 +1,11 @@
 <script setup lang="ts">
 import type { ImageViewerImage } from '~/components/01.kit/kit-image-viewer'
 import type { Highlight } from '~/shared/types/models/user'
+import { Icon } from '@iconify/vue'
 import { computed, onMounted, ref } from 'vue'
+import { KitBtn } from '~/components/01.kit/kit-btn'
 import { KitImageViewer } from '~/components/01.kit/kit-image-viewer'
-import { AsyncStateWrapper } from '~/components/02.shared/async-state-wrapper'
+import { KitPagination } from '~/components/01.kit/kit-pagination'
 import { useAuthStore } from '~/shared/store/auth.store'
 import { useHighlights } from '../composables/use-highlights'
 import HighlightsCreateDialog from './dialog/highlights-create-dialog.vue'
@@ -19,10 +21,18 @@ const authStore = useAuthStore()
 const {
   userId,
   highlights,
+  filteredHighlights,
+  totalItems,
+  currentPage,
+  itemsPerPage,
   countries,
   reviews,
   quality,
+  selectedCities,
+  dateRange,
+  availableCities,
   isLoading,
+  fetchError,
   isUploading,
   isSubmitting,
   isCreateModalOpen,
@@ -46,30 +56,25 @@ const isOwner = computed(() => authStore.user?.id === userId.value)
 const viewerVisible = ref(false)
 const viewerIndex = ref(0)
 
-const highlightsData = computed(() =>
-  highlights.value.length > 0 ? highlights.value : null,
-)
-
 const viewerImages = computed<ImageViewerImage[]>(() =>
-  highlights.value.map(item => ({
+  filteredHighlights.value.map(item => ({
     url: item.imageUrl,
     alt: [item.city, item.country?.name].filter(Boolean).join(', ') || 'Highlight image',
     caption: item.comment || null,
     variants: item.variants as Record<string, string> | undefined,
     meta: {
-      ...((item.metadata as Record<string, any>) || {}),
       latitude: item.latitude ?? null,
       longitude: item.longitude ?? null,
       takenAt: item.takenAt ?? null,
       width: item.width ?? null,
       height: item.height ?? null,
-      imageId: (item.metadata as any)?.imageId ?? item.id,
+      imageId: item.id,
     } as any,
   })),
 )
 
 const currentViewerHighlight = computed<Highlight | null>(() =>
-  highlights.value[viewerIndex.value] ?? null,
+  filteredHighlights.value[viewerIndex.value] ?? null,
 )
 
 const viewerLocation = computed(() => {
@@ -101,12 +106,17 @@ const viewerDate = computed(() => {
 })
 
 function openViewer(photo: Highlight) {
-  const index = highlights.value.findIndex(item => item.id === photo.id)
+  const index = filteredHighlights.value.findIndex(item => item.id === photo.id)
   if (index < 0)
     return
 
   viewerIndex.value = index
   viewerVisible.value = true
+}
+
+function clearFilters() {
+  selectedCities.value = []
+  dateRange.value = null
 }
 
 onMounted(fetchHighlights)
@@ -115,42 +125,50 @@ onMounted(fetchHighlights)
 <template>
   <div class="highlights-feed">
     <HighlightsToolbar
-      v-if="isOwner"
       v-model:quality="quality"
+      v-model:selected-cities="selectedCities"
+      v-model:date-range="dateRange"
+      :is-owner="isOwner"
+      :available-cities="availableCities"
       @create="openCreateModal"
     />
 
-    <AsyncStateWrapper
-      :loading="isLoading"
-      :data="highlightsData"
-    >
-      <template #loading>
-        <HighlightsSkeleton />
-      </template>
+    <HighlightsSkeleton v-if="isLoading" />
 
-      <template #success="{ data }">
-        <div class="highlights-grid">
-          <PhotoCard
-            v-for="item in data"
-            :key="item.id"
-            :photo="item"
-            :quality="quality"
-            :is-owner="isOwner"
-            @click="openViewer(item)"
-            @edit="openEditModal"
-            @delete="deleteHighlight"
-          />
-        </div>
-      </template>
+    <HighlightsErrorState v-else-if="fetchError && highlights.length === 0" @retry="fetchHighlights" />
 
-      <template #empty>
-        <HighlightsEmptyState :is-owner="isOwner" />
-      </template>
+    <HighlightsEmptyState v-else-if="!isLoading && highlights.length === 0" :is-owner="isOwner" />
 
-      <template #error>
-        <HighlightsErrorState @retry="fetchHighlights" />
-      </template>
-    </AsyncStateWrapper>
+    <div v-else-if="!isLoading && filteredHighlights.length === 0" class="empty-filters-state">
+      <Icon icon="mdi:filter-variant-remove" class="empty-icon" />
+      <p>Ничего не найдено по выбранным фильтрам.</p>
+      <KitBtn variant="subtle" size="sm" @click="clearFilters">
+        Сбросить фильтры
+      </KitBtn>
+    </div>
+
+    <template v-else>
+      <div class="highlights-grid">
+        <PhotoCard
+          v-for="item in filteredHighlights"
+          :key="item.id"
+          :photo="item"
+          :quality="quality"
+          :is-owner="isOwner"
+          @click="openViewer(item)"
+          @edit="openEditModal"
+          @delete="deleteHighlight"
+        />
+      </div>
+
+      <div v-if="totalItems > itemsPerPage" class="pagination-wrapper">
+        <KitPagination
+          v-model:current-page="currentPage"
+          :total-items="totalItems"
+          :items-per-page="itemsPerPage"
+        />
+      </div>
+    </template>
 
     <HighlightsCreateDialog
       v-model:visible="isCreateModalOpen"
@@ -227,6 +245,37 @@ onMounted(fetchHighlights)
   column-count: 3;
   column-gap: 6px;
   width: 100%;
+}
+
+.pagination-wrapper {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  padding: 16px 0 24px;
+}
+
+.empty-filters-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 40px;
+  text-align: center;
+  background: var(--bg-secondary-color);
+  border: 1px dashed var(--border-secondary-color);
+  border-radius: var(--r-l);
+  gap: 12px;
+
+  .empty-icon {
+    font-size: 3rem;
+    color: var(--fg-tertiary-color);
+  }
+
+  p {
+    margin: 0;
+    color: var(--fg-secondary-color);
+    font-size: 0.95rem;
+  }
 }
 
 .viewer-caption {

@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import type { DestinationMetricKey } from '../../composables/use-destination-reviews'
 import type { Country } from '~/shared/types/models/destination-review'
+import { Icon } from '@iconify/vue'
 import { toLonLat } from 'ol/proj'
 import { computed, reactive, ref } from 'vue'
 import { KitBtn } from '~/components/01.kit/kit-btn'
@@ -57,19 +58,25 @@ function handleMapClick(coords: [number, number]) {
   form.latitude = Number(lat.toFixed(6))
 }
 
-const isNextDisabled = computed(() => {
-  if (step.value === 1) {
-    if (!form.countryId)
-      return true
-    if (!form.city)
-      return true
-    if (form.latitude === '' || form.longitude === '')
-      return true
-    if (Number.isNaN(Number(form.latitude)) || Number.isNaN(Number(form.longitude)))
-      return true
-  }
+const isStep1Invalid = computed(() => {
+  if (!form.countryId)
+    return true
+  if (!form.city)
+    return true
+  if (form.latitude === '' || form.longitude === '')
+    return true
+  if (Number.isNaN(Number(form.latitude)) || Number.isNaN(Number(form.longitude)))
+    return true
   return false
 })
+
+function goToStep(targetStep: number) {
+  if (isSubmitting.value)
+    return
+  if (targetStep > 1 && isStep1Invalid.value)
+    return
+  step.value = targetStep
+}
 
 async function submit() {
   isSubmitting.value = true
@@ -80,7 +87,7 @@ async function submit() {
       await useRequest({
         key: 'destination-reviews:upload-cover',
         fn: db => db.files.uploadFile(form.coverFile!, auth.user!.id, 'review', 'cover'),
-        onSuccess: (uploadedImage) => { coverUrl = uploadedImage.url },
+        onSuccess: (uploadedImage) => { coverUrl = uploadedImage.variants?.medium || uploadedImage.url },
         onError: ({ error }) => { toast.error(error.customMessage || 'Ошибка при загрузке обложки'); throw error },
       })
     }
@@ -128,44 +135,56 @@ function getSliderColor(value: number) {
 </script>
 
 <template>
-  <KitDialogWithClose v-model:visible="visible" title="Добавить впечатление" :max-width="550">
+  <KitDialogWithClose
+    v-model:visible="visible"
+    title="Добавить впечатление"
+    :max-width="550"
+    :persistent="isSubmitting"
+  >
+    <div v-if="isSubmitting" class="dialog-overlay-loader">
+      <div class="dialog-overlay-loader-bg" />
+      <div class="dialog-overlay-loader-content">
+        <Icon icon="mdi:loading" class="spinner" />
+        <span>Сохранение...</span>
+      </div>
+    </div>
+
     <div class="form-wizard">
       <div class="stepper">
-        <div class="step" :class="{ active: step >= 1, completed: step > 1 }">
+        <div class="step" :class="{ active: step >= 1, completed: step > 1, disabled: isSubmitting }" @click="goToStep(1)">
           <div class="step-circle">
             1
-          </div><span class="step-label">Место</span>
+          </div>
+          <span class="step-label">Место</span>
         </div>
         <div class="step-line" :class="{ active: step > 1 }" />
 
-        <div class="step" :class="{ active: step >= 2, completed: step > 2 }">
+        <div class="step" :class="{ active: step >= 2, completed: step > 2, disabled: isSubmitting || isStep1Invalid }" @click="goToStep(2)">
           <div class="step-circle">
             2
-          </div><span class="step-label">Фото</span>
+          </div>
+          <span class="step-label">Фото</span>
         </div>
         <div class="step-line" :class="{ active: step > 2 }" />
 
-        <div class="step" :class="{ active: step >= 3, completed: step > 3 }">
+        <div class="step" :class="{ active: step >= 3, completed: step > 3, disabled: isSubmitting || isStep1Invalid }" @click="goToStep(3)">
           <div class="step-circle">
             3
-          </div><span class="step-label">Оценки</span>
+          </div>
+          <span class="step-label">Оценки</span>
         </div>
         <div class="step-line" :class="{ active: step > 3 }" />
 
-        <div class="step" :class="{ active: step >= 4 }">
+        <div class="step" :class="{ active: step >= 4, disabled: isSubmitting || isStep1Invalid }" @click="goToStep(4)">
           <div class="step-circle">
             4
-          </div><span class="step-label">Отзыв</span>
+          </div>
+          <span class="step-label">Отзыв</span>
         </div>
       </div>
 
       <div v-if="step === 1" class="step-content">
-        <KitSelectWithSearch
-          v-model="form.countryId"
-          :items="countryOptions"
-          label="Страна"
-          placeholder="Выберите страну"
-        >
+        <KitSelectWithSearch v-model="form.countryId" :items="countryOptions" label="Страна" placeholder="Выберите страну">
           <template #item="{ item }">
             <img v-if="(item as any).flagUrl" :src="(item as any).flagUrl" class="dropdown-flag" alt="">
             <span>{{ item.label }}</span>
@@ -237,7 +256,7 @@ function getSliderColor(value: number) {
           Назад
         </KitBtn>
         <div style="flex-grow: 1" />
-        <KitBtn v-if="step < 4" :disabled="isNextDisabled" @click="step++">
+        <KitBtn v-if="step < 4" :disabled="step === 1 && isStep1Invalid" @click="step++">
           Далее
         </KitBtn>
         <KitBtn v-if="step === 4" color="primary" :loading="isSubmitting" @click="submit">
@@ -249,6 +268,46 @@ function getSliderColor(value: number) {
 </template>
 
 <style scoped lang="scss">
+.dialog-overlay-loader {
+  position: absolute;
+  inset: 0;
+  z-index: 50;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: inherit;
+
+  &-bg {
+    position: absolute;
+    inset: 0;
+    background: var(--bg-primary-color);
+    opacity: 0.7;
+    border-radius: inherit;
+  }
+
+  &-content {
+    position: relative;
+    z-index: 51;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 12px;
+    color: var(--fg-primary-color);
+    font-weight: 500;
+
+    .spinner {
+      font-size: 2.5rem;
+      color: var(--fg-accent-color);
+      animation: spin 1s linear infinite;
+    }
+  }
+}
+@keyframes spin {
+  100% {
+    transform: rotate(360deg);
+  }
+}
+
 .stepper {
   display: flex;
   align-items: center;
@@ -264,6 +323,16 @@ function getSliderColor(value: number) {
   gap: 6px;
   position: relative;
   z-index: 2;
+  cursor: pointer;
+  transition: transform 0.2s;
+
+  &:hover:not(.disabled) {
+    transform: translateY(-2px);
+  }
+  &.disabled {
+    cursor: not-allowed;
+    opacity: 0.8;
+  }
 }
 .step-circle {
   width: 32px;

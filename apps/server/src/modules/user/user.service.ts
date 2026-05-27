@@ -161,8 +161,8 @@ export const userService = {
     return await userRepository.searchUsers(query)
   },
 
-  async getHighlights(userId: string) {
-    return await highlightRepository.getByUserId(userId)
+  async getHighlights(userId: string, limit: number, page: number) {
+    return await highlightRepository.getByUserId(userId, limit, page)
   },
 
   async createHighlight(data: z.infer<typeof CreateHighlightInputSchema>, userId: string) {

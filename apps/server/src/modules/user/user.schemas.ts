@@ -55,10 +55,13 @@ export const DeleteAccountInputSchema = z.object({
 
 export const HighlightSchema = createSelectSchema(highlights).extend({
   country: CountrySchema.optional().nullable(),
+  metadata: z.any().nullable().optional(),
 })
 
 export const GetUserHighlightsInputSchema = z.object({
   userId: z.string().uuid(),
+  limit: z.number().min(1).max(100).default(30),
+  page: z.number().min(1).default(1),
 })
 
 export const CreateHighlightInputSchema = z.object({

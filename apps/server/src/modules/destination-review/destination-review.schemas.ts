@@ -46,6 +46,7 @@ export const CreateReviewInputSchema = z.object({
   countryId: z.string(),
   city: z.string().nullable(),
   coverUrl: z.string().nullable(),
+  coverVariants: z.record(z.string(), z.string()).optional().nullable(),
   latitude: z.number(),
   longitude: z.number(),
   content: z.string().nullable(),

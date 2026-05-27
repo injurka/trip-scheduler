@@ -19,7 +19,7 @@ export const destinationReviewService = {
     const newReview = await destinationReviewRepository.create({
       ...data,
       userId,
-    })
+    } as any)
 
     if (!newReview) {
       throw createTRPCError('INTERNAL_SERVER_ERROR', 'Не удалось сохранить впечатление.')
@@ -29,7 +29,7 @@ export const destinationReviewService = {
   },
 
   async update(id: string, data: Partial<z.infer<typeof CreateReviewInputSchema>>, userId: string) {
-    const updated = await destinationReviewRepository.update(id, data, userId)
+    const updated = await destinationReviewRepository.update(id, data as any, userId)
     if (!updated) {
       throw createTRPCError('NOT_FOUND', 'Впечатление не найдено или у вас нет прав на его редактирование.')
     }

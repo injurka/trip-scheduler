@@ -1,3 +1,4 @@
+import type { CalendarDate } from '@internationalized/date'
 import type { Country, DestinationReview } from '~/shared/types/models/destination-review'
 import type { TripImage } from '~/shared/types/models/trip'
 import type { CreateHighlightInput, Highlight } from '~/shared/types/models/user'
@@ -17,6 +18,11 @@ enum EHighlightsKeys {
 }
 
 export type HighlightImageQuality = 'original' | 'large' | 'medium'
+
+export interface HighlightDateRange {
+  start: CalendarDate | null
+  end: CalendarDate | null
+}
 
 type HighlightFormState = Partial<CreateHighlightInput>
 
@@ -150,12 +156,10 @@ function extractGpsFromJpeg(file: File): Promise<{ latitude: number, longitude: 
       }
     }
 
-    // Читаем только первые 128KB, обычно EXIF находится там - это экономит ресурсы
     reader.readAsArrayBuffer(file.slice(0, 128 * 1024))
   })
 }
 
-// Запасной парсинг координат, если они приходят внутри поля metadata с бэкенда
 function extractGPSFromMetadata(metadata: any): { lat: number, lon: number } | null {
   if (!metadata)
     return null
@@ -166,7 +170,6 @@ function extractGPSFromMetadata(metadata: any): { lat: number, lon: number } | n
   let finalLat: number | null = typeof lat === 'number' ? lat : null
   let finalLon: number | null = typeof lon === 'number' ? lon : null
 
-  // Если сервер вернул массив [deg, min, sec]
   if (finalLat === null && Array.isArray(lat) && lat.length === 3) {
     finalLat = lat[0] + lat[1] / 60 + lat[2] / 3600
     if (metadata.exif?.GPSLatitudeRef === 'S')
@@ -195,6 +198,14 @@ export function useHighlights() {
   const userId = computed(() => route.params.id as string || authStore.user?.id || '')
 
   const highlights = ref<Highlight[]>([])
+  const totalItems = ref(0)
+  const currentPage = ref(1)
+  const itemsPerPage = 30
+
+  // Фильтры
+  const selectedCities = ref<string[]>([])
+  const dateRange = ref<HighlightDateRange | null>(null)
+
   const countries = ref<Country[]>([])
   const reviews = ref<DestinationReview[]>([])
   const quality = ref<HighlightImageQuality>('large')
@@ -209,7 +220,8 @@ export function useHighlights() {
   const isUpdating = useRequestStatus(EHighlightsKeys.UPDATE)
   const areCountriesLoading = useRequestStatus(EHighlightsKeys.FETCH_COUNTRIES)
 
-  const isSubmitting = computed(() => isCreating.value || isUpdating.value)
+  const isActionProcessing = ref(false)
+  const isSubmitting = computed(() => isCreating.value || isUpdating.value || isUploading.value || isActionProcessing.value)
 
   const form = reactive<HighlightFormState>(createEmptyForm())
   const editForm = reactive<HighlightFormState>(createEmptyForm())
@@ -217,21 +229,74 @@ export function useHighlights() {
   const formFile = ref<File | null>(null)
   const editFormFile = ref<File | null>(null)
 
+  const fetchError = ref(false)
+
+  // Получаем уникальные города для фильтра из загруженных фоток
+  const availableCities = computed(() => {
+    const citySet = new Set<string>()
+    highlights.value.forEach((h) => {
+      if (h.city)
+        citySet.add(h.city)
+    })
+    return Array.from(citySet).sort()
+  })
+
+  // Применяем фильтры к загруженным результатам
+  const filteredHighlights = computed(() => {
+    return highlights.value.filter((h) => {
+      if (selectedCities.value.length > 0) {
+        if (!h.city || !selectedCities.value.includes(h.city)) {
+          return false
+        }
+      }
+
+      if (dateRange.value?.start || dateRange.value?.end) {
+        if (!h.takenAt)
+          return false
+
+        const takenDate = new Date(h.takenAt).getTime()
+        const s = dateRange.value.start
+        const e = dateRange.value.end
+
+        if (s) {
+          const startDate = new Date(s.year, s.month - 1, s.day, 0, 0, 0).getTime()
+          if (takenDate < startDate)
+            return false
+        }
+        if (e) {
+          const endDate = new Date(e.year, e.month - 1, e.day, 23, 59, 59).getTime()
+          if (takenDate > endDate)
+            return false
+        }
+      }
+
+      return true
+    })
+  })
+
   async function fetchHighlights() {
     if (!userId.value)
       return
+    fetchError.value = false
 
     await useRequest({
       key: EHighlightsKeys.FETCH,
-      fn: db => db.user.getHighlights(userId.value),
+      fn: db => db.user.getHighlights(userId.value, itemsPerPage, currentPage.value),
       onSuccess: (data) => {
-        highlights.value = data
+        highlights.value = data.items
+        totalItems.value = data.total
       },
       onError: (error: any) => {
-        toast.error(error?.customMessage || 'Не удалось загрузить highlights.')
+        fetchError.value = true
+        toast.error(error?.customMessage || 'Не удалось загрузить витрину.')
       },
     })
   }
+
+  watch(currentPage, () => {
+    fetchHighlights()
+    window.scrollTo({ top: 0, behavior: 'smooth' })
+  })
 
   async function fetchCountries() {
     if (countries.value.length > 0)
@@ -322,7 +387,6 @@ export function useHighlights() {
 
     const metaGps = extractGPSFromMetadata(data.metadata)
 
-    // Приоритет серверу, если он не парсит GPS - оставляем то, что извлеклось локально
     target.latitude = data.latitude ?? metaGps?.lat ?? target.latitude ?? null
     target.longitude = data.longitude ?? metaGps?.lon ?? target.longitude ?? null
 
@@ -337,22 +401,21 @@ export function useHighlights() {
     syncCountryFromMetadata(target, data)
   }
 
-  async function uploadHighlightImage(file: File, target: HighlightFormState, fileRef: typeof formFile) {
-    if (!authStore.user?.id)
-      return
-
-    fileRef.value = file
-
-    await useRequest<TripImage>({
-      key: EHighlightsKeys.UPLOAD,
-      fn: db => db.files.uploadFile(file, authStore.user!.id, 'highlight', null),
-      onSuccess: (data) => {
-        applyUploadedImage(target, data)
-      },
-      onError: (error: any) => {
-        toast.error(error?.customMessage || error?.message || 'Не удалось загрузить файл.')
-        fileRef.value = null
-      },
+  function uploadHighlightImage(file: File, target: HighlightFormState, fileRef: typeof formFile): Promise<boolean> {
+    return new Promise((resolve) => {
+      useRequest<TripImage>({
+        key: EHighlightsKeys.UPLOAD,
+        fn: db => db.files.uploadFile(file, authStore.user!.id, 'highlight', null),
+        onSuccess: (data) => {
+          applyUploadedImage(target, data)
+          resolve(true)
+        },
+        onError: (error: any) => {
+          toast.error(error?.customMessage || error?.message || 'Не удалось загрузить файл.')
+          fileRef.value = null
+          resolve(false)
+        },
+      })
     })
   }
 
@@ -362,15 +425,15 @@ export function useHighlights() {
       return
     }
 
-    // Мгновенное извлечение GPS на фронтенде перед или параллельно с загрузкой
+    formFile.value = file
+    form.imageUrl = URL.createObjectURL(file)
+
     extractGpsFromJpeg(file).then((coords) => {
       if (coords) {
         form.latitude = coords.latitude
         form.longitude = coords.longitude
       }
     })
-
-    await uploadHighlightImage(file, form, formFile)
   }
 
   async function handleEditFileSelect(file: File | null) {
@@ -380,15 +443,15 @@ export function useHighlights() {
       return
     }
 
-    // Извлечение GPS при замене фото в режиме редактирования
+    editFormFile.value = file
+    editForm.imageUrl = URL.createObjectURL(file)
+
     extractGpsFromJpeg(file).then((coords) => {
       if (coords) {
         editForm.latitude = coords.latitude
         editForm.longitude = coords.longitude
       }
     })
-
-    await uploadHighlightImage(file, editForm, editFormFile)
   }
 
   function toNumberOrNull(value: unknown) {
@@ -444,19 +507,37 @@ export function useHighlights() {
       return
     }
 
-    await useRequest({
-      key: EHighlightsKeys.CREATE,
-      fn: db => db.user.createHighlight(normalizeForm(form)),
-      onSuccess: async () => {
-        toast.success('Фото добавлено.')
-        isCreateModalOpen.value = false
-        setTimeout(resetCreateForm, 300)
-        await fetchHighlights()
-      },
-      onError: (error: any) => {
-        toast.error(error?.customMessage || 'Не удалось создать фото.')
-      },
-    })
+    isActionProcessing.value = true
+    try {
+      if (formFile.value) {
+        const success = await uploadHighlightImage(formFile.value, form, formFile)
+        if (!success)
+          return
+      }
+
+      await useRequest({
+        key: EHighlightsKeys.CREATE,
+        fn: db => db.user.createHighlight(normalizeForm(form)),
+        onSuccess: async () => {
+          toast.success('Фото добавлено.')
+          isCreateModalOpen.value = false
+          setTimeout(resetCreateForm, 300)
+
+          if (currentPage.value !== 1) {
+            currentPage.value = 1
+          }
+          else {
+            await fetchHighlights()
+          }
+        },
+        onError: (error: any) => {
+          toast.error(error?.customMessage || 'Не удалось создать фото.')
+        },
+      })
+    }
+    finally {
+      isActionProcessing.value = false
+    }
   }
 
   async function submitEditHighlight() {
@@ -465,8 +546,20 @@ export function useHighlights() {
 
     if (!isFormValid(editForm)) {
       toast.error('Заполни фото, страну и город.')
+      return
     }
-    // Здесь должна быть логика обновления фото, если она отсутствует в исходнике
+
+    isActionProcessing.value = true
+    try {
+      if (editFormFile.value) {
+        const success = await uploadHighlightImage(editFormFile.value, editForm, editFormFile)
+        if (!success)
+          return
+      }
+    }
+    finally {
+      isActionProcessing.value = false
+    }
   }
 
   async function deleteHighlight(id: string) {
@@ -486,6 +579,7 @@ export function useHighlights() {
       onSuccess: () => {
         toast.success('Фото удалено.')
         highlights.value = highlights.value.filter(item => item.id !== id)
+        totalItems.value--
       },
       onError: (error: any) => {
         toast.error(error?.customMessage || 'Не удалось удалить фото.')
@@ -506,10 +600,18 @@ export function useHighlights() {
   return {
     userId,
     highlights,
+    filteredHighlights,
+    totalItems,
+    currentPage,
+    itemsPerPage,
     countries,
     reviews,
     quality,
+    selectedCities,
+    dateRange,
+    availableCities,
     isLoading,
+    fetchError,
     isUploading,
     isSubmitting,
     areCountriesLoading,
