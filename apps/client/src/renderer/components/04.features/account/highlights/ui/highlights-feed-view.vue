@@ -197,10 +197,10 @@ onMounted(fetchHighlights)
             </p>
 
             <p
+              v-if="viewerComment"
               class="viewer-caption__comment"
-              :class="{ 'viewer-caption__comment--empty': !viewerComment }"
             >
-              {{ viewerComment || 'Комментарий к фото не добавлен' }}
+              {{ viewerComment }}
             </p>
           </div>
 
@@ -272,10 +272,6 @@ onMounted(fetchHighlights)
   color: rgba(255, 255, 255, 0.96);
   white-space: pre-wrap;
   word-break: break-word;
-}
-
-.viewer-caption__comment--empty {
-  color: rgba(255, 255, 255, 0.58);
 }
 
 .viewer-caption__meta {

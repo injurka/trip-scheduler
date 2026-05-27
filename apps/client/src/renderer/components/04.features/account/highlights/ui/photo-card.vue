@@ -128,8 +128,8 @@ function toggleTooltip(e: Event) {
           </h4>
         </div>
 
-        <div class="comment-row">
-          <p class="comment" :class="{ 'comment--muted': !photo.comment }">
+        <div v-if="photo.comment" class="comment-row">
+          <p class="comment">
             {{ shortComment }}
             <span
               v-if="isCommentTruncated"
@@ -309,11 +309,6 @@ function toggleTooltip(e: Event) {
   color: rgba(255, 255, 255, 0.9);
   line-height: 1.45;
   font-size: 0.85rem;
-}
-
-.comment--muted {
-  color: rgba(255, 255, 255, 0.5);
-  font-style: italic;
 }
 
 .tooltip-trigger {

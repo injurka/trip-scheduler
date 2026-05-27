@@ -293,9 +293,8 @@ const isSubmitDisabled = computed(() =>
 }
 
 .map-container {
-  border-radius: var(--r-s);
   overflow: hidden;
-  border: 1px solid var(--border-secondary-color);
+  box-shadow: none;
 }
 
 .textarea-field {

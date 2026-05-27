@@ -81,7 +81,7 @@ export function useDestinationReviews(userId: string) {
   const editFormFile = ref<File | null>(null)
 
   const filteredReviews = computed(() => {
-    return reviews.value.filter(r => r.type === 'city')
+    return reviews.value
   })
 
   async function fetchCountries() {
