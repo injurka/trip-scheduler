@@ -438,7 +438,8 @@ const isSubmitDisabled = computed(() =>
     max-width: 300px;
   }
 
-  @media (max-width: 720px) {
+  @include media-down(sm) {
+    width: 100%;
     left: 0;
     right: auto;
   }

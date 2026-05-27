@@ -150,7 +150,7 @@ const qualityOptions: KitDropdownItem<HighlightImageQuality>[] = [
 
 .filter-date {
   .date-btn {
-    min-width: 46px; /* для мобилок */
+    min-width: 46px;
   }
 }
 
@@ -179,10 +179,7 @@ const qualityOptions: KitDropdownItem<HighlightImageQuality>[] = [
   }
 }
 
-@media (max-width: 500px) {
-  .filter-cities {
-    width: 100%;
-  }
+@include media-down(sm) {
   .toolbar-filters {
     width: 100%;
   }

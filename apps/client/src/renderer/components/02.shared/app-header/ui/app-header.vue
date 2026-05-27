@@ -35,14 +35,14 @@ const navItems = [
     color: 'var(--fg-accent-color)',
     bgColor: 'rgba(var(--fg-accent-color-rgb), 0.1)',
   },
-  {
-    id: 'activity-map',
-    label: 'Карта активностей',
-    desc: 'Планируйте дела на карте',
-    icon: 'mdi:map-marker-radius',
-    color: '#00bcd4',
-    bgColor: 'rgba(0, 188, 212, 0.1)',
-  },
+  // {
+  //   id: 'activity-map',
+  //   label: 'Карта активностей',
+  //   desc: 'Планируйте дела на карте',
+  //   icon: 'mdi:map-marker-radius',
+  //   color: '#00bcd4',
+  //   bgColor: 'rgba(0, 188, 212, 0.1)',
+  // },
   {
     id: 'posts',
     label: 'Посты',
