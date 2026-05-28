@@ -231,57 +231,45 @@ export function useHighlights() {
 
   const fetchError = ref(false)
 
-  // Получаем уникальные города для фильтра из загруженных фоток
-  const availableCities = computed(() => {
-    const citySet = new Set<string>()
-    highlights.value.forEach((h) => {
-      if (h.city)
-        citySet.add(h.city)
+  const availableCities = ref<string[]>([])
+  const filteredHighlights = computed(() => highlights.value)
+
+  async function fetchHighlightCities() {
+    if (!userId.value)
+      return
+
+    await useRequest({
+      key: 'highlights:fetch-cities',
+      fn: db => db.user.getHighlightCities(userId.value),
+      onSuccess: (data) => {
+        availableCities.value = data
+      },
     })
-    return Array.from(citySet).sort()
-  })
-
-  // Применяем фильтры к загруженным результатам
-  const filteredHighlights = computed(() => {
-    return highlights.value.filter((h) => {
-      if (selectedCities.value.length > 0) {
-        if (!h.city || !selectedCities.value.includes(h.city)) {
-          return false
-        }
-      }
-
-      if (dateRange.value?.start || dateRange.value?.end) {
-        if (!h.takenAt)
-          return false
-
-        const takenDate = new Date(h.takenAt).getTime()
-        const s = dateRange.value.start
-        const e = dateRange.value.end
-
-        if (s) {
-          const startDate = new Date(s.year, s.month - 1, s.day, 0, 0, 0).getTime()
-          if (takenDate < startDate)
-            return false
-        }
-        if (e) {
-          const endDate = new Date(e.year, e.month - 1, e.day, 23, 59, 59).getTime()
-          if (takenDate > endDate)
-            return false
-        }
-      }
-
-      return true
-    })
-  })
+  }
 
   async function fetchHighlights() {
     if (!userId.value)
       return
     fetchError.value = false
 
+    const filters: any = {}
+    if (selectedCities.value.length > 0) {
+      filters.cities = selectedCities.value
+    }
+
+    if (dateRange.value?.start) {
+      const s = dateRange.value.start
+      filters.startDate = new Date(s.year, s.month - 1, s.day, 0, 0, 0).toISOString()
+    }
+
+    if (dateRange.value?.end) {
+      const e = dateRange.value.end
+      filters.endDate = new Date(e.year, e.month - 1, e.day, 23, 59, 59).toISOString()
+    }
+
     await useRequest({
       key: EHighlightsKeys.FETCH,
-      fn: db => db.user.getHighlights(userId.value, itemsPerPage, currentPage.value),
+      fn: db => db.user.getHighlights(userId.value, itemsPerPage, currentPage.value, filters),
       onSuccess: (data) => {
         highlights.value = data.items
         totalItems.value = data.total
@@ -292,6 +280,15 @@ export function useHighlights() {
       },
     })
   }
+
+  watch([selectedCities, dateRange], () => {
+    if (currentPage.value !== 1) {
+      currentPage.value = 1
+    }
+    else {
+      fetchHighlights()
+    }
+  }, { deep: true })
 
   watch(currentPage, () => {
     fetchHighlights()
@@ -528,6 +525,7 @@ export function useHighlights() {
           }
           else {
             await fetchHighlights()
+            await fetchHighlightCities()
           }
         },
         onError: (error: any) => {
@@ -580,6 +578,7 @@ export function useHighlights() {
         toast.success('Фото удалено.')
         highlights.value = highlights.value.filter(item => item.id !== id)
         totalItems.value--
+        fetchHighlightCities()
       },
       onError: (error: any) => {
         toast.error(error?.customMessage || 'Не удалось удалить фото.')
@@ -623,6 +622,7 @@ export function useHighlights() {
     formFile,
     editFormFile,
     fetchHighlights,
+    fetchHighlightCities,
     fetchCountries,
     openCreateModal,
     openEditModal,

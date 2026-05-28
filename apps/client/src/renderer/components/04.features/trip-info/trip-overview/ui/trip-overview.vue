@@ -20,9 +20,11 @@ import { vRipple } from '~/shared/directives/ripple'
 import { useOfflineStore } from '~/shared/store/offline.store'
 import { EActivitySectionType, EActivityTag } from '~/shared/types/models/activity'
 import { TripStatus } from '~/shared/types/models/trip'
+import { exportToMapsMe } from '../lib/mapsme-export'
 import CountdownWidget from './content/countdown-widget.vue'
 import TripMapWidget from './content/map-widget.vue'
 import StatsWidget from './content/stats-widget.vue'
+
 import WeatherWidget from './content/weather-widget.vue'
 
 import {
@@ -135,12 +137,12 @@ const attractionCount = computed(() => {
 })
 
 const allGeoSections = computed(() => {
-  const sections: { section: any }[] = []
+  const sections: { section: any, activityTag: string | null }[] = []
   props.days.forEach((day) => {
     day.activities.forEach((activity) => {
       activity.sections?.forEach((section) => {
         if (section.type === EActivitySectionType.GEOLOCATION) {
-          sections.push({ section })
+          sections.push({ section, activityTag: activity.tag || null })
         }
       })
     })
@@ -148,11 +150,16 @@ const allGeoSections = computed(() => {
   return sections
 })
 
-const allPoints = computed<MapPoint[]>(() =>
-  allGeoSections.value.flatMap(s => s.section.points || []),
+const allPoints = computed<any[]>(() =>
+  allGeoSections.value.flatMap(s =>
+    (s.section.points || []).map((p: any) => ({ ...p, activityTag: s.activityTag })),
+  ),
 )
 const allRoutes = computed<MapRoute[]>(() =>
   allGeoSections.value.flatMap(s => s.section.routes || []),
+)
+const allDrawnRoutes = computed<any[]>(() =>
+  allGeoSections.value.flatMap(s => s.section.drawnRoutes || []),
 )
 
 const visibleParticipants = computed(() => props.trip?.participants.slice(0, 5) || [])
@@ -230,6 +237,7 @@ const progress = computed(() => props.trip ? offlineStore.getDownloadProgress(pr
 const moreMenuItems = computed((): KitDropdownItem<string>[] => {
   const items: KitDropdownItem<string>[] = [
     { value: 'export', label: 'Экспорт', icon: 'mdi:export-variant' },
+    { value: 'export_mapsme', label: 'Импорт в Maps.me', icon: 'mdi:map-legend' },
     { value: 'share', label: 'Поделиться', icon: 'mdi:share-variant-outline' },
   ]
 
@@ -303,6 +311,15 @@ async function handleMenuAction(action: string) {
   }
   else if (action === 'export') {
     isExportDialogVisible.value = true
+  }
+  else if (action === 'export_mapsme') {
+    try {
+      exportToMapsMe(props.trip, allPoints.value, allRoutes.value, allDrawnRoutes.value)
+      toast.success('Файл успешно подготовлен и скачан')
+    }
+    catch {
+      toast.error('Произошла ошибка при экспорте гео-данных')
+    }
   }
   else if (action === 'save_offline' || action === 'update_offline') {
     if (moduleStore.plan.trip) {

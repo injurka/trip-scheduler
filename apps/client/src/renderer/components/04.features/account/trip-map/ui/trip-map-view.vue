@@ -1,7 +1,9 @@
 <script setup lang="ts">
+import type { MapCity } from '../composables/use-trip-map'
+import { Icon } from '@iconify/vue'
 import { computed, nextTick, onMounted, onUnmounted, ref, watch } from 'vue'
 import { useRoute } from 'vue-router'
-import { useMapFullscreen } from '../composables/use-map-fullscreen'
+import { clampMapTransform, useMapFullscreen } from '../composables/use-map-fullscreen'
 import { useMapRenderer } from '../composables/use-map-renderer'
 import { useMapSize } from '../composables/use-map-size'
 import { useTripMap } from '../composables/use-trip-map'
@@ -24,6 +26,7 @@ const {
   isFullscreen,
   mapT,
   isDragging,
+  reset: resetTransform,
   toggle: fsToggle,
   onFsChange,
   applyWheel,
@@ -40,6 +43,10 @@ const scrollRef = ref<HTMLDivElement | null>(null)
 const showCityList = ref(false)
 const panelRef = ref<InstanceType<typeof TripMapPanel> | null>(null)
 const geoError = ref(false)
+
+const hoveredCity = ref<MapCity | null>(null)
+const selectedCity = ref<MapCity | null>(null)
+let dragStartCoords = { x: 0, y: 0 }
 
 const { cssW, cssH, apply: applySize, centerScroll, observe, disconnect } = useMapSize(
   scrollRef,
@@ -62,6 +69,10 @@ const grouped = computed(() => {
   return [...m.entries()].sort(([a], [b]) => a.localeCompare(b, 'ru'))
 })
 
+const isMapDirty = computed(() => {
+  return Math.abs(mapT.scale - 1) > 0.01 || Math.abs(mapT.tx) > 0.5 || Math.abs(mapT.ty) > 0.5
+})
+
 function pluralize(n: number): string {
   if (n % 10 === 1 && n % 100 !== 11)
     return 'место'
@@ -71,7 +82,7 @@ function pluralize(n: number): string {
 }
 
 function redraw(): void {
-  draw(cssW.value, cssH.value, dotPath.value, baseProj.value, mapT.scale, mapT.tx, mapT.ty)
+  draw(cssW.value, cssH.value, dotPath.value, baseProj.value, mapT.scale, mapT.tx, mapT.ty, hoveredCity.value?.id, selectedCity.value?.id)
 }
 
 function handleWheel(e: WheelEvent): void {
@@ -84,12 +95,14 @@ function handleWheel(e: WheelEvent): void {
 }
 
 function handleMouseDown(e: MouseEvent): void {
+  dragStartCoords = { x: e.clientX, y: e.clientY }
   startDrag(e, panelRef.value?.rootRef ?? null)
 }
 
 function handleGlobalMouseMove(e: MouseEvent): void {
-  if (applyDrag(e))
+  if (applyDrag(e, cssW.value, cssH.value)) {
     redraw()
+  }
 }
 
 function handleGlobalMouseUp(): void {
@@ -126,6 +139,128 @@ function handleToggleFullscreen(): void {
   fsToggle(containerRef.value!)
 }
 
+function resetMap() {
+  resetTransform()
+  selectedCity.value = null
+  redraw()
+}
+
+function getCityAt(x: number, y: number): MapCity | null {
+  if (!baseProj.value)
+    return null
+  const { scale, tx, ty } = mapT
+  const w = cssW.value
+  const h = cssH.value
+
+  let bestDist = Infinity
+  let bestCity: MapCity | null = null
+
+  for (const city of cities.value) {
+    const base = baseProj.value([city.lon, city.lat])
+    if (!base)
+      continue
+    const cx = (base[0] - w / 2) * scale + w / 2 + tx
+    const cy = (base[1] - h / 2) * scale + h / 2 + ty
+
+    const dx = cx - x
+    const dy = cy - y
+    const dist = dx * dx + dy * dy
+
+    if (dist < 100 && dist < bestDist) {
+      bestDist = dist
+      bestCity = city
+    }
+  }
+  return bestCity
+}
+
+function handleCanvasMouseMove(e: MouseEvent) {
+  if (isDragging.value || !canvasRef.value)
+    return
+  const rect = canvasRef.value.getBoundingClientRect()
+  const x = e.clientX - rect.left
+  const y = e.clientY - rect.top
+  const city = getCityAt(x, y)
+
+  if (hoveredCity.value?.id !== city?.id) {
+    hoveredCity.value = city
+    redraw()
+  }
+}
+
+function handleCanvasMouseLeave() {
+  if (hoveredCity.value) {
+    hoveredCity.value = null
+    redraw()
+  }
+}
+
+function handleCanvasClick(e: MouseEvent) {
+  const dx = e.clientX - dragStartCoords.x
+  const dy = e.clientY - dragStartCoords.y
+  if (dx * dx + dy * dy > 25)
+    return // Was dragged, do not trigger click
+
+  if (!canvasRef.value)
+    return
+  const rect = canvasRef.value.getBoundingClientRect()
+  const x = e.clientX - rect.left
+  const y = e.clientY - rect.top
+  const city = getCityAt(x, y)
+
+  if (city) {
+    focusCity(city)
+  }
+  else {
+    selectedCity.value = null
+    redraw()
+  }
+}
+
+function focusCity(city: MapCity) {
+  selectedCity.value = city
+  if (!baseProj.value)
+    return
+
+  const base = baseProj.value([city.lon, city.lat])
+  if (!base)
+    return
+
+  const targetScale = 4
+  const w = cssW.value
+  const h = cssH.value
+
+  const targetTx = (w / 2 - base[0]) * targetScale
+  const targetTy = (h / 2 - base[1]) * targetScale
+
+  mapT.scale = targetScale
+  const clamped = clampMapTransform(targetScale, targetTx, targetTy, w, h)
+  mapT.tx = clamped.tx
+  mapT.ty = clamped.ty
+
+  redraw()
+}
+
+function getCityScreenCoords(city: MapCity | null) {
+  if (!city || !baseProj.value)
+    return { display: 'none' }
+  const base = baseProj.value([city.lon, city.lat])
+  if (!base)
+    return { display: 'none' }
+  const { scale, tx, ty } = mapT
+  const cx = (base[0] - cssW.value / 2) * scale + cssW.value / 2 + tx
+  const cy = (base[1] - cssH.value / 2) * scale + cssH.value / 2 + ty
+  return {
+    left: `${cx}px`,
+    top: `${cy}px`,
+    transform: 'translate(-50%, -100%)',
+    marginTop: '-12px',
+  }
+}
+
+const hoverStyle = computed(() => getCityScreenCoords(hoveredCity.value))
+const popoverStyle = computed(() => getCityScreenCoords(selectedCity.value))
+
 async function loadGeoJson(): Promise<void> {
   geoError.value = false
   try {
@@ -144,7 +279,6 @@ onMounted(async () => {
   observe()
   window.addEventListener('resize', handleWindowResize)
 
-  // Добавляем слушателей с passive: false для предотвращения нативного скролла при взаимодействии
   scrollRef.value?.addEventListener('wheel', handleWheel, { passive: false })
   scrollRef.value?.addEventListener('touchstart', handleTouchStart, { passive: false })
   scrollRef.value?.addEventListener('touchmove', handleTouchMove, { passive: false })
@@ -185,7 +319,6 @@ watch(dotPath, redraw)
     class="trip-map"
     :class="{
       'trip-map-fs': isFullscreen,
-      'trip-map-drag': isDragging,
     }"
   >
     <div
@@ -202,7 +335,34 @@ watch(dotPath, redraw)
       />
 
       <template v-else>
-        <canvas ref="canvasRef" class="trip-map-canvas" />
+        <!-- Canvas Wrapper / Stage -->
+        <div
+          class="trip-map-stage"
+          :class="{ 'is-hovering': hoveredCity, 'is-dragging': isDragging }"
+          :style="{ width: `${cssW}px`, height: `${cssH}px`, margin: '0 auto' }"
+          @mousemove="handleCanvasMouseMove"
+          @mouseleave="handleCanvasMouseLeave"
+          @click="handleCanvasClick"
+        >
+          <canvas ref="canvasRef" class="trip-map-canvas" />
+
+          <!-- Overlays -->
+          <div v-if="hoveredCity && hoveredCity.id !== selectedCity?.id" class="trip-map-tooltip" :style="hoverStyle">
+            {{ hoveredCity.name }}
+          </div>
+
+          <div v-if="selectedCity" class="trip-map-popover" :style="popoverStyle" @click.stop>
+            <div class="popover-header">
+              <span class="popover-title">{{ selectedCity.name }}</span>
+              <button class="popover-close" @click.stop="selectedCity = null; redraw()">
+                <Icon icon="mdi:close" width="16" height="16" />
+              </button>
+            </div>
+            <div class="popover-body">
+              {{ selectedCity.country }}
+            </div>
+          </div>
+        </div>
 
         <TripMapEmpty v-if="cities.length === 0" />
 
@@ -223,8 +383,10 @@ watch(dotPath, redraw)
         :show-list="showCityList"
         :is-fullscreen="isFullscreen"
         :has-cities="cities.length > 0"
+        :show-reset="isMapDirty"
         @toggle-list="showCityList = !showCityList"
         @toggle-fullscreen="handleToggleFullscreen"
+        @reset="resetMap"
       />
 
       <TripMapPanel
@@ -232,6 +394,7 @@ watch(dotPath, redraw)
         v-model:open="showCityList"
         :cities="cities"
         :grouped="grouped"
+        @city-click="focusCity"
       />
     </template>
   </div>
@@ -252,10 +415,6 @@ watch(dotPath, redraw)
     background: var(--bg-primary-color);
     z-index: 50;
   }
-
-  &-drag &-canvas {
-    cursor: grabbing !important;
-  }
 }
 
 .trip-map-scroll {
@@ -275,13 +434,110 @@ watch(dotPath, redraw)
   }
 }
 
-.trip-map-canvas {
+.trip-map-stage {
+  position: relative;
   display: block;
-  margin: 0 auto;
+  cursor: default;
+
+  &.is-hovering {
+    cursor: pointer;
+  }
+
+  &.is-dragging {
+    cursor: grabbing;
+  }
 
   .trip-map-fs & {
     cursor: grab;
+
+    &.is-hovering {
+      cursor: pointer;
+    }
+
+    &.is-dragging {
+      cursor: grabbing;
+    }
   }
+}
+
+.trip-map-canvas {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+
+.trip-map-tooltip {
+  position: absolute;
+  background: rgba(var(--bg-primary-color-rgb), 0.9);
+  backdrop-filter: blur(4px);
+  border: 1px solid var(--border-secondary-color);
+  color: var(--fg-primary-color);
+  padding: 4px 8px;
+  border-radius: var(--r-s);
+  font-size: 0.75rem;
+  font-weight: 500;
+  pointer-events: none;
+  z-index: 10;
+  white-space: nowrap;
+  box-shadow: var(--s-s);
+  transition:
+    transform 0.1s ease-out,
+    top 0.1s ease-out,
+    left 0.1s ease-out;
+}
+
+.trip-map-popover {
+  position: absolute;
+  background: rgba(var(--bg-secondary-color-rgb), 0.95);
+  backdrop-filter: blur(8px);
+  border: 1px solid var(--border-secondary-color);
+  border-radius: var(--r-m);
+  min-width: 160px;
+  z-index: 20;
+  box-shadow: var(--s-m);
+  display: flex;
+  flex-direction: column;
+  transition:
+    transform 0.1s ease-out,
+    top 0.1s ease-out,
+    left 0.1s ease-out;
+}
+
+.popover-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 8px 12px;
+  border-bottom: 1px solid var(--border-secondary-color);
+}
+
+.popover-title {
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: var(--fg-primary-color);
+}
+
+.popover-close {
+  cursor: pointer;
+  color: var(--fg-secondary-color);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: color 0.15s;
+  background: transparent;
+  border: none;
+  padding: 2px;
+  margin-right: -4px;
+
+  &:hover {
+    color: var(--fg-primary-color);
+  }
+}
+
+.popover-body {
+  padding: 8px 12px;
+  font-size: 0.8rem;
+  color: var(--fg-secondary-color);
 }
 
 .trip-map-badge {

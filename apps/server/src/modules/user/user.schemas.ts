@@ -62,6 +62,9 @@ export const GetUserHighlightsInputSchema = z.object({
   userId: z.string().uuid(),
   limit: z.number().min(1).max(100).default(30),
   page: z.number().min(1).default(1),
+  cities: z.array(z.string()).optional(),
+  startDate: z.string().optional(),
+  endDate: z.string().optional(),
 })
 
 export const CreateHighlightInputSchema = z.object({

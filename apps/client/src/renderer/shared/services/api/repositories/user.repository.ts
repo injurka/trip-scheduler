@@ -25,9 +25,15 @@ export class UserRepository implements IUserRepository {
   }
 
   @throttle(500)
-  async getHighlights(userId: string, limit: number, page: number): Promise<{ items: Highlight[], total: number }> {
-    const result = await trpc.user.getHighlights.query({ userId, limit, page })
+  async getHighlights(userId: string, limit: number, page: number, filters?: { cities?: string[], startDate?: string, endDate?: string }): Promise<{ items: Highlight[], total: number }> {
+    const result = await trpc.user.getHighlights.query({ userId, limit, page, ...filters })
     return result as { items: Highlight[], total: number }
+  }
+
+  @throttle(500)
+  async getHighlightCities(userId: string): Promise<string[]> {
+    const result = await trpc.user.getHighlightCities.query({ userId })
+    return result as string[]
   }
 
   @throttle(500)

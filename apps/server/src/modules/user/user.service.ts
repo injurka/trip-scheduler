@@ -1,10 +1,9 @@
 import type { z } from 'zod'
-import type { ChangePasswordInputSchema, CreateHighlightInputSchema, DeleteAccountInputSchema, SignInInputSchema, SignUpInputSchema, UpdateUserInputSchema, UpdateUserStatusInputSchema, VerifyEmailInputSchema } from './user.schemas'
+import type { ChangePasswordInputSchema, CreateHighlightInputSchema, DeleteAccountInputSchema, GetUserHighlightsInputSchema, SignInInputSchema, SignUpInputSchema, UpdateUserInputSchema, UpdateUserStatusInputSchema, VerifyEmailInputSchema } from './user.schemas'
 import { and, eq, gte } from 'drizzle-orm'
 import { db } from '~/../db'
 import { emailVerificationTokens, users } from '~/../db/schema'
 import { authUtils } from '~/lib/auth.utils'
-import { FREE_PLAN_ID } from '~/lib/constants'
 import { createTRPCError } from '~/lib/trpc'
 import { highlightRepository } from '~/repositories/highlight.repository'
 import { userRepository } from '~/repositories/user.repository'
@@ -161,8 +160,12 @@ export const userService = {
     return await userRepository.searchUsers(query)
   },
 
-  async getHighlights(userId: string, limit: number, page: number) {
-    return await highlightRepository.getByUserId(userId, limit, page)
+  async getHighlights(input: z.infer<typeof GetUserHighlightsInputSchema>) {
+    return await highlightRepository.getByUserId(input)
+  },
+
+  async getHighlightCities(userId: string) {
+    return await highlightRepository.getCitiesByUserId(userId)
   },
 
   async createHighlight(data: z.infer<typeof CreateHighlightInputSchema>, userId: string) {

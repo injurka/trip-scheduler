@@ -170,7 +170,17 @@ export const userProcedures = {
     .input(GetUserHighlightsInputSchema)
     .output(z.object({ items: z.array(HighlightSchema), total: z.number() }))
     .query(async ({ input }) => {
-      return userService.getHighlights(input.userId, input.limit, input.page)
+      return userService.getHighlights(input)
+    }),
+
+  getHighlightCities: publicProcedure
+    .meta({
+      openapi: { method: 'GET', path: '/users/{userId}/highlights/cities', tags: ['Users'], summary: 'Получить города витрины пользователя' },
+    })
+    .input(z.object({ userId: z.string().uuid() }))
+    .output(z.array(z.string()))
+    .query(async ({ input }) => {
+      return userService.getHighlightCities(input.userId)
     }),
 
   createHighlight: protectedProcedure

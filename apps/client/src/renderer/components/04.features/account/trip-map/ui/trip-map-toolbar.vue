@@ -5,11 +5,13 @@ defineProps<{
   showList: boolean
   isFullscreen: boolean
   hasCities: boolean
+  showReset?: boolean
 }>()
 
 defineEmits<{
   toggleList: []
   toggleFullscreen: []
+  reset: []
 }>()
 </script>
 
@@ -30,6 +32,17 @@ defineEmits<{
 
   <div class="trip-map-toolbar trip-map-toolbar-right">
     <KitBtn
+      v-if="showReset"
+      variant="text"
+      color="secondary"
+      size="sm"
+      icon="mdi:image-filter-center-focus"
+      class="trip-map-toolbar-btn reset-btn"
+      title="Сбросить центрирование карты"
+      @click.stop="$emit('reset')"
+    />
+
+    <KitBtn
       variant="text"
       color="secondary"
       size="sm"
@@ -46,6 +59,8 @@ defineEmits<{
   position: absolute;
   top: 10px;
   z-index: 10;
+  display: flex;
+  gap: 8px;
 
   &-left {
     left: 10px;
@@ -75,5 +90,9 @@ defineEmits<{
 :deep(.trip-map-toolbar-btn-active) {
   color: var(--fg-accent-color);
   box-shadow: 0 0 0 2px var(--fg-accent-color);
+}
+
+:deep(.reset-btn) {
+  color: var(--fg-primary-color);
 }
 </style>

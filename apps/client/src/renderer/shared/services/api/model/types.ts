@@ -254,11 +254,18 @@ export interface IAuthRepository {
   uploadAvatar: (file: File) => Promise<User>
 }
 
+export interface GetHighlightsFilters {
+  cities?: string[]
+  startDate?: string
+  endDate?: string
+}
+
 export interface IUserRepository {
   getById: (id: string) => Promise<User>
   listPlans: () => Promise<Plan[]>
   search: (query: string) => Promise<{ id: string, name: string, email: string | null, avatarUrl: string | null }[]>
-  getHighlights: (userId: string, limit: number, page: number) => Promise<{ items: Highlight[], total: number }>
+  getHighlights: (userId: string, limit: number, page: number, filters?: GetHighlightsFilters) => Promise<{ items: Highlight[], total: number }>
+  getHighlightCities: (userId: string) => Promise<string[]>
   createHighlight: (data: CreateHighlightInput) => Promise<Highlight>
   deleteHighlight: (id: string) => Promise<void>
 }

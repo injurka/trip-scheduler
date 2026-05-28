@@ -1,14 +1,31 @@
-import { and, desc, eq, sql } from 'drizzle-orm'
+import type { z } from 'zod'
+import type { GetUserHighlightsInputSchema } from '~/modules/user/user.schemas'
+import { and, desc, eq, gte, inArray, lte, sql } from 'drizzle-orm'
 import { v4 as uuidv4 } from 'uuid'
 import { db } from '~/../db'
 import { highlights } from '~/../db/schema'
 import { measureDbQuery } from '~/lib/db-monitoring'
 
 export const highlightRepository = {
-  async getByUserId(userId: string, limit: number, page: number) {
+  async getByUserId(input: z.infer<typeof GetUserHighlightsInputSchema>) {
     return measureDbQuery('highlights', 'select', async () => {
+      const { userId, limit, page, cities, startDate, endDate } = input
       const offset = (page - 1) * limit
-      const conditions = [eq(highlights.userId, userId)]
+      const conditions: any[] = [eq(highlights.userId, userId)]
+
+      if (cities && cities.length > 0) {
+        conditions.push(inArray(highlights.city, cities))
+      }
+
+      if (startDate) {
+        conditions.push(gte(highlights.takenAt, new Date(startDate)))
+      }
+
+      if (endDate) {
+        const end = new Date(endDate)
+        end.setHours(23, 59, 59, 999)
+        conditions.push(lte(highlights.takenAt, end))
+      }
 
       const items = await db.query.highlights.findMany({
         where: and(...conditions),
@@ -46,6 +63,19 @@ export const highlightRepository = {
       })
 
       return { items: mappedItems, total: Number(totalResult.count) }
+    })
+  },
+
+  async getCitiesByUserId(userId: string) {
+    return measureDbQuery('highlights', 'select', async () => {
+      const cityExpression = sql<string>`${highlights.city}`
+      const result = await db
+        .selectDistinct({ city: cityExpression })
+        .from(highlights)
+        .where(and(eq(highlights.userId, userId), sql`${highlights.city} IS NOT NULL`))
+        .orderBy(cityExpression)
+
+      return result.map(row => row.city).filter(Boolean)
     })
   },
 

@@ -42,6 +42,7 @@ const {
   formFile,
   editFormFile,
   fetchHighlights,
+  fetchHighlightCities,
   openCreateModal,
   openEditModal,
   handleFileSelect,
@@ -119,7 +120,10 @@ function clearFilters() {
   dateRange.value = null
 }
 
-onMounted(fetchHighlights)
+onMounted(() => {
+  fetchHighlights()
+  fetchHighlightCities()
+})
 </script>
 
 <template>
@@ -137,7 +141,7 @@ onMounted(fetchHighlights)
 
     <HighlightsErrorState v-else-if="fetchError && highlights.length === 0" @retry="fetchHighlights" />
 
-    <HighlightsEmptyState v-else-if="!isLoading && highlights.length === 0" :is-owner="isOwner" />
+    <HighlightsEmptyState v-else-if="!isLoading && highlights.length === 0 && selectedCities.length === 0 && !dateRange" :is-owner="isOwner" />
 
     <div v-else-if="!isLoading && filteredHighlights.length === 0" class="empty-filters-state">
       <Icon icon="mdi:filter-variant-remove" class="empty-icon" />

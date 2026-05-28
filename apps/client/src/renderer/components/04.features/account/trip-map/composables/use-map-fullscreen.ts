@@ -9,6 +9,15 @@ export interface MapTransform {
 const MIN_SCALE = 1
 const MAX_SCALE = 10
 
+export function clampMapTransform(scale: number, tx: number, ty: number, w: number, h: number) {
+  const maxTx = Math.max(0, (scale - 1) * w / 2)
+  const maxTy = Math.max(0, (scale - 1) * h / 2)
+  return {
+    tx: Math.max(-maxTx, Math.min(maxTx, tx)),
+    ty: Math.max(-maxTy, Math.min(maxTy, ty)),
+  }
+}
+
 /**
  * Управляет fullscreen-режимом и трансформацией карты (zoom / pan).
  * Не занимается отрисовкой — только изменяет состояние.
@@ -53,9 +62,14 @@ export function useMapFullscreen() {
     const mx = e.clientX - rect.left - w / 2
     const my = e.clientY - rect.top - h / 2
     const r = ns / mapT.scale
-    mapT.tx = mx - r * (mx - mapT.tx)
-    mapT.ty = my - r * (my - mapT.ty)
+
+    const nextTx = mx - r * (mx - mapT.tx)
+    const nextTy = my - r * (my - mapT.ty)
+
+    const clamped = clampMapTransform(ns, nextTx, nextTy, w, h)
     mapT.scale = ns
+    mapT.tx = clamped.tx
+    mapT.ty = clamped.ty
   }
 
   function startDrag(e: MouseEvent, panel: Element | null): boolean {
@@ -68,11 +82,14 @@ export function useMapFullscreen() {
     return true
   }
 
-  function applyDrag(e: MouseEvent): boolean {
+  function applyDrag(e: MouseEvent, w: number, h: number): boolean {
     if (!isDragging.value)
       return false
-    mapT.tx = dragOrigin.tx + e.clientX - dragOrigin.x
-    mapT.ty = dragOrigin.ty + e.clientY - dragOrigin.y
+    const nextTx = dragOrigin.tx + e.clientX - dragOrigin.x
+    const nextTy = dragOrigin.ty + e.clientY - dragOrigin.y
+    const clamped = clampMapTransform(mapT.scale, nextTx, nextTy, w, h)
+    mapT.tx = clamped.tx
+    mapT.ty = clamped.ty
     return true
   }
 
@@ -97,7 +114,6 @@ export function useMapFullscreen() {
     if (panel?.contains(e.target as Node))
       return false
 
-    // Multi-touch: Pinch zoom
     if (e.touches.length >= 2) {
       isDragging.value = true
       initialPinchDist = getTouchDist(e.touches[0], e.touches[1])
@@ -106,8 +122,6 @@ export function useMapFullscreen() {
       return true
     }
 
-    // Single touch: Pan только если в fullscreen или уже приближено
-    // В противном случае скроллится нативно браузером.
     if (e.touches.length === 1) {
       if (isFullscreen.value || mapT.scale > 1) {
         isDragging.value = true
@@ -123,14 +137,15 @@ export function useMapFullscreen() {
     if (!isDragging.value)
       return false
 
-    // Однопальцевый Pan
     if (e.touches.length === 1) {
-      mapT.tx = dragOrigin.tx + e.touches[0].clientX - dragOrigin.x
-      mapT.ty = dragOrigin.ty + e.touches[0].clientY - dragOrigin.y
+      const nextTx = dragOrigin.tx + e.touches[0].clientX - dragOrigin.x
+      const nextTy = dragOrigin.ty + e.touches[0].clientY - dragOrigin.y
+      const clamped = clampMapTransform(mapT.scale, nextTx, nextTy, w, h)
+      mapT.tx = clamped.tx
+      mapT.ty = clamped.ty
       return true
     }
 
-    // Двупальцевый Zoom и Pan
     if (e.touches.length >= 2) {
       const dist = getTouchDist(e.touches[0], e.touches[1])
       const center = getTouchCenter(e.touches[0], e.touches[1])
@@ -139,17 +154,20 @@ export function useMapFullscreen() {
       ns = Math.min(MAX_SCALE, Math.max(MIN_SCALE, ns))
 
       const r = ns / mapT.scale
-
       const rect = (e.currentTarget as HTMLElement).getBoundingClientRect()
       const mx = center.x - rect.left - w / 2
       const my = center.y - rect.top - h / 2
 
-      mapT.tx += center.x - lastTouchCenter.x
-      mapT.ty += center.y - lastTouchCenter.y
+      let nextTx = mapT.tx + (center.x - lastTouchCenter.x)
+      let nextTy = mapT.ty + (center.y - lastTouchCenter.y)
 
-      mapT.tx = mx - r * (mx - mapT.tx)
-      mapT.ty = my - r * (my - mapT.ty)
+      nextTx = mx - r * (mx - nextTx)
+      nextTy = my - r * (my - nextTy)
+
+      const clamped = clampMapTransform(ns, nextTx, nextTy, w, h)
       mapT.scale = ns
+      mapT.tx = clamped.tx
+      mapT.ty = clamped.ty
 
       lastTouchCenter = center
       return true
@@ -163,7 +181,6 @@ export function useMapFullscreen() {
       isDragging.value = false
     }
     else if (e.touches.length === 1) {
-      // Если палец убран, но один остался, продолжаем Pan
       dragOrigin = { x: e.touches[0].clientX, y: e.touches[0].clientY, tx: mapT.tx, ty: mapT.ty }
     }
   }

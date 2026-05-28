@@ -2,11 +2,11 @@ import type { GeoProjection } from 'd3-geo'
 import type { Ref } from 'vue'
 import type { MapCity } from './use-trip-map'
 
-const CITY_R = 5.5
-const GLOW_R = 18
+// Размеры точек уменьшены в два раза (5.5 -> 2.75, 18 -> 9)
+const CITY_R = 2.75
+const GLOW_R = 9
 
 // ─── Color cache ──────────────────────────────────────────────────────────────
-// toRgba() создаёт canvas+getImageData только при смене цвета темы, не каждый кадр.
 let _accentRaw = ''
 let _dotRaw = ''
 let _glowIn = ''
@@ -37,15 +37,6 @@ function getColors() {
   return { dot, accent, glowIn: _glowIn, glowOut: _glowOut }
 }
 
-/**
- * Canvas-рендерер для карты.
- *
- * Ключевая оптимизация: точки суши хранятся в Path2D и
- * рисуются одним вызовом ctx.fill(path) — GPU-операция без циклов на JS.
- * Трансформация зума/пана применяется через ctx.setTransform без пересчёта координат.
- * City-маркеры рисуются в экранных координатах (фиксированный размер при любом зуме).
- * Все draw-вызовы батчатся через requestAnimationFrame.
- */
 export function useMapRenderer(
   canvasRef: Ref<HTMLCanvasElement | null>,
   citiesRef: Ref<MapCity[]>,
@@ -53,7 +44,6 @@ export function useMapRenderer(
   let rafId = 0
   let pendingFn: (() => void) | null = null
 
-  // ─── Внутренний draw-примитив ─────────────────────────────────────────────
   function drawImmediate(
     w: number,
     h: number,
@@ -62,6 +52,8 @@ export function useMapRenderer(
     scale: number,
     tx: number,
     ty: number,
+    hoveredId: string | null = null,
+    selectedId: string | null = null,
   ): void {
     const canvas = canvasRef.value
     if (!canvas)
@@ -71,59 +63,68 @@ export function useMapRenderer(
     const ctx = canvas.getContext('2d')!
     const { dot, accent, glowIn, glowOut } = getColors()
 
-    // ── 1. Сброс трансформа + очистка ────────────────────────────────────────
     ctx.setTransform(dpr, 0, 0, dpr, 0, 0)
     ctx.clearRect(0, 0, w, h)
 
-    // ── 2. Зум / пан через canvas transform (зум к центру канваса + смещение) ─
-    //    screenX = (baseX - w/2) * scale + w/2 + tx
     ctx.translate(w / 2 + tx, h / 2 + ty)
     ctx.scale(scale, scale)
     ctx.translate(-w / 2, -h / 2)
 
-    // ── 3. Точки суши — единственный GPU-вызов ────────────────────────────────
     ctx.fillStyle = dot
     ctx.fill(dotPath)
 
-    // ── 4. City-маркеры — в экранных координатах (размер не меняется при зуме) ─
     ctx.setTransform(dpr, 0, 0, dpr, 0, 0)
 
+    const normalCities: MapCity[] = []
+    const elevatedCities: MapCity[] = []
+
     for (const city of citiesRef.value) {
+      if (city.id === hoveredId || city.id === selectedId)
+        elevatedCities.push(city)
+      else normalCities.push(city)
+    }
+
+    function drawCity(city: MapCity) {
       const base = baseProj([city.lon, city.lat])
       if (!base)
-        continue
+        return
 
-      // Перевод base-координат в экранные с учётом текущего зума/пана
       const cx = (base[0] - w / 2) * scale + w / 2 + tx
       const cy = (base[1] - h / 2) * scale + h / 2 + ty
 
-      if (cx < -GLOW_R || cx > w + GLOW_R || cy < -GLOW_R || cy > h + GLOW_R)
-        continue
+      if (cx < -GLOW_R * 3 || cx > w + GLOW_R * 3 || cy < -GLOW_R * 3 || cy > h + GLOW_R * 3)
+        return
 
-      // Glow
-      const g = ctx.createRadialGradient(cx, cy, 0, cx, cy, GLOW_R)
+      const isSelected = city.id === selectedId
+      const isHovered = city.id === hoveredId
+      const rMultiplier = isSelected ? 2.5 : (isHovered ? 1.6 : 1)
+
+      const cr = CITY_R * rMultiplier
+      const gr = GLOW_R * rMultiplier
+
+      const g = ctx.createRadialGradient(cx, cy, 0, cx, cy, gr)
       g.addColorStop(0, glowIn)
       g.addColorStop(1, glowOut)
       ctx.fillStyle = g
       ctx.beginPath()
-      ctx.arc(cx, cy, GLOW_R, 0, Math.PI * 2)
+      ctx.arc(cx, cy, gr, 0, Math.PI * 2)
       ctx.fill()
 
-      // Точка
       ctx.fillStyle = accent
       ctx.beginPath()
-      ctx.arc(cx, cy, CITY_R, 0, Math.PI * 2)
+      ctx.arc(cx, cy, cr, 0, Math.PI * 2)
       ctx.fill()
 
-      // Блик
       ctx.fillStyle = 'rgba(255,255,255,0.85)'
       ctx.beginPath()
-      ctx.arc(cx, cy, CITY_R * 0.38, 0, Math.PI * 2)
+      ctx.arc(cx, cy, cr * 0.38, 0, Math.PI * 2)
       ctx.fill()
     }
+
+    normalCities.forEach(drawCity)
+    elevatedCities.forEach(drawCity)
   }
 
-  // ─── Публичный draw — батчится через rAF ─────────────────────────────────
   function draw(
     w: number,
     h: number,
@@ -132,11 +133,13 @@ export function useMapRenderer(
     scale: number,
     tx: number,
     ty: number,
+    hoveredId: string | null = null,
+    selectedId: string | null = null,
   ): void {
     if (!dotPath || !baseProj)
       return
 
-    pendingFn = () => drawImmediate(w, h, dotPath, baseProj, scale, tx, ty)
+    pendingFn = () => drawImmediate(w, h, dotPath, baseProj, scale, tx, ty, hoveredId, selectedId)
 
     if (!rafId) {
       rafId = requestAnimationFrame(() => {

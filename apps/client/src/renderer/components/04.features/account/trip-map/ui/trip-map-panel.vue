@@ -11,6 +11,7 @@ defineProps<{
 
 defineEmits<{
   'update:open': [boolean]
+  'city-click': [MapCity]
 }>()
 
 const rootRef = ref<HTMLDivElement | null>(null)
@@ -45,6 +46,7 @@ defineExpose({ rootRef })
             v-for="c in list"
             :key="c.id"
             class="panel-city"
+            @click="$emit('city-click', c)"
           >
             {{ c.name }}
           </div>
@@ -137,7 +139,7 @@ defineExpose({ rootRef })
   padding: 5px 12px 5px 22px;
   font-size: 0.82rem;
   color: var(--fg-secondary-color);
-  cursor: default;
+  cursor: pointer;
   transition:
     color 0.13s,
     background 0.13s;
