@@ -211,7 +211,6 @@ function handleFocusLocation(coords: [number, number]) {
 </template>
 
 <style scoped lang="scss">
-/* (Стили остались без изменений, как в вашем предыдущем коде) */
 .post-details-page {
   position: relative;
   background-color: var(--bg-primary-color);
@@ -250,6 +249,11 @@ function handleFocusLocation(coords: [number, number]) {
   margin: 0 auto;
   padding: 0 8px;
   transition: max-width 0.3s ease;
+
+  @include media-down(sm) {
+    padding: 0 4px;
+    padding-right: 16px;
+  }
 
   &.has-sidebar {
     max-width: 1240px;

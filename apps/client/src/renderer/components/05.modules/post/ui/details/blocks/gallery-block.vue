@@ -142,11 +142,13 @@ function handleImageClick(index: number, e: Event) {
 <style scoped lang="scss">
 .gallery-block {
   margin: 12px 0;
+  width: 100%;
 }
 
 .gallery-layout {
   border-radius: var(--r-m);
   overflow: hidden;
+  width: 100%;
 }
 
 .img-wrapper {
@@ -164,6 +166,7 @@ function handleImageClick(index: number, e: Event) {
 .grid-layout {
   display: grid;
   gap: 6px;
+  width: 100%;
 
   &.count-1 {
     grid-template-columns: 1fr;
@@ -207,6 +210,7 @@ function handleImageClick(index: number, e: Event) {
   position: relative;
   border-radius: var(--r-m);
   overflow: hidden;
+  width: 100%;
 
   &::before,
   &::after {
@@ -236,6 +240,7 @@ function handleImageClick(index: number, e: Event) {
   scrollbar-width: none;
   border-radius: 0;
   cursor: grab;
+  width: 100%;
 
   &::-webkit-scrollbar {
     display: none;
@@ -261,6 +266,7 @@ function handleImageClick(index: number, e: Event) {
   padding-bottom: 4px;
   scrollbar-width: thin;
   border-radius: 0;
+  width: 100%;
 
   .img-wrapper {
     flex: 0 0 auto;
@@ -275,6 +281,7 @@ function handleImageClick(index: number, e: Event) {
   column-gap: 8px;
   background: transparent;
   border-radius: 0;
+  width: 100%;
 
   .img-wrapper {
     break-inside: avoid;

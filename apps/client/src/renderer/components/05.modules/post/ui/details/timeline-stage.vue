@@ -86,6 +86,12 @@ const emit = defineEmits<{ (e: 'focusLocation', coords: [number, number]): void 
   align-items: center;
   flex-shrink: 0;
   width: 24px;
+  margin-top: 2px;
+
+  @include media-down(sm) {
+    width: 16px;
+    margin-top: 6px;
+  }
 }
 
 .connector-icon {
@@ -101,6 +107,11 @@ const emit = defineEmits<{ (e: 'focusLocation', coords: [number, number]): void 
   font-size: 14px;
   z-index: 2;
   box-shadow: 0 0 0 2px var(--bg-secondary-color);
+
+  @include media-down(sm) {
+    width: 16px;
+    height: 16px;
+  }
 }
 
 .connector-line {
@@ -115,6 +126,7 @@ const emit = defineEmits<{ (e: 'focusLocation', coords: [number, number]): void 
 .stage-content {
   flex-grow: 1;
   padding-bottom: 32px;
+  min-width: 0;
 
   .is-last & {
     padding-bottom: 0;
@@ -123,9 +135,11 @@ const emit = defineEmits<{ (e: 'focusLocation', coords: [number, number]): void 
 
 .stage-header {
   display: flex;
-  align-items: baseline;
+  align-items: flex-start;
   justify-content: space-between;
   margin-bottom: 8px;
+  gap: 8px;
+  flex-wrap: wrap;
 }
 
 .stage-title {
@@ -133,12 +147,20 @@ const emit = defineEmits<{ (e: 'focusLocation', coords: [number, number]): void 
   font-weight: 700;
   color: var(--fg-primary-color);
   margin: 0;
+  word-break: break-word;
+  flex: 1 1 auto;
 }
 
 .stage-meta {
   display: flex;
   gap: 6px;
   align-items: center;
+  flex-shrink: 0;
+
+  @include media-down(sm) {
+    width: 100%;
+    justify-content: space-between;
+  }
 }
 
 .stage-day {
@@ -146,6 +168,7 @@ const emit = defineEmits<{ (e: 'focusLocation', coords: [number, number]): void 
   font-weight: 600;
   color: var(--fg-accent-color);
   text-transform: uppercase;
+  white-space: nowrap;
 }
 
 .stage-time {
@@ -155,6 +178,7 @@ const emit = defineEmits<{ (e: 'focusLocation', coords: [number, number]): void 
   background: var(--bg-tertiary-color);
   padding: 2px 6px;
   border-radius: 4px;
+  white-space: nowrap;
 }
 
 .blocks-list {
