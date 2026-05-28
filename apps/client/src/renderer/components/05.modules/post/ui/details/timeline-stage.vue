@@ -59,9 +59,10 @@ const emit = defineEmits<{ (e: 'focusLocation', coords: [number, number]): void 
           <GeoBlock
             v-if="block.type === 'route'"
             type="route"
-            :title="`${block.from} ➝ ${block.to}`"
+            :title="`${block.from || 'Начало'} ➝ ${block.to || 'Конец'}`"
             :subtitle="`${block.distance} • ${block.duration} (${block.transport})`"
-            :icon="block.transport === 'walk' ? 'mdi:walk' : 'mdi:car'"
+            :icon="block.transport === 'walk' ? 'mdi:walk' : block.transport === 'car' ? 'mdi:car' : 'mdi:bus'"
+            @click="(block as any).points?.[0] ? emit('focusLocation', [(block as any).points[0].lng, (block as any).points[0].lat]) : null"
           />
         </template>
       </div>

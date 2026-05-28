@@ -6,7 +6,6 @@ const CITY_R = 2.75
 const GLOW_R = 9
 
 let _accentRaw = ''
-let _dotRaw = ''
 let _glowIn = ''
 let _glowOut = ''
 
@@ -31,7 +30,6 @@ function getColors() {
     _glowIn = toRgba(accent, 0.55)
     _glowOut = toRgba(accent, 0)
   }
-  _dotRaw = dot
   return { dot, accent, glowIn: _glowIn, glowOut: _glowOut }
 }
 

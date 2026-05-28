@@ -1,5 +1,3 @@
-// apps/client/src/renderer/components/04.features/trip-info/trip-overview/lib/mapsme-export.ts
-
 import type { Trip } from '~/shared/types/models/trip'
 import { strToU8, zipSync } from 'fflate'
 

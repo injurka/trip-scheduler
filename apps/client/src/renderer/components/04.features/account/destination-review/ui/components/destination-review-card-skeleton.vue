@@ -4,20 +4,15 @@
 
 <template>
   <div class="review-card-skeleton">
-    <!-- Имитация фона (картинки) -->
     <div class="skeleton-bg skeleton-pulse" />
 
-    <!-- Имитация боковой панели с оценками-звездами -->
     <div class="mini-metrics-column">
       <div v-for="i in 3" :key="i" class="skeleton-metric skeleton-pulse" />
     </div>
 
-    <!-- Имитация контента внизу карточки -->
     <div class="card-content">
       <div class="header-section">
-        <!-- Имитация круглой оценки -->
         <div class="skeleton-wreath skeleton-pulse" />
-        <!-- Имитация заголовка (город, страна) -->
         <div class="skeleton-title skeleton-pulse" />
       </div>
     </div>

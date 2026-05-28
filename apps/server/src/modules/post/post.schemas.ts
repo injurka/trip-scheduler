@@ -1,3 +1,4 @@
+// /apps/server/src/modules/post/post.schemas.ts
 import { createSelectSchema } from 'drizzle-zod'
 import { z } from 'zod'
 import { postElements, postMedia, posts } from '~/../db/schema'
@@ -39,9 +40,16 @@ const PostContentBlockLocationSchema = PostContentBlockBaseSchema.extend({
 })
 
 const MapRouteSchema = z.object({
-  points: z.array(MapPointSchema),
+  points: z.array(MapPointSchema).optional().default([]),
+  from: z.string().optional(),
+  to: z.string().optional(),
   color: z.string().optional(),
   title: z.string().optional(),
+  distance: z.string().optional(),
+  duration: z.string().optional(),
+  distanceMeters: z.number().optional(),
+  transport: z.enum(['walk', 'transit', 'car']).optional(),
+  geometry: z.array(z.tuple([z.number(), z.number()])).optional(),
 })
 
 const PostContentBlockRouteSchema = PostContentBlockBaseSchema.extend({

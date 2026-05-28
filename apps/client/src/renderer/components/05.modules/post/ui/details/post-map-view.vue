@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import type { MapPoint } from '~/components/03.domain/trip-info/geolocation-section'
+import type { MapPoint, MapRoute } from '~/components/03.domain/trip-info/geolocation-section'
 import type { PostDetail } from '~/shared/types/models/post'
 import { Icon } from '@iconify/vue'
 import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
@@ -29,10 +29,16 @@ const initialPos = ref({ x: 0, y: 0 })
 const isMapFullscreen = ref(false)
 const dynamicCenter = ref<[number, number] | null>(null)
 
+function getColorForIndex(index: number) {
+  const colors = ['#7367F0', '#28C76F', '#EA5455', '#FF9F43', '#00CFE8']
+  return colors[index % colors.length]
+}
+
 const mapPoints = computed<MapPoint[]>(() => {
   const points: MapPoint[] = []
   props.post.elements.forEach((element, sIndex) => {
     element.content.forEach((block: any) => {
+      // 1. Обычные локации
       if (block.type === 'location' && block.location && block.location.lat) {
         points.push({
           id: block.id,
@@ -47,9 +53,40 @@ const mapPoints = computed<MapPoint[]>(() => {
           },
         } as unknown as MapPoint)
       }
+      // 2. Изолированные точки из маршрутов (опционально, т.к. MapRoutes сами отрисуют свои точки)
+      // Если мы передаем маршруты в mapRoutes, GeolocationMap отрисует start/end точки маршрута
     })
   })
   return points
+})
+
+const mapRoutes = computed<MapRoute[]>(() => {
+  const routes: MapRoute[] = []
+  props.post.elements.forEach((element, sIndex) => {
+    element.content.forEach((block: any) => {
+      if (block.type === 'route' && block.route && block.route.geometry && block.route.geometry.length > 0) {
+        // Преобразуем точки для корректного отображения (Start, End, Via)
+        const blockPoints = (block.route.points || []).map((p: any, idx: number) => ({
+          id: `${block.id}-pt-${idx}`,
+          coordinates: [p.lng, p.lat],
+          type: idx === 0 ? 'start' : idx === block.route.points.length - 1 ? 'end' : 'via',
+          address: p.label,
+          comment: p.label,
+        }))
+
+        routes.push({
+          id: block.id,
+          title: block.route.title || `${block.route.from || 'Начало'} - ${block.route.to || 'Конец'}`,
+          points: blockPoints,
+          geometry: block.route.geometry,
+          color: getColorForIndex(sIndex),
+          isVisible: true,
+          isDirect: false,
+        } as MapRoute)
+      }
+    })
+  })
+  return routes
 })
 
 const mapCenter = computed((): [number, number] => {
@@ -59,6 +96,9 @@ const mapCenter = computed((): [number, number] => {
   if (mapPoints.value.length > 0) {
     return mapPoints.value[0].coordinates
   }
+  if (mapRoutes.value.length > 0 && mapRoutes.value[0].geometry && mapRoutes.value[0].geometry.length > 0) {
+    return mapRoutes.value[0].geometry[0]
+  }
   return [props.post.longitude, props.post.latitude]
 })
 
@@ -67,11 +107,6 @@ watch(() => props.focusCoords, (coords) => {
     dynamicCenter.value = coords
   }
 })
-
-function getColorForIndex(index: number) {
-  const colors = ['#7367F0', '#28C76F', '#EA5455', '#FF9F43', '#00CFE8']
-  return colors[index % colors.length]
-}
 
 function startDrag(e: MouseEvent) {
   if (props.pinned || isMapFullscreen.value)
@@ -178,13 +213,13 @@ onBeforeUnmount(() => {
         </button>
 
         <div class="map-body">
-          <div v-if="mapPoints.length === 0" class="empty-map">
+          <div v-if="mapPoints.length === 0 && mapRoutes.length === 0" class="empty-map">
             <p>В этом посте нет отмеченных локаций.</p>
           </div>
           <GeolocationMap
             v-else
             :points="mapPoints"
-            :routes="[]"
+            :routes="mapRoutes"
             :drawn-routes="[]"
             mode="pan"
             :center="mapCenter"

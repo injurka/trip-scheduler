@@ -42,12 +42,15 @@ function transformElementsToStages(elements: PostElement[], allMedia: PostMedia[
           return {
             id: contentBlock.id,
             type: 'route',
-            from: 'Начало',
-            to: 'Конец',
-            distance: '',
-            duration: '',
-            transport: 'walk',
-          }
+            from: contentBlock.route.from || contentBlock.route.points?.[0]?.label || 'Начало',
+            to: contentBlock.route.to || contentBlock.route.points?.[contentBlock.route.points.length - 1]?.label || 'Конец',
+            distance: contentBlock.route.distance || '',
+            duration: contentBlock.route.duration || '',
+            distanceMeters: (contentBlock.route as any).distanceMeters || 0,
+            transport: contentBlock.route.transport || 'walk',
+            points: contentBlock.route.points || [],
+            geometry: contentBlock.route.geometry || [],
+          } as any
         default:
           return {
             id: 'id' in contentBlock ? String(contentBlock.id) : uuidv4(),
