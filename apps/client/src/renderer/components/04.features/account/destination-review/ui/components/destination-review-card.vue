@@ -570,6 +570,7 @@ function openExpanded() {
 }
 
 .section-header {
+  position: relative; /* Добавлено, чтобы тултип позиционировался относительно всей секции */
   display: flex;
   align-items: center;
   gap: 12px;
@@ -593,7 +594,7 @@ function openExpanded() {
 }
 
 .info-tooltip-wrapper {
-  position: relative;
+  /* Убрали position: relative; чтобы контент привязывался к .section-header */
   display: inline-flex;
   align-items: center;
   color: var(--fg-secondary-color);
@@ -606,7 +607,8 @@ function openExpanded() {
     transition: color 0.2s ease;
   }
 
-  &:hover {
+  &:hover,
+  &:active {
     .info-icon {
       color: var(--fg-primary-color);
     }
@@ -620,9 +622,10 @@ function openExpanded() {
 
 .info-tooltip-content {
   position: absolute;
-  top: calc(100% + 12px);
-  left: -20px;
+  top: calc(100% + 8px); /* Опускаем ниже заголовка секции */
+  left: 0; /* Привязываем к левому краю .section-header, чтобы тултип не уезжал вправо */
   width: 320px;
+  max-width: 100%; /* Гарантируем, что тултип не будет шире контейнера, предотвращая скролл */
   background: var(--bg-primary-color);
   border: 1px solid var(--border-secondary-color);
   box-shadow: var(--s-l);

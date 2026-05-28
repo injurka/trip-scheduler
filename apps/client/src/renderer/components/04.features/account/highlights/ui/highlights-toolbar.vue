@@ -175,6 +175,7 @@ const qualityOptions: KitDropdownItem<HighlightImageQuality>[] = [
   gap: 12px;
   flex-shrink: 0;
   margin-left: 16px;
+  margin-bottom: auto;
 }
 
 .desktop-only {
@@ -190,6 +191,8 @@ const qualityOptions: KitDropdownItem<HighlightImageQuality>[] = [
   .toolbar-actions {
     width: 100%;
     justify-content: flex-end;
+    margin-left: 0;
+    margin-bottom: 0;
   }
   .toolbar-filters {
     width: 100%;
