@@ -12,6 +12,8 @@ defineEmits<{
   toggleList: []
   toggleFullscreen: []
   reset: []
+  zoomIn: []
+  zoomOut: []
 }>()
 </script>
 
@@ -31,6 +33,27 @@ defineEmits<{
   </div>
 
   <div class="trip-map-toolbar trip-map-toolbar-right">
+    <div class="toolbar-group">
+      <KitBtn
+        variant="text"
+        color="secondary"
+        size="sm"
+        icon="mdi:plus"
+        class="trip-map-toolbar-btn"
+        title="Приблизить"
+        @click.stop="$emit('zoomIn')"
+      />
+      <KitBtn
+        variant="text"
+        color="secondary"
+        size="sm"
+        icon="mdi:minus"
+        class="trip-map-toolbar-btn"
+        title="Отдалить"
+        @click.stop="$emit('zoomOut')"
+      />
+    </div>
+
     <KitBtn
       v-if="showReset"
       variant="text"
@@ -69,6 +92,11 @@ defineEmits<{
   &-right {
     right: 10px;
   }
+}
+
+.toolbar-group {
+  display: flex;
+  gap: 4px;
 }
 
 :deep(.trip-map-toolbar-btn) {

@@ -3,15 +3,9 @@ import type { FeatureCollection } from 'geojson'
 import * as d3geo from 'd3-geo'
 import { ref } from 'vue'
 
-const DOT_SPACING = 3.5
-const DOT_RADIUS = 1.05
-
-/**
- * Загружает GeoJSON один раз и строит Path2D для быстрой отрисовки.
- * Path2D пересоздаётся только при изменении размера канваса (не каждый кадр).
- */
 export function useWorldDots() {
-  const dotPath = ref<Path2D | null>(null)
+  const dotPathLow = ref<Path2D | null>(null)
+  const dotPathHigh = ref<Path2D | null>(null)
   const baseProj = ref<GeoProjection | null>(null)
   const isBuilding = ref(false)
 
@@ -24,10 +18,6 @@ export function useWorldDots() {
     geoData = await r.json()
   }
 
-  /**
-   * Строит Path2D для заданного размера канваса.
-   * Вызывается однократно на mount и при resize — НЕ при каждом кадре.
-   */
   function build(w: number, h: number): void {
     if (!geoData || w <= 0 || h <= 0)
       return
@@ -49,22 +39,27 @@ export function useWorldDots() {
     ctx.fill()
     const px = ctx.getImageData(0, 0, w, h).data
 
-    // Path2D строится один раз — отрисовка сводится к единственному ctx.fill(path)
-    const path = new Path2D()
-    for (let y = DOT_SPACING / 2; y < h; y += DOT_SPACING) {
-      for (let x = DOT_SPACING / 2; x < w; x += DOT_SPACING) {
-        const xi = x | 0
-        const yi = y | 0
-        if (px[(yi * w + xi) * 4 + 3] > 128) {
-          path.moveTo(x + DOT_RADIUS, y)
-          path.arc(x, y, DOT_RADIUS, 0, Math.PI * 2)
+    function createPath(spacing: number, radius: number) {
+      const path = new Path2D()
+      for (let y = spacing / 2; y < h; y += spacing) {
+        for (let x = spacing / 2; x < w; x += spacing) {
+          const xi = x | 0
+          const yi = y | 0
+          if (px[(yi * w + xi) * 4 + 3] > 128) {
+            path.moveTo(x + radius, y)
+            path.arc(x, y, radius, 0, Math.PI * 2)
+          }
         }
       }
+      return path
     }
 
-    dotPath.value = path
+    // Два слоя для Semantic Zoom
+    dotPathLow.value = createPath(3.5, 1.05)
+    dotPathHigh.value = createPath(1.75, 0.52)
+
     isBuilding.value = false
   }
 
-  return { dotPath, baseProj, isBuilding, load, build }
+  return { dotPathLow, dotPathHigh, baseProj, isBuilding, load, build }
 }

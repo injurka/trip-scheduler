@@ -2,11 +2,9 @@ import type { GeoProjection } from 'd3-geo'
 import type { Ref } from 'vue'
 import type { MapCity } from './use-trip-map'
 
-// Размеры точек уменьшены в два раза (5.5 -> 2.75, 18 -> 9)
 const CITY_R = 2.75
 const GLOW_R = 9
 
-// ─── Color cache ──────────────────────────────────────────────────────────────
 let _accentRaw = ''
 let _dotRaw = ''
 let _glowIn = ''
@@ -47,7 +45,8 @@ export function useMapRenderer(
   function drawImmediate(
     w: number,
     h: number,
-    dotPath: Path2D,
+    dotPathLow: Path2D,
+    dotPathHigh: Path2D | null,
     baseProj: GeoProjection,
     scale: number,
     tx: number,
@@ -71,7 +70,25 @@ export function useMapRenderer(
     ctx.translate(-w / 2, -h / 2)
 
     ctx.fillStyle = dot
-    ctx.fill(dotPath)
+
+    // Semantic Zoom Blending
+    if (scale < 2) {
+      ctx.fill(dotPathLow)
+    }
+    else if (scale >= 2 && scale <= 3 && dotPathHigh) {
+      const progress = scale - 2
+      ctx.globalAlpha = 1 - progress
+      ctx.fill(dotPathLow)
+      ctx.globalAlpha = progress
+      ctx.fill(dotPathHigh)
+      ctx.globalAlpha = 1
+    }
+    else if (dotPathHigh) {
+      ctx.fill(dotPathHigh)
+    }
+    else {
+      ctx.fill(dotPathLow)
+    }
 
     ctx.setTransform(dpr, 0, 0, dpr, 0, 0)
 
@@ -128,7 +145,8 @@ export function useMapRenderer(
   function draw(
     w: number,
     h: number,
-    dotPath: Path2D | null,
+    dotPathLow: Path2D | null,
+    dotPathHigh: Path2D | null,
     baseProj: GeoProjection | null,
     scale: number,
     tx: number,
@@ -136,10 +154,10 @@ export function useMapRenderer(
     hoveredId: string | null = null,
     selectedId: string | null = null,
   ): void {
-    if (!dotPath || !baseProj)
+    if (!dotPathLow || !baseProj)
       return
 
-    pendingFn = () => drawImmediate(w, h, dotPath, baseProj, scale, tx, ty, hoveredId, selectedId)
+    pendingFn = () => drawImmediate(w, h, dotPathLow, dotPathHigh, baseProj, scale, tx, ty, hoveredId, selectedId)
 
     if (!rafId) {
       rafId = requestAnimationFrame(() => {

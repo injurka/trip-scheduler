@@ -3,7 +3,7 @@ import type { MapCity } from '../composables/use-trip-map'
 import { Icon } from '@iconify/vue'
 import { computed, nextTick, onMounted, onUnmounted, ref, watch } from 'vue'
 import { useRoute } from 'vue-router'
-import { clampMapTransform, useMapFullscreen } from '../composables/use-map-fullscreen'
+import { useMapFullscreen } from '../composables/use-map-fullscreen'
 import { useMapRenderer } from '../composables/use-map-renderer'
 import { useMapSize } from '../composables/use-map-size'
 import { useTripMap } from '../composables/use-trip-map'
@@ -18,7 +18,7 @@ const route = useRoute()
 const userId = computed(() => route.params.id as string)
 const { cities, isLoading, fetchCities } = useTripMap(userId.value)
 
-const { dotPath, baseProj, isBuilding, load: loadGeo, build: buildDots } = useWorldDots()
+const { dotPathLow, dotPathHigh, baseProj, isBuilding, load: loadGeo, build: buildDots } = useWorldDots()
 const canvasRef = ref<HTMLCanvasElement | null>(null)
 const { draw, cancelPending } = useMapRenderer(canvasRef, cities)
 
@@ -26,7 +26,10 @@ const {
   isFullscreen,
   mapT,
   isDragging,
-  reset: resetTransform,
+  animateReset,
+  flyTo,
+  zoomIn,
+  zoomOut,
   toggle: fsToggle,
   onFsChange,
   applyWheel,
@@ -69,6 +72,20 @@ const grouped = computed(() => {
   return [...m.entries()].sort(([a], [b]) => a.localeCompare(b, 'ru'))
 })
 
+// O(1) Hit-Test оптимизация.
+const cityBaseCoords = computed(() => {
+  const map = new Map<string, [number, number]>()
+  if (!baseProj.value)
+    return map
+
+  for (const city of cities.value) {
+    const base = baseProj.value([city.lon, city.lat])
+    if (base)
+      map.set(city.id, [base[0], base[1]])
+  }
+  return map
+})
+
 const isMapDirty = computed(() => {
   return Math.abs(mapT.scale - 1) > 0.01 || Math.abs(mapT.tx) > 0.5 || Math.abs(mapT.ty) > 0.5
 })
@@ -82,7 +99,18 @@ function pluralize(n: number): string {
 }
 
 function redraw(): void {
-  draw(cssW.value, cssH.value, dotPath.value, baseProj.value, mapT.scale, mapT.tx, mapT.ty, hoveredCity.value?.id, selectedCity.value?.id)
+  draw(
+    cssW.value,
+    cssH.value,
+    dotPathLow.value,
+    dotPathHigh.value,
+    baseProj.value,
+    mapT.scale,
+    mapT.tx,
+    mapT.ty,
+    hoveredCity.value?.id,
+    selectedCity.value?.id,
+  )
 }
 
 function handleWheel(e: WheelEvent): void {
@@ -140,14 +168,22 @@ function handleToggleFullscreen(): void {
 }
 
 function resetMap() {
-  resetTransform()
   selectedCity.value = null
-  redraw()
+  animateReset(cssW.value, cssH.value, redraw)
+}
+
+function handleZoomIn() {
+  zoomIn(cssW.value, cssH.value, redraw)
+}
+
+function handleZoomOut() {
+  zoomOut(cssW.value, cssH.value, redraw)
 }
 
 function getCityAt(x: number, y: number): MapCity | null {
   if (!baseProj.value)
     return null
+
   const { scale, tx, ty } = mapT
   const w = cssW.value
   const h = cssH.value
@@ -156,9 +192,10 @@ function getCityAt(x: number, y: number): MapCity | null {
   let bestCity: MapCity | null = null
 
   for (const city of cities.value) {
-    const base = baseProj.value([city.lon, city.lat])
+    const base = cityBaseCoords.value.get(city.id)
     if (!base)
       continue
+
     const cx = (base[0] - w / 2) * scale + w / 2 + tx
     const cy = (base[1] - h / 2) * scale + h / 2 + ty
 
@@ -199,10 +236,11 @@ function handleCanvasClick(e: MouseEvent) {
   const dx = e.clientX - dragStartCoords.x
   const dy = e.clientY - dragStartCoords.y
   if (dx * dx + dy * dy > 25)
-    return // Was dragged, do not trigger click
+    return // Был drag
 
   if (!canvasRef.value)
     return
+
   const rect = canvasRef.value.getBoundingClientRect()
   const x = e.clientX - rect.left
   const y = e.clientY - rect.top
@@ -219,10 +257,8 @@ function handleCanvasClick(e: MouseEvent) {
 
 function focusCity(city: MapCity) {
   selectedCity.value = city
-  if (!baseProj.value)
-    return
 
-  const base = baseProj.value([city.lon, city.lat])
+  const base = cityBaseCoords.value.get(city.id)
   if (!base)
     return
 
@@ -233,23 +269,21 @@ function focusCity(city: MapCity) {
   const targetTx = (w / 2 - base[0]) * targetScale
   const targetTy = (h / 2 - base[1]) * targetScale
 
-  mapT.scale = targetScale
-  const clamped = clampMapTransform(targetScale, targetTx, targetTy, w, h)
-  mapT.tx = clamped.tx
-  mapT.ty = clamped.ty
-
-  redraw()
+  // Плавный полет до точки!
+  flyTo(targetScale, targetTx, targetTy, w, h, redraw)
 }
 
 function getCityScreenCoords(city: MapCity | null) {
-  if (!city || !baseProj.value)
+  if (!city)
     return { display: 'none' }
-  const base = baseProj.value([city.lon, city.lat])
+  const base = cityBaseCoords.value.get(city.id)
   if (!base)
     return { display: 'none' }
+
   const { scale, tx, ty } = mapT
   const cx = (base[0] - cssW.value / 2) * scale + cssW.value / 2 + tx
   const cy = (base[1] - cssH.value / 2) * scale + cssH.value / 2 + ty
+
   return {
     left: `${cx}px`,
     top: `${cy}px`,
@@ -310,16 +344,14 @@ onUnmounted(() => {
 })
 
 watch(cities, redraw)
-watch(dotPath, redraw)
+watch(dotPathLow, redraw)
 </script>
 
 <template>
   <div
     ref="containerRef"
     class="trip-map"
-    :class="{
-      'trip-map-fs': isFullscreen,
-    }"
+    :class="{ 'trip-map-fs': isFullscreen }"
   >
     <div
       ref="scrollRef"
@@ -387,6 +419,8 @@ watch(dotPath, redraw)
         @toggle-list="showCityList = !showCityList"
         @toggle-fullscreen="handleToggleFullscreen"
         @reset="resetMap"
+        @zoom-in="handleZoomIn"
+        @zoom-out="handleZoomOut"
       />
 
       <TripMapPanel
@@ -480,10 +514,7 @@ watch(dotPath, redraw)
   z-index: 10;
   white-space: nowrap;
   box-shadow: var(--s-s);
-  transition:
-    transform 0.1s ease-out,
-    top 0.1s ease-out,
-    left 0.1s ease-out;
+  transition: transform 0.05s ease-out; /* Убрал анимацию позиционирования (left/top), так как она мешает плавности JS-фреймов */
 }
 
 .trip-map-popover {
@@ -497,10 +528,6 @@ watch(dotPath, redraw)
   box-shadow: var(--s-m);
   display: flex;
   flex-direction: column;
-  transition:
-    transform 0.1s ease-out,
-    top 0.1s ease-out,
-    left 0.1s ease-out;
 }
 
 .popover-header {
