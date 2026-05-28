@@ -166,7 +166,7 @@ const formattedDuration = computed(() => {
   }
 }
 
-@media (max-width: 600px) {
+@include media-down(sm) {
   .hero-title {
     font-size: 2rem;
   }

@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import { computed, nextTick, onMounted, onUnmounted, ref, watch } from 'vue'
+import { useRoute } from 'vue-router'
 import { useMapFullscreen } from '../composables/use-map-fullscreen'
 import { useMapRenderer } from '../composables/use-map-renderer'
 import { useMapSize } from '../composables/use-map-size'
@@ -28,6 +30,9 @@ const {
   startDrag,
   applyDrag,
   endDrag,
+  startTouch,
+  applyTouch,
+  endTouch,
 } = useMapFullscreen()
 
 const containerRef = ref<HTMLDivElement | null>(null)
@@ -70,8 +75,6 @@ function redraw(): void {
 }
 
 function handleWheel(e: WheelEvent): void {
-  if (!isFullscreen.value)
-    return
   const target = e.target as Element
   if (target.closest('.trip-map-toolbar'))
     return
@@ -91,6 +94,23 @@ function handleGlobalMouseMove(e: MouseEvent): void {
 
 function handleGlobalMouseUp(): void {
   endDrag()
+}
+
+function handleTouchStart(e: TouchEvent): void {
+  startTouch(e, panelRef.value?.rootRef ?? null)
+}
+
+function handleTouchMove(e: TouchEvent): void {
+  if (isDragging.value) {
+    e.preventDefault()
+    if (applyTouch(e, cssW.value, cssH.value)) {
+      redraw()
+    }
+  }
+}
+
+function handleTouchEnd(e: TouchEvent): void {
+  endTouch(e)
 }
 
 function handleFsChange(): void {
@@ -123,7 +143,14 @@ onMounted(async () => {
 
   observe()
   window.addEventListener('resize', handleWindowResize)
+
+  // Добавляем слушателей с passive: false для предотвращения нативного скролла при взаимодействии
   scrollRef.value?.addEventListener('wheel', handleWheel, { passive: false })
+  scrollRef.value?.addEventListener('touchstart', handleTouchStart, { passive: false })
+  scrollRef.value?.addEventListener('touchmove', handleTouchMove, { passive: false })
+  scrollRef.value?.addEventListener('touchend', handleTouchEnd, { passive: false })
+  scrollRef.value?.addEventListener('touchcancel', handleTouchEnd, { passive: false })
+
   document.addEventListener('fullscreenchange', handleFsChange)
   window.addEventListener('mousemove', handleGlobalMouseMove)
   window.addEventListener('mouseup', handleGlobalMouseUp)
@@ -136,7 +163,13 @@ onUnmounted(() => {
   cancelPending()
   disconnect()
   window.removeEventListener('resize', handleWindowResize)
+
   scrollRef.value?.removeEventListener('wheel', handleWheel)
+  scrollRef.value?.removeEventListener('touchstart', handleTouchStart)
+  scrollRef.value?.removeEventListener('touchmove', handleTouchMove)
+  scrollRef.value?.removeEventListener('touchend', handleTouchEnd)
+  scrollRef.value?.removeEventListener('touchcancel', handleTouchEnd)
+
   document.removeEventListener('fullscreenchange', handleFsChange)
   window.removeEventListener('mousemove', handleGlobalMouseMove)
   window.removeEventListener('mouseup', handleGlobalMouseUp)
@@ -230,7 +263,6 @@ watch(dotPath, redraw)
   height: 100%;
   overflow-x: auto;
   overflow-y: hidden;
-  scroll-behavior: smooth;
   scrollbar-width: none;
   -ms-overflow-style: none;
 
@@ -291,5 +323,11 @@ watch(dotPath, redraw)
 .fade-enter-from,
 .fade-leave-to {
   opacity: 0;
+}
+
+@include media-down(sm) {
+  .trip-map-hint {
+    display: none;
+  }
 }
 </style>

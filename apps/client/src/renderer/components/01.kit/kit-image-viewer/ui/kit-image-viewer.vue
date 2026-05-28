@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import type { IImageViewerImageMeta, ImageViewerImage } from '../models/types'
+import type { IImageViewerImageMeta, ImageQuality, ImageViewerImage } from '../models/types'
 import { Icon } from '@iconify/vue'
 import { onClickOutside, toRef, useEventListener, useIdle } from '@vueuse/core'
 import { useRequest } from '~/plugins/request'
@@ -15,6 +15,7 @@ interface Props {
   visible: boolean
   images: ImageViewerImage[]
   currentIndex: number
+  quality?: ImageQuality
   showCounter?: boolean
   enableThumbnails?: boolean
   closeOnOverlayClick?: boolean
@@ -30,6 +31,7 @@ interface Props {
 interface Emits {
   (e: 'update:visible', value: boolean): void
   (e: 'update:currentIndex', value: number): void
+  (e: 'update:quality', value: ImageQuality): void
   (e: 'close'): void
   (e: 'imageLoad', image: ImageViewerImage): void
   (e: 'imageError', error: Event): void
@@ -74,7 +76,13 @@ const {
   scrollThumbnailIntoView,
   isDownloading,
   downloadCurrentImage,
-} = useImageViewerUi({ currentImage, containerRef, thumbnailsRef })
+} = useImageViewerUi({
+  currentImage,
+  containerRef,
+  thumbnailsRef,
+  qualityModel: toRef(props, 'quality'),
+  onQualityChange: val => emit('update:quality', val),
+})
 
 const {
   transform,
@@ -235,19 +243,19 @@ function goToIndex(index: number) {
 watch(() => props.currentIndex, (index) => {
   resetTransform()
   closeMetadataPanel()
-  scrollThumbnailIntoView(index)
+  scrollThumbnailIntoView(index, 'smooth')
 })
 
 watch(areControlsVisible, (visible) => {
   if (visible)
-    scrollThumbnailIntoView(props.currentIndex)
+    scrollThumbnailIntoView(props.currentIndex, 'auto')
 })
 
 watch(() => props.visible, (isVisible) => {
   if (isVisible) {
     document.body.style.overflow = 'hidden'
     isUiVisible.value = true
-    scrollThumbnailIntoView(props.currentIndex)
+    scrollThumbnailIntoView(props.currentIndex, 'auto')
   }
   else {
     document.body.style.overflow = ''
@@ -275,14 +283,34 @@ useEventListener(document, 'keydown', (e: KeyboardEvent) => {
   const target = e.target as HTMLElement
   const isEditing = target.isContentEditable || ['INPUT', 'TEXTAREA', 'SELECT'].includes(target.tagName)
 
-  if (e.key === 'Escape') {
-    if (isEditing)
-      return
-    e.preventDefault()
-    if (isMetadataPanelOpen.value)
-      closeMetadataPanel()
-    else
-      close()
+  if (isEditing)
+    return
+
+  switch (e.key) {
+    case 'Escape':
+      e.preventDefault()
+      if (isMetadataPanelOpen.value)
+        closeMetadataPanel()
+      else
+        close()
+      break
+    case 'ArrowRight':
+    case ' ':
+      e.preventDefault()
+      next()
+      break
+    case 'ArrowLeft':
+      e.preventDefault()
+      prev()
+      break
+    case 'Home':
+      e.preventDefault()
+      goToIndex(0)
+      break
+    case 'End':
+      e.preventDefault()
+      goToIndex(props.images.length - 1)
+      break
   }
 })
 
@@ -305,7 +333,7 @@ onUnmounted(() => {
       >
         <div ref="viewerContentRef" class="viewer-wrapper">
           <Transition name="controls-fade">
-            <div v-if="areControlsVisible" class="viewer-header">
+            <div v-show="areControlsVisible" class="viewer-header">
               <div class="header-content-wrapper">
                 <div class="header-left">
                   <div v-if="showCounter && hasMultipleImages && isUiVisible" class="viewer-counter">
@@ -407,31 +435,37 @@ onUnmounted(() => {
             </div>
           </div>
 
-          <div v-if="$slots.footer && areControlsVisible && isUiVisible" class="viewer-footer">
-            <slot
-              name="footer"
-              :image="currentImage"
-              :index="currentIndex"
-              :transform="transform"
-            />
-          </div>
-
-          <Transition name="controls-fade">
-            <div v-if="enableThumbnails && hasMultipleImages && areControlsVisible && isUiVisible" class="thumbnails-container">
-              <div ref="thumbnailsRef" class="thumbnails-wrapper">
-                <button
-                  v-for="(image, index) in images"
-                  :key="`thumb-${index}`"
-                  class="thumbnail"
-                  :class="{ active: index === currentIndex }"
-                  :title="`Go to image ${index + 1}`"
-                  @click.stop="goToIndex(index)"
-                >
-                  <img v-resolve-src="image.variants?.small || image.url" :alt="image.alt || `Thumbnail ${index + 1}`">
-                </button>
+          <template v-if="$slots.footer">
+            <Transition name="controls-fade">
+              <div v-show="areControlsVisible && isUiVisible" class="viewer-footer">
+                <slot
+                  name="footer"
+                  :image="currentImage"
+                  :index="currentIndex"
+                  :transform="transform"
+                />
               </div>
-            </div>
-          </Transition>
+            </Transition>
+          </template>
+
+          <template v-if="enableThumbnails && hasMultipleImages">
+            <Transition name="controls-fade">
+              <div v-show="areControlsVisible && isUiVisible" class="thumbnails-container">
+                <div ref="thumbnailsRef" class="thumbnails-wrapper">
+                  <button
+                    v-for="(image, index) in images"
+                    :key="`thumb-${index}`"
+                    class="thumbnail"
+                    :class="{ active: index === currentIndex }"
+                    :title="`Go to image ${index + 1}`"
+                    @click.stop="goToIndex(index)"
+                  >
+                    <img v-resolve-src="image.variants?.small || image.url" :alt="image.alt || `Thumbnail ${index + 1}`">
+                  </button>
+                </div>
+              </div>
+            </Transition>
+          </template>
         </div>
 
         <ImageMetadataPanel
@@ -772,6 +806,9 @@ onUnmounted(() => {
   transform: translateY(-10px);
 }
 .thumbnails-container.controls-fade-leave-to {
+  transform: translateY(10px);
+}
+.viewer-footer.controls-fade-leave-to {
   transform: translateY(10px);
 }
 

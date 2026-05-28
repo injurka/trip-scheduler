@@ -24,6 +24,7 @@ interface Props {
   loading?: 'lazy' | 'eager'
   /**
    * Таймаут в миллисекундах, после которого загрузка считается неудачной.
+   * Установлено в 0 (отключено) по умолчанию, чтобы избежать ложных ошибок при медленном интернете.
    */
   loadTimeout?: number
 }
@@ -35,11 +36,14 @@ const props = withDefaults(defineProps<Props>(), {
   aspectRatio: undefined,
   objectFit: 'cover',
   loading: 'lazy',
-  loadTimeout: 10_000,
+  loadTimeout: 0,
 })
 
 const isLoading = ref(true)
 const hasError = ref(false)
+const isAborted = ref(false)
+const retryCount = ref(0)
+
 const imageRef = ref<HTMLImageElement | null>(null)
 const loadTimeoutId = ref<ReturnType<typeof setTimeout> | undefined>()
 const imageObserver = ref<IntersectionObserver | undefined>()
@@ -67,13 +71,24 @@ const imageStyle = computed(() => {
 })
 
 function handleLoad() {
+  if (isAborted.value)
+    return
   clearLoadTimeout()
   isLoading.value = false
   hasError.value = false
 }
 
 function handleError() {
+  if (isAborted.value)
+    return
   clearLoadTimeout()
+  isLoading.value = false
+  hasError.value = true
+}
+
+function handleTimeout() {
+  clearLoadTimeout()
+  isAborted.value = true
   isLoading.value = false
   hasError.value = true
 }
@@ -90,8 +105,9 @@ function setLoadTimeout() {
 
   if (props.loadTimeout > 0) {
     loadTimeoutId.value = setTimeout(() => {
-      if (isLoading.value)
-        handleError()
+      if (isLoading.value) {
+        handleTimeout()
+      }
     }, props.loadTimeout)
   }
 }
@@ -129,6 +145,8 @@ watch(
   (newSrc) => {
     isLoading.value = true
     hasError.value = false
+    isAborted.value = false
+    retryCount.value = 0
     cleanupObserver()
     clearLoadTimeout()
 
@@ -166,8 +184,25 @@ defineExpose({
   hasError: readonly(hasError),
   retry: () => {
     if (props.src && hasError.value) {
-      const newSrc = props.src
-      watch(() => newSrc, () => {}, { immediate: true })
+      isLoading.value = true
+      hasError.value = false
+      isAborted.value = false
+      retryCount.value++ 
+
+      nextTick(() => {
+        if (imageRef.value) {
+          if (imageRef.value.complete && imageRef.value.naturalWidth > 0) {
+            handleLoad()
+            return
+          }
+          if (props.loading === 'eager') {
+            setLoadTimeout()
+          }
+          else {
+            setupIntersectionObserver()
+          }
+        }
+      })
     }
   },
 })
@@ -198,7 +233,7 @@ defineExpose({
         </div>
       </transition>
 
-      <picture v-if="src">
+      <picture v-if="src && !isAborted" :key="retryCount">
         <source
           v-if="resolvedVariants.large"
           :srcset="resolvedVariants.large"

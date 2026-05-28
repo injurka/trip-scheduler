@@ -97,22 +97,24 @@ const qualityOptions: KitDropdownItem<HighlightImageQuality>[] = [
           </div>
         </KitDropdown>
       </div>
+
+      <div class="filter-item filter-quality">
+        <KitDropdown v-model="localQuality" :items="qualityOptions" align="start">
+          <template #trigger>
+            <KitBtn
+              variant="outlined"
+              color="secondary"
+              size="sm"
+              icon="mdi:image-size-select-actual"
+            >
+              <span class="desktop-only">Качество</span>
+            </KitBtn>
+          </template>
+        </KitDropdown>
+      </div>
     </div>
 
     <div class="toolbar-actions">
-      <KitDropdown v-model="localQuality" :items="qualityOptions" align="end">
-        <template #trigger>
-          <KitBtn
-            variant="subtle"
-            color="secondary"
-            size="sm"
-            icon="mdi:image-size-select-actual"
-          >
-            <span class="desktop-only">Качество</span>
-          </KitBtn>
-        </template>
-      </KitDropdown>
-
       <KitBtn v-if="isOwner" size="sm" @click="emit('create')">
         <Icon icon="mdi:plus" />
         <span class="desktop-only">Добавить фото</span>
@@ -127,7 +129,6 @@ const qualityOptions: KitDropdownItem<HighlightImageQuality>[] = [
   flex-wrap: wrap;
   justify-content: space-between;
   align-items: center;
-  gap: 16px;
   width: 100%;
 }
 
@@ -137,11 +138,13 @@ const qualityOptions: KitDropdownItem<HighlightImageQuality>[] = [
   gap: 12px;
   flex-wrap: wrap;
   flex: 1;
+  width: 100%;
 }
 
 .filter-cities {
   width: 260px;
   max-width: 100%;
+  margin-right: auto;
 
   :deep(.kit-select-with-search) {
     gap: 0;
@@ -171,6 +174,7 @@ const qualityOptions: KitDropdownItem<HighlightImageQuality>[] = [
   align-items: center;
   gap: 12px;
   flex-shrink: 0;
+  margin-left: 16px;
 }
 
 .desktop-only {
@@ -180,8 +184,16 @@ const qualityOptions: KitDropdownItem<HighlightImageQuality>[] = [
 }
 
 @include media-down(sm) {
+  .highlights-toolbar {
+    gap: 8px;
+  }
+  .toolbar-actions {
+    width: 100%;
+    justify-content: flex-end;
+  }
   .toolbar-filters {
     width: 100%;
+    justify-content: space-between;
   }
 }
 </style>

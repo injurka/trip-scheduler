@@ -6,14 +6,24 @@ export interface UseImageViewerUiOptions {
   currentImage: Readonly<Ref<ImageViewerImage | null>>
   containerRef: Ref<HTMLElement | null>
   thumbnailsRef: Ref<HTMLElement | null>
+  qualityModel?: Ref<ImageQuality | undefined> // <-- Новое поле
+  onQualityChange?: (quality: ImageQuality) => void // <-- Callback для обновления внешнего состояния
   onDownload?: (image: ImageViewerImage, quality: ImageQuality) => void
 }
 
 export function useImageViewerUi(options: UseImageViewerUiOptions) {
-  const { currentImage, containerRef, thumbnailsRef } = options
+  const { currentImage, containerRef, thumbnailsRef, qualityModel, onQualityChange } = options
 
   // --- Quality ---
-  const selectedQuality = useStorage<ImageQuality>('viewer-quality-preference', 'large')
+  const storedQuality = useStorage<ImageQuality>('viewer-quality-preference', 'large')
+
+  const selectedQuality = computed<ImageQuality>({
+    get: () => qualityModel?.value ?? storedQuality.value,
+    set: (val) => {
+      storedQuality.value = val
+      onQualityChange?.(val)
+    },
+  })
 
   const qualityItems = computed(() => {
     const image = currentImage.value
@@ -101,13 +111,13 @@ export function useImageViewerUi(options: UseImageViewerUiOptions) {
     isThumbnailsVisible.value = !isThumbnailsVisible.value
   }
 
-  function scrollThumbnailIntoView(index: number) {
+  function scrollThumbnailIntoView(index: number, behavior: ScrollBehavior = 'smooth') {
     nextTick(() => {
       const strip = thumbnailsRef.value
       if (!strip)
         return
       const thumb = strip.children[index] as HTMLElement | undefined
-      thumb?.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'center' })
+      thumb?.scrollIntoView({ behavior, block: 'nearest', inline: 'center' })
     })
   }
 

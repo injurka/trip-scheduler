@@ -1,4 +1,3 @@
-import type { RemovableRef } from '@vueuse/core'
 import type { MaybeRefOrGetter, Ref } from 'vue'
 import type { ImageQuality, ImageViewerImage } from '../models/types'
 
@@ -17,7 +16,7 @@ interface UseSwipeNavigationOptions {
   images: Ref<ImageViewerImage[]>
   currentIndex: Ref<number>
   isZoomed: MaybeRefOrGetter<boolean>
-  preferredQuality: RemovableRef<ImageQuality>
+  preferredQuality: Ref<ImageQuality> // <-- Изменено с RemovableRef
   baseTransform: MaybeRefOrGetter<string>
 }
 

@@ -339,7 +339,7 @@ function openExpanded() {
   .bg-overlay {
     position: absolute;
     inset: 0;
-    background: linear-gradient(to bottom, rgba(0, 0, 0, 0.1) 0%, rgba(0, 0, 0, 0.85) 100%);
+    background: linear-gradient(to bottom, rgba(0, 0, 0, 0.1) 50%, rgba(0, 0, 0, 0.85) 100%);
   }
 }
 
@@ -547,7 +547,7 @@ function openExpanded() {
   .banner-overlay {
     position: absolute;
     inset: 0;
-    background: linear-gradient(to bottom, transparent 40%, rgba(0, 0, 0, 0.85) 100%);
+    background: linear-gradient(to bottom, transparent 50%, rgba(0, 0, 0, 0.85) 100%);
     display: flex;
     align-items: flex-end;
     padding: 20px;

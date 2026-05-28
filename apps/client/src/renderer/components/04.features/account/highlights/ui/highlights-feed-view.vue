@@ -197,6 +197,7 @@ onMounted(fetchHighlights)
     <KitImageViewer
       v-model:visible="viewerVisible"
       v-model:current-index="viewerIndex"
+      v-model:quality="quality"
       :images="viewerImages"
       :show-counter="viewerImages.length > 1"
       :enable-thumbnails="false"
