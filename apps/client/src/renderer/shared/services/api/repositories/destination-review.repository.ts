@@ -1,4 +1,4 @@
-import type { GetUserReviewsParams, IDestinationReviewRepository } from '../model/types'
+import type { DestinationMapPoint, GetUserReviewsParams, IDestinationReviewRepository } from '../model/types'
 import type { Country, CreateDestinationReviewInput, DestinationReview } from '~/shared/types/models/destination-review'
 import { trpc } from '~/shared/services/trpc/trpc.service'
 import { throttle } from '../lib/decorators'
@@ -12,6 +12,11 @@ export class DestinationReviewRepository implements IDestinationReviewRepository
   @throttle(500)
   async getReviewCities(userId: string): Promise<string[]> {
     return await trpc.destinationReview.getReviewCities.query({ userId })
+  }
+
+  @throttle(500)
+  async getMapPoints(userId: string): Promise<DestinationMapPoint[]> {
+    return await trpc.destinationReview.getMapPoints.query({ userId }) as DestinationMapPoint[]
   }
 
   @throttle(500)

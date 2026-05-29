@@ -4,6 +4,7 @@ import {
   CountrySchema,
   CreateReviewInputSchema,
   DeleteReviewInputSchema,
+  DestinationMapPointSchema,
   DestinationReviewSchema,
   GetUserReviewsInputSchema,
   UpdateReviewInputSchema,
@@ -28,6 +29,16 @@ export const destinationReviewProcedures = {
     .output(z.array(z.string()))
     .query(async ({ input }) => {
       return destinationReviewService.getReviewCities(input.userId)
+    }),
+
+  getMapPoints: publicProcedure
+    .meta({
+      openapi: { method: 'GET', path: '/destination-reviews/user/{userId}/map-points', tags: ['Destination Reviews'], summary: 'Получить точки для карты' },
+    })
+    .input(z.object({ userId: z.string().uuid() }))
+    .output(z.array(DestinationMapPointSchema))
+    .query(async ({ input }) => {
+      return destinationReviewService.getMapPoints(input.userId)
     }),
 
   getUserReviews: publicProcedure

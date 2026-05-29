@@ -1,4 +1,4 @@
-import type { DestinationReview } from '~/shared/types/models/destination-review'
+import type { DestinationMapPoint } from '~/shared/services/api/model/types'
 import { ref } from 'vue'
 import { useRequest, useRequestStatus } from '~/plugins/request'
 
@@ -21,10 +21,8 @@ export function useTripMap(userId: string) {
   async function fetchCities() {
     await useRequest({
       key: ETripMapKeys.FETCH,
-      // Uses destination-reviews which already store lat/lon.
-      // Replace with db.trips.getVisitedCities({ userId }) if you have a dedicated endpoint.
-      fn: db => db.destinationReviews.getUserReviews({ userId }),
-      onSuccess: (data: DestinationReview[]) => {
+      fn: db => db.destinationReviews.getMapPoints(userId),
+      onSuccess: (data: DestinationMapPoint[]) => {
         cities.value = data
           .filter(r => r.latitude != null && r.longitude != null)
           .map(r => ({

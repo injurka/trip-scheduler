@@ -35,6 +35,17 @@ export const DestinationReviewSchema = BaseDestinationReviewSchema.extend({
   updatedAt: z.preprocess(val => (typeof val === 'string' ? new Date(val) : val), z.date()),
 })
 
+export const DestinationMapPointSchema = z.object({
+  id: z.string(),
+  type: z.string(),
+  city: z.string().nullable(),
+  latitude: z.number().nullable(),
+  longitude: z.number().nullable(),
+  country: z.object({
+    name: z.string(),
+  }).nullable().optional(),
+})
+
 // --- Input Schemas ---
 export const GetUserReviewsInputSchema = z.object({
   userId: z.string().uuid(),

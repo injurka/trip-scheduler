@@ -301,7 +301,17 @@ export interface IMemoryRepository {
   unassignTimestamp: (id: string) => Promise<Memory>
 }
 
-// === НОВЫЕ ТИПЫ ДЛЯ ВПЕЧАТЛЕНИЙ ===
+export interface DestinationMapPoint {
+  id: string
+  type: string
+  city: string | null
+  latitude: number | null
+  longitude: number | null
+  country?: {
+    name: string
+  } | null
+}
+
 export interface GetUserReviewsParams {
   userId: string
   type?: 'country' | 'city'
@@ -317,6 +327,7 @@ export interface IDestinationReviewRepository {
   getCountries: () => Promise<Country[]>
   getReviewCities: (userId: string) => Promise<string[]>
   getUserReviews: (params: GetUserReviewsParams) => Promise<{ items: DestinationReview[], total: number }>
+  getMapPoints: (userId: string) => Promise<DestinationMapPoint[]>
   create: (data: CreateDestinationReviewInput) => Promise<DestinationReview>
   update: (params: { id: string } & Partial<CreateDestinationReviewInput>) => Promise<DestinationReview>
   delete: (params: { id: string }) => Promise<void>

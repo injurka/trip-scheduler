@@ -19,6 +19,10 @@ export const destinationReviewService = {
     return await destinationReviewRepository.getCitiesByUserId(userId)
   },
 
+  async getMapPoints(userId: string) {
+    return await destinationReviewRepository.getMapPoints(userId)
+  },
+
   async create(data: z.infer<typeof CreateReviewInputSchema>, userId: string) {
     const newReview = await destinationReviewRepository.create({
       ...data,

@@ -66,6 +66,32 @@ export const destinationReviewRepository = {
     })
   },
 
+  async getMapPoints(userId: string) {
+    return measureDbQuery('destinationReviews', 'select', async () => {
+      return await db.query.destinationReviews.findMany({
+        where: and(
+          eq(destinationReviews.userId, userId),
+          sql`${destinationReviews.latitude} IS NOT NULL`,
+          sql`${destinationReviews.longitude} IS NOT NULL`,
+        ),
+        columns: {
+          id: true,
+          type: true,
+          city: true,
+          latitude: true,
+          longitude: true,
+        },
+        with: {
+          country: {
+            columns: {
+              name: true,
+            },
+          },
+        },
+      })
+    })
+  },
+
   async create(data: Omit<typeof destinationReviews.$inferInsert, 'id' | 'createdAt' | 'updatedAt'>) {
     return measureDbQuery('destinationReviews', 'insert', async () => {
       const [newReview] = await db.insert(destinationReviews).values({
