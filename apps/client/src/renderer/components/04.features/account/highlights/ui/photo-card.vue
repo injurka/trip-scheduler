@@ -20,12 +20,11 @@ const emit = defineEmits<{
 
 const isTooltipOpen = ref(false)
 
-// Динамически вычисляем пропорции из оригинального фото, чтобы masonry-сетка была красивой
 const dynamicAspectRatio = computed(() => {
   if (props.photo.width && props.photo.height) {
     return props.photo.width / props.photo.height
   }
-  return 4 / 5 // Фоллбэк, если размеры неизвестны
+  return 4 / 5 
 })
 
 const photoUrl = computed(() => {

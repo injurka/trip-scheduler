@@ -5,7 +5,7 @@ import { KitSkeleton } from '~/components/01.kit/kit-skeleton'
 <template>
   <div class="highlights-grid">
     <div
-      v-for="i in 6"
+      v-for="i in 9"
       :key="i"
       class="skeleton-card"
       :style="{ height: `${250 + Math.random() * 200}px` }"
@@ -25,7 +25,6 @@ import { KitSkeleton } from '~/components/01.kit/kit-skeleton'
 .skeleton-card {
   display: inline-block;
   width: 100%;
-  margin-bottom: 6px;
   border-radius: var(--r-l);
   overflow: hidden;
   border: 1px solid var(--border-secondary-color);
@@ -35,7 +34,7 @@ import { KitSkeleton } from '~/components/01.kit/kit-skeleton'
 
 .skeleton-media {
   width: 100%;
-  height: 100%;
+  height: 100% !important;
   border-radius: 0;
 }
 
