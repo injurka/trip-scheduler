@@ -3,7 +3,7 @@ import type { DocumentMetadata, TripDocument } from '~/models/image'
 import { and, eq, inArray } from 'drizzle-orm'
 import { db } from '../../db'
 
-import { tripImages, trips } from '../../db/schema'
+import { highlights, tripImages, trips } from '../../db/schema'
 
 type Placement = (typeof tripImagePlacementEnum.enumValues)[number]
 
@@ -96,13 +96,25 @@ export const imageRepository = {
   },
 
   async getMetadata(id: string) {
+    // 1. Сначала ищем среди обычных фото
     const image = await db.query.tripImages.findFirst({
       where: eq(tripImages.id, id),
       columns: {
         metadata: true,
       },
     })
-    return image?.metadata || null
+    if (image?.metadata)
+      return image.metadata
+
+    // 2. Если не нашли, значит это может быть фото из витрины пользователя
+    const highlight = await db.query.highlights.findFirst({
+      where: eq(highlights.id, id),
+      columns: {
+        metadata: true,
+      },
+    })
+
+    return highlight?.metadata || null
   },
 
   async getByTripId(tripId: string, placement?: Placement) {
@@ -177,9 +189,6 @@ export const imageRepository = {
     return deletedImage || null
   },
 
-  /**
-   * Получает все документы путешествия, мапя их в строгий тип TripDocument
-   */
   async listDocuments(tripId: string): Promise<TripDocument[]> {
     const docs = await db.query.tripImages.findMany({
       where: and(eq(tripImages.tripId, tripId), eq(tripImages.placement, 'documents')),
@@ -201,9 +210,6 @@ export const imageRepository = {
     }))
   },
 
-  /**
-   * Обновляет специфичные для документа метаданные
-   */
   async updateDocumentMeta(id: string, newMetadata: Partial<DocumentMetadata>): Promise<TripDocument | null> {
     const current = await this.getById(id)
     if (!current)

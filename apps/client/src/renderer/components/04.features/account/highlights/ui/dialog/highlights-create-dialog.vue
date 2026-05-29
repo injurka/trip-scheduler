@@ -1,11 +1,13 @@
 <script setup lang="ts">
-import type { Country, DestinationReview } from '~/shared/types/models/destination-review'
+import type { KitDropdownItem } from '~/components/01.kit/kit-dropdown'
+import type { DestinationMapPoint } from '~/shared/services/api/model/types'
+import type { Country } from '~/shared/types/models/destination-review'
 import type { CreateHighlightInput } from '~/shared/types/models/user'
 import { Icon } from '@iconify/vue'
 import { CalendarDate, Time } from '@internationalized/date'
 import { onClickOutside } from '@vueuse/core'
 import { toLonLat } from 'ol/proj'
-import { computed, ref, watch } from 'vue'
+import { computed, ref, shallowRef, watch } from 'vue'
 import { KitBtn } from '~/components/01.kit/kit-btn'
 import { KitCalendar } from '~/components/01.kit/kit-calendar'
 import { KitDialogWithClose } from '~/components/01.kit/kit-dialog-with-close'
@@ -15,10 +17,14 @@ import { KitMap } from '~/components/01.kit/kit-map'
 import { KitSelectWithSearch } from '~/components/01.kit/kit-select-with-search'
 import { KitTimeField } from '~/components/01.kit/kit-time-field'
 
+interface CountryDropdownItem extends KitDropdownItem<string> {
+  flagUrl: string | null
+}
+
 const props = defineProps<{
   visible: boolean
   countries: Country[]
-  reviews: DestinationReview[]
+  mapPoints: DestinationMapPoint[]
   form: Partial<CreateHighlightInput>
   file: File | null
   isUploading: boolean
@@ -36,27 +42,35 @@ const visibleModel = computed({
   set: value => emit('update:visible', value),
 })
 
-const countryOptions = computed(() =>
+const countryOptions = computed<CountryDropdownItem[]>(() =>
   props.countries.map(country => ({
     value: country.id,
     label: country.name,
-    flagUrl: country.flagUrl,
+    flagUrl: country.flagUrl || null,
   })),
 )
 
-// Подсказки локаций на основе уже оставленных "Рейтингов"
+// Подсказки локаций на основе уже оставленных меток (Trip Map / Впечатления)
 const locationSuggestions = computed(() => {
   const map = new Map<string, { countryId: string, city: string, name: string, flagUrl: string | null }>()
-  for (const r of props.reviews || []) {
-    if (r.city && r.countryId) {
-      const key = `${r.countryId}-${r.city}`
-      if (!map.has(key)) {
-        map.set(key, {
-          countryId: r.countryId,
-          city: r.city,
-          name: r.city,
-          flagUrl: r.country?.flagUrl || null,
-        })
+
+  for (const mp of props.mapPoints || []) {
+    if (mp.type === 'city' && mp.city && mp.country?.name) {
+      // Ищем ID страны по совпадению имени
+      const matchedCountry = props.countries.find(
+        c => c.name.toLowerCase() === mp.country!.name.toLowerCase(),
+      )
+
+      if (matchedCountry) {
+        const key = `${matchedCountry.id}-${mp.city}`
+        if (!map.has(key)) {
+          map.set(key, {
+            countryId: matchedCountry.id,
+            city: mp.city,
+            name: mp.city,
+            flagUrl: matchedCountry.flagUrl || null,
+          })
+        }
       }
     }
   }
@@ -71,8 +85,8 @@ function applySuggestion(loc: { countryId: string, city: string }) {
 // --- Логика кастомного выбора Даты и Времени ---
 const datePickerWrapperRef = ref<HTMLElement | null>(null)
 const showDatePicker = ref(false)
-const calendarDate = ref<CalendarDate | null>(null)
-const timeValue = ref<Time | null>(null)
+const calendarDate = shallowRef<CalendarDate | null>(null)
+const timeValue = shallowRef<Time | null>(null)
 let isInternalDateUpdate = false
 
 onClickOutside(datePickerWrapperRef, () => {
@@ -193,7 +207,7 @@ const isSubmitDisabled = computed(() =>
             placeholder="Выбери страну"
           >
             <template #item="{ item }">
-              <img v-if="item.flagUrl" :src="item.flagUrl" class="dropdown-flag" alt="">
+              <img v-if="(item as CountryDropdownItem).flagUrl" :src="(item as CountryDropdownItem).flagUrl as string" class="dropdown-flag" alt="">
               <span>{{ item.label }}</span>
             </template>
           </KitSelectWithSearch>
@@ -532,7 +546,6 @@ const isSubmitDisabled = computed(() =>
   font-size: 0.875rem;
   font-weight: 500;
   color: var(--fg-secondary-color);
-  margin-bottom: 4px;
 }
 
 .section-hint {

@@ -8,6 +8,7 @@ import { createTRPCError } from '~/lib/trpc'
 import { highlightRepository } from '~/repositories/highlight.repository'
 import { userRepository } from '~/repositories/user.repository'
 import { emailService } from '~/services/email.service'
+import { deleteFileWithVariants } from '~/services/file-storage.service'
 
 export const userService = {
   async listPlans() {
@@ -187,6 +188,19 @@ export const userService = {
     if (!deleted) {
       throw createTRPCError('NOT_FOUND', 'Фото не найдено или у вас нет прав на его удаление.')
     }
+
+    if (deleted.imageUrl) {
+      try {
+        await deleteFileWithVariants({
+          url: deleted.imageUrl,
+          variants: (deleted.variants as Record<string, string>) || {},
+        })
+      }
+      catch (error) {
+        console.error(`Ошибка при удалении файлов витрины ${id}:`, error)
+      }
+    }
+
     return { success: true }
   },
 }

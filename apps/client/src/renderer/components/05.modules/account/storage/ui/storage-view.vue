@@ -84,13 +84,13 @@ function openViewer(fileId: string) {
     imageViewer.open(viewerImages.value, index)
   }
 }
-// ---------------------------------
 
 function formatPlacement(placement: TripImagePlacement) {
-  const map: Record<TripImagePlacement, string> = {
+  const map = {
     route: 'Маршрут',
     memories: 'Воспоминания',
-  }
+  } as Record<TripImagePlacement, string>
+
   return map[placement] || placement
 }
 

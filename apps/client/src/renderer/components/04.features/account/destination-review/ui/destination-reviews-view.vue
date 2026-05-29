@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import type { Country } from '~/shared/types/models/destination-review'
 import { Icon } from '@iconify/vue'
 import { computed, onMounted } from 'vue'
 import { KitBtn } from '~/components/01.kit/kit-btn'
@@ -49,7 +50,7 @@ const {
   deleteReview,
 } = useDestinationReviews(props.userId)
 
-const countryOptions = computed(() => countries.value.map(c => ({
+const countryOptions = computed(() => countries.value.map((c: Country) => ({
   value: c.id,
   label: c.name,
 })))

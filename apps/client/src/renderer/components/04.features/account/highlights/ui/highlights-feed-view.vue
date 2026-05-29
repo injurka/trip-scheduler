@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import type { ImageViewerImage } from '~/components/01.kit/kit-image-viewer'
+import type { IImageViewerImageMeta, ImageViewerImage } from '~/components/01.kit/kit-image-viewer'
 import type { Highlight } from '~/shared/types/models/user'
 import { Icon } from '@iconify/vue'
 import { computed, onMounted, ref } from 'vue'
@@ -26,7 +26,7 @@ const {
   currentPage,
   itemsPerPage,
   countries,
-  reviews,
+  mapPoints,
   quality,
   selectedCities,
   dateRange,
@@ -58,7 +58,7 @@ const viewerVisible = ref(false)
 const viewerIndex = ref(0)
 
 const viewerImages = computed<ImageViewerImage[]>(() =>
-  filteredHighlights.value.map(item => ({
+  filteredHighlights.value.map((item: Highlight) => ({
     url: item.imageUrl,
     alt: [item.city, item.country?.name].filter(Boolean).join(', ') || 'Highlight image',
     caption: item.comment || null,
@@ -70,7 +70,7 @@ const viewerImages = computed<ImageViewerImage[]>(() =>
       width: item.width ?? null,
       height: item.height ?? null,
       imageId: item.id,
-    } as any,
+    } as IImageViewerImageMeta & { imageId: string },
   })),
 )
 
@@ -107,7 +107,7 @@ const viewerDate = computed(() => {
 })
 
 function openViewer(photo: Highlight) {
-  const index = filteredHighlights.value.findIndex(item => item.id === photo.id)
+  const index = filteredHighlights.value.findIndex((item: Highlight) => item.id === photo.id)
   if (index < 0)
     return
 
@@ -177,7 +177,7 @@ onMounted(() => {
     <HighlightsCreateDialog
       v-model:visible="isCreateModalOpen"
       :countries="countries"
-      :reviews="reviews"
+      :map-points="mapPoints"
       :form="form"
       :file="formFile"
       :is-uploading="isUploading"
@@ -189,7 +189,7 @@ onMounted(() => {
     <HighlightsEditDialog
       v-model:visible="isEditModalOpen"
       :countries="countries"
-      :reviews="reviews"
+      :map-points="mapPoints"
       :form="editForm"
       :file="editFormFile"
       :is-uploading="isUploading"

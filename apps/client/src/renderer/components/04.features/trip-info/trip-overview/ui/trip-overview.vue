@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import type { KitDropdownItem } from '~/components/01.kit/kit-dropdown'
-import type { MapPoint, MapRoute } from '~/components/03.domain/trip-info/geolocation-section'
+import type { MapRoute } from '~/components/03.domain/trip-info/geolocation-section'
 import type { IDay } from '~/components/04.features/trip-info/trip-plan/models/types'
 import type { Trip, TripSection } from '~/shared/types/models/trip'
 import { Icon } from '@iconify/vue'

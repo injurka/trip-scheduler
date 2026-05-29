@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import type { CalendarDate } from '@internationalized/date'
 import type { HighlightDateRange, HighlightImageQuality } from '../composables/use-highlights'
 import type { KitDropdownItem } from '~/components/01.kit/kit-dropdown'
 import { Icon } from '@iconify/vue'
@@ -44,11 +45,16 @@ const cityOptions = computed<KitDropdownItem<string>[]>(() =>
 const dateRangeLabel = computed(() => {
   if (!props.dateRange?.start && !props.dateRange?.end)
     return 'Даты'
-  const format = (d: any) => d ? `${d.day.toString().padStart(2, '0')}.${d.month.toString().padStart(2, '0')}.${d.year}` : '...'
+
+  const format = (d: CalendarDate | null | undefined) =>
+    d ? `${d.day.toString().padStart(2, '0')}.${d.month.toString().padStart(2, '0')}.${d.year}` : '...'
+
   const start = format(props.dateRange?.start)
   const end = format(props.dateRange?.end)
+
   if (!props.dateRange?.end && props.dateRange?.start)
     return start
+
   return `${start} - ${end}`
 })
 

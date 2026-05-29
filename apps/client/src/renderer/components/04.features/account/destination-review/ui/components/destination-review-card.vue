@@ -2,6 +2,7 @@
 import type { DestinationMetricKey } from '../../composables/use-destination-reviews'
 import type { DestinationReview } from '~/shared/types/models/destination-review'
 import { Icon } from '@iconify/vue'
+import { DialogTitle } from 'reka-ui'
 import { computed, ref } from 'vue'
 import { KitDialogWithClose } from '~/components/01.kit/kit-dialog-with-close'
 import { KitImage } from '~/components/01.kit/kit-image'
@@ -176,10 +177,12 @@ function openExpanded() {
       :max-width="700"
     >
       <template #header>
-        <div class="dialog-custom-title">
-          <img v-if="flagSrc" :src="flagSrc" class="svg-flag lg" :alt="review.country?.name">
-          <span>{{ placeName }}</span>
-        </div>
+        <DialogTitle as-child>
+          <div class="dialog-custom-title">
+            <img v-if="flagSrc" :src="flagSrc" class="svg-flag lg" :alt="review.country?.name">
+            <span>{{ placeName }}</span>
+          </div>
+        </DialogTitle>
       </template>
 
       <div class="dialog-content-layout">
@@ -594,7 +597,6 @@ function openExpanded() {
 }
 
 .info-tooltip-wrapper {
-  /* Убрали position: relative; чтобы контент привязывался к .section-header */
   display: inline-flex;
   align-items: center;
   color: var(--fg-secondary-color);
@@ -622,10 +624,10 @@ function openExpanded() {
 
 .info-tooltip-content {
   position: absolute;
-  top: calc(100% + 8px); /* Опускаем ниже заголовка секции */
-  left: 0; /* Привязываем к левому краю .section-header, чтобы тултип не уезжал вправо */
+  top: calc(100% + 8px);
+  left: 0;
   width: 320px;
-  max-width: 100%; /* Гарантируем, что тултип не будет шире контейнера, предотвращая скролл */
+  max-width: 100%;
   background: var(--bg-primary-color);
   border: 1px solid var(--border-secondary-color);
   box-shadow: var(--s-l);
