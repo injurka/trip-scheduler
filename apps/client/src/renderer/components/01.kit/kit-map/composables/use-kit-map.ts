@@ -9,6 +9,7 @@ import { fromLonLat } from 'ol/proj'
 import OSM from 'ol/source/OSM'
 import VectorSource from 'ol/source/Vector'
 import { Icon as OlIcon, Style } from 'ol/style'
+import { onUnmounted, readonly, ref, shallowRef } from 'vue'
 import { resolveApiUrl } from '~/shared/lib/url'
 
 export function useKitMap() {
@@ -17,12 +18,20 @@ export function useKitMap() {
 
   const tileLayerRef = shallowRef<TileLayer<TileSource> | null>(null)
   const vectorSource = new VectorSource()
+  const searchVectorSource = new VectorSource()
 
   let resizeObserver: ResizeObserver | null = null
 
   const defaultMarkerSvg = `
       <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
         <path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7z" fill="#3399CC"/>
+        <circle cx="12" cy="9" r="2.5" fill="white"/>
+      </svg>
+    `
+
+  const searchMarkerSvg = `
+      <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+        <path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7z" fill="#FF5252"/>
         <circle cx="12" cy="9" r="2.5" fill="white"/>
       </svg>
     `
@@ -37,6 +46,18 @@ export function useKitMap() {
       }),
     }),
     zIndex: 10,
+  })
+
+  const searchVectorLayer = new VectorLayer({
+    source: searchVectorSource,
+    style: new Style({
+      image: new OlIcon({
+        src: `data:image/svg+xml;base64,${btoa(searchMarkerSvg)}`,
+        scale: 1.5,
+        anchor: [0.5, 1],
+      }),
+    }),
+    zIndex: 11,
   })
 
   const initMap = (container: HTMLElement, popupEl: HTMLElement, options: KitMapOptions): Promise<void> => {
@@ -64,7 +85,7 @@ export function useKitMap() {
 
           mapInstance.value = new Map({
             target: container,
-            layers: [tileLayerRef.value, vectorLayer],
+            layers: [tileLayerRef.value, vectorLayer, searchVectorLayer],
             view: new View({
               center: fromLonLat(options.center),
               zoom: options.zoom || 12,
@@ -168,6 +189,27 @@ export function useKitMap() {
     })
   }
 
+  const setSearchResult = (coords: { lat: number, lon: number }) => {
+    searchVectorSource.clear()
+    const feature = new Feature({
+      geometry: new Point(fromLonLat([coords.lon, coords.lat])),
+    })
+    searchVectorSource.addFeature(feature)
+
+    const view = mapInstance.value?.getView()
+    if (view) {
+      view.animate({
+        center: fromLonLat([coords.lon, coords.lat]),
+        zoom: 14,
+        duration: 800,
+      })
+    }
+  }
+
+  const clearSearchResult = () => {
+    searchVectorSource.clear()
+  }
+
   const zoomIn = () => {
     const view = mapInstance.value?.getView()
     if (view)
@@ -196,5 +238,7 @@ export function useKitMap() {
     zoomOut,
     updateMarkers,
     fitViewToMarkers,
+    setSearchResult,
+    clearSearchResult,
   }
 }

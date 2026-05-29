@@ -39,6 +39,25 @@ export const DestinationReviewSchema = BaseDestinationReviewSchema.extend({
 export const GetUserReviewsInputSchema = z.object({
   userId: z.string().uuid(),
   type: z.enum(['country', 'city']).optional(),
+  limit: z.number().min(1).max(100).default(24),
+  page: z.number().min(1).default(1),
+  countryId: z.string().optional(),
+  city: z.string().optional(),
+  sortBy: z.enum([
+    'createdAt',
+    'rating',
+    'safety',
+    'culture',
+    'infrastructure',
+    'food',
+    'prices',
+    'nature',
+    'vibe',
+    'climate',
+    'people',
+    'entertainment',
+  ]).default('createdAt'),
+  sortOrder: z.enum(['asc', 'desc']).default('desc'),
 })
 
 export const CreateReviewInputSchema = z.object({

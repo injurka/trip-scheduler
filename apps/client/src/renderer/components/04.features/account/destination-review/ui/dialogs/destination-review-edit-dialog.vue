@@ -2,7 +2,7 @@
 import type { Country } from '~/shared/types/models/destination-review'
 import { Icon } from '@iconify/vue'
 import { toLonLat } from 'ol/proj'
-import { computed, ref } from 'vue'
+import { computed, ref, watch } from 'vue'
 import { KitBtn } from '~/components/01.kit/kit-btn'
 import { KitDialogWithClose } from '~/components/01.kit/kit-dialog-with-close'
 import { KitFileInput } from '~/components/01.kit/kit-file-input'
@@ -39,6 +39,12 @@ const fileModel = computed({
 })
 
 const step = ref(1)
+
+watch(visibleModel, (val) => {
+  if (val) {
+    step.value = 1
+  }
+})
 
 const countryOptions = computed(() => props.countries.map(c => ({
   value: c.id,

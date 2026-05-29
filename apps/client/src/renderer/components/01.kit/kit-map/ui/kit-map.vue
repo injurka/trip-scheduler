@@ -5,10 +5,12 @@ import type { MapLayerOption, MapMarker } from '../models/types'
 import type { TileSourceId } from '~/shared/lib/map-styles-sources'
 import { useFullscreen } from '@vueuse/core'
 import { fromLonLat } from 'ol/proj'
+import { onMounted, ref, shallowRef, watch } from 'vue'
 import { KitBtn } from '~/components/01.kit/kit-btn'
 import { checkMapTilerAvailability, TILE_SOURCES } from '~/shared/lib/map-styles-sources'
 import { useKitMap } from '../composables/use-kit-map'
 import KitMapControls from './kit-map-controls.vue'
+import KitMapSearchControl from './kit-map-search-control.vue'
 
 import 'ol/ol.css'
 
@@ -20,6 +22,7 @@ interface Props {
   markers?: MapMarker[]
   autoPan?: boolean
   customLayers?: MapLayerOption[]
+  enableSearch?: boolean
 }
 
 const props = withDefaults(defineProps<Props>(), {
@@ -29,6 +32,7 @@ const props = withDefaults(defineProps<Props>(), {
   markers: () => [],
   autoPan: true,
   customLayers: undefined,
+  enableSearch: false,
 })
 
 const emit = defineEmits<{
@@ -39,7 +43,19 @@ const emit = defineEmits<{
 const mapWrapperRef = ref<HTMLElement | null>(null)
 const popupRef = ref<HTMLElement | null>(null)
 
-const { mapInstance, isMapReady, initMap, setTileSource, zoomIn, zoomOut, updateMarkers, fitViewToMarkers } = useKitMap()
+const {
+  mapInstance,
+  isMapReady,
+  initMap,
+  setTileSource,
+  zoomIn,
+  zoomOut,
+  updateMarkers,
+  fitViewToMarkers,
+  setSearchResult,
+  clearSearchResult,
+} = useKitMap()
+
 const { isFullscreen, toggle: toggleFullscreen } = useFullscreen(mapWrapperRef)
 
 const activeLayerId = ref<string>('osm')
@@ -135,6 +151,12 @@ onMounted(async () => {
     <slot />
 
     <div ref="popupRef" class="ol-popup-placeholder" />
+
+    <KitMapSearchControl
+      v-if="enableSearch"
+      @found="setSearchResult"
+      @clear="clearSearchResult"
+    />
 
     <KitMapControls
       v-model:active-layer-id="activeLayerId"

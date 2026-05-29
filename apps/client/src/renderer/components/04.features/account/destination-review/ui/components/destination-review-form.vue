@@ -3,7 +3,7 @@ import type { DestinationMetricKey } from '../../composables/use-destination-rev
 import type { Country } from '~/shared/types/models/destination-review'
 import { Icon } from '@iconify/vue'
 import { toLonLat } from 'ol/proj'
-import { computed, reactive, ref } from 'vue'
+import { computed, reactive, ref, watch } from 'vue'
 import { KitBtn } from '~/components/01.kit/kit-btn'
 import { KitDialogWithClose } from '~/components/01.kit/kit-dialog-with-close'
 import { KitFileInput } from '~/components/01.kit/kit-file-input'
@@ -26,6 +26,12 @@ const toast = useToast()
 
 const step = ref(1)
 const isSubmitting = ref(false)
+
+watch(visible, (val) => {
+  if (val) {
+    step.value = 1
+  }
+})
 
 const form = reactive({
   type: 'city',
@@ -139,7 +145,7 @@ function getSliderColor(value: number) {
     v-model:visible="visible"
     title="Добавить впечатление"
     :max-width="550"
-    :persistent="isSubmitting"
+    persistent
   >
     <div v-if="isSubmitting" class="dialog-overlay-loader">
       <div class="dialog-overlay-loader-bg" />
@@ -203,7 +209,7 @@ function getSliderColor(value: number) {
             <KitInput v-model="form.longitude" type="number" step="any" placeholder="Долгота" />
           </div>
           <div class="map-container">
-            <KitMap :center="mapCenter" :zoom="2" height="280px" :markers="mapMarkers" :auto-pan="false" @click="handleMapClick" />
+            <KitMap enable-search :center="mapCenter" :zoom="2" height="280px" :markers="mapMarkers" :auto-pan="false" @click="handleMapClick" />
           </div>
         </div>
       </div>

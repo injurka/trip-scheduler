@@ -2,7 +2,7 @@
 import type { Country } from '~/shared/types/models/destination-review'
 import { Icon } from '@iconify/vue'
 import { toLonLat } from 'ol/proj'
-import { computed, ref } from 'vue'
+import { computed, ref, watch } from 'vue'
 import { KitBtn } from '~/components/01.kit/kit-btn'
 import { KitDialogWithClose } from '~/components/01.kit/kit-dialog-with-close'
 import { KitFileInput } from '~/components/01.kit/kit-file-input'
@@ -39,6 +39,12 @@ const fileModel = computed({
 })
 
 const step = ref(1)
+
+watch(visibleModel, (val) => {
+  if (val) {
+    step.value = 1
+  }
+})
 
 const countryOptions = computed(() => props.countries.map(c => ({
   value: c.id,
@@ -94,11 +100,11 @@ function getSliderColor(value: number) {
     v-model:visible="visibleModel"
     title="Добавить впечатление"
     :max-width="600"
-    :persistent="isSubmitting || isUploading"
+    persistent
   >
     <div v-if="isSubmitting || isUploading" class="dialog-overlay-loader">
-      <div class="dialog-overlay-loader__bg" />
-      <div class="dialog-overlay-loader__content">
+      <div class="dialog-overlay-loader-bg" />
+      <div class="dialog-overlay-loader-content">
         <Icon icon="mdi:loading" class="spinner" />
         <span>{{ isUploading ? 'Загрузка фото...' : 'Сохранение...' }}</span>
       </div>
@@ -153,7 +159,7 @@ function getSliderColor(value: number) {
             <KitInput v-model="form.longitude" type="number" step="any" placeholder="Долгота" />
           </div>
           <div class="map-container">
-            <KitMap :center="mapCenter" :zoom="2" :markers="mapMarkers" height="400px" :auto-pan="false" @click="handleMapClick" />
+            <KitMap enable-search :center="mapCenter" :zoom="2" :markers="mapMarkers" height="400px" :auto-pan="false" @click="handleMapClick" />
           </div>
         </div>
       </div>
@@ -238,7 +244,7 @@ function getSliderColor(value: number) {
   justify-content: center;
   border-radius: inherit;
 
-  &__bg {
+  &-bg {
     position: absolute;
     inset: 0;
     background: var(--bg-primary-color);
@@ -246,7 +252,7 @@ function getSliderColor(value: number) {
     border-radius: inherit;
   }
 
-  &__content {
+  &-content {
     position: relative;
     z-index: 51;
     display: flex;

@@ -301,9 +301,22 @@ export interface IMemoryRepository {
   unassignTimestamp: (id: string) => Promise<Memory>
 }
 
+// === НОВЫЕ ТИПЫ ДЛЯ ВПЕЧАТЛЕНИЙ ===
+export interface GetUserReviewsParams {
+  userId: string
+  type?: 'country' | 'city'
+  limit?: number
+  page?: number
+  countryId?: string
+  city?: string
+  sortBy?: string
+  sortOrder?: 'asc' | 'desc'
+}
+
 export interface IDestinationReviewRepository {
   getCountries: () => Promise<Country[]>
-  getUserReviews: (params: { userId: string, type?: 'country' | 'city' }) => Promise<DestinationReview[]>
+  getReviewCities: (userId: string) => Promise<string[]>
+  getUserReviews: (params: GetUserReviewsParams) => Promise<{ items: DestinationReview[], total: number }>
   create: (data: CreateDestinationReviewInput) => Promise<DestinationReview>
   update: (params: { id: string } & Partial<CreateDestinationReviewInput>) => Promise<DestinationReview>
   delete: (params: { id: string }) => Promise<void>

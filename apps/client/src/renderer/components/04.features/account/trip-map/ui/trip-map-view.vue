@@ -118,8 +118,10 @@ function handleWheel(e: WheelEvent): void {
   if (target.closest('.trip-map-toolbar'))
     return
   e.preventDefault()
-  applyWheel(e, cssW.value, cssH.value)
-  redraw()
+  if (canvasRef.value) {
+    applyWheel(e, canvasRef.value, cssW.value, cssH.value)
+    redraw()
+  }
 }
 
 function handleMouseDown(e: MouseEvent): void {
@@ -144,7 +146,7 @@ function handleTouchStart(e: TouchEvent): void {
 function handleTouchMove(e: TouchEvent): void {
   if (isDragging.value) {
     e.preventDefault()
-    if (applyTouch(e, cssW.value, cssH.value)) {
+    if (canvasRef.value && applyTouch(e, canvasRef.value, cssW.value, cssH.value)) {
       redraw()
     }
   }

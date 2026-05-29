@@ -7,7 +7,7 @@
     <div class="skeleton-bg skeleton-pulse" />
 
     <div class="mini-metrics-column">
-      <div v-for="i in 3" :key="i" class="skeleton-metric skeleton-pulse" />
+      <div v-for="i in 6" :key="i" class="skeleton-metric skeleton-pulse" />
     </div>
 
     <div class="card-content">

@@ -12,7 +12,11 @@ export const destinationReviewService = {
   },
 
   async getUserReviews(input: z.infer<typeof GetUserReviewsInputSchema>) {
-    return await destinationReviewRepository.getByUserId(input.userId, input.type)
+    return await destinationReviewRepository.getByUserId(input)
+  },
+
+  async getReviewCities(userId: string) {
+    return await destinationReviewRepository.getCitiesByUserId(userId)
   },
 
   async create(data: z.infer<typeof CreateReviewInputSchema>, userId: string) {
@@ -24,7 +28,6 @@ export const destinationReviewService = {
     if (!newReview) {
       throw createTRPCError('INTERNAL_SERVER_ERROR', 'Не удалось сохранить впечатление.')
     }
-
     return newReview
   },
 
@@ -38,11 +41,9 @@ export const destinationReviewService = {
 
   async delete(id: string, userId: string) {
     const deleted = await destinationReviewRepository.delete(id, userId)
-
     if (!deleted) {
       throw createTRPCError('NOT_FOUND', 'Впечатление не найдено или у вас нет прав на его удаление.')
     }
-
     return { success: true }
   },
 }

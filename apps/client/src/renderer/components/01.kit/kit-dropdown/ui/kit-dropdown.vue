@@ -93,13 +93,13 @@ function handleSelect(item: KitDropdownItem<T>) {
   max-width: var(--reka-dropdown-menu-content-available-width);
   overflow-y: auto;
 }
+
 .kit-dropdown-item {
   display: flex;
   align-items: center;
   gap: 8px;
   border-radius: var(--r-xs);
   cursor: pointer;
-  transition: background-color 0.2s ease;
   outline: none;
 
   &--sm {
@@ -137,13 +137,16 @@ function handleSelect(item: KitDropdownItem<T>) {
 
   &.is-destructive {
     color: var(--fg-error-color);
+
     .item-icon {
       color: var(--fg-error-color);
     }
+
     &:hover,
     &[data-highlighted] {
       background-color: var(--bg-error-color);
       color: var(--fg-error-color);
+
       .item-icon {
         color: var(--fg-error-color);
       }

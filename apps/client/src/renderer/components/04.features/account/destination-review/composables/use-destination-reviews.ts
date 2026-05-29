@@ -1,5 +1,4 @@
 import type { Country, DestinationReview } from '~/shared/types/models/destination-review'
-import { computed, reactive, ref, watch } from 'vue'
 import { useRequest, useRequestStatus } from '~/plugins/request'
 import { useConfirm } from '~/shared/composables/use-confirm'
 import { useToast } from '~/shared/composables/use-toast'
@@ -8,6 +7,7 @@ import { useAuthStore } from '~/shared/store/auth.store'
 export enum EDestinationReviewKeys {
   FETCH_COUNTRIES = 'destination-reviews:fetch-countries',
   FETCH_REVIEWS = 'destination-reviews:fetch-reviews',
+  FETCH_CITIES = 'destination-reviews:fetch-cities',
   CREATE_REVIEW = 'destination-reviews:create',
   UPDATE_REVIEW = 'destination-reviews:update',
   DELETE_REVIEW = 'destination-reviews:delete',
@@ -65,7 +65,17 @@ export function useDestinationReviews(userId: string) {
   const confirm = useConfirm()
 
   const reviews = ref<DestinationReview[]>([])
+  const totalItems = ref(0)
   const countries = ref<Country[]>([])
+  const availableCities = ref<string[]>([])
+
+  // Фильтры, сортировка и пагинация
+  const page = ref(1)
+  const limit = 24
+  const selectedCountry = ref<string | null>(null)
+  const selectedCity = ref<string | null>(null)
+  const sortBy = ref<string>('createdAt')
+  const sortOrder = ref<'asc' | 'desc'>('desc')
 
   const isCreateModalOpen = ref(false)
   const isEditModalOpen = ref(false)
@@ -82,9 +92,7 @@ export function useDestinationReviews(userId: string) {
   const formFile = ref<File | null>(null)
   const editFormFile = ref<File | null>(null)
 
-  const filteredReviews = computed(() => {
-    return reviews.value
-  })
+  const filteredReviews = computed(() => reviews.value)
 
   async function fetchCountries() {
     if (countries.value.length > 0)
@@ -96,13 +104,50 @@ export function useDestinationReviews(userId: string) {
     })
   }
 
+  async function fetchCities() {
+    if (availableCities.value.length > 0)
+      return
+    await useRequest({
+      key: EDestinationReviewKeys.FETCH_CITIES,
+      fn: db => db.destinationReviews.getReviewCities(userId),
+      onSuccess: (data: string[]) => { availableCities.value = data },
+    })
+  }
+
   async function fetchReviews() {
     await useRequest({
       key: EDestinationReviewKeys.FETCH_REVIEWS,
-      fn: db => db.destinationReviews.getUserReviews({ userId }),
-      onSuccess: (data) => { reviews.value = data },
+      fn: db => db.destinationReviews.getUserReviews({
+        userId,
+        page: page.value,
+        limit,
+        countryId: selectedCountry.value || undefined,
+        city: selectedCity.value || undefined,
+        sortBy: sortBy.value,
+        sortOrder: sortOrder.value,
+      }),
+      onSuccess: (data) => {
+        reviews.value = data.items
+        totalItems.value = data.total
+      },
     })
   }
+
+  // Сброс страницы при изменении фильтров
+  watch([selectedCountry, selectedCity, sortBy, sortOrder], () => {
+    if (page.value !== 1) {
+      page.value = 1
+    }
+    else {
+      fetchReviews()
+    }
+  })
+
+  // Запрос при изменении страницы
+  watch(page, () => {
+    fetchReviews()
+    window.scrollTo({ top: 0, behavior: 'smooth' })
+  })
 
   function resetCreateForm() {
     Object.assign(form, createEmptyForm())
@@ -114,6 +159,16 @@ export function useDestinationReviews(userId: string) {
     editFormFile.value = null
     editingReview.value = null
   }
+
+  // Восстановленные watchers для очистки формы при закрытии модалок (решает ошибку ESLint)
+  watch(isCreateModalOpen, (val) => {
+    if (!val)
+      setTimeout(resetCreateForm, 300)
+  })
+  watch(isEditModalOpen, (val) => {
+    if (!val)
+      setTimeout(resetEditForm, 300)
+  })
 
   async function openCreateModal() {
     resetCreateForm()
@@ -169,18 +224,15 @@ export function useDestinationReviews(userId: string) {
       },
       onError: ({ error }) => { toast.error(error.customMessage || 'Ошибка загрузки обложки') },
     })
-
     return uploadedData
   }
 
   function normalizePayload(source: ReviewFormState, coverUrl: string | null, coverVariants: Record<string, string> | null) {
     const combinedMetrics: Record<string, any> = { ...source.metrics }
     for (const [key, val] of Object.entries(source.metricComments || {})) {
-      if (val) {
+      if (val)
         combinedMetrics[`${key}_comment`] = val
-      }
     }
-
     return {
       type: source.type,
       countryId: source.countryId,
@@ -212,6 +264,7 @@ export function useDestinationReviews(userId: string) {
         toast.success('Впечатление добавлено!')
         isCreateModalOpen.value = false
         fetchReviews()
+        fetchCities()
       },
       onError: ({ error }) => { toast.error(error.customMessage || 'Ошибка при сохранении') },
     })
@@ -258,7 +311,8 @@ export function useDestinationReviews(userId: string) {
       key: EDestinationReviewKeys.DELETE_REVIEW,
       fn: db => db.destinationReviews.delete({ id }),
       onSuccess: () => {
-        reviews.value = reviews.value.filter(r => r.id !== id)
+        reviews.value = reviews.value.filter((r: { id: string }) => r.id !== id)
+        totalItems.value--
         toast.success('Впечатление удалено')
       },
       onError: ({ error }) => {
@@ -267,18 +321,17 @@ export function useDestinationReviews(userId: string) {
     })
   }
 
-  watch(isCreateModalOpen, (val) => {
-    if (!val)
-      setTimeout(resetCreateForm, 300)
-  })
-  watch(isEditModalOpen, (val) => {
-    if (!val)
-      setTimeout(resetEditForm, 300)
-  })
-
   return {
     filteredReviews,
+    totalItems,
+    page,
+    limit,
     countries,
+    availableCities,
+    selectedCountry,
+    selectedCity,
+    sortBy,
+    sortOrder,
     areReviewsLoading,
     areCountriesLoading,
     isSubmitting,
@@ -290,6 +343,7 @@ export function useDestinationReviews(userId: string) {
     formFile,
     editFormFile,
     fetchCountries,
+    fetchCities,
     fetchReviews,
     openCreateModal,
     openEditModal,

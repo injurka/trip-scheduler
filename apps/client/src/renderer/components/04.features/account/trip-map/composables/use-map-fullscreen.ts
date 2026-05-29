@@ -107,12 +107,14 @@ export function useMapFullscreen() {
     flyTo(1, 0, 0, w, h, onTick)
   }
 
-  function applyWheel(e: WheelEvent, w: number, h: number): void {
+  function applyWheel(e: WheelEvent, mapEl: HTMLElement, w: number, h: number): void {
     if (animationFrameId)
       cancelAnimationFrame(animationFrameId)
     const f = e.deltaY < 0 ? 1.15 : 1 / 1.15
     const ns = Math.min(MAX_SCALE, Math.max(MIN_SCALE, mapT.scale * f))
-    const rect = (e.currentTarget as HTMLElement).getBoundingClientRect()
+
+    // Используем переданный HTML-элемент холста вместо currentTarget для точного центра
+    const rect = mapEl.getBoundingClientRect()
     const mx = e.clientX - rect.left - w / 2
     const my = e.clientY - rect.top - h / 2
     const r = ns / mapT.scale
@@ -185,7 +187,7 @@ export function useMapFullscreen() {
     return false
   }
 
-  function applyTouch(e: TouchEvent, w: number, h: number): boolean {
+  function applyTouch(e: TouchEvent, mapEl: HTMLElement, w: number, h: number): boolean {
     if (!isDragging.value)
       return false
 
@@ -206,7 +208,9 @@ export function useMapFullscreen() {
       ns = Math.min(MAX_SCALE, Math.max(MIN_SCALE, ns))
 
       const r = ns / mapT.scale
-      const rect = (e.currentTarget as HTMLElement).getBoundingClientRect()
+
+      // Используем переданный HTML-элемент холста вместо currentTarget для точного центра
+      const rect = mapEl.getBoundingClientRect()
       const mx = center.x - rect.left - w / 2
       const my = center.y - rect.top - h / 2
 
