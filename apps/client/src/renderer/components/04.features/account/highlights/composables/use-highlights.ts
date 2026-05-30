@@ -1,10 +1,10 @@
-import type { CalendarDate } from '@internationalized/date'
 import type { DestinationMapPoint } from '~/shared/services/api/model/types'
 import type { Country } from '~/shared/types/models/destination-review'
 import type { CreateHighlightInput, Highlight } from '~/shared/types/models/user'
-import { shallowRef } from 'vue'
+import { CalendarDate } from '@internationalized/date'
 import { useRequest, useRequestStatus } from '~/plugins/request'
 import { useConfirm } from '~/shared/composables/use-confirm'
+import { useQuerySync } from '~/shared/composables/use-query-sync'
 import { useToast } from '~/shared/composables/use-toast'
 import { useAuthStore } from '~/shared/store/auth.store'
 
@@ -136,7 +136,6 @@ function extractMetadataFromJpeg(file: File): Promise<ExtractedMetadata> {
           }
         }
 
-        // Извлечение GPS
         if (gpsOffset !== -1) {
           const gpsNumEntries = view.getUint16(tiffOffset + gpsOffset, littleEndian)
           let lat: number[] | null = null
@@ -172,7 +171,6 @@ function extractMetadataFromJpeg(file: File): Promise<ExtractedMetadata> {
           }
         }
 
-        // Извлечение даты съемки (DateTimeOriginal 0x9003)
         if (exifSubIfdOffset !== -1) {
           const exifNumEntries = view.getUint16(tiffOffset + exifSubIfdOffset, littleEndian)
           for (let i = 0; i < exifNumEntries; i++) {
@@ -218,15 +216,41 @@ export function useHighlights() {
 
   const highlights = ref<Highlight[]>([])
   const totalItems = ref(0)
-  const currentPage = ref(1)
+
+  const currentPage = useQuerySync('page', 1)
   const itemsPerPage = 30
 
-  const selectedCities = ref<string[]>([])
-  const dateRange = shallowRef<HighlightDateRange | null>(null)
+  const selectedCities = useQuerySync<string[]>('cities', [])
+
+  const dateRange = useQuerySync<HighlightDateRange | null>('dates', null, {
+    parse(val) {
+      const str = Array.isArray(val) ? val[0] : val
+      if (!str)
+        return null
+      const [start, end] = str.split('~')
+      const parseDate = (d: string) => {
+        if (!d)
+          return null
+        const [y, m, day] = d.split('-').map(Number)
+        return new CalendarDate(y, m, day)
+      }
+      return {
+        start: parseDate(start),
+        end: parseDate(end),
+      }
+    },
+    serialize(val) {
+      if (!val || (!val.start && !val.end))
+        return undefined
+      const s = val.start ? `${val.start.year}-${val.start.month}-${val.start.day}` : ''
+      const e = val.end ? `${val.end.year}-${val.end.month}-${val.end.day}` : ''
+      return `${s}~${e}`
+    },
+  })
 
   const countries = ref<Country[]>([])
   const mapPoints = ref<DestinationMapPoint[]>([])
-  const quality = ref<HighlightImageQuality>('large')
+  const quality = useQuerySync<HighlightImageQuality>('quality', 'large')
 
   const isCreateModalOpen = ref(false)
   const isEditModalOpen = ref(false)

@@ -1,6 +1,8 @@
 import type { Country, DestinationReview } from '~/shared/types/models/destination-review'
+import { computed, reactive, ref, watch } from 'vue'
 import { useRequest, useRequestStatus } from '~/plugins/request'
 import { useConfirm } from '~/shared/composables/use-confirm'
+import { useQuerySync } from '~/shared/composables/use-query-sync'
 import { useToast } from '~/shared/composables/use-toast'
 import { useAuthStore } from '~/shared/store/auth.store'
 
@@ -85,16 +87,18 @@ export function useDestinationReviews(userId: string) {
   const availableCities = ref<string[]>([])
 
   // Фильтры, сортировка и пагинация
-  const page = ref(1)
+  const page = useQuerySync('page', 1)
   const limit = 24
-  const selectedCountry = ref<string | null>(null)
-  const selectedCity = ref<string | null>(null)
-  const sortBy = ref<string>('createdAt')
-  const sortOrder = ref<'asc' | 'desc'>('desc')
+  const selectedCountry = useQuerySync<string | null>('country', null)
+  const selectedCity = useQuerySync<string | null>('city', null)
+  const sortBy = useQuerySync<string>('sortBy', 'createdAt')
+  const sortOrder = useQuerySync<'asc' | 'desc'>('sortOrder', 'desc')
 
   // Кастомизация оценки (Пресеты)
-  const activePreset = ref<string>('all')
-  const selectedMetrics = ref<DestinationMetricKey[]>([...METRIC_KEYS])
+  const activePreset = useQuerySync<string>('preset', 'all')
+  const selectedMetrics = useQuerySync<DestinationMetricKey[]>('metrics', [...METRIC_KEYS], {
+    parse: val => Array.isArray(val) ? val as DestinationMetricKey[] : [val as DestinationMetricKey],
+  })
 
   const isCreateModalOpen = ref(false)
   const isEditModalOpen = ref(false)
@@ -142,7 +146,7 @@ export function useDestinationReviews(userId: string) {
       }
     }
     else {
-      selectedMetrics.value.push(metric)
+      selectedMetrics.value = [...selectedMetrics.value, metric]
     }
 
     if (selectedMetrics.value.length === METRIC_KEYS.length) {

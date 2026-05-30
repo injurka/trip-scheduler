@@ -2,7 +2,6 @@
 import type { CalendarDate } from '@internationalized/date'
 import type { HighlightDateRange, HighlightImageQuality } from '../composables/use-highlights'
 import type { KitDropdownItem } from '~/components/01.kit/kit-dropdown'
-import { Icon } from '@iconify/vue'
 import { KitBtn } from '~/components/01.kit/kit-btn'
 import { KitCalendarRange } from '~/components/01.kit/kit-calendar-range'
 import { KitDropdown } from '~/components/01.kit/kit-dropdown'
@@ -10,7 +9,6 @@ import { KitSelectWithSearch } from '~/components/01.kit/kit-select-with-search'
 
 const props = defineProps<{
   quality: HighlightImageQuality
-  isOwner: boolean
   selectedCities: string[]
   availableCities: string[]
   dateRange: HighlightDateRange | null
@@ -20,7 +18,6 @@ const emit = defineEmits<{
   (e: 'update:quality', value: HighlightImageQuality): void
   (e: 'update:selectedCities', value: string[]): void
   (e: 'update:dateRange', value: HighlightDateRange | null): void
-  (e: 'create'): void
 }>()
 
 const localQuality = computed({
@@ -119,13 +116,6 @@ const qualityOptions: KitDropdownItem<HighlightImageQuality>[] = [
         </KitDropdown>
       </div>
     </div>
-
-    <div class="toolbar-actions">
-      <KitBtn v-if="isOwner" size="sm" @click="emit('create')">
-        <Icon icon="mdi:plus" />
-        <span class="desktop-only">Добавить фото</span>
-      </KitBtn>
-    </div>
   </div>
 </template>
 
@@ -133,7 +123,6 @@ const qualityOptions: KitDropdownItem<HighlightImageQuality>[] = [
 .highlights-toolbar {
   display: flex;
   flex-wrap: wrap;
-  justify-content: space-between;
   align-items: center;
   width: 100%;
 }
@@ -143,7 +132,6 @@ const qualityOptions: KitDropdownItem<HighlightImageQuality>[] = [
   align-items: center;
   gap: 12px;
   flex-wrap: wrap;
-  flex: 1;
   width: 100%;
 }
 
@@ -175,15 +163,6 @@ const qualityOptions: KitDropdownItem<HighlightImageQuality>[] = [
   justify-content: flex-end;
 }
 
-.toolbar-actions {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  flex-shrink: 0;
-  margin-left: 16px;
-  margin-bottom: auto;
-}
-
 .desktop-only {
   @include media-down(sm) {
     display: none;
@@ -193,12 +172,6 @@ const qualityOptions: KitDropdownItem<HighlightImageQuality>[] = [
 @include media-down(sm) {
   .highlights-toolbar {
     gap: 8px;
-  }
-  .toolbar-actions {
-    width: 100%;
-    justify-content: flex-end;
-    margin-left: 0;
-    margin-bottom: 0;
   }
   .toolbar-filters {
     width: 100%;

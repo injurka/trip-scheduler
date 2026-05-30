@@ -35,6 +35,7 @@ const {
   fetchError,
   isUploading,
   isSubmitting,
+  areCountriesLoading,
   isCreateModalOpen,
   isEditModalOpen,
   form,
@@ -128,13 +129,29 @@ onMounted(() => {
 
 <template>
   <div class="highlights-feed">
+    <!-- Идентичный тулбар-заголовок, как во Впечатлениях -->
+    <div class="toolbar">
+      <h2 class="title">
+        {{ isOwner ? 'Моя витрина' : 'Витрина' }}
+      </h2>
+      <div style="flex-grow: 1" />
+      <KitBtn
+        v-if="isOwner"
+        size="sm"
+        icon="mdi:plus"
+        :loading="areCountriesLoading"
+        @click="openCreateModal"
+      >
+        <span class="desktop-only">Добавить</span>
+      </KitBtn>
+    </div>
+
+    <!-- Тулбар для фильтров -->
     <HighlightsToolbar
       v-model:quality="quality"
       v-model:selected-cities="selectedCities"
       v-model:date-range="dateRange"
-      :is-owner="isOwner"
       :available-cities="availableCities"
-      @create="openCreateModal"
     />
 
     <HighlightsSkeleton v-if="isLoading" />
@@ -243,7 +260,26 @@ onMounted(() => {
   width: 100%;
   display: flex;
   flex-direction: column;
-  gap: 24px;
+  gap: 20px; /* Было 24px, изменил на 20px для соответствия отступам как в Впечатлениях */
+}
+
+/* Общий стиль тулбара с кнопкой */
+.toolbar {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+
+  .title {
+    margin: 0;
+    font-size: 1.5rem;
+    font-weight: 700;
+  }
+}
+
+.desktop-only {
+  @include media-down(sm) {
+    display: none;
+  }
 }
 
 .highlights-grid {

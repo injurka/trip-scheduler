@@ -1,5 +1,7 @@
 import type { TripImage } from '~/shared/types/models/trip'
+import { computed, reactive, ref, watch } from 'vue'
 import { useRequest, useRequestError, useRequestStatus } from '~/plugins/request'
+import { useQuerySync } from '~/shared/composables/use-query-sync'
 import { useAuthStore } from '~/shared/store/auth.store'
 import { TripImagePlacement } from '~/shared/types/models/trip'
 
@@ -22,21 +24,37 @@ export function useStorageModule() {
   const toast = useToast()
 
   const files = ref<TripImageWithTrip[]>([])
-  const filters = ref({
-    search: '',
-    tripId: '' as string | null,
-    sizeMin: null as number | null,
-    sizeMax: null as number | null,
-    extension: '' as string | null,
-    placement: '' as TripImagePlacement | '',
+
+  const search = useQuerySync('search', '')
+  const tripId = useQuerySync<string | null>('tripId', '')
+  const sizeMin = useQuerySync<number | null>('sizeMin', null)
+  const sizeMax = useQuerySync<number | null>('sizeMax', null)
+  const extension = useQuerySync<string | null>('extension', '')
+  const placement = useQuerySync<TripImagePlacement | ''>('placement', '')
+
+  // Реактивный прокси для v-model в UI
+  const filters = reactive({
+    search,
+    tripId,
+    sizeMin,
+    sizeMax,
+    extension,
+    placement,
   })
 
-  const sortBy = ref({ key: 'createdAt' as keyof TripImageWithTrip | 'trip.title' | 'placement', order: 'desc' as 'asc' | 'desc' })
-  const viewMode = ref<'grid' | 'list'>('grid')
-  const activeChart = ref<'byTrip' | 'byPlacement'>('byTrip')
+  const sortKey = useQuerySync<keyof TripImageWithTrip | 'trip.title' | 'placement'>('sortKey', 'createdAt')
+  const sortOrder = useQuerySync<'asc' | 'desc'>('sortOrder', 'desc')
 
-  const currentPage = ref(1)
-  const itemsPerPage = ref(24)
+  const sortBy = reactive({
+    key: sortKey,
+    order: sortOrder,
+  })
+
+  const viewMode = useQuerySync<'grid' | 'list'>('view', 'grid')
+  const activeChart = useQuerySync<'byTrip' | 'byPlacement'>('chart', 'byTrip')
+
+  const currentPage = useQuerySync('page', 1)
+  const itemsPerPage = useQuerySync('limit', 24)
 
   const isLoading = useRequestStatus(EStorageKeys.FETCH_FILES)
   const error = useRequestError(EStorageKeys.FETCH_FILES)
@@ -75,42 +93,42 @@ export function useStorageModule() {
   }
 
   function setSort(key: keyof TripImageWithTrip | 'trip.title' | 'placement') {
-    if (sortBy.value.key === key) {
-      sortBy.value.order = sortBy.value.order === 'asc' ? 'desc' : 'asc'
+    if (sortBy.key === key) {
+      sortBy.order = sortBy.order === 'asc' ? 'desc' : 'asc'
     }
     else {
-      sortBy.value.key = key
-      sortBy.value.order = 'desc'
+      sortBy.key = key
+      sortBy.order = 'desc'
     }
   }
 
   const filteredAndSortedFiles = computed(() => {
     let result = [...files.value]
 
-    if (filters.value.search) {
-      const search = filters.value.search.toLowerCase()
-      result = result.filter(f => f.originalName?.toLowerCase().includes(search))
+    if (filters.search) {
+      const s = filters.search.toLowerCase()
+      result = result.filter(f => f.originalName?.toLowerCase().includes(s))
     }
-    if (filters.value.tripId) {
-      if (filters.value.tripId === 'no-trip') {
+    if (filters.tripId) {
+      if (filters.tripId === 'no-trip') {
         result = result.filter(f => !f.trip)
       }
       else {
-        result = result.filter(f => f.trip?.id === filters.value.tripId)
+        result = result.filter(f => f.trip?.id === filters.tripId)
       }
     }
-    if (filters.value.extension) {
-      result = result.filter(f => f.originalName?.toLowerCase().endsWith(`.${filters.value.extension}`))
+    if (filters.extension) {
+      result = result.filter(f => f.originalName?.toLowerCase().endsWith(`.${filters.extension}`))
     }
-    if (filters.value.placement) {
-      result = result.filter(f => f.placement === filters.value.placement)
+    if (filters.placement) {
+      result = result.filter(f => f.placement === filters.placement)
     }
-    if (filters.value.sizeMin !== null && filters.value.sizeMin >= 0) {
-      const minBytes = filters.value.sizeMin * 1024 * 1024
+    if (filters.sizeMin !== null && filters.sizeMin >= 0) {
+      const minBytes = filters.sizeMin * 1024 * 1024
       result = result.filter(f => f.sizeBytes >= minBytes)
     }
-    if (filters.value.sizeMax !== null && filters.value.sizeMax >= 0) {
-      const maxBytes = filters.value.sizeMax * 1024 * 1024
+    if (filters.sizeMax !== null && filters.sizeMax >= 0) {
+      const maxBytes = filters.sizeMax * 1024 * 1024
       result = result.filter(f => f.sizeBytes <= maxBytes)
     }
 
@@ -118,16 +136,16 @@ export function useStorageModule() {
       let aVal: any
       let bVal: any
 
-      if (sortBy.value.key === 'trip.title') {
+      if (sortBy.key === 'trip.title') {
         aVal = a.trip?.title || ''
         bVal = b.trip?.title || ''
       }
       else {
-        aVal = a[sortBy.value.key as keyof TripImageWithTrip]
-        bVal = b[sortBy.value.key as keyof TripImageWithTrip]
+        aVal = a[sortBy.key as keyof TripImageWithTrip]
+        bVal = b[sortBy.key as keyof TripImageWithTrip]
       }
 
-      const order = sortBy.value.order === 'asc' ? 1 : -1
+      const order = sortBy.order === 'asc' ? 1 : -1
 
       if (aVal === null || aVal === undefined)
         return 1 * order
@@ -140,7 +158,7 @@ export function useStorageModule() {
       if (typeof aVal === 'string' && typeof bVal === 'string') {
         return aVal.localeCompare(bVal, undefined, { numeric: true }) * order
       }
-      if (sortBy.value.key === 'createdAt') {
+      if (sortBy.key === 'createdAt') {
         return (new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime()) * order
       }
 

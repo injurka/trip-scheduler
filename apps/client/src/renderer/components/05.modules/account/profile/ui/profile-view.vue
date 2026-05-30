@@ -1,24 +1,30 @@
 <script setup lang="ts">
 import type { TabItem } from '~/components/01.kit/kit-tabs/ui/kit-tabs.vue'
 import { Icon } from '@iconify/vue'
-import { markRaw } from 'vue'
 import { KitAvatar } from '~/components/01.kit/kit-avatar'
 import { KitBtn } from '~/components/01.kit/kit-btn'
 import { KitTabs } from '~/components/01.kit/kit-tabs'
 import { UserQuotaWidget } from '~/components/02.shared/user-quota-widget'
 import { DestinationReviewsView } from '~/components/04.features/account/destination-review'
 import { HighlightsFeedView } from '~/components/04.features/account/highlights'
+import { OpenTripsView } from '~/components/04.features/account/open-trips'
 import { TripMapView } from '~/components/04.features/account/trip-map'
 import { AppRoutePaths } from '~/shared/constants/routes'
 import { useAuthStore } from '~/shared/store/auth.store'
 import { useProfileView } from '../composables/use-profile-view'
 
 const route = useRoute()
-const authStore = useAuthStore()
 const router = useRouter()
+const authStore = useAuthStore()
 const profileView = useProfileView()
 
-const activeTab = ref('trip-map')
+const activeTab = computed({
+  get: () => (route.query.tab as string) || 'trip-map',
+  set: (newTab: string) => {
+    router.replace({ query: { tab: newTab } })
+  },
+})
+
 const { userProfile } = profileView
 const currentUser = computed(() => authStore.user)
 
@@ -34,6 +40,16 @@ const tabItems = computed<TabItem[]>(() => [
     label: 'Карта',
     icon: 'mdi:map-legend',
     component: markRaw(TripMapView),
+  },
+  {
+    id: 'open-trips',
+    label: 'Путешествия',
+    icon: 'mdi:compass-outline',
+    component: markRaw(OpenTripsView),
+    props: {
+      userId: userProfile.value?.id,
+      isOwnProfile: isOwnProfile.value,
+    },
   },
   {
     id: 'highlights',
@@ -109,7 +125,7 @@ watch(userId, (newId) => {
         </div>
       </div>
 
-      <aside class="profile-sidebar" v-if="isOwnProfile">
+      <aside v-if="isOwnProfile" class="profile-sidebar">
         <div class="stats-widget">
           <div class="stat-item">
             <span class="stat-value">{{ userProfile._count?.trips ?? 0 }}</span>
