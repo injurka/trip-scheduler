@@ -9,7 +9,7 @@ import { measureDbQuery } from '~/lib/db-monitoring'
 export const destinationReviewRepository = {
   async getByUserId(input: z.infer<typeof GetUserReviewsInputSchema>) {
     return measureDbQuery('destinationReviews', 'select', async () => {
-      const { userId, type, limit, page, countryId, city, sortBy, sortOrder } = input
+      const { userId, type, limit, page, countryId, city, sortBy, sortOrder, selectedMetrics } = input
       const offset = (page - 1) * limit
       const conditions: any[] = [eq(destinationReviews.userId, userId)]
 
@@ -26,20 +26,30 @@ export const destinationReviewRepository = {
         sortExpr = destinationReviews.createdAt
       }
       else if (sortBy === 'rating') {
-        // Динамическое вычисление среднего рейтинга из JSONB
-        sortExpr = sql`(SELECT avg(value::numeric) FROM jsonb_each_text(${destinationReviews.metrics}) WHERE key NOT LIKE '%_comment')`
+        // Динамическое вычисление среднего рейтинга из JSONB с учетом выбранных метрик
+        if (selectedMetrics && selectedMetrics.length > 0) {
+          // Формируем безопасный массив параметров для SQL ANY(...)
+          const metricsList = sql.join(selectedMetrics.map(m => sql`${m}`), sql`, `)
+          sortExpr = sql`(SELECT avg(value::numeric) FROM jsonb_each_text(${destinationReviews.metrics}) WHERE key = ANY(ARRAY[${metricsList}]::text[]))`
+        }
+        else {
+          // Если метрики не выбраны (что редко, но возможно) — считаем по всем не-комментариям
+          sortExpr = sql`(SELECT avg(value::numeric) FROM jsonb_each_text(${destinationReviews.metrics}) WHERE key NOT LIKE '%_comment')`
+        }
       }
       else {
-        // Сортировка по конкретной метрике (из JSONB)
+        // Сортировка по конкретной одиночной метрике (из JSONB)
         sortExpr = sql`(${destinationReviews.metrics}->>${sortBy})::numeric`
       }
 
-      const orderDirection = sortOrder === 'asc' ? asc(sortExpr) : desc(sortExpr)
+      const orderDirection = sortOrder === 'asc'
+        ? sql`${sortExpr} asc nulls last`
+        : sql`${sortExpr} desc nulls last`
 
       const items = await db.query.destinationReviews.findMany({
         where: and(...conditions),
         with: { country: true },
-        orderBy: [orderDirection, desc(destinationReviews.createdAt)], // fallback to createdAt
+        orderBy: [orderDirection, desc(destinationReviews.createdAt)],
         limit,
         offset,
       })

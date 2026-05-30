@@ -31,6 +31,21 @@ export const METRIC_LABELS: Record<DestinationMetricKey, string> = {
   entertainment: 'Развлечения',
 }
 
+export interface MetricPreset {
+  id: string
+  label: string
+  icon: string
+  metrics: DestinationMetricKey[]
+}
+
+export const METRIC_PRESETS: MetricPreset[] = [
+  { id: 'all', label: 'Все', icon: 'mdi:all-inclusive', metrics: [...METRIC_KEYS] },
+  { id: 'nature', label: 'Природа и релакс', icon: 'mdi:pine-tree', metrics: ['nature', 'climate', 'vibe'] },
+  { id: 'urban', label: 'Город и шопинг', icon: 'mdi:city', metrics: ['infrastructure', 'prices', 'food', 'entertainment'] },
+  { id: 'culture', label: 'Культура и история', icon: 'mdi:bank-outline', metrics: ['culture', 'safety', 'people', 'vibe'] },
+  { id: 'nomad', label: 'Digital Nomad', icon: 'mdi:laptop', metrics: ['safety', 'infrastructure', 'prices', 'climate', 'food', 'people'] },
+]
+
 interface ReviewFormState {
   type: 'city'
   countryId: string
@@ -77,6 +92,10 @@ export function useDestinationReviews(userId: string) {
   const sortBy = ref<string>('createdAt')
   const sortOrder = ref<'asc' | 'desc'>('desc')
 
+  // Кастомизация оценки (Пресеты)
+  const activePreset = ref<string>('all')
+  const selectedMetrics = ref<DestinationMetricKey[]>([...METRIC_KEYS])
+
   const isCreateModalOpen = ref(false)
   const isEditModalOpen = ref(false)
   const editingReview = ref<DestinationReview | null>(null)
@@ -93,6 +112,51 @@ export function useDestinationReviews(userId: string) {
   const editFormFile = ref<File | null>(null)
 
   const filteredReviews = computed(() => reviews.value)
+
+  function applyPreset(presetId: string) {
+    const preset = METRIC_PRESETS.find(p => p.id === presetId)
+    if (preset) {
+      selectedMetrics.value = [...preset.metrics]
+      activePreset.value = preset.id
+
+      // Проверяем, валидна ли еще текущая сортировка
+      if (sortBy.value !== 'createdAt' && sortBy.value !== 'rating') {
+        if (!selectedMetrics.value.includes(sortBy.value as DestinationMetricKey)) {
+          sortBy.value = 'rating'
+          sortOrder.value = 'desc'
+        }
+      }
+    }
+  }
+
+  function toggleMetric(metric: DestinationMetricKey) {
+    if (selectedMetrics.value.includes(metric)) {
+      if (selectedMetrics.value.length === 1)
+        return // Запрещаем отключать последний пункт
+      selectedMetrics.value = selectedMetrics.value.filter(m => m !== metric)
+
+      // Сброс сортировки, если мы отключили метрику по которой отсортировано
+      if (sortBy.value === metric) {
+        sortBy.value = 'rating'
+        sortOrder.value = 'desc'
+      }
+    }
+    else {
+      selectedMetrics.value.push(metric)
+    }
+
+    if (selectedMetrics.value.length === METRIC_KEYS.length) {
+      activePreset.value = 'all'
+    }
+    else {
+      const matchedPreset = METRIC_PRESETS.find(p =>
+        p.id !== 'all'
+        && p.metrics.length === selectedMetrics.value.length
+        && p.metrics.every(m => selectedMetrics.value.includes(m)),
+      )
+      activePreset.value = matchedPreset ? matchedPreset.id : 'custom'
+    }
+  }
 
   async function fetchCountries() {
     if (countries.value.length > 0)
@@ -125,6 +189,7 @@ export function useDestinationReviews(userId: string) {
         city: selectedCity.value || undefined,
         sortBy: sortBy.value,
         sortOrder: sortOrder.value,
+        selectedMetrics: selectedMetrics.value.length === METRIC_KEYS.length ? undefined : selectedMetrics.value,
       }),
       onSuccess: (data) => {
         reviews.value = data.items
@@ -133,15 +198,15 @@ export function useDestinationReviews(userId: string) {
     })
   }
 
-  // Сброс страницы при изменении фильтров
-  watch([selectedCountry, selectedCity, sortBy, sortOrder], () => {
+  // Сброс страницы при изменении фильтров (включая метрики, чтобы бекенд пересчитал)
+  watch([selectedCountry, selectedCity, sortBy, sortOrder, selectedMetrics], () => {
     if (page.value !== 1) {
       page.value = 1
     }
     else {
       fetchReviews()
     }
-  })
+  }, { deep: true })
 
   // Запрос при изменении страницы
   watch(page, () => {
@@ -160,7 +225,6 @@ export function useDestinationReviews(userId: string) {
     editingReview.value = null
   }
 
-  // Восстановленные watchers для очистки формы при закрытии модалок (решает ошибку ESLint)
   watch(isCreateModalOpen, (val) => {
     if (!val)
       setTimeout(resetCreateForm, 300)
@@ -332,6 +396,10 @@ export function useDestinationReviews(userId: string) {
     selectedCity,
     sortBy,
     sortOrder,
+    activePreset,
+    selectedMetrics,
+    METRIC_PRESETS,
+    METRIC_KEYS,
     areReviewsLoading,
     areCountriesLoading,
     isSubmitting,
@@ -342,6 +410,8 @@ export function useDestinationReviews(userId: string) {
     editForm,
     formFile,
     editFormFile,
+    applyPreset,
+    toggleMetric,
     fetchCountries,
     fetchCities,
     fetchReviews,

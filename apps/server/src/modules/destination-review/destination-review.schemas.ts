@@ -69,6 +69,7 @@ export const GetUserReviewsInputSchema = z.object({
     'entertainment',
   ]).default('createdAt'),
   sortOrder: z.enum(['asc', 'desc']).default('desc'),
+  selectedMetrics: z.array(z.string()).optional(),
 })
 
 export const CreateReviewInputSchema = z.object({

@@ -12,7 +12,12 @@ import { KitTooltip } from '~/components/01.kit/kit-tooltip'
 import { getImageUrl } from '~/shared/lib/url'
 import { METRIC_LABELS } from '../../composables/use-destination-reviews'
 
-const props = defineProps<{ review: DestinationReview, isOwner: boolean }>()
+const props = defineProps<{
+  review: DestinationReview
+  isOwner: boolean
+  selectedMetrics?: DestinationMetricKey[]
+}>()
+
 const emit = defineEmits(['delete', 'edit'])
 
 const isExpanded = ref(false)
@@ -54,9 +59,23 @@ const numericMetrics = computed(() => {
 })
 
 const averageRating = computed(() => {
-  const values = Object.values(numericMetrics.value)
+  const values: number[] = []
+  const metricsObj = numericMetrics.value
+  let keysToConsider = Object.keys(metricsObj) as DestinationMetricKey[]
+
+  // Учитываем только выбранные метрики
+  if (props.selectedMetrics && props.selectedMetrics.length > 0) {
+    keysToConsider = keysToConsider.filter(k => props.selectedMetrics!.includes(k))
+  }
+
+  for (const k of keysToConsider) {
+    if (metricsObj[k] !== undefined) {
+      values.push(metricsObj[k] as number)
+    }
+  }
+
   if (!values.length)
-    return 0
+    return '0.0'
   const sum = values.reduce((acc, val) => acc + val, 0)
   return (sum / values.length).toFixed(1)
 })
@@ -74,6 +93,8 @@ const metricComments = computed(() => {
 const ratingValue = computed(() => Number(averageRating.value))
 
 const ratingLevelClass = computed(() => {
+  if (ratingValue.value === 0)
+    return 'wreath-none'
   if (ratingValue.value < 3)
     return 'wreath-poor'
   if (ratingValue.value < 4)
@@ -105,6 +126,12 @@ function getMetricColorClass(value: number) {
   if (value === 3)
     return 'color-medium'
   return 'color-high'
+}
+
+function isDimmed(key: DestinationMetricKey) {
+  if (!props.selectedMetrics || props.selectedMetrics.length === 0)
+    return false
+  return !props.selectedMetrics.includes(key)
 }
 
 function openExpanded() {
@@ -147,7 +174,7 @@ function openExpanded() {
         >
           <div
             class="mini-metric-item"
-            :class="getMetricColorClass(Number(val))"
+            :class="[getMetricColorClass(Number(val)), { dimmed: isDimmed(key) }]"
           >
             <Icon :icon="METRIC_ICONS[key] || 'mdi:star'" />
           </div>
@@ -156,7 +183,7 @@ function openExpanded() {
 
       <div class="card-content">
         <div class="header-section">
-          <!-- Центральный бейдж-оценка -->
+          <!-- Центральный бейдж-оценка (расчетная) -->
           <div class="wreath-container" :class="ratingLevelClass">
             <div class="rating-number">
               {{ averageRating }}
@@ -199,7 +226,7 @@ function openExpanded() {
               </div>
             </div>
             <div class="banner-rating-text">
-              Общая оценка
+              Расчетная оценка
             </div>
           </div>
         </div>
@@ -223,7 +250,12 @@ function openExpanded() {
 
           <div class="metrics-grid">
             <!-- Отображаем только числа, без комментариев в ключах -->
-            <div v-for="(val, key) in numericMetrics" :key="key" class="metric-item">
+            <div
+              v-for="(val, key) in numericMetrics"
+              :key="key"
+              class="metric-item"
+              :class="{ dimmed: isDimmed(key) }"
+            >
               <div class="metric-header">
                 <span class="metric-name">
                   <Icon :icon="METRIC_ICONS[key] || 'mdi:star'" class="metric-icon" />
@@ -408,7 +440,9 @@ function openExpanded() {
   cursor: help;
   transition:
     transform 0.2s ease,
-    background 0.2s ease;
+    background 0.2s ease,
+    opacity 0.2s ease,
+    filter 0.2s ease;
 
   &.color-low {
     color: #ff4d4f;
@@ -420,9 +454,16 @@ function openExpanded() {
     color: #52c41a;
   }
 
+  &.dimmed {
+    opacity: 0.3;
+    filter: grayscale(100%);
+  }
+
   &:hover {
     transform: scale(1.15);
     background: rgba(0, 0, 0, 0.7);
+    opacity: 1;
+    filter: grayscale(0%);
     z-index: 100;
   }
 }
@@ -487,6 +528,10 @@ function openExpanded() {
     }
   }
 
+  &.wreath-none {
+    color: var(--fg-secondary-color);
+    border-color: rgba(255, 255, 255, 0.2);
+  }
   &.wreath-poor {
     color: #ff4d4f;
   }
@@ -573,7 +618,7 @@ function openExpanded() {
 }
 
 .section-header {
-  position: relative; /* Добавлено, чтобы тултип позиционировался относительно всей секции */
+  position: relative;
   display: flex;
   align-items: center;
   gap: 12px;
@@ -663,6 +708,14 @@ function openExpanded() {
 .metric-item {
   display: flex;
   flex-direction: column;
+  transition:
+    filter 0.3s ease,
+    opacity 0.3s ease;
+
+  &.dimmed {
+    opacity: 0.4;
+    filter: grayscale(100%);
+  }
 
   .metric-header {
     display: flex;

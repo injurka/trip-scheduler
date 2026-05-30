@@ -1,40 +1,13 @@
 import type { Activity, Day } from '~/shared/types/models/activity'
-import type {
-  SignInPayload,
-  SignUpPayload,
-  TokenPair,
-  User,
-} from '~/shared/types/models/auth'
+import type { SignInPayload, SignUpPayload, TokenPair, User } from '~/shared/types/models/auth'
 import type { BlogListItems, BlogPost, CreateBlogPostInput, UpdateBlogPostInput } from '~/shared/types/models/blog'
 import type { Comment, CreateCommentInput, UpdateCommentInput } from '~/shared/types/models/comment'
 import type { Country, CreateDestinationReviewInput, DestinationReview } from '~/shared/types/models/destination-review'
-import type {
-  CreateMarkInput,
-  GetMarksParams,
-  Mark,
-} from '~/shared/types/models/mark'
-
+import type { CreateMarkInput, GetMarksParams, Mark } from '~/shared/types/models/mark'
 import type { CreateMemoryInput, Memory, UpdateMemoryInput } from '~/shared/types/models/memory'
 import type { Place, PlaceTag } from '~/shared/types/models/place'
-import type {
-  CreatePostInput,
-  ListPostsFilters,
-  PostDetail,
-  UpdatePostInput,
-} from '~/shared/types/models/post'
-import type {
-  CreateTripInput,
-  ImageMetadata,
-  Plan,
-  Trip,
-  TripImage,
-  TripImagePlacement,
-  TripSection,
-  TripSectionType,
-  TripStatus,
-  TripWithDays,
-  UpdateTripInput,
-} from '~/shared/types/models/trip'
+import type { CreatePostInput, ListPostsFilters, PostDetail, UpdatePostInput } from '~/shared/types/models/post'
+import type { CreateTripInput, ImageMetadata, Plan, Trip, TripImage, TripImagePlacement, TripSection, TripSectionType, TripStatus, TripWithDays, UpdateTripInput } from '~/shared/types/models/trip'
 import type { CreateHighlightInput, Highlight } from '~/shared/types/models/user'
 
 export type NoteType = 'folder' | 'markdown' | 'excalidraw'
@@ -321,6 +294,7 @@ export interface GetUserReviewsParams {
   city?: string
   sortBy?: string
   sortOrder?: 'asc' | 'desc'
+  selectedMetrics?: string[]
 }
 
 export interface IDestinationReviewRepository {

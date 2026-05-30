@@ -1,7 +1,8 @@
 <script setup lang="ts">
+import type { DestinationMetricKey } from '../composables/use-destination-reviews'
 import type { Country } from '~/shared/types/models/destination-review'
 import { Icon } from '@iconify/vue'
-import { computed, onMounted } from 'vue'
+import { computed, onMounted, ref } from 'vue'
 import { KitBtn } from '~/components/01.kit/kit-btn'
 import { KitDropdown } from '~/components/01.kit/kit-dropdown'
 import { KitPagination } from '~/components/01.kit/kit-pagination'
@@ -30,6 +31,10 @@ const {
   selectedCity,
   sortBy,
   sortOrder,
+  activePreset,
+  selectedMetrics,
+  METRIC_PRESETS,
+  METRIC_KEYS,
   areReviewsLoading,
   areCountriesLoading,
   isSubmitting,
@@ -40,6 +45,8 @@ const {
   editForm,
   formFile,
   editFormFile,
+  applyPreset,
+  toggleMetric,
   fetchReviews,
   fetchCountries,
   fetchCities,
@@ -60,15 +67,20 @@ const cityOptions = computed(() => availableCities.value.map(c => ({
   label: c,
 })))
 
+// Опции сортировки динамически адаптируются под выбранные метрики
 const sortOptions = computed(() => {
   const options = [
     { value: 'createdAt-desc', label: 'Сначала новые', icon: 'mdi:clock-outline' },
     { value: 'createdAt-asc', label: 'Сначала старые', icon: 'mdi:clock-time-four-outline' },
-    { value: 'rating-desc', label: 'Сначала лучшие (общий)', icon: 'mdi:star' },
-    { value: 'rating-asc', label: 'Сначала худшие (общий)', icon: 'mdi:star-outline' },
+    { value: 'rating-desc', label: 'Сначала лучшие (по выбранным)', icon: 'mdi:star' },
+    { value: 'rating-asc', label: 'Сначала худшие (по выбранным)', icon: 'mdi:star-outline' },
   ]
+
+  // Добавляем в сортировку только ТЕ метрики, которые сейчас выбраны в настройках
   for (const [key, label] of Object.entries(METRIC_LABELS)) {
-    options.push({ value: `${key}-desc`, label: `Высшая оценка: ${label}`, icon: 'mdi:trending-up' })
+    if (selectedMetrics.value.includes(key as DestinationMetricKey)) {
+      options.push({ value: `${key}-desc`, label: `Высшая оценка: ${label}`, icon: 'mdi:trending-up' })
+    }
   }
   return options
 })
@@ -82,11 +94,14 @@ const activeSortOption = computed({
   },
 })
 
+const showMetricsSetup = ref(false)
+
 function clearFilters() {
   selectedCountry.value = null
   selectedCity.value = null
   sortBy.value = 'createdAt'
   sortOrder.value = 'desc'
+  applyPreset('all') // Сбрасываем выбранные атрибуты до стандартных
 }
 
 onMounted(() => {
@@ -114,7 +129,7 @@ onMounted(() => {
       </KitBtn>
     </div>
 
-    <!-- Toolbar фильтров и сортировки -->
+    <!-- Основные Фильтры -->
     <div class="filters-bar">
       <KitSelectWithSearch
         v-model="selectedCountry"
@@ -137,6 +152,18 @@ onMounted(() => {
 
       <div style="flex-grow: 1" />
 
+      <!-- Кнопка раскрытия настроек метрик -->
+      <KitBtn
+        :variant="showMetricsSetup || activePreset !== 'all' ? 'solid' : 'outlined'"
+        :color="showMetricsSetup || activePreset !== 'all' ? 'primary' : 'secondary'"
+        size="sm"
+        icon="mdi:tune-variant"
+        @click="showMetricsSetup = !showMetricsSetup"
+      >
+        <span class="desktop-only">Атрибуты</span>
+        <span v-if="activePreset !== 'all'" class="metrics-badge">{{ selectedMetrics.length }}</span>
+      </KitBtn>
+
       <KitDropdown
         v-model="activeSortOption"
         :items="sortOptions"
@@ -149,6 +176,39 @@ onMounted(() => {
         </template>
       </KitDropdown>
     </div>
+
+    <!-- Настройка оценки (кастомизация атрибутов) -->
+    <Transition name="fade-slide">
+      <div v-show="showMetricsSetup" class="metrics-customization">
+        <div class="customization-header">
+          <span class="customization-label">Режим оценки:</span>
+          <div class="presets-group">
+            <KitBtn
+              v-for="preset in METRIC_PRESETS"
+              :key="preset.id"
+              size="xs"
+              :variant="activePreset === preset.id ? 'solid' : 'outlined'"
+              :color="activePreset === preset.id ? 'primary' : 'secondary'"
+              :icon="preset.icon"
+              @click="applyPreset(preset.id)"
+            >
+              {{ preset.label }}
+            </KitBtn>
+          </div>
+        </div>
+        <div class="metrics-chips">
+          <button
+            v-for="key in METRIC_KEYS"
+            :key="key"
+            class="metric-chip"
+            :class="{ active: selectedMetrics.includes(key) }"
+            @click="toggleMetric(key)"
+          >
+            {{ METRIC_LABELS[key] }}
+          </button>
+        </div>
+      </div>
+    </Transition>
 
     <AsyncStateWrapper :loading="areReviewsLoading" :data="filteredReviews.length > 0 ? filteredReviews : null">
       <template #loading>
@@ -164,6 +224,7 @@ onMounted(() => {
             :key="review.id"
             :review="review"
             :is-owner="isOwnProfile"
+            :selected-metrics="selectedMetrics"
             @edit="openEditModal"
             @delete="deleteReview"
           />
@@ -179,7 +240,7 @@ onMounted(() => {
       </template>
 
       <template #empty>
-        <div v-if="!selectedCountry && !selectedCity" class="empty-state">
+        <div v-if="!selectedCountry && !selectedCity && activePreset === 'all'" class="empty-state">
           <Icon icon="mdi:map-search-outline" />
           <p>Пока нет добавленных впечатлений.</p>
         </div>
@@ -244,6 +305,95 @@ onMounted(() => {
 .filter-select {
   width: 220px;
   max-width: 100%;
+}
+
+/* Бейдж для кнопки фильтра метрик */
+.metrics-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--bg-tertiary-color);
+  color: var(--fg-primary-color);
+  border-radius: var(--r-full);
+  min-width: 20px;
+  height: 20px;
+  font-size: 0.75rem;
+  font-weight: 700;
+  margin-left: 6px;
+  padding: 0 6px;
+}
+
+/* Анимация раскрытия панели */
+.fade-slide-enter-active,
+.fade-slide-leave-active {
+  transition:
+    opacity 0.25s ease,
+    transform 0.25s ease;
+}
+.fade-slide-enter-from,
+.fade-slide-leave-to {
+  opacity: 0;
+  transform: translateY(-10px);
+}
+
+.metrics-customization {
+  background: var(--bg-secondary-color);
+  border: 1px solid var(--border-secondary-color);
+  border-radius: var(--r-m);
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+
+  .customization-header {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    flex-wrap: wrap;
+  }
+
+  .customization-label {
+    font-size: 0.9rem;
+    font-weight: 600;
+    color: var(--fg-secondary-color);
+  }
+
+  .presets-group {
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+  }
+
+  .metrics-chips {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    padding-top: 12px;
+    border-top: 1px dashed var(--border-secondary-color);
+  }
+
+  .metric-chip {
+    padding: 6px 12px;
+    font-size: 0.8rem;
+    border-radius: var(--r-full);
+    border: 1px solid var(--border-secondary-color);
+    background: var(--bg-tertiary-color);
+    color: var(--fg-secondary-color);
+    cursor: pointer;
+    transition: all 0.2s;
+
+    &:hover {
+      background: var(--bg-primary-color);
+      border-color: var(--fg-accent-color);
+    }
+
+    &.active {
+      background: var(--fg-accent-color);
+      color: var(--bg-primary-color);
+      border-color: var(--fg-accent-color);
+      font-weight: 500;
+    }
+  }
 }
 
 .reviews-grid {
