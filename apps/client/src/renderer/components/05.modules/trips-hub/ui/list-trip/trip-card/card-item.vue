@@ -503,6 +503,7 @@ const tripData = computed<Trip>(() => ({
   display: flex;
   flex-direction: column;
   gap: 10px;
+  margin-top: auto;
 
   .meta-item {
     display: flex;
@@ -546,7 +547,6 @@ const tripData = computed<Trip>(() => ({
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-top: auto;
   padding-top: 12px;
   border-top: 1px solid var(--border-secondary-color);
 }

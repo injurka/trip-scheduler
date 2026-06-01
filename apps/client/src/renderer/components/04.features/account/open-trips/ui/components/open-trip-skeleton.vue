@@ -83,6 +83,7 @@ import { KitSkeleton } from '~/components/01.kit/kit-skeleton'
   display: flex;
   flex-direction: column;
   gap: 10px;
+  margin-top: auto;
 }
 
 .meta-item-skeleton {
@@ -95,7 +96,6 @@ import { KitSkeleton } from '~/components/01.kit/kit-skeleton'
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-top: auto;
   padding-top: 12px;
   border-top: 1px solid var(--border-secondary-color);
 }
