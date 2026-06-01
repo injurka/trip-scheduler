@@ -1,4 +1,3 @@
-<!-- /apps/client/src/renderer/components/05.modules/post/ui/editor/tools/post-route-map-picker.vue -->
 <script setup lang="ts">
 import type { Coordinate, MapPoint, MapRoute } from '~/components/03.domain/trip-info/geolocation-section'
 import { Icon } from '@iconify/vue'
@@ -8,10 +7,7 @@ import { v4 as uuidv4 } from 'uuid'
 import { computed, ref, watch } from 'vue'
 import { KitBtn } from '~/components/01.kit/kit-btn'
 import { KitDialogWithClose } from '~/components/01.kit/kit-dialog-with-close'
-import { KitInput } from '~/components/01.kit/kit-input'
-import { useKitMapSearch } from '~/components/01.kit/kit-map'
 import GeolocationMap from '~/components/03.domain/trip-info/geolocation-section/ui/geolocation-map.vue'
-import { useToast } from '~/shared/composables/use-toast'
 
 interface Props {
   visible: boolean
@@ -36,9 +32,8 @@ const mapPoints = ref<MapPoint[]>([])
 const mapRoutes = ref<MapRoute[]>([])
 const distanceMeters = ref(0)
 const routeGeometry = ref<Coordinate[]>([])
-const searchQuery = ref('')
+const isSidebarVisible = ref(true)
 
-const { searchLocation, isSearching } = useKitMapSearch()
 let mapController: any = null
 
 const mapCenter = computed<[number, number]>(() => {
@@ -69,24 +64,6 @@ function onMapReady(ctrl: any) {
       isLoading.value = false
     }
   })
-}
-
-async function doSearch() {
-  if (!searchQuery.value.trim() || !mapController)
-    return
-
-  try {
-    const result = await searchLocation(searchQuery.value)
-    if (result) {
-      mapController.flyToLocation(result.lon, result.lat, 15)
-    }
-    else {
-      useToast().error('Место не найдено')
-    }
-  }
-  catch {
-    useToast().error('Ошибка при поиске')
-  }
 }
 
 async function fetchAddress(lon: number, lat: number) {
@@ -177,7 +154,7 @@ async function handleMapClick(coords: Coordinate) {
   mapPoints.value.push({
     id: uuidv4(),
     coordinates: coords,
-    type: 'via', // Временно, обновится в updatePointTypes
+    type: 'via',
     address,
     comment: address,
   } as any)
@@ -188,7 +165,7 @@ async function handleMapClick(coords: Coordinate) {
 }
 
 async function removePoint(index: number) {
-  mapPoints.value.splice(index, 1)
+  mapPoints.value = mapPoints.value.filter((_, i) => i !== index)
   updatePointTypes()
   await buildRoute()
 }
@@ -223,7 +200,6 @@ function handleConfirm() {
 
 watch(() => props.visible, (isOpen) => {
   if (isOpen) {
-    searchQuery.value = ''
     if (props.initialPoints && props.initialPoints.length > 0) {
       mapPoints.value = props.initialPoints.map((p, idx) => ({
         id: uuidv4(),
@@ -237,6 +213,8 @@ watch(() => props.visible, (isOpen) => {
     else {
       clearPoints()
     }
+    // Восстанавливаем сайдбар при каждом новом открытии
+    isSidebarVisible.value = true
   }
 })
 </script>
@@ -248,22 +226,23 @@ watch(() => props.visible, (isOpen) => {
     :max-width="900"
     @update:visible="emit('update:visible', $event)"
   >
-    <div class="picker-layout">
-      <!-- Сайдбар со списком и поиском -->
-      <div class="sidebar">
-        <div class="search-box">
-          <KitInput
-            v-model="searchQuery"
-            placeholder="Найти место на карте..."
-            size="sm"
-            @keydown.enter="doSearch"
+    <div class="picker-layout" :class="{ 'sidebar-hidden': !isSidebarVisible }">
+      <!-- Сайдбар -->
+      <div v-show="isSidebarVisible" class="sidebar">
+        <div class="sidebar-header">
+          <h3>Точки маршрута</h3>
+          <KitBtn
+            icon="mdi:chevron-left"
+            size="xs"
+            variant="subtle"
+            title="Скрыть панель"
+            @click="isSidebarVisible = false"
           />
-          <KitBtn icon="mdi:magnify" size="sm" :loading="isSearching" @click="doSearch" />
         </div>
 
         <div class="hints">
           <Icon icon="mdi:gesture-tap" />
-          <span>Кликните на карту, чтобы добавить точку, или перетяните существующую.</span>
+          <span>Кликните на карту, чтобы добавить точку, или перетяните существующую. Встроенный поиск на карте поможет сориентироваться.</span>
         </div>
 
         <div class="points-list">
@@ -294,6 +273,15 @@ watch(() => props.visible, (isOpen) => {
 
       <!-- Карта -->
       <div class="map-area">
+        <button
+          v-if="!isSidebarVisible"
+          class="show-sidebar-btn"
+          title="Показать точки маршрута"
+          @click="isSidebarVisible = true"
+        >
+          <Icon icon="mdi:chevron-right" width="24" heigth="24" />
+        </button>
+
         <GeolocationMap
           :points="mapPoints"
           :routes="mapRoutes"
@@ -304,6 +292,8 @@ watch(() => props.visible, (isOpen) => {
           :is-loading="isLoading"
           :readonly="false"
           :is-fullscreen="false"
+          :disable-context-menu="true"
+          :with-search-control="true"
           @map-ready="onMapReady"
           @map-click="handleMapClick"
         />
@@ -328,21 +318,27 @@ watch(() => props.visible, (isOpen) => {
 
 <style scoped lang="scss">
 .picker-layout {
-  display: grid;
-  grid-template-columns: 300px 1fr;
+  display: flex;
   height: 65vh;
   min-height: 400px;
   gap: 16px;
   margin-top: 8px;
 
+  &.sidebar-hidden {
+    .map-area {
+      width: 100%;
+    }
+  }
+
   @media (max-width: 768px) {
-    grid-template-columns: 1fr;
-    grid-template-rows: auto 1fr;
+    flex-direction: column;
     height: 75vh;
   }
 }
 
 .sidebar {
+  width: 300px;
+  flex-shrink: 0;
   display: flex;
   flex-direction: column;
   gap: 12px;
@@ -351,13 +347,81 @@ watch(() => props.visible, (isOpen) => {
   border-radius: var(--r-m);
   padding: 12px;
   overflow: hidden;
+
+  @media (max-width: 768px) {
+    width: 100%;
+    max-height: 40%;
+  }
 }
 
-.search-box {
+.sidebar-header {
   display: flex;
-  gap: 6px;
-  :deep(.kit-input-wrapper) {
-    flex: 1;
+  align-items: center;
+  justify-content: space-between;
+
+  h3 {
+    margin: 0;
+    font-size: 1rem;
+    font-weight: 600;
+    color: var(--fg-primary-color);
+  }
+
+  .kit-btn {
+    margin-right: -8px;
+  }
+}
+
+.map-area {
+  flex: 1;
+  min-width: 0;
+  position: relative;
+  border-radius: var(--r-m);
+  overflow: hidden;
+  border: 1px solid var(--border-secondary-color);
+  background: var(--bg-tertiary-color);
+}
+
+.show-sidebar-btn {
+  position: absolute;
+  top: 50%;
+  left: 0;
+  transform: translateY(-50%);
+  z-index: 10;
+  background-color: var(--bg-primary-color);
+  border: 1px solid var(--border-secondary-color);
+  border-left: none;
+  color: var(--fg-primary-color);
+  height: 48px;
+  border-radius: 0 var(--r-s) var(--r-s) 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  box-shadow: 2px 0 8px rgba(0, 0, 0, 0.1);
+  transition: all 0.2s;
+
+  &:hover {
+    background-color: var(--bg-hover-color);
+    color: var(--fg-accent-color);
+  }
+
+  .iconify {
+    font-size: 20px;
+  }
+
+  @include media-down(sm) {
+    top: 0;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 48px;
+    height: 24px;
+    border-radius: 0 0 var(--r-s) var(--r-s);
+    border-top: none;
+    border-left: 1px solid var(--border-secondary-color);
+
+    .iconify {
+      transform: rotate(90deg);
+    }
   }
 }
 
@@ -481,13 +545,6 @@ watch(() => props.visible, (isOpen) => {
   font-weight: 600;
   font-size: 0.9rem;
   color: var(--fg-primary-color);
-}
-
-.map-area {
-  border-radius: var(--r-m);
-  overflow: hidden;
-  border: 1px solid var(--border-secondary-color);
-  background: var(--bg-tertiary-color);
 }
 
 .picker-footer {

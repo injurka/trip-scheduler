@@ -3,6 +3,8 @@ import type { Coordinate, DrawnRoute, MapPoint, MapRoute } from '../models/types
 import type { TileSourceId } from '~/shared/lib/map-styles-sources'
 import { onClickOutside } from '@vueuse/core'
 import { toLonLat } from 'ol/proj'
+import { KitBtn } from '~/components/01.kit/kit-btn'
+import { KitInput } from '~/components/01.kit/kit-input'
 import { useGeolocationMap } from '../composables/use-geolocation-map'
 import GeolocationContextMenu from './geolocation-context-menu.vue'
 import GeolocationMapControls from './geolocation-map-controls.vue'
@@ -22,6 +24,8 @@ interface Props {
   isFullscreen: boolean
   interactiveOnClick?: boolean
   withPanel?: boolean
+  disableContextMenu?: boolean
+  withSearchControl?: boolean
 }
 
 const props = withDefaults(defineProps<Props>(), {
@@ -29,6 +33,8 @@ const props = withDefaults(defineProps<Props>(), {
   zoom: 14,
   interactiveOnClick: false,
   withPanel: true,
+  disableContextMenu: false,
+  withSearchControl: false,
 })
 
 const emit = defineEmits<{
@@ -51,6 +57,8 @@ const {
   modifyInteraction,
   setTileSource,
   showCurrentLocation,
+  searchLocation,
+  clearSearchResult,
   ...restMapController
 } = useGeolocationMap()
 
@@ -79,7 +87,7 @@ function handleSetTileSource(sourceId: TileSourceId) {
 }
 
 function openContextMenu(event: MouseEvent) {
-  if (props.readonly || !mapInstance.value || !isMapActive.value)
+  if (props.disableContextMenu || props.readonly || !mapInstance.value || !isMapActive.value)
     return
   const mapContainer = mapInstance.value.getTargetElement() as HTMLElement
   const mapRect = mapContainer.getBoundingClientRect()
@@ -95,48 +103,69 @@ function handleContextMenuAction(actionId: string) {
   emit('contextMenuAction', actionId, contextMenuPosition.coords)
 }
 
-watch(() => props.points, (newPoints, oldPoints = []) => {
+// Надежные трекеры для отслеживания изменений и удаления старых маркеров/маршрутов
+let previousPointIds = new Set<string>()
+let previousRouteIds = new Set<string>()
+let previousDrawnRouteIds = new Set<string>()
+
+watch(() => props.points, (newPoints) => {
   if (!isMapLoaded.value)
     return
 
   const newPointIds = new Set(newPoints.map(p => p.id))
-  oldPoints.forEach((point) => {
-    if (!newPointIds.has(point.id))
-      removePoint(point.id)
+
+  // Удаляем те, которых больше нет
+  previousPointIds.forEach((id) => {
+    if (!newPointIds.has(id))
+      removePoint(id)
   })
+
+  // Добавляем/Обновляем новые
   newPoints.forEach(addOrUpdatePoint)
+
+  previousPointIds = newPointIds
 }, { deep: true })
 
-watch(() => props.routes, (newRoutes, oldRoutes = []) => {
+watch(() => props.routes, (newRoutes) => {
   if (!isMapLoaded.value)
     return
+
   const newRouteIds = new Set(newRoutes.map(r => r.id))
-  oldRoutes.forEach((route) => {
-    if (!newRouteIds.has(route.id))
-      removeRoute(route.id)
+
+  previousRouteIds.forEach((id) => {
+    if (!newRouteIds.has(id))
+      removeRoute(id)
   })
+
   newRoutes.forEach((route) => {
     if (route.isVisible)
       addOrUpdateRoute(route)
     else
       removeRoute(route.id)
   })
+
+  previousRouteIds = newRouteIds
 }, { deep: true })
 
-watch(() => props.drawnRoutes, (newRoutes, oldRoutes = []) => {
+watch(() => props.drawnRoutes, (newRoutes) => {
   if (!isMapLoaded.value)
     return
+
   const newRouteIds = new Set(newRoutes.map(r => r.id))
-  oldRoutes.forEach((route) => {
-    if (!newRouteIds.has(route.id))
-      removeRoute(route.id)
+
+  previousDrawnRouteIds.forEach((id) => {
+    if (!newRouteIds.has(id))
+      removeRoute(id)
   })
+
   newRoutes.forEach((route) => {
     if (route.isVisible)
       addOrUpdateDrawnRoute(route)
     else
       removeRoute(route.id)
   })
+
+  previousDrawnRouteIds = newRouteIds
 }, { deep: true })
 
 watch(() => props.readonly, (isReadonly) => {
@@ -146,6 +175,31 @@ watch(() => props.readonly, (isReadonly) => {
 
 onClickOutside(contextMenuRef, () => {
   isContextMenuVisible.value = false
+})
+
+const localSearchQuery = ref('')
+const isSearchExpanded = ref(false)
+const isSearchingLocal = ref(false)
+const inlineSearchRef = ref<HTMLElement | null>(null)
+
+async function handleLocalSearch() {
+  if (!localSearchQuery.value.trim())
+    return
+  isSearchingLocal.value = true
+  await searchLocation(localSearchQuery.value)
+  isSearchingLocal.value = false
+}
+
+function closeLocalSearch() {
+  isSearchExpanded.value = false
+  localSearchQuery.value = ''
+  clearSearchResult()
+}
+
+onClickOutside(inlineSearchRef, () => {
+  if (isSearchExpanded.value && !localSearchQuery.value.trim()) {
+    closeLocalSearch()
+  }
 })
 
 onMounted(async () => {
@@ -165,20 +219,25 @@ onMounted(async () => {
     emit('mapClick', coords)
   })
 
-  emit('mapReady', { mapInstance, isMapLoaded, initMap, addOrUpdatePoint, removePoint, addOrUpdateRoute, addOrUpdateDrawnRoute, removeRoute, modifyInteraction, setTileSource, showCurrentLocation, ...restMapController })
+  emit('mapReady', { mapInstance, isMapLoaded, initMap, addOrUpdatePoint, removePoint, addOrUpdateRoute, addOrUpdateDrawnRoute, removeRoute, modifyInteraction, setTileSource, showCurrentLocation, searchLocation, clearSearchResult, ...restMapController })
 })
 
 watch(isMapLoaded, (isReady) => {
   if (isReady) {
     props.points.forEach(addOrUpdatePoint)
+    previousPointIds = new Set(props.points.map(p => p.id))
+
     props.routes.forEach((route) => {
       if (route.isVisible)
         addOrUpdateRoute(route)
     })
+    previousRouteIds = new Set(props.routes.map(r => r.id))
+
     props.drawnRoutes.forEach((route) => {
       if (route.isVisible)
         addOrUpdateDrawnRoute(route)
     })
+    previousDrawnRouteIds = new Set(props.drawnRoutes.map(r => r.id))
   }
 })
 </script>
@@ -204,9 +263,44 @@ watch(isMapLoaded, (isReady) => {
         </div>
       </Transition>
     </div>
+
     <div v-if="!isMapLoaded || isLoading" class="loading-overlay">
       <span>{{ isLoading ? 'Загрузка...' : 'Инициализация карты...' }}</span>
     </div>
+
+    <div v-if="withSearchControl" ref="inlineSearchRef" class="map-inline-search" :class="{ expanded: isSearchExpanded }">
+      <KitBtn
+        v-if="!isSearchExpanded"
+        variant="outlined"
+        color="secondary"
+        icon="mdi:magnify"
+        aria-label="Поиск по карте"
+        class="search-trigger-btn"
+        @click="isSearchExpanded = true"
+      />
+      <div v-else class="search-expanded-wrapper">
+        <KitInput
+          v-model="localSearchQuery"
+          placeholder="Найти место на карте..."
+          size="sm"
+          @keydown.enter="handleLocalSearch"
+        />
+        <KitBtn
+          icon="mdi:magnify"
+          size="sm"
+          variant="solid"
+          :loading="isSearchingLocal"
+          @click="handleLocalSearch"
+        />
+        <KitBtn
+          icon="mdi:close"
+          size="sm"
+          variant="subtle"
+          @click="closeLocalSearch"
+        />
+      </div>
+    </div>
+
     <slot name="controls" :map-instance="mapInstance">
       <GeolocationMapControls
         :map-instance="mapInstance"
@@ -300,6 +394,50 @@ watch(isMapLoaded, (isReady) => {
   justify-content: center;
   z-index: 100;
   font-weight: 500;
+}
+
+.map-inline-search {
+  position: absolute;
+  top: calc(12px + env(safe-area-inset-top));
+  left: 12px;
+  z-index: 8;
+
+  .search-trigger-btn {
+    width: 26px;
+    height: 26px;
+    padding: 0;
+    background-color: var(--bg-secondary-color);
+
+    &:hover {
+      background-color: var(--bg-hover-color);
+    }
+  }
+
+  .search-expanded-wrapper {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    background: var(--bg-secondary-color);
+    padding: 4px;
+    border-radius: var(--r-m);
+    box-shadow: var(--s-m);
+    border: 1px solid var(--border-secondary-color);
+
+    .kit-btn,
+    :deep(.kit-btn) {
+      width: 30px;
+      height: 30px;
+      padding: 0;
+    }
+
+    :deep(.kit-input-wrapper) {
+      width: 220px;
+
+      input {
+        background-color: transparent;
+      }
+    }
+  }
 }
 
 .fade-enter-active,

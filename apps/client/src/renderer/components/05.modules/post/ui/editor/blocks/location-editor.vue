@@ -1,10 +1,11 @@
 <script setup lang="ts">
 import type { LocationBlock } from '~/shared/types/models/post'
 import { Icon } from '@iconify/vue'
+import { ref } from 'vue'
 import { KitInput } from '~/components/01.kit/kit-input'
 import PostMapPicker from '../tools/post-map-picker.vue'
 
-defineProps<{
+const props = defineProps<{
   block: LocationBlock
 }>()
 
@@ -14,8 +15,16 @@ const emit = defineEmits<{
 
 const isMapOpen = ref(false)
 
-function handleMapConfirm(coords: { lat: number, lng: number }) {
-  emit('update', { coords })
+function handleMapConfirm(data: { lat: number, lng: number, address?: string }) {
+  const payload: Partial<LocationBlock> = {
+    coords: { lat: data.lat, lng: data.lng },
+  }
+
+  if (data.address) {
+    payload.address = data.address
+  }
+
+  emit('update', payload)
 }
 </script>
 
@@ -113,11 +122,10 @@ function handleMapConfirm(coords: { lat: number, lng: number }) {
   right: -4px;
   background: var(--fg-success-color);
   color: white;
-  font-size: 10px;
   width: 18px;
   height: 18px;
   border-radius: 50%;
-  font-size: 1rem;
+  font-size: 10px;
   display: flex;
   align-items: center;
   justify-content: center;

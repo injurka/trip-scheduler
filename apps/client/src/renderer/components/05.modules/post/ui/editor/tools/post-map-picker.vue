@@ -15,18 +15,38 @@ interface Props {
 const props = defineProps<Props>()
 const emit = defineEmits<{
   (e: 'update:visible', value: boolean): void
-  (e: 'confirm', coords: { lat: number, lng: number }): void
+  (e: 'confirm', data: { lat: number, lng: number, address?: string }): void
 }>()
 
 const selectedCoords = ref<{ lat: number, lon: number } | null>(null)
+const selectedAddress = ref<string>('')
+const isLoadingAddress = ref(false)
 const markers = ref<MapMarker[]>([])
 const searchQuery = ref('')
 
 const { searchLocation, isSearching } = useKitMapSearch()
 
-function handleMapClick(coords: [number, number]) {
+async function fetchAddress(lon: number, lat: number) {
+  try {
+    const res = await fetch(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lon}&accept-language=ru`)
+    const data = await res.json()
+    // Пытаемся сформировать читаемый адрес (улица + дом) или просто название места
+    return data.address?.road
+      ? `${data.address.road}${data.address.house_number ? `, ${data.address.house_number}` : ''}`
+      : data.name || data.display_name?.split(',')[0] || ''
+  }
+  catch {
+    return ''
+  }
+}
+
+async function handleMapClick(coords: [number, number]) {
   selectedCoords.value = { lat: coords[1], lon: coords[0] }
   updateMarker()
+
+  isLoadingAddress.value = true
+  selectedAddress.value = await fetchAddress(coords[0], coords[1])
+  isLoadingAddress.value = false
 }
 
 function updateMarker() {
@@ -48,8 +68,9 @@ async function handleSearch() {
 
     if (result) {
       selectedCoords.value = { lat: result.lat, lon: result.lon }
+      selectedAddress.value = result.displayName.split(',')[0] // Берем самое главное из названия
       updateMarker()
-      useToast().success(`Найдено: ${result.displayName.split(',')[0]}`)
+      useToast().success(`Найдено: ${selectedAddress.value}`)
     }
     else {
       useToast().error('Место не найдено')
@@ -62,7 +83,11 @@ async function handleSearch() {
 
 function handleConfirm() {
   if (selectedCoords.value) {
-    emit('confirm', { lat: selectedCoords.value.lat, lng: selectedCoords.value.lon })
+    emit('confirm', {
+      lat: selectedCoords.value.lat,
+      lng: selectedCoords.value.lon,
+      address: selectedAddress.value,
+    })
     emit('update:visible', false)
   }
 }
@@ -78,9 +103,14 @@ watch(() => props.visible, (isOpen) => {
     if (props.initialCoords && props.initialCoords.lat !== 0) {
       selectedCoords.value = { lat: props.initialCoords.lat, lon: props.initialCoords.lng }
       updateMarker()
+      // Подгружаем адрес, если мы открыли пикер с уже установленными координатами и без адреса
+      fetchAddress(props.initialCoords.lng, props.initialCoords.lat).then((addr) => {
+        selectedAddress.value = addr
+      })
     }
     else {
       selectedCoords.value = null
+      selectedAddress.value = ''
       markers.value = []
     }
     searchQuery.value = ''
@@ -124,7 +154,15 @@ watch(() => props.visible, (isOpen) => {
 
       <div class="picker-footer">
         <div v-if="selectedCoords" class="coords-info">
-          {{ selectedCoords.lat.toFixed(6) }}, {{ selectedCoords.lon.toFixed(6) }}
+          <div v-if="isLoadingAddress" class="address text-muted">
+            Поиск адреса...
+          </div>
+          <div v-else-if="selectedAddress" class="address">
+            {{ selectedAddress }}
+          </div>
+          <div class="coords">
+            {{ selectedCoords.lat.toFixed(6) }}, {{ selectedCoords.lon.toFixed(6) }}
+          </div>
         </div>
         <div v-else class="coords-info placeholder">
           Кликните на карту или используйте поиск
@@ -134,7 +172,7 @@ watch(() => props.visible, (isOpen) => {
           <KitBtn variant="outlined" color="secondary" @click="emit('update:visible', false)">
             Отмена
           </KitBtn>
-          <KitBtn :disabled="!selectedCoords" @click="handleConfirm">
+          <KitBtn :disabled="!selectedCoords || isLoadingAddress" @click="handleConfirm">
             Выбрать
           </KitBtn>
         </div>
@@ -176,16 +214,36 @@ watch(() => props.visible, (isOpen) => {
 }
 
 .coords-info {
+  display: flex;
+  flex-direction: column;
   font-family: monospace;
   font-size: 0.9rem;
   color: var(--fg-primary-color);
   background: var(--bg-tertiary-color);
-  padding: 4px 8px;
+  padding: 6px 10px;
   border-radius: var(--r-s);
+
+  .address {
+    font-family: var(--font-sans, system-ui, sans-serif);
+    font-weight: 600;
+    margin-bottom: 2px;
+  }
+
+  .coords {
+    color: var(--fg-secondary-color);
+    font-size: 0.8rem;
+  }
 
   &.placeholder {
     color: var(--fg-tertiary-color);
     font-family: inherit;
+    padding: 8px 10px;
+  }
+
+  .text-muted {
+    color: var(--fg-tertiary-color);
+    font-style: italic;
+    font-weight: normal;
   }
 }
 
