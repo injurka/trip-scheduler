@@ -67,10 +67,10 @@ function handleConfirm() {
 
 async function handleDelete(id: string) {
   const isConfirmed = await confirm({
-    title: 'Удалить картинку из поста? Она пропадет из всех блоков.',
-    description: 'Это действие необратимо. Все ваши данные будут удалены.',
+    title: 'Удалить картинку из поста?',
+    description: 'Она пропадет из всех блоков. Это действие необратимо.',
     type: 'danger',
-    confirmText: 'Да, удалить мой аккаунт',
+    confirmText: 'Да, удалить',
   })
 
   if (isConfirmed) {
@@ -145,7 +145,7 @@ watch(() => props.visible, (isOpen) => {
               <Icon icon="mdi:drag" />
             </div>
             <KitImage
-              :src="media.metadata.variants.small ?? media.url"
+              :src="media.metadata?.variants?.small ?? media.url"
               object-fit="cover"
               class="media-img"
             />

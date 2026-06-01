@@ -25,7 +25,7 @@ const viewerImages = computed<ImageViewerImage[]>(() => {
 })
 
 function getOptimizedUrl(img: PostMedia) {
-  const variants = img.metadata.variants
+  const variants = img.metadata?.variants
 
   if (!variants)
     return img.url

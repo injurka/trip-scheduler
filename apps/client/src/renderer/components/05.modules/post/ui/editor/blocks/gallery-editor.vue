@@ -56,7 +56,7 @@ function handleLibraryConfirm(selected: PostMedia[]) {
 const currentSelectedIds = computed(() => props.images.map(i => i.id))
 
 function getEditorThumbUrl(img: PostMedia) {
-  const variants = img.metadata.variants
+  const variants = img.metadata?.variants
 
   return variants?.small || variants?.medium || img.url
 }
@@ -207,6 +207,10 @@ function getEditorThumbUrl(img: PostMedia) {
   z-index: 2;
   opacity: 0;
   transition: opacity 0.2s;
+
+  &:active {
+    cursor: grabbing;
+  }
 }
 
 .remove-btn {

@@ -89,12 +89,12 @@ interface MediaVariants {
 }
 
 function getMainImgUrl(media: PostMedia) {
-  const variants = (media as PostMedia & { variants?: MediaVariants | null }).variants
+  const variants = media.metadata?.variants as MediaVariants | undefined
   return variants?.medium || media.url
 }
 
 function getBlurImgUrl(media: PostMedia) {
-  const variants = (media as PostMedia & { variants?: MediaVariants | null }).variants
+  const variants = media.metadata?.variants as MediaVariants | undefined
   return variants?.small || variants?.medium || media.url
 }
 

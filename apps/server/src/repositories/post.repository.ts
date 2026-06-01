@@ -1,7 +1,7 @@
 import type { SQL } from 'drizzle-orm'
 import type { z } from 'zod'
 import type { CreatePostInputSchema, ListPostsInputSchema, UpdatePostInputSchema } from '~/modules/post/post.schemas'
-import { and, desc, eq, exists, ilike, lt, max, or, sql } from 'drizzle-orm'
+import { and, desc, eq, exists, ilike, inArray, lt, max, or, sql } from 'drizzle-orm'
 import { v4 as uuidv4 } from 'uuid'
 import { db } from '~/../db'
 import { postElements, postLikes, postMedia, posts, savedPosts } from '~/../db/schema'
@@ -232,11 +232,21 @@ export const postRepository = {
           }
         }
 
-        if (mediaIds && mediaIds.length > 0) {
-          const updates = mediaIds.map((id, index) =>
-            tx.update(postMedia).set({ order: index }).where(eq(postMedia.id, id)),
-          )
-          await Promise.all(updates)
+        if (mediaIds !== undefined) {
+          const existingMedia = await tx.query.postMedia.findMany({
+            where: eq(postMedia.postId, id),
+          })
+          const toDeleteIds = existingMedia.map(m => m.id).filter(mid => !mediaIds.includes(mid))
+          if (toDeleteIds.length > 0) {
+            await tx.delete(postMedia).where(inArray(postMedia.id, toDeleteIds))
+          }
+
+          if (mediaIds.length > 0) {
+            const updates = mediaIds.map((mid, index) =>
+              tx.update(postMedia).set({ order: index }).where(eq(postMedia.id, mid)),
+            )
+            await Promise.all(updates)
+          }
         }
 
         const userResult = await tx.query.posts.findFirst({ where: eq(posts.id, id), columns: { userId: true } })
