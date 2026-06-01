@@ -6,12 +6,19 @@ import { computed, ref } from 'vue'
 import { KitInput } from '~/components/01.kit/kit-input'
 import PostRouteMapPicker from '../tools/post-route-map-picker.vue'
 
+export interface EditorRoutePoint {
+  lat: number
+  lng: number
+  label?: string
+  address?: string
+}
+
 const props = defineProps<{
   block: RouteBlock
 }>()
 
 const emit = defineEmits<{
-  (e: 'update', payload: Partial<RouteBlock> & { points?: any[], geometry?: any[], distanceMeters?: number }): void
+  (e: 'update', payload: Partial<RouteBlock> & { points?: EditorRoutePoint[], geometry?: [number, number][], distanceMeters?: number }): void
 }>()
 
 const isMapOpen = ref(false)
@@ -22,7 +29,7 @@ const transportIcons: Record<string, string> = {
   car: 'mdi:car',
 }
 
-const blockPoints = computed<any[]>(() => {
+const blockPoints = computed<EditorRoutePoint[]>(() => {
   return Array.isArray((props.block as any).points) ? (props.block as any).points : []
 })
 
@@ -49,7 +56,7 @@ function calculateTimeAndDist(distMeters: number, transport: string) {
   return { distance: distStr, duration: durStr }
 }
 
-async function fetchOSRMRoute(points: any[], transport: string) {
+async function fetchOSRMRoute(points: EditorRoutePoint[], transport: string) {
   if (points.length < 2)
     return
 
@@ -68,7 +75,7 @@ async function fetchOSRMRoute(points: any[], transport: string) {
 
     if (data.code === 'Ok' && data.routes?.length > 0) {
       const route = data.routes[0]
-      const decoded = Polyline.decode(route.geometry).map(([lat, lng]) => [lng, lat])
+      const decoded = Polyline.decode(route.geometry).map(([lat, lng]) => [lng, lat]) as [number, number][]
       const distMeters = route.distance
       const { distance, duration } = calculateTimeAndDist(distMeters, transport)
 
@@ -140,7 +147,7 @@ async function swapPoints() {
   await fetchOSRMRoute(reversedPts, props.block.transport || 'walk')
 }
 
-function onMapConfirm(data: { points: any[], geometry: any[], distanceMeters: number }) {
+function onMapConfirm(data: { points: EditorRoutePoint[], geometry: [number, number][], distanceMeters: number }) {
   const { points, geometry, distanceMeters } = data
   const { distance, duration } = calculateTimeAndDist(distanceMeters, props.block.transport || 'walk')
 

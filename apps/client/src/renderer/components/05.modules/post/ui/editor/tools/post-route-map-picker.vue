@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import type { Coordinate, MapPoint, MapRoute } from '~/components/03.domain/trip-info/geolocation-section'
+import type { Coordinate, MapPoint, MapRoute, PointType } from '~/components/03.domain/trip-info/geolocation-section'
 import { Icon } from '@iconify/vue'
 import Polyline from '@mapbox/polyline'
 import { toLonLat } from 'ol/proj'
@@ -9,16 +9,23 @@ import { KitBtn } from '~/components/01.kit/kit-btn'
 import { KitDialogWithClose } from '~/components/01.kit/kit-dialog-with-close'
 import GeolocationMap from '~/components/03.domain/trip-info/geolocation-section/ui/geolocation-map.vue'
 
+export interface EditorRoutePoint {
+  lat: number
+  lng: number
+  label?: string
+  address?: string
+}
+
 interface Props {
   visible: boolean
-  initialPoints?: any[]
+  initialPoints?: EditorRoutePoint[]
   transport: 'walk' | 'transit' | 'car'
 }
 
 const props = defineProps<Props>()
 const emit = defineEmits<{
   (e: 'update:visible', value: boolean): void
-  (e: 'confirm', data: { points: any[], geometry: any[], distanceMeters: number }): void
+  (e: 'confirm', data: { points: EditorRoutePoint[], geometry: Coordinate[], distanceMeters: number }): void
 }>()
 
 const OSRM_PROFILES = {
@@ -36,7 +43,7 @@ const isSidebarVisible = ref(true)
 
 let mapController: any = null
 
-const mapCenter = computed<[number, number]>(() => {
+const mapCenter = computed<Coordinate>(() => {
   if (mapPoints.value.length > 0)
     return mapPoints.value[0].coordinates
   return [37.6173, 55.7558] // Москва
@@ -157,7 +164,7 @@ async function handleMapClick(coords: Coordinate) {
     type: 'via',
     address,
     comment: address,
-  } as any)
+  })
 
   updatePointTypes()
   await buildRoute()
@@ -203,11 +210,11 @@ watch(() => props.visible, (isOpen) => {
     if (props.initialPoints && props.initialPoints.length > 0) {
       mapPoints.value = props.initialPoints.map((p, idx) => ({
         id: uuidv4(),
-        coordinates: [p.lng, p.lat],
-        type: idx === 0 ? 'start' : idx === props.initialPoints!.length - 1 ? 'end' : 'via',
-        address: p.label || p.address,
-        comment: p.label || p.address,
-      } as any))
+        coordinates: [p.lng, p.lat] as Coordinate,
+        type: (idx === 0 ? 'start' : idx === props.initialPoints!.length - 1 ? 'end' : 'via') as PointType,
+        address: p.label || p.address || '',
+        comment: p.label || p.address || '',
+      }))
       buildRoute()
     }
     else {
@@ -279,7 +286,7 @@ watch(() => props.visible, (isOpen) => {
           title="Показать точки маршрута"
           @click="isSidebarVisible = true"
         >
-          <Icon icon="mdi:chevron-right" width="24" heigth="24" />
+          <Icon icon="mdi:chevron-right" />
         </button>
 
         <GeolocationMap
@@ -391,6 +398,7 @@ watch(() => props.visible, (isOpen) => {
   border: 1px solid var(--border-secondary-color);
   border-left: none;
   color: var(--fg-primary-color);
+  width: 24px;
   height: 48px;
   border-radius: 0 var(--r-s) var(--r-s) 0;
   display: flex;
@@ -409,7 +417,7 @@ watch(() => props.visible, (isOpen) => {
     font-size: 20px;
   }
 
-  @include media-down(sm) {
+  @media (max-width: 768px) {
     top: 0;
     left: 50%;
     transform: translateX(-50%);
