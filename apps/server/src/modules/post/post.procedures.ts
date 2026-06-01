@@ -33,7 +33,7 @@ export const postProcedures = {
     .input(GetPostByIdInputSchema)
     .output(PostSchema)
     .query(async ({ input, ctx }) => {
-      postService.incrementView(input.id).catch(console.error)
+      postService.incrementViewCount(input.id).catch(console.error)
       return postService.getById(input.id, ctx.user?.id, ctx.user?.role)
     }),
 
