@@ -1,5 +1,6 @@
 import type { MaybeRefOrGetter, Ref } from 'vue'
 import type { TouchPoint, ViewerBounds, ViewerTransform } from '../models/types'
+import { tryOnUnmounted } from '@vueuse/core'
 
 interface UseImageViewerTransformOptions {
   imageRef: Ref<HTMLImageElement | null>
@@ -56,14 +57,20 @@ export function useImageViewerTransform(options: UseImageViewerTransformOptions)
     return 'zoom-in'
   }
 
-  function resetTransform() {
-    isAnimating.value = true
+  function resetTransform(animate = true) {
     transform.scale = toValue(minZoom)
     transform.x = 0
     transform.y = 0
-    setTimeout(() => {
+
+    if (animate) {
+      isAnimating.value = true
+      setTimeout(() => {
+        isAnimating.value = false
+      }, toValue(animationDuration))
+    }
+    else {
       isAnimating.value = false
-    }, toValue(animationDuration))
+    }
   }
 
   function calculateBounds(): ViewerBounds {
@@ -87,11 +94,6 @@ export function useImageViewerTransform(options: UseImageViewerTransformOptions)
     transform.y = Math.max(bounds.minY, Math.min(bounds.maxY, transform.y))
   }
 
-  /**
-   * Основа новой логики: анимированное масштабирование к определенной точке на экране.
-   * @param newScale - Новый масштаб.
-   * @param origin - Точка на экране (viewport coordinates), к которой происходит масштабирование. По умолчанию - центр контейнера.
-   */
   function zoomTo(newScale: number, origin: { x: number, y: number } | null = null) {
     if (!containerRef.value)
       return
@@ -99,7 +101,7 @@ export function useImageViewerTransform(options: UseImageViewerTransformOptions)
     const clampedScale = Math.max(toValue(minZoom), Math.min(toValue(maxZoom), newScale))
 
     if (clampedScale <= toValue(minZoom)) {
-      resetTransform()
+      resetTransform(true)
       return
     }
 
@@ -151,7 +153,7 @@ export function useImageViewerTransform(options: UseImageViewerTransformOptions)
   function handleDoubleClick(event: MouseEvent) {
     event.preventDefault()
     if (transform.scale > toValue(minZoom))
-      resetTransform()
+      resetTransform(true)
     else
       zoomTo(2, { x: event.clientX, y: event.clientY })
   }
@@ -177,7 +179,7 @@ export function useImageViewerTransform(options: UseImageViewerTransformOptions)
       return
     }
     if (clampedScale <= toValue(minZoom)) {
-      resetTransform()
+      resetTransform(true)
       isGesturing.value = false
       return
     }

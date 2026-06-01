@@ -50,50 +50,6 @@ export function useImageViewer(options: ImageViewerOptions = {}) {
     }
   }
 
-  function handleKeydown(e: KeyboardEvent) {
-    if (!isOpen.value || !enableKeyboard)
-      return
-
-    const target = e.target as HTMLElement
-    const isEditing = target.isContentEditable || ['INPUT', 'TEXTAREA', 'SELECT'].includes(target.tagName)
-
-    switch (e.key) {
-      case 'ArrowRight':
-      case ' ':
-        if (isEditing)
-          return
-        e.preventDefault()
-        next()
-        break
-      case 'ArrowLeft':
-        if (isEditing)
-          return
-        e.preventDefault()
-        prev()
-        break
-      case 'Escape':
-        e.preventDefault()
-        close()
-        break
-      case 'Home':
-        if (isEditing)
-          return
-        e.preventDefault()
-        goToIndex(0)
-        break
-      case 'End':
-        if (isEditing)
-          return
-        e.preventDefault()
-        goToIndex(images.value.length - 1)
-        break
-    }
-  }
-
-  if (enableKeyboard) {
-    useEventListener(document, 'keydown', handleKeydown)
-  }
-
   watch(isOpen, (value) => {
     if (value) {
       originalOverflow = document.body.style.overflow
@@ -105,7 +61,9 @@ export function useImageViewer(options: ImageViewerOptions = {}) {
   })
 
   onUnmounted(() => {
-    document.body.style.overflow = originalOverflow
+    if (originalOverflow !== undefined) {
+      document.body.style.overflow = originalOverflow
+    }
   })
 
   return {
@@ -128,6 +86,7 @@ export function useImageViewer(options: ImageViewerOptions = {}) {
 
     // Options
     options: {
+      enableKeyboard,
       enableTouch,
       maxZoom,
       minZoom,

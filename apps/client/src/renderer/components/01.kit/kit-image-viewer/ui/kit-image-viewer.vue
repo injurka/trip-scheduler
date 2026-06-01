@@ -19,6 +19,7 @@ interface Props {
   showCounter?: boolean
   enableThumbnails?: boolean
   closeOnOverlayClick?: boolean
+  enableKeyboard?: boolean
   maxZoom?: number
   minZoom?: number
   zoomStep?: number
@@ -41,6 +42,7 @@ const props = withDefaults(defineProps<Props>(), {
   showCounter: true,
   enableThumbnails: false,
   closeOnOverlayClick: true,
+  enableKeyboard: true,
   maxZoom: 4,
   minZoom: 1,
   zoomStep: 0.5,
@@ -68,6 +70,7 @@ const {
   displayUrl,
   isImageLoaded,
   isImageError,
+  showLoaderDelayed,
   onImageLoad,
   onImageError,
   isMetadataPanelOpen,
@@ -241,7 +244,7 @@ function goToIndex(index: number) {
 }
 
 watch(() => props.currentIndex, (index) => {
-  resetTransform()
+  resetTransform(false)
   closeMetadataPanel()
   scrollThumbnailIntoView(index, 'smooth')
 })
@@ -259,7 +262,7 @@ watch(() => props.visible, (isVisible) => {
   }
   else {
     document.body.style.overflow = ''
-    resetTransform()
+    resetTransform(false)
     closeMetadataPanel()
   }
 })
@@ -277,7 +280,7 @@ onClickOutside(viewerContentRef, () => {
 })
 
 useEventListener(document, 'keydown', (e: KeyboardEvent) => {
-  if (!props.visible)
+  if (!props.visible || !props.enableKeyboard)
     return
 
   const target = e.target as HTMLElement
@@ -358,7 +361,7 @@ onUnmounted(() => {
                   :show-quality-selector="showQualitySelector"
                   :show-info-button="showInfoButton"
                   :is-downloading="isDownloading"
-                  @reset-transform="resetTransform"
+                  @reset-transform="() => resetTransform(true)"
                   @show-metadata="handleShowMetadata"
                   @close="close"
                   @download="downloadCurrentImage"
@@ -381,7 +384,7 @@ onUnmounted(() => {
 
                 <div class="current-image-wrapper">
                   <Transition name="loader-fade">
-                    <div v-if="!isImageLoaded" class="placeholder-wrapper">
+                    <div v-if="(!isImageLoaded && showLoaderDelayed) || isImageError" class="placeholder-wrapper">
                       <div v-if="isImageError" class="image-error">
                         <Icon width="64" height="64" icon="mdi:image-broken-variant" />
                         <span>Не удалось загрузить изображение</span>
@@ -397,7 +400,6 @@ onUnmounted(() => {
 
                   <img
                     v-if="currentImage"
-                    :key="displayUrl"
                     ref="imageRef"
                     v-resolve-src="displayUrl"
                     :alt="currentImage.alt || `Image ${currentIndex + 1}`"
@@ -814,7 +816,6 @@ onUnmounted(() => {
 
 .loader-fade-enter-active {
   transition: opacity 0.2s ease-in;
-  transition-delay: 150ms;
 }
 .loader-fade-leave-active {
   transition: opacity 0s;

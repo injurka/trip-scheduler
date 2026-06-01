@@ -281,6 +281,7 @@
     "usePreferredReducedMotion": true,
     "usePreferredReducedTransparency": true,
     "usePrevious": true,
+    "useQuerySync": true,
     "useRafFn": true,
     "useRefHistory": true,
     "useResizeObserver": true,

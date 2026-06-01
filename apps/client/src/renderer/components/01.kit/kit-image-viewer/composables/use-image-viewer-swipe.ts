@@ -1,5 +1,6 @@
 import type { MaybeRefOrGetter, Ref } from 'vue'
 import type { ImageQuality, ImageViewerImage } from '../models/types'
+import { tryOnUnmounted } from '@vueuse/core'
 
 interface SwipeState {
   isSwipe: boolean
@@ -16,16 +17,10 @@ interface UseSwipeNavigationOptions {
   images: Ref<ImageViewerImage[]>
   currentIndex: Ref<number>
   isZoomed: MaybeRefOrGetter<boolean>
-  preferredQuality: Ref<ImageQuality> // <-- Изменено с RemovableRef
+  preferredQuality: Ref<ImageQuality>
   baseTransform: MaybeRefOrGetter<string>
 }
 
-/**
- * Вспомогательная функция для получения URL изображения с учетом выбранного качества и запасных вариантов.
- * @param image - Объект изображения.
- * @param quality - Предпочтительное качество.
- * @returns URL изображения или null.
- */
 function getImageUrl(image: ImageViewerImage | null, quality: ImageQuality): string | null {
   if (!image)
     return null
@@ -66,6 +61,9 @@ export function useImageViewerSwipe(options: UseSwipeNavigationOptions) {
   const translateX = ref(0)
   const isAnimating = ref(false)
 
+  let swipeTimeout: ReturnType<typeof setTimeout> | null = null
+  let pendingSwipeAction: (() => void) | null = null
+
   const canSwipeNext = computed(() => currentIndex.value < images.value.length - 1)
   const canSwipePrev = computed(() => currentIndex.value > 0)
 
@@ -90,9 +88,26 @@ export function useImageViewerSwipe(options: UseSwipeNavigationOptions) {
     return getImageUrl(prevImage, preferredQuality.value)
   })
 
+  // Если юзер быстро нажимает снова во время анимации, мгновенно вызываем событие
+  function flushPendingSwipe() {
+    if (swipeTimeout) {
+      clearTimeout(swipeTimeout)
+      swipeTimeout = null
+    }
+    if (pendingSwipeAction) {
+      pendingSwipeAction()
+      pendingSwipeAction = null
+    }
+  }
+
   function handleTouchStart(event: TouchEvent) {
     if (toValue(isZoomed) || images.value.length <= 1)
       return
+
+    if (pendingSwipeAction) {
+      flushPendingSwipe()
+      resetSwipe() // мгновенно обнуляем translateX для начала нового свайпа
+    }
 
     const touch = event.touches[0]
     swipeState.value = {
@@ -131,19 +146,21 @@ export function useImageViewerSwipe(options: UseSwipeNavigationOptions) {
     const shouldTrigger = Math.abs(deltaX) > threshold || swipeVelocity > velocity
     isAnimating.value = true
 
+    flushPendingSwipe()
+
     if (shouldTrigger) {
       if (deltaX > 0 && canSwipePrev.value) {
         translateX.value = window.innerWidth
-        setTimeout(() => {
-          onPrev()
-          resetSwipe()
+        pendingSwipeAction = onPrev
+        swipeTimeout = setTimeout(() => {
+          flushPendingSwipe()
         }, 200)
       }
       else if (deltaX < 0 && canSwipeNext.value) {
         translateX.value = -window.innerWidth
-        setTimeout(() => {
-          onNext()
-          resetSwipe()
+        pendingSwipeAction = onNext
+        swipeTimeout = setTimeout(() => {
+          flushPendingSwipe()
         }, 200)
       }
       else {
@@ -169,9 +186,20 @@ export function useImageViewerSwipe(options: UseSwipeNavigationOptions) {
     }
   }
 
-  watch(currentIndex, () => {
-    isAnimating.value = true
-    resetSwipe()
+  watch(currentIndex, async () => {
+    await nextTick()
+    // Делаем сброс позиции только если в данный момент юзер уже не потянул картинку (не перекрываем его новый свайп)
+    if (!swipeState.value.isSwipe && !pendingSwipeAction) {
+      resetSwipe()
+    }
+  })
+
+  tryOnUnmounted(() => {
+    if (swipeTimeout) {
+      clearTimeout(swipeTimeout)
+      swipeTimeout = null
+    }
+    pendingSwipeAction = null
   })
 
   const containerStyle = computed(() => ({
@@ -181,13 +209,16 @@ export function useImageViewerSwipe(options: UseSwipeNavigationOptions) {
 
   const currentImageStyle = computed(() => {
     const progress = Math.abs(swipeProgress.value)
-    const opacity = 1 - progress * 0.3
-    const brightness = 1 - progress * 0.4 // от 1.0 до 0.6
+    const style: Record<string, any> = {}
 
-    const style: Record<string, any> = {
-      opacity: isAnimating.value ? 1 : opacity,
-      filter: `brightness(${brightness})`,
-      transition: isAnimating.value ? 'transform 0.2s ease-out, opacity 0.2s ease-out, filter 0.2s ease-out' : 'none',
+    if (progress > 0 || isAnimating.value) {
+      const opacity = 1 - progress * 0.3
+      const brightness = 1 - progress * 0.4
+      style.opacity = opacity
+      style.filter = `brightness(${brightness})`
+      style.transition = isAnimating.value
+        ? 'transform 0.2s ease-out, opacity 0.2s ease-out, filter 0.2s ease-out'
+        : 'none'
     }
 
     if (progress > 0) {
@@ -201,7 +232,7 @@ export function useImageViewerSwipe(options: UseSwipeNavigationOptions) {
   const adjacentImageStyle = computed(() => {
     const progress = Math.abs(swipeProgress.value)
     const opacity = progress * 1.2
-    const brightness = 0.6 + progress * 0.4 // от 0.6 до 1.0
+    const brightness = 0.6 + progress * 0.4
     return {
       opacity: Math.min(1, opacity),
       filter: `brightness(${brightness})`,
