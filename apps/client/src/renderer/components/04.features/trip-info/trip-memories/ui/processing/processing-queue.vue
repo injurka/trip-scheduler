@@ -71,16 +71,14 @@ const {
           Снятые в другой день
         </KitCheckbox>
       </div>
-      {{ hasMoreMemories }}
-      {{ filteredMemories }}
-      <div v-if="hasMoreMemories" class="queue-grid">
+      <div v-if="filteredMemories.length > 0" class="queue-grid">
         <MemoryProcessingCard v-for="memory in paginatedMemories" :key="memory.id" :memory="memory" />
       </div>
       <div v-else class="empty-queue">
         <Icon icon="mdi:check-circle-outline" class="empty-icon" />
         <p>Отлично! Все фотографии отсортированы.</p>
       </div>
-      <div v-if="paginatedMemories.length < filteredMemories.length" class="show-more-container">
+      <div v-if="hasMoreMemories" class="show-more-container">
         <button class="show-more-button" @click="showMore">
           Показать больше
         </button>
