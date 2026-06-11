@@ -7,6 +7,7 @@ import { KitAvatar } from '~/components/01.kit/kit-avatar'
 import { KitBtn } from '~/components/01.kit/kit-btn'
 import { KitDropdown } from '~/components/01.kit/kit-dropdown'
 import { KitImage } from '~/components/01.kit/kit-image'
+import { resolveApiUrl } from '~/shared/lib/url'
 
 interface Props {
   post: PostDetail
@@ -102,11 +103,13 @@ async function extractAverageColor(url: string) {
   if (!url)
     return
 
+  const resolvedUrl = resolveApiUrl(url)
+
   const img = new Image()
   img.crossOrigin = 'Anonymous'
 
   img.onerror = () => {
-    console.error(`Не удалось загрузить изображение для анализа цвета: ${url}`)
+    console.error(`Не удалось загрузить изображение для анализа цвета: ${resolvedUrl}`)
     cardAccentColor.value = '#A8AAAE'
   }
 
@@ -126,7 +129,7 @@ async function extractAverageColor(url: string) {
       const [r, g, b, a] = pixelData
 
       if (a === 0) {
-        console.warn(`Анализ цвета не удался (прозрачный пиксель), используется цвет по умолчанию. URL: ${url}`)
+        console.warn(`Анализ цвета не удался (прозрачный пиксель), используется цвет по умолчанию. URL: ${resolvedUrl}`)
         cardAccentColor.value = '#A8AAAE'
         return
       }
@@ -134,12 +137,12 @@ async function extractAverageColor(url: string) {
       cardAccentColor.value = `rgb(${r},${g},${b})`
     }
     catch (e) {
-      console.error(`Ошибка при анализе цвета изображения (вероятно, CORS): ${url}`, e)
+      console.error(`Ошибка при анализе цвета изображения (вероятно, CORS): ${resolvedUrl}`, e)
       cardAccentColor.value = '#A8AAAE'
     }
   }
 
-  img.src = url
+  img.src = resolvedUrl
 }
 
 function onClickLocation() {

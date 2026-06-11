@@ -21,7 +21,12 @@ function initializePwaUpdater(pinia: Pinia): void {
           if (r.installing || !navigator.onLine)
             return
 
-          await r.update()
+          try {
+            await r.update()
+          }
+          catch (e) {
+            console.error('Error during Service Worker update:', e)
+          }
         }, intervalMS)
       }
     },
