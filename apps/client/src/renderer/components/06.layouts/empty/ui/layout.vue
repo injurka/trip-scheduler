@@ -18,7 +18,7 @@ import { BackgroundEffects } from '~/components/02.shared/background-effects'
   flex-direction: column;
   flex: 1;
   position: relative;
-  overflow: hidden;
+  overflow: clip;
   margin-top: -56px;
   padding-top: 56px;
 }

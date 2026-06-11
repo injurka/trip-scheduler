@@ -105,6 +105,29 @@ export const postService = {
     return deleted
   },
 
+  async deleteMedia(mediaId: string, userId: string, userRole: string) {
+    const media = await postRepository.getMediaById(mediaId)
+
+    if (!media) {
+      throw createTRPCError('NOT_FOUND', 'Медиа не найдено')
+    }
+
+    if (media.post.userId !== userId && userRole !== 'admin') {
+      throw createTRPCError('FORBIDDEN', 'У вас нет прав на удаление этого медиа.')
+    }
+
+    await postRepository.deleteMedia(mediaId)
+
+    await deleteFileWithVariants({
+      url: media.url,
+      variants: (media.metadata as any)?.variants || {},
+    }).catch(e => console.error(`Failed to delete post media ${media.id} from S3`, e))
+
+    await quotaService.decrementStorageUsage(media.post.userId, media.sizeBytes).catch(console.error)
+
+    return { success: true }
+  },
+
   async toggleSave(postId: string, userId: string) {
     const post = await postRepository.findById(postId)
     if (!post) {

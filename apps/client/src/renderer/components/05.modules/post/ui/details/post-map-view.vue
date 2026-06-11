@@ -10,11 +10,13 @@ interface Props {
   pinned?: boolean
   post: PostDetail
   focusCoords?: [number, number] | null
+  focusBlockId?: string | null
 }
 
 const props = withDefaults(defineProps<Props>(), {
   pinned: false,
   focusCoords: null,
+  focusBlockId: null,
 })
 
 const emit = defineEmits<{
@@ -29,17 +31,47 @@ const initialPos = ref({ x: 0, y: 0 })
 const isMapFullscreen = ref(false)
 const dynamicCenter = ref<[number, number] | null>(null)
 
+const hasActiveFocus = computed(() => {
+  return props.focusBlockId && props.focusBlockId !== 'null' && props.focusBlockId !== 'undefined'
+})
+
 function getColorForIndex(index: number) {
   const colors = ['#7367F0', '#28C76F', '#EA5455', '#FF9F43', '#00CFE8']
   return colors[index % colors.length]
+}
+
+function getPointStyleConfig(index: number, blockId: string) {
+  const baseColor = getColorForIndex(index)
+  if (hasActiveFocus.value) {
+    const isFocused = props.focusBlockId === blockId
+    return {
+      color: baseColor,
+      opacity: isFocused ? 1.0 : 0.35, // Делаем сильно прозрачными (35% видимости)
+      scale: isFocused ? 1.6 : 1.1, // Фокусированная точка крупнее
+    }
+  }
+  return {
+    color: baseColor,
+    opacity: 1.0,
+    scale: 1.3,
+  }
+}
+
+function getRouteColor(index: number, blockId: string) {
+  const baseColor = getColorForIndex(index)
+  if (hasActiveFocus.value) {
+    // 59 в HEX — это примерно 35% непрозрачности (более прозрачно)
+    return props.focusBlockId === blockId ? baseColor : `${baseColor}59`
+  }
+  return baseColor
 }
 
 const mapPoints = computed<MapPoint[]>(() => {
   const points: MapPoint[] = []
   props.post.elements.forEach((element, sIndex) => {
     element.content.forEach((block: any) => {
-      // 1. Обычные локации
       if (block.type === 'location' && block.location && block.location.lat) {
+        const styleConfig = getPointStyleConfig(sIndex, block.id)
         points.push({
           id: block.id,
           type: 'poi',
@@ -49,12 +81,13 @@ const mapPoints = computed<MapPoint[]>(() => {
           isDraggable: false,
           draggable: false,
           style: {
-            color: getColorForIndex(sIndex),
+            color: styleConfig.color,
+            scale: styleConfig.scale,
+            opacity: styleConfig.opacity,
+            zIndex: props.focusBlockId === block.id ? 150 : 20,
           },
         } as unknown as MapPoint)
       }
-      // 2. Изолированные точки из маршрутов (опционально, т.к. MapRoutes сами отрисуют свои точки)
-      // Если мы передаем маршруты в mapRoutes, GeolocationMap отрисует start/end точки маршрута
     })
   })
   return points
@@ -65,13 +98,21 @@ const mapRoutes = computed<MapRoute[]>(() => {
   props.post.elements.forEach((element, sIndex) => {
     element.content.forEach((block: any) => {
       if (block.type === 'route' && block.route && block.route.geometry && block.route.geometry.length > 0) {
-        // Преобразуем точки для корректного отображения (Start, End, Via)
+        const styleConfig = getPointStyleConfig(sIndex, block.id)
+        const routeColor = getRouteColor(sIndex, block.id)
+
         const blockPoints = (block.route.points || []).map((p: any, idx: number) => ({
           id: `${block.id}-pt-${idx}`,
           coordinates: [p.lng, p.lat],
           type: idx === 0 ? 'start' : idx === block.route.points.length - 1 ? 'end' : 'via',
           address: p.label,
           comment: p.label,
+          style: {
+            color: styleConfig.color,
+            scale: styleConfig.scale,
+            opacity: styleConfig.opacity,
+            zIndex: props.focusBlockId === block.id ? 150 : 20,
+          },
         }))
 
         routes.push({
@@ -79,7 +120,7 @@ const mapRoutes = computed<MapRoute[]>(() => {
           title: block.route.title || `${block.route.from || 'Начало'} - ${block.route.to || 'Конец'}`,
           points: blockPoints,
           geometry: block.route.geometry,
-          color: getColorForIndex(sIndex),
+          color: routeColor,
           isVisible: true,
           isDirect: false,
         } as MapRoute)
@@ -184,7 +225,7 @@ onBeforeUnmount(() => {
   <Teleport to="body" :disabled="pinned">
     <Transition name="fade">
       <div
-        v-if="visible || pinned"
+        v-show="visible || pinned"
         class="floating-map-window"
         :class="{ 'is-pinned': pinned, 'is-fullscreen': isMapFullscreen }"
         :style="(pinned || isMapFullscreen) ? {} : { left: `${position.x}px`, top: `${position.y}px` }"

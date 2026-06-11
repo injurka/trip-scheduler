@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import type { MapMarker } from '~/components/01.kit/kit-map'
+import { toLonLat } from 'ol/proj'
 import { computed, ref, watch } from 'vue'
 import { KitBtn } from '~/components/01.kit/kit-btn'
 import { KitDialogWithClose } from '~/components/01.kit/kit-dialog-with-close'
@@ -30,7 +31,6 @@ async function fetchAddress(lon: number, lat: number) {
   try {
     const res = await fetch(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lon}&accept-language=ru`)
     const data = await res.json()
-    // Пытаемся сформировать читаемый адрес (улица + дом) или просто название места
     return data.address?.road
       ? `${data.address.road}${data.address.house_number ? `, ${data.address.house_number}` : ''}`
       : data.name || data.display_name?.split(',')[0] || ''
@@ -40,12 +40,13 @@ async function fetchAddress(lon: number, lat: number) {
   }
 }
 
-async function handleMapClick(coords: [number, number]) {
-  selectedCoords.value = { lat: coords[1], lon: coords[0] }
+async function handleMapClick(rawCoords: [number, number]) {
+  const [lon, lat] = toLonLat(rawCoords) as [number, number]
+  selectedCoords.value = { lat, lon }
   updateMarker()
 
   isLoadingAddress.value = true
-  selectedAddress.value = await fetchAddress(coords[0], coords[1])
+  selectedAddress.value = await fetchAddress(lon, lat)
   isLoadingAddress.value = false
 }
 
@@ -68,7 +69,7 @@ async function handleSearch() {
 
     if (result) {
       selectedCoords.value = { lat: result.lat, lon: result.lon }
-      selectedAddress.value = result.displayName.split(',')[0] // Берем самое главное из названия
+      selectedAddress.value = result.displayName.split(',')[0]
       updateMarker()
       useToast().success(`Найдено: ${selectedAddress.value}`)
     }
@@ -95,7 +96,7 @@ function handleConfirm() {
 const mapCenter = computed((): [number, number] => {
   if (selectedCoords.value)
     return [selectedCoords.value.lon, selectedCoords.value.lat]
-  return [37.6173, 55.7558] // Москва по умолчанию
+  return [37.6173, 55.7558]
 })
 
 watch(() => props.visible, (isOpen) => {
@@ -103,7 +104,6 @@ watch(() => props.visible, (isOpen) => {
     if (props.initialCoords && props.initialCoords.lat !== 0) {
       selectedCoords.value = { lat: props.initialCoords.lat, lon: props.initialCoords.lng }
       updateMarker()
-      // Подгружаем адрес, если мы открыли пикер с уже установленными координатами и без адреса
       fetchAddress(props.initialCoords.lng, props.initialCoords.lat).then((addr) => {
         selectedAddress.value = addr
       })

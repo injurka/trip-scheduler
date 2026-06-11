@@ -16,11 +16,12 @@ import RouteEditor from './blocks/route-editor.vue'
 const props = defineProps<{ stage: TimelineStage & { day?: number }, index: number }>()
 const store = usePostDraftStore()
 
+// VueDraggable мутирует напрямую то что ему передано в v-model,
+// чтобы это корректно работало мы создаем computed, который передает изменения в store.
 const blocksModel = computed({
   get: () => props.stage.blocks,
   set: (val) => {
-    // eslint-disable-next-line vue/no-mutating-props
-    props.stage.blocks = val
+    store.updateStage(props.stage.id, { blocks: val })
   },
 })
 
@@ -110,10 +111,10 @@ function getBlockTitle(type: TimelineBlockType) {
         handle=".block-drag-handle"
         ghost-class="ghost-block"
         group="stage-blocks"
+        @end="store.isDirty = true"
       >
         <template #item="{ element: block }">
           <div class="block-item">
-            <!-- НОВАЯ ШАПКА БЛОКА ДЛЯ УЛУЧШЕНИЯ UI/UX -->
             <div class="block-actions-bar">
               <div class="block-drag-handle" title="Потяните для сортировки">
                 <Icon icon="mdi:drag-horizontal" />
@@ -310,7 +311,6 @@ function getBlockTitle(type: TimelineBlockType) {
   }
 }
 
-/* === ОБНОВЛЕННЫЙ ВНЕШНИЙ ВИД БЛОКОВ === */
 .block-item {
   display: flex;
   flex-direction: column;

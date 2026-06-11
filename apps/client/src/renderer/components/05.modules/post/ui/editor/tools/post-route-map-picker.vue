@@ -51,7 +51,6 @@ const mapCenter = computed<Coordinate>(() => {
 
 function onMapReady(ctrl: any) {
   mapController = ctrl
-  // Подписываемся на перетаскивание маркеров
   ctrl.modifyInteraction.on('modifyend', async (event: any) => {
     const feature = event.features.getArray()[0]
     if (!feature)
@@ -154,13 +153,14 @@ async function buildRoute() {
   }
 }
 
-async function handleMapClick(coords: Coordinate) {
+async function handleMapClick(coords: [number, number]) {
   isLoading.value = true
-  const address = await fetchAddress(coords[0], coords[1])
+  const [lon, lat] = coords
+  const address = await fetchAddress(lon, lat)
 
   mapPoints.value.push({
     id: uuidv4(),
-    coordinates: coords,
+    coordinates: [lon, lat],
     type: 'via',
     address,
     comment: address,
@@ -220,7 +220,6 @@ watch(() => props.visible, (isOpen) => {
     else {
       clearPoints()
     }
-    // Восстанавливаем сайдбар при каждом новом открытии
     isSidebarVisible.value = true
   }
 })
@@ -234,7 +233,6 @@ watch(() => props.visible, (isOpen) => {
     @update:visible="emit('update:visible', $event)"
   >
     <div class="picker-layout" :class="{ 'sidebar-hidden': !isSidebarVisible }">
-      <!-- Сайдбар -->
       <div v-show="isSidebarVisible" class="sidebar">
         <div class="sidebar-header">
           <h3>Точки маршрута</h3>
@@ -249,7 +247,7 @@ watch(() => props.visible, (isOpen) => {
 
         <div class="hints">
           <Icon icon="mdi:gesture-tap" />
-          <span>Кликните на карту, чтобы добавить точку, или перетяните существующую. Встроенный поиск на карте поможет сориентироваться.</span>
+          <span>Кликните на карту, чтобы добавить точку, или перетяните существующую.</span>
         </div>
 
         <div class="points-list">
@@ -278,7 +276,6 @@ watch(() => props.visible, (isOpen) => {
         </div>
       </div>
 
-      <!-- Карта -->
       <div class="map-area">
         <button
           v-if="!isSidebarVisible"

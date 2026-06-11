@@ -6,9 +6,12 @@ import { KitImage } from '~/components/01.kit/kit-image'
 
 interface IProps {
   post: PostDetail
+  isWide?: boolean
 }
 
-const props = defineProps<IProps>()
+const props = withDefaults(defineProps<IProps>(), {
+  isWide: false,
+})
 
 const formattedStartDate = computed(() => {
   if (!props.post.startDate)
@@ -33,7 +36,7 @@ const formattedDuration = computed(() => {
       <KitImage :src="post.media?.[0]?.url" object-fit="cover" />
     </div>
 
-    <div class="hero-content">
+    <div class="hero-content" :class="{ 'is-wide': isWide }">
       <div class="tags">
         <span v-if="post.city" class="tag-geo"><Icon icon="mdi:map-marker" /> {{ post.city }}</span>
       </div>
@@ -105,6 +108,14 @@ const formattedDuration = computed(() => {
   color: white;
   max-width: 800px;
   margin: 0 auto;
+  transition:
+    max-width 0.4s cubic-bezier(0.2, 0, 0.2, 1),
+    padding 0.4s ease;
+
+  &.is-wide {
+    max-width: 2000px;
+    padding: 24px 40px;
+  }
 }
 
 .tags {

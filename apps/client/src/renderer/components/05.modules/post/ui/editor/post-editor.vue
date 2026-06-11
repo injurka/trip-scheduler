@@ -4,7 +4,7 @@ import { parseDate } from '@internationalized/date'
 import { onClickOutside } from '@vueuse/core'
 import { storeToRefs } from 'pinia'
 import { computed, nextTick, onMounted, ref, watch } from 'vue'
-import { useRoute, useRouter } from 'vue-router'
+import { onBeforeRouteLeave, useRoute, useRouter } from 'vue-router'
 import draggable from 'vuedraggable'
 import { KitBtn } from '~/components/01.kit/kit-btn'
 import { KitCalendar } from '~/components/01.kit/kit-calendar'
@@ -14,7 +14,9 @@ import { KitInput } from '~/components/01.kit/kit-input'
 import { KitSelectWithSearch } from '~/components/01.kit/kit-select-with-search'
 import { NavigationBack } from '~/components/02.shared/navigation-back'
 import { useRequest } from '~/plugins/request'
+import { useConfirm } from '~/shared/composables/use-confirm'
 import { useToast } from '~/shared/composables/use-toast'
+import { AppRoutePaths } from '~/shared/constants/routes'
 import { MOCK_COUNTRY_DATA } from '../../data/countries'
 import { usePostDraftStore } from '../../store/post-draft.store'
 import { EPostRequestKeys, usePostStore } from '../../store/post.store'
@@ -23,19 +25,23 @@ import StageEditor from './stage-editor.vue'
 import MediaLibraryPicker from './tools/media-library-picker.vue'
 import PostMapPicker from './tools/post-map-picker.vue'
 
+const getDraftKey = (id?: string) => id ? `trip_scheduler_post_draft_${id}` : 'trip_scheduler_post_draft_new'
+
+const store = usePostDraftStore()
+const postStore = usePostStore()
 const router = useRouter()
 const route = useRoute()
 const toast = useToast()
 const confirm = useConfirm()
-const draftStore = usePostDraftStore()
-const postStore = usePostStore()
 
-const { post } = storeToRefs(draftStore)
+const { post, isDirty } = storeToRefs(store)
 const isGenerating = computed(() => postStore.isGenerating)
 const isPreviewMode = ref(false)
 const isPublishing = ref(false)
 const isEditMode = ref(false)
 const isLoading = ref(true)
+
+let isLeavingIntentionally = false
 
 const aiPrompt = ref('')
 
@@ -50,6 +56,53 @@ const suggestedTags = ref<string[]>([])
 const tagsWrapperRef = ref<HTMLElement | null>(null)
 const isTagInputFocused = ref(false)
 
+const stagesModel = computed({
+  get: () => post.value.stages || [],
+  set: val => store.reorderStages(val),
+})
+
+// Защита от случайного закрытия вкладки
+onBeforeRouteLeave(async (to, from, next) => {
+  if (isLeavingIntentionally || isPublishing.value || !isDirty.value) {
+    next()
+    return
+  }
+
+  const isConfirmed = await confirm({
+    title: 'Уйти без сохранения?',
+    description: 'У вас есть несохраненные изменения, которые будут безвозвратно потеряны.',
+    type: 'danger',
+    confirmText: 'Покинуть',
+  })
+
+  if (isConfirmed) {
+    isLeavingIntentionally = true
+    next()
+  }
+  else {
+    next(false)
+  }
+})
+
+async function handleCancelBtn() {
+  if (isDirty.value) {
+    const isConfirmed = await confirm({
+      title: 'Отменить редактирование?',
+      description: 'Все изменения будут удалены безвозвратно.',
+      type: 'danger',
+      confirmText: 'Удалить',
+    })
+    if (!isConfirmed)
+      return
+
+    localStorage.removeItem(getDraftKey(route.params.id as string))
+  }
+
+  isLeavingIntentionally = true
+  store.isDirty = false
+  router.back()
+}
+
 const calendarDateModel = computed({
   get: () => {
     if (!post.value?.startDate)
@@ -62,8 +115,10 @@ const calendarDateModel = computed({
     }
   },
   set: (val) => {
-    if (post.value)
+    if (post.value) {
       post.value.startDate = val ? val.toString() : ''
+      store.isDirty = true
+    }
   },
 })
 
@@ -72,20 +127,18 @@ const formattedStartDate = computed(() => {
     return ''
 
   const d = new Date(post.value.startDate)
-
   return d.toLocaleDateString('ru-RU', { day: 'numeric', month: 'short', year: 'numeric' })
 })
 
 function openLibraryManage() {
   isMediaLibraryOpen.value = true
 }
-function handleMapConfirm(coords: {
-  lat: number
-  lng: number
-}) {
+
+function handleMapConfirm(coords: { lat: number, lng: number }) {
   if (post.value) {
     post.value.latitude = coords.lat
     post.value.longitude = coords.lng
+    store.isDirty = true
   }
 }
 
@@ -114,7 +167,7 @@ function addTag(val?: string) {
   if (tagToAdd && post.value) {
     if (post.value.tags.includes(tagToAdd))
       toast.warn(`Тег "${tagToAdd}" уже добавлен`)
-    else draftStore.addTag(tagToAdd)
+    else store.addTag(tagToAdd)
 
     tempTag.value = ''
     suggestedTags.value = []
@@ -143,6 +196,8 @@ function updateDuration() {
       post.value.statsDetail.duration = 0
     else
       post.value.statsDetail.duration = durationType.value === 'days' ? durationValue.value * 24 : durationValue.value
+
+    store.isDirty = true
   })
 }
 
@@ -156,14 +211,13 @@ async function handleGenerate() {
 
   const isConfirmed = await confirm({
     title: 'Сгенерировать пост?',
-    description: 'Внимание: все текущие заполненные поля (заголовок, описание, теги) и таймлайны будут сброшены и заменены результатом генерации ИИ. Вы уверены?',
+    description: 'Внимание: все текущие заполненные поля и таймлайны будут сброшены и заменены результатом генерации ИИ. Вы уверены?',
     confirmText: 'Да, сгенерировать',
   })
 
   if (!isConfirmed)
     return
-
-  await draftStore.generateWithAi(aiPrompt.value)
+  await store.generateWithAi(aiPrompt.value)
   aiPrompt.value = ''
 }
 
@@ -181,8 +235,11 @@ async function handlePublish() {
 
   isPublishing.value = true
   try {
-    const postId = await draftStore.savePost(!isEditMode.value, 'completed')
+    const postId = await store.savePost(!isEditMode.value, 'completed')
     toast.success(isEditMode.value ? 'Пост обновлен!' : 'Пост успешно опубликован!')
+
+    store.isDirty = false
+    isLeavingIntentionally = true
 
     if (postId)
       router.push(AppRoutePaths.Post.Details(postId))
@@ -202,33 +259,87 @@ const previewData = computed(() => ({
   stats: post.value?.stats || { likes: 0, saves: 0, isLiked: false, isSaved: false },
 }))
 
-async function loadPostForEditor() {
+onMounted(async () => {
   isLoading.value = true
   const id = route.params.id as string
+  const draftKey = getDraftKey(id)
 
   if (id) {
     isEditMode.value = true
-    const fullPost = await postStore.fetchPostById(id)
-    if (fullPost) {
-      draftStore.initDraft(fullPost)
+    const draftStr = localStorage.getItem(draftKey)
+
+    if (draftStr) {
+      try {
+        const parsed = JSON.parse(draftStr)
+        store.initDraft(parsed.post, false)
+        store.createdServerId = parsed.createdServerId
+      }
+      catch {
+        const fullPost = await postStore.fetchPostById(id)
+        if (fullPost) {
+          store.initDraft(fullPost, false)
+        }
+        else {
+          toast.error('Пост не найден')
+          router.replace(AppRoutePaths.Post.List)
+        }
+      }
     }
     else {
-      toast.error('Пост для редактирования не найден')
-      router.replace(AppRoutePaths.Post.List)
+      const fullPost = await postStore.fetchPostById(id)
+      if (fullPost) {
+        store.initDraft(fullPost, false)
+      }
+      else {
+        toast.error('Пост не найден')
+        router.replace(AppRoutePaths.Post.List)
+      }
     }
   }
   else {
     isEditMode.value = false
-    draftStore.initDraft()
+    const draftStr = localStorage.getItem(draftKey)
+    if (draftStr) {
+      try {
+        const parsed = JSON.parse(draftStr)
+        store.initDraft(parsed.post, true)
+        store.createdServerId = parsed.createdServerId
+      }
+      catch {
+        store.initDraft(undefined, true)
+      }
+    }
+    else {
+      store.initDraft(undefined, true)
+    }
   }
   isLoading.value = false
-}
 
-onMounted(() => loadPostForEditor())
+  store.$subscribe((mutation, state) => {
+    if (state.isDirty && !isPublishing.value) {
+      localStorage.setItem(draftKey, JSON.stringify({
+        post: state.post,
+        createdServerId: state.createdServerId,
+      }))
+    }
+  })
+})
+
+watch(() => [post.value?.title, post.value?.insight, post.value?.description], () => {
+  store.isDirty = true
+}, { deep: true })
 </script>
 
 <template>
   <div class="editor-page">
+    <div v-if="isPublishing" class="fullscreen-loader-overlay">
+      <div class="overlay-bg" />
+      <div class="overlay-content">
+        <Icon icon="mdi:loading" class="spinner" />
+        <span>{{ isEditMode ? 'Сохранение изменений...' : 'Публикация поста...' }}</span>
+      </div>
+    </div>
+
     <NavigationBack />
 
     <header class="editor-topbar">
@@ -297,7 +408,7 @@ onMounted(() => loadPostForEditor())
                   :items="countryOptions"
                   placeholder="Страна"
                   size="sm"
-                  @update:model-value="val => { if (post) post.country = val as string }"
+                  @update:model-value="val => { if (post) { post.country = val as string; store.isDirty = true; } }"
                 >
                   <template #item="{ item }">
                     <img v-if="(item as any).flag" :src="(item as any).flag" class="option-flag" alt="">
@@ -350,7 +461,7 @@ onMounted(() => loadPostForEditor())
             <div ref="tagsWrapperRef" class="tags-input-container">
               <div class="tags-input-wrapper">
                 <div v-for="tag in post.tags" :key="tag" class="tag-chip">
-                  #{{ tag }} <span class="remove" @click="draftStore.removeTag(tag)">×</span>
+                  #{{ tag }} <span class="remove" @click="store.removeTag(tag)">×</span>
                 </div>
                 <input v-model="tempTag" placeholder="+ Добавить" class="tag-input" @keydown.enter="addTag()" @focus="isTagInputFocused = true; fetchTags('')">
               </div>
@@ -373,18 +484,19 @@ onMounted(() => loadPostForEditor())
         </h3>
 
         <draggable
-          :list="post.stages"
+          v-model="stagesModel"
           item-key="id"
           handle=".drag-handle"
           ghost-class="ghost-stage"
           class="stages-list"
+          @end="store.isDirty = true"
         >
           <template #item="{ element, index }">
             <StageEditor :stage="element" :index="index" />
           </template>
         </draggable>
 
-        <KitBtn variant="tonal" icon="mdi:plus-circle-outline" class="add-stage-btn" @click="draftStore.addStage">
+        <KitBtn variant="tonal" icon="mdi:plus-circle-outline" class="add-stage-btn" @click="store.addStage">
           Добавить этап
         </KitBtn>
       </section>
@@ -402,26 +514,16 @@ onMounted(() => loadPostForEditor())
         <p class="ai-hint">
           Опишите ваше путешествие текстом, а мы автоматически соберем структуру, таймлайны и маршруты для поста.
         </p>
-        <KitInput
-          v-model="aiPrompt"
-          type="textarea"
-          :rows="4"
-          :disabled="isGenerating"
-          placeholder="Например: Вчера мы прилетели в Париж. Утром пошли к Эйфелевой башне, потом обедали в кафе Le Marly, а вечером гуляли по Монмартру..."
-        />
-        <KitBtn
-          icon="mdi:creation"
-          variant="subtle"
-          color="primary"
-          :loading="isGenerating"
-          class="ai-btn"
-          @click="handleGenerate"
-        >
+        <KitInput v-model="aiPrompt" type="textarea" :rows="4" :disabled="isGenerating" placeholder="Например: Вчера мы прилетели в Париж. Утром пошли к Эйфелевой башне..." />
+        <KitBtn icon="mdi:creation" variant="subtle" color="primary" :loading="isGenerating" class="ai-btn" @click="handleGenerate">
           Сгенерировать пост
         </KitBtn>
       </section>
 
       <div class="editor-submit">
+        <KitBtn variant="text" color="secondary" style="margin-right: auto;" @click="handleCancelBtn">
+          Отмена
+        </KitBtn>
         <KitBtn icon="mdi:check" :loading="isPublishing" variant="subtle" @click="handlePublish">
           {{ isEditMode ? 'Сохранить изменения' : 'Опубликовать' }}
         </KitBtn>
@@ -434,6 +536,40 @@ onMounted(() => loadPostForEditor())
 </template>
 
 <style scoped lang="scss">
+.fullscreen-loader-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 9999;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  .overlay-bg {
+    position: absolute;
+    inset: 0;
+    background: var(--bg-primary-color);
+    opacity: 0.8;
+  }
+
+  .overlay-content {
+    position: relative;
+    z-index: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 16px;
+    color: var(--fg-primary-color);
+    font-weight: 500;
+    font-size: 1.1rem;
+
+    .spinner {
+      font-size: 3rem;
+      color: var(--fg-accent-color);
+      animation: spin 1s linear infinite;
+    }
+  }
+}
+
 .loading-state {
   padding: 40px;
   text-align: center;
@@ -462,7 +598,7 @@ onMounted(() => loadPostForEditor())
 .editor-submit {
   display: flex;
   align-items: center;
-  justify-content: center;
+  justify-content: flex-end;
   margin-top: 24px;
   padding-bottom: 24px;
 }
@@ -586,6 +722,15 @@ onMounted(() => loadPostForEditor())
 }
 
 @keyframes ai-spin {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@keyframes spin {
   from {
     transform: rotate(0deg);
   }

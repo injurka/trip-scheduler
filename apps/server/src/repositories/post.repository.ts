@@ -194,6 +194,21 @@ export const postRepository = {
     })
   },
 
+  async getMediaById(id: string) {
+    return measureDbQuery('postMedia', 'select', async () => {
+      return await db.query.postMedia.findFirst({
+        where: eq(postMedia.id, id),
+        with: { post: true },
+      })
+    })
+  },
+
+  async deleteMedia(id: string) {
+    return measureDbQuery('postMedia', 'delete', async () => {
+      await db.delete(postMedia).where(eq(postMedia.id, id))
+    })
+  },
+
   async update(id: string, updateInput: z.infer<typeof UpdatePostInputSchema>['data']) {
     return measureDbQuery('posts', 'update', async () => {
       return await db.transaction(async (tx) => {

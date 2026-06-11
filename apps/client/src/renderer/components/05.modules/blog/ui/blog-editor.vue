@@ -4,6 +4,7 @@ import type { CreateBlogPostInput } from '~/shared/types/models/blog'
 import { Icon } from '@iconify/vue'
 import { getLocalTimeZone, parseDate, Time, today } from '@internationalized/date'
 import { v4 as uuidv4 } from 'uuid'
+import { computed, nextTick, ref, shallowRef, watch } from 'vue'
 import { KitBtn } from '~/components/01.kit/kit-btn'
 import { KitCheckbox } from '~/components/01.kit/kit-checkbox'
 import { KitDivider } from '~/components/01.kit/kit-divider'
@@ -13,6 +14,7 @@ import { KitInput } from '~/components/01.kit/kit-input'
 import { KitTimeField } from '~/components/01.kit/kit-time-field'
 import { KitViewSwitcher } from '~/components/01.kit/kit-view-switcher'
 import { CalendarPopover } from '~/components/02.shared/calendar-popover'
+import { useToast } from '~/shared/composables/use-toast'
 import { formatDate } from '~/shared/lib/date-time'
 import { useBlogStore } from '../store/blog.store'
 import BlogMediaManager from './blog-media-manager.vue'
@@ -143,7 +145,7 @@ const viewMode = ref<'edit' | 'preview'>('edit')
 const isMediaManagerOpen = ref(false)
 
 const viewItems = [
-  { id: 'edit', label: 'Редактор', icon: 'mdi:pencil' },
+  { id: 'edit', label: 'Редактировать', icon: 'mdi:pencil' },
   { id: 'preview', label: 'Предпросмотр', icon: 'mdi:eye' },
 ]
 
@@ -178,6 +180,14 @@ function removeCover() {
 
 <template>
   <div class="blog-editor-layout">
+    <div v-if="isLoading" class="fullscreen-loader-overlay">
+      <div class="overlay-bg" />
+      <div class="overlay-content">
+        <Icon icon="mdi:loading" class="spinner" />
+        <span>{{ isEditing ? 'Сохранение изменений...' : 'Публикация статьи...' }}</span>
+      </div>
+    </div>
+
     <div class="editor-toolbar">
       <div class="left-controls">
         <KitViewSwitcher v-model="viewMode" :items="viewItems" />
@@ -322,6 +332,49 @@ function removeCover() {
 </template>
 
 <style scoped lang="scss">
+.fullscreen-loader-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 9999;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  .overlay-bg {
+    position: absolute;
+    inset: 0;
+    background: var(--bg-primary-color);
+    opacity: 0.8;
+  }
+
+  .overlay-content {
+    position: relative;
+    z-index: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 16px;
+    color: var(--fg-primary-color);
+    font-weight: 500;
+    font-size: 1.1rem;
+
+    .spinner {
+      font-size: 3rem;
+      color: var(--fg-accent-color);
+      animation: spin 1s linear infinite;
+    }
+  }
+}
+
+@keyframes spin {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+
 .blog-editor-layout {
   display: flex;
   flex-direction: column;

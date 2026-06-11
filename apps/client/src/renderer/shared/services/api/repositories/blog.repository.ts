@@ -26,4 +26,8 @@ export class BlogRepository implements IBlogRepository {
   async delete(id: string) {
     return await trpc.blog.delete.mutate({ id })
   }
+
+  async deleteImage(params: { url: string }) {
+    return await trpc.blog.deleteImage.mutate(params)
+  }
 }

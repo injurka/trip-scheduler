@@ -31,6 +31,7 @@ function handleToggleSave(id: string) {
 }
 
 function handleEdit(id: string) {
+  localStorage.removeItem(`trip_scheduler_post_draft_${id}`)
   router.push(AppRoutePaths.Post.Edit(id))
 }
 

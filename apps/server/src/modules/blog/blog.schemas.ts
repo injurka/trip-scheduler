@@ -35,6 +35,10 @@ export const DeleteBlogInputSchema = z.object({
   id: z.string().uuid(),
 })
 
+export const DeleteBlogImageInputSchema = z.object({
+  url: z.string(),
+})
+
 export const GetBlogByIdInputSchema = z.object({
   id: z.string().uuid(),
 })

@@ -2,6 +2,7 @@ import type { z } from 'zod'
 import type { CreateBlogInputSchema, UpdateBlogInputSchema } from './blog.schemas'
 import { createTRPCError } from '~/lib/trpc'
 import { blogRepository } from '~/repositories/blog.repository'
+import { s3Service } from '~/services/s3.service'
 
 export const blogService = {
   async getList(limit: number, cursor?: string) {
@@ -65,5 +66,22 @@ export const blogService = {
     }
 
     await blogRepository.delete(id)
+  },
+
+  async deleteImage(url: string, userRole: string) {
+    if (userRole !== 'admin') {
+      throw createTRPCError('FORBIDDEN', 'Только администраторы могут удалять изображения блога.')
+    }
+    if (!url.startsWith('blogs/')) {
+      throw createTRPCError('BAD_REQUEST', 'Неверный путь файла')
+    }
+
+    await s3Service.deleteFile(url).catch(e => console.error('Failed to delete blog image', e))
+
+    const base = url.replace(/\.[^/.]+$/, '')
+    const ext = url.match(/\.[^/.]+$/)?.[0] || '.webp'
+    await s3Service.deleteFile(`${base}-small${ext}`).catch(() => { })
+    await s3Service.deleteFile(`${base}-medium${ext}`).catch(() => { })
+    await s3Service.deleteFile(`${base}-large${ext}`).catch(() => { })
   },
 }

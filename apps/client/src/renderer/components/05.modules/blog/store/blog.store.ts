@@ -106,11 +106,15 @@ export const useBlogStore = defineStore('blog', {
     },
 
     async deleteImage(imageId: string) {
+      const img = this.postImages.find(i => i.id === imageId)
+      if (!img)
+        return
+
       await useRequest({
         key: EBlogKeys.DELETE_IMAGE,
-        fn: db => db.files.deleteFile(imageId),
+        fn: db => db.blog.deleteImage({ url: img.url }),
         onSuccess: () => {
-          this.postImages = this.postImages.filter(img => img.id !== imageId)
+          this.postImages = this.postImages.filter(i => i.id !== imageId)
         },
       })
     },

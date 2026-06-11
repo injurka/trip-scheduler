@@ -4,6 +4,7 @@ import { postGenerationService } from '~/services/llm/post-generation.service'
 import {
   AiGeneratedPostOutputSchema,
   CreatePostInputSchema,
+  DeletePostMediaInputSchema,
   GeneratePostInputSchema,
   GetPostByIdInputSchema,
   ListPostsInputSchema,
@@ -92,5 +93,14 @@ export const postProcedures = {
     .output(AiGeneratedPostOutputSchema)
     .mutation(async ({ input, ctx }) => {
       return postGenerationService.generateFromText(ctx.user.id, input.text)
+    }),
+
+  deleteMedia: protectedProcedure
+    .meta({ openapi: { method: 'DELETE', path: '/posts/media/{id}', tags: ['Posts'], summary: 'Удалить медиа поста' } })
+    .input(DeletePostMediaInputSchema)
+    .output(z.object({ success: z.boolean() }))
+    .mutation(async ({ input, ctx }) => {
+      await postService.deleteMedia(input.id, ctx.user.id, ctx.user.role)
+      return { success: true }
     }),
 }

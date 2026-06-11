@@ -4,6 +4,7 @@ import {
   BlogListItemSchema,
   BlogSchema,
   CreateBlogInputSchema,
+  DeleteBlogImageInputSchema,
   DeleteBlogInputSchema,
   GetBlogByIdInputSchema,
   GetBlogBySlugInputSchema,
@@ -104,5 +105,21 @@ export const blogProcedures = {
     .output(z.void())
     .mutation(async ({ input, ctx }) => {
       return blogService.delete(input.id, ctx.user.role)
+    }),
+
+  deleteImage: protectedProcedure
+    .meta({
+      openapi: {
+        method: 'DELETE',
+        path: '/blog/image',
+        tags: ['Blog'],
+        summary: 'Удалить изображение',
+      },
+    })
+    .input(DeleteBlogImageInputSchema)
+    .output(z.object({ success: z.boolean() }))
+    .mutation(async ({ input, ctx }) => {
+      await blogService.deleteImage(input.url, ctx.user.role)
+      return { success: true }
     }),
 }

@@ -1,10 +1,10 @@
 <script setup lang="ts">
 import type { KitDropdownItem } from '~/components/01.kit/kit-dropdown'
-import type { PostDetail } from '~/shared/types/models/post'
+import type { LocationBlock, PostDetail, RouteBlock } from '~/shared/types/models/post'
 import { Icon } from '@iconify/vue'
 import { useResizeObserver } from '@vueuse/core'
 import { storeToRefs } from 'pinia'
-import { computed, onMounted, ref } from 'vue'
+import { computed, onMounted, ref, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import { KitBtn } from '~/components/01.kit/kit-btn'
 import { KitDivider } from '~/components/01.kit/kit-divider'
@@ -12,6 +12,7 @@ import { KitDropdown } from '~/components/01.kit/kit-dropdown'
 import { NavigationBack } from '~/components/02.shared/navigation-back'
 import { TripComments } from '~/components/04.features/trip-info/trip-comments'
 import { useToast } from '~/shared/composables/use-toast'
+import { AppRoutePaths } from '~/shared/constants/routes'
 import { CommentParentType } from '~/shared/types/models/comment'
 import { usePostStore } from '../../store/post.store'
 import PostHero from './post-hero.vue'
@@ -19,6 +20,10 @@ import PostMapView from './post-map-view.vue'
 import TimelineStage from './timeline-stage.vue'
 
 const props = defineProps<{ post: PostDetail, isPreviewMode?: boolean }>()
+
+const emit = defineEmits<{
+  (e: 'mapPinnedChange', pinned: boolean): void
+}>()
 
 const router = useRouter()
 const store = usePostStore()
@@ -33,6 +38,11 @@ const activeStageId = ref(props.post.stages?.[0]?.id)
 const isMapVisible = ref(false)
 const isMapPinned = ref(false)
 const mapFocusCoords = ref<[number, number] | null>(null)
+const mapFocusBlockId = ref<string | null>(null)
+
+watch(isMapPinned, (val) => {
+  emit('mapPinnedChange', val)
+})
 
 const menuItems: KitDropdownItem[] = [
   { label: 'Редактировать', value: 'edit', icon: 'mdi:pencil' },
@@ -65,6 +75,7 @@ onMounted(() => {
 
 async function handleMenuAction(action: string) {
   if (action === 'edit') {
+    localStorage.removeItem(`trip_scheduler_post_draft_${props.post.id}`)
     router.push(AppRoutePaths.Post.Edit(props.post.id))
   }
   else if (action === 'delete') {
@@ -96,19 +107,32 @@ function pinMap() {
   isMapPinned.value = true
 }
 
-function handleFocusLocation(coords: [number, number]) {
-  isMapVisible.value = true
-  mapFocusCoords.value = coords
+function handleFocusBlock(block: LocationBlock | RouteBlock) {
+  // Тоггл: если кликнули по тому же блоку, сбрасываем фокус
+  if (mapFocusBlockId.value === block.id) {
+    mapFocusBlockId.value = null
+    mapFocusCoords.value = null
+  }
+  else {
+    isMapVisible.value = true
+    mapFocusBlockId.value = block.id
+
+    if (block.type === 'location' && block.coords) {
+      mapFocusCoords.value = [block.coords.lng, block.coords.lat]
+    }
+    else if (block.type === 'route' && (block as any).geometry && (block as any).geometry.length > 0) {
+      mapFocusCoords.value = (block as any).geometry[0]
+    }
+  }
 }
 </script>
 
 <template>
-  <div class="post-details-page">
+  <div class="post-details-page" :class="{ 'is-wide-mode': isMapPinned }">
     <div v-if="!isPreviewMode" class="nav-overlay">
       <NavigationBack />
     </div>
 
-    <!-- ДОБАВЛЕНА ПРОВЕРКА isOwner НА ОВЕРЛЕЙ -->
     <div v-if="!isPreviewMode && isOwner" class="actions-overlay">
       <KitDropdown
         :items="menuItems"
@@ -121,7 +145,7 @@ function handleFocusLocation(coords: [number, number]) {
       </KitDropdown>
     </div>
 
-    <PostHero :post="post" />
+    <PostHero :post="post" :is-wide="isMapPinned" />
 
     <div class="layout-wrapper" :class="{ 'has-sidebar': isMapPinned }">
       <div class="main-column">
@@ -163,7 +187,9 @@ function handleFocusLocation(coords: [number, number]) {
               <TimelineStage
                 :stage="stage"
                 :is-last="index === post.stages.length - 1"
-                @focus-location="handleFocusLocation"
+                :index="index"
+                :focused-block-id="mapFocusBlockId"
+                @focus-block="handleFocusBlock"
               />
             </div>
 
@@ -180,6 +206,7 @@ function handleFocusLocation(coords: [number, number]) {
           v-model:pinned="isMapPinned"
           :post="post"
           :focus-coords="mapFocusCoords"
+          :focus-block-id="mapFocusBlockId"
         />
       </div>
     </div>
@@ -216,6 +243,7 @@ function handleFocusLocation(coords: [number, number]) {
   background-color: var(--bg-primary-color);
   min-height: 100vh;
   padding-bottom: 24px;
+  transition: all 0.3s ease;
 }
 .nav-overlay {
   position: absolute;
@@ -248,7 +276,9 @@ function handleFocusLocation(coords: [number, number]) {
   max-width: 800px;
   margin: 0 auto;
   padding: 0 8px;
-  transition: max-width 0.3s ease;
+  transition:
+    max-width 0.4s cubic-bezier(0.2, 0, 0.2, 1),
+    padding 0.4s ease;
 
   @include media-down(sm) {
     padding: 0 4px;
@@ -256,11 +286,12 @@ function handleFocusLocation(coords: [number, number]) {
   }
 
   &.has-sidebar {
-    max-width: 1240px;
+    max-width: 2400px;
     display: grid;
-    grid-template-columns: 1fr 400px;
-    gap: 32px;
+    grid-template-columns: 1fr minmax(450px, 50vw);
+    gap: 60px;
     align-items: start;
+    padding: 0 40px;
   }
 }
 
@@ -275,8 +306,8 @@ function handleFocusLocation(coords: [number, number]) {
   &.is-active {
     display: block;
     position: sticky;
-    top: 24px;
-    height: calc(100vh - 48px);
+    top: 80px; /* Отступ = Высота хедера + gap */
+    height: calc(100vh - 104px);
     align-self: start;
     z-index: 10;
   }
@@ -286,6 +317,14 @@ function handleFocusLocation(coords: [number, number]) {
   max-width: 800px;
   margin: 0 auto;
   padding: 0 8px;
+  transition:
+    max-width 0.4s cubic-bezier(0.2, 0, 0.2, 1),
+    padding 0.4s ease;
+
+  .is-wide-mode & {
+    max-width: 2400px;
+    padding: 0 40px;
+  }
 }
 
 .sticky-nav {

@@ -1,4 +1,3 @@
-// /apps/client/src/renderer/components/05.modules/post/store/post-draft.store.ts
 import type {
   CreatePostInput,
   PostDetail,
@@ -11,6 +10,7 @@ import type {
 import type { TripImage } from '~/shared/types/models/trip'
 import { defineStore } from 'pinia'
 import { v4 as uuidv4 } from 'uuid'
+import { toRaw } from 'vue'
 import { useRequest } from '~/plugins/request'
 import { useToast } from '~/shared/composables/use-toast'
 import { EPostRequestKeys } from './post.store'
@@ -75,15 +75,60 @@ function isClientMedia(media: PostMedia | ClientPostMedia): media is ClientPostM
   return 'file' in media && media.file instanceof File
 }
 
+/**
+ * Локальное сжатие изображений для предпросмотра без зависания UI
+ */
+function generateThumbnail(file: File, maxWidth = 800): Promise<string> {
+  return new Promise((resolve) => {
+    const url = URL.createObjectURL(file)
+    const img = new Image()
+    img.onload = () => {
+      let width = img.width
+      let height = img.height
+
+      if (width > maxWidth) {
+        height = Math.round((height * maxWidth) / width)
+        width = maxWidth
+      }
+
+      const canvas = document.createElement('canvas')
+      canvas.width = width
+      canvas.height = height
+      const ctx = canvas.getContext('2d')
+      if (ctx) {
+        ctx.drawImage(img, 0, 0, width, height)
+        canvas.toBlob((blob) => {
+          if (blob) {
+            resolve(URL.createObjectURL(blob))
+          }
+          else {
+            resolve(url)
+          }
+          canvas.width = 0
+          canvas.height = 0
+        }, 'image/jpeg', 0.8)
+      }
+      else {
+        resolve(url)
+      }
+      URL.revokeObjectURL(url)
+    }
+    img.onerror = () => resolve(url)
+    img.src = url
+  })
+}
+
 export const usePostDraftStore = defineStore('post-draft', {
   state: () => ({
     post: defaultPostState() as PostDetail,
     isDirty: false,
     isSaving: false,
+    createdServerId: null as string | null,
+    isNewPost: true,
   }),
 
   actions: {
-    initDraft(existingPost?: PostDetail) {
+    initDraft(existingPost?: PostDetail, isNew?: boolean) {
       if (existingPost) {
         this.post = JSON.parse(JSON.stringify(existingPost))
         if (!this.post.statsDetail) {
@@ -96,7 +141,104 @@ export const usePostDraftStore = defineStore('post-draft', {
       else {
         this.post = defaultPostState()
       }
+
+      this.isNewPost = isNew !== undefined ? isNew : !existingPost
+      this.createdServerId = this.isNewPost ? null : this.post.id
       this.isDirty = false
+    },
+
+    async ensurePostCreated() {
+      if (this.createdServerId)
+        return this.createdServerId
+      if (!this.isNewPost)
+        return this.post.id
+
+      const payload: CreatePostInput = {
+        title: this.post.title || 'Новый маршрут',
+        insight: this.post.insight || undefined,
+        description: this.post.description || undefined,
+        country: this.post.country || undefined,
+        startDate: this.post.startDate || undefined,
+        latitude: this.post.latitude ?? undefined,
+        longitude: this.post.longitude ?? undefined,
+        tags: toRaw(this.post.tags) || [],
+        status: 'draft',
+        statsDetail: {
+          duration: this.post.statsDetail?.duration || 0,
+        },
+      }
+
+      let newId: string | null = null
+      await useRequest<{ id: string }>({
+        key: EPostRequestKeys.CREATE,
+        fn: db => db.posts.create(payload),
+        onSuccess: (data) => {
+          if (data) {
+            newId = data.id
+            this.createdServerId = data.id
+            this.post.id = data.id
+          }
+        },
+      })
+
+      return newId
+    },
+
+    async uploadSingleMedia(file: File): Promise<PostMedia | null> {
+      const postId = await this.ensurePostCreated()
+      if (!postId)
+        return null
+
+      let result: PostMedia | null = null
+
+      await useRequest<TripImage>({
+        key: `post:upload-instant:${uuidv4()}`,
+        fn: db => db.files.uploadFile(file, postId, 'post', 'content'),
+        onSuccess: (uploaded) => {
+          if (uploaded) {
+            const newMedia: PostMedia = {
+              id: uploaded.id,
+              type: 'image',
+              url: uploaded.url,
+              metadata: uploaded.metadata,
+              originalName: uploaded.originalName,
+              marks: [],
+            }
+            this.post.media.push(newMedia)
+            this.isDirty = true
+            result = newMedia
+          }
+        },
+        onError: ({ error }) => {
+          useToast().error(`Ошибка загрузки ${file.name}: ${error.customMessage}`)
+        },
+      })
+
+      return result
+    },
+
+    removeGlobalMedia(mediaId: string) {
+      const mediaToRemove = this.post.media.find(m => m.id === mediaId)
+      if (mediaToRemove && mediaToRemove.url.startsWith('blob:')) {
+        URL.revokeObjectURL(mediaToRemove.url)
+      }
+
+      this.post.media = this.post.media.filter(m => m.id !== mediaId)
+      if (this.post.stages) {
+        this.post.stages.forEach((stage) => {
+          stage.blocks.forEach((block) => {
+            if (block.type === 'gallery') {
+              block.images = block.images.filter(img => img.id !== mediaId)
+            }
+          })
+        })
+      }
+      this.isDirty = true
+
+      useRequest({
+        key: `post:delete-media:${mediaId}`,
+        fn: db => db.posts.deleteMedia({ id: mediaId }),
+      })
     },
 
     applyAiGeneratedData(data: AiGeneratedPostData) {
@@ -109,21 +251,18 @@ export const usePostDraftStore = defineStore('post-draft', {
       if (data.country)
         this.post.country = data.country
 
-      if (data.tags) {
+      if (data.tags)
         data.tags.forEach(tag => this.addTag(tag))
-      }
 
       if (data.stages && data.stages.length > 0) {
         this.post.stages = data.stages.map((stage, sIdx) => {
           const blocks: TimelineBlock[] = stage.blocks
             ? stage.blocks.map((block) => {
               const baseId = uuidv4()
-              if (block.type === 'text') {
+              if (block.type === 'text')
                 return { id: baseId, type: 'text', content: block.content || '' } as TimelineBlock
-              }
-              if (block.type === 'location') {
+              if (block.type === 'location')
                 return { id: baseId, type: 'location', coords: block.coords || { lat: 0, lng: 0 }, name: block.name || '', address: block.address || '' } as TimelineBlock
-              }
               if (block.type === 'route') {
                 return {
                   id: baseId,
@@ -142,14 +281,7 @@ export const usePostDraftStore = defineStore('post-draft', {
             })
             : []
 
-          return {
-            id: uuidv4(),
-            title: stage.title || `Этап ${sIdx + 1}`,
-            day: stage.day || 1,
-            time: stage.time || '',
-            order: sIdx,
-            blocks,
-          } as unknown as TimelineStage
+          return { id: uuidv4(), title: stage.title || `Этап ${sIdx + 1}`, day: stage.day || 1, time: stage.time || '', order: sIdx, blocks } as unknown as TimelineStage
         })
       }
       this.isDirty = true
@@ -171,33 +303,37 @@ export const usePostDraftStore = defineStore('post-draft', {
       })
     },
 
-    addGlobalMedia(files: File[]): ClientPostMedia[] {
-      const newMedia: ClientPostMedia[] = files.map(file => ({
-        id: uuidv4(),
-        type: 'image',
-        url: URL.createObjectURL(file),
-        marks: [],
-        file,
-        originalName: file.name,
-      }))
+    async addGlobalMedia(files: File[], onProgress?: (count: number) => void): Promise<ClientPostMedia[]> {
+      const newMedia: ClientPostMedia[] = []
 
-      this.post.media.push(...newMedia)
+      let count = 0
+      for (const file of files) {
+        let thumbUrl = ''
+        if (file.type.startsWith('image/')) {
+          thumbUrl = await generateThumbnail(file, 800)
+        }
+        else {
+          thumbUrl = URL.createObjectURL(file)
+        }
+
+        const media: ClientPostMedia = {
+          id: uuidv4(),
+          type: 'image',
+          url: thumbUrl,
+          marks: [],
+          file,
+          originalName: file.name,
+        }
+        newMedia.push(media)
+        this.post.media.push(media)
+        count++
+        if (onProgress) {
+          onProgress(count)
+        }
+      }
+
       this.isDirty = true
       return newMedia
-    },
-
-    removeGlobalMedia(mediaId: string) {
-      this.post.media = this.post.media.filter(m => m.id !== mediaId)
-      if (!this.post.stages)
-        return
-      this.post.stages.forEach((stage) => {
-        stage.blocks.forEach((block) => {
-          if (block.type === 'gallery') {
-            block.images = block.images.filter(img => img.id !== mediaId)
-          }
-        })
-      })
-      this.isDirty = true
     },
 
     addTag(tag: string) {
@@ -263,7 +399,6 @@ export const usePostDraftStore = defineStore('post-draft', {
         return
 
       let newBlock: TimelineBlock | null = null
-
       if (type === 'text') {
         newBlock = { id: uuidv4(), type: 'text', content: '' }
       }
@@ -274,18 +409,7 @@ export const usePostDraftStore = defineStore('post-draft', {
         newBlock = { id: uuidv4(), type: 'location', coords: { lat: 0, lng: 0 }, name: '', address: '' }
       }
       else if (type === 'route') {
-        newBlock = {
-          id: uuidv4(),
-          type: 'route',
-          from: '',
-          to: '',
-          distance: '',
-          duration: '',
-          distanceMeters: 0,
-          transport: 'walk',
-          points: [],
-          geometry: [],
-        } as any
+        newBlock = { id: uuidv4(), type: 'route', from: '', to: '', distance: '', duration: '', distanceMeters: 0, transport: 'walk', points: [], geometry: [] } as any
       }
 
       if (newBlock) {
@@ -297,9 +421,7 @@ export const usePostDraftStore = defineStore('post-draft', {
     removeBlock(stageId: string, blockId: string) {
       if (!this.post.stages)
         return
-
       const stage = this.post.stages.find(s => s.id === stageId)
-
       if (stage) {
         stage.blocks = stage.blocks.filter(b => b.id !== blockId)
         this.isDirty = true
@@ -323,128 +445,28 @@ export const usePostDraftStore = defineStore('post-draft', {
         this.post.stages = []
 
       try {
-        let postId = this.post.id
+        const postId = await this.ensurePostCreated()
+        if (!postId)
+          throw new Error('Не удалось получить ID поста')
 
-        if (isNew) {
-          const initialPayload: CreatePostInput = {
-            title: this.post.title || 'Новый маршрут',
-            insight: this.post.insight || undefined,
-            description: this.post.description || undefined,
-            country: this.post.country || undefined,
-            startDate: this.post.startDate || undefined,
-            latitude: this.post.latitude ?? undefined,
-            longitude: this.post.longitude ?? undefined,
-            tags: this.post.tags || [],
-            status: 'draft',
-            statsDetail: {
-              duration: this.post.statsDetail.duration || 0,
-            },
-          }
-
-          let createdPostId: string | null = null
-          await useRequest<{ id: string }>({
-            key: EPostRequestKeys.CREATE,
-            fn: db => db.posts.create(initialPayload),
-            onSuccess: (data) => {
-              if (data) {
-                createdPostId = data.id
-                this.post.id = createdPostId
-              }
-            },
-            onError: ({ error }) => {
-              throw new Error(error.customMessage || 'Ошибка при создании поста.')
-            },
-          })
-
-          if (!createdPostId) {
-            throw new Error('Не удалось получить ID созданного поста.')
-          }
-          postId = createdPostId
-        }
-
-        const filesToUpload = this.post.media.filter(isClientMedia)
-        const idMap = new Map<string, string>()
-
-        if (filesToUpload.length > 0) {
-          const uploadPromises = filesToUpload.map(media =>
-            useRequest<TripImage>({
-              key: `post:upload:${media.id}`,
-              fn: db => db.files.uploadFile(media.file!, postId, 'post', 'content'),
-              onSuccess: (uploaded) => {
-                if (uploaded) {
-                  idMap.set(media.id, uploaded.id)
-                  const originalMedia = this.post.media.find(m => m.id === media.id) as ClientPostMedia | undefined
-                  if (originalMedia) {
-                    originalMedia.id = uploaded.id
-                    originalMedia.url = uploaded.url
-                    delete originalMedia.file
-                  }
-                }
-              },
-              onError: ({ error }) => {
-                console.error(`Ошибка загрузки файла ${media.file?.name}:`, error.customMessage)
-                throw new Error(`Ошибка загрузки файла ${media.file?.name}.`)
-              },
-            }),
-          )
-          await Promise.all(uploadPromises)
-        }
-
-        const elements = this.post.stages.map((stage: TimelineStage) => {
+        const elements = this.post.stages.map((stage: TimelineStage, index: number) => {
           const content = stage.blocks.map((block: any) => {
-            if (block.type === 'text') {
+            if (block.type === 'text')
               return { id: block.id, type: 'markdown' as const, text: block.content || '' }
-            }
-            if (block.type === 'gallery') {
-              return {
-                id: block.id,
-                type: 'gallery' as const,
-                imageIds: block.images.map((img: any) => idMap.get(img.id) || img.id),
-                displayType: block.displayType || 'grid',
-              }
-            }
-            if (block.type === 'location') {
-              return {
-                id: block.id,
-                type: 'location' as const,
-                location: {
-                  lat: block.coords.lat,
-                  lng: block.coords.lng,
-                  label: block.name,
-                  address: block.address,
-                },
-              }
-            }
-            if (block.type === 'route') {
-              return {
-                id: block.id,
-                type: 'route' as const,
-                route: {
-                  from: block.from,
-                  to: block.to,
-                  points: block.points || [],
-                  geometry: block.geometry || [],
-                  distance: block.distance,
-                  duration: block.duration,
-                  distanceMeters: block.distanceMeters,
-                  transport: block.transport,
-                },
-              }
-            }
+            if (block.type === 'gallery')
+              return { id: block.id, type: 'gallery' as const, imageIds: block.images.map((img: any) => img.id), displayType: block.displayType || 'grid' }
+            if (block.type === 'location')
+              return { id: block.id, type: 'location' as const, location: { lat: block.coords.lat, lng: block.coords.lng, label: block.name, address: block.address } }
+            if (block.type === 'route')
+              return { id: block.id, type: 'route' as const, route: { from: block.from, to: block.to, points: block.points || [], geometry: block.geometry || [], distance: block.distance, duration: block.duration, distanceMeters: block.distanceMeters, transport: block.transport } }
             throw new Error(`Неизвестный тип блока: ${block.type}`)
           })
 
           const day = 'day' in stage && typeof stage.day === 'number' ? stage.day : 1
-
-          return {
-            title: stage.title,
-            day,
-            time: stage.time || null,
-            content,
-          }
+          return { title: stage.title, day, time: stage.time || null, content, order: index }
         })
 
-        const finalMediaIds = this.post.media.map(m => idMap.get(m.id) || m.id)
+        const finalMediaIds = this.post.media.map(m => m.id)
 
         const payload: Partial<UpdatePostInput> = {
           title: this.post.title || 'Новый маршрут',
@@ -454,11 +476,9 @@ export const usePostDraftStore = defineStore('post-draft', {
           startDate: this.post.startDate || undefined,
           latitude: this.post.latitude ?? undefined,
           longitude: this.post.longitude ?? undefined,
-          tags: this.post.tags || [],
+          tags: toRaw(this.post.tags) || [],
           status: publishStatus,
-          statsDetail: {
-            duration: this.post.statsDetail.duration || 0,
-          },
+          statsDetail: { duration: this.post.statsDetail.duration || 0 },
           mediaIds: finalMediaIds,
           elements,
         }
@@ -466,9 +486,20 @@ export const usePostDraftStore = defineStore('post-draft', {
         await useRequest({
           key: EPostRequestKeys.UPDATE,
           fn: db => db.posts.update({ id: postId, data: payload }),
+          onError: ({ error }) => {
+            throw new Error(error.customMessage || 'Ошибка при сохранении поста.')
+          },
         })
 
         this.isDirty = false
+
+        if (this.isNewPost) {
+          localStorage.removeItem('trip_scheduler_post_draft_new')
+        }
+        else {
+          localStorage.removeItem(`trip_scheduler_post_draft_${this.post.id}`)
+        }
+
         return postId
       }
       catch (e) {

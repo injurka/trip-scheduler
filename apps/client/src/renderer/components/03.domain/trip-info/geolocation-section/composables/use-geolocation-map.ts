@@ -119,6 +119,7 @@ function useGeolocationMap() {
       connect: '#95a5a6',
     }
     const color = point.style?.color || colors[point.type] || '#3498db'
+    const opacity = point.style?.opacity !== undefined ? point.style.opacity : 1.0
 
     if (point.type === 'connect') {
       return new Style({
@@ -130,7 +131,7 @@ function useGeolocationMap() {
             width: 2,
           }),
         }),
-        zIndex: 15,
+        zIndex: point.style?.zIndex !== undefined ? point.style.zIndex : 15,
       })
     }
 
@@ -145,8 +146,9 @@ function useGeolocationMap() {
         src: `data:image/svg+xml;base64,${btoa(svg)}`,
         scale: point.style?.scale || 1.5,
         anchor: [0.5, 1],
+        opacity,
       }),
-      zIndex: 20,
+      zIndex: point.style?.zIndex !== undefined ? point.style.zIndex : 20,
     })
   }
 
@@ -167,12 +169,15 @@ function useGeolocationMap() {
 
     const overlay = mapInstance.value.getOverlayById(point.id)
     if (point.comment && point.comment.trim() !== '') {
+      let popupElement: HTMLElement
+
       if (overlay) {
         overlay.setPosition(coordinates)
-        overlay.getElement()!.innerHTML = point.comment
+        popupElement = overlay.getElement()!
+        popupElement.innerHTML = point.comment
       }
       else {
-        const popupElement = document.createElement('div')
+        popupElement = document.createElement('div')
         popupElement.className = 'ol-popup-comment'
         popupElement.innerHTML = point.comment
         const newOverlay = new Overlay({
@@ -183,6 +188,22 @@ function useGeolocationMap() {
           id: point.id,
         })
         mapInstance.value.addOverlay(newOverlay)
+      }
+
+      // Применяем opacity к HTML-элементу комментария
+      if (point.style?.opacity !== undefined) {
+        popupElement.style.opacity = String(point.style.opacity)
+      }
+      else {
+        popupElement.style.opacity = '1'
+      }
+
+      // Применяем z-index к родительскому слою (OpenLayers оборачивает Overlay в контейнер)
+      if (point.style?.zIndex !== undefined) {
+        const parent = popupElement.parentElement
+        if (parent) {
+          parent.style.zIndex = String(point.style.zIndex)
+        }
       }
     }
     else if (overlay) {

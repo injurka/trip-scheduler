@@ -1,6 +1,7 @@
 <script setup lang="ts">
-import type { TimelineStage } from '~/shared/types/models/post'
+import type { TimelineBlock, TimelineStage } from '~/shared/types/models/post'
 import { Icon } from '@iconify/vue'
+import { computed } from 'vue'
 import GalleryBlock from './blocks/gallery-block.vue'
 import GeoBlock from './blocks/geo-block.vue'
 import TextBlock from './blocks/text-block.vue'
@@ -8,19 +9,29 @@ import TextBlock from './blocks/text-block.vue'
 interface IProps {
   stage: TimelineStage & { day?: number }
   isLast: boolean
+  index: number
+  focusedBlockId?: string | null
 }
 
-defineProps<IProps>()
-const emit = defineEmits<{ (e: 'focusLocation', coords: [number, number]): void }>()
+const props = withDefaults(defineProps<IProps>(), {
+  focusedBlockId: null,
+})
+
+const emit = defineEmits<{ (e: 'focusBlock', block: TimelineBlock): void }>()
+
+const stageColor = computed(() => {
+  const colors = ['#7367F0', '#28C76F', '#EA5455', '#FF9F43', '#00CFE8']
+  return colors[props.index % colors.length]
+})
 </script>
 
 <template>
   <div class="timeline-stage" :class="{ 'is-last': isLast }">
     <div class="connector-column">
-      <div class="connector-icon">
+      <div class="connector-icon" :style="{ color: stageColor }">
         <Icon :icon="stage.icon || 'mdi:circle-small'" />
       </div>
-      <div v-if="!isLast" class="connector-line" />
+      <div class="connector-line" :class="{ 'fade-out': isLast }" />
     </div>
 
     <div class="stage-content">
@@ -49,20 +60,11 @@ const emit = defineEmits<{ (e: 'focusLocation', coords: [number, number]): void 
           />
 
           <GeoBlock
-            v-if="block.type === 'location'"
-            type="location"
-            :title="block.name || 'Локация'"
-            :subtitle="block.address"
-            @click="block.coords ? emit('focusLocation', [block.coords.lng, block.coords.lat]) : null"
-          />
-
-          <GeoBlock
-            v-if="block.type === 'route'"
-            type="route"
-            :title="`${block.from || 'Начало'} ➝ ${block.to || 'Конец'}`"
-            :subtitle="`${block.distance} • ${block.duration} (${block.transport})`"
-            :icon="block.transport === 'walk' ? 'mdi:walk' : block.transport === 'car' ? 'mdi:car' : 'mdi:bus'"
-            @click="(block as any).points?.[0] ? emit('focusLocation', [(block as any).points[0].lng, (block as any).points[0].lat]) : null"
+            v-if="block.type === 'location' || block.type === 'route'"
+            :block="block"
+            :color="stageColor"
+            :is-active="focusedBlockId === block.id"
+            @click="emit('focusBlock', block)"
           />
         </template>
       </div>
@@ -88,6 +90,7 @@ const emit = defineEmits<{ (e: 'focusLocation', coords: [number, number]): void 
   flex-shrink: 0;
   width: 24px;
   margin-top: 2px;
+  position: relative;
 
   @include media-down(sm) {
     width: 16px;
@@ -104,7 +107,6 @@ const emit = defineEmits<{ (e: 'focusLocation', coords: [number, number]): void 
   display: flex;
   align-items: center;
   justify-content: center;
-  color: var(--fg-accent-color);
   font-size: 14px;
   z-index: 2;
   box-shadow: 0 0 0 2px var(--bg-secondary-color);
@@ -122,6 +124,10 @@ const emit = defineEmits<{ (e: 'focusLocation', coords: [number, number]): void 
   margin-top: 4px;
   margin-bottom: 4px;
   border-radius: 2px;
+
+  &.fade-out {
+    background: linear-gradient(to bottom, var(--border-secondary-color) 0%, transparent 100%);
+  }
 }
 
 .stage-content {

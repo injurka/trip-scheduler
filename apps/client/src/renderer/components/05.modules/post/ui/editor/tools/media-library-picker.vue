@@ -3,6 +3,7 @@ import type { PostMedia } from '~/shared/types/models/post'
 import { Icon } from '@iconify/vue'
 import { useFileDialog } from '@vueuse/core'
 import { storeToRefs } from 'pinia'
+import { ref, watch } from 'vue'
 import draggable from 'vuedraggable'
 import { KitBtn } from '~/components/01.kit/kit-btn'
 import { KitDialogWithClose } from '~/components/01.kit/kit-dialog-with-close'
@@ -36,6 +37,10 @@ const { open, onChange } = useFileDialog({
 
 const { post } = storeToRefs(store)
 const localSelectedIds = ref<string[]>([])
+
+const isProcessing = ref(false)
+const processedCount = ref(0)
+const totalToProcess = ref(0)
 
 function toggleSelection(id: string) {
   if (props.mode === 'manage')
@@ -79,19 +84,30 @@ async function handleDelete(id: string) {
   }
 }
 
-onChange((files) => {
+onChange(async (files) => {
   if (!files || files.length === 0)
     return
-  const addedMedia = store.addGlobalMedia(Array.from(files))
 
-  if (props.mode === 'select') {
-    if (props.single) {
-      localSelectedIds.value = [addedMedia[addedMedia.length - 1].id]
+  isProcessing.value = true
+  totalToProcess.value = files.length
+  processedCount.value = 0
+
+  const filesArray = Array.from(files)
+
+  for (const file of filesArray) {
+    const added = await store.uploadSingleMedia(file)
+    if (added && props.mode === 'select') {
+      if (props.single) {
+        localSelectedIds.value = [added.id]
+      }
+      else {
+        localSelectedIds.value.push(added.id)
+      }
     }
-    else {
-      addedMedia.forEach(m => localSelectedIds.value.push(m.id))
-    }
+    processedCount.value++
   }
+
+  isProcessing.value = false
 })
 
 watch(() => props.visible, (isOpen) => {
@@ -107,9 +123,15 @@ watch(() => props.visible, (isOpen) => {
     :title="mode === 'select' ? (single ? 'Выбрать обложку' : 'Выбрать медиа') : 'Медиатека поста'"
     icon="mdi:image-multiple-outline"
     :max-width="900"
+    :persistent="isProcessing"
     @update:visible="emit('update:visible', $event)"
   >
     <div class="library-container">
+      <div v-if="isProcessing" class="processing-overlay">
+        <Icon icon="mdi:loading" class="spin" />
+        <p>Загрузка фотографий ({{ processedCount }} / {{ totalToProcess }})...</p>
+      </div>
+
       <div class="toolbar">
         <button class="upload-btn" @click="open()">
           <Icon icon="mdi:cloud-upload-outline" />
@@ -181,6 +203,34 @@ watch(() => props.visible, (isOpen) => {
   flex-direction: column;
   height: 70vh;
   max-height: 700px;
+  position: relative;
+}
+
+.processing-overlay {
+  position: absolute;
+  inset: 0;
+  background: rgba(var(--bg-primary-color-rgb), 0.85);
+  backdrop-filter: blur(4px);
+  z-index: 100;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  color: var(--fg-primary-color);
+  font-weight: 500;
+
+  .spin {
+    font-size: 3rem;
+    color: var(--fg-accent-color);
+    animation: spin 1s linear infinite;
+    margin-bottom: 1rem;
+  }
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
 }
 
 .toolbar {

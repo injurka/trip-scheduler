@@ -1,4 +1,3 @@
-// /apps/server/src/modules/post/post.schemas.ts
 import { createSelectSchema } from 'drizzle-zod'
 import { z } from 'zod'
 import { postElements, postMedia, posts } from '~/../db/schema'
@@ -173,4 +172,8 @@ export const AiGeneratedPostOutputSchema = z.object({
   country: z.string().nullish(),
   tags: z.array(z.string()).nullish(),
   stages: z.array(AiGeneratedStageSchema).nullish(),
+})
+
+export const DeletePostMediaInputSchema = z.object({
+  id: z.string().uuid(),
 })

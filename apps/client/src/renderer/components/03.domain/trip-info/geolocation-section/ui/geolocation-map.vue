@@ -337,6 +337,7 @@ watch(isMapLoaded, (isReady) => {
   backdrop-filter: blur(4px);
   border: 1px solid var(--border-secondary-color);
   box-shadow: var(--s-m);
+  transition: opacity 0.2s ease; /* Добавляем плавное затухание для тултипа */
 }
 .cursor-move {
   cursor: move;

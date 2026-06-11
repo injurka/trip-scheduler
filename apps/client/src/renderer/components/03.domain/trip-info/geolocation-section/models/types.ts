@@ -24,6 +24,8 @@ export interface MarkerStyle {
   iconUrl?: string // URL для кастомной иконки (SVG или PNG).
   color?: string // Цвет заливки для стандартной иконки, если iconUrl не указан.
   scale?: number // Масштаб иконки.
+  opacity?: number // Нативная прозрачность иконки от 0 до 1.
+  zIndex?: number // Кастомный индекс наложения на карте.
 }
 
 /**

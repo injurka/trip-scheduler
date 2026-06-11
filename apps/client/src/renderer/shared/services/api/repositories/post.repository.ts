@@ -38,4 +38,8 @@ export class PostRepository implements IPostRepository {
   async generateFromText(params: { text: string }) {
     return trpc.post.generateFromText.mutate(params)
   }
+
+  async deleteMedia(params: { id: string }) {
+    return trpc.post.deleteMedia.mutate(params)
+  }
 }
