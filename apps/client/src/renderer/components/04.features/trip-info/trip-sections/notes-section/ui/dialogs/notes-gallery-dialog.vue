@@ -6,6 +6,7 @@ import { KitBtn } from '~/components/01.kit/kit-btn'
 import { KitDialogWithClose } from '~/components/01.kit/kit-dialog-with-close'
 import { KitImage } from '~/components/01.kit/kit-image'
 import { KitImageViewer } from '~/components/01.kit/kit-image-viewer'
+import { KitTooltip } from '~/components/01.kit/kit-tooltip'
 import { useRequest, useRequestStatusByPrefix } from '~/plugins/request'
 import { resolveApiUrl } from '~/shared/lib/url'
 
@@ -189,20 +190,16 @@ function openPreview(index: number): void {
           </button>
 
           <div class="image-meta">
-            <span
-              v-if="img.usedIn.length === 0"
-              class="badge badge--unused"
-              title="Не используется ни в одной заметке"
-            >
-              Не используется
-            </span>
-            <span
-              v-else
-              class="badge badge--used"
-              :title="img.usedIn.map(n => n.title).join(', ')"
-            >
-              {{ img.usedIn.length }} {{ img.usedIn.length === 1 ? 'заметка' : 'заметки' }}
-            </span>
+            <KitTooltip v-if="img.usedIn.length === 0" text="Не используется ни в одной заметке">
+              <span class="badge badge--unused">
+                Не используется
+              </span>
+            </KitTooltip>
+            <KitTooltip v-else :text="img.usedIn.map(n => n.title).join(', ')">
+              <span class="badge badge--used">
+                {{ img.usedIn.length }} {{ img.usedIn.length === 1 ? 'заметка' : 'заметки' }}
+              </span>
+            </KitTooltip>
           </div>
 
           <div class="image-actions">

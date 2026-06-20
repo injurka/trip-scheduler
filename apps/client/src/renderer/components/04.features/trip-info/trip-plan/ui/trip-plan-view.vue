@@ -4,6 +4,7 @@ import { Icon } from '@iconify/vue'
 import { onKeyStroke } from '@vueuse/core'
 import { KitBtn } from '~/components/01.kit/kit-btn'
 import { KitDivider } from '~/components/01.kit/kit-divider'
+import { KitTooltip } from '~/components/01.kit/kit-tooltip'
 import { useModuleStore } from '~/components/05.modules/trip-info/composables/use-trip-info-module'
 import { EActivityStatus, EActivityTag } from '~/shared/types/models/activity'
 import DayNote from './day-note.vue'
@@ -114,36 +115,37 @@ const collapseRouteIcon = computed(() => allRouteBlocksCollapsed.value ? 'mdi:ch
       </KitDivider>
 
       <div class="view-mode-controls right">
-        <button
-          class="fullscreen-toggle-btn"
-          :class="{ active: isFullScreen }"
-          :title="isFullScreen ? 'Выйти из полноэкранного режима (Esc)' : 'На весь экран'"
-          @click="toggleFullScreen"
-        >
-          <Icon :icon="isFullScreen ? 'mdi:fullscreen-exit' : 'mdi:fullscreen'" />
-        </button>
+        <KitTooltip :text="isFullScreen ? 'Выйти из полноэкранного режима (Esc)' : 'На весь экран'">
+          <button
+            class="fullscreen-toggle-btn"
+            :class="{ active: isFullScreen }"
+            @click="toggleFullScreen"
+          >
+            <Icon :icon="isFullScreen ? 'mdi:fullscreen-exit' : 'mdi:fullscreen'" />
+          </button>
+        </KitTooltip>
 
-        <button
-          v-if="isViewMode && allActivityIds.length > 0 && !isFullScreen"
-          class="collapse-all-btn"
-          title="Свернуть/развернуть все активности"
-          @click="ui.toggleAllActivities(allActivityIds)"
-        >
-          <Icon :icon="collapseRouteIcon" />
-        </button>
+        <KitTooltip v-if="isViewMode && allActivityIds.length > 0 && !isFullScreen" text="Свернуть/развернуть все активности">
+          <button
+            class="collapse-all-btn"
+            @click="ui.toggleAllActivities(allActivityIds)"
+          >
+            <Icon :icon="collapseRouteIcon" />
+          </button>
+        </KitTooltip>
       </div>
     </div>
 
     <div class="plan-content" :class="{ 'is-parallel': isParallelPlanView }">
       <div
-        v-if="isParallelPlanView || viewMode === 'template'"
+        v-show="isParallelPlanView || viewMode === 'template'"
         class="plan-column"
       >
         <DayActivitiesList @add="handleAddNewActivity" />
       </div>
 
       <div
-        v-if="isParallelPlanView || viewMode === 'canvas'"
+        v-show="isParallelPlanView || viewMode === 'canvas'"
         class="canvas-column"
       >
         <DayNote :day-id="getSelectedDay?.id || ''" />

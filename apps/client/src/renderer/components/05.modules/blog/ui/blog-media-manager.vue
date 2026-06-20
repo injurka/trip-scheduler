@@ -3,6 +3,7 @@ import { Icon } from '@iconify/vue'
 import { useClipboard } from '@vueuse/core'
 import { KitBtn } from '~/components/01.kit/kit-btn'
 import { KitImage } from '~/components/01.kit/kit-image'
+import { KitTooltip } from '~/components/01.kit/kit-tooltip'
 import { resolveApiUrl } from '~/shared/lib/url'
 import { useBlogStore } from '../store/blog.store'
 
@@ -118,22 +119,32 @@ function insertToEditor(image: any) {
 
           <div class="mm-overlay">
             <div class="mm-actions">
-              <button title="Вставить в текст" @click="insertToEditor(img)">
-                <Icon icon="mdi:text-box-plus-outline" />
-              </button>
-              <button title="Сделать обложкой" @click="$emit('setCover', img.url)">
-                <Icon icon="mdi:image-frame" />
-              </button>
-              <button title="Копировать Markdown" @click="copyMarkdownLink(img)">
-                <Icon icon="mdi:link-variant" />
-              </button>
-              <button class="danger" title="Удалить" @click="handleDelete(img.id)">
-                <Icon icon="mdi:trash-can-outline" />
-              </button>
+              <KitTooltip text="Вставить в текст">
+                <button @click="insertToEditor(img)">
+                  <Icon icon="mdi:text-box-plus-outline" />
+                </button>
+              </KitTooltip>
+              <KitTooltip text="Сделать обложкой">
+                <button @click="$emit('setCover', img.url)">
+                  <Icon icon="mdi:image-frame" />
+                </button>
+              </KitTooltip>
+              <KitTooltip text="Копировать Markdown">
+                <button @click="copyMarkdownLink(img)">
+                  <Icon icon="mdi:link-variant" />
+                </button>
+              </KitTooltip>
+              <KitTooltip text="Удалить">
+                <button class="danger" @click="handleDelete(img.id)">
+                  <Icon icon="mdi:trash-can-outline" />
+                </button>
+              </KitTooltip>
             </div>
-            <div class="mm-info" :title="img.originalName">
-              {{ img.originalName }}
-            </div>
+            <KitTooltip :text="img.originalName">
+              <div class="mm-info">
+                {{ img.originalName }}
+              </div>
+            </KitTooltip>
           </div>
         </div>
       </div>

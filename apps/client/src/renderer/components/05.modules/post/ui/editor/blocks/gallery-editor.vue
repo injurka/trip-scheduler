@@ -4,6 +4,7 @@ import { Icon } from '@iconify/vue'
 import { computed, ref } from 'vue'
 import draggable from 'vuedraggable'
 import { KitImage } from '~/components/01.kit/kit-image'
+import { KitTooltip } from '~/components/01.kit/kit-tooltip'
 import MediaLibraryPicker from '../tools/media-library-picker.vue'
 import SmartMarkEditor from '../tools/smart-mark-editor.vue'
 
@@ -91,27 +92,37 @@ function getEditorThumbUrl(img: PostMedia) {
               </div>
             </div>
 
-            <button class="remove-btn" title="Убрать из блока" @click.stop="removeImage(index)">
-              <Icon icon="mdi:close-circle" />
-            </button>
+            <KitTooltip text="Убрать из блока">
+              <button class="remove-btn" @click.stop="removeImage(index)">
+                <Icon icon="mdi:close-circle" />
+              </button>
+            </KitTooltip>
           </div>
         </template>
       </draggable>
     </div>
 
     <div v-if="images.length > 0" class="display-type-tabs">
-      <button :class="{ active: displayType === 'grid' }" title="Сетка" @click="emit('update:displayType', 'grid')">
-        <Icon icon="mdi:grid" />
-      </button>
-      <button :class="{ active: displayType === 'slider' }" title="Слайдер" @click="emit('update:displayType', 'slider')">
-        <Icon icon="mdi:view-carousel-outline" />
-      </button>
-      <button :class="{ active: displayType === 'masonry' }" title="Коллаж" @click="emit('update:displayType', 'masonry')">
-        <Icon icon="mdi:view-dashboard-outline" />
-      </button>
-      <button :class="{ active: displayType === 'panorama' }" title="Панорама" @click="emit('update:displayType', 'panorama')">
-        <Icon icon="mdi:panorama-horizontal-outline" />
-      </button>
+      <KitTooltip text="Сетка">
+        <button :class="{ active: displayType === 'grid' }" @click="emit('update:displayType', 'grid')">
+          <Icon icon="mdi:grid" />
+        </button>
+      </KitTooltip>
+      <KitTooltip text="Слайдер">
+        <button :class="{ active: displayType === 'slider' }" @click="emit('update:displayType', 'slider')">
+          <Icon icon="mdi:view-carousel-outline" />
+        </button>
+      </KitTooltip>
+      <KitTooltip text="Коллаж">
+        <button :class="{ active: displayType === 'masonry' }" @click="emit('update:displayType', 'masonry')">
+          <Icon icon="mdi:view-dashboard-outline" />
+        </button>
+      </KitTooltip>
+      <KitTooltip text="Панорама">
+        <button :class="{ active: displayType === 'panorama' }" @click="emit('update:displayType', 'panorama')">
+          <Icon icon="mdi:panorama-horizontal-outline" />
+        </button>
+      </KitTooltip>
     </div>
 
     <button class="add-image-btn" @click="isLibraryOpen = true">

@@ -7,6 +7,7 @@ import { KitAnimatedTooltip } from '~/components/01.kit/kit-animated-tooltip'
 import { KitAvatar } from '~/components/01.kit/kit-avatar'
 import { KitDropdown } from '~/components/01.kit/kit-dropdown'
 import { KitImage } from '~/components/01.kit/kit-image'
+import { KitTooltip } from '~/components/01.kit/kit-tooltip'
 import { TripCommentsWidget } from '~/components/04.features/trip-info/trip-comments'
 import { TripEditInfoDialog } from '~/components/04.features/trip-info/trip-edit-info-dialog'
 import { AppRoutePaths } from '~/shared/constants/routes'
@@ -185,9 +186,11 @@ const tripData = computed<Trip>(() => ({
             @update:model-value="handleMenuAction"
           >
             <template #trigger>
-              <button class="action-btn" title="Еще" @click.stop.prevent>
-                <Icon icon="mdi:dots-vertical" />
-              </button>
+              <KitTooltip text="Еще">
+                <button class="action-btn" @click.stop.prevent>
+                  <Icon icon="mdi:dots-vertical" />
+                </button>
+              </KitTooltip>
             </template>
           </KitDropdown>
         </div>

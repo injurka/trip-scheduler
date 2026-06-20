@@ -11,6 +11,7 @@ import { useDisplay } from '~/shared/composables/use-display'
 import { useModuleStore } from '../../composables/use-trip-info-module'
 import { useTripPermissions } from '../../composables/use-trip-permissions'
 import DaysPanel from './days-panel.vue'
+import { KitTooltip } from '~/components/01.kit/kit-tooltip'
 import ViewSwitcher from './view-switcher.vue'
 
 interface Props {
@@ -138,14 +139,14 @@ onUnmounted(() => {
   <div>
     <div ref="controlsRef" class="controls">
       <div class="left-controls">
-        <button
-          v-if="!isDaysPanelPinned"
-          class="menu-btn"
-          title="Открыть меню дней"
-          @click="isDaysPanelOpen = !isDaysPanelOpen"
-        >
-          <Icon icon="mdi:menu" />
-        </button>
+        <KitTooltip v-if="!isDaysPanelPinned" text="Открыть меню дней">
+          <button
+            class="menu-btn"
+            @click="isDaysPanelOpen = !isDaysPanelOpen"
+          >
+            <Icon icon="mdi:menu" />
+          </button>
+        </KitTooltip>
 
         <div v-if="isDayInfoLoading" class="current-day-info-skeleton">
           <KitSkeleton width="100px" height="20px" border-radius="6px" type="wave" />
@@ -199,14 +200,14 @@ onUnmounted(() => {
         :style="fixedLeftControlsStyle"
       >
         <div class="left-controls">
-          <button
-            v-if="!isDaysPanelPinned"
-            class="menu-btn"
-            title="Открыть меню дней"
-            @click="isDaysPanelOpen = !isDaysPanelOpen"
-          >
-            <Icon icon="mdi:menu" />
-          </button>
+          <KitTooltip v-if="!isDaysPanelPinned" text="Открыть меню дней">
+            <button
+              class="menu-btn"
+              @click="isDaysPanelOpen = !isDaysPanelOpen"
+            >
+              <Icon icon="mdi:menu" />
+            </button>
+          </KitTooltip>
 
           <div v-if="isDayInfoLoading" class="current-day-info-skeleton">
             <KitSkeleton width="100px" height="20px" border-radius="6px" type="wave" />
@@ -243,14 +244,14 @@ onUnmounted(() => {
         :style="fixedRightControlsStyle"
       >
         <div v-if="!isDayInfoLoading" class="right-controls">
-          <button
-            v-if="canEdit"
-            class="mode-button"
-            :title="isViewMode ? 'Перейти в режим редактирования' : 'Перейти в режим просмотра'"
-            @click="toggleMode"
-          >
-            <Icon :icon="isViewMode ? 'mdi:pencil-outline' : 'mdi:eye-outline'" />
-          </button>
+          <KitTooltip v-if="canEdit" :text="isViewMode ? 'Перейти в режим редактирования' : 'Перейти в режим просмотра'">
+            <button
+              class="mode-button"
+              @click="toggleMode"
+            >
+              <Icon :icon="isViewMode ? 'mdi:pencil-outline' : 'mdi:eye-outline'" />
+            </button>
+          </KitTooltip>
 
           <div class="view-controls">
             <ViewSwitcher />

@@ -2,6 +2,7 @@
 import type { Day } from '~/shared/types/models/activity'
 import { Icon } from '@iconify/vue'
 import { useModuleStore } from '~/components/05.modules/trip-info/composables/use-trip-info-module'
+import { KitTooltip } from '~/components/01.kit/kit-tooltip'
 import { useDisplay } from '~/shared/composables/use-display'
 
 interface Props {
@@ -47,17 +48,19 @@ function getShortWeekday(date: string): string {
         <h2>Дни путешествия</h2>
       </div>
       <div class="header-buttons">
-        <button
-          v-if="!mdAndDown"
-          class="pin-btn"
-          :title="isDaysPanelPinned ? 'Открепить панель' : 'Закрепить панель'"
-          @click="toggleDaysPanelPinned"
-        >
-          <Icon :icon="isDaysPanelPinned ? 'mdi:pin-off' : 'mdi:pin'" />
-        </button>
-        <button class="close-btn" title="Закрыть" @click="$emit('close')">
-          <Icon icon="mdi:close" />
-        </button>
+        <KitTooltip v-if="!mdAndDown" :text="isDaysPanelPinned ? 'Открепить панель' : 'Закрепить панель'">
+          <button
+            class="pin-btn"
+            @click="toggleDaysPanelPinned"
+          >
+            <Icon :icon="isDaysPanelPinned ? 'mdi:pin-off' : 'mdi:pin'" />
+          </button>
+        </KitTooltip>
+        <KitTooltip text="Закрыть">
+          <button class="close-btn" @click="$emit('close')">
+            <Icon icon="mdi:close" />
+          </button>
+        </KitTooltip>
       </div>
     </header>
 

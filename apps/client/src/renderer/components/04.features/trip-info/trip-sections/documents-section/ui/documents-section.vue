@@ -4,6 +4,7 @@ import { Icon } from '@iconify/vue'
 import { useDropZone, useFileDialog } from '@vueuse/core'
 import { ref } from 'vue'
 import { KitBtn } from '~/components/01.kit/kit-btn'
+import { KitTooltip } from '~/components/01.kit/kit-tooltip'
 import { useDocumentsSection } from '../composables/use-documents-section'
 import DocumentItem from './document-item.vue'
 
@@ -158,18 +159,23 @@ function cancelEditing() {
             >
               <Icon width="24" height="24" icon="mdi:folder" class="folder-icon" />
 
-              <span v-if="readonly" class="folder-name" :title="folder.name">
-                {{ folder.name }}
-              </span>
-              <template v-else>
-                <span
-                  v-if="editingFolderId !== folder.id"
-                  class="folder-name editable-name"
-                  :title="folder.name"
-                  @click.stop="startEditing(folder)"
-                >
+              <KitTooltip v-if="readonly" :text="folder.name">
+                <span class="folder-name">
                   {{ folder.name }}
                 </span>
+              </KitTooltip>
+              <template v-else>
+                <KitTooltip
+                  v-if="editingFolderId !== folder.id"
+                  :text="folder.name"
+                >
+                  <span
+                    class="folder-name editable-name"
+                    @click.stop="startEditing(folder)"
+                  >
+                    {{ folder.name }}
+                  </span>
+                </KitTooltip>
                 <input
                   v-else
                   v-model="editingFolderName"
@@ -183,9 +189,11 @@ function cancelEditing() {
                 >
               </template>
 
-              <button v-if="!readonly" class="delete-folder-btn" title="Удалить папку" @click.stop="deleteFolder(folder.id)">
-                <Icon width="24" height="24" icon="mdi:close" />
-              </button>
+              <KitTooltip v-if="!readonly" text="Удалить папку">
+                <button class="delete-folder-btn" @click.stop="deleteFolder(folder.id)">
+                  <Icon width="24" height="24" icon="mdi:close" />
+                </button>
+              </KitTooltip>
             </div>
 
             <div v-if="isAddingFolder" class="folder-item new-folder">

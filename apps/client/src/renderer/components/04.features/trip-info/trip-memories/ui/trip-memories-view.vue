@@ -5,6 +5,7 @@ import type { Activity } from '~/shared/types/models/activity'
 import { Icon } from '@iconify/vue'
 import { useDropZone, useFileDialog } from '@vueuse/core'
 import { KitDivider } from '~/components/01.kit/kit-divider'
+import { KitTooltip } from '~/components/01.kit/kit-tooltip'
 import { AsyncStateWrapper } from '~/components/02.shared/async-state-wrapper'
 import { ETripMemoriesKeys } from '~/components/04.features/trip-info/trip-memories/store/trip-memories.store'
 import { useModuleStore } from '~/components/05.modules/trip-info/composables/use-trip-info-module'
@@ -221,61 +222,65 @@ async function handleNotifyParticipants() {
       />
       <div class="controls-wrapper">
         <template v-if="isElectron">
-          <button
-            class="control-btn local-mode-btn"
-            :class="{ 'is-active': vaultStore.isLocalMode && vaultStore.isConfigured }"
-            :title="vaultStore.isLocalMode ? 'Локальный режим включён' : 'Включить локальный режим'"
-            @click="handleToggleLocalMode"
-          >
-            <Icon :icon="vaultStore.isLocalMode ? 'mdi:harddisk' : 'mdi:cloud-outline'" />
-          </button>
+          <KitTooltip :text="vaultStore.isLocalMode ? 'Локальный режим включён' : 'Включить локальный режим'">
+            <button
+              class="control-btn local-mode-btn"
+              :class="{ 'is-active': vaultStore.isLocalMode && vaultStore.isConfigured }"
+              @click="handleToggleLocalMode"
+            >
+              <Icon :icon="vaultStore.isLocalMode ? 'mdi:harddisk' : 'mdi:cloud-outline'" />
+            </button>
+          </KitTooltip>
 
-          <button
+          <KitTooltip
             v-if="memoriesForSelectedDay.length > 0 && vaultStore.isLocalMode"
-            class="control-btn sync-btn"
-            :class="{ 'is-active': syncState.isDownloading }"
-            :disabled="syncState.isDownloading"
-            :title="syncState.isDownloading ? 'Скачивание...' : 'Скачать фото локально'"
-            @click="handleDownloadVault"
+            :text="syncState.isDownloading ? 'Скачивание...' : 'Скачать фото локально'"
           >
-            <Icon
-              :icon="syncState.isDownloading ? 'mdi:loading' : 'mdi:download-network-outline'"
-              :class="{ spin: syncState.isDownloading }"
-            />
-          </button>
+            <button
+              class="control-btn sync-btn"
+              :class="{ 'is-active': syncState.isDownloading }"
+              :disabled="syncState.isDownloading"
+              @click="handleDownloadVault"
+            >
+              <Icon
+                :icon="syncState.isDownloading ? 'mdi:loading' : 'mdi:download-network-outline'"
+                :class="{ spin: syncState.isDownloading }"
+              />
+            </button>
+          </KitTooltip>
         </template>
 
-        <button
-          v-if="!isViewMode && memoriesForSelectedDay.length > 0"
-          class="control-btn notify-btn"
-          :class="{ 'is-loading': isNotifyLoading }"
-          :disabled="isNotifyLoading"
-          title="Уведомить участников"
-          @click="handleNotifyParticipants"
-        >
-          <Icon
-            :icon="isNotifyLoading ? 'mdi:loading' : 'mdi:bell-ring-outline'"
-            :class="{ spin: isNotifyLoading }"
-          />
-        </button>
+        <KitTooltip v-if="!isViewMode && memoriesForSelectedDay.length > 0" text="Уведомить участников">
+          <button
+            class="control-btn notify-btn"
+            :class="{ 'is-loading': isNotifyLoading }"
+            :disabled="isNotifyLoading"
+            @click="handleNotifyParticipants"
+          >
+            <Icon
+              :icon="isNotifyLoading ? 'mdi:loading' : 'mdi:bell-ring-outline'"
+              :class="{ spin: isNotifyLoading }"
+            />
+          </button>
+        </KitTooltip>
 
-        <button
-          v-if="mdAndUp && memoriesForSelectedDay.length > 0"
-          class="control-btn fullscreen-btn"
-          :title="isFullScreen ? 'Свернуть' : 'На весь экран'"
-          @click="toggleFullScreen"
-        >
-          <Icon :icon="isFullScreen ? 'mdi:fullscreen-exit' : 'mdi:fullscreen'" />
-        </button>
+        <KitTooltip v-if="mdAndUp && memoriesForSelectedDay.length > 0" :text="isFullScreen ? 'Свернуть' : 'На весь экран'">
+          <button
+            class="control-btn fullscreen-btn"
+            @click="toggleFullScreen"
+          >
+            <Icon :icon="isFullScreen ? 'mdi:fullscreen-exit' : 'mdi:fullscreen'" />
+          </button>
+        </KitTooltip>
 
-        <button
-          v-if="allMemoryGroupKeys.length > 0"
-          class="control-btn collapse-btn"
-          title="Свернуть/развернуть все группы"
-          @click="handleToggleAllMemories"
-        >
-          <Icon :icon="collapseMemoriesIcon" />
-        </button>
+        <KitTooltip v-if="allMemoryGroupKeys.length > 0" text="Свернуть/развернуть все группы">
+          <button
+            class="control-btn collapse-btn"
+            @click="handleToggleAllMemories"
+          >
+            <Icon :icon="collapseMemoriesIcon" />
+          </button>
+        </KitTooltip>
       </div>
     </div>
 

@@ -4,6 +4,7 @@ import { Icon } from '@iconify/vue'
 import draggable from 'vuedraggable'
 import { KitBtn } from '~/components/01.kit/kit-btn'
 import { KitEditable } from '~/components/01.kit/kit-editable'
+import { KitTooltip } from '~/components/01.kit/kit-tooltip'
 import { vRipple } from '~/shared/directives/ripple'
 import ChecklistIconPicker from './checklist-icon-picker.vue'
 import ChecklistItemComponent from './checklist-item.vue'
@@ -66,9 +67,11 @@ function onAddItem() {
   <div class="checklist-group">
     <header v-ripple class="group-header" @click="isCollapsed = !isCollapsed">
       <div class="title-container">
-        <button v-if="!readonly" class="drag-handle-group" title="Перетащить группу">
-          <Icon icon="mdi:drag" />
-        </button>
+        <KitTooltip v-if="!readonly" text="Перетащить группу">
+          <button class="drag-handle-group">
+            <Icon icon="mdi:drag" />
+          </button>
+        </KitTooltip>
         <ChecklistIconPicker
           v-if="!readonly"
           :model-value="group.icon"
@@ -93,20 +96,26 @@ function onAddItem() {
         />
       </div>
       <div class="header-actions">
-        <div v-if="groupProgress.total > 0" class="group-progress-container" :title="`${groupProgress.percentage}% выполнено`">
-          <span class="group-progress-text">
-            {{ groupProgress.completed }} / {{ groupProgress.total }}
-          </span>
-          <div class="progress-bar-bg">
-            <div class="progress-bar" :style="{ width: `${groupProgress.percentage}%` }" />
+        <KitTooltip v-if="groupProgress.total > 0" :text="`${groupProgress.percentage}% выполнено`">
+          <div class="group-progress-container">
+            <span class="group-progress-text">
+              {{ groupProgress.completed }} / {{ groupProgress.total }}
+            </span>
+            <div class="progress-bar-bg">
+              <div class="progress-bar" :style="{ width: `${groupProgress.percentage}%` }" />
+            </div>
           </div>
-        </div>
-        <button v-if="!readonly" class="delete-group-btn" title="Удалить группу" @click="$emit('delete')">
-          <Icon icon="mdi:trash-can-outline" />
-        </button>
-        <button class="collapse-btn" title="Свернуть/Развернуть">
-          <Icon icon="mdi:chevron-down" :class="{ 'is-collapsed': isCollapsed }" />
-        </button>
+        </KitTooltip>
+        <KitTooltip v-if="!readonly" text="Удалить группу">
+          <button class="delete-group-btn" @click="$emit('delete')">
+            <Icon icon="mdi:trash-can-outline" />
+          </button>
+        </KitTooltip>
+        <KitTooltip text="Свернуть/Развернуть">
+          <button class="collapse-btn">
+            <Icon icon="mdi:chevron-down" :class="{ 'is-collapsed': isCollapsed }" />
+          </button>
+        </KitTooltip>
       </div>
     </header>
 

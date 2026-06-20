@@ -5,6 +5,7 @@ import { Icon } from '@iconify/vue'
 import { computed, nextTick, ref } from 'vue'
 import draggable from 'vuedraggable'
 import { KitDropdown } from '~/components/01.kit/kit-dropdown'
+import { KitTooltip } from '~/components/01.kit/kit-tooltip'
 
 interface Props {
   nodes: NoteTreeNode[]
@@ -168,13 +169,23 @@ function cancelRename(): void {
               </button>
               <div class="menu-divider" />
               <div class="color-picker" @click.stop>
-                <button class="color-btn none" title="Без метки" @click="emit('updateColor', node.id, null)">
-                  <Icon icon="mdi:close" />
-                </button>
-                <button class="color-btn" style="background-color: #ef4444" title="Важное" @click="emit('updateColor', node.id, '#ef4444')" />
-                <button class="color-btn" style="background-color: #eab308" title="Черновик" @click="emit('updateColor', node.id, '#eab308')" />
-                <button class="color-btn" style="background-color: #22c55e" title="Готово" @click="emit('updateColor', node.id, '#22c55e')" />
-                <button class="color-btn" style="background-color: #3b82f6" title="Инфо" @click="emit('updateColor', node.id, '#3b82f6')" />
+                <KitTooltip text="Без метки">
+                  <button class="color-btn none" @click="emit('updateColor', node.id, null)">
+                    <Icon icon="mdi:close" />
+                  </button>
+                </KitTooltip>
+                <KitTooltip text="Важное">
+                  <button class="color-btn" style="background-color: #ef4444" @click="emit('updateColor', node.id, '#ef4444')" />
+                </KitTooltip>
+                <KitTooltip text="Черновик">
+                  <button class="color-btn" style="background-color: #eab308" @click="emit('updateColor', node.id, '#eab308')" />
+                </KitTooltip>
+                <KitTooltip text="Готово">
+                  <button class="color-btn" style="background-color: #22c55e" @click="emit('updateColor', node.id, '#22c55e')" />
+                </KitTooltip>
+                <KitTooltip text="Инфо">
+                  <button class="color-btn" style="background-color: #3b82f6" @click="emit('updateColor', node.id, '#3b82f6')" />
+                </KitTooltip>
               </div>
             </div>
           </KitDropdown>

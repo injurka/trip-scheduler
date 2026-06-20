@@ -2,6 +2,7 @@
 import type { HighlightStatus } from '../../composables/use-booking-section'
 import { Icon } from '@iconify/vue'
 import { KitEditable } from '~/components/01.kit/kit-editable'
+import { KitTooltip } from '~/components/01.kit/kit-tooltip'
 import { vRipple } from '~/shared/directives/ripple'
 
 interface Props {
@@ -56,9 +57,11 @@ async function handleDelete() {
   <div class="booking-card" :class="highlightClass">
     <header v-ripple class="card-header" @click="isDetailsVisible = !isDetailsVisible">
       <div class="title-container">
-        <button v-if="!readonly" class="drag-handle" title="Перетащить">
-          <Icon icon="mdi:drag-vertical" />
-        </button>
+        <KitTooltip v-if="!readonly" text="Перетащить">
+          <button class="drag-handle">
+            <Icon icon="mdi:drag-vertical" />
+          </button>
+        </KitTooltip>
         <Icon :icon="icon" class="title-icon" />
 
         <span
@@ -82,12 +85,16 @@ async function handleDelete() {
         </div>
       </div>
       <div class="card-actions">
-        <button v-if="$slots.details" class="details-btn" title="Подробнее">
-          <Icon :icon="isDetailsVisible ? 'mdi:chevron-up' : 'mdi:chevron-down'" />
-        </button>
-        <button v-if="!readonly" class="delete-btn" title="Удалить" @click="handleDelete">
-          <Icon icon="mdi:trash-can-outline" />
-        </button>
+        <KitTooltip v-if="$slots.details" text="Подробнее">
+          <button class="details-btn">
+            <Icon :icon="isDetailsVisible ? 'mdi:chevron-up' : 'mdi:chevron-down'" />
+          </button>
+        </KitTooltip>
+        <KitTooltip v-if="!readonly" text="Удалить">
+          <button class="delete-btn" @click="handleDelete">
+            <Icon icon="mdi:trash-can-outline" />
+          </button>
+        </KitTooltip>
       </div>
     </header>
     <div class="card-body" @click="showVisibleIfClose">

@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { Icon } from '@iconify/vue'
 import { KitDialogWithClose } from '~/components/01.kit/kit-dialog-with-close'
+import { KitTooltip } from '~/components/01.kit/kit-tooltip'
 import { useModuleStore } from '~/components/05.modules/trip-info/composables/use-trip-info-module'
 import { AppRoutePaths } from '~/shared/constants/routes'
 import { formatDate } from '~/shared/lib/date-time'
@@ -91,12 +92,16 @@ async function handleUpdate(id: string) {
           </div>
 
           <div class="item-actions">
-            <button class="action-btn update" title="Обновить данные" @click="handleUpdate(item.id)">
-              <Icon icon="mdi:refresh" :class="{ spin: offlineStore.isDownloading[item.id] }" />
-            </button>
-            <button class="action-btn delete" title="Удалить из памяти" @click="handleDelete(item.id)">
-              <Icon icon="mdi:trash-can-outline" />
-            </button>
+            <KitTooltip text="Обновить данные">
+              <button class="action-btn update" @click="handleUpdate(item.id)">
+                <Icon icon="mdi:refresh" :class="{ spin: offlineStore.isDownloading[item.id] }" />
+              </button>
+            </KitTooltip>
+            <KitTooltip text="Удалить из памяти">
+              <button class="action-btn delete" @click="handleDelete(item.id)">
+                <Icon icon="mdi:trash-can-outline" />
+              </button>
+            </KitTooltip>
           </div>
         </div>
       </div>

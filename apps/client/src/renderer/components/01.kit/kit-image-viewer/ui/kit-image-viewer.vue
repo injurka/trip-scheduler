@@ -2,6 +2,7 @@
 import type { IImageViewerImageMeta, ImageQuality, ImageViewerImage } from '../models/types'
 import { Icon } from '@iconify/vue'
 import { onClickOutside, toRef, useEventListener, useIdle } from '@vueuse/core'
+import { KitTooltip } from '~/components/01.kit/kit-tooltip'
 import { useRequest } from '~/plugins/request'
 import { useImageViewerSwipe, useImageViewerTransform, useImageViewerUi } from '../composables'
 import ImageMetadataPanel from './kit-image-metadata-panel.vue'
@@ -454,16 +455,19 @@ onUnmounted(() => {
             <Transition name="controls-fade">
               <div v-show="areControlsVisible && isUiVisible" class="thumbnails-container">
                 <div ref="thumbnailsRef" class="thumbnails-wrapper">
-                  <button
+                  <KitTooltip
                     v-for="(image, index) in images"
                     :key="`thumb-${index}`"
-                    class="thumbnail"
-                    :class="{ active: index === currentIndex }"
-                    :title="`Go to image ${index + 1}`"
-                    @click.stop="goToIndex(index)"
+                    :text="`Go to image ${index + 1}`"
                   >
-                    <img v-resolve-src="image.variants?.small || image.url" :alt="image.alt || `Thumbnail ${index + 1}`">
-                  </button>
+                    <button
+                      class="thumbnail"
+                      :class="{ active: index === currentIndex }"
+                      @click.stop="goToIndex(index)"
+                    >
+                      <img v-resolve-src="image.variants?.small || image.url" :alt="image.alt || `Thumbnail ${index + 1}`">
+                    </button>
+                  </KitTooltip>
                 </div>
               </div>
             </Transition>

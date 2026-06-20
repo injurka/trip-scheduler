@@ -6,6 +6,7 @@ import { computed } from 'vue'
 import draggable from 'vuedraggable'
 import { KitInlineMdEditorWrapper } from '~/components/01.kit/kit-inline-md-editor'
 import { KitInput } from '~/components/01.kit/kit-input'
+import { KitTooltip } from '~/components/01.kit/kit-tooltip'
 import { KitTimeField } from '~/components/01.kit/kit-time-field'
 import { usePostDraftStore } from '../../store/post-draft.store'
 import AddBlockMenu from './add-block-menu.vue'
@@ -74,15 +75,17 @@ function getBlockTitle(type: TimelineBlockType) {
       </div>
       <div class="stage-meta">
         <div class="compact-day-time">
-          <div class="day-wrapper" title="День маршрута">
-            <span class="label">Дн</span>
-            <input
-              :value="'day' in stage ? stage.day : 1"
-              type="number"
-              class="bare-input"
-              @input="e => store.updateStage(stage.id, { day: Number((e.target as HTMLInputElement).value) } as any)"
-            >
-          </div>
+          <KitTooltip text="День маршрута">
+            <div class="day-wrapper">
+              <span class="label">Дн</span>
+              <input
+                :value="'day' in stage ? stage.day : 1"
+                type="number"
+                class="bare-input"
+                @input="e => store.updateStage(stage.id, { day: Number((e.target as HTMLInputElement).value) } as any)"
+              >
+            </div>
+          </KitTooltip>
           <div class="divider" />
           <KitTimeField
             v-model="stageTimeModel"
@@ -116,16 +119,20 @@ function getBlockTitle(type: TimelineBlockType) {
         <template #item="{ element: block }">
           <div class="block-item">
             <div class="block-actions-bar">
-              <div class="block-drag-handle" title="Потяните для сортировки">
-                <Icon icon="mdi:drag-horizontal" />
-              </div>
+              <KitTooltip text="Потяните для сортировки">
+                <div class="block-drag-handle">
+                  <Icon icon="mdi:drag-horizontal" />
+                </div>
+              </KitTooltip>
               <div class="block-type-label">
                 <Icon :icon="getBlockIcon(block.type)" class="type-icon" />
                 <span>{{ getBlockTitle(block.type) }}</span>
               </div>
-              <button class="remove-block-btn" title="Удалить блок" @click="store.removeBlock(stage.id, block.id)">
-                <Icon icon="mdi:close" width="16" height="16" />
-              </button>
+              <KitTooltip text="Удалить блок">
+                <button class="remove-block-btn" @click="store.removeBlock(stage.id, block.id)">
+                  <Icon icon="mdi:close" width="16" height="16" />
+                </button>
+              </KitTooltip>
             </div>
 
             <div class="block-content">

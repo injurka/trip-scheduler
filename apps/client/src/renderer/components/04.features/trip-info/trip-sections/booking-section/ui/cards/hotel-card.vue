@@ -4,6 +4,7 @@ import type { Booking, HotelData } from '../../models/types'
 import { Icon } from '@iconify/vue'
 import { KitBtn } from '~/components/01.kit/kit-btn'
 import { KitDivider } from '~/components/01.kit/kit-divider'
+import { KitTooltip } from '~/components/01.kit/kit-tooltip'
 import BookingCardWrapper from '../shared/booking-card-wrapper.vue'
 import BookingDateTimeField from '../shared/booking-date-time-field.vue'
 import BookingField from '../shared/booking-field.vue'
@@ -71,20 +72,23 @@ const hotelWebsiteUrl = computed(() => {
       />
       <div v-else class="booking-field span-2">
         <label class="field-label">Название отеля</label>
-        <a
+        <KitTooltip
           v-if="hotelWebsiteUrl"
-          :href="hotelWebsiteUrl"
-          target="_blank"
-          rel="noopener noreferrer"
-          class="hotel-name-link-wrapper"
-          :title="`Открыть сайт отеля: ${booking.data.website}`"
+          :text="`Открыть сайт отеля: ${booking.data.website}`"
         >
-          <KitBtn variant="text" class="hotel-name-btn">
-            <Icon icon="mdi:office-building-outline" class="field-icon" />
-            <span class="readonly-value">{{ booking.data.hotelName || 'Название не указано' }}</span>
-            <Icon icon="mdi:open-in-new" class="external-link-icon" />
-          </KitBtn>
-        </a>
+          <a
+            :href="hotelWebsiteUrl"
+            target="_blank"
+            rel="noopener noreferrer"
+            class="hotel-name-link-wrapper"
+          >
+            <KitBtn variant="text" class="hotel-name-btn">
+              <Icon icon="mdi:office-building-outline" class="field-icon" />
+              <span class="readonly-value">{{ booking.data.hotelName || 'Название не указано' }}</span>
+              <Icon icon="mdi:open-in-new" class="external-link-icon" />
+            </KitBtn>
+          </a>
+        </KitTooltip>
         <div v-else class="readonly-content">
           <Icon icon="mdi:office-building-outline" class="field-icon" />
           <span v-if="booking.data.hotelName" class="readonly-value">{{ booking.data.hotelName }}</span>

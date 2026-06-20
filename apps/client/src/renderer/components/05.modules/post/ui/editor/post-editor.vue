@@ -12,6 +12,7 @@ import { KitDropdown } from '~/components/01.kit/kit-dropdown'
 import { KitImage } from '~/components/01.kit/kit-image'
 import { KitInput } from '~/components/01.kit/kit-input'
 import { KitSelectWithSearch } from '~/components/01.kit/kit-select-with-search'
+import { KitTooltip } from '~/components/01.kit/kit-tooltip'
 import { NavigationBack } from '~/components/02.shared/navigation-back'
 import { useRequest } from '~/plugins/request'
 import { useConfirm } from '~/shared/composables/use-confirm'
@@ -62,7 +63,7 @@ const stagesModel = computed({
 })
 
 // Защита от случайного закрытия вкладки
-onBeforeRouteLeave(async (to, from, next) => {
+onBeforeRouteLeave(async (_to, _from, next) => {
   if (isLeavingIntentionally || isPublishing.value || !isDirty.value) {
     next()
     return
@@ -315,7 +316,7 @@ onMounted(async () => {
   }
   isLoading.value = false
 
-  store.$subscribe((mutation, state) => {
+  store.$subscribe((_mutation, state) => {
     if (state.isDirty && !isPublishing.value) {
       localStorage.setItem(draftKey, JSON.stringify({
         post: state.post,
@@ -350,9 +351,11 @@ watch(() => [post.value?.title, post.value?.insight, post.value?.description], (
       </div>
 
       <div class="actions">
-        <button v-if="!isPreviewMode" class="action-icon-btn" title="Медиатека" @click="openLibraryManage">
-          <Icon icon="mdi:image-multiple-outline" />
-        </button>
+        <KitTooltip v-if="!isPreviewMode" text="Медиатека">
+          <button class="action-icon-btn" @click="openLibraryManage">
+            <Icon icon="mdi:image-multiple-outline" />
+          </button>
+        </KitTooltip>
 
         <button class="preview-toggle" @click="isPreviewMode = !isPreviewMode">
           <Icon :icon="isPreviewMode ? 'mdi:pencil-outline' : 'mdi:eye-outline'" />
@@ -417,9 +420,11 @@ watch(() => [post.value?.title, post.value?.insight, post.value?.description], (
                 </KitSelectWithSearch>
               </div>
 
-              <button class="map-btn" :class="{ 'has-coords': post.latitude }" title="Указать на карте" @click="isMapPickerOpen = true">
-                <Icon icon="mdi:map-marker-radius" />
-              </button>
+              <KitTooltip text="Указать на карте">
+                <button class="map-btn" :class="{ 'has-coords': post.latitude }" @click="isMapPickerOpen = true">
+                  <Icon icon="mdi:map-marker-radius" />
+                </button>
+              </KitTooltip>
             </div>
           </div>
 

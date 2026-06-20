@@ -1,5 +1,6 @@
 <script lang="ts" setup>
 import { Icon } from '@iconify/vue'
+import { KitTooltip } from '~/components/01.kit/kit-tooltip'
 import { AppRouteNames } from '~/shared/constants/routes'
 </script>
 
@@ -46,15 +47,16 @@ import { AppRouteNames } from '~/shared/constants/routes'
           <Icon icon="mdi:information-outline" />
         </router-link>
 
-        <a
-          href="https://github.com/xsolare/trip-scheduler"
-          target="_blank"
-          rel="noopener noreferrer"
-          class="icon-link"
-          title="GitHub"
-        >
-          <Icon icon="mdi:github" />
-        </a>
+        <KitTooltip text="GitHub">
+          <a
+            href="https://github.com/xsolare/trip-scheduler"
+            target="_blank"
+            rel="noopener noreferrer"
+            class="icon-link"
+          >
+            <Icon icon="mdi:github" />
+          </a>
+        </KitTooltip>
       </div>
     </div>
   </footer>

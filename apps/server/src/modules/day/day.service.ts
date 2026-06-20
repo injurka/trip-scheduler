@@ -13,9 +13,13 @@ export const dayService = {
   async getByTripId(id: string) {
     const day = await dayRepository.getByTripId(id)
     if (!day)
-      throw createTRPCError('NOT_FOUND', `День с ID ${id} не найден.`)
+      throw createTRPCError('NOT_FOUND', `Дни для путешествия с ID ${id} не найдены.`)
 
     return day
+  },
+
+  async getByIdForGeneration(id: string, userId: string, userRole: string) {
+    return await accessControlService.getDayAndVerifyAccess(id, userId, userRole)
   },
 
   async create(data: z.infer<typeof CreateDayInputSchema>, userId: string, userRole: string) {

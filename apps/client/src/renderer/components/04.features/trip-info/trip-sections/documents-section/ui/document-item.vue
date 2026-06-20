@@ -3,6 +3,7 @@ import type { DocumentFile } from '../models/types'
 import { Icon } from '@iconify/vue'
 import { computed, ref } from 'vue'
 import { KitDropdown } from '~/components/01.kit/kit-dropdown'
+import { KitTooltip } from '~/components/01.kit/kit-tooltip'
 import { useToast } from '~/shared/composables/use-toast'
 import { resolveApiUrl } from '~/shared/lib/url'
 
@@ -126,22 +127,27 @@ function handleOpen() {
     </div>
 
     <div class="doc-info">
-      <span class="doc-name" :title="displayName">{{ displayName }}</span>
-      <span class="doc-meta" :title="`${formatBytes(document.sizeBytes)} • ${formatDate(document.createdAt)}`">
-        {{ formatBytes(document.sizeBytes) }} • {{ formatDate(document.createdAt) }}
-      </span>
+      <KitTooltip :text="displayName">
+        <span class="doc-name">{{ displayName }}</span>
+      </KitTooltip>
+      <KitTooltip :text="`${formatBytes(document.sizeBytes)} • ${formatDate(document.createdAt)}`">
+        <span class="doc-meta">
+          {{ formatBytes(document.sizeBytes) }} • {{ formatDate(document.createdAt) }}
+        </span>
+      </KitTooltip>
     </div>
 
     <div class="doc-actions">
-      <button
-        class="access-badge"
-        :class="`access--${document.access}`"
-        :title="document.access === 'public' ? 'Публичный доступ' : 'Только для участников'"
-        :disabled="readonly"
-        @click.stop="toggleAccess"
-      >
-        <Icon :icon="document.access === 'public' ? 'mdi:earth' : 'mdi:lock-outline'" />
-      </button>
+      <KitTooltip :text="document.access === 'public' ? 'Публичный доступ' : 'Только для участников'">
+        <button
+          class="access-badge"
+          :class="`access--${document.access}`"
+          :disabled="readonly"
+          @click.stop="toggleAccess"
+        >
+          <Icon :icon="document.access === 'public' ? 'mdi:earth' : 'mdi:lock-outline'" />
+        </button>
+      </KitTooltip>
 
       <KitDropdown v-if="!readonly" align="end" :items="[]">
         <template #trigger>
@@ -165,9 +171,11 @@ function handleOpen() {
         </div>
       </KitDropdown>
 
-      <button v-else class="action-btn" title="Скачать" :disabled="isDownloading" @click.stop="handleDownload">
-        <Icon :icon="isDownloading ? 'mdi:loading' : 'mdi:download-outline'" :class="{ spin: isDownloading }" />
-      </button>
+      <KitTooltip v-else text="Скачать">
+        <button class="action-btn" :disabled="isDownloading" @click.stop="handleDownload">
+          <Icon :icon="isDownloading ? 'mdi:loading' : 'mdi:download-outline'" :class="{ spin: isDownloading }" />
+        </button>
+      </KitTooltip>
     </div>
   </div>
 </template>

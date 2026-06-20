@@ -152,13 +152,13 @@ function openExpanded() {
       </div>
 
       <div v-if="isOwner" class="card-actions" @click.stop>
-        <KitTooltip name="Редактировать">
+        <KitTooltip text="Редактировать">
           <button class="action-btn" @click.stop="emit('edit', review)">
             <Icon icon="mdi:pencil-outline" />
           </button>
         </KitTooltip>
 
-        <KitTooltip name="Удалить">
+        <KitTooltip text="Удалить">
           <button class="action-btn danger" @click.stop="emit('delete', review.id)">
             <Icon icon="mdi:trash-can-outline" />
           </button>
@@ -170,7 +170,7 @@ function openExpanded() {
         <KitTooltip
           v-for="(val, key) in numericMetrics"
           :key="key"
-          :name="`${METRIC_LABELS[key] || key}: ${val}/5`"
+          :text="`${METRIC_LABELS[key] || key}: ${val}/5`"
         >
           <div
             class="mini-metric-item"

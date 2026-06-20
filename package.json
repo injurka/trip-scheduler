@@ -19,6 +19,10 @@
     "--------------------------------< LINT & FORMAT >---------------------------------": "",
     "lint": "bun run --filter='./apps/*' lint",
     "typecheck": "bun --filter='./apps/*' typecheck",
+    "--------------------------------<     TESTS      >---------------------------------": "",
+    "test:e2e": "bun --filter='./apps/client' test:e2e",
+    "test:e2e:ui": "bun --filter='./apps/client' test:e2e:ui",
+    "test:e2e:mock": "bun --filter='./apps/client' test:e2e:mock",
     "--------------------------------<     HELPERS   >---------------------------------": "",
     "postinstall": "simple-git-hooks",
     "remove-prompt": "find . -type f -name 'src_prompt.md' -delete"

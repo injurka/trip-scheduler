@@ -363,7 +363,7 @@ watch(() => props.trip?.id, (newId) => {
 
       <div class="header-actions-wrapper">
         <div class="card-visibility-wrapper">
-          <KitTooltip :name="visibilityInfo.label">
+          <KitTooltip :text="visibilityInfo.label">
             <div class="card-visibility">
               <Icon :icon="visibilityInfo.icon" />
             </div>
@@ -376,9 +376,11 @@ watch(() => props.trip?.id, (newId) => {
             align="end"
           >
             <template #trigger>
-              <button class="action-btn" title="Еще" @click.stop.prevent>
-                <Icon icon="mdi:dots-vertical" />
-              </button>
+              <KitTooltip text="Еще">
+                <button class="action-btn" @click.stop.prevent>
+                  <Icon icon="mdi:dots-vertical" />
+                </button>
+              </KitTooltip>
             </template>
             <DropdownMenuItem
               v-for="item in moreMenuItems"

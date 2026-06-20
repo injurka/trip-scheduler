@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { Icon } from '@iconify/vue'
 import { KitCheckbox } from '~/components/01.kit/kit-checkbox'
+import { KitTooltip } from '~/components/01.kit/kit-tooltip'
 import { useModuleStore } from '~/components/05.modules/trip-info/composables/use-trip-info-module'
 import MemoryProcessingCard from './processing-card.vue'
 
@@ -54,12 +55,16 @@ const {
         <p>Здесь находятся фото без даты или снятые в другой день. Назначьте им время и комментарий, чтобы они появились в ленте воспоминаний.</p>
       </div>
       <div class="header-actions">
-        <button class="action-btn" :title="isFullScreen ? 'Свернуть из полноэкранного режима' : 'На весь экран'" @click="isFullScreen = !isFullScreen">
-          <Icon :icon="isFullScreen ? 'mdi:fullscreen-exit' : 'mdi:fullscreen'" />
-        </button>
-        <button class="action-btn" :title="isCollapsed ? 'Развернуть' : 'Свернуть'" @click="isCollapsed = !isCollapsed">
-          <Icon :icon="isCollapsed ? 'mdi:chevron-down' : 'mdi:chevron-up'" />
-        </button>
+        <KitTooltip :text="isFullScreen ? 'Свернуть из полноэкранного режима' : 'На весь экран'">
+          <button class="action-btn" @click="isFullScreen = !isFullScreen">
+            <Icon :icon="isFullScreen ? 'mdi:fullscreen-exit' : 'mdi:fullscreen'" />
+          </button>
+        </KitTooltip>
+        <KitTooltip :text="isCollapsed ? 'Развернуть' : 'Свернуть'">
+          <button class="action-btn" @click="isCollapsed = !isCollapsed">
+            <Icon :icon="isCollapsed ? 'mdi:chevron-down' : 'mdi:chevron-up'" />
+          </button>
+        </KitTooltip>
       </div>
     </div>
     <div v-show="!isCollapsed" class="queue-content">

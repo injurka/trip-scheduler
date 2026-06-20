@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import type { DrawnRoute, MapPoint, MapRoute } from '~/components/03.domain/trip-info/geolocation-section'
 import { Icon } from '@iconify/vue'
+import { KitTooltip } from '~/components/01.kit/kit-tooltip'
 
 interface Props {
   item: (MapPoint | MapRoute | DrawnRoute) & { dayId?: string }
@@ -71,7 +72,9 @@ const itemColor = computed(() => {
       <Icon v-if="itemIcon" :icon="itemIcon" class="item-icon" :style="{ color: itemColor }" />
     </div>
     <div class="item-info">
-      <span class="item-text" :title="itemText">{{ itemText }}</span>
+      <KitTooltip :text="itemText">
+        <span class="item-text">{{ itemText }}</span>
+      </KitTooltip>
       <span v-if="itemSubtitle" class="item-subtitle">{{ itemSubtitle }}</span>
     </div>
   </div>

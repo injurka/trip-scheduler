@@ -3,6 +3,7 @@ import type { IActivity } from '../../models/types'
 import { Icon } from '@iconify/vue'
 import { KitDivider } from '~/components/01.kit/kit-divider'
 import DayMetaBadges from '~/components/04.features/trip-info/trip-plan/ui/day-meta-badges.vue'
+import { KitTooltip } from '~/components/01.kit/kit-tooltip'
 import DayActivitiesList from '~/components/04.features/trip-info/trip-plan/ui/list.vue'
 import { EActivityStatus } from '~/shared/types/models/activity'
 import { useModuleStore } from '../../composables/use-trip-info-module'
@@ -50,22 +51,22 @@ function handleToggleAllActivities() {
       <KitDivider :is-loading="store.plan.isLoadingUpdateActivity">
         маршрут
       </KitDivider>
-      <button
-        v-if="isViewMode && getSelectedDay?.meta?.length"
-        class="collapse-all-btn"
-        title="Свернуть/развернуть все активности"
-        @click="handleToggleAllActivities"
-      >
-        <Icon :icon="collapseRouteIcon" />
-      </button>
-      <button
-        v-if="isViewMode && allActivityIds.length > 0"
-        class="collapse-all-btn"
-        title="Свернуть/развернуть все активности"
-        @click="handleToggleAllActivities"
-      >
-        <Icon :icon="collapseRouteIcon" />
-      </button>
+      <KitTooltip v-if="isViewMode && getSelectedDay?.meta?.length" text="Свернуть/развернуть все активности">
+        <button
+          class="collapse-all-btn"
+          @click="handleToggleAllActivities"
+        >
+          <Icon :icon="collapseRouteIcon" />
+        </button>
+      </KitTooltip>
+      <KitTooltip v-if="isViewMode && allActivityIds.length > 0" text="Свернуть/развернуть все активности">
+        <button
+          class="collapse-all-btn"
+          @click="handleToggleAllActivities"
+        >
+          <Icon :icon="collapseRouteIcon" />
+        </button>
+      </KitTooltip>
     </div>
     <DayActivitiesList @add="handleAddNewActivity" />
 

@@ -214,7 +214,7 @@ function updateSegmentField<K extends keyof FlightSegment>(segmentIndex: number,
         <div class="route-line">
           <template v-for="(part) in journeySegments" :key="part.tooltip">
             <KitTooltip
-              :name="part.tooltip"
+              :text="part.tooltip"
               :style="{ width: `${part.widthPercent}%` }"
             >
               <div
@@ -233,7 +233,7 @@ function updateSegmentField<K extends keyof FlightSegment>(segmentIndex: number,
             <KitTooltip
               v-for="airline in uniqueAirlines"
               :key="airline.iataCode"
-              :name="`${airline.name || airline.iataCode}`"
+              :text="`${airline.name || airline.iataCode}`"
             >
               <div class="center-logo-wrapper">
                 <img

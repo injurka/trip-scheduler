@@ -5,11 +5,15 @@ import {
   CreateDayInputSchema,
   DaySchema,
   DeleteDayInputSchema,
+  GenerateDayNoteInputSchema,
+  GenerateTemplateInputSchema,
   GetDayByIdInputSchema,
   GetDayNoteInputSchema,
   UpdateDayInputSchema,
 } from './day.schemas'
 import { dayService } from './day.service'
+import { canvasGenerationService } from '~/services/llm/canvas-generation.service'
+import { templateGenerationService } from '~/services/llm/template-generation.service'
 
 const DayWithActivitiesSchema = DaySchema.extend({
   activities: z.array(ActivitySchema),
@@ -44,6 +48,47 @@ export const dayProcedures = {
     .output(z.string().nullable())
     .query(async ({ input }) => {
       return dayService.getNote(input.dayId)
+    }),
+
+  generateNote: protectedProcedure
+    .meta({
+      openapi: {
+        method: 'POST',
+        path: '/days/{dayId}/generate-note',
+        tags: ['Days'],
+        summary: 'Сгенерировать заметку дня через ИИ',
+      },
+    })
+    .input(GenerateDayNoteInputSchema)
+    .output(z.string())
+    .mutation(async ({ input, ctx }) => {
+      const day = await dayService.getByIdForGeneration(input.dayId, ctx.user.id, ctx.user.role)
+      let contextStr = undefined
+
+      if (input.useContext) {
+        const allDays = await dayService.getByTripId(day.tripId)
+        contextStr = allDays
+          .map(d => `День ${new Date(d.date).toLocaleDateString('ru-RU')}: ${d.note || 'нет описания'}`)
+          .join('\n')
+      }
+
+      return canvasGenerationService.generateDayNote(ctx.user.id, input.prompt, contextStr)
+    }),
+
+  generateTemplate: protectedProcedure
+    .meta({
+      openapi: {
+        method: 'POST',
+        path: '/days/{dayId}/generate-template',
+        tags: ['Days'],
+        summary: 'Сгенерировать изменения для шаблонного вида',
+      },
+    })
+    .input(GenerateTemplateInputSchema)
+    .output(z.array(z.any()))
+    .mutation(async ({ input, ctx }) => {
+      await dayService.getByIdForGeneration(input.dayId, ctx.user.id, ctx.user.role)
+      return templateGenerationService.generateTemplate(ctx.user.id, input.currentActivities, input.prompt, input.canvasNote, input.daysContext)
     }),
 
   create: protectedProcedure

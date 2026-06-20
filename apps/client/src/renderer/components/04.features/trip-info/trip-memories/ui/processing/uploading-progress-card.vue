@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import type { IProcessingMemory } from '../../types'
 import { Icon } from '@iconify/vue'
+import { KitTooltip } from '~/components/01.kit/kit-tooltip'
 
 interface Props {
   memory: IProcessingMemory
@@ -22,7 +23,9 @@ const emit = defineEmits<{
     </div>
     <div class="details">
       <div class="file-info">
-        <span class="file-name" :title="memory.file.name">{{ `${memory.file.name.slice(0, 8)}...` }}</span>
+        <KitTooltip :text="memory.file.name" class="file-name-tooltip">
+          <span class="file-name">{{ `${memory.file.name.slice(0, 8)}...` }}</span>
+        </KitTooltip>
         <span class="file-size">{{ (memory.file.size / 1024 / 1024).toFixed(2) }} MB</span>
       </div>
 
@@ -37,15 +40,21 @@ const emit = defineEmits<{
     </div>
     <div class="actions">
       <span v-if="memory.status === 'uploading'" class="progress-text">{{ memory.progress }}%</span>
-      <button v-if="memory.status === 'uploading'" class="action-btn" title="Отменить" @click="emit('cancel')">
-        <Icon icon="mdi:close" />
-      </button>
-      <button v-if="memory.status === 'error'" class="action-btn retry" title="Повторить" @click="emit('retry')">
-        <Icon icon="mdi:refresh" />
-      </button>
-      <button v-if="memory.status === 'error'" class="action-btn remove" title="Удалить" @click="emit('remove')">
-        <Icon icon="mdi:trash-can-outline" />
-      </button>
+      <KitTooltip v-if="memory.status === 'uploading'" text="Отменить">
+        <button class="action-btn" @click="emit('cancel')">
+          <Icon icon="mdi:close" />
+        </button>
+      </KitTooltip>
+      <KitTooltip v-if="memory.status === 'error'" text="Повторить">
+        <button class="action-btn retry" @click="emit('retry')">
+          <Icon icon="mdi:refresh" />
+        </button>
+      </KitTooltip>
+      <KitTooltip v-if="memory.status === 'error'" text="Удалить">
+        <button class="action-btn remove" @click="emit('remove')">
+          <Icon icon="mdi:trash-can-outline" />
+        </button>
+      </KitTooltip>
     </div>
   </div>
 </template>
@@ -102,14 +111,21 @@ const emit = defineEmits<{
   gap: 12px;
 }
 
+.file-name-tooltip {
+  flex: 1;
+  min-width: 0;
+  width: 100%;
+  :deep(.kit-tooltip-trigger) {
+    width: 100%;
+  }
+}
+
 .file-name {
   font-weight: 500;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
-
-  flex: 1;
-  min-width: 0;
+  width: 100%;
 }
 
 .file-size {

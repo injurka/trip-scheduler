@@ -4,6 +4,7 @@ import type { MapMarker } from '~/components/01.kit/kit-map'
 import { Icon } from '@iconify/vue'
 import { onClickOutside } from '@vueuse/core'
 import { KitMap } from '~/components/01.kit/kit-map/ui'
+import { KitTooltip } from '~/components/01.kit/kit-tooltip'
 
 interface Props {
   visible: boolean
@@ -234,9 +235,11 @@ const extendedInfo = computed(() => {
               <Icon icon="mdi:image-text" />
               <h3>Информация о снимке</h3>
             </div>
-            <button class="close-btn-panel" title="Закрыть" @click.stop="$emit('close')">
-              <Icon icon="mdi:close" />
-            </button>
+            <KitTooltip text="Закрыть">
+              <button class="close-btn-panel" @click.stop="$emit('close')">
+                <Icon icon="mdi:close" />
+              </button>
+            </KitTooltip>
           </header>
           <div class="panel-content">
             <section class="info-section">

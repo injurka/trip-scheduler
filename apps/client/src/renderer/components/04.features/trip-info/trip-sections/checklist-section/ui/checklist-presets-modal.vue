@@ -3,6 +3,7 @@ import type { ChecklistPreset, ChecklistTab } from '../models/types'
 import { Icon } from '@iconify/vue'
 import { KitBtn } from '~/components/01.kit/kit-btn'
 import { KitDialogWithClose } from '~/components/01.kit/kit-dialog-with-close'
+import { KitTooltip } from '~/components/01.kit/kit-tooltip'
 import { HARDCODED_PRESETS } from '../constant'
 
 interface Props {
@@ -71,14 +72,18 @@ function selectPreset(preset: ChecklistPreset) {
 
           <div class="preset-footer">
             <div class="preset-meta">
-              <span class="meta-tag" title="Количество групп">
-                <Icon icon="mdi:folder-multiple-outline" />
-                {{ preset.groups.length }}
-              </span>
-              <span class="meta-tag" title="Количество задач">
-                <Icon icon="mdi:checkbox-marked-circle-outline" />
-                {{ preset.groups.reduce((acc, g) => acc + g.items.length, 0) }}
-              </span>
+              <KitTooltip text="Количество групп">
+                <span class="meta-tag">
+                  <Icon icon="mdi:folder-multiple-outline" />
+                  {{ preset.groups.length }}
+                </span>
+              </KitTooltip>
+              <KitTooltip text="Количество задач">
+                <span class="meta-tag">
+                  <Icon icon="mdi:checkbox-marked-circle-outline" />
+                  {{ preset.groups.reduce((acc, g) => acc + g.items.length, 0) }}
+                </span>
+              </KitTooltip>
             </div>
 
             <div class="preset-actions">

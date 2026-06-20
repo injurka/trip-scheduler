@@ -4,6 +4,7 @@ import type { Highlight } from '~/shared/types/models/user'
 import { Icon } from '@iconify/vue'
 import { computed, ref } from 'vue'
 import { KitImage } from '~/components/01.kit/kit-image'
+import { KitTooltip } from '~/components/01.kit/kit-tooltip'
 import { getImageUrl } from '~/shared/lib/url'
 
 const props = defineProps<{
@@ -95,23 +96,25 @@ function toggleTooltip(e: Event) {
       />
 
       <div v-if="isOwner" class="card-actions">
-        <button
-          type="button"
-          class="icon-btn"
-          title="Редактировать"
-          @click.stop="emit('edit', photo)"
-        >
-          <Icon icon="mdi:pencil-outline" />
-        </button>
+        <KitTooltip text="Редактировать">
+          <button
+            type="button"
+            class="icon-btn"
+            @click.stop="emit('edit', photo)"
+          >
+            <Icon icon="mdi:pencil-outline" />
+          </button>
+        </KitTooltip>
 
-        <button
-          type="button"
-          class="icon-btn icon-btn--danger"
-          title="Удалить"
-          @click.stop="emit('delete', photo.id)"
-        >
-          <Icon icon="mdi:trash-can-outline" />
-        </button>
+        <KitTooltip text="Удалить">
+          <button
+            type="button"
+            class="icon-btn icon-btn--danger"
+            @click.stop="emit('delete', photo.id)"
+          >
+            <Icon icon="mdi:trash-can-outline" />
+          </button>
+        </KitTooltip>
       </div>
 
       <div class="overlay-body">

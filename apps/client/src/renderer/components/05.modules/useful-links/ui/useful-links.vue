@@ -5,6 +5,7 @@ import { KitDivider } from '~/components/01.kit/kit-divider'
 import { KitDropdown } from '~/components/01.kit/kit-dropdown'
 import { KitInput } from '~/components/01.kit/kit-input'
 import { KitViewSwitcher } from '~/components/01.kit/kit-view-switcher'
+import { KitTooltip } from '~/components/01.kit/kit-tooltip'
 import { useUsefulLinks } from '~/components/05.modules/useful-links/composables/use-useful-links'
 
 import { useDisplay } from '~/shared/composables/use-display'
@@ -79,18 +80,21 @@ function scrollToCategory(id: string) {
     </div>
 
     <div class="quick-filters-wrapper">
-      <button
+      <KitTooltip
         v-for="category in allCategories"
         :key="category.title"
-        class="quick-filter-btn"
-        :title="category.title"
-        @click="scrollToCategory(categoryToId(category.title))"
+        :text="category.title"
       >
-        <div class="icon-box">
-          <Icon :icon="category.icon" />
-        </div>
-        <span class="quick-filter-label">{{ category.title }}</span>
-      </button>
+        <button
+          class="quick-filter-btn"
+          @click="scrollToCategory(categoryToId(category.title))"
+        >
+          <div class="icon-box">
+            <Icon :icon="category.icon" />
+          </div>
+          <span class="quick-filter-label">{{ category.title }}</span>
+        </button>
+      </KitTooltip>
     </div>
 
     <div class="tools-panel">

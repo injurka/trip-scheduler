@@ -2,6 +2,7 @@
 import { Icon } from '@iconify/vue'
 import { KitBottomSheet } from '~/components/01.kit/kit-bottom-sheet'
 import { KitDivider } from '~/components/01.kit/kit-divider'
+import { KitTooltip } from '~/components/01.kit/kit-tooltip'
 import { KitSkeleton } from '~/components/01.kit/kit-skeleton'
 import { AppFooter } from '~/components/02.shared/app-footer'
 import { AppHeader } from '~/components/02.shared/app-header'
@@ -74,9 +75,11 @@ onBeforeUnmount(() => {
           class="main-navigation"
         >
           <div class="main-navigation-left">
-            <button v-ripple class="nav-button" title="Назад" @click="router.back()">
-              <Icon icon="mdi:arrow-left" />
-            </button>
+            <KitTooltip text="Назад">
+              <button v-ripple class="nav-button" @click="router.back()">
+                <Icon icon="mdi:arrow-left" />
+              </button>
+            </KitTooltip>
           </div>
 
           <div ref="navigationWrapperRef" class="navigation-wrapper">
@@ -84,9 +87,11 @@ onBeforeUnmount(() => {
               <KitSkeleton height="40px" border-radius="12px" />
             </template>
             <template v-else>
-              <button class="nav-arrow left" title="Предыдущая секция" @click="layout.navigate('prev')">
-                <Icon icon="mdi:chevron-left" />
-              </button>
+              <KitTooltip text="Предыдущая секция">
+                <button class="nav-arrow left" @click="layout.navigate('prev')">
+                  <Icon icon="mdi:chevron-left" />
+                </button>
+              </KitTooltip>
 
               <div v-ripple class="current-section" @click="layout.handleCurrentSectionClick">
                 <Icon v-if="layout.activeTab.value?.icon" :icon="layout.activeTab.value.icon" class="current-section-icon" />
@@ -96,9 +101,11 @@ onBeforeUnmount(() => {
                 <Icon icon="mdi:chevron-down" class="chevron-icon" :class="{ 'is-open': layout.isLayoutDropdownOpen.value }" />
               </div>
 
-              <button class="nav-arrow right" title="Следующая секция" @click="layout.navigate('next')">
-                <Icon icon="mdi:chevron-right" />
-              </button>
+              <KitTooltip text="Следующая секция">
+                <button class="nav-arrow right" @click="layout.navigate('next')">
+                  <Icon icon="mdi:chevron-right" />
+                </button>
+              </KitTooltip>
 
               <Transition name="fade-dropdown">
                 <div v-if="!layout.isMobile.value && layout.isLayoutDropdownOpen.value" class="sections-dropdown-panel">
@@ -130,14 +137,14 @@ onBeforeUnmount(() => {
                 :parent-id="dayId"
                 :parent-type="CommentParentType.DAY"
               />
-              <button
-                v-if="canEdit"
-                class="nav-button"
-                :title="ui.isViewMode ? 'Перейти в режим редактирования' : 'Перейти в режим просмотра'"
-                @click="toggleMode"
-              >
-                <Icon width="18" height="18" :icon="ui.isViewMode ? 'mdi:pencil-outline' : 'mdi:eye-outline'" />
-              </button>
+              <KitTooltip v-if="canEdit" :text="ui.isViewMode ? 'Перейти в режим редактирования' : 'Перейти в режим просмотра'">
+                <button
+                  class="nav-button"
+                  @click="toggleMode"
+                >
+                  <Icon width="18" height="18" :icon="ui.isViewMode ? 'mdi:pencil-outline' : 'mdi:eye-outline'" />
+                </button>
+              </KitTooltip>
             </template>
           </div>
         </div>

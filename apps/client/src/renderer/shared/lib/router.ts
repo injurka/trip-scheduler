@@ -241,13 +241,16 @@ const routes: RouteRecordRaw[] = [
   },
 ]
 
-const scrollBehavior: RouterScrollBehavior = (_to, _from, savedPosition) => {
+const scrollBehavior: RouterScrollBehavior = (to, from, savedPosition) => {
   if (savedPosition) {
     return savedPosition
   }
-  else {
-    return { top: 0 }
+  
+  if (to.path === from.path) {
+    return false
   }
+
+  return { top: 0 }
 }
 
 const router: Router = createRouter({

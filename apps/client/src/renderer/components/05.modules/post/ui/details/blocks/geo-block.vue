@@ -4,6 +4,7 @@ import type { LocationBlock, RouteBlock } from '~/shared/types/models/post'
 import { Icon } from '@iconify/vue'
 import { computed, ref } from 'vue'
 import GeolocationMap from '~/components/03.domain/trip-info/geolocation-section/ui/geolocation-map.vue'
+import { KitTooltip } from '~/components/01.kit/kit-tooltip'
 import { vRipple } from '~/shared/directives/ripple'
 
 const props = withDefaults(defineProps<{
@@ -97,9 +98,11 @@ const mapCenter = computed<[number, number]>(() => {
       </div>
 
       <div class="actions" @click.stop>
-        <button class="inline-map-btn" :title="isInlineMapOpen ? 'Скрыть карту' : 'Показать карту здесь'" @click.stop="isInlineMapOpen = !isInlineMapOpen">
-          <Icon :icon="isInlineMapOpen ? 'mdi:map-minus' : 'mdi:map-plus'" />
-        </button>
+        <KitTooltip :text="isInlineMapOpen ? 'Скрыть карту' : 'Показать карту здесь'">
+          <button class="inline-map-btn" @click.stop="isInlineMapOpen = !isInlineMapOpen">
+            <Icon :icon="isInlineMapOpen ? 'mdi:map-minus' : 'mdi:map-plus'" />
+          </button>
+        </KitTooltip>
       </div>
       <Icon icon="mdi:chevron-right" class="arrow" />
     </button>

@@ -4,6 +4,7 @@ import { Icon } from '@iconify/vue'
 import { onClickOutside } from '@vueuse/core'
 import { KitCheckbox } from '~/components/01.kit/kit-checkbox'
 import { KitEditable } from '~/components/01.kit/kit-editable'
+import { KitTooltip } from '~/components/01.kit/kit-tooltip'
 
 interface Props {
   item: ChecklistItem
@@ -58,9 +59,11 @@ function handleLinkUpdate(value: string) {
   <div class="checklist-item-wrapper">
     <div class="checklist-item" :class="[`priority-${item.priority}`, { completed: item.completed }]">
       <div class="main-line">
-        <button v-if="!readonly" class="drag-handle" title="Перетащить">
-          <Icon icon="mdi:drag-vertical" />
-        </button>
+        <KitTooltip v-if="!readonly" text="Перетащить">
+          <button class="drag-handle">
+            <Icon icon="mdi:drag-vertical" />
+          </button>
+        </KitTooltip>
         <KitCheckbox
           :model-value="item.completed"
           color="accent"
@@ -77,22 +80,27 @@ function handleLinkUpdate(value: string) {
           {{ item.text }}
         </div>
         <div class="item-actions">
-          <button v-if="!readonly" class="action-btn" :class="{ 'is-active': item.link }" title="Добавить/Изменить ссылку" @click="isEditingLink = !isEditingLink">
-            <Icon icon="mdi:paperclip" />
-          </button>
-          <button v-if="!readonly" class="action-btn" :class="{ 'is-active': item.description }" title="Добавить/Изменить заметку" @click="isEditingDescription = !isEditingDescription">
-            <Icon icon="mdi:text-box-outline" />
-          </button>
+          <KitTooltip v-if="!readonly" text="Добавить/Изменить ссылку">
+            <button class="action-btn" :class="{ 'is-active': item.link }" @click="isEditingLink = !isEditingLink">
+              <Icon icon="mdi:paperclip" />
+            </button>
+          </KitTooltip>
+          <KitTooltip v-if="!readonly" text="Добавить/Изменить заметку">
+            <button class="action-btn" :class="{ 'is-active': item.description }" @click="isEditingDescription = !isEditingDescription">
+              <Icon icon="mdi:text-box-outline" />
+            </button>
+          </KitTooltip>
 
           <div v-if="!readonly" class="priority-picker-wrapper">
-            <button
-              class="action-btn priority-btn"
-              :class="`is-active-p${item.priority}`"
-              title="Изменить приоритет"
-              @click="isPriorityPickerOpen = !isPriorityPickerOpen"
-            >
-              <Icon icon="mdi:flag" />
-            </button>
+            <KitTooltip text="Изменить приоритет">
+              <button
+                class="action-btn priority-btn"
+                :class="`is-active-p${item.priority}`"
+                @click="isPriorityPickerOpen = !isPriorityPickerOpen"
+              >
+                <Icon icon="mdi:flag" />
+              </button>
+            </KitTooltip>
             <div
               v-if="isPriorityPickerOpen"
               ref="priorityPickerMenuRef"

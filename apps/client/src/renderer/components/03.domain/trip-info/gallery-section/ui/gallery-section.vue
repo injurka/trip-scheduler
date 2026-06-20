@@ -10,6 +10,7 @@ import { KitImage } from '~/components/01.kit/kit-image'
 import { KitImageViewer, useImageViewer } from '~/components/01.kit/kit-image-viewer'
 import { KitInput } from '~/components/01.kit/kit-input'
 import { KitSkeleton } from '~/components/01.kit/kit-skeleton'
+import { KitTooltip } from '~/components/01.kit/kit-tooltip'
 import { AsyncStateWrapper } from '~/components/02.shared/async-state-wrapper'
 import { useModuleStore } from '~/components/05.modules/trip-info/composables/use-trip-info-module'
 import { tripImageToViewerImage } from '~/components/05.modules/trip-info/lib/helpers'
@@ -233,13 +234,14 @@ function handleAddLink() {
             />
 
             <div v-if="!isViewMode" class="image-overlay">
-              <button
-                class="delete-btn"
-                title="Удалить изображение"
-                @click.stop="deleteImage(index)"
-              >
-                <Icon icon="mdi:trash-can-outline" />
-              </button>
+              <KitTooltip text="Удалить изображение">
+                <button
+                  class="delete-btn"
+                  @click.stop="deleteImage(index)"
+                >
+                  <Icon icon="mdi:trash-can-outline" />
+                </button>
+              </KitTooltip>
             </div>
           </div>
           <div

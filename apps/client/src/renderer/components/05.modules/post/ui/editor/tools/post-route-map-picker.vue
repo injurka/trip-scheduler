@@ -7,6 +7,7 @@ import { v4 as uuidv4 } from 'uuid'
 import { computed, ref, watch } from 'vue'
 import { KitBtn } from '~/components/01.kit/kit-btn'
 import { KitDialogWithClose } from '~/components/01.kit/kit-dialog-with-close'
+import { KitTooltip } from '~/components/01.kit/kit-tooltip'
 import GeolocationMap from '~/components/03.domain/trip-info/geolocation-section/ui/geolocation-map.vue'
 
 export interface EditorRoutePoint {
@@ -41,8 +42,6 @@ const distanceMeters = ref(0)
 const routeGeometry = ref<Coordinate[]>([])
 const isSidebarVisible = ref(true)
 
-let mapController: any = null
-
 const mapCenter = computed<Coordinate>(() => {
   if (mapPoints.value.length > 0)
     return mapPoints.value[0].coordinates
@@ -50,7 +49,6 @@ const mapCenter = computed<Coordinate>(() => {
 })
 
 function onMapReady(ctrl: any) {
-  mapController = ctrl
   ctrl.modifyInteraction.on('modifyend', async (event: any) => {
     const feature = event.features.getArray()[0]
     if (!feature)
@@ -263,7 +261,9 @@ watch(() => props.visible, (isOpen) => {
               {{ idx + 1 }}
             </div>
             <div class="point-info">
-              <span class="point-address" :title="point.address">{{ point.address }}</span>
+              <KitTooltip :text="point.address">
+                <span class="point-address">{{ point.address }}</span>
+              </KitTooltip>
             </div>
             <button class="remove-btn" @click="removePoint(idx)">
               <Icon icon="mdi:close" />
@@ -277,14 +277,14 @@ watch(() => props.visible, (isOpen) => {
       </div>
 
       <div class="map-area">
-        <button
-          v-if="!isSidebarVisible"
-          class="show-sidebar-btn"
-          title="Показать точки маршрута"
-          @click="isSidebarVisible = true"
-        >
-          <Icon icon="mdi:chevron-right" />
-        </button>
+        <KitTooltip v-if="!isSidebarVisible" text="Показать точки маршрута">
+          <button
+            class="show-sidebar-btn"
+            @click="isSidebarVisible = true"
+          >
+            <Icon icon="mdi:chevron-right" />
+          </button>
+        </KitTooltip>
 
         <GeolocationMap
           :points="mapPoints"

@@ -2,6 +2,7 @@
 import { Icon } from '@iconify/vue'
 import { KitDialogWithClose } from '~/components/01.kit/kit-dialog-with-close'
 import { KitDropdown } from '~/components/01.kit/kit-dropdown'
+import { KitTooltip } from '~/components/01.kit/kit-tooltip'
 import { iconCategories } from '~/shared/constants/icon-list'
 import { useIconPicker } from '../composables/use-icon-picker'
 
@@ -118,16 +119,19 @@ function clearSearch() {
 
     <div class="picker-grid-wrap">
       <div v-if="filteredIcons.length" class="picker-grid">
-        <button
+        <KitTooltip
           v-for="icon in filteredIcons"
           :key="icon"
-          class="icon-btn"
-          :class="{ selected: icon === modelValue }"
-          :title="icon.replace('mdi:', '')"
-          @click="selectIcon(icon)"
+          :text="icon.replace('mdi:', '')"
         >
-          <Icon :icon="icon" />
-        </button>
+          <button
+            class="icon-btn"
+            :class="{ selected: icon === modelValue }"
+            @click="selectIcon(icon)"
+          >
+            <Icon :icon="icon" />
+          </button>
+        </KitTooltip>
       </div>
       <div v-else class="picker-empty">
         <Icon icon="mdi:emoticon-sad-outline" class="empty-icon" />
@@ -195,16 +199,19 @@ function clearSearch() {
 
         <div class="picker-grid-wrap">
           <div v-if="filteredIcons.length" class="picker-grid">
-            <button
+            <KitTooltip
               v-for="icon in filteredIcons"
               :key="icon"
-              class="icon-btn"
-              :class="{ selected: icon === modelValue }"
-              :title="icon.replace('mdi:', '')"
-              @click="selectIcon(icon)"
+              :text="icon.replace('mdi:', '')"
             >
-              <Icon :icon="icon" />
-            </button>
+              <button
+                class="icon-btn"
+                :class="{ selected: icon === modelValue }"
+                @click="selectIcon(icon)"
+              >
+                <Icon :icon="icon" />
+              </button>
+            </KitTooltip>
           </div>
           <div v-else class="picker-empty">
             <Icon icon="mdi:emoticon-sad-outline" class="empty-icon" />
@@ -266,16 +273,19 @@ function clearSearch() {
 
           <div class="picker-grid-wrap">
             <div v-if="filteredIcons.length" class="picker-grid">
-              <button
+              <KitTooltip
                 v-for="icon in filteredIcons"
                 :key="icon"
-                class="icon-btn"
-                :class="{ selected: icon === modelValue }"
-                :title="icon.replace('mdi:', '')"
-                @click="selectIcon(icon)"
+                :text="icon.replace('mdi:', '')"
               >
-                <Icon :icon="icon" />
-              </button>
+                <button
+                  class="icon-btn"
+                  :class="{ selected: icon === modelValue }"
+                  @click="selectIcon(icon)"
+                >
+                  <Icon :icon="icon" />
+                </button>
+              </KitTooltip>
             </div>
             <div v-else class="picker-empty">
               <Icon icon="mdi:emoticon-sad-outline" class="empty-icon" />

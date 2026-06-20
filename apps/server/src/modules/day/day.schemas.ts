@@ -30,6 +30,31 @@ export const GetDayNoteInputSchema = z.object({
   dayId: z.string().uuid(),
 })
 
+export const GenerateDayNoteInputSchema = z.object({
+  dayId: z.string().uuid(),
+  prompt: z.string(),
+  useContext: z.boolean().default(false),
+})
+
+export const GenerateTemplateInputSchema = z.object({
+  dayId: z.string().uuid(),
+  prompt: z.string(),
+  currentActivities: z.array(z.any()),
+  canvasNote: z.string().optional().nullable(),
+  daysContext: z.array(z.object({
+    dayNumber: z.number(),
+    date: z.string(),
+    title: z.string(),
+    description: z.string().nullable().optional(),
+    activitiesSummary: z.array(z.object({
+      startTime: z.string(),
+      endTime: z.string(),
+      title: z.string(),
+      tag: z.string(),
+    })),
+  })).optional().nullable(),
+})
+
 export const GetDayByIdInputSchema = z.object({
   tripId: z.string().uuid(),
 })

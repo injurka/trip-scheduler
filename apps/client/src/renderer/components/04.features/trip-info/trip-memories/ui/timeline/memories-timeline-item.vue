@@ -6,6 +6,7 @@ import { onClickOutside, useStorage, useWindowSize } from '@vueuse/core'
 import { KitImage } from '~/components/01.kit/kit-image'
 import { KitInlineMdEditorWrapper } from '~/components/01.kit/kit-inline-md-editor'
 import { KitTimeField } from '~/components/01.kit/kit-time-field'
+import { KitTooltip } from '~/components/01.kit/kit-tooltip'
 import { useModuleStore } from '~/components/05.modules/trip-info'
 import { useMemoryItemActions, useMorph } from '../../composables'
 import { SHARED_VIEWER_KEY } from '../../lib'
@@ -249,12 +250,16 @@ onClickOutside(ratingMenuRef, () => isRatingMenuOpen.value = false)
           </div>
 
           <div class="memory-actions">
-            <button v-if="!isViewMode && memory.timestamp" title="Убрать временную метку" @click.stop="handleRemoveTimestamp">
-              <Icon icon="mdi:calendar-remove-outline" />
-            </button>
-            <button v-if="!isViewMode" title="Удалить" @click.stop="handleDelete">
-              <Icon icon="mdi:trash-can-outline" />
-            </button>
+            <KitTooltip v-if="!isViewMode && memory.timestamp" text="Убрать временную метку">
+              <button @click.stop="handleRemoveTimestamp">
+                <Icon icon="mdi:calendar-remove-outline" />
+              </button>
+            </KitTooltip>
+            <KitTooltip v-if="!isViewMode" text="Удалить">
+              <button class="delete-btn" @click.stop="handleDelete">
+                <Icon icon="mdi:trash-can-outline" />
+              </button>
+            </KitTooltip>
           </div>
         </div>
       </div>
@@ -303,12 +308,16 @@ onClickOutside(ratingMenuRef, () => isRatingMenuOpen.value = false)
           <span v-else @click.stop="handleTimeClick">{{ displayTime }}</span>
         </div>
         <div v-if="!isViewMode" class="memory-actions is-note-actions">
-          <button v-if="memory.timestamp" title="Убрать временную метку" @click="handleRemoveTimestamp">
-            <Icon icon="mdi:calendar-remove-outline" />
-          </button>
-          <button title="Удалить" @click="handleDelete">
-            <Icon icon="mdi:trash-can-outline" />
-          </button>
+          <KitTooltip v-if="memory.timestamp" text="Убрать временную метку">
+            <button @click="handleRemoveTimestamp">
+              <Icon icon="mdi:calendar-remove-outline" />
+            </button>
+          </KitTooltip>
+          <KitTooltip text="Удалить">
+            <button class="delete-btn" @click="handleDelete">
+              <Icon icon="mdi:trash-can-outline" />
+            </button>
+          </KitTooltip>
         </div>
       </div>
     </template>
@@ -870,7 +879,7 @@ onClickOutside(ratingMenuRef, () => isRatingMenuOpen.value = false)
     }
   }
 
-  button[title='Удалить']:hover {
+  button.delete-btn:hover {
     color: var(--fg-error-color);
     border-color: var(--fg-error-color);
   }

@@ -23,6 +23,7 @@ import { KitBtn } from '~/components/01.kit/kit-btn'
 import { KitDialogWithClose } from '~/components/01.kit/kit-dialog-with-close'
 import { KitInlineMdEditorWrapper } from '~/components/01.kit/kit-inline-md-editor'
 import { KitInput } from '~/components/01.kit/kit-input'
+import { KitTooltip } from '~/components/01.kit/kit-tooltip'
 import { DayBookingsModal } from '~/components/04.features/trip-info/trip-sections'
 import { useModuleStore } from '~/components/05.modules/trip-info/composables/use-trip-info-module'
 import { TripSectionType } from '~/shared/types/models/trip'
@@ -249,12 +250,16 @@ function createBlankBadge() {
                   </div>
                 </button>
                 <div v-if="!readonly" class="badge-actions">
-                  <button class="action-btn edit" title="Редактировать" @click="openEditor(item)">
-                    <Icon icon="mdi:pencil-outline" />
-                  </button>
-                  <button class="action-btn delete" title="Удалить" @click="handleDelete(item)">
-                    <Icon icon="mdi:trash-can-outline" />
-                  </button>
+                  <KitTooltip text="Редактировать">
+                    <button class="action-btn edit" @click="openEditor(item)">
+                      <Icon icon="mdi:pencil-outline" />
+                    </button>
+                  </KitTooltip>
+                  <KitTooltip text="Удалить">
+                    <button class="action-btn delete" @click="handleDelete(item)">
+                      <Icon icon="mdi:trash-can-outline" />
+                    </button>
+                  </KitTooltip>
                 </div>
               </div>
             </TooltipTrigger>
@@ -285,12 +290,16 @@ function createBlankBadge() {
               </div>
             </button>
             <div v-if="!readonly" class="badge-actions">
-              <button class="action-btn edit" title="Редактировать" @click="openEditor(item)">
-                <Icon icon="mdi:pencil-outline" />
-              </button>
-              <button class="action-btn delete" title="Удалить" @click="handleDelete(item)">
-                <Icon icon="mdi:trash-can-outline" />
-              </button>
+              <KitTooltip text="Редактировать">
+                <button class="action-btn edit" @click="openEditor(item)">
+                  <Icon icon="mdi:pencil-outline" />
+                </button>
+              </KitTooltip>
+              <KitTooltip text="Удалить">
+                <button class="action-btn delete" @click="handleDelete(item)">
+                  <Icon icon="mdi:trash-can-outline" />
+                </button>
+              </KitTooltip>
             </div>
           </div>
         </template>

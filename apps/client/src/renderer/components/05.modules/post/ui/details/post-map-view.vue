@@ -4,6 +4,7 @@ import type { PostDetail } from '~/shared/types/models/post'
 import { Icon } from '@iconify/vue'
 import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import GeolocationMap from '~/components/03.domain/trip-info/geolocation-section/ui/geolocation-map.vue'
+import { KitTooltip } from '~/components/01.kit/kit-tooltip'
 
 interface Props {
   visible: boolean
@@ -235,23 +236,27 @@ onBeforeUnmount(() => {
             <Icon icon="mdi:drag-horizontal" />
           </div>
           <div class="header-actions">
-            <button class="action-btn" title="Закрепить" @click="emit('update:pinned', true)">
-              <Icon icon="mdi:pin" />
-            </button>
-            <button class="action-btn" title="Закрыть" @click="closeMap">
-              <Icon icon="mdi:close" />
-            </button>
+            <KitTooltip text="Закрепить">
+              <button class="action-btn" @click="emit('update:pinned', true)">
+                <Icon icon="mdi:pin" />
+              </button>
+            </KitTooltip>
+            <KitTooltip text="Закрыть">
+              <button class="action-btn" @click="closeMap">
+                <Icon icon="mdi:close" />
+              </button>
+            </KitTooltip>
           </div>
         </div>
 
-        <button
-          v-if="pinned && !isMapFullscreen"
-          class="unpin-floating-btn"
-          title="Открепить карту"
-          @click="emit('update:pinned', false)"
-        >
-          <Icon icon="mdi:pin-off" />
-        </button>
+        <KitTooltip v-if="pinned && !isMapFullscreen" text="Открепить карту">
+          <button
+            class="unpin-floating-btn"
+            @click="emit('update:pinned', false)"
+          >
+            <Icon icon="mdi:pin-off" />
+          </button>
+        </KitTooltip>
 
         <div class="map-body">
           <div v-if="mapPoints.length === 0 && mapRoutes.length === 0" class="empty-map">

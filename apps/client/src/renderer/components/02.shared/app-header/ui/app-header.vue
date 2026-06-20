@@ -4,6 +4,7 @@ import { useElementBounding } from '@vueuse/core'
 import { useRoute, useRouter } from 'vue-router'
 import { KitAvatar } from '~/components/01.kit/kit-avatar'
 import { KitDropdown } from '~/components/01.kit/kit-dropdown'
+import { KitTooltip } from '~/components/01.kit/kit-tooltip'
 import { ProfileDrawer } from '~/components/02.shared/profile-drawer'
 import { useAppStore } from '~/shared/composables/use-store'
 import { AppRouteNames, AppRoutePaths } from '~/shared/constants/routes'
@@ -197,18 +198,21 @@ onMounted(() => {
       </div>
 
       <div class="header-right">
-        <button
-          class="util-btn"
-          :class="{ 'is-active': appStore.layout.isFloatingMapOpen }"
-          title="Открыть карту"
-          @click="appStore.layout.toggleFloatingMap()"
-        >
-          <Icon icon="mdi:map-search-outline" />
-        </button>
+        <KitTooltip text="Открыть карту">
+          <button
+            class="util-btn"
+            :class="{ 'is-active': appStore.layout.isFloatingMapOpen }"
+            @click="appStore.layout.toggleFloatingMap()"
+          >
+            <Icon icon="mdi:map-search-outline" />
+          </button>
+        </KitTooltip>
 
-        <button class="util-btn" title="Настроить тему" @click="appStore.theme.openCreator()">
-          <Icon icon="mdi:palette-outline" />
-        </button>
+        <KitTooltip text="Настроить тему">
+          <button class="util-btn" @click="appStore.theme.openCreator()">
+            <Icon icon="mdi:palette-outline" />
+          </button>
+        </KitTooltip>
 
         <div class="vr" />
 

@@ -9,6 +9,7 @@ import { KitDialogWithClose } from '~/components/01.kit/kit-dialog-with-close'
 import { KitDropdown } from '~/components/01.kit/kit-dropdown'
 import { KitImage } from '~/components/01.kit/kit-image'
 import { KitInput } from '~/components/01.kit/kit-input'
+import { KitTooltip } from '~/components/01.kit/kit-tooltip'
 import { useModuleStore } from '~/components/05.modules/trip-info/composables/use-trip-info-module'
 
 interface Props {
@@ -287,9 +288,11 @@ const currentFilterObj = computed(() =>
                 </div>
 
                 <!-- Used/Unused Indicator (Optional Hint) -->
-                <div v-if="globallyUsedUrls.has(tripImg.url)" class="used-indicator" title="Используется в путешествии">
-                  <Icon icon="mdi:link-variant" />
-                </div>
+                <KitTooltip v-if="globallyUsedUrls.has(tripImg.url)" text="Используется в путешествии">
+                  <div class="used-indicator">
+                    <Icon icon="mdi:link-variant" />
+                  </div>
+                </KitTooltip>
 
                 <!-- Info Overlay -->
                 <div class="info-overlay">

@@ -2,6 +2,7 @@
 import { Icon } from '@iconify/vue'
 import { computed } from 'vue'
 import { KitDropdown } from '~/components/01.kit/kit-dropdown'
+import { KitTooltip } from '~/components/01.kit/kit-tooltip'
 
 interface Props {
   availableDays: { value: string, label: string }[]
@@ -45,15 +46,16 @@ const starColor = computed(() => filterRating.value > 0 ? 'var(--c-orange-500)' 
       <div class="filter-group rating-group">
         <span class="filter-label">Рейтинг:</span>
         <div class="rating-slider-container">
-          <input
-            v-model.number="filterRating"
-            type="range"
-            min="0"
-            max="5"
-            step="1"
-            class="rating-range"
-            :title="filterRating > 0 ? `Рейтинг от ${filterRating}` : 'Любой рейтинг'"
-          >
+          <KitTooltip :text="filterRating > 0 ? `Рейтинг от ${filterRating}` : 'Любой рейтинг'">
+            <input
+              v-model.number="filterRating"
+              type="range"
+              min="0"
+              max="5"
+              step="1"
+              class="rating-range"
+            >
+          </KitTooltip>
           <div class="rating-value">
             <Icon icon="mdi:star" :style="{ color: starColor }" />
             <span>{{ filterRating > 0 ? `${filterRating}+` : 'Все' }}</span>
@@ -66,9 +68,11 @@ const starColor = computed(() => filterRating.value > 0 ? 'var(--c-orange-500)' 
     <div class="filter-group">
       <KitDropdown v-model="sortOrder" :items="sortOptions" align="end">
         <template #trigger>
-          <button class="icon-trigger" title="Сортировка">
-            <Icon icon="mdi:sort" />
-          </button>
+          <KitTooltip text="Сортировка">
+            <button class="icon-trigger">
+              <Icon icon="mdi:sort" />
+            </button>
+          </KitTooltip>
         </template>
       </KitDropdown>
     </div>

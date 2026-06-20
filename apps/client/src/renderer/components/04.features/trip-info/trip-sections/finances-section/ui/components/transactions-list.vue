@@ -2,6 +2,7 @@
 import type { Category, FinancesSettings, Transaction } from '../../models/types'
 import { Icon } from '@iconify/vue'
 import { KitBtn } from '~/components/01.kit/kit-btn'
+import { KitTooltip } from '~/components/01.kit/kit-tooltip'
 import { useCurrencyFormatter } from '../../composables/use-currency-formatter'
 
 interface Props {
@@ -61,9 +62,11 @@ function getConvertedAmountInMainCurrency(transaction: Transaction): string | nu
                 <template v-if="tx.date">
                   • {{ formatDate(tx.date, { dateStyle: 'medium' }) }}
                 </template>
-                <span v-if="tx.isSpontaneous" class="spontaneous-badge" title="Спонтанная/дополнительная трата">
-                  <Icon icon="mdi:sparkles" />
-                </span>
+                <KitTooltip v-if="tx.isSpontaneous" text="Спонтанная/дополнительная трата">
+                  <span class="spontaneous-badge">
+                    <Icon icon="mdi:sparkles" />
+                  </span>
+                </KitTooltip>
               </span>
             </div>
           </div>

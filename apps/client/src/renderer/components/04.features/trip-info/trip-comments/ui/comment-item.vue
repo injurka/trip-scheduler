@@ -4,6 +4,7 @@ import type { Comment } from '~/shared/types/models/comment'
 import { Icon } from '@iconify/vue'
 import { useTimeAgo } from '@vueuse/core'
 import { KitAvatar } from '~/components/01.kit/kit-avatar'
+import { KitTooltip } from '~/components/01.kit/kit-tooltip'
 import { useAuthStore } from '~/shared/store/auth.store'
 
 interface Props {
@@ -85,9 +86,11 @@ function navigateToProfile() {
         <span class="author-name clickable-name" @click="navigateToProfile">{{ comment.user.name }}</span>
         <span class="timestamp">{{ timeAgo }}</span>
         <div v-if="canDelete" class="comment-actions">
-          <button title="Удалить" @click="handleDelete">
-            <Icon icon="mdi:trash-can-outline" />
-          </button>
+          <KitTooltip text="Удалить">
+            <button @click="handleDelete">
+              <Icon icon="mdi:trash-can-outline" />
+            </button>
+          </KitTooltip>
         </div>
       </div>
       <p class="comment-text">

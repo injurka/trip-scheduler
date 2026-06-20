@@ -5,6 +5,7 @@ import { Icon } from '@iconify/vue'
 import { onClickOutside } from '@vueuse/core'
 import { KitInput } from '~/components/01.kit/kit-input'
 import { KitTimeField } from '~/components/01.kit/kit-time-field'
+import { KitTooltip } from '~/components/01.kit/kit-tooltip'
 import { useModuleStore } from '~/components/05.modules/trip-info'
 import { getTagInfo } from '~/components/05.modules/trip-info/lib/helpers'
 import MemoriesItem from './memories-timeline-item.vue'
@@ -142,14 +143,14 @@ onClickOutside(titleEditorRef, saveTitle)
       </h5>
 
       <div class="activity-header-actions">
-        <button
-          v-if="!isViewMode && group.type === 'activity'"
-          class="delete-activity-btn"
-          title="Удалить активность"
-          @click.stop="handleDeleteActivity"
-        >
-          <Icon icon="mdi:trash-can-outline" width="16" height="16" />
-        </button>
+        <KitTooltip v-if="!isViewMode && group.type === 'activity'" text="Удалить активность">
+          <button
+            class="delete-activity-btn"
+            @click.stop="handleDeleteActivity"
+          >
+            <Icon icon="mdi:trash-can-outline" width="16" height="16" />
+          </button>
+        </KitTooltip>
         <button class="collapse-toggle-btn" @click="$emit('toggleCollapse')">
           <Icon :icon="isCollapsed ? 'mdi:chevron-down' : 'mdi:chevron-up'" />
         </button>

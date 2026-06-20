@@ -37,7 +37,7 @@ logger.log(`Trip Scheduler API starting on http://${host}:${port}`)
 
 try {
   await checkService('PostgreSQL', () => db.execute(sql`SELECT 1`).then(() => { }), logger)
-  await checkService('S3', () => s3Service.checkConnection(), logger)
+  // await checkService('S3', () => s3Service.checkConnection(), logger)
 
   setInterval(updateDatabaseMetrics, 30_000)
   await updateDatabaseMetrics()
@@ -59,4 +59,4 @@ catch (error) {
   process.exit(1)
 }
 
-export default { port, hostname: host, fetch: app.fetch }
+export default { port, hostname: host, fetch: app.fetch, idleTimeout: 120 }

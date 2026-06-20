@@ -67,6 +67,7 @@ export interface Activity {
   sections?: ActivitySections
   tag?: EActivityTag
   status: EActivityStatus
+  explanation?: string
 }
 
 export enum EActivityStatus {

@@ -10,6 +10,7 @@ import type {
 import { Icon } from '@iconify/vue'
 import { KitDropdown } from '~/components/01.kit/kit-dropdown'
 import { KitInput } from '~/components/01.kit/kit-input'
+import { KitTooltip } from '~/components/01.kit/kit-tooltip'
 import { IconPicker } from '~/components/02.shared/icon-picker'
 import { GallerySection } from '~/components/03.domain/trip-info/gallery-section'
 import { GeolocationSection } from '~/components/03.domain/trip-info/geolocation-section'
@@ -101,22 +102,26 @@ watch(() => props.section, (newSection) => {
         />
         <KitDropdown :side-offset="8" align="end" class="color-picker-dropdown">
           <template #trigger>
-            <button class="color-picker-trigger" type="button" title="Выбрать цвет">
-              <span class="color-preview" :style="{ backgroundColor: editableColor }" />
-            </button>
+            <KitTooltip text="Выбрать цвет">
+              <button class="color-picker-trigger" type="button">
+                <span class="color-preview" :style="{ backgroundColor: editableColor }" />
+              </button>
+            </KitTooltip>
           </template>
 
           <div class="color-picker-content">
             <div class="color-options">
-              <div class="color-input-wrapper" title="Свой цвет">
-                <input
-                  v-model="editableColor"
-                  type="color"
-                  class="color-input"
-                  @input="updatePinSettings"
-                >
-                <Icon icon="mdi:eyedropper-variant" />
-              </div>
+              <KitTooltip text="Свой цвет">
+                <div class="color-input-wrapper">
+                  <input
+                    v-model="editableColor"
+                    type="color"
+                    class="color-input"
+                    @input="updatePinSettings"
+                  >
+                  <Icon icon="mdi:eyedropper-variant" />
+                </div>
+              </KitTooltip>
               <button
                 v-for="color in defaultColors"
                 :key="color"
@@ -155,45 +160,38 @@ watch(() => props.section, (newSection) => {
     />
 
     <div v-if="!isViewMode" class="section-controls-wrapper">
-      <div class="section-controls">
-        <div class="controls-group">
-          <button
-            class="control-btn"
-            title="Переместить выше"
-            @click="emit('moveSectionUp')"
-          >
+      <KitDropdown :side-offset="4" align="end">
+        <template #trigger>
+          <KitTooltip text="Опции секции">
+            <button class="section-menu-trigger">
+              <Icon icon="mdi:dots-vertical" />
+            </button>
+          </KitTooltip>
+        </template>
+        <div class="section-menu-content">
+          <button class="menu-item" @click="emit('moveSectionUp')">
             <Icon icon="mdi:arrow-up" />
+            <span>Переместить выше</span>
           </button>
-          <button
-            class="control-btn"
-            title="Переместить ниже"
-            @click="emit('moveSectionDown')"
-          >
+          <button class="menu-item" @click="emit('moveSectionDown')">
             <Icon icon="mdi:arrow-down" />
+            <span>Переместить ниже</span>
+          </button>
+          <button 
+            class="menu-item"
+            :class="{ 'is-active': (section as CustomActivitySection).isAttached }"
+            @click="toggleAttached"
+          >
+            <Icon :icon="(section as CustomActivitySection).isAttached ? 'mdi:link-variant-off' : 'mdi:link-variant-plus'" />
+            <span>{{ (section as CustomActivitySection).isAttached ? 'Открепить' : 'Прикрепить к предыдущей' }}</span>
+          </button>
+          <div class="menu-separator" />
+          <button class="menu-item delete" @click="emit('deleteSection')">
+            <Icon icon="mdi:delete-outline" />
+            <span>Удалить секцию</span>
           </button>
         </div>
-
-        <div class="separator" />
-
-        <button
-          class="control-btn attach-btn"
-          :class="{ 'is-active': (section as CustomActivitySection).isAttached }"
-          :title="(section as CustomActivitySection).isAttached ? 'Открепить секцию' : 'Прикрепить к предыдущей'"
-          @click="toggleAttached"
-        >
-          <Icon :icon="(section as CustomActivitySection).isAttached ? 'mdi:link-variant-off' : 'mdi:link-variant-plus'" />
-        </button>
-
-        <div class="separator" />
-
-        <button
-          class="control-btn delete-btn"
-          title="Удалить секцию"
-          @click="emit('deleteSection')"
-        >
-          <Icon icon="mdi:close" />
-        </button>
-      </div>
+      </KitDropdown>
     </div>
   </div>
 </template>
@@ -334,97 +332,100 @@ watch(() => props.section, (newSection) => {
 
 .section-controls-wrapper {
   position: absolute;
-  top: -24px;
-  right: 4px;
+  top: 8px;
+  right: 8px;
   z-index: 10;
-
   opacity: 0;
-  transform: translateY(-4px) scale(0.95);
-  pointer-events: none;
-  transition: all 0.2s cubic-bezier(0.165, 0.84, 0.44, 1);
+  transition: opacity 0.2s ease;
 }
 
-.activity-section-renderer:hover .section-controls-wrapper {
+.activity-section-renderer:hover .section-controls-wrapper,
+.activity-section-renderer:focus-within .section-controls-wrapper {
   opacity: 1;
-  transform: translateY(0) scale(1);
-  pointer-events: auto;
 }
 
-.section-controls {
-  display: flex;
-  align-items: center;
-  background-color: rgba(var(--bg-primary-color-rgb), 0.95);
-  backdrop-filter: blur(8px);
-  padding: 2px;
-  border-radius: var(--r-full);
+.section-menu-trigger {
+  width: 32px;
+  height: 32px;
+  border-radius: var(--r-s);
+  background-color: rgba(var(--bg-primary-color-rgb), 0.8);
+  backdrop-filter: blur(4px);
   border: 1px solid var(--border-secondary-color);
-  box-shadow: var(--s-m);
-  gap: 4px;
-}
-
-.controls-group {
-  display: flex;
-  gap: 2px;
-}
-
-.separator {
-  width: 1px;
-  height: 16px;
-  background-color: var(--border-secondary-color);
-  margin: 0 2px;
-}
-
-.control-btn {
-  width: 28px;
-  height: 28px;
-  border-radius: 50%;
-  background-color: transparent;
-  border: 1px solid transparent;
   color: var(--fg-secondary-color);
   display: flex;
   align-items: center;
   justify-content: center;
   cursor: pointer;
-  font-size: 1.1rem;
+  font-size: 1.2rem;
   transition: all 0.2s ease;
+  box-shadow: var(--s-s);
 
   &:hover {
     background-color: var(--bg-hover-color);
     color: var(--fg-primary-color);
   }
+}
 
-  &.attach-btn {
-    &.is-active {
-      color: var(--fg-accent-color);
-      background-color: rgba(var(--fg-accent-color-rgb), 0.1);
-    }
-    &:hover {
+.section-menu-content {
+  display: flex;
+  flex-direction: column;
+  min-width: 220px;
+  gap: 2px;
+}
+
+.menu-item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  padding: 8px 12px;
+  border: none;
+  background: transparent;
+  color: var(--fg-primary-color);
+  font-size: 0.9rem;
+  cursor: pointer;
+  border-radius: var(--r-s);
+  transition: all 0.2s ease;
+  text-align: left;
+
+  &:hover {
+    background-color: var(--bg-hover-color);
+  }
+
+  .iconify {
+    font-size: 1.2rem;
+    color: var(--fg-secondary-color);
+  }
+
+  &.is-active {
+    color: var(--fg-accent-color);
+    .iconify {
       color: var(--fg-accent-color);
     }
   }
 
-  &.delete-btn {
-    &:hover {
-      background-color: var(--bg-error-color);
+  &.delete {
+    color: var(--fg-error-color);
+    .iconify {
       color: var(--fg-error-color);
-      border-color: var(--border-error-color); /* При наведении красная обводка */
-      color: white;
+    }
+    &:hover {
+      background-color: rgba(var(--fg-error-color-rgb), 0.1);
     }
   }
+}
+
+.menu-separator {
+  height: 1px;
+  background-color: var(--border-secondary-color);
+  margin: 4px 0;
 }
 
 @include media-down(md) {
   .section-controls-wrapper {
     opacity: 1;
-    transform: translateY(0) scale(1);
-    pointer-events: auto;
-    right: 0px;
-  }
-
-  .activity-section-renderer:active .section-controls-wrapper,
-  .activity-section-renderer:focus-within .section-controls-wrapper {
-    opacity: 1;
-    transform: translateY(0);
+    right: 4px;
+    top: 4px;
   }
 }
 </style>

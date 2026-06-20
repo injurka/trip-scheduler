@@ -2,6 +2,7 @@
 import type { GroupedMemory } from '../composables/use-memories-view'
 import { Icon } from '@iconify/vue'
 import { KitImage } from '~/components/01.kit/kit-image'
+import { KitTooltip } from '~/components/01.kit/kit-tooltip'
 
 defineProps<{
   group: GroupedMemory
@@ -33,9 +34,11 @@ const emit = defineEmits<{
           class="photo-img"
         />
         <div class="photo-overlay">
-          <span v-if="item.comment" class="overlay-icon" title="Есть комментарий">
-            <Icon icon="mdi:comment-text-outline" />
-          </span>
+          <KitTooltip v-if="item.comment" text="Есть комментарий">
+            <span class="overlay-icon">
+              <Icon icon="mdi:comment-text-outline" />
+            </span>
+          </KitTooltip>
         </div>
       </div>
     </div>

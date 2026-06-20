@@ -6,6 +6,7 @@ import { fromLonLat } from 'ol/proj'
 import { KitBtn } from '~/components/01.kit/kit-btn'
 import { KitInput } from '~/components/01.kit/kit-input'
 import { KitMap } from '~/components/01.kit/kit-map'
+import { KitTooltip } from '~/components/01.kit/kit-tooltip'
 import { useLayoutStore } from '~/shared/store/layout.store'
 
 const layoutStore = useLayoutStore()
@@ -35,23 +36,32 @@ const { x, y } = useDraggable(headerRef, {
   },
 })
 
-watch([x, y], ([newX, newY]) => {
-  if (!windowRef.value || isMobile.value)
+const clampedX = ref(initialX.value)
+const clampedY = ref(initialY)
+
+watch([x, y, windowWidth, windowHeight, isSearchOpen], () => {
+  if (isMobile.value) {
     return
+  }
 
-  const el = windowRef.value
-  const width = el.offsetWidth
-  const height = el.offsetHeight
+  let cx = x.value
+  let cy = y.value
 
-  const maxX = windowWidth.value - width
-  const maxY = windowHeight.value - height
+  if (windowRef.value) {
+    const el = windowRef.value
+    const width = el.offsetWidth
+    const height = el.offsetHeight
 
-  const clampedX = Math.min(Math.max(0, newX), Math.max(0, maxX))
-  const clampedY = Math.min(Math.max(0, newY), Math.max(0, maxY))
+    const maxX = windowWidth.value - width
+    const maxY = windowHeight.value - height
 
-  el.style.left = `${clampedX}px`
-  el.style.top = `${clampedY}px`
-})
+    cx = Math.min(Math.max(0, x.value), Math.max(0, maxX))
+    cy = Math.min(Math.max(0, y.value), Math.max(0, maxY))
+  }
+
+  clampedX.value = cx
+  clampedY.value = cy
+}, { immediate: true, flush: 'post' })
 
 onMounted(() => {
   if (windowRef.value) {
@@ -110,8 +120,8 @@ const windowStyle = computed(() => {
     return {}
   }
   return {
-    left: `${initialX.value}px`,
-    top: `${initialY}px`,
+    left: `${clampedX.value}px`,
+    top: `${clampedY.value}px`,
   }
 })
 </script>
@@ -127,12 +137,16 @@ const windowStyle = computed(() => {
               <span>Карта</span>
             </div>
             <div class="header-actions">
-              <button class="action-btn" :class="{ active: isSearchOpen }" title="Поиск" @click="isSearchOpen = !isSearchOpen">
-                <Icon :icon="isSearchOpen ? 'mdi:magnify-minus' : 'mdi:magnify'" />
-              </button>
-              <button class="action-btn" title="Закрыть" @click="closeWindow">
-                <Icon icon="mdi:close" />
-              </button>
+              <KitTooltip text="Поиск">
+                <button class="action-btn" :class="{ active: isSearchOpen }" @click="isSearchOpen = !isSearchOpen">
+                  <Icon :icon="isSearchOpen ? 'mdi:magnify-minus' : 'mdi:magnify'" />
+                </button>
+              </KitTooltip>
+              <KitTooltip text="Закрыть">
+                <button class="action-btn" @click="closeWindow">
+                  <Icon icon="mdi:close" />
+                </button>
+              </KitTooltip>
             </div>
           </header>
 
@@ -172,12 +186,16 @@ const windowStyle = computed(() => {
             <span>Карта</span>
           </div>
           <div class="header-actions">
-            <button class="action-btn" :class="{ active: isSearchOpen }" title="Поиск" @click="isSearchOpen = !isSearchOpen">
-              <Icon :icon="isSearchOpen ? 'mdi:magnify-minus' : 'mdi:magnify'" />
-            </button>
-            <button class="action-btn" title="Закрыть" @click="closeWindow">
-              <Icon icon="mdi:close" />
-            </button>
+            <KitTooltip text="Поиск">
+              <button class="action-btn" :class="{ active: isSearchOpen }" @click="isSearchOpen = !isSearchOpen">
+                <Icon :icon="isSearchOpen ? 'mdi:magnify-minus' : 'mdi:magnify'" />
+              </button>
+            </KitTooltip>
+            <KitTooltip text="Закрыть">
+              <button class="action-btn" @click="closeWindow">
+                <Icon icon="mdi:close" />
+              </button>
+            </KitTooltip>
           </div>
         </header>
 
@@ -235,7 +253,7 @@ const windowStyle = computed(() => {
   border: 1px solid var(--border-primary-color);
   border-radius: var(--r-m);
   box-shadow: 0 10px 40px rgba(0, 0, 0, 0.3);
-  z-index: 10;
+  z-index: 15;
   display: flex;
   flex-direction: column;
   overflow: hidden;

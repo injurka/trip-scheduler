@@ -4,6 +4,7 @@ import { Icon } from '@iconify/vue'
 import Polyline from '@mapbox/polyline'
 import { computed, ref } from 'vue'
 import { KitInput } from '~/components/01.kit/kit-input'
+import { KitTooltip } from '~/components/01.kit/kit-tooltip'
 import PostRouteMapPicker from '../tools/post-route-map-picker.vue'
 
 export interface EditorRoutePoint {
@@ -164,9 +165,11 @@ function onMapConfirm(data: { points: EditorRoutePoint[], geometry: [number, num
 <template>
   <div class="route-editor">
     <div class="route-header">
-      <button class="transport-btn" :title="block.transport" @click="toggleTransport">
-        <Icon :icon="transportIcons[block.transport || 'walk']" />
-      </button>
+      <KitTooltip :text="block.transport">
+        <button class="transport-btn" @click="toggleTransport">
+          <Icon :icon="transportIcons[block.transport || 'walk']" />
+        </button>
+      </KitTooltip>
       <div class="route-summary">
         <span>Многоточечный маршрут</span>
       </div>

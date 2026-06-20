@@ -5,6 +5,7 @@ import { onClickOutside } from '@vueuse/core'
 import { KitBtn } from '~/components/01.kit/kit-btn'
 import { KitInlineMdEditorWrapper } from '~/components/01.kit/kit-inline-md-editor'
 import { KitInput } from '~/components/01.kit/kit-input'
+import { KitTooltip } from '~/components/01.kit/kit-tooltip'
 
 interface Props {
   points: MapPoint[]
@@ -196,9 +197,11 @@ onClickOutside(mapIframeContainerRef, () => {
             allowfullscreen
           />
         </div>
-        <button class="close-map-btn" title="Закрыть карту" @click="closeMap">
-          <Icon icon="mdi:close" />
-        </button>
+        <KitTooltip text="Закрыть карту" class="close-map-btn-tooltip">
+          <button class="close-map-btn" @click="closeMap">
+            <Icon icon="mdi:close" />
+          </button>
+        </KitTooltip>
       </div>
     </Transition>
   </Teleport>
@@ -470,10 +473,13 @@ onClickOutside(mapIframeContainerRef, () => {
   box-shadow: var(--s-xl);
 }
 
-.close-map-btn {
+.close-map-btn-tooltip {
   position: absolute;
   top: 1rem;
   right: 1rem;
+}
+
+.close-map-btn {
   width: 40px;
   height: 40px;
   border-radius: 50%;

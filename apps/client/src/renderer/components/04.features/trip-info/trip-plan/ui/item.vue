@@ -13,20 +13,26 @@ import { Icon } from '@iconify/vue'
 import { Time } from '@internationalized/date'
 import { onClickOutside } from '@vueuse/core'
 import { v4 as uuidv4 } from 'uuid'
+
 import { KitDropdown } from '~/components/01.kit/kit-dropdown'
 import { KitInlineMdEditorWrapper } from '~/components/01.kit/kit-inline-md-editor'
 import { KitTimeField } from '~/components/01.kit/kit-time-field'
+import { KitTooltip } from '~/components/01.kit/kit-tooltip'
 import { useModuleStore } from '~/components/05.modules/trip-info/composables/use-trip-info-module'
 import { activityTagIcons, activityTagLabels, getTagInfo } from '~/components/05.modules/trip-info/lib/helpers'
 import AddSectionMenu from '~/components/05.modules/trip-info/ui/controls/add-section-menu.vue'
 import { EActivitySectionType, EActivityTag } from '~/shared/types/models/activity'
+import { useActivityDiff } from '../composables/use-activity-diff'
 import ActivitySectionRenderer from './sections/section-renderer.vue'
+import LlmActivityEditor from './llm-activity-editor.vue'
 
 interface ActivityItemProps {
   activity: Activity
+  draft?: Activity | null
   isFirst: boolean
   isLast: boolean
   isCollapsed: boolean
+  isPreviewMode?: boolean
 }
 
 const props = defineProps<ActivityItemProps>()
@@ -36,18 +42,30 @@ const emit = defineEmits<{
   (e: 'moveUp'): void
   (e: 'moveDown'): void
   (e: 'toggleCollapse'): void
-}>()
+  (e: 'acceptDraft'): void
+  (e: 'discardDraft'): void
+  (e: 'requestAiEdit', prompt: string): void
+  (e: 'acceptDraftFields', fields: string[]): void
+}>()  
 
 const store = useModuleStore(['ui'])
 const { isViewMode } = storeToRefs(store.ui)
-const confirm = useConfirm()
+const isReadOnly = computed(() => isViewMode.value || !!props.isPreviewMode)
 
 const isTimeEditing = ref(false)
+const isAiEditing = ref(false)
+
 const timeEditorRef = ref<HTMLElement | null>(null)
 const activityTitle = ref(props.activity.title)
+watch(() => props.activity.title, (newTitle) => {
+  activityTitle.value = newTitle
+}, { immediate: true })
 const editingStartTime = shallowRef<Time | null>(null)
 const editingEndTime = shallowRef<Time | null>(null)
 const expandedSections = ref<Record<string, Record<string, boolean>>>({})
+
+const isAccepting = ref(false)
+const isDiscarding = ref(false)
 
 const sectionTypeIcons: Record<EActivitySectionType, string> = {
   [EActivitySectionType.DESCRIPTION]: 'mdi:text-box-outline',
@@ -57,6 +75,55 @@ const sectionTypeIcons: Record<EActivitySectionType, string> = {
 }
 
 const tagInfo = computed(() => getTagInfo(props.activity.tag))
+
+// Diff вычисляем реактивно относительно draft-пропа
+const activityDiff = computed(() => {
+  if (!props.draft) return null
+  const baseDiff = useActivityDiff(props.activity, props.draft)
+  
+  // Group startTime and endTime into a single 'time' field
+  const timeField = baseDiff.changedFields.find(f => f.field === 'startTime' || f.field === 'endTime')
+  const newChangedFields = baseDiff.changedFields.filter(f => f.field !== 'startTime' && f.field !== 'endTime')
+  
+  if (timeField) {
+    newChangedFields.unshift({
+      field: 'time',
+      label: 'Время',
+      original: `${props.activity.startTime || '—'} - ${props.activity.endTime || '—'}`,
+      draft: `${props.draft.startTime || '—'} - ${props.draft.endTime || '—'}`,
+      changed: true
+    })
+  }
+  
+  return {
+    ...baseDiff,
+    changedFields: newChangedFields
+  }
+})
+
+const isDraftMode = computed(() => !!props.draft)
+
+function handleAiGenerate({ prompt }: { prompt: string }) {
+  emit('requestAiEdit', prompt)
+}
+
+function handleAccept() {
+  isAccepting.value = true
+  setTimeout(() => {
+    emit('acceptDraft')
+    isAccepting.value = false
+  }, 300)
+}
+
+function handleDiscard() {
+  isDiscarding.value = true
+  setTimeout(() => {
+    emit('discardDraft')
+    isDiscarding.value = false
+  }, 300)
+}
+
+
 const tagOptions = Object.values(EActivityTag).map(tag => ({
   value: tag,
   label: activityTagLabels[tag],
@@ -157,7 +224,7 @@ function parseTime(timeStr?: string): Time {
 }
 
 function editTime() {
-  if (isViewMode.value)
+  if (isReadOnly.value)
     return
 
   isTimeEditing.value = true
@@ -332,7 +399,7 @@ function handleInlineEditorBlur() {
 }
 
 async function handleDelete() {
-  const isConfirmed = await confirm({
+  const isConfirmed = await (confirm as any)({
     title: 'Удалить активность?',
     description: 'Это действие необратимо. Все секции внутри этой активности будут удалены.',
     type: 'danger',
@@ -348,8 +415,84 @@ onClickOutside(timeEditorRef, saveTimeChanges)
 </script>
 
 <template>
-  <div class="activity-item" :class="{ 'view-mode': isViewMode, 'is-collapsed': isCollapsed }">
-    <div v-if="!isViewMode" class="drag-handle" />
+  <div
+    class="activity-item"
+    :class="{
+      'view-mode': isReadOnly,
+      'is-collapsed': isCollapsed,
+      'is-draft': isDraftMode,
+      'is-accepting': isAccepting,
+      'is-discarding': isDiscarding
+    }"
+  >
+    <div v-if="!isReadOnly" class="drag-handle" />
+
+    <!-- Draft-баннер: компактная однострочная панель -->
+    <div v-if="isDraftMode" class="draft-banner">
+      <div class="draft-left">
+        <KitTooltip :text="(draft ?? activity).explanation">
+          <span class="draft-badge">
+            <Icon icon="mdi:robot-outline" />
+            AI
+            <Icon v-if="(draft ?? activity).explanation" icon="mdi:information-outline" class="info-icon" />
+          </span>
+        </KitTooltip>
+        <template v-if="activity.id.startsWith('new-ai-')">
+          <span class="diff-chip diff-chip--added">
+            <Icon icon="mdi:plus" /> Новая активность
+          </span>
+        </template>
+        <template v-else>
+          <!-- Дифф полей в виде чипов -->
+          <span
+            v-for="field in activityDiff?.changedFields"
+            :key="field.field"
+            class="diff-chip interactive-diff-chip"
+          >
+            <span>
+              {{ field.label }}: <s>{{ field.original }}</s> → <b>{{ field.draft }}</b>
+            </span>
+            <KitTooltip text="Применить это изменение">
+              <button 
+                class="apply-field-btn" 
+                :data-testid="`accept-field-${field.field}`" 
+                @click.stop="emit('acceptDraftFields', [field.field === 'startTime' || field.field === 'endTime' ? 'time' : field.field])"
+              >
+                <Icon icon="mdi:check" />
+              </button>
+            </KitTooltip>
+          </span>
+          <span v-if="activityDiff?.sectionsAdded || activityDiff?.sectionsRemoved || activityDiff?.sectionsModified" class="diff-chip diff-chip--modified interactive-diff-chip">
+            <span>
+              Секции:
+              <span v-if="activityDiff.sectionsAdded" class="text-success">+{{ activityDiff.sectionsAdded }}</span>
+              <span v-if="activityDiff.sectionsModified" class="text-warning">~{{ activityDiff.sectionsModified }}</span>
+              <span v-if="activityDiff.sectionsRemoved" class="text-danger">-{{ activityDiff.sectionsRemoved }}</span>
+            </span>
+            <KitTooltip text="Применить изменения в секциях">
+              <button 
+                class="apply-field-btn" 
+                data-testid="accept-field-sections" 
+                @click.stop="emit('acceptDraftFields', ['sections'])"
+              >
+                <Icon icon="mdi:check" />
+              </button>
+            </KitTooltip>
+          </span>
+          <span v-if="!activityDiff?.hasChanges" class="diff-chip diff-chip--none">
+            Без изменений
+          </span>
+        </template>
+      </div>
+      <div class="draft-actions">
+        <button class="draft-action-btn draft-action-btn--discard" @click="handleDiscard">
+          <Icon icon="mdi:close" />
+        </button>
+        <button class="draft-action-btn draft-action-btn--accept" @click="handleAccept">
+          <Icon icon="mdi:check" />
+        </button>
+      </div>
+    </div>
 
     <div class="activity-header">
       <div class="activity-time-wrapper">
@@ -361,16 +504,16 @@ onClickOutside(timeEditorRef, saveTimeChanges)
           </div>
           <div v-else class="time-display" @click="editTime">
             <div class="time-display-preview">
-              {{ activity.startTime }}
+              {{ (draft ?? activity).startTime }}
               <span>-</span>
-              {{ activity.endTime }}
+              {{ (draft ?? activity).endTime }}
             </div>
           </div>
         </div>
       </div>
-      <div v-if="tagInfo || !isViewMode" class="activity-tag-wrapper">
+      <div v-if="tagInfo || !isReadOnly" class="activity-tag-wrapper">
         <KitDropdown
-          v-if="!isViewMode"
+          v-if="!isReadOnly"
           :items="tagOptions"
           :model-value="activity.tag"
           @update:model-value="handleTagUpdate"
@@ -389,50 +532,71 @@ onClickOutside(timeEditorRef, saveTimeChanges)
         </div>
       </div>
 
-      <button v-if="isViewMode" class="collapse-toggle-btn" @click="$emit('toggleCollapse')">
+      <button v-if="isReadOnly" class="collapse-toggle-btn" @click="$emit('toggleCollapse')">
         <Icon :icon="isCollapsed ? 'mdi:chevron-down' : 'mdi:chevron-up'" />
       </button>
 
       <div class="activity-controls">
-        <button
-          class="control-btn"
-          title="Поднять вверх"
-          :disabled="isFirst"
-          @click="$emit('moveUp')"
-        >
-          <Icon icon="mdi:arrow-up" />
-        </button>
-        <button
-          class="control-btn"
-          title="Опустить вниз"
-          :disabled="isLast"
-          @click="$emit('moveDown')"
-        >
-          <Icon icon="mdi:arrow-down" />
-        </button>
-        <button
-          class="control-btn delete-btn"
-          title="Удалить активность"
-          @click="handleDelete"
-        >
-          <Icon icon="mdi:trash-can-outline" />
-        </button>
+        <KitTooltip text="Поднять вверх">
+          <button
+            class="control-btn"
+            :disabled="isFirst"
+            @click="$emit('moveUp')"
+          >
+            <Icon icon="mdi:arrow-up" />
+          </button>
+        </KitTooltip>
+        <KitTooltip text="Опустить вниз">
+          <button
+            class="control-btn"
+            :disabled="isLast"
+            @click="$emit('moveDown')"
+          >
+            <Icon icon="mdi:arrow-down" />
+          </button>
+        </KitTooltip>
+        <!-- Кнопка Редактировать с ИИ -->
+        <KitTooltip v-if="!isReadOnly" text="Редактировать с ИИ">
+          <button
+            class="control-btn ai-btn"
+            :class="{ active: isAiEditing }"
+            @click="isAiEditing = !isAiEditing"
+          >
+            <Icon icon="mdi:robot-outline" />
+          </button>
+        </KitTooltip>
+        <KitTooltip text="Удалить активность">
+          <button
+            class="control-btn delete-btn"
+            @click="handleDelete"
+          >
+            <Icon icon="mdi:trash-can-outline" />
+          </button>
+        </KitTooltip>
       </div>
     </div>
 
-    <div class="activity-title">
+    <!-- Инлайн-редактор изменений через ИИ -->
+    <LlmActivityEditor
+      v-if="isAiEditing"
+      :activity-title="activity.title"
+      @generate="handleAiGenerate"
+      @close="isAiEditing = false"
+    />
+
+    <div class="activity-title" :class="{ 'field-changed': activityDiff?.changedFields.some(f => f.field === 'title') }">
       <Icon icon="mdi:chevron-right" />
       <KitInlineMdEditorWrapper
         v-model="activityTitle"
         placeholder="Описание активности"
-        :readonly="isViewMode"
+        :readonly="isReadOnly"
         class="activity-title-editor"
         :features="{ 'block-edit': false }"
         @blur="handleInlineEditorBlur"
       />
     </div>
 
-    <div v-show="!isCollapsed || !isViewMode" class="collapsible-content">
+    <div v-show="!isCollapsed || !isReadOnly" class="collapsible-content">
       <div class="activity-sections">
         <div v-if="sectionGroups.length > 0" class="sections-list">
           <div
@@ -522,7 +686,7 @@ onClickOutside(timeEditorRef, saveTimeChanges)
             </div>
           </div>
         </div>
-        <div v-if="!isViewMode" class="add-section-controls">
+        <div v-if="!isReadOnly" class="add-section-controls">
           <AddSectionMenu @add-section="addSection" />
         </div>
       </div>
@@ -538,6 +702,202 @@ onClickOutside(timeEditorRef, saveTimeChanges)
   position: relative;
   transition: all 0.3s ease;
   margin: 32px 0;
+
+  /* Draft-mode styles */
+  &.is-draft {
+    border-radius: var(--r-s);
+    outline: 2px solid var(--fg-accent-color);
+    outline-offset: 4px;
+    padding: 8px;
+    background: linear-gradient(135deg, rgba(var(--fg-accent-color-rgb), 0.03) 0%, transparent 100%);
+    transition: all 0.3s ease;
+
+    /* Скрыть вертикальную линию слева от итема */
+    &::before {
+      display: none;
+    }
+
+    /* Скрыть декоративную звёздочку перед временем (выше специфичность, через !important) */
+    .activity-header .activity-time::before {
+      content: none !important;
+      display: none !important;
+    }
+  }
+
+  &.is-accepting {
+    transform: scale(1.02);
+    box-shadow: 0 0 15px rgba(34, 197, 94, 0.4);
+    outline-color: #22c55e;
+    background: rgba(34, 197, 94, 0.05);
+  }
+
+  &.is-discarding {
+    transform: scale(0.95);
+    opacity: 0.5;
+    outline-color: var(--fg-error-color);
+  }
+
+  .draft-banner {
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+    gap: 8px;
+    padding: 5px 8px;
+    margin-bottom: 6px;
+    background: rgba(var(--fg-accent-color-rgb), 0.05);
+    border: 1px solid rgba(var(--fg-accent-color-rgb), 0.2);
+    border-radius: var(--r-xs);
+    font-size: 0.78rem;
+
+    .draft-left {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      flex: 1;
+      min-width: 0;
+      flex-wrap: wrap;
+    }
+
+    .draft-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      font-weight: 700;
+      color: var(--fg-accent-color);
+      font-size: 0.75rem;
+      flex-shrink: 0;
+
+      .info-icon {
+        font-size: 0.8rem;
+        opacity: 0.7;
+        cursor: help;
+      }
+    }
+
+    .diff-chip {
+      display: inline-flex;
+      align-items: center;
+      gap: 3px;
+      padding: 2px 7px;
+      border-radius: var(--r-full);
+      background: var(--bg-secondary-color);
+      border: 1px solid var(--border-secondary-color);
+      color: var(--fg-secondary-color);
+      font-size: 0.73rem;
+      white-space: nowrap;
+
+      s { color: var(--fg-error-color); }
+      b { color: var(--fg-success-color, #22c55e); font-weight: 600; }
+
+      &--added { border-color: rgba(34, 197, 94, 0.3); color: #22c55e; }
+      &--removed { border-color: rgba(var(--fg-error-color-rgb), 0.3); color: var(--fg-error-color); }
+      &--modified { border-color: rgba(245, 158, 11, 0.3); color: #f59e0b; }
+      &--none { opacity: 0.5; }
+    }
+
+    .interactive-diff-chip {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 2px 4px 2px 8px;
+      border-radius: var(--r-full);
+      background: var(--bg-secondary-color);
+      border: 1px solid var(--border-secondary-color);
+      color: var(--fg-secondary-color);
+      font-size: 0.73rem;
+      white-space: nowrap;
+
+      s { color: var(--fg-error-color); }
+      b { color: var(--fg-success-color, #22c55e); font-weight: 600; }
+      
+      .text-success { color: var(--fg-success-color, #22c55e); font-weight: 600; }
+      .text-warning { color: #f59e0b; font-weight: 600; }
+      .text-danger { color: var(--fg-error-color); font-weight: 600; }
+
+      .apply-field-btn {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        width: 18px;
+        height: 18px;
+        border-radius: 50%;
+        border: none;
+        background: transparent;
+        color: var(--fg-secondary-color);
+        cursor: pointer;
+        transition: all 0.2s ease;
+        padding: 0;
+
+        &:hover {
+          background: rgba(34, 197, 94, 0.2);
+          color: var(--fg-success-color, #22c55e);
+        }
+      }
+    }
+
+    .draft-actions {
+      display: flex;
+      gap: 4px;
+      flex-shrink: 0;
+      margin-left: auto;
+    }
+
+    .draft-action-btn {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: 24px;
+      height: 24px;
+      border-radius: var(--r-full);
+      border: 1px solid transparent;
+      cursor: pointer;
+      font-size: 0.9rem;
+      transition: all 0.15s ease;
+      background: transparent;
+
+      &--discard {
+        color: var(--fg-secondary-color);
+        border-color: var(--border-secondary-color);
+        &:hover { background: var(--bg-error-color); color: var(--fg-error-color); border-color: var(--border-error-color); }
+      }
+      &--accept {
+        color: var(--fg-accent-color);
+        border-color: var(--fg-accent-color);
+        &:hover { background: var(--fg-accent-color); color: var(--fg-inverted-color); }
+      }
+    }
+  }
+
+  /* Подсветка измененных полей */
+  .field-changed {
+    position: relative;
+
+    &::after {
+      content: '';
+      position: absolute;
+      inset: -2px -4px;
+      border-radius: var(--r-2xs);
+      background: rgba(var(--fg-accent-color-rgb), 0.08);
+      border: 1px solid rgba(var(--fg-accent-color-rgb), 0.25);
+      pointer-events: none;
+    }
+  }
+
+  /* Time diff */
+  .time-old {
+    color: var(--fg-error-color);
+    text-decoration: line-through;
+    opacity: 0.7;
+    font-size: 0.85em;
+  }
+  .time-new {
+    color: var(--fg-success-color, #22c55e);
+    font-weight: 700;
+  }
+  .time-arrow {
+    color: var(--fg-secondary-color);
+    font-size: 0.85rem;
+  }
 
   &.is-collapsed {
     margin-bottom: 0;
@@ -589,6 +949,9 @@ onClickOutside(timeEditorRef, saveTimeChanges)
       display: flex;
       align-items: center;
       gap: 16px;
+      flex: 1;
+      min-width: 0;
+      overflow: hidden;
     }
 
     .collapse-toggle-btn {
@@ -645,10 +1008,14 @@ onClickOutside(timeEditorRef, saveTimeChanges)
         transition: background-color 0.2s ease;
 
         &-preview {
+          display: flex;
+          align-items: center;
+          flex-wrap: wrap;
+          gap: 4px;
           padding: 0 4px;
 
           > span {
-            margin: 0 5px;
+            margin: 0 2px;
           }
         }
       }
@@ -683,6 +1050,19 @@ onClickOutside(timeEditorRef, saveTimeChanges)
           background-color: var(--bg-hover-color);
           color: var(--fg-primary-color);
           border-color: var(--border-primary-color);
+        }
+
+        &.ai-btn {
+          &:hover:not(:disabled) {
+            color: var(--fg-accent-color);
+            border-color: var(--fg-accent-color);
+            background-color: rgba(var(--fg-accent-color-rgb), 0.08);
+          }
+          &.active {
+            color: var(--fg-accent-color);
+            border-color: var(--fg-accent-color);
+            background-color: rgba(var(--fg-accent-color-rgb), 0.12);
+          }
         }
 
         &.delete-btn:hover:not(:disabled) {

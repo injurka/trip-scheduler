@@ -7,6 +7,7 @@ import { KitBtn } from '~/components/01.kit/kit-btn'
 import { KitFileInput } from '~/components/01.kit/kit-file-input'
 import { KitInput } from '~/components/01.kit/kit-input'
 import { KitSelectWithSearch } from '~/components/01.kit/kit-select-with-search'
+import { KitTooltip } from '~/components/01.kit/kit-tooltip'
 import { CalendarPopover } from '~/components/02.shared/calendar-popover'
 import { useRequest, useRequestStatus } from '~/plugins/request'
 
@@ -252,14 +253,15 @@ function updateTransactionDate(tx: GeneratedTransaction, newDate: CalendarDate |
               </div>
 
               <div class="pi-date-spontaneous-group">
-                <button
-                  class="pi-spontaneous-trigger"
-                  :class="{ active: tx.isSpontaneous }"
-                  @click="tx.isSpontaneous = !tx.isSpontaneous"
-                  title="Отметить как спонтанную трату"
-                >
-                  <Icon icon="mdi:sparkles" />
-                </button>
+                <KitTooltip text="Отметить как спонтанную трату">
+                  <button
+                    class="pi-spontaneous-trigger"
+                    :class="{ active: tx.isSpontaneous }"
+                    @click="tx.isSpontaneous = !tx.isSpontaneous"
+                  >
+                    <Icon icon="mdi:sparkles" />
+                  </button>
+                </KitTooltip>
 
                 <CalendarPopover
                   :model-value="getCalendarDate(tx)"

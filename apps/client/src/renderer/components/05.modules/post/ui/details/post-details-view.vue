@@ -1,7 +1,8 @@
 <script setup lang="ts">
 import type { KitDropdownItem } from '~/components/01.kit/kit-dropdown'
-import type { LocationBlock, PostDetail, RouteBlock } from '~/shared/types/models/post'
+import type { PostDetail, TimelineBlock } from '~/shared/types/models/post'
 import { Icon } from '@iconify/vue'
+import { KitTooltip } from '~/components/01.kit/kit-tooltip'
 import { useResizeObserver } from '@vueuse/core'
 import { storeToRefs } from 'pinia'
 import { computed, onMounted, ref, watch } from 'vue'
@@ -107,7 +108,7 @@ function pinMap() {
   isMapPinned.value = true
 }
 
-function handleFocusBlock(block: LocationBlock | RouteBlock) {
+function handleFocusBlock(block: TimelineBlock) {
   // Тоггл: если кликнули по тому же блоку, сбрасываем фокус
   if (mapFocusBlockId.value === block.id) {
     mapFocusBlockId.value = null
@@ -225,14 +226,18 @@ function handleFocusBlock(block: LocationBlock | RouteBlock) {
     </div>
 
     <div v-if="!isMapPinned" class="map-fab-group">
-      <button class="fab-main" title="Показать на карте" @click="isMapVisible = true">
-        <Icon icon="mdi:map" />
-        <span class="fab-text">Карта</span>
-      </button>
+      <KitTooltip text="Показать на карте">
+        <button class="fab-main" @click="isMapVisible = true">
+          <Icon icon="mdi:map" />
+          <span class="fab-text">Карта</span>
+        </button>
+      </KitTooltip>
       <div class="fab-divider" />
-      <button class="fab-pin" title="Закрепить рядом с текстом" @click="pinMap">
-        <Icon icon="mdi:pin" />
-      </button>
+      <KitTooltip text="Закрепить рядом с текстом">
+        <button class="fab-pin" @click="pinMap">
+          <Icon icon="mdi:pin" />
+        </button>
+      </KitTooltip>
     </div>
   </div>
 </template>

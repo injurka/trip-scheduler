@@ -2,6 +2,7 @@
 import type { ImageQuality } from '../models/types'
 import type { KitDropdownItem } from '~/components/01.kit/kit-dropdown'
 import { Icon } from '@iconify/vue'
+import { KitTooltip } from '~/components/01.kit/kit-tooltip'
 import KitViewerDropdown from './kit-viewer-dropdown.vue'
 
 interface Props {
@@ -44,13 +45,14 @@ const currentQuality = computed({
 
 <template>
   <div class="control-buttons">
-    <button
-      class="control-btn"
-      :title="isUiVisible ? 'Скрыть интерфейс' : 'Показать интерфейс'"
-      @click="emit('update:isUiVisible', !isUiVisible)"
-    >
-      <Icon :icon="isUiVisible ? 'mdi:eye-off-outline' : 'mdi:eye-outline'" />
-    </button>
+    <KitTooltip :text="isUiVisible ? 'Скрыть интерфейс' : 'Показать интерфейс'">
+      <button
+        class="control-btn"
+        @click="emit('update:isUiVisible', !isUiVisible)"
+      >
+        <Icon :icon="isUiVisible ? 'mdi:eye-off-outline' : 'mdi:eye-outline'" />
+      </button>
+    </KitTooltip>
     <div v-if="isUiVisible" class="control-buttons-group">
       <KitViewerDropdown
         v-if="showQualitySelector"
@@ -59,34 +61,39 @@ const currentQuality = computed({
         align="end"
       >
         <template #trigger>
-          <button class="control-btn" title="Выбрать качество">
-            <Icon :icon="qualityIcon" />
-          </button>
+          <KitTooltip text="Выбрать качество">
+            <button class="control-btn">
+              <Icon :icon="qualityIcon" />
+            </button>
+          </KitTooltip>
         </template>
       </KitViewerDropdown>
-      <button
-        v-if="showInfoButton"
-        class="control-btn"
-        :class="{ loading: isMetadataLoading }"
-        :disabled="isMetadataLoading"
-        title="Информация о снимке"
-        @click.stop="emit('showMetadata')"
-      >
-        <Icon v-if="isMetadataLoading" icon="mdi:loading" class="spin" />
-        <Icon v-else icon="mdi:information-outline" />
-      </button>
-      <button
-        class="control-btn"
-        title="Reset zoom"
-        :disabled="!isZoomed"
-        @click="emit('resetTransform')"
-      >
-        <Icon icon="mdi:backup-restore" />
-      </button>
+      <KitTooltip v-if="showInfoButton" text="Информация о снимке">
+        <button
+          class="control-btn"
+          :class="{ loading: isMetadataLoading }"
+          :disabled="isMetadataLoading"
+          @click.stop="emit('showMetadata')"
+        >
+          <Icon v-if="isMetadataLoading" icon="mdi:loading" class="spin" />
+          <Icon v-else icon="mdi:information-outline" />
+        </button>
+      </KitTooltip>
+      <KitTooltip text="Reset zoom">
+        <button
+          class="control-btn"
+          :disabled="!isZoomed"
+          @click="emit('resetTransform')"
+        >
+          <Icon icon="mdi:backup-restore" />
+        </button>
+      </KitTooltip>
     </div>
-    <button class="close-btn" title="Close" @click="emit('close')">
-      <Icon icon="mdi:close" />
-    </button>
+    <KitTooltip text="Close">
+      <button class="close-btn" @click="emit('close')">
+        <Icon icon="mdi:close" />
+      </button>
+    </KitTooltip>
   </div>
 </template>
 

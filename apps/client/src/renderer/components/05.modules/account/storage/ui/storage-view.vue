@@ -12,6 +12,7 @@ import { KitPagination } from '~/components/01.kit/kit-pagination'
 import { KitSelectWithSearch } from '~/components/01.kit/kit-select-with-search'
 import { KitSkeleton } from '~/components/01.kit/kit-skeleton'
 import { KitViewSwitcher } from '~/components/01.kit/kit-view-switcher'
+import { KitTooltip } from '~/components/01.kit/kit-tooltip'
 import { AsyncStateWrapper } from '~/components/02.shared/async-state-wrapper'
 import { NavigationBack } from '~/components/02.shared/navigation-back'
 import { useStorageModule } from '~/components/05.modules/account/storage/composables/use-storage'
@@ -242,12 +243,16 @@ onMounted(() => {
               <KitImage :src="file.variants?.small || file.url" :alt="file.originalName" />
             </div>
             <div class="file-card-info">
-              <span class="file-name" :title="file.originalName">{{ file.originalName }}</span>
+              <KitTooltip :text="file.originalName">
+                <span class="file-name">{{ file.originalName }}</span>
+              </KitTooltip>
               <span class="file-size">{{ formatBytes(file.sizeBytes) }}</span>
             </div>
-            <button class="delete-btn" title="Удалить" @click.stop="handleDeleteFile(file.id, file.originalName)">
-              <Icon icon="mdi:trash-can-outline" />
-            </button>
+            <KitTooltip text="Удалить">
+              <button class="delete-btn" @click.stop="handleDeleteFile(file.id, file.originalName)">
+                <Icon icon="mdi:trash-can-outline" />
+              </button>
+            </KitTooltip>
           </div>
         </div>
 
@@ -291,9 +296,11 @@ onMounted(() => {
               <div>{{ formatDate(file.createdAt, { dateStyle: 'short' }) }}</div>
               <div>{{ formatBytes(file.sizeBytes) }}</div>
               <div class="actions-cell">
-                <button class="delete-btn" title="Удалить" @click.stop="handleDeleteFile(file.id, file.originalName)">
-                  <Icon icon="mdi:trash-can-outline" />
-                </button>
+                <KitTooltip text="Удалить">
+                  <button class="delete-btn" @click.stop="handleDeleteFile(file.id, file.originalName)">
+                    <Icon icon="mdi:trash-can-outline" />
+                  </button>
+                </KitTooltip>
               </div>
             </div>
           </div>
