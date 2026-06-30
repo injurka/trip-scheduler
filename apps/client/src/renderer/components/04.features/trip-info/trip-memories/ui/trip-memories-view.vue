@@ -350,8 +350,8 @@ async function handleNotifyParticipants() {
           <template v-else>
             <KitDropdown v-model:open="isBgCacheDropdownOpen" :items="[]">
               <template #trigger>
-                <button 
-                  class="control-btn bg-cache-btn" 
+                <button
+                  class="control-btn bg-cache-btn"
                   :disabled="imageCacher.isManualCaching.value"
                 >
                   <Icon v-if="imageCacher.isManualCaching.value" icon="mdi:pause" />

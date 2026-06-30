@@ -30,15 +30,14 @@ p {
 }
 
 ::-webkit-scrollbar {
-  width: 4px;
-  height: 100%;
+  width: 8px;
+  height: 8px;
   background-color: transparent;
 }
 
 ::-webkit-scrollbar-thumb {
   border-radius: var(--r-m);
-  background-color: var(--color-background-content);
-  box-shadow: inset 0 0 5px var(--color-background-content);
+  background-color: var(--bg-disabled-color);
 }
 
 ::-webkit-scrollbar-track {
