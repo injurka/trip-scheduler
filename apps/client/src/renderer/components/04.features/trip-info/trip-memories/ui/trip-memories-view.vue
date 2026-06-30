@@ -115,7 +115,7 @@ const galleryImages = computed<ImageViewerImage[]>(() => {
 
 watch(galleryImages, (newImages) => {
   if (imageCacher.isBackgroundCaching.value && newImages.length > 0) {
-    imageCacher.startCaching(newImages, imageCacher.backgroundCachingQuality.value)
+    imageCacher.startCaching(newImages, imageCacher.backgroundCachingQuality.value, 'background')
   }
 }, { immediate: true })
 
@@ -141,7 +141,7 @@ const cacheQualityOptions = [
 ]
 
 function handleCacheAll(quality: string | number | object | symbol) {
-  imageCacher.startCaching(galleryImages.value, quality as ImageQuality)
+  imageCacher.startCaching(galleryImages.value, quality as ImageQuality, 'manual')
 }
 
 const isBgCacheDropdownOpen = ref(false)
@@ -291,9 +291,9 @@ async function handleNotifyParticipants() {
             <template #trigger>
               <button
                 class="control-btn cache-btn"
-                :class="{ 'is-active': imageCacher.isCaching.value }"
+                :class="{ 'is-active': imageCacher.isManualCaching.value }"
               >
-                <div v-if="imageCacher.isCaching.value && !imageCacher.isBackgroundCaching.value" class="progress-circle-wrapper">
+                <div v-if="imageCacher.isManualCaching.value" class="progress-circle-wrapper">
                   <svg class="progress-circle" viewBox="0 0 36 36">
                     <path
                       class="circle-bg"
@@ -326,14 +326,36 @@ async function handleNotifyParticipants() {
               class="control-btn bg-cache-btn is-active"
               @click="handleToggleBackgroundCaching"
             >
-              <Icon icon="mdi:sync" />
+              <div v-if="imageCacher.isCaching.value && !imageCacher.isManualCaching.value" class="progress-circle-wrapper">
+                <svg class="progress-circle" viewBox="0 0 36 36">
+                  <path
+                    class="circle-bg"
+                    d="M18 2.0845
+                      a 15.9155 15.9155 0 0 1 0 31.831
+                      a 15.9155 15.9155 0 0 1 0 -31.831"
+                  />
+                  <path
+                    class="circle"
+                    :stroke-dasharray="`${(imageCacher.cachedCount.value / Math.max(1, imageCacher.totalToCache.value)) * 100}, 100`"
+                    d="M18 2.0845
+                      a 15.9155 15.9155 0 0 1 0 31.831
+                      a 15.9155 15.9155 0 0 1 0 -31.831"
+                  />
+                </svg>
+                <span class="progress-text">{{ Math.round((imageCacher.cachedCount.value / Math.max(1, imageCacher.totalToCache.value)) * 100) }}</span>
+              </div>
+              <Icon v-else icon="mdi:check-all" />
             </button>
           </template>
           <template v-else>
             <KitDropdown v-model:open="isBgCacheDropdownOpen" :items="[]">
               <template #trigger>
-                <button class="control-btn bg-cache-btn">
-                  <Icon icon="mdi:sync" />
+                <button 
+                  class="control-btn bg-cache-btn" 
+                  :disabled="imageCacher.isManualCaching.value"
+                >
+                  <Icon v-if="imageCacher.isManualCaching.value" icon="mdi:pause" />
+                  <Icon v-else icon="mdi:sync" />
                 </button>
               </template>
               <div class="bg-cache-menu">

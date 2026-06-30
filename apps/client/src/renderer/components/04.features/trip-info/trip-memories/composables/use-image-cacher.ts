@@ -14,6 +14,7 @@ export interface CachableImage {
 export type ImageQuality = 'small' | 'medium' | 'large' | 'original'
 
 const isCaching = ref(false)
+const isManualCaching = ref(false)
 const cachedCount = ref(0)
 const totalToCache = ref(0)
 const cacheQueue = ref<string[]>([])
@@ -35,6 +36,7 @@ export function useImageCacher() {
   async function processQueue() {
     if (cacheQueue.value.length === 0) {
       isCaching.value = false
+      isManualCaching.value = false
       return
     }
 
@@ -50,7 +52,7 @@ export function useImageCacher() {
     }
   }
 
-  function startCaching(images: CachableImage[], quality: ImageQuality = 'large') {
+  function startCaching(images: CachableImage[], quality: ImageQuality = 'large', mode: 'manual' | 'background' = 'manual') {
     selectedQuality.value = quality
 
     const urlsToCache = images.map((img) => {
@@ -63,12 +65,18 @@ export function useImageCacher() {
     totalToCache.value = urlsToCache.length
     cachedCount.value = 0
     isCaching.value = true
+    isManualCaching.value = mode === 'manual'
+
+    if (mode === 'manual') {
+      isBackgroundCaching.value = false
+    }
 
     processQueue()
   }
 
   function stopCaching() {
     isCaching.value = false
+    isManualCaching.value = false
     cacheQueue.value = []
   }
 
@@ -78,7 +86,7 @@ export function useImageCacher() {
     }
     isBackgroundCaching.value = !isBackgroundCaching.value
     if (isBackgroundCaching.value) {
-      startCaching(images, backgroundCachingQuality.value)
+      startCaching(images, backgroundCachingQuality.value, 'background')
     }
     else {
       stopCaching()
@@ -87,6 +95,7 @@ export function useImageCacher() {
 
   return {
     isCaching,
+    isManualCaching,
     isBackgroundCaching,
     backgroundCachingQuality,
     cachedCount,
