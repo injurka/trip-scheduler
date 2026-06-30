@@ -1,3 +1,4 @@
+import { useStorage } from '@vueuse/core'
 import { ref } from 'vue'
 
 export interface CachableImage {
@@ -12,15 +13,16 @@ export interface CachableImage {
 
 export type ImageQuality = 'small' | 'medium' | 'large' | 'original'
 
+const isCaching = ref(false)
+const cachedCount = ref(0)
+const totalToCache = ref(0)
+const cacheQueue = ref<string[]>([])
+const selectedQuality = ref<ImageQuality>('large')
+
+const isBackgroundCaching = useStorage('trip-background-caching-enabled', false)
+const backgroundCachingQuality = useStorage<ImageQuality>('trip-background-caching-quality', 'large')
+
 export function useImageCacher() {
-  const isCaching = ref(false)
-  const isBackgroundCaching = ref(false)
-  const cachedCount = ref(0)
-  const totalToCache = ref(0)
-  const cacheQueue = ref<string[]>([])
-
-  const selectedQuality = ref<ImageQuality>('large')
-
   function preloadImage(url: string): Promise<void> {
     return new Promise((resolve) => {
       const img = new Image()
@@ -70,10 +72,13 @@ export function useImageCacher() {
     cacheQueue.value = []
   }
 
-  function toggleBackgroundCaching(images: CachableImage[], quality: ImageQuality = 'large') {
+  function toggleBackgroundCaching(images: CachableImage[], quality?: ImageQuality) {
+    if (quality) {
+      backgroundCachingQuality.value = quality
+    }
     isBackgroundCaching.value = !isBackgroundCaching.value
     if (isBackgroundCaching.value) {
-      startCaching(images, quality)
+      startCaching(images, backgroundCachingQuality.value)
     }
     else {
       stopCaching()
@@ -83,6 +88,7 @@ export function useImageCacher() {
   return {
     isCaching,
     isBackgroundCaching,
+    backgroundCachingQuality,
     cachedCount,
     totalToCache,
     selectedQuality,

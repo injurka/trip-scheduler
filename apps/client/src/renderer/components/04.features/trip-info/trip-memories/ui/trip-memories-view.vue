@@ -115,9 +115,9 @@ const galleryImages = computed<ImageViewerImage[]>(() => {
 
 watch(galleryImages, (newImages) => {
   if (imageCacher.isBackgroundCaching.value && newImages.length > 0) {
-    imageCacher.startCaching(newImages, imageCacher.selectedQuality.value)
+    imageCacher.startCaching(newImages, imageCacher.backgroundCachingQuality.value)
   }
-})
+}, { immediate: true })
 
 const allMemoryGroupKeys = computed(() =>
   timelineGroups.value.map(g => g.type + (g.activity?.id || g.title)),
@@ -144,8 +144,18 @@ function handleCacheAll(quality: string | number | object | symbol) {
   imageCacher.startCaching(galleryImages.value, quality as ImageQuality)
 }
 
+const isBgCacheDropdownOpen = ref(false)
+const selectedBgQuality = ref<ImageQuality>(imageCacher.backgroundCachingQuality.value)
+
 function handleToggleBackgroundCaching() {
-  imageCacher.toggleBackgroundCaching(galleryImages.value, imageCacher.selectedQuality.value)
+  if (imageCacher.isBackgroundCaching.value) {
+    imageCacher.toggleBackgroundCaching(galleryImages.value)
+  }
+}
+
+function applyBackgroundCaching() {
+  imageCacher.toggleBackgroundCaching(galleryImages.value, selectedBgQuality.value)
+  isBgCacheDropdownOpen.value = false
 }
 
 const isFullScreen = ref(false)
@@ -283,9 +293,27 @@ async function handleNotifyParticipants() {
                 class="control-btn cache-btn"
                 :class="{ 'is-active': imageCacher.isCaching.value }"
               >
+                <div v-if="imageCacher.isCaching.value && !imageCacher.isBackgroundCaching.value" class="progress-circle-wrapper">
+                  <svg class="progress-circle" viewBox="0 0 36 36">
+                    <path
+                      class="circle-bg"
+                      d="M18 2.0845
+                        a 15.9155 15.9155 0 0 1 0 31.831
+                        a 15.9155 15.9155 0 0 1 0 -31.831"
+                    />
+                    <path
+                      class="circle"
+                      :stroke-dasharray="`${(imageCacher.cachedCount.value / Math.max(1, imageCacher.totalToCache.value)) * 100}, 100`"
+                      d="M18 2.0845
+                        a 15.9155 15.9155 0 0 1 0 31.831
+                        a 15.9155 15.9155 0 0 1 0 -31.831"
+                    />
+                  </svg>
+                  <span class="progress-text">{{ Math.round((imageCacher.cachedCount.value / Math.max(1, imageCacher.totalToCache.value)) * 100) }}</span>
+                </div>
                 <Icon
-                  :icon="imageCacher.isCaching.value ? 'mdi:loading' : 'mdi:cached'"
-                  :class="{ spin: imageCacher.isCaching.value && !imageCacher.isBackgroundCaching.value }"
+                  v-else
+                  icon="mdi:cached"
                 />
               </button>
             </template>
@@ -293,13 +321,43 @@ async function handleNotifyParticipants() {
         </KitTooltip>
 
         <KitTooltip v-if="memoriesForSelectedDay.length > 0" :text="imageCacher.isBackgroundCaching.value ? 'Выключить фоновое кеширование' : 'Включить фоновое кеширование'">
-          <button
-            class="control-btn bg-cache-btn"
-            :class="{ 'is-active': imageCacher.isBackgroundCaching.value }"
-            @click="handleToggleBackgroundCaching"
-          >
-            <Icon icon="mdi:sync" :class="{ spin: imageCacher.isBackgroundCaching.value }" />
-          </button>
+          <template v-if="imageCacher.isBackgroundCaching.value">
+            <button
+              class="control-btn bg-cache-btn is-active"
+              @click="handleToggleBackgroundCaching"
+            >
+              <Icon icon="mdi:sync" />
+            </button>
+          </template>
+          <template v-else>
+            <KitDropdown v-model:open="isBgCacheDropdownOpen" :items="[]">
+              <template #trigger>
+                <button class="control-btn bg-cache-btn">
+                  <Icon icon="mdi:sync" />
+                </button>
+              </template>
+              <div class="bg-cache-menu">
+                <div class="bg-cache-title">
+                  Фоновое кеширование
+                </div>
+                <div class="bg-cache-options">
+                  <div
+                    v-for="opt in cacheQualityOptions"
+                    :key="opt.value"
+                    class="bg-cache-option"
+                    :class="{ 'is-selected': selectedBgQuality === opt.value }"
+                    @click="selectedBgQuality = opt.value as ImageQuality"
+                  >
+                    <Icon :icon="selectedBgQuality === opt.value ? 'mdi:radiobox-marked' : 'mdi:radiobox-blank'" class="radio-icon" />
+                    <span>{{ opt.label.replace('Кеш: ', '') }}</span>
+                  </div>
+                </div>
+                <button class="bg-cache-apply" @click="applyBackgroundCaching">
+                  Применить
+                </button>
+              </div>
+            </KitDropdown>
+          </template>
         </KitTooltip>
 
         <KitTooltip v-if="!isViewMode && memoriesForSelectedDay.length > 0" text="Уведомить участников">
@@ -509,6 +567,109 @@ async function handleNotifyParticipants() {
   }
   to {
     transform: rotate(360deg);
+  }
+}
+
+.progress-circle-wrapper {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+}
+
+.progress-circle {
+  width: 24px;
+  height: 24px;
+  transform: rotate(-90deg);
+
+  .circle-bg {
+    fill: none;
+    stroke: var(--bg-hover-color);
+    stroke-width: 3;
+  }
+
+  .circle {
+    fill: none;
+    stroke: var(--fg-accent-color);
+    stroke-width: 3;
+    stroke-linecap: round;
+    transition: stroke-dasharray 0.3s ease;
+  }
+}
+
+.progress-text {
+  position: absolute;
+  font-size: 0.55rem;
+  font-weight: 600;
+  color: var(--fg-accent-color);
+}
+
+.bg-cache-menu {
+  padding: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  min-width: 220px;
+}
+
+.bg-cache-title {
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: var(--fg-primary-color);
+}
+
+.bg-cache-options {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.bg-cache-option {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 8px;
+  border-radius: var(--r-xs);
+  cursor: pointer;
+  font-size: 0.85rem;
+  color: var(--fg-secondary-color);
+  transition: all 0.2s ease;
+
+  &:hover {
+    background-color: var(--bg-hover-color);
+  }
+
+  &.is-selected {
+    color: var(--fg-accent-color);
+    background-color: color-mix(in srgb, var(--fg-accent-color) 10%, transparent);
+
+    .radio-icon {
+      color: var(--fg-accent-color);
+    }
+  }
+
+  .radio-icon {
+    font-size: 1.1rem;
+    color: var(--fg-secondary-color);
+  }
+}
+
+.bg-cache-apply {
+  padding: 8px;
+  border-radius: var(--r-s);
+  background-color: var(--bg-accent-color);
+  color: var(--fg-on-accent-color);
+  border: none;
+  cursor: pointer;
+  font-size: 0.85rem;
+  font-weight: 600;
+  text-align: center;
+  transition: all 0.2s ease;
+
+  &:hover {
+    filter: brightness(1.1);
   }
 }
 </style>
