@@ -5,10 +5,10 @@ import draggable from 'vuedraggable'
 import { KitBtn } from '~/components/01.kit/kit-btn'
 import { useModuleStore } from '~/components/05.modules/trip-info/composables/use-trip-info-module'
 import AddDayActivity from '~/components/05.modules/trip-info/ui/controls/add-day-activity.vue'
+import { useToast } from '~/shared/composables/use-toast'
 import { trpc } from '~/shared/services/trpc/trpc.service'
 import ActivityItem from './item.vue'
 import LlmCanvasAssistant from './llm-canvas-assistant.vue'
-import { useToast } from '~/shared/composables/use-toast'
 
 const emit = defineEmits<{
   (e: 'add'): void
@@ -82,7 +82,7 @@ function buildDaysContext(excludeDayId: string) {
     .filter(d => d.id !== excludeDayId)
     .map((d, _) => ({
       dayNumber: data.days.findIndex(x => x.id === d.id) + 1,
-      date: typeof d.date === 'string' ? d.date.split('T')[0] : d.date.toISOString().split('T')[0],
+      date: d.date.split('T')[0],
       title: d.title || '',
       description: d.description ?? null,
       activitiesSummary: d.activities

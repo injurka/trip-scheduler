@@ -32,11 +32,11 @@ export const useTripInfoUiStore = defineStore('tripInfoUi', {
     areAllActivitiesCollapsed: state => (allIds: string[]) => {
       if (allIds.length === 0)
         return false
-      return state.collapsedActivities.size === allIds.length
+      return allIds.every(id => state.collapsedActivities.has(id))
     },
     areAllMemoryGroupsCollapsed: state => (allGroupKeys: string[]) => {
       if (allGroupKeys.length > 0)
-        return state.collapsedMemoryGroups.size === allGroupKeys.length
+        return allGroupKeys.every(key => state.collapsedMemoryGroups.has(key))
       return false
     },
   },
@@ -85,11 +85,11 @@ export const useTripInfoUiStore = defineStore('tripInfoUi', {
     },
 
     toggleAllActivities(allIds: string[]) {
-      const allCollapsed = allIds.length > 0 && this.collapsedActivities.size === allIds.length
+      const allCollapsed = allIds.length > 0 && allIds.every(id => this.collapsedActivities.has(id))
       if (allCollapsed)
-        this.collapsedActivities.clear()
+        allIds.forEach(id => this.collapsedActivities.delete(id))
       else
-        this.collapsedActivities = new Set(allIds)
+        allIds.forEach(id => this.collapsedActivities.add(id))
     },
 
     toggleMemoryGroupCollapsed(key: string) {
@@ -100,11 +100,11 @@ export const useTripInfoUiStore = defineStore('tripInfoUi', {
     },
 
     toggleAllMemoryGroups(allGroupKeys: string[]) {
-      const allCollapsed = allGroupKeys.length > 0 && this.collapsedMemoryGroups.size === allGroupKeys.length
+      const allCollapsed = allGroupKeys.length > 0 && allGroupKeys.every(key => this.collapsedMemoryGroups.has(key))
       if (allCollapsed)
-        this.collapsedMemoryGroups.clear()
+        allGroupKeys.forEach(key => this.collapsedMemoryGroups.delete(key))
       else
-        this.collapsedMemoryGroups = new Set(allGroupKeys)
+        allGroupKeys.forEach(key => this.collapsedMemoryGroups.add(key))
     },
 
     clearCollapsedState() {

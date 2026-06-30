@@ -11,7 +11,7 @@ defineProps<{
 
 defineEmits<{
   'update:open': [boolean]
-  'city-click': [MapCity]
+  'cityClick': [MapCity]
 }>()
 
 const rootRef = ref<HTMLDivElement | null>(null)
@@ -46,7 +46,7 @@ defineExpose({ rootRef })
             v-for="c in list"
             :key="c.id"
             class="panel-city"
-            @click="$emit('city-click', c)"
+            @click="$emit('cityClick', c)"
           >
             {{ c.name }}
           </div>

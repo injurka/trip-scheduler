@@ -342,14 +342,14 @@ onClickOutside(dateFilterWrapperRef, () => {
 
 .type-pill {
   border-style: dashed;
-  
+
   &.planned.active {
     background-color: rgba(74, 144, 226, 0.15);
     border-color: #4a90e2;
     border-style: solid;
     color: #4a90e2;
   }
-  
+
   &.spontaneous.active {
     background-color: rgba(189, 16, 224, 0.15);
     border-color: #bd10e0;

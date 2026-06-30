@@ -6,8 +6,8 @@ export interface UseImageViewerUiOptions {
   currentImage: Readonly<Ref<ImageViewerImage | null>>
   containerRef: Ref<HTMLElement | null>
   thumbnailsRef: Ref<HTMLElement | null>
-  qualityModel?: Ref<ImageQuality | undefined> 
-  onQualityChange?: (quality: ImageQuality) => void 
+  qualityModel?: Ref<ImageQuality | undefined>
+  onQualityChange?: (quality: ImageQuality) => void
   onDownload?: (image: ImageViewerImage, quality: ImageQuality) => void
 }
 

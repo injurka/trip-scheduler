@@ -7,7 +7,7 @@ interface Props {
   activityTitle?: string
 }
 
-const props = withDefaults(defineProps<Props>(), {
+withDefaults(defineProps<Props>(), {
   activityTitle: '',
 })
 
@@ -20,7 +20,8 @@ const prompt = ref('')
 const isGenerating = ref(false)
 
 function handleSubmit() {
-  if (!prompt.value.trim() || isGenerating.value) return
+  if (!prompt.value.trim() || isGenerating.value)
+    return
   isGenerating.value = true
   emit('generate', { prompt: prompt.value.trim() })
 }
@@ -57,7 +58,9 @@ defineExpose({ finishGeneration })
         <Icon :icon="isGenerating ? 'mdi:loading' : 'mdi:send'" :class="{ 'spin-icon': isGenerating }" />
       </KitBtn>
     </div>
-    <p class="hint">ИИ изменит только эту активность. Вы сможете проверить результат перед применением.</p>
+    <p class="hint">
+      ИИ изменит только эту активность. Вы сможете проверить результат перед применением.
+    </p>
   </div>
 </template>
 
@@ -67,7 +70,11 @@ defineExpose({ finishGeneration })
   padding: 12px 16px;
   border-radius: var(--r-s);
   border: 1px solid var(--fg-accent-color);
-  background: linear-gradient(135deg, rgba(var(--fg-accent-color-rgb), 0.04) 0%, rgba(var(--fg-accent-color-rgb), 0.01) 100%);
+  background: linear-gradient(
+    135deg,
+    rgba(var(--fg-accent-color-rgb), 0.04) 0%,
+    rgba(var(--fg-accent-color-rgb), 0.01) 100%
+  );
   display: flex;
   flex-direction: column;
   gap: 10px;
@@ -121,7 +128,9 @@ defineExpose({ finishGeneration })
       align-items: center;
       padding: 2px;
       border-radius: var(--r-xs);
-      transition: color 0.2s, background 0.2s;
+      transition:
+        color 0.2s,
+        background 0.2s;
 
       &:hover {
         color: var(--fg-primary-color);
@@ -159,7 +168,11 @@ defineExpose({ finishGeneration })
 }
 
 @keyframes spin {
-  from { transform: rotate(0deg); }
-  to { transform: rotate(360deg); }
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
 }
 </style>

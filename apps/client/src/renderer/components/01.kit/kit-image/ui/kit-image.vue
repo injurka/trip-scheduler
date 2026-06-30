@@ -187,7 +187,7 @@ defineExpose({
       isLoading.value = true
       hasError.value = false
       isAborted.value = false
-      retryCount.value++ 
+      retryCount.value++
 
       nextTick(() => {
         if (imageRef.value) {

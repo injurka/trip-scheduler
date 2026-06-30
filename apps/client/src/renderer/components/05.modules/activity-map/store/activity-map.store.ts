@@ -64,14 +64,16 @@ export const useActivityMapStore = defineStore('activityMap', {
       }
 
       if (this.currentMapParams) {
-        params.screen = this.currentMapParams.screen
+        if (this.currentMapParams.screen) {
+          params.screen = this.currentMapParams.screen
+        }
         params.zoomlevel = Math.round(this.currentMapParams.zoomlevel)
       }
 
       await useRequest({
         key: EActivityMapKeys.FETCH_MARKS,
         cancelPrevious: true,
-        fn: db => db.marks.getMarks(params),
+        fn: db => db.marks.getMarks(params as any),
         onSuccess: (data) => {
           this.marks = data
         },

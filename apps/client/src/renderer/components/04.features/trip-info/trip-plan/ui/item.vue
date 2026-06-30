@@ -23,8 +23,8 @@ import { activityTagIcons, activityTagLabels, getTagInfo } from '~/components/05
 import AddSectionMenu from '~/components/05.modules/trip-info/ui/controls/add-section-menu.vue'
 import { EActivitySectionType, EActivityTag } from '~/shared/types/models/activity'
 import { useActivityDiff } from '../composables/use-activity-diff'
-import ActivitySectionRenderer from './sections/section-renderer.vue'
 import LlmActivityEditor from './llm-activity-editor.vue'
+import ActivitySectionRenderer from './sections/section-renderer.vue'
 
 interface ActivityItemProps {
   activity: Activity
@@ -46,7 +46,7 @@ const emit = defineEmits<{
   (e: 'discardDraft'): void
   (e: 'requestAiEdit', prompt: string): void
   (e: 'acceptDraftFields', fields: string[]): void
-}>()  
+}>()
 
 const store = useModuleStore(['ui'])
 const { isViewMode } = storeToRefs(store.ui)
@@ -78,26 +78,27 @@ const tagInfo = computed(() => getTagInfo(props.activity.tag))
 
 // Diff вычисляем реактивно относительно draft-пропа
 const activityDiff = computed(() => {
-  if (!props.draft) return null
+  if (!props.draft)
+    return null
   const baseDiff = useActivityDiff(props.activity, props.draft)
-  
+
   // Group startTime and endTime into a single 'time' field
   const timeField = baseDiff.changedFields.find(f => f.field === 'startTime' || f.field === 'endTime')
   const newChangedFields = baseDiff.changedFields.filter(f => f.field !== 'startTime' && f.field !== 'endTime')
-  
+
   if (timeField) {
     newChangedFields.unshift({
       field: 'time',
       label: 'Время',
       original: `${props.activity.startTime || '—'} - ${props.activity.endTime || '—'}`,
       draft: `${props.draft.startTime || '—'} - ${props.draft.endTime || '—'}`,
-      changed: true
+      changed: true,
     })
   }
-  
+
   return {
     ...baseDiff,
-    changedFields: newChangedFields
+    changedFields: newChangedFields,
   }
 })
 
@@ -122,7 +123,6 @@ function handleDiscard() {
     isDiscarding.value = false
   }, 300)
 }
-
 
 const tagOptions = Object.values(EActivityTag).map(tag => ({
   value: tag,
@@ -422,7 +422,7 @@ onClickOutside(timeEditorRef, saveTimeChanges)
       'is-collapsed': isCollapsed,
       'is-draft': isDraftMode,
       'is-accepting': isAccepting,
-      'is-discarding': isDiscarding
+      'is-discarding': isDiscarding,
     }"
   >
     <div v-if="!isReadOnly" class="drag-handle" />
@@ -453,9 +453,9 @@ onClickOutside(timeEditorRef, saveTimeChanges)
               {{ field.label }}: <s>{{ field.original }}</s> → <b>{{ field.draft }}</b>
             </span>
             <KitTooltip text="Применить это изменение">
-              <button 
-                class="apply-field-btn" 
-                :data-testid="`accept-field-${field.field}`" 
+              <button
+                class="apply-field-btn"
+                :data-testid="`accept-field-${field.field}`"
                 @click.stop="emit('acceptDraftFields', [field.field === 'startTime' || field.field === 'endTime' ? 'time' : field.field])"
               >
                 <Icon icon="mdi:check" />
@@ -470,9 +470,9 @@ onClickOutside(timeEditorRef, saveTimeChanges)
               <span v-if="activityDiff.sectionsRemoved" class="text-danger">-{{ activityDiff.sectionsRemoved }}</span>
             </span>
             <KitTooltip text="Применить изменения в секциях">
-              <button 
-                class="apply-field-btn" 
-                data-testid="accept-field-sections" 
+              <button
+                class="apply-field-btn"
+                data-testid="accept-field-sections"
                 @click.stop="emit('acceptDraftFields', ['sections'])"
               >
                 <Icon icon="mdi:check" />
@@ -786,13 +786,29 @@ onClickOutside(timeEditorRef, saveTimeChanges)
       font-size: 0.73rem;
       white-space: nowrap;
 
-      s { color: var(--fg-error-color); }
-      b { color: var(--fg-success-color, #22c55e); font-weight: 600; }
+      s {
+        color: var(--fg-error-color);
+      }
+      b {
+        color: var(--fg-success-color, #22c55e);
+        font-weight: 600;
+      }
 
-      &--added { border-color: rgba(34, 197, 94, 0.3); color: #22c55e; }
-      &--removed { border-color: rgba(var(--fg-error-color-rgb), 0.3); color: var(--fg-error-color); }
-      &--modified { border-color: rgba(245, 158, 11, 0.3); color: #f59e0b; }
-      &--none { opacity: 0.5; }
+      &--added {
+        border-color: rgba(34, 197, 94, 0.3);
+        color: #22c55e;
+      }
+      &--removed {
+        border-color: rgba(var(--fg-error-color-rgb), 0.3);
+        color: var(--fg-error-color);
+      }
+      &--modified {
+        border-color: rgba(245, 158, 11, 0.3);
+        color: #f59e0b;
+      }
+      &--none {
+        opacity: 0.5;
+      }
     }
 
     .interactive-diff-chip {
@@ -807,12 +823,26 @@ onClickOutside(timeEditorRef, saveTimeChanges)
       font-size: 0.73rem;
       white-space: nowrap;
 
-      s { color: var(--fg-error-color); }
-      b { color: var(--fg-success-color, #22c55e); font-weight: 600; }
-      
-      .text-success { color: var(--fg-success-color, #22c55e); font-weight: 600; }
-      .text-warning { color: #f59e0b; font-weight: 600; }
-      .text-danger { color: var(--fg-error-color); font-weight: 600; }
+      s {
+        color: var(--fg-error-color);
+      }
+      b {
+        color: var(--fg-success-color, #22c55e);
+        font-weight: 600;
+      }
+
+      .text-success {
+        color: var(--fg-success-color, #22c55e);
+        font-weight: 600;
+      }
+      .text-warning {
+        color: #f59e0b;
+        font-weight: 600;
+      }
+      .text-danger {
+        color: var(--fg-error-color);
+        font-weight: 600;
+      }
 
       .apply-field-btn {
         display: inline-flex;
@@ -858,12 +888,19 @@ onClickOutside(timeEditorRef, saveTimeChanges)
       &--discard {
         color: var(--fg-secondary-color);
         border-color: var(--border-secondary-color);
-        &:hover { background: var(--bg-error-color); color: var(--fg-error-color); border-color: var(--border-error-color); }
+        &:hover {
+          background: var(--bg-error-color);
+          color: var(--fg-error-color);
+          border-color: var(--border-error-color);
+        }
       }
       &--accept {
         color: var(--fg-accent-color);
         border-color: var(--fg-accent-color);
-        &:hover { background: var(--fg-accent-color); color: var(--fg-inverted-color); }
+        &:hover {
+          background: var(--fg-accent-color);
+          color: var(--fg-inverted-color);
+        }
       }
     }
   }

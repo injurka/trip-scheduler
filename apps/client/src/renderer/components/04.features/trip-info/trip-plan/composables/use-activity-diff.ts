@@ -17,8 +17,10 @@ export interface ActivityDiffResult {
 }
 
 function stringify(val: unknown): string {
-  if (val == null) return '—'
-  if (typeof val === 'object') return JSON.stringify(val)
+  if (val == null)
+    return '—'
+  if (typeof val === 'object')
+    return JSON.stringify(val)
   return String(val)
 }
 

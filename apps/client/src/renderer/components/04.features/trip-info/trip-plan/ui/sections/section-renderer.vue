@@ -177,7 +177,7 @@ watch(() => props.section, (newSection) => {
             <Icon icon="mdi:arrow-down" />
             <span>Переместить ниже</span>
           </button>
-          <button 
+          <button
             class="menu-item"
             :class="{ 'is-active': (section as CustomActivitySection).isAttached }"
             @click="toggleAttached"

@@ -147,7 +147,9 @@ watch(isTimeless, (isNowTimeless) => {
             Дополнительная трата <Icon icon="mdi:sparkles" class="ts-icon" />
           </span>
         </KitCheckbox>
-        <div class="ts-hint">Отметьте, если это сувениры, незапланированные развлечения или другие спонтанные покупки вне основного плана.</div>
+        <div class="ts-hint">
+          Отметьте, если это сувениры, незапланированные развлечения или другие спонтанные покупки вне основного плана.
+        </div>
       </div>
 
       <div class="note-wrapper span-2">
@@ -242,7 +244,9 @@ watch(isTimeless, (isNowTimeless) => {
     font-weight: 500;
     color: var(--fg-primary-color);
 
-    .ts-icon { color: #bd10e0; }
+    .ts-icon {
+      color: #bd10e0;
+    }
   }
 
   .ts-hint {

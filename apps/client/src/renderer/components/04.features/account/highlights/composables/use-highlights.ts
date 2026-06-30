@@ -197,7 +197,7 @@ function extractMetadataFromJpeg(file: File): Promise<ExtractedMetadata> {
 
         resolve(result)
       }
-      catch (err) {
+      catch {
         resolve(result)
       }
     }
@@ -599,9 +599,7 @@ export function useHighlights() {
     isActionProcessing.value = true
     try {
       if (editFormFile.value) {
-        const success = await uploadHighlightImage(editFormFile.value, editForm, editFormFile)
-        if (!success)
-          return
+        await uploadHighlightImage(editFormFile.value, editForm, editFormFile)
       }
       // TODO: В будущем добавить db.user.updateHighlight(...)
     }

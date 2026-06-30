@@ -133,9 +133,12 @@ export function useFinancesSection(
 
   const sortedTransactions = computed(() => {
     return [...transactions.value].sort((a, b) => {
-      if (!a.date && b.date) return -1
-      if (a.date && !b.date) return 1
-      if (!a.date && !b.date) return 0
+      if (!a.date && b.date)
+        return -1
+      if (a.date && !b.date)
+        return 1
+      if (!a.date && !b.date)
+        return 0
       return new Date(b.date!).getTime() - new Date(a.date!).getTime()
     })
   })
@@ -172,7 +175,8 @@ export function useFinancesSection(
 
     if (typeFilter.value === 'planned') {
       result = result.filter(tx => !tx.isSpontaneous)
-    } else if (typeFilter.value === 'spontaneous') {
+    }
+    else if (typeFilter.value === 'spontaneous') {
       result = result.filter(tx => tx.isSpontaneous)
     }
 

@@ -107,7 +107,7 @@ function generateKml(trip: Trip, points: any[], routes: any[], drawnRoutes: any[
       return
     const lon = Number(p.coordinates[0])
     const lat = Number(p.coordinates[1])
-    if (isNaN(lon) || isNaN(lat))
+    if (Number.isNaN(lon) || Number.isNaN(lat))
       return
 
     const name = p.comment || p.address || p.title || 'Точка'
@@ -135,7 +135,7 @@ function generateKml(trip: Trip, points: any[], routes: any[], drawnRoutes: any[
     const color = hexToKmlColor(r.color)
     const name = r.title || 'Маршрут'
 
-    const validCoords = r.geometry.filter((pt: any) => pt && pt.length >= 2 && !isNaN(Number(pt[0])) && !isNaN(Number(pt[1])))
+    const validCoords = r.geometry.filter((pt: any) => pt && pt.length >= 2 && !Number.isNaN(Number(pt[0])) && !Number.isNaN(Number(pt[1])))
     if (validCoords.length < 2)
       return
 
@@ -167,7 +167,7 @@ function generateKml(trip: Trip, points: any[], routes: any[], drawnRoutes: any[
       if (!segment || segment.length < 2)
         return
 
-      const validCoords = segment.filter(pt => pt && pt.length >= 2 && !isNaN(Number(pt[0])) && !isNaN(Number(pt[1])))
+      const validCoords = segment.filter(pt => pt && pt.length >= 2 && !Number.isNaN(Number(pt[0])) && !Number.isNaN(Number(pt[1])))
       if (validCoords.length < 2)
         return
 

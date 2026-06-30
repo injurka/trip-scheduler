@@ -6,12 +6,12 @@ import { parseDate } from '@internationalized/date'
 import { useElementBounding, useIntersectionObserver, useWindowSize } from '@vueuse/core'
 import { KitBtn } from '~/components/01.kit/kit-btn'
 import { KitSkeleton } from '~/components/01.kit/kit-skeleton'
+import { KitTooltip } from '~/components/01.kit/kit-tooltip'
 import { CalendarPopover } from '~/components/02.shared/calendar-popover'
 import { useDisplay } from '~/shared/composables/use-display'
 import { useModuleStore } from '../../composables/use-trip-info-module'
 import { useTripPermissions } from '../../composables/use-trip-permissions'
 import DaysPanel from './days-panel.vue'
-import { KitTooltip } from '~/components/01.kit/kit-tooltip'
 import ViewSwitcher from './view-switcher.vue'
 
 interface Props {

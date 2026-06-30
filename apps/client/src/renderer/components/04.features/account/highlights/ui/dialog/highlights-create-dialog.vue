@@ -1,4 +1,5 @@
 <script setup lang="ts">
+/* eslint-disable vue/no-mutating-props */
 import type { KitDropdownItem } from '~/components/01.kit/kit-dropdown'
 import type { DestinationMapPoint } from '~/shared/services/api/model/types'
 import type { Country } from '~/shared/types/models/destination-review'
@@ -33,7 +34,7 @@ const props = defineProps<{
 
 const emit = defineEmits<{
   (e: 'update:visible', value: boolean): void
-  (e: 'file-select', value: File | null): void
+  (e: 'fileSelect', value: File | null): void
   (e: 'submit'): void
 }>()
 
@@ -193,7 +194,7 @@ const isSubmitDisabled = computed(() =>
         accept="image/*"
         :loading="isUploading"
         :preview-url="form.imageUrl || null"
-        @update:model-value="emit('file-select', $event)"
+        @update:model-value="emit('fileSelect', $event)"
       >
         {{ form.imageUrl ? 'Замени фото, если нужно обновить изображение' : 'Добавь фото: клик, drag&drop или вставка из буфера' }}
       </KitFileInput>

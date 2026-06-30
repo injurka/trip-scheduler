@@ -5,7 +5,7 @@ import { ref } from 'vue'
 import { KitInput } from '~/components/01.kit/kit-input'
 import PostMapPicker from '../tools/post-map-picker.vue'
 
-const props = defineProps<{
+defineProps<{
   block: LocationBlock
 }>()
 

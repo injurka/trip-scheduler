@@ -153,7 +153,7 @@ onMounted(() => {
           <OpenTripCard
             v-for="trip in data"
             :key="trip.id"
-            :trip="trip"
+            :trip="(trip as any)"
           />
         </div>
       </template>

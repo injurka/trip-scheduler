@@ -137,18 +137,18 @@ onMounted(() => {
       </div>
     </header>
 
-    <div class="dashboard-summary" v-if="plannedTotal > 0 || spontaneousTotal > 0">
+    <div v-if="plannedTotal > 0 || spontaneousTotal > 0" class="dashboard-summary">
       <div class="ds-amounts">
-         <!-- Основные расходы первыми -->
-         <div class="dsa-item">
-            <span class="dsa-label"><Icon icon="mdi:target" /> Основные:</span>
-            <span class="dsa-value">{{ formatCurrency(plannedTotal, mainCurrency) }}</span>
-         </div>
-         <!-- Дополнительные расходы вторыми -->
-         <div class="dsa-item spontaneous">
-            <span class="dsa-label"><Icon icon="mdi:sparkles" /> Дополнительные:</span>
-            <span class="dsa-value">{{ formatCurrency(spontaneousTotal, mainCurrency) }}</span>
-         </div>
+        <!-- Основные расходы первыми -->
+        <div class="dsa-item">
+          <span class="dsa-label"><Icon icon="mdi:target" /> Основные:</span>
+          <span class="dsa-value">{{ formatCurrency(plannedTotal, mainCurrency) }}</span>
+        </div>
+        <!-- Дополнительные расходы вторыми -->
+        <div class="dsa-item spontaneous">
+          <span class="dsa-label"><Icon icon="mdi:sparkles" /> Дополнительные:</span>
+          <span class="dsa-value">{{ formatCurrency(spontaneousTotal, mainCurrency) }}</span>
+        </div>
       </div>
     </div>
 
@@ -250,7 +250,7 @@ onMounted(() => {
 .dsa-item {
   display: flex;
   align-items: center;
-  justify-content: space-between; 
+  justify-content: space-between;
   width: 100%;
 }
 
@@ -261,7 +261,7 @@ onMounted(() => {
   align-items: center;
   gap: 6px;
   margin-right: 8px;
-  
+
   svg {
     font-size: 1.1rem;
   }
@@ -280,7 +280,7 @@ onMounted(() => {
       font-size: 0.9rem;
     }
   }
-  
+
   .dsa-value {
     font-size: 0.9rem;
     color: #bd10e0;
@@ -322,18 +322,18 @@ onMounted(() => {
   align-items: center;
   gap: 8px;
   padding: 4px 0;
-  
+
   .legend-color {
     width: 12px;
     height: 12px;
     border-radius: 3px;
   }
-  
+
   .legend-label {
     flex-grow: 1;
     color: var(--fg-secondary-color);
   }
-  
+
   .legend-value {
     font-weight: 500;
   }
@@ -350,7 +350,7 @@ onMounted(() => {
   padding: 1rem;
   min-height: 170px;
   font-size: 2.5rem;
-  
+
   p {
     font-size: 0.9rem;
   }
@@ -362,29 +362,29 @@ onMounted(() => {
     align-items: stretch;
     gap: 1rem;
   }
-  
+
   .chart-container {
     width: 100%;
     height: 150px;
   }
-  
+
   .legend {
     width: 100%;
   }
-  
+
   .card-header {
     flex-direction: column;
   }
-  
+
   .view-switcher {
     width: 100%;
-    
+
     button {
       width: 50%;
       justify-content: center;
     }
   }
-  
+
   .ds-amounts {
     width: 100%;
     margin-left: 0;

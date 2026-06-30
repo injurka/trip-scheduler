@@ -53,22 +53,25 @@ const generatedDraft = ref<string | null>(null)
 const isGeneratingDraft = ref(false)
 
 async function handleGenerate({ prompt, useDaysContext }: { prompt: string, useDaysContext: boolean }) {
-  if (!getSelectedDay.value) return
+  if (!getSelectedDay.value)
+    return
   isGeneratingDraft.value = true
-  
+
   try {
     const response = await trpc.day.generateNote.mutate({
       dayId: getSelectedDay.value.id,
       prompt,
       useContext: useDaysContext,
     })
-    
-    generatedDraft.value = noteContent.value 
-      + '\n\n---\n\n✨ **[AI]** Сгенерированный контент:\n\n' + response
-  } catch (error) {
+
+    generatedDraft.value = `${noteContent.value
+    }\n\n---\n\n✨ **[AI]** Сгенерированный контент:\n\n${response}`
+  }
+  catch (error) {
     console.error('Failed to generate AI note:', error)
     // Optional: show kit-toast error here
-  } finally {
+  }
+  finally {
     isGeneratingDraft.value = false
     assistantRef.value?.finishGeneration()
   }
@@ -88,7 +91,7 @@ function discardDraft() {
 
 <template>
   <div class="day-note">
-    <LlmCanvasAssistant ref="assistantRef" v-if="!isViewMode" hide-canvas-ref @generate="handleGenerate" />
+    <LlmCanvasAssistant v-if="!isViewMode" ref="assistantRef" hide-canvas-ref @generate="handleGenerate" />
 
     <div class="note-container" :class="{ 'is-draft': generatedDraft !== null }">
       <div class="status-bar">
@@ -114,8 +117,12 @@ function discardDraft() {
         <div class="draft-header">
           <span class="draft-title"><Icon icon="mdi:eye-outline" /> Предпросмотр изменений</span>
           <div class="draft-actions">
-            <KitBtn variant="subtle" size="sm" @click="discardDraft">Отклонить</KitBtn>
-            <KitBtn color="primary" size="sm" @click="acceptDraft">Применить</KitBtn>
+            <KitBtn variant="subtle" size="sm" @click="discardDraft">
+              Отклонить
+            </KitBtn>
+            <KitBtn color="primary" size="sm" @click="acceptDraft">
+              Применить
+            </KitBtn>
           </div>
         </div>
         <div class="draft-editor-wrapper">
@@ -272,7 +279,7 @@ function discardDraft() {
   color: var(--fg-accent-color);
   gap: 16px;
   font-weight: 500;
-  
+
   .draft-spinner {
     font-size: 3rem;
   }

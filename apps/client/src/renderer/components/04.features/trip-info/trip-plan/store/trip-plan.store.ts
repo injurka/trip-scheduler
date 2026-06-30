@@ -73,11 +73,13 @@ export const useTripPlanStore = defineStore('tripPlan', {
 
     getActivitiesForSelectedDay(state): IActivity[] {
       const day = this.getSelectedDay
-      if (!day) return []
+      if (!day)
+        return []
       let activities = day.activities.slice()
       if (state.isPreviewMode) {
         activities = activities.map(a => state.activityDrafts.get(a.id) ?? a)
-      } else {
+      }
+      else {
         activities = activities.filter(a => !a.id.startsWith('new-ai-'))
       }
       return activities.sort((a, b) => timeToMinutes(a.startTime) - timeToMinutes(b.startTime))
@@ -85,14 +87,16 @@ export const useTripPlanStore = defineStore('tripPlan', {
 
     /** Возвращает все ID активностей, для которых есть незакоммиченный черновик */
     hasDraftForDay(state): boolean {
-      if (!state.currentDayId) return false
+      if (!state.currentDayId)
+        return false
       const day = state.days.find(d => d.id === state.currentDayId)
-      if (!day) return false
+      if (!day)
+        return false
       return day.activities.some(a => state.activityDrafts.has(a.id))
     },
 
     /** Получить черновик для конкретной активности */
-    getDraftForActivity: (state) => (activityId: string): IActivity | null => {
+    getDraftForActivity: state => (activityId: string): IActivity | null => {
       return state.activityDrafts.get(activityId) ?? null
     },
 
@@ -135,20 +139,24 @@ export const useTripPlanStore = defineStore('tripPlan', {
     /** Принять черновик активности — применить к реальным данным */
     acceptActivityDraft(dayId: string, activityId: string) {
       const draft = this.activityDrafts.get(activityId)
-      if (!draft) return
+      if (!draft)
+        return
       const day = this.days.find(d => d.id === dayId)
-      if (!day) return
+      if (!day)
+        return
       const idx = day.activities.findIndex(a => a.id === activityId)
       if (idx !== -1) {
         day.activities[idx] = draft
         this.updateActivity(dayId, draft)
-      } else if (activityId.startsWith('new-ai-')) {
+      }
+      else if (activityId.startsWith('new-ai-')) {
         // Accept a new AI activity
         // We need to call the actual addActivity method, but removing the 'new-ai-' temp ID.
-        // Or wait, addActivity generates its own temp ID. 
+        // Or wait, addActivity generates its own temp ID.
         // Let's just remove it from day.activities and call addActivity.
         const newActIndex = day.activities.findIndex(a => a.id === activityId)
-        if (newActIndex !== -1) day.activities.splice(newActIndex, 1)
+        if (newActIndex !== -1)
+          day.activities.splice(newActIndex, 1)
         this.addActivity(dayId, { ...draft, id: undefined } as any)
       }
       this.activityDrafts.delete(activityId)
@@ -173,7 +181,8 @@ export const useTripPlanStore = defineStore('tripPlan', {
     /** Принять все черновики дня */
     acceptAllDraftsForDay(dayId: string) {
       const day = this.days.find(d => d.id === dayId)
-      if (!day) return
+      if (!day)
+        return
 
       const newActivitiesToAdd: IActivity[] = []
 
@@ -183,12 +192,14 @@ export const useTripPlanStore = defineStore('tripPlan', {
         const draft = this.activityDrafts.get(activity.id)
         if (activity.id.startsWith('new-ai-')) {
           // Will be added via addActivity after the loop — skip here
-          if (draft) newActivitiesToAdd.push(draft)
+          if (draft)
+            newActivitiesToAdd.push(draft)
         }
         else {
           // Existing activity: use draft if present, otherwise keep original
           nextActivities.push(draft ?? activity)
-          if (draft) this.updateActivity(dayId, draft)
+          if (draft)
+            this.updateActivity(dayId, draft)
         }
         this.activityDrafts.delete(activity.id)
       }
@@ -206,7 +217,8 @@ export const useTripPlanStore = defineStore('tripPlan', {
     /** Отклонить все черновики дня */
     discardAllDraftsForDay(dayId: string) {
       const day = this.days.find(d => d.id === dayId)
-      if (!day) return
+      if (!day)
+        return
 
       // Save to cache for undo
       const cache = new Map<string, IActivity>()
@@ -224,22 +236,25 @@ export const useTripPlanStore = defineStore('tripPlan', {
       }
       // Also delete any remaining new-ai drafts that might be orphaned
       for (const key of Array.from(this.activityDrafts.keys())) {
-        if (key.startsWith('new-ai-')) this.activityDrafts.delete(key)
+        if (key.startsWith('new-ai-'))
+          this.activityDrafts.delete(key)
       }
       this.isPreviewMode = false
     },
 
     undoDiscardAllDraftsForDay(dayId: string) {
       const cache = this.deletedDraftsCache.get(dayId)
-      if (!cache) return
-      
+      if (!cache)
+        return
+
       const day = this.days.find(d => d.id === dayId)
-      if (!day) return
+      if (!day)
+        return
 
       for (const [key, draft] of cache.entries()) {
         if (key.startsWith('new-ai-')) {
           // Re-add to activities so it renders
-          if (!day.activities.find(a => a.id === key)) {
+          if (!day.activities.some(a => a.id === key)) {
             day.activities.push(draft)
           }
         }
@@ -688,22 +703,27 @@ export const useTripPlanStore = defineStore('tripPlan', {
       }
 
       const day = this.days.find(d => d.id === dayId)
-      if (!day) return
+      if (!day)
+        return
 
       const originalActivity = day.activities.find(a => a.id === activityId)
-      if (!originalActivity) return
+      if (!originalActivity)
+        return
 
       const draft = this.activityDrafts.get(activityId)
-      if (!draft) return
+      if (!draft)
+        return
 
       const updatedActivity = { ...originalActivity }
 
-      if (fields.includes('title')) updatedActivity.title = draft.title
+      if (fields.includes('title'))
+        updatedActivity.title = draft.title
       if (fields.includes('time')) {
         updatedActivity.startTime = draft.startTime
         updatedActivity.endTime = draft.endTime
       }
-      if (fields.includes('tag')) updatedActivity.tag = draft.tag
+      if (fields.includes('tag'))
+        updatedActivity.tag = draft.tag
       if (fields.includes('sections')) {
         updatedActivity.sections = draft.sections ? JSON.parse(JSON.stringify(draft.sections)) : []
       }
@@ -711,12 +731,14 @@ export const useTripPlanStore = defineStore('tripPlan', {
       this.updateActivity(dayId, updatedActivity)
 
       const updatedDraft = { ...draft }
-      if (fields.includes('title')) updatedDraft.title = updatedActivity.title
+      if (fields.includes('title'))
+        updatedDraft.title = updatedActivity.title
       if (fields.includes('time')) {
         updatedDraft.startTime = updatedActivity.startTime
         updatedDraft.endTime = updatedActivity.endTime
       }
-      if (fields.includes('tag')) updatedDraft.tag = updatedActivity.tag
+      if (fields.includes('tag'))
+        updatedDraft.tag = updatedActivity.tag
       if (fields.includes('sections')) {
         updatedDraft.sections = updatedActivity.sections ? JSON.parse(JSON.stringify(updatedActivity.sections)) : []
       }
@@ -725,7 +747,8 @@ export const useTripPlanStore = defineStore('tripPlan', {
       const diff = useActivityDiff(updatedActivity, updatedDraft)
       if (!diff.hasChanges) {
         this.activityDrafts.delete(activityId)
-      } else {
+      }
+      else {
         this.activityDrafts.set(activityId, updatedDraft)
       }
 

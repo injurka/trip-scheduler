@@ -1,10 +1,12 @@
 <script setup lang="ts">
 import type { Time } from '@internationalized/date'
+import type { ImageQuality } from '../composables/use-image-cacher'
 import type { ImageViewerImage } from '~/components/01.kit/kit-image-viewer'
 import type { Activity } from '~/shared/types/models/activity'
 import { Icon } from '@iconify/vue'
 import { useDropZone, useFileDialog } from '@vueuse/core'
 import { KitDivider } from '~/components/01.kit/kit-divider'
+import { KitDropdown } from '~/components/01.kit/kit-dropdown'
 import { KitTooltip } from '~/components/01.kit/kit-tooltip'
 import { AsyncStateWrapper } from '~/components/02.shared/async-state-wrapper'
 import { ETripMemoriesKeys } from '~/components/04.features/trip-info/trip-memories/store/trip-memories.store'
@@ -13,6 +15,7 @@ import { getTagInfo } from '~/components/05.modules/trip-info/lib/helpers'
 import { useRequestError } from '~/plugins/request'
 import { useDisplay } from '~/shared/composables/use-display'
 import { useNotificationStore } from '~/shared/store/notification.store'
+import { useImageCacher } from '../composables/use-image-cacher'
 import { useTripMemoriesVault } from '../composables/use-trip-memories-vault'
 import { resolveMemoryImageSource } from '../lib/resolve-memory-image'
 import AddActivityDialog from './dialogs/add-activity-dialog.vue'
@@ -37,6 +40,8 @@ const {
   isElectron,
   syncState,
 } = useTripMemoriesVault()
+
+const imageCacher = useImageCacher()
 
 const {
   memoriesForSelectedDay,
@@ -108,6 +113,12 @@ const galleryImages = computed<ImageViewerImage[]>(() => {
     })
 })
 
+watch(galleryImages, (newImages) => {
+  if (imageCacher.isBackgroundCaching.value && newImages.length > 0) {
+    imageCacher.startCaching(newImages, imageCacher.selectedQuality.value)
+  }
+})
+
 const allMemoryGroupKeys = computed(() =>
   timelineGroups.value.map(g => g.type + (g.activity?.id || g.title)),
 )
@@ -120,6 +131,21 @@ const collapseMemoriesIcon = computed(() =>
 
 function handleToggleAllMemories() {
   ui.toggleAllMemoryGroups(allMemoryGroupKeys.value)
+}
+
+const cacheQualityOptions = [
+  { label: 'Кеш: Низкое качество', value: 'small', icon: 'mdi:image-size-select-small' },
+  { label: 'Кеш: Среднее качество', value: 'medium', icon: 'mdi:image-size-select-actual' },
+  { label: 'Кеш: Высокое качество', value: 'large', icon: 'mdi:image-size-select-large' },
+  { label: 'Кеш: Оригинал', value: 'original', icon: 'mdi:image-outline' },
+]
+
+function handleCacheAll(quality: string | number | object | symbol) {
+  imageCacher.startCaching(galleryImages.value, quality as ImageQuality)
+}
+
+function handleToggleBackgroundCaching() {
+  imageCacher.toggleBackgroundCaching(galleryImages.value, imageCacher.selectedQuality.value)
 }
 
 const isFullScreen = ref(false)
@@ -249,6 +275,32 @@ async function handleNotifyParticipants() {
             </button>
           </KitTooltip>
         </template>
+
+        <KitTooltip v-if="memoriesForSelectedDay.length > 0" text="Кешировать фото на странице">
+          <KitDropdown :items="cacheQualityOptions" @update:model-value="handleCacheAll">
+            <template #trigger>
+              <button
+                class="control-btn cache-btn"
+                :class="{ 'is-active': imageCacher.isCaching.value }"
+              >
+                <Icon
+                  :icon="imageCacher.isCaching.value ? 'mdi:loading' : 'mdi:cached'"
+                  :class="{ spin: imageCacher.isCaching.value && !imageCacher.isBackgroundCaching.value }"
+                />
+              </button>
+            </template>
+          </KitDropdown>
+        </KitTooltip>
+
+        <KitTooltip v-if="memoriesForSelectedDay.length > 0" :text="imageCacher.isBackgroundCaching.value ? 'Выключить фоновое кеширование' : 'Включить фоновое кеширование'">
+          <button
+            class="control-btn bg-cache-btn"
+            :class="{ 'is-active': imageCacher.isBackgroundCaching.value }"
+            @click="handleToggleBackgroundCaching"
+          >
+            <Icon icon="mdi:sync" :class="{ spin: imageCacher.isBackgroundCaching.value }" />
+          </button>
+        </KitTooltip>
 
         <KitTooltip v-if="!isViewMode && memoriesForSelectedDay.length > 0" text="Уведомить участников">
           <button
@@ -413,6 +465,7 @@ async function handleNotifyParticipants() {
 .memories-content-scroll {
   flex-grow: 1;
   position: relative;
+  overflow-y: auto;
 }
 
 .async-wrapper {

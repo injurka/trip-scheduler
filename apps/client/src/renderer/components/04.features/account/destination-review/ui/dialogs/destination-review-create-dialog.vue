@@ -1,4 +1,5 @@
 <script setup lang="ts">
+/* eslint-disable vue/no-mutating-props */
 import type { Country } from '~/shared/types/models/destination-review'
 import { Icon } from '@iconify/vue'
 import { toLonLat } from 'ol/proj'

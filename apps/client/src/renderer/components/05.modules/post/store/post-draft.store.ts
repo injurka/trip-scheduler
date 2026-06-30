@@ -71,10 +71,6 @@ function defaultPostState(): PostDetail {
   }
 }
 
-function isClientMedia(media: PostMedia | ClientPostMedia): media is ClientPostMedia {
-  return 'file' in media && media.file instanceof File
-}
-
 /**
  * Локальное сжатие изображений для предпросмотра без зависания UI
  */
@@ -258,27 +254,27 @@ export const usePostDraftStore = defineStore('post-draft', {
         this.post.stages = data.stages.map((stage, sIdx) => {
           const blocks: TimelineBlock[] = stage.blocks
             ? stage.blocks.map((block) => {
-              const baseId = uuidv4()
-              if (block.type === 'text')
-                return { id: baseId, type: 'text', content: block.content || '' } as TimelineBlock
-              if (block.type === 'location')
-                return { id: baseId, type: 'location', coords: block.coords || { lat: 0, lng: 0 }, name: block.name || '', address: block.address || '' } as TimelineBlock
-              if (block.type === 'route') {
-                return {
-                  id: baseId,
-                  type: 'route',
-                  from: block.from || '',
-                  to: block.to || '',
-                  distance: block.distance || '',
-                  duration: block.duration || '',
-                  distanceMeters: 0,
-                  transport: block.transport || 'walk',
-                  points: [],
-                  geometry: [],
-                } as any
-              }
-              return { id: baseId, type: 'text', content: '' } as TimelineBlock
-            })
+                const baseId = uuidv4()
+                if (block.type === 'text')
+                  return { id: baseId, type: 'text', content: block.content || '' } as TimelineBlock
+                if (block.type === 'location')
+                  return { id: baseId, type: 'location', coords: block.coords || { lat: 0, lng: 0 }, name: block.name || '', address: block.address || '' } as TimelineBlock
+                if (block.type === 'route') {
+                  return {
+                    id: baseId,
+                    type: 'route',
+                    from: block.from || '',
+                    to: block.to || '',
+                    distance: block.distance || '',
+                    duration: block.duration || '',
+                    distanceMeters: 0,
+                    transport: block.transport || 'walk',
+                    points: [],
+                    geometry: [],
+                  } as any
+                }
+                return { id: baseId, type: 'text', content: '' } as TimelineBlock
+              })
             : []
 
           return { id: uuidv4(), title: stage.title || `Этап ${sIdx + 1}`, day: stage.day || 1, time: stage.time || '', order: sIdx, blocks } as unknown as TimelineStage
@@ -439,7 +435,7 @@ export const usePostDraftStore = defineStore('post-draft', {
       }
     },
 
-    async savePost(isNew: boolean, publishStatus: 'draft' | 'completed' = 'draft') {
+    async savePost(_isNew: boolean, publishStatus: 'draft' | 'completed' = 'draft') {
       this.isSaving = true
       if (!this.post.stages)
         this.post.stages = []

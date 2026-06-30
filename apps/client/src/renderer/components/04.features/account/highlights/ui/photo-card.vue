@@ -25,7 +25,7 @@ const dynamicAspectRatio = computed(() => {
   if (props.photo.width && props.photo.height) {
     return props.photo.width / props.photo.height
   }
-  return 4 / 5 
+  return 4 / 5
 })
 
 const photoUrl = computed(() => {

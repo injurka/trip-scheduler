@@ -94,7 +94,10 @@ async function submit() {
         key: 'destination-reviews:upload-cover',
         fn: db => db.files.uploadFile(form.coverFile!, auth.user!.id, 'review', 'cover'),
         onSuccess: (uploadedImage) => { coverUrl = uploadedImage.variants?.medium || uploadedImage.url },
-        onError: ({ error }) => { toast.error(error.customMessage || 'Ошибка при загрузке обложки'); throw error },
+        onError: ({ error }) => {
+          toast.error(error.customMessage || 'Ошибка при загрузке обложки')
+          throw error
+        },
       })
     }
 

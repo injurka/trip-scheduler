@@ -3,8 +3,8 @@ import type { MapPoint, MapRoute } from '~/components/03.domain/trip-info/geoloc
 import type { LocationBlock, RouteBlock } from '~/shared/types/models/post'
 import { Icon } from '@iconify/vue'
 import { computed, ref } from 'vue'
-import GeolocationMap from '~/components/03.domain/trip-info/geolocation-section/ui/geolocation-map.vue'
 import { KitTooltip } from '~/components/01.kit/kit-tooltip'
+import GeolocationMap from '~/components/03.domain/trip-info/geolocation-section/ui/geolocation-map.vue'
 import { vRipple } from '~/shared/directives/ripple'
 
 const props = withDefaults(defineProps<{
