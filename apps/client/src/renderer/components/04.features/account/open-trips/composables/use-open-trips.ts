@@ -1,5 +1,5 @@
 import type { Trip, TripStatus } from '~/shared/types/models/trip'
-import { useDebounce } from '@vueuse/core'
+import { refDebounced } from '@vueuse/core'
 import { useRequest, useRequestError, useRequestStatus } from '~/plugins/request'
 import { useToast } from '~/shared/composables/use-toast'
 
@@ -27,8 +27,8 @@ export function useOpenTrips(userId: string) {
   const availableTags = ref<{ value: string, label: string }[]>([])
   const tagSearchQuery = ref('')
 
-  const debouncedTagSearchQuery = useDebounce(tagSearchQuery, 300)
-  const debouncedFilters = useDebounce(filters, 400)
+  const debouncedTagSearchQuery = refDebounced(tagSearchQuery, 300)
+  const debouncedFilters = refDebounced(filters, 400)
 
   const isLoading = useRequestStatus(['account:fetch-open-trips'])
   const fetchError = useRequestError(['account:fetch-open-trips'])

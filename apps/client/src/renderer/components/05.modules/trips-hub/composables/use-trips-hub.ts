@@ -1,7 +1,7 @@
 import type { InjectionKey } from 'vue'
 import type { ITrip } from '../models/types'
 import type { UpdateTripInput } from '~/shared/types/models/trip'
-import { useDebounce } from '@vueuse/core'
+import { refDebounced, useLocalStorage } from '@vueuse/core'
 import { useAbortRequest, useRequest, useRequestError, useRequestStatus } from '~/plugins/request'
 import { useLastCounts } from '~/shared/composables/use-last-counts'
 import { TripStatus, TripVisibility } from '~/shared/types/models/trip'
@@ -48,10 +48,8 @@ export function useTripsHub() {
   const isInitialized = ref(false)
   const hasLoadedOnce = ref(false)
   const isFiltersOpen = ref(false)
-  const activeTab = ref<TripsHubTab>('public')
   const isCreateModalOpen = ref(false)
   const newTripData = ref(getDefaultTripData())
-  const displayMode = ref<TDisplayMode>('row')
   const filters = ref<TripFilters>({
     search: '',
     cities: [],
@@ -60,12 +58,14 @@ export function useTripsHub() {
     status: [],
   })
   const availableCities = ref<{ value: string, label: string }[]>([])
-
   const availableTags = ref<{ value: string, label: string }[]>([])
   const tagSearchQuery = ref('')
 
-  const debouncedTagSearchQuery = useDebounce(tagSearchQuery, 300)
-  const debouncedFilters = useDebounce(filters, 400)
+  const activeTab = useLocalStorage<TripsHubTab>('trips-hub-active-tab', 'public')
+  const displayMode = useLocalStorage<TDisplayMode>('trips-hub-display-mode', 'row')
+
+  const debouncedTagSearchQuery = refDebounced(tagSearchQuery, 300)
+  const debouncedFilters = refDebounced(filters, 400)
 
   const isLoading = computed(() => useRequestStatus(ETripHubKeys.FETCH_ALL).value)
   const isCreating = computed(() => useRequestStatus(ETripHubKeys.CREATE).value)

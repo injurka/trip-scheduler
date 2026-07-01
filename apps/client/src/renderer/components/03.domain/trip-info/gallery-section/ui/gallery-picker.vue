@@ -3,7 +3,7 @@ import type { KitDropdownItem } from '~/components/01.kit/kit-dropdown'
 import type { ActivitySection } from '~/shared/types/models/activity'
 import type { TripImage } from '~/shared/types/models/trip'
 import { Icon } from '@iconify/vue'
-import { useDebounce, useElementSize, useVirtualList } from '@vueuse/core'
+import { refDebounced, useElementSize, useVirtualList } from '@vueuse/core'
 import { KitBtn } from '~/components/01.kit/kit-btn'
 import { KitDialogWithClose } from '~/components/01.kit/kit-dialog-with-close'
 import { KitDropdown } from '~/components/01.kit/kit-dropdown'
@@ -33,7 +33,7 @@ const containerRef = ref<HTMLElement | null>(null)
 const { width: containerWidth } = useElementSize(containerRef)
 
 const searchQuery = ref('')
-const debouncedSearch = useDebounce(searchQuery, 300)
+const debouncedSearch = refDebounced(searchQuery, 300)
 const sortOrder = ref<'newest' | 'oldest' | 'size_desc'>('newest')
 
 type FilterMode = 'all' | 'selected' | 'unselected' | 'unused'
