@@ -370,7 +370,7 @@ onBeforeUnmount(() => flushPendingSave())
   &.is-fullscreen {
     position: fixed;
     inset: 0;
-    z-index: 9999;
+    z-index: 990;
     border-radius: 0;
     border: none;
     margin: 0;

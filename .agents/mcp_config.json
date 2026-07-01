@@ -1,0 +1,10 @@
+{
+  "mcpServers": {
+    "vue-docs": {
+      "httpUrl": "https://mcp.vue-mcp.org/mcp",
+      "headers": {
+        "Accept": "application/json, text/event-stream"
+      }
+    }
+  }
+}

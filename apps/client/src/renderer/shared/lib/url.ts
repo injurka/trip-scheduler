@@ -11,14 +11,34 @@ export function resolveApiUrl(path: string | null | undefined): string {
     return ''
   }
 
-  if (path.startsWith('http://') || path.startsWith('https://') || path.startsWith('blob:')) {
-    return path
+  let base = path
+  if (!path.startsWith('http://') && !path.startsWith('https://') && !path.startsWith('blob:')) {
+    const cleanedServer = serverUrl.endsWith('/') ? serverUrl.slice(0, -1) : serverUrl
+    const cleanedPath = path.startsWith('/') ? path.slice(1) : path
+    base = `${cleanedServer}/${IMAGE_ROUTE}/${cleanedPath}`
   }
 
-  const cleanedServer = serverUrl.endsWith('/') ? serverUrl.slice(0, -1) : serverUrl
-  const cleanedPath = path.startsWith('/') ? path.slice(1) : path
+  if (typeof window !== 'undefined') {
+    const token = localStorage.getItem('auth_token')
+    if (token) {
+      const isOurServer = (!path.startsWith('http://') && !path.startsWith('https://'))
+        || base.startsWith(serverUrl)
 
-  return `${cleanedServer}/${IMAGE_ROUTE}/${cleanedPath}`
+      if (isOurServer) {
+        try {
+          const url = new URL(base)
+          url.searchParams.set('token', token)
+          return url.toString()
+        }
+        catch {
+          const separator = base.includes('?') ? '&' : '?'
+          return `${base}${separator}token=${encodeURIComponent(token)}`
+        }
+      }
+    }
+  }
+
+  return base
 }
 
 export interface ImageOptions {
@@ -36,20 +56,40 @@ export function getImageUrl(
     return undefined
 
   const base = resolveApiUrl(path)
-  if (!base || !options)
-    return base || undefined
+  if (!base)
+    return undefined
 
-  const params = new URLSearchParams()
-  if (options.w)
-    params.set('w', String(options.w))
-  if (options.h)
-    params.set('h', String(options.h))
-  if (options.fmt)
-    params.set('fmt', options.fmt)
-  if (options.q)
-    params.set('q', String(options.q))
+  if (!options)
+    return base
 
-  const query = params.toString()
+  try {
+    const url = new URL(base)
+    if (options.w)
+      url.searchParams.set('w', String(options.w))
+    if (options.h)
+      url.searchParams.set('h', String(options.h))
+    if (options.fmt)
+      url.searchParams.set('fmt', options.fmt)
+    if (options.q)
+      url.searchParams.set('q', String(options.q))
+    return url.toString()
+  }
+  catch {
+    const params = new URLSearchParams()
+    if (options.w)
+      params.set('w', String(options.w))
+    if (options.h)
+      params.set('h', String(options.h))
+    if (options.fmt)
+      params.set('fmt', options.fmt)
+    if (options.q)
+      params.set('q', String(options.q))
 
-  return query ? `${base}?${query}` : base
+    const query = params.toString()
+    if (!query)
+      return base
+
+    const separator = base.includes('?') ? '&' : '?'
+    return `${base}${separator}${query}`
+  }
 }
