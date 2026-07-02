@@ -1,5 +1,7 @@
 import { z } from 'zod'
 import { protectedProcedure, publicProcedure } from '~/lib/trpc'
+import { canvasGenerationService } from '~/services/llm/canvas-generation.service'
+import { templateGenerationService } from '~/services/llm/template-generation.service'
 import { ActivitySchema } from '../activity/activity.schemas'
 import {
   CreateDayInputSchema,
@@ -12,8 +14,6 @@ import {
   UpdateDayInputSchema,
 } from './day.schemas'
 import { dayService } from './day.service'
-import { canvasGenerationService } from '~/services/llm/canvas-generation.service'
-import { templateGenerationService } from '~/services/llm/template-generation.service'
 
 const DayWithActivitiesSchema = DaySchema.extend({
   activities: z.array(ActivitySchema),
@@ -63,12 +63,12 @@ export const dayProcedures = {
     .output(z.string())
     .mutation(async ({ input, ctx }) => {
       const day = await dayService.getByIdForGeneration(input.dayId, ctx.user.id, ctx.user.role)
-      let contextStr = undefined
+      let contextStr
 
       if (input.useContext) {
         const allDays = await dayService.getByTripId(day.tripId)
         contextStr = allDays
-          .map(d => `День ${new Date(d.date).toLocaleDateString('ru-RU')}: ${d.note || 'нет описания'}`)
+          .map(d => `День ${new Date(d.date).toLocaleDateString('ru-RU')}: ${d.description || 'нет описания'}`)
           .join('\n')
       }
 

@@ -186,12 +186,9 @@ export class TelegramAuthService {
     const secret = process.env.TELEGRAM_WEBHOOK_SECRET ?? ''
 
     try {
-      const telegramApiUrl = process.env.TELEGRAM_API_URL || 'https://api.telegram.org'
-
-      const res = await fetch(`${telegramApiUrl}/bot${this.botToken}/setWebhook`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ url: webhookUrl, secret_token: secret }),
+      const res = await this.fetchTelegram('setWebhook', {
+        url: webhookUrl,
+        secret_token: secret,
       })
 
       const data = await res.json()
@@ -207,34 +204,43 @@ export class TelegramAuthService {
     }
   }
 
+  private async fetchTelegram(methodName: string, body: object): Promise<Response> {
+    const telegramApiUrl = process.env.TELEGRAM_API_URL || 'https://api.telegram.org'
+    const url = `${telegramApiUrl}/bot${this.botToken}/${methodName}`
+    const options: any = {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body),
+    }
+
+    const proxy = process.env.TELEGRAM_PROXY
+    if (proxy) {
+      options.proxy = proxy
+    }
+
+    return fetch(url, options)
+  }
+
   private async sendMessage(chatId: number, text: string, replyMarkup?: any): Promise<void> {
     const body: any = { chat_id: chatId, text }
     if (replyMarkup)
       body.reply_markup = replyMarkup
 
-    const telegramApiUrl = process.env.TELEGRAM_API_URL || 'https://api.telegram.org'
-    await fetch(`${telegramApiUrl}/bot${this.botToken}/sendMessage`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(body),
-    })
+    await this.fetchTelegram('sendMessage', body)
   }
 
   private async answerCallback(callbackQueryId: string, text: string): Promise<void> {
-    const telegramApiUrl = process.env.TELEGRAM_API_URL || 'https://api.telegram.org'
-    await fetch(`${telegramApiUrl}/bot${this.botToken}/answerCallbackQuery`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ callback_query_id: callbackQueryId, text }),
+    await this.fetchTelegram('answerCallbackQuery', {
+      callback_query_id: callbackQueryId,
+      text,
     })
   }
 
   private async editMessage(chatId: number, messageId: number, text: string): Promise<void> {
-    const telegramApiUrl = process.env.TELEGRAM_API_URL || 'https://api.telegram.org'
-    await fetch(`${telegramApiUrl}/bot${this.botToken}/editMessageText`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ chat_id: chatId, message_id: messageId, text }),
+    await this.fetchTelegram('editMessageText', {
+      chat_id: chatId,
+      message_id: messageId,
+      text,
     })
   }
 }

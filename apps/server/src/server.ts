@@ -8,6 +8,7 @@ import { updateDatabaseMetrics } from './lib/db-monitoring'
 import { Logger } from './lib/logger'
 import { dumpService } from './services/dump.service'
 import { s3Service } from './services/s3.service'
+import { telegramAuthService } from './services/telegram-auth.service'
 
 const logger = new Logger()
 const app: Hono = Server.getApp()
@@ -37,13 +38,13 @@ logger.log(`Trip Scheduler API starting on http://${host}:${port}`)
 
 try {
   await checkService('PostgreSQL', () => db.execute(sql`SELECT 1`).then(() => { }), logger)
-  // await checkService('S3', () => s3Service.checkConnection(), logger)
+  await checkService('S3', () => s3Service.checkConnection(), logger)
 
   setInterval(updateDatabaseMetrics, 30_000)
   await updateDatabaseMetrics()
 
   // Роскомнадзор сделал дело...
-  // await telegramAuthService.setupWebhook()
+  await telegramAuthService.setupWebhook()
 
   if (dumpEnabled) {
     createDump('Запуск дампа базы данных...')
