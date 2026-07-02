@@ -4,6 +4,7 @@ import type {
   TokenPair,
   User,
 } from '../types/models/auth'
+import { ofetch } from 'ofetch'
 import { defineStore } from 'pinia'
 import { useRequest, useRequestStatus } from '~/plugins/request'
 import { isNetworkOrServerError } from '../lib/error'
@@ -258,6 +259,28 @@ export const useAuthStore = defineStore('auth', {
         },
         onError: ({ error }) => { throw error },
       })
+    },
+
+    async initTelegramAuth() {
+      const serverUrl = import.meta.env.VITE_APP_SERVER_URL || ''
+      return ofetch<{ token: string, url: string }>(`${serverUrl}/api/auth/telegram/init`, {
+        method: 'POST',
+      })
+    },
+
+    async checkTelegramAuthStatus(token: string) {
+      const serverUrl = import.meta.env.VITE_APP_SERVER_URL || ''
+      const res = await ofetch<{ status: 'pending' | 'confirmed' | 'cancelled' | 'expired' | 'not_found', token?: TokenPair, user?: User }>(`${serverUrl}/api/auth/telegram/status`, {
+        method: 'GET',
+        query: { token },
+      })
+
+      if (res.status === 'confirmed' && res.token && res.user) {
+        this.saveUser(res.user)
+        this.saveTokens(res.token)
+      }
+
+      return res
     },
   },
 })

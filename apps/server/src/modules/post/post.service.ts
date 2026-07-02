@@ -70,7 +70,7 @@ export const postService = {
       for (const media of mediaToDelete) {
         await deleteFileWithVariants({
           url: media.url,
-          variants: media.metadata?.variants || {},
+          variants: (media.metadata as any)?.variants || {},
         }).catch(e => console.error(`Failed to delete post media ${media.id} from S3`, e))
 
         await quotaService.decrementStorageUsage(existingPost.user.id, media.sizeBytes).catch(console.error)
@@ -96,7 +96,7 @@ export const postService = {
     for (const media of existingMedia) {
       await deleteFileWithVariants({
         url: media.url,
-        variants: media.metadata?.variants || {},
+        variants: (media.metadata as any)?.variants || {},
       }).catch(e => console.error(`Failed to delete post media ${media.id} from S3`, e))
 
       await quotaService.decrementStorageUsage(existingPost.user.id, media.sizeBytes).catch(console.error)

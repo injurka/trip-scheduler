@@ -1,8 +1,10 @@
 <script setup lang="ts">
 import { Icon } from '@iconify/vue'
+import { onBeforeUnmount, ref } from 'vue'
 import { KitBtn } from '~/components/01.kit/kit-btn'
 import { KitDivider } from '~/components/01.kit/kit-divider'
 import { AppRoutePaths } from '~/shared/constants/routes'
+import { useAuthStore } from '~/shared/store/auth.store'
 
 enum OAuthProviders {
   GitHub = 'github',
@@ -15,16 +17,65 @@ interface Props {
 
 defineProps<Props>()
 
+const authStore = useAuthStore()
+const router = useRouter()
+const isTelegramLoading = ref(false)
+let statusInterval: any = null
+
+onBeforeUnmount(() => {
+  if (statusInterval) {
+    clearInterval(statusInterval)
+  }
+})
+
 function handleOAuth(provider: OAuthProviders) {
   const serverUrl = import.meta.env.VITE_APP_SERVER_URL || ''
   window.location.href = `${serverUrl}/api/auth/${provider}/login`
+}
+
+async function handleTelegramAuth() {
+  if (isTelegramLoading.value)
+    return
+
+  isTelegramLoading.value = true
+  try {
+    const { token, url } = await authStore.initTelegramAuth()
+
+    window.open(url, '_blank')
+
+    statusInterval = setInterval(async () => {
+      try {
+        const res = await authStore.checkTelegramAuthStatus(token)
+        if (res.status === 'confirmed') {
+          clearInterval(statusInterval)
+          isTelegramLoading.value = false
+          useToast().success('Вы успешно вошли!')
+          router.push(AppRoutePaths.Trip.List)
+        }
+        else if (res.status === 'cancelled' || res.status === 'expired') {
+          clearInterval(statusInterval)
+          isTelegramLoading.value = false
+          useToast().error('Вход через Telegram отменен или время сессии истекло')
+        }
+      }
+      catch {
+        clearInterval(statusInterval)
+        isTelegramLoading.value = false
+        useToast().error('Ошибка при проверке статуса авторизации')
+      }
+    }, 2000)
+  }
+  catch {
+    isTelegramLoading.value = false
+    useToast().error('Не удалось инициализировать авторизацию через Telegram')
+  }
 }
 </script>
 
 <template>
   <section class="content">
     <div class="card">
-      <div v-if="isLoading" class="loader-overlay">
+      <div v-if="isLoading || isTelegramLoading" class="loader-overlay">
         <Icon icon="mdi:loading" class="spinner" />
       </div>
 
@@ -37,7 +88,7 @@ function handleOAuth(provider: OAuthProviders) {
 
       <slot name="utils" />
 
-      <KitDivider class="section-divider" :is-loading="isLoading">
+      <KitDivider class="section-divider" :is-loading="isLoading || isTelegramLoading">
         ИЛИ
       </KitDivider>
 
@@ -45,7 +96,7 @@ function handleOAuth(provider: OAuthProviders) {
         <KitBtn
           variant="outlined"
           color="secondary"
-          :disabled="isLoading"
+          :disabled="isLoading || isTelegramLoading"
           icon="mdi:google"
           style="flex-grow: 1;"
           @click="handleOAuth(OAuthProviders.Google)"
@@ -56,12 +107,24 @@ function handleOAuth(provider: OAuthProviders) {
         <KitBtn
           variant="outlined"
           color="secondary"
-          :disabled="isLoading"
+          :disabled="isLoading || isTelegramLoading"
           icon="mdi:github"
           style="flex-grow: 1;"
           @click="handleOAuth(OAuthProviders.GitHub)"
         >
           GitHub
+        </KitBtn>
+
+        <KitBtn
+          variant="outlined"
+          color="secondary"
+          :disabled="isLoading || isTelegramLoading"
+          :is-loading="isTelegramLoading"
+          icon="mdi:telegram"
+          style="flex-grow: 1;"
+          @click="handleTelegramAuth"
+        >
+          Telegram
         </KitBtn>
       </div>
     </div>
@@ -149,6 +212,7 @@ function handleOAuth(provider: OAuthProviders) {
 
 .additional-oauth {
   display: flex;
+  flex-wrap: wrap;
   gap: 16px;
   margin-top: 24px;
 }
