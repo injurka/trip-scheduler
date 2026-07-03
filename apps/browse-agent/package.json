@@ -1,0 +1,39 @@
+{
+  "name": "@injurka/browse-agent",
+  "type": "module",
+  "version": "1.0.0",
+  "private": true,
+  "scripts": {
+    "--------------------------------<    DEV    >--------------------------------": "",
+    "start": "bun src/index.ts",
+    "--------------------------------<   UTILS   >---------------------------------": "",
+    "lint": "eslint .",
+    "lint:fix": "eslint . --fix",
+    "typecheck": "bunx tsc --noEmit"
+  },
+  "dependencies": {
+    "@clack/prompts": "^1.6.0",
+    "@mozilla/readability": "^0.6.0",
+    "jsdom": "^29.1.1",
+    "openai": "^6.45.0",
+    "picocolors": "^1.1.1",
+    "puppeteer": "^25.3.0",
+    "puppeteer-extra": "^3.3.6",
+    "puppeteer-extra-plugin-stealth": "^2.11.2",
+    "sharp": "^0.35.3",
+    "turndown": "^7.2.4",
+    "zod": "^4.4.3"
+  },
+  "devDependencies": {
+    "@antfu/eslint-config": "9.1.0",
+    "@types/bun": "^1.3.14",
+    "@types/jsdom": "^28.0.3",
+    "@types/mozilla-readability": "^0.2.1",
+    "@types/turndown": "^5.0.6",
+    "dotenv": "^17.4.2",
+    "eslint": "^10.6.0",
+    "eslint-plugin-format": "2.0.1",
+    "jiti": "^2.7.0",
+    "typescript": "^6.0.3"
+  }
+}

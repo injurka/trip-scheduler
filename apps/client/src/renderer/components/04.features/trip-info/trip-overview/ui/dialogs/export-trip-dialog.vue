@@ -64,7 +64,7 @@ function getBookingsText(sections: TripSection[]): string[] {
 
   const content = bookingSection.content as BookingSectionContent
   const lines: string[] = []
-  lines.push('\n--- 🎫 БРОНИРОВАНИЯ ---')
+  lines.push('\n--- БРОНИРОВАНИЯ ---')
 
   if (!content.bookings || content.bookings.length === 0) {
     lines.push('  Нет бронирований')
@@ -103,7 +103,7 @@ function getChecklistText(sections: TripSection[]): string[] {
 
   const content = checklistSection.content as ChecklistSectionContent
   const lines: string[] = []
-  lines.push('\n--- ✅ ЧЕК-ЛИСТ ---')
+  lines.push('\n--- ЧЕК-ЛИСТ ---')
 
   const groups = content.groups || []
   const items = content.items || []
@@ -145,7 +145,7 @@ function getFinancesText(sections: TripSection[]): string[] {
 
   const content = financeSection.content as FinancesSectionContent
   const lines: string[] = []
-  lines.push('\n--- 💰 ФИНАНСЫ ---')
+  lines.push('\n--- ФИНАНСЫ ---')
 
   const total = content.transactions.reduce((acc, tx) => acc + tx.amount, 0)
   const currency = content.settings.mainCurrency || 'RUB'
@@ -187,7 +187,7 @@ function generateTextContent(): string {
   }
 
   lines.push(`\n${'='.repeat(30)}\n`)
-  lines.push('--- 🗺 МАРШРУТ ПО ДНЯМ ---')
+  lines.push('--- МАРШРУТ ПО ДНЯМ ---')
 
   days.forEach((day, index) => {
     const date = new Date(day.date).toLocaleDateString('ru-RU', { weekday: 'long', day: 'numeric', month: 'long' })

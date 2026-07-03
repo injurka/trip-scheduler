@@ -1,0 +1,72 @@
+{
+  "llm": {
+    "apiKey": "...",
+    "apiUrl": "https://aihubmix.com/v1",
+    "model": "gpt-5.4-mini",
+    "ragModel": "text-embedding-3-small"
+  },
+  "apiKeys": {
+    "mapbox": "...",
+    "serper": "..."
+  },
+  "paths": {
+    "targetFile": "/home/injurka/Documents/obsidian-mark/Personal Note/Travel/-- Lost Horizon/02 - Маршрутный план/02 Куньмин (вс) ⛰️ Над водами Дяньчи.md",
+    "outputDir": "/home/injurka/Documents/obsidian-mark/Personal Note/Travel/-- Lost Horizon/_/03"
+  },
+  "search": {
+    "preferredSites": [
+      "trip.com",
+      "tripadvisor.com",
+      "wikipedia.org"
+    ],
+    "browserTimeout": 20000
+  },
+  "pricing": {
+    "gpt-4o": {
+      "prompt": 2.5,
+      "completion": 10.0
+    },
+    "gpt-4o-mini": {
+      "prompt": 0.15,
+      "completion": 0.6
+    },
+    "gpt-5.4-mini": {
+      "prompt": 0.75,
+      "completion": 4.5
+    },
+    "gpt-5.5-free": {
+      "prompt": 0.0,
+      "completion": 0.0
+    },
+    "gemini-3.1-flash-lite": {
+      "prompt": 0.25,
+      "completion": 1.5
+    },
+    "gemini-3.5-flash": {
+      "prompt": 1.5,
+      "completion": 9.0
+    },
+    "deepseek-v4-pro": {
+      "prompt": 0.464,
+      "completion": 0.928
+    },
+    "deepseek-v4-flash": {
+      "prompt": 0.154,
+      "completion": 0.308
+    },
+    "qwen3.7-plus": {
+      "prompt": 0.282,
+      "completion": 1.128
+    },
+    "step-3.7-flash-free": {
+      "prompt": 0.0,
+      "completion": 0.0
+    },
+    "text-embedding-3-small": {
+      "total": 0.02
+    },
+    "text-embedding-3-large": {
+      "total": 0.13
+    }
+  }
+}
