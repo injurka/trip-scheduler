@@ -263,15 +263,13 @@ const extendedInfo = computed(() => {
               <Transition name="fade-height">
                 <div v-if="showMap && gpsCoordinates" class="map-display-area">
                   <div class="kit-map-wrapper">
-                    <ClientOnly>
-                      <KitMap
-                        class="embedded-map"
-                        :center="mapCenter"
-                        :zoom="15"
-                        height="220px"
-                        :markers="mapMarkers"
-                      />
-                    </ClientOnly>
+                    <KitMap
+                      class="embedded-map"
+                      :center="mapCenter"
+                      :zoom="15"
+                      height="220px"
+                      :markers="mapMarkers"
+                    />
                   </div>
                   <div class="external-map-links">
                     <a :href="googleMapsLink" target="_blank" rel="noopener noreferrer" class="external-map-btn">

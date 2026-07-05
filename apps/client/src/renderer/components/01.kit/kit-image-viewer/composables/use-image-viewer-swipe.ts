@@ -21,24 +21,6 @@ interface UseSwipeNavigationOptions {
   baseTransform: MaybeRefOrGetter<string>
 }
 
-function getImageUrl(image: ImageViewerImage | null, quality: ImageQuality): string | null {
-  if (!image)
-    return null
-
-  const { variants, url } = image
-
-  switch (quality) {
-    case 'medium':
-      return variants?.medium || variants?.large || url
-    case 'large':
-      return variants?.large || url
-    case 'original':
-      return url
-    default:
-      return variants?.large || url
-  }
-}
-
 export function useImageViewerSwipe(options: UseSwipeNavigationOptions) {
   const {
     onNext,
@@ -48,7 +30,6 @@ export function useImageViewerSwipe(options: UseSwipeNavigationOptions) {
     images,
     currentIndex,
     isZoomed,
-    preferredQuality,
     baseTransform,
   } = options
 
@@ -72,20 +53,6 @@ export function useImageViewerSwipe(options: UseSwipeNavigationOptions) {
       return 0
     const containerWidth = window.innerWidth || 1
     return Math.max(-1, Math.min(1, translateX.value / containerWidth))
-  })
-
-  const nextImageSrc = computed(() => {
-    if (!canSwipeNext.value)
-      return null
-    const nextImage = images.value[currentIndex.value + 1]
-    return getImageUrl(nextImage, preferredQuality.value)
-  })
-
-  const prevImageSrc = computed(() => {
-    if (!canSwipePrev.value)
-      return null
-    const prevImage = images.value[currentIndex.value - 1]
-    return getImageUrl(prevImage, preferredQuality.value)
   })
 
   // Если юзер быстро нажимает снова во время анимации, мгновенно вызываем событие
@@ -202,10 +169,13 @@ export function useImageViewerSwipe(options: UseSwipeNavigationOptions) {
     pendingSwipeAction = null
   })
 
-  const containerStyle = computed(() => ({
-    transform: `translateX(${translateX.value}px)`,
-    transition: isAnimating.value ? 'transform 0.2s ease-out' : 'none',
-  }))
+  const containerStyle = computed(() => {
+    const baseTranslate = -currentIndex.value * 100
+    return {
+      transform: `translateX(calc(${baseTranslate}% + ${translateX.value}px))`,
+      transition: isAnimating.value ? 'transform 0.2s ease-out' : 'none',
+    }
+  })
 
   const currentImageStyle = computed(() => {
     const progress = Math.abs(swipeProgress.value)
@@ -241,8 +211,6 @@ export function useImageViewerSwipe(options: UseSwipeNavigationOptions) {
   })
 
   return {
-    nextImageSrc,
-    prevImageSrc,
     containerStyle,
     currentImageStyle,
     adjacentImageStyle,

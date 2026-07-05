@@ -68,10 +68,6 @@ const hasMultipleImages = computed(() => props.images.length > 1)
 
 const {
   selectedQuality,
-  displayUrl,
-  isImageLoaded,
-  isImageError,
-  showLoaderDelayed,
   onImageLoad,
   onImageError,
   isMetadataPanelOpen,
@@ -127,8 +123,6 @@ const areControlsVisible = computed(() => {
 })
 
 const {
-  prevImageSrc,
-  nextImageSrc,
   containerStyle,
   currentImageStyle,
   adjacentImageStyle,
@@ -141,7 +135,6 @@ const {
   images: toRef(props, 'images'),
   currentIndex: toRef(props, 'currentIndex'),
   isZoomed,
-  preferredQuality: selectedQuality,
   threshold: 80,
   velocity: 0.3,
   baseTransform: computed(() => imageStyle.value.transform),
@@ -161,6 +154,89 @@ function handleTouchEndCombined(event: TouchEvent) {
   handleSwipeTouchEnd()
   handleTouchEnd(event)
 }
+
+const visibleIndices = computed(() => {
+  const indices = []
+  const len = props.images.length
+  for (let i = props.currentIndex - 2; i <= props.currentIndex + 2; i++) {
+    if (i >= 0 && i < len)
+      indices.push(i)
+  }
+  return indices
+})
+
+const imageLoadStates = reactive<Record<number, { loaded: boolean, error: boolean, loader: boolean }>>({})
+const loaderTimeouts = new Map<number, any>()
+
+function getImageUrl(image: ImageViewerImage, quality: ImageQuality): string {
+  if (!image)
+    return ''
+  const { variants, url } = image
+  switch (quality) {
+    case 'medium': return variants?.medium || variants?.large || url || ''
+    case 'large': return variants?.large || variants?.medium || url || ''
+    case 'original': return url || ''
+    default: return url || ''
+  }
+}
+
+function handleImageLoad(index: number, event: Event) {
+  if (!imageLoadStates[index]) {
+    imageLoadStates[index] = { loaded: true, error: false, loader: false }
+  }
+  else {
+    imageLoadStates[index].loaded = true
+    imageLoadStates[index].error = false
+    imageLoadStates[index].loader = false
+  }
+  clearTimeout(loaderTimeouts.get(index))
+
+  if (index === props.currentIndex) {
+    onImageLoad()
+    const target = event.target as HTMLImageElement
+    naturalSize.width = target.naturalWidth
+    naturalSize.height = target.naturalHeight
+    if (currentImage.value)
+      emit('imageLoad', currentImage.value)
+  }
+}
+
+function handleImageError(index: number, event: Event) {
+  if (!imageLoadStates[index]) {
+    imageLoadStates[index] = { loaded: false, error: true, loader: false }
+  }
+  else {
+    imageLoadStates[index].error = true
+    imageLoadStates[index].loaded = false
+    imageLoadStates[index].loader = false
+  }
+  clearTimeout(loaderTimeouts.get(index))
+
+  if (index === props.currentIndex) {
+    onImageError()
+    emit('imageError', event)
+  }
+}
+
+function setRef(el: any, index: number) {
+  if (index === props.currentIndex) {
+    imageRef.value = el as HTMLImageElement
+  }
+}
+
+watch(visibleIndices, (indices) => {
+  indices.forEach((i) => {
+    if (!imageLoadStates[i]) {
+      imageLoadStates[i] = { loaded: false, error: false, loader: false }
+      const timer = setTimeout(() => {
+        if (!imageLoadStates[i].loaded && !imageLoadStates[i].error) {
+          imageLoadStates[i].loader = true
+        }
+      }, 500)
+      loaderTimeouts.set(i, timer)
+    }
+  })
+}, { immediate: true })
 
 const currentImageMeta = computed((): IImageViewerImageMeta | null => {
   return toRaw(props.images[props.currentIndex]?.meta) ?? null
@@ -206,20 +282,6 @@ async function handleShowMetadata() {
   else if (image.meta) {
     isMetadataPanelOpen.value = true
   }
-}
-
-function handleImageLoad(event: Event) {
-  onImageLoad()
-  const target = event.target as HTMLImageElement
-  naturalSize.width = target.naturalWidth
-  naturalSize.height = target.naturalHeight
-  if (currentImage.value)
-    emit('imageLoad', currentImage.value)
-}
-
-function handleImageError(event: Event) {
-  onImageError()
-  emit('imageError', event)
 }
 
 function close() {
@@ -320,6 +382,8 @@ useEventListener(document, 'keydown', (e: KeyboardEvent) => {
 
 onUnmounted(() => {
   document.body.style.overflow = ''
+  loaderTimeouts.forEach(timer => clearTimeout(timer))
+  loaderTimeouts.clear()
 })
 </script>
 
@@ -374,54 +438,40 @@ onUnmounted(() => {
           <div class="viewer-content">
             <div ref="containerRef" class="image-container">
               <div class="swipe-container" :style="containerStyle">
-                <div class="preview-image prev-preview">
-                  <img
-                    v-if="prevImageSrc"
-                    v-resolve-src="prevImageSrc"
-                    class="preview-img"
-                    :style="adjacentImageStyle"
-                  >
-                </div>
-
-                <div class="current-image-wrapper">
-                  <Transition name="loader-fade">
-                    <div v-if="(!isImageLoaded && showLoaderDelayed) || isImageError" class="placeholder-wrapper">
-                      <div v-if="isImageError" class="image-error">
-                        <Icon width="64" height="64" icon="mdi:image-broken-variant" />
-                        <span>Не удалось загрузить изображение</span>
-                      </div>
-                      <div v-else class="image-placeholder">
-                        <div class="loading-spinner">
-                          <Icon width="64" height="64" icon="mdi:loading" class="spinning" />
+                <div
+                  v-for="i in visibleIndices"
+                  :key="images[i].id || i"
+                  class="slide-wrapper"
+                  :style="{ transform: `translateX(${i * 100}%)` }"
+                >
+                  <div class="current-image-wrapper">
+                    <Transition name="loader-fade">
+                      <div v-if="(!imageLoadStates[i]?.loaded && imageLoadStates[i]?.loader) || imageLoadStates[i]?.error" class="placeholder-wrapper">
+                        <div v-if="imageLoadStates[i]?.error" class="image-error">
+                          <Icon width="64" height="64" icon="mdi:image-broken-variant" />
+                          <span>Не удалось загрузить изображение</span>
                         </div>
-                        <span>Загрузка изображения...</span>
+                        <div v-else class="shimmer-container">
+                          <div class="shimmer-wave" />
+                          <Icon width="48" height="48" icon="mdi:loading" class="spinning shimmer-icon" />
+                        </div>
                       </div>
-                    </div>
-                  </Transition>
+                    </Transition>
 
-                  <img
-                    v-if="currentImage"
-                    ref="imageRef"
-                    v-resolve-src="displayUrl"
-                    :alt="currentImage.alt || `Image ${currentIndex + 1}`"
-                    class="viewer-image"
-                    :class="{ loaded: isImageLoaded }"
-                    :style="[imageStyle, currentImageStyle]"
-                    @load="handleImageLoad"
-                    @error="handleImageError"
-                    @mousedown="handleMouseDown"
-                    @dblclick="handleDoubleClick"
-                    @dragstart.prevent
-                  >
-                </div>
-
-                <div class="preview-image next-preview">
-                  <img
-                    v-if="nextImageSrc"
-                    v-resolve-src="nextImageSrc"
-                    class="preview-img"
-                    :style="adjacentImageStyle"
-                  >
+                    <img
+                      :ref="el => setRef(el, i)"
+                      v-resolve-src="getImageUrl(images[i], i === currentIndex ? selectedQuality : 'large')"
+                      :alt="images[i].alt || `Image ${i + 1}`"
+                      class="viewer-image"
+                      :class="{ loaded: imageLoadStates[i]?.loaded }"
+                      :style="i === currentIndex ? [imageStyle, currentImageStyle] : adjacentImageStyle"
+                      @load="e => handleImageLoad(i, e)"
+                      @error="e => handleImageError(i, e)"
+                      @mousedown="e => i === currentIndex && handleMouseDown(e)"
+                      @dblclick="e => i === currentIndex && handleDoubleClick(e)"
+                      @dragstart.prevent
+                    >
+                  </div>
                 </div>
               </div>
 
@@ -603,10 +653,13 @@ onUnmounted(() => {
   display: flex;
   align-items: center;
   justify-content: center;
-  z-index: 1;
+  z-index: 10;
+  pointer-events: none;
+  backdrop-filter: blur(12px);
+  background: rgba(0, 0, 0, 0.3);
+  border-radius: var(--r-2xs);
 }
 
-.image-placeholder,
 .image-error {
   display: flex;
   flex-direction: column;
@@ -620,10 +673,39 @@ onUnmounted(() => {
   .icon {
     font-size: 48px;
   }
+}
 
-  .spinning {
-    animation: spin 1s linear infinite;
+.shimmer-container {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: var(--r-2xs);
+  overflow: hidden;
+}
+
+.shimmer-wave {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(90deg, transparent 0%, rgba(255, 255, 255, 0.08) 50%, transparent 100%);
+  background-size: 200% 100%;
+  animation: shimmer 1.5s infinite linear;
+}
+
+@keyframes shimmer {
+  0% {
+    background-position: 200% 0;
   }
+  100% {
+    background-position: -200% 0;
+  }
+}
+
+.shimmer-icon {
+  color: rgba(255, 255, 255, 0.7);
+  filter: drop-shadow(0 2px 8px rgba(0, 0, 0, 0.8));
+  animation: spin 1s linear infinite;
 }
 
 .viewer-image {
@@ -632,8 +714,8 @@ onUnmounted(() => {
   object-fit: contain;
   cursor: grab;
   transform-origin: center;
-  transition: opacity 0.3s ease;
-  opacity: 0;
+  transition: opacity 0.4s ease;
+  opacity: 0.5;
   border-radius: var(--r-2xs);
 
   &.loaded {
@@ -754,37 +836,32 @@ onUnmounted(() => {
 }
 
 .swipe-container {
-  display: flex;
   position: absolute;
+  inset: 0;
+  width: 100%;
   height: 100%;
-  width: 300%;
-  left: -100%;
   will-change: transform;
 }
 
+.slide-wrapper {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 70px 0;
+}
+
 .current-image-wrapper {
-  flex: 1 0 33.3333%;
   display: flex;
   align-items: center;
   justify-content: center;
   position: relative;
+  width: 100%;
   height: 100%;
-  padding: 70px 0;
-}
-
-.preview-image {
-  flex: 1 0 33.3333%;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  height: 100%;
-}
-
-.preview-img {
-  max-width: 100%;
-  max-height: 100%;
-  object-fit: contain;
-  border-radius: var(--r-2xs);
 }
 
 /* Transitions */
