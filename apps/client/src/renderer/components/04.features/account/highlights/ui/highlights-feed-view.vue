@@ -57,6 +57,8 @@ const isOwner = computed(() => authStore.user?.id === userId.value)
 
 const viewerVisible = ref(false)
 const viewerIndex = ref(0)
+const isViewerFetching = ref(false)
+const pendingViewerIndex = ref<number | null>(null)
 
 const viewerImages = computed<ImageViewerImage[]>(() =>
   filteredHighlights.value.map((item: Highlight) => ({
@@ -115,6 +117,40 @@ function openViewer(photo: Highlight) {
   viewerIndex.value = index
   viewerVisible.value = true
 }
+
+function handleViewerNextPage() {
+  if (currentPage.value * itemsPerPage < totalItems.value) {
+    isViewerFetching.value = true
+    pendingViewerIndex.value = 0
+    currentPage.value++
+  }
+}
+
+function handleViewerPrevPage() {
+  if (currentPage.value > 1) {
+    isViewerFetching.value = true
+    pendingViewerIndex.value = itemsPerPage - 1
+    currentPage.value--
+  }
+}
+
+watch(highlights, () => {
+  if (isViewerFetching.value && pendingViewerIndex.value !== null) {
+    viewerIndex.value = pendingViewerIndex.value
+    pendingViewerIndex.value = null
+    isViewerFetching.value = false
+  }
+})
+
+watch(isLoading, (loading) => {
+  if (!loading && isViewerFetching.value) {
+    if (pendingViewerIndex.value !== null) {
+      viewerIndex.value = 0
+      pendingViewerIndex.value = null
+    }
+    isViewerFetching.value = false
+  }
+})
 
 function clearFilters() {
   selectedCities.value = []
@@ -224,6 +260,11 @@ onMounted(() => {
       :enable-thumbnails="false"
       :show-info-button="true"
       :show-quality-selector="true"
+      :has-next-page="currentPage * itemsPerPage < totalItems"
+      :has-prev-page="currentPage > 1"
+      :is-fetching="isViewerFetching"
+      @next-page="handleViewerNextPage"
+      @prev-page="handleViewerPrevPage"
     >
       <template #footer>
         <div v-if="currentViewerHighlight" class="viewer-caption">

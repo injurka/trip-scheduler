@@ -28,6 +28,9 @@ interface Props {
   animationDuration?: number
   showQualitySelector?: boolean
   showInfoButton?: boolean
+  hasNextPage?: boolean
+  hasPrevPage?: boolean
+  isFetching?: boolean
 }
 
 interface Emits {
@@ -37,6 +40,8 @@ interface Emits {
   (e: 'close'): void
   (e: 'imageLoad', image: ImageViewerImage): void
   (e: 'imageError', error: Event): void
+  (e: 'nextPage'): void
+  (e: 'prevPage'): void
 }
 
 const props = withDefaults(defineProps<Props>(), {
@@ -65,6 +70,22 @@ const isMetadataLoading = ref(false)
 
 const currentImage = computed(() => props.images[props.currentIndex] ?? null)
 const hasMultipleImages = computed(() => props.images.length > 1)
+
+const paginationPromptDirection = ref<'next' | 'prev' | null>(null)
+
+function closePaginationPrompt() {
+  paginationPromptDirection.value = null
+}
+
+function confirmPagination() {
+  if (paginationPromptDirection.value === 'next') {
+    emit('nextPage')
+  }
+  else if (paginationPromptDirection.value === 'prev') {
+    emit('prevPage')
+  }
+  closePaginationPrompt()
+}
 
 const {
   selectedQuality,
@@ -138,6 +159,8 @@ const {
   threshold: 80,
   velocity: 0.3,
   baseTransform: computed(() => imageStyle.value.transform),
+  hasNextPage: toRef(props, 'hasNextPage'),
+  hasPrevPage: toRef(props, 'hasPrevPage'),
 })
 
 function handleTouchStartCombined(event: TouchEvent) {
@@ -290,12 +313,20 @@ function close() {
 }
 
 function next() {
+  if (props.currentIndex === props.images.length - 1 && props.hasNextPage) {
+    paginationPromptDirection.value = 'next'
+    return
+  }
   if (!hasMultipleImages.value)
     return
   emit('update:currentIndex', (props.currentIndex + 1) % props.images.length)
 }
 
 function prev() {
+  if (props.currentIndex === 0 && props.hasPrevPage) {
+    paginationPromptDirection.value = 'prev'
+    return
+  }
   if (!hasMultipleImages.value)
     return
   emit('update:currentIndex', (props.currentIndex - 1 + props.images.length) % props.images.length)
@@ -309,6 +340,7 @@ function goToIndex(index: number) {
 watch(() => props.currentIndex, (index) => {
   resetTransform(false)
   closeMetadataPanel()
+  closePaginationPrompt()
   scrollThumbnailIntoView(index, 'smooth')
 })
 
@@ -435,6 +467,39 @@ onUnmounted(() => {
             </div>
           </Transition>
 
+          <Transition name="fade-scale">
+            <div v-if="paginationPromptDirection" class="pagination-prompt-overlay" @click.self="closePaginationPrompt">
+              <div class="pagination-prompt-card">
+                <Icon
+                  :icon="paginationPromptDirection === 'next' ? 'mdi:arrow-right-circle' : 'mdi:arrow-left-circle'"
+                  class="prompt-icon"
+                />
+                <h3>
+                  {{ paginationPromptDirection === 'next' ? 'Следующая страница' : 'Предыдущая страница' }}
+                </h3>
+                <p>
+                  Вы досмотрели текущую страницу до конца.
+                  <br>
+                  Загрузить {{ paginationPromptDirection === 'next' ? 'следующие' : 'предыдущие' }} фотографии?
+                </p>
+                <div class="prompt-actions">
+                  <button class="prompt-btn btn-cancel" @click="closePaginationPrompt">
+                    Остаться здесь
+                  </button>
+                  <button class="prompt-btn btn-confirm" @click="confirmPagination">
+                    Загрузить
+                  </button>
+                </div>
+              </div>
+            </div>
+          </Transition>
+
+          <Transition name="viewer-fade">
+            <div v-if="isFetching" class="viewer-fetching-overlay">
+              <Icon icon="mdi:loading" class="spinning viewer-fetching-icon" />
+            </div>
+          </Transition>
+
           <div class="viewer-content">
             <div ref="containerRef" class="image-container">
               <div class="swipe-container" :style="containerStyle">
@@ -447,13 +512,23 @@ onUnmounted(() => {
                   <div class="current-image-wrapper">
                     <Transition name="loader-fade">
                       <div v-if="(!imageLoadStates[i]?.loaded && imageLoadStates[i]?.loader) || imageLoadStates[i]?.error" class="placeholder-wrapper">
-                        <div v-if="imageLoadStates[i]?.error" class="image-error">
-                          <Icon width="64" height="64" icon="mdi:image-broken-variant" />
-                          <span>Не удалось загрузить изображение</span>
-                        </div>
-                        <div v-else class="shimmer-container">
-                          <div class="shimmer-wave" />
-                          <Icon width="48" height="48" icon="mdi:loading" class="spinning shimmer-icon" />
+                        <img
+                          v-if="images[i].meta?.width && images[i].meta?.height"
+                          class="placeholder-spacer"
+                          :src="`data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='${images[i].meta?.width}' height='${images[i].meta?.height}'></svg>`"
+                          alt=""
+                        >
+                        <div v-else class="placeholder-spacer fallback" />
+
+                        <div class="placeholder-content">
+                          <div v-if="imageLoadStates[i]?.error" class="image-error">
+                            <Icon width="64" height="64" icon="mdi:image-broken-variant" />
+                            <span>Не удалось загрузить изображение</span>
+                          </div>
+                          <div v-else class="shimmer-container">
+                            <div class="shimmer-wave" />
+                            <Icon width="48" height="48" icon="mdi:loading" class="spinning shimmer-icon" />
+                          </div>
                         </div>
                       </div>
                     </Transition>
@@ -476,12 +551,12 @@ onUnmounted(() => {
               </div>
 
               <div
-                v-if="hasMultipleImages && transform.scale <= minZoom"
+                v-if="(hasMultipleImages || hasPrevPage) && transform.scale <= minZoom"
                 class="nav-zone prev-zone"
                 @click="prev"
               />
               <div
-                v-if="hasMultipleImages && transform.scale <= minZoom"
+                v-if="(hasMultipleImages || hasNextPage) && transform.scale <= minZoom"
                 class="nav-zone next-zone"
                 @click="next"
               />
@@ -647,17 +722,38 @@ onUnmounted(() => {
 
 .placeholder-wrapper {
   position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  max-width: 100%;
+  max-height: 100%;
+  border-radius: var(--r-2xs);
+  overflow: hidden;
+  backdrop-filter: blur(12px);
+  background: rgba(0, 0, 0, 0.3);
+  z-index: 10;
+  pointer-events: none;
+}
+
+.placeholder-spacer {
+  max-width: 100%;
+  max-height: 100%;
+  display: block;
+  opacity: 0;
+  pointer-events: none;
+
+  &.fallback {
+    width: 300px;
+    height: 300px;
+  }
+}
+
+.placeholder-content {
+  position: absolute;
   inset: 0;
-  width: 100%;
-  height: 100%;
   display: flex;
   align-items: center;
   justify-content: center;
-  z-index: 10;
-  pointer-events: none;
-  backdrop-filter: blur(12px);
-  background: rgba(0, 0, 0, 0.3);
-  border-radius: var(--r-2xs);
 }
 
 .image-error {
@@ -740,6 +836,118 @@ onUnmounted(() => {
 }
 .next-zone {
   right: 0;
+}
+
+.pagination-prompt-overlay {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 50;
+  background: rgba(0, 0, 0, 0.4);
+  backdrop-filter: blur(8px);
+}
+
+.pagination-prompt-card {
+  background: rgba(20, 20, 20, 0.85);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  padding: 32px;
+  border-radius: var(--r-xl);
+  text-align: center;
+  max-width: 400px;
+  box-shadow: 0 20px 40px rgba(0, 0, 0, 0.4);
+  color: #fff;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 16px;
+
+  .prompt-icon {
+    font-size: 48px;
+    color: var(--fg-accent-color, #fff);
+    margin-bottom: 8px;
+  }
+
+  h3 {
+    margin: 0;
+    font-size: 1.25rem;
+    font-weight: 600;
+  }
+
+  p {
+    margin: 0;
+    font-size: 0.95rem;
+    color: rgba(255, 255, 255, 0.7);
+    line-height: 1.5;
+  }
+
+  .prompt-actions {
+    display: flex;
+    gap: 12px;
+    margin-top: 16px;
+    width: 100%;
+
+    .prompt-btn {
+      flex: 1;
+      padding: 12px 16px;
+      border-radius: var(--r-full);
+      font-weight: 600;
+      font-size: 0.95rem;
+      cursor: pointer;
+      transition: all 0.2s;
+      border: none;
+      outline: none;
+
+      &.btn-cancel {
+        background: rgba(255, 255, 255, 0.1);
+        color: #fff;
+
+        &:hover {
+          background: rgba(255, 255, 255, 0.2);
+        }
+      }
+
+      &.btn-confirm {
+        background: #fff;
+        color: #000;
+
+        &:hover {
+          transform: translateY(-2px);
+          box-shadow: 0 4px 12px rgba(255, 255, 255, 0.2);
+        }
+      }
+    }
+  }
+}
+
+.viewer-fetching-overlay {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(0, 0, 0, 0.6);
+  backdrop-filter: blur(8px);
+  z-index: 60;
+  pointer-events: none;
+
+  .viewer-fetching-icon {
+    font-size: 48px;
+    color: white;
+  }
+}
+
+.fade-scale-enter-active,
+.fade-scale-leave-active {
+  transition:
+    opacity 0.3s ease,
+    transform 0.3s ease;
+}
+.fade-scale-enter-from,
+.fade-scale-leave-to {
+  opacity: 0;
+  transform: scale(0.95);
 }
 
 .viewer-footer,

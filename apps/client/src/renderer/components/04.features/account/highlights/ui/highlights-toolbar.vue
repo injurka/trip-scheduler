@@ -56,8 +56,8 @@ const dateRangeLabel = computed(() => {
 })
 
 const qualityOptions: KitDropdownItem<HighlightImageQuality>[] = [
-  { value: 'medium', label: 'Среднее качество', icon: 'mdi:quality-medium' },
-  { value: 'large', label: 'Высокое качество', icon: 'mdi:quality-high' },
+  { value: 'medium', label: 'Среднее', icon: 'mdi:quality-medium' },
+  { value: 'large', label: 'Высокое', icon: 'mdi:quality-high' },
   { value: 'original', label: 'Оригинал', icon: 'mdi:raw' },
 ]
 </script>

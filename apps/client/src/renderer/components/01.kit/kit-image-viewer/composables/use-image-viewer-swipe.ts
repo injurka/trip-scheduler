@@ -19,6 +19,8 @@ interface UseSwipeNavigationOptions {
   isZoomed: MaybeRefOrGetter<boolean>
   preferredQuality: Ref<ImageQuality>
   baseTransform: MaybeRefOrGetter<string>
+  hasNextPage?: MaybeRefOrGetter<boolean>
+  hasPrevPage?: MaybeRefOrGetter<boolean>
 }
 
 export function useImageViewerSwipe(options: UseSwipeNavigationOptions) {
@@ -116,22 +118,33 @@ export function useImageViewerSwipe(options: UseSwipeNavigationOptions) {
     flushPendingSwipe()
 
     if (shouldTrigger) {
-      if (deltaX > 0 && canSwipePrev.value) {
-        translateX.value = window.innerWidth
-        pendingSwipeAction = onPrev
-        swipeTimeout = setTimeout(() => {
-          flushPendingSwipe()
-        }, 200)
+      if (deltaX > 0) {
+        if (canSwipePrev.value) {
+          translateX.value = window.innerWidth
+          pendingSwipeAction = onPrev
+          swipeTimeout = setTimeout(() => {
+            flushPendingSwipe()
+          }, 200)
+        } else if (toValue(options.hasPrevPage)) {
+          resetSwipe(true)
+          onPrev()
+        } else {
+          resetSwipe(true)
+        }
       }
-      else if (deltaX < 0 && canSwipeNext.value) {
-        translateX.value = -window.innerWidth
-        pendingSwipeAction = onNext
-        swipeTimeout = setTimeout(() => {
-          flushPendingSwipe()
-        }, 200)
-      }
-      else {
-        resetSwipe(true)
+      else if (deltaX < 0) {
+        if (canSwipeNext.value) {
+          translateX.value = -window.innerWidth
+          pendingSwipeAction = onNext
+          swipeTimeout = setTimeout(() => {
+            flushPendingSwipe()
+          }, 200)
+        } else if (toValue(options.hasNextPage)) {
+          resetSwipe(true)
+          onNext()
+        } else {
+          resetSwipe(true)
+        }
       }
     }
     else {

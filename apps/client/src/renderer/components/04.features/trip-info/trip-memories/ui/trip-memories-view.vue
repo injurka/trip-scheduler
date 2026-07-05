@@ -134,9 +134,9 @@ function handleToggleAllMemories() {
 }
 
 const cacheQualityOptions = [
-  { label: 'Кеш: Низкое качество', value: 'small', icon: 'mdi:image-size-select-small' },
-  { label: 'Кеш: Среднее качество', value: 'medium', icon: 'mdi:image-size-select-actual' },
-  { label: 'Кеш: Высокое качество', value: 'large', icon: 'mdi:image-size-select-large' },
+  { label: 'Кеш: Низкое', value: 'small', icon: 'mdi:image-size-select-small' },
+  { label: 'Кеш: Среднее', value: 'medium', icon: 'mdi:image-size-select-actual' },
+  { label: 'Кеш: Высокое', value: 'large', icon: 'mdi:image-size-select-large' },
   { label: 'Кеш: Оригинал', value: 'original', icon: 'mdi:image-outline' },
 ]
 
