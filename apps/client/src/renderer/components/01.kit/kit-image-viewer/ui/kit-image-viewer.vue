@@ -724,6 +724,8 @@ onUnmounted(() => {
 .placeholder-wrapper {
   grid-area: 1 / 1;
   position: relative;
+  min-width: 0;
+  min-height: 0;
   max-width: 100%;
   max-height: 100%;
   border-radius: var(--r-2xs);
@@ -805,6 +807,8 @@ onUnmounted(() => {
 
 .viewer-image {
   grid-area: 1 / 1;
+  min-width: 0;
+  min-height: 0;
   max-width: 100%;
   max-height: 100%;
   object-fit: contain;
@@ -1065,6 +1069,7 @@ onUnmounted(() => {
   align-items: center;
   justify-content: center;
   padding: 70px 0;
+  box-sizing: border-box;
   transition: padding 0.3s ease;
 
   &.is-ui-hidden {
@@ -1078,6 +1083,8 @@ onUnmounted(() => {
   position: relative;
   width: 100%;
   height: 100%;
+  min-width: 0;
+  min-height: 0;
 }
 
 /* Transitions */

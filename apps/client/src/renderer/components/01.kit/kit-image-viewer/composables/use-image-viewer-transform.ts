@@ -152,10 +152,38 @@ export function useImageViewerTransform(options: UseImageViewerTransformOptions)
 
   function handleDoubleClick(event: MouseEvent) {
     event.preventDefault()
-    if (transform.scale > toValue(minZoom))
+    if (transform.scale > toValue(minZoom)) {
       resetTransform(true)
-    else
+      return
+    }
+
+    if (!containerRef.value || !imageRef.value) return
+
+    const containerRect = containerRef.value.getBoundingClientRect()
+    const imageRect = imageRef.value.getBoundingClientRect()
+    
+    const isTallImage = imageRect.height >= containerRect.height * 0.9 && imageRect.width <= containerRect.width * 0.8
+    
+    if (isTallImage) {
+      const smartScale = containerRect.width / imageRect.width
+      const clampedScale = Math.min(smartScale, toValue(maxZoom))
+      
+      const newY = (imageRect.height * clampedScale - containerRect.height) / 2
+      
+      isAnimating.value = true
+      transform.scale = clampedScale
+      transform.x = 0
+      transform.y = newY
+
+      nextTick(() => {
+        constrainTransform()
+        setTimeout(() => {
+          isAnimating.value = false
+        }, toValue(animationDuration))
+      })
+    } else {
       zoomTo(2, { x: event.clientX, y: event.clientY })
+    }
   }
 
   function handleWheel(event: WheelEvent) {
