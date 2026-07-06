@@ -145,7 +145,7 @@ watch(highlights, () => {
 watch(isLoading, (loading) => {
   if (!loading && isViewerFetching.value) {
     if (pendingViewerIndex.value !== null) {
-      viewerIndex.value = 0
+      viewerIndex.value = pendingViewerIndex.value
       pendingViewerIndex.value = null
     }
     isViewerFetching.value = false

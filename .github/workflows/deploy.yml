@@ -108,15 +108,10 @@ jobs:
           script: |
             cd /root/sources/trip-scheduler/docker
 
-            # Обновляем версии в .env (или передаём через export)
             export V_CLIENT=${{ steps.version.outputs.VERSION }}
             export V_SERVER=${{ steps.version.outputs.VERSION }}
 
-            # Тянем только обновлённые образы
             docker compose pull client server
-
-            # Перезапускаем только client и server (без остановки db/redis/etc)
             docker compose up -d --no-deps client server
 
-            # Удаляем старые образы
-            docker image prune -f
+            docker system prune -a -f --volumes

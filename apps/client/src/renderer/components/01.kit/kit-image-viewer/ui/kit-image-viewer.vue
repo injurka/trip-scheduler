@@ -507,6 +507,7 @@ onUnmounted(() => {
                   v-for="i in visibleIndices"
                   :key="images[i].id || i"
                   class="slide-wrapper"
+                  :class="{ 'is-ui-hidden': !isUiVisible }"
                   :style="{ transform: `translateX(${i * 100}%)` }"
                 >
                   <div class="current-image-wrapper">
@@ -515,7 +516,7 @@ onUnmounted(() => {
                         <img
                           v-if="images[i].meta?.width && images[i].meta?.height"
                           class="placeholder-spacer"
-                          :src="`data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='${images[i].meta?.width}' height='${images[i].meta?.height}'></svg>`"
+                          :src="`data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 ${images[i].meta?.width} ${images[i].meta?.height}' width='${images[i].meta?.width}' height='${images[i].meta?.height}'></svg>`"
                           alt=""
                         >
                         <div v-else class="placeholder-spacer fallback" />
@@ -538,7 +539,7 @@ onUnmounted(() => {
                       v-resolve-src="getImageUrl(images[i], i === currentIndex ? selectedQuality : 'large')"
                       :alt="images[i].alt || `Image ${i + 1}`"
                       class="viewer-image"
-                      :class="{ loaded: imageLoadStates[i]?.loaded }"
+                      :class="{ loaded: imageLoadStates[i]?.loaded, 'is-ui-hidden': !isUiVisible }"
                       :style="i === currentIndex ? [imageStyle, currentImageStyle] : adjacentImageStyle"
                       @load="e => handleImageLoad(i, e)"
                       @error="e => handleImageError(i, e)"
@@ -721,10 +722,8 @@ onUnmounted(() => {
 }
 
 .placeholder-wrapper {
-  position: absolute;
-  top: 50%;
-  left: 50%;
-  transform: translate(-50%, -50%);
+  grid-area: 1 / 1;
+  position: relative;
   max-width: 100%;
   max-height: 100%;
   border-radius: var(--r-2xs);
@@ -805,14 +804,19 @@ onUnmounted(() => {
 }
 
 .viewer-image {
+  grid-area: 1 / 1;
   max-width: 100%;
   max-height: 100%;
   object-fit: contain;
   cursor: grab;
   transform-origin: center;
-  transition: opacity 0.4s ease;
+  transition: opacity 0.4s ease, border-radius 0.3s ease;
   opacity: 0.5;
   border-radius: var(--r-2xs);
+
+  &.is-ui-hidden {
+    border-radius: 0;
+  }
 
   &.loaded {
     opacity: 1;
@@ -1061,12 +1065,16 @@ onUnmounted(() => {
   align-items: center;
   justify-content: center;
   padding: 70px 0;
+  transition: padding 0.3s ease;
+
+  &.is-ui-hidden {
+    padding: 0;
+  }
 }
 
 .current-image-wrapper {
-  display: flex;
-  align-items: center;
-  justify-content: center;
+  display: grid;
+  place-items: center;
   position: relative;
   width: 100%;
   height: 100%;
