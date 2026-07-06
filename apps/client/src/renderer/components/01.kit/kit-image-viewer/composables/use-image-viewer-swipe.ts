@@ -125,10 +125,12 @@ export function useImageViewerSwipe(options: UseSwipeNavigationOptions) {
           swipeTimeout = setTimeout(() => {
             flushPendingSwipe()
           }, 200)
-        } else if (toValue(options.hasPrevPage)) {
+        }
+        else if (toValue(options.hasPrevPage)) {
           resetSwipe(true)
           onPrev()
-        } else {
+        }
+        else {
           resetSwipe(true)
         }
       }
@@ -139,10 +141,12 @@ export function useImageViewerSwipe(options: UseSwipeNavigationOptions) {
           swipeTimeout = setTimeout(() => {
             flushPendingSwipe()
           }, 200)
-        } else if (toValue(options.hasNextPage)) {
+        }
+        else if (toValue(options.hasNextPage)) {
           resetSwipe(true)
           onNext()
-        } else {
+        }
+        else {
           resetSwipe(true)
         }
       }

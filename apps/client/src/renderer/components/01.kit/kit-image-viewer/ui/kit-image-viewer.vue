@@ -261,6 +261,33 @@ watch(visibleIndices, (indices) => {
   })
 }, { immediate: true })
 
+watch(() => [props.currentIndex, selectedQuality.value] as const, ([newIndex, newQuality], [oldIndex, oldQuality]) => {
+  const image = props.images[newIndex]
+  if (!image) return
+  
+  const oldUrl = newIndex === oldIndex 
+    ? getImageUrl(image, oldQuality || 'large') 
+    : getImageUrl(image, 'large')
+    
+  const newUrl = getImageUrl(image, newQuality)
+  
+  if (oldUrl !== newUrl) {
+    if (imageLoadStates[newIndex]) {
+      imageLoadStates[newIndex].loaded = false
+      imageLoadStates[newIndex].error = false
+      if (!imageLoadStates[newIndex].loader) {
+        clearTimeout(loaderTimeouts.get(newIndex))
+        const timer = setTimeout(() => {
+          if (!imageLoadStates[newIndex].loaded && !imageLoadStates[newIndex].error) {
+            imageLoadStates[newIndex].loader = true
+          }
+        }, 500)
+        loaderTimeouts.set(newIndex, timer)
+      }
+    }
+  }
+})
+
 const currentImageMeta = computed((): IImageViewerImageMeta | null => {
   return toRaw(props.images[props.currentIndex]?.meta) ?? null
 })
@@ -539,7 +566,7 @@ onUnmounted(() => {
                       v-resolve-src="getImageUrl(images[i], i === currentIndex ? selectedQuality : 'large')"
                       :alt="images[i].alt || `Image ${i + 1}`"
                       class="viewer-image"
-                      :class="{ loaded: imageLoadStates[i]?.loaded, 'is-ui-hidden': !isUiVisible }"
+                      :class="{ 'loaded': imageLoadStates[i]?.loaded, 'is-ui-hidden': !isUiVisible }"
                       :style="i === currentIndex ? [imageStyle, currentImageStyle] : adjacentImageStyle"
                       @load="e => handleImageLoad(i, e)"
                       @error="e => handleImageError(i, e)"
@@ -814,7 +841,9 @@ onUnmounted(() => {
   object-fit: contain;
   cursor: grab;
   transform-origin: center;
-  transition: opacity 0.4s ease, border-radius 0.3s ease;
+  transition:
+    opacity 0.4s ease,
+    border-radius 0.3s ease;
   opacity: 0.5;
   border-radius: var(--r-2xs);
 

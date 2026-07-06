@@ -216,46 +216,46 @@ ${plan.map((p: string, i: number) => `${i + 1}. ${p}`).join('\n')}
               case 'get_images': toolResult = await this.browser.getImages(); break
 
               case 'get_page_content':
-                {
-                  const rawContent = await this.browser.getPageContent()
-                  if (rawContent.length > 8000) {
-                    console.log(pc.yellow(`📄 Страница огромная (${rawContent.length} симв.). Векторизую (RAG)...`))
-                    const chunks = chunkText(rawContent, 1500)
-                    try {
-                      const embeddingsRes = await this.openai.embeddings.create({ input: chunks, model: this.ragModel })
-                      this.trackUsage(this.ragModel, embeddingsRes.usage)
-                      this.currentDocumentChunks = chunks.map((text, idx) => ({ text, embedding: embeddingsRes.data[idx].embedding }))
-                      toolResult = `Документ загружен в векторную память (${chunks.length} фрагментов). ИСПОЛЬЗУЙ "search_in_page_content" для поиска.`
-                    }
-                    catch (e: any) {
-                      toolResult = `Ошибка при создании эмбеддингов: ${e.message}`
-                    }
-                  }
-                  else {
-                    toolResult = rawContent
-                  }
-                  break
-                }
-
-              case 'search_in_page_content':
-                {
-                  if (this.currentDocumentChunks.length === 0) {
-                    toolResult = 'Ошибка: Векторная база пуста.'
-                    break
-                  }
-                  console.log(pc.blue(`🔍 RAG Поиск: "${args.query}"`))
+              {
+                const rawContent = await this.browser.getPageContent()
+                if (rawContent.length > 8000) {
+                  console.log(pc.yellow(`📄 Страница огромная (${rawContent.length} симв.). Векторизую (RAG)...`))
+                  const chunks = chunkText(rawContent, 1500)
                   try {
-                    const qEmbed = await this.openai.embeddings.create({ input: args.query, model: this.ragModel })
-                    this.trackUsage(this.ragModel, qEmbed.usage)
-                    const queryVector = qEmbed.data[0].embedding
-                    const scored = this.currentDocumentChunks.map(c => ({ text: c.text, score: cosineSimilarity(c.embedding, queryVector) })).sort((a, b) => b.score - a.score)
-                    toolResult = `РЕЗУЛЬТАТЫ ПОИСКА:\n${scored.slice(0, 3).map(c => c.text).join('\n\n---\n\n')}`
+                    const embeddingsRes = await this.openai.embeddings.create({ input: chunks, model: this.ragModel })
+                    this.trackUsage(this.ragModel, embeddingsRes.usage)
+                    this.currentDocumentChunks = chunks.map((text, idx) => ({ text, embedding: embeddingsRes.data[idx].embedding }))
+                    toolResult = `Документ загружен в векторную память (${chunks.length} фрагментов). ИСПОЛЬЗУЙ "search_in_page_content" для поиска.`
                   }
                   catch (e: any) {
-                    toolResult = `Ошибка эмбеддинга запроса: ${e.message}`
+                    toolResult = `Ошибка при создании эмбеддингов: ${e.message}`
                   }
+                }
+                else {
+                  toolResult = rawContent
+                }
+                break
+              }
+
+              case 'search_in_page_content':
+              {
+                if (this.currentDocumentChunks.length === 0) {
+                  toolResult = 'Ошибка: Векторная база пуста.'
                   break
                 }
+                console.log(pc.blue(`🔍 RAG Поиск: "${args.query}"`))
+                try {
+                  const qEmbed = await this.openai.embeddings.create({ input: args.query, model: this.ragModel })
+                  this.trackUsage(this.ragModel, qEmbed.usage)
+                  const queryVector = qEmbed.data[0].embedding
+                  const scored = this.currentDocumentChunks.map(c => ({ text: c.text, score: cosineSimilarity(c.embedding, queryVector) })).sort((a, b) => b.score - a.score)
+                  toolResult = `РЕЗУЛЬТАТЫ ПОИСКА:\n${scored.slice(0, 3).map(c => c.text).join('\n\n---\n\n')}`
+                }
+                catch (e: any) {
+                  toolResult = `Ошибка эмбеддинга запроса: ${e.message}`
+                }
+                break
+              }
 
               case 'analyze_reviews':
                 console.log(pc.blue(`📊 Анализ тональности отзывов (Vibe Check)...`))
@@ -279,14 +279,14 @@ ${plan.map((p: string, i: number) => `${i + 1}. ${p}`).join('\n')}
                 break
 
               case 'ask_human':
-                {
-                  console.log(pc.bgMagenta(pc.white(' 👨‍💻 ВОПРОС ОТ ИИ ')))
-                  const answer = await text({ message: pc.magenta(args.question), placeholder: 'Ваш ответ...' })
-                  if (isCancel(answer))
-                    process.exit(0)
-                  toolResult = `Ответ пользователя: ${answer}`
-                  break
-                }
+              {
+                console.log(pc.bgMagenta(pc.white(' 👨‍💻 ВОПРОС ОТ ИИ ')))
+                const answer = await text({ message: pc.magenta(args.question), placeholder: 'Ваш ответ...' })
+                if (isCancel(answer))
+                  process.exit(0)
+                toolResult = `Ответ пользователя: ${answer}`
+                break
+              }
 
               case 'finish_task':
                 console.log(pc.green('✅ Агент успешно собрал данные!'))

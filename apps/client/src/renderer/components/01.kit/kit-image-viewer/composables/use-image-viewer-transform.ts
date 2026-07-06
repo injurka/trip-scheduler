@@ -157,19 +157,20 @@ export function useImageViewerTransform(options: UseImageViewerTransformOptions)
       return
     }
 
-    if (!containerRef.value || !imageRef.value) return
+    if (!containerRef.value || !imageRef.value)
+      return
 
     const containerRect = containerRef.value.getBoundingClientRect()
     const imageRect = imageRef.value.getBoundingClientRect()
-    
+
     const isTallImage = imageRect.height >= containerRect.height * 0.9 && imageRect.width <= containerRect.width * 0.8
-    
+
     if (isTallImage) {
       const smartScale = containerRect.width / imageRect.width
       const clampedScale = Math.min(smartScale, toValue(maxZoom))
-      
+
       const newY = (imageRect.height * clampedScale - containerRect.height) / 2
-      
+
       isAnimating.value = true
       transform.scale = clampedScale
       transform.x = 0
@@ -181,7 +182,8 @@ export function useImageViewerTransform(options: UseImageViewerTransformOptions)
           isAnimating.value = false
         }, toValue(animationDuration))
       })
-    } else {
+    }
+    else {
       zoomTo(2, { x: event.clientX, y: event.clientY })
     }
   }
