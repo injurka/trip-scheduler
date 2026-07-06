@@ -538,42 +538,45 @@ onUnmounted(() => {
                   :style="{ transform: `translateX(${i * 100}%)` }"
                 >
                   <div class="current-image-wrapper">
-                    <Transition name="loader-fade">
-                      <div v-if="(!imageLoadStates[i]?.loaded && imageLoadStates[i]?.loader) || imageLoadStates[i]?.error" class="placeholder-wrapper">
-                        <img
-                          v-if="images[i].meta?.width && images[i].meta?.height"
-                          class="placeholder-spacer"
-                          :src="`data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 ${images[i].meta?.width} ${images[i].meta?.height}' width='${images[i].meta?.width}' height='${images[i].meta?.height}'></svg>`"
-                          alt=""
-                        >
-                        <div v-else class="placeholder-spacer fallback" />
+                    <div
+                      class="image-slot"
+                      :style="images[i].meta?.width && images[i].meta?.height
+                        ? { aspectRatio: `${images[i].meta.width}/${images[i].meta.height}` }
+                        : undefined"
+                    >
+                      <img
+                        :ref="el => setRef(el, i)"
+                        v-resolve-src="getImageUrl(images[i], i === currentIndex ? selectedQuality : 'large')"
+                        :alt="images[i].alt || `Image ${i + 1}`"
+                        class="viewer-image"
+                        :class="{
+                          'loaded': imageLoadStates[i]?.loaded,
+                          'is-ui-hidden': !isUiVisible,
+                          'fill-slot': !!(images[i].meta?.width && images[i].meta?.height),
+                        }"
+                        :style="i === currentIndex ? [imageStyle, currentImageStyle] : adjacentImageStyle"
+                        @load="e => handleImageLoad(i, e)"
+                        @error="e => handleImageError(i, e)"
+                        @mousedown="e => i === currentIndex && handleMouseDown(e)"
+                        @dblclick="e => i === currentIndex && handleDoubleClick(e)"
+                        @dragstart.prevent
+                      >
 
-                        <div class="placeholder-content">
-                          <div v-if="imageLoadStates[i]?.error" class="image-error">
-                            <Icon width="64" height="64" icon="mdi:image-broken-variant" />
-                            <span>Не удалось загрузить изображение</span>
-                          </div>
-                          <div v-else class="shimmer-container">
-                            <div class="shimmer-wave" />
-                            <Icon width="48" height="48" icon="mdi:loading" class="spinning shimmer-icon" />
+                      <Transition name="loader-fade">
+                        <div v-if="(!imageLoadStates[i]?.loaded && imageLoadStates[i]?.loader) || imageLoadStates[i]?.error" class="placeholder-wrapper">
+                          <div class="placeholder-content">
+                            <div v-if="imageLoadStates[i]?.error" class="image-error">
+                              <Icon width="64" height="64" icon="mdi:image-broken-variant" />
+                              <span>Не удалось загрузить изображение</span>
+                            </div>
+                            <div v-else class="shimmer-container">
+                              <div class="shimmer-wave" />
+                              <Icon width="48" height="48" icon="mdi:loading" class="spinning shimmer-icon" />
+                            </div>
                           </div>
                         </div>
-                      </div>
-                    </Transition>
-
-                    <img
-                      :ref="el => setRef(el, i)"
-                      v-resolve-src="getImageUrl(images[i], i === currentIndex ? selectedQuality : 'large')"
-                      :alt="images[i].alt || `Image ${i + 1}`"
-                      class="viewer-image"
-                      :class="{ 'loaded': imageLoadStates[i]?.loaded, 'is-ui-hidden': !isUiVisible }"
-                      :style="i === currentIndex ? [imageStyle, currentImageStyle] : adjacentImageStyle"
-                      @load="e => handleImageLoad(i, e)"
-                      @error="e => handleImageError(i, e)"
-                      @mousedown="e => i === currentIndex && handleMouseDown(e)"
-                      @dblclick="e => i === currentIndex && handleDoubleClick(e)"
-                      @dragstart.prevent
-                    >
+                      </Transition>
+                    </div>
                   </div>
                 </div>
               </div>
@@ -748,32 +751,25 @@ onUnmounted(() => {
   overflow: hidden;
 }
 
-.placeholder-wrapper {
-  grid-area: 1 / 1;
+.image-slot {
   position: relative;
-  min-width: 0;
-  min-height: 0;
   max-width: 100%;
   max-height: 100%;
+  line-height: 0;
+  /* aspect-ratio задаётся inline-стилем когда известны размеры из meta.
+     Это позволяет браузеру правильно ограничивать слот по max-width/max-height
+     независимо от ориентации изображения. */
+}
+
+.placeholder-wrapper {
+  position: absolute;
+  inset: 0;
   border-radius: var(--r-2xs);
   overflow: hidden;
   backdrop-filter: blur(12px);
   background: rgba(0, 0, 0, 0.3);
   z-index: 10;
   pointer-events: none;
-}
-
-.placeholder-spacer {
-  max-width: 100%;
-  max-height: 100%;
-  display: block;
-  opacity: 0;
-  pointer-events: none;
-
-  &.fallback {
-    width: 300px;
-    height: 300px;
-  }
 }
 
 .placeholder-content {
@@ -833,7 +829,7 @@ onUnmounted(() => {
 }
 
 .viewer-image {
-  grid-area: 1 / 1;
+  display: block;
   min-width: 0;
   min-height: 0;
   max-width: 100%;
@@ -846,6 +842,15 @@ onUnmounted(() => {
     border-radius 0.3s ease;
   opacity: 0.5;
   border-radius: var(--r-2xs);
+
+  /* Когда aspect-ratio задан на .image-slot — изображение просто заполняет слот.
+     Слот сам отвечает за правильные пропорции через aspect-ratio + max-width/max-height. */
+  &.fill-slot {
+    width: 100%;
+    height: 100%;
+    max-width: none;
+    max-height: none;
+  }
 
   &.is-ui-hidden {
     border-radius: 0;
@@ -1107,8 +1112,9 @@ onUnmounted(() => {
 }
 
 .current-image-wrapper {
-  display: grid;
-  place-items: center;
+  display: flex;
+  align-items: center;
+  justify-content: center;
   position: relative;
   width: 100%;
   height: 100%;
