@@ -161,6 +161,7 @@ const {
   baseTransform: computed(() => imageStyle.value.transform),
   hasNextPage: toRef(props, 'hasNextPage'),
   hasPrevPage: toRef(props, 'hasPrevPage'),
+  preferredQuality: selectedQuality,
 })
 
 function handleTouchStartCombined(event: TouchEvent) {
@@ -532,7 +533,7 @@ onUnmounted(() => {
               <div class="swipe-container" :style="containerStyle">
                 <div
                   v-for="i in visibleIndices"
-                  :key="images[i].id || i"
+                  :key="i"
                   class="slide-wrapper"
                   :class="{ 'is-ui-hidden': !isUiVisible }"
                   :style="{ transform: `translateX(${i * 100}%)` }"

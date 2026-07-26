@@ -1,9 +1,11 @@
 import type { AppRouter } from '~/shared/types/trpc'
 import { createTRPCProxyClient, httpBatchLink, loggerLink } from '@trpc/client'
 import { useAuthStore } from '~/shared/store/auth.store'
+import { authRefreshLink } from './auth-refresh.link'
 
 export const trpc = createTRPCProxyClient<AppRouter>({
   links: [
+    authRefreshLink,
     loggerLink({
       enabled: op =>
         (import.meta.env.NODE_ENV === 'development')

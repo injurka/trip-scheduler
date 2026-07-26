@@ -278,6 +278,7 @@ function handleAddLink() {
     </AsyncStateWrapper>
 
     <KitImageViewer
+      v-if="imageViewer.isOpen.value"
       v-model:visible="imageViewer.isOpen.value"
       v-model:current-index="imageViewer.currentIndex.value"
       :images="viewerImages"
@@ -289,12 +290,14 @@ function handleAddLink() {
     />
 
     <GalleryPicker
+      v-if="isImagePickerOpen"
       v-model:visible="isImagePickerOpen"
       :initial-selected-urls="imageUrls"
       @confirm="handlePickerConfirm"
     />
 
     <KitDialogWithClose
+      v-if="isLinkDialogOpen"
       v-model:visible="isLinkDialogOpen"
       title="Добавить по ссылке"
       icon="mdi:link-variant"

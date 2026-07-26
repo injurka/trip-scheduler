@@ -420,7 +420,7 @@ function createBlankBadge() {
 
     <!-- Модальное окно с бронированиями -->
     <DayBookingsModal
-      v-if="bookingsForSelectedDay.length > 0"
+      v-if="isBookingsModalOpen && bookingsForSelectedDay.length > 0"
       v-model:visible="isBookingsModalOpen"
       :bookings="bookingsForSelectedDay"
     />

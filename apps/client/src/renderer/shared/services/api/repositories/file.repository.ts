@@ -1,8 +1,9 @@
 import type { EntityType, IFileRepository, TripDocumentResponse } from '../model/types'
 import type { ImageMetadata, TripImage, TripImagePlacement } from '~/shared/types/models/trip'
 import { ofetch } from 'ofetch'
+import { refreshTokensIfNeeded } from '~/shared/services/trpc/auth-token.service'
 import { trpc } from '~/shared/services/trpc/trpc.service'
-import { TOKEN_KEY } from '~/shared/store/auth.store'
+import { TOKEN_KEY, useAuthStore } from '~/shared/store/auth.store'
 import { throttle } from '../lib/decorators'
 
 export class FileRepository implements IFileRepository {
@@ -32,13 +33,30 @@ export class FileRepository implements IFileRepository {
     if (metadata)
       formData.append('metadata', JSON.stringify(metadata))
 
-    const accessToken = localStorage.getItem(TOKEN_KEY)
+    const authStore = useAuthStore()
+    let accessToken = authStore.tokenPair?.accessToken || localStorage.getItem(TOKEN_KEY)
 
-    return ofetch<TripImage>(`${import.meta.env.VITE_APP_SERVER_URL}/api/upload`, {
-      method: 'POST',
-      body: formData,
-      headers: { Authorization: `Bearer ${accessToken}` },
-    })
+    try {
+      return await ofetch<TripImage>(`${import.meta.env.VITE_APP_SERVER_URL}/api/upload`, {
+        method: 'POST',
+        body: formData,
+        headers: { Authorization: `Bearer ${accessToken}` },
+      })
+    }
+    catch (err: any) {
+      if (err.status === 401 || err.statusCode === 401 || err.response?.status === 401) {
+        const refreshed = await refreshTokensIfNeeded()
+        if (refreshed) {
+          accessToken = authStore.tokenPair?.accessToken || localStorage.getItem(TOKEN_KEY)
+          return await ofetch<TripImage>(`${import.meta.env.VITE_APP_SERVER_URL}/api/upload`, {
+            method: 'POST',
+            body: formData,
+            headers: { Authorization: `Bearer ${accessToken}` },
+          })
+        }
+      }
+      throw err
+    }
   }
 
   /**

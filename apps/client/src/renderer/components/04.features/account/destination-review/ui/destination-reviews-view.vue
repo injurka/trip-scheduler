@@ -255,6 +255,7 @@ onMounted(() => {
     </AsyncStateWrapper>
 
     <DestinationReviewCreateDialog
+      v-if="isCreateModalOpen"
       v-model:visible="isCreateModalOpen"
       v-model:file="formFile"
       :countries="countries"
@@ -265,6 +266,7 @@ onMounted(() => {
     />
 
     <DestinationReviewEditDialog
+      v-if="isEditModalOpen"
       v-model:visible="isEditModalOpen"
       v-model:file="editFormFile"
       :countries="countries"

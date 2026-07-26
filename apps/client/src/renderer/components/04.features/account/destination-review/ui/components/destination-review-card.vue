@@ -167,18 +167,15 @@ function openExpanded() {
 
       <!-- Боковая панель мини-метрик -->
       <div class="mini-metrics-column">
-        <KitTooltip
+        <div
           v-for="(val, key) in numericMetrics"
           :key="key"
-          :text="`${METRIC_LABELS[key] || key}: ${val}/5`"
+          class="mini-metric-item"
+          :class="[getMetricColorClass(Number(val)), { dimmed: isDimmed(key) }]"
+          :title="`${METRIC_LABELS[key] || key}: ${val}/5`"
         >
-          <div
-            class="mini-metric-item"
-            :class="[getMetricColorClass(Number(val)), { dimmed: isDimmed(key) }]"
-          >
-            <Icon :icon="METRIC_ICONS[key] || 'mdi:star'" />
-          </div>
-        </KitTooltip>
+          <Icon :icon="METRIC_ICONS[key] || 'mdi:star'" />
+        </div>
       </div>
 
       <div class="card-content">
@@ -200,6 +197,7 @@ function openExpanded() {
 
     <!-- Развернутое модальное окно -->
     <KitDialogWithClose
+      v-if="isExpanded"
       v-model:visible="isExpanded"
       :max-width="700"
     >
@@ -430,8 +428,7 @@ function openExpanded() {
   width: 26px;
   height: 26px;
   border-radius: 50%;
-  background: rgba(0, 0, 0, 0.45);
-  backdrop-filter: blur(4px);
+  background: rgba(0, 0, 0, 0.65);
   border: 1px solid rgba(255, 255, 255, 0.15);
   display: flex;
   align-items: center;

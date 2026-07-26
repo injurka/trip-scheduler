@@ -93,6 +93,7 @@ onMounted(() => {
     </div>
 
     <KitImageViewer
+      v-if="imageViewer.isOpen.value"
       v-model:visible="imageViewer.isOpen.value"
       v-model:current-index="imageViewer.currentIndex.value"
       :images="viewerImages"

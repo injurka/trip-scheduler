@@ -81,6 +81,7 @@ function closeModal() {
 
 <template>
   <KitDialogWithClose
+    v-if="visible"
     :visible="visible"
     :title="title"
     icon="mdi:map-marker"

@@ -4,8 +4,9 @@ import type {
   SignUpPayload,
   User,
 } from '~/shared/types/models/auth'
+import { refreshTokensIfNeeded } from '~/shared/services/trpc/auth-token.service'
 import { trpc } from '~/shared/services/trpc/trpc.service'
-import { TOKEN_KEY } from '~/shared/store/auth.store'
+import { TOKEN_KEY, useAuthStore } from '~/shared/store/auth.store'
 import { throttle } from '../lib/decorators'
 
 export class AuthRepository implements IAuthRepository {
@@ -55,13 +56,26 @@ export class AuthRepository implements IAuthRepository {
     formData.append('file', file)
     formData.append('entityType', 'avatar')
 
-    const accessToken = localStorage.getItem(TOKEN_KEY)
+    const authStore = useAuthStore()
+    let accessToken = authStore.tokenPair?.accessToken || localStorage.getItem(TOKEN_KEY)
 
-    const response = await fetch(`${import.meta.env.VITE_APP_SERVER_URL}/api/upload`, {
+    let response = await fetch(`${import.meta.env.VITE_APP_SERVER_URL}/api/upload`, {
       method: 'POST',
       body: formData,
       headers: { Authorization: `Bearer ${accessToken}` },
     })
+
+    if (response.status === 401) {
+      const refreshed = await refreshTokensIfNeeded()
+      if (refreshed) {
+        accessToken = authStore.tokenPair?.accessToken || localStorage.getItem(TOKEN_KEY)
+        response = await fetch(`${import.meta.env.VITE_APP_SERVER_URL}/api/upload`, {
+          method: 'POST',
+          body: formData,
+          headers: { Authorization: `Bearer ${accessToken}` },
+        })
+      }
+    }
 
     if (!response.ok) {
       const errorData = await response.json()
