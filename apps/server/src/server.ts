@@ -44,7 +44,12 @@ try {
   await updateDatabaseMetrics()
 
   // Роскомнадзор сделал дело...
-  await telegramAuthService.setupWebhook()
+  if (process.env.TELEGRAM_BOT_TOKEN) {
+    await telegramAuthService.setupWebhook()
+  }
+  else {
+    logger.warn('TELEGRAM_BOT_TOKEN не задан — пропускаю регистрацию webhook')
+  }
 
   if (dumpEnabled) {
     createDump('Запуск дампа базы данных...')

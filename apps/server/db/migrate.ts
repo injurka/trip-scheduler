@@ -11,9 +11,28 @@ const migrationClient = new Pool({
 
 const db = drizzle(migrationClient)
 
+const MAX_RETRIES = 30
+const RETRY_DELAY_MS = 2000
+
+async function waitForDatabase() {
+  for (let attempt = 1; attempt <= MAX_RETRIES; attempt++) {
+    try {
+      await migrationClient.query('SELECT 1')
+      console.log('✅ Database is reachable.')
+      return
+    }
+    catch {
+      console.log(`Database is not ready yet (attempt ${attempt}/${MAX_RETRIES}), retrying in ${RETRY_DELAY_MS}ms...`)
+      await new Promise(resolve => setTimeout(resolve, RETRY_DELAY_MS))
+    }
+  }
+  throw new Error('Database is not reachable after multiple attempts')
+}
+
 async function runMigrations() {
   console.log('🏁 Starting migrations...')
   try {
+    await waitForDatabase()
     await migrate(db, { migrationsFolder: './drizzle' })
     console.log('✅ Migrations applied successfully!')
   }

@@ -33,8 +33,10 @@ export class TelegramAuthService {
 
   private get botToken(): string {
     const t = process.env.TELEGRAM_BOT_TOKEN
+
     if (!t)
       throw new Error('TELEGRAM_BOT_TOKEN is not set')
+
     return t
   }
 
