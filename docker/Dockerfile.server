@@ -37,6 +37,10 @@ RUN bun install --production --frozen-lockfile
 # Копируем скомпилированное приложение из этапа "builder"
 COPY --from=builder /usr/src/app/dist ./dist
 
+# Копируем SQL-миграции и скрипт их применения (bun умеет запускать TS напрямую)
+COPY --from=builder /usr/src/app/drizzle ./drizzle
+COPY --from=builder /usr/src/app/db/migrate.ts ./db/migrate.ts
+
 # Устанавливаем правильные права и пользователя
 RUN chown -R bun:bun /usr/src/app
 USER bun
@@ -46,5 +50,5 @@ EXPOSE 8080
 HEALTHCHECK --interval=30s --timeout=5s --start-period=5s --retries=3 \
   CMD curl -f http://localhost:8080/ || exit 1
 
-# Запускаем скомпилированный JS-файл, а не исходный TS
-CMD ["bun", "run", "dist/server.js"]
+# Применяем миграции БД перед запуском скомпилированного JS-файла
+CMD ["sh", "-c", "bun run db/migrate.ts && bun run dist/server.js"]
