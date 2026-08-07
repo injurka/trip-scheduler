@@ -12,7 +12,7 @@ VERSION=$1
 echo "--- Сборка образа клиента с тегом: trip-scheduler-client:$VERSION ---"
 
 docker build -f ./docker/Dockerfile.client -t trip-scheduler-client:$VERSION . \
-  --build-arg VITE_APP_SERVER_URL=https://api.trip-scheduler.ru \
+  --build-arg VITE_APP_SERVER_URL=__VITE_APP_SERVER_URL__ \
   --build-arg VITE_APP_MOCK_MODE=false \
   --build-arg VITE_MAPTILER_KEY=kOcWHJKOfFqZI78YXBfH
 
