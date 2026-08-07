@@ -24,4 +24,6 @@ COPY nginx.conf /etc/nginx/conf.d/default.conf
 
 EXPOSE 80
 
-CMD ["nginx", "-g", "daemon off;"]
+# VITE_APP_SERVER_URL подставляется в собранные JS при старте контейнера
+# (в сборке захардкожен плейсхолдер __VITE_APP_SERVER_URL__)
+CMD ["/bin/sh", "-c", "if [ -n \"$VITE_APP_SERVER_URL\" ]; then find /usr/share/nginx/html -type f -name '*.js' -exec sed -i -e \"s|__VITE_APP_SERVER_URL__|$VITE_APP_SERVER_URL|g\" {} +; fi && exec nginx -g 'daemon off;'"]
