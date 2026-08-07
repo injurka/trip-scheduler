@@ -6,11 +6,6 @@ import prompts from 'prompts'
 import { v4 as uuidv4 } from 'uuid'
 import { s3Service } from '../src/services/s3.service'
 import { db } from './index'
-import { MOCK_METRO_DATA } from './mock/02.metro'
-import { SUBSCRIPTION_MOCK } from './mock/03.subscription'
-import { LLM_MOCK } from './mock/04.llm'
-import { MOCK_COUNTRY_DATA } from './mock/07.country'
-import { MOCK_MARKS_DATA } from './mock/08.marks'
 import {
   activities,
   blogs,
@@ -82,6 +77,27 @@ function toDateString(value: string | Date | null | undefined): string | null {
 
 function formatDuration(ms: number): string {
   return ms < 1000 ? `${ms}мс` : `${(ms / 1000).toFixed(1)}с`
+}
+
+// Моки исключены из docker-образа (.dockerignore: ./db/mock),
+// поэтому подгружаем их лениво — только когда дамп не содержит нужных данных.
+// Путь собирается через переменную, чтобы Bun НЕ резолвил его статически
+// (иначе скрипт падает при старте, если ./mock/ нет на диске).
+// При флаге --skip-mock не пытаемся импортировать вообще — сразу null.
+let skipMock = false
+
+async function loadMock<T = any>(fileName: string, exportName: string): Promise<T[] | null> {
+  if (skipMock)
+    return null
+
+  try {
+    const mockPath = `./mock/${fileName}`
+    const mod = await import(mockPath)
+    return (mod[exportName] as T[]) ?? null
+  }
+  catch {
+    return null
+  }
 }
 
 async function safeInsert<T extends Record<string, any>>(
@@ -163,7 +179,7 @@ function validateTrip(trip: any, index: number): void {
 // Чтение дампа из S3
 // ─────────────────────────────────────────────────────────────
 
-async function discoverAndSelectS3Dump(): Promise<string | null> {
+async function discoverAndSelectS3Dump(latest = false): Promise<string | null> {
   console.log('☁️  Получение списка дампов из S3...')
   try {
     const folders = await s3Service.listDumpFolders('dumps/')
@@ -171,6 +187,11 @@ async function discoverAndSelectS3Dump(): Promise<string | null> {
       return null
 
     const sorted = folders.sort((a, b) => b.localeCompare(a))
+
+    if (latest) {
+      console.log(`☁️  Флаг --latest: выбран последний дамп ${sorted[0]}`)
+      return sorted[0]
+    }
 
     const response = await prompts({
       type: 'select',
@@ -365,8 +386,13 @@ async function restoreMetro(sourceMetro: any[]): Promise<void> {
     console.log('   ✅ Метро из дампа восстановлено')
   }
   else {
+    const mockMetro = await loadMock('02.metro', 'MOCK_METRO_DATA')
+    if (!mockMetro) {
+      console.log('   ⏭️  В дампе нет данных метро, а моки недоступны — пропускаем')
+      return
+    }
     console.log('   ⚠️  В дампе нет данных метро. Используем MOCK_METRO_DATA...')
-    for (const system of MOCK_METRO_DATA) {
+    for (const system of mockMetro) {
       const [insertedSystem] = await db.insert(metroSystems)
         .values({ id: system.id, city: system.city, country: system.country })
         .returning()
@@ -573,25 +599,43 @@ async function seedFromJson(): Promise<void> {
 
   let dumpData: DumpData
 
-  // Выбор источника (Local / S3)
-  const sourceResponse = await prompts({
-    type: 'select',
-    name: 'source',
-    message: 'Откуда вы хотите восстановить дамп?',
-    choices: [
-      { title: 'Локальная папка (db/dump)', value: 'local' },
-      { title: 'S3 Хранилище', value: 's3' },
-    ],
-  })
+  // Флаги CLI: --s3 (источник S3), --latest (последний дамп без промпта), --skip-mock (без локальных моков)
+  // Первый позиционный аргумент (без --) — путь к локальному дампу
+  const cliArgs = process.argv.slice(2)
+  const forceS3 = cliArgs.includes('--s3')
+  const useLatest = cliArgs.includes('--latest')
+  skipMock = cliArgs.includes('--skip-mock')
+  const filePathArg = cliArgs.find(a => !a.startsWith('--'))
 
-  if (!sourceResponse.source) {
+  let source: 'local' | 's3' | undefined
+  if (forceS3) {
+    source = 's3'
+  }
+  else if (filePathArg) {
+    source = 'local'
+  }
+  else {
+    // Выбор источника (Local / S3)
+    const sourceResponse = await prompts({
+      type: 'select',
+      name: 'source',
+      message: 'Откуда вы хотите восстановить дамп?',
+      choices: [
+        { title: 'Локальная папка (db/dump)', value: 'local' },
+        { title: 'S3 Хранилище', value: 's3' },
+      ],
+    })
+    source = sourceResponse.source
+  }
+
+  if (!source) {
     console.log('🚫 Операция отменена.')
     process.exit(0)
   }
 
   // S3
-  if (sourceResponse.source === 's3') {
-    const selectedS3Prefix = await discoverAndSelectS3Dump()
+  if (source === 's3') {
+    const selectedS3Prefix = await discoverAndSelectS3Dump(useLatest)
     if (!selectedS3Prefix) {
       console.error('❌ В S3 дампы не найдены или операция прервана.')
       process.exit(1)
@@ -601,8 +645,6 @@ async function seedFromJson(): Promise<void> {
   }
   // Local
   else {
-    const filePathArg = process.argv[2]
-
     if (filePathArg) {
       const resolvedPath = path.resolve(process.cwd(), filePathArg)
       const stat = await fs.stat(resolvedPath)
@@ -689,7 +731,12 @@ async function seedFromJson(): Promise<void> {
 
   // 3. Справочники (независимы — параллельно)
   console.log('\n⭐ Восстановление справочников...')
-  const plansData = SUBSCRIPTION_MOCK.map(p => ({ ...p, id: Number(p.id) }))
+
+  const [subscriptionMock, llmMock] = await Promise.all([
+    loadMock('03.subscription', 'SUBSCRIPTION_MOCK'),
+    loadMock('04.llm', 'LLM_MOCK'),
+  ])
+  const plansData = (subscriptionMock ?? []).map(p => ({ ...p, id: Number(p.id) }))
 
   // Страны (требуются для destinationReviews)
   let countriesToInsert: any[] = []
@@ -697,7 +744,8 @@ async function seedFromJson(): Promise<void> {
     countriesToInsert = sourceCountries
   }
   else {
-    countriesToInsert = MOCK_COUNTRY_DATA.map((c: any) => {
+    const countryMock = await loadMock('07.country', 'MOCK_COUNTRY_DATA')
+    countriesToInsert = (countryMock ?? []).map((c: any) => {
       let rusName = ''
       if (typeof c.name?.rus === 'string')
         rusName = c.name.rus
@@ -715,8 +763,12 @@ async function seedFromJson(): Promise<void> {
   }
 
   await Promise.all([
-    db.insert(plans).values(plansData).then(() => console.log(`   ✅ [plans] ${plansData.length} записей`)),
-    db.insert(llmModels).values(LLM_MOCK).onConflictDoNothing().then(() => console.log(`   ✅ [llmModels] ${LLM_MOCK.length} записей`)),
+    plansData.length > 0
+      ? db.insert(plans).values(plansData).then(() => console.log(`   ✅ [plans] ${plansData.length} записей`))
+      : Promise.resolve(console.log('   ⏭️  [plans] моки недоступны, пропускаем')),
+    llmMock && llmMock.length > 0
+      ? db.insert(llmModels).values(llmMock).onConflictDoNothing().then(() => console.log(`   ✅ [llmModels] ${llmMock.length} записей`))
+      : Promise.resolve(console.log('   ⏭️  [llmModels] моки недоступны, пропускаем')),
     countriesToInsert.length > 0
       ? db.insert(countries).values(countriesToInsert).onConflictDoNothing().then(() => console.log(`   ✅ [countries] ${countriesToInsert.length} записей`))
       : Promise.resolve(),
@@ -778,16 +830,22 @@ async function seedFromJson(): Promise<void> {
     }))
     await safeInsert('marks', marks, marksToInsert)
   }
-  else if (MOCK_MARKS_DATA && sourceUsers.length > 0) {
-    console.log('   ⚠️  Нет меток в дампе. Используем MOCK_MARKS_DATA...')
-    const fallbackUserId = sourceUsers[0].id
-    const marksToInsert = MOCK_MARKS_DATA.map((mark: any) => ({
-      ...mark,
-      userId: fallbackUserId,
-      startAt: toDate(mark.startAt),
-      createdAt: new Date(),
-    }))
-    await safeInsert('marks', marks, marksToInsert)
+  else if (sourceUsers.length > 0) {
+    const marksMock = await loadMock('08.marks', 'MOCK_MARKS_DATA')
+    if (!marksMock) {
+      console.log('   ⏭️  Нет меток в дампе, а моки недоступны — пропускаем')
+    }
+    else {
+      console.log('   ⚠️  Нет меток в дампе. Используем MOCK_MARKS_DATA...')
+      const fallbackUserId = sourceUsers[0].id
+      const marksToInsert = marksMock.map((mark: any) => ({
+        ...mark,
+        userId: fallbackUserId,
+        startAt: toDate(mark.startAt),
+        createdAt: new Date(),
+      }))
+      await safeInsert('marks', marks, marksToInsert)
+    }
   }
 
   // 7. Путешествия
