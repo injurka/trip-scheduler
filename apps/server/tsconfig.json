@@ -15,6 +15,12 @@
     "paths": {
       "~/*": [
         "./src/*"
+      ],
+      "db": [
+        "./db/index.ts"
+      ],
+      "db/*": [
+        "./db/*"
       ]
     },
     "allowJs": true,
