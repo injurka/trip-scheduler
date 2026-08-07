@@ -210,10 +210,14 @@ ${plan.map((p: string, i: number) => `${i + 1}. ${p}`).join('\n')}
             let toolResult = ''
 
             switch (toolCall.function.name) {
-              case 'mapbox_search': toolResult = await searchMapbox(args.query); break
-              case 'google_search': toolResult = await this.browser.googleSearch(args.query); break
-              case 'goto_url': toolResult = await this.browser.goto(args.url); break
-              case 'get_images': toolResult = await this.browser.getImages(); break
+              case 'mapbox_search': toolResult = await searchMapbox(args.query)
+                break
+              case 'google_search': toolResult = await this.browser.googleSearch(args.query)
+                break
+              case 'goto_url': toolResult = await this.browser.goto(args.url)
+                break
+              case 'get_images': toolResult = await this.browser.getImages()
+                break
 
               case 'get_page_content':
               {

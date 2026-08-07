@@ -264,14 +264,15 @@ watch(visibleIndices, (indices) => {
 
 watch(() => [props.currentIndex, selectedQuality.value] as const, ([newIndex, newQuality], [oldIndex, oldQuality]) => {
   const image = props.images[newIndex]
-  if (!image) return
-  
-  const oldUrl = newIndex === oldIndex 
-    ? getImageUrl(image, oldQuality || 'large') 
+  if (!image)
+    return
+
+  const oldUrl = newIndex === oldIndex
+    ? getImageUrl(image, oldQuality || 'large')
     : getImageUrl(image, 'large')
-    
+
   const newUrl = getImageUrl(image, newQuality)
-  
+
   if (oldUrl !== newUrl) {
     if (imageLoadStates[newIndex]) {
       imageLoadStates[newIndex].loaded = false

@@ -1,5 +1,5 @@
 import type { z } from 'zod'
-import type { ChangePasswordInputSchema, CreateHighlightInputSchema, DeleteAccountInputSchema, GetUserHighlightsInputSchema, SignInInputSchema, SignUpInputSchema, UpdateUserInputSchema, UpdateUserStatusInputSchema, VerifyEmailInputSchema } from './user.schemas'
+import type { ChangePasswordInputSchema, CreateHighlightInputSchema, DeleteAccountInputSchema, GetUserHighlightsInputSchema, SignInInputSchema, SignUpInputSchema, UpdateUserInputSchema, VerifyEmailInputSchema } from './user.schemas'
 import { and, eq, gte } from 'drizzle-orm'
 import { db } from '~/../db'
 import { emailVerificationTokens, users } from '~/../db/schema'

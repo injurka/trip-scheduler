@@ -1,31 +1,28 @@
-# Этап 1: Сборщик (Builder)
-FROM oven/bun:1-slim AS builder
 
-WORKDIR /usr/src/app
-
-COPY package.json ./
-RUN bun install
-COPY . .
-RUN bun run build
-
-
-# Этап 2: Финальный образ (Production)
 FROM oven/bun:1-slim
 
-RUN apt-get update && apt-get install -y --no-install-recommends libvips && rm -rf /var/lib/apt/lists/*
+
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends libvips \
+    && rm -rf /var/lib/apt/lists/*
 
 WORKDIR /usr/src/app
 
 ENV NODE_ENV=production
 ENV PORT=8080
 
-COPY package.json ./
-RUN bun install --production --frozen-lockfile
+COPY package.json bun.lock ./
+COPY apps/server/package.json ./apps/server/package.json
+COPY apps/client/package.json ./apps/client/package.json
+COPY apps/scraper/package.json ./apps/scraper/package.json
+COPY apps/browse-agent/package.json ./apps/browse-agent/package.json
 
-COPY --from=builder /usr/src/app/dist ./dist
+RUN bun install --frozen-lockfile --production --ignore-scripts --filter './apps/server'
 
-COPY --from=builder /usr/src/app/drizzle ./drizzle
-COPY --from=builder /usr/src/app/db ./db
+COPY apps/server ./apps/server
+
+COPY apps/server/drizzle ./drizzle
+COPY apps/server/static ./static
 
 RUN chown -R bun:bun /usr/src/app
 USER bun
@@ -35,4 +32,4 @@ EXPOSE 8080
 HEALTHCHECK --interval=30s --timeout=5s --start-period=5s --retries=3 \
   CMD bun -e "fetch('http://localhost:8080/health').then(r => process.exit(r.ok ? 0 : 1)).catch(() => process.exit(1))"
 
-CMD ["bun", "run", "dist/server.js"]
+CMD ["bun", "run", "apps/server/src/server.ts"]

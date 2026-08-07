@@ -48,6 +48,7 @@ const emit = defineEmits<{ (e: 'action'): void }>()
 <style scoped lang="scss">
 .error-placeholder {
   display: flex;
+  margin: 0 auto;
   flex-direction: column;
   align-items: center;
   justify-content: center;

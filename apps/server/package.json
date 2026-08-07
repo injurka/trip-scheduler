@@ -7,13 +7,10 @@
     "bun": ">=1.1.30"
   },
   "scripts": {
-    "start": "bun run dist/server.js",
+    "start": "bun run src/server.ts",
     "--------------------------------<      DEV       >--------------------------------": "",
     "dev": "bun run --hot --watch src/server.ts",
     "dev:debug": "bun --inspect run --hot --watch src/server.ts",
-    "--------------------------------<      BUILD     >--------------------------------": "",
-    "build:bun": "bun build ./src/index.ts --outdir ./dist --target bun --no-minify",
-    "build": "tsup",
     "--------------------------------<   DATABASE    >---------------------------------": "",
     "db:migrate": "bun run db/migrate.ts",
     "db:generate": "bunx drizzle-kit generate",
@@ -31,6 +28,7 @@
   },
   "dependencies": {
     "@aws-sdk/client-s3": "^3.1027.0",
+    "@hono/swagger-ui": "^0.5.2",
     "@hono/trpc-server": "^0.4.1",
     "@trpc/server": "^11.12.0",
     "drizzle-orm": "^0.44.7",
@@ -45,13 +43,13 @@
     "prompts": "^2.4.2",
     "resend": "^6.9.3",
     "sharp": "^0.34.5",
+    "trpc-to-openapi": "^3.1.0",
     "uuid": "^13.0.0",
     "web-push": "^3.6.7",
     "zod": "^4.0.0"
   },
   "devDependencies": {
     "@antfu/eslint-config": "8.2.0",
-    "@hono/swagger-ui": "^0.5.2",
     "@types/bun": "latest",
     "@types/node-cron": "^3.0.11",
     "@types/pg": "^8.18.0",
@@ -63,8 +61,6 @@
     "drizzle-kit": "^0.31.7",
     "eslint": "^9.29.0",
     "eslint-plugin-format": "2.0.1",
-    "trpc-to-openapi": "^3.1.0",
-    "tsup": "^8.5.1",
     "typescript": "5.9.3"
   }
 }

@@ -81,8 +81,8 @@ jobs:
       - name: Build & Push Server
         uses: docker/build-push-action@v6
         with:
-          context: ./apps/server
-          file: ./apps/server/Dockerfile
+          context: .
+          file: ./docker/Dockerfile.server
           push: true
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}

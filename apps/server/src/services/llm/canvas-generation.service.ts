@@ -20,7 +20,7 @@ export const canvasGenerationService = {
   async generateDayNote(userId: string, prompt: string, context?: string) {
     await quotaService.checkLlmCreditQuota(userId)
 
-    const userMessage = context 
+    const userMessage = context
       ? `Контекст поездки (другие дни):\n${context}\n\nЗапрос пользователя:\n${prompt}`
       : `Запрос пользователя:\n${prompt}`
 

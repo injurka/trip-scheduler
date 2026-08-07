@@ -1,6 +1,6 @@
 import type { z } from 'zod'
 import type { GetUserReviewsInputSchema } from '~/modules/destination-review/destination-review.schemas'
-import { and, asc, desc, eq, sql } from 'drizzle-orm'
+import { and, desc, eq, sql } from 'drizzle-orm'
 import { v4 as uuidv4 } from 'uuid'
 import { db } from '~/../db'
 import { destinationReviews } from '~/../db/schema'

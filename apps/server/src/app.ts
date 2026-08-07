@@ -19,14 +19,9 @@ const logger = new Logger()
 class Server {
   private app: Hono
 
-  // Список разрешенных источников перенесен внутрь класса для инкапсуляции
   private allowedOrigins = [
-    'https://tripsh.vercel.app', // Vercel
     'http://localhost:1420', // Vite dev server для веб-разработки
     'http://localhost:4173', // Vite preview
-    'capacitor://localhost', // Android Capacitor
-    'http://localhost', // Capacitor
-    'https://localhost', // Capacitor
     'http://trip-scheduler.ru', // Production-домен
     'https://trip-scheduler.ru', // Production-домен с https
     ...(process.env.FRONTEND_URL ? [process.env.FRONTEND_URL] : []),

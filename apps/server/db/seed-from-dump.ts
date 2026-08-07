@@ -738,6 +738,18 @@ async function seedFromJson(): Promise<void> {
   ])
   const plansData = (subscriptionMock ?? []).map(p => ({ ...p, id: Number(p.id) }))
 
+  if (plansData.length === 0) {
+    plansData.push({
+      id: 1,
+      name: 'Free',
+      maxTrips: 100,
+      maxStorageBytes: 10 * 1024 * 1024 * 1024, // 10 GB
+      monthlyLlmCredits: 100_000,
+      isDeveloping: false,
+    })
+    console.log('   ⚠️  Моки планов недоступны — вставляем дефолтный план Free (id=1)')
+  }
+
   // Страны (требуются для destinationReviews)
   let countriesToInsert: any[] = []
   if (Array.isArray(sourceCountries) && sourceCountries.length > 0) {

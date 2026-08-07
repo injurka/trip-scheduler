@@ -442,7 +442,7 @@ export const highlights = pgTable('highlights', {
   metadata: jsonb('metadata'),
 
   createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
-}, (t) => ({
+}, t => ({
   countryIdx: index('highlights_country_idx').on(t.countryId),
   userIdIdx: index('highlights_user_idx').on(t.userId),
 }))

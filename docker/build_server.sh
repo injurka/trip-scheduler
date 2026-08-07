@@ -11,8 +11,6 @@ VERSION=$1
 
 echo "--- Сборка образа сервера с тегом: trip-scheduler-server:$VERSION ---"
 
-cd ./apps/server
-
-docker build -t trip-scheduler-server:$VERSION .
+docker build -f ./docker/Dockerfile.server -t trip-scheduler-server:$VERSION .
 
 echo "--- Сборка образа сервера trip-scheduler-server:$VERSION завершена успешно! ---"

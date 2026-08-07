@@ -78,7 +78,6 @@ export const templateGenerationService = {
       user: userMessage,
     }
 
-
     const modelId = 'gemini-3.5-flash'
     const completion = await createAiChatRequest(prompts, {
       model: modelId,

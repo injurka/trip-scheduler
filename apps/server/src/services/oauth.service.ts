@@ -1,11 +1,11 @@
 import type { GitHubEmail, GitHubUser, GoogleUser } from '~/models/auth'
 import { TRPCError } from '@trpc/server'
 import { eq } from 'drizzle-orm'
-import { authUtils } from '~/lib/auth.utils'
-import { userRepository } from '~/repositories/user.repository'
 import { db } from '~/../db'
 import { users } from '~/../db/schema'
+import { authUtils } from '~/lib/auth.utils'
 import { FREE_PLAN_ID } from '~/lib/constants'
+import { userRepository } from '~/repositories/user.repository'
 
 interface OAuthInput {
   provider: 'google' | 'github'

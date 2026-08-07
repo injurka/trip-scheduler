@@ -1,0 +1,26 @@
+# Git
+.git
+.gitignore
+
+# Зависимости и результаты сборки
+node_modules
+
+# Сборки и артефакты
+dist
+*.tsbuildinfo
+
+# Сид-данные для разработки (не нужны в проде)
+apps/server/db/mock
+apps/server/db/dump
+
+# Окружение и секреты
+.env
+.env.*
+
+# IDE и системное
+.idea
+.vscode
+*.DS_Store
+
+# Документация (не нужна в образе)
+*.md
