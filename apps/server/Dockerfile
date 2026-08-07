@@ -16,7 +16,6 @@ COPY . .
 # Собираем TypeScript в JavaScript (команда из вашего package.json)
 RUN bun run build
 
-
 # Этап 2: Финальный образ (Production)
 # Здесь мы создаем чистый и легкий образ для запуска
 FROM oven/bun:1-slim
@@ -32,13 +31,16 @@ ENV PORT=8080
 # Копируем package.json, чтобы можно было запустить `bun install --production`
 COPY package.json ./
 # Устанавливаем только production-зависимости. Bun автоматически определит их по package.json
-RUN bun install --production --frozen-lockfile
+RUN bun install --production --frozen-lockfile && bun pm cache rm
 
 # Копируем скомпилированное приложение из этапа "builder"
 COPY --from=builder /usr/src/app/dist ./dist
 
 # Копируем миграции Drizzle — нужны при старте сервера (migrate в server.ts)
 COPY --from=builder /usr/src/app/drizzle ./drizzle
+
+# Копируем db-скрипты (db:seed-dump, db:dump и т.д.)
+COPY --from=builder /usr/src/app/db ./db
 
 # Устанавливаем правильные права и пользователя
 RUN chown -R bun:bun /usr/src/app
