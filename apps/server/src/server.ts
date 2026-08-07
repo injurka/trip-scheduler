@@ -2,6 +2,7 @@
 import type { Hono } from 'hono'
 import { db } from 'db'
 import { sql } from 'drizzle-orm'
+import { migrate } from 'drizzle-orm/node-postgres/migrator'
 import cron from 'node-cron'
 import Server from './app'
 import { updateDatabaseMetrics } from './lib/db-monitoring'
@@ -38,6 +39,11 @@ logger.log(`Trip Scheduler API starting on http://${host}:${port}`)
 
 try {
   await checkService('PostgreSQL', () => db.execute(sql`SELECT 1`).then(() => { }), logger)
+
+  logger.info('Применение миграций базы данных...')
+  await migrate(db, { migrationsFolder: './drizzle' })
+  logger.success('Миграции успешно применены!')
+
   await checkService('S3', () => s3Service.checkConnection(), logger)
 
   setInterval(updateDatabaseMetrics, 30_000)
