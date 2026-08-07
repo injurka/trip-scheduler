@@ -29,6 +29,7 @@ class Server {
     'https://localhost', // Capacitor
     'http://trip-scheduler.ru', // Production-домен
     'https://trip-scheduler.ru', // Production-домен с https
+    ...(process.env.FRONTEND_URL ? [process.env.FRONTEND_URL] : []),
   ]
 
   constructor() {
