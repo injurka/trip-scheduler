@@ -47,7 +47,7 @@ jobs:
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
           build-args: |
-            VITE_APP_SERVER_URL=https://api.trip-scheduler.ru
+            VITE_APP_SERVER_URL=__VITE_APP_SERVER_URL__
             VITE_APP_MOCK_MODE=false
             VITE_MAPTILER_KEY=${{ secrets.VITE_MAPTILER_KEY }}
           cache-from: type=gha
