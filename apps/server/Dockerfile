@@ -42,6 +42,10 @@ COPY --from=builder /usr/src/app/drizzle ./drizzle
 # Копируем db-скрипты (db:seed-dump, db:dump и т.д.)
 COPY --from=builder /usr/src/app/db ./db
 
+COPY --from=builder /usr/src/app/src/services/s3.service.ts ./src/services/s3.service.ts
+COPY --from=builder /usr/src/app/tsconfig.json ./tsconfig.json
+COPY --from=builder /usr/src/app/src/lib/constants.ts ./src/lib/constants.ts
+
 # Устанавливаем правильные права и пользователя
 RUN chown -R bun:bun /usr/src/app
 USER bun
