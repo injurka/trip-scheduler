@@ -1,5 +1,6 @@
 /* eslint-disable antfu/no-top-level-await */
 import type { Hono } from 'hono'
+import path from 'node:path'
 import { db } from 'db'
 import { sql } from 'drizzle-orm'
 import { migrate } from 'drizzle-orm/node-postgres/migrator'
@@ -41,7 +42,7 @@ try {
   await checkService('PostgreSQL', () => db.execute(sql`SELECT 1`).then(() => { }), logger)
 
   logger.info('Применение миграций базы данных...')
-  await migrate(db, { migrationsFolder: './drizzle' })
+  await migrate(db, { migrationsFolder: path.join(process.cwd(), 'drizzle') })
   logger.success('Миграции успешно применены!')
 
   await checkService('S3', () => s3Service.checkConnection(), logger)
