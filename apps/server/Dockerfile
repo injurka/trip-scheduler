@@ -37,6 +37,9 @@ RUN bun install --production --frozen-lockfile
 # Копируем скомпилированное приложение из этапа "builder"
 COPY --from=builder /usr/src/app/dist ./dist
 
+# Копируем миграции Drizzle — нужны при старте сервера (migrate в server.ts)
+COPY --from=builder /usr/src/app/drizzle ./drizzle
+
 # Устанавливаем правильные права и пользователя
 RUN chown -R bun:bun /usr/src/app
 USER bun
