@@ -22,7 +22,6 @@ RUN bun install --frozen-lockfile --production --ignore-scripts --filter './apps
 COPY apps/server ./apps/server
 
 COPY apps/server/drizzle ./drizzle
-COPY apps/server/static ./static
 
 RUN chown -R bun:bun /usr/src/app
 USER bun
