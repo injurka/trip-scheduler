@@ -1,4 +1,5 @@
 /* eslint-disable no-console */
+import { createWriteStream } from 'node:fs'
 import fs from 'node:fs/promises'
 import path from 'node:path'
 import process from 'node:process'
@@ -162,12 +163,12 @@ async function safeInsert<T extends Record<string, any>>(
         successCount++
       }
       catch (err) {
-              failCount++
-              const reason = err instanceof Error ? err.message : String(err)
-              const summary = summarizeRecord(rows[i])
-              console.error(`   ❌ [${label}] #${i}: ${reason}`)
-              console.error(`      ↳ ${summary}`)
-            }
+        failCount++
+        const reason = err instanceof Error ? err.message : String(err)
+        const summary = summarizeRecord(rows[i])
+        console.error(`   ❌ [${label}] #${i}: ${reason}`)
+        console.error(`      ↳ ${summary}`)
+      }
     }
 
     const icon = failCount === 0 ? '✅' : '⚠️ '
@@ -625,13 +626,52 @@ async function seedFromJson(): Promise<void> {
 
   let dumpData: DumpData
 
-  // Флаги CLI: --s3 (источник S3), --latest (последний дамп без промпта), --skip-mock (без локальных моков)
+  // Флаги CLI: --s3 (источник S3), --latest (последний дамп без промпта), --skip-mock (без локальных моков), --log <file> (запись логов в файл)
   // Первый позиционный аргумент (без --) — путь к локальному дампу
   const cliArgs = process.argv.slice(2)
   const forceS3 = cliArgs.includes('--s3')
   const useLatest = cliArgs.includes('--latest')
   skipMock = cliArgs.includes('--skip-mock')
   const filePathArg = cliArgs.find(a => !a.startsWith('--'))
+
+  function getArgValue(args: string[], flag: string): string | null {
+    const idx = args.indexOf(flag)
+    if (idx === -1 || idx + 1 >= args.length)
+      return null
+    const val = args[idx + 1]
+    return val.startsWith('--') ? null : val
+  }
+
+  const logFilePath = getArgValue(cliArgs, '--log')
+  let logStream: ReturnType<typeof createWriteStream> | null = null
+
+  if (logFilePath) {
+      try {
+        logStream = createWriteStream(logFilePath, { flags: 'a' })
+        const origLog = console.log.bind(console)
+        const origErr = console.error.bind(console)
+        const origWarn = console.warn.bind(console)
+
+        const tee = (origFn: (...a: any[]) => void) =>
+          (...args: any[]) => {
+            origFn(...args)
+            if (logStream) {
+              logStream.write(`${args.map(a => (typeof a === 'string' ? a : JSON.stringify(a))).join(' ')}\n`)
+            }
+          }
+
+        console.log = tee(origLog)
+        console.error = tee(origErr)
+        console.warn = tee(origWarn)
+        console.log(`📝 Лог пишется в ${logFilePath}`)
+      }
+      catch {
+        console.warn(`⚠️  Не удалось открыть лог-файл ${logFilePath}, пишу только в консоль`)
+      }
+
+      // Закрыть лог-файл при любом выходе (включая Ctrl+C)
+      process.on('exit', () => { logStream?.end() })
+    }
 
   let source: 'local' | 's3' | undefined
   if (forceS3) {
@@ -765,15 +805,33 @@ async function seedFromJson(): Promise<void> {
   const plansData = (subscriptionMock ?? []).map(p => ({ ...p, id: Number(p.id) }))
 
   if (plansData.length === 0) {
-    plansData.push({
-      id: 1,
-      name: 'Free',
-      maxTrips: 100,
-      maxStorageBytes: 10 * 1024 * 1024 * 1024, // 10 GB
-      monthlyLlmCredits: 100_000,
-      isDeveloping: false,
-    })
-    console.log('   ⚠️  Моки планов недоступны — вставляем дефолтный план Free (id=1)')
+    plansData.push(
+      {
+        id: 1,
+        name: 'Базовый',
+        maxTrips: 3,
+        maxStorageBytes: 1024 * 1024 * 1024, // 1 GB
+        monthlyLlmCredits: 50_000,
+        isDeveloping: false,
+      },
+      {
+        id: 2,
+        name: 'Про',
+        maxTrips: 15,
+        maxStorageBytes: 25 * 1024 * 1024 * 1024, // 25 GB
+        monthlyLlmCredits: 1_000_000,
+        isDeveloping: false,
+      },
+      {
+        id: 3,
+        name: 'Командный',
+        maxTrips: 100,
+        maxStorageBytes: 100 * 1024 * 1024 * 1024, // 100 GB
+        monthlyLlmCredits: 5_000_000,
+        isDeveloping: true,
+      }
+    )
+    console.log('   ⚠️  Моки планов недоступны — вставляем базовые системные планы (id=1, 2, 3)')
   }
 
   // Страны (требуются для destinationReviews)
@@ -841,6 +899,7 @@ async function seedFromJson(): Promise<void> {
       return {
         ...rest,
         countryId: cId || 'IT',
+        takenAt: toDate(h.takenAt),
         createdAt: toDate(h.createdAt) ?? new Date(),
       }
     })
@@ -899,6 +958,7 @@ async function seedFromJson(): Promise<void> {
     await restoreBlogs(sourceBlogs)
 
   console.log(`\n✅ База данных восстановлена за ${formatDuration(Date.now() - startTime)}!`)
+  logStream?.end()
   process.exit(0)
 }
 
