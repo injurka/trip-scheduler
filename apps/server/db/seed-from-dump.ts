@@ -63,6 +63,30 @@ interface SelectedDump {
 
 const MAX_PG_PARAMS = 65_535
 
+function summarizeRecord(rec: Record<string, any>): string {
+  const keys = Object.keys(rec)
+  const parts: string[] = []
+
+  // id всегда первый
+  if (rec.id !== undefined)
+    parts.push(`id=${rec.id}`)
+
+  // ключевые FK и имена
+  for (const k of ['tripId', 'dayId', 'userId', 'postId', 'title', 'slug', 'name']) {
+    if (rec[k] !== undefined && k !== 'id') {
+      const val = typeof rec[k] === 'string' && rec[k].length > 60 ? `${rec[k].slice(0, 60)}…` : rec[k]
+      parts.push(`${k}=${val}`)
+    }
+  }
+
+  // кол-во полей с длинным текстом (>200 символов)
+  const largeFields = keys.filter(k => typeof rec[k] === 'string' && rec[k].length > 200)
+  if (largeFields.length > 0)
+    parts.push(`${largeFields.length} больших текстовых поля`)
+
+  return parts.length > 0 ? parts.join(', ') : `${keys.length} полей`
+}
+
 function toDate(value: string | Date | null | undefined): Date | null {
   if (!value)
     return null
@@ -138,10 +162,12 @@ async function safeInsert<T extends Record<string, any>>(
         successCount++
       }
       catch (err) {
-        failCount++
-        console.error(`   ❌ [${label}] Запись #${i}:`, JSON.stringify(rows[i], null, 2))
-        console.error(`      Причина:`, err instanceof Error ? err.message : err)
-      }
+              failCount++
+              const reason = err instanceof Error ? err.message : String(err)
+              const summary = summarizeRecord(rows[i])
+              console.error(`   ❌ [${label}] #${i}: ${reason}`)
+              console.error(`      ↳ ${summary}`)
+            }
     }
 
     const icon = failCount === 0 ? '✅' : '⚠️ '
