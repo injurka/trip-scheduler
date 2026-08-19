@@ -1,6 +1,13 @@
 import { z } from 'zod'
-import { protectedProcedure } from '~/lib/trpc'
-import { LlmUsageSchema, LlmUsageSummarySchema } from './llm-usage.schemas'
+import { adminProcedure, protectedProcedure } from '~/lib/trpc'
+import {
+  DeleteLlmModelInputSchema,
+  LlmModelSchema,
+  LlmUsageSchema,
+  LlmUsageSummarySchema,
+  SyncLlmModelsOutputSchema,
+  UpsertLlmModelInputSchema,
+} from './llm-usage.schemas'
 import { llmUsageService } from './llm-usage.service'
 
 export const llmUsageProcedures = {
@@ -30,5 +37,66 @@ export const llmUsageProcedures = {
     .output(LlmUsageSummarySchema)
     .query(async ({ ctx }) => {
       return llmUsageService.getSummary(ctx.user)
+    }),
+
+  listModels: protectedProcedure
+    .meta({
+      openapi: {
+        method: 'GET',
+        path: '/llm/models',
+        tags: ['LLM Models'],
+        summary: 'Получить список всех зарегистрированных моделей и их тарифов',
+      },
+    })
+    .output(z.array(LlmModelSchema))
+    .query(async () => {
+      return llmUsageService.listModels()
+    }),
+
+  upsertModel: adminProcedure
+    .meta({
+      openapi: {
+        method: 'POST',
+        path: '/llm/models',
+        tags: ['LLM Models'],
+        summary: 'Добавить или обновить модель (только для admin)',
+        protect: true,
+      },
+    })
+    .input(UpsertLlmModelInputSchema)
+    .output(LlmModelSchema)
+    .mutation(async ({ input }) => {
+      return llmUsageService.upsertModel(input)
+    }),
+
+  deleteModel: adminProcedure
+    .meta({
+      openapi: {
+        method: 'DELETE',
+        path: '/llm/models/{id}',
+        tags: ['LLM Models'],
+        summary: 'Удалить модель (только для admin)',
+        protect: true,
+      },
+    })
+    .input(DeleteLlmModelInputSchema)
+    .output(LlmModelSchema.nullable())
+    .mutation(async ({ input }) => {
+      return llmUsageService.deleteModel(input.id)
+    }),
+
+  syncDefaultModels: adminProcedure
+    .meta({
+      openapi: {
+        method: 'POST',
+        path: '/llm/models/sync',
+        tags: ['LLM Models'],
+        summary: 'Синхронизировать дефолтные модели из кода в БД (только для admin)',
+        protect: true,
+      },
+    })
+    .output(SyncLlmModelsOutputSchema)
+    .mutation(async () => {
+      return llmUsageService.syncDefaultModels()
     }),
 }

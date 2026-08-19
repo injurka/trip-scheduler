@@ -62,6 +62,22 @@ const isAuthed = t.middleware(({ ctx, next }) => {
   })
 })
 
+const isAdmin = t.middleware(({ ctx, next }) => {
+  if (!ctx.user) {
+    throw new TRPCError({ code: 'UNAUTHORIZED', message: 'Not authenticated' })
+  }
+  if (ctx.user.role !== 'admin') {
+    throw new TRPCError({ code: 'FORBIDDEN', message: 'Доступ разрешен только администраторам' })
+  }
+  return next({
+    ctx: {
+      user: ctx.user,
+      db: ctx.db,
+      c: ctx.c,
+    },
+  })
+})
+
 // Middleware для сбора метрик
 const metricsMiddleware = t.middleware(async ({ path, type, next }) => {
   const start = Date.now()
@@ -81,6 +97,7 @@ export const router = t.router
 export const mergeRouters = t.mergeRouters
 export const publicProcedure = t.procedure.use(metricsMiddleware)
 export const protectedProcedure = t.procedure.use(isAuthed).use(metricsMiddleware)
+export const adminProcedure = t.procedure.use(isAdmin).use(metricsMiddleware)
 
 // Вспомогательная функция для создания tRPC ошибок
 export function createTRPCError(code: 'NOT_FOUND' | 'BAD_REQUEST' | 'INTERNAL_SERVER_ERROR' | 'CONFLICT' | 'UNAUTHORIZED' | 'FORBIDDEN', message: string) {
