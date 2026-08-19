@@ -1,9 +1,46 @@
 #!/usr/bin/env bun
 /* eslint-disable no-console */
 import { existsSync, readdirSync, readFileSync, statSync } from 'node:fs'
-import { basename, extname, join, resolve } from 'node:path'
+import { basename, join, resolve } from 'node:path'
 import process from 'node:process'
 import prompts from 'prompts'
+
+// Try reading environment variables from apps/server/.env if not present
+function loadEnvIfAvailable() {
+  const envPaths = [
+    resolve(process.cwd(), 'apps/server/.env'),
+    resolve(process.cwd(), '.env'),
+  ]
+
+  for (const envPath of envPaths) {
+    if (existsSync(envPath)) {
+      try {
+        const content = readFileSync(envPath, 'utf-8')
+        for (const line of content.split('\n')) {
+          const trimmed = line.trim()
+          if (!trimmed || trimmed.startsWith('#'))
+            continue
+          const eqIdx = trimmed.indexOf('=')
+          if (eqIdx > 0) {
+            const key = trimmed.slice(0, eqIdx).trim()
+            let val = trimmed.slice(eqIdx + 1).trim()
+            if ((val.startsWith('"') && val.endsWith('"')) || (val.startsWith('\'') && val.endsWith('\''))) {
+              val = val.slice(1, -1)
+            }
+            if (!process.env[key]) {
+              process.env[key] = val
+            }
+          }
+        }
+      }
+      catch {
+        // ignore
+      }
+    }
+  }
+}
+
+loadEnvIfAvailable()
 
 // ANSI color helpers
 const colors = {
@@ -17,6 +54,39 @@ const colors = {
   red: '\x1B[31m',
   magenta: '\x1B[35m',
 }
+
+export const DEFAULT_TRIP_SECTIONS = [
+  {
+    type: 'bookings',
+    title: 'Бронирования',
+    icon: 'mdi:book-multiple-outline',
+  },
+  {
+    type: 'checklist',
+    title: 'Чек-лист',
+    icon: 'mdi:format-list-checks',
+  },
+  {
+    type: 'finances',
+    title: 'Финансы',
+    icon: 'mdi:cash-multiple',
+  },
+  {
+    type: 'memories',
+    title: 'Галерея воспоминаний',
+    icon: 'mdi:image-filter-hdr',
+  },
+  {
+    type: 'notes',
+    title: 'Заметки',
+    icon: 'mdi:note-edit-outline',
+  },
+  {
+    type: 'documents',
+    title: 'Документы',
+    icon: 'mdi:file-document-multiple-outline',
+  },
+] as const
 
 interface ParsedDay {
   dayNumber: number
@@ -220,11 +290,6 @@ export function parseActivitiesFromMarkdown(dayContent: string): ActivityPayload
   const activities: ActivityPayload[] = []
   const lines = dayContent.split('\n')
 
-  // Regex matches:
-  // * **13:30 - 15:00** — Description
-  // * **13:30 – 15:00** — Description
-  // * **13:30-15:00** - Description
-  // * **13:30** — Description
   const timeRegex = /^[*-]\s*\*\*(\d{1,2}:\d{2})\s*(?:[-–—]\s*(\d{1,2}:\d{2}))?\*\*\s*[-–—:]?\s*(.*)$/
 
   let currentActivity: {
@@ -291,16 +356,13 @@ export function parseActivitiesFromMarkdown(dayContent: string): ActivityPayload
       }
     }
     else if (currentActivity) {
-      // Check if we hit a stop section (e.g. ## 🤔 Чего ожидать от дня or ## 💰 Финансы)
       if (line.startsWith('## ') || line.startsWith('# ')) {
         finishCurrentActivity()
       }
       else if (line.trim() === '---') {
-        // Separator between parts
         finishCurrentActivity()
       }
       else if (line.startsWith('### ')) {
-        // Part header (e.g. ### Часть 2)
         finishCurrentActivity()
       }
       else {
@@ -355,6 +417,71 @@ export function parseActivitiesFromMarkdown(dayContent: string): ActivityPayload
 }
 
 // -----------------------------------------------------------------------------
+// Direct LLM Call (as fallback if server endpoint has quota/pricing error)
+// -----------------------------------------------------------------------------
+async function generateActivitiesViaDirectLlm(canvasNote: string): Promise<ActivityPayload[] | null> {
+  const apiKey = process.env.AI_HUBMIX_KEY || process.env.OPENAI_API_KEY
+  if (!apiKey)
+    return null
+
+  const baseUrl = process.env.AI_HUBMIX_API_URL || (process.env.AI_HUBMIX_KEY ? 'https://aihubmix.com/v1' : 'https://api.openai.com/v1')
+  const model = process.env.AI_HUBMIX_KEY ? 'gemini-flash-latest' : 'gpt-4o-mini'
+
+  const systemPrompt = `You are an expert travel planner API.
+The user wants to generate daily schedule activities from their markdown notes.
+You MUST return ONLY a valid JSON object with a single key "activities", which is an array of activity objects adhering to this structure:
+{
+  "activities": [
+    {
+      "id": "uuid string",
+      "startTime": "HH:mm",
+      "endTime": "HH:mm",
+      "title": "Activity title",
+      "tag": "transport" | "walk" | "food" | "attraction" | "relax" | "activity",
+      "sections": [
+        {
+          "id": "uuid string",
+          "type": "description",
+          "text": "Detailed text or description"
+        }
+      ]
+    }
+  ]
+}`
+
+  try {
+    const res = await fetch(`${baseUrl.replace(/\/+$/, '')}/chat/completions`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${apiKey}`,
+      },
+      body: JSON.stringify({
+        model,
+        messages: [
+          { role: 'system', content: systemPrompt },
+          { role: 'user', content: `Вот заметка дня путешествия:\n\n${canvasNote}\n\nРазбей этот день на активности с точным временем начала и конца, тегами и подробными секциями описания.` },
+        ],
+        response_format: { type: 'json_object' },
+        temperature: 0.3,
+      }),
+    })
+
+    if (!res.ok)
+      return null
+    const data = await res.json()
+    const content = data.choices?.[0]?.message?.content
+    if (!content)
+      return null
+    const parsed = JSON.parse(content)
+    return parsed.activities || (Array.isArray(parsed) ? parsed : null)
+  }
+  catch {
+    return null
+  }
+}
+
+// -----------------------------------------------------------------------------
 // Obsidian Parser
 // -----------------------------------------------------------------------------
 export function parseObsidianTripFolder(tripPath: string, startDateStr?: string): ParsedTripData {
@@ -405,7 +532,6 @@ export function parseObsidianTripFolder(tripPath: string, startDateStr?: string)
     }
   }
 
-  // If no specific directory found, look for any dir with day files or check root
   if (!daysDirPath) {
     for (const entry of entries) {
       if (entry.isDirectory()) {
@@ -430,32 +556,27 @@ export function parseObsidianTripFolder(tripPath: string, startDateStr?: string)
       const content = readFileSync(filePath, 'utf-8')
       const fileNameWithoutExt = fileName.replace(/\.md$/, '')
 
-      // Check if it's the summary plan file
       if (fileNameWithoutExt === 'Маршрутный план' || fileNameWithoutExt.toLowerCase() === 'plan') {
         summaryContent = content
         continue
       }
 
-      // Extract day number (e.g. "01 Куала-Лумпур (д1)" -> 1, "Day 2" -> 2)
       const dayNumberMatch = fileName.match(/^(?:0*(\d{1,2}))|(?:[дd](\d{1,2}))|(?:day\s*(\d{1,2}))/i)
       const dayNumber = dayNumberMatch
         ? Number.parseInt(dayNumberMatch[1] || dayNumberMatch[2] || dayNumberMatch[3], 10)
         : (parsedDays.length + 1)
 
-      // Clean title from leading numbers like "01 "
       let title = fileNameWithoutExt.replace(/^\d{1,2}\s*/, '').trim()
       if (!title) {
         title = `День ${dayNumber}`
       }
 
-      // Extract short description from "## 🤔 Чего ожидать от дня"
       let dayDescription = ''
       const expectMatch = content.match(/##\s*[^\n]*Чего ожидать от дня\s*\n+([^#\n]+)/i)
       if (expectMatch) {
         dayDescription = expectMatch[1].trim()
       }
       else {
-        // Take first non-header line
         const firstPara = content.split('\n').find(l => l.trim() && !l.startsWith('#') && !l.startsWith('>') && !l.startsWith('-') && !l.startsWith('*'))
         if (firstPara) {
           dayDescription = firstPara.trim().slice(0, 150)
@@ -478,7 +599,6 @@ export function parseObsidianTripFolder(tripPath: string, startDateStr?: string)
     }
   }
 
-  // Sort days by day number
   parsedDays.sort((a, b) => a.dayNumber - b.dayNumber)
 
   // 3. Scan Section Folders ("01 - Заметки", "03 - Бронирования", "04 - Финансы", etc.)
@@ -639,7 +759,6 @@ class ApiClient {
   // 1. Auth: SignIn
   async signIn(email: string, password: string): Promise<{ accessToken: string, user: any }> {
     try {
-      // Try REST endpoint /auth/signin
       const res = await this.request<any>('/auth/signin', {
         method: 'POST',
         body: JSON.stringify({ email, password }),
@@ -651,7 +770,6 @@ class ApiClient {
       }
     }
     catch (err: any) {
-      // Fallback: try tRPC /trpc/user.signIn
       try {
         const trpcRes = await this.request<any>('/trpc/user.signIn', {
           method: 'POST',
@@ -664,7 +782,7 @@ class ApiClient {
         }
       }
       catch {
-        // Throw original error
+        // ignore
       }
       throw new Error(`Ошибка авторизации: ${err.message}`)
     }
@@ -702,13 +820,35 @@ class ApiClient {
     })
   }
 
+  // 3. Trip Sections (Tabs: Bookings, Checklist, Finances, Memories, Notes, Documents)
+  async createTripSection(payload: {
+    tripId: string
+    type: 'bookings' | 'checklist' | 'finances' | 'memories' | 'notes' | 'documents'
+    title: string
+    icon?: string | null
+    content?: any
+  }): Promise<any> {
+    try {
+      return await this.request<any>('/trip-sections', {
+        method: 'POST',
+        body: JSON.stringify(payload),
+      })
+    }
+    catch {
+      return await this.request<any>('/trpc/tripSection.create', {
+        method: 'POST',
+        body: JSON.stringify(payload),
+      })
+    }
+  }
+
   async getDaysByTripId(tripId: string): Promise<Array<{ id: string, date: string, title: string }>> {
     return await this.request<any>(`/days/by-trip/${tripId}`, {
       method: 'GET',
     })
   }
 
-  // 3. Day Endpoints
+  // 4. Day Endpoints
   async createDay(payload: {
     tripId: string
     title: string
@@ -751,7 +891,7 @@ class ApiClient {
     })
   }
 
-  // 4. Activity Endpoints
+  // 5. Activity Endpoints
   async createActivity(payload: {
     dayId: string
     title: string
@@ -766,7 +906,7 @@ class ApiClient {
     })
   }
 
-  // 5. Note Endpoints
+  // 6. Note Endpoints
   async createNote(payload: {
     tripId: string
     parentId?: string | null
@@ -867,6 +1007,10 @@ async function runImport() {
 
   if (cliOptions.dryRun) {
     console.log(`\n${colors.yellow}🔍 [DRY-RUN] Режим предпросмотра включен. Запросы к API отправляться не будут.${colors.reset}`)
+    console.log(`\n${colors.bright}📑 Разделы, которые будут созданы:${colors.reset}`)
+    for (const sec of DEFAULT_TRIP_SECTIONS) {
+      console.log(`  ${colors.cyan}• [${sec.type}] ${sec.title}${colors.reset} (${sec.icon})`)
+    }
     console.log(`\n${colors.bright}📅 Обнаруженные дни и блоки:${colors.reset}`)
     for (const day of tripData.days) {
       const activities = parseActivitiesFromMarkdown(day.rawContent)
@@ -934,7 +1078,6 @@ async function runImport() {
     })
     console.log(`${colors.green}✅ Путешествие создано!${colors.reset} ID: ${colors.yellow}${createdTrip.id}${colors.reset}`)
 
-    // Update details (cities, tags, descriptionShort, status, visibility)
     await api.updateTrip(createdTrip.id, {
       descriptionShort: tripData.descriptionShort,
       cities: tripData.cities,
@@ -950,11 +1093,28 @@ async function runImport() {
 
   const tripId = createdTrip.id
 
-  // 3. Create / Sync Days
+  // 3. Create all Trip Sections (Tabs: Bookings, Checklist, Finances, Memories, Notes, Documents)
+  console.log(`\n${colors.dim}📑 Создание разделов путешествия...${colors.reset}`)
+  for (const sec of DEFAULT_TRIP_SECTIONS) {
+    try {
+      await api.createTripSection({
+        tripId,
+        type: sec.type,
+        title: sec.title,
+        icon: sec.icon,
+        content: {},
+      })
+      console.log(`  ${colors.green}✓${colors.reset} Раздел создан: ${colors.bright}${sec.title}${colors.reset}`)
+    }
+    catch (secErr: any) {
+      console.warn(`  ${colors.yellow}⚠ Раздел "${sec.title}": ${secErr.message}${colors.reset}`)
+    }
+  }
+
+  // 4. Create / Sync Days
   console.log(`\n${colors.dim}📅 Создание дней маршрута (${tripData.days.length} дн.)...${colors.reset}`)
   const existingDays = await api.getDaysByTripId(tripId)
 
-  // Map of created/updated days: dayNumber -> dayId
   const dayIdMap = new Map<number, string>()
 
   for (let i = 0; i < tripData.days.length; i++) {
@@ -962,7 +1122,6 @@ async function runImport() {
     let dayId: string
 
     if (i === 0 && existingDays.length > 0) {
-      // Day 1 was auto-created during trip creation
       dayId = existingDays[0].id
       await api.updateDay(dayId, {
         title: day.title,
@@ -980,7 +1139,6 @@ async function runImport() {
       })
       dayId = newDay.id
 
-      // Set canvas note
       await api.updateDay(dayId, {
         note: day.rawContent,
       })
@@ -990,7 +1148,7 @@ async function runImport() {
     process.stdout.write(`${colors.cyan}  ✓ День ${day.dayNumber}: ${day.title} (${day.date})${colors.reset}\n`)
   }
 
-  // 4. Generate & Create Activities (Blocks) for each day
+  // 5. Generate & Create Activities (Blocks) for each day
   console.log(`\n${colors.dim}🧩 Генерация и добавление блоков активностей...${colors.reset}`)
 
   for (const day of tripData.days) {
@@ -1003,8 +1161,9 @@ async function runImport() {
     let activitiesToCreate: ActivityPayload[] = []
 
     if (cliOptions.useLlm) {
+      // 1. Try server LLM endpoint
       try {
-        process.stdout.write(`    ${colors.dim}🤖 Запрос к LLM для генерации блоков расписания...${colors.reset} `)
+        process.stdout.write(`    ${colors.dim}🤖 Запрос к LLM на сервере...${colors.reset} `)
         const generated = await api.generateDayTemplate(dayId, {
           prompt: 'Преобразуй этот план дня в структурированные блоки расписания (активности) с точным временем начала и конца, тегами и подробными секциями с описанием.',
           currentActivities: [],
@@ -1016,13 +1175,30 @@ async function runImport() {
           process.stdout.write(`${colors.green}OK (получено ${generated.length} блоков)${colors.reset}\n`)
         }
         else {
-          process.stdout.write(`${colors.yellow}пусто, переключаюсь на встроенный парсер${colors.reset}\n`)
-          activitiesToCreate = parseActivitiesFromMarkdown(day.rawContent)
+          throw new Error('Пустой ответ от сервера')
         }
       }
-      catch (llmErr: any) {
-        process.stdout.write(`${colors.yellow}LLM недоступен (${llmErr.message}), использую встроенный парсер${colors.reset}\n`)
-        activitiesToCreate = parseActivitiesFromMarkdown(day.rawContent)
+      catch (serverLlmErr: any) {
+        // 2. Try Direct LLM via HubMix/OpenAI if available
+        process.stdout.write(`${colors.yellow}Серверный LLM: ${serverLlmErr.message}${colors.reset}\n`)
+
+        const directLlmKey = process.env.AI_HUBMIX_KEY || process.env.OPENAI_API_KEY
+        if (directLlmKey) {
+          process.stdout.write(`    ${colors.dim}🤖 Запрос к прямому LLM (HubMix/OpenAI)...${colors.reset} `)
+          const directGenerated = await generateActivitiesViaDirectLlm(day.rawContent)
+          if (directGenerated && directGenerated.length > 0) {
+            activitiesToCreate = directGenerated
+            process.stdout.write(`${colors.green}OK (получено ${directGenerated.length} блоков)${colors.reset}\n`)
+          }
+          else {
+            process.stdout.write(`${colors.yellow}использую встроенный парсер${colors.reset}\n`)
+            activitiesToCreate = parseActivitiesFromMarkdown(day.rawContent)
+          }
+        }
+        else {
+          process.stdout.write(`    ${colors.dim}⚙️  Использую встроенный парсер таймлайна...${colors.reset}\n`)
+          activitiesToCreate = parseActivitiesFromMarkdown(day.rawContent)
+        }
       }
     }
     else {
@@ -1048,12 +1224,12 @@ async function runImport() {
     }
   }
 
-  // 5. Add Section Folders & Notes into Trip Notes ("01 - Заметки", "03 - Бронирования", "04 - Финансы", etc.)
+  // 6. Add Section Folders & Notes into Trip Notes ("01 - Заметки", "03 - Бронирования", "04 - Финансы", etc.)
   console.log(`\n${colors.dim}📚 Добавление заметок и секций в раздел «Заметки»...${colors.reset}`)
 
   let noteOrder = 0
 
-  // 5.1 Root notes (e.g. Concept file and Summary plan)
+  // 6.1 Root notes (e.g. Concept file and Summary plan)
   for (const rootNote of tripData.rootNotes) {
     try {
       const noteRecord = await api.createNote({
@@ -1073,7 +1249,7 @@ async function runImport() {
     }
   }
 
-  // 5.2 Folders & their files
+  // 6.2 Folders & their files
   for (const sectionFolder of tripData.sectionFolders) {
     try {
       const folderRecord = await api.createNote({
@@ -1116,7 +1292,8 @@ async function runImport() {
   console.log(`  ${colors.cyan}•${colors.reset} ID путешествия:  ${colors.bright}${tripId}${colors.reset}`)
   console.log(`  ${colors.cyan}•${colors.reset} Название:        ${colors.bright}${tripData.title}${colors.reset}`)
   console.log(`  ${colors.cyan}•${colors.reset} Дней:            ${tripData.days.length}`)
-  console.log(`  ${colors.cyan}•${colors.reset} Секций/папок:    ${tripData.sectionFolders.length}`)
+  console.log(`  ${colors.cyan}•${colors.reset} Разделов (вкладок): ${DEFAULT_TRIP_SECTIONS.length}`)
+  console.log(`  ${colors.cyan}•${colors.reset} Папок в заметках: ${tripData.sectionFolders.length}`)
   console.log(`  ${colors.cyan}•${colors.reset} Ссылка на сайт:  ${colors.blue}http://localhost:1420/trips/${tripId}${colors.reset}\n`)
 }
 

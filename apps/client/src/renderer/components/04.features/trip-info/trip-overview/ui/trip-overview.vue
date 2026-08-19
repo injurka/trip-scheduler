@@ -370,30 +370,30 @@ watch(() => props.trip?.id, (newId) => {
           </KitTooltip>
         </div>
 
-        <div class="card-actions">
-          <KitDropdown
-            v-model:open="isMoreMenuOpen"
-            align="end"
-          >
-            <template #trigger>
-              <KitTooltip text="Еще">
-                <button class="action-btn" @click.stop.prevent>
+        <div class="card-actions" @click.stop>
+          <KitTooltip text="Еще">
+            <KitDropdown
+              v-model:open="isMoreMenuOpen"
+              align="end"
+            >
+              <template #trigger>
+                <button class="action-btn">
                   <Icon icon="mdi:dots-vertical" />
                 </button>
-              </KitTooltip>
-            </template>
-            <DropdownMenuItem
-              v-for="item in moreMenuItems"
-              :key="item.value"
-              class="kit-dropdown-item"
-              :class="{ 'is-destructive': item.isDestructive }"
-              :disabled="item.value === 'downloading'"
-              @click="handleMenuAction(item.value)"
-            >
-              <Icon v-if="item.icon" :icon="item.icon" class="item-icon" :class="{ 'spin-icon': item.value === 'downloading' }" />
-              <span class="item-label">{{ item.label }}</span>
-            </DropdownMenuItem>
-          </KitDropdown>
+              </template>
+              <DropdownMenuItem
+                v-for="item in moreMenuItems"
+                :key="item.value"
+                class="kit-dropdown-item"
+                :class="{ 'is-destructive': item.isDestructive }"
+                :disabled="item.value === 'downloading'"
+                @click="handleMenuAction(item.value)"
+              >
+                <Icon v-if="item.icon" :icon="item.icon" class="item-icon" :class="{ 'spin-icon': item.value === 'downloading' }" />
+                <span class="item-label">{{ item.label }}</span>
+              </DropdownMenuItem>
+            </KitDropdown>
+          </KitTooltip>
         </div>
       </div>
 

@@ -100,39 +100,39 @@ watch(() => props.section, (newSection) => {
           v-model="editableIcon"
           @update:model-value="updatePinSettings"
         />
-        <KitDropdown :side-offset="8" align="end" class="color-picker-dropdown">
-          <template #trigger>
-            <KitTooltip text="Выбрать цвет">
+        <KitTooltip text="Выбрать цвет">
+          <KitDropdown :side-offset="8" align="end" class="color-picker-dropdown">
+            <template #trigger>
               <button class="color-picker-trigger" type="button">
                 <span class="color-preview" :style="{ backgroundColor: editableColor }" />
               </button>
-            </KitTooltip>
-          </template>
+            </template>
 
-          <div class="color-picker-content">
-            <div class="color-options">
-              <KitTooltip text="Свой цвет">
-                <div class="color-input-wrapper">
-                  <input
-                    v-model="editableColor"
-                    type="color"
-                    class="color-input"
-                    @input="updatePinSettings"
-                  >
-                  <Icon icon="mdi:eyedropper-variant" />
-                </div>
-              </KitTooltip>
-              <button
-                v-for="color in defaultColors"
-                :key="color"
-                class="color-option"
-                :style="{ backgroundColor: color }"
-                :class="{ 'is-active': editableColor === color }"
-                @click="editableColor = color"
-              />
+            <div class="color-picker-content">
+              <div class="color-options">
+                <KitTooltip text="Свой цвет">
+                  <div class="color-input-wrapper">
+                    <input
+                      v-model="editableColor"
+                      type="color"
+                      class="color-input"
+                      @input="updatePinSettings"
+                    >
+                    <Icon icon="mdi:eyedropper-variant" />
+                  </div>
+                </KitTooltip>
+                <button
+                  v-for="color in defaultColors"
+                  :key="color"
+                  class="color-option"
+                  :style="{ backgroundColor: color }"
+                  :class="{ 'is-active': editableColor === color }"
+                  @click="editableColor = color"
+                />
+              </div>
             </div>
-          </div>
-        </KitDropdown>
+          </KitDropdown>
+        </KitTooltip>
       </div>
     </div>
 
@@ -160,38 +160,38 @@ watch(() => props.section, (newSection) => {
     />
 
     <div v-if="!isViewMode" class="section-controls-wrapper">
-      <KitDropdown :side-offset="4" align="end">
-        <template #trigger>
-          <KitTooltip text="Опции секции">
+      <KitTooltip text="Опции секции">
+        <KitDropdown :side-offset="4" align="end">
+          <template #trigger>
             <button class="section-menu-trigger">
               <Icon icon="mdi:dots-vertical" />
             </button>
-          </KitTooltip>
-        </template>
-        <div class="section-menu-content">
-          <button class="menu-item" @click="emit('moveSectionUp')">
-            <Icon icon="mdi:arrow-up" />
-            <span>Переместить выше</span>
-          </button>
-          <button class="menu-item" @click="emit('moveSectionDown')">
-            <Icon icon="mdi:arrow-down" />
-            <span>Переместить ниже</span>
-          </button>
-          <button
-            class="menu-item"
-            :class="{ 'is-active': (section as CustomActivitySection).isAttached }"
-            @click="toggleAttached"
-          >
-            <Icon :icon="(section as CustomActivitySection).isAttached ? 'mdi:link-variant-off' : 'mdi:link-variant-plus'" />
-            <span>{{ (section as CustomActivitySection).isAttached ? 'Открепить' : 'Прикрепить к предыдущей' }}</span>
-          </button>
-          <div class="menu-separator" />
-          <button class="menu-item delete" @click="emit('deleteSection')">
-            <Icon icon="mdi:delete-outline" />
-            <span>Удалить секцию</span>
-          </button>
-        </div>
-      </KitDropdown>
+          </template>
+          <div class="section-menu-content">
+            <button class="menu-item" @click="emit('moveSectionUp')">
+              <Icon icon="mdi:arrow-up" />
+              <span>Переместить выше</span>
+            </button>
+            <button class="menu-item" @click="emit('moveSectionDown')">
+              <Icon icon="mdi:arrow-down" />
+              <span>Переместить ниже</span>
+            </button>
+            <button
+              class="menu-item"
+              :class="{ 'is-active': (section as CustomActivitySection).isAttached }"
+              @click="toggleAttached"
+            >
+              <Icon :icon="(section as CustomActivitySection).isAttached ? 'mdi:link-variant-off' : 'mdi:link-variant-plus'" />
+              <span>{{ (section as CustomActivitySection).isAttached ? 'Открепить' : 'Прикрепить к предыдущей' }}</span>
+            </button>
+            <div class="menu-separator" />
+            <button class="menu-item delete" @click="emit('deleteSection')">
+              <Icon icon="mdi:delete-outline" />
+              <span>Удалить секцию</span>
+            </button>
+          </div>
+        </KitDropdown>
+      </KitTooltip>
     </div>
   </div>
 </template>

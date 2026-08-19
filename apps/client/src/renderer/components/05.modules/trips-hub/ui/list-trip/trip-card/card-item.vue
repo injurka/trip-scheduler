@@ -178,21 +178,21 @@ const tripData = computed<Trip>(() => ({
           <Icon :icon="visibilityIcon.icon" />
         </span>
 
-        <div class="card-actions">
-          <KitDropdown
-            v-model:open="isMoreMenuOpen"
-            align="end"
-            :items="moreMenuItems"
-            @update:model-value="handleMenuAction"
-          >
-            <template #trigger>
-              <KitTooltip text="Еще">
-                <button class="action-btn" @click.stop.prevent>
+        <div class="card-actions" @click.stop>
+          <KitTooltip text="Еще">
+            <KitDropdown
+              v-model:open="isMoreMenuOpen"
+              align="end"
+              :items="moreMenuItems"
+              @update:model-value="handleMenuAction"
+            >
+              <template #trigger>
+                <button class="action-btn">
                   <Icon icon="mdi:dots-vertical" />
                 </button>
-              </KitTooltip>
-            </template>
-          </KitDropdown>
+              </template>
+            </KitDropdown>
+          </KitTooltip>
         </div>
       </div>
 

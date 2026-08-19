@@ -54,20 +54,19 @@ const currentQuality = computed({
       </button>
     </KitTooltip>
     <div v-if="isUiVisible" class="control-buttons-group">
-      <KitViewerDropdown
-        v-if="showQualitySelector"
-        v-model="currentQuality"
-        :items="qualityOptions"
-        align="end"
-      >
-        <template #trigger>
-          <KitTooltip text="Выбрать качество">
+      <KitTooltip v-if="showQualitySelector" text="Выбрать качество">
+        <KitViewerDropdown
+          v-model="currentQuality"
+          :items="qualityOptions"
+          align="end"
+        >
+          <template #trigger>
             <button class="control-btn">
               <Icon :icon="qualityIcon" />
             </button>
-          </KitTooltip>
-        </template>
-      </KitViewerDropdown>
+          </template>
+        </KitViewerDropdown>
+      </KitTooltip>
       <KitTooltip v-if="showInfoButton" text="Информация о снимке">
         <button
           class="control-btn"

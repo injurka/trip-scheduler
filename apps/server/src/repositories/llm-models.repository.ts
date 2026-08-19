@@ -1,6 +1,5 @@
 import { asc, eq } from 'drizzle-orm'
 import { db } from '~/../db'
-import { LLM_MOCK } from '~/../db/mock/04.llm'
 import { llmModels } from '~/../db/schema'
 import { measureDbQuery } from '~/lib/db-monitoring'
 
@@ -67,36 +66,6 @@ export const llmModelsRepository = {
         .where(eq(llmModels.id, id))
         .returning()
       return deleted || null
-    })
-  },
-
-  /**
-   * Синхронизировать дефолтные модели из кода (LLM_MOCK) в базу данных.
-   */
-  async syncDefaultModels() {
-    return measureDbQuery('llmModels', 'insert', async () => {
-      const results = []
-      for (const item of LLM_MOCK) {
-        const [model] = await db
-          .insert(llmModels)
-          .values({
-            id: item.id,
-            costPerMillionInputTokens: item.costPerMillionInputTokens,
-            costPerMillionOutputTokens: item.costPerMillionOutputTokens,
-            updatedAt: new Date(),
-          })
-          .onConflictDoUpdate({
-            target: llmModels.id,
-            set: {
-              costPerMillionInputTokens: item.costPerMillionInputTokens,
-              costPerMillionOutputTokens: item.costPerMillionOutputTokens,
-              updatedAt: new Date(),
-            },
-          })
-          .returning()
-        results.push(model)
-      }
-      return results
     })
   },
 }
