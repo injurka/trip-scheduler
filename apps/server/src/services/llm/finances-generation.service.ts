@@ -1,6 +1,6 @@
 import type { AiRequestPrompts } from '~/lib/llm'
 import { TRPCError } from '@trpc/server'
-import { createAiChatRequest, DEFAULT_AI_MODEL } from '~/lib/llm'
+import { createAiChatRequest, DEFAULT_AI_MODEL, parseJsonWithAiRepair } from '~/lib/llm'
 import { llmUsageRepository } from '~/repositories/llm-usage.repository'
 import { quotaService } from '~/services/quota.service'
 
@@ -125,30 +125,29 @@ async function generateTransactionsFromData({ userId, fileBuffer, fileName, text
     })
   }
 
-  const jsonResponse = completion.choices[0].message.content
+  const jsonResponse = completion.choices[0]?.message?.content
   if (!jsonResponse) {
     throw new TRPCError({ code: 'INTERNAL_SERVER_ERROR', message: 'ИИ не вернул результат.' })
   }
 
-  try {
-    const cleanedResponse = jsonResponse.replace(/```json|```/g, '').trim()
-    const parsedData = JSON.parse(cleanedResponse)
+  const parsedData = await parseJsonWithAiRepair<any>(jsonResponse, {
+    userId,
+    model: modelId,
+    operation: 'financesGeneration',
+    customInstructions: 'The output must be a valid JSON array of transaction objects, or an object containing an array of transactions.',
+    validate: data => Boolean(data && (Array.isArray(data) || Object.values(data).some(v => Array.isArray(v)))),
+  })
 
-    if (Array.isArray(parsedData)) {
-      return parsedData
-    }
-
-    const arrayKey = Object.keys(parsedData).find(key => Array.isArray(parsedData[key]))
-    if (arrayKey) {
-      return parsedData[arrayKey]
-    }
-
-    throw new Error('The parsed JSON is not an array and does not contain an array.')
+  if (Array.isArray(parsedData)) {
+    return parsedData
   }
-  catch (e) {
-    console.error('Failed to parse JSON array from AI response:', jsonResponse, e)
-    throw new TRPCError({ code: 'INTERNAL_SERVER_ERROR', message: 'ИИ вернул невалидный JSON.' })
+
+  const arrayKey = Object.keys(parsedData).find(key => Array.isArray(parsedData[key]))
+  if (arrayKey) {
+    return parsedData[arrayKey]
   }
+
+  throw new TRPCError({ code: 'INTERNAL_SERVER_ERROR', message: 'ИИ вернул невалидный формат транзакций.' })
 }
 
 export const financesGenerationService = {

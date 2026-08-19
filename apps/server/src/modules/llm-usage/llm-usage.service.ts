@@ -51,15 +51,4 @@ export const llmUsageService = {
     return await llmModelsRepository.delete(id)
   },
 
-  /**
-   * Синхронизировать дефолтные модели из кода в БД.
-   */
-  async syncDefaultModels() {
-    const models = await llmModelsRepository.syncDefaultModels()
-    return {
-      success: true,
-      models,
-      message: `Синхронизировано ${models.length} моделей`,
-    }
-  },
 }

@@ -1,6 +1,6 @@
 import type { AiRequestPrompts } from '~/lib/llm'
 import { TRPCError } from '@trpc/server'
-import { createAiChatRequest, DEFAULT_AI_MODEL } from '~/lib/llm'
+import { createAiChatRequest, DEFAULT_AI_MODEL, parseJsonWithAiRepair } from '~/lib/llm'
 import { llmUsageRepository } from '~/repositories/llm-usage.repository'
 import { quotaService } from '~/services/quota.service'
 
@@ -74,19 +74,19 @@ export const postGenerationService = {
       })
     }
 
-    const jsonResponse = completion.choices[0].message.content
+    const jsonResponse = completion.choices[0]?.message?.content
     if (!jsonResponse) {
       throw new TRPCError({ code: 'INTERNAL_SERVER_ERROR', message: 'ИИ не вернул результат.' })
     }
 
-    try {
-      const cleanedResponse = jsonResponse.replace(/```json|```/g, '').trim()
-      const parsedData = JSON.parse(cleanedResponse)
-      return parsedData
-    }
-    catch (e) {
-      console.error('Failed to parse JSON from AI:', jsonResponse, e)
-      throw new TRPCError({ code: 'INTERNAL_SERVER_ERROR', message: 'ИИ вернул невалидный JSON.' })
-    }
+    const parsedData = await parseJsonWithAiRepair<any>(jsonResponse, {
+      userId,
+      model: modelId,
+      operation: 'postGeneration',
+      customInstructions: 'The output must be a valid JSON object representing a travel post with title, insight, description, country, tags, and stages.',
+      validate: data => Boolean(data && typeof data === 'object' && !Array.isArray(data)),
+    })
+
+    return parsedData
   },
 }

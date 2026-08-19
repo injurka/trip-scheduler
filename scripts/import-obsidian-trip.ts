@@ -473,7 +473,39 @@ You MUST return ONLY a valid JSON object with a single key "activities", which i
     const content = data.choices?.[0]?.message?.content
     if (!content)
       return null
-    const parsed = JSON.parse(content)
+
+    let text = content.trim()
+    const codeBlockMatch = text.match(/```(?:json)?\s*([\s\S]*?)\s*```/i)
+    if (codeBlockMatch) {
+      text = codeBlockMatch[1].trim()
+    }
+    else {
+      text = text.replace(/^```(?:json)?\s*/i, '').replace(/\s*```$/i, '').trim()
+    }
+
+    const firstBrace = text.indexOf('{')
+    const firstBracket = text.indexOf('[')
+    let startIndex = -1
+    let isArray = false
+    if (firstBrace !== -1 && (firstBracket === -1 || firstBrace < firstBracket)) {
+      startIndex = firstBrace
+      isArray = false
+    }
+    else if (firstBracket !== -1) {
+      startIndex = firstBracket
+      isArray = true
+    }
+
+    if (startIndex !== -1) {
+      const endChar = isArray ? ']' : '}'
+      const lastIndex = text.lastIndexOf(endChar)
+      if (lastIndex > startIndex) {
+        text = text.substring(startIndex, lastIndex + 1)
+      }
+    }
+    text = text.replace(/,\s*([\]}])/g, '$1')
+
+    const parsed = JSON.parse(text)
     return parsed.activities || (Array.isArray(parsed) ? parsed : null)
   }
   catch {

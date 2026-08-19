@@ -1,5 +1,6 @@
 import { asc, eq } from 'drizzle-orm'
 import { db } from '~/../db'
+import { LLM_MOCK } from '~/../db/mock/04.llm'
 import { llmModels } from '~/../db/schema'
 import { measureDbQuery } from '~/lib/db-monitoring'
 
@@ -68,4 +69,5 @@ export const llmModelsRepository = {
       return deleted || null
     })
   },
+
 }

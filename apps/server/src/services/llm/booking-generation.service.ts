@@ -1,7 +1,7 @@
 import type { AiRequestPrompts } from '~/lib/llm'
 import { TRPCError } from '@trpc/server'
 import { PDFParse } from 'pdf-parse'
-import { createAiChatRequest, DEFAULT_AI_MODEL } from '~/lib/llm'
+import { createAiChatRequest, DEFAULT_AI_MODEL, parseJsonWithAiRepair } from '~/lib/llm'
 import { llmUsageRepository } from '~/repositories/llm-usage.repository'
 import { quotaService } from '~/services/quota.service'
 
@@ -190,18 +190,20 @@ async function generateBookingFromFile({ userId, fileBuffer, fileName, bookingTy
     })
   }
 
-  const jsonResponse = completion.choices[0].message.content
-  if (!jsonResponse)
+  const jsonResponse = completion.choices[0]?.message?.content
+  if (!jsonResponse) {
     throw new TRPCError({ code: 'INTERNAL_SERVER_ERROR', message: 'ИИ не вернул результат.' })
+  }
 
-  try {
-    const parsedData = JSON.parse(jsonResponse)
-    return parsedData
-  }
-  catch (e) {
-    console.error('Failed to parse JSON from AI:', jsonResponse, e)
-    throw new TRPCError({ code: 'INTERNAL_SERVER_ERROR', message: 'ИИ вернул невалидный JSON.' })
-  }
+  const parsedData = await parseJsonWithAiRepair<any>(jsonResponse, {
+    userId,
+    model: modelId,
+    operation: 'bookingGeneration',
+    customInstructions: `The output must be a valid booking JSON object for booking type "${bookingType}".`,
+    validate: data => Boolean(data && typeof data === 'object' && !Array.isArray(data)),
+  })
+
+  return parsedData
 }
 
 export const bookingGenerationService = {

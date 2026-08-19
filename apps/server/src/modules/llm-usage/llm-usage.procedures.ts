@@ -84,19 +84,4 @@ export const llmUsageProcedures = {
     .mutation(async ({ input }) => {
       return llmUsageService.deleteModel(input.id)
     }),
-
-  syncDefaultModels: adminProcedure
-    .meta({
-      openapi: {
-        method: 'POST',
-        path: '/llm/models/sync',
-        tags: ['LLM Models'],
-        summary: 'Синхронизировать дефолтные модели из кода в БД (только для admin)',
-        protect: true,
-      },
-    })
-    .output(SyncLlmModelsOutputSchema)
-    .mutation(async () => {
-      return llmUsageService.syncDefaultModels()
-    }),
 }
