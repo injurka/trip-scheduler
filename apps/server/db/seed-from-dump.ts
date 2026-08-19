@@ -646,32 +646,34 @@ async function seedFromJson(): Promise<void> {
   let logStream: ReturnType<typeof createWriteStream> | null = null
 
   if (logFilePath) {
-      try {
-        logStream = createWriteStream(logFilePath, { flags: 'a' })
-        const origLog = console.log.bind(console)
-        const origErr = console.error.bind(console)
-        const origWarn = console.warn.bind(console)
+    try {
+      logStream = createWriteStream(logFilePath, { flags: 'a' })
+      const origLog = console.log.bind(console)
+      const origErr = console.error.bind(console)
+      const origWarn = console.warn.bind(console)
 
-        const tee = (origFn: (...a: any[]) => void) =>
-          (...args: any[]) => {
-            origFn(...args)
-            if (logStream) {
-              logStream.write(`${args.map(a => (typeof a === 'string' ? a : JSON.stringify(a))).join(' ')}\n`)
-            }
+      const tee = (origFn: (...a: any[]) => void) =>
+        (...args: any[]) => {
+          origFn(...args)
+          if (logStream) {
+            logStream.write(`${args.map(a => (typeof a === 'string' ? a : JSON.stringify(a))).join(' ')}\n`)
           }
+        }
 
-        console.log = tee(origLog)
-        console.error = tee(origErr)
-        console.warn = tee(origWarn)
-        console.log(`📝 Лог пишется в ${logFilePath}`)
-      }
-      catch {
-        console.warn(`⚠️  Не удалось открыть лог-файл ${logFilePath}, пишу только в консоль`)
-      }
-
-      // Закрыть лог-файл при любом выходе (включая Ctrl+C)
-      process.on('exit', () => { logStream?.end() })
+      console.log = tee(origLog)
+      console.error = tee(origErr)
+      console.warn = tee(origWarn)
+      console.log(`📝 Лог пишется в ${logFilePath}`)
     }
+    catch {
+      console.warn(`⚠️  Не удалось открыть лог-файл ${logFilePath}, пишу только в консоль`)
+    }
+
+    // Закрыть лог-файл при любом выходе (включая Ctrl+C)
+    process.on('exit', () => {
+      logStream?.end()
+    })
+  }
 
   let source: 'local' | 's3' | undefined
   if (forceS3) {
@@ -829,7 +831,7 @@ async function seedFromJson(): Promise<void> {
         maxStorageBytes: 100 * 1024 * 1024 * 1024, // 100 GB
         monthlyLlmCredits: 5_000_000,
         isDeveloping: true,
-      }
+      },
     )
     console.log('   ⚠️  Моки планов недоступны — вставляем базовые системные планы (id=1, 2, 3)')
   }

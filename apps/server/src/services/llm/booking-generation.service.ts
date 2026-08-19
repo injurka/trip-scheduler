@@ -1,7 +1,7 @@
 import type { AiRequestPrompts } from '~/lib/llm'
 import { TRPCError } from '@trpc/server'
 import { PDFParse } from 'pdf-parse'
-import { createAiChatRequest } from '~/lib/llm'
+import { createAiChatRequest, DEFAULT_AI_MODEL } from '~/lib/llm'
 import { llmUsageRepository } from '~/repositories/llm-usage.repository'
 import { quotaService } from '~/services/quota.service'
 
@@ -168,7 +168,7 @@ async function generateBookingFromFile({ userId, fileBuffer, fileName, bookingTy
     throw new TRPCError({ code: 'BAD_REQUEST', message: 'Неподдерживаемый тип файла. Поддерживаются PDF, PNG, JPG.' })
   }
 
-  const modelId = 'gemini-3.5-flash'
+  const modelId = DEFAULT_AI_MODEL
   const completion = await createAiChatRequest(prompts, {
     model: modelId,
   })

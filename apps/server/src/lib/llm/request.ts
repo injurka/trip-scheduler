@@ -1,35 +1,17 @@
 import OpenAI from 'openai'
 import { externalApiCallsCounter, externalApiDurationHistogram } from '~/services/metrics.service'
 
-// Chat Models
-const AI_HUBMIX_MODELS_CHAT = [
-  'gemini-3.5-flash',
-  'gemini-2.5-pro',
+// Allowed Models
+export const AI_MODELS = [
+  'baidu-deepseek-v4-flash-0731',
   'gemini-flash-latest',
   'gemini-flash-lite-latest',
-  'Qwen3-VL-235B-A22B-Instruct',
-  'Qwen3-Next-80B-A3B-Instruct',
 ] as const
 
-// TTS Models (OpenAI compatible)
-export const AI_TTS_MODELS = [
-  'tts-1-hd',
-  'gemini-3.5-flash',
-  'gemini-2.5-pro',
-  'gpt-4o-mini-tts',
-] as const
-export type AiTtsModel = typeof AI_TTS_MODELS[number]
+export type AiModel = typeof AI_MODELS[number]
+export type AiChatModel = AiModel
 
-// Combined list of all models for general validation or use
-export const AI_MODELS = [
-  ...AI_HUBMIX_MODELS_CHAT,
-  ...AI_TTS_MODELS,
-] as const
-export type AiModel = typeof AI_MODELS[number] // General model type covering both chat and TTS
-
-// Specific Chat Model Type
-const AI_CHAT_MODELS = [...AI_HUBMIX_MODELS_CHAT] as const
-export type AiChatModel = typeof AI_CHAT_MODELS[number]
+export const DEFAULT_AI_MODEL: AiModel = 'baidu-deepseek-v4-flash-0731'
 
 export interface AiRequestOptions {
   model?: AiModel
@@ -40,14 +22,6 @@ export interface AiRequestOptions {
 export interface AiRequestPrompts {
   system: string | OpenAI.Chat.Completions.ChatCompletionContentPartText[]
   user: string | OpenAI.Chat.Completions.ChatCompletionContentPart[]
-}
-
-export interface AiSpeechRequestPayload {
-  input: string
-  model: AiTtsModel
-  voice: 'alloy' | 'echo' | 'fable' | 'onyx' | 'nova' | 'shimmer'
-  response_format?: 'mp3' | 'opus' | 'aac' | 'flac'
-  speed?: number // Speed from 0.25 to 4.0
 }
 
 interface ProviderConfig {
@@ -84,8 +58,7 @@ async function measureExternalApiCall<T>(
 }
 
 function getProviderConfig(modelName: AiModel): ProviderConfig {
-  const isHubMixModel = (AI_HUBMIX_MODELS_CHAT as readonly string[]).includes(modelName)
-    || (AI_TTS_MODELS as readonly string[]).includes(modelName)
+  const isHubMixModel = (AI_MODELS as readonly string[]).includes(modelName)
 
   if (isHubMixModel) {
     return {
@@ -101,12 +74,8 @@ function getProviderConfig(modelName: AiModel): ProviderConfig {
   }
 }
 
-function validateChatModel(model: string): model is AiChatModel {
-  return AI_CHAT_MODELS.includes(model as AiChatModel)
-}
-
-function validateTtsModel(model: string): model is AiTtsModel {
-  return AI_TTS_MODELS.includes(model as AiTtsModel)
+function validateChatModel(model: string): model is AiModel {
+  return AI_MODELS.includes(model as AiModel)
 }
 
 export async function createAiChatRequest(
@@ -114,14 +83,14 @@ export async function createAiChatRequest(
   options?: AiRequestOptions,
 ) {
   const mergedOptions = {
-    model: 'gemini-flash-latest' satisfies AiChatModel,
+    model: DEFAULT_AI_MODEL,
     response_format: { type: 'json_object' as 'json_object' | 'text' },
     temperature: 0.4,
     ...options,
   }
 
   if (!validateChatModel(mergedOptions.model)) {
-    throw new Error(`Invalid chat model: ${mergedOptions.model}. Available chat models: ${AI_CHAT_MODELS.join(', ')}`)
+    throw new Error(`Invalid chat model: ${mergedOptions.model}. Available chat models: ${AI_MODELS.join(', ')}`)
   }
 
   const { apiKey, baseURL } = getProviderConfig(mergedOptions.model)
@@ -141,29 +110,5 @@ export async function createAiChatRequest(
       response_format: mergedOptions.response_format,
       temperature: mergedOptions.temperature,
       stream: false,
-    }))
-}
-
-export async function createAiSpeechRequest(
-  payload: AiSpeechRequestPayload,
-) {
-  if (!validateTtsModel(payload.model)) {
-    throw new Error(`Invalid TTS model: ${payload.model}. Available TTS models: ${AI_TTS_MODELS.join(', ')}`)
-  }
-
-  const { apiKey, baseURL } = getProviderConfig(payload.model)
-
-  const openai = new OpenAI({
-    apiKey,
-    baseURL,
-  })
-
-  return measureExternalApiCall(payload.model, 'speech_creation', () =>
-    openai.audio.speech.create({
-      model: payload.model,
-      input: payload.input,
-      voice: payload.voice,
-      response_format: payload.response_format ?? 'mp3',
-      speed: payload.speed ?? 1.0,
     }))
 }

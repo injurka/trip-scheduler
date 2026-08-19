@@ -1,6 +1,6 @@
 import type { AiRequestPrompts } from '~/lib/llm'
 import { TRPCError } from '@trpc/server'
-import { createAiChatRequest } from '~/lib/llm'
+import { createAiChatRequest, DEFAULT_AI_MODEL } from '~/lib/llm'
 import { llmUsageRepository } from '~/repositories/llm-usage.repository'
 import { quotaService } from '~/services/quota.service'
 
@@ -51,7 +51,7 @@ export const postGenerationService = {
       user: `Analyze the following trip description and generate the rich JSON structure:\n\n---\n${text}\n---`,
     }
 
-    const modelId = 'gemini-3.5-flash'
+    const modelId = DEFAULT_AI_MODEL
     const completion = await createAiChatRequest(prompts, {
       model: modelId,
       response_format: { type: 'json_object' },

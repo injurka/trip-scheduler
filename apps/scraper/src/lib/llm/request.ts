@@ -1,22 +1,16 @@
 import OpenAI from 'openai'
 
-// Chat Models
-const AI_HUBMIX_MODELS_CHAT = [
-  'gemini-2.5-pro',
-  'gemini-3.5-flash',
+// Allowed Models
+export const AI_MODELS = [
+  'baidu-deepseek-v4-flash-0731',
   'gemini-flash-latest',
   'gemini-flash-lite-latest',
 ] as const
 
-// Combined list of all models for general validation or use
-export const AI_MODELS = [
-  ...AI_HUBMIX_MODELS_CHAT,
-] as const
-export type AiModel = typeof AI_MODELS[number] // General model type covering both chat and TTS
+export type AiModel = typeof AI_MODELS[number]
+export type AiChatModel = AiModel
 
-// Specific Chat Model Type
-const AI_CHAT_MODELS = [...AI_HUBMIX_MODELS_CHAT] as const
-export type AiChatModel = typeof AI_CHAT_MODELS[number]
+export const DEFAULT_AI_MODEL: AiModel = 'baidu-deepseek-v4-flash-0731'
 
 export interface AiRequestOptions {
   model?: AiModel
@@ -35,7 +29,7 @@ interface ProviderConfig {
 }
 
 function getProviderConfig(modelName: AiModel): ProviderConfig {
-  const isHubMixModel = (AI_HUBMIX_MODELS_CHAT as readonly string[]).includes(modelName)
+  const isHubMixModel = (AI_MODELS as readonly string[]).includes(modelName)
 
   if (isHubMixModel) {
     return {
@@ -51,8 +45,8 @@ function getProviderConfig(modelName: AiModel): ProviderConfig {
   }
 }
 
-function validateChatModel(model: string): model is AiChatModel {
-  return AI_CHAT_MODELS.includes(model as AiChatModel)
+function validateChatModel(model: string): model is AiModel {
+  return AI_MODELS.includes(model as AiModel)
 }
 
 export async function createAiChatRequest(
@@ -60,14 +54,14 @@ export async function createAiChatRequest(
   options?: AiRequestOptions,
 ) {
   const mergedOptions = {
-    model: 'gemini-flash-latest' satisfies AiChatModel,
+    model: DEFAULT_AI_MODEL,
     response_format: { type: 'json_object' as 'json_object' | 'text' },
     temperature: 0.4,
     ...options,
   }
 
   if (!validateChatModel(mergedOptions.model)) {
-    throw new Error(`Invalid chat model: ${mergedOptions.model}. Available chat models: ${AI_CHAT_MODELS.join(', ')}`)
+    throw new Error(`Invalid chat model: ${mergedOptions.model}. Available chat models: ${AI_MODELS.join(', ')}`)
   }
 
   const { apiKey, baseURL } = getProviderConfig(mergedOptions.model)
