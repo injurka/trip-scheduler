@@ -5,7 +5,6 @@ import {
   LlmModelSchema,
   LlmUsageSchema,
   LlmUsageSummarySchema,
-  SyncLlmModelsOutputSchema,
   UpsertLlmModelInputSchema,
 } from './llm-usage.schemas'
 import { llmUsageService } from './llm-usage.service'

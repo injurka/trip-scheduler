@@ -318,12 +318,12 @@ export function parseActivitiesFromMarkdown(dayContent: string): ActivityPayload
       tag,
       sections: sectionText
         ? [
-            {
-              id: crypto.randomUUID(),
-              type: 'description',
-              text: sectionText,
-            },
-          ]
+          {
+            id: crypto.randomUUID(),
+            type: 'description',
+            text: sectionText,
+          },
+        ]
         : [],
     })
 
@@ -401,12 +401,12 @@ export function parseActivitiesFromMarkdown(dayContent: string): ActivityPayload
           tag: inferActivityTag(title, sectionText),
           sections: sectionText
             ? [
-                {
-                  id: crypto.randomUUID(),
-                  type: 'description',
-                  text: sectionText,
-                },
-              ]
+              {
+                id: crypto.randomUUID(),
+                type: 'description',
+                text: sectionText,
+              },
+            ]
             : [],
         })
       }
@@ -425,7 +425,9 @@ async function generateActivitiesViaDirectLlm(canvasNote: string): Promise<Activ
     return null
 
   const baseUrl = process.env.AI_HUBMIX_API_URL || (process.env.AI_HUBMIX_KEY ? 'https://aihubmix.com/v1' : 'https://api.openai.com/v1')
-  const model = process.env.AI_HUBMIX_KEY ? 'gemini-flash-latest' : 'gpt-4o-mini'
+  const candidateModels = process.env.AI_HUBMIX_KEY
+    ? ['gemini-flash-latest', 'gemini-flash-lite-latest', 'baidu-deepseek-v4-flash']
+    : ['gpt-4o-mini', 'gpt-4o']
 
   const systemPrompt = `You are an expert travel planner API.
 The user wants to generate daily schedule activities from their markdown notes.
@@ -449,68 +451,81 @@ You MUST return ONLY a valid JSON object with a single key "activities", which i
   ]
 }`
 
-  try {
-    const res = await fetch(`${baseUrl.replace(/\/+$/, '')}/chat/completions`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${apiKey}`,
-      },
-      body: JSON.stringify({
-        model,
-        messages: [
-          { role: 'system', content: systemPrompt },
-          { role: 'user', content: `Вот заметка дня путешествия:\n\n${canvasNote}\n\nРазбей этот день на активности с точным временем начала и конца, тегами и подробными секциями описания.` },
-        ],
-        response_format: { type: 'json_object' },
-        temperature: 0.3,
-      }),
-    })
+  for (const model of candidateModels) {
+    try {
+      const res = await fetch(`${baseUrl.replace(/\/+$/, '')}/chat/completions`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${apiKey}`,
+        },
+        body: JSON.stringify({
+          model,
+          messages: [
+            { role: 'system', content: systemPrompt },
+            { role: 'user', content: `Вот заметка дня путешествия:\n\n${canvasNote}\n\nРазбей этот день на активности с точным временем начала и конца, тегами и подробными секциями описания.` },
+          ],
+          response_format: { type: 'json_object' },
+          temperature: 0.3,
+        }),
+      })
 
-    if (!res.ok)
-      return null
-    const data = await res.json()
-    const content = data.choices?.[0]?.message?.content
-    if (!content)
-      return null
+      if (!res.ok)
+        continue
 
-    let text = content.trim()
-    const codeBlockMatch = text.match(/```(?:json)?\s*([\s\S]*?)\s*```/i)
-    if (codeBlockMatch) {
-      text = codeBlockMatch[1].trim()
-    }
-    else {
-      text = text.replace(/^```(?:json)?\s*/i, '').replace(/\s*```$/i, '').trim()
-    }
+      const data = await res.json()
+      const content = data.choices?.[0]?.message?.content
+      if (!content)
+        continue
 
-    const firstBrace = text.indexOf('{')
-    const firstBracket = text.indexOf('[')
-    let startIndex = -1
-    let isArray = false
-    if (firstBrace !== -1 && (firstBracket === -1 || firstBrace < firstBracket)) {
-      startIndex = firstBrace
-      isArray = false
-    }
-    else if (firstBracket !== -1) {
-      startIndex = firstBracket
-      isArray = true
-    }
+      let text = content.trim()
+      const firstFence = text.indexOf('```')
+      const lastFence = text.lastIndexOf('```')
+      if (firstFence !== -1 && lastFence > firstFence) {
+        let inner = text.slice(firstFence + 3, lastFence).trim()
+        if (inner.toLowerCase().startsWith('json')) {
+          inner = inner.slice(4).trim()
+        }
+        text = inner
+      }
+      else {
+        text = text.replace(/^```(?:json)?/i, '').replace(/```$/, '').trim()
+      }
 
-    if (startIndex !== -1) {
-      const endChar = isArray ? ']' : '}'
-      const lastIndex = text.lastIndexOf(endChar)
-      if (lastIndex > startIndex) {
-        text = text.substring(startIndex, lastIndex + 1)
+      const firstBrace = text.indexOf('{')
+      const firstBracket = text.indexOf('[')
+      let startIndex = -1
+      let isArray = false
+      if (firstBrace !== -1 && (firstBracket === -1 || firstBrace < firstBracket)) {
+        startIndex = firstBrace
+        isArray = false
+      }
+      else if (firstBracket !== -1) {
+        startIndex = firstBracket
+        isArray = true
+      }
+
+      if (startIndex !== -1) {
+        const endChar = isArray ? ']' : '}'
+        const lastIndex = text.lastIndexOf(endChar)
+        if (lastIndex > startIndex) {
+          text = text.substring(startIndex, lastIndex + 1)
+        }
+      }
+      text = text.replace(/,\s*([\]}])/g, '$1')
+
+      const parsed = JSON.parse(text)
+      const acts = parsed.activities || (Array.isArray(parsed) ? parsed : null)
+      if (acts && Array.isArray(acts) && acts.length > 0) {
+        return acts
       }
     }
-    text = text.replace(/,\s*([\]}])/g, '$1')
+    catch {
+      // try next candidate model
+    }
+  }
 
-    const parsed = JSON.parse(text)
-    return parsed.activities || (Array.isArray(parsed) ? parsed : null)
-  }
-  catch {
-    return null
-  }
+  return null
 }
 
 // -----------------------------------------------------------------------------

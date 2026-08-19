@@ -79,6 +79,7 @@ export const usePostStore = defineStore('post-main', {
       search: '',
       tab: 'explore' as 'explore' | 'saved',
     },
+    hasLoaded: false,
   }),
 
   getters: {
@@ -89,14 +90,14 @@ export const usePostStore = defineStore('post-main', {
 
   actions: {
     async fetchPosts(reload = false) {
-      if (reload) {
-        this.nextCursor = undefined
-        this.posts = []
-      }
+      if (!reload && this.hasLoaded && this.posts.length > 0)
+        return
+
+      const cursor = reload ? undefined : this.nextCursor
 
       const filters: ListPostsFilters = {
         limit: 10,
-        cursor: this.nextCursor,
+        cursor,
         query: this.filters.search || undefined,
         onlySaved: this.filters.tab === 'saved',
       }
@@ -113,6 +114,7 @@ export const usePostStore = defineStore('post-main', {
             this.posts.push(...data.items)
 
           this.nextCursor = data.nextCursor
+          this.hasLoaded = true
         },
       })
     },
@@ -129,9 +131,6 @@ export const usePostStore = defineStore('post-main', {
             const existingIndex = this.posts.findIndex(p => p.id === id)
             if (existingIndex !== -1) {
               this.posts.splice(existingIndex, 1, data)
-            }
-            else {
-              this.posts.unshift(data)
             }
             post = data
           }
@@ -201,6 +200,8 @@ export const usePostStore = defineStore('post-main', {
     },
 
     setTab(tab: 'explore' | 'saved') {
+      if (this.filters.tab === tab)
+        return
       this.filters.tab = tab
       this.fetchPosts(true)
     },

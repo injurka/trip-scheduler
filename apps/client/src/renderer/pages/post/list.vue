@@ -49,7 +49,7 @@ async function handleDelete(id: string) {
 }
 
 onMounted(() => {
-  store.fetchPosts(true)
+  store.fetchPosts()
 })
 </script>
 
@@ -140,6 +140,7 @@ onMounted(() => {
   display: flex;
   flex-direction: column;
   gap: 24px;
+  position: relative;
 }
 
 .empty-feed {

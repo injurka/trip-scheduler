@@ -9,6 +9,14 @@ const { filters } = storeToRefs(store)
 function handleTabChange(tab: 'explore' | 'saved') {
   store.setTab(tab)
 }
+
+watchDebounced(
+  () => filters.value.search,
+  () => {
+    store.fetchPosts(true)
+  },
+  { debounce: 300 },
+)
 </script>
 
 <template>

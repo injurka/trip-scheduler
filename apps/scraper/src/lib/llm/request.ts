@@ -2,7 +2,7 @@ import OpenAI from 'openai'
 
 // Allowed Models
 export const AI_MODELS = [
-  'baidu-deepseek-v4-flash-0731',
+  'baidu-deepseek-v4-flash',
   'gemini-flash-latest',
   'gemini-flash-lite-latest',
 ] as const
@@ -10,7 +10,7 @@ export const AI_MODELS = [
 export type AiModel = typeof AI_MODELS[number]
 export type AiChatModel = AiModel
 
-export const DEFAULT_AI_MODEL: AiModel = 'baidu-deepseek-v4-flash-0731'
+export const DEFAULT_AI_MODEL: AiModel = 'baidu-deepseek-v4-flash'
 
 export interface AiRequestOptions {
   model?: AiModel

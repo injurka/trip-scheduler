@@ -3,7 +3,7 @@ import { externalApiCallsCounter, externalApiDurationHistogram } from '~/service
 
 // Allowed Models
 export const AI_MODELS = [
-  'baidu-deepseek-v4-flash-0731',
+  'baidu-deepseek-v4-flash',
   'gemini-flash-latest',
   'gemini-flash-lite-latest',
 ] as const
@@ -11,7 +11,7 @@ export const AI_MODELS = [
 export type AiModel = typeof AI_MODELS[number]
 export type AiChatModel = AiModel
 
-export const DEFAULT_AI_MODEL: AiModel = 'baidu-deepseek-v4-flash-0731'
+export const DEFAULT_AI_MODEL: AiModel = 'baidu-deepseek-v4-flash'
 
 export interface AiRequestOptions {
   model?: AiModel
@@ -93,22 +93,53 @@ export async function createAiChatRequest(
     throw new Error(`Invalid chat model: ${mergedOptions.model}. Available chat models: ${AI_MODELS.join(', ')}`)
   }
 
-  const { apiKey, baseURL } = getProviderConfig(mergedOptions.model)
+  // Model candidate list: primary model first, followed by others as fallback
+  const candidateModels: AiModel[] = [
+    mergedOptions.model,
+    ...AI_MODELS.filter(m => m !== mergedOptions.model),
+  ]
 
-  const openai = new OpenAI({
-    apiKey,
-    baseURL,
-  })
+  let lastError: any = null
 
-  return measureExternalApiCall(mergedOptions.model, 'chat_completion', () =>
-    openai.chat.completions.create({
-      messages: [
-        { role: 'system', content: prompt.system },
-        { role: 'user', content: prompt.user },
-      ],
-      model: mergedOptions.model,
-      response_format: mergedOptions.response_format,
-      temperature: mergedOptions.temperature,
-      stream: false,
-    }))
+  for (let i = 0; i < candidateModels.length; i++) {
+    const currentModel = candidateModels[i]
+    const { apiKey, baseURL } = getProviderConfig(currentModel)
+
+    const openai = new OpenAI({
+      apiKey,
+      baseURL,
+    })
+
+    try {
+      return await measureExternalApiCall(currentModel, 'chat_completion', () =>
+        openai.chat.completions.create({
+          messages: [
+            { role: 'system', content: prompt.system },
+            { role: 'user', content: prompt.user },
+          ],
+          model: currentModel,
+          response_format: mergedOptions.response_format,
+          temperature: mergedOptions.temperature,
+          stream: false,
+        }))
+    }
+    catch (error: any) {
+      lastError = error
+      const hasNext = i < candidateModels.length - 1
+      if (hasNext) {
+        const nextModel = candidateModels[i + 1]
+        console.warn(
+          `[LLM Request] Модель "${currentModel}" вернула ошибку (${error.message}). Переключение на резервную модель "${nextModel}"...`,
+        )
+      }
+      else {
+        console.error(
+          `[LLM Request] Все модели (${candidateModels.join(', ')}) завершились ошибкой. Последняя ошибка:`,
+          error,
+        )
+      }
+    }
+  }
+
+  throw lastError
 }

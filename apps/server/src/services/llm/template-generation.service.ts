@@ -1,6 +1,6 @@
 import type { AiRequestPrompts } from '~/lib/llm'
 import { TRPCError } from '@trpc/server'
-import { createAiChatRequest, DEFAULT_AI_MODEL, parseJsonWithAiRepair } from '~/lib/llm'
+import { AI_MODELS, createAiChatRequest, DEFAULT_AI_MODEL, parseJsonWithAiRepair } from '~/lib/llm'
 import { llmUsageRepository } from '~/repositories/llm-usage.repository'
 import { quotaService } from '~/services/quota.service'
 
@@ -85,16 +85,17 @@ export const templateGenerationService = {
     })
 
     if (completion.usage) {
+      const actualModelId = (AI_MODELS as readonly string[]).find(m => completion.model?.includes(m) || m.includes(completion.model)) || modelId
       await quotaService.deductLlmCredits(
         userId,
-        modelId,
+        actualModelId,
         completion.usage.prompt_tokens,
         completion.usage.completion_tokens,
       )
 
       await llmUsageRepository.create({
         userId,
-        model: modelId,
+        model: actualModelId,
         operation: 'templateGeneration',
         inputTokens: completion.usage.prompt_tokens,
         outputTokens: completion.usage.completion_tokens,
