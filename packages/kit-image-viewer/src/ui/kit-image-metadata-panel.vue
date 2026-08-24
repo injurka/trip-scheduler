@@ -75,13 +75,19 @@ const osmLink = computed(() => {
 })
 
 const takenAtDate = computed(() => {
-  if (!props.meta.takenAt)
+  if (!props.meta?.takenAt)
     return ''
 
-  return new Date(props.meta.takenAt).toLocaleString('ru-RU', {
+  const date = new Date(props.meta.takenAt)
+  if (Number.isNaN(date.getTime()))
+    return ''
+
+  return date.toLocaleString('ru-RU', {
     year: 'numeric',
     month: 'long',
     day: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit',
   })
 })
 
