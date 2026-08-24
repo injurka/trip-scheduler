@@ -267,28 +267,36 @@ onMounted(() => {
     >
       <template #footer>
         <div v-if="currentViewerHighlight" class="viewer-caption">
-          <div class="viewer-caption__content">
-            <h4 class="viewer-caption__location">
-              {{ viewerLocation }}
-            </h4>
+          <div class="header">
+            <div class="location-wrap">
+              <img
+                v-if="currentViewerHighlight.country?.flagUrl"
+                :src="currentViewerHighlight.country.flagUrl"
+                :alt="currentViewerHighlight.country?.name || ''"
+                class="flag"
+              >
+              <h4 class="location">
+                {{ viewerLocation }}
+              </h4>
+            </div>
 
-            <p v-if="viewerAddress" class="viewer-caption__address">
-              {{ viewerAddress }}
-            </p>
-
-            <p
-              v-if="viewerComment"
-              class="viewer-caption__comment"
-            >
-              {{ viewerComment }}
-            </p>
-          </div>
-
-          <div class="viewer-caption__meta">
-            <span v-if="viewerDate" class="viewer-pill">
+            <span v-if="viewerDate" class="date">
+              <Icon icon="mdi:calendar-blank-outline" class="icon" />
               {{ viewerDate }}
             </span>
           </div>
+
+          <p v-if="viewerAddress" class="address">
+            <Icon icon="mdi:map-marker-outline" class="icon" />
+            <span>{{ viewerAddress }}</span>
+          </p>
+
+          <p
+            v-if="viewerComment"
+            class="comment"
+          >
+            {{ viewerComment }}
+          </p>
         </div>
       </template>
     </KitImageViewer>
@@ -360,67 +368,98 @@ onMounted(() => {
 }
 
 .viewer-caption {
-  width: min(920px, calc(100% - 24px));
-  margin: 0 auto 14px;
-  padding: 14px 16px;
-  border-radius: var(--r-l);
-  background: rgba(10, 10, 10, 0.72);
-  backdrop-filter: blur(4px);
+  width: min(680px, calc(100% - 32px));
+  margin: 0 auto 12px;
+  padding: 12px 18px;
+  border-radius: var(--r-m);
+  background: rgba(18, 18, 18, 0.72);
+  backdrop-filter: blur(16px) saturate(180%);
+  -webkit-backdrop-filter: blur(16px) saturate(180%);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.36);
   color: white;
-  display: flex;
-  align-items: flex-end;
-  justify-content: space-between;
-  gap: 16px;
-  pointer-events: auto;
-  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.24);
-}
-
-.viewer-caption__content {
-  min-width: 0;
   display: flex;
   flex-direction: column;
   gap: 6px;
-}
+  pointer-events: auto;
 
-.viewer-caption__location {
-  margin: 0;
-  font-size: 1rem;
-  font-weight: 700;
-  color: white;
-}
+  .header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    min-width: 0;
+  }
 
-.viewer-caption__address {
-  margin: 0;
-  font-size: 0.85rem;
-  color: rgba(255, 255, 255, 0.78);
-}
+  .location-wrap {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    min-width: 0;
+  }
 
-.viewer-caption__comment {
-  margin: 0;
-  font-size: 0.92rem;
-  line-height: 1.5;
-  color: rgba(255, 255, 255, 0.96);
-  white-space: pre-wrap;
-  word-break: break-word;
-}
+  .flag {
+    width: 18px;
+    height: 12px;
+    object-fit: cover;
+    border-radius: 2px;
+    flex-shrink: 0;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.3);
+  }
 
-.viewer-caption__meta {
-  display: flex;
-  flex-shrink: 0;
-  align-items: center;
-}
+  .location {
+    margin: 0;
+    font-size: 0.95rem;
+    font-weight: 600;
+    color: #ffffff;
+    letter-spacing: -0.01em;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
 
-.viewer-pill {
-  display: inline-flex;
-  align-items: center;
-  height: 32px;
-  padding: 0 12px;
-  border-radius: var(--r-full);
-  background: rgba(255, 255, 255, 0.1);
-  color: white;
-  font-size: 0.8rem;
-  font-weight: 600;
-  white-space: nowrap;
+  .date {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    flex-shrink: 0;
+    font-size: 0.8rem;
+    font-weight: 400;
+    color: rgba(255, 255, 255, 0.65);
+    white-space: nowrap;
+  }
+
+  .address {
+    margin: 0;
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    font-size: 0.8rem;
+    color: rgba(255, 255, 255, 0.6);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+
+    span {
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+  }
+
+  .comment {
+    margin: 2px 0 0;
+    font-size: 0.875rem;
+    line-height: 1.45;
+    color: rgba(255, 255, 255, 0.92);
+    white-space: pre-wrap;
+    word-break: break-word;
+  }
+
+  .icon {
+    font-size: 0.95rem;
+    flex-shrink: 0;
+    opacity: 0.75;
+  }
 }
 
 @media (max-width: 1280px) {
@@ -438,13 +477,26 @@ onMounted(() => {
   .viewer-caption {
     width: calc(100% - 16px);
     margin-bottom: 8px;
-    padding: 12px;
-    flex-direction: column;
-    align-items: flex-start;
-  }
+    padding: 10px 14px;
+    gap: 5px;
 
-  .viewer-caption__meta {
-    width: 100%;
+    .header {
+      flex-wrap: wrap;
+      gap: 4px 10px;
+    }
+
+    .location {
+      font-size: 0.9rem;
+    }
+
+    .date,
+    .address {
+      font-size: 0.75rem;
+    }
+
+    .comment {
+      font-size: 0.82rem;
+    }
   }
 }
 </style>

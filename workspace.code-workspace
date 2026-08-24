@@ -10,10 +10,10 @@
 			"path": "apps/server"
 		},
 		{
-			"path": "apps/scraper"
+			"path": "tools/scraper"
 		},
 		{
-			"path": "apps/browse-agent"
+			"path": "tools/browse-agent"
 		},
 		{
 			"path": "docker"

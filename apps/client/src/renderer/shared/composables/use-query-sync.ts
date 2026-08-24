@@ -15,6 +15,10 @@ export function useQuerySync<T>(
   const route = useRoute()
   const router = useRouter()
 
+  let lastRawKey: string | undefined
+  let lastParsedResult: T = defaultValue
+  let hasParsed = false
+
   const updateQuery = (newVal: string | string[] | undefined) => {
     if (!pendingQuery) {
       pendingQuery = { ...route.query }
@@ -43,18 +47,38 @@ export function useQuerySync<T>(
   return computed<T>({
     get() {
       const val = route.query[key] as string | string[] | undefined
-      if (val === undefined || val === null || val === '')
+      if (val === undefined || val === null || val === '') {
+        hasParsed = false
+        lastRawKey = undefined
         return defaultValue
-      if (options.parse)
-        return options.parse(val)
+      }
 
-      if (typeof defaultValue === 'number')
-        return Number(val) as unknown as T
-      if (typeof defaultValue === 'boolean')
-        return (val === 'true') as unknown as T
-      if (Array.isArray(defaultValue))
-        return (Array.isArray(val) ? val : [val]) as unknown as T
-      return val as unknown as T
+      const rawKey = JSON.stringify(val)
+      if (hasParsed && rawKey === lastRawKey) {
+        return lastParsedResult
+      }
+
+      let parsed: T
+      if (options.parse) {
+        parsed = options.parse(val)
+      }
+      else if (typeof defaultValue === 'number') {
+        parsed = Number(val) as unknown as T
+      }
+      else if (typeof defaultValue === 'boolean') {
+        parsed = (val === 'true') as unknown as T
+      }
+      else if (Array.isArray(defaultValue)) {
+        parsed = (Array.isArray(val) ? val : [val]) as unknown as T
+      }
+      else {
+        parsed = val as unknown as T
+      }
+
+      lastRawKey = rawKey
+      lastParsedResult = parsed
+      hasParsed = true
+      return parsed
     },
     set(newVal) {
       let isDefault = newVal === defaultValue || (newVal === '' && defaultValue === null)
