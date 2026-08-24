@@ -10,6 +10,9 @@
 			"path": "apps/server"
 		},
 		{
+			"path": "packages/kit-image-viewer"
+		},
+		{
 			"path": "tools/scraper"
 		},
 		{

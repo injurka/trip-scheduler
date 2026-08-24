@@ -73,7 +73,7 @@
 
 1.  **Клонируйте репозиторий:**
     ```bash
-    git clone https://github.com/xsolare/trip-scheduler
+    git clone https://github.com/injurkx/trip-scheduler
     cd trip-scheduler
     ```
 

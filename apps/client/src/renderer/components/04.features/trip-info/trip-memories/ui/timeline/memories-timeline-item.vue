@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import type { ImageQuality } from '~/components/01.kit/kit-image-viewer/models/types'
+import type { ImageQuality } from '~/components/01.kit/kit-image-viewer'
 import type { IMemory } from '~/components/05.modules/trip-info/models/types'
 import { Icon } from '@iconify/vue'
 import { onClickOutside, useStorage, useWindowSize } from '@vueuse/core'

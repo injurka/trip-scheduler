@@ -1,16 +1,13 @@
 <script setup lang="ts">
+import type { Component } from 'vue'
 import type { IImageViewerImageMeta, ImageQuality, ImageViewerImage } from '../models/types'
 import { Icon } from '@iconify/vue'
 import { onClickOutside, toRef, useEventListener, useIdle } from '@vueuse/core'
-import { KitTooltip } from '~/components/01.kit/kit-tooltip'
-import { useRequest } from '~/plugins/request'
+import { computed, onUnmounted, reactive, ref, toRaw, watch } from 'vue'
 import { useImageViewerSwipe, useImageViewerTransform, useImageViewerUi } from '../composables'
 import ImageMetadataPanel from './kit-image-metadata-panel.vue'
 import KitViewerControls from './kit-viewer-controls.vue'
-
-enum EImageViewerKeys {
-  FETCH_IMAGE_VIEWER_METADATA = 'image-viewer:fetch-metadata',
-}
+import KitViewerTooltip from './kit-viewer-tooltip.vue'
 
 interface Props {
   visible: boolean
@@ -31,6 +28,10 @@ interface Props {
   hasNextPage?: boolean
   hasPrevPage?: boolean
   isFetching?: boolean
+  resolveUrl?: (url: string) => string
+  fetchMetadata?: (image: ImageViewerImage) => Promise<IImageViewerImageMeta | null | void>
+  mapComponent?: Component
+  qualityLabels?: Record<string, string>
 }
 
 interface Emits {
@@ -42,6 +43,7 @@ interface Emits {
   (e: 'imageError', error: Event): void
   (e: 'nextPage'): void
   (e: 'prevPage'): void
+  (e: 'fetchMetadata', image: ImageViewerImage): void
 }
 
 const props = withDefaults(defineProps<Props>(), {
@@ -72,6 +74,13 @@ const currentImage = computed(() => props.images[props.currentIndex] ?? null)
 const hasMultipleImages = computed(() => props.images.length > 1)
 
 const paginationPromptDirection = ref<'next' | 'prev' | null>(null)
+const failedThumbnails = ref<Set<number>>(new Set())
+const loadedThumbnails = ref<Set<number>>(new Set())
+
+watch(() => props.images, () => {
+  failedThumbnails.value = new Set()
+  loadedThumbnails.value = new Set()
+})
 
 function closePaginationPrompt() {
   paginationPromptDirection.value = null
@@ -89,6 +98,7 @@ function confirmPagination() {
 
 const {
   selectedQuality,
+  qualityItems,
   onImageLoad,
   onImageError,
   isMetadataPanelOpen,
@@ -102,6 +112,7 @@ const {
   containerRef,
   thumbnailsRef,
   qualityModel: toRef(props, 'quality'),
+  qualityLabels: props.qualityLabels,
   onQualityChange: val => emit('update:quality', val),
 })
 
@@ -196,12 +207,28 @@ function getImageUrl(image: ImageViewerImage, quality: ImageQuality): string {
   if (!image)
     return ''
   const { variants, url } = image
-  switch (quality) {
-    case 'medium': return variants?.medium || variants?.large || url || ''
-    case 'large': return variants?.large || variants?.medium || url || ''
-    case 'original': return url || ''
-    default: return url || ''
+  let rawUrl = ''
+
+  if (variants && variants[quality]) {
+    rawUrl = variants[quality]!
   }
+  else if (quality === 'original' && url) {
+    rawUrl = url
+  }
+  else if (variants) {
+    rawUrl = variants.large || variants.medium || variants.small || Object.values(variants).find(v => !!v) || url || ''
+  }
+  else {
+    rawUrl = url || ''
+  }
+
+  return props.resolveUrl ? props.resolveUrl(rawUrl) : rawUrl
+}
+
+function resolveThumbnailUrl(image: ImageViewerImage): string {
+  const v = image.variants
+  const rawUrl = v?.small || v?.thumbnail || v?.thumb || v?.preview || v?.medium || image.url || ''
+  return props.resolveUrl ? props.resolveUrl(rawUrl) : rawUrl
 }
 
 function handleImageLoad(index: number, event: Event) {
@@ -305,34 +332,31 @@ async function handleShowMetadata() {
     return
   }
 
-  const imageId = (image.meta as any)?.imageId
-  if (imageId) {
+  if (props.fetchMetadata) {
     isMetadataLoading.value = true
     try {
-      await useRequest({
-        key: EImageViewerKeys.FETCH_IMAGE_VIEWER_METADATA,
-        fn: db => db.files.getMetadata(imageId),
-        onSuccess: (fullMetadata) => {
-          if (fullMetadata) {
-            if (!image.meta)
-              image.meta = {}
-            Object.assign(image.meta, fullMetadata)
-          }
-          isMetadataPanelOpen.value = true
-        },
-        onError: ({ error }) => {
-          console.error('[ImageViewer] Failed to load metadata:', error.customMessage)
-          if (image.meta)
-            isMetadataPanelOpen.value = true
-        },
-      })
+      const fullMeta = await props.fetchMetadata(image)
+      if (fullMeta) {
+        if (!image.meta)
+          image.meta = {}
+        Object.assign(image.meta, fullMeta)
+      }
+      isMetadataPanelOpen.value = true
+    }
+    catch (e) {
+      console.error('[ImageViewer] Failed to load metadata:', e)
+      if (image.meta)
+        isMetadataPanelOpen.value = true
     }
     finally {
       isMetadataLoading.value = false
     }
   }
-  else if (image.meta) {
-    isMetadataPanelOpen.value = true
+  else {
+    emit('fetchMetadata', image)
+    if (image.meta) {
+      isMetadataPanelOpen.value = true
+    }
   }
 }
 
@@ -379,6 +403,8 @@ watch(areControlsVisible, (visible) => {
 })
 
 watch(() => props.visible, (isVisible) => {
+  if (typeof document === 'undefined')
+    return
   if (isVisible) {
     document.body.style.overflow = 'hidden'
     isUiVisible.value = true
@@ -403,7 +429,7 @@ onClickOutside(viewerContentRef, () => {
   }
 })
 
-useEventListener(document, 'keydown', (e: KeyboardEvent) => {
+useEventListener(typeof document !== 'undefined' ? document : null, 'keydown', (e: KeyboardEvent) => {
   if (!props.visible || !props.enableKeyboard)
     return
 
@@ -442,7 +468,8 @@ useEventListener(document, 'keydown', (e: KeyboardEvent) => {
 })
 
 onUnmounted(() => {
-  document.body.style.overflow = ''
+  if (typeof document !== 'undefined')
+    document.body.style.overflow = ''
   loaderTimeouts.forEach(timer => clearTimeout(timer))
   loaderTimeouts.clear()
 })
@@ -479,6 +506,7 @@ onUnmounted(() => {
                 <KitViewerControls
                   v-model:is-ui-visible="isUiVisible"
                   v-model:quality="selectedQuality"
+                  :quality-items="qualityItems"
                   :can-zoom-in="canZoomIn"
                   :can-zoom-out="canZoomOut"
                   :is-zoomed="isZoomed"
@@ -542,19 +570,21 @@ onUnmounted(() => {
                   <div class="current-image-wrapper">
                     <div
                       class="image-slot"
-                      :style="images[i].meta?.width && images[i].meta?.height
-                        ? { aspectRatio: `${images[i].meta.width}/${images[i].meta.height}` }
+                      :class="{ 'has-error': imageLoadStates[i]?.error }"
+                      :style="!imageLoadStates[i]?.error && images[i]?.meta?.width && images[i]?.meta?.height
+                        ? { aspectRatio: `${images[i].meta?.width}/${images[i].meta?.height}` }
                         : undefined"
                     >
                       <img
                         :ref="el => setRef(el, i)"
-                        v-resolve-src="getImageUrl(images[i], i === currentIndex ? selectedQuality : 'large')"
-                        :alt="images[i].alt || `Image ${i + 1}`"
+                        :src="getImageUrl(images[i], i === currentIndex ? selectedQuality : 'large')"
+                        :alt="images[i]?.alt || `Image ${i + 1}`"
                         class="viewer-image"
                         :class="{
                           'loaded': imageLoadStates[i]?.loaded,
+                          'has-error': imageLoadStates[i]?.error,
                           'is-ui-hidden': !isUiVisible,
-                          'fill-slot': !!(images[i].meta?.width && images[i].meta?.height),
+                          'fill-slot': !!(images[i]?.meta?.width && images[i]?.meta?.height),
                         }"
                         :style="i === currentIndex ? [imageStyle, currentImageStyle] : adjacentImageStyle"
                         @load="e => handleImageLoad(i, e)"
@@ -565,11 +595,18 @@ onUnmounted(() => {
                       >
 
                       <Transition name="loader-fade">
-                        <div v-if="(!imageLoadStates[i]?.loaded && imageLoadStates[i]?.loader) || imageLoadStates[i]?.error" class="placeholder-wrapper">
+                        <div
+                          v-if="(!imageLoadStates[i]?.loaded && imageLoadStates[i]?.loader) || imageLoadStates[i]?.error"
+                          class="placeholder-wrapper"
+                          :class="{ 'is-error': imageLoadStates[i]?.error }"
+                        >
                           <div class="placeholder-content">
                             <div v-if="imageLoadStates[i]?.error" class="image-error">
-                              <Icon width="64" height="64" icon="mdi:image-broken-variant" />
-                              <span>Не удалось загрузить изображение</span>
+                              <div class="error-icon-circle">
+                                <Icon icon="mdi:image-broken-variant" class="error-icon" />
+                              </div>
+                              <span class="error-title">Не удалось загрузить изображение</span>
+                              <span class="error-subtitle">Проверьте подключение к сети или корректность ссылки</span>
                             </div>
                             <div v-else class="shimmer-container">
                               <div class="shimmer-wave" />
@@ -613,19 +650,38 @@ onUnmounted(() => {
             <Transition name="controls-fade">
               <div v-show="areControlsVisible && isUiVisible" class="thumbnails-container">
                 <div ref="thumbnailsRef" class="thumbnails-wrapper">
-                  <KitTooltip
+                  <KitViewerTooltip
                     v-for="(image, index) in images"
                     :key="`thumb-${index}`"
-                    :text="`Go to image ${index + 1}`"
+                    :text="`К изображению ${index + 1}`"
                   >
                     <button
                       class="thumbnail"
-                      :class="{ active: index === currentIndex }"
+                      :class="{
+                        'active': index === currentIndex,
+                        'is-broken': failedThumbnails.has(index),
+                        'is-loaded': loadedThumbnails.has(index),
+                      }"
                       @click.stop="goToIndex(index)"
                     >
-                      <img v-resolve-src="image.variants?.small || image.url" :alt="image.alt || `Thumbnail ${index + 1}`">
+                      <template v-if="!failedThumbnails.has(index)">
+                        <img
+                          :src="resolveThumbnailUrl(image)"
+                          :alt="image.alt || `Thumbnail ${index + 1}`"
+                          loading="lazy"
+                          :class="{ loaded: loadedThumbnails.has(index) }"
+                          @load="loadedThumbnails.add(index)"
+                          @error="failedThumbnails.add(index)"
+                        >
+                        <div v-if="!loadedThumbnails.has(index)" class="thumb-skeleton">
+                          <div class="thumb-skeleton-wave" />
+                        </div>
+                      </template>
+                      <div v-else class="thumb-broken-placeholder">
+                        <Icon icon="mdi:image-off-outline" />
+                      </div>
                     </button>
-                  </KitTooltip>
+                  </KitViewerTooltip>
                 </div>
               </div>
             </Transition>
@@ -636,8 +692,13 @@ onUnmounted(() => {
           v-if="currentImageMeta"
           :meta="currentImageMeta"
           :visible="isMetadataPanelOpen"
+          :map-component="mapComponent"
           @close="closeMetadataPanel"
-        />
+        >
+          <template #map="mapScope">
+            <slot name="map" v-bind="mapScope" />
+          </template>
+        </ImageMetadataPanel>
       </div>
     </Transition>
   </Teleport>
@@ -648,8 +709,8 @@ onUnmounted(() => {
   position: fixed;
   top: env(safe-area-inset-top) !important;
   inset: 0;
-  background: rgba(0, 0, 0, 0.95);
-  z-index: 1002;
+  background: var(--viewer-overlay-bg, rgba(0, 0, 0, 0.95));
+  z-index: var(--z-image-viewer, 1002);
   display: flex;
   flex-direction: column;
   touch-action: none;
@@ -720,7 +781,7 @@ onUnmounted(() => {
   backdrop-filter: blur(4px);
   color: #fff;
   padding: 8px 16px;
-  border-radius: var(--r-full);
+  border-radius: var(--r-full, 9999px);
   font-size: 14px;
   font-weight: 500;
   border: 1px solid rgba(255, 255, 255, 0.1);
@@ -758,20 +819,38 @@ onUnmounted(() => {
   max-width: 100%;
   max-height: 100%;
   line-height: 0;
-  /* aspect-ratio задаётся inline-стилем когда известны размеры из meta.
-     Это позволяет браузеру правильно ограничивать слот по max-width/max-height
-     независимо от ориентации изображения. */
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  &.has-error {
+    width: 440px;
+    height: 280px;
+    max-width: 90vw;
+    max-height: 60vh;
+  }
 }
 
 .placeholder-wrapper {
   position: absolute;
   inset: 0;
-  border-radius: var(--r-2xs);
+  border-radius: var(--r-2xs, 4px);
   overflow: hidden;
   backdrop-filter: blur(12px);
   background: rgba(0, 0, 0, 0.3);
   z-index: 10;
   pointer-events: none;
+
+  &.is-error {
+    background: rgba(22, 22, 24, 0.9);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    box-shadow: 0 16px 40px rgba(0, 0, 0, 0.6);
+    border-radius: 16px;
+    pointer-events: auto;
+    position: relative;
+    width: 100%;
+    height: 100%;
+  }
 }
 
 .placeholder-content {
@@ -780,6 +859,7 @@ onUnmounted(() => {
   display: flex;
   align-items: center;
   justify-content: center;
+  padding: 24px;
 }
 
 .image-error {
@@ -787,13 +867,42 @@ onUnmounted(() => {
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  gap: 16px;
-  color: var(--fg-secondary-color);
-  font-size: 16px;
+  text-align: center;
+  gap: 8px;
+  color: #fff;
   width: 100%;
+  user-select: none;
+  padding: 16px;
 
-  .icon {
-    font-size: 48px;
+  .error-icon-circle {
+    width: 64px;
+    height: 64px;
+    border-radius: 50%;
+    background: rgba(239, 68, 68, 0.12);
+    border: 1px solid rgba(239, 68, 68, 0.3);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin-bottom: 6px;
+  }
+
+  .error-icon {
+    font-size: 32px;
+    color: #ef4444;
+  }
+
+  .error-title {
+    font-size: 1rem;
+    font-weight: 600;
+    color: #f1f5f9;
+    line-height: 1.3;
+  }
+
+  .error-subtitle {
+    font-size: 0.8rem;
+    color: #94a3b8;
+    line-height: 1.4;
+    max-width: 320px;
   }
 }
 
@@ -803,7 +912,7 @@ onUnmounted(() => {
   display: flex;
   align-items: center;
   justify-content: center;
-  border-radius: var(--r-2xs);
+  border-radius: var(--r-2xs, 4px);
   overflow: hidden;
 }
 
@@ -843,10 +952,8 @@ onUnmounted(() => {
     opacity 0.4s ease,
     border-radius 0.3s ease;
   opacity: 0.5;
-  border-radius: var(--r-2xs);
+  border-radius: var(--r-2xs, 4px);
 
-  /* Когда aspect-ratio задан на .image-slot — изображение просто заполняет слот.
-     Слот сам отвечает за правильные пропорции через aspect-ratio + max-width/max-height. */
   &.fill-slot {
     width: 100%;
     height: 100%;
@@ -860,6 +967,15 @@ onUnmounted(() => {
 
   &.loaded {
     opacity: 1;
+  }
+
+  &.has-error {
+    opacity: 0 !important;
+    visibility: hidden !important;
+    position: absolute !important;
+    width: 0 !important;
+    height: 0 !important;
+    pointer-events: none !important;
   }
 
   &:active {
@@ -897,7 +1013,7 @@ onUnmounted(() => {
   background: rgba(20, 20, 20, 0.85);
   border: 1px solid rgba(255, 255, 255, 0.1);
   padding: 32px;
-  border-radius: var(--r-xl);
+  border-radius: var(--r-xl, 16px);
   text-align: center;
   max-width: 400px;
   box-shadow: 0 20px 40px rgba(0, 0, 0, 0.4);
@@ -909,7 +1025,7 @@ onUnmounted(() => {
 
   .prompt-icon {
     font-size: 48px;
-    color: var(--fg-accent-color, #fff);
+    color: var(--fg-accent-color, #3b82f6);
     margin-bottom: 8px;
   }
 
@@ -935,7 +1051,7 @@ onUnmounted(() => {
     .prompt-btn {
       flex: 1;
       padding: 12px 16px;
-      border-radius: var(--r-full);
+      border-radius: var(--r-full, 9999px);
       font-weight: 600;
       font-size: 0.95rem;
       cursor: pointer;
@@ -1013,7 +1129,7 @@ onUnmounted(() => {
   display: flex;
   justify-content: center;
 
-  @include media-down(sm) {
+  @media (max-width: 599px) {
     padding: 8px;
   }
 }
@@ -1028,14 +1144,15 @@ onUnmounted(() => {
 .thumbnails-wrapper {
   display: flex;
   gap: 10px;
-  padding: 10px 20px;
+  padding: 10px calc(50% - 28px);
+  scroll-padding: 0 calc(50% - 28px);
   background: transparent;
   border: none;
 
   overflow-x: auto;
   max-width: 100%;
-  mask-image: linear-gradient(to right, transparent, black 5%, black 95%, transparent);
-  -webkit-mask-image: linear-gradient(to right, transparent, black 5%, black 95%, transparent);
+  mask-image: linear-gradient(to right, transparent 0%, black 15%, black 85%, transparent 100%);
+  -webkit-mask-image: linear-gradient(to right, transparent 0%, black 15%, black 85%, transparent 100%);
 
   scrollbar-width: thin;
   scrollbar-color: rgba(255, 255, 255, 0.3) transparent;
@@ -1057,26 +1174,26 @@ onUnmounted(() => {
   flex-shrink: 0;
   width: 56px;
   height: 56px;
-  border-radius: var(--r-s);
+  border-radius: var(--r-s, 6px);
   overflow: hidden;
   cursor: pointer;
   transition: all 0.2s cubic-bezier(0.25, 0.8, 0.25, 1);
   border: 2px solid transparent;
-  opacity: 0.6;
-  background: #000;
+  opacity: 0.65;
+  background: #18181b;
   padding: 0;
 
   &:hover {
-    opacity: 0.9;
+    opacity: 0.95;
     transform: translateY(-2px);
   }
 
   &.active {
     opacity: 1;
-    border-color: var(--fg-accent-color);
-    transform: scale(1.1);
-    z-index: 1;
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.5);
+    border-color: var(--fg-accent-color, #3b82f6);
+    transform: scale(1.12);
+    z-index: 2;
+    box-shadow: 0 4px 14px rgba(0, 0, 0, 0.6);
   }
 
   img {
@@ -1084,6 +1201,41 @@ onUnmounted(() => {
     height: 100%;
     object-fit: cover;
     display: block;
+    opacity: 0;
+    transition: opacity 0.3s ease;
+
+    &.loaded {
+      opacity: 1;
+    }
+  }
+
+  .thumb-skeleton {
+    position: absolute;
+    inset: 0;
+    background: #27272a;
+    overflow: hidden;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+
+    .thumb-skeleton-wave {
+      position: absolute;
+      inset: 0;
+      background: linear-gradient(90deg, transparent 0%, rgba(255, 255, 255, 0.12) 50%, transparent 100%);
+      background-size: 200% 100%;
+      animation: shimmer 1.5s infinite linear;
+    }
+  }
+
+  .thumb-broken-placeholder {
+    width: 100%;
+    height: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: rgba(239, 68, 68, 0.12);
+    color: #ef4444;
+    font-size: 20px;
   }
 }
 
@@ -1175,7 +1327,7 @@ onUnmounted(() => {
   }
 }
 
-@include media-down(md) {
+@media (max-width: 959px) {
   .viewer-header,
   .header-right {
     display: flex;
@@ -1197,22 +1349,10 @@ onUnmounted(() => {
   .viewer-content {
     padding: 0;
   }
-  .current-image-wrapper,
-  .preview-image {
+  .current-image-wrapper {
     padding: 4px;
   }
 
-  .nav-btn {
-    width: 40px;
-    height: 40px;
-    font-size: 20px;
-    &.prev-btn {
-      left: 16px;
-    }
-    &.next-btn {
-      right: 16px;
-    }
-  }
   .viewer-counter {
     padding: 6px 12px;
     font-size: 12px;
@@ -1230,7 +1370,7 @@ onUnmounted(() => {
   }
 }
 
-@include media-down(sm) {
+@media (max-width: 599px) {
   .viewer-header {
     display: block;
     background: transparent;

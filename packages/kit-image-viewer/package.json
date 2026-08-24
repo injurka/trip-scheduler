@@ -1,0 +1,51 @@
+{
+  "name": "@injurkx/kit-image-viewer",
+  "type": "module",
+  "version": "1.0.0",
+  "description": "Full-featured Vue 3 Image Viewer with zoom, swipe gestures, EXIF metadata and thumbnails",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    },
+    "./dist/style.css": "./dist/style.css"
+  },
+  "main": "./dist/index.js",
+  "module": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "files": [
+    "dist"
+  ],
+  "scripts": {
+    "build": "vite build && vue-tsc -p tsconfig.json",
+    "dev": "vite",
+    "lint": "eslint .",
+    "lint:fix": "eslint . --fix",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "typecheck": "vue-tsc --noEmit"
+  },
+  "peerDependencies": {
+    "vue": "^3.5.0"
+  },
+  "dependencies": {
+    "@floating-ui/vue": "^1.1.6",
+    "@iconify/vue": "^5.0.0",
+    "@vueuse/core": "^14.2.1"
+  },
+  "devDependencies": {
+    "@antfu/eslint-config": "8.2.0",
+    "@types/node": "24.10.1",
+    "@vitejs/plugin-vue": "^6.0.5",
+    "@vue/test-utils": "^2.4.11",
+    "eslint": "^9.29.0",
+    "eslint-plugin-format": "2.0.1",
+    "happy-dom": "^20.10.6",
+    "sass": "1.99.0",
+    "typescript": "6.0.2",
+    "vite": "^8.0.8",
+    "vitest": "^4.1.4",
+    "vue": "^3.5.32",
+    "vue-tsc": "^3.2.6"
+  }
+}

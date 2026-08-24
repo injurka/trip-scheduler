@@ -17,8 +17,14 @@
       "~/*": [
         "./src/renderer/*"
       ],
-      "@xsolare/trip-scheduler-server/*": [
+      "@injurkx/trip-scheduler-server/*": [
         "../server/src/*"
+      ],
+      "@injurkx/kit-image-viewer": [
+        "../../packages/kit-image-viewer/src/index.ts"
+      ],
+      "@injurkx/kit-image-viewer/*": [
+        "../../packages/kit-image-viewer/src/*"
       ]
     },
     "resolveJsonModule": true,
@@ -49,6 +55,7 @@
     "src/**/*.d.ts",
     "src/**/*.tsx",
     "src/**/*.vue",
+    "../../packages/kit-image-viewer/src/**/*",
     ".storybook/**/*",
     "src/renderer/pages/post/list.vue"
   ]

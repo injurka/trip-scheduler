@@ -1,18 +1,72 @@
 import type { Ref } from 'vue'
 import type { ImageQuality, ImageViewerImage } from '../models/types'
 import { tryOnUnmounted, useFullscreen, useStorage } from '@vueuse/core'
+import { computed, nextTick, ref, watch } from 'vue'
 
 export interface UseImageViewerUiOptions {
   currentImage: Readonly<Ref<ImageViewerImage | null>>
   containerRef: Ref<HTMLElement | null>
   thumbnailsRef: Ref<HTMLElement | null>
   qualityModel?: Ref<ImageQuality | undefined>
+  qualityLabels?: Record<string, string>
   onQualityChange?: (quality: ImageQuality) => void
   onDownload?: (image: ImageViewerImage, quality: ImageQuality) => void
 }
 
+const DEFAULT_QUALITY_ORDER = [
+  'thumbnail',
+  'thumb',
+  'small',
+  'preview',
+  'medium',
+  'hd',
+  'large',
+  'fhd',
+  '2k',
+  '4k',
+  'original',
+  'raw',
+]
+
+const DEFAULT_QUALITY_LABELS: Record<string, string> = {
+  'thumbnail': 'Миниатюра',
+  'thumb': 'Миниатюра',
+  'small': 'Small (Превью)',
+  'preview': 'Предпросмотр',
+  'medium': 'Medium (720p)',
+  'hd': 'HD (720p)',
+  'large': 'Large (1080p)',
+  'fhd': 'Full HD (1080p)',
+  '2k': '2K (QHD)',
+  '4k': '4K (Ultra HD)',
+  'original': 'Оригинал',
+  'raw': 'RAW',
+}
+
+const DEFAULT_QUALITY_ICONS: Record<string, string> = {
+  'thumbnail': 'mdi:image-size-select-small',
+  'thumb': 'mdi:image-size-select-small',
+  'small': 'mdi:image-size-select-small',
+  'preview': 'mdi:image-size-select-small',
+  'medium': 'mdi:image-size-select-small',
+  'hd': 'mdi:high-definition',
+  'large': 'mdi:image-size-select-large',
+  'fhd': 'mdi:image-filter-hdr',
+  '2k': 'mdi:image-size-select-actual',
+  '4k': 'mdi:image-filter-hdr',
+  'original': 'mdi:image-size-select-actual',
+  'raw': 'mdi:raw',
+}
+
 export function useImageViewerUi(options: UseImageViewerUiOptions) {
-  const { currentImage, containerRef, thumbnailsRef, qualityModel, onQualityChange } = options
+  const {
+    currentImage,
+    containerRef,
+    thumbnailsRef,
+    qualityModel,
+    qualityLabels,
+    onQualityChange,
+  } = options
 
   // --- Quality ---
   const storedQuality = useStorage<ImageQuality>('viewer-quality-preference', 'large')
@@ -30,28 +84,39 @@ export function useImageViewerUi(options: UseImageViewerUiOptions) {
     if (!image)
       return []
 
-    const items: { value: ImageQuality, label: string, icon: string, available: boolean }[] = [
-      {
-        value: 'medium',
-        label: 'Среднее',
-        icon: 'mdi:image-size-select-small',
-        available: !!image.variants?.medium,
-      },
-      {
-        value: 'large',
-        label: 'Высокое',
-        icon: 'mdi:image-size-select-large',
-        available: !!image.variants?.large,
-      },
-      {
-        value: 'original',
-        label: 'Оригинал',
-        icon: 'mdi:image-size-select-actual',
-        available: !!image.url,
-      },
-    ]
+    const keys = new Set<string>()
+    if (image.variants) {
+      for (const [k, v] of Object.entries(image.variants)) {
+        if (v && typeof v === 'string')
+          keys.add(k)
+      }
+    }
+    if (image.url && !keys.has('original')) {
+      keys.add('original')
+    }
 
-    return items.filter(i => i.available)
+    const sortedKeys = Array.from(keys).sort((a, b) => {
+      const idxA = DEFAULT_QUALITY_ORDER.indexOf(a)
+      const idxB = DEFAULT_QUALITY_ORDER.indexOf(b)
+      if (idxA !== -1 && idxB !== -1)
+        return idxA - idxB
+      if (idxA !== -1)
+        return -1
+      if (idxB !== -1)
+        return 1
+      return a.localeCompare(b)
+    })
+
+    return sortedKeys.map((key) => {
+      const label = qualityLabels?.[key] || DEFAULT_QUALITY_LABELS[key] || (key.charAt(0).toUpperCase() + key.slice(1))
+      const icon = DEFAULT_QUALITY_ICONS[key] || 'mdi:image-outline'
+      return {
+        value: key as ImageQuality,
+        label,
+        icon,
+        available: true,
+      }
+    })
   })
 
   const displayUrl = computed(() => {
@@ -60,14 +125,16 @@ export function useImageViewerUi(options: UseImageViewerUiOptions) {
       return ''
 
     const { variants, url } = image
-    const resolve = (u?: string | null) => u ?? ''
+    const q = selectedQuality.value
 
-    switch (selectedQuality.value) {
-      case 'medium': return resolve(variants?.medium) || resolve(variants?.large) || url
-      case 'large': return resolve(variants?.large) || resolve(variants?.medium) || url
-      case 'original': return url
-      default: return url
-    }
+    if (variants && variants[q])
+      return variants[q]!
+
+    if (q === 'original' && url)
+      return url
+
+    // Fallbacks
+    return variants?.large || variants?.medium || variants?.small || url || ''
   })
 
   // --- Caption ---
@@ -117,7 +184,18 @@ export function useImageViewerUi(options: UseImageViewerUiOptions) {
       if (!strip)
         return
       const thumb = strip.children[index] as HTMLElement | undefined
-      thumb?.scrollIntoView({ behavior, block: 'nearest', inline: 'center' })
+      if (!thumb)
+        return
+
+      const stripRect = strip.getBoundingClientRect()
+      const thumbRect = thumb.getBoundingClientRect()
+      const currentScrollLeft = strip.scrollLeft
+      const targetScrollLeft = currentScrollLeft + (thumbRect.left - stripRect.left) - (stripRect.width / 2) + (thumbRect.width / 2)
+
+      strip.scrollTo({
+        left: targetScrollLeft,
+        behavior,
+      })
     })
   }
 
@@ -129,7 +207,7 @@ export function useImageViewerUi(options: UseImageViewerUiOptions) {
 
   async function downloadCurrentImage() {
     const image = currentImage.value
-    if (!image || isDownloading.value)
+    if (!image || isDownloading.value || typeof document === 'undefined')
       return
 
     isDownloading.value = true

@@ -1,5 +1,5 @@
 {
-  "name": "@xsolare/trip-scheduler-client",
+  "name": "@injurkx/trip-scheduler-client",
   "type": "module",
   "version": "1.0.1",
   "private": true,
@@ -56,6 +56,7 @@
     "@capacitor/core": "^8.3.0",
     "@excalidraw/excalidraw": "^0.18.0",
     "@iconify-icons/mdi": "^1.2.48",
+    "@injurkx/kit-image-viewer": "workspace:*",
     "@internationalized/date": "^3.12.0",
     "@mapbox/polyline": "^1.2.1",
     "@milkdown/crepe": "^7.20.0",

@@ -49,7 +49,7 @@ import { AppRouteNames } from '~/shared/constants/routes'
 
         <KitTooltip text="GitHub">
           <a
-            href="https://github.com/xsolare/trip-scheduler"
+            href="https://github.com/injurkx/trip-scheduler"
             target="_blank"
             rel="noopener noreferrer"
             class="icon-link"

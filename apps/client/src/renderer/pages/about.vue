@@ -19,7 +19,7 @@ const router = useRouter()
           <br><br>
           Если вы хотите узнать о технической реализации проекта, предложить улучшения или внести свой вклад, исходный код доступен на
           <span class="source">
-            <a href="https://github.com/xsolare/trip-scheduler" target="_blank" rel="noopener noreferrer">GitHub</a>
+            <a href="https://github.com/injurkx/trip-scheduler" target="_blank" rel="noopener noreferrer">GitHub</a>
           </span>
         </p>
 
