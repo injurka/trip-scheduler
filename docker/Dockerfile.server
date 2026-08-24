@@ -13,9 +13,6 @@ ENV PORT=8080
 
 COPY package.json bun.lock ./
 COPY apps/server/package.json ./apps/server/package.json
-COPY apps/client/package.json ./apps/client/package.json
-COPY tools/scraper/package.json ./tools/scraper/package.json
-COPY tools/browse-agent/package.json ./tools/browse-agent/package.json
 
 RUN bun install --frozen-lockfile --production --ignore-scripts --filter './apps/server'
 
