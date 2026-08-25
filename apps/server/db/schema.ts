@@ -24,7 +24,7 @@ import { ONE_GIGABYTE_IN_BYTES } from '~/lib/constants'
 export const statusEnum = pgEnum('status', ['completed', 'planned', 'draft'])
 export const visibilityEnum = pgEnum('visibility', ['public', 'private'])
 export const activityTagEnum = pgEnum('activity_tag', ['activity', 'transport', 'walk', 'food', 'attraction', 'relax'])
-export const activitySectionTypeEnum = pgEnum('activity_section_type', ['description', 'gallery', 'geolocation', 'metro'])
+export const activitySectionTypeEnum = pgEnum('activity_section_type', ['description', 'gallery', 'geolocation', 'metro', 'booking'])
 export const activityStatusEnum = pgEnum('activity_status', ['none', 'completed', 'skipped'])
 export const tripImagePlacementEnum = pgEnum('trip_image_placement', ['route', 'memories', 'notes', 'documents'])
 export const userRoleEnum = pgEnum('user_role', ['user', 'admin'])

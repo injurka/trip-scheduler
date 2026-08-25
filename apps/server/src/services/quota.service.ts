@@ -10,6 +10,12 @@ const CREDITS_PER_DOLLAR = 100000
 // Кэш для цен моделей, чтобы не делать запрос к БД каждый раз
 const modelPricesCache = new Map<string, { input: number, output: number }>()
 
+const FALLBACK_MODEL_PRICES: Record<string, { input: number, output: number }> = {
+  'baidu-deepseek-v4-flash': { input: 0.142, output: 0.284 },
+  'gemini-2.5-flash': { input: 0.5, output: 1.5 },
+  'gemini-2.5-flash-lite': { input: 0.075, output: 0.3 },
+}
+
 async function getModelCosts(modelId: string): Promise<{ input: number, output: number }> {
   if (modelPricesCache.has(modelId)) {
     return modelPricesCache.get(modelId)!
@@ -20,6 +26,21 @@ async function getModelCosts(modelId: string): Promise<{ input: number, output: 
   })
 
   if (!model) {
+    const fallback = FALLBACK_MODEL_PRICES[modelId]
+    if (fallback) {
+      modelPricesCache.set(modelId, fallback)
+      // Асинхронно сохраняем в БД, чтобы в будущем модель была в таблице
+      db.insert(llmModels)
+        .values({
+          id: modelId,
+          costPerMillionInputTokens: fallback.input,
+          costPerMillionOutputTokens: fallback.output,
+        })
+        .onConflictDoNothing()
+        .catch(() => {})
+      return fallback
+    }
+
     console.error(`Pricing for model "${modelId}" not found in the database.`)
     throw new TRPCError({ code: 'INTERNAL_SERVER_ERROR', message: `Pricing information for model ${modelId} is not available.` })
   }

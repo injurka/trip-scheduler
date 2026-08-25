@@ -426,7 +426,7 @@ async function generateActivitiesViaDirectLlm(canvasNote: string): Promise<Activ
 
   const baseUrl = process.env.AI_HUBMIX_API_URL || (process.env.AI_HUBMIX_KEY ? 'https://aihubmix.com/v1' : 'https://api.openai.com/v1')
   const candidateModels = process.env.AI_HUBMIX_KEY
-    ? ['gemini-flash-latest', 'gemini-flash-lite-latest', 'baidu-deepseek-v4-flash']
+    ? ['gemini-2.5-flash', 'gemini-2.5-flash-lite', 'baidu-deepseek-v4-flash']
     : ['gpt-4o-mini', 'gpt-4o']
 
   const systemPrompt = `You are an expert travel planner API.

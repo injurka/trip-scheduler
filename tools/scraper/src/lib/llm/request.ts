@@ -3,8 +3,8 @@ import OpenAI from 'openai'
 // Allowed Models
 export const AI_MODELS = [
   'baidu-deepseek-v4-flash',
-  'gemini-flash-latest',
-  'gemini-flash-lite-latest',
+  'gemini-2.5-flash',
+  'gemini-2.5-flash-lite',
 ] as const
 
 export type AiModel = typeof AI_MODELS[number]

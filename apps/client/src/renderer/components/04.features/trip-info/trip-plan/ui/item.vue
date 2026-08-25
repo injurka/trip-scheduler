@@ -1,9 +1,11 @@
 <script setup lang="ts">
 import type { CustomActivitySection, SectionGroup } from '../models/types.ts'
 import type { ActivitySectionGeolocation } from '~/components/03.domain/trip-info/geolocation-section/index.ts'
+import type { Booking } from '~/components/04.features/trip-info/trip-sections'
 import type {
   Activity,
   ActivitySection,
+  ActivitySectionBooking,
   ActivitySectionGallery,
   ActivitySectionMetro,
   ActivitySections,
@@ -12,8 +14,8 @@ import type {
 import { Icon } from '@iconify/vue'
 import { Time } from '@internationalized/date'
 import { onClickOutside } from '@vueuse/core'
-import { v4 as uuidv4 } from 'uuid'
 
+import { v4 as uuidv4 } from 'uuid'
 import { KitDropdown } from '~/components/01.kit/kit-dropdown'
 import { KitInlineMdEditorWrapper } from '~/components/01.kit/kit-inline-md-editor'
 import { KitTimeField } from '~/components/01.kit/kit-time-field'
@@ -23,6 +25,7 @@ import { activityTagIcons, activityTagLabels, getTagInfo } from '~/components/05
 import AddSectionMenu from '~/components/05.modules/trip-info/ui/controls/add-section-menu.vue'
 import { EActivitySectionType, EActivityTag } from '~/shared/types/models/activity'
 import { useActivityDiff } from '../composables/use-activity-diff'
+import SelectBookingDialog from './dialogs/select-booking-dialog.vue'
 import LlmActivityEditor from './llm-activity-editor.vue'
 import ActivitySectionRenderer from './sections/section-renderer.vue'
 
@@ -54,6 +57,7 @@ const isReadOnly = computed(() => isViewMode.value || !!props.isPreviewMode)
 
 const isTimeEditing = ref(false)
 const isAiEditing = ref(false)
+const isSelectBookingOpen = ref(false)
 
 const timeEditorRef = ref<HTMLElement | null>(null)
 const activityTitle = ref(props.activity.title)
@@ -72,6 +76,7 @@ const sectionTypeIcons: Record<EActivitySectionType, string> = {
   [EActivitySectionType.GALLERY]: 'mdi:image-multiple-outline',
   [EActivitySectionType.GEOLOCATION]: 'mdi:map-marker-outline',
   [EActivitySectionType.METRO]: 'mdi:subway-variant',
+  [EActivitySectionType.BOOKING]: 'mdi:ticket-confirmation-outline',
 }
 
 const tagInfo = computed(() => getTagInfo(props.activity.tag))
@@ -262,7 +267,21 @@ function updateSection(sectionId: string, newSectionData: ActivitySection) {
   }
 }
 
+function handleBookingSelected(booking: Booking) {
+  const newSection: ActivitySectionBooking = {
+    id: uuidv4(),
+    type: EActivitySectionType.BOOKING,
+    bookingId: booking.id,
+  }
+  const newSections = [...(props.activity.sections || []), newSection]
+  updateActivity({ sections: newSections as ActivitySections })
+}
+
 function addSection(type: EActivitySectionType) {
+  if (type === EActivitySectionType.BOOKING) {
+    isSelectBookingOpen.value = true
+    return
+  }
   let newSection: ActivitySection
 
   switch (type) {
@@ -691,6 +710,13 @@ onClickOutside(timeEditorRef, saveTimeChanges)
         </div>
       </div>
     </div>
+
+    <!-- Диалог выбора бронирования для привязки к активности -->
+    <SelectBookingDialog
+      v-if="isSelectBookingOpen"
+      v-model:visible="isSelectBookingOpen"
+      @select="handleBookingSelected"
+    />
   </div>
 </template>
 

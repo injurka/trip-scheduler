@@ -9,10 +9,12 @@ interface Props {
   icon: string
   readonly: boolean
   highlightStatus?: HighlightStatus
+  showDragHandle?: boolean
 }
 
 const props = withDefaults(defineProps<Props>(), {
   highlightStatus: null,
+  showDragHandle: true,
 })
 const emit = defineEmits<{ (e: 'delete'): void }>()
 const title = defineModel<string>('title', { required: true })
@@ -57,7 +59,7 @@ async function handleDelete() {
   <div class="booking-card" :class="highlightClass">
     <header v-ripple class="card-header" @click="isDetailsVisible = !isDetailsVisible">
       <div class="title-container">
-        <KitTooltip v-if="!readonly" text="Перетащить">
+        <KitTooltip v-if="!readonly && showDragHandle" text="Перетащить">
           <button class="drag-handle">
             <Icon icon="mdi:drag-vertical" />
           </button>

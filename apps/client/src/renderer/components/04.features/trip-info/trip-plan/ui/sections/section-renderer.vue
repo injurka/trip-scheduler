@@ -3,6 +3,7 @@ import type { CustomActivitySection } from '../../models/types.ts'
 import type { ActivitySectionGeolocation } from '~/components/03.domain/trip-info/geolocation-section'
 import type {
   ActivitySection,
+  ActivitySectionBooking,
   ActivitySectionGallery,
   ActivitySectionMetro,
   ActivitySectionText,
@@ -16,6 +17,7 @@ import { GallerySection } from '~/components/03.domain/trip-info/gallery-section
 import { GeolocationSection } from '~/components/03.domain/trip-info/geolocation-section'
 import { useModuleStore } from '~/components/05.modules/trip-info/composables/use-trip-info-module'
 import { EActivitySectionType } from '~/shared/types/models/activity'
+import BookingSection from './booking-section.vue'
 import DescriptionSection from './description-section.vue'
 import MetroSection from './metro-section.vue'
 
@@ -157,6 +159,13 @@ watch(() => props.section, (newSection) => {
       :section="section as ActivitySectionMetro"
       :readonly="isViewMode"
       @update-section="onUpdate"
+    />
+    <BookingSection
+      v-else-if="section.type === EActivitySectionType.BOOKING"
+      :section="section as ActivitySectionBooking"
+      :readonly="isViewMode"
+      @update-section="onUpdate"
+      @delete-section="emit('deleteSection')"
     />
 
     <div v-if="!isViewMode" class="section-controls-wrapper">

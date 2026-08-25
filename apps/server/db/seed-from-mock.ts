@@ -218,7 +218,7 @@ async function discoverAndSelectData() {
       name: 'selectedHighlights',
       message: 'Выберите ФОТО ДЛЯ ВИТРИНЫ (Highlights) для добавления',
       choices: [...discovered.highlights.values()].map(h => ({
-        title: `${h.city}, ${h.country}`,
+        title: h.address ? `${h.city} (${h.address})` : (h.city || 'Без названия'),
         description: h.comment || '',
         value: h,
         selected: true,

@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import type { Booking, FlightData, FlightSegment } from '../../models/types'
 import { Icon } from '@iconify/vue'
+import { KitDivider } from '~/components/01.kit/kit-divider'
 import { KitTooltip } from '~/components/01.kit/kit-tooltip'
 import BookingCardWrapper from '../shared/booking-card-wrapper.vue'
 import BookingDateTimeField from '../shared/booking-date-time-field.vue'
@@ -11,8 +12,11 @@ import BookingTextareaField from '../shared/booking-textarea-field.vue'
 interface Props {
   booking: Booking & { type: 'flight' }
   readonly: boolean
+  showDragHandle?: boolean
 }
-const props = defineProps<Props>()
+const props = withDefaults(defineProps<Props>(), {
+  showDragHandle: true,
+})
 const emit = defineEmits<{
   (e: 'delete'): void
   (e: 'update:booking', value: Booking & { type: 'flight' }): void
@@ -191,6 +195,7 @@ function updateSegmentField<K extends keyof FlightSegment>(segmentIndex: number,
     :title="booking.title"
     :icon="booking.icon"
     :readonly="readonly"
+    :show-drag-handle="showDragHandle"
     @delete="$emit('delete')"
     @update:title="updateTitle"
   >

@@ -90,11 +90,17 @@ const ActivitySectionMetroSchema = ActivitySectionBaseSchema.extend({
   rides: z.array(MetroRideSchema),
 })
 
+const ActivitySectionBookingSchema = ActivitySectionBaseSchema.extend({
+  type: z.literal('booking'),
+  bookingId: z.string(),
+})
+
 export const ActivitySectionSchema = z.discriminatedUnion('type', [
   ActivitySectionTextSchema,
   ActivitySectionGallerySchema,
   ActivitySectionGeolocationSchema,
   ActivitySectionMetroSchema,
+  ActivitySectionBookingSchema,
 ])
 
 export const ActivitySchema = z.object({

@@ -2,7 +2,9 @@
 import { Icon } from '@iconify/vue'
 import {
   DropdownMenuContent,
+  DropdownMenuGroup,
   DropdownMenuItem,
+  DropdownMenuLabel,
   DropdownMenuPortal,
   DropdownMenuRoot,
   DropdownMenuSeparator,
@@ -32,6 +34,14 @@ const sectionOptions: SectionOption[] = [
     icon: 'mdi:text-box-plus-outline',
     shortcut: 'T',
     description: 'Добавить текстовую заметку или описание',
+    category: 'content',
+  },
+  {
+    type: EActivitySectionType.BOOKING,
+    label: 'Бронирование',
+    icon: 'mdi:ticket-confirmation-outline',
+    shortcut: 'B',
+    description: 'Привязать билет, отель или другое бронирование',
     category: 'content',
   },
   {
@@ -102,7 +112,12 @@ useEventListener('keydown', (e) => {
     </DropdownMenuTrigger>
 
     <DropdownMenuPortal>
-      <DropdownMenuContent class="add-section-dropdown" align="start" :side-offset="8">
+      <DropdownMenuContent
+        class="add-section-dropdown"
+        align="start"
+        :side-offset="8"
+        @close-auto-focus.prevent
+      >
         <div class="dropdown-header">
           <Icon icon="mdi:plus-box-multiple" class="header-icon" />
           <div class="header-text">
@@ -117,11 +132,11 @@ useEventListener('keydown', (e) => {
 
         <DropdownMenuSeparator class="dropdown-separator" />
 
-        <div class="section-category">
-          <div class="category-label">
+        <DropdownMenuGroup class="section-category">
+          <DropdownMenuLabel class="category-label">
             <Icon icon="mdi:text" class="category-icon" />
             <span>Контент</span>
-          </div>
+          </DropdownMenuLabel>
           <DropdownMenuItem
             v-for="option in contentOptions"
             :key="option.type"
@@ -143,15 +158,15 @@ useEventListener('keydown', (e) => {
               {{ option.shortcut }}
             </div>
           </DropdownMenuItem>
-        </div>
+        </DropdownMenuGroup>
 
         <DropdownMenuSeparator class="dropdown-separator" />
 
-        <div class="section-category">
-          <div class="category-label">
+        <DropdownMenuGroup class="section-category">
+          <DropdownMenuLabel class="category-label">
             <Icon icon="mdi:image" class="category-icon" />
             <span>Медиа</span>
-          </div>
+          </DropdownMenuLabel>
           <DropdownMenuItem
             v-for="option in mediaOptions"
             :key="option.type"
@@ -173,15 +188,15 @@ useEventListener('keydown', (e) => {
               {{ option.shortcut }}
             </div>
           </DropdownMenuItem>
-        </div>
+        </DropdownMenuGroup>
 
         <DropdownMenuSeparator class="dropdown-separator" />
 
-        <div class="section-category">
-          <div class="category-label">
+        <DropdownMenuGroup class="section-category">
+          <DropdownMenuLabel class="category-label">
             <Icon icon="mdi:map" class="category-icon" />
             <span>Местоположение</span>
-          </div>
+          </DropdownMenuLabel>
           <DropdownMenuItem
             v-for="option in locationOptions"
             :key="option.type"
@@ -203,7 +218,7 @@ useEventListener('keydown', (e) => {
               {{ option.shortcut }}
             </div>
           </DropdownMenuItem>
-        </div>
+        </DropdownMenuGroup>
 
         <DropdownMenuSeparator class="dropdown-separator" />
         <div class="keyboard-hint">
@@ -278,20 +293,8 @@ useEventListener('keydown', (e) => {
   border: 1px solid var(--border-primary-color);
   border-radius: var(--r-m);
   box-shadow: var(--s-l);
-  z-index: 50;
-
-  &[data-side='top'] {
-    animation: slideDownAndFade 200ms cubic-bezier(0.16, 1, 0.3, 1);
-  }
-  &[data-side='right'] {
-    animation: slideLeftAndFade 200ms cubic-bezier(0.16, 1, 0.3, 1);
-  }
-  &[data-side='bottom'] {
-    animation: slideUpAndFade 200ms cubic-bezier(0.16, 1, 0.3, 1);
-  }
-  &[data-side='left'] {
-    animation: slideRightAndFade 200ms cubic-bezier(0.16, 1, 0.3, 1);
-  }
+  z-index: 2100;
+  animation: dropdownFadeIn 0.12s ease-out;
 }
 
 .dropdown-header {
@@ -328,6 +331,9 @@ useEventListener('keydown', (e) => {
 
 .section-category {
   margin: 8px 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
 
   .category-label {
     display: flex;
@@ -351,15 +357,16 @@ useEventListener('keydown', (e) => {
   align-items: center;
   gap: 12px;
   width: 100%;
-  padding: 12px;
+  padding: 10px 12px;
   border-radius: var(--r-s);
   cursor: pointer;
-  transition: all 0.2s ease;
+  transition: background-color 0.12s ease;
   user-select: none;
   outline: none;
 
+  &:hover,
   &[data-highlighted] {
-    background: var(--bg-hover-color);
+    background-color: var(--bg-hover-color);
   }
 
   &:active {
@@ -373,20 +380,13 @@ useEventListener('keydown', (e) => {
     width: 32px;
     height: 32px;
     border-radius: var(--r-s);
-    background: var(--bg-secondary-color);
+    background-color: var(--bg-secondary-color);
     color: var(--fg-accent-color);
     flex-shrink: 0;
-    transition: all 0.2s ease;
 
     .iconify {
       font-size: 16px;
     }
-  }
-
-  &[data-highlighted] .option-icon {
-    background: var(--fg-accent-color);
-    color: var(--fg-inverted-color);
-    transform: scale(1.05);
   }
 
   .option-content {
@@ -409,7 +409,7 @@ useEventListener('keydown', (e) => {
 
   .option-shortcut {
     padding: 4px 8px;
-    background: var(--bg-secondary-color);
+    background-color: var(--bg-secondary-color);
     border-radius: var(--r-2xs);
     font-size: 11px;
     font-weight: 600;
@@ -417,12 +417,6 @@ useEventListener('keydown', (e) => {
     min-width: 24px;
     text-align: center;
     flex-shrink: 0;
-    transition: all 0.2s ease;
-  }
-
-  &[data-highlighted] .option-shortcut {
-    background: var(--fg-accent-color);
-    color: var(--fg-inverted-color);
   }
 }
 
@@ -446,47 +440,12 @@ useEventListener('keydown', (e) => {
   margin: 8px -12px;
 }
 
-@keyframes slideUpAndFade {
+@keyframes dropdownFadeIn {
   from {
     opacity: 0;
-    transform: translateY(4px) scale(0.95);
   }
   to {
     opacity: 1;
-    transform: translateY(0) scale(1);
-  }
-}
-
-@keyframes slideRightAndFade {
-  from {
-    opacity: 0;
-    transform: translateX(-4px) scale(0.95);
-  }
-  to {
-    opacity: 1;
-    transform: translateX(0) scale(1);
-  }
-}
-
-@keyframes slideDownAndFade {
-  from {
-    opacity: 0;
-    transform: translateY(-4px) scale(0.95);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0) scale(1);
-  }
-}
-
-@keyframes slideLeftAndFade {
-  from {
-    opacity: 0;
-    transform: translateX(4px) scale(0.95);
-  }
-  to {
-    opacity: 1;
-    transform: translateX(0) scale(1);
   }
 }
 </style>

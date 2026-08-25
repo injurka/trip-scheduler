@@ -184,7 +184,7 @@ class Server {
     // Глобальный обработчик ошибок
     this.app.onError((error, c) => {
       if (error instanceof HTTPException) {
-        return error.getResponse()
+        return c.json({ error: error.message, message: error.message }, error.status)
       }
       console.error('Application error:', error)
       return c.json(

@@ -1,0 +1,1 @@
+ALTER TYPE "public"."activity_section_type" ADD VALUE 'booking';

@@ -4,14 +4,19 @@ import { externalApiCallsCounter, externalApiDurationHistogram } from '~/service
 // Allowed Models
 export const AI_MODELS = [
   'baidu-deepseek-v4-flash',
-  'gemini-flash-latest',
-  'gemini-flash-lite-latest',
+  'gemini-2.5-flash',
+  'gemini-2.5-flash-lite',
 ] as const
+
+export const VISION_CAPABLE_MODELS: readonly AiModel[] = [
+  'gemini-2.5-flash',
+  'gemini-2.5-flash-lite',
+]
 
 export type AiModel = typeof AI_MODELS[number]
 export type AiChatModel = AiModel
 
-export const DEFAULT_AI_MODEL: AiModel = 'baidu-deepseek-v4-flash'
+export const DEFAULT_AI_MODEL: AiModel = 'gemini-2.5-flash-lite'
 
 export interface AiRequestOptions {
   model?: AiModel
@@ -93,10 +98,20 @@ export async function createAiChatRequest(
     throw new Error(`Invalid chat model: ${mergedOptions.model}. Available chat models: ${AI_MODELS.join(', ')}`)
   }
 
+  const hasImageUrl = Array.isArray(prompt.user) && prompt.user.some((p: any) => p?.type === 'image_url')
+
+  const initialModel = hasImageUrl && !VISION_CAPABLE_MODELS.includes(mergedOptions.model)
+    ? 'gemini-2.5-flash'
+    : mergedOptions.model
+
+  const availableModels = hasImageUrl
+    ? AI_MODELS.filter(m => VISION_CAPABLE_MODELS.includes(m))
+    : AI_MODELS
+
   // Model candidate list: primary model first, followed by others as fallback
   const candidateModels: AiModel[] = [
-    mergedOptions.model,
-    ...AI_MODELS.filter(m => m !== mergedOptions.model),
+    initialModel,
+    ...availableModels.filter(m => m !== initialModel),
   ]
 
   let lastError: any = null

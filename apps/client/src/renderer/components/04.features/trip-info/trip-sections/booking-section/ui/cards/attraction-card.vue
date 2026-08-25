@@ -14,8 +14,12 @@ interface Props {
   booking: Booking & { type: 'attraction' }
   readonly: boolean
   highlightStatus?: HighlightStatus
+  showDragHandle?: boolean
 }
-const props = defineProps<Props>()
+const props = withDefaults(defineProps<Props>(), {
+  highlightStatus: null,
+  showDragHandle: true,
+})
 const emit = defineEmits<{
   (e: 'delete'): void
   (e: 'update:booking', value: Booking & { type: 'attraction' }): void
@@ -42,6 +46,7 @@ function updateTitle(newTitle: string) {
     :icon="booking.icon"
     :readonly="readonly"
     :highlight-status="highlightStatus"
+    :show-drag-handle="showDragHandle"
     @delete="emit('delete')"
     @update:title="updateTitle"
   >
