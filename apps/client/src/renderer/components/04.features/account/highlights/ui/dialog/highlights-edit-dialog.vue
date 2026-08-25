@@ -143,9 +143,18 @@ const formattedTakenAt = computed(() => {
   })
 })
 
+const isMapExpanded = ref(false)
+
+const hasCoordinates = computed(() => {
+  return props.form.latitude !== null && props.form.latitude !== undefined && props.form.latitude !== ''
+    && props.form.longitude !== null && props.form.longitude !== undefined && props.form.longitude !== ''
+})
+
 watch(visibleModel, (val) => {
-  if (!val)
+  if (!val) {
     showDatePicker.value = false
+    isMapExpanded.value = false
+  }
 })
 // -------------------------------------------------
 
@@ -266,34 +275,54 @@ const isSubmitDisabled = computed(() =>
           </div>
         </div>
 
-        <div class="map-section">
-          <label class="section-label">Координаты</label>
-          <div class="row row--coords">
-            <KitInput
-              v-model="form.latitude"
-              type="number"
-              step="any"
-              placeholder="Широта"
+        <div class="map-section" :class="{ 'is-expanded': isMapExpanded }">
+          <button
+            type="button"
+            class="map-toggle-btn"
+            @click="isMapExpanded = !isMapExpanded"
+          >
+            <div class="map-toggle-title">
+              <Icon icon="mdi:map-marker-outline" class="toggle-icon" />
+              <span>Местоположение на карте</span>
+              <span v-if="hasCoordinates" class="coords-badge">
+                {{ form.latitude }}, {{ form.longitude }}
+              </span>
+            </div>
+            <Icon
+              icon="mdi:chevron-down"
+              class="chevron-icon"
+              :class="{ 'is-rotated': isMapExpanded }"
             />
-            <KitInput
-              v-model="form.longitude"
-              type="number"
-              step="any"
-              placeholder="Долгота"
-            />
-          </div>
-          <p class="section-hint">
-            Кликните по карте для изменения координат
-          </p>
-          <div class="map-container">
-            <KitMap
-              :center="mapCenter"
-              :zoom="2"
-              height="400px"
-              :markers="mapMarkers"
-              :auto-pan="false"
-              @click="handleMapClick"
-            />
+          </button>
+
+          <div v-if="isMapExpanded" class="map-content">
+            <div class="row row--coords">
+              <KitInput
+                v-model="form.latitude"
+                type="number"
+                step="any"
+                placeholder="Широта"
+              />
+              <KitInput
+                v-model="form.longitude"
+                type="number"
+                step="any"
+                placeholder="Долгота"
+              />
+            </div>
+            <p class="section-hint">
+              Кликните по карте для изменения координат
+            </p>
+            <div class="map-container">
+              <KitMap
+                :center="mapCenter"
+                :zoom="2"
+                height="320px"
+                :markers="mapMarkers"
+                :auto-pan="false"
+                @click="handleMapClick"
+              />
+            </div>
           </div>
         </div>
 
@@ -536,11 +565,79 @@ const isSubmitDisabled = computed(() =>
 .map-section {
   display: flex;
   flex-direction: column;
-  gap: 8px;
   background: var(--bg-tertiary-color);
-  padding: 12px;
   border-radius: var(--r-m);
   border: 1px solid var(--border-secondary-color);
+  overflow: hidden;
+  transition: border-color 0.2s;
+
+  &:hover {
+    border-color: var(--border-primary-color);
+  }
+}
+
+.map-toggle-btn {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  padding: 10px 14px;
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  color: var(--fg-primary-color);
+  font-size: 0.875rem;
+  font-weight: 500;
+  transition: background-color 0.2s;
+
+  &:hover {
+    background: var(--bg-hover-color);
+  }
+}
+
+.map-toggle-title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+
+  .toggle-icon {
+    font-size: 1.15rem;
+    color: var(--fg-accent-color);
+    flex-shrink: 0;
+  }
+}
+
+.coords-badge {
+  font-size: 0.75rem;
+  padding: 2px 8px;
+  background: rgba(var(--bg-accent-color-rgb), 0.15);
+  color: var(--fg-accent-color);
+  border-radius: var(--r-full);
+  font-family: monospace;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 180px;
+}
+
+.chevron-icon {
+  font-size: 1.25rem;
+  color: var(--fg-tertiary-color);
+  transition: transform 0.2s ease;
+
+  &.is-rotated {
+    transform: rotate(180deg);
+  }
+}
+
+.map-content {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 0 12px 12px;
+  border-top: 1px solid var(--border-secondary-color);
+  padding-top: 12px;
 }
 
 .section-label {

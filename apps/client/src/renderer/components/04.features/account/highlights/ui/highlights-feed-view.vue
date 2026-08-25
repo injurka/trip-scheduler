@@ -2,7 +2,7 @@
 import type { IImageViewerImageMeta, ImageViewerImage } from '~/components/01.kit/kit-image-viewer'
 import type { Highlight } from '~/shared/types/models/user'
 import { Icon } from '@iconify/vue'
-import { computed, onMounted, ref } from 'vue'
+import { computed, onMounted, ref, watch } from 'vue'
 import { KitBtn } from '~/components/01.kit/kit-btn'
 import { KitImageViewer } from '~/components/01.kit/kit-image-viewer'
 import { KitPagination } from '~/components/01.kit/kit-pagination'

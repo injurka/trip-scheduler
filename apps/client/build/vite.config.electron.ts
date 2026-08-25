@@ -47,6 +47,7 @@ export default defineConfig({
     resolve: {
       alias: {
         '~/': `${resolve(__dirname, '../src/renderer')}/`,
+        '@injurkx/kit-image-viewer': resolve(__dirname, '../../../packages/kit-image-viewer/src/index.ts'),
       },
     },
     plugins: [

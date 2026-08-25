@@ -11,6 +11,7 @@ export interface UseImageViewerUiOptions {
   qualityLabels?: Record<string, string>
   onQualityChange?: (quality: ImageQuality) => void
   onDownload?: (image: ImageViewerImage, quality: ImageQuality) => void
+  resolveUrl?: (url: string) => string
 }
 
 const DEFAULT_QUALITY_ORDER = [
@@ -126,15 +127,16 @@ export function useImageViewerUi(options: UseImageViewerUiOptions) {
 
     const { variants, url } = image
     const q = selectedQuality.value
+    let rawUrl = ''
 
     if (variants && variants[q])
-      return variants[q]!
+      rawUrl = variants[q]!
+    else if (q === 'original' && url)
+      rawUrl = url
+    else
+      rawUrl = variants?.large || variants?.medium || variants?.small || url || ''
 
-    if (q === 'original' && url)
-      return url
-
-    // Fallbacks
-    return variants?.large || variants?.medium || variants?.small || url || ''
+    return options.resolveUrl ? options.resolveUrl(rawUrl) : rawUrl
   })
 
   // --- Caption ---

@@ -2,7 +2,7 @@
 import type { Component } from 'vue'
 import type { IImageViewerImageMeta, ImageQuality, ImageViewerImage } from '../models/types'
 import { Icon } from '@iconify/vue'
-import { onClickOutside, toRef, useEventListener, useIdle } from '@vueuse/core'
+import { toRef, useEventListener, useIdle } from '@vueuse/core'
 import { computed, onUnmounted, reactive, ref, toRaw, watch } from 'vue'
 import { useImageViewerSwipe, useImageViewerTransform, useImageViewerUi } from '../composables'
 import ImageMetadataPanel from './kit-image-metadata-panel.vue'
@@ -62,7 +62,6 @@ const props = withDefaults(defineProps<Props>(), {
 
 const emit = defineEmits<Emits>()
 
-const viewerContentRef = ref<HTMLElement | null>(null)
 const imageRef = ref<HTMLImageElement | null>(null)
 const containerRef = ref<HTMLElement | null>(null)
 const thumbnailsRef = ref<HTMLElement | null>(null)
@@ -113,6 +112,7 @@ const {
   thumbnailsRef,
   qualityModel: toRef(props, 'quality'),
   qualityLabels: props.qualityLabels,
+  resolveUrl: props.resolveUrl,
   onQualityChange: val => emit('update:quality', val),
 })
 
@@ -417,17 +417,41 @@ watch(() => props.visible, (isVisible) => {
   }
 })
 
-onClickOutside(viewerContentRef, () => {
+function handleOverlayClick(event: MouseEvent) {
   if (
-    props.closeOnOverlayClick
-    && props.visible
-    && !isDragging.value
-    && transform.scale <= props.minZoom
-    && !isMetadataPanelOpen.value
+    !props.closeOnOverlayClick
+    || !props.visible
+    || isDragging.value
+    || transform.scale > props.minZoom
+    || isMetadataPanelOpen.value
   ) {
-    close()
+    return
   }
-})
+
+  const target = event.target as HTMLElement | null
+  if (!target)
+    return
+
+  if (
+    target.closest('.viewer-image')
+    || target.closest('.viewer-header')
+    || target.closest('.viewer-footer')
+    || target.closest('.thumbnails-container')
+    || target.closest('.nav-zone')
+    || target.closest('.pagination-prompt-card')
+    || target.closest('.image-metadata-panel')
+    || target.closest('.placeholder-wrapper')
+    || target.closest('button')
+    || target.closest('a')
+    || target.closest('input')
+    || target.closest('textarea')
+    || target.closest('select')
+  ) {
+    return
+  }
+
+  close()
+}
 
 useEventListener(typeof document !== 'undefined' ? document : null, 'keydown', (e: KeyboardEvent) => {
   if (!props.visible || !props.enableKeyboard)
@@ -481,13 +505,14 @@ onUnmounted(() => {
       <div
         v-if="visible"
         class="image-viewer-overlay"
+        @click="handleOverlayClick"
         @wheel="handleWheel"
         @touchstart="handleTouchStartCombined"
         @touchmove="handleTouchMoveCombined"
         @touchend="handleTouchEndCombined"
         @touchcancel="handleTouchEndCombined"
       >
-        <div ref="viewerContentRef" class="viewer-wrapper">
+        <div class="viewer-wrapper">
           <Transition name="controls-fade">
             <div v-show="areControlsVisible" class="viewer-header">
               <div class="header-content-wrapper">

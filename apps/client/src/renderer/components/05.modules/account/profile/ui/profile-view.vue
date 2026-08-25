@@ -174,7 +174,21 @@ watch(userId, (newId) => {
 
 <style scoped lang="scss">
 .profile-view {
+  position: relative;
   padding-top: 24px;
+  min-height: 100%;
+
+  &::before {
+    content: '';
+    position: absolute;
+    inset: -24px 0 0 0;
+    pointer-events: none;
+    z-index: 0;
+    background-image: radial-gradient(circle at 1px 1px, rgba(var(--fg-primary-color-rgb), 0.07) 1px, transparent 0);
+    background-size: 24px 24px;
+    mask-image: linear-gradient(to bottom, black 0%, black 60%, transparent 100%);
+    -webkit-mask-image: linear-gradient(to bottom, black 0%, black 60%, transparent 100%);
+  }
 }
 
 .profile-cover {

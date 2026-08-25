@@ -105,6 +105,8 @@ watch(model, (newVal, oldVal) => {
 
 <style lang="scss" scoped>
 .kit-tabs {
+  position: relative;
+  z-index: 1;
   display: flex;
   flex-direction: column;
   gap: 20px;
