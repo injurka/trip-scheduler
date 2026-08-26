@@ -77,9 +77,13 @@ export function useOpenTrips(userId: string) {
       cancelPrevious: true,
       fn: db => db.trips.getAll(apiFilters),
       onSuccess: (result) => {
-        trips.value = result.sort(
-          (a, b) => new Date(b.createdAt || 0).getTime() - new Date(a.createdAt || 0).getTime(),
-        )
+        trips.value = result.sort((a, b) => {
+          const diff = new Date(b.startDate || 0).getTime() - new Date(a.startDate || 0).getTime()
+          if (diff !== 0)
+            return diff
+
+          return new Date(b.createdAt || 0).getTime() - new Date(a.createdAt || 0).getTime()
+        })
         hasLoadedOnce.value = true
       },
       onError: ({ error }) => {

@@ -59,7 +59,7 @@ export const dumpService = {
             participants: true,
             sections: { orderBy: (sections, { asc }) => [asc(sections.order)] },
           },
-          orderBy: (trips, { desc }) => [desc(trips.createdAt)],
+          orderBy: (trips, { desc }) => [desc(trips.startDate), desc(trips.createdAt)],
         }),
         db.query.posts.findMany({
           with: {

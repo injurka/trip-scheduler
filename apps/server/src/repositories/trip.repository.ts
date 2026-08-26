@@ -113,7 +113,7 @@ export const tripRepository = {
 
       const result = await db.query.trips.findMany({
         where: and(...conditions),
-        orderBy: (trips, { desc }) => [desc(trips.createdAt)],
+        orderBy: (trips, { desc }) => [desc(trips.startDate), desc(trips.createdAt)],
         with: withParticipants,
       })
 
@@ -352,7 +352,7 @@ export const tripRepository = {
           inArray(trips.id, userTripsSubquery),
           eq(trips.visibility, 'public'),
         ),
-        orderBy: (trips, { desc }) => [desc(trips.createdAt)],
+        orderBy: (trips, { desc }) => [desc(trips.startDate), desc(trips.createdAt)],
         limit,
         with: withParticipants,
       })

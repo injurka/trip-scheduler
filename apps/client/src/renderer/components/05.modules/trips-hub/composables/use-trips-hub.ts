@@ -38,6 +38,16 @@ function getDefaultTripData() {
   }
 }
 
+function sortTripsByDate(tripsList: ITrip[]): ITrip[] {
+  return tripsList.sort((a, b) => {
+    const diff = new Date(b.startDate || 0).getTime() - new Date(a.startDate || 0).getTime()
+    if (diff !== 0)
+      return diff
+
+    return new Date(b.createdAt || 0).getTime() - new Date(a.createdAt || 0).getTime()
+  })
+}
+
 export function useTripsHub() {
   const { setCount } = useLastCounts()
   const { abort } = useAbortRequest()
@@ -147,9 +157,7 @@ export function useTripsHub() {
       fn: db => db.trips.getAll(apiFilters),
       cancelPrevious: true,
       onSuccess: (result) => {
-        trips.value = result.sort(
-          (a, b) => new Date(b.createdAt || 0).getTime() - new Date(a.createdAt || 0).getTime(),
-        )
+        trips.value = sortTripsByDate(result)
         isInitialized.value = true
         hasLoadedOnce.value = true
         setCount('trip-list', trips.value.length)
@@ -171,7 +179,7 @@ export function useTripsHub() {
       key: ETripHubKeys.CREATE,
       fn: db => db.trips.create(newTripData.value),
       onSuccess: (createdTrip) => {
-        trips.value.unshift(createdTrip)
+        trips.value = sortTripsByDate([createdTrip, ...trips.value])
         authStore.incrementTripCount()
         toast.success(`Путешествие "${createdTrip.title}" создано!`)
         closeCreateModal()
@@ -220,6 +228,7 @@ export function useTripsHub() {
         const finalIndex = trips.value.findIndex(t => t.id === updatedData.id)
         if (finalIndex !== -1) {
           trips.value[finalIndex] = { ...trips.value[finalIndex], ...updatedFromServer }
+          trips.value = sortTripsByDate(trips.value)
         }
         toast.success('Путешествие обновлено.')
       },
