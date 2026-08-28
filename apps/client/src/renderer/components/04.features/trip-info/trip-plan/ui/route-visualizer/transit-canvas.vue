@@ -1,19 +1,23 @@
 <script setup lang="ts">
 import type { ITransitEdgeInfo } from './transit-edge-dialog.vue'
+import type { LayoutEdge, TransitLayoutMode } from './transit-layouts'
 import type { IActivity } from '~/components/05.modules/trip-info/models/types'
-import type { ActivitySectionMetro, EActivityStatus, MetroRide } from '~/shared/types/models/activity'
+import type { ActivitySectionMetro } from '~/shared/types/models/activity'
+import { autoUpdate, flip, offset, shift, useFloating } from '@floating-ui/vue'
 import { Icon } from '@iconify/vue'
-import { useElementSize } from '@vueuse/core'
+import { useElementSize, useMediaQuery, useStorage } from '@vueuse/core'
+import { KitInlineMdEditorWrapper } from '~/components/01.kit/kit-inline-md-editor'
 import { KitTooltip } from '~/components/01.kit/kit-tooltip'
-import { timeToMinutes } from '~/shared/lib/date-time'
-import { EActivitySectionType, EActivityTag } from '~/shared/types/models/activity'
+import { EActivitySectionType } from '~/shared/types/models/activity'
 import ActivityPreviewDialog from './activity-preview-dialog.vue'
 import TransitEdgeDialog from './transit-edge-dialog.vue'
+import { calculateTransitLayout, TRANSIT_LAYOUT_OPTIONS } from './transit-layouts'
 import TransitNodeCard from './transit-node-card.vue'
 
 interface Props {
   activities: IActivity[]
   isEditMode?: boolean
+  initialLayoutMode?: TransitLayoutMode
 }
 
 const props = withDefaults(defineProps<Props>(), {
@@ -24,13 +28,23 @@ const emit = defineEmits<{
   (e: 'selectActivity', activityId: string): void
   (e: 'editActivity', activity: IActivity): void
   (e: 'deleteActivity', activityId: string): void
-  (e: 'toggleStatus', payload: { activity: IActivity, status: EActivityStatus }): void
   (e: 'moveActivity', payload: { activity: IActivity, direction: 'up' | 'down' }): void
   (e: 'addActivity', payload?: { startTime?: string, endTime?: string }): void
+  (e: 'changeLayout', mode: TransitLayoutMode): void
 }>()
 
 const viewportRef = ref<HTMLElement | null>(null)
 const { width: viewportWidth, height: viewportHeight } = useElementSize(viewportRef)
+
+const validModes: TransitLayoutMode[] = ['serpentine', 'phases', 'column', 'trail', 'radial']
+const rawLayoutMode = useStorage<string>(
+  'transit_canvas_layout_mode',
+  props.initialLayoutMode || 'serpentine',
+)
+if (!validModes.includes(rawLayoutMode.value as TransitLayoutMode)) {
+  rawLayoutMode.value = 'serpentine'
+}
+const layoutMode = rawLayoutMode as Ref<TransitLayoutMode>
 
 // Pan & Zoom state
 const scale = ref(1)
@@ -54,43 +68,113 @@ const isActivityPreviewVisible = ref(false)
 const isEdgeDialogVisible = ref(false)
 const selectedEdgeInfo = ref<ITransitEdgeInfo | null>(null)
 
-// Layout Constants
-const NODE_WIDTH = 240
-const NODE_HEIGHT = 72
-const GAP_X = 75
-const GAP_Y = 80
-const PADDING_X = 45
-const PADDING_Y = 45
+// Desktop Hover Tooltip State
+const isDesktop = useMediaQuery('(min-width: 768px)')
+const isHoverable = useMediaQuery('(hover: hover)')
+const isDesktopHover = computed(() => isDesktop.value && isHoverable.value)
 
-interface LayoutNode {
-  activity: IActivity
-  index: number
-  x: number
-  y: number
-  width: number
-  height: number
-  row: number
-  col: number
-  isLeftToRight: boolean
+const hoveredActivity = ref<IActivity | null>(null)
+const hoveredDescriptionModel = ref('')
+const hoverReferenceRef = ref<HTMLElement | null>(null)
+const hoverFloatingRef = ref<HTMLElement | null>(null)
+const isHoverTooltipVisible = ref(false)
+
+const { x: tooltipX, y: tooltipY, strategy: tooltipStrategy } = useFloating(
+  hoverReferenceRef,
+  hoverFloatingRef,
+  {
+    placement: 'top',
+    whileElementsMounted: autoUpdate,
+    middleware: [
+      offset(10),
+      flip({ fallbackPlacements: ['bottom', 'right', 'left'] }),
+      shift({ padding: 12 }),
+    ],
+    open: isHoverTooltipVisible,
+  },
+)
+
+const hoverFloatingStyle = computed(() => {
+  const isPos = tooltipX.value != null && tooltipY.value != null
+  return {
+    position: tooltipStrategy.value,
+    top: isPos ? `${tooltipY.value}px` : '0',
+    left: isPos ? `${tooltipX.value}px` : '0',
+    visibility: isPos ? 'visible' as const : 'hidden' as const,
+  }
+})
+
+let hoverShowTimer: ReturnType<typeof setTimeout> | null = null
+let hoverHideTimer: ReturnType<typeof setTimeout> | null = null
+
+function handleNodeMouseEnter(activity: IActivity, el: HTMLElement) {
+  if (!isDesktopHover.value || isDragging.value || isActivityPreviewVisible.value)
+    return
+
+  if (hoverHideTimer) {
+    clearTimeout(hoverHideTimer)
+    hoverHideTimer = null
+  }
+
+  hoverReferenceRef.value = el
+  hoveredActivity.value = activity
+
+  const descSection = activity.sections?.find(
+    s => s.type === EActivitySectionType.DESCRIPTION,
+  ) as { text?: string } | undefined
+  hoveredDescriptionModel.value = descSection?.text || activity.explanation || ''
+
+  if (hoverShowTimer) {
+    clearTimeout(hoverShowTimer)
+  }
+  hoverShowTimer = setTimeout(() => {
+    if (!isDragging.value && !isActivityPreviewVisible.value) {
+      isHoverTooltipVisible.value = true
+    }
+  }, 220)
 }
 
-interface LayoutEdge {
-  id: string
-  fromIndex: number
-  toIndex: number
-  fromActivity: IActivity
-  toActivity: IActivity
-  pathD: string
-  midX: number
-  midY: number
-  color: string
-  isDashed: boolean
-  metroRide: MetroRide | null
-  durationText: string | null
-  gapMinutes: number
+function handleNodeMouseLeave() {
+  if (hoverShowTimer) {
+    clearTimeout(hoverShowTimer)
+    hoverShowTimer = null
+  }
+  hoverHideTimer = setTimeout(() => {
+    isHoverTooltipVisible.value = false
+  }, 120)
+}
+
+function handleTooltipAfterLeave() {
+  if (!isHoverTooltipVisible.value) {
+    hoveredActivity.value = null
+    hoveredDescriptionModel.value = ''
+    hoverReferenceRef.value = null
+  }
+}
+
+function clearHideTimer() {
+  if (hoverHideTimer) {
+    clearTimeout(hoverHideTimer)
+    hoverHideTimer = null
+  }
+}
+
+function handleTooltipMouseLeave() {
+  handleNodeMouseLeave()
+}
+
+function getActivityMetroRides(activity: IActivity): ActivitySectionMetro['rides'] {
+  const metroSection = activity.sections?.find(
+    s => s.type === EActivitySectionType.METRO,
+  ) as ActivitySectionMetro | undefined
+  return metroSection?.rides || []
 }
 
 function handleSelectActivityCard(activity: IActivity) {
+  isHoverTooltipVisible.value = false
+  if (hoverShowTimer) {
+    clearTimeout(hoverShowTimer)
+  }
   selectedActivityId.value = activity.id
   selectedActivity.value = activity
   isActivityPreviewVisible.value = true
@@ -114,149 +198,24 @@ function handleInsertFromEdge(payload: { startTime: string, endTime: string }) {
   emit('addActivity', payload)
 }
 
-function handleToggleStatus(payload: { activity: IActivity, status: EActivityStatus }) {
-  emit('toggleStatus', payload)
-  if (selectedActivity.value?.id === payload.activity.id) {
-    selectedActivity.value = { ...selectedActivity.value, status: payload.status }
-  }
+function handleSelectMode(mode: TransitLayoutMode) {
+  if (layoutMode.value === mode)
+    return
+
+  layoutMode.value = mode
+  emit('changeLayout', mode)
+
+  nextTick(() => {
+    fitToView()
+  })
 }
 
-// Serpentine layout computation
+// Master Layout computation
 const computedLayout = computed(() => {
-  const items = props.activities
-  if (!items || items.length === 0) {
-    return { nodes: [], edges: [], totalWidth: 400, totalHeight: 300 }
-  }
-
-  // 3 nodes per row creates a balanced serpentine flow
-  const colCount = Math.min(Math.max(items.length, 1), 3)
-
-  const nodes: LayoutNode[] = []
-
-  items.forEach((activity, index) => {
-    const row = Math.floor(index / colCount)
-    const isLeftToRight = row % 2 === 0
-    const colInRow = index % colCount
-    const col = isLeftToRight ? colInRow : colCount - 1 - colInRow
-
-    const x = PADDING_X + col * (NODE_WIDTH + GAP_X)
-    const y = PADDING_Y + row * (NODE_HEIGHT + GAP_Y)
-
-    nodes.push({
-      activity,
-      index,
-      x,
-      y,
-      width: NODE_WIDTH,
-      height: NODE_HEIGHT,
-      row,
-      col,
-      isLeftToRight,
-    })
-  })
-
-  // Compute connecting edges between consecutive nodes
-  const edges: LayoutEdge[] = []
-
-  for (let i = 0; i < nodes.length - 1; i++) {
-    const from = nodes[i]
-    const to = nodes[i + 1]
-
-    // Metro & duration info
-    const fromMetro = from.activity.sections?.find(s => s.type === EActivitySectionType.METRO) as ActivitySectionMetro | undefined
-    const toMetro = to.activity.sections?.find(s => s.type === EActivitySectionType.METRO) as ActivitySectionMetro | undefined
-    const metroRide = fromMetro?.rides?.[0] || toMetro?.rides?.[0] || null
-
-    const isWalk = from.activity.tag === EActivityTag.WALK || to.activity.tag === EActivityTag.WALK
-    const color = metroRide?.lineColor || (isWalk ? '#10B981' : 'var(--fg-accent-color)')
-    const isDashed = isWalk
-
-    const fromEndMin = timeToMinutes(from.activity.endTime)
-    const toStartMin = timeToMinutes(to.activity.startTime)
-    const gap = toStartMin - fromEndMin
-
-    let durationText: string | null = null
-    if (gap > 0) {
-      if (gap < 60)
-        durationText = `${gap}м`
-      else durationText = `${Math.floor(gap / 60)}ч ${gap % 60}м`
-    }
-    else if (gap < 0) {
-      durationText = 'Пересечение'
-    }
-
-    let pathD = ''
-    let midX = 0
-    let midY = 0
-
-    const fromCenterY = from.y + from.height / 2
-    const toCenterY = to.y + to.height / 2
-
-    if (from.row === to.row) {
-      // Same row straight horizontal line
-      if (from.isLeftToRight) {
-        const startX = from.x + from.width
-        const endX = to.x
-        pathD = `M ${startX} ${fromCenterY} L ${endX} ${toCenterY}`
-        midX = (startX + endX) / 2
-        midY = fromCenterY
-      }
-      else {
-        const startX = from.x
-        const endX = to.x + to.width
-        pathD = `M ${startX} ${fromCenterY} L ${endX} ${toCenterY}`
-        midX = (startX + endX) / 2
-        midY = fromCenterY
-      }
-    }
-    else {
-      // Smooth U-turn curve between rows
-      const curveOffset = 55
-      if (from.isLeftToRight) {
-        // Curve on the right side
-        const startX = from.x + from.width
-        const endX = to.x + to.width
-        pathD = `M ${startX} ${fromCenterY} C ${startX + curveOffset} ${fromCenterY}, ${endX + curveOffset} ${toCenterY}, ${endX} ${toCenterY}`
-        midX = Math.max(startX, endX) + curveOffset * 0.72
-        midY = (fromCenterY + toCenterY) / 2
-      }
-      else {
-        // Curve on the left side
-        const startX = from.x
-        const endX = to.x
-        pathD = `M ${startX} ${fromCenterY} C ${startX - curveOffset} ${fromCenterY}, ${endX - curveOffset} ${toCenterY}, ${endX} ${toCenterY}`
-        midX = Math.min(startX, endX) - curveOffset * 0.72
-        midY = (fromCenterY + toCenterY) / 2
-      }
-    }
-
-    edges.push({
-      id: `edge-${from.activity.id}-${to.activity.id}`,
-      fromIndex: i,
-      toIndex: i + 1,
-      fromActivity: from.activity,
-      toActivity: to.activity,
-      pathD,
-      midX,
-      midY,
-      color,
-      isDashed,
-      metroRide,
-      durationText,
-      gapMinutes: gap,
-    })
-  }
-
-  // Calculate total bounding size
-  const maxCol = Math.min(items.length, colCount)
-  const totalRows = Math.ceil(items.length / colCount)
-  const totalWidth = PADDING_X * 2 + maxCol * (NODE_WIDTH + GAP_X) + 60
-  const totalHeight = PADDING_Y * 2 + totalRows * (NODE_HEIGHT + GAP_Y) + 50
-
-  return { nodes, edges, totalWidth, totalHeight }
+  return calculateTransitLayout(layoutMode.value, props.activities)
 })
 
-// Fit To View: automatically centers & scales the content
+// Fit To View: automatically centers & scales the content taking floating UI tabs into account
 function fitToView() {
   const { totalWidth, totalHeight } = computedLayout.value
   const vWidth = viewportWidth.value || 800
@@ -265,14 +224,20 @@ function fitToView() {
   if (totalWidth <= 0 || totalHeight <= 0 || vWidth <= 0 || vHeight <= 0)
     return
 
-  const padding = 50
-  const scaleX = (vWidth - padding) / totalWidth
-  const scaleY = (vHeight - padding) / totalHeight
-  const targetScale = Math.min(Math.max(Math.min(scaleX, scaleY), 0.45), 1.1)
+  const topOffset = props.activities.length > 0 ? 56 : 24
+  const bottomOffset = 42
+  const horizontalPadding = 48
+
+  const availableWidth = Math.max(vWidth - horizontalPadding, 100)
+  const availableHeight = Math.max(vHeight - topOffset - bottomOffset, 100)
+
+  const scaleX = availableWidth / totalWidth
+  const scaleY = availableHeight / totalHeight
+  const targetScale = Math.min(Math.max(Math.min(scaleX, scaleY), 0.25), 1.15)
 
   scale.value = targetScale
   translateX.value = (vWidth - totalWidth * targetScale) / 2
-  translateY.value = (vHeight - totalHeight * targetScale) / 2
+  translateY.value = topOffset + (availableHeight - totalHeight * targetScale) / 2
 }
 
 function resetZoom() {
@@ -280,8 +245,13 @@ function resetZoom() {
   const vWidth = viewportWidth.value || 800
   const vHeight = viewportHeight.value || 400
   const { totalWidth, totalHeight } = computedLayout.value
+
+  const topOffset = props.activities.length > 0 ? 56 : 24
+  const bottomOffset = 42
+  const availableHeight = Math.max(vHeight - topOffset - bottomOffset, 100)
+
   translateX.value = (vWidth - totalWidth) / 2
-  translateY.value = (vHeight - totalHeight) / 2
+  translateY.value = topOffset + (availableHeight - totalHeight) / 2
 }
 
 function zoomIn() {
@@ -293,7 +263,7 @@ function zoomOut() {
 }
 
 function zoomAtCenter(factor: number) {
-  const newScale = Math.min(Math.max(scale.value * factor, 0.4), 2.2)
+  const newScale = Math.min(Math.max(scale.value * factor, 0.2), 2.5)
   const vWidth = viewportWidth.value || 800
   const vHeight = viewportHeight.value || 400
   const centerX = vWidth / 2
@@ -309,8 +279,16 @@ function handlePointerDown(e: PointerEvent) {
   if (e.button !== 0)
     return
 
+  if (isHoverTooltipVisible.value) {
+    isHoverTooltipVisible.value = false
+    if (hoverShowTimer) {
+      clearTimeout(hoverShowTimer)
+      hoverShowTimer = null
+    }
+  }
+
   const target = e.target as HTMLElement
-  if (target.closest('button, input, textarea, .action-btn, .transit-node-card')) {
+  if (target.closest('button, input, textarea, .action-btn, .transit-node-card, .canvas-floating-tabs, .canvas-floating-controls')) {
     return
   }
 
@@ -355,7 +333,7 @@ function handleWheel(e: WheelEvent) {
     return
 
   const zoomFactor = e.deltaY < 0 ? 1.12 : 0.89
-  const newScale = Math.min(Math.max(scale.value * zoomFactor, 0.4), 2.2)
+  const newScale = Math.min(Math.max(scale.value * zoomFactor, 0.2), 2.5)
 
   const rect = viewportRef.value.getBoundingClientRect()
   const mouseX = e.clientX - rect.left
@@ -390,7 +368,7 @@ function handleTouchMove(e: TouchEvent) {
     const touch2 = e.touches[1]
     const currentDistance = Math.hypot(touch2.clientX - touch1.clientX, touch2.clientY - touch1.clientY)
     const factor = currentDistance / initialPinchDistance
-    const newScale = Math.min(Math.max(initialPinchScale * factor, 0.4), 2.2)
+    const newScale = Math.min(Math.max(initialPinchScale * factor, 0.2), 2.5)
 
     translateX.value = pinchMidpoint.x - (pinchMidpoint.x - translateX.value) * (newScale / scale.value)
     translateY.value = pinchMidpoint.y - (pinchMidpoint.y - translateY.value) * (newScale / scale.value)
@@ -421,6 +399,7 @@ defineExpose({
   resetZoom,
   zoomIn,
   zoomOut,
+  setLayoutMode: handleSelectMode,
 })
 </script>
 
@@ -448,12 +427,82 @@ defineExpose({
         transformOrigin: '0 0',
       }"
     >
+      <!-- Mode Specific Decorator HTML Layers -->
+      <!-- 1. Day Phases Container Cards -->
+      <div
+        v-if="layoutMode === 'phases' && computedLayout.decorators.phaseContainers"
+        :key="`phases-${layoutMode}`"
+        class="phases-background-layer"
+      >
+        <div
+          v-for="phase in computedLayout.decorators.phaseContainers"
+          :key="phase.id"
+          class="phase-container-card"
+          :class="`phase--${phase.id}`"
+          :style="{
+            transform: `translate(${phase.x}px, ${phase.y}px)`,
+            width: `${phase.width}px`,
+            height: `${phase.height}px`,
+          }"
+        >
+          <div class="phase-header">
+            <div class="phase-icon-wrapper">
+              <Icon :icon="phase.icon" class="phase-icon" />
+            </div>
+            <div class="phase-info">
+              <span class="phase-title">{{ phase.title }}</span>
+              <span class="phase-timespan">{{ phase.timeSpan }}</span>
+            </div>
+            <span class="phase-count-badge">{{ phase.count }}</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- 2. Radial Center Hub Card -->
+      <div
+        v-if="layoutMode === 'radial' && computedLayout.decorators.radialHub"
+        :key="`radial-${layoutMode}`"
+        class="radial-center-hub"
+        :style="{
+          transform: `translate(${computedLayout.decorators.radialHub.cx}px, ${computedLayout.decorators.radialHub.cy}px) translate(-50%, -50%)`,
+        }"
+      >
+        <div class="radial-hub-inner">
+          <Icon icon="mdi:clock-time-eight-outline" class="hub-icon" />
+          <div class="hub-progress">
+            <span class="hub-total-num">{{ computedLayout.decorators.radialHub.totalCount }}</span>
+          </div>
+          <div class="hub-subtitle">
+            остановок
+          </div>
+          <div class="hub-timespan">
+            {{ computedLayout.decorators.radialHub.timeSpan }}
+          </div>
+        </div>
+      </div>
+
       <!-- SVG Vector Transit Tracks Layer -->
       <svg
+        :key="`svg-${layoutMode}`"
         class="transit-svg-layer"
         :width="computedLayout.totalWidth"
         :height="computedLayout.totalHeight"
       >
+
+        <!-- Radial Mode: Orbit Ring Path -->
+        <path
+          v-if="layoutMode === 'radial' && computedLayout.decorators.radialRingD"
+          :d="computedLayout.decorators.radialRingD"
+          class="radial-orbit-ring"
+        />
+
+        <!-- Column Mode: Vertical Spine Track -->
+        <path
+          v-if="layoutMode === 'column' && computedLayout.decorators.spinePathD"
+          :d="computedLayout.decorators.spinePathD"
+          class="spine-track-line"
+        />
+
         <!-- Base Background Track (Solid track base) -->
         <path
           v-for="edge in computedLayout.edges"
@@ -483,6 +532,49 @@ defineExpose({
           class="track-path-flow-stream"
           :stroke="edge.color"
         />
+
+        <!-- Edge Time Badges (Clickable interval pills on connectors) -->
+        <template
+          v-for="edge in computedLayout.edges"
+          :key="`badge-${edge.id}`"
+        >
+          <g
+            v-if="edge.durationText"
+            class="edge-badge-group"
+            @click.stop="handleEdgeClick(edge)"
+          >
+            <rect
+              :x="edge.midX - 25"
+              :y="edge.midY - 10"
+              width="50"
+              height="20"
+              rx="10"
+              class="edge-badge-bg"
+              :stroke="edge.color"
+            />
+            <text
+              :x="edge.midX"
+              :y="edge.midY + 3.5"
+              class="edge-badge-text"
+              text-anchor="middle"
+            >
+              {{ edge.durationText }}
+            </text>
+          </g>
+        </template>
+
+        <!-- Column Mode: Spine Station Dots -->
+        <g v-if="layoutMode === 'column' && computedLayout.decorators.spineHubs">
+          <circle
+            v-for="hub in computedLayout.decorators.spineHubs"
+            :key="hub.index"
+            :cx="hub.x"
+            :cy="hub.y"
+            r="6.5"
+            class="spine-hub-dot"
+            :fill="hub.color"
+          />
+        </g>
       </svg>
 
       <!-- Station Node Cards Layer -->
@@ -492,7 +584,10 @@ defineExpose({
         class="transit-node-positioner"
         :style="{
           transform: `translate(${node.x}px, ${node.y}px)`,
+          width: `${node.width}px`,
         }"
+        @mouseenter="handleNodeMouseEnter(node.activity, $event.currentTarget as HTMLElement)"
+        @mouseleave="handleNodeMouseLeave"
       >
         <TransitNodeCard
           :activity="node.activity"
@@ -504,7 +599,6 @@ defineExpose({
           @select="handleSelectActivityCard"
           @edit="emit('editActivity', $event)"
           @delete="emit('deleteActivity', $event)"
-          @toggle-status="handleToggleStatus"
           @move-up="emit('moveActivity', { activity: node.activity, direction: 'up' })"
           @move-down="emit('moveActivity', { activity: node.activity, direction: 'down' })"
         />
@@ -523,7 +617,25 @@ defineExpose({
       </button>
     </div>
 
-    <!-- Floating Canvas Controls Overlay -->
+    <!-- Floating Layout Tabs Switcher Overlay (Top Left) -->
+    <div v-if="activities.length > 0" class="canvas-floating-tabs" @pointerdown.stop>
+      <KitTooltip
+        v-for="option in TRANSIT_LAYOUT_OPTIONS"
+        :key="option.id"
+        :text="option.tooltip"
+      >
+        <button
+          class="layout-tab-btn"
+          :class="{ active: layoutMode === option.id }"
+          @click="handleSelectMode(option.id)"
+        >
+          <Icon :icon="option.icon" class="tab-icon" />
+          <span class="tab-label">{{ option.label }}</span>
+        </button>
+      </KitTooltip>
+    </div>
+
+    <!-- Floating Canvas Controls Overlay (Bottom Right) -->
     <div class="canvas-floating-controls">
       <KitTooltip text="Приблизить (+)">
         <button class="canvas-tool-btn" @click="zoomIn">
@@ -547,7 +659,7 @@ defineExpose({
       </KitTooltip>
     </div>
 
-    <!-- Floating Canvas Hint -->
+    <!-- Floating Canvas Hint (Bottom Left) -->
     <div class="canvas-bottom-hint">
       <Icon icon="mdi:gesture-swipe" class="hint-icon" />
       <span>Кликните на карточку или линию для деталей</span>
@@ -571,9 +683,62 @@ defineExpose({
       :is-edit-mode="isEditMode"
       @edit="emit('editActivity', $event)"
       @delete="emit('deleteActivity', $event)"
-      @toggle-status="handleToggleStatus"
       @scroll-to-activity="emit('selectActivity', $event)"
     />
+
+    <!-- Desktop Hover Detail Tooltip -->
+    <Teleport to="body">
+      <Transition name="transit-tooltip-fade" @after-leave="handleTooltipAfterLeave">
+        <div
+          v-if="isHoverTooltipVisible && hoveredActivity && isDesktopHover && !isDragging"
+          ref="hoverFloatingRef"
+          class="transit-node-hover-tooltip"
+          :style="hoverFloatingStyle"
+          @mouseenter="clearHideTimer"
+          @mouseleave="handleTooltipMouseLeave"
+        >
+          <!-- Title -->
+          <div class="tooltip-title">
+            {{ hoveredActivity.title || 'Остановка маршрута' }}
+          </div>
+
+          <!-- Description rendered via Milkdown Markdown with scroll -->
+          <div v-if="hoveredDescriptionModel" class="tooltip-desc-box">
+            <KitInlineMdEditorWrapper
+              :key="hoveredActivity.id"
+              v-model="hoveredDescriptionModel"
+              :readonly="true"
+              :features="{ 'block-edit': false }"
+              class="tooltip-md-viewer"
+            />
+          </div>
+
+          <!-- Metro Rides Preview if present -->
+          <div v-if="getActivityMetroRides(hoveredActivity).length > 0" class="tooltip-metro-list">
+            <div
+              v-for="ride in getActivityMetroRides(hoveredActivity)"
+              :key="ride.id"
+              class="tooltip-metro-item"
+              :style="{ borderLeftColor: ride.lineColor }"
+            >
+              <span class="metro-badge" :style="{ backgroundColor: ride.lineColor }">
+                <Icon icon="mdi:subway-variant" />
+                {{ ride.lineNumber || 'M' }} {{ ride.lineName }}
+              </span>
+              <span class="metro-stations">
+                {{ ride.startStation || 'Отправление' }} → {{ ride.endStation || 'Назначение' }}
+              </span>
+            </div>
+          </div>
+
+          <!-- Subtle bottom hint -->
+          <div class="tooltip-footer">
+            <Icon icon="mdi:cursor-default-click-outline" />
+            <span>Кликните карточку для деталей</span>
+          </div>
+        </div>
+      </Transition>
+    </Teleport>
   </div>
 </template>
 
@@ -581,7 +746,7 @@ defineExpose({
 .transit-canvas-viewport {
   position: relative;
   width: 100%;
-  height: 380px;
+  height: 400px;
   background-color: var(--bg-secondary-color);
   border: 1px solid var(--border-secondary-color);
   border-radius: var(--r-m);
@@ -595,7 +760,7 @@ defineExpose({
   }
 
   @include media-down(sm) {
-    height: 320px;
+    height: 340px;
   }
 }
 
@@ -617,12 +782,92 @@ defineExpose({
   will-change: transform;
 }
 
+/* Floating Layout Tabs */
+.canvas-floating-tabs {
+  position: absolute;
+  top: 12px;
+  left: 12px;
+  z-index: 10;
+  display: flex;
+  align-items: center;
+  gap: 3px;
+  background: var(--bg-tertiary-color);
+  border: 1px solid var(--border-secondary-color);
+  border-radius: var(--r-s);
+  padding: 3px;
+  box-shadow: var(--s-m);
+  backdrop-filter: blur(10px);
+  max-width: calc(100% - 24px);
+  overflow-x: auto;
+
+  &::-webkit-scrollbar {
+    display: none;
+  }
+}
+
+.layout-tab-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 4px 8px;
+  border-radius: var(--r-xs);
+  background: transparent;
+  border: none;
+  color: var(--fg-secondary-color);
+  cursor: pointer;
+  font-size: 0.72rem;
+  font-weight: 600;
+  white-space: nowrap;
+  transition: all 0.18s cubic-bezier(0.4, 0, 0.2, 1);
+
+  .tab-icon {
+    font-size: 0.88rem;
+    flex-shrink: 0;
+  }
+
+  &:hover {
+    color: var(--fg-primary-color);
+    background: var(--bg-hover-color);
+  }
+
+  &.active {
+    background: var(--fg-accent-color);
+    color: #ffffff;
+    box-shadow: 0 2px 6px rgba(var(--fg-accent-color-rgb), 0.35);
+
+    .tab-icon {
+      color: #ffffff;
+    }
+  }
+
+  @include media-down(md) {
+    padding: 4px 6px;
+    .tab-label {
+      display: none;
+    }
+  }
+}
+
+/* SVG Tracks Layer */
 .transit-svg-layer {
   position: absolute;
   top: 0;
   left: 0;
   pointer-events: none;
   overflow: visible;
+  animation: transitTracksFadeIn 0.45s cubic-bezier(0.4, 0, 0.2, 1) forwards;
+}
+
+@keyframes transitTracksFadeIn {
+  0% {
+    opacity: 0;
+  }
+  40% {
+    opacity: 0;
+  }
+  100% {
+    opacity: 1;
+  }
 }
 
 .track-path-base {
@@ -678,14 +923,237 @@ defineExpose({
   }
 }
 
+.edge-badge-group {
+  cursor: pointer;
+  pointer-events: auto;
+
+  &:hover {
+    .edge-badge-bg {
+      fill: var(--bg-hover-color);
+      stroke-width: 2.2px;
+      filter: drop-shadow(0 3px 8px rgba(0, 0, 0, 0.4));
+    }
+
+    .edge-badge-text {
+      fill: var(--fg-accent-color);
+      font-weight: 800;
+    }
+  }
+}
+
+.edge-badge-bg {
+  fill: var(--bg-tertiary-color);
+  stroke-width: 1.5px;
+  filter: drop-shadow(0 2px 5px rgba(0, 0, 0, 0.25));
+  transition:
+    fill 0.15s ease,
+    stroke-width 0.15s ease,
+    filter 0.15s ease;
+}
+
+.edge-badge-text {
+  fill: var(--fg-primary-color);
+  font-size: 10px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  user-select: none;
+  pointer-events: none;
+  transition: fill 0.15s ease;
+}
+
+/* Column Layout Styles */
+.spine-track-line {
+  fill: none;
+  stroke: var(--border-primary-color);
+  stroke-width: 5px;
+  stroke-linecap: round;
+}
+
+.spine-hub-dot {
+  stroke: var(--bg-secondary-color);
+  stroke-width: 2.5px;
+  filter: drop-shadow(0 2px 5px rgba(0, 0, 0, 0.3));
+}
+
+/* Radial Layout Styles */
+.radial-orbit-ring {
+  fill: none;
+  stroke: var(--border-secondary-color);
+  stroke-width: 2px;
+  stroke-dasharray: 6 6;
+  opacity: 0.75;
+}
+
+.radial-center-hub {
+  position: absolute;
+  top: 0;
+  left: 0;
+  pointer-events: none;
+  z-index: 1;
+  animation: transitTracksFadeIn 0.45s cubic-bezier(0.4, 0, 0.2, 1) forwards;
+
+  .radial-hub-inner {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    width: 130px;
+    height: 130px;
+    border-radius: 50%;
+    background: var(--bg-tertiary-color);
+    border: 2px solid var(--border-secondary-color);
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.2);
+    backdrop-filter: blur(8px);
+    text-align: center;
+    padding: 8px;
+    box-sizing: border-box;
+
+    .hub-icon {
+      font-size: 1.4rem;
+      color: var(--fg-accent-color);
+      margin-bottom: 2px;
+    }
+
+    .hub-progress {
+      display: inline-flex;
+      align-items: baseline;
+      gap: 2px;
+      font-weight: 800;
+      font-variant-numeric: tabular-nums;
+
+      .hub-done-num {
+        font-size: 1.15rem;
+        color: #10b981;
+      }
+
+      .hub-slash {
+        font-size: 0.85rem;
+        color: var(--fg-tertiary-color);
+      }
+
+      .hub-total-num {
+        font-size: 0.95rem;
+        color: var(--fg-primary-color);
+      }
+    }
+
+    .hub-subtitle {
+      font-size: 0.65rem;
+      font-weight: 600;
+      color: var(--fg-tertiary-color);
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+    }
+
+    .hub-timespan {
+      margin-top: 4px;
+      font-size: 0.62rem;
+      color: var(--fg-secondary-color);
+      font-variant-numeric: tabular-nums;
+      background: var(--bg-secondary-color);
+      padding: 1px 6px;
+      border-radius: 999px;
+      border: 1px solid var(--border-secondary-color);
+    }
+  }
+}
+
+/* Day Phases Layout Styles */
+.phases-background-layer {
+  position: absolute;
+  top: 0;
+  left: 0;
+  pointer-events: none;
+  z-index: 1;
+  animation: transitTracksFadeIn 0.45s cubic-bezier(0.4, 0, 0.2, 1) forwards;
+}
+
+.phase-container-card {
+  position: absolute;
+  top: 0;
+  left: 0;
+  border-radius: var(--r-m);
+  background: color-mix(in srgb, var(--bg-tertiary-color) 65%, transparent);
+  border: 1px dashed var(--border-secondary-color);
+  padding: 10px 12px;
+  box-sizing: border-box;
+  backdrop-filter: blur(4px);
+  transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+
+  &.phase--morning {
+    border-color: rgba(245, 158, 11, 0.35);
+    background: linear-gradient(180deg, rgba(245, 158, 11, 0.05) 0%, transparent 100%);
+  }
+
+  &.phase--afternoon {
+    border-color: rgba(59, 130, 246, 0.35);
+    background: linear-gradient(180deg, rgba(59, 130, 246, 0.05) 0%, transparent 100%);
+  }
+
+  &.phase--evening {
+    border-color: rgba(139, 92, 246, 0.35);
+    background: linear-gradient(180deg, rgba(139, 92, 246, 0.05) 0%, transparent 100%);
+  }
+
+  .phase-header {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 8px;
+
+    .phase-icon-wrapper {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: 26px;
+      height: 26px;
+      border-radius: var(--r-xs);
+      background: var(--bg-secondary-color);
+      border: 1px solid var(--border-secondary-color);
+      color: var(--fg-accent-color);
+      font-size: 0.95rem;
+    }
+
+    .phase-info {
+      display: flex;
+      flex-direction: column;
+      flex: 1;
+
+      .phase-title {
+        font-size: 0.78rem;
+        font-weight: 700;
+        color: var(--fg-primary-color);
+      }
+
+      .phase-timespan {
+        font-size: 0.64rem;
+        color: var(--fg-tertiary-color);
+        font-variant-numeric: tabular-nums;
+      }
+    }
+
+    .phase-count-badge {
+      font-size: 0.65rem;
+      font-weight: 800;
+      color: var(--fg-secondary-color);
+      background: var(--bg-secondary-color);
+      border: 1px solid var(--border-secondary-color);
+      padding: 1px 6px;
+      border-radius: 999px;
+    }
+  }
+}
+
+/* Station Node Positioner */
 .transit-node-positioner {
   position: absolute;
   top: 0;
   left: 0;
   z-index: 2;
-  transition: transform 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+  transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
+/* Floating Zoom & Fit Controls */
 .canvas-floating-controls {
   position: absolute;
   bottom: 12px;
@@ -801,5 +1269,167 @@ defineExpose({
       transform: scale(1.05);
     }
   }
+}
+
+/* Desktop Hover Detail Tooltip */
+.transit-node-hover-tooltip {
+  z-index: var(--z-tooltip, 1400);
+  background: color-mix(in srgb, var(--bg-tertiary-color) 96%, var(--bg-secondary-color));
+  color: var(--fg-primary-color);
+  padding: 12px 14px;
+  border-radius: var(--r-m);
+  border: 1px solid var(--border-secondary-color);
+  box-shadow: 0 10px 32px rgba(0, 0, 0, 0.4);
+  backdrop-filter: blur(14px);
+  width: 380px;
+  max-width: calc(100vw - 32px);
+  box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  pointer-events: auto;
+}
+
+.tooltip-title {
+  font-size: 0.96rem;
+  font-weight: 700;
+  color: var(--fg-primary-color);
+  line-height: 1.35;
+  word-break: break-word;
+}
+
+.tooltip-desc-box {
+  background: var(--bg-secondary-color);
+  border: 1px solid var(--border-secondary-color);
+  border-radius: var(--r-s);
+  padding: 8px 10px;
+  max-height: 220px;
+  overflow-y: auto;
+  box-sizing: border-box;
+
+  &::-webkit-scrollbar {
+    width: 5px;
+  }
+
+  &::-webkit-scrollbar-track {
+    background: transparent;
+  }
+
+  &::-webkit-scrollbar-thumb {
+    background: var(--border-primary-color);
+    border-radius: 4px;
+  }
+}
+
+.tooltip-md-viewer {
+  :deep(.milkdown) {
+    > div {
+      padding: 0;
+      min-height: auto;
+      background: transparent;
+    }
+
+    .ProseMirror {
+      p {
+        font-size: 0.82rem;
+        line-height: 1.55;
+        color: var(--fg-primary-color);
+        margin: 0 0 6px 0;
+
+        &:last-child {
+          margin-bottom: 0;
+        }
+      }
+
+      ul,
+      ol {
+        padding-left: 16px;
+        margin: 4px 0;
+        font-size: 0.82rem;
+        color: var(--fg-primary-color);
+      }
+
+      li {
+        margin-bottom: 2px;
+      }
+
+      blockquote {
+        border-left: 3px solid var(--fg-accent-color);
+        padding-left: 8px;
+        margin: 6px 0;
+        color: var(--fg-secondary-color);
+        font-style: italic;
+      }
+
+      code {
+        background: var(--bg-tertiary-color);
+        padding: 2px 4px;
+        border-radius: var(--r-2xs);
+        font-size: 0.76rem;
+      }
+    }
+  }
+}
+
+.tooltip-metro-list {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.tooltip-metro-item {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  background: var(--bg-secondary-color);
+  border: 1px solid var(--border-secondary-color);
+  border-left: 3px solid;
+  border-radius: var(--r-2xs);
+  padding: 3px 6px;
+
+  .metro-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 3px;
+    color: #ffffff;
+    font-size: 0.62rem;
+    font-weight: 700;
+    padding: 1px 5px;
+    border-radius: 999px;
+    flex-shrink: 0;
+  }
+
+  .metro-stations {
+    font-size: 0.72rem;
+    color: var(--fg-primary-color);
+    font-weight: 600;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+}
+
+.tooltip-footer {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 0.66rem;
+  color: var(--fg-tertiary-color);
+  margin-top: 2px;
+  padding-top: 6px;
+  border-top: 1px dashed var(--border-secondary-color);
+}
+
+.transit-tooltip-fade-enter-active,
+.transit-tooltip-fade-leave-active {
+  transition:
+    opacity 0.18s cubic-bezier(0.4, 0, 0.2, 1),
+    transform 0.18s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.transit-tooltip-fade-enter-from,
+.transit-tooltip-fade-leave-to {
+  opacity: 0;
+  transform: translateY(4px) scale(0.97);
 }
 </style>

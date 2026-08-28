@@ -8,6 +8,8 @@ import TransitFlow from './transit-flow.vue'
 import TransitNodeCard from './transit-node-card.vue'
 import TransitNode from './transit-node.vue'
 
+export * from './transit-layouts'
+
 export {
   ActivityPreviewDialog,
   DayRouteVisualizer,

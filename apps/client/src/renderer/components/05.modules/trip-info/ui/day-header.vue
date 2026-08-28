@@ -93,13 +93,14 @@ function handleScrollToActivity(activityId: string) {
 
     <!-- Collapsible Day Route Visualizer -->
     <Transition name="expand-visualizer">
-      <DayRouteVisualizer
-        v-if="isVisualizerOpen"
-        :day="selectedDay"
-        :readonly="isViewMode"
-        @close="isVisualizerOpen = false"
-        @scroll-to-activity="handleScrollToActivity"
-      />
+      <div v-if="isVisualizerOpen" class="day-route-visualizer-wrapper">
+        <DayRouteVisualizer
+          :day="selectedDay"
+          :readonly="isViewMode"
+          @close="isVisualizerOpen = false"
+          @scroll-to-activity="handleScrollToActivity"
+        />
+      </div>
     </Transition>
   </div>
 </template>

@@ -26,7 +26,6 @@ const emit = defineEmits<{
   (e: 'select', activity: IActivity): void
   (e: 'edit', activity: IActivity): void
   (e: 'delete', activityId: string): void
-  (e: 'toggleStatus', payload: { activity: IActivity, status: EActivityStatus }): void
   (e: 'moveUp'): void
   (e: 'moveDown'): void
 }>()
@@ -48,13 +47,8 @@ const tagColor = computed(() => {
 })
 
 const isCompleted = computed(() => props.activity.status === EActivityStatus.COMPLETED)
-const isSkipped = computed(() => props.activity.status === EActivityStatus.SKIPPED)
 
 const displayIcon = computed(() => {
-  if (isCompleted.value)
-    return 'mdi:check-bold'
-  if (isSkipped.value)
-    return 'mdi:skip-next'
   if (props.activity.tag && activityTagIcons[props.activity.tag]) {
     return activityTagIcons[props.activity.tag]
   }
@@ -82,14 +76,6 @@ const metroRides = computed(() => {
   return metroSection?.rides || []
 })
 
-function handleBulletClick(e: MouseEvent) {
-  e.stopPropagation()
-  if (props.isEditMode)
-    return
-  const nextStatus = isCompleted.value ? EActivityStatus.NONE : EActivityStatus.COMPLETED
-  emit('toggleStatus', { activity: props.activity, status: nextStatus })
-}
-
 function handleCardClick(e: MouseEvent) {
   e.stopPropagation()
   if (props.isEditMode) {
@@ -108,20 +94,16 @@ function handleCardClick(e: MouseEvent) {
       'is-edit-mode': isEditMode,
       'is-selected': isSelected,
       'is-completed': isCompleted,
-      'is-skipped': isSkipped,
     }"
     :style="{
-      '--accent-color': isCompleted ? '#10B981' : tagColor,
+      '--accent-color': tagColor,
     }"
     @click="handleCardClick"
   >
-    <!-- Left: Station Bullet on Track Line with Status Toggle -->
+    <!-- Left: Station Bullet on Track Line -->
     <div
       class="station-bullet"
-      :class="{ 'is-done': isCompleted, 'is-skip': isSkipped }"
-      :style="{ backgroundColor: isCompleted ? '#10B981' : (isSkipped ? '#F59E0B' : tagColor) }"
-      :title="isCompleted ? 'Отмечено выполненным (кликните для отмены)' : 'Кликните, чтобы отметить выполненным'"
-      @click="handleBulletClick"
+      :style="{ backgroundColor: tagColor }"
     >
       <Icon :icon="displayIcon" class="bullet-icon" />
       <span class="bullet-index">{{ index + 1 }}</span>
@@ -135,11 +117,6 @@ function handleCardClick(e: MouseEvent) {
           <Icon icon="mdi:clock-outline" class="clock-icon" />
           <span class="time-range">{{ activity.startTime }} – {{ activity.endTime }}</span>
           <span v-if="durationMinutes > 0" class="time-duration">({{ formattedDuration }})</span>
-        </div>
-
-        <div v-if="isCompleted" class="status-chip done">
-          <Icon icon="mdi:check" />
-          Готово
         </div>
       </div>
 
@@ -184,7 +161,8 @@ function handleCardClick(e: MouseEvent) {
 <style scoped lang="scss">
 .transit-node-card {
   position: relative;
-  width: 240px;
+  width: 100%;
+  min-width: 170px;
   min-height: 72px;
   background: var(--bg-tertiary-color);
   border: 1px solid var(--border-secondary-color);
@@ -248,14 +226,8 @@ function handleCardClick(e: MouseEvent) {
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
   border: 2px solid var(--bg-secondary-color);
   margin-top: 1px;
-  cursor: pointer;
-  transition:
-    transform 0.2s ease,
-    box-shadow 0.2s ease;
-
-  &:hover {
-    transform: scale(1.15);
-  }
+  pointer-events: none;
+  transition: transform 0.2s ease;
 
   .bullet-icon {
     font-size: 1rem;
