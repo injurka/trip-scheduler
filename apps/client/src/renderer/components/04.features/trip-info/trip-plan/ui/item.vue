@@ -435,6 +435,8 @@ onClickOutside(timeEditorRef, saveTimeChanges)
 
 <template>
   <div
+    :id="`activity-${activity.id}`"
+    :data-activity-id="activity.id"
     class="activity-item"
     :class="{
       'view-mode': isReadOnly,
@@ -748,6 +750,10 @@ onClickOutside(timeEditorRef, saveTimeChanges)
       content: none !important;
       display: none !important;
     }
+  }
+
+  &.highlight-pulse {
+    animation: activity-pulse 1.8s ease-in-out;
   }
 
   &.is-accepting {
@@ -1427,6 +1433,22 @@ onClickOutside(timeEditorRef, saveTimeChanges)
         padding-left: 4px;
       }
     }
+  }
+}
+
+@keyframes activity-pulse {
+  0% {
+    box-shadow: 0 0 0 0 rgba(var(--fg-accent-color-rgb), 0.7);
+    border-color: var(--fg-accent-color);
+  }
+  50% {
+    box-shadow: 0 0 20px 4px rgba(var(--fg-accent-color-rgb), 0.45);
+    border-color: var(--fg-accent-color);
+    transform: translateY(-2px);
+  }
+  100% {
+    box-shadow: 0 0 0 0 transparent;
+    transform: none;
   }
 }
 </style>

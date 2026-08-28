@@ -39,7 +39,6 @@ const viewItems: ViewSwitcherItem<EditorTab>[] = [
 
 function applyPreset(palette: ColorPalette) {
   Object.assign(customThemePalette.value, palette)
-  activeTab.value = 'colors'
 }
 
 function applyRadiusPreset(radius: RadiusPalette) {
@@ -56,6 +55,7 @@ const { mdAndDown } = useDisplay()
       <template #presets>
         <ColorPresetSelector
           :presets="themePresets"
+          :current-palette="customThemePalette"
           @apply-preset="applyPreset"
         />
       </template>

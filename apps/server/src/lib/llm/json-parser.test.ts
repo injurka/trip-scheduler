@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'bun:test'
-import { tryParseJson } from './json-parser'
+import { z } from 'zod'
+import { tryParseJson, validateParsedData } from './json-parser'
 
 describe('json-parser', () => {
   it('parses clean valid JSON', () => {
@@ -80,5 +81,30 @@ describe('json-parser', () => {
     const raw = 'This is definitely not a JSON { broken'
     const result = tryParseJson<any>(raw)
     expect(result.success).toBe(false)
+  })
+
+  it('validates parsed data with Zod schema successfully', () => {
+    const schema = z.object({
+      title: z.string(),
+      tag: z.enum(['transport', 'food', 'walk']),
+    })
+
+    const data = { title: 'Lunch', tag: 'food' as const }
+    const result = validateParsedData(data, { schema })
+    expect(result.success).toBe(true)
+    expect(result.data).toEqual(data)
+  })
+
+  it('collects detailed field-level errors when schema validation fails', () => {
+    const schema = z.object({
+      title: z.string(),
+      tag: z.enum(['transport', 'food', 'walk']),
+    })
+
+    const data = { title: 'Nature walk', tag: 'nature' }
+    const result = validateParsedData(data, { schema })
+    expect(result.success).toBe(false)
+    expect(result.errors).toBeDefined()
+    expect(result.errors?.[0]).toContain('Field "tag"')
   })
 })

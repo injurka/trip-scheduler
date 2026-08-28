@@ -2,13 +2,24 @@
 import type { ThemePreset } from '../../constants/color-presets'
 import type { ColorPalette } from '~/shared/store/theme.store'
 
-defineProps<{
+const props = defineProps<{
   presets: ThemePreset[]
+  currentPalette?: ColorPalette
 }>()
 
 const emit = defineEmits<{
   (e: 'applyPreset', palette: ColorPalette): void
 }>()
+
+function isPresetActive(preset: ThemePreset): boolean {
+  if (!props.currentPalette)
+    return false
+  return (
+    preset.palette['bg-primary-color'] === props.currentPalette['bg-primary-color']
+    && preset.palette['fg-accent-color'] === props.currentPalette['fg-accent-color']
+    && preset.palette['bg-secondary-color'] === props.currentPalette['bg-secondary-color']
+  )
+}
 </script>
 
 <template>
@@ -18,7 +29,7 @@ const emit = defineEmits<{
         Пресеты — это готовые наборы цветовых переменных, которые определяют внешний вид интерфейса.
         Вы можете выбрать один из предложенных пресетов в качестве отправной точки для своей
         пользовательской темы. После выбора пресета его цвета будут применены, и вы сможете
-        отредактировать их во вкладке «Редактор цветов».
+        отредактировать их во вкладке «Цвета».
       </p>
     </div>
     <div class="presets-grid">
@@ -26,6 +37,7 @@ const emit = defineEmits<{
         v-for="preset in presets"
         :key="preset.name"
         class="preset-card"
+        :class="{ 'is-active': isPresetActive(preset) }"
         @click="emit('applyPreset', preset.palette)"
       >
         <div class="preset-preview">
@@ -75,6 +87,19 @@ const emit = defineEmits<{
     transform: translateY(-2px);
     border-color: var(--border-accent-color);
     box-shadow: 0 4px 12px var(--bg-overlay-primary-color);
+  }
+
+  &.is-active {
+    border-color: var(--border-pressed-color);
+    box-shadow:
+      0 0 0 1px var(--border-pressed-color),
+      0 4px 12px var(--bg-overlay-primary-color);
+    background-color: var(--bg-secondary-color);
+
+    .preset-name {
+      color: var(--fg-accent-color);
+      font-weight: 600;
+    }
   }
 }
 

@@ -6,13 +6,14 @@ import { KitAvatar } from '~/components/01.kit/kit-avatar'
 import { KitDropdown } from '~/components/01.kit/kit-dropdown'
 import { KitTooltip } from '~/components/01.kit/kit-tooltip'
 import { ProfileDrawer } from '~/components/02.shared/profile-drawer'
+import { ThemePopover } from '~/components/02.shared/theme-manager'
 import { useAppStore } from '~/shared/composables/use-store'
 import { AppRouteNames, AppRoutePaths } from '~/shared/constants/routes'
 
 const headerEl = ref<HTMLElement>()
 const router = useRouter()
 const route = useRoute()
-const appStore = useAppStore(['auth', 'theme', 'layout'])
+const appStore = useAppStore(['auth', 'layout'])
 
 const isProfileDrawerOpen = ref(false)
 const isNavMenuOpen = ref(false)
@@ -208,11 +209,7 @@ onMounted(() => {
           </button>
         </KitTooltip>
 
-        <KitTooltip text="Настроить тему">
-          <button class="util-btn" @click="appStore.theme.openCreator()">
-            <Icon icon="mdi:palette-outline" />
-          </button>
-        </KitTooltip>
+        <ThemePopover />
 
         <div class="vr" />
 

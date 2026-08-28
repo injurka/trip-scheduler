@@ -1,5 +1,8 @@
 <script setup lang="ts">
+import { Icon } from '@iconify/vue'
+import { KitBtn } from '~/components/01.kit/kit-btn'
 import { KitInlineMdEditorWrapper } from '~/components/01.kit/kit-inline-md-editor'
+import { DayRouteVisualizer } from '~/components/04.features/trip-info/trip-plan'
 import { useModuleStore } from '~/components/05.modules/trip-info/composables/use-trip-info-module'
 
 const store = useModuleStore(['plan', 'ui'])
@@ -7,7 +10,10 @@ const store = useModuleStore(['plan', 'ui'])
 const { getSelectedDay: selectedDay, currentDayIndex } = storeToRefs(store.plan)
 const { isViewMode } = storeToRefs(store.ui)
 
+const isVisualizerOpen = ref(false)
+
 const dayNumber = computed(() => currentDayIndex.value + 1)
+const activitiesCount = computed(() => selectedDay.value?.activities?.length || 0)
 
 function updateDayDetails(details: { title?: string, description?: string, meta?: any[] }) {
   store.plan.updateDayDetails(selectedDay.value!.id, details)
@@ -19,6 +25,19 @@ function handleDescriptionBlur(newDesc: string) {
 
 function handleTitleBlur(newTitle: string) {
   updateDayDetails({ title: newTitle })
+}
+
+function handleScrollToActivity(activityId: string) {
+  const el = document.getElementById(`activity-${activityId}`) || document.querySelector(`[data-activity-id="${activityId}"]`)
+  if (el) {
+    el.scrollIntoView({ behavior: 'smooth', block: 'center' })
+    el.classList.remove('highlight-pulse')
+    void (el as HTMLElement).offsetWidth
+    el.classList.add('highlight-pulse')
+    setTimeout(() => {
+      el.classList.remove('highlight-pulse')
+    }, 2000)
+  }
 }
 </script>
 
@@ -34,6 +53,22 @@ function handleTitleBlur(newTitle: string) {
           <span class="day-badge__number">{{ dayNumber }}</span>
         </span>
         <div class="day-header__separator" />
+
+        <KitBtn
+          size="xs"
+          :variant="isVisualizerOpen ? 'solid' : 'outlined'"
+          :color="isVisualizerOpen ? 'primary' : 'secondary'"
+          class="visualizer-toggle-btn"
+          :title="isVisualizerOpen ? 'Скрыть схему маршрута' : 'Показать интерактивную схему маршрута дня'"
+          @click="isVisualizerOpen = !isVisualizerOpen"
+        >
+          <Icon :icon="isVisualizerOpen ? 'mdi:transit-connection-variant' : 'mdi:map-marker-path'" class="toggle-icon" />
+          <span class="toggle-text">Схема дня</span>
+          <span v-if="activitiesCount > 0" class="toggle-count">
+            {{ activitiesCount }}
+          </span>
+          <Icon :icon="isVisualizerOpen ? 'mdi:chevron-up' : 'mdi:chevron-down'" class="toggle-chevron" />
+        </KitBtn>
       </div>
 
       <KitInlineMdEditorWrapper
@@ -55,6 +90,17 @@ function handleTitleBlur(newTitle: string) {
         @blur="handleDescriptionBlur(selectedDay.description)"
       />
     </div>
+
+    <!-- Collapsible Day Route Visualizer -->
+    <Transition name="expand-visualizer">
+      <DayRouteVisualizer
+        v-if="isVisualizerOpen"
+        :day="selectedDay"
+        :readonly="isViewMode"
+        @close="isVisualizerOpen = false"
+        @scroll-to-activity="handleScrollToActivity"
+      />
+    </Transition>
   </div>
 </template>
 
@@ -202,5 +248,53 @@ function handleTitleBlur(newTitle: string) {
       margin: 0;
     }
   }
+}
+
+.visualizer-toggle-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.78rem;
+  padding: 3px 10px;
+  border-radius: 999px;
+  flex-shrink: 0;
+
+  .toggle-icon {
+    font-size: 0.95rem;
+  }
+
+  .toggle-count {
+    background: rgba(var(--fg-accent-color-rgb), 0.18);
+    color: var(--fg-accent-color);
+    border-radius: 999px;
+    padding: 0 6px;
+    font-size: 0.72rem;
+    font-weight: 700;
+  }
+
+  &.kit-btn--solid .toggle-count {
+    background: rgba(255, 255, 255, 0.25);
+    color: #fff;
+  }
+
+  .toggle-chevron {
+    font-size: 0.85rem;
+    margin-left: -2px;
+  }
+}
+
+.expand-visualizer-enter-active,
+.expand-visualizer-leave-active {
+  transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+  max-height: 800px;
+  opacity: 1;
+  overflow: hidden;
+}
+
+.expand-visualizer-enter-from,
+.expand-visualizer-leave-to {
+  max-height: 0;
+  opacity: 0;
+  transform: translateY(-8px);
 }
 </style>

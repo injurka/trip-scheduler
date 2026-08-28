@@ -13,7 +13,7 @@ interface AccessTokenPayload {
 const ACCESS_TOKEN_EXPIRY = 60 * 15 * 24 * 1 // 1 день
 const REFRESH_TOKEN_EXPIRY = 60 * 60 * 24 * 14 // 14 дней
 
-const JWT_SECRET = process.env.JWT_SECRET!
+const JWT_SECRET = process.env.JWT_SECRET || (process.env.NODE_ENV === 'test' ? 'test-secret-key-123456789' : '')
 if (!JWT_SECRET) {
   throw new Error('JWT_SECRET не определен в переменных окружения. Это критическая ошибка.')
 }

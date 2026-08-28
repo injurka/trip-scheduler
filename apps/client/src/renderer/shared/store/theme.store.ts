@@ -25,60 +25,60 @@ export interface BackgroundSettings {
 
 const defaultLightPalette: ColorPalette = {
   // BG
-  'bg-primary-color': '#eeeeee',
-  'bg-secondary-color': '#e8eaeb',
-  'bg-tertiary-color': '#dce0e4',
-  'bg-header-color': '220, 223, 225',
-  'bg-disabled-color': '#e7e9ed',
-  'bg-inverted-color': '#22263b',
-  'bg-accent-overlay-color': '#818bb5',
-  'bg-accent-color': '#d7e0f3',
-  'bg-pressed-color': '#22263b0d',
-  'bg-overlay-primary-color': '#454a6115',
-  'bg-overlay-secondary-color': '#94a1abdc',
-  'bg-action-hover-color': '#828dca',
-  'bg-hover-color': '#dfe1e6',
-  'bg-focus-color': '#d7e0f3',
-  'bg-highlight-color': '#e3e2ff',
+  'bg-primary-color': '#faf4f2',
+  'bg-secondary-color': '#f2edeb',
+  'bg-tertiary-color': '#e0dad9',
+  'bg-header-color': '242, 237, 235',
+  'bg-disabled-color': '#f2edeb',
+  'bg-inverted-color': '#29242a',
+  'bg-accent-overlay-color': '#e160324d',
+  'bg-accent-color': '#fce9e4',
+  'bg-pressed-color': '#29242a0d',
+  'bg-overlay-primary-color': '#706b6e36',
+  'bg-overlay-secondary-color': '#a59fa0dc',
+  'bg-action-hover-color': '#f37a51',
+  'bg-hover-color': '#ede7e5bf',
+  'bg-focus-color': '#fce9e4',
+  'bg-highlight-color': '#fdf5d7',
 
   // BG STATUS
-  'bg-success-color': '#d0e6d2',
-  'bg-error-color': '#ebd5d9',
-  'bg-warning-color': '#fcefdc',
-  'bg-info-color': '#d4e8f7',
+  'bg-success-color': '#d4e6d6',
+  'bg-error-color': '#f3d9e0',
+  'bg-warning-color': '#fce9e4',
+  'bg-info-color': '#fdecd7',
 
   // FG
-  'fg-primary-color': '#22263b',
-  'fg-secondary-color': '#22263bcc',
-  'fg-tertiary-color': '#22263b99',
-  'fg-muted-color': '#22263b66',
-  'fg-accent-color': '#344079',
-  'fg-action-color': '#424c86',
-  'fg-inverted-color': '#ffffff',
-  'fg-disabled-color': '#22263b4d',
-  'fg-pressed-color': '#22263b',
-  'fg-highlight-color': '#7371c9',
+  'fg-primary-color': '#29242a',
+  'fg-secondary-color': '#706b6e',
+  'fg-tertiary-color': '#a59fa0',
+  'fg-muted-color': '#29242a66',
+  'fg-accent-color': '#e16032',
+  'fg-action-color': '#e16032',
+  'fg-inverted-color': '#faf4f2',
+  'fg-disabled-color': '#29242a4d',
+  'fg-pressed-color': '#29242a',
+  'fg-highlight-color': '#d99f47',
 
   // FG STATUS
-  'fg-success-color': '#1e6627',
-  'fg-error-color': '#8c2b3d',
-  'fg-warning-color': '#8a5a1b',
-  'fg-info-color': '#2a5a7f',
+  'fg-success-color': '#269d69',
+  'fg-error-color': '#e14775',
+  'fg-warning-color': '#e16032',
+  'fg-info-color': '#cc7a0a',
 
   // Border
-  'border-primary-color': '#22263b54',
-  'border-secondary-color': '#22263b1a',
-  'border-accent-color': '#bbcef8',
-  'border-disabled-color': '#22263b1a',
-  'border-button-secondary-color': '#34407933',
-  'border-focus-color': '#344079',
-  'border-pressed-color': '#344079',
+  'border-primary-color': '#d2cdcb',
+  'border-secondary-color': '#e0dad9',
+  'border-accent-color': '#f37a51',
+  'border-disabled-color': '#e0dad9',
+  'border-button-secondary-color': '#f5d6cb',
+  'border-focus-color': '#e16032',
+  'border-pressed-color': '#e16032',
 
   // BORDER STATUS
-  'border-success-color': '#5b9d63',
-  'border-error-color': '#c58c99',
-  'border-warning-color': '#e6c58d',
-  'border-info-color': '#89b9d9',
+  'border-success-color': '#5bbd8b',
+  'border-error-color': '#e87899',
+  'border-warning-color': '#f37a51',
+  'border-info-color': '#d99f47',
 }
 
 const defaultRadiusPalette: RadiusPalette = {
@@ -120,7 +120,7 @@ function generateShadowsFromColor(color: string): ShadowPalette {
   }
 }
 
-const defaultLightShadowColor = '#22263b'
+const defaultLightShadowColor = '#29242a'
 const defaultLightShadows = generateShadowsFromColor(defaultLightShadowColor)
 
 const defaultBackgroundSettings: BackgroundSettings = {

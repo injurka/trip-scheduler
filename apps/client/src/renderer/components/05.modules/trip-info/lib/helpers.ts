@@ -102,3 +102,107 @@ export function memoryToViewerImage(memory: Memory): ImageViewerImage | null {
 
   return viewerImage
 }
+
+const VALID_TAGS = new Set(Object.values(EActivityTag))
+
+const ClientTagSynonyms: Record<string, EActivityTag> = {
+  transport: EActivityTag.TRANSPORT,
+  транспорт: EActivityTag.TRANSPORT,
+  дорога: EActivityTag.TRANSPORT,
+  переезд: EActivityTag.TRANSPORT,
+  поездка: EActivityTag.TRANSPORT,
+  трансфер: EActivityTag.TRANSPORT,
+  transfer: EActivityTag.TRANSPORT,
+  drive: EActivityTag.TRANSPORT,
+  flight: EActivityTag.TRANSPORT,
+  train: EActivityTag.TRANSPORT,
+  bus: EActivityTag.TRANSPORT,
+  taxi: EActivityTag.TRANSPORT,
+  walk: EActivityTag.WALK,
+  walking: EActivityTag.WALK,
+  прогулка: EActivityTag.WALK,
+  пешком: EActivityTag.WALK,
+  хайкинг: EActivityTag.WALK,
+  треккинг: EActivityTag.WALK,
+  hiking: EActivityTag.WALK,
+  trekking: EActivityTag.WALK,
+  food: EActivityTag.FOOD,
+  еда: EActivityTag.FOOD,
+  обед: EActivityTag.FOOD,
+  завтрак: EActivityTag.FOOD,
+  ужин: EActivityTag.FOOD,
+  кафе: EActivityTag.FOOD,
+  ресторан: EActivityTag.FOOD,
+  перекус: EActivityTag.FOOD,
+  restaurant: EActivityTag.FOOD,
+  lunch: EActivityTag.FOOD,
+  dinner: EActivityTag.FOOD,
+  cafe: EActivityTag.FOOD,
+  attraction: EActivityTag.ATTRACTION,
+  достопримечательность: EActivityTag.ATTRACTION,
+  музей: EActivityTag.ATTRACTION,
+  пляж: EActivityTag.ATTRACTION,
+  водопад: EActivityTag.ATTRACTION,
+  природа: EActivityTag.ATTRACTION,
+  парк: EActivityTag.ATTRACTION,
+  nature: EActivityTag.ATTRACTION,
+  sight: EActivityTag.ATTRACTION,
+  sightseeing: EActivityTag.ATTRACTION,
+  museum: EActivityTag.ATTRACTION,
+  beach: EActivityTag.ATTRACTION,
+  relax: EActivityTag.RELAX,
+  отдых: EActivityTag.RELAX,
+  релакс: EActivityTag.RELAX,
+  сон: EActivityTag.RELAX,
+  спа: EActivityTag.RELAX,
+  отель: EActivityTag.RELAX,
+  hotel: EActivityTag.RELAX,
+  spa: EActivityTag.RELAX,
+  rest: EActivityTag.RELAX,
+  activity: EActivityTag.ACTIVITY,
+  активность: EActivityTag.ACTIVITY,
+  экскурсия: EActivityTag.ACTIVITY,
+  спорт: EActivityTag.ACTIVITY,
+  тур: EActivityTag.ACTIVITY,
+  tour: EActivityTag.ACTIVITY,
+  excursion: EActivityTag.ACTIVITY,
+}
+
+export function sanitizeActivityTag(tag: any): EActivityTag {
+  if (typeof tag === 'string') {
+    const lower = tag.trim().toLowerCase()
+    if (VALID_TAGS.has(lower as EActivityTag)) {
+      return lower as EActivityTag
+    }
+    if (ClientTagSynonyms[lower]) {
+      return ClientTagSynonyms[lower]
+    }
+  }
+  return EActivityTag.ACTIVITY
+}
+
+export function sanitizeTimeString(timeStr: any): string {
+  if (!timeStr || typeof timeStr !== 'string') {
+    return '00:00'
+  }
+  const trimmed = timeStr.trim()
+  const match = /^(\d):([0-5]\d)$/.exec(trimmed)
+  if (match) {
+    return `0${match[1]}:${match[2]}`
+  }
+  return trimmed
+}
+
+export function sanitizeActivity<T extends Partial<IActivity>>(activity: T): T {
+  const result = { ...activity }
+  if (result.tag !== undefined && result.tag !== null) {
+    result.tag = sanitizeActivityTag(result.tag)
+  }
+  if (result.startTime) {
+    result.startTime = sanitizeTimeString(result.startTime)
+  }
+  if (result.endTime) {
+    result.endTime = sanitizeTimeString(result.endTime)
+  }
+  return result
+}

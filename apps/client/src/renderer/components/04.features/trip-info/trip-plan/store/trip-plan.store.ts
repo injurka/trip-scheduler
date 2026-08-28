@@ -2,6 +2,7 @@
 import type { IActivity, IDay } from '../models/types'
 import type { Trip, TripSection, UpdateTripInput } from '~/shared/types/models/trip'
 import { defineStore } from 'pinia'
+import { sanitizeActivity } from '~/components/05.modules/trip-info/lib/helpers'
 import { useRequest, useRequestError, useRequestStatus, useRequestStatusByPrefix, useRequestStore } from '~/plugins/request'
 import { createApiErrorHandler } from '~/plugins/request/lib/error-handler'
 import { AppRoutePaths } from '~/shared/constants/routes'
@@ -133,14 +134,15 @@ export const useTripPlanStore = defineStore('tripPlan', {
 
     /** Сохранить черновик для конкретной активности */
     setActivityDraft(activityId: string, draft: IActivity) {
-      this.activityDrafts.set(activityId, draft)
+      this.activityDrafts.set(activityId, sanitizeActivity(draft))
     },
 
     /** Принять черновик активности — применить к реальным данным */
     acceptActivityDraft(dayId: string, activityId: string) {
-      const draft = this.activityDrafts.get(activityId)
-      if (!draft)
+      const rawDraft = this.activityDrafts.get(activityId)
+      if (!rawDraft)
         return
+      const draft = sanitizeActivity(rawDraft)
       const day = this.days.find(d => d.id === dayId)
       if (!day)
         return
@@ -152,8 +154,6 @@ export const useTripPlanStore = defineStore('tripPlan', {
       else if (activityId.startsWith('new-ai-')) {
         // Accept a new AI activity
         // We need to call the actual addActivity method, but removing the 'new-ai-' temp ID.
-        // Or wait, addActivity generates its own temp ID.
-        // Let's just remove it from day.activities and call addActivity.
         const newActIndex = day.activities.findIndex(a => a.id === activityId)
         if (newActIndex !== -1)
           day.activities.splice(newActIndex, 1)
@@ -189,7 +189,9 @@ export const useTripPlanStore = defineStore('tripPlan', {
       // Build a fresh activities array: apply drafts for existing, drop new-ai- temp entries
       const nextActivities: IActivity[] = []
       for (const activity of day.activities) {
-        const draft = this.activityDrafts.get(activity.id)
+        const rawDraft = this.activityDrafts.get(activity.id)
+        const draft = rawDraft ? sanitizeActivity(rawDraft) : undefined
+
         if (activity.id.startsWith('new-ai-')) {
           // Will be added via addActivity after the loop — skip here
           if (draft)
@@ -197,9 +199,10 @@ export const useTripPlanStore = defineStore('tripPlan', {
         }
         else {
           // Existing activity: use draft if present, otherwise keep original
-          nextActivities.push(draft ?? activity)
+          const finalAct = sanitizeActivity(draft ?? activity)
+          nextActivities.push(finalAct)
           if (draft)
-            this.updateActivity(dayId, draft)
+            this.updateActivity(dayId, finalAct)
         }
         this.activityDrafts.delete(activity.id)
       }
@@ -411,9 +414,10 @@ export const useTripPlanStore = defineStore('tripPlan', {
         return
       }
 
+      const sanitizedData = sanitizeActivity(activityData)
       const tempId = `temp-activity-${Date.now()}`
       const optimisticActivity: IActivity = {
-        ...activityData,
+        ...sanitizedData,
         id: tempId,
       }
 
@@ -421,7 +425,7 @@ export const useTripPlanStore = defineStore('tripPlan', {
 
       useRequest({
         key: `${ETripPlanKeys.ADD_ACTIVITY}:${tempId}`,
-        fn: db => db.activities.create(activityData),
+        fn: db => db.activities.create(sanitizedData),
         onSuccess: (createdActivityFromServer) => {
           const tempActivity = day.activities.find(a => a.id === tempId)
           if (tempActivity) {
@@ -484,17 +488,18 @@ export const useTripPlanStore = defineStore('tripPlan', {
       if (activityIndex === -1)
         return
 
+      const sanitizedActivity = sanitizeActivity(updatedActivity)
       const originalActivity = JSON.parse(JSON.stringify(day.activities[activityIndex]))
-      day.activities[activityIndex] = updatedActivity
+      day.activities[activityIndex] = sanitizedActivity
 
-      if (updatedActivity.id.startsWith('new-ai-')) {
-        this.setActivityDraft(updatedActivity.id, updatedActivity)
+      if (sanitizedActivity.id.startsWith('new-ai-')) {
+        this.setActivityDraft(sanitizedActivity.id, sanitizedActivity)
         return
       }
 
       useRequest({
-        key: `${ETripPlanKeys.UPDATE_ACTIVITY}:${updatedActivity.id}`,
-        fn: db => db.activities.update(updatedActivity),
+        key: `${ETripPlanKeys.UPDATE_ACTIVITY}:${sanitizedActivity.id}`,
+        fn: db => db.activities.update(sanitizedActivity),
         onSuccess: (activityFromServer) => {
           const finalIndex = day.activities.findIndex(a => a.id === activityFromServer.id)
 
@@ -502,11 +507,11 @@ export const useTripPlanStore = defineStore('tripPlan', {
             day.activities[finalIndex] = activityFromServer
         },
         onError: ({ error }) => {
-          const revertIndex = day.activities.findIndex(a => a.id === updatedActivity.id)
+          const revertIndex = day.activities.findIndex(a => a.id === sanitizedActivity.id)
           if (revertIndex !== -1)
             day.activities[revertIndex] = originalActivity
 
-          console.error(`Ошибка при обновлении активности ${updatedActivity.id}: `, error)
+          console.error(`Ошибка при обновлении активности ${sanitizedActivity.id}: `, error)
           useToast().error(`Ошибка при обновлении активности: ${error.customMessage}`)
         },
       })
@@ -654,11 +659,11 @@ export const useTripPlanStore = defineStore('tripPlan', {
         const newStartTimeMinutes = lastEndTimeMinutes + GAP_BETWEEN_ACTIVITIES_MINUTES
         const newEndTimeMinutes = newStartTimeMinutes + duration
 
-        recalculatedActivities.push({
+        recalculatedActivities.push(sanitizeActivity({
           ...activity,
           startTime: minutesToTime(newStartTimeMinutes),
           endTime: minutesToTime(newEndTimeMinutes),
-        })
+        }))
 
         lastEndTimeMinutes = newEndTimeMinutes
       }
@@ -710,10 +715,11 @@ export const useTripPlanStore = defineStore('tripPlan', {
       if (!originalActivity)
         return
 
-      const draft = this.activityDrafts.get(activityId)
-      if (!draft)
+      const rawDraft = this.activityDrafts.get(activityId)
+      if (!rawDraft)
         return
 
+      const draft = sanitizeActivity(rawDraft)
       const updatedActivity = { ...originalActivity }
 
       if (fields.includes('title'))
@@ -728,23 +734,24 @@ export const useTripPlanStore = defineStore('tripPlan', {
         updatedActivity.sections = draft.sections ? JSON.parse(JSON.stringify(draft.sections)) : []
       }
 
-      this.updateActivity(dayId, updatedActivity)
+      const finalSanitized = sanitizeActivity(updatedActivity)
+      this.updateActivity(dayId, finalSanitized)
 
       const updatedDraft = { ...draft }
       if (fields.includes('title'))
-        updatedDraft.title = updatedActivity.title
+        updatedDraft.title = finalSanitized.title
       if (fields.includes('time')) {
-        updatedDraft.startTime = updatedActivity.startTime
-        updatedDraft.endTime = updatedActivity.endTime
+        updatedDraft.startTime = finalSanitized.startTime
+        updatedDraft.endTime = finalSanitized.endTime
       }
       if (fields.includes('tag'))
-        updatedDraft.tag = updatedActivity.tag
+        updatedDraft.tag = finalSanitized.tag
       if (fields.includes('sections')) {
-        updatedDraft.sections = updatedActivity.sections ? JSON.parse(JSON.stringify(updatedActivity.sections)) : []
+        updatedDraft.sections = finalSanitized.sections ? JSON.parse(JSON.stringify(finalSanitized.sections)) : []
       }
 
       // Recalculate remaining diff
-      const diff = useActivityDiff(updatedActivity, updatedDraft)
+      const diff = useActivityDiff(finalSanitized, updatedDraft)
       if (!diff.hasChanges) {
         this.activityDrafts.delete(activityId)
       }
