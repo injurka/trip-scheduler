@@ -1,5 +1,15 @@
 import type { z } from 'zod'
-import type { ChangePasswordInputSchema, CreateHighlightInputSchema, DeleteAccountInputSchema, GetUserHighlightsInputSchema, SignInInputSchema, SignUpInputSchema, UpdateUserInputSchema, VerifyEmailInputSchema } from './user.schemas'
+import type {
+  ChangePasswordInputSchema,
+  CreateHighlightInputSchema,
+  DeleteAccountInputSchema,
+  GetUserHighlightsInputSchema,
+  SetPasswordInputSchema,
+  SignInInputSchema,
+  SignUpInputSchema,
+  UpdateUserInputSchema,
+  VerifyEmailInputSchema,
+} from './user.schemas'
 import { and, eq, gte } from 'drizzle-orm'
 import { db } from '~/../db'
 import { emailVerificationTokens, users } from '~/../db/schema'
@@ -9,6 +19,7 @@ import { highlightRepository } from '~/repositories/highlight.repository'
 import { userRepository } from '~/repositories/user.repository'
 import { emailService } from '~/services/email.service'
 import { deleteFileWithVariants } from '~/services/file-storage.service'
+import { telegramAuthService } from '~/services/telegram-auth.service'
 
 export const userService = {
   async listPlans() {
@@ -148,6 +159,24 @@ export const userService = {
       throw createTRPCError('INTERNAL_SERVER_ERROR', 'Не удалось сменить пароль.')
     }
     return { success: true }
+  },
+
+  async setPassword(id: string, data: z.infer<typeof SetPasswordInputSchema>) {
+    const newPasswordHash = await authUtils.passwords.hash(data.newPassword)
+    await userRepository.setPassword(id, newPasswordHash)
+    return { success: true }
+  },
+
+  async unlinkProvider(id: string, provider: 'google' | 'github' | 'telegram' | 'yandex') {
+    return await userRepository.unlinkOAuthProvider(id, provider)
+  },
+
+  async initTelegramLink(userId: string) {
+    return telegramAuthService.initLink(userId)
+  },
+
+  async checkTelegramLinkStatus(token: string, userId: string) {
+    return await telegramAuthService.getLinkStatus(token, userId)
   },
 
   async deleteAccount(id: string, data: z.infer<typeof DeleteAccountInputSchema>) {

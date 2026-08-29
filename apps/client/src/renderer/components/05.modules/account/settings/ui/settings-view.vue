@@ -3,6 +3,7 @@ import { Icon } from '@iconify/vue'
 import { Cropper } from 'vue-advanced-cropper'
 import { KitAvatar } from '~/components/01.kit/kit-avatar'
 import { KitBtn } from '~/components/01.kit/kit-btn'
+import { KitDialogWithClose } from '~/components/01.kit/kit-dialog-with-close'
 import { KitDivider } from '~/components/01.kit/kit-divider'
 import { KitInput } from '~/components/01.kit/kit-input'
 import { NavigationBack } from '~/components/02.shared/navigation-back/index'
@@ -13,11 +14,14 @@ const {
   user,
   profileForm,
   passwordForm,
+  setPasswordForm,
   deleteForm,
   isProfileChanged,
   isPasswordFormValid,
+  isSetPasswordFormValid,
   updateProfile,
   changePassword,
+  setPassword,
   deleteAccount,
   handleAvatarUpload,
   handleCoverSelect,
@@ -30,10 +34,25 @@ const {
   isCropperVisible,
   isUpdatingProfile,
   isChangingPassword,
+  isSettingPassword,
   isDeletingAccount,
   vaultPath,
   selectVaultFolder,
   isElectron,
+  // OAuth & Integrations
+  isYandexLinked,
+  isGoogleLinked,
+  isGithubLinked,
+  isTelegramLinked,
+  hasPassword,
+  unlinkingProvider,
+  isTelegramModalVisible,
+  isTelegramLinking,
+  telegramLinkUrl,
+  linkOAuth,
+  startTelegramLink,
+  cancelTelegramLinkModal,
+  unlinkProvider,
 } = useProfileSettings()
 
 const avatarInput = ref<HTMLInputElement | null>(null)
@@ -166,11 +185,180 @@ function applyCrop() {
 
     <KitDivider />
 
+    <!-- Секция: Связанные аккаунты -->
+    <section class="profile-section">
+      <h2 class="section-title">
+        Связанные аккаунты
+      </h2>
+      <div class="section-content">
+        <p class="section-description">
+          Привяжите сторонние сервисы для быстрого входа в аккаунт в один клик.
+        </p>
+
+        <div class="integrations-list">
+          <!-- Яндекс -->
+          <div class="integration-item">
+            <div class="integration-info">
+              <div class="integration-icon-wrap yandex">
+                <span class="yandex-badge">Я</span>
+              </div>
+              <div class="integration-meta">
+                <h4>Яндекс</h4>
+                <div class="integration-status" :class="{ linked: isYandexLinked }">
+                  <span class="status-dot" />
+                  <span>{{ isYandexLinked ? 'Подключен' : 'Не привязан' }}</span>
+                </div>
+              </div>
+            </div>
+            <div class="integration-action">
+              <KitBtn
+                v-if="isYandexLinked"
+                variant="outlined"
+                color="secondary"
+                size="sm"
+                :disabled="unlinkingProvider === 'yandex'"
+                :loading="unlinkingProvider === 'yandex'"
+                @click="unlinkProvider('yandex')"
+              >
+                Отвязать
+              </KitBtn>
+              <KitBtn
+                v-else
+                variant="solid"
+                color="secondary"
+                size="sm"
+                @click="linkOAuth('yandex')"
+              >
+                Привязать
+              </KitBtn>
+            </div>
+          </div>
+
+          <!-- Telegram -->
+          <div class="integration-item">
+            <div class="integration-info">
+              <div class="integration-icon-wrap telegram">
+                <Icon icon="mdi:telegram" />
+              </div>
+              <div class="integration-meta">
+                <h4>Telegram</h4>
+                <div class="integration-status" :class="{ linked: isTelegramLinked }">
+                  <span class="status-dot" />
+                  <span>{{ isTelegramLinked ? 'Подключен' : 'Не привязан' }}</span>
+                </div>
+              </div>
+            </div>
+            <div class="integration-action">
+              <KitBtn
+                v-if="isTelegramLinked"
+                variant="outlined"
+                color="secondary"
+                size="sm"
+                :disabled="unlinkingProvider === 'telegram'"
+                :loading="unlinkingProvider === 'telegram'"
+                @click="unlinkProvider('telegram')"
+              >
+                Отвязать
+              </KitBtn>
+              <KitBtn
+                v-else
+                variant="solid"
+                color="secondary"
+                size="sm"
+                :loading="isTelegramLinking"
+                @click="startTelegramLink"
+              >
+                Привязать
+              </KitBtn>
+            </div>
+          </div>
+
+          <!-- Google -->
+          <div class="integration-item">
+            <div class="integration-info">
+              <div class="integration-icon-wrap google">
+                <Icon icon="mdi:google" />
+              </div>
+              <div class="integration-meta">
+                <h4>Google</h4>
+                <div class="integration-status" :class="{ linked: isGoogleLinked }">
+                  <span class="status-dot" />
+                  <span>{{ isGoogleLinked ? 'Подключен' : 'Не привязан' }}</span>
+                </div>
+              </div>
+            </div>
+            <div class="integration-action">
+              <KitBtn
+                v-if="isGoogleLinked"
+                variant="outlined"
+                color="secondary"
+                size="sm"
+                :disabled="unlinkingProvider === 'google'"
+                :loading="unlinkingProvider === 'google'"
+                @click="unlinkProvider('google')"
+              >
+                Отвязать
+              </KitBtn>
+              <KitBtn
+                v-else
+                variant="solid"
+                color="secondary"
+                size="sm"
+                @click="linkOAuth('google')"
+              >
+                Привязать
+              </KitBtn>
+            </div>
+          </div>
+
+          <!-- GitHub -->
+          <div class="integration-item">
+            <div class="integration-info">
+              <div class="integration-icon-wrap github">
+                <Icon icon="mdi:github" />
+              </div>
+              <div class="integration-meta">
+                <h4>GitHub</h4>
+                <div class="integration-status" :class="{ linked: isGithubLinked }">
+                  <span class="status-dot" />
+                  <span>{{ isGithubLinked ? 'Подключен' : 'Не привязан' }}</span>
+                </div>
+              </div>
+            </div>
+            <div class="integration-action">
+              <KitBtn
+                v-if="isGithubLinked"
+                variant="outlined"
+                color="secondary"
+                size="sm"
+                :disabled="unlinkingProvider === 'github'"
+                :loading="unlinkingProvider === 'github'"
+                @click="unlinkProvider('github')"
+              >
+                Отвязать
+              </KitBtn>
+              <KitBtn
+                v-else
+                variant="solid"
+                color="secondary"
+                size="sm"
+                @click="linkOAuth('github')"
+              >
+                Привязать
+              </KitBtn>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <KitDivider />
+
     <section class="profile-section">
       <h2 class="section-title">
         Безопасность
       </h2>
-      <div class="section-content password-grid">
+      <div v-if="hasPassword" class="section-content password-grid">
         <KitInput
           v-model="passwordForm.currentPassword"
           label="Текущий пароль"
@@ -190,9 +378,43 @@ function applyCrop() {
           icon="mdi:lock-check-outline"
         />
       </div>
+      <div v-else class="section-content">
+        <p class="password-note">
+          Вы вошли через социальную сеть, и пароль для аккаунта еще не установлен. Задайте пароль, чтобы иметь возможность входить по email и паролю.
+        </p>
+        <div class="password-grid">
+          <KitInput
+            v-model="setPasswordForm.newPassword"
+            label="Новый пароль"
+            type="password"
+            icon="mdi:lock-plus-outline"
+          />
+          <KitInput
+            v-model="setPasswordForm.confirmPassword"
+            label="Подтвердите пароль"
+            type="password"
+            icon="mdi:lock-check-outline"
+          />
+        </div>
+      </div>
       <footer class="section-footer">
-        <KitBtn size="sm" :disabled="!isPasswordFormValid || isChangingPassword" :loading="isChangingPassword" @click="changePassword">
+        <KitBtn
+          v-if="hasPassword"
+          size="sm"
+          :disabled="!isPasswordFormValid || isChangingPassword"
+          :loading="isChangingPassword"
+          @click="changePassword"
+        >
           Сменить пароль
+        </KitBtn>
+        <KitBtn
+          v-else
+          size="sm"
+          :disabled="!isSetPasswordFormValid || isSettingPassword"
+          :loading="isSettingPassword"
+          @click="setPassword"
+        >
+          Установить пароль
         </KitBtn>
       </footer>
     </section>
@@ -225,6 +447,38 @@ function applyCrop() {
         </KitBtn>
       </div>
     </section>
+
+    <!-- Диалог привязки Telegram -->
+    <KitDialogWithClose
+      :visible="isTelegramModalVisible"
+      title="Привязка Telegram"
+      icon="mdi:telegram"
+      :max-width="480"
+      @update:visible="cancelTelegramLinkModal"
+    >
+      <div class="telegram-link-body">
+        <p class="telegram-desc">
+          Чтобы привязать Telegram к вашему аккаунту:
+        </p>
+        <ol class="telegram-steps">
+          <li>Нажмите кнопку ниже, чтобы открыть бота в Telegram</li>
+          <li>В чате с ботом нажмите <strong>«Старт»</strong></li>
+          <li>Подтвердите привязку аккаунта кнопкой <strong>«Привязать»</strong></li>
+        </ol>
+        <div class="telegram-action">
+          <a :href="telegramLinkUrl" target="_blank" class="telegram-btn-link" rel="noopener noreferrer">
+            <KitBtn color="primary" size="md">
+              <Icon icon="mdi:telegram" />
+              Открыть бота в Telegram
+            </KitBtn>
+          </a>
+        </div>
+        <div class="telegram-waiting">
+          <Icon icon="mdi:loading" class="spinner" />
+          <span>Ожидание подтверждения в Telegram...</span>
+        </div>
+      </div>
+    </KitDialogWithClose>
 
     <!-- Модальное окно для обрезки (кроппер) -->
     <Teleport to="body">
@@ -422,6 +676,181 @@ function applyCrop() {
       text-shadow: 0 1px 3px rgba(0, 0, 0, 0.5);
     }
   }
+}
+
+.section-description {
+  margin: 0 0 1.25rem;
+  font-size: 0.95rem;
+  color: var(--fg-secondary-color);
+}
+
+.integrations-list {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  gap: 1rem;
+}
+
+.integration-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 1rem 1.25rem;
+  background-color: var(--bg-tertiary-color);
+  border: 1px solid var(--border-secondary-color);
+  border-radius: var(--r-m);
+  gap: 1rem;
+  transition: all 0.2s ease;
+
+  &:hover {
+    border-color: var(--border-primary-color);
+  }
+}
+
+.integration-info {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+}
+
+.integration-icon-wrap {
+  width: 42px;
+  height: 42px;
+  border-radius: var(--r-m);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background-color: var(--bg-secondary-color);
+  border: 1px solid var(--border-secondary-color);
+  font-size: 1.5rem;
+  flex-shrink: 0;
+
+  &.yandex {
+    color: #fc3f1d;
+  }
+  &.telegram {
+    color: #229ed9;
+  }
+  &.google {
+    color: #ea4335;
+  }
+  &.github {
+    color: var(--fg-primary-color);
+  }
+}
+
+.yandex-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  background: #fc3f1d;
+  color: #ffffff;
+  font-family:
+    Arial,
+    -apple-system,
+    sans-serif;
+  font-size: 0.875rem;
+  font-weight: 700;
+  line-height: 1;
+}
+
+.integration-meta {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+
+  h4 {
+    margin: 0;
+    font-size: 1rem;
+    font-weight: 600;
+    color: var(--fg-primary-color);
+  }
+}
+
+.integration-status {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+  font-size: 0.8125rem;
+  color: var(--fg-secondary-color);
+
+  .status-dot {
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background-color: var(--fg-tertiary-color);
+  }
+
+  &.linked {
+    color: #22c55e;
+    .status-dot {
+      background-color: #22c55e;
+    }
+  }
+}
+
+.telegram-link-body {
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem;
+  padding: 0.5rem 0;
+
+  .telegram-desc {
+    margin: 0;
+    font-size: 0.95rem;
+    color: var(--fg-secondary-color);
+  }
+
+  .telegram-steps {
+    margin: 0;
+    padding-left: 1.25rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+    font-size: 0.9rem;
+    color: var(--fg-primary-color);
+
+    li strong {
+      color: var(--fg-accent-color);
+    }
+  }
+
+  .telegram-action {
+    display: flex;
+    justify-content: center;
+    margin: 0.5rem 0;
+
+    .telegram-btn-link {
+      text-decoration: none;
+    }
+  }
+
+  .telegram-waiting {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.75rem;
+    padding: 0.75rem;
+    background-color: var(--bg-tertiary-color);
+    border-radius: var(--r-s);
+    font-size: 0.875rem;
+    color: var(--fg-secondary-color);
+
+    .spinner {
+      font-size: 1.25rem;
+      color: var(--fg-accent-color);
+      animation: spin 1s linear infinite;
+    }
+  }
+}
+
+.password-note {
+  margin: 0 0 1rem;
+  font-size: 0.95rem;
+  color: var(--fg-secondary-color);
+  line-height: 1.5;
 }
 
 .password-grid {

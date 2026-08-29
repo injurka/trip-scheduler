@@ -18,9 +18,15 @@ interface OAuthInput {
 export class OAuthService {
   constructor(private readonly userRepo: typeof userRepository) { }
 
-  public async handleGoogle(code: string) {
+  public async handleGoogle(code: string, linkUserId?: string) {
     const tokenData = await this.exchangeGoogleCodeForToken(code)
     const userInfo = await this.getGoogleUserInfo(tokenData.access_token)
+
+    if (linkUserId) {
+      const user = await this.userRepo.linkOAuthProvider(linkUserId, 'google', userInfo.sub)
+      return { linked: true, provider: 'google', user }
+    }
+
     const user = await this.findOrCreateFromOAuth({
       provider: 'google',
       providerId: userInfo.sub,
@@ -32,10 +38,15 @@ export class OAuthService {
     return { token, user }
   }
 
-  public async handleGithub(code: string) {
+  public async handleGithub(code: string, linkUserId?: string) {
     const tokenData = await this.exchangeGithubCodeForToken(code)
     const userInfo = await this.getGithubUserInfo(tokenData.access_token)
     const primaryEmail = await this.getGithubUserPrimaryEmail(tokenData.access_token)
+
+    if (linkUserId) {
+      const user = await this.userRepo.linkOAuthProvider(linkUserId, 'github', userInfo.id.toString())
+      return { linked: true, provider: 'github', user }
+    }
 
     const user = await this.findOrCreateFromOAuth({
       provider: 'github',
@@ -50,9 +61,14 @@ export class OAuthService {
     return { token, user }
   }
 
-  public async handleYandex(code: string) {
+  public async handleYandex(code: string, linkUserId?: string) {
     const tokenData = await this.exchangeYandexCodeForToken(code)
     const userInfo = await this.getYandexUserInfo(tokenData.access_token)
+
+    if (linkUserId) {
+      const user = await this.userRepo.linkOAuthProvider(linkUserId, 'yandex', String(userInfo.id))
+      return { linked: true, provider: 'yandex', user }
+    }
 
     const name = userInfo.real_name
       || userInfo.display_name

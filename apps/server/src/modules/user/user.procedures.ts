@@ -3,6 +3,7 @@ import { protectedProcedure, publicProcedure } from '~/lib/trpc'
 import {
   AuthOutputSchema,
   ChangePasswordInputSchema,
+  CheckTelegramLinkStatusInputSchema,
   CreateHighlightInputSchema,
   DeleteAccountInputSchema,
   DeleteHighlightInputSchema,
@@ -13,10 +14,12 @@ import {
   RefreshOutputSchema,
   RefreshTokenInputSchema,
   SearchUserInputSchema,
+  SetPasswordInputSchema,
   SignInInputSchema,
   SignOutResponseSchema,
   SignUpInputSchema,
   SuccessResponseSchema,
+  UnlinkProviderInputSchema,
   UpdateUserInputSchema,
   UpdateUserStatusInputSchema,
   UserSchema,
@@ -141,6 +144,49 @@ export const userProcedures = {
     .output(SuccessResponseSchema)
     .mutation(async ({ ctx, input }) => {
       return userService.changePassword(ctx.user.id, input)
+    }),
+
+  setPassword: protectedProcedure
+    .meta({
+      openapi: { method: 'POST', path: '/users/me/set-password', tags: ['Users'], summary: 'Установить пароль' },
+    })
+    .input(SetPasswordInputSchema)
+    .output(SuccessResponseSchema)
+    .mutation(async ({ ctx, input }) => {
+      return userService.setPassword(ctx.user.id, input)
+    }),
+
+  unlinkProvider: protectedProcedure
+    .meta({
+      openapi: { method: 'POST', path: '/users/me/unlink-provider', tags: ['Users'], summary: 'Отвязать социальную сеть' },
+    })
+    .input(UnlinkProviderInputSchema)
+    .output(UserSchema)
+    .mutation(async ({ ctx, input }) => {
+      return userService.unlinkProvider(ctx.user.id, input.provider)
+    }),
+
+  initTelegramLink: protectedProcedure
+    .meta({
+      openapi: { method: 'POST', path: '/users/me/telegram/init-link', tags: ['Users'], summary: 'Инициализировать привязку Telegram' },
+    })
+    .output(z.object({ token: z.string(), url: z.string() }))
+    .mutation(async ({ ctx }) => {
+      return userService.initTelegramLink(ctx.user.id)
+    }),
+
+  checkTelegramLinkStatus: protectedProcedure
+    .meta({
+      openapi: { method: 'POST', path: '/users/me/telegram/link-status', tags: ['Users'], summary: 'Проверить статус привязки Telegram' },
+    })
+    .input(CheckTelegramLinkStatusInputSchema)
+    .output(z.object({
+      status: z.enum(['pending', 'confirmed', 'cancelled', 'expired', 'not_found', 'already_linked']),
+      message: z.string().optional(),
+      user: UserSchema.optional().nullable(),
+    }))
+    .mutation(async ({ ctx, input }) => {
+      return userService.checkTelegramLinkStatus(input.token, ctx.user.id)
     }),
 
   deleteAccount: protectedProcedure

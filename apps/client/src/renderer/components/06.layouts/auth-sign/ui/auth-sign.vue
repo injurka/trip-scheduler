@@ -66,9 +66,10 @@ async function handleTelegramAuth() {
       }
     }, 2000)
   }
-  catch {
+  catch (error: any) {
     isTelegramLoading.value = false
-    useToast().error('Не удалось инициализировать авторизацию через Telegram')
+    const msg = error?.data?.message || error?.message || 'Не удалось инициализировать авторизацию через Telegram'
+    useToast().error(msg)
   }
 }
 </script>

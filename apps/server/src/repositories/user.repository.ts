@@ -15,11 +15,14 @@ interface OAuthInput {
   avatarUrl?: string
 }
 
-type UserForClient = Omit<typeof users.$inferSelect, 'password'> & { plan?: any, _count?: { trips: number } }
+type UserForClient = Omit<typeof users.$inferSelect, 'password'> & { hasPassword?: boolean, plan?: any, _count?: { trips: number } }
 
-function excludePassword<T extends { password?: string | null }>(user: T): Omit<T, 'password'> {
+function excludePassword<T extends { password?: string | null }>(user: T): Omit<T, 'password'> & { hasPassword: boolean } {
   const { password, ...rest } = user
-  return rest
+  return {
+    ...rest,
+    hasPassword: Boolean(password),
+  }
 }
 
 export const userRepository = {
@@ -130,6 +133,106 @@ export const userRepository = {
       .returning()
 
     return await this.getById(newUser.id) as UserForClient
+  },
+
+  async linkOAuthProvider(userId: string, provider: 'google' | 'github' | 'telegram' | 'yandex', providerId: string): Promise<UserForClient> {
+    const providerColumn = provider === 'google'
+      ? users.googleId
+      : provider === 'github'
+        ? users.githubId
+        : provider === 'telegram'
+          ? users.telegramId
+          : users.yandexId
+
+    const existingWithProvider = await db.query.users.findFirst({
+      where: eq(providerColumn, providerId),
+    })
+
+    if (existingWithProvider) {
+      if (existingWithProvider.id === userId) {
+        const currentUser = await this.getById(userId)
+        return currentUser!
+      }
+      throw createTRPCError('CONFLICT', 'Этот аккаунт уже привязан к другому пользователю.')
+    }
+
+    const updateData: Partial<typeof users.$inferInsert> = { updatedAt: new Date() }
+    if (provider === 'google')
+      updateData.googleId = providerId
+    else if (provider === 'github')
+      updateData.githubId = providerId
+    else if (provider === 'telegram')
+      updateData.telegramId = providerId
+    else if (provider === 'yandex')
+      updateData.yandexId = providerId
+
+    await db.update(users)
+      .set(updateData)
+      .where(eq(users.id, userId))
+
+    const updatedUser = await this.getById(userId)
+    return updatedUser!
+  },
+
+  async unlinkOAuthProvider(userId: string, provider: 'google' | 'github' | 'telegram' | 'yandex'): Promise<UserForClient> {
+    const user = await db.query.users.findFirst({
+      where: eq(users.id, userId),
+    })
+
+    if (!user) {
+      throw createTRPCError('NOT_FOUND', 'Пользователь не найден.')
+    }
+
+    const hasPassword = Boolean(user.password)
+    const connectedProviders = [
+      user.googleId ? 'google' : null,
+      user.githubId ? 'github' : null,
+      user.telegramId ? 'telegram' : null,
+      user.yandexId ? 'yandex' : null,
+    ].filter(Boolean)
+
+    const isCurrentProviderConnected = (provider === 'google' && user.googleId)
+      || (provider === 'github' && user.githubId)
+      || (provider === 'telegram' && user.telegramId)
+      || (provider === 'yandex' && user.yandexId)
+
+    if (!isCurrentProviderConnected) {
+      throw createTRPCError('BAD_REQUEST', 'Этот аккаунт не привязан.')
+    }
+
+    if (!hasPassword && connectedProviders.length <= 1) {
+      throw createTRPCError('BAD_REQUEST', 'Нельзя отвязать единственный способ входа в аккаунт. Сначала установите пароль или подключите другую соцсеть.')
+    }
+
+    const updateData: Partial<typeof users.$inferInsert> = { updatedAt: new Date() }
+    if (provider === 'google')
+      updateData.googleId = null
+    else if (provider === 'github')
+      updateData.githubId = null
+    else if (provider === 'telegram')
+      updateData.telegramId = null
+    else if (provider === 'yandex')
+      updateData.yandexId = null
+
+    await db.update(users)
+      .set(updateData)
+      .where(eq(users.id, userId))
+
+    const updatedUser = await this.getById(userId)
+    return updatedUser!
+  },
+
+  async setPassword(userId: string, passwordHash: string) {
+    const user = await db.query.users.findFirst({ where: eq(users.id, userId) })
+    if (!user) {
+      throw createTRPCError('NOT_FOUND', 'Пользователь не найден.')
+    }
+    if (user.password) {
+      throw createTRPCError('BAD_REQUEST', 'Пароль уже установлен. Для изменения пароля используйте функцию смены пароля.')
+    }
+
+    await db.update(users).set({ password: passwordHash, updatedAt: new Date() }).where(eq(users.id, userId))
+    return true
   },
 
   async getById(id: string): Promise<UserForClient | null> {

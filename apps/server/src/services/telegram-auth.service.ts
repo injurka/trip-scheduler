@@ -1,3 +1,4 @@
+import { HTTPException } from 'hono/http-exception'
 import { authUtils } from '~/lib/auth.utils'
 import { Logger } from '~/lib/logger'
 import { userRepository } from '~/repositories/user.repository'
@@ -10,7 +11,9 @@ interface TelegramUser {
 }
 
 interface PendingAuthSession {
-  status: 'pending' | 'confirmed' | 'cancelled'
+  type?: 'auth' | 'link'
+  userId?: string
+  status: 'pending' | 'confirmed' | 'cancelled' | 'already_linked'
   telegramUser?: TelegramUser
   expiresAt: Date
 }
@@ -35,7 +38,7 @@ export class TelegramAuthService {
     const t = process.env.TELEGRAM_BOT_TOKEN
 
     if (!t)
-      throw new Error('TELEGRAM_BOT_TOKEN is not set')
+      throw new HTTPException(503, { message: 'TELEGRAM_BOT_TOKEN не задан в переменных окружения на сервере' })
 
     return t
   }
@@ -43,13 +46,25 @@ export class TelegramAuthService {
   private get botUsername(): string {
     const u = process.env.TELEGRAM_BOT_USERNAME
     if (!u)
-      throw new Error('TELEGRAM_BOT_USERNAME is not set')
-    return u
+      throw new HTTPException(503, { message: 'TELEGRAM_BOT_USERNAME не задан в переменных окружения на сервере' })
+    return u.replace(/^@/, '')
   }
 
   initAuth(): { token: string, url: string } {
     const token = crypto.randomUUID()
     pendingSessions.set(token, {
+      type: 'auth',
+      status: 'pending',
+      expiresAt: new Date(Date.now() + 5 * 60 * 1000),
+    })
+    return { token, url: `https://t.me/${this.botUsername}?start=${token}` }
+  }
+
+  initLink(userId: string): { token: string, url: string } {
+    const token = crypto.randomUUID()
+    pendingSessions.set(token, {
+      type: 'link',
+      userId,
       status: 'pending',
       expiresAt: new Date(Date.now() + 5 * 60 * 1000),
     })
@@ -77,18 +92,52 @@ export class TelegramAuthService {
 
     if (session.status === 'confirmed' && session.telegramUser) {
       const tgUser = session.telegramUser
+      const name = [tgUser.first_name, tgUser.last_name].filter(Boolean).join(' ') || tgUser.username || 'Пользователь Telegram'
       const user = await this.userRepo.findOrCreateFromOAuth({
         provider: 'telegram',
         providerId: tgUser.id.toString(),
         email: null,
-        name: [tgUser.first_name, tgUser.last_name].filter(Boolean).join(' '),
+        name,
         avatarUrl: undefined,
       })
 
-      const tokenPair = await authUtils.generateTokens({ id: user.id, email: user.email! })
+      const tokenPair = await authUtils.generateTokens({ id: user.id, email: user.email })
       pendingSessions.delete(token)
 
       return { status: 'confirmed' as const, token: tokenPair, user }
+    }
+
+    return { status: 'pending' as const }
+  }
+
+  async getLinkStatus(token: string, currentUserId: string) {
+    const session = pendingSessions.get(token)
+
+    if (!session)
+      return { status: 'not_found' as const }
+
+    if (session.expiresAt < new Date()) {
+      pendingSessions.delete(token)
+      return { status: 'expired' as const }
+    }
+
+    if (session.status === 'pending')
+      return { status: 'pending' as const }
+
+    if (session.status === 'cancelled') {
+      pendingSessions.delete(token)
+      return { status: 'cancelled' as const }
+    }
+
+    if (session.status === 'already_linked') {
+      pendingSessions.delete(token)
+      return { status: 'already_linked' as const, message: 'Этот Telegram-аккаунт уже привязан к другому пользователю' }
+    }
+
+    if (session.status === 'confirmed') {
+      pendingSessions.delete(token)
+      const user = await this.userRepo.getById(currentUserId)
+      return { status: 'confirmed' as const, user }
     }
 
     return { status: 'pending' as const }
@@ -109,7 +158,7 @@ export class TelegramAuthService {
     const from = message.from
 
     if (!text.startsWith('/start ')) {
-      await this.sendMessage(chatId, 'Привет! Перейдите на сайт и нажмите «Войти через Telegram».')
+      await this.sendMessage(chatId, 'Привет! Перейдите на сайт trip-scheduler.ru для входа или привязки аккаунта.')
       return
     }
 
@@ -119,12 +168,28 @@ export class TelegramAuthService {
 
     const session = pendingSessions.get(token)
     if (!session || session.status !== 'pending' || session.expiresAt < new Date()) {
-      await this.sendMessage(chatId, '❌ Ссылка для входа устарела или недействительна. Попробуйте снова.')
+      await this.sendMessage(chatId, '❌ Ссылка устарела или недействительна. Попробуйте снова на сайте.')
       return
     }
 
     const name = [from.first_name, from.last_name].filter(Boolean).join(' ')
     const mention = from.username ? ` (@${from.username})` : ''
+
+    if (session.type === 'link') {
+      await this.sendMessage(
+        chatId,
+        `🔗 Подтверждение привязки к trip-scheduler.ru\n\nАккаунт: ${name}${mention}\n\nВы действительно хотите привязать этот Telegram к вашему профилю?`,
+        {
+          inline_keyboard: [
+            [
+              { text: '✅ Привязать', callback_data: `confirm:${token}` },
+              { text: '❌ Отмена', callback_data: `cancel:${token}` },
+            ],
+          ],
+        },
+      )
+      return
+    }
 
     await this.sendMessage(
       chatId,
@@ -151,7 +216,28 @@ export class TelegramAuthService {
 
       if (!session || session.status !== 'pending' || session.expiresAt < new Date()) {
         await this.answerCallback(cbId, '❌ Ссылка устарела')
-        await this.editMessage(chatId, messageId, '❌ Ссылка для входа устарела. Запросите новую.')
+        await this.editMessage(chatId, messageId, '❌ Ссылка устарела. Запросите новую на сайте.')
+        return
+      }
+
+      if (session.type === 'link' && session.userId) {
+        try {
+          await this.userRepo.linkOAuthProvider(session.userId, 'telegram', from.id.toString())
+          session.status = 'confirmed'
+          session.telegramUser = {
+            id: from.id,
+            first_name: from.first_name,
+            last_name: from.last_name,
+            username: from.username,
+          }
+          await this.answerCallback(cbId, '✅ Telegram привязан!')
+          await this.editMessage(chatId, messageId, '✅ Telegram успешно привязан к вашему профилю! Возвращайтесь на сайт.')
+        }
+        catch (err: any) {
+          session.status = 'already_linked'
+          await this.answerCallback(cbId, '❌ Ошибка')
+          await this.editMessage(chatId, messageId, `❌ ${err?.message || 'Этот Telegram-аккаунт уже привязан к другому пользователю.'}`)
+        }
         return
       }
 
@@ -164,7 +250,7 @@ export class TelegramAuthService {
       }
 
       await this.answerCallback(cbId, '✅ Вход выполнен!')
-      await this.editMessage(chatId, messageId, '✅  на trip-scheduler.ru')
+      await this.editMessage(chatId, messageId, '✅ Авторизация успешна! Возвращайтесь на сайт.')
     }
     else if (data?.startsWith('cancel:')) {
       const token = data.replace('cancel:', '')
@@ -172,8 +258,8 @@ export class TelegramAuthService {
       if (session)
         session.status = 'cancelled'
 
-      await this.answerCallback(cbId, 'Вход отменён')
-      await this.editMessage(chatId, messageId, '❌ Вход отменён.')
+      await this.answerCallback(cbId, 'Отменено')
+      await this.editMessage(chatId, messageId, '❌ Действие отменено.')
     }
   }
 
@@ -185,13 +271,15 @@ export class TelegramAuthService {
     }
 
     const webhookUrl = `${backendUrl}/api/auth/telegram/webhook`
-    const secret = process.env.TELEGRAM_WEBHOOK_SECRET ?? ''
+    const secret = process.env.TELEGRAM_WEBHOOK_SECRET
 
     try {
-      const res = await this.fetchTelegram('setWebhook', {
-        url: webhookUrl,
-        secret_token: secret,
-      })
+      const payload: Record<string, any> = { url: webhookUrl }
+      if (secret) {
+        payload.secret_token = secret
+      }
+
+      const res = await this.fetchTelegram('setWebhook', payload)
 
       const data = await res.json()
       if (data.ok) {

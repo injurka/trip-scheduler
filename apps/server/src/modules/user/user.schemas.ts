@@ -47,6 +47,18 @@ export const ChangePasswordInputSchema = z.object({
   newPassword: z.string().min(6, 'Новый пароль должен содержать минимум 6 символов'),
 })
 
+export const SetPasswordInputSchema = z.object({
+  newPassword: z.string().min(6, 'Новый пароль должен содержать минимум 6 символов'),
+})
+
+export const UnlinkProviderInputSchema = z.object({
+  provider: z.enum(['google', 'github', 'telegram', 'yandex']),
+})
+
+export const CheckTelegramLinkStatusInputSchema = z.object({
+  token: z.string(),
+})
+
 export const DeleteAccountInputSchema = z.object({
   password: z.string(),
 })
@@ -95,6 +107,7 @@ export const UserSchema = createSelectSchema(users)
   .omit({ password: true })
   .extend({
     plan: PlanSchema.optional(),
+    hasPassword: z.boolean().optional(),
     _count: z.object({
       trips: z.number(),
     }).optional(),

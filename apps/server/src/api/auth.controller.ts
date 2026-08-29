@@ -1,13 +1,23 @@
 import { Hono } from 'hono'
 import { getCookie, setCookie } from 'hono/cookie'
 import { HTTPException } from 'hono/http-exception'
+import { authUtils } from '~/lib/auth.utils'
 import { oAuthService } from '~/services/oauth.service'
 import { telegramAuthService } from '~/services/telegram-auth.service'
 
 const authController = new Hono()
 
 // --- GOOGLE ---
-authController.get('/google/login', (c) => {
+authController.get('/google/login', async (c) => {
+  const linkToken = c.req.query('linkToken')
+  let linkUserId: string | null = null
+  if (linkToken) {
+    const payload = await authUtils.verifyToken(linkToken)
+    if (payload?.id) {
+      linkUserId = payload.id
+    }
+  }
+
   const state = crypto.randomUUID()
   const url = new URL('https://accounts.google.com/o/oauth2/v2/auth')
   url.searchParams.set('client_id', process.env.GOOGLE_CLIENT_ID!)
@@ -16,20 +26,57 @@ authController.get('/google/login', (c) => {
   url.searchParams.set('scope', 'openid email profile')
   url.searchParams.set('state', state)
 
-  setCookie(c, 'oauth_state', state, { httpOnly: true, secure: true, path: '/', sameSite: 'Lax', maxAge: 600 })
+  const cookiePayload = JSON.stringify({ state, linkUserId })
+  setCookie(c, 'oauth_state', cookiePayload, {
+    httpOnly: true,
+    secure: process.env.NODE_ENV === 'production',
+    path: '/',
+    sameSite: 'Lax',
+    maxAge: 600,
+  })
   return c.redirect(url.toString())
 })
 
 authController.get('/google/callback', async (c) => {
   const { code, state } = c.req.query()
-  const savedState = getCookie(c, 'oauth_state')
+  const savedStateCookie = getCookie(c, 'oauth_state')
 
-  if (!state || !savedState || state !== savedState)
+  if (!state || !savedStateCookie)
+    throw new HTTPException(401, { message: 'Invalid state parameter. CSRF attack detected.' })
+
+  let savedState = savedStateCookie
+  let linkUserId: string | null = null
+
+  try {
+    const parsed = JSON.parse(savedStateCookie)
+    savedState = parsed.state
+    linkUserId = parsed.linkUserId || null
+  }
+  catch {
+    // fallback if state was plain string
+  }
+
+  if (state !== savedState)
     throw new HTTPException(401, { message: 'Invalid state parameter. CSRF attack detected.' })
 
   setCookie(c, 'oauth_state', '', { expires: new Date(0) })
 
-  const { token } = await oAuthService.handleGoogle(code!)
+  if (linkUserId) {
+    try {
+      await oAuthService.handleGoogle(code!, linkUserId)
+      const redirectUrl = new URL(`${process.env.FRONTEND_URL}/user/${linkUserId}/settings`)
+      redirectUrl.searchParams.set('oauth_success', 'google_linked')
+      return c.redirect(redirectUrl.toString())
+    }
+    catch (error: any) {
+      const redirectUrl = new URL(`${process.env.FRONTEND_URL}/user/${linkUserId}/settings`)
+      redirectUrl.searchParams.set('oauth_error', error?.message || 'Не удалось привязать Google аккаунт')
+      return c.redirect(redirectUrl.toString())
+    }
+  }
+
+  const result = await oAuthService.handleGoogle(code!)
+  const { token } = result as { token: any, user: any }
   const redirectUrl = new URL(`${process.env.FRONTEND_URL}/auth/callback`)
   redirectUrl.searchParams.set('token', token.accessToken)
   redirectUrl.searchParams.set('refreshToken', token.refreshToken)
@@ -46,7 +93,16 @@ authController.get('/google/callback', async (c) => {
 })
 
 // --- GITHUB ---
-authController.get('/github/login', (c) => {
+authController.get('/github/login', async (c) => {
+  const linkToken = c.req.query('linkToken')
+  let linkUserId: string | null = null
+  if (linkToken) {
+    const payload = await authUtils.verifyToken(linkToken)
+    if (payload?.id) {
+      linkUserId = payload.id
+    }
+  }
+
   const state = crypto.randomUUID()
   const url = new URL('https://github.com/login/oauth/authorize')
   url.searchParams.set('client_id', process.env.GITHUB_CLIENT_ID!)
@@ -54,20 +110,57 @@ authController.get('/github/login', (c) => {
   url.searchParams.set('scope', 'read:user user:email')
   url.searchParams.set('state', state)
 
-  setCookie(c, 'oauth_state', state, { httpOnly: true, secure: true, path: '/', sameSite: 'Lax', maxAge: 600 })
+  const cookiePayload = JSON.stringify({ state, linkUserId })
+  setCookie(c, 'oauth_state', cookiePayload, {
+    httpOnly: true,
+    secure: process.env.NODE_ENV === 'production',
+    path: '/',
+    sameSite: 'Lax',
+    maxAge: 600,
+  })
   return c.redirect(url.toString())
 })
 
 authController.get('/github/callback', async (c) => {
   const { code, state } = c.req.query()
-  const savedState = getCookie(c, 'oauth_state')
+  const savedStateCookie = getCookie(c, 'oauth_state')
 
-  if (!state || !savedState || state !== savedState)
+  if (!state || !savedStateCookie)
+    throw new HTTPException(401, { message: 'Invalid state parameter. CSRF attack detected.' })
+
+  let savedState = savedStateCookie
+  let linkUserId: string | null = null
+
+  try {
+    const parsed = JSON.parse(savedStateCookie)
+    savedState = parsed.state
+    linkUserId = parsed.linkUserId || null
+  }
+  catch {
+    // fallback if state was plain string
+  }
+
+  if (state !== savedState)
     throw new HTTPException(401, { message: 'Invalid state parameter. CSRF attack detected.' })
 
   setCookie(c, 'oauth_state', '', { expires: new Date(0) })
 
-  const { token } = await oAuthService.handleGithub(code!)
+  if (linkUserId) {
+    try {
+      await oAuthService.handleGithub(code!, linkUserId)
+      const redirectUrl = new URL(`${process.env.FRONTEND_URL}/user/${linkUserId}/settings`)
+      redirectUrl.searchParams.set('oauth_success', 'github_linked')
+      return c.redirect(redirectUrl.toString())
+    }
+    catch (error: any) {
+      const redirectUrl = new URL(`${process.env.FRONTEND_URL}/user/${linkUserId}/settings`)
+      redirectUrl.searchParams.set('oauth_error', error?.message || 'Не удалось привязать GitHub аккаунт')
+      return c.redirect(redirectUrl.toString())
+    }
+  }
+
+  const result = await oAuthService.handleGithub(code!)
+  const { token } = result as { token: any, user: any }
   const redirectUrl = new URL(`${process.env.FRONTEND_URL}/auth/callback`)
   redirectUrl.searchParams.set('token', token.accessToken)
   redirectUrl.searchParams.set('refreshToken', token.refreshToken)
@@ -86,7 +179,16 @@ authController.get('/github/callback', async (c) => {
 // --- YANDEX ---
 authController.get('/yandex', c => c.redirect('/api/auth/yandex/login'))
 
-authController.get('/yandex/login', (c) => {
+authController.get('/yandex/login', async (c) => {
+  const linkToken = c.req.query('linkToken')
+  let linkUserId: string | null = null
+  if (linkToken) {
+    const payload = await authUtils.verifyToken(linkToken)
+    if (payload?.id) {
+      linkUserId = payload.id
+    }
+  }
+
   const state = crypto.randomUUID()
   const url = new URL('https://oauth.yandex.ru/authorize')
   url.searchParams.set('client_id', process.env.YANDEX_CLIENT_ID!)
@@ -97,20 +199,57 @@ authController.get('/yandex/login', (c) => {
   url.searchParams.set('response_type', 'code')
   url.searchParams.set('state', state)
 
-  setCookie(c, 'oauth_state', state, { httpOnly: true, secure: true, path: '/', sameSite: 'Lax', maxAge: 600 })
+  const cookiePayload = JSON.stringify({ state, linkUserId })
+  setCookie(c, 'oauth_state', cookiePayload, {
+    httpOnly: true,
+    secure: process.env.NODE_ENV === 'production',
+    path: '/',
+    sameSite: 'Lax',
+    maxAge: 600,
+  })
   return c.redirect(url.toString())
 })
 
 authController.get('/yandex/callback', async (c) => {
   const { code, state } = c.req.query()
-  const savedState = getCookie(c, 'oauth_state')
+  const savedStateCookie = getCookie(c, 'oauth_state')
 
-  if (!state || !savedState || state !== savedState)
+  if (!state || !savedStateCookie)
+    throw new HTTPException(401, { message: 'Invalid state parameter. CSRF attack detected.' })
+
+  let savedState = savedStateCookie
+  let linkUserId: string | null = null
+
+  try {
+    const parsed = JSON.parse(savedStateCookie)
+    savedState = parsed.state
+    linkUserId = parsed.linkUserId || null
+  }
+  catch {
+    // fallback if state was plain string
+  }
+
+  if (state !== savedState)
     throw new HTTPException(401, { message: 'Invalid state parameter. CSRF attack detected.' })
 
   setCookie(c, 'oauth_state', '', { expires: new Date(0) })
 
-  const { token } = await oAuthService.handleYandex(code!)
+  if (linkUserId) {
+    try {
+      await oAuthService.handleYandex(code!, linkUserId)
+      const redirectUrl = new URL(`${process.env.FRONTEND_URL}/user/${linkUserId}/settings`)
+      redirectUrl.searchParams.set('oauth_success', 'yandex_linked')
+      return c.redirect(redirectUrl.toString())
+    }
+    catch (error: any) {
+      const redirectUrl = new URL(`${process.env.FRONTEND_URL}/user/${linkUserId}/settings`)
+      redirectUrl.searchParams.set('oauth_error', error?.message || 'Не удалось привязать Яндекс аккаунт')
+      return c.redirect(redirectUrl.toString())
+    }
+  }
+
+  const result = await oAuthService.handleYandex(code!)
+  const { token } = result as { token: any, user: any }
   const redirectUrl = new URL(`${process.env.FRONTEND_URL}/auth/callback`)
   redirectUrl.searchParams.set('token', token.accessToken)
   redirectUrl.searchParams.set('refreshToken', token.refreshToken)

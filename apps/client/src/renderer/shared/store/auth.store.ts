@@ -282,5 +282,37 @@ export const useAuthStore = defineStore('auth', {
 
       return res
     },
+
+    async initTelegramLink() {
+      const { trpc } = await import('~/shared/services/trpc/trpc.service')
+      return trpc.user.initTelegramLink.mutate()
+    },
+
+    async checkTelegramLinkStatus(token: string) {
+      const { trpc } = await import('~/shared/services/trpc/trpc.service')
+      const res = await trpc.user.checkTelegramLinkStatus.mutate({ token })
+      if (res.status === 'confirmed' && res.user) {
+        this.saveUser({ ...this.user, ...res.user } as User)
+      }
+      return res
+    },
+
+    async unlinkProvider(provider: 'google' | 'github' | 'telegram' | 'yandex') {
+      const { trpc } = await import('~/shared/services/trpc/trpc.service')
+      const updatedUser = await trpc.user.unlinkProvider.mutate({ provider })
+      if (updatedUser) {
+        this.saveUser({ ...this.user, ...updatedUser } as User)
+      }
+      return updatedUser
+    },
+
+    async setPassword(newPassword: string) {
+      const { trpc } = await import('~/shared/services/trpc/trpc.service')
+      const res = await trpc.user.setPassword.mutate({ newPassword })
+      if (this.user) {
+        this.saveUser({ ...this.user, hasPassword: true } as User)
+      }
+      return res
+    },
   },
 })
