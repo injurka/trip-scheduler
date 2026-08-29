@@ -27,7 +27,6 @@ export const activityTagEnum = pgEnum('activity_tag', ['activity', 'transport', 
 export const activitySectionTypeEnum = pgEnum('activity_section_type', ['description', 'gallery', 'geolocation', 'metro', 'booking'])
 export const activityStatusEnum = pgEnum('activity_status', ['none', 'completed', 'skipped'])
 export const tripImagePlacementEnum = pgEnum('trip_image_placement', ['route', 'memories', 'notes', 'documents'])
-export const tripMediaPlacementEnum = tripImagePlacementEnum
 export const mediaTypeEnum = pgEnum('media_type', ['image', 'video'])
 export const userRoleEnum = pgEnum('user_role', ['user', 'admin'])
 
@@ -169,8 +168,6 @@ export const tripImages = pgTable('trip_images', {
   variants: jsonb('variants').$type<Record<string, string>>(),
   metadata: jsonb('metadata'),
 })
-
-export const tripMedia = tripImages
 
 export const tripNoteImages = pgTable('trip_note_images', {
   noteId: uuid('note_id').notNull().references(() => tripNotes.id, { onDelete: 'cascade' }),
