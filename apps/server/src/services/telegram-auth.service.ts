@@ -269,6 +269,58 @@ export class TelegramAuthService {
     }
   }
 
+  private isPolling = false
+
+  async startPolling(): Promise<void> {
+    this.logger.info('[TelegramAuth] Запуск режима Long Polling...')
+    this.isPolling = true
+
+    try {
+      await this.fetchTelegram('deleteWebhook', { drop_pending_updates: false })
+      this.logger.info('[TelegramAuth] Webhook сброшен, запущен цикл getUpdates')
+    }
+    catch (err) {
+      this.logger.error('[TelegramAuth] Ошибка при сбросе webhook для polling:', err)
+    }
+
+    let offset = 0
+    const poll = async () => {
+      while (this.isPolling) {
+        try {
+          const res = await this.fetchTelegram('getUpdates', {
+            offset,
+            timeout: 25,
+            allowed_updates: ['message', 'callback_query'],
+          })
+
+          if (res.ok) {
+            const data = await res.json()
+            if (data.ok && Array.isArray(data.result)) {
+              for (const update of data.result) {
+                offset = update.update_id + 1
+                await this.handleUpdate(update)
+              }
+            }
+          }
+          else {
+            await new Promise(resolve => setTimeout(resolve, 3000))
+          }
+        }
+        catch (err) {
+          this.logger.error('[TelegramAuth] Ошибка в цикле Long Polling:', err)
+          await new Promise(resolve => setTimeout(resolve, 5000))
+        }
+      }
+    }
+
+    // Запуск цикла в фоне
+    poll()
+  }
+
+  stopPolling(): void {
+    this.isPolling = false
+  }
+
   async setupWebhook(): Promise<void> {
     const backendUrl = process.env.BACKEND_URL
     if (!backendUrl) {

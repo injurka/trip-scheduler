@@ -52,10 +52,15 @@ try {
 
   // Роскомнадзор сделал дело...
   if (process.env.TELEGRAM_BOT_TOKEN) {
-    await telegramAuthService.setupWebhook()
+    if (process.env.TELEGRAM_MODE === 'polling' || process.env.TELEGRAM_POLLING === 'true') {
+      await telegramAuthService.startPolling()
+    }
+    else {
+      await telegramAuthService.setupWebhook()
+    }
   }
   else {
-    logger.warn('TELEGRAM_BOT_TOKEN не задан — пропускаю регистрацию webhook')
+    logger.warn('TELEGRAM_BOT_TOKEN не задан — пропускаю инициализацию Telegram')
   }
 
   if (dumpEnabled) {
