@@ -6,7 +6,6 @@ export function useUsefulLinks() {
   const selectedCategory = ref<CategoryId | 'all'>('all')
   const searchQuery = ref('')
   const sortOrder = ref<'default' | 'alphabetical' | 'popular'>('default')
-  const selectedTags = ref<string[]>([])
   const includeGlobal = ref(true)
 
   const allCountries = computed<CountryInfo[]>(() => COUNTRIES_DATA)
@@ -63,22 +62,10 @@ export function useUsefulLinks() {
     })
   })
 
-  // All tags available for current country links
-  const allTags = computed(() => {
-    const tags = new Set<string>()
-    for (const link of countryFilteredLinks.value) {
-      if (link.tags) {
-        link.tags.forEach(tag => tags.add(tag))
-      }
-    }
-    return Array.from(tags).sort()
-  })
-
   // Full filtered categories
   const filteredCategories = computed<LinkCategoryDisplay[]>(() => {
     const query = searchQuery.value.trim().toLowerCase()
     const targetCategory = selectedCategory.value
-    const activeTags = selectedTags.value
     const cid = selectedCountryId.value
 
     const result: LinkCategoryDisplay[] = []
@@ -104,16 +91,9 @@ export function useUsefulLinks() {
           })
         : categoryLinks
 
-      // Filter by tags
-      const taggedLinks = activeTags.length > 0
-        ? searchedLinks.filter(link =>
-            activeTags.every(tag => link.tags?.includes(tag)),
-          )
-        : searchedLinks
-
-      if (taggedLinks.length > 0) {
+      if (searchedLinks.length > 0) {
         // Sort links inside category
-        const sorted = [...taggedLinks].sort((a, b) => {
+        const sorted = [...searchedLinks].sort((a, b) => {
           if (sortOrder.value === 'alphabetical') {
             return a.name.localeCompare(b.name)
           }
@@ -158,29 +138,15 @@ export function useUsefulLinks() {
 
   function setCountry(id: string) {
     selectedCountryId.value = id
-    // Clear tags if no longer relevant or keep tags
-    selectedTags.value = []
   }
 
   function setCategory(id: CategoryId | 'all') {
     selectedCategory.value = id
   }
 
-  function toggleTag(tag: string) {
-    const index = selectedTags.value.indexOf(tag)
-    if (index > -1) {
-      selectedTags.value.splice(index, 1)
-    }
-    else {
-      selectedTags.value.push(tag)
-    }
-  }
-
   function clearFilters() {
     searchQuery.value = ''
-    selectedTags.value = []
     selectedCategory.value = 'all'
-    includeGlobal.value = true
   }
 
   return {
@@ -188,19 +154,15 @@ export function useUsefulLinks() {
     selectedCategory,
     searchQuery,
     sortOrder,
-    selectedTags,
-    includeGlobal,
     allCountries,
     popularCountries,
     currentCountry,
     isGlobalView,
     categories: LINK_CATEGORIES,
-    allTags,
     filteredCategories,
     totalResultsCount,
     setCountry,
     setCategory,
-    toggleTag,
     clearFilters,
     isServiceBlocked,
     isServicePopularIn,

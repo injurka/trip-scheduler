@@ -2,8 +2,6 @@
 import type { CategoryId } from '../models/types'
 import { Icon } from '@iconify/vue'
 import { KitBtn } from '~/components/01.kit/kit-btn'
-import { KitCheckbox } from '~/components/01.kit/kit-checkbox'
-import { KitDivider } from '~/components/01.kit/kit-divider'
 import { KitDropdown } from '~/components/01.kit/kit-dropdown'
 import { KitInput } from '~/components/01.kit/kit-input'
 import { KitTooltip } from '~/components/01.kit/kit-tooltip'
@@ -16,19 +14,15 @@ const {
   selectedCategory,
   searchQuery,
   sortOrder,
-  selectedTags,
-  includeGlobal,
   allCountries,
   popularCountries,
   currentCountry,
   isGlobalView,
   categories,
-  allTags,
   filteredCategories,
   totalResultsCount,
   setCountry,
   setCategory,
-  toggleTag,
   clearFilters,
   isServiceBlocked,
   isServicePopularIn,
@@ -39,17 +33,6 @@ const { mdAndUp, smAndDown } = useDisplay()
 
 const viewMode = ref<'grid' | 'list'>('grid')
 const isTipsExpanded = ref(true)
-
-const TAGS_LIMIT = 14
-const isAllTagsVisible = ref(false)
-
-const visibleTags = computed(() => {
-  if (isAllTagsVisible.value)
-    return allTags.value
-  return allTags.value.slice(0, TAGS_LIMIT)
-})
-
-const hasHiddenTags = computed(() => allTags.value.length > TAGS_LIMIT)
 
 const sortOptions = [
   { value: 'default', label: 'По релевантности', icon: 'mdi:sort-variant' },
@@ -108,10 +91,6 @@ function handleCategoryClick(catId: CategoryId | 'all') {
   <section class="useful-links">
     <!-- Header -->
     <div class="page-header">
-      <div class="header-badge">
-        <Icon icon="mdi:compass-outline" />
-        <span>База знаний путешественника</span>
-      </div>
       <h1 class="page-title">
         Полезные ссылки и сервисы
       </h1>
@@ -233,20 +212,13 @@ function handleCategoryClick(catId: CategoryId | 'all') {
         <div class="search-wrapper">
           <KitInput
             v-model="searchQuery"
-            placeholder="Поиск сервиса, приложения или тега (например, такси, поезда, карты)..."
+            placeholder="Поиск сервиса, приложения или ключевого слова (например, такси, поезда, карты)..."
             icon="mdi:magnify"
             class="search-input"
           />
         </div>
 
         <div class="tools-actions">
-          <div v-if="!isGlobalView" class="include-global-toggle">
-            <KitCheckbox
-              v-model="includeGlobal"
-              label="Глобальные сервисы"
-            />
-          </div>
-
           <div class="view-controls">
             <KitDropdown
               v-model="sortOrder"
@@ -270,46 +242,16 @@ function handleCategoryClick(catId: CategoryId | 'all') {
           </div>
         </div>
       </div>
-
-      <!-- Tag Filters -->
-      <template v-if="allTags.length">
-        <KitDivider class="tools-divider">
-          <span>Теги и фильтры</span>
-        </KitDivider>
-
-        <div class="tags-row">
-          <div class="tags-list">
-            <button
-              v-for="tag in visibleTags"
-              :key="tag"
-              class="tag-btn"
-              :class="{ active: selectedTags.includes(tag) }"
-              @click="toggleTag(tag)"
-            >
-              {{ tag }}
-            </button>
-
-            <button
-              v-if="hasHiddenTags"
-              class="tag-btn toggle-tags-btn"
-              @click="isAllTagsVisible = !isAllTagsVisible"
-            >
-              <span class="btn-text">{{ isAllTagsVisible ? 'Свернуть' : `Еще ${allTags.length - TAGS_LIMIT}` }}</span>
-              <Icon :icon="isAllTagsVisible ? 'mdi:chevron-up' : 'mdi:chevron-down'" />
-            </button>
-          </div>
-        </div>
-      </template>
     </div>
 
     <!-- Active Filters Summary (if filters active) -->
-    <div v-if="searchQuery || selectedTags.length > 0 || selectedCategory !== 'all'" class="active-filters-bar">
+    <div v-if="searchQuery || selectedCategory !== 'all'" class="active-filters-bar">
       <span class="filters-summary-text">
         Найдено: <strong>{{ totalResultsCount }}</strong> сервисов
       </span>
       <button class="reset-filters-btn" @click="clearFilters">
         <Icon icon="mdi:close-circle-outline" />
-        <span>Сбросить все фильтры</span>
+        <span>Сбросить фильтры</span>
       </button>
     </div>
 
@@ -412,8 +354,6 @@ function handleCategoryClick(catId: CategoryId | 'all') {
                     v-for="tag in link.tags.slice(0, smAndDown ? 2 : 3)"
                     :key="tag"
                     class="mini-tag"
-                    :class="{ active: selectedTags.includes(tag) }"
-                    @click.stop="toggleTag(tag)"
                   >
                     {{ tag }}
                   </span>
@@ -441,7 +381,7 @@ function handleCategoryClick(catId: CategoryId | 'all') {
       </p>
       <KitBtn variant="tonal" color="primary" class="reset-btn" @click="clearFilters">
         <Icon icon="mdi:refresh" />
-        <span>Сбросить все фильтры</span>
+        <span>Сбросить фильтры</span>
       </KitBtn>
     </div>
   </section>
@@ -461,19 +401,6 @@ function handleCategoryClick(catId: CategoryId | 'all') {
   display: flex;
   flex-direction: column;
   gap: 0.5rem;
-
-  .header-badge {
-    display: inline-flex;
-    align-items: center;
-    gap: 0.4rem;
-    padding: 0.25rem 0.75rem;
-    border-radius: var(--r-full);
-    background-color: var(--bg-accent-overlay-color);
-    color: var(--fg-accent-color);
-    font-size: 0.825rem;
-    font-weight: 600;
-    width: fit-content;
-  }
 
   .page-title {
     font-size: 2rem;
@@ -561,11 +488,10 @@ function handleCategoryClick(catId: CategoryId | 'all') {
   }
 
   &.active {
-    background-color: var(--fg-accent-color);
-    border-color: var(--fg-accent-color);
-    color: var(--fg-on-accent-color);
+    background-color: rgba(var(--bg-accent-overlay-color-rgb), 0.25);
+    border-color: var(--border-accent-color);
+    color: var(--fg-accent-color);
     font-weight: 600;
-    box-shadow: var(--s-s);
   }
 }
 
@@ -718,7 +644,12 @@ function handleCategoryClick(catId: CategoryId | 'all') {
   gap: 0.5rem;
   overflow-x: auto;
   padding-bottom: 0.25rem;
-  scrollbar-width: thin;
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+
+  &::-webkit-scrollbar {
+    display: none;
+  }
 
   .category-tab-btn {
     display: inline-flex;
@@ -738,10 +669,11 @@ function handleCategoryClick(catId: CategoryId | 'all') {
 
     .tab-count {
       background-color: var(--bg-tertiary-color);
-      color: var(--fg-tertiary-color);
-      padding: 0.1rem 0.4rem;
+      color: var(--fg-primary-color);
+      padding: 0.1rem 0.5rem;
       border-radius: var(--r-full);
       font-size: 0.75rem;
+      font-weight: 600;
     }
 
     &:hover {
@@ -751,14 +683,14 @@ function handleCategoryClick(catId: CategoryId | 'all') {
     }
 
     &.active {
-      background-color: var(--bg-accent-overlay-color);
+      background-color: rgba(var(--bg-accent-overlay-color-rgb), 0.25);
       border-color: var(--border-accent-color);
       color: var(--fg-accent-color);
       font-weight: 600;
 
       .tab-count {
         background-color: var(--fg-accent-color);
-        color: var(--fg-on-accent-color);
+        color: var(--fg-inverted-color, #ffffff);
       }
     }
   }
@@ -813,12 +745,6 @@ function handleCategoryClick(catId: CategoryId | 'all') {
   }
 }
 
-.include-global-toggle {
-  display: flex;
-  align-items: center;
-  font-size: 0.875rem;
-}
-
 .view-controls {
   display: flex;
   gap: 0.75rem;
@@ -840,60 +766,6 @@ function handleCategoryClick(catId: CategoryId | 'all') {
   }
 }
 
-.tools-divider {
-  display: flex;
-  gap: 8px;
-}
-
-.tags-row {
-  display: flex;
-  gap: 1rem;
-  align-items: flex-start;
-}
-
-.tags-list {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 0.45rem;
-}
-
-.tag-btn {
-  background-color: var(--bg-primary-color);
-  border: 1px solid var(--border-secondary-color);
-  color: var(--fg-secondary-color);
-  padding: 0.25rem 0.75rem;
-  font-size: 0.825rem;
-  border-radius: var(--r-s);
-  cursor: pointer;
-  transition: all 0.2s ease;
-  font-weight: 500;
-
-  &:hover {
-    border-color: var(--fg-accent-color);
-    color: var(--fg-accent-color);
-    background-color: var(--bg-hover-color);
-  }
-
-  &.active {
-    background-color: var(--fg-accent-color);
-    color: var(--fg-on-accent-color);
-    border-color: var(--fg-accent-color);
-  }
-
-  &.toggle-tags-btn {
-    border-style: dashed;
-    color: var(--fg-tertiary-color);
-    display: flex;
-    align-items: center;
-    gap: 4px;
-
-    &:hover {
-      color: var(--fg-primary-color);
-      border-style: solid;
-    }
-  }
-}
-
 /* Active filters bar */
 .active-filters-bar {
   display: flex;
@@ -901,8 +773,8 @@ function handleCategoryClick(catId: CategoryId | 'all') {
   justify-content: space-between;
   gap: 1rem;
   padding: 0.6rem 1rem;
-  background-color: var(--bg-accent-overlay-color);
-  border: 1px solid var(--border-accent-color);
+  background-color: rgba(var(--bg-accent-overlay-color-rgb), 0.2);
+  border: 1px solid rgba(var(--bg-accent-overlay-color-rgb), 0.4);
   border-radius: var(--r-m);
   font-size: 0.875rem;
 
@@ -1111,9 +983,9 @@ function handleCategoryClick(catId: CategoryId | 'all') {
   }
 
   &.badge--recommended {
-    background-color: var(--bg-accent-overlay-color);
+    background-color: rgba(var(--bg-accent-overlay-color-rgb), 0.2);
     color: var(--fg-accent-color);
-    border: 1px solid var(--border-accent-color);
+    border: 1px solid rgba(var(--bg-accent-overlay-color-rgb), 0.4);
   }
 
   &.badge--global {
@@ -1151,8 +1023,8 @@ function handleCategoryClick(catId: CategoryId | 'all') {
   align-items: flex-start;
   gap: 0.5rem;
   padding: 0.5rem 0.75rem;
-  background-color: var(--bg-accent-overlay-color);
-  border: 1px solid var(--border-accent-color);
+  background-color: rgba(var(--bg-accent-overlay-color-rgb), 0.2);
+  border: 1px solid rgba(var(--bg-accent-overlay-color-rgb), 0.4);
   border-radius: var(--r-s);
   font-size: 0.8rem;
   color: var(--fg-primary-color);
@@ -1214,19 +1086,6 @@ function handleCategoryClick(catId: CategoryId | 'all') {
     color: var(--fg-tertiary-color);
     padding: 0.15rem 0.45rem;
     border-radius: 4px;
-    cursor: pointer;
-    transition: all 0.2s;
-
-    &:hover {
-      color: var(--fg-primary-color);
-      border-color: var(--border-primary-color);
-    }
-
-    &.active {
-      background-color: var(--fg-accent-color);
-      color: var(--fg-on-accent-color);
-      border-color: var(--fg-accent-color);
-    }
   }
 
   .more-tag {
