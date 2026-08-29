@@ -2,9 +2,11 @@ import { Hono } from 'hono'
 import { getCookie, setCookie } from 'hono/cookie'
 import { HTTPException } from 'hono/http-exception'
 import { authUtils } from '~/lib/auth.utils'
+import { Logger } from '~/lib/logger'
 import { oAuthService } from '~/services/oauth.service'
 import { telegramAuthService } from '~/services/telegram-auth.service'
 
+const logger = new Logger()
 const authController = new Hono()
 
 // --- GOOGLE ---
@@ -292,12 +294,19 @@ authController.post('/telegram/webhook', async (c) => {
   const secretHeader = c.req.header('X-Telegram-Bot-Api-Secret-Token')
   const expectedSecret = process.env.TELEGRAM_WEBHOOK_SECRET
   if (expectedSecret && secretHeader !== expectedSecret) {
+    logger.warn(`[TelegramAuth] Webhook отклонен (401): неверный секретный токен (header: "${secretHeader}")`)
     return c.json({ error: 'Unauthorized' }, 401)
   }
 
-  const update = await c.req.json()
-  await telegramAuthService.handleUpdate(update)
-  return c.json({ ok: true })
+  try {
+    const update = await c.req.json()
+    await telegramAuthService.handleUpdate(update)
+    return c.json({ ok: true })
+  }
+  catch (err) {
+    logger.error('[TelegramAuth] Ошибка обработки webhook:', err)
+    return c.json({ error: 'Internal Server Error' }, 500)
+  }
 })
 
 export { authController }

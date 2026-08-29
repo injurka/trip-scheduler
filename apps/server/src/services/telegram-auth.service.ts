@@ -144,11 +144,17 @@ export class TelegramAuthService {
   }
 
   async handleUpdate(update: any): Promise<void> {
-    if (update.message?.text) {
-      await this.handleMessage(update.message)
+    this.logger.info(`[TelegramAuth] Входящий update #${update.update_id}: text=${JSON.stringify(update.message?.text)}, callback=${JSON.stringify(update.callback_query?.data)}`)
+    try {
+      if (update.message?.text) {
+        await this.handleMessage(update.message)
+      }
+      else if (update.callback_query) {
+        await this.handleCallbackQuery(update.callback_query)
+      }
     }
-    else if (update.callback_query) {
-      await this.handleCallbackQuery(update.callback_query)
+    catch (err) {
+      this.logger.error('[TelegramAuth] Ошибка при обработке update:', err)
     }
   }
 
@@ -308,7 +314,18 @@ export class TelegramAuthService {
       options.proxy = proxy
     }
 
-    return fetch(url, options)
+    try {
+      const res = await fetch(url, options)
+      if (!res.ok) {
+        const errData = await res.text()
+        this.logger.error(`[TelegramAuth] Ошибка вызова Telegram API ${methodName} (${res.status}): ${errData}`)
+      }
+      return res
+    }
+    catch (error) {
+      this.logger.error(`[TelegramAuth] Сетевая ошибка при вызове Telegram API ${methodName}:`, error)
+      throw error
+    }
   }
 
   private async sendMessage(chatId: number, text: string, replyMarkup?: any): Promise<void> {
