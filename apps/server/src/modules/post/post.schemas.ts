@@ -69,10 +69,14 @@ export const PostStatsDetailSchema = z.object({
   duration: z.number().default(0),
 })
 
-export const PostMediaSchema = createSelectSchema(postMedia)
+export const PostMediaSchema = createSelectSchema(postMedia).extend({
+  hasAccess: z.boolean().optional().default(true),
+})
 export const PostElementSchema = createSelectSchema(postElements).extend({
   content: z.array(PostElementContentSchema),
 })
+
+export const WhitelistUserSchema = UserSchema.pick({ id: true, name: true, avatarUrl: true, email: true })
 
 const BasePostSchema = createSelectSchema(posts).extend({
   statsDetail: PostStatsDetailSchema,
@@ -84,6 +88,8 @@ export const PostSchema = BasePostSchema
     user: UserSchema.pick({ id: true, name: true, avatarUrl: true }),
     elements: z.array(PostElementSchema).optional(),
     media: z.array(PostMediaSchema).optional(),
+    whitelist: z.array(WhitelistUserSchema).optional(),
+    whitelistUserIds: z.array(z.string().uuid()).optional(),
     stats: z.object({
       likes: z.number(),
       saves: z.number(),
@@ -109,6 +115,8 @@ export const CreatePostInputSchema = z.object({
   status: z.enum(['draft', 'completed', 'planned']).default('draft'),
   elements: z.array(CreatePostElementInput).optional(),
   mediaIds: z.array(z.string().uuid()).optional(),
+  mediaPrivacy: z.record(z.string().uuid(), z.boolean()).optional(),
+  whitelistUserIds: z.array(z.string().uuid()).optional(),
   latitude: z.number().optional(),
   longitude: z.number().optional(),
   statsDetail: PostStatsDetailSchema.partial().optional(),
@@ -117,6 +125,16 @@ export const CreatePostInputSchema = z.object({
 export const UpdatePostInputSchema = z.object({
   id: z.string().uuid(),
   data: CreatePostInputSchema.partial(),
+})
+
+export const UpdateMediaPrivacyInputSchema = z.object({
+  mediaId: z.string().uuid(),
+  isPrivate: z.boolean(),
+})
+
+export const ManageWhitelistUserInputSchema = z.object({
+  postId: z.string().uuid(),
+  userId: z.string().uuid(),
 })
 
 export const GetPostByIdInputSchema = z.object({

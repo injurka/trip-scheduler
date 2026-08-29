@@ -6,8 +6,9 @@ import type {
   TimelineBlockType,
   TimelineStage,
   UpdatePostInput,
+  WhitelistUser,
 } from '~/shared/types/models/post'
-import type { TripImage } from '~/shared/types/models/trip'
+import type { TripMedia } from '~/shared/types/models/trip'
 import { defineStore } from 'pinia'
 import { v4 as uuidv4 } from 'uuid'
 import { toRaw } from 'vue'
@@ -58,6 +59,8 @@ function defaultPostState(): PostDetail {
     startDate: '',
     tags: [],
     media: [],
+    whitelist: [],
+    whitelistUserIds: [],
     elements: [],
     statsDetail: { views: 0, duration: 0 },
     stages: [
@@ -133,6 +136,15 @@ export const usePostDraftStore = defineStore('post-draft', {
         if (!this.post.stages) {
           this.post.stages = []
         }
+        if (!this.post.media) {
+          this.post.media = []
+        }
+        if (!this.post.whitelist) {
+          this.post.whitelist = []
+        }
+        if (!this.post.whitelistUserIds) {
+          this.post.whitelistUserIds = []
+        }
       }
       else {
         this.post = defaultPostState()
@@ -186,16 +198,19 @@ export const usePostDraftStore = defineStore('post-draft', {
         return null
 
       let result: PostMedia | null = null
+      const isVideo = file.type.startsWith('video/') || /\.(?:mp4|webm|mov|mkv|avi|ogg|quicktime)$/i.test(file.name)
 
-      await useRequest<TripImage>({
+      await useRequest<TripMedia>({
         key: `post:upload-instant:${uuidv4()}`,
         fn: db => db.files.uploadFile(file, postId, 'post', 'content'),
         onSuccess: (uploaded) => {
           if (uploaded) {
             const newMedia: PostMedia = {
               id: uploaded.id,
-              type: 'image',
+              type: isVideo ? 'video' : 'image',
               url: uploaded.url,
+              isPrivate: false,
+              hasAccess: true,
               metadata: uploaded.metadata,
               originalName: uploaded.originalName,
               marks: [],
@@ -305,6 +320,7 @@ export const usePostDraftStore = defineStore('post-draft', {
       let count = 0
       for (const file of files) {
         let thumbUrl = ''
+        const isVideo = file.type.startsWith('video/') || /\.(?:mp4|webm|mov|mkv|avi|ogg|quicktime)$/i.test(file.name)
         if (file.type.startsWith('image/')) {
           thumbUrl = await generateThumbnail(file, 800)
         }
@@ -314,8 +330,10 @@ export const usePostDraftStore = defineStore('post-draft', {
 
         const media: ClientPostMedia = {
           id: uuidv4(),
-          type: 'image',
+          type: isVideo ? 'video' : 'image',
           url: thumbUrl,
+          isPrivate: false,
+          hasAccess: true,
           marks: [],
           file,
           originalName: file.name,
@@ -330,6 +348,31 @@ export const usePostDraftStore = defineStore('post-draft', {
 
       this.isDirty = true
       return newMedia
+    },
+
+    toggleMediaPrivacy(mediaId: string) {
+      const media = this.post.media.find(m => m.id === mediaId)
+      if (media) {
+        media.isPrivate = !media.isPrivate
+        this.isDirty = true
+      }
+    },
+
+    addWhitelistUser(user: WhitelistUser) {
+      if (!this.post.whitelist) {
+        this.post.whitelist = []
+      }
+      if (this.post.whitelist.some(u => u.id === user.id))
+        return
+      this.post.whitelist.push(user)
+      this.isDirty = true
+    },
+
+    removeWhitelistUser(userId: string) {
+      if (!this.post.whitelist)
+        return
+      this.post.whitelist = this.post.whitelist.filter(u => u.id !== userId)
+      this.isDirty = true
     },
 
     addTag(tag: string) {
@@ -464,6 +507,13 @@ export const usePostDraftStore = defineStore('post-draft', {
 
         const finalMediaIds = this.post.media.map(m => m.id)
 
+        const mediaPrivacy: Record<string, boolean> = {}
+        this.post.media.forEach((m) => {
+          mediaPrivacy[m.id] = !!m.isPrivate
+        })
+
+        const whitelistUserIds = (this.post.whitelist || []).map(u => u.id)
+
         const payload: Partial<UpdatePostInput> = {
           title: this.post.title || 'Новый маршрут',
           insight: this.post.insight || undefined,
@@ -476,6 +526,8 @@ export const usePostDraftStore = defineStore('post-draft', {
           status: publishStatus,
           statsDetail: { duration: this.post.statsDetail.duration || 0 },
           mediaIds: finalMediaIds,
+          mediaPrivacy,
+          whitelistUserIds,
           elements,
         }
 

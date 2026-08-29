@@ -253,6 +253,7 @@ defineExpose({
           class="image"
           :alt="alt"
           :loading="loading"
+          decoding="async"
           :style="imageStyle"
           @load="handleLoad"
           @error="handleError"

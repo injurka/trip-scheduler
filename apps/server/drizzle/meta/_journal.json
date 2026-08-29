@@ -15,6 +15,27 @@
       "when": 1787664490857,
       "tag": "0001_plain_justin_hammer",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1787927311881,
+      "tag": "0002_wise_speed",
+      "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "7",
+      "when": 1788025377519,
+      "tag": "0003_special_lady_vermin",
+      "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "7",
+      "when": 1788026791002,
+      "tag": "0004_pretty_tarot",
+      "breakpoints": true
     }
   ]
 }

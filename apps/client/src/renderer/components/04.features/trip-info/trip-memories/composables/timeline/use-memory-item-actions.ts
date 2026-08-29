@@ -83,7 +83,7 @@ export function useMemoryItemActions(props: {
   async function handleRemoveTimestamp() {
     const isConfirmed = await confirm({
       title: 'Убрать временную метку?',
-      description: 'Воспоминание будет перемещено в блок "Фотографии для обработки".',
+      description: 'Воспоминание будет перемещено в блок "Медиафайлы для обработки".',
     })
 
     if (isConfirmed)

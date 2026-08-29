@@ -2,6 +2,7 @@
 import { Icon } from '@iconify/vue'
 import { KitImage } from '~/components/01.kit/kit-image'
 import { useModuleStore } from '~/components/05.modules/trip-info/composables/use-trip-info-module'
+import { resolveApiUrl } from '~/shared/lib/url'
 
 const store = useModuleStore(['memories', 'ui', 'plan'])
 const { memories } = storeToRefs(store.memories)
@@ -37,7 +38,7 @@ onMounted(() => {
         <h3>Галерея</h3>
       </div>
       <div class="count-badge">
-        {{ totalCount }} фото
+        {{ totalCount }} медиа
         <Icon icon="mdi:chevron-right" />
       </div>
     </div>
@@ -48,7 +49,16 @@ onMounted(() => {
         :key="item.id"
         class="preview-item"
       >
+        <video
+          v-if="item.image?.mediaType === 'video' || /\.(?:mp4|webm|mov|mkv|avi|ogg)$/i.test(item.image?.url || '')"
+          :src="resolveApiUrl(item.image?.url || '')"
+          class="img"
+          muted
+          playsinline
+          preload="metadata"
+        />
         <KitImage
+          v-else
           :src="item.image?.variants?.small || item.image?.url"
           object-fit="cover"
           class="img"

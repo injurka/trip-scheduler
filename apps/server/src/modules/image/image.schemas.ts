@@ -1,9 +1,10 @@
 import { z } from 'zod'
 
-export const TripImageSchema = z.object({
+export const TripMediaSchema = z.object({
   id: z.string(),
   url: z.string(),
   originalName: z.string(),
+  mediaType: z.enum(['image', 'video']).default('image').optional(),
   sizeBytes: z.number().default(0),
   createdAt: z.date(),
   tripId: z.string().optional(),
@@ -17,9 +18,13 @@ export const TripImageSchema = z.object({
   metadata: z.any().nullable().optional(),
 })
 
-export const TripImageWithTripSchema = TripImageSchema.extend({
+export const TripImageSchema = TripMediaSchema
+
+export const TripMediaWithTripSchema = TripMediaSchema.extend({
   trip: z.object({ id: z.string(), title: z.string() }).nullable().optional(),
 })
+
+export const TripImageWithTripSchema = TripMediaWithTripSchema
 
 export const GetImagesByTripIdInputSchema = z.object({
   tripId: z.string().uuid(),

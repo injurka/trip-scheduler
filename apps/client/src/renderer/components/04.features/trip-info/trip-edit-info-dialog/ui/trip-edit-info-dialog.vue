@@ -2,7 +2,7 @@
 import type { CalendarDate } from '@internationalized/date'
 import type { KitDropdownItem } from '~/components/01.kit/kit-dropdown'
 import type { KitRadioOption } from '~/components/01.kit/kit-radio-group'
-import type { Trip, TripImage, UpdateTripInput } from '~/shared/types/models/trip'
+import type { Trip, TripMedia, UpdateTripInput } from '~/shared/types/models/trip'
 import { Icon } from '@iconify/vue'
 import { parseDate } from '@internationalized/date'
 import { KitBtn } from '~/components/01.kit/kit-btn'
@@ -14,7 +14,7 @@ import { KitRadioGroup } from '~/components/01.kit/kit-radio-group'
 import { KitSelectWithSearch } from '~/components/01.kit/kit-select-with-search'
 import { CalendarPopover } from '~/components/02.shared/calendar-popover'
 import { useRequest, useRequestStatus } from '~/plugins/request'
-import { TripImagePlacement, TripStatus, TripVisibility } from '~/shared/types/models/trip'
+import { TripMediaPlacement, TripStatus, TripVisibility } from '~/shared/types/models/trip'
 
 const props = defineProps<Props>()
 
@@ -73,7 +73,7 @@ const visibilityOptions: KitRadioOption<TripVisibility>[] = [
 
 const availableCities = ref<KitDropdownItem<string>[]>([])
 const availableTags = ref<KitDropdownItem<string>[]>([])
-const coverImages = ref<TripImage[]>([])
+const coverImages = ref<TripMedia[]>([])
 
 const isLoadingCities = useRequestStatus(ETripEditInfoDialogKeys.FETCH_CITIES)
 const isLoadingTags = useRequestStatus(ETripEditInfoDialogKeys.FETCH_TAGS)
@@ -120,7 +120,7 @@ function openCoverDialog() {
   if (!hasFetchedImages.value && props.trip) {
     useRequest({
       key: `${ETripEditInfoDialogKeys.FETCH_IMAGES}:${props.trip.id}`,
-      fn: db => db.files.listImageByTrip(props.trip!.id, TripImagePlacement.ROUTE),
+      fn: db => db.files.listImageByTrip(props.trip!.id, TripMediaPlacement.ROUTE),
       onSuccess: (images) => {
         coverImages.value = images
         hasFetchedImages.value = true

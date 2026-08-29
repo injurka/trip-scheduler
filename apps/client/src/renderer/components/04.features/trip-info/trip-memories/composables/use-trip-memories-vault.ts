@@ -68,7 +68,7 @@ export function useTripMemoriesVault() {
       return
 
     const isConfigured = await ensureVaultConfigured(
-      'Выберите папку на компьютере для сохранения фотографий, чтобы просматривать их оффлайн.',
+      'Выберите папку на компьютере для сохранения медиа, чтобы просматривать их оффлайн.',
     )
 
     if (!isConfigured)
@@ -87,7 +87,7 @@ export function useTripMemoriesVault() {
 
     if (imagesToSync.length === 0) {
       const toast = useToast()
-      toast.info('Нет фотографий для скачивания в этом дне')
+      toast.info('Нет медиа для скачивания в этом дне')
       return
     }
 

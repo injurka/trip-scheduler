@@ -75,6 +75,18 @@ export async function saveFile(dbPath: string, fileBuffer: Buffer, explicitConte
       contentType = 'text/plain'
     else if (lowerPath.endsWith('.csv'))
       contentType = 'text/csv'
+    else if (lowerPath.endsWith('.mp4'))
+      contentType = 'video/mp4'
+    else if (lowerPath.endsWith('.mov'))
+      contentType = 'video/quicktime'
+    else if (lowerPath.endsWith('.webm'))
+      contentType = 'video/webm'
+    else if (lowerPath.endsWith('.mkv'))
+      contentType = 'video/x-matroska'
+    else if (lowerPath.endsWith('.avi'))
+      contentType = 'video/x-msvideo'
+    else if (lowerPath.endsWith('.ogv') || lowerPath.endsWith('.ogg'))
+      contentType = 'video/ogg'
     else if (lowerPath.endsWith('.rtf'))
       contentType = 'application/rtf'
   }

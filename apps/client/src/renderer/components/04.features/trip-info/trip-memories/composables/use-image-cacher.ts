@@ -25,6 +25,9 @@ const backgroundCachingQuality = useStorage<ImageQuality>('trip-background-cachi
 
 export function useImageCacher() {
   function preloadImage(url: string): Promise<void> {
+    if (/\.(?:mp4|webm|mov|mkv|avi|ogg|quicktime)$/i.test(url))
+      return Promise.resolve()
+
     return new Promise((resolve) => {
       const img = new Image()
       img.onload = () => resolve()

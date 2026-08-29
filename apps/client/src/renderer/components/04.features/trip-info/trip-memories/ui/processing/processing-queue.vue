@@ -51,8 +51,8 @@ const {
   <div :class="queueClasses">
     <div class="queue-header">
       <div class="header-content">
-        <h4><Icon icon="mdi:image-sync-outline" /> Фотографии для обработки</h4>
-        <p>Здесь находятся фото без даты или снятые в другой день. Назначьте им время и комментарий, чтобы они появились в ленте воспоминаний.</p>
+        <h4><Icon icon="mdi:image-sync-outline" /> Медиафайлы для обработки</h4>
+        <p>Здесь находятся медиа без даты или снятые в другой день. Назначьте им время и комментарий, чтобы они появились в ленте воспоминаний.</p>
       </div>
       <div class="header-actions">
         <KitTooltip :text="isFullScreen ? 'Свернуть из полноэкранного режима' : 'На весь экран'">

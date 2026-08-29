@@ -1,12 +1,12 @@
 <script setup lang="ts">
 import type { ImageViewerImage } from '~/components/01.kit/kit-image-viewer'
 import type { ActivitySectionGallery } from '~/shared/types/models/activity'
-import type { TripImage } from '~/shared/types/models/trip'
+import type { TripMedia } from '~/shared/types/models/trip'
 import { Icon } from '@iconify/vue'
 import { KitImage } from '~/components/01.kit/kit-image'
 import { KitImageViewer, useImageViewer } from '~/components/01.kit/kit-image-viewer'
 import { useModuleStore } from '~/components/05.modules/trip-info/composables/use-trip-info-module'
-import { tripImageToViewerImage } from '~/components/05.modules/trip-info/lib/helpers'
+import { tripMediaToViewerImage } from '~/components/05.modules/trip-info/lib/helpers'
 
 interface Props {
   section: ActivitySectionGallery
@@ -22,7 +22,7 @@ const imageUrls = computed(() => props.section.imageUrls || [])
 const fullImagesData = computed(() => {
   return (props.section.imageUrls || [])
     .map(url => tripImages.value.find(tripImg => tripImg.url === url))
-    .filter((img): img is TripImage => !!img)
+    .filter((img): img is TripMedia => !!img)
 })
 
 const imageViewer = useImageViewer({
@@ -30,7 +30,7 @@ const imageViewer = useImageViewer({
 })
 
 const viewerImages = computed<ImageViewerImage[]>(() =>
-  fullImagesData.value.map(tripImage => tripImageToViewerImage(tripImage)),
+  fullImagesData.value.map(tripImage => tripMediaToViewerImage(tripImage)),
 )
 
 function openViewer(index: number) {

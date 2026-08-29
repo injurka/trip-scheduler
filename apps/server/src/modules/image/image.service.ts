@@ -17,6 +17,7 @@ interface ServiceImageResult {
   tripId?: string
   url: string
   originalName: string
+  mediaType?: 'image' | 'video'
   placement?: 'route' | 'memories' | 'content' | 'cover' | 'notes'
   createdAt: Date
   sizeBytes: number
@@ -37,6 +38,7 @@ export const imageService = {
     placement: Placement,
     sizeBytes: number,
     metadata: ImageMetadata,
+    mediaType?: 'image' | 'video',
   ) {
     return await imageRepository.create(
       tripId,
@@ -45,6 +47,7 @@ export const imageService = {
       placement,
       sizeBytes,
       metadata,
+      mediaType,
     )
   },
 

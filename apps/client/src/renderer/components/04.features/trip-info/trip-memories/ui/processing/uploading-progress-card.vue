@@ -19,7 +19,8 @@ const emit = defineEmits<{
 <template>
   <div class="uploading-progress-card" :class="`status-${memory.status}`">
     <div class="thumbnail">
-      <img :src="memory.previewUrl" alt="preview">
+      <video v-if="memory.file.type.startsWith('video/')" :src="memory.previewUrl" muted playsinline />
+      <img v-else :src="memory.previewUrl" alt="preview">
     </div>
     <div class="details">
       <div class="file-info">
@@ -89,7 +90,8 @@ const emit = defineEmits<{
   overflow: hidden;
   background-color: var(--bg-secondary-color);
 
-  img {
+  img,
+  video {
     width: 100%;
     height: 100%;
     object-fit: cover;

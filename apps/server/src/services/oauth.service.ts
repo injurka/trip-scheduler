@@ -1,4 +1,4 @@
-import type { GitHubEmail, GitHubUser, GoogleUser } from '~/models/auth'
+import type { GitHubEmail, GitHubUser, GoogleUser, YandexUser } from '~/models/auth'
 import { TRPCError } from '@trpc/server'
 import { eq } from 'drizzle-orm'
 import { db } from '~/../db'
@@ -8,7 +8,7 @@ import { FREE_PLAN_ID } from '~/lib/constants'
 import { userRepository } from '~/repositories/user.repository'
 
 interface OAuthInput {
-  provider: 'google' | 'github'
+  provider: 'google' | 'github' | 'yandex'
   providerId: string
   email: string | null
   name: string
@@ -50,6 +50,34 @@ export class OAuthService {
     return { token, user }
   }
 
+  public async handleYandex(code: string) {
+    const tokenData = await this.exchangeYandexCodeForToken(code)
+    const userInfo = await this.getYandexUserInfo(tokenData.access_token)
+
+    const name = userInfo.real_name
+      || userInfo.display_name
+      || [userInfo.first_name, userInfo.last_name].filter(Boolean).join(' ')
+      || userInfo.login
+      || `yandex_${userInfo.id}`
+
+    const avatarUrl = userInfo.default_avatar_id && !userInfo.is_avatar_empty
+      ? `https://avatars.yandex.net/get-yapic/${userInfo.default_avatar_id}/islands-200`
+      : undefined
+
+    const email = userInfo.default_email || userInfo.emails?.[0] || null
+
+    const user = await this.findOrCreateFromOAuth({
+      provider: 'yandex',
+      providerId: String(userInfo.id),
+      email,
+      name,
+      avatarUrl,
+    })
+
+    const token = await authUtils.generateTokens({ id: user.id, email: user.email! })
+    return { token, user }
+  }
+
   private async findOrCreateFromOAuth({ provider, providerId, email, name, avatarUrl }: OAuthInput) {
     let user: Awaited<ReturnType<typeof db.query.users.findFirst>> | undefined
 
@@ -58,6 +86,9 @@ export class OAuthService {
     }
     else if (provider === 'github') {
       user = await db.query.users.findFirst({ where: eq(users.githubId, providerId), with: { plan: true } })
+    }
+    else if (provider === 'yandex') {
+      user = await db.query.users.findFirst({ where: eq(users.yandexId, providerId), with: { plan: true } })
     }
 
     if (user) {
@@ -77,6 +108,8 @@ export class OAuthService {
           updateData.googleId = providerId
         else if (provider === 'github')
           updateData.githubId = providerId
+        else if (provider === 'yandex')
+          updateData.yandexId = providerId
 
         const [updatedUser] = await db.update(users)
           .set(updateData)
@@ -100,6 +133,8 @@ export class OAuthService {
       newUserPayload.googleId = providerId
     else if (provider === 'github')
       newUserPayload.githubId = providerId
+    else if (provider === 'yandex')
+      newUserPayload.yandexId = providerId
 
     const [newUser] = await db.insert(users)
       .values(newUserPayload)
@@ -171,6 +206,52 @@ export class OAuthService {
       return null
     const emails: GitHubEmail[] = await response.json()
     return emails.find(e => e.primary && e.verified)?.email ?? null
+  }
+
+  // Методы для взаимодействия с API Яндекс
+  private getYandexCallbackUrl(): string {
+    return process.env.YANDEX_CALLBACK_URL || (process.env.BACKEND_URL ? `${process.env.BACKEND_URL}/api/auth/yandex/callback` : '')
+  }
+
+  private async exchangeYandexCodeForToken(code: string): Promise<{ access_token: string }> {
+    const clientId = process.env.YANDEX_CLIENT_ID!
+    const clientSecret = process.env.YANDEX_CLIENT_SECRET!
+    const redirectUri = this.getYandexCallbackUrl()
+
+    const bodyParams: Record<string, string> = {
+      grant_type: 'authorization_code',
+      code,
+      client_id: clientId,
+      client_secret: clientSecret,
+    }
+    if (redirectUri) {
+      bodyParams.redirect_uri = redirectUri
+    }
+
+    const response = await fetch('https://oauth.yandex.ru/token', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/x-www-form-urlencoded',
+        'Authorization': `Basic ${Buffer.from(`${clientId}:${clientSecret}`).toString('base64')}`,
+      },
+      body: new URLSearchParams(bodyParams).toString(),
+    })
+
+    if (!response.ok) {
+      const errText = await response.text().catch(() => '')
+      throw new TRPCError({ code: 'INTERNAL_SERVER_ERROR', message: `Failed to exchange Yandex code: ${errText}` })
+    }
+
+    return response.json()
+  }
+
+  private async getYandexUserInfo(accessToken: string): Promise<YandexUser> {
+    const response = await fetch('https://login.yandex.ru/info?format=json', {
+      headers: { Authorization: `OAuth ${accessToken}` },
+    })
+    if (!response.ok)
+      throw new TRPCError({ code: 'INTERNAL_SERVER_ERROR', message: 'Failed to fetch Yandex user info' })
+    return response.json()
   }
 }
 

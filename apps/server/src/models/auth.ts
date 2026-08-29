@@ -18,3 +18,18 @@ export interface GitHubEmail {
   primary: boolean
   verified: boolean
 }
+
+export interface YandexUser {
+  id: string | number
+  login?: string
+  client_id?: string
+  display_name?: string
+  real_name?: string
+  first_name?: string
+  last_name?: string
+  sex?: string | null
+  default_email?: string
+  emails?: string[]
+  default_avatar_id?: string
+  is_avatar_empty?: boolean
+}

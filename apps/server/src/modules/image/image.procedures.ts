@@ -7,8 +7,8 @@ import {
   GetImagesByTripIdInputSchema,
   ListDocumentsInputSchema,
   TripDocumentSchema,
-  TripImageSchema,
-  TripImageWithTripSchema,
+  TripMediaSchema,
+  TripMediaWithTripSchema,
   UpdateDocumentMetaInputSchema,
 } from './image.schemas'
 import { imageService } from './image.service'
@@ -16,20 +16,20 @@ import { imageService } from './image.service'
 export const imageProcedures = {
   listByTrip: publicProcedure
     .input(GetImagesByTripIdInputSchema)
-    .output(z.array(TripImageSchema))
+    .output(z.array(TripMediaSchema))
     .query(async ({ input }) => {
       return imageService.getByTripId(input.tripId, input.placement)
     }),
 
   listByEntity: publicProcedure
     .input(GetImagesByEntityInputSchema)
-    .output(z.array(TripImageSchema))
+    .output(z.array(TripMediaSchema))
     .query(async ({ input }) => {
       return imageService.getByEntity(input.entityId, input.entityType, input.placement)
     }),
 
   getAll: protectedProcedure
-    .output(z.array(TripImageWithTripSchema))
+    .output(z.array(TripMediaWithTripSchema))
     .query(async ({ ctx }) => {
       return imageService.getAll(ctx.user.id)
     }),

@@ -83,6 +83,7 @@ export interface ImageViewerImage {
   url: string
   alt?: string
   caption?: string | null
+  mediaType?: 'image' | 'video'
   meta?: IImageViewerImageMeta
   variants?: ImageViewerImageVariants | null
 }

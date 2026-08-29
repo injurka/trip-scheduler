@@ -15,9 +15,9 @@ function onDrop(files: File[] | null) {
   if (!files || activeView.value !== 'memories' || isViewMode.value)
     return
 
-  const imageFiles = files.filter(file => file.type.startsWith('image/'))
-  if (imageFiles.length > 0)
-    memories.enqueueFilesForUpload(imageFiles)
+  const mediaFiles = files.filter(file => file.type.startsWith('image/') || file.type.startsWith('video/'))
+  if (mediaFiles.length > 0)
+    memories.enqueueFilesForUpload(mediaFiles)
 }
 </script>
 

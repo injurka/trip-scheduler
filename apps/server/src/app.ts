@@ -9,7 +9,13 @@ import { Logger } from '~/lib/logger'
 import { authController } from './api/auth.controller'
 import { imageController } from './api/image.controller'
 import { llmController } from './api/llm.controller'
-import { uploadFileController } from './api/upload.controller'
+import {
+  abortMultipartUploadController,
+  completeMultipartUploadController,
+  initiateMultipartUploadController,
+  uploadChunkController,
+  uploadFileController,
+} from './api/upload.controller'
 import { createContext } from './lib/trpc'
 import { appRouter } from './router'
 import { httpRequestCounter, httpRequestDurationHistogram, register } from './services/metrics.service'
@@ -91,6 +97,10 @@ class Server {
     // Определение API маршрутов
     const apiRoutes = new Hono()
       .post('/upload', uploadFileController)
+      .post('/upload/multipart/initiate', initiateMultipartUploadController)
+      .put('/upload/multipart/chunk', uploadChunkController)
+      .post('/upload/multipart/complete', completeMultipartUploadController)
+      .post('/upload/multipart/abort', abortMultipartUploadController)
       .route('/auth', authController)
       .route('/llm', llmController)
 

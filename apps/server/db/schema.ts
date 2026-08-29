@@ -27,6 +27,8 @@ export const activityTagEnum = pgEnum('activity_tag', ['activity', 'transport', 
 export const activitySectionTypeEnum = pgEnum('activity_section_type', ['description', 'gallery', 'geolocation', 'metro', 'booking'])
 export const activityStatusEnum = pgEnum('activity_status', ['none', 'completed', 'skipped'])
 export const tripImagePlacementEnum = pgEnum('trip_image_placement', ['route', 'memories', 'notes', 'documents'])
+export const tripMediaPlacementEnum = tripImagePlacementEnum
+export const mediaTypeEnum = pgEnum('media_type', ['image', 'video'])
 export const userRoleEnum = pgEnum('user_role', ['user', 'admin'])
 
 export const tripSectionTypeEnum = pgEnum('trip_section_type', [
@@ -58,9 +60,12 @@ export const users = pgTable('users', {
   name: text('name'),
   avatarUrl: text('avatar_url'),
   coverUrl: text('cover_url'),
+
   githubId: text('github_id').unique(),
   googleId: text('google_id').unique(),
   telegramId: text('telegram_id').unique(),
+  yandexId: text('yandex_id').unique(),
+
   planId: integer('plan_id').references(() => plans.id).notNull().default(1),
   currentTripsCount: integer('current_trips_count').notNull().default(0),
   currentStorageBytes: bigint('current_storage_bytes', { mode: 'number' }).notNull().default(0),
@@ -152,6 +157,7 @@ export const tripImages = pgTable('trip_images', {
   tripId: uuid('trip_id').notNull().references(() => trips.id, { onDelete: 'cascade' }),
   originalName: text('original_name').notNull(),
   url: text('url').notNull(),
+  mediaType: mediaTypeEnum('media_type').default('image').notNull(),
   placement: tripImagePlacementEnum('placement').notNull(),
   createdAt: timestamp('created_at').defaultNow().notNull(),
   sizeBytes: bigint('size_bytes', { mode: 'number' }).notNull().default(0),
@@ -163,6 +169,8 @@ export const tripImages = pgTable('trip_images', {
   variants: jsonb('variants').$type<Record<string, string>>(),
   metadata: jsonb('metadata'),
 })
+
+export const tripMedia = tripImages
 
 export const tripNoteImages = pgTable('trip_note_images', {
   noteId: uuid('note_id').notNull().references(() => tripNotes.id, { onDelete: 'cascade' }),
@@ -278,6 +286,7 @@ export const postMedia = pgTable('post_media', {
   originalName: text('original_name').notNull(),
   url: text('url').notNull(),
   type: postMediaTypeEnum('type').default('image').notNull(),
+  isPrivate: boolean('is_private').default(false).notNull(),
   sizeBytes: bigint('size_bytes', { mode: 'number' }).notNull().default(0),
   order: integer('order').default(0).notNull(),
   createdAt: timestamp('created_at').defaultNow().notNull(),
@@ -366,6 +375,16 @@ export const postLikes = pgTable('post_likes', {
   createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
 }, t => ({
   pk: primaryKey({ columns: [t.userId, t.postId] }),
+}))
+
+export const postWhitelist = pgTable('post_whitelist', {
+  postId: uuid('post_id').notNull().references(() => posts.id, { onDelete: 'cascade' }),
+  userId: uuid('user_id').notNull().references(() => users.id, { onDelete: 'cascade' }),
+  createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
+}, t => ({
+  pk: primaryKey({ columns: [t.postId, t.userId] }),
+  postIdx: index('post_whitelist_post_id_idx').on(t.postId),
+  userIdx: index('post_whitelist_user_id_idx').on(t.userId),
 }))
 
 export const blogs = pgTable('blogs', {
@@ -584,6 +603,7 @@ export const usersRelations = relations(users, ({ many, one }) => ({
   savedPosts: many(savedPosts),
   likedPosts: many(postLikes),
   marks: many(marks),
+  postWhitelists: many(postWhitelist),
 }))
 
 export const llmTokenUsageRelations = relations(llmTokenUsage, ({ one }) => ({
@@ -653,6 +673,18 @@ export const postsRelations = relations(posts, ({ one, many }) => ({
   media: many(postMedia),
   savedBy: many(savedPosts),
   likedBy: many(postLikes),
+  whitelist: many(postWhitelist),
+}))
+
+export const postWhitelistRelations = relations(postWhitelist, ({ one }) => ({
+  post: one(posts, {
+    fields: [postWhitelist.postId],
+    references: [posts.id],
+  }),
+  user: one(users, {
+    fields: [postWhitelist.userId],
+    references: [users.id],
+  }),
 }))
 
 export const postElementsRelations = relations(postElements, ({ one }) => ({

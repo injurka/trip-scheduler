@@ -13,6 +13,8 @@ import { generateFilePaths, saveFile } from '~/services/file-storage.service'
 import { extractAndStructureMetadata, generateImageVariants } from '~/services/image-metadata.service'
 import { fileUploadsCounter, fileUploadSizeBytesHistogram } from '~/services/metrics.service'
 import { quotaService } from '~/services/quota.service'
+import { s3Service } from '~/services/s3.service'
+import { videoProcessingService } from '~/services/video-processing.service'
 
 const tripHandler: IUploadHandler = {
   async validate({ userId, userRole, entityId, placement, buffer }) {
@@ -26,8 +28,8 @@ const tripHandler: IUploadHandler = {
     await quotaService.checkStorageQuota(userId, buffer.length)
   },
   getFolderPath: ({ entityId, placement }) => `trips/${entityId}/${placement}`,
-  async afterSave({ entityId, placement }, { url, size, metadata, variants }) {
-    return await imageService.create(entityId, url, metadata.originalName || 'file', placement as any, size, { ...metadata, variants })
+  async afterSave({ entityId, placement }, { url, size, metadata, variants, mediaType }) {
+    return await imageService.create(entityId, url, metadata.originalName || 'file', placement as any, size, { ...metadata, variants }, mediaType)
   },
 }
 
@@ -41,8 +43,8 @@ const postHandler: IUploadHandler = {
     await quotaService.checkStorageQuota(userId, buffer.length)
   },
   getFolderPath: ({ entityId }) => `posts/${entityId}`,
-  async afterSave({ entityId }, { url, size, metadata, variants }) {
-    return await postService.createMedia(entityId, url, metadata.originalName || 'file', size, { ...metadata, variants })
+  async afterSave({ entityId }, { url, size, metadata, variants, mediaType }) {
+    return await postService.createMedia(entityId, url, metadata.originalName || 'file', size, { ...metadata, variants, mediaType })
   },
 }
 
@@ -117,9 +119,10 @@ export class ImageUploadService {
 
     let processedBuffer = ctx.buffer
     let variants: Record<string, Buffer> = {}
-    let metadata: any = { originalName: ctx.file.name }
-
-    const isImage = ctx.file.type.startsWith('image/') || /\.(?:jpg|jpeg|png|webp|avif|gif)$/i.test(fileName)
+    const isVideo = ctx.file.type.startsWith('video/') || /\.(?:mp4|webm|mov|mkv|avi|ogg|quicktime)$/i.test(fileName)
+    const isImage = !isVideo && (ctx.file.type.startsWith('image/') || /\.(?:jpg|jpeg|png|webp|avif|gif)$/i.test(fileName))
+    const mediaType: 'image' | 'video' = isVideo ? 'video' : 'image'
+    let metadata: any = { originalName: ctx.file.name, mediaType }
 
     if (isImage) {
       try {
@@ -155,7 +158,13 @@ export class ImageUploadService {
 
     const totalSize = processedBuffer.length + variantsTotalSize
 
-    const dbRecord = await handler.afterSave(ctx, { url: paths.path, variants: variantUrls, size: totalSize, metadata })
+    const dbRecord = await handler.afterSave(ctx, { url: paths.path, variants: variantUrls, size: totalSize, metadata, mediaType })
+
+    if (mediaType === 'video' && dbRecord && 'id' in dbRecord && typeof dbRecord.id === 'string') {
+      videoProcessingService.processVideoBackground(dbRecord.id, paths.path).catch((err) => {
+        console.error('[Upload] Error in background video processing:', err)
+      })
+    }
 
     if (entityType !== 'avatar' && entityType !== 'blog') {
       await quotaService.incrementStorageUsage(ctx.userId, totalSize)
@@ -165,6 +174,123 @@ export class ImageUploadService {
     fileUploadSizeBytesHistogram.observe({ placement: entityType }, totalSize)
 
     return { url: paths.path, variants: variantUrls, dbRecord, metadata }
+  }
+
+  async initiateMultipart(
+    entityType: EntityType,
+    ctx: {
+      userId: string
+      userRole: string
+      entityId: string
+      placement?: string | null
+      fileName: string
+      fileSize: number
+      fileType: string
+    },
+  ) {
+    const handler = handlers[entityType]
+    if (!handler)
+      throw new HTTPException(400, { message: 'Неизвестный тип сущности.' })
+
+    await handler.validate({
+      userId: ctx.userId,
+      userRole: ctx.userRole,
+      entityId: ctx.entityId,
+      placement: ctx.placement,
+      buffer: Buffer.alloc(0),
+      file: { name: ctx.fileName, size: ctx.fileSize, type: ctx.fileType } as any,
+    })
+
+    await quotaService.checkStorageQuota(ctx.userId, ctx.fileSize)
+
+    const folderPath = handler.getFolderPath({
+      userId: ctx.userId,
+      userRole: ctx.userRole,
+      entityId: ctx.entityId,
+      placement: ctx.placement,
+      buffer: Buffer.alloc(0),
+      file: { name: ctx.fileName, size: ctx.fileSize, type: ctx.fileType } as any,
+    })
+
+    const paths = generateFilePaths(folderPath, ctx.fileName)
+    const uploadId = await s3Service.createMultipartUpload(paths.path, ctx.fileType)
+
+    return {
+      uploadId,
+      key: paths.path,
+      chunkSize: 10 * 1024 * 1024, // 10MB
+    }
+  }
+
+  async uploadChunk(key: string, uploadId: string, partNumber: number, chunkBuffer: Buffer | Uint8Array) {
+    return await s3Service.uploadPart(key, uploadId, partNumber, chunkBuffer)
+  }
+
+  async completeMultipart(
+    entityType: EntityType,
+    ctx: {
+      userId: string
+      userRole: string
+      entityId: string
+      placement?: string | null
+      uploadId: string
+      key: string
+      parts: { PartNumber: number, ETag: string }[]
+      fileName: string
+      fileSize: number
+      customMetadata?: Record<string, any>
+    },
+  ) {
+    const handler = handlers[entityType]
+    if (!handler)
+      throw new HTTPException(400, { message: 'Неизвестный тип сущности.' })
+
+    await s3Service.completeMultipartUpload(ctx.key, ctx.uploadId, ctx.parts)
+
+    const isVideo = /\.(?:mp4|webm|mov|mkv|avi|ogg|quicktime)$/i.test(ctx.fileName)
+    const mediaType: 'image' | 'video' = isVideo ? 'video' : 'image'
+    const metadata = {
+      originalName: ctx.fileName,
+      mediaType,
+      ...ctx.customMetadata,
+    }
+
+    const uploadCtx: UploadContext = {
+      userId: ctx.userId,
+      userRole: ctx.userRole,
+      entityId: ctx.entityId,
+      placement: ctx.placement,
+      buffer: Buffer.alloc(0),
+      file: { name: ctx.fileName, size: ctx.fileSize, type: isVideo ? 'video/mp4' : 'application/octet-stream' } as any,
+      customMetadata: ctx.customMetadata,
+    }
+
+    const dbRecord = await handler.afterSave(uploadCtx, {
+      url: ctx.key,
+      variants: {},
+      size: ctx.fileSize,
+      metadata,
+      mediaType,
+    })
+
+    if (mediaType === 'video' && dbRecord && 'id' in dbRecord && typeof dbRecord.id === 'string') {
+      videoProcessingService.processVideoBackground(dbRecord.id, ctx.key).catch((err) => {
+        console.error('[MultipartUpload] Error in background video processing:', err)
+      })
+    }
+
+    if (entityType !== 'avatar' && entityType !== 'blog') {
+      await quotaService.incrementStorageUsage(ctx.userId, ctx.fileSize)
+    }
+
+    fileUploadsCounter.inc({ placement: entityType })
+    fileUploadSizeBytesHistogram.observe({ placement: entityType }, ctx.fileSize)
+
+    return { url: ctx.key, variants: {}, dbRecord, metadata }
+  }
+
+  async abortMultipart(key: string, uploadId: string) {
+    await s3Service.abortMultipartUpload(key, uploadId)
   }
 }
 

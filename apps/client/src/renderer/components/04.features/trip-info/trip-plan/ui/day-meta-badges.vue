@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import type { DayMetaBadgePreset } from '../lib/badge-presets'
-import type { Booking, BookingSectionContent } from '~/components/04.features/trip-info/trip-sections'
+import type { Booking, BookingSectionContent } from '~/components/04.features/trip-info/trip-sections/booking-section'
 import type { DayMetaInfo } from '~/shared/types/models/activity'
 import { Icon } from '@iconify/vue'
 import {
@@ -24,7 +24,7 @@ import { KitDialogWithClose } from '~/components/01.kit/kit-dialog-with-close'
 import { KitInlineMdEditorWrapper } from '~/components/01.kit/kit-inline-md-editor'
 import { KitInput } from '~/components/01.kit/kit-input'
 import { KitTooltip } from '~/components/01.kit/kit-tooltip'
-import { DayBookingsModal } from '~/components/04.features/trip-info/trip-sections'
+import { DayBookingsModal } from '~/components/04.features/trip-info/trip-sections/booking-section'
 import { useModuleStore } from '~/components/05.modules/trip-info/composables/use-trip-info-module'
 import { TripSectionType } from '~/shared/types/models/trip'
 import { badgePresets } from '../lib/badge-presets'

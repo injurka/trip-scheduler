@@ -22,5 +22,5 @@ export interface UploadResult {
 export interface IUploadHandler {
   validate: (ctx: UploadContext) => Promise<void>
   getFolderPath: (ctx: UploadContext) => string
-  afterSave: (ctx: UploadContext, fileData: { url: string, variants: Record<string, string>, size: number, metadata: any }) => Promise<any>
+  afterSave: (ctx: UploadContext, fileData: { url: string, variants: Record<string, string>, size: number, metadata: any, mediaType?: 'image' | 'video' }) => Promise<any>
 }

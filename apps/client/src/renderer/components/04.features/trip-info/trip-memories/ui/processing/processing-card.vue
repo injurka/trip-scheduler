@@ -12,6 +12,7 @@ import { CalendarPopover } from '~/components/02.shared/calendar-popover'
 import { ETripMemoriesKeys } from '~/components/04.features/trip-info/trip-memories/store/trip-memories.store'
 import { useModuleStore } from '~/components/05.modules/trip-info/composables/use-trip-info-module'
 import { useRequestStatus } from '~/plugins/request'
+import { resolveApiUrl } from '~/shared/lib/url'
 
 interface Props {
   memory: Memory
@@ -23,6 +24,11 @@ const { memories: memoriesStore, plan: tripDataStore } = useModuleStore(['memori
 const { getSelectedDay, getAllDays } = storeToRefs(tripDataStore)
 const toast = useToast()
 const confirm = useConfirm()
+
+const isVideo = computed(() =>
+  props.memory.image?.mediaType === 'video'
+  || /\.(?:mp4|webm|mov|mkv|avi|ogg|quicktime)$/i.test(props.memory.image?.url || ''),
+)
 
 const comment = ref(props.memory.comment || '')
 
@@ -135,7 +141,16 @@ function saveComment() {
 <template>
   <div class="processing-card">
     <div class="image-container">
+      <video
+        v-if="isVideo"
+        :src="resolveApiUrl(memory.image?.url || '')"
+        class="card-image card-video"
+        controls
+        playsinline
+        muted
+      />
       <KitImage
+        v-else
         :src="memory.image?.url"
         :variants="memory.image?.variants"
         class="card-image"

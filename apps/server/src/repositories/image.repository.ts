@@ -53,6 +53,7 @@ const FULL_COLUMNS = {
   tripId: true,
   url: true,
   originalName: true,
+  mediaType: true,
   placement: true,
   createdAt: true,
   sizeBytes: true,
@@ -73,6 +74,7 @@ export const imageRepository = {
     placement: Placement,
     sizeBytes: number,
     metadata: ImageMetadata,
+    mediaType?: 'image' | 'video',
   ) {
     const [newImage] = await db
       .insert(tripImages)
@@ -80,6 +82,7 @@ export const imageRepository = {
         tripId,
         url,
         originalName,
+        mediaType: mediaType || 'image',
         placement,
         sizeBytes,
         takenAt: metadata.takenAt,
@@ -157,6 +160,7 @@ export const imageRepository = {
         tripId: true,
         url: true,
         originalName: true,
+        mediaType: true,
         placement: true,
         createdAt: true,
         sizeBytes: true,

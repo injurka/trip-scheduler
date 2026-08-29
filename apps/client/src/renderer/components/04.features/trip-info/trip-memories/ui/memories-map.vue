@@ -42,7 +42,7 @@ const mapCenter = computed((): [number, number] => {
 <template>
   <div class="memories-map-view">
     <div class="map-header">
-      <h4><Icon icon="mdi:map-marker-outline" /> Фотографии на карте</h4>
+      <h4><Icon icon="mdi:map-marker-outline" /> Медиа на карте</h4>
       <KitBtn
         variant="text"
         color="secondary"

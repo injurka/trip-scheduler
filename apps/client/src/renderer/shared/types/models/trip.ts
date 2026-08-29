@@ -1,14 +1,16 @@
 import type { RouterInput } from '../trpc'
 import type { Day } from './activity'
 
-// --- Типы, связанные с изображениями ---
+// --- Типы, связанные с медиафайлами ---
 
-export enum TripImagePlacement {
+export enum TripMediaPlacement {
   ROUTE = 'route',
   MEMORIES = 'memories',
   NOTES = 'notes',
   DOCUMENTS = 'documents',
 }
+
+export { TripMediaPlacement as TripImagePlacement }
 
 /**
  * Метаданные, относящиеся к GPS.
@@ -85,16 +87,17 @@ export interface ImageMetadata {
 }
 
 /**
- * Основная модель изображения на фронтенде.
+ * Основная модель медиа (изображения/видео) на фронтенде.
  */
-export interface TripImage {
+export interface TripMedia {
   id: string
   tripId: string
   originalName: string
   name: string
   url: string
+  mediaType?: 'image' | 'video'
   fileType: string
-  placement: TripImagePlacement
+  placement: TripMediaPlacement
   createdAt: string // ISO string
   sizeBytes: number
 
@@ -111,11 +114,15 @@ export interface TripImage {
     small?: string
     medium?: string
     large?: string
+    poster?: string
+    web?: string
   } | null
 
   // --- Все остальные метаданные в одном поле JSONB ---
   metadata?: ImageMetadata | null
 }
+
+export type TripImage = TripMedia
 
 export enum TripStatus {
   COMPLETED = 'completed',

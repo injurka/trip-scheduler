@@ -1,11 +1,13 @@
 <script setup lang="ts">
+import type { WhitelistUser } from '~/shared/types/models/post'
 import { Icon } from '@iconify/vue'
 import { parseDate } from '@internationalized/date'
-import { onClickOutside } from '@vueuse/core'
+import { onClickOutside, useDebounceFn } from '@vueuse/core'
 import { storeToRefs } from 'pinia'
 import { computed, nextTick, onMounted, ref, watch } from 'vue'
 import { onBeforeRouteLeave, useRoute, useRouter } from 'vue-router'
 import draggable from 'vuedraggable'
+import { KitAvatar } from '~/components/01.kit/kit-avatar'
 import { KitBtn } from '~/components/01.kit/kit-btn'
 import { KitCalendar } from '~/components/01.kit/kit-calendar'
 import { KitDropdown } from '~/components/01.kit/kit-dropdown'
@@ -48,6 +50,42 @@ const aiPrompt = ref('')
 
 const isMediaLibraryOpen = ref(false)
 const isMapPickerOpen = ref(false)
+
+const userSearchQuery = ref('')
+const searchUserResults = ref<WhitelistUser[]>([])
+const isSearchingUsers = ref(false)
+
+const performUserSearch = useDebounceFn(() => {
+  const q = userSearchQuery.value.trim()
+  if (q.length < 2) {
+    searchUserResults.value = []
+    return
+  }
+
+  isSearchingUsers.value = true
+  useRequest({
+    key: 'post:search-users',
+    fn: db => db.user.search(q),
+    onSuccess: (data) => {
+      searchUserResults.value = data || []
+      isSearchingUsers.value = false
+    },
+    onError: () => {
+      searchUserResults.value = []
+      isSearchingUsers.value = false
+    },
+  })
+}, 300)
+
+function handleAddWhitelistUser(user: WhitelistUser) {
+  store.addWhitelistUser(user)
+  userSearchQuery.value = ''
+  searchUserResults.value = []
+}
+
+function handleRemoveWhitelistUser(userId: string) {
+  store.removeWhitelistUser(userId)
+}
 
 const durationType = ref<'hours' | 'days'>('hours')
 const durationValue = ref<number | null>(null)
@@ -483,6 +521,70 @@ watch(() => [post.value?.title, post.value?.insight, post.value?.description], (
         </div>
       </section>
 
+      <section class="whitelist-section">
+        <div class="whitelist-header">
+          <div class="title-with-badge">
+            <Icon icon="mdi:shield-account-outline" class="section-icon" />
+            <h3 class="section-title">
+              Белый список (приватные медиа)
+            </h3>
+          </div>
+          <span class="whitelist-hint">
+            Пользователи, которым разрешен просмотр ваших приватных фото и видео в этом посте
+          </span>
+        </div>
+
+        <div class="whitelist-content">
+          <div class="search-user-wrapper">
+            <KitInput
+              v-model="userSearchQuery"
+              placeholder="Поиск пользователя по имени или email..."
+              @input="performUserSearch"
+            />
+
+            <div v-if="searchUserResults.length > 0" class="user-search-dropdown">
+              <div
+                v-for="foundUser in searchUserResults"
+                :key="foundUser.id"
+                class="user-search-item"
+                @click="handleAddWhitelistUser(foundUser)"
+              >
+                <KitAvatar :src="foundUser.avatarUrl || ''" :name="foundUser.name || 'Пользователь'" size="xs" />
+                <div class="user-info">
+                  <div class="user-name">
+                    {{ foundUser.name || 'Без имени' }}
+                  </div>
+                  <div v-if="foundUser.email" class="user-email">
+                    {{ foundUser.email }}
+                  </div>
+                </div>
+                <button class="add-user-action">
+                  <Icon icon="mdi:plus" />
+                </button>
+              </div>
+            </div>
+          </div>
+
+          <div v-if="post.whitelist?.length" class="whitelist-users-grid">
+            <div
+              v-for="u in post.whitelist"
+              :key="u.id"
+              class="whitelist-user-chip"
+            >
+              <KitAvatar :src="u.avatarUrl || ''" :name="u.name || 'Пользователь'" size="xs" />
+              <span class="chip-name">{{ u.name || u.email || 'Пользователь' }}</span>
+              <button class="remove-chip-btn" title="Удалить из списка" @click="handleRemoveWhitelistUser(u.id)">
+                <Icon icon="mdi:close" />
+              </button>
+            </div>
+          </div>
+          <div v-else class="whitelist-empty">
+            <Icon icon="mdi:lock-outline" />
+            <span>Список пуст. Приватные фото и видео будут видны только вам.</span>
+          </div>
+        </div>
+      </section>
+
       <section v-if="post.stages" class="timeline-section">
         <h3 class="section-title">
           Таймлайн
@@ -745,11 +847,154 @@ watch(() => [post.value?.title, post.value?.insight, post.value?.description], (
 }
 
 .meta-section,
-.details-section {
+.details-section,
+.whitelist-section {
   background-color: var(--bg-secondary-color);
   padding: 16px;
   border-radius: var(--r-m);
   border: 1px solid var(--border-secondary-color);
+}
+
+.whitelist-header {
+  margin-bottom: 16px;
+
+  .title-with-badge {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+
+    .section-icon {
+      font-size: 1.3rem;
+      color: var(--fg-accent-color);
+    }
+  }
+
+  .whitelist-hint {
+    display: block;
+    margin-top: 4px;
+    font-size: 0.85rem;
+    color: var(--fg-secondary-color);
+  }
+}
+
+.whitelist-content {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.search-user-wrapper {
+  position: relative;
+}
+
+.user-search-dropdown {
+  position: absolute;
+  top: calc(100% + 4px);
+  left: 0;
+  right: 0;
+  background: var(--bg-secondary-color);
+  border: 1px solid var(--border-secondary-color);
+  border-radius: var(--r-m);
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.2);
+  z-index: 50;
+  max-height: 220px;
+  overflow-y: auto;
+}
+
+.user-search-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 12px;
+  cursor: pointer;
+  transition: background 0.15s;
+
+  &:hover {
+    background: var(--bg-hover-color);
+  }
+
+  .user-info {
+    flex: 1;
+    min-width: 0;
+
+    .user-name {
+      font-weight: 500;
+      font-size: 0.9rem;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .user-email {
+      font-size: 0.75rem;
+      color: var(--fg-secondary-color);
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+  }
+
+  .add-user-action {
+    background: transparent;
+    border: none;
+    color: var(--fg-accent-color);
+    font-size: 1.2rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+  }
+}
+
+.whitelist-users-grid {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.whitelist-user-chip {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  background: var(--bg-tertiary-color);
+  border: 1px solid var(--border-secondary-color);
+  padding: 4px 8px 4px 6px;
+  border-radius: 20px;
+
+  .chip-name {
+    font-size: 0.85rem;
+    font-weight: 500;
+    max-width: 140px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .remove-chip-btn {
+    background: transparent;
+    border: none;
+    color: var(--fg-secondary-color);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    font-size: 0.9rem;
+    padding: 0;
+    margin-left: 2px;
+
+    &:hover {
+      color: var(--fg-error-color);
+    }
+  }
+}
+
+.whitelist-empty {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.85rem;
+  color: var(--fg-secondary-color);
+  padding: 8px 0;
 }
 
 .cover-area {

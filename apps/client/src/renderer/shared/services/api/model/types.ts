@@ -6,8 +6,8 @@ import type { Country, CreateDestinationReviewInput, DestinationReview } from '~
 import type { CreateMarkInput, GetMarksParams, Mark } from '~/shared/types/models/mark'
 import type { CreateMemoryInput, Memory, UpdateMemoryInput } from '~/shared/types/models/memory'
 import type { Place, PlaceTag } from '~/shared/types/models/place'
-import type { CreatePostInput, ListPostsFilters, PostDetail, UpdatePostInput } from '~/shared/types/models/post'
-import type { CreateTripInput, ImageMetadata, Plan, Trip, TripImage, TripImagePlacement, TripSection, TripSectionType, TripStatus, TripWithDays, UpdateTripInput } from '~/shared/types/models/trip'
+import type { CreatePostInput, ListPostsFilters, PostDetail, UpdatePostInput, WhitelistUser } from '~/shared/types/models/post'
+import type { CreateTripInput, ImageMetadata, Plan, Trip, TripMedia, TripMediaPlacement, TripSection, TripSectionType, TripStatus, TripWithDays, UpdateTripInput } from '~/shared/types/models/trip'
 import type { CreateHighlightInput, Highlight } from '~/shared/types/models/user'
 
 export type NoteType = 'folder' | 'markdown' | 'excalidraw'
@@ -95,6 +95,10 @@ export interface IPostRepository {
   getUniqueTags: (params: { query?: string }) => Promise<string[]>
   generateFromText: (params: { text: string }) => Promise<any>
   deleteMedia: (params: { id: string }) => Promise<{ success: boolean }>
+  updateMediaPrivacy: (params: { mediaId: string, isPrivate: boolean }) => Promise<{ success: boolean }>
+  addWhitelistUser: (params: { postId: string, userId: string }) => Promise<{ success: boolean }>
+  removeWhitelistUser: (params: { postId: string, userId: string }) => Promise<{ success: boolean }>
+  getWhitelist: (params: { id: string }) => Promise<WhitelistUser[]>
 }
 
 export interface INotificationRepository {
@@ -195,7 +199,7 @@ export interface IFileRepository {
     timestamp?: string | null,
     comment?: string | null,
     metadata?: Record<string, any>,
-  ) => Promise<TripImage>
+  ) => Promise<TripMedia>
   uploadFileWithProgress: (
     file: File,
     entityId: string,
@@ -203,10 +207,10 @@ export interface IFileRepository {
     placement: string | null,
     onProgress: (percentage: number) => void,
     signal: AbortSignal,
-  ) => Promise<TripImage>
-  listImages: (entityId: string, entityType: EntityType, placement?: string) => Promise<TripImage[]>
-  listImageByTrip: (tripId: string, placement: TripImagePlacement) => Promise<TripImage[]>
-  getAllUserFiles: () => Promise<TripImage[]>
+  ) => Promise<TripMedia>
+  listImages: (entityId: string, entityType: EntityType, placement?: string) => Promise<TripMedia[]>
+  listImageByTrip: (tripId: string, placement: TripMediaPlacement) => Promise<TripMedia[]>
+  getAllUserFiles: () => Promise<TripMedia[]>
   deleteFile: (id: string) => Promise<void>
   getMetadata: (id: string) => Promise<ImageMetadata | null>
   listDocuments: (tripId: string) => Promise<TripDocumentResponse[]>

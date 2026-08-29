@@ -6,12 +6,12 @@ import { deleteFileWithVariants } from '~/services/file-storage.service'
 import { quotaService } from '~/services/quota.service'
 
 export const postService = {
-  async getAll(filters: z.infer<typeof ListPostsInputSchema>, userId?: string) {
-    return await postRepository.findAll(filters, userId)
+  async getAll(filters: z.infer<typeof ListPostsInputSchema>, userId?: string, userRole?: string) {
+    return await postRepository.findAll(filters, userId, userRole)
   },
 
   async getById(id: string, userId?: string, userRole?: string) {
-    const post = await postRepository.findById(id, userId)
+    const post = await postRepository.findById(id, userId, userRole)
     if (!post) {
       throw createTRPCError('NOT_FOUND', `Пост с ID ${id} не найден.`)
     }
@@ -42,7 +42,8 @@ export const postService = {
       originalName,
       sizeBytes,
       metadata,
-      type: 'image',
+      type: metadata?.mediaType === 'video' ? 'video' : 'image',
+      isPrivate: metadata?.isPrivate === true || false,
     })
   },
 
@@ -144,6 +145,50 @@ export const postService = {
     }
     const isLiked = await postRepository.toggleLike(postId, userId)
     return { isLiked }
+  },
+
+  async updateMediaPrivacy(mediaId: string, isPrivate: boolean, userId: string, userRole: string) {
+    const media = await postRepository.getMediaById(mediaId)
+    if (!media) {
+      throw createTRPCError('NOT_FOUND', 'Медиафайл не найден.')
+    }
+    if (media.post.userId !== userId && userRole !== 'admin') {
+      throw createTRPCError('FORBIDDEN', 'У вас нет прав на изменение настроек этого медиа.')
+    }
+    return await postRepository.updateMediaPrivacy(mediaId, isPrivate)
+  },
+
+  async addWhitelistUser(postId: string, targetUserId: string, currentUserId: string, userRole: string) {
+    const post = await postRepository.findById(postId)
+    if (!post) {
+      throw createTRPCError('NOT_FOUND', 'Пост не найден.')
+    }
+    if (post.userId !== currentUserId && userRole !== 'admin') {
+      throw createTRPCError('FORBIDDEN', 'У вас нет прав на управление белым списком этого поста.')
+    }
+    return await postRepository.addWhitelistUser(postId, targetUserId)
+  },
+
+  async removeWhitelistUser(postId: string, targetUserId: string, currentUserId: string, userRole: string) {
+    const post = await postRepository.findById(postId)
+    if (!post) {
+      throw createTRPCError('NOT_FOUND', 'Пост не найден.')
+    }
+    if (post.userId !== currentUserId && userRole !== 'admin') {
+      throw createTRPCError('FORBIDDEN', 'У вас нет прав на управление белым списком этого поста.')
+    }
+    return await postRepository.removeWhitelistUser(postId, targetUserId)
+  },
+
+  async getWhitelist(postId: string, currentUserId: string, userRole: string) {
+    const post = await postRepository.findById(postId)
+    if (!post) {
+      throw createTRPCError('NOT_FOUND', 'Пост не найден.')
+    }
+    if (post.userId !== currentUserId && userRole !== 'admin') {
+      throw createTRPCError('FORBIDDEN', 'У вас нет прав на просмотр белого списка этого поста.')
+    }
+    return await postRepository.getWhitelist(postId)
   },
 
   async incrementViewCount(id: string) {

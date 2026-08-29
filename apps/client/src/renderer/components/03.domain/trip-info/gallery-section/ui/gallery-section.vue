@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import type { ImageViewerImage } from '~/components/01.kit/kit-image-viewer'
 import type { ActivitySectionGallery } from '~/shared/types/models/activity'
-import type { TripImage } from '~/shared/types/models/trip'
+import type { TripMedia } from '~/shared/types/models/trip'
 import { Icon } from '@iconify/vue'
 import { useRoute } from 'vue-router'
 import { KitBtn } from '~/components/01.kit/kit-btn'
@@ -13,7 +13,7 @@ import { KitSkeleton } from '~/components/01.kit/kit-skeleton'
 import { KitTooltip } from '~/components/01.kit/kit-tooltip'
 import { AsyncStateWrapper } from '~/components/02.shared/async-state-wrapper'
 import { useModuleStore } from '~/components/05.modules/trip-info/composables/use-trip-info-module'
-import { tripImageToViewerImage } from '~/components/05.modules/trip-info/lib/helpers'
+import { tripMediaToViewerImage } from '~/components/05.modules/trip-info/lib/helpers'
 import { ETripGalleryKeys } from '~/components/05.modules/trip-info/store/trip-info-route-gallery.store'
 import { useRequestError } from '~/plugins/request'
 import GalleryPicker from './gallery-picker.vue'
@@ -61,20 +61,20 @@ const fullImagesData = computed(() => {
       id: `ext-${btoa(url).slice(0, 10)}`,
       tripId: tripId.value,
       url,
-      originalName: 'Внешнее изображение',
-      name: 'Внешнее изображение',
+      originalName: 'Внешнее медиа',
+      name: 'Внешнее медиа',
       fileType: 'link',
       placement: 'route',
       sizeBytes: 0,
       createdAt: new Date().toISOString(),
-    } as TripImage
+    } as TripMedia
   })
 })
 
 const displayData = computed(() => fullImagesData.value.length > 0 ? fullImagesData.value : null)
 
 const viewerImages = computed<ImageViewerImage[]>(() =>
-  fullImagesData.value.map(tripImage => tripImageToViewerImage(tripImage)),
+  fullImagesData.value.map(tripImage => tripMediaToViewerImage(tripImage)),
 )
 
 const imageViewer = useImageViewer({
@@ -126,7 +126,7 @@ async function handleFileUpload(event: Event) {
   const newImageRecords = await Promise.all(uploadPromises)
 
   const newUrls = newImageRecords
-    .filter((record): record is NonNullable<TripImage> => record !== null)
+    .filter((record): record is NonNullable<TripMedia> => record !== null)
     .map(record => record.url)
 
   if (newUrls.length > 0) {

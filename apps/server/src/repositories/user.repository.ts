@@ -8,7 +8,7 @@ import { FREE_PLAN_ID } from '~/lib/constants'
 import { createTRPCError } from '~/lib/trpc'
 
 interface OAuthInput {
-  provider: 'google' | 'github' | 'telegram'
+  provider: 'google' | 'github' | 'telegram' | 'yandex'
   providerId: string
   email: string | null
   name: string
@@ -74,6 +74,9 @@ export const userRepository = {
     else if (provider === 'telegram') {
       user = await db.query.users.findFirst({ where: eq(users.telegramId, providerId), with: { plan: true } })
     }
+    else if (provider === 'yandex') {
+      user = await db.query.users.findFirst({ where: eq(users.yandexId, providerId), with: { plan: true } })
+    }
 
     if (user) {
       return excludePassword(user) as UserForClient
@@ -91,6 +94,10 @@ export const userRepository = {
           updateData.googleId = providerId
         else if (provider === 'github')
           updateData.githubId = providerId
+        else if (provider === 'telegram')
+          updateData.telegramId = providerId
+        else if (provider === 'yandex')
+          updateData.yandexId = providerId
 
         const [updatedUser] = await db.update(users)
           .set(updateData)
@@ -115,6 +122,8 @@ export const userRepository = {
       newUserPayload.githubId = providerId
     else if (provider === 'telegram')
       newUserPayload.telegramId = providerId
+    else if (provider === 'yandex')
+      newUserPayload.yandexId = providerId
 
     const [newUser] = await db.insert(users)
       .values(newUserPayload)

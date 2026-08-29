@@ -1,7 +1,7 @@
 import type { IActivity } from '../models/types'
 import type { IImageViewerImageMeta, ImageViewerImage } from '~/components/01.kit/kit-image-viewer'
 import type { Memory } from '~/shared/types/models/memory'
-import type { TripImage } from '~/shared/types/models/trip'
+import type { TripMedia } from '~/shared/types/models/trip'
 import { EActivityTag } from '../models/types'
 
 export function getActivityDuration(activity: IActivity): number {
@@ -58,40 +58,43 @@ export function getTagInfo(tag?: EActivityTag) {
 }
 
 /**
- * Преобразует объект TripImage в формат, необходимый для kit-image-viewer.
- * @param image - Объект TripImage.
+ * Преобразует объект TripMedia в формат, необходимый для kit-image-viewer.
+ * @param media - Объект TripMedia.
  * @returns Объект ImageViewerImage.
  */
-export function tripImageToViewerImage(image: TripImage): ImageViewerImage {
+export function tripMediaToViewerImage(media: TripMedia): ImageViewerImage {
   const meta: CustomImageViewerImageMeta = {
-    ...(image.metadata || {}),
-    latitude: image.latitude,
-    longitude: image.longitude,
-    takenAt: image.takenAt,
-    width: image.width,
-    height: image.height,
-    imageId: image.id,
+    ...(media.metadata || {}),
+    latitude: media.latitude,
+    longitude: media.longitude,
+    takenAt: media.takenAt,
+    width: media.width,
+    height: media.height,
+    imageId: media.id,
   }
 
   return {
-    url: image.url,
-    variants: image.variants,
-    alt: image.metadata?.iptc?.headline || 'Trip Image',
-    caption: image.metadata?.iptc?.caption,
+    url: media.variants?.large || media.variants?.web || media.url,
+    mediaType: media.mediaType || 'image',
+    variants: media.variants as any,
+    alt: media.metadata?.iptc?.headline || 'Trip Media',
+    caption: media.metadata?.iptc?.caption,
     meta,
   }
 }
 
+export const tripImageToViewerImage = tripMediaToViewerImage
+
 /**
- * Преобразует объект Memory (содержащий TripImage) в формат для kit-image-viewer.
+ * Преобразует объект Memory (содержащий TripMedia) в формат для kit-image-viewer.
  * @param memory - Объект Memory.
- * @returns Объект ImageViewerImage или null, если изображение отсутствует.
+ * @returns Объект ImageViewerImage или null, если медиа отсутствует.
  */
 export function memoryToViewerImage(memory: Memory): ImageViewerImage | null {
   if (!memory.image) {
     return null
   }
-  const viewerImage = tripImageToViewerImage(memory.image)
+  const viewerImage = tripMediaToViewerImage(memory.image)
 
   viewerImage.alt = memory.comment || viewerImage.alt
   viewerImage.caption = memory.comment || viewerImage.caption

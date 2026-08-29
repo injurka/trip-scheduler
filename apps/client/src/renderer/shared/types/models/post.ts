@@ -75,11 +75,20 @@ export interface PostMedia {
   id: string
   type: 'image' | 'video'
   url: string
+  isPrivate?: boolean
+  hasAccess?: boolean
   marks?: PostMark[]
   originalName?: string
   width?: number
   height?: number
   metadata?: any
+}
+
+export interface WhitelistUser {
+  id: string
+  name: string | null
+  avatarUrl?: string | null
+  email?: string | null
 }
 
 export interface PostElement {
@@ -107,6 +116,8 @@ export interface PostDetail {
   media: PostMedia[]
   elements: PostElement[]
   stages?: TimelineStage[]
+  whitelist?: WhitelistUser[]
+  whitelistUserIds?: string[]
   user: {
     id: string
     name: string | null
@@ -141,6 +152,8 @@ export interface CreatePostInput {
   status: 'draft' | 'completed' | 'planned'
   elements?: any[]
   mediaIds?: string[]
+  mediaPrivacy?: Record<string, boolean>
+  whitelistUserIds?: string[]
   latitude?: number
   longitude?: number
   statsDetail?: Partial<PostStatsDetail>

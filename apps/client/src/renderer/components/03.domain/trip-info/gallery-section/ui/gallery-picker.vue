@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import type { KitDropdownItem } from '~/components/01.kit/kit-dropdown'
 import type { ActivitySection } from '~/shared/types/models/activity'
-import type { TripImage } from '~/shared/types/models/trip'
+import type { TripMedia } from '~/shared/types/models/trip'
 import { Icon } from '@iconify/vue'
 import { refDebounced, useElementSize, useVirtualList } from '@vueuse/core'
 import { KitBtn } from '~/components/01.kit/kit-btn'
@@ -46,7 +46,7 @@ const sortOptions: KitDropdownItem[] = [
 ]
 
 const filterOptions: KitDropdownItem[] = [
-  { value: 'all', label: 'Все фото', icon: 'mdi:image-multiple-outline' },
+  { value: 'all', label: 'Все медиа', icon: 'mdi:image-multiple-outline' },
   { value: 'selected', label: 'Выбранные здесь', icon: 'mdi:checkbox-marked-circle-outline' },
   { value: 'unselected', label: 'Не выбранные здесь', icon: 'mdi:checkbox-blank-circle-outline' },
   { value: 'unused', label: 'Нигде не используются', icon: 'mdi:image-broken-variant' },
@@ -135,7 +135,7 @@ const columnsCount = computed(() => {
 
 const virtualRows = computed(() => {
   const cols = columnsCount.value
-  const rows: TripImage[][] = []
+  const rows: TripMedia[][] = []
   for (let i = 0; i < processedImages.value.length; i += cols) {
     rows.push(processedImages.value.slice(i, i + cols))
   }

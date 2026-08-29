@@ -1,5 +1,5 @@
 import type { BlogListItems, BlogPost, CreateBlogPostInput, UpdateBlogPostInput } from '~/shared/types/models/blog'
-import type { TripImage } from '~/shared/types/models/trip'
+import type { TripMedia } from '~/shared/types/models/trip'
 import { defineStore } from 'pinia'
 import { useRequest, useRequestStatus } from '~/plugins/request'
 
@@ -17,7 +17,7 @@ export enum EBlogKeys {
 interface BlogState {
   list: BlogListItems[]
   currentPost: BlogPost | null
-  postImages: TripImage[]
+  postImages: TripMedia[]
   nextCursor?: string
 }
 

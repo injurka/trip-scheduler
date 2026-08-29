@@ -231,6 +231,12 @@ function resolveThumbnailUrl(image: ImageViewerImage): string {
   return props.resolveUrl ? props.resolveUrl(rawUrl) : rawUrl
 }
 
+function isVideoImage(img?: ImageViewerImage | null): boolean {
+  if (!img)
+    return false
+  return img.mediaType === 'video' || img.meta?.mediaType === 'video' || /\.(?:mp4|webm|mov|mkv|avi|ogg|quicktime)$/i.test(img.url || '')
+}
+
 function handleImageLoad(index: number, event: Event) {
   if (!imageLoadStates[index]) {
     imageLoadStates[index] = { loaded: true, error: false, loader: false }
@@ -251,6 +257,30 @@ function handleImageLoad(index: number, event: Event) {
       emit('imageLoad', currentImage.value)
   }
 }
+
+function handleVideoLoadedMetadata(index: number, event: Event) {
+  if (!imageLoadStates[index]) {
+    imageLoadStates[index] = { loaded: true, error: false, loader: false }
+  }
+  else {
+    imageLoadStates[index].loaded = true
+    imageLoadStates[index].error = false
+    imageLoadStates[index].loader = false
+  }
+  clearTimeout(loaderTimeouts.get(index))
+
+  if (index === props.currentIndex) {
+    onImageLoad()
+    const target = event.target as HTMLVideoElement
+    naturalSize.width = target.videoWidth
+    naturalSize.height = target.videoHeight
+    if (currentImage.value)
+      emit('imageLoad', currentImage.value)
+  }
+}
+
+void isVideoImage
+void handleVideoLoadedMetadata
 
 function handleImageError(index: number, event: Event) {
   if (!imageLoadStates[index]) {
@@ -395,6 +425,10 @@ watch(() => props.currentIndex, (index) => {
   closeMetadataPanel()
   closePaginationPrompt()
   scrollThumbnailIntoView(index, 'smooth')
+})
+
+watch(selectedQuality, () => {
+  resetTransform(false)
 })
 
 watch(areControlsVisible, (visible) => {
@@ -562,7 +596,7 @@ onUnmounted(() => {
                 <p>
                   Вы досмотрели текущую страницу до конца.
                   <br>
-                  Загрузить {{ paginationPromptDirection === 'next' ? 'следующие' : 'предыдущие' }} фотографии?
+                  Загрузить {{ paginationPromptDirection === 'next' ? 'следующие' : 'предыдущие' }} медиафайлы?
                 </p>
                 <div class="prompt-actions">
                   <button class="prompt-btn btn-cancel" @click="closePaginationPrompt">
@@ -600,7 +634,26 @@ onUnmounted(() => {
                         ? { aspectRatio: `${images[i].meta?.width}/${images[i].meta?.height}` }
                         : undefined"
                     >
+                      <video
+                        v-if="isVideoImage(images[i])"
+                        :ref="el => setRef(el, i)"
+                        :src="getImageUrl(images[i], 'original')"
+                        class="viewer-image viewer-video"
+                        :class="{
+                          'loaded': imageLoadStates[i]?.loaded,
+                          'has-error': imageLoadStates[i]?.error,
+                          'is-ui-hidden': !isUiVisible,
+                          'fill-slot': !!(images[i]?.meta?.width && images[i]?.meta?.height),
+                        }"
+                        :style="i === currentIndex ? [imageStyle, currentImageStyle] : adjacentImageStyle"
+                        controls
+                        playsinline
+                        preload="metadata"
+                        @loadedmetadata="e => handleVideoLoadedMetadata(i, e)"
+                        @error="e => handleImageError(i, e)"
+                      />
                       <img
+                        v-else
                         :ref="el => setRef(el, i)"
                         :src="getImageUrl(images[i], i === currentIndex ? selectedQuality : 'large')"
                         :alt="images[i]?.alt || `Image ${i + 1}`"
@@ -630,7 +683,7 @@ onUnmounted(() => {
                               <div class="error-icon-circle">
                                 <Icon icon="mdi:image-broken-variant" class="error-icon" />
                               </div>
-                              <span class="error-title">Не удалось загрузить изображение</span>
+                              <span class="error-title">Не удалось загрузить {{ isVideoImage(images[i]) ? 'видео' : 'изображение' }}</span>
                               <span class="error-subtitle">Проверьте подключение к сети или корректность ссылки</span>
                             </div>
                             <div v-else class="shimmer-container">
@@ -678,7 +731,7 @@ onUnmounted(() => {
                   <KitViewerTooltip
                     v-for="(image, index) in images"
                     :key="`thumb-${index}`"
-                    :text="`К изображению ${index + 1}`"
+                    :text="`К ${isVideoImage(image) ? 'видео' : 'изображению'} ${index + 1}`"
                   >
                     <button
                       class="thumbnail"
@@ -686,11 +739,23 @@ onUnmounted(() => {
                         'active': index === currentIndex,
                         'is-broken': failedThumbnails.has(index),
                         'is-loaded': loadedThumbnails.has(index),
+                        'is-video-thumb': isVideoImage(image),
                       }"
                       @click.stop="goToIndex(index)"
                     >
                       <template v-if="!failedThumbnails.has(index)">
+                        <video
+                          v-if="isVideoImage(image)"
+                          :src="resolveThumbnailUrl(image)"
+                          muted
+                          playsinline
+                          preload="metadata"
+                          :class="{ loaded: loadedThumbnails.has(index) }"
+                          @loadedmetadata="loadedThumbnails.add(index)"
+                          @error="failedThumbnails.add(index)"
+                        />
                         <img
+                          v-else
                           :src="resolveThumbnailUrl(image)"
                           :alt="image.alt || `Thumbnail ${index + 1}`"
                           loading="lazy"
@@ -698,6 +763,9 @@ onUnmounted(() => {
                           @load="loadedThumbnails.add(index)"
                           @error="failedThumbnails.add(index)"
                         >
+                        <div v-if="isVideoImage(image)" class="thumb-video-badge">
+                          <Icon icon="mdi:play" />
+                        </div>
                         <div v-if="!loadedThumbnails.has(index)" class="thumb-skeleton">
                           <div class="thumb-skeleton-wave" />
                         </div>
@@ -1006,6 +1074,19 @@ onUnmounted(() => {
   &:active {
     cursor: grabbing;
   }
+
+  &.viewer-video {
+    cursor: default;
+    outline: none;
+    max-width: 90vw;
+    max-height: 80vh;
+    z-index: 5;
+    pointer-events: auto;
+
+    &:active {
+      cursor: default;
+    }
+  }
 }
 
 .nav-zone {
@@ -1221,7 +1302,8 @@ onUnmounted(() => {
     box-shadow: 0 4px 14px rgba(0, 0, 0, 0.6);
   }
 
-  img {
+  img,
+  video {
     width: 100%;
     height: 100%;
     object-fit: cover;
@@ -1232,6 +1314,23 @@ onUnmounted(() => {
     &.loaded {
       opacity: 1;
     }
+  }
+
+  .thumb-video-badge {
+    position: absolute;
+    bottom: 2px;
+    right: 2px;
+    background: rgba(0, 0, 0, 0.7);
+    color: #fff;
+    border-radius: 50%;
+    width: 16px;
+    height: 16px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 10px;
+    pointer-events: none;
+    z-index: 2;
   }
 
   .thumb-skeleton {

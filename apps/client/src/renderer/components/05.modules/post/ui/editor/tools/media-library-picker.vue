@@ -31,7 +31,7 @@ const emit = defineEmits<{
 const store = usePostDraftStore()
 const confirm = useConfirm()
 const { open, onChange } = useFileDialog({
-  accept: 'image/*',
+  accept: 'image/*,video/*',
   multiple: true,
 })
 
@@ -70,10 +70,21 @@ function handleConfirm() {
   emit('update:visible', false)
 }
 
+function togglePrivacy(media: PostMedia) {
+  store.toggleMediaPrivacy(media.id)
+}
+
+function getMediaThumbnail(media: PostMedia) {
+  if (media.type === 'video') {
+    return media.metadata?.variants?.poster || media.metadata?.variants?.small || media.url
+  }
+  return media.metadata?.variants?.small ?? media.url
+}
+
 async function handleDelete(id: string) {
   const isConfirmed = await confirm({
-    title: 'Удалить картинку из поста?',
-    description: 'Она пропадет из всех блоков. Это действие необратимо.',
+    title: 'Удалить медиа из поста?',
+    description: 'Оно пропадет из всех блоков. Это действие необратимо.',
     type: 'danger',
     confirmText: 'Да, удалить',
   })
@@ -129,13 +140,13 @@ watch(() => props.visible, (isOpen) => {
     <div class="library-container">
       <div v-if="isProcessing" class="processing-overlay">
         <Icon icon="mdi:loading" class="spin" />
-        <p>Загрузка фотографий ({{ processedCount }} / {{ totalToProcess }})...</p>
+        <p>Загрузка медиафайлов ({{ processedCount }} / {{ totalToProcess }})...</p>
       </div>
 
       <div class="toolbar">
         <button class="upload-btn" @click="open()">
           <Icon icon="mdi:cloud-upload-outline" />
-          <span>Загрузить фото</span>
+          <span>Загрузить фото или видео</span>
         </button>
 
         <div class="stats">
@@ -145,7 +156,7 @@ watch(() => props.visible, (isOpen) => {
 
       <div v-if="post.media.length === 0" class="empty-state">
         <Icon icon="mdi:image-filter-hdr" class="empty-icon" />
-        <p>Медиатека пуста. Загрузите фотографии, чтобы использовать их в посте.</p>
+        <p>Медиатека пуста. Загрузите фотографии или видео, чтобы использовать их в посте.</p>
       </div>
 
       <draggable
@@ -160,17 +171,31 @@ watch(() => props.visible, (isOpen) => {
         <template #item="{ element: media }">
           <div
             class="media-card"
-            :class="{ selected: localSelectedIds.includes(media.id) && mode === 'select' }"
+            :class="{ 'selected': localSelectedIds.includes(media.id) && mode === 'select', 'is-private': media.isPrivate }"
             @click="toggleSelection(media.id)"
           >
             <div v-if="mode === 'manage'" class="drag-handle">
               <Icon icon="mdi:drag" />
             </div>
+
             <KitImage
-              :src="media.metadata?.variants?.small ?? media.url"
+              :src="getMediaThumbnail(media)"
               object-fit="cover"
               class="media-img"
             />
+
+            <div v-if="media.type === 'video'" class="video-badge" title="Видео">
+              <Icon icon="mdi:play-circle" />
+            </div>
+
+            <button
+              class="privacy-btn"
+              :class="{ active: media.isPrivate }"
+              :title="media.isPrivate ? 'Приватное (только для белого списка)' : 'Публичное медиа'"
+              @click.stop="togglePrivacy(media)"
+            >
+              <Icon :icon="media.isPrivate ? 'mdi:lock' : 'mdi:lock-open-variant-outline'" />
+            </button>
 
             <div v-if="mode === 'select'" class="selection-overlay">
               <div class="checkbox">
@@ -305,9 +330,56 @@ watch(() => props.visible, (isOpen) => {
   }
 }
 
-.drag-handle {
+.video-badge {
   position: absolute;
   top: 8px;
+  left: 8px;
+  background: rgba(0, 0, 0, 0.65);
+  color: white;
+  border-radius: 6px;
+  padding: 4px;
+  font-size: 18px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  pointer-events: none;
+  z-index: 2;
+}
+
+.privacy-btn {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  width: 28px;
+  height: 28px;
+  border-radius: 6px;
+  background: rgba(0, 0, 0, 0.6);
+  color: white;
+  border: none;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  z-index: 3;
+  transition: all 0.2s ease;
+
+  &.active {
+    background: var(--fg-warning-color, #f59e0b);
+    color: #000;
+  }
+
+  &:hover {
+    transform: scale(1.1);
+  }
+}
+
+.media-card.is-private {
+  border: 2px solid var(--fg-warning-color, #f59e0b);
+}
+
+.drag-handle {
+  position: absolute;
+  bottom: 8px;
   left: 8px;
   width: 22px;
   height: 22px;

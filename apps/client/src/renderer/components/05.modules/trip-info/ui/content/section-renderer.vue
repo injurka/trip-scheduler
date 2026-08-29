@@ -3,6 +3,7 @@ import type { Component } from 'vue'
 import type { IDay } from '~/components/04.features/trip-info/trip-plan/models/types'
 import type { TripSection } from '~/shared/types/models/trip'
 import { useModuleStore } from '~/components/05.modules/trip-info/composables/use-trip-info-module'
+import { lazyComponent } from '~/shared/lib/lazy-component'
 import { TripSectionType } from '~/shared/types/models/trip'
 
 const props = defineProps<{
@@ -14,15 +15,15 @@ const { sections: sectionsStore, ui: uiStore } = useModuleStore(['sections', 'ui
 
 const section = computed(() => sectionsStore.sections.find(s => s.id === props.sectionId))
 
-const TripMapSection = defineAsyncComponent(() => import('~/components/04.features/trip-info/trip-sections/map-section/ui/trip-map-section.vue'))
+const TripMapSection = lazyComponent(() => import('~/components/04.features/trip-info/trip-sections/map-section/ui/trip-map-section.vue'), { showLoader: true })
 
 const componentsMap: Partial<Record<TripSectionType, Component>> = {
-  [TripSectionType.CHECKLIST]: defineAsyncComponent(() => import('~/components/04.features/trip-info/trip-sections/checklist-section/ui/checklist-section.vue')),
-  [TripSectionType.BOOKINGS]: defineAsyncComponent(() => import('~/components/04.features/trip-info/trip-sections/booking-section/ui/booking-section.vue')),
-  [TripSectionType.FINANCES]: defineAsyncComponent(() => import('~/components/04.features/trip-info/trip-sections/finances-section/ui/finances-section.vue')),
-  [TripSectionType.DOCUMENTS]: defineAsyncComponent(() => import('~/components/04.features/trip-info/trip-sections/documents-section/ui/documents-section.vue')),
-  [TripSectionType.MEMORIES]: defineAsyncComponent(() => import('~/components/04.features/trip-info/trip-sections/memories-section/ui/memories-section.vue')),
-  [TripSectionType.NOTES]: defineAsyncComponent(() => import('~/components/04.features/trip-info/trip-sections/notes-section/ui/notes-section.vue')),
+  [TripSectionType.CHECKLIST]: lazyComponent(() => import('~/components/04.features/trip-info/trip-sections/checklist-section/ui/checklist-section.vue'), { showLoader: true }),
+  [TripSectionType.BOOKINGS]: lazyComponent(() => import('~/components/04.features/trip-info/trip-sections/booking-section/ui/booking-section.vue'), { showLoader: true }),
+  [TripSectionType.FINANCES]: lazyComponent(() => import('~/components/04.features/trip-info/trip-sections/finances-section/ui/finances-section.vue'), { showLoader: true }),
+  [TripSectionType.DOCUMENTS]: lazyComponent(() => import('~/components/04.features/trip-info/trip-sections/documents-section/ui/documents-section.vue'), { showLoader: true }),
+  [TripSectionType.MEMORIES]: lazyComponent(() => import('~/components/04.features/trip-info/trip-sections/memories-section/ui/memories-section.vue'), { showLoader: true }),
+  [TripSectionType.NOTES]: lazyComponent(() => import('~/components/04.features/trip-info/trip-sections/notes-section/ui/notes-section.vue'), { showLoader: true }),
 }
 
 function handleSectionUpdate(updatedSectionData: TripSection) {

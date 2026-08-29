@@ -1,6 +1,7 @@
 import type { tripImagePlacementEnum } from 'db/schema'
 
-type TripImagePlacement = (typeof tripImagePlacementEnum.enumValues)[number]
+export type TripMediaPlacement = (typeof tripImagePlacementEnum.enumValues)[number]
+export type TripImagePlacement = TripMediaPlacement
 
 /**
  * Метаданные, относящиеся к GPS.
@@ -75,13 +76,14 @@ interface ImageMetadata {
 }
 
 /**
- * Основная модель изображения.
+ * Основная модель медиа (изображения/видео).
  */
-export interface TripImage {
+export interface TripMedia {
   id: string
   tripId: string
   url: string
-  placement: TripImagePlacement
+  mediaType?: 'image' | 'video'
+  placement: TripMediaPlacement
   createdAt: string // ISO string
 
   // --- Ключевые, часто запрашиваемые данные ---
@@ -97,6 +99,8 @@ export interface TripImage {
   // --- Все остальные метаданные в одном поле JSONB ---
   metadata?: ImageMetadata | null
 }
+
+export type TripImage = TripMedia
 
 export interface DocumentMetadata {
   access: 'public' | 'private'

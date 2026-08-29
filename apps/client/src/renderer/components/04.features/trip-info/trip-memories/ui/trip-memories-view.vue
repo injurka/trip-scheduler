@@ -58,9 +58,9 @@ const { isOverDropZone } = useDropZone(dropZoneRef, { onDrop })
 function onDrop(files: File[] | null) {
   if (!files || activeView.value !== 'memories' || isViewMode.value)
     return
-  const imageFiles = files.filter(file => file.type.startsWith('image/'))
-  if (imageFiles.length > 0)
-    memories.enqueueFilesForUpload(imageFiles)
+  const mediaFiles = files.filter(file => file.type.startsWith('image/') || file.type.startsWith('video/'))
+  if (mediaFiles.length > 0)
+    memories.enqueueFilesForUpload(mediaFiles)
 }
 
 onChange((files) => {
@@ -93,8 +93,11 @@ const galleryImages = computed<ImageViewerImage[]>(() => {
         tripData.currentTripId,
         currentDayId,
       )
+      const isVideo = image.mediaType === 'video' || /\.(?:mp4|webm|mov|mkv|avi|ogg|quicktime)$/i.test(image.url)
+      const mediaType = isVideo ? 'video' : 'image'
       const meta = {
         ...image.metadata,
+        mediaType,
         latitude: image.latitude,
         longitude: image.longitude,
         takenAt: image.takenAt,
@@ -106,7 +109,8 @@ const galleryImages = computed<ImageViewerImage[]>(() => {
       return {
         url,
         variants,
-        alt: memory.comment || 'Trip Image',
+        mediaType,
+        alt: memory.comment || (isVideo ? 'Trip Video' : 'Trip Image'),
         caption: memory.comment ?? null,
         meta,
       }
@@ -270,7 +274,7 @@ async function handleNotifyParticipants() {
 
           <KitTooltip
             v-if="memoriesForSelectedDay.length > 0 && vaultStore.isLocalMode"
-            :text="syncState.isDownloading ? 'Скачивание...' : 'Скачать фото локально'"
+            :text="syncState.isDownloading ? 'Скачивание...' : 'Скачать медиа локально'"
           >
             <button
               class="control-btn sync-btn"
@@ -286,7 +290,7 @@ async function handleNotifyParticipants() {
           </KitTooltip>
         </template>
 
-        <KitTooltip v-if="memoriesForSelectedDay.length > 0" text="Кешировать фото на странице">
+        <KitTooltip v-if="memoriesForSelectedDay.length > 0" text="Кешировать изображения на странице">
           <KitDropdown :items="cacheQualityOptions" @update:model-value="handleCacheAll">
             <template #trigger>
               <button

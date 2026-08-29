@@ -1,13 +1,13 @@
 import type { IProcessingMemory, TimelineGroup } from '../types'
 import type { Activity } from '~/shared/types/models/activity'
 import type { CreateMemoryInput, Memory, UpdateMemoryInput } from '~/shared/types/models/memory'
-import type { TripImage } from '~/shared/types/models/trip'
+import type { TripMedia } from '~/shared/types/models/trip'
 import { defineStore } from 'pinia'
 import { v4 as uuidv4 } from 'uuid'
 import { useTripPlanStore } from '~/components/04.features/trip-info/trip-plan'
 import { useAbortRequest, useRequest, useRequestStatus } from '~/plugins/request'
 import { getLocalDate } from '~/shared/lib/date-time'
-import { TripImagePlacement } from '~/shared/types/models/trip'
+import { TripMediaPlacement } from '~/shared/types/models/trip'
 
 export enum ETripMemoriesKeys {
   FETCH = 'memories:fetch',
@@ -70,7 +70,7 @@ export const useTripMemoriesStore = defineStore('tripMemories', {
 
     memoriesWithGeoForSelectedDay(): Memory[] {
       return this.memoriesForSelectedDay.filter(
-        (m): m is Memory & { image: TripImage & { latitude: number, longitude: number } } =>
+        (m): m is Memory & { image: TripMedia & { latitude: number, longitude: number } } =>
           !!m.image?.latitude && !!m.image?.longitude,
       )
     },
@@ -194,7 +194,7 @@ export const useTripMemoriesStore = defineStore('tripMemories', {
             file,
             tripId,
             'trip',
-            TripImagePlacement.MEMORIES,
+            TripMediaPlacement.MEMORIES,
             onProgress,
             signal,
           )

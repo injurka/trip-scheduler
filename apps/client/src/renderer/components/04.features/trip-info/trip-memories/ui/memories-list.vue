@@ -53,7 +53,7 @@ function handleImportSelect(activity: Activity) {
     <div v-if="!isViewMode" class="upload-section">
       <button class="upload-button" :disabled="isProcessing" @click="emit('upload')">
         <Icon :icon="isProcessing ? 'mdi:loading' : 'mdi:camera-plus-outline'" :class="{ spin: isProcessing }" />
-        <span>{{ isProcessing ? `Загрузка (${processingMemories.length})...` : 'Загрузить фотографии' }}</span>
+        <span>{{ isProcessing ? `Загрузка (${processingMemories.length})...` : 'Загрузить медиа' }}</span>
       </button>
 
       <button class="add-note-button" @click="emit('addActivity')">

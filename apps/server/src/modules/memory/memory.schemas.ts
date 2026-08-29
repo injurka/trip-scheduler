@@ -1,5 +1,5 @@
 import { z } from 'zod'
-import { TripImageSchema } from '../image/image.schemas'
+import { TripMediaSchema } from '../image/image.schemas'
 
 export const MemorySchema = z.object({
   id: z.string().uuid(),
@@ -12,7 +12,7 @@ export const MemorySchema = z.object({
   sourceActivityId: z.string().uuid().nullable(),
   createdAt: z.date(),
   updatedAt: z.date(),
-  image: TripImageSchema.optional().nullable(),
+  image: TripMediaSchema.optional().nullable(),
 
   rating: z.number().min(1).max(5).nullable().optional(),
   tags: z.array(z.string()).default([]).nullable(),

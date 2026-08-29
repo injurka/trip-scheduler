@@ -5,6 +5,7 @@ import { editorViewCtx, editorViewOptionsCtx, parserCtx } from '@milkdown/kit/co
 import { listener, listenerCtx } from '@milkdown/kit/plugin/listener'
 import { Milkdown, useEditor } from '@milkdown/vue'
 import '@milkdown/crepe/theme/common/style.css'
+import '@milkdown/crepe/theme/frame.css'
 
 interface Props {
   disabled?: boolean

@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import type { Booking, BookingSectionContent } from '~/components/04.features/trip-info/trip-sections'
+import type { Booking, BookingSectionContent } from '~/components/04.features/trip-info/trip-sections/booking-section'
 import type { ActivitySectionBooking } from '~/shared/types/models/activity'
 import { Icon } from '@iconify/vue'
 import { KitBtn } from '~/components/01.kit/kit-btn'

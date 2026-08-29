@@ -28,12 +28,24 @@ const formattedDuration = computed(() => {
     return `${hours / 24} дн.`
   return `${hours} ч.`
 })
+
+const heroMediaUrl = computed(() => {
+  const media = props.post.media?.[0]
+  if (!media || media.hasAccess === false)
+    return ''
+
+  if (media.type === 'video') {
+    return media.metadata?.variants?.poster || media.metadata?.variants?.large || media.url
+  }
+
+  return media.metadata?.variants?.large || media.url
+})
 </script>
 
 <template>
   <div class="post-hero">
     <div class="hero-bg">
-      <KitImage :src="post.media?.[0]?.url" object-fit="cover" />
+      <KitImage v-if="heroMediaUrl" :src="heroMediaUrl" object-fit="cover" />
     </div>
 
     <div class="hero-content" :class="{ 'is-wide': isWide }">

@@ -83,6 +83,49 @@ authController.get('/github/callback', async (c) => {
   return c.redirect(redirectUrl.toString())
 })
 
+// --- YANDEX ---
+authController.get('/yandex', c => c.redirect('/api/auth/yandex/login'))
+
+authController.get('/yandex/login', (c) => {
+  const state = crypto.randomUUID()
+  const url = new URL('https://oauth.yandex.ru/authorize')
+  url.searchParams.set('client_id', process.env.YANDEX_CLIENT_ID!)
+  const redirectUri = process.env.YANDEX_CALLBACK_URL || (process.env.BACKEND_URL ? `${process.env.BACKEND_URL}/api/auth/yandex/callback` : '')
+  if (redirectUri) {
+    url.searchParams.set('redirect_uri', redirectUri)
+  }
+  url.searchParams.set('response_type', 'code')
+  url.searchParams.set('state', state)
+
+  setCookie(c, 'oauth_state', state, { httpOnly: true, secure: true, path: '/', sameSite: 'Lax', maxAge: 600 })
+  return c.redirect(url.toString())
+})
+
+authController.get('/yandex/callback', async (c) => {
+  const { code, state } = c.req.query()
+  const savedState = getCookie(c, 'oauth_state')
+
+  if (!state || !savedState || state !== savedState)
+    throw new HTTPException(401, { message: 'Invalid state parameter. CSRF attack detected.' })
+
+  setCookie(c, 'oauth_state', '', { expires: new Date(0) })
+
+  const { token } = await oAuthService.handleYandex(code!)
+  const redirectUrl = new URL(`${process.env.FRONTEND_URL}/auth/callback`)
+  redirectUrl.searchParams.set('token', token.accessToken)
+  redirectUrl.searchParams.set('refreshToken', token.refreshToken)
+
+  setCookie(c, 'refresh_token', token.refreshToken, {
+    httpOnly: true,
+    secure: process.env.NODE_ENV === 'production',
+    path: '/',
+    sameSite: 'Lax',
+    maxAge: 60 * 60 * 24 * 7,
+  })
+
+  return c.redirect(redirectUrl.toString())
+})
+
 authController.post('/telegram/init', (c) => {
   const session = telegramAuthService.initAuth()
   return c.json(session)

@@ -4,7 +4,7 @@ import type { CreatePostInputSchema, ListPostsInputSchema, UpdatePostInputSchema
 import { and, desc, eq, exists, ilike, inArray, lt, max, or, sql } from 'drizzle-orm'
 import { v4 as uuidv4 } from 'uuid'
 import { db } from '~/../db'
-import { postElements, postLikes, postMedia, posts, savedPosts } from '~/../db/schema'
+import { postElements, postLikes, postMedia, posts, postWhitelist, savedPosts } from '~/../db/schema'
 import { measureDbQuery } from '~/lib/db-monitoring'
 
 const userRelationQuery = {
@@ -15,16 +15,35 @@ const userRelationQuery = {
   },
 }
 
+const whitelistUserRelationQuery = {
+  columns: {
+    id: true,
+    name: true,
+    avatarUrl: true,
+    email: true,
+  },
+}
+
 type DbClient = typeof db
 type DbTransaction = Parameters<Parameters<DbClient['transaction']>[0]>[0]
 
-async function _fetchPostData<T extends DbClient | DbTransaction>(txOrDb: T, id: string, currentUserId?: string) {
+async function _fetchPostData<T extends DbClient | DbTransaction>(
+  txOrDb: T,
+  id: string,
+  currentUserId?: string,
+  userRole?: string,
+) {
   const post = await txOrDb.query.posts.findFirst({
     where: eq(posts.id, id),
     with: {
       user: userRelationQuery,
       elements: { orderBy: (elements, { asc }) => [asc(elements.order)] },
       media: { orderBy: (media, { asc }) => [asc(media.order)] },
+      whitelist: {
+        with: {
+          user: whitelistUserRelationQuery,
+        },
+      },
       savedBy: currentUserId ? { where: (sp, { eq }) => eq(sp.userId, currentUserId), limit: 1 } : undefined,
       likedBy: currentUserId ? { where: (pl, { eq }) => eq(pl.userId, currentUserId), limit: 1 } : undefined,
     },
@@ -33,9 +52,37 @@ async function _fetchPostData<T extends DbClient | DbTransaction>(txOrDb: T, id:
   if (!post)
     return null
 
-  const { savedBy, likedBy, likesCount, savesCount, ...rest } = post
+  const isOwner = !!currentUserId && post.userId === currentUserId
+  const isAdmin = userRole === 'admin'
+  const isWhitelisted = !!currentUserId && post.whitelist.some(w => w.userId === currentUserId)
+  const hasFullAccess = isOwner || isAdmin || isWhitelisted
+
+  const { savedBy, likedBy, likesCount, savesCount, whitelist, media, ...rest } = post
+
+  const mappedMedia = media.map((m) => {
+    if (m.isPrivate && !hasFullAccess) {
+      return {
+        ...m,
+        url: '',
+        variants: null,
+        metadata: null,
+        hasAccess: false,
+      }
+    }
+    return {
+      ...m,
+      hasAccess: true,
+    }
+  })
+
+  const mappedWhitelist = whitelist.map(w => w.user as { id: string, name: string | null, avatarUrl: string | null, email: string | null })
+  const whitelistUserIds = whitelist.map(w => w.userId)
+
   return {
     ...rest,
+    media: mappedMedia,
+    whitelist: isOwner || isAdmin ? mappedWhitelist : undefined,
+    whitelistUserIds: isOwner || isAdmin ? whitelistUserIds : undefined,
     user: post.user as { id: string, name: string | null, avatarUrl: string | null },
     stats: {
       likes: likesCount,
@@ -47,7 +94,7 @@ async function _fetchPostData<T extends DbClient | DbTransaction>(txOrDb: T, id:
 }
 
 export const postRepository = {
-  async findAll(filters: z.infer<typeof ListPostsInputSchema>, currentUserId?: string) {
+  async findAll(filters: z.infer<typeof ListPostsInputSchema>, currentUserId?: string, userRole?: string) {
     return measureDbQuery('posts', 'select', async () => {
       const conditions: (SQL<unknown> | undefined)[] = [eq(posts.status, 'completed')]
 
@@ -93,6 +140,7 @@ export const postRepository = {
         with: {
           user: userRelationQuery,
           media: { limit: 1, orderBy: (media, { asc }) => [asc(media.order)] },
+          whitelist: currentUserId ? { where: (pw, { eq }) => eq(pw.userId, currentUserId), limit: 1 } : undefined,
           savedBy: currentUserId ? { where: (sp, { eq }) => eq(sp.userId, currentUserId), limit: 1 } : undefined,
           likedBy: currentUserId ? { where: (pl, { eq }) => eq(pl.userId, currentUserId), limit: 1 } : undefined,
         },
@@ -105,9 +153,31 @@ export const postRepository = {
       }
 
       const mappedItems = items.map((post) => {
-        const { savedBy, likedBy, likesCount, savesCount, ...rest } = post
+        const { savedBy, likedBy, likesCount, savesCount, whitelist, media, ...rest } = post
+        const isOwner = !!currentUserId && post.userId === currentUserId
+        const isAdmin = userRole === 'admin'
+        const isWhitelisted = !!currentUserId && !!whitelist?.length
+        const hasFullAccess = isOwner || isAdmin || isWhitelisted
+
+        const mappedMedia = media.map((m) => {
+          if (m.isPrivate && !hasFullAccess) {
+            return {
+              ...m,
+              url: '',
+              variants: null,
+              metadata: null,
+              hasAccess: false,
+            }
+          }
+          return {
+            ...m,
+            hasAccess: true,
+          }
+        })
+
         return {
           ...rest,
+          media: mappedMedia,
           user: post.user as { id: string, name: string | null, avatarUrl: string | null },
           stats: {
             likes: likesCount,
@@ -122,9 +192,9 @@ export const postRepository = {
     })
   },
 
-  async findById(id: string, currentUserId?: string) {
+  async findById(id: string, currentUserId?: string, userRole?: string) {
     return measureDbQuery('posts', 'select', async () => {
-      return await _fetchPostData(db, id, currentUserId)
+      return await _fetchPostData(db, id, currentUserId, userRole)
     })
   },
 
@@ -176,6 +246,20 @@ export const postRepository = {
           await Promise.all(updates)
         }
 
+        if (data.mediaPrivacy) {
+          for (const [mid, isPrivate] of Object.entries(data.mediaPrivacy)) {
+            await tx.update(postMedia).set({ isPrivate }).where(eq(postMedia.id, mid))
+          }
+        }
+
+        if (data.whitelistUserIds && data.whitelistUserIds.length > 0) {
+          const whitelistToInsert = data.whitelistUserIds.map(uid => ({
+            postId: post.id,
+            userId: uid,
+          }))
+          await tx.insert(postWhitelist).values(whitelistToInsert)
+        }
+
         return await _fetchPostData(tx, post.id, userId)
       })
     })
@@ -212,7 +296,7 @@ export const postRepository = {
   async update(id: string, updateInput: z.infer<typeof UpdatePostInputSchema>['data']) {
     return measureDbQuery('posts', 'update', async () => {
       return await db.transaction(async (tx) => {
-        const { elements, mediaIds, statsDetail, startDate, tags, ...postData } = updateInput
+        const { elements, mediaIds, mediaPrivacy, whitelistUserIds, statsDetail, startDate, tags, ...postData } = updateInput
 
         if (Object.keys(postData).length > 0 || statsDetail || startDate !== undefined || tags) {
           const payload: Record<string, unknown> = { ...postData, updatedAt: new Date() }
@@ -264,10 +348,66 @@ export const postRepository = {
           }
         }
 
+        if (mediaPrivacy !== undefined) {
+          for (const [mid, isPrivate] of Object.entries(mediaPrivacy)) {
+            await tx.update(postMedia).set({ isPrivate }).where(eq(postMedia.id, mid))
+          }
+        }
+
+        if (whitelistUserIds !== undefined) {
+          await tx.delete(postWhitelist).where(eq(postWhitelist.postId, id))
+          if (whitelistUserIds.length > 0) {
+            const whitelistToInsert = whitelistUserIds.map(uid => ({
+              postId: id,
+              userId: uid,
+            }))
+            await tx.insert(postWhitelist).values(whitelistToInsert)
+          }
+        }
+
         const userResult = await tx.query.posts.findFirst({ where: eq(posts.id, id), columns: { userId: true } })
 
         return await _fetchPostData(tx, id, userResult?.userId)
       })
+    })
+  },
+
+  async updateMediaPrivacy(mediaId: string, isPrivate: boolean) {
+    return measureDbQuery('postMedia', 'update', async () => {
+      const [updated] = await db.update(postMedia)
+        .set({ isPrivate })
+        .where(eq(postMedia.id, mediaId))
+        .returning()
+      return updated
+    })
+  },
+
+  async addWhitelistUser(postId: string, userId: string) {
+    return measureDbQuery('postWhitelist', 'insert', async () => {
+      await db.insert(postWhitelist)
+        .values({ postId, userId })
+        .onConflictDoNothing()
+      return { success: true }
+    })
+  },
+
+  async removeWhitelistUser(postId: string, userId: string) {
+    return measureDbQuery('postWhitelist', 'delete', async () => {
+      await db.delete(postWhitelist)
+        .where(and(eq(postWhitelist.postId, postId), eq(postWhitelist.userId, userId)))
+      return { success: true }
+    })
+  },
+
+  async getWhitelist(postId: string) {
+    return measureDbQuery('postWhitelist', 'select', async () => {
+      const items = await db.query.postWhitelist.findMany({
+        where: eq(postWhitelist.postId, postId),
+        with: {
+          user: whitelistUserRelationQuery,
+        },
+      })
+      return items.map(i => i.user as { id: string, name: string | null, avatarUrl: string | null, email: string | null })
     })
   },
 

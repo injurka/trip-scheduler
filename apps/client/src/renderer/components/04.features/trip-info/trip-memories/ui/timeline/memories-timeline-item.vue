@@ -42,6 +42,29 @@ const preferredQuality = useStorage<ImageQuality>('viewer-quality-preference', '
 
 const isDesktop = computed(() => windowWidth.value >= 1024)
 
+const isVideo = computed(() =>
+  props.memory.image?.mediaType === 'video'
+  || /\.(?:mp4|webm|mov|mkv|avi|ogg|quicktime)$/i.test(props.memory.image?.url || ''),
+)
+
+const videoRef = ref<HTMLVideoElement | null>(null)
+const isVideoPlaying = ref(false)
+
+function handleVideoMouseEnter() {
+  if (videoRef.value && !isMorphed.value && !props.isFullScreen) {
+    videoRef.value.play().catch(() => {})
+    isVideoPlaying.value = true
+  }
+}
+
+function handleVideoMouseLeave() {
+  if (videoRef.value && !isMorphed.value && !props.isFullScreen) {
+    videoRef.value.pause()
+    videoRef.value.currentTime = 0
+    isVideoPlaying.value = false
+  }
+}
+
 const imageSource = computed(() => {
   const image = props.memory.image
 
@@ -56,7 +79,16 @@ const imageSource = computed(() => {
   )
 })
 
+const imagePosterForRender = computed(() => {
+  if (!isVideo.value)
+    return undefined
+  return imageSource.value.variants.poster || imageSource.value.variants.small || undefined
+})
+
 const imageSrcForRender = computed(() => {
+  if (isVideo.value) {
+    return imageSource.value.variants.web || imageSource.value.variants.large || imageSource.value.url
+  }
   if (isMorphed.value || props.isFullScreen) {
     switch (preferredQuality.value) {
       case 'medium': return imageSource.value.variants.medium
@@ -153,7 +185,25 @@ onClickOutside(ratingMenuRef, () => isRatingMenuOpen.value = false)
         :style="isMorphed ? morphStyle : {}"
         @click="handleWrapperClick"
       >
-        <KitImage :src="imageSrcForRender" :variants="imageSource.variants" object-fit="cover" />
+        <video
+          v-if="isVideo"
+          ref="videoRef"
+          :src="imageSrcForRender"
+          :poster="imagePosterForRender"
+          class="timeline-video"
+          :controls="isMorphed || isFullScreen"
+          playsinline
+          muted
+          loop
+          preload="metadata"
+          @mouseenter="handleVideoMouseEnter"
+          @mouseleave="handleVideoMouseLeave"
+        />
+        <KitImage v-else :src="imageSrcForRender" :variants="imageSource.variants" object-fit="cover" />
+
+        <div v-if="isVideo && !isMorphed && !isFullScreen && !isVideoPlaying" class="video-play-badge">
+          <Icon icon="mdi:play-circle" />
+        </div>
 
         <button
           v-if="isDesktop && !isFullScreen && !isMorphed"
@@ -161,12 +211,12 @@ onClickOutside(ratingMenuRef, () => isRatingMenuOpen.value = false)
           @click.stop="handleMorphTrigger"
         >
           <div class="icon-wrapper">
-            <Icon icon="mdi:eye-outline" class="morph-icon" />
+            <Icon :icon="isVideo ? 'mdi:play-circle-outline' : 'mdi:eye-outline'" class="morph-icon" />
           </div>
-          <span>Приблизить</span>
+          <span>{{ isVideo ? 'Развернуть' : 'Приблизить' }}</span>
         </button>
 
-        <div v-if="isMorphed" class="quality-controls" @click.stop>
+        <div v-if="isMorphed && !isVideo" class="quality-controls" @click.stop>
           <button
             class="quality-btn"
             :class="{ active: preferredQuality === 'medium' }"
@@ -424,12 +474,48 @@ onClickOutside(ratingMenuRef, () => isRatingMenuOpen.value = false)
     height: 200px;
   }
 
-  :deep(img) {
+  :deep(img),
+  .timeline-video {
     transition: transform 0.3s ease;
   }
 
-  &:hover:not(.morphed) :deep(img) {
+  &:hover:not(.morphed) :deep(img),
+  &:hover:not(.morphed) .timeline-video {
     transform: scale(1.05);
+  }
+}
+
+.timeline-video {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+  border-radius: var(--r-m);
+
+  .photo-wrapper.morphed & {
+    object-fit: contain;
+    background-color: #000;
+  }
+}
+
+.video-play-badge {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  font-size: 2.75rem;
+  color: rgba(255, 255, 255, 0.9);
+  filter: drop-shadow(0 4px 12px rgba(0, 0, 0, 0.6));
+  pointer-events: none;
+  transition: all 0.2s ease;
+  z-index: 2;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  .photo-wrapper:hover & {
+    transform: translate(-50%, -50%) scale(1.15);
+    color: var(--fg-accent-color);
   }
 }
 

@@ -1,6 +1,6 @@
 import type { RouterInput } from '../trpc'
 import type { EActivityTag } from './activity'
-import type { TripImage } from './trip'
+import type { TripMedia } from './trip'
 
 export interface Memory {
   id: string
@@ -9,7 +9,7 @@ export interface Memory {
   timestamp: string | null
   comment: string | null
   imageId: string | null
-  image: TripImage | null
+  image: TripMedia | null
 
   sourceActivityId: string
   tag?: EActivityTag

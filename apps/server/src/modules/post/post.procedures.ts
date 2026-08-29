@@ -8,10 +8,13 @@ import {
   GeneratePostInputSchema,
   GetPostByIdInputSchema,
   ListPostsInputSchema,
+  ManageWhitelistUserInputSchema,
   PostSchema,
   ToggleLikePostInputSchema,
   ToggleSavePostInputSchema,
+  UpdateMediaPrivacyInputSchema,
   UpdatePostInputSchema,
+  WhitelistUserSchema,
 } from './post.schemas'
 import { postService } from './post.service'
 
@@ -26,7 +29,7 @@ export const postProcedures = {
     .input(ListPostsInputSchema)
     .output(PostListResponseSchema)
     .query(async ({ input, ctx }) => {
-      return postService.getAll(input, ctx.user?.id)
+      return postService.getAll(input, ctx.user?.id, ctx.user?.role)
     }),
 
   getById: publicProcedure
@@ -102,5 +105,38 @@ export const postProcedures = {
     .mutation(async ({ input, ctx }) => {
       await postService.deleteMedia(input.id, ctx.user.id, ctx.user.role)
       return { success: true }
+    }),
+
+  updateMediaPrivacy: protectedProcedure
+    .meta({ openapi: { method: 'PATCH', path: '/posts/media/{mediaId}/privacy', tags: ['Posts'], summary: 'Обновить приватность медиафайла поста' } })
+    .input(UpdateMediaPrivacyInputSchema)
+    .output(z.object({ success: z.boolean() }))
+    .mutation(async ({ input, ctx }) => {
+      await postService.updateMediaPrivacy(input.mediaId, input.isPrivate, ctx.user.id, ctx.user.role)
+      return { success: true }
+    }),
+
+  addWhitelistUser: protectedProcedure
+    .meta({ openapi: { method: 'POST', path: '/posts/{postId}/whitelist', tags: ['Posts'], summary: 'Добавить пользователя в белый список поста' } })
+    .input(ManageWhitelistUserInputSchema)
+    .output(z.object({ success: z.boolean() }))
+    .mutation(async ({ input, ctx }) => {
+      return postService.addWhitelistUser(input.postId, input.userId, ctx.user.id, ctx.user.role)
+    }),
+
+  removeWhitelistUser: protectedProcedure
+    .meta({ openapi: { method: 'DELETE', path: '/posts/{postId}/whitelist/{userId}', tags: ['Posts'], summary: 'Удалить пользователя из белого списка поста' } })
+    .input(ManageWhitelistUserInputSchema)
+    .output(z.object({ success: z.boolean() }))
+    .mutation(async ({ input, ctx }) => {
+      return postService.removeWhitelistUser(input.postId, input.userId, ctx.user.id, ctx.user.role)
+    }),
+
+  getWhitelist: protectedProcedure
+    .meta({ openapi: { method: 'GET', path: '/posts/{id}/whitelist', tags: ['Posts'], summary: 'Получить белый список пользователей поста' } })
+    .input(GetPostByIdInputSchema)
+    .output(z.array(WhitelistUserSchema))
+    .query(async ({ input, ctx }) => {
+      return postService.getWhitelist(input.id, ctx.user.id, ctx.user.role)
     }),
 }

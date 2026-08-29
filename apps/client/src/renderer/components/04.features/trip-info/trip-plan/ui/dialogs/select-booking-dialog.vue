@@ -1,10 +1,10 @@
 <script setup lang="ts">
-import type { Booking, BookingSectionContent, BookingType } from '~/components/04.features/trip-info/trip-sections'
+import type { Booking, BookingSectionContent, BookingType } from '~/components/04.features/trip-info/trip-sections/booking-section'
 import { Icon } from '@iconify/vue'
 import { KitDialogWithClose } from '~/components/01.kit/kit-dialog-with-close'
 import { KitInput } from '~/components/01.kit/kit-input'
 import { KitViewSwitcher } from '~/components/01.kit/kit-view-switcher'
-import { BOOKING_TYPES_CONFIG } from '~/components/04.features/trip-info/trip-sections'
+import { BOOKING_TYPES_CONFIG } from '~/components/04.features/trip-info/trip-sections/booking-section'
 import { useModuleStore } from '~/components/05.modules/trip-info/composables/use-trip-info-module'
 import { TripSectionType } from '~/shared/types/models/trip'
 

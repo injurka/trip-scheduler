@@ -2,24 +2,26 @@
 import { useHead, useSeoMeta } from '@vueuse/head'
 import { ConfirmDialogManager } from '~/components/02.shared/confirm-dialog-manager'
 import { OfflineBanner } from '~/components/02.shared/offline-banner'
-import { OfflineProgressDialog } from '~/components/02.shared/offline-manager'
 import { ReloadPrompt } from '~/components/02.shared/reload-prompt'
 import { ToastManager } from '~/components/02.shared/toast-manager'
+import { lazyComponent } from '~/shared/lib/lazy-component'
+import { useLayoutStore } from '~/shared/store/layout.store'
 
-import { FloatingMap } from '~/components/04.features/floating-map'
-import { DefaultLayout } from '~/components/06.layouts/default'
-import { EmptyLayout } from '~/components/06.layouts/empty'
-import { TripInfoLayout } from '~/components/06.layouts/trip-info'
-
-import '@milkdown/crepe/theme/common/style.css'
-import '@milkdown/crepe/theme/frame.css'
 import '~/assets/scss/global.scss'
 import '~/assets/scss/atomic.scss'
 import '~/assets/scss/normalize.scss'
 import '~/assets/scss/animation.scss'
 import '~/assets/scss/fonts.scss'
 
+const OfflineProgressDialog = lazyComponent(() => import('~/components/02.shared/offline-manager/ui/offline-progress-dialog.vue'))
+const FloatingMap = lazyComponent(() => import('~/components/04.features/floating-map/ui/floating-map.vue'))
+
+const DefaultLayout = lazyComponent(() => import('~/components/06.layouts/default/ui/layout.vue'))
+const EmptyLayout = lazyComponent(() => import('~/components/06.layouts/empty/ui/layout.vue'))
+const TripInfoLayout = lazyComponent(() => import('~/components/06.layouts/trip-info/ui/layout.vue'))
+
 const route = useRoute()
+const layoutStore = useLayoutStore()
 
 const layout = computed(() => route.meta.layout || 'empty')
 const transition = computed(() => route.meta.transition)
@@ -105,7 +107,7 @@ useSeoMeta({
     </router-view>
   </component>
 
-  <FloatingMap />
+  <FloatingMap v-if="layoutStore.isFloatingMapOpen" />
   <ReloadPrompt />
   <ToastManager />
 

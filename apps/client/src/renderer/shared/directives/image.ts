@@ -8,6 +8,12 @@ export const vResolveSrc: Directive<HTMLImageElement, string | null | undefined>
    * Устанавливает начальный src.
    */
   mounted(el: HTMLImageElement, binding: DirectiveBinding<string | null | undefined>) {
+    if (!el.hasAttribute('loading')) {
+      el.loading = 'lazy'
+    }
+    if (!el.hasAttribute('decoding')) {
+      el.decoding = 'async'
+    }
     const resolvedUrl = resolveApiUrl(binding.value)
     if (resolvedUrl) {
       el.src = resolvedUrl
@@ -34,6 +40,12 @@ export const vResolveSrc: Directive<HTMLImageElement, string | null | undefined>
 // <img v-image="{ src: image.url, w: 400, fmt: 'webp' }" />
 export const vImage: Directive<HTMLImageElement, { src?: string | null } & ImageOptions> = {
   mounted(el, binding) {
+    if (!el.hasAttribute('loading')) {
+      el.loading = 'lazy'
+    }
+    if (!el.hasAttribute('decoding')) {
+      el.decoding = 'async'
+    }
     const { src, ...options } = binding.value ?? {}
     const url = getImageUrl(src, Object.keys(options).length ? options : undefined)
     if (url)

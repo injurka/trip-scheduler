@@ -9,6 +9,7 @@ import { useAuthStore } from '~/shared/store/auth.store'
 enum OAuthProviders {
   GitHub = 'github',
   Google = 'google',
+  Yandex = 'yandex',
 }
 
 interface Props {
@@ -94,6 +95,7 @@ async function handleTelegramAuth() {
 
       <div class="additional-oauth">
         <KitBtn
+          v-if="false"
           variant="outlined"
           color="secondary"
           :disabled="isLoading || isTelegramLoading"
@@ -105,6 +107,7 @@ async function handleTelegramAuth() {
         </KitBtn>
 
         <KitBtn
+          v-if="false"
           variant="outlined"
           color="secondary"
           :disabled="isLoading || isTelegramLoading"
@@ -113,6 +116,17 @@ async function handleTelegramAuth() {
           @click="handleOAuth(OAuthProviders.GitHub)"
         >
           GitHub
+        </KitBtn>
+
+        <KitBtn
+          variant="outlined"
+          color="secondary"
+          :disabled="isLoading || isTelegramLoading"
+          style="flex-grow: 1;"
+          @click="handleOAuth(OAuthProviders.Yandex)"
+        >
+          <span class="yandex-icon-badge">Я</span>
+          Яндекс
         </KitBtn>
 
         <KitBtn
@@ -215,5 +229,25 @@ async function handleTelegramAuth() {
   flex-wrap: wrap;
   gap: 16px;
   margin-top: 24px;
+}
+
+.yandex-icon-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  background: #fc3f1d;
+  color: #ffffff;
+  font-family:
+    Arial,
+    -apple-system,
+    BlinkMacSystemFont,
+    sans-serif;
+  font-size: 0.75rem;
+  font-weight: 700;
+  line-height: 1;
+  flex-shrink: 0;
 }
 </style>

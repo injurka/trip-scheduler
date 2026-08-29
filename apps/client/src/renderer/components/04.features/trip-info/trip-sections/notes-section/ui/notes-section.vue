@@ -6,24 +6,26 @@ import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { KitBtn } from '~/components/01.kit/kit-btn'
 import { KitDropdown } from '~/components/01.kit/kit-dropdown'
 import { useRequest } from '~/plugins/request'
+import { lazyComponent } from '~/shared/lib/lazy-component'
 import { resolveApiUrl } from '~/shared/lib/url'
 import { useNotesSection } from '../composables/use-notes-section'
-import NoteEditorExcalidraw from './components/note-editor-excalidraw.vue'
-import NoteEditorMd from './components/note-editor-md.vue'
 import NotesTree from './components/notes-tree.vue'
 import CommandPaletteDialog from './dialogs/command-palette-dialog.vue'
 import CreateNoteDialog from './dialogs/create-note-dialog.vue'
 import NotesGalleryDialog from './dialogs/notes-gallery-dialog.vue'
 
-interface TripSection {
-  tripId: string
-  [key: string]: unknown
-}
-
 const props = defineProps<{
   section: TripSection
   readonly: boolean
 }>()
+
+const NoteEditorExcalidraw = lazyComponent(() => import('./components/note-editor-excalidraw.vue'), { showLoader: true })
+const NoteEditorMd = lazyComponent(() => import('./components/note-editor-md.vue'), { showLoader: true })
+
+interface TripSection {
+  tripId: string
+  [key: string]: unknown
+}
 
 const tripIdRef = computed(() => props.section.tripId)
 const readonlyRef = computed(() => props.readonly)
@@ -52,10 +54,14 @@ const isMobile = computed(() => width.value <= 768)
 const isSidebarOpen = ref(false)
 const isFullscreen = ref(false)
 
+interface ExcalidrawEditorInstance {
+  exportImage: (format: 'png' | 'svg', title?: string) => Promise<void>
+}
+
 const isCommandPaletteOpen = ref(false)
 const isExportMenuOpen = ref(false)
 const isSortMenuOpen = ref(false)
-const excalidrawRef = ref<InstanceType<typeof NoteEditorExcalidraw> | null>(null)
+const excalidrawRef = ref<ExcalidrawEditorInstance | null>(null)
 
 const { copy } = useClipboard()
 

@@ -57,6 +57,9 @@ function handleLibraryConfirm(selected: PostMedia[]) {
 const currentSelectedIds = computed(() => props.images.map(i => i.id))
 
 function getEditorThumbUrl(img: PostMedia) {
+  if (img.type === 'video') {
+    return img.metadata?.variants?.poster || img.metadata?.variants?.small || img.url
+  }
   const variants = img.metadata?.variants
 
   return variants?.small || variants?.medium || img.url
@@ -74,13 +77,21 @@ function getEditorThumbUrl(img: PostMedia) {
         @end="emit('update:images', images)"
       >
         <template #item="{ element, index }">
-          <div class="gallery-item">
+          <div class="gallery-item" :class="{ 'is-private': element.isPrivate }">
             <div class="drag-handle">
               <Icon icon="mdi:drag" />
             </div>
 
             <div class="image-preview" @click="openMarkEditor(element, index)">
               <KitImage :src="getEditorThumbUrl(element)" object-fit="cover" />
+
+              <div v-if="element.type === 'video'" class="video-badge">
+                <Icon icon="mdi:play-circle" />
+              </div>
+
+              <div v-if="element.isPrivate" class="private-badge" title="Приватное медиа (только для белого списка)">
+                <Icon icon="mdi:lock" />
+              </div>
 
               <div v-if="element.marks?.length" class="marks-badge">
                 <Icon icon="mdi:target" /> {{ element.marks.length }}
@@ -128,7 +139,7 @@ function getEditorThumbUrl(img: PostMedia) {
     <button class="add-image-btn" @click="isLibraryOpen = true">
       <div class="btn-content">
         <Icon icon="mdi:image-plus" width="24" height="24" />
-        <span>{{ images.length > 0 ? 'Добавить ещё' : 'Выбрать фото' }}</span>
+        <span>{{ images.length > 0 ? 'Добавить ещё' : 'Выбрать фото или видео' }}</span>
       </div>
     </button>
 
@@ -245,6 +256,42 @@ function getEditorThumbUrl(img: PostMedia) {
   &:hover {
     transform: scale(1.1);
   }
+}
+
+.gallery-item.is-private {
+  border: 2px solid var(--fg-warning-color, #f59e0b);
+}
+
+.video-badge {
+  position: absolute;
+  top: 4px;
+  left: 4px;
+  background: rgba(0, 0, 0, 0.65);
+  color: white;
+  border-radius: 4px;
+  padding: 2px;
+  font-size: 14px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  pointer-events: none;
+  z-index: 2;
+}
+
+.private-badge {
+  position: absolute;
+  bottom: 4px;
+  left: 4px;
+  background: var(--fg-warning-color, #f59e0b);
+  color: #000;
+  border-radius: 4px;
+  padding: 2px 4px;
+  font-size: 11px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  pointer-events: none;
+  z-index: 2;
 }
 
 .marks-badge {

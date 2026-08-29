@@ -90,11 +90,26 @@ interface MediaVariants {
 }
 
 function getMainImgUrl(media: PostMedia) {
+  if (media.hasAccess === false)
+    return ''
+
+  if (media.type === 'video') {
+    return media.metadata?.variants?.poster || media.metadata?.variants?.medium || media.metadata?.variants?.small || media.url
+  }
+
   const variants = media.metadata?.variants as MediaVariants | undefined
+
   return variants?.medium || media.url
 }
 
 function getBlurImgUrl(media: PostMedia) {
+  if (media.hasAccess === false)
+    return ''
+
+  if (media.type === 'video') {
+    return media.metadata?.variants?.poster || media.metadata?.variants?.small || media.url
+  }
+
   const variants = media.metadata?.variants as MediaVariants | undefined
   return variants?.small || variants?.medium || media.url
 }
@@ -212,39 +227,54 @@ const cardStyle = computed(() => ({
         <Transition name="fade" mode="out-in">
           <div :key="currentMedia?.id || 'empty'" class="image-wrapper">
             <template v-if="currentMedia">
-              <div class="blur-backdrop">
-                <!-- Оптимизация: берем маленькую версию для фона -->
-                <KitImage
-                  :src="getBlurImgUrl(currentMedia)"
-                  object-fit="cover"
-                  class="backdrop-img"
-                />
-                <div class="backdrop-overlay" />
+              <div v-if="currentMedia.hasAccess === false" class="locked-backdrop">
+                <Icon icon="mdi:lock" class="locked-icon" />
+                <span class="locked-text">Приватное медиа</span>
+                <span class="locked-sub">Доступно только в белом списке</span>
               </div>
-
-              <div class="main-img-wrapper">
-                <KitImage
-                  :src="getMainImgUrl(currentMedia)"
-                  class="main-img"
-                  object-fit="contain"
-                />
-              </div>
-
-              <template v-if="currentMedia.marks">
-                <div
-                  v-for="mark in currentMedia.marks"
-                  :key="mark.id"
-                  class="smart-mark"
-                  :class="{ 'is-active': activeMarkId === mark.id }"
-                  :style="{ left: `${mark.x}%`, top: `${mark.y}%` }"
-                  @click.stop="toggleMark(mark.id)"
-                >
-                  <div class="mark-dot" />
-                  <div class="mark-bubble">
-                    <span>{{ mark.label }}</span>
-                    <div class="bubble-tail" />
-                  </div>
+              <template v-else>
+                <div class="blur-backdrop">
+                  <!-- Оптимизация: берем маленькую версию для фона -->
+                  <KitImage
+                    :src="getBlurImgUrl(currentMedia)"
+                    object-fit="cover"
+                    class="backdrop-img"
+                  />
+                  <div class="backdrop-overlay" />
                 </div>
+
+                <div class="main-img-wrapper">
+                  <KitImage
+                    :src="getMainImgUrl(currentMedia)"
+                    class="main-img"
+                    object-fit="contain"
+                  />
+                </div>
+
+                <div v-if="currentMedia.type === 'video'" class="card-video-badge">
+                  <Icon icon="mdi:play" />
+                </div>
+
+                <div v-if="currentMedia.isPrivate" class="card-private-badge" title="Приватное медиа">
+                  <Icon icon="mdi:lock" />
+                </div>
+
+                <template v-if="currentMedia.marks">
+                  <div
+                    v-for="mark in currentMedia.marks"
+                    :key="mark.id"
+                    class="smart-mark"
+                    :class="{ 'is-active': activeMarkId === mark.id }"
+                    :style="{ left: `${mark.x}%`, top: `${mark.y}%` }"
+                    @click.stop="toggleMark(mark.id)"
+                  >
+                    <div class="mark-dot" />
+                    <div class="mark-bubble">
+                      <span>{{ mark.label }}</span>
+                      <div class="bubble-tail" />
+                    </div>
+                  </div>
+                </template>
               </template>
             </template>
             <div v-else class="no-media">
@@ -483,6 +513,72 @@ const cardStyle = computed(() => ({
   font-size: 48px;
   width: 100%;
   height: 100%;
+}
+
+.locked-backdrop {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  height: 100%;
+  background: var(--bg-tertiary-color);
+  color: var(--fg-secondary-color);
+  gap: 6px;
+  text-align: center;
+  padding: 16px;
+
+  .locked-icon {
+    font-size: 36px;
+    color: var(--fg-warning-color, #f59e0b);
+  }
+
+  .locked-text {
+    font-size: 0.95rem;
+    font-weight: 600;
+    color: var(--fg-primary-color);
+  }
+
+  .locked-sub {
+    font-size: 0.8rem;
+    color: var(--fg-secondary-color);
+  }
+}
+
+.card-video-badge {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: 48px;
+  height: 48px;
+  background: rgba(0, 0, 0, 0.65);
+  backdrop-filter: blur(4px);
+  color: white;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 32px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+  z-index: 5;
+  pointer-events: none;
+}
+
+.card-private-badge {
+  position: absolute;
+  top: 12px;
+  right: 12px;
+  background: rgba(0, 0, 0, 0.65);
+  color: var(--fg-warning-color, #f59e0b);
+  padding: 4px;
+  border-radius: 6px;
+  font-size: 16px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 5;
+  pointer-events: none;
 }
 
 .nav-overlay {

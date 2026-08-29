@@ -39,7 +39,7 @@ const downloadPercentage = computed(() => {
             <span class="info-title">Скачивание оригиналов</span>
           </div>
           <div class="info-stats">
-            <span class="stat-item">{{ progress.current }} / {{ progress.total }} фото</span>
+            <span class="stat-item">{{ progress.current }} / {{ progress.total }} медиа</span>
             <span class="stat-separator">•</span>
             <span class="stat-item">{{ formatBytes(progress.loadedBytes) }}</span>
           </div>

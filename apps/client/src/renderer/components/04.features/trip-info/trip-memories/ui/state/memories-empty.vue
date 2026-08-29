@@ -41,7 +41,7 @@ function handleImportSelect(activity: Activity) {
           В этом дне пока нет воспоминаний
         </p>
         <p class="empty-subtitle">
-          Загрузите фотографии или добавьте заметки, чтобы создать ленту дня.
+          Загрузите медиа или добавьте заметки, чтобы создать ленту дня.
         </p>
       </div>
 
@@ -49,7 +49,7 @@ function handleImportSelect(activity: Activity) {
         <div class="empty-actions">
           <button class="btn-upload" @click="emit('upload')">
             <Icon icon="mdi:camera-plus-outline" class="btn-icon" />
-            <span>Загрузить фото</span>
+            <span>Загрузить медиа</span>
           </button>
 
           <div class="btn-secondary-group">

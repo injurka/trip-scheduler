@@ -42,4 +42,20 @@ export class PostRepository implements IPostRepository {
   async deleteMedia(params: { id: string }) {
     return trpc.post.deleteMedia.mutate(params)
   }
+
+  async updateMediaPrivacy(params: { mediaId: string, isPrivate: boolean }) {
+    return trpc.post.updateMediaPrivacy.mutate(params)
+  }
+
+  async addWhitelistUser(params: { postId: string, userId: string }) {
+    return trpc.post.addWhitelistUser.mutate(params)
+  }
+
+  async removeWhitelistUser(params: { postId: string, userId: string }) {
+    return trpc.post.removeWhitelistUser.mutate(params)
+  }
+
+  async getWhitelist(params: { id: string }) {
+    return trpc.post.getWhitelist.query(params)
+  }
 }

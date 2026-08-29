@@ -288,7 +288,7 @@ export function useDestinationReviews(userId: string) {
       key: EDestinationReviewKeys.UPLOAD_COVER,
       fn: db => db.files.uploadFile(file, authStore.user!.id, 'review', 'cover'),
       onSuccess: (uploadedImage) => {
-        uploadedData = { url: uploadedImage.url, variants: uploadedImage.variants || {} }
+        uploadedData = { url: uploadedImage.url, variants: (uploadedImage.variants as Record<string, string>) || {} }
       },
       onError: ({ error }) => { toast.error(error.customMessage || 'Ошибка загрузки обложки') },
     })

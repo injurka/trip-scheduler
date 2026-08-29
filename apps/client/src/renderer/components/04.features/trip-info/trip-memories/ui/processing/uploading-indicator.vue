@@ -74,34 +74,35 @@ const remainingCount = computed(() => {
       <div class="queued-header">
         <Icon icon="mdi:timer-outline" />
         <span>В очереди: {{ queuedUploads.length }}</span>
-      </div>
-      <div ref="queuedGridRef" class="queued-grid">
-        <div
-          v-for="item in visibleItems"
-          :key="item.tempId"
-          class="queued-item"
-        >
-          <img :src="item.previewUrl" alt="В очереди">
+        <div ref="queuedGridRef" class="queued-grid">
+          <div
+            v-for="item in visibleItems"
+            :key="item.tempId"
+            class="queued-item"
+          >
+            <video v-if="item.file.type.startsWith('video/')" :src="item.previewUrl" muted playsinline />
+            <img v-else :src="item.previewUrl" alt="В очереди">
+          </div>
+          <div v-if="remainingCount > 0" class="queued-item more-items">
+            +{{ remainingCount }}
+          </div>
         </div>
-        <div v-if="remainingCount > 0" class="queued-item more-items">
-          +{{ remainingCount }}
-        </div>
       </div>
-    </div>
 
-    <div v-if="failedUploads.length > 0" class="failed-section">
-      <div class="failed-header">
-        <Icon icon="mdi:alert-circle-outline" />
-        <span>Ошибки загрузки: {{ failedUploads.length }}</span>
-      </div>
-      <div class="failed-grid">
-        <UploadingProgressCard
-          v-for="item in failedUploads"
-          :key="item.tempId"
-          :memory="item"
-          @retry="emit('retry', item.tempId)"
-          @remove="emit('remove', item.tempId)"
-        />
+      <div v-if="failedUploads.length > 0" class="failed-section">
+        <div class="failed-header">
+          <Icon icon="mdi:alert-circle-outline" />
+          <span>Ошибки загрузки: {{ failedUploads.length }}</span>
+        </div>
+        <div class="failed-grid">
+          <UploadingProgressCard
+            v-for="item in failedUploads"
+            :key="item.tempId"
+            :memory="item"
+            @retry="emit('retry', item.tempId)"
+            @remove="emit('remove', item.tempId)"
+          />
+        </div>
       </div>
     </div>
   </div>
@@ -151,7 +152,8 @@ const remainingCount = computed(() => {
   background-color: var(--bg-tertiary-color);
   border: 1px solid var(--border-primary-color);
 
-  img {
+  img,
+  video {
     width: 100%;
     height: 100%;
     object-fit: cover;

@@ -1,18 +1,20 @@
-import type { TripImage } from '~/shared/types/models/trip'
+import type { TripMedia } from '~/shared/types/models/trip'
 import { computed, reactive, ref, watch } from 'vue'
 import { useRequest, useRequestError, useRequestStatus } from '~/plugins/request'
 import { useQuerySync } from '~/shared/composables/use-query-sync'
 import { useAuthStore } from '~/shared/store/auth.store'
-import { TripImagePlacement } from '~/shared/types/models/trip'
+import { TripMediaPlacement } from '~/shared/types/models/trip'
 
 interface SimpleTrip {
   id: string
   title: string
 }
 
-export interface TripImageWithTrip extends TripImage {
+export interface TripMediaWithTrip extends TripMedia {
   trip?: SimpleTrip
 }
+
+export type TripImageWithTrip = TripMediaWithTrip
 
 export enum EStorageKeys {
   FETCH_FILES = 'storage:fetch-files',
@@ -30,7 +32,7 @@ export function useStorageModule() {
   const sizeMin = useQuerySync<number | null>('sizeMin', null)
   const sizeMax = useQuerySync<number | null>('sizeMax', null)
   const extension = useQuerySync<string | null>('extension', '')
-  const placement = useQuerySync<TripImagePlacement | ''>('placement', '')
+  const placement = useQuerySync<TripMediaPlacement | ''>('placement', '')
 
   // Реактивный прокси для v-model в UI
   const filters = reactive({
@@ -216,8 +218,8 @@ export function useStorageModule() {
 
   const placementsForFilter = [
     { value: '', label: 'Все секции' },
-    { value: TripImagePlacement.MEMORIES, label: 'Воспоминания' },
-    { value: TripImagePlacement.ROUTE, label: 'Маршрут' },
+    { value: TripMediaPlacement.MEMORIES, label: 'Воспоминания' },
+    { value: TripMediaPlacement.ROUTE, label: 'Маршрут' },
   ]
 
   const storageByTrip = computed(() => {
@@ -263,8 +265,8 @@ export function useStorageModule() {
 
   const storageByPlacement = computed(() => {
     const placementStorage: Record<string, number> = {
-      [TripImagePlacement.MEMORIES]: 0,
-      [TripImagePlacement.ROUTE]: 0,
+      [TripMediaPlacement.MEMORIES]: 0,
+      [TripMediaPlacement.ROUTE]: 0,
     }
     files.value.forEach((file) => {
       if (file.placement && placementStorage[file.placement] !== undefined) {
@@ -273,8 +275,8 @@ export function useStorageModule() {
     })
 
     const data = [
-      placementStorage[TripImagePlacement.MEMORIES],
-      placementStorage[TripImagePlacement.ROUTE],
+      placementStorage[TripMediaPlacement.MEMORIES],
+      placementStorage[TripMediaPlacement.ROUTE],
     ]
     const labels = ['Воспоминания', 'Маршрут']
     const backgroundColors = ['#4A90E2', '#50E3C2']
