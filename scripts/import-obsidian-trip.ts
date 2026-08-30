@@ -88,6 +88,15 @@ export const DEFAULT_TRIP_SECTIONS = [
   },
 ] as const
 
+export interface DayMetaInfo {
+  id: string
+  title: string
+  subtitle?: string | null
+  icon?: string | null
+  color?: string | null
+  content?: string | null
+}
+
 interface ParsedDay {
   dayNumber: number
   fileName: string
@@ -96,6 +105,7 @@ interface ParsedDay {
   description: string
   rawContent: string
   date: string
+  meta: DayMetaInfo[]
 }
 
 interface ParsedNoteFile {
@@ -445,11 +455,270 @@ function inferActivityTag(title: string, content: string): ActivityPayload['tag'
   return 'activity'
 }
 
+// -----------------------------------------------------------------------------
+// Helper: Parse Day-level Meta Badges (Локация, Фаза тура, Подготовка, Финансы)
+// -----------------------------------------------------------------------------
+export function parseDayMetaFromMarkdown(dayContent: string): DayMetaInfo[] {
+  const metaBadges: DayMetaInfo[] = []
+  const lines = dayContent.split('\n')
+
+  // Find where activities begin
+  const timeRegex = /^[*-]\s*\*\*(\d{1,2}:\d{2})\+?\s*(?:[-–—]\s*(\d{1,2}:\d{2}))?\+?\*\*\s*[-–—:]?\s*(.*)$/
+  let actStartIndex = -1
+  for (let i = 0; i < lines.length; i++) {
+    if (timeRegex.test(lines[i])) {
+      actStartIndex = i
+      break
+    }
+  }
+
+  // Find where financial section begins
+  let finStartIndex = lines.length
+  for (let i = 0; i < lines.length; i++) {
+    if (/^##\s*(?:💰\s*)?Финансовые затраты/i.test(lines[i])) {
+      finStartIndex = i
+      break
+    }
+  }
+
+  const preLines = actStartIndex !== -1 ? lines.slice(0, actStartIndex) : lines.slice(0, finStartIndex)
+  const preText = preLines.join('\n')
+  const finText = lines.slice(finStartIndex).join('\n')
+
+  // 1. Parse header block quotes (> **Key:** Value)
+  const headerSection = preText.split('---')[0]
+  const headerQuoteRegex = /^>\s*\*\*([^*:]+):\*\*\s*(.*)$/gm
+  let match: RegExpExecArray | null
+
+  while ((match = headerQuoteRegex.exec(headerSection)) !== null) {
+    const key = match[1].trim()
+    const value = match[2].trim()
+
+    if (!value)
+      continue
+
+    if (/локаци/i.test(key)) {
+      const shortVal = value.replace(/\(.*?\)/g, '').replace(/`[^`]+`/g, '').replace(/\s+/g, ' ').trim()
+      metaBadges.push({
+        id: crypto.randomUUID(),
+        title: 'Локация',
+        subtitle: shortVal.length > 50 ? `${shortVal.slice(0, 47)}...` : shortVal,
+        icon: 'mdi:map-marker-radius-outline',
+        color: '#9BF6FF',
+        content: `**Локация:** ${value}`,
+      })
+    }
+    else if (/фаза/i.test(key)) {
+      const phaseTitleMatch = value.match(/(?:🌴|💻|🏔️|🌊|🍵)?\s*(Фаза\s*\d+[^—–\n(]*)/i)
+      const subtitle = phaseTitleMatch ? phaseTitleMatch[0].trim() : (value.length > 40 ? `${value.slice(0, 37)}...` : value)
+      metaBadges.push({
+        id: crypto.randomUUID(),
+        title: 'Фаза тура',
+        subtitle,
+        icon: 'mdi:compass-outline',
+        color: '#BDB2FF',
+        content: `**Фаза тура:** ${value}`,
+      })
+    }
+    else if (/проживани/i.test(key)) {
+      const hotelMatch = value.match(/\*([^*]+)\*(?:\s*`([^`]+)`)?/)
+      let subtitle = ''
+      if (hotelMatch) {
+        subtitle = hotelMatch[1].trim() + (hotelMatch[2] ? ` (${hotelMatch[2].trim()})` : '')
+      }
+      else {
+        subtitle = value.replace(/\(.*?\)/g, '').trim().slice(0, 40)
+      }
+      metaBadges.push({
+        id: crypto.randomUUID(),
+        title: 'Проживание',
+        subtitle: subtitle.length > 45 ? `${subtitle.slice(0, 42)}...` : subtitle,
+        icon: 'mdi:bed',
+        color: '#FFD6A5',
+        content: `**Проживание:** ${value}`,
+      })
+    }
+    else if (/хайлайт|акцент|особенност/i.test(key)) {
+      metaBadges.push({
+        id: crypto.randomUUID(),
+        title: key,
+        subtitle: value.length > 45 ? `${value.slice(0, 42)}...` : value,
+        icon: 'mdi:star-outline',
+        color: '#FDFFB6',
+        content: `**${key}:** ${value}`,
+      })
+    }
+  }
+
+  // 2. Parse Preparation Callouts & Subsections before activities
+  const bodyPreText = preText.includes('---') ? preText.split('---').slice(1).join('---') : preText
+  const calloutRegex = />\s*\[!([A-Za-z0-9_-]+)\]-?\s*([^\n]*)\n((?:[ \t]*>[^\n]*\n?)*)/gi
+  let calloutMatch: RegExpExecArray | null
+
+  while ((calloutMatch = calloutRegex.exec(bodyPreText)) !== null) {
+    const calloutType = calloutMatch[1].toUpperCase()
+    const rawTitleLine = calloutMatch[2].trim()
+    const rawBody = calloutMatch[3] || ''
+
+    if (/^(?:Картинки|Изображения|Фото|Photos|Images)$/i.test(rawTitleLine))
+      continue
+
+    const cleanBodyLines = rawBody
+      .split('\n')
+      .map(l => l.replace(/^[ \t]*>[ \t]?/, ''))
+      .join('\n')
+      .trim()
+
+    let title = rawTitleLine
+    let subtitle = ''
+
+    if (rawTitleLine.includes('—')) {
+      const parts = rawTitleLine.split('—')
+      title = parts[0].trim()
+      subtitle = parts.slice(1).join('—').trim()
+    }
+    else if (rawTitleLine.includes('–')) {
+      const parts = rawTitleLine.split('–')
+      title = parts[0].trim()
+      subtitle = parts.slice(1).join('–').trim()
+    }
+    else if (rawTitleLine.includes(': ')) {
+      const parts = rawTitleLine.split(': ')
+      title = parts[0].trim()
+      subtitle = parts.slice(1).join(': ').trim()
+    }
+
+    if (!subtitle) {
+      if (/youbike|велосипед/i.test(rawTitleLine))
+        subtitle = 'YouBike 2.0'
+      else if (/миграцион|twac|таможн/i.test(rawTitleLine))
+        subtitle = 'Правила въезда и таможня'
+      else if (/ветк|mrt|метро/i.test(rawTitleLine))
+        subtitle = 'Навигация MRT'
+      else if (/купален|онсэн|бэйтоу/i.test(rawTitleLine))
+        subtitle = 'Правила купален'
+      else if (/билеты|поезд|tra|emu3000|thsr/i.test(rawTitleLine))
+        subtitle = 'Билеты и поезда'
+      else if (/дождевик|зонт/i.test(rawTitleLine))
+        subtitle = 'Экипировка в дождь'
+    }
+
+    if (subtitle.length > 50) {
+      subtitle = `${subtitle.slice(0, 47)}...`
+    }
+
+    const combo = `${calloutType} ${rawTitleLine} ${cleanBodyLines}`.toLowerCase()
+
+    let icon = 'mdi:information-outline'
+    let color = '#9BF6FF'
+
+    if (/лотере|выигра|lucky|5000\.taiwan|подарок|приз/.test(combo)) {
+      icon = 'mdi:gift-outline'
+      color = '#FFD6A5'
+    }
+    else if (/велосипед|youbike|bike|вело/.test(combo)) {
+      icon = 'mdi:bike'
+      color = '#FDFFB6'
+    }
+    else if (/миграцион|таможн|twac|мясн|запрет|вейп|штраф|депортац|паспорт|виз/.test(combo)) {
+      icon = 'mdi:alert-octagon-outline'
+      color = '#FFADAD'
+    }
+    else if (/метро|mrt|поезд|станци|ветк|линия|навигаци|пересадк|thsr|tra/.test(combo)) {
+      icon = 'mdi:subway-variant'
+      color = '#9BF6FF'
+    }
+    else if (/онсэн|терм|купальн|источник|дресс-код|шапочк/.test(combo)) {
+      icon = 'mdi:hot-tub'
+      color = '#FFD6A5'
+    }
+    else if (/дожд|дождевик|зонт|погод|ливень/.test(combo)) {
+      icon = 'mdi:weather-rainy'
+      color = '#A0C4FF'
+    }
+    else if (/черепах|коралл|экологи|дайвинг|снорклинг/.test(combo)) {
+      icon = 'mdi:turtle'
+      color = '#A3D9A5'
+    }
+    else if (/макак|обезьян|животн/.test(combo)) {
+      icon = 'mdi:paw'
+      color = '#FFD6A5'
+    }
+    else if (/укачиван|таблетк|аптечк|здоров|лекарств/.test(combo)) {
+      icon = 'mdi:pill'
+      color = '#FFC6FF'
+    }
+    else if (/чай|boba|bubble tea|кофе|ланч|ужин|блюд|ресторан|кухн/.test(combo)) {
+      icon = 'mdi:food'
+      color = '#A3D9A5'
+    }
+    else if (calloutType === 'IMPORTANT' || calloutType === 'WARNING' || calloutType === 'CAUTION') {
+      icon = 'mdi:alert-circle-outline'
+      color = '#FFADAD'
+    }
+    else if (calloutType === 'TIP') {
+      icon = 'mdi:lightbulb-outline'
+      color = '#FDFFB6'
+    }
+
+    const fullContent = `> [!${calloutType}] ${rawTitleLine}\n${cleanBodyLines ? cleanBodyLines.split('\n').map(l => `> ${l}`).join('\n') : ''}`
+
+    metaBadges.push({
+      id: crypto.randomUUID(),
+      title: title || rawTitleLine,
+      subtitle: subtitle || undefined,
+      icon,
+      color,
+      content: fullContent,
+    })
+  }
+
+  // Also check for pre-activity non-callout special sections (e.g. ### 🗺️ Пошаговые ориентиры...)
+  const preSectionRegex = /###\s*(🗺️|📍|[^\n]*ориентир|[^\n]*навигац|[^\n]*останов)[^\n]*\n([\s\S]*?)(?=\n###|\n##|$)/gi
+  let preSecMatch: RegExpExecArray | null
+  while ((preSecMatch = preSectionRegex.exec(bodyPreText)) !== null) {
+    const rawSectionHeader = preSecMatch[0].split('\n')[0].replace(/^###\s*/, '').trim()
+    const sectionBody = preSecMatch[2].trim()
+
+    if (sectionBody && !metaBadges.some(b => b.title.includes(rawSectionHeader))) {
+      metaBadges.push({
+        id: crypto.randomUUID(),
+        title: rawSectionHeader,
+        subtitle: 'Ориентиры и остановки',
+        icon: 'mdi:map-marker-path',
+        color: '#BDB2FF',
+        content: `### ${rawSectionHeader}\n\n${sectionBody}`,
+      })
+    }
+  }
+
+  // 3. Parse Financial expenses block
+  if (finText) {
+    const finMatch = finText.match(/##\s*(?:💰\s*)?Финансовые затраты[^\n]*\n([\s\S]*?)(?=\n##|\n#|$)/i)
+    if (finMatch) {
+      const finBody = finMatch[1].trim()
+      const totalMatch = finBody.match(/(?:\*\*Итого[^*]*\*\*|Итого[^:\n]*):?\s*(?:около\s*)?`?([~≈]?\s*[\d\s]+[–—\-]?[\d\s]*\s*(?:₽|RUB|TWD|\$|EUR))`?/i)
+      const totalSubtitle = totalMatch ? totalMatch[1].trim() : '~... ₽'
+
+      metaBadges.push({
+        id: crypto.randomUUID(),
+        title: 'Финансовые затраты на день',
+        subtitle: totalSubtitle,
+        icon: 'mdi:currency-usd',
+        color: '#A3D9A5',
+        content: `## Финансовые затраты на день (на 1 чел)\n\n${finBody}`,
+      })
+    }
+  }
+
+  return metaBadges
+}
+
 export function parseActivitiesFromMarkdown(dayContent: string): ActivityPayload[] {
   const activities: ActivityPayload[] = []
   const lines = dayContent.split('\n')
 
-  const timeRegex = /^[*-]\s*\*\*(\d{1,2}:\d{2})\s*(?:[-–—]\s*(\d{1,2}:\d{2}))?\*\*\s*[-–—:]?\s*(.*)$/
+  const timeRegex = /^[*-]\s*\*\*(\d{1,2}:\d{2})\+?\s*(?:[-–—]\s*(\d{1,2}:\d{2}))?\+?\*\*\s*[-–—:]?\s*(.*)$/
 
   let currentActivity: {
     startTime: string
@@ -466,6 +735,8 @@ export function parseActivitiesFromMarkdown(dayContent: string): ActivityPayload
     const cleanTitle = currentActivity.title
       .replace(/^[—–-]\s*/, '')
       .replace(/\s*[—–-]$/, '')
+      .replace(/\*\*([^*]+)\*\*/g, '$1')
+      .replace(/:\s*$/, '')
       .trim() || 'Активность'
 
     const tag = inferActivityTag(cleanTitle, sectionText)
@@ -477,19 +748,28 @@ export function parseActivitiesFromMarkdown(dayContent: string): ActivityPayload
       tag,
       sections: sectionText
         ? [
-          {
-            id: crypto.randomUUID(),
-            type: 'description',
-            text: sectionText,
-          },
-        ]
+            {
+              id: crypto.randomUUID(),
+              type: 'description',
+              text: sectionText,
+            },
+          ]
         : [],
     })
 
     currentActivity = null
   }
 
+  // Find where financial section starts so we don't parse beyond it
+  let finIndex = lines.length
   for (let i = 0; i < lines.length; i++) {
+    if (/^##\s*(?:💰\s*)?Финансовые затраты/i.test(lines[i])) {
+      finIndex = i
+      break
+    }
+  }
+
+  for (let i = 0; i < finIndex; i++) {
     const line = lines[i]
     const match = line.match(timeRegex)
 
@@ -521,7 +801,7 @@ export function parseActivitiesFromMarkdown(dayContent: string): ActivityPayload
       else if (line.trim() === '---') {
         finishCurrentActivity()
       }
-      else if (line.startsWith('### ')) {
+      else if (line.startsWith('### ') && !line.includes('Важная подготовка')) {
         finishCurrentActivity()
       }
       else {
@@ -535,7 +815,7 @@ export function parseActivitiesFromMarkdown(dayContent: string): ActivityPayload
   // Fallback: If no time-based activities found, check for ### Part sections
   if (activities.length === 0) {
     let partIndex = 0
-    for (let i = 0; i < lines.length; i++) {
+    for (let i = 0; i < finIndex; i++) {
       const line = lines[i]
       if (line.startsWith('### ') && !line.includes('Важная подготовка')) {
         const title = line.replace(/^###\s*/, '').replace(/^[^\wА-Яа-яёЁ]+/, '').trim()
@@ -547,7 +827,7 @@ export function parseActivitiesFromMarkdown(dayContent: string): ActivityPayload
 
         const subLines: string[] = []
         let j = i + 1
-        while (j < lines.length && !lines[j].startsWith('### ') && !lines[j].startsWith('## ')) {
+        while (j < finIndex && !lines[j].startsWith('### ') && !lines[j].startsWith('## ')) {
           subLines.push(lines[j])
           j++
         }
@@ -560,12 +840,12 @@ export function parseActivitiesFromMarkdown(dayContent: string): ActivityPayload
           tag: inferActivityTag(title, sectionText),
           sections: sectionText
             ? [
-              {
-                id: crypto.randomUUID(),
-                type: 'description',
-                text: sectionText,
-              },
-            ]
+                {
+                  id: crypto.randomUUID(),
+                  type: 'description',
+                  text: sectionText,
+                },
+              ]
             : [],
         })
       }
@@ -734,16 +1014,14 @@ export async function enrichActivityWithMediaAndLocation(
     : []
 
   let accumulatedDescription = ''
-  let foundPlaceName = ''
-  let foundPlaceQuery = ''
-  const foundImageNames: string[] = []
+  const customOtherSections: ActivitySection[] = []
 
   for (const sec of inputSections) {
     if (sec.type === 'description' && sec.text) {
       accumulatedDescription += `${sec.text}\n`
     }
     else {
-      newSections.push(sec)
+      customOtherSections.push(sec)
     }
   }
 
@@ -780,15 +1058,22 @@ export async function enrichActivityWithMediaAndLocation(
     }
   }
 
-  // Clean location lines and iframes from description
-  text = text
-    .replace(/^[*-]?\s*_[Сс]сылка на локацию_:[^\n]*\n?/gm, '')
-    .replace(/<iframe[^>]*src=["'](?:https?:)?\/\/maps\.google\.com\/[^"']*["'][^>]*>\s*<\/iframe>/gi, '')
-    .replace(/\[(?:Google Maps:\s*)?[^\]]+\]\((?:https?:)?\/\/maps\.google\.com\/[^\)]+\)/gi, '')
+  // Also standalone Google Maps links in text like [Google Maps: Name](url) or [Name](url)
+  const standaloneMapsLinkRegex = /\[(?:Google Maps:?\s*)?([^\]]+)\]\((?:https?:)?\/\/maps\.google\.com\/(?:\?q=|maps\?q=)?([^&\)]+)[^\)]*\)/gi
+  for (const match of text.matchAll(standaloneMapsLinkRegex)) {
+    const linkName = match[1]?.trim()
+    const linkQuery = match[2] ? decodeURIComponent(match[2].replace(/\+/g, ' ')).trim() : ''
+    const name = (linkName && !/^Google Maps$/i.test(linkName)) ? linkName : linkQuery
+    const query = linkQuery || name
+    if (query && !extractedLocations.some(l => l.query === query || l.name === name)) {
+      extractedLocations.push({ name: name || query, query })
+    }
+  }
 
   // 2. Extract image callouts & wikilinks
-  const calloutRegex = />\s*\[!INFO\]-?\s*(?:Картинки|Изображения|Фото|Photos|Images)[\s\S]*?(?=(?:\n\s*\n\s*[^\s>]|\n\s*##|\n\s*###|\n\s*---|\n\s*\*\s*\*\*|$))/gi
-  const callouts = text.match(calloutRegex) || []
+  const foundImageNames: string[] = []
+  const imageCalloutRegex = />\s*\[!INFO\]-?\s*(?:Картинки|Изображения|Фото|Photos|Images)[\s\S]*?(?=(?:\n\s*\n\s*[^\s>]|\n\s*##|\n\s*###|\n\s*---|\n\s*\*\s*\*\*|$))/gi
+  const callouts = text.match(imageCalloutRegex) || []
 
   for (const callout of callouts) {
     const wikilinkRegex = /!\[\[([^\]]+)\]\]/g
@@ -803,23 +1088,62 @@ export async function enrichActivityWithMediaAndLocation(
 
   // Also check non-callout wikilinks in text
   const nonCalloutWikilinkRegex = /!\[\[([^\]]+)\]\]/g
-  let m: RegExpExecArray | null
-  while ((m = nonCalloutWikilinkRegex.exec(text)) !== null) {
-    const fileName = basename(m[1].trim())
+  let mWikilink: RegExpExecArray | null
+  while ((mWikilink = nonCalloutWikilinkRegex.exec(text)) !== null) {
+    const fileName = basename(mWikilink[1].trim())
     if (/\.(png|jpg|jpeg|webp|gif|heic|heif|svg)$/i.test(fileName) && !foundImageNames.includes(fileName)) {
       foundImageNames.push(fileName)
     }
   }
 
-  // Clean image blocks from description
+  // Also check standard markdown images ![alt](path)
+  const mdImageRegex = /!\[[^\]]*\]\(([^)]+\.(?:png|jpg|jpeg|webp|gif|heic|heif|svg))\)/gi
+  let mMdImage: RegExpExecArray | null
+  while ((mMdImage = mdImageRegex.exec(text)) !== null) {
+    const fileName = basename(mMdImage[1].trim())
+    if (!foundImageNames.includes(fileName)) {
+      foundImageNames.push(fileName)
+    }
+  }
+
+  // 3. Extract note/tip callouts inside activity as separate Note sections
+  const noteSections: ActivitySectionDescription[] = []
+  const noteCalloutRegex = />\s*\[!(TIP|NOTE|IMPORTANT|WARNING|CAUTION|INFO)\]-?\s*([^\n]*)\n((?:[ \t]*>[^\n]*\n?)*)/gi
+  for (const match of text.matchAll(noteCalloutRegex)) {
+    const type = match[1].toUpperCase()
+    const title = match[2].trim()
+    if (/^(?:Картинки|Изображения|Фото|Photos|Images)$/i.test(title))
+      continue
+
+    const rawBody = match[3] || ''
+    const cleanBodyLines = rawBody
+      .split('\n')
+      .map(l => l.replace(/^[ \t]*>[ \t]?/, ''))
+      .join('\n')
+      .trim()
+
+    const fullCalloutText = `> [!${type}] ${title}\n${cleanBodyLines ? cleanBodyLines.split('\n').map(l => `> ${l}`).join('\n') : ''}`.trim()
+
+    noteSections.push({
+      id: crypto.randomUUID(),
+      type: 'description',
+      text: fullCalloutText,
+    })
+  }
+
+  // 4. Clean description: remove location lines, iframes, image callouts, wikilinks, and note callouts
   text = text
-    .replace(calloutRegex, '')
+    .replace(/^[*-]?\s*_[Сс]сылка на локацию_:[^\n]*\n?/gm, '')
+    .replace(/<iframe[^>]*src=["'](?:https?:)?\/\/maps\.google\.com\/[^"']*["'][^>]*>\s*<\/iframe>/gi, '')
+    .replace(/\[(?:Google Maps:\s*)?[^\]]+\]\((?:https?:)?\/\/maps\.google\.com\/[^\)]+\)/gi, '')
+    .replace(imageCalloutRegex, '')
     .replace(/!\[\[[^\]]+\]\]/g, '')
     .replace(/!\[[^\]]*\]\([^)]+\)/g, '')
+    .replace(noteCalloutRegex, '')
     .replace(/\n{3,}/g, '\n\n')
     .trim()
 
-  // Add cleaned description section if text remains
+  // Add primary cleaned description section if text remains
   if (text) {
     newSections.push({
       id: crypto.randomUUID(),
@@ -828,46 +1152,17 @@ export async function enrichActivityWithMediaAndLocation(
     })
   }
 
-  // 3. Process Images -> Gallery Section
-  if (foundImageNames.length > 0) {
-    const uploadedImageUrls: string[] = []
-
-    for (const imgName of foundImageNames) {
-      const localPath = imageIndex.get(imgName) || imageIndex.get(imgName.toLowerCase())
-      if (localPath && existsSync(localPath)) {
-        if (shouldUpload && api && tripId) {
-          try {
-            if (uploadCache.has(localPath)) {
-              uploadedImageUrls.push(uploadCache.get(localPath)!)
-            }
-            else {
-              const uploadedUrl = await api.uploadImage(tripId, localPath, 'route')
-              if (uploadedUrl) {
-                uploadCache.set(localPath, uploadedUrl)
-                uploadedImageUrls.push(uploadedUrl)
-              }
-            }
-          }
-          catch (uploadErr: any) {
-            console.warn(`      ${colors.yellow}⚠ Ошибка загрузки фото ${imgName}: ${uploadErr.message}${colors.reset}`)
-          }
-        }
-        else {
-          uploadedImageUrls.push(imgName)
-        }
-      }
-    }
-
-    if (uploadedImageUrls.length > 0) {
-      newSections.push({
-        id: crypto.randomUUID(),
-        type: 'gallery',
-        imageUrls: uploadedImageUrls,
-      })
-    }
+  // Add note/tip sections (Заметка)
+  for (const noteSec of noteSections) {
+    newSections.push(noteSec)
   }
 
-  // 4. Process Locations -> Geolocation Section
+  // Add custom other sections preserved
+  for (const sec of customOtherSections) {
+    newSections.push(sec)
+  }
+
+  // 5. Process Locations -> Geolocation Section ("Локация")
   if (extractedLocations.length > 0) {
     const mapPoints: GeolocationPoint[] = []
 
@@ -903,6 +1198,45 @@ export async function enrichActivityWithMediaAndLocation(
         drawnRoutes: [],
         center: mapPoints[0].coordinates,
         zoom: mapPoints.length > 1 ? 13 : 14,
+      })
+    }
+  }
+
+  // 6. Process Images -> Gallery Section ("Галерея")
+  if (foundImageNames.length > 0) {
+    const uploadedImageUrls: string[] = []
+
+    for (const imgName of foundImageNames) {
+      const localPath = imageIndex.get(imgName) || imageIndex.get(imgName.toLowerCase())
+      if (localPath && existsSync(localPath)) {
+        if (shouldUpload && api && tripId) {
+          try {
+            if (uploadCache.has(localPath)) {
+              uploadedImageUrls.push(uploadCache.get(localPath)!)
+            }
+            else {
+              const uploadedUrl = await api.uploadImage(tripId, localPath, 'route')
+              if (uploadedUrl) {
+                uploadCache.set(localPath, uploadedUrl)
+                uploadedImageUrls.push(uploadedUrl)
+              }
+            }
+          }
+          catch (uploadErr: any) {
+            console.warn(`      ${colors.yellow}⚠ Ошибка загрузки фото ${imgName}: ${uploadErr.message}${colors.reset}`)
+          }
+        }
+        else {
+          uploadedImageUrls.push(imgName)
+        }
+      }
+    }
+
+    if (uploadedImageUrls.length > 0) {
+      newSections.push({
+        id: crypto.randomUUID(),
+        type: 'gallery',
+        imageUrls: uploadedImageUrls,
       })
     }
   }
@@ -1712,6 +2046,8 @@ export function parseObsidianTripFolder(tripPath: string, startDateStr?: string)
       dayDate.setDate(dayDate.getDate() + (dayNumber - 1))
       const dateStr = dayDate.toISOString().split('T')[0]
 
+      const dayMeta = parseDayMetaFromMarkdown(content)
+
       parsedDays.push({
         dayNumber,
         fileName,
@@ -1720,6 +2056,7 @@ export function parseObsidianTripFolder(tripPath: string, startDateStr?: string)
         description: dayDescription,
         rawContent: content,
         date: dateStr,
+        meta: dayMeta,
       })
     }
   }
@@ -2013,6 +2350,7 @@ class ApiClient {
     title?: string
     description?: string | null
     note?: string | null
+    meta?: any[]
     date?: string
   }): Promise<any> {
     return await this.request<any>(`/days/${id}`, {
@@ -2134,63 +2472,56 @@ async function runImport() {
     const discovered = discoverObsidianTravelFolders()
     if (discovered.length > 0) {
       const choices = [
-        ...discovered.map(p => ({
-          title: `${basename(p).replace(/^--\s*/, '')} (${p})`,
-          value: p,
+        ...discovered.map(d => ({
+          title: `📁 ${d.title} (${d.daysCount} дн., ${d.notesCount} зам.) [${d.folderName}]`,
+          value: d.fullPath,
         })),
-        { title: '✍️  Ввести свой путь вручную...', value: '__manual__' },
+        { title: '✍️  Ввести путь вручную...', value: '__manual__' },
       ]
 
       const response = await prompts({
         type: 'select',
-        name: 'dir',
-        message: 'Выберите папку путешествия для импорта:',
+        name: 'directory',
+        message: 'Выберите путешествие из Obsidian для импорта:',
         choices,
       })
 
-      if (response.dir === '__manual__') {
-        const manualResponse = await prompts({
-          type: 'text',
-          name: 'dir',
-          message: 'Введите абсолютный путь к папке в Obsidian:',
-          validate: value => existsSync(resolve(value)) || 'Папка не существует',
-        })
-        targetDir = manualResponse.dir
-      }
-      else {
-        targetDir = response.dir
+      if (response.directory && response.directory !== '__manual__') {
+        targetDir = response.directory
       }
     }
-    else {
-      const manualResponse = await prompts({
+
+    if (!targetDir) {
+      const response = await prompts({
         type: 'text',
-        name: 'dir',
-        message: 'Введите абсолютный путь к папке в Obsidian:',
-        validate: value => existsSync(resolve(value)) || 'Папка не существует',
+        name: 'directory',
+        message: 'Укажите абсолютный путь к папке путешествия в Obsidian:',
+        initial: '/home/injurka/Documents/obsidian-mark/Personal Note/Travel/-- Taiwan',
+        validate: val => existsSync(val) ? true : 'Папка не существует!',
       })
-      targetDir = manualResponse.dir
+      targetDir = response.directory
     }
   }
 
-  if (!targetDir || !existsSync(resolve(targetDir))) {
-    console.error(`${colors.red}❌ Указанная папка не найдена: ${targetDir}${colors.reset}`)
+  if (!targetDir || !existsSync(targetDir)) {
+    console.error(`${colors.red}❌ Папка не найдена: ${targetDir}${colors.reset}`)
     process.exit(1)
   }
 
-  console.log(`${colors.dim}📂 Анализ структуры Obsidian: ${targetDir}...${colors.reset}`)
+  // Step 2: Parse Obsidian files
+  console.log(`\n${colors.dim}📖 Чтение и парсинг структуры Obsidian...${colors.reset}`)
   const tripData = parseObsidianTripFolder(targetDir, cliOptions.startDate)
 
-  console.log(`\n${colors.bright}📋 Сводка обнаруженного путешествия:${colors.reset}`)
-  console.log(`  ${colors.green}•${colors.reset} Название:         ${colors.bright}${tripData.title}${colors.reset}`)
-  console.log(`  ${colors.green}•${colors.reset} Города:           ${tripData.cities.join(', ') || '(не определены)'}`)
-  console.log(`  ${colors.green}•${colors.reset} Теги:             ${tripData.tags.join(', ')}`)
-  console.log(`  ${colors.green}•${colors.reset} Период:           ${tripData.startDate} ➔ ${tripData.endDate} (${tripData.days.length} дн.)`)
-  console.log(`  ${colors.green}•${colors.reset} Дней найдено:     ${colors.yellow}${tripData.days.length}${colors.reset}`)
-  console.log(`  ${colors.green}•${colors.reset} Чек-листы:        ${colors.yellow}${tripData.checklistContent.items?.length || 0} задач в ${tripData.checklistContent.groups?.length || 0} группах (${tripData.checklistContent.tabs?.length || 0} вкладок)${colors.reset}`)
-  console.log(`  ${colors.green}•${colors.reset} Секций заметок:   ${colors.yellow}${tripData.sectionFolders.length}${colors.reset} (${tripData.sectionFolders.map(s => `${s.folderName} [${s.files.length} ф.]`).join(', ')})`)
-  console.log(`  ${colors.green}•${colors.reset} Корневых заметок: ${colors.yellow}${tripData.rootNotes.length}${colors.reset}`)
+  console.log(`\n${colors.green}✔ Найдено в структуре Obsidian:${colors.reset}`)
+  console.log(`  • Название:        ${colors.bright}${tripData.title}${colors.reset}`)
+  console.log(`  • Города:          ${colors.cyan}${tripData.cities.join(', ') || 'Тайвань'}${colors.reset}`)
+  console.log(`  • Даты:            ${colors.yellow}${tripData.startDate} ➔ ${tripData.endDate}${colors.reset} (${tripData.days.length} дн.)`)
+  console.log(`  • Дней маршрута:   ${colors.bright}${tripData.days.length}${colors.reset}`)
+  console.log(`  • Корневых файлов: ${colors.bright}${tripData.rootNotes.length}${colors.reset}`)
+  console.log(`  • Папок с файлами: ${colors.bright}${tripData.sectionFolders.length}${colors.reset} (${tripData.sectionFolders.reduce((acc, f) => acc + f.files.length, 0)} файлов)`)
+  console.log(`  • Задач чек-листа: ${colors.bright}${tripData.checklistContent.items?.length || 0}${colors.reset} (в ${tripData.checklistFilesCount} файлах)`)
 
-  // Step 2: Interactive Prompt to Select Modules to Import
+  // Step 3: Module selection
   let importTripMeta = cliOptions.importTripMeta ?? true
   let importDays = cliOptions.importDays ?? true
   let importActivities = cliOptions.importActivities ?? true
@@ -2203,13 +2534,13 @@ async function runImport() {
     const modulesResponse = await prompts({
       type: 'multiselect',
       name: 'modules',
-      message: 'Выберите, что вы хотите импортировать в Trip Scheduler:',
+      message: 'Выберите, какие элементы необходимо импортировать в Trip Scheduler:',
       choices: [
-        { title: '🚀 Путешествие (Название, описание, даты, города, теги)', value: 'tripMeta', selected: true },
-        { title: `📅 Дни маршрута (${tripData.days.length} дн. из «02 - Маршрутный план»)`, value: 'days', selected: true },
-        { title: '🧩 Блоки активностей (расписание по часам, теги, секции)', value: 'activities', selected: true },
-        { title: `✅ Интерактивные Чек-листы (${tripData.checklistContent.items?.length || 0} задач: Сборы, Must-Try, Must-Buy)`, value: 'checklists', selected: true },
-        { title: `📚 База знаний и заметки (01 - Заметки, 05 - Полезная информация, концепция)`, value: 'notes', selected: true },
+        { title: '🏷️  Метаданные путешествия (Название, описание, даты, города, теги)', value: 'tripMeta', selected: true },
+        { title: '📅 Дни маршрута (Создание расписания по дням + Канвас заметка)', value: 'days', selected: true },
+        { title: '🧩 Активности и таймлайн (Блоки расписания, галереи фото, локации)', value: 'activities', selected: true },
+        { title: '📋 Чек-листы и списки сборов (Интерактивные чек-боксы и категории)', value: 'checklists', selected: true },
+        { title: '📚 Заметки и статьи (Иерархическая база знаний)', value: 'notes', selected: true },
         { title: '📑 Дополнительные вкладки (Бронирования, Финансы, Документы, Воспоминания)', value: 'sections', selected: true },
       ],
       hint: '- Пробел для выбора, Enter для подтверждения',
@@ -2235,8 +2566,8 @@ async function runImport() {
         name: 'generationMode',
         message: 'Способ генерации активностей для дней маршрута:',
         choices: [
+          { title: '⚡ Быстрый локальный парсер (по таймлайну и секциям Markdown) [Рекомендуется]', value: 'parser' },
           { title: '🤖 Умный LLM (AI расписание по часам, теги и секции) [OpenAI / HubMix / Сервер]', value: 'llm' },
-          { title: '⚡ Быстрый локальный парсер (по таймлайну и секциям Markdown)', value: 'parser' },
         ],
       })
       useLlm = modeResponse.generationMode === 'llm'
@@ -2244,14 +2575,28 @@ async function runImport() {
   }
 
   if (cliOptions.dryRun) {
+    const totalBadges = tripData.days.reduce((acc, d) => acc + (d.meta?.length || 0), 0)
     console.log(`\n${colors.yellow}🔍 [DRY-RUN] Режим предпросмотра включен. Запросы к API отправляться не будут.${colors.reset}`)
     console.log(`\n${colors.bright}Выбранные модули:${colors.reset}`)
     console.log(`  • Путешествие:    ${importTripMeta ? colors.green + 'Да' : colors.red + 'Нет'}${colors.reset}`)
-    console.log(`  • Дни маршрута:   ${importDays ? colors.green + 'Да' : colors.red + 'Нет'}${colors.reset}`)
-    console.log(`  • Активности:     ${importActivities ? colors.green + `Да (${useLlm ? 'LLM' : 'Парсер'})` : colors.red + 'Нет'}${colors.reset}`)
+    console.log(`  • Дни маршрута:   ${importDays ? colors.green + `Да (${tripData.days.length} дн., ${totalBadges} инфо-блоков day.meta)` : colors.red + 'Нет'}${colors.reset}`)
+    console.log(`  • Активности:     ${importActivities ? colors.green + `Да (${useLlm ? 'LLM' : 'Локальный парсер'})` : colors.red + 'Нет'}${colors.reset}`)
     console.log(`  • Чек-листы:      ${importChecklists ? colors.green + `Да (${tripData.checklistContent.items?.length} задач)` : colors.red + 'Нет'}${colors.reset}`)
     console.log(`  • Заметки:        ${importNotes ? colors.green + `Да (${tripData.sectionFolders.length} папок)` : colors.red + 'Нет'}${colors.reset}`)
     console.log(`  • Разделы:        ${importSections ? colors.green + 'Да' : colors.red + 'Нет'}${colors.reset}`)
+
+    if (importDays) {
+      console.log(`\n${colors.bright}📅 Дни маршрута и распарсенные инфо-блоки (day.meta):${colors.reset}`)
+      tripData.days.slice(0, 5).forEach((d) => {
+        console.log(`  ${colors.cyan}[День ${d.dayNumber}: ${d.title}]${colors.reset} (${d.meta.length} инфо-блоков)`)
+        d.meta.forEach((m) => {
+          console.log(`    - 🏷️ ${m.title}${m.subtitle ? ` -> ${colors.yellow}${m.subtitle}${colors.reset}` : ''}`)
+        })
+      })
+      if (tripData.days.length > 5) {
+        console.log(`    ... и еще ${tripData.days.length - 5} дней`)
+      }
+    }
 
     if (importChecklists) {
       console.log(`\n${colors.bright}📋 Чек-листы, которые будут загружены:${colors.reset}`)
@@ -2402,6 +2747,7 @@ async function runImport() {
           title: day.title,
           description: day.description,
           note: day.rawContent,
+          meta: day.meta,
           date: day.date,
         })
       }
@@ -2416,11 +2762,13 @@ async function runImport() {
 
         await api.updateDay(dayId, {
           note: day.rawContent,
+          meta: day.meta,
         })
       }
 
       dayIdMap.set(day.dayNumber, dayId)
-      process.stdout.write(`${colors.cyan}  ✓ День ${day.dayNumber}: ${day.title} (${day.date})${colors.reset}\n`)
+      const badgeInfo = day.meta && day.meta.length > 0 ? ` ${colors.magenta}[${day.meta.length} инфо-блоков]${colors.reset}` : ''
+      process.stdout.write(`${colors.cyan}  ✓ День ${day.dayNumber}: ${day.title} (${day.date})${badgeInfo}${colors.reset}\n`)
     }
   }
 
@@ -2521,9 +2869,13 @@ async function runImport() {
             sections: act.sections || [],
           })
 
+          const descSections = act.sections?.filter(s => s.type === 'description') || []
           const gallerySection = act.sections?.find(s => s.type === 'gallery') as ActivitySectionGallery | undefined
           const geoSection = act.sections?.find(s => s.type === 'geolocation') as ActivitySectionGeolocation | undefined
 
+          const noteBadge = descSections.length > 1
+            ? ` ${colors.yellow}[📝 +${descSections.length - 1} ${descSections.length - 1 === 1 ? 'заметка' : 'заметки'}]${colors.reset}`
+            : ''
           const galleryBadge = gallerySection?.imageUrls?.length
             ? ` ${colors.magenta}[📸 ${gallerySection.imageUrls.length} фото]${colors.reset}`
             : ''
@@ -2531,7 +2883,7 @@ async function runImport() {
             ? ` ${colors.blue}[📍 ${geoSection.points[0].address || 'карта'}]${colors.reset}`
             : ''
 
-          console.log(`    ${colors.green}+${colors.reset} [${act.startTime}–${act.endTime}] [${act.tag}] ${act.title}${galleryBadge}${geoBadge}`)
+          console.log(`    ${colors.green}+${colors.reset} [${act.startTime}–${act.endTime}] [${act.tag}] ${act.title}${noteBadge}${geoBadge}${galleryBadge}`)
         }
         catch (actErr: any) {
           console.warn(`    ${colors.red}⚠ Ошибка при создании активности "${act.title}": ${actErr.message}${colors.reset}`)
