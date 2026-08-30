@@ -37,8 +37,24 @@ const groupProgress = computed(() => {
   return { completed, total, percentage: Math.round((completed / total) * 100) }
 })
 
+const displayGroupName = computed(() => {
+  if (!props.group.name)
+    return ''
+  const cleaned = props.group.name
+    .replace(/^[\p{Extended_Pictographic}\p{Symbol}\s\uFE00-\uFE0F\u200D\d.)\-]+/gu, '')
+    .trim()
+  return cleaned || props.group.name
+})
+
 function handleUpdateGroup(key: keyof ChecklistGroup, value: any) {
   emit('update:group', { ...props.group, [key]: value })
+}
+
+function handleUpdateGroupName(name: string) {
+  const cleaned = name
+    .replace(/^[\p{Extended_Pictographic}\p{Symbol}\s\uFE00-\uFE0F\u200D\d.)\-]+/gu, '')
+    .trim()
+  handleUpdateGroup('name', cleaned || name)
 }
 
 function handleUpdateItem(updatedItem: ChecklistItem) {
@@ -84,15 +100,15 @@ function onAddItem() {
           v-if="readonly"
           class="group-name"
         >
-          {{ group.name }}
+          {{ displayGroupName }}
         </span>
         <KitEditable
           v-else
-          :model-value="group.name"
+          :model-value="displayGroupName"
           :readonly="readonly"
           class="group-name"
           @click.stop
-          @update:model-value="handleUpdateGroup('name', $event)"
+          @update:model-value="handleUpdateGroupName"
         />
       </div>
       <div class="header-actions">

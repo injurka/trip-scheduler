@@ -28,8 +28,41 @@ const gliderStyle = ref({
   transition: 'none',
 })
 
+let isPointerDown = false
+let startPointerX = 0
+let startScrollLeft = 0
+let isDragging = false
+
+function handlePointerDown(e: PointerEvent) {
+  const switcherEl = switcherRef.value
+  if (!switcherEl || props.disabled)
+    return
+  isPointerDown = true
+  isDragging = false
+  startPointerX = e.pageX
+  startScrollLeft = switcherEl.scrollLeft
+}
+
+function handlePointerMove(e: PointerEvent) {
+  if (!isPointerDown)
+    return
+  const switcherEl = switcherRef.value
+  if (!switcherEl)
+    return
+
+  const deltaX = e.pageX - startPointerX
+  if (Math.abs(deltaX) > 5) {
+    isDragging = true
+    switcherEl.scrollLeft = startScrollLeft - deltaX
+  }
+}
+
+function handlePointerUp() {
+  isPointerDown = false
+}
+
 function handleItemClick(itemId: T) {
-  if (props.disabled)
+  if (props.disabled || isDragging)
     return
 
   model.value = itemId
@@ -47,12 +80,8 @@ function updateGliderPosition() {
     return
   }
 
-  const switcherRect = switcherEl.getBoundingClientRect()
-  const buttonRect = activeButton.getBoundingClientRect()
-
-  const offsetLeft = buttonRect.left - switcherRect.left - switcherEl.clientLeft - 4
-
-  const width = buttonRect.width
+  const offsetLeft = activeButton.offsetLeft
+  const width = activeButton.offsetWidth
 
   gliderStyle.value = {
     ...gliderStyle.value,
@@ -62,9 +91,31 @@ function updateGliderPosition() {
   }
 }
 
+function scrollActiveButtonIntoView(button: HTMLElement) {
+  const switcherEl = switcherRef.value
+  if (!switcherEl)
+    return
+
+  const buttonLeft = button.offsetLeft
+  const buttonRight = buttonLeft + button.offsetWidth
+  const scrollLeft = switcherEl.scrollLeft
+  const clientWidth = switcherEl.clientWidth
+
+  if (buttonLeft < scrollLeft) {
+    switcherEl.scrollTo({ left: Math.max(0, buttonLeft - 12), behavior: 'smooth' })
+  }
+  else if (buttonRight > scrollLeft + clientWidth) {
+    switcherEl.scrollTo({ left: buttonRight - clientWidth + 12, behavior: 'smooth' })
+  }
+}
+
 watch(model, () => {
   gliderStyle.value.transition = 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)'
   updateGliderPosition()
+  const activeButton = buttonRefs.value[model.value]
+  if (activeButton) {
+    scrollActiveButtonIntoView(activeButton)
+  }
 }, { flush: 'post' })
 
 useResizeObserver(switcherRef, () => {
@@ -80,6 +131,10 @@ onMounted(() => {
       if (gliderStyle.value) {
         gliderStyle.value.transition = 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)'
       }
+      const activeButton = buttonRefs.value[model.value]
+      if (activeButton) {
+        scrollActiveButtonIntoView(activeButton)
+      }
     }, 50)
   })
 })
@@ -93,6 +148,10 @@ onMounted(() => {
       'is-disabled': disabled,
       'is-full-width': fullWidth,
     }"
+    @pointerdown="handlePointerDown"
+    @pointermove="handlePointerMove"
+    @pointerup="handlePointerUp"
+    @pointercancel="handlePointerUp"
   >
     <div class="kit-view-switcher-glider" :style="gliderStyle" />
 
@@ -129,6 +188,17 @@ onMounted(() => {
   user-select: none;
   transition: opacity 0.2s ease-out;
   height: 46px;
+  max-width: 100%;
+  overflow-x: auto;
+  overflow-y: hidden;
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+  -webkit-overflow-scrolling: touch;
+  touch-action: pan-x;
+
+  &::-webkit-scrollbar {
+    display: none;
+  }
 
   &.is-disabled {
     opacity: 0.6;
@@ -144,19 +214,20 @@ onMounted(() => {
 .kit-view-switcher-glider {
   position: absolute;
   top: 4px;
-  bottom: 4px;
+  left: 0;
   height: calc(100% - 8px);
   background-color: var(--bg-primary-color);
   border-radius: var(--r-xs);
   box-shadow: var(--s-s);
   z-index: 1;
   opacity: 0;
+  pointer-events: none;
 }
 
 .kit-view-switcher-button {
   position: relative;
   z-index: 2;
-  display: flex;
+  display: inline-flex;
   align-items: center;
   gap: 8px;
   padding: 8px 16px;
@@ -167,12 +238,17 @@ onMounted(() => {
   border: none;
   border-radius: var(--r-xs);
   cursor: pointer;
-  transition: all 0.3s ease;
+  transition:
+    color 0.2s ease,
+    font-weight 0.2s ease;
   white-space: nowrap;
   min-height: 36px;
+  flex-shrink: 0;
 
+  // full-width: buttons share space evenly, but still no text wrap
   .is-full-width & {
-    flex: 1;
+    flex: 1 0 0;
+    min-width: 0;
     justify-content: center;
   }
 
@@ -187,11 +263,6 @@ onMounted(() => {
 
   &:not(.is-active):hover:not(:disabled) {
     color: var(--fg-primary-color);
-    transform: translateY(-1px);
-  }
-
-  &:active:not(:disabled) {
-    transform: translateY(0);
   }
 }
 
@@ -202,26 +273,40 @@ onMounted(() => {
 
 .kit-view-switcher-label {
   transition: color 0.3s ease;
+  white-space: nowrap;
 }
 
+// ── Mobile: icon-only mode ─────────────────────────────────────
 @include media-down(sm) {
-  .kit-view-switcher {
-    &:not(.is-full-width) {
-      display: flex;
-      width: 100%;
+  // full-width switcher: when content overflows → enable scroll,
+  // buttons become icon-only so they stay compact
+  .kit-view-switcher.is-full-width {
+    overflow-x: auto;
+    overflow-y: hidden;
+    justify-content: flex-start;
+
+    .kit-view-switcher-button {
+      flex: 0 0 auto; // don't stretch – let it scroll
+      padding: 8px 10px;
+
+      .kit-view-switcher-label {
+        display: none; // icons only on mobile
+      }
     }
   }
 
-  .kit-view-switcher-button {
-    &:not(.is-full-width .kit-view-switcher-button) {
-      flex: 1;
-      justify-content: center;
-    }
+  // non-full-width switchers stay scrollable too
+  .kit-view-switcher:not(.is-full-width) {
+    width: 100%;
+    justify-content: flex-start;
 
-    padding: 8px 12px;
+    .kit-view-switcher-button {
+      padding: 8px 12px;
+      font-size: 0.85rem;
 
-    .kit-view-switcher-label {
-      display: none;
+      .kit-view-switcher-label {
+        display: none;
+      }
     }
   }
 }

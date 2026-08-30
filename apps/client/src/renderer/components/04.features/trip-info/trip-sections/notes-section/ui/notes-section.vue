@@ -340,6 +340,8 @@ onBeforeUnmount(() => flushPendingSave())
   flex-direction: column;
   padding: 10px;
   z-index: 6;
+  max-width: 100%;
+  overflow: hidden;
 }
 
 .loading-state {
@@ -368,6 +370,7 @@ onBeforeUnmount(() => flushPendingSave())
   width: 100%;
   overflow: hidden;
   position: relative;
+  min-width: 0;
 
   border: 1px solid var(--border-secondary-color);
   border-radius: var(--r-m);
@@ -404,7 +407,7 @@ onBeforeUnmount(() => flushPendingSave())
   display: flex;
   flex-direction: column;
   overflow: hidden;
-  z-index: 50;
+  z-index: 9;
 
   @include media-down(sm) {
     position: absolute;
@@ -540,6 +543,7 @@ onBeforeUnmount(() => flushPendingSave())
 .editor-title-wrapper {
   display: flex;
   flex-direction: column;
+  flex: 1;
   min-width: 0;
 }
 
@@ -549,7 +553,6 @@ onBeforeUnmount(() => flushPendingSave())
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
-  max-width: 300px;
   line-height: 1.2;
 
   &.is-empty {

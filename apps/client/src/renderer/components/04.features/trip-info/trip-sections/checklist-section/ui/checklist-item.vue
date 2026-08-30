@@ -128,9 +128,9 @@ function handleUpdateSubtaskText(subtaskId: string, text: string) {
 }
 
 /**
- * Простой и безопасный рендерер inline markdown (жирный, курсив, код).
+ * Рендерер inline markdown (жирный, курсив, код, ссылки, переносы строк).
  */
-function renderInlineMarkdown(text: string): string {
+function renderMarkdown(text?: string | null): string {
   if (!text)
     return ''
 
@@ -143,6 +143,8 @@ function renderInlineMarkdown(text: string): string {
     .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
     .replace(/\*(.*?)\*/g, '<em>$1</em>')
     .replace(/`([^`]+)`/g, '<code>$1</code>')
+    .replace(/\[(.*?)\]\((https?:\/\/[^\s)]+)\)/g, '<a href="$2" target="_blank" rel="noopener noreferrer">$1</a>')
+    .replace(/\n/g, '<br>')
 }
 </script>
 
@@ -177,7 +179,7 @@ function renderInlineMarkdown(text: string): string {
             @update:model-value="updateField('text', $event)"
           />
           <!-- eslint-disable-next-line vue/no-v-html -->
-          <div v-else class="item-text-view" v-html="renderInlineMarkdown(item.text)" />
+          <div v-else class="item-text-view" v-html="renderMarkdown(item.text)" />
 
           <!-- Мета-бейджи (Цена, Локация, Подзадачи) -->
           <div class="meta-badges">
@@ -354,9 +356,8 @@ function renderInlineMarkdown(text: string): string {
             class="details-input"
             @update:model-value="handleDescriptionUpdate"
           />
-          <div v-else class="detail-text">
-            {{ item.description }}
-          </div>
+          <!-- eslint-disable-next-line vue/no-v-html -->
+          <div v-else class="detail-text" v-html="renderMarkdown(item.description)" />
         </div>
       </div>
 
@@ -376,7 +377,7 @@ function renderInlineMarkdown(text: string): string {
             @update:model-value="handleUpdateSubtaskText(sub.id, $event)"
           />
           <!-- eslint-disable-next-line vue/no-v-html -->
-          <div v-else class="subtask-text-view" v-html="renderInlineMarkdown(sub.text)" />
+          <div v-else class="subtask-text-view" v-html="renderMarkdown(sub.text)" />
           <button v-if="!readonly" class="delete-subtask-btn" @click="handleDeleteSubtask(sub.id)">
             <Icon icon="mdi:close" />
           </button>
@@ -650,10 +651,36 @@ function renderInlineMarkdown(text: string): string {
 .detail-text {
   width: 100%;
   font-size: 0.82rem;
-  line-height: 1.45;
+  line-height: 1.5;
   color: var(--fg-secondary-color);
-  white-space: pre-wrap;
   word-break: break-word;
+
+  :deep(strong) {
+    color: var(--fg-primary-color);
+    font-weight: 600;
+  }
+
+  :deep(em) {
+    color: var(--fg-accent-color);
+    font-style: normal;
+    font-weight: 600;
+  }
+
+  :deep(code) {
+    font-family: var(--font-mono, monospace);
+    font-size: 0.85em;
+    color: var(--fg-accent-color);
+    background: var(--bg-tertiary-color);
+    padding: 1px 5px;
+    border-radius: var(--r-xs, 4px);
+    border: 1px solid var(--border-secondary-color);
+  }
+
+  :deep(a) {
+    color: var(--fg-accent-color);
+    text-decoration: underline;
+    text-underline-offset: 2px;
+  }
 }
 
 /* Subtasks */

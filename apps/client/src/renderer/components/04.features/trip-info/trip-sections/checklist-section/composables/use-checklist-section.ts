@@ -1,4 +1,3 @@
-import type { ParsedMarkdownResult } from '../lib/markdown-checklist-parser'
 import type {
   ChecklistGroup,
   ChecklistItem,
@@ -302,37 +301,6 @@ export function useChecklistSection(
     debouncedUpdate()
   }
 
-  // Импорт Markdown
-  function applyMarkdownImport(result: ParsedMarkdownResult, mode: 'current-tab' | 'auto-tabs') {
-    if (props.readonly)
-      return
-
-    if (mode === 'auto-tabs' && result.tabs.length > 0) {
-      result.tabs.forEach((tab) => {
-        if (!tabs.value.some(t => t.id === tab.id || t.name.toLowerCase() === tab.name.toLowerCase())) {
-          tabs.value.push(tab)
-        }
-      })
-    }
-
-    // Добавляем группы
-    result.groups.forEach((group) => {
-      groups.value.push(group)
-    })
-
-    // Добавляем задачи
-    result.items.forEach((item) => {
-      items.value.push(item)
-    })
-
-    if (result.tabs.length > 0 && mode === 'auto-tabs') {
-      activeTab.value = result.tabs[0].id
-    }
-
-    toast.success(`Импортировано: ${result.stats.itemsCount} задач в ${result.stats.groupsCount} групп`)
-    debouncedUpdate()
-  }
-
   // Фильтрация
   const filteredItems = computed(() => {
     let result = items.value.filter(item => item.type === activeTab.value)
@@ -427,6 +395,5 @@ export function useChecklistSection(
     updateTab,
     deleteTab,
     applyPreset,
-    applyMarkdownImport,
   }
 }

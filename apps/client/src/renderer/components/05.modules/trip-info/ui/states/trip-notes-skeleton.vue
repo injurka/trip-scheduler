@@ -85,6 +85,7 @@ import { KitSkeleton } from '~/components/01.kit/kit-skeleton'
   padding: 12px 12px;
   border-bottom: 1px solid var(--border-secondary-color);
   gap: 8px;
+  height: 50px;
 }
 
 .sidebar-actions {
@@ -119,7 +120,7 @@ import { KitSkeleton } from '~/components/01.kit/kit-skeleton'
   padding: 10px 16px;
   border-bottom: 1px solid var(--border-secondary-color);
   background-color: var(--bg-secondary-color);
-  height: 45px;
+  height: 50px;
 }
 
 .editor-body {

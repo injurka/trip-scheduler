@@ -42,3 +42,85 @@ img,
   user-select: none;
   -webkit-user-select: none;
 }
+
+// -----------------------------------------------------------------------------
+// Travel Note Rating & Score Badges (.tp-rate, .r-top, .r-high, etc.)
+// -----------------------------------------------------------------------------
+.tp-rate {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 1px 7px;
+  border-radius: 6px;
+  font-size: 0.8rem;
+  line-height: 1.4;
+  vertical-align: middle;
+  margin-right: 6px;
+  user-select: none;
+  font-family: inherit;
+
+  .tp-score {
+    font-weight: 700;
+    font-size: 0.85rem;
+    letter-spacing: -0.02em;
+  }
+
+  .tp-tag {
+    font-size: 0.62rem;
+    font-weight: 800;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    padding: 1px 4px;
+    border-radius: 3px;
+    line-height: 1.1;
+  }
+
+  // Top Rating (Gold / Amber)
+  &.r-top {
+    background: rgba(245, 158, 11, 0.15);
+    border: 1px solid rgba(245, 158, 11, 0.45);
+    color: #f59e0b;
+
+    .tp-tag {
+      background: #f59e0b;
+      color: #ffffff;
+    }
+  }
+
+  // High Rating (Emerald / Green)
+  &.r-high {
+    background: rgba(16, 185, 129, 0.15);
+    border: 1px solid rgba(16, 185, 129, 0.45);
+    color: #10b981;
+
+    .tp-tag {
+      background: #10b981;
+      color: #ffffff;
+    }
+  }
+
+  // Mid Rating (Sky / Blue)
+  &.r-mid {
+    background: rgba(59, 130, 246, 0.15);
+    border: 1px solid rgba(59, 130, 246, 0.45);
+    color: #3b82f6;
+
+    .tp-tag {
+      background: #3b82f6;
+      color: #ffffff;
+    }
+  }
+
+  // Low Rating / Warning (Rose / Red)
+  &.r-low {
+    background: rgba(244, 63, 94, 0.15);
+    border: 1px solid rgba(244, 63, 94, 0.45);
+    color: #f43f5e;
+
+    .tp-tag {
+      background: #f43f5e;
+      color: #ffffff;
+    }
+  }
+}
+

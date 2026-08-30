@@ -1,11 +1,9 @@
 <script setup lang="ts">
-import type { ParsedMarkdownResult } from '../lib/markdown-checklist-parser'
 import type { ChecklistItem, ChecklistSectionContent, ChecklistTabConfig } from '../models/types'
 import { Icon } from '@iconify/vue'
 import { ref, watch } from 'vue'
 import draggable from 'vuedraggable'
 import { KitBtn } from '~/components/01.kit/kit-btn'
-import { KitCheckbox } from '~/components/01.kit/kit-checkbox'
 import { KitDivider } from '~/components/01.kit/kit-divider'
 import { KitInput } from '~/components/01.kit/kit-input'
 import { KitTabs } from '~/components/01.kit/kit-tabs'
@@ -13,7 +11,6 @@ import { KitTooltip } from '~/components/01.kit/kit-tooltip'
 import { useChecklistSection } from '../composables'
 import ChecklistGroupComponent from './checklist-group.vue'
 import ChecklistItemComponent from './checklist-item.vue'
-import ChecklistMarkdownImportDialog from './checklist-markdown-import-dialog.vue'
 import ChecklistPresetsModal from './checklist-presets-modal.vue'
 import ChecklistTabEditDialog from './checklist-tab-edit-dialog.vue'
 
@@ -55,13 +52,11 @@ const {
   updateTab,
   deleteTab,
   applyPreset,
-  applyMarkdownImport,
 } = useChecklistSection(props, emit)
 
 const newUngroupedItemText = ref('')
 const newUngroupedItemInputRef = ref<HTMLInputElement | null>(null)
 const isPresetsModalOpen = ref(false)
-const isImportModalOpen = ref(false)
 const isTabEditDialogOpen = ref(false)
 const isNewTab = ref(false)
 const editingTab = ref<ChecklistTabConfig | null>(null)
@@ -109,10 +104,6 @@ function handleTabSave(tab: { id: string, name: string, icon: string }) {
   }
 }
 
-function handleMarkdownImport(result: ParsedMarkdownResult, mode: 'current-tab' | 'auto-tabs') {
-  applyMarkdownImport(result, mode)
-}
-
 watch(activeTab, () => {
   newUngroupedItemText.value = ''
 })
@@ -139,35 +130,32 @@ watch(activeTab, () => {
                     v-if="!readonly"
                     variant="subtle"
                     size="sm"
-                    icon="mdi:file-import-outline"
-                    title="Импортировать задачи из Markdown"
-                    @click="isImportModalOpen = true"
+                    icon="mdi:playlist-star"
+                    title="Шаблоны и пресеты"
+                    @click="isPresetsModalOpen = true"
                   >
-                    Импорт MD
+                    <span class="btn-text">Пресеты</span>
                   </KitBtn>
 
                   <KitBtn
-                    v-if="!readonly"
-                    variant="subtle"
+                    :variant="hideCompleted ? 'tonal' : 'subtle'"
                     size="sm"
-                    icon="mdi:playlist-star"
-                    class="presets-btn"
-                    @click="isPresetsModalOpen = true"
+                    :icon="hideCompleted ? 'mdi:eye-off-outline' : 'mdi:eye-outline'"
+                    :title="hideCompleted ? 'Показать выполненные задачи' : 'Скрыть выполненные задачи'"
+                    @click="hideCompleted = !hideCompleted"
                   >
-                    Пресеты
+                    <span class="btn-text">{{ hideCompleted ? 'Скрыты' : 'Скрыть готовые' }}</span>
                   </KitBtn>
-
-                  <KitCheckbox v-model="hideCompleted">
-                    Скрыть выполненные
-                  </KitCheckbox>
 
                   <KitBtn
                     v-if="!readonly"
                     variant="tonal"
+                    size="sm"
                     icon="mdi:playlist-plus"
+                    title="Добавить группу задач"
                     @click="addGroup(activeTab)"
                   >
-                    Добавить группу
+                    <span class="btn-text">Добавить группу</span>
                   </KitBtn>
                 </div>
               </div>
@@ -263,9 +251,6 @@ watch(activeTab, () => {
                   В этой вкладке пока нет задач.
                 </p>
                 <div v-if="!readonly && !searchQuery" class="empty-state-actions">
-                  <KitBtn variant="tonal" icon="mdi:file-import-outline" @click="isImportModalOpen = true">
-                    Импортировать из Markdown
-                  </KitBtn>
                   <KitBtn variant="tonal" icon="mdi:playlist-star" @click="isPresetsModalOpen = true">
                     Выбрать готовый набор
                   </KitBtn>
@@ -299,13 +284,6 @@ watch(activeTab, () => {
       v-model:visible="isPresetsModalOpen"
       :current-tab="activeTab"
       @select="applyPreset"
-    />
-
-    <ChecklistMarkdownImportDialog
-      v-model:visible="isImportModalOpen"
-      :current-tab-name="currentTabConfig?.name || 'Текущая'"
-      :current-tab-id="activeTab"
-      @import="handleMarkdownImport"
     />
 
     <ChecklistTabEditDialog
@@ -343,7 +321,7 @@ watch(activeTab, () => {
   align-items: center;
   gap: 4px;
   position: absolute;
-  right: 0;
+  right: 6px;
   top: 6px;
   z-index: 10;
 }
@@ -382,38 +360,47 @@ watch(activeTab, () => {
 
 .actions-panel {
   display: flex;
-  flex-wrap: wrap;
-  gap: 0.75rem;
+  flex-wrap: nowrap;
+  gap: 0.5rem;
   align-items: center;
+  width: 100%;
 }
 
 .search-input {
-  flex: 1 1 240px;
+  flex: 1 1 auto;
+  min-width: 0;
 }
 
 .action-controls {
   display: flex;
-  flex-wrap: wrap;
-  gap: 0.5rem;
+  flex-wrap: nowrap;
+  gap: 0.375rem;
   align-items: center;
-  flex: 1 1 auto;
-  justify-content: flex-end;
-}
-
-.presets-btn {
-  margin-right: auto;
+  flex-shrink: 0;
 }
 
 @include media-down(sm) {
   .actions-panel {
-    flex-direction: column;
-    align-items: stretch;
+    gap: 0.375rem;
   }
+
   .action-controls {
-    justify-content: flex-start;
-  }
-  .presets-btn {
-    margin-right: 0;
+    gap: 0.25rem;
+
+    .btn-text {
+      display: none;
+    }
+
+    :deep(.kit-btn) {
+      padding: 0.375rem !important;
+      min-width: 36px !important;
+      height: 36px !important;
+      justify-content: center !important;
+
+      .kit-btn-content {
+        gap: 0 !important;
+      }
+    }
   }
 }
 

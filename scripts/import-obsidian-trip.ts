@@ -807,6 +807,7 @@ export function parseObsidianChecklists(checklistDirOrFiles: string[] | string):
       }
     }
 
+    let currentH2GroupId: string | undefined
     let currentGroupId: string | undefined
     let currentItem: ChecklistItem | null = null
 
@@ -822,18 +823,24 @@ export function parseObsidianChecklists(checklistDirOrFiles: string[] | string):
         const title = rawLine.replace(/^#\s*/, '').replace(/^[^\wА-Яа-яёЁ]+/, '').trim()
         if (/must-try|гастрономи|что попробовать/i.test(title)) {
           currentTabId = 'must-try'
+          currentH2GroupId = undefined
+          currentGroupId = undefined
           if (!tabs.some(t => t.id === 'must-try')) {
             tabs.push({ id: 'must-try', name: 'Must-Try: Гастрономия', icon: 'mdi:noodles', isCustom: true })
           }
         }
         else if (/must-buy|шопинг|покупки/i.test(title)) {
           currentTabId = 'must-buy'
+          currentH2GroupId = undefined
+          currentGroupId = undefined
           if (!tabs.some(t => t.id === 'must-buy')) {
             tabs.push({ id: 'must-buy', name: 'Must-Buy: Шопинг', icon: 'mdi:shopping-outline', isCustom: true })
           }
         }
         else if (/must-do|активност|впечатлен/i.test(title)) {
           currentTabId = 'must-do'
+          currentH2GroupId = undefined
+          currentGroupId = undefined
           if (!tabs.some(t => t.id === 'must-do')) {
             tabs.push({ id: 'must-do', name: 'Must-Do: Впечатления', icon: 'mdi:compass-outline', isCustom: true })
           }
@@ -841,12 +848,14 @@ export function parseObsidianChecklists(checklistDirOrFiles: string[] | string):
         continue
       }
 
-      // H2 Header (e.g. ## I. Must-Try, ## 1. Документы)
+      // H2 Header (e.g. ## I. Must-Try, ## 1. Документы, ## 💊 3. Аптечка)
       if (rawLine.startsWith('## ') && !rawLine.startsWith('### ')) {
         const cleanH2 = rawLine.replace(/^##\s*/, '').trim()
 
         if (/I\.\s*Must-Try|гастрономический гид/i.test(cleanH2)) {
           currentTabId = 'must-try'
+          currentH2GroupId = undefined
+          currentGroupId = undefined
           if (!tabs.some(t => t.id === 'must-try')) {
             tabs.push({ id: 'must-try', name: 'Must-Try: Гастрономия', icon: 'mdi:noodles', isCustom: true })
           }
@@ -854,6 +863,8 @@ export function parseObsidianChecklists(checklistDirOrFiles: string[] | string):
         }
         else if (/II\.\s*Must-Do|активностей|опыта/i.test(cleanH2)) {
           currentTabId = 'must-do'
+          currentH2GroupId = undefined
+          currentGroupId = undefined
           if (!tabs.some(t => t.id === 'must-do')) {
             tabs.push({ id: 'must-do', name: 'Must-Do: Впечатления', icon: 'mdi:compass-outline', isCustom: true })
           }
@@ -861,6 +872,8 @@ export function parseObsidianChecklists(checklistDirOrFiles: string[] | string):
         }
         else if (/III\.\s*Must-Buy|шопинг|подарки/i.test(cleanH2)) {
           currentTabId = 'must-buy'
+          currentH2GroupId = undefined
+          currentGroupId = undefined
           if (!tabs.some(t => t.id === 'must-buy')) {
             tabs.push({ id: 'must-buy', name: 'Must-Buy: Шопинг', icon: 'mdi:shopping-outline', isCustom: true })
           }
@@ -868,34 +881,48 @@ export function parseObsidianChecklists(checklistDirOrFiles: string[] | string):
         }
 
         // Create Group from H2
-        const groupTitle = cleanH2.replace(/^\d+[\.\)]\s*/, '').trim()
+        const icon = detectIconForGroup(cleanH2)
+        const groupTitle = cleanH2
+          .replace(/^[\p{Extended_Pictographic}\p{Emoji_Presentation}\p{Symbol}\s\uFE00-\uFE0F\u200D\d.)\-]+/gu, '')
+          .trim() || cleanH2
         const groupId = crypto.randomUUID()
-        const groupIcon = detectIconForGroup(groupTitle)
 
         groups.push({
           id: groupId,
           name: groupTitle,
-          icon: groupIcon,
+          icon,
           type: currentTabId,
         })
+        currentH2GroupId = groupId
         currentGroupId = groupId
         currentItem = null
         continue
       }
 
-      // H3 Header (e.g. ### 🏮 1. Легендарный стритфуд)
+      // H3 Header (e.g. ### 🏮 1. Легендарный стритфуд, ### 🤢 Укачивание)
       if (rawLine.startsWith('### ')) {
-        const groupTitle = rawLine.replace(/^###\s*/, '').replace(/^\d+[\.\)]\s*/, '').trim()
-        const groupId = crypto.randomUUID()
-        const groupIcon = detectIconForGroup(groupTitle)
+        const rawH3 = rawLine.replace(/^###\s*/, '').trim()
 
-        groups.push({
-          id: groupId,
-          name: groupTitle,
-          icon: groupIcon,
-          type: currentTabId,
-        })
-        currentGroupId = groupId
+        // If in Must-Try, Must-Buy, Must-Do, or outside any H2 group -> H3 creates a new group
+        if (currentTabId === 'must-try' || currentTabId === 'must-buy' || currentTabId === 'must-do' || !currentH2GroupId) {
+          const icon = detectIconForGroup(rawH3)
+          const groupTitle = rawH3
+            .replace(/^[\p{Extended_Pictographic}\p{Emoji_Presentation}\p{Symbol}\s\uFE00-\uFE0F\u200D\d.)\-]+/gu, '')
+            .trim() || rawH3
+          const groupId = crypto.randomUUID()
+
+          groups.push({
+            id: groupId,
+            name: groupTitle,
+            icon,
+            type: currentTabId,
+          })
+          currentGroupId = groupId
+        }
+        else {
+          // If inside a preparation H2 group (like 💊 3. Аптечка or 👕 4. Гардероб), assign items directly to that parent H2 group!
+          currentGroupId = currentH2GroupId
+        }
         currentItem = null
         continue
       }
@@ -981,14 +1008,18 @@ export function parseObsidianChecklists(checklistDirOrFiles: string[] | string):
     }
   }
 
-  // If we found Must-Try items in the default tab, ensure we also have the default in-trip tab if not present
-  if (!tabs.some(t => t.id === 'in-trip')) {
-    tabs.push({ id: 'in-trip', name: 'В путешествии', icon: 'mdi:map-marker-path', isCustom: false })
+  // Filter out any empty groups that contain no tasks
+  const populatedGroups = groups.filter(g => items.some(i => i.groupId === g.id))
+
+  // Only retain tabs that actually have items
+  const populatedTabs = tabs.filter(t => items.some(i => i.type === t.id))
+  if (populatedTabs.length === 0) {
+    populatedTabs.push({ id: 'preparation', name: 'Подготовка и сборы', icon: 'mdi:briefcase-check-outline', isCustom: false })
   }
 
   return {
-    tabs,
-    groups,
+    tabs: populatedTabs,
+    groups: populatedGroups,
     items,
   }
 }
@@ -1716,7 +1747,6 @@ async function runImport() {
   console.log(`  ${colors.green}•${colors.reset} Период:           ${tripData.startDate} ➔ ${tripData.endDate} (${tripData.days.length} дн.)`)
   console.log(`  ${colors.green}•${colors.reset} Дней найдено:     ${colors.yellow}${tripData.days.length}${colors.reset}`)
   console.log(`  ${colors.green}•${colors.reset} Чек-листы:        ${colors.yellow}${tripData.checklistContent.items?.length || 0} задач в ${tripData.checklistContent.groups?.length || 0} группах (${tripData.checklistContent.tabs?.length || 0} вкладок)${colors.reset}`)
-  console.log(`  ${colors.green}•${colors.reset} Финансы:          ${colors.yellow}${tripData.financesContent.transactions.length} расходов (${tripData.financesContent.transactions.reduce((s, t) => s + t.amount, 0).toLocaleString('ru-RU')} ₽)${colors.reset}`)
   console.log(`  ${colors.green}•${colors.reset} Секций заметок:   ${colors.yellow}${tripData.sectionFolders.length}${colors.reset} (${tripData.sectionFolders.map(s => `${s.folderName} [${s.files.length} ф.]`).join(', ')})`)
   console.log(`  ${colors.green}•${colors.reset} Корневых заметок: ${colors.yellow}${tripData.rootNotes.length}${colors.reset}`)
 
@@ -1876,8 +1906,23 @@ async function runImport() {
       if (sec.type === 'checklist' && importChecklists) {
         sectionContent = tripData.checklistContent
       }
-      else if (sec.type === 'finances' && importSections) {
-        sectionContent = tripData.financesContent
+      else if (sec.type === 'finances') {
+        sectionContent = {
+          settings: {
+            mainCurrency: 'RUB',
+            exchangeRates: { TWD: 2.8, USD: 90, EUR: 100, CNY: 12.5 },
+          },
+          categories: [
+            { id: 'cat-housing', name: 'Жильё', icon: 'mdi:bed', isDefault: true },
+            { id: 'cat-transport', name: 'Транспорт', icon: 'mdi:train-car', isDefault: true },
+            { id: 'cat-flights', name: 'Авиабилеты', icon: 'mdi:airplane', isDefault: true },
+            { id: 'cat-food', name: 'Еда и напитки', icon: 'mdi:food-fork-drink', isDefault: true },
+            { id: 'cat-entertainment', name: 'Развлечения', icon: 'mdi:party-popper', isDefault: true },
+            { id: 'cat-shopping', name: 'Покупки', icon: 'mdi:shopping-outline', isDefault: true },
+            { id: 'cat-other', name: 'Прочее', icon: 'mdi:dots-horizontal-circle-outline', isDefault: true },
+          ],
+          transactions: [],
+        }
       }
 
       await api.createTripSection({
@@ -1890,9 +1935,6 @@ async function runImport() {
 
       if (sec.type === 'checklist' && importChecklists) {
         console.log(`  ${colors.green}✓${colors.reset} Раздел ${colors.bright}«${sec.title}»${colors.reset} создан с ${colors.yellow}${tripData.checklistContent.items?.length || 0}${colors.reset} задачами и ${colors.yellow}${tripData.checklistContent.tabs?.length || 0}${colors.reset} вкладками`)
-      }
-      else if (sec.type === 'finances' && importSections && tripData.financesContent.transactions.length > 0) {
-        console.log(`  ${colors.green}✓${colors.reset} Раздел ${colors.bright}«${sec.title}»${colors.reset} создан с ${colors.yellow}${tripData.financesContent.transactions.length}${colors.reset} расходами на сумму ${colors.yellow}${tripData.financesContent.transactions.reduce((s, t) => s + t.amount, 0).toLocaleString('ru-RU')} ₽${colors.reset}`)
       }
       else {
         console.log(`  ${colors.green}✓${colors.reset} Раздел создан: ${colors.bright}${sec.title}${colors.reset}`)

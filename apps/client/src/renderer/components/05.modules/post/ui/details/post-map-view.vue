@@ -69,7 +69,7 @@ function getRouteColor(index: number, blockId: string) {
 
 const mapPoints = computed<MapPoint[]>(() => {
   const points: MapPoint[] = []
-  props.post.elements.forEach((element, sIndex) => {
+  props.post.elements?.forEach((element, sIndex) => {
     element.content.forEach((block: any) => {
       if (block.type === 'location' && block.location && block.location.lat) {
         const styleConfig = getPointStyleConfig(sIndex, block.id)
