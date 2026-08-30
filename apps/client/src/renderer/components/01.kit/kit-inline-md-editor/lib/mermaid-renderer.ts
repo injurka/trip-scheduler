@@ -47,17 +47,37 @@ function getThemeVariables() {
   }
 }
 
+function getMermaidConfig() {
+  return {
+    startOnLoad: false,
+    theme: 'base' as const,
+    themeVariables: getThemeVariables(),
+    securityLevel: 'loose' as const,
+    fontFamily: 'Rubik, sans-serif',
+    flowchart: { useMaxWidth: false, htmlLabels: true },
+    sequence: { useMaxWidth: false },
+    gantt: { useMaxWidth: false },
+    journey: { useMaxWidth: false },
+    state: { useMaxWidth: false },
+    er: { useMaxWidth: false },
+    pie: { useMaxWidth: false },
+    quadrantChart: { useMaxWidth: false },
+    xyChart: { useMaxWidth: false },
+    requirement: { useMaxWidth: false },
+    mindmap: { useMaxWidth: false },
+    timeline: { useMaxWidth: false },
+    gitGraph: { useMaxWidth: false },
+    c4: { useMaxWidth: false },
+    sankey: { useMaxWidth: false },
+    block: { useMaxWidth: false },
+  }
+}
+
 function initMermaid() {
   if (isInitialized)
     return
   isInitialized = true
-  mermaid.initialize({
-    startOnLoad: false,
-    theme: 'base',
-    themeVariables: getThemeVariables(),
-    securityLevel: 'loose',
-    fontFamily: 'Rubik, sans-serif',
-  })
+  mermaid.initialize(getMermaidConfig())
 }
 
 /**
@@ -67,13 +87,7 @@ function initMermaid() {
 export function updateMermaidTheme() {
   if (!isInitialized)
     return
-  mermaid.initialize({
-    startOnLoad: false,
-    theme: 'base',
-    themeVariables: getThemeVariables(),
-    securityLevel: 'loose',
-    fontFamily: 'Rubik, sans-serif',
-  })
+  mermaid.initialize(getMermaidConfig())
 }
 
 export async function renderMermaidDiagram(code: string, id: string): Promise<string> {
@@ -84,13 +98,7 @@ export async function renderMermaidDiagram(code: string, id: string): Promise<st
       return ''
 
     // Re-apply theme variables on each render so theme changes take effect
-    mermaid.initialize({
-      startOnLoad: false,
-      theme: 'base',
-      themeVariables: getThemeVariables(),
-      securityLevel: 'loose',
-      fontFamily: 'Rubik, sans-serif',
-    })
+    mermaid.initialize(getMermaidConfig())
 
     const { svg } = await mermaid.render(id, cleanCode)
     return svg

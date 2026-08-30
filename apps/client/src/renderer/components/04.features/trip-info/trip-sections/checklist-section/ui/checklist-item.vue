@@ -6,7 +6,7 @@ import { v4 as uuidv4 } from 'uuid'
 import { computed, ref } from 'vue'
 import { KitCheckbox } from '~/components/01.kit/kit-checkbox'
 import { KitEditable } from '~/components/01.kit/kit-editable'
-import { KitTooltip } from '~/components/01.kit/kit-tooltip'
+import { useTripPermissions } from '~/components/05.modules/trip-info/composables/use-trip-permissions'
 
 interface Props {
   item: ChecklistItem
@@ -18,6 +18,9 @@ const emit = defineEmits<{
   (e: 'update:item', value: ChecklistItem): void
   (e: 'delete'): void
 }>()
+
+const { canEdit } = useTripPermissions()
+const canCheck = computed(() => canEdit.value)
 
 const isEditingDescription = ref(false)
 const isEditingLink = ref(false)
@@ -43,10 +46,16 @@ onClickOutside(priorityPickerMenuRef, () => {
 })
 
 function updateField<K extends keyof ChecklistItem>(key: K, value: ChecklistItem[K]) {
+  if (key !== 'completed' && props.readonly)
+    return
+  if (key === 'completed' && !canCheck.value)
+    return
   emit('update:item', { ...props.item, [key]: value })
 }
 
 function setPriority(priority: ChecklistPriority) {
+  if (props.readonly)
+    return
   updateField('priority', priority)
   isPriorityPickerOpen.value = false
 }
@@ -86,7 +95,7 @@ const subtasksStats = computed(() => {
 })
 
 function handleToggleSubtask(subtaskId: string) {
-  if (props.readonly)
+  if (!canCheck.value)
     return
   const updated = subtasks.value.map((s) => {
     if (s.id === subtaskId)
@@ -127,9 +136,12 @@ function handleUpdateSubtaskText(subtaskId: string, text: string) {
   updateField('subtasks', updated)
 }
 
-/**
- * Рендерер inline markdown (жирный, курсив, код, ссылки, переносы строк).
- */
+// Pre-compiled regexes for maximum markdown rendering performance
+const BOLD_REGEX = /\*\*(.*?)\*\*/g
+const ITALIC_REGEX = /\*(.*?)\*/g
+const CODE_REGEX = /`([^`]+)`/g
+const LINK_REGEX = /\[(.*?)\]\((https?:\/\/[^\s)]+)\)/g
+
 function renderMarkdown(text?: string | null): string {
   if (!text)
     return ''
@@ -140,12 +152,15 @@ function renderMarkdown(text?: string | null): string {
     .replace(/>/g, '&gt;')
 
   return escaped
-    .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
-    .replace(/\*(.*?)\*/g, '<em>$1</em>')
-    .replace(/`([^`]+)`/g, '<code>$1</code>')
-    .replace(/\[(.*?)\]\((https?:\/\/[^\s)]+)\)/g, '<a href="$2" target="_blank" rel="noopener noreferrer">$1</a>')
+    .replace(BOLD_REGEX, '<strong>$1</strong>')
+    .replace(ITALIC_REGEX, '<em>$1</em>')
+    .replace(CODE_REGEX, '<code>$1</code>')
+    .replace(LINK_REGEX, '<a href="$2" target="_blank" rel="noopener noreferrer">$1</a>')
     .replace(/\n/g, '<br>')
 }
+
+const renderedText = computed(() => renderMarkdown(props.item.text))
+const renderedDescription = computed(() => renderMarkdown(props.item.description))
 </script>
 
 <template>
@@ -158,16 +173,14 @@ function renderMarkdown(text?: string | null): string {
       ]"
     >
       <div class="main-line">
-        <KitTooltip v-if="!readonly" text="Перетащить">
-          <button class="drag-handle">
-            <Icon icon="mdi:drag-vertical" />
-          </button>
-        </KitTooltip>
+        <button v-if="!readonly" class="drag-handle" title="Перетащить">
+          <Icon icon="mdi:drag-vertical" />
+        </button>
 
         <KitCheckbox
           :model-value="item.completed"
           color="accent"
-          :readonly="readonly"
+          :readonly="!canCheck"
           @update:model-value="updateField('completed', !!$event)"
         />
 
@@ -179,7 +192,7 @@ function renderMarkdown(text?: string | null): string {
             @update:model-value="updateField('text', $event)"
           />
           <!-- eslint-disable-next-line vue/no-v-html -->
-          <div v-else class="item-text-view" v-html="renderMarkdown(item.text)" />
+          <div v-else class="item-text-view" v-html="renderedText" />
 
           <!-- Мета-бейджи (Цена, Локация, Подзадачи) -->
           <div class="meta-badges">
@@ -215,59 +228,61 @@ function renderMarkdown(text?: string | null): string {
           </div>
         </div>
 
-        <div class="item-actions">
-          <KitTooltip v-if="!readonly" text="Подпункты (Sub-tasks)">
+        <div v-if="!readonly" class="item-actions">
+          <button
+            class="action-btn"
+            :class="{ 'is-active': subtasks.length > 0 || isAddingSubtask }"
+            title="Подпункты (Sub-tasks)"
+            @click="isAddingSubtask = !isAddingSubtask; isSubtasksExpanded = true"
+          >
+            <Icon icon="mdi:format-list-bulleted" />
+          </button>
+
+          <button
+            class="action-btn"
+            :class="{ 'is-active': item.cost || isEditingCost }"
+            title="Стоимость"
+            @click="isEditingCost = !isEditingCost"
+          >
+            <Icon icon="mdi:cash-multiple" />
+          </button>
+
+          <button
+            class="action-btn"
+            :class="{ 'is-active': item.location || isEditingLocation }"
+            title="Локация"
+            @click="isEditingLocation = !isEditingLocation"
+          >
+            <Icon icon="mdi:map-marker-plus-outline" />
+          </button>
+
+          <button
+            class="action-btn"
+            :class="{ 'is-active': item.link || isEditingLink }"
+            title="Ссылка"
+            @click="isEditingLink = !isEditingLink"
+          >
+            <Icon icon="mdi:link-variant" />
+          </button>
+
+          <button
+            class="action-btn"
+            :class="{ 'is-active': item.description || isEditingDescription }"
+            title="Заметка / Гайд"
+            @click="isEditingDescription = !isEditingDescription"
+          >
+            <Icon icon="mdi:text-box-outline" />
+          </button>
+
+          <div class="priority-picker-wrapper">
             <button
-              class="action-btn"
-              :class="{ 'is-active': subtasks.length > 0 || isAddingSubtask }"
-              @click="isAddingSubtask = !isAddingSubtask; isSubtasksExpanded = true"
+              class="action-btn priority-btn"
+              :class="`is-active-p${item.priority}`"
+              title="Приоритет"
+              @click="isPriorityPickerOpen = !isPriorityPickerOpen"
             >
-              <Icon icon="mdi:format-list-bulleted" />
+              <Icon icon="mdi:flag" />
             </button>
-          </KitTooltip>
-
-          <KitTooltip v-if="!readonly" text="Стоимость">
-            <button
-              class="action-btn"
-              :class="{ 'is-active': item.cost || isEditingCost }"
-              @click="isEditingCost = !isEditingCost"
-            >
-              <Icon icon="mdi:cash-multiple" />
-            </button>
-          </KitTooltip>
-
-          <KitTooltip v-if="!readonly" text="Локация">
-            <button
-              class="action-btn"
-              :class="{ 'is-active': item.location || isEditingLocation }"
-              @click="isEditingLocation = !isEditingLocation"
-            >
-              <Icon icon="mdi:map-marker-plus-outline" />
-            </button>
-          </KitTooltip>
-
-          <KitTooltip v-if="!readonly" text="Ссылка">
-            <button class="action-btn" :class="{ 'is-active': item.link || isEditingLink }" @click="isEditingLink = !isEditingLink">
-              <Icon icon="mdi:link-variant" />
-            </button>
-          </KitTooltip>
-
-          <KitTooltip v-if="!readonly" text="Заметка / Гайд">
-            <button class="action-btn" :class="{ 'is-active': item.description || isEditingDescription }" @click="isEditingDescription = !isEditingDescription">
-              <Icon icon="mdi:text-box-outline" />
-            </button>
-          </KitTooltip>
-
-          <div v-if="!readonly" class="priority-picker-wrapper">
-            <KitTooltip text="Приоритет">
-              <button
-                class="action-btn priority-btn"
-                :class="`is-active-p${item.priority}`"
-                @click="isPriorityPickerOpen = !isPriorityPickerOpen"
-              >
-                <Icon icon="mdi:flag" />
-              </button>
-            </KitTooltip>
             <div
               v-if="isPriorityPickerOpen"
               ref="priorityPickerMenuRef"
@@ -287,7 +302,7 @@ function renderMarkdown(text?: string | null): string {
             </div>
           </div>
 
-          <button v-if="!readonly" class="delete-item-btn" title="Удалить задачу" @click="$emit('delete')">
+          <button class="delete-item-btn" title="Удалить задачу" @click="$emit('delete')">
             <Icon icon="mdi:close" />
           </button>
         </div>
@@ -357,7 +372,7 @@ function renderMarkdown(text?: string | null): string {
             @update:model-value="handleDescriptionUpdate"
           />
           <!-- eslint-disable-next-line vue/no-v-html -->
-          <div v-else class="detail-text" v-html="renderMarkdown(item.description)" />
+          <div v-else class="detail-text" v-html="renderedDescription" />
         </div>
       </div>
 
@@ -367,7 +382,7 @@ function renderMarkdown(text?: string | null): string {
           <KitCheckbox
             :model-value="sub.completed"
             color="accent"
-            :readonly="readonly"
+            :readonly="!canCheck"
             @update:model-value="handleToggleSubtask(sub.id)"
           />
           <KitEditable
@@ -378,7 +393,7 @@ function renderMarkdown(text?: string | null): string {
           />
           <!-- eslint-disable-next-line vue/no-v-html -->
           <div v-else class="subtask-text-view" v-html="renderMarkdown(sub.text)" />
-          <button v-if="!readonly" class="delete-subtask-btn" @click="handleDeleteSubtask(sub.id)">
+          <button v-if="!readonly" class="delete-subtask-btn" title="Удалить подпункт" @click="handleDeleteSubtask(sub.id)">
             <Icon icon="mdi:close" />
           </button>
         </div>

@@ -11,6 +11,7 @@ import type {
 import { useDebounceFn } from '@vueuse/core'
 import { v4 as uuidv4 } from 'uuid'
 import { computed, ref, watch } from 'vue'
+import { useTripPermissions } from '~/components/05.modules/trip-info/composables/use-trip-permissions'
 
 interface UseChecklistSectionProps {
   section: {
@@ -35,6 +36,7 @@ export function useChecklistSection(
 ) {
   const confirm = useConfirm()
   const toast = useToast()
+  const { canEdit } = useTripPermissions()
 
   // Инициализация вкладок
   const initialTabs = (props.section.content?.tabs && props.section.content.tabs.length > 0)
@@ -79,7 +81,7 @@ export function useChecklistSection(
         tabs: tabs.value,
       },
     })
-  }, 700)
+  }, 400)
 
   // Вкладки
   const tabItems = computed(() => {
@@ -176,11 +178,13 @@ export function useChecklistSection(
   }
 
   function updateItem(updatedItem: ChecklistItem) {
-    if (props.readonly)
+    if (props.readonly && !canEdit.value)
       return
     const index = items.value.findIndex(i => i.id === updatedItem.id)
-    if (index !== -1)
+    if (index !== -1) {
       items.value[index] = updatedItem
+      debouncedUpdate()
+    }
   }
 
   // Подзадачи (Subtasks)
@@ -201,7 +205,7 @@ export function useChecklistSection(
   }
 
   function toggleSubtask(itemId: string, subtaskId: string, completed?: boolean) {
-    if (props.readonly)
+    if (props.readonly && !canEdit.value)
       return
     const item = items.value.find(i => i.id === itemId)
     if (item && item.subtasks) {
@@ -323,14 +327,17 @@ export function useChecklistSection(
   })
 
   const itemsByGroupId = computed(() => {
-    return filteredItems.value.reduce((acc, item) => {
+    const map: Record<string, ChecklistItem[]> = {}
+    const list = filteredItems.value
+    for (let i = 0; i < list.length; i++) {
+      const item = list[i]
       if (item.groupId) {
-        if (!acc[item.groupId])
-          acc[item.groupId] = []
-        acc[item.groupId].push(item)
+        if (!map[item.groupId])
+          map[item.groupId] = []
+        map[item.groupId].push(item)
       }
-      return acc
-    }, {} as Record<string, ChecklistItem[]>)
+    }
+    return map
   })
 
   const currentTabGroups = computed(() => {

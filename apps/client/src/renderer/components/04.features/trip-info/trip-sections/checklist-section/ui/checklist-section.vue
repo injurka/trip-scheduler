@@ -31,7 +31,6 @@ const emit = defineEmits<{
 const {
   items,
   groups,
-  tabs,
   activeTab,
   tabItems,
   currentTabConfig,
@@ -61,13 +60,14 @@ const isTabEditDialogOpen = ref(false)
 const isNewTab = ref(false)
 const editingTab = ref<ChecklistTabConfig | null>(null)
 
-function onGroupItemsUpdate(groupId: string, updatedItems: ChecklistItem[]) {
-  const otherItems = items.value.filter(i => i.groupId !== groupId)
-  const groupItems = items.value
-    .filter(i => i.groupId === groupId)
-    .map(originalItem => updatedItems.find(u => u.id === originalItem.id) || originalItem)
-
-  items.value = [...otherItems, ...groupItems]
+function onGroupItemsUpdate(groupId: string, updatedGroupItems: ChecklistItem[]) {
+  const updatedMap = new Map(updatedGroupItems.map(item => [item.id, item]))
+  items.value = items.value.map((item) => {
+    if (item.groupId === groupId && updatedMap.has(item.id)) {
+      return updatedMap.get(item.id)!
+    }
+    return item
+  })
 }
 
 function onUngroupedItemsUpdate(newUngroupedItems: ChecklistItem[]) {
@@ -115,7 +115,7 @@ watch(activeTab, () => {
     <div class="tabs-header-wrapper">
       <div class="tabs-control">
         <KitTabs v-model="activeTab" :items="tabItems">
-          <template v-for="tab in tabs" :key="tab.id" #[tab.id]>
+          <template #[activeTab]>
             <div class="tab-content-wrapper">
               <!-- Панель действий -->
               <div v-if="hasItemsInCurrentTab || !props.readonly" class="actions-panel">
@@ -171,12 +171,11 @@ watch(activeTab, () => {
               <!-- Содержимое: группы и задачи (отображается только если есть контент) -->
               <div v-if="currentTabGroups.length > 0 || currentTabUngroupedItems.length > 0" class="checklist-content">
                 <draggable
-                  v-if="currentTabGroups.length > 0"
+                  v-if="!readonly && currentTabGroups.length > 0"
                   :model-value="currentTabGroups"
                   item-key="id"
                   handle=".drag-handle-group"
                   ghost-class="ghost-item"
-                  :disabled="readonly"
                   class="groups-list"
                   @update:model-value="groups = $event"
                 >
@@ -192,6 +191,19 @@ watch(activeTab, () => {
                     />
                   </template>
                 </draggable>
+                <div v-else-if="currentTabGroups.length > 0" class="groups-list">
+                  <ChecklistGroupComponent
+                    v-for="group in currentTabGroups"
+                    :key="group.id"
+                    :group="group"
+                    :items="itemsByGroupId[group.id] || []"
+                    :readonly="readonly"
+                    @update:group="updateGroup"
+                    @update:items="onGroupItemsUpdate(group.id, $event)"
+                    @delete="deleteGroup(group.id)"
+                    @add-item="text => addItem(text, activeTab, group.id)"
+                  />
+                </div>
 
                 <!-- Задачи без группы -->
                 <div v-if="currentTabUngroupedItems.length > 0 || (!readonly && currentTabGroups.length > 0)">
@@ -200,11 +212,11 @@ watch(activeTab, () => {
                   </KitDivider>
                   <div class="ungrouped-wrapper">
                     <draggable
+                      v-if="!readonly"
                       :model-value="currentTabUngroupedItems"
                       item-key="id"
                       handle=".drag-handle"
                       ghost-class="ghost-item"
-                      :disabled="readonly"
                       class="ungrouped-items-list"
                       @update:model-value="onUngroupedItemsUpdate"
                     >
@@ -217,6 +229,16 @@ watch(activeTab, () => {
                         />
                       </template>
                     </draggable>
+                    <div v-else class="ungrouped-items-list">
+                      <ChecklistItemComponent
+                        v-for="item in currentTabUngroupedItems"
+                        :key="item.id"
+                        :item="item"
+                        :readonly="readonly"
+                        @update:item="updateItem"
+                        @delete="deleteItem(item.id)"
+                      />
+                    </div>
                     <form
                       v-if="!readonly"
                       class="add-item-form"

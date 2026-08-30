@@ -78,8 +78,18 @@ const mermaidView = $view(codeBlockSchema.node, () => (node) => {
           return
         if (svg) {
           diagramDiv.innerHTML = svg
-          diagramDiv.style.display = 'block'
+          diagramDiv.style.display = 'flex'
           contentDOM.style.display = 'none'
+
+          const svgEl = diagramDiv.querySelector('svg')
+          if (svgEl) {
+            const vb = svgEl.viewBox?.baseVal
+            if (vb && vb.width > 0 && vb.height > 0) {
+              svgEl.style.width = `${vb.width}px`
+              svgEl.style.maxWidth = 'none'
+              svgEl.style.height = 'auto'
+            }
+          }
         }
         else {
           diagramDiv.style.display = 'none'
@@ -802,7 +812,7 @@ onBeforeUnmount(() => {
     margin: 1.25rem 0;
     display: flex;
     justify-content: center;
-    align-items: flex-start;
+    align-items: center;
     background: var(--bg-secondary-color);
     border: 1px solid var(--border-secondary-color);
     border-radius: var(--r-m, 8px);
@@ -812,13 +822,17 @@ onBeforeUnmount(() => {
     max-width: 100%;
 
     .mermaid-diagram {
-      display: block;
+      display: flex;
+      justify-content: center;
+      align-items: center;
       min-height: 80px;
-      max-width: 100%;
+      min-width: 100%;
+      width: max-content;
 
       svg {
-        max-width: none;
-        height: auto;
+        max-width: none !important;
+        height: auto !important;
+        flex-shrink: 0;
       }
     }
 

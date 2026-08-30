@@ -10,9 +10,15 @@ export function useTripPermissions() {
       return true
 
     const currentUser = auth.user
-    const participants = plan.trip?.participants
+    const trip = plan.trip
+    if (!currentUser || !trip)
+      return false
 
-    if (!currentUser || !participants)
+    if (trip.userId && trip.userId === currentUser.id)
+      return true
+
+    const participants = trip.participants
+    if (!participants)
       return false
 
     return participants.some(p => p.id === currentUser.id)
