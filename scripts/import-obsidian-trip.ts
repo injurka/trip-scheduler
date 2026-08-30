@@ -196,14 +196,69 @@ interface ParsedTripData {
   financesContent: FinancesSectionContent
 }
 
-interface ActivitySection {
+export interface ActivitySectionDescription {
   id: string
   type: 'description'
   text: string
   title?: string
+  icon?: string
 }
 
-interface ActivityPayload {
+export interface ActivitySectionGallery {
+  id: string
+  type: 'gallery'
+  imageUrls: string[]
+  title?: string
+  icon?: string
+}
+
+export interface GeolocationPoint {
+  id: string
+  coordinates: [number, number]
+  type: 'poi' | 'start' | 'via' | 'end' | 'connect'
+  address?: string | null
+  comment?: string | null
+  style?: {
+    iconUrl?: string
+    color?: string
+    scale?: number
+  } | null
+}
+
+export interface ActivitySectionGeolocation {
+  id: string
+  type: 'geolocation'
+  points: GeolocationPoint[]
+  routes: any[]
+  drawnRoutes: any[]
+  center?: [number, number] | null
+  zoom?: number | null
+  title?: string
+  icon?: string
+}
+
+export interface ActivitySectionMetro {
+  id: string
+  type: 'metro'
+  mode: 'free' | 'city'
+  systemId?: string | null
+  rides: any[]
+}
+
+export interface ActivitySectionBooking {
+  id: string
+  type: 'booking'
+  bookingId: string
+}
+
+export type ActivitySection =
+  | ActivitySectionDescription
+  | ActivitySectionGallery
+  | ActivitySectionGeolocation
+  | ActivitySectionMetro
+  | ActivitySectionBooking
+
+export interface ActivityPayload {
   id?: string
   startTime: string
   endTime: string
@@ -228,6 +283,8 @@ interface CliOptions {
   importChecklists?: boolean
   importNotes?: boolean
   importSections?: boolean
+  uploadImages: boolean
+  geocode: boolean
   nonInteractive?: boolean
 }
 
@@ -242,6 +299,8 @@ function parseCliArgs(): CliOptions {
     dryRun: false,
     visibility: 'private',
     status: 'planned',
+    uploadImages: true,
+    geocode: true,
   }
 
   for (let i = 0; i < args.length; i++) {
@@ -270,6 +329,12 @@ function parseCliArgs(): CliOptions {
     }
     else if (arg === '--dry-run') {
       options.dryRun = true
+    }
+    else if (arg === '--no-images') {
+      options.uploadImages = false
+    }
+    else if (arg === '--no-geocode') {
+      options.geocode = false
     }
     else if (arg === '--public') {
       options.visibility = 'public'
@@ -313,6 +378,8 @@ ${colors.yellow}Опции:${colors.reset}
   -p, --password <pass>    Пароль пользователя для входа
   -s, --start-date <date>  Дата начала поездки (ГГГГ-ММ-ДД, по умолчанию: сегодня)
   --no-llm                 Не использовать LLM для генерации блоков (использовать встроенный парсер)
+  --no-images              Не загружать локальные картинки в активность
+  --no-geocode             Не геокодировать точки с карт Google в интерактивные блоки OpenLayers
   --dry-run                Режим предпросмотра без отправки запросов на сервер
   --public                 Сделать путешествие публичным (по умолчанию: private)
   --status <status>        Статус: planned | completed | draft (по умолчанию: planned)
@@ -506,6 +573,344 @@ export function parseActivitiesFromMarkdown(dayContent: string): ActivityPayload
   }
 
   return activities
+}
+
+// -----------------------------------------------------------------------------
+// Helper: Index All Image Attachments in Trip / Vault Directory
+// -----------------------------------------------------------------------------
+export function buildImageIndex(tripDir: string): Map<string, string> {
+  const map = new Map<string, string>()
+
+  function walk(current: string) {
+    if (!existsSync(current))
+      return
+    try {
+      const entries = readdirSync(current)
+      for (const entry of entries) {
+        if (entry.startsWith('.') || entry === 'node_modules')
+          continue
+        const full = join(current, entry)
+        try {
+          const st = statSync(full)
+          if (st.isDirectory()) {
+            walk(full)
+          }
+          else if (/\.(png|jpg|jpeg|webp|gif|heic|heif|svg)$/i.test(entry)) {
+            map.set(entry, full)
+            map.set(entry.toLowerCase(), full)
+            const nameNoExt = entry.replace(/\.[^.]+$/, '')
+            map.set(nameNoExt, full)
+            map.set(nameNoExt.toLowerCase(), full)
+          }
+        }
+        catch {
+          // ignore unreadable files
+        }
+      }
+    }
+    catch {
+      // ignore unreadable directories
+    }
+  }
+
+  walk(tripDir)
+
+  // Also index common parent vault attachment folders if present
+  const parentDir = resolve(tripDir, '..')
+  if (existsSync(parentDir)) {
+    const commonAttachmentDirs = ['_', 'assets', 'attachments', 'images']
+    for (const sub of commonAttachmentDirs) {
+      const subPath = join(parentDir, sub)
+      if (existsSync(subPath)) {
+        walk(subPath)
+      }
+    }
+  }
+
+  return map
+}
+
+// -----------------------------------------------------------------------------
+// Helper: Geocoding via Photon and OpenStreetMap Nominatim
+// -----------------------------------------------------------------------------
+export async function geocodeLocation(
+  query: string,
+  cache: Map<string, [number, number]>,
+  locationContext?: string,
+): Promise<[number, number] | null> {
+  const clean = query
+    .replace(/\+/g, ' ')
+    .replace(/[`*]/g, '')
+    .trim()
+
+  if (!clean)
+    return null
+
+  // 1. Numeric coordinate check "lat, lng" or "lng, lat"
+  const coordMatch = clean.match(/^(-?\d+(?:\.\d+)?)\s*,\s*(-?\d+(?:\.\d+)?)$/)
+  if (coordMatch) {
+    const lat = Number.parseFloat(coordMatch[1])
+    const lng = Number.parseFloat(coordMatch[2])
+    if (!Number.isNaN(lat) && !Number.isNaN(lng) && lat >= -90 && lat <= 90 && lng >= -180 && lng <= 180) {
+      return [lng, lat]
+    }
+  }
+
+  const cacheKey = `${clean.toLowerCase()}|${locationContext?.toLowerCase() || ''}`
+  if (cache.has(cacheKey)) {
+    return cache.get(cacheKey)!
+  }
+
+  const queriesToTry: string[] = []
+  if (locationContext && !clean.toLowerCase().includes(locationContext.toLowerCase())) {
+    queriesToTry.push(`${clean} ${locationContext}`)
+  }
+  queriesToTry.push(clean)
+
+  for (const q of queriesToTry) {
+    // 2. Try Photon API (OSM-based, high rate-limit tolerance, fast)
+    try {
+      const photonRes = await fetch(`https://photon.komoot.io/api/?q=${encodeURIComponent(q)}&limit=1`, {
+        headers: { Accept: 'application/json' },
+      })
+      if (photonRes.ok) {
+        const data = (await photonRes.json()) as any
+        const coords = data?.features?.[0]?.geometry?.coordinates
+        if (Array.isArray(coords) && coords.length >= 2) {
+          const result: [number, number] = [Number(coords[0]), Number(coords[1])]
+          cache.set(cacheKey, result)
+          return result
+        }
+      }
+    }
+    catch {
+      // fallback
+    }
+
+    // 3. Try OSM Nominatim API
+    try {
+      const nomRes = await fetch(`https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(q)}&format=json&limit=1`, {
+        headers: {
+          'User-Agent': 'TripScheduler-Importer/1.0 (https://github.com/injurka/trip-scheduler)',
+          'Accept': 'application/json',
+        },
+      })
+      if (nomRes.ok) {
+        const data = (await nomRes.json()) as any
+        if (Array.isArray(data) && data.length > 0 && data[0].lon && data[0].lat) {
+          const result: [number, number] = [Number.parseFloat(data[0].lon), Number.parseFloat(data[0].lat)]
+          cache.set(cacheKey, result)
+          return result
+        }
+      }
+    }
+    catch {
+      // ignore
+    }
+  }
+
+  return null
+}
+
+// -----------------------------------------------------------------------------
+// Helper: Extract Images, Locations and Geocode into Native Activity Sections
+// -----------------------------------------------------------------------------
+export async function enrichActivityWithMediaAndLocation(
+  act: ActivityPayload,
+  imageIndex: Map<string, string>,
+  api: ApiClient | null,
+  tripId: string | null,
+  geoCache: Map<string, [number, number]>,
+  uploadCache: Map<string, string>,
+  options: { uploadImages?: boolean, geocode?: boolean, locationContext?: string } = {},
+): Promise<ActivityPayload> {
+  const shouldUpload = options.uploadImages !== false && api !== null && tripId !== null
+  const shouldGeocode = options.geocode !== false
+
+  const newSections: ActivitySection[] = []
+
+  const inputSections = act.sections && act.sections.length > 0
+    ? act.sections
+    : []
+
+  let accumulatedDescription = ''
+  let foundPlaceName = ''
+  let foundPlaceQuery = ''
+  const foundImageNames: string[] = []
+
+  for (const sec of inputSections) {
+    if (sec.type === 'description' && sec.text) {
+      accumulatedDescription += `${sec.text}\n`
+    }
+    else {
+      newSections.push(sec)
+    }
+  }
+
+  if (!accumulatedDescription.trim()) {
+    return act
+  }
+
+  let text = accumulatedDescription
+
+  // 1. Extract location iframes & google maps links (support multiple locations per activity)
+  const extractedLocations: Array<{ name: string, query: string }> = []
+
+  const locLineRegex = /_Ссылка на локацию_:\s*(?:\[(?:Google Maps:\s*)?([^\]]+)\]\((?:https?:)?\/\/maps\.google\.com\/(?:\?q=|maps\?q=)?([^&\)]+)[^\)]*\))?(?:<iframe[^>]*src=["'](?:https?:)?\/\/maps\.google\.com\/maps\?q=([^&"']+)&?[^"']*["'][^>]*>\s*<\/iframe>)?/gi
+  for (const match of text.matchAll(locLineRegex)) {
+    const linkName = match[1]?.trim()
+    const linkQuery = match[2] ? decodeURIComponent(match[2].replace(/\+/g, ' ')).trim() : ''
+    const iframeQuery = match[3] ? decodeURIComponent(match[3].replace(/\+/g, ' ')).trim() : ''
+
+    const name = linkName || linkQuery || iframeQuery
+    const query = linkQuery || iframeQuery || linkName
+    if (name || query) {
+      if (!extractedLocations.some(l => l.name === name || l.query === query)) {
+        extractedLocations.push({ name: name || query, query: query || name })
+      }
+    }
+  }
+
+  // Also standalone iframes without "_Ссылка на локацию_"
+  const standaloneIframeRegex = /<iframe[^>]*src=["'](?:https?:)?\/\/maps\.google\.com\/maps\?q=([^&"']+)&?[^"']*["'][^>]*>\s*<\/iframe>/gi
+  for (const match of text.matchAll(standaloneIframeRegex)) {
+    const iframeQuery = decodeURIComponent(match[1].replace(/\+/g, ' ')).trim()
+    if (iframeQuery && !extractedLocations.some(l => l.query === iframeQuery || l.name === iframeQuery)) {
+      extractedLocations.push({ name: iframeQuery, query: iframeQuery })
+    }
+  }
+
+  // Clean location lines and iframes from description
+  text = text
+    .replace(/^[*-]?\s*_[Сс]сылка на локацию_:[^\n]*\n?/gm, '')
+    .replace(/<iframe[^>]*src=["'](?:https?:)?\/\/maps\.google\.com\/[^"']*["'][^>]*>\s*<\/iframe>/gi, '')
+    .replace(/\[(?:Google Maps:\s*)?[^\]]+\]\((?:https?:)?\/\/maps\.google\.com\/[^\)]+\)/gi, '')
+
+  // 2. Extract image callouts & wikilinks
+  const calloutRegex = />\s*\[!INFO\]-?\s*(?:Картинки|Изображения|Фото|Photos|Images)[\s\S]*?(?=(?:\n\s*\n\s*[^\s>]|\n\s*##|\n\s*###|\n\s*---|\n\s*\*\s*\*\*|$))/gi
+  const callouts = text.match(calloutRegex) || []
+
+  for (const callout of callouts) {
+    const wikilinkRegex = /!\[\[([^\]]+)\]\]/g
+    let m: RegExpExecArray | null
+    while ((m = wikilinkRegex.exec(callout)) !== null) {
+      const fileName = basename(m[1].trim())
+      if (/\.(png|jpg|jpeg|webp|gif|heic|heif|svg)$/i.test(fileName) && !foundImageNames.includes(fileName)) {
+        foundImageNames.push(fileName)
+      }
+    }
+  }
+
+  // Also check non-callout wikilinks in text
+  const nonCalloutWikilinkRegex = /!\[\[([^\]]+)\]\]/g
+  let m: RegExpExecArray | null
+  while ((m = nonCalloutWikilinkRegex.exec(text)) !== null) {
+    const fileName = basename(m[1].trim())
+    if (/\.(png|jpg|jpeg|webp|gif|heic|heif|svg)$/i.test(fileName) && !foundImageNames.includes(fileName)) {
+      foundImageNames.push(fileName)
+    }
+  }
+
+  // Clean image blocks from description
+  text = text
+    .replace(calloutRegex, '')
+    .replace(/!\[\[[^\]]+\]\]/g, '')
+    .replace(/!\[[^\]]*\]\([^)]+\)/g, '')
+    .replace(/\n{3,}/g, '\n\n')
+    .trim()
+
+  // Add cleaned description section if text remains
+  if (text) {
+    newSections.push({
+      id: crypto.randomUUID(),
+      type: 'description',
+      text,
+    })
+  }
+
+  // 3. Process Images -> Gallery Section
+  if (foundImageNames.length > 0) {
+    const uploadedImageUrls: string[] = []
+
+    for (const imgName of foundImageNames) {
+      const localPath = imageIndex.get(imgName) || imageIndex.get(imgName.toLowerCase())
+      if (localPath && existsSync(localPath)) {
+        if (shouldUpload && api && tripId) {
+          try {
+            if (uploadCache.has(localPath)) {
+              uploadedImageUrls.push(uploadCache.get(localPath)!)
+            }
+            else {
+              const uploadedUrl = await api.uploadImage(tripId, localPath, 'route')
+              if (uploadedUrl) {
+                uploadCache.set(localPath, uploadedUrl)
+                uploadedImageUrls.push(uploadedUrl)
+              }
+            }
+          }
+          catch (uploadErr: any) {
+            console.warn(`      ${colors.yellow}⚠ Ошибка загрузки фото ${imgName}: ${uploadErr.message}${colors.reset}`)
+          }
+        }
+        else {
+          uploadedImageUrls.push(imgName)
+        }
+      }
+    }
+
+    if (uploadedImageUrls.length > 0) {
+      newSections.push({
+        id: crypto.randomUUID(),
+        type: 'gallery',
+        imageUrls: uploadedImageUrls,
+      })
+    }
+  }
+
+  // 4. Process Locations -> Geolocation Section
+  if (extractedLocations.length > 0) {
+    const mapPoints: GeolocationPoint[] = []
+
+    for (const loc of extractedLocations) {
+      let coordinates: [number, number] | null = null
+
+      if (shouldGeocode) {
+        coordinates = await geocodeLocation(loc.query, geoCache, options.locationContext)
+        if (!coordinates && loc.name && loc.name !== loc.query) {
+          coordinates = await geocodeLocation(loc.name, geoCache, options.locationContext)
+        }
+      }
+
+      if (coordinates) {
+        mapPoints.push({
+          id: crypto.randomUUID(),
+          coordinates,
+          type: 'poi',
+          address: loc.name,
+          comment: loc.name,
+        })
+      }
+    }
+
+    if (mapPoints.length > 0) {
+      const sectionTitle = mapPoints.map(p => p.address).filter(Boolean).join(' • ')
+      newSections.push({
+        id: crypto.randomUUID(),
+        type: 'geolocation',
+        title: sectionTitle,
+        points: mapPoints,
+        routes: [],
+        drawnRoutes: [],
+        center: mapPoints[0].coordinates,
+        zoom: mapPoints.length > 1 ? 13 : 14,
+      })
+    }
+  }
+
+  return {
+    ...act,
+    sections: newSections,
+  }
 }
 
 // -----------------------------------------------------------------------------
@@ -1676,6 +2081,41 @@ class ApiClient {
       body: JSON.stringify({ id, ...payload }),
     })
   }
+
+  // 7. Image Upload Endpoint
+  async uploadImage(
+    tripId: string,
+    filePath: string,
+    placement: 'route' | 'memories' | 'notes' | 'documents' = 'route',
+  ): Promise<string> {
+    const formData = new FormData()
+    const buffer = readFileSync(filePath)
+    const file = new Blob([buffer])
+    formData.append('file', file, basename(filePath))
+    formData.append('entityType', 'trip')
+    formData.append('entityId', tripId)
+    formData.append('placement', placement)
+
+    const url = `${this.baseUrl}/api/upload`
+    const headers: Record<string, string> = {}
+    if (this.token) {
+      headers.Authorization = `Bearer ${this.token}`
+    }
+
+    const response = await fetch(url, {
+      method: 'POST',
+      headers,
+      body: formData,
+    })
+
+    if (!response.ok) {
+      const text = await response.text()
+      throw new Error(`HTTP ${response.status}: ${text}`)
+    }
+
+    const result = (await response.json()) as any
+    return result.url || result.dbRecord?.url || result.dbRecord?.path || ''
+  }
 }
 
 // -----------------------------------------------------------------------------
@@ -1988,6 +2428,14 @@ async function runImport() {
   if (importActivities && importDays) {
     console.log(`\n${colors.dim}🧩 Генерация и добавление блоков активностей...${colors.reset}`)
 
+    const imageIndex = buildImageIndex(targetDir)
+    const geoCache = new Map<string, [number, number]>()
+    const uploadCache = new Map<string, string>()
+
+    if (imageIndex.size > 0) {
+      console.log(`  ${colors.dim}📸 Проиндексировано локальных медиа-файлов: ${Math.round(imageIndex.size / 4)}${colors.reset}`)
+    }
+
     for (const day of tripData.days) {
       const dayId = dayIdMap.get(day.dayNumber)
       if (!dayId)
@@ -2042,8 +2490,27 @@ async function runImport() {
         activitiesToCreate = parseActivitiesFromMarkdown(day.rawContent)
       }
 
-      // Create activities in DB
+      // Enrich activities with geolocations and uploaded image gallery
+      const enrichedActivities: ActivityPayload[] = []
       for (const act of activitiesToCreate) {
+        const enriched = await enrichActivityWithMediaAndLocation(
+          act,
+          imageIndex,
+          api,
+          tripId,
+          geoCache,
+          uploadCache,
+          {
+            uploadImages: cliOptions.uploadImages,
+            geocode: cliOptions.geocode,
+            locationContext: tripData.cities.length > 0 ? tripData.cities[0] : tripData.title,
+          },
+        )
+        enrichedActivities.push(enriched)
+      }
+
+      // Create activities in DB
+      for (const act of enrichedActivities) {
         try {
           await api.createActivity({
             dayId,
@@ -2053,7 +2520,18 @@ async function runImport() {
             tag: act.tag,
             sections: act.sections || [],
           })
-          console.log(`    ${colors.green}+${colors.reset} [${act.startTime}–${act.endTime}] [${act.tag}] ${act.title}`)
+
+          const gallerySection = act.sections?.find(s => s.type === 'gallery') as ActivitySectionGallery | undefined
+          const geoSection = act.sections?.find(s => s.type === 'geolocation') as ActivitySectionGeolocation | undefined
+
+          const galleryBadge = gallerySection?.imageUrls?.length
+            ? ` ${colors.magenta}[📸 ${gallerySection.imageUrls.length} фото]${colors.reset}`
+            : ''
+          const geoBadge = geoSection?.points?.length
+            ? ` ${colors.blue}[📍 ${geoSection.points[0].address || 'карта'}]${colors.reset}`
+            : ''
+
+          console.log(`    ${colors.green}+${colors.reset} [${act.startTime}–${act.endTime}] [${act.tag}] ${act.title}${galleryBadge}${geoBadge}`)
         }
         catch (actErr: any) {
           console.warn(`    ${colors.red}⚠ Ошибка при создании активности "${act.title}": ${actErr.message}${colors.reset}`)
@@ -2137,8 +2615,10 @@ async function runImport() {
   console.log(`  ${colors.cyan}•${colors.reset} Ссылка в приложении:  ${colors.blue}http://localhost:1420/trips/${tripId}${colors.reset}\n`)
 }
 
-// Run script
-runImport().catch((error) => {
-  console.error(`\n${colors.red}💥 Непредвиденная ошибка:${colors.reset}`, error)
-  process.exit(1)
-})
+// Run script if executed directly
+if (import.meta.main) {
+  runImport().catch((error) => {
+    console.error(`\n${colors.red}💥 Непредвиденная ошибка:${colors.reset}`, error)
+    process.exit(1)
+  })
+}
