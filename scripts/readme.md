@@ -1,7 +1,56 @@
+# Скрипты автоматизации и импорта
+
+## Импорт хранилища Obsidian в Trip Scheduler
+
+Скрипт выполняет интеллектуальный парсинг структуры путешествия из Obsidian и импортирует:
+* **Основную информацию:** название, описание, теги, даты, города.
+* **Маршрут (Дни):** ежедневные страницы из `02 - Маршрутный план`.
+* **Активности:** почасовое расписание с тегами и секциями (через LLM или встроенный парсер).
+* **Чек-листы:** интерактивные вкладки (`Подготовка`, `Must-Try`, `Must-Buy`, `Must-Do`), группы с иконками, подзадачи, цены и локации из `06 - Чек лист`.
+* **Базу знаний:** дерево заметок из `01 - Заметки`, `05 - Полезная информация`, `03 - Бронирования`, `04 - Финансы`.
+
+---
+
+### Быстрый запуск
+
+#### 1. Интерактивный режим (рекомендуется)
+Скрипт автоматически найдет папки путешествий в Obsidian и предложит интерактивный выбор разделов и настроек:
+```bash
+bun run import:obsidian
+```
+
+#### 2. Режим предпросмотра (Dry-run без записи в БД)
+```bash
+bun run import:obsidian --dir "/path/to/Obsidian-Trip" --dry-run
+```
+
+#### 3. Прямой импорт с параметрами
+```bash
 bun run import:obsidian \
-  --dir "/home/injurka/Documents/obsidian-mark/Personal Note/Travel/-- Kuala Lumpur & Taiwan" \
+  --dir "/home/injurka/Documents/obsidian-mark/Personal Note/Travel/-- Taiwan" \
   --api-url "https://trip-scheduler-api.limited-dissolve.ru" \
   --email "dev@dev.dev" \
-  --password "ваш_пароль" \
+  --password "123456" \
   --start-date "2026-09-01" \
-  --status planned
+  --status planned \
+  --all \
+  --yes
+```
+
+---
+
+### Параметры CLI
+
+| Флаг | Описание | По умолчанию |
+| :--- | :--- | :--- |
+| `-d, --dir <path>` | Путь к папке путешествия в Obsidian | Автопоиск |
+| `-u, --api-url <url>` | URL сервера API | `http://localhost:8080` |
+| `-e, --email <email>` | Email для авторизации | `process.env.DEV_EMAIL` |
+| `-p, --password <pass>`| Пароль пользователя | `process.env.DEV_PASSWORD` |
+| `-s, --start-date <date>`| Дата начала (ГГГГ-ММ-ДД) | Сегодня |
+| `--status <status>` | Статус: `planned` \| `draft` \| `completed` | `planned` |
+| `--public` | Сделать путешествие публичным | `private` |
+| `--no-llm` | Использовать быстрый локальный парсер вместо AI | `false` |
+| `--dry-run` | Предпросмотр без сохранения на сервере | `false` |
+| `--all` | Импортировать все разделы без вопросов | `false` |
+| `-y, --yes` | Неинтерактивный режим | `false` |

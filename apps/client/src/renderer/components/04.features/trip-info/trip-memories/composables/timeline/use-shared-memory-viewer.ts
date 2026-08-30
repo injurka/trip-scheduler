@@ -55,7 +55,7 @@ export function useSharedMemoryViewer(props: UseSharedMemoryViewerProps) {
   function saveViewerTime() {
     const meta = imageViewer.currentImage.value?.meta as CustomImageViewerImageMeta | undefined
     const day = getSelectedDay.value
-    if (!meta?.memoryId || !activeViewerTime.value || !day)
+    if (!meta?.memoryId || !activeViewerTime.value || !day || !day.date)
       return
     const original = memories.memories.find((m: IMemory) => m.id === meta.memoryId)
     if (!original)

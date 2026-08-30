@@ -274,7 +274,7 @@ function applyCrop() {
           </div>
 
           <!-- Google -->
-          <div class="integration-item">
+          <div v-if="false" class="integration-item">
             <div class="integration-info">
               <div class="integration-icon-wrap google">
                 <Icon icon="mdi:google" />
@@ -312,7 +312,7 @@ function applyCrop() {
           </div>
 
           <!-- GitHub -->
-          <div class="integration-item">
+          <div v-if="false" class="integration-item">
             <div class="integration-info">
               <div class="integration-icon-wrap github">
                 <Icon icon="mdi:github" />
@@ -774,6 +774,7 @@ function applyCrop() {
   align-items: center;
   gap: 0.35rem;
   font-size: 0.8125rem;
+  white-space: nowrap;
   color: var(--fg-secondary-color);
 
   .status-dot {
@@ -781,6 +782,7 @@ function applyCrop() {
     height: 6px;
     border-radius: 50%;
     background-color: var(--fg-tertiary-color);
+    flex-shrink: 0;
   }
 
   &.linked {

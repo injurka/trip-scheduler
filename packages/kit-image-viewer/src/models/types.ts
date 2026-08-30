@@ -130,3 +130,9 @@ export interface ImageViewerMapMarker {
     lat: number
   }
 }
+
+export interface VirtualThumbnailItem {
+  index: number
+  image: ImageViewerImage
+  offset: number
+}

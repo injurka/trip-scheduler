@@ -178,7 +178,7 @@ export const tripNoteImages = pgTable('trip_note_images', {
 
 export const days = pgTable('days', {
   id: uuid('id').primaryKey(),
-  date: date('date').notNull(),
+  date: date('date'),
   title: text('title').notNull(),
   description: text('description'),
   note: text('note'),

@@ -35,6 +35,19 @@ export interface ITripPlanState {
   isPreviewMode: boolean
 }
 
+export function sortDaysList(days: IDay[]): IDay[] {
+  return [...days].sort((a, b) => {
+    if (a.date && b.date) {
+      return new Date(a.date).getTime() - new Date(b.date).getTime()
+    }
+    if (a.date && !b.date)
+      return -1
+    if (!a.date && b.date)
+      return 1
+    return 0
+  })
+}
+
 /**
  * Стор для управления ДАННЫМИ о маршруте путешествия,
  * включая его дни и активности.
@@ -54,7 +67,7 @@ export const useTripPlanStore = defineStore('tripPlan', {
   getters: {
     isLoading: () => useRequestStatus(ETripPlanKeys.FETCH_TRIP_DETAILS).value,
     fetchError: () => useRequestError(ETripPlanKeys.FETCH_TRIP_DETAILS).value,
-    isLoadingUpdateDay: () => useRequestStatus(ETripPlanKeys.UPDATE_DAY).value,
+    isLoadingUpdateDay: () => useRequestStatusByPrefix(ETripPlanKeys.UPDATE_DAY).value,
     isLoadingNewDay: () => useRequestStatus(ETripPlanKeys.ADD_DAY).value,
     isLoadingUpdateActivity: () => useRequestStatusByPrefix(ETripPlanKeys.UPDATE_ACTIVITY).value,
     isLoadingNote: () => useRequestStatus(ETripPlanKeys.FETCH_DAY_NOTE).value,
@@ -63,6 +76,16 @@ export const useTripPlanStore = defineStore('tripPlan', {
 
     getAllDays(state): IDay[] {
       return state.days
+    },
+
+    calendarDays(state): IDay[] {
+      return state.days
+        .filter(day => !!day.date)
+        .sort((a, b) => new Date(a.date!).getTime() - new Date(b.date!).getTime())
+    },
+
+    draftDays(state): IDay[] {
+      return state.days.filter(day => !day.date)
     },
 
     getSelectedDay(state): IDay | null {
@@ -105,6 +128,21 @@ export const useTripPlanStore = defineStore('tripPlan', {
       if (!state.currentDayId || !state.days)
         return -1
       return state.days.findIndex(day => day.id === state.currentDayId)
+    },
+
+    currentCalendarDayIndex(state): number {
+      const selectedDay = state.days.find(d => d.id === state.currentDayId)
+      if (!selectedDay || !selectedDay.date)
+        return -1
+      const calDays = state.days
+        .filter(d => !!d.date)
+        .sort((a, b) => new Date(a.date!).getTime() - new Date(b.date!).getTime())
+      return calDays.findIndex(day => day.id === state.currentDayId)
+    },
+
+    isCurrentDayDraft(state): boolean {
+      const selectedDay = state.days.find(d => d.id === state.currentDayId)
+      return !!selectedDay && !selectedDay.date
     },
 
     getPreviousDayId(): string | null {
@@ -298,7 +336,7 @@ export const useTripPlanStore = defineStore('tripPlan', {
           const { days, sections, ...tripData } = result
           this.trip = tripData as Trip
 
-          const sortedDays = result.days.sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime())
+          const sortedDays = sortDaysList(result.days)
           this.days = sortedDays as IDay[]
 
           this.dayNote.clear()
@@ -370,7 +408,7 @@ export const useTripPlanStore = defineStore('tripPlan', {
       })
     },
 
-    updateDayDetails(dayId: string, details: Partial<Pick<IDay, 'title' | 'description' | 'date' | 'meta'>>) {
+    updateDayDetails(dayId: string, details: Partial<Pick<IDay, 'title' | 'description' | 'date' | 'meta' | 'note'>>) {
       const dayIndex = this.days.findIndex(d => d.id === dayId)
       if (dayIndex === -1) {
         console.error('Не удалось найти день для обновления:', dayId)
@@ -381,11 +419,11 @@ export const useTripPlanStore = defineStore('tripPlan', {
 
       Object.assign(this.days[dayIndex], details)
 
-      if (details.date)
-        this.days.sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime())
+      if (details.date !== undefined)
+        this.days = sortDaysList(this.days)
 
       useRequest({
-        key: ETripPlanKeys.UPDATE_DAY,
+        key: `${ETripPlanKeys.UPDATE_DAY}:${dayId}`,
         fn: db => db.days.updateDayDetails(dayId, details),
         onSuccess: (updatedDayFromServer) => {
           const finalDayIndex = this.days.findIndex(d => d.id === dayId)
@@ -397,8 +435,8 @@ export const useTripPlanStore = defineStore('tripPlan', {
           if (dayToRevertIndex !== -1)
             this.days[dayToRevertIndex] = originalDay
 
-          if (details.date)
-            this.days.sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime())
+          if (details.date !== undefined)
+            this.days = sortDaysList(this.days)
 
           console.error(`Ошибка при обновлении дня ${dayId}: `, error)
           useToast().error(`Ошибка при обновлении дня: ${error.customMessage}`)
@@ -524,17 +562,18 @@ export const useTripPlanStore = defineStore('tripPlan', {
         return
       }
 
-      const lastDay = [...this.days].sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime()).pop()
-      const newDate = lastDay ? new Date(lastDay.date) : new Date()
+      const calDays = this.days.filter(d => !!d.date).sort((a, b) => new Date(a.date!).getTime() - new Date(b.date!).getTime())
+      const lastDay = calDays[calDays.length - 1]
+      const newDate = lastDay ? new Date(lastDay.date!) : (this.trip?.startDate ? new Date(this.trip.startDate) : new Date())
 
       if (lastDay)
         newDate.setDate(newDate.getDate() + 1)
 
       const newDayData: Omit<IDay, 'id'> = {
         tripId: this.currentTripId,
-        title: `День ${this.days.length + 1}`,
+        title: `День ${calDays.length + 1}`,
         description: '',
-        date: newDate.toISOString(),
+        date: newDate.toISOString().split('T')[0],
         activities: [],
       }
 
@@ -542,12 +581,12 @@ export const useTripPlanStore = defineStore('tripPlan', {
       const dayWithTempId = { ...newDayData, id: tempId }
 
       this.days.push(dayWithTempId as IDay)
-      this.days.sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime())
+      this.days = sortDaysList(this.days)
       this.currentDayId = tempId
 
       useRequest({
         key: ETripPlanKeys.ADD_DAY,
-        fn: db => db.days.createNewDay(newDayData),
+        fn: db => db.days.createNewDay(newDayData as any),
         onSuccess: (createdDay) => {
           const tempDayIndex = this.days.findIndex(d => d.id === tempId)
           if (tempDayIndex !== -1) {
@@ -566,6 +605,55 @@ export const useTripPlanStore = defineStore('tripPlan', {
 
           console.error('Ошибка при добавлении нового дня:', error)
           useToast().error(`Ошибка при добавлении нового дня: ${error.customMessage}`)
+        },
+      })
+    },
+
+    addNewDraftDay() {
+      if (!this.currentTripId) {
+        console.error('Невозможно добавить черновик: ID путешествия не установлен.')
+        useToast().error(`Невозможно добавить черновик: ID путешествия не установлен.`)
+        return
+      }
+
+      const draftCount = this.days.filter(d => !d.date).length
+      const newDayData: Omit<IDay, 'id'> = {
+        tripId: this.currentTripId,
+        title: `Черновик ${draftCount + 1}`,
+        description: '',
+        date: null,
+        activities: [],
+      }
+
+      const tempId = `temp-day-${Date.now()}`
+      const dayWithTempId = { ...newDayData, id: tempId }
+
+      this.days.push(dayWithTempId as IDay)
+      this.days = sortDaysList(this.days)
+      this.currentDayId = tempId
+
+      useRequest({
+        key: ETripPlanKeys.ADD_DAY,
+        fn: db => db.days.createNewDay(newDayData as any),
+        onSuccess: (createdDay) => {
+          const tempDayIndex = this.days.findIndex(d => d.id === tempId)
+          if (tempDayIndex !== -1) {
+            this.days[tempDayIndex] = { ...this.days[tempDayIndex], ...createdDay } as IDay
+            if (this.currentDayId === tempId)
+              this.currentDayId = createdDay.id
+          }
+          useToast().success('Черновик дня создан')
+        },
+        onError: ({ error }) => {
+          const tempDayIndex = this.days.findIndex(d => d.id === tempId)
+          if (tempDayIndex !== -1)
+            this.days.splice(tempDayIndex, 1)
+
+          if (this.currentDayId === tempId)
+            this.currentDayId = this.days.length > 0 ? this.days[0].id : null
+
+          console.error('Ошибка при добавлении черновика дня:', error)
+          useToast().error(`Ошибка при добавлении черновика: ${error.customMessage}`)
         },
       })
     },

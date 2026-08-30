@@ -82,7 +82,7 @@ function buildDaysContext(excludeDayId: string) {
     .filter(d => d.id !== excludeDayId)
     .map((d, _) => ({
       dayNumber: data.days.findIndex(x => x.id === d.id) + 1,
-      date: d.date.split('T')[0],
+      date: d.date ? d.date.split('T')[0] : 'Без даты',
       title: d.title || '',
       description: d.description ?? null,
       activitiesSummary: d.activities

@@ -10,10 +10,11 @@ interface Props {
   selectedDayId?: string
   isOpen: boolean
 }
-defineProps<Props>()
+const props = defineProps<Props>()
 const emit = defineEmits<{
   (e: 'selectDay', dayId: string): void
   (e: 'addNewDay'): void
+  (e: 'addNewDraftDay'): void
   (e: 'close'): void
 }>()
 
@@ -23,6 +24,16 @@ const { mdAndDown } = useDisplay()
 const { isDaysPanelPinned, isViewMode } = storeToRefs(ui)
 const { toggleDaysPanelPinned } = ui
 
+const calendarDays = computed(() =>
+  props.days
+    .filter(d => !!d.date)
+    .sort((a, b) => new Date(a.date!).getTime() - new Date(b.date!).getTime()),
+)
+
+const draftDays = computed(() =>
+  props.days.filter(d => !d.date),
+)
+
 function onSelectDay(dayId: string) {
   emit('selectDay', dayId)
   if (!isDaysPanelPinned.value)
@@ -31,6 +42,10 @@ function onSelectDay(dayId: string) {
 
 function getShortWeekday(date: string): string {
   return new Date(date).toLocaleDateString('ru-RU', { weekday: 'short' }).toUpperCase()
+}
+
+function getDayActivitiesCount(day: Day): number {
+  return day.activities?.length || 0
 }
 </script>
 
@@ -65,30 +80,83 @@ function getShortWeekday(date: string): string {
     </header>
 
     <div class="panel-content">
-      <ul class="days-list">
-        <li v-for="(day, index) in days" :key="day.id">
-          <button
-            class="day-item"
-            :class="{ active: selectedDayId === day.id }"
-            @click="onSelectDay(day.id)"
-          >
-            <div class="day-item-main">
-              <span class="day-number">{{ index + 1 }}</span>
-              <span class="day-title">{{ day.title || `День ${index + 1}` }}</span>
-            </div>
-            <div class="day-item-meta">
-              <span class="day-date">{{ new Date(day.date).toLocaleDateString('ru-RU', { day: 'numeric', month: 'short' }) }}</span>
-              <span class="day-weekday-badge">{{ getShortWeekday(day.date) }}</span>
-            </div>
-          </button>
-        </li>
-      </ul>
+      <!-- Календарные дни -->
+      <div class="panel-section">
+        <div v-if="draftDays.length > 0 || !isViewMode" class="section-header">
+          <div class="section-title-label">
+            <Icon icon="mdi:calendar-range" />
+            <span>Календарный маршрут</span>
+          </div>
+          <span class="section-count">{{ calendarDays.length }}</span>
+        </div>
+        <ul class="days-list">
+          <li v-for="(day, index) in calendarDays" :key="day.id">
+            <button
+              class="day-item"
+              :class="{ active: selectedDayId === day.id }"
+              @click="onSelectDay(day.id)"
+            >
+              <div class="day-item-main">
+                <span class="day-number">{{ index + 1 }}</span>
+                <span class="day-title">{{ day.title || `День ${index + 1}` }}</span>
+              </div>
+              <div class="day-item-meta">
+                <span class="day-date">{{ new Date(day.date!).toLocaleDateString('ru-RU', { day: 'numeric', month: 'short' }) }}</span>
+                <span class="day-weekday-badge">{{ getShortWeekday(day.date!) }}</span>
+              </div>
+            </button>
+          </li>
+          <li v-if="calendarDays.length === 0" class="empty-list-notice">
+            <span>Календарные дни еще не добавлены</span>
+          </li>
+        </ul>
+      </div>
+
+      <!-- Черновики и варианты маршрутов -->
+      <div v-if="draftDays.length > 0 || !isViewMode" class="panel-section drafts-section">
+        <div class="section-header">
+          <div class="section-title-label">
+            <Icon icon="mdi:file-document-edit-outline" />
+            <span>Черновики и варианты</span>
+          </div>
+          <span class="section-count">{{ draftDays.length }}</span>
+        </div>
+        <ul class="days-list">
+          <li v-for="(day, index) in draftDays" :key="day.id">
+            <button
+              class="day-item day-item--draft"
+              :class="{ active: selectedDayId === day.id }"
+              @click="onSelectDay(day.id)"
+            >
+              <div class="day-item-main">
+                <span class="day-draft-icon">
+                  <Icon icon="mdi:map-marker-path" />
+                </span>
+                <span class="day-title">{{ day.title || `Черновик ${index + 1}` }}</span>
+              </div>
+              <div class="day-item-meta">
+                <span v-if="getDayActivitiesCount(day) > 0" class="day-activities-count">
+                  {{ getDayActivitiesCount(day) }} акт.
+                </span>
+                <span class="day-draft-badge">Черновик</span>
+              </div>
+            </button>
+          </li>
+          <li v-if="draftDays.length === 0" class="empty-list-notice">
+            <span>Нет черновиков</span>
+          </li>
+        </ul>
+      </div>
     </div>
 
     <footer v-if="!isViewMode" class="panel-footer">
-      <button class="add-day-btn" @click="$emit('addNewDay')">
+      <button class="add-btn add-day-btn" @click="$emit('addNewDay')">
         <Icon icon="mdi:plus" />
-        <span>Добавить новый день</span>
+        <span>Новый день</span>
+      </button>
+      <button class="add-btn add-draft-btn" @click="$emit('addNewDraftDay')">
+        <Icon icon="mdi:file-document-plus-outline" />
+        <span>Черновик</span>
       </button>
     </footer>
   </aside>
@@ -207,7 +275,58 @@ function getShortWeekday(date: string): string {
 .panel-content {
   flex-grow: 1;
   overflow-y: auto;
-  padding: 8px 0;
+  padding: 12px 0;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.panel-section {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.section-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 4px 20px 6px;
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: var(--fg-secondary-color);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+
+  .section-title-label {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+
+    .iconify {
+      font-size: 0.95rem;
+    }
+  }
+
+  .section-count {
+    background-color: var(--bg-secondary-color);
+    padding: 2px 6px;
+    border-radius: var(--r-full);
+    font-size: 0.75rem;
+    color: var(--fg-secondary-color);
+  }
+}
+
+.drafts-section {
+  border-top: 1px dashed var(--border-secondary-color);
+  padding-top: 12px;
+}
+
+.empty-list-notice {
+  padding: 8px 20px;
+  font-size: 0.8rem;
+  color: var(--fg-tertiary-color);
+  font-style: italic;
 }
 
 .days-list {
@@ -222,12 +341,13 @@ function getShortWeekday(date: string): string {
   align-items: center;
   gap: 16px;
   width: 100%;
-  padding: 10px;
+  padding: 10px 20px;
   border: none;
   background-color: transparent;
   cursor: pointer;
   text-align: left;
   transition: background-color 0.2s ease;
+
   &:hover {
     background-color: var(--bg-hover-color);
   }
@@ -235,12 +355,13 @@ function getShortWeekday(date: string): string {
   &-main {
     display: flex;
     align-items: center;
-    gap: 8px;
+    gap: 10px;
     min-width: 0;
     flex-shrink: 1;
   }
 
-  .day-number {
+  .day-number,
+  .day-draft-icon {
     display: flex;
     align-items: center;
     justify-content: center;
@@ -256,6 +377,12 @@ function getShortWeekday(date: string): string {
     font-family: 'Sansation';
   }
 
+  .day-draft-icon {
+    font-size: 1rem;
+    color: var(--fg-tertiary-color);
+    border: 1px dashed var(--border-secondary-color);
+  }
+
   .day-title {
     font-size: 0.9rem;
     font-weight: 500;
@@ -269,7 +396,7 @@ function getShortWeekday(date: string): string {
   &-meta {
     display: flex;
     align-items: center;
-    gap: 12px;
+    gap: 8px;
     flex-shrink: 0;
   }
 
@@ -279,6 +406,14 @@ function getShortWeekday(date: string): string {
     color: var(--fg-secondary-color);
     white-space: nowrap;
     font-family: 'Sansation';
+  }
+
+  .day-activities-count {
+    font-size: 0.75rem;
+    color: var(--fg-secondary-color);
+    background-color: var(--bg-secondary-color);
+    padding: 2px 6px;
+    border-radius: var(--r-2xs);
   }
 
   .day-weekday-badge {
@@ -292,10 +427,28 @@ function getShortWeekday(date: string): string {
     font-family: 'Sansation';
   }
 
+  .day-draft-badge {
+    background-color: rgba(var(--primary-color-rgb, 100, 116, 139), 0.12);
+    color: var(--fg-secondary-color);
+    border: 1px solid var(--border-secondary-color);
+    padding: 3px 8px;
+    border-radius: var(--r-xs);
+    font-size: 0.7rem;
+    font-weight: 700;
+    line-height: 1;
+  }
+
   &.active {
+    background-color: var(--bg-hover-color);
+
     .day-number {
       background-color: var(--fg-accent-color);
       color: var(--fg-inverted-color);
+    }
+    .day-draft-icon {
+      background-color: var(--fg-accent-color);
+      color: var(--fg-inverted-color);
+      border-color: var(--fg-accent-color);
     }
     .day-title {
       color: var(--fg-accent-color);
@@ -308,34 +461,52 @@ function getShortWeekday(date: string): string {
     .day-weekday-badge {
       background-color: rgba(0, 122, 255, 0.2);
     }
+    .day-draft-badge {
+      color: var(--fg-accent-color);
+      border-color: var(--fg-accent-color);
+      background-color: rgba(0, 122, 255, 0.15);
+    }
   }
 }
 
 .panel-footer {
-  padding: 16px 20px;
+  padding: 12px 16px;
   border-top: 1px solid var(--border-secondary-color);
   flex-shrink: 0;
   z-index: 100;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
 }
 
-.add-day-btn {
-  width: 100%;
+.add-btn {
   display: flex;
   align-items: center;
   justify-content: center;
-  gap: 8px;
-  padding: 10px;
+  gap: 6px;
+  padding: 9px 12px;
   border-radius: var(--r-s);
   border: 1px solid var(--border-secondary-color);
-  background-color: transparent;
-  color: var(--fg-secondary-color);
+  background-color: var(--bg-secondary-color);
+  color: var(--fg-primary-color);
+  font-size: 0.85rem;
   font-weight: 500;
   cursor: pointer;
   transition: all 0.2s ease;
 
+  .iconify {
+    font-size: 1.1rem;
+    color: var(--fg-secondary-color);
+  }
+
   &:hover {
     color: var(--fg-accent-color);
     border-color: var(--fg-accent-color);
+    background-color: var(--bg-hover-color);
+
+    .iconify {
+      color: var(--fg-accent-color);
+    }
   }
 }
 </style>

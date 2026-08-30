@@ -185,14 +185,9 @@ export function useImageViewerUi(options: UseImageViewerUiOptions) {
       const strip = thumbnailsRef.value
       if (!strip)
         return
-      const thumb = strip.children[index] as HTMLElement | undefined
-      if (!thumb)
-        return
-
-      const stripRect = strip.getBoundingClientRect()
-      const thumbRect = thumb.getBoundingClientRect()
-      const currentScrollLeft = strip.scrollLeft
-      const targetScrollLeft = currentScrollLeft + (thumbRect.left - stripRect.left) - (stripRect.width / 2) + (thumbRect.width / 2)
+      const isMobile = typeof window !== 'undefined' && window.matchMedia?.('(max-width: 959px)')?.matches
+      const itemPitch = (isMobile ? 44 : 56) + 10
+      const targetScrollLeft = index * itemPitch
 
       strip.scrollTo({
         left: targetScrollLeft,

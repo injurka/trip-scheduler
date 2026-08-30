@@ -180,7 +180,7 @@ function handleAddActivity() {
 }
 
 function handleSaveNote(text: string, time: Time) {
-  if (!tripData.currentTripId || !getSelectedDay.value)
+  if (!tripData.currentTripId || !getSelectedDay.value?.date)
     return
   const datePart = getSelectedDay.value.date.split('T')[0]
   const h = time.hour.toString().padStart(2, '0')
@@ -193,7 +193,7 @@ function handleSaveNote(text: string, time: Time) {
 }
 
 function handleSaveActivity(title: string, time: Time) {
-  if (!tripData.currentTripId || !getSelectedDay.value)
+  if (!tripData.currentTripId || !getSelectedDay.value?.date)
     return
   const datePart = getSelectedDay.value.date.split('T')[0]
   const h = time.hour.toString().padStart(2, '0')

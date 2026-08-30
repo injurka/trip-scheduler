@@ -46,7 +46,7 @@ export function useMemoryItemActions(props: {
   }
 
   function saveTime() {
-    if (!isTimeEditing.value || !editingTime.value || !getSelectedDay.value)
+    if (!isTimeEditing.value || !editingTime.value || !getSelectedDay.value?.date)
       return
 
     const datePart = getSelectedDay.value.date.split('T')[0]

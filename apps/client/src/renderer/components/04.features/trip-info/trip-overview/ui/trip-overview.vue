@@ -128,6 +128,16 @@ const tripDurationDays = computed(() => {
   return diffDays
 })
 
+const overviewCalendarDays = computed(() =>
+  props.days
+    .filter(d => !!d.date)
+    .sort((a, b) => new Date(a.date!).getTime() - new Date(b.date!).getTime()),
+)
+
+const overviewDraftDays = computed(() =>
+  props.days.filter(d => !d.date),
+)
+
 const attractionCount = computed(() => {
   if (!props.days)
     return 0
@@ -521,9 +531,9 @@ watch(() => props.trip?.id, (newId) => {
           <Icon icon="mdi:calendar-month-outline" />
           <span>Дни путешествия</span>
         </h2>
-        <ul v-if="days.length" class="items-list">
+        <ul v-if="overviewCalendarDays.length" class="items-list">
           <li
-            v-for="(day, index) in days"
+            v-for="(day, index) in overviewCalendarDays"
             :key="day.id"
             v-ripple
             class="list-item day-item"
@@ -534,15 +544,43 @@ watch(() => props.trip?.id, (newId) => {
               <span class="day-number">{{ index + 1 }}</span>
               <div class="item-content">
                 <span class="item-title">{{ day.title || `День ${index + 1}` }}</span>
-                <span class="item-meta">{{ new Date(day.date).toLocaleDateString('ru-RU', { weekday: 'short', day: 'numeric', month: 'long' }) }}</span>
+                <span class="item-meta">{{ new Date(day.date!).toLocaleDateString('ru-RU', { weekday: 'short', day: 'numeric', month: 'long' }) }}</span>
               </div>
             </div>
             <Icon icon="mdi:chevron-right" class="chevron-icon" />
           </li>
         </ul>
         <div v-else class="empty-list-placeholder">
-          <p>Дни еще не добавлены в это путешествие.</p>
+          <p>Календарные дни еще не добавлены в это путешествие.</p>
         </div>
+
+        <template v-if="overviewDraftDays.length">
+          <h2 class="section-title drafts-overview-title">
+            <Icon icon="mdi:file-document-edit-outline" />
+            <span>Черновики и варианты</span>
+          </h2>
+          <ul class="items-list">
+            <li
+              v-for="(day, index) in overviewDraftDays"
+              :key="day.id"
+              v-ripple
+              class="list-item day-item day-item--draft"
+              :style="{ animationDelay: `${index * 50}ms` }"
+              @click="navigateToDay(day.id)"
+            >
+              <div class="item-main-info">
+                <span class="day-number day-number--draft">
+                  <Icon icon="mdi:map-marker-path" />
+                </span>
+                <div class="item-content">
+                  <span class="item-title">{{ day.title || `Черновик ${index + 1}` }}</span>
+                  <span class="item-meta">Без даты (Черновик)</span>
+                </div>
+              </div>
+              <Icon icon="mdi:chevron-right" class="chevron-icon" />
+            </li>
+          </ul>
+        </template>
       </div>
 
       <div class="overview-section">
@@ -1160,6 +1198,16 @@ watch(() => props.trip?.id, (newId) => {
   color: var(--fg-secondary-color);
   font-weight: 600;
   flex-shrink: 0;
+
+  &--draft {
+    background-color: transparent;
+    border: 1px dashed var(--border-secondary-color);
+    color: var(--fg-secondary-color);
+  }
+}
+
+.drafts-overview-title {
+  margin-top: 1.5rem;
 }
 
 .item-meta {

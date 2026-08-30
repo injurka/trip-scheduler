@@ -62,7 +62,7 @@ function showOnMap() {
                 <h3 class="day-title">
                   {{ day.title || `День ${index + 1}` }}
                 </h3>
-                <span class="day-date">{{ new Date(day.date).toLocaleDateString('ru-RU', { month: 'long', day: 'numeric' }) }}</span>
+                <span class="day-date">{{ day.date ? new Date(day.date).toLocaleDateString('ru-RU', { month: 'long', day: 'numeric' }) : 'Черновик' }}</span>
               </div>
             </div>
             <Icon icon="mdi:chevron-right" class="chevron-icon" />

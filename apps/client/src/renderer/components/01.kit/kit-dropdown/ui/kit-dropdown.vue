@@ -16,6 +16,7 @@ const props = withDefaults(defineProps<{
   align?: 'start' | 'center' | 'end'
   size?: 'sm' | 'md' | 'lg'
   portalTarget?: HTMLElement
+  modal?: boolean
 }>(), {
   items: () => [],
   modelValue: null,
@@ -23,6 +24,7 @@ const props = withDefaults(defineProps<{
   align: 'start',
   size: 'md',
   portalTarget: undefined,
+  modal: false,
 })
 
 const emit = defineEmits<{
@@ -48,7 +50,7 @@ function handleSelect(item: KitDropdownItem<T>) {
 </script>
 
 <template>
-  <DropdownMenuRoot v-model:open="isOpen">
+  <DropdownMenuRoot v-model:open="isOpen" :modal="props.modal">
     <DropdownMenuTrigger as-child>
       <slot name="trigger" />
     </DropdownMenuTrigger>

@@ -5,6 +5,63 @@ const HARDCODED_PRESETS: ChecklistPreset[] = [
   // Вкладка: ПОДГОТОВКА (Packing lists)
   // ==========================================
   {
+    id: 'taiwan-expedition',
+    name: 'Экспедиция Формоза (Тайвань)',
+    description: 'Полный комплект: Lucky Land, TWAC, IT-воркейшн, аптечка, запреты и Must-Try.',
+    icon: 'mdi:island',
+    tab: 'preparation',
+    groups: [
+      {
+        name: '🪪 Документы, Въезд и Лотерея',
+        icon: 'mdi:passport',
+        items: [
+          { text: 'Загранпаспорт (запас > 6 мес)', priority: 5, description: 'Проверен на целостность страниц и срок действия' },
+          { text: 'Регистрация в Taiwan the Lucky Land', priority: 5, link: 'https://5000.taiwan.net.tw', cost: 'Шанс ~14 000 ₽', description: 'Заполнить за 1–7 дней до прилета, сохранить QR-код' },
+          { text: 'Электронная миграционная карта (TWAC)', priority: 5, link: 'https://niaspeedy.immigration.gov.tw', description: 'Заполнить за 1–3 дня до вылета' },
+          { text: 'Медицинская страховка (активный отдых)', priority: 4, cost: 'Покрытие от $50 000', description: 'Включая треккинг до 2500м и снорклинг' },
+        ],
+      },
+      {
+        name: '💻 Воркейшн и IT-экипировка',
+        icon: 'mdi:laptop',
+        items: [
+          { text: 'Рабочий ноутбук и GaN-зарядка (65–100W)', priority: 5 },
+          { text: 'Адаптеры на плоскую вилку (Type A/B 110V)', priority: 5 },
+          {
+            text: 'Комплект кабелей',
+            priority: 4,
+            subtasks: [
+              '2x Type-C ➔ Type-C (100W PD)',
+              '1x Type-C ➔ Lightning / USB-C',
+              'Магнитный кабель для часов',
+            ],
+          },
+          { text: 'PowerBank до 20 000 мАч (строго в ручную кладь!)', priority: 5 },
+          { text: 'VPN для РФ-сервисов и тайваньская e-SIM', priority: 5 },
+        ],
+      },
+      {
+        name: '🚨 Таможенные запреты (Штрафы)',
+        icon: 'mdi:alert-octagon-outline',
+        items: [
+          { text: '❌ НЕТ мясным продуктам в багаже', priority: 5, cost: 'Штраф ~560 000 ₽', description: 'Колбасы, паштеты, сосиски, бутерброды — тотальный запрет!' },
+          { text: '❌ НЕТ электронным сигаретам и вейпам', priority: 5, cost: 'Штраф от ~140 000 ₽', description: 'Вейпы, IQOS и жидкости запрещены к ввозу' },
+          { text: '❌ НЕТ свежим фруктам и растениям', priority: 4, cost: 'Штраф от ~84 000 ₽' },
+        ],
+      },
+      {
+        name: '🍜 Стритфуд и Must-Try',
+        icon: 'mdi:noodles',
+        items: [
+          { text: 'Хуцзяобин (胡椒餅) — Перечные булочки', priority: 4, cost: '~65 TWD / ~180 ₽', description: 'Ночной рынок Раохэ (Fuzhou Black Pepper Bun)' },
+          { text: 'Сяолунбао (小籠包) в Din Tai Fung', priority: 4, cost: '~280 TWD / ~780 ₽', description: 'Паровые пельмени с 18 складками и бульоном' },
+          { text: 'Оригинальный Bubble Tea в Chun Shui Tang', priority: 3, cost: '~120 TWD', description: 'Заказ: Сахар 30% (Wei Tang), Без льда (Qu Bing)' },
+          { text: 'Лужоуфань (滷肉飯) — Рис со свининой', priority: 3, cost: '~50 TWD', description: 'Jin Feng Lu Rou Fan у мемориала Чан Кайши' },
+        ],
+      },
+    ],
+  },
+  {
     id: 'universal-trip',
     name: 'Универсальная поездка',
     description: 'Базовый набор вещей: документы, аптечка, техника.',

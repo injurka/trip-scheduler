@@ -1,16 +1,21 @@
 <script setup lang="ts">
-import type { ChecklistItem, ChecklistSectionContent } from '../models/types'
+import type { ParsedMarkdownResult } from '../lib/markdown-checklist-parser'
+import type { ChecklistItem, ChecklistSectionContent, ChecklistTabConfig } from '../models/types'
 import { Icon } from '@iconify/vue'
+import { ref, watch } from 'vue'
 import draggable from 'vuedraggable'
 import { KitBtn } from '~/components/01.kit/kit-btn'
 import { KitCheckbox } from '~/components/01.kit/kit-checkbox'
 import { KitDivider } from '~/components/01.kit/kit-divider'
 import { KitInput } from '~/components/01.kit/kit-input'
 import { KitTabs } from '~/components/01.kit/kit-tabs'
+import { KitTooltip } from '~/components/01.kit/kit-tooltip'
 import { useChecklistSection } from '../composables'
 import ChecklistGroupComponent from './checklist-group.vue'
 import ChecklistItemComponent from './checklist-item.vue'
+import ChecklistMarkdownImportDialog from './checklist-markdown-import-dialog.vue'
 import ChecklistPresetsModal from './checklist-presets-modal.vue'
+import ChecklistTabEditDialog from './checklist-tab-edit-dialog.vue'
 
 interface Props {
   section: {
@@ -29,8 +34,10 @@ const emit = defineEmits<{
 const {
   items,
   groups,
+  tabs,
   activeTab,
   tabItems,
+  currentTabConfig,
   progress,
   hideCompleted,
   searchQuery,
@@ -44,12 +51,20 @@ const {
   addGroup,
   deleteGroup,
   updateGroup,
+  addTab,
+  updateTab,
+  deleteTab,
   applyPreset,
+  applyMarkdownImport,
 } = useChecklistSection(props, emit)
 
 const newUngroupedItemText = ref('')
 const newUngroupedItemInputRef = ref<HTMLInputElement | null>(null)
 const isPresetsModalOpen = ref(false)
+const isImportModalOpen = ref(false)
+const isTabEditDialogOpen = ref(false)
+const isNewTab = ref(false)
+const editingTab = ref<ChecklistTabConfig | null>(null)
 
 function onGroupItemsUpdate(groupId: string, updatedItems: ChecklistItem[]) {
   const otherItems = items.value.filter(i => i.groupId !== groupId)
@@ -73,6 +88,31 @@ function onAddUngroupedItem() {
   }
 }
 
+function openNewTabDialog() {
+  editingTab.value = null
+  isNewTab.value = true
+  isTabEditDialogOpen.value = true
+}
+
+function openEditTabDialog() {
+  editingTab.value = currentTabConfig.value
+  isNewTab.value = false
+  isTabEditDialogOpen.value = true
+}
+
+function handleTabSave(tab: { id: string, name: string, icon: string }) {
+  if (isNewTab.value) {
+    addTab(tab)
+  }
+  else {
+    updateTab(tab)
+  }
+}
+
+function handleMarkdownImport(result: ParsedMarkdownResult, mode: 'current-tab' | 'auto-tabs') {
+  applyMarkdownImport(result, mode)
+}
+
 watch(activeTab, () => {
   newUngroupedItemText.value = ''
 })
@@ -80,244 +120,200 @@ watch(activeTab, () => {
 
 <template>
   <div class="checklist-section">
-    <KitTabs v-model="activeTab" :items="tabItems">
-      <template #preparation>
-        <div class="tab-content-wrapper">
-          <div v-if="hasItemsInCurrentTab || !props.readonly" class="actions-panel">
-            <KitInput v-model="searchQuery" placeholder="Поиск по задачам..." icon="mdi:magnify" class="search-input" />
-            <div class="action-controls">
-              <KitBtn
-                v-if="!readonly"
-                variant="subtle"
-                size="sm"
-                icon="mdi:playlist-star"
-                class="presets-btn"
-                @click="isPresetsModalOpen = true"
-              >
-                Пресеты
-              </KitBtn>
-
-              <KitCheckbox v-model="hideCompleted">
-                Скрыть выполненные
-              </KitCheckbox>
-              <KitBtn v-if="!readonly" variant="tonal" icon="mdi:playlist-plus" @click="addGroup('preparation')">
-                Добавить группу
-              </KitBtn>
-            </div>
-          </div>
-
-          <div v-if="hasItemsInCurrentTab || !props.readonly" class="progress-container">
-            <div class="progress-bar-container">
-              <div class="progress-bar" :style="{ width: `${progress}%` }" />
-            </div>
-            <span class="progress-text">{{ progress }}%</span>
-          </div>
-
-          <div class="checklist-content">
-            <draggable
-              :model-value="currentTabGroups"
-              item-key="id"
-              handle=".drag-handle-group"
-              ghost-class="ghost-item"
-              :disabled="readonly"
-              class="groups-list"
-              @update:model-value="groups = $event"
-            >
-              <template #item="{ element: group }">
-                <ChecklistGroupComponent
-                  :group="group"
-                  :items="itemsByGroupId[group.id] || []"
-                  :readonly="readonly"
-                  @update:group="updateGroup"
-                  @update:items="onGroupItemsUpdate(group.id, $event)"
-                  @delete="deleteGroup(group.id)"
-                  @add-item="text => addItem(text, 'preparation', group.id)"
+    <!-- Шапка вкладок с кнопками создания/настройки -->
+    <div class="tabs-header-wrapper">
+      <div class="tabs-control">
+        <KitTabs v-model="activeTab" :items="tabItems">
+          <template v-for="tab in tabs" :key="tab.id" #[tab.id]>
+            <div class="tab-content-wrapper">
+              <!-- Панель действий -->
+              <div v-if="hasItemsInCurrentTab || !props.readonly" class="actions-panel">
+                <KitInput
+                  v-model="searchQuery"
+                  placeholder="Поиск по задачам, ценам, тегам..."
+                  icon="mdi:magnify"
+                  class="search-input"
                 />
-              </template>
-            </draggable>
+                <div class="action-controls">
+                  <KitBtn
+                    v-if="!readonly"
+                    variant="subtle"
+                    size="sm"
+                    icon="mdi:file-import-outline"
+                    title="Импортировать задачи из Markdown"
+                    @click="isImportModalOpen = true"
+                  >
+                    Импорт MD
+                  </KitBtn>
 
-            <div v-if="currentTabUngroupedItems.length > 0 || !readonly">
-              <KitDivider v-if="currentTabGroups.length > 0" class="group-divider">
-                Прочие задачи
-              </KitDivider>
-              <div class="ungrouped-wrapper">
+                  <KitBtn
+                    v-if="!readonly"
+                    variant="subtle"
+                    size="sm"
+                    icon="mdi:playlist-star"
+                    class="presets-btn"
+                    @click="isPresetsModalOpen = true"
+                  >
+                    Пресеты
+                  </KitBtn>
+
+                  <KitCheckbox v-model="hideCompleted">
+                    Скрыть выполненные
+                  </KitCheckbox>
+
+                  <KitBtn
+                    v-if="!readonly"
+                    variant="tonal"
+                    icon="mdi:playlist-plus"
+                    @click="addGroup(activeTab)"
+                  >
+                    Добавить группу
+                  </KitBtn>
+                </div>
+              </div>
+
+              <!-- Прогресс-бар -->
+              <div v-if="hasItemsInCurrentTab || !props.readonly" class="progress-container">
+                <div class="progress-bar-container">
+                  <div class="progress-bar" :style="{ width: `${progress}%` }" />
+                </div>
+                <span class="progress-text">{{ progress }}%</span>
+              </div>
+
+              <!-- Содержимое: группы и задачи (отображается только если есть контент) -->
+              <div v-if="currentTabGroups.length > 0 || currentTabUngroupedItems.length > 0" class="checklist-content">
                 <draggable
-                  :model-value="currentTabUngroupedItems"
+                  v-if="currentTabGroups.length > 0"
+                  :model-value="currentTabGroups"
                   item-key="id"
-                  handle=".drag-handle"
+                  handle=".drag-handle-group"
                   ghost-class="ghost-item"
                   :disabled="readonly"
-                  class="ungrouped-items-list"
-                  @update:model-value="onUngroupedItemsUpdate"
+                  class="groups-list"
+                  @update:model-value="groups = $event"
                 >
-                  <template #item="{ element: item }">
-                    <ChecklistItemComponent
-                      :item="item"
+                  <template #item="{ element: group }">
+                    <ChecklistGroupComponent
+                      :group="group"
+                      :items="itemsByGroupId[group.id] || []"
                       :readonly="readonly"
-                      @update:item="updateItem"
-                      @delete="deleteItem(item.id)"
+                      @update:group="updateGroup"
+                      @update:items="onGroupItemsUpdate(group.id, $event)"
+                      @delete="deleteGroup(group.id)"
+                      @add-item="text => addItem(text, activeTab, group.id)"
                     />
                   </template>
                 </draggable>
-                <form
-                  v-if="!readonly"
-                  class="add-item-form"
-                  :class="{ 'has-items': currentTabUngroupedItems.length > 0 }"
-                  @submit.prevent="onAddUngroupedItem"
-                >
-                  <input
-                    ref="newUngroupedItemInputRef"
-                    v-model="newUngroupedItemText"
-                    type="text"
-                    placeholder="Добавить прочую задачу..."
-                    class="add-item-input"
-                  >
-                  <KitBtn type="submit" size="sm" :disabled="!newUngroupedItemText.trim()">
-                    Добавить
+
+                <!-- Задачи без группы -->
+                <div v-if="currentTabUngroupedItems.length > 0 || (!readonly && currentTabGroups.length > 0)">
+                  <KitDivider v-if="currentTabGroups.length > 0" class="group-divider">
+                    Прочие задачи
+                  </KitDivider>
+                  <div class="ungrouped-wrapper">
+                    <draggable
+                      :model-value="currentTabUngroupedItems"
+                      item-key="id"
+                      handle=".drag-handle"
+                      ghost-class="ghost-item"
+                      :disabled="readonly"
+                      class="ungrouped-items-list"
+                      @update:model-value="onUngroupedItemsUpdate"
+                    >
+                      <template #item="{ element: item }">
+                        <ChecklistItemComponent
+                          :item="item"
+                          :readonly="readonly"
+                          @update:item="updateItem"
+                          @delete="deleteItem(item.id)"
+                        />
+                      </template>
+                    </draggable>
+                    <form
+                      v-if="!readonly"
+                      class="add-item-form"
+                      :class="{ 'has-items': currentTabUngroupedItems.length > 0 }"
+                      @submit.prevent="onAddUngroupedItem"
+                    >
+                      <input
+                        ref="newUngroupedItemInputRef"
+                        v-model="newUngroupedItemText"
+                        type="text"
+                        placeholder="Добавить прочую задачу..."
+                        class="add-item-input"
+                      >
+                      <KitBtn type="submit" size="sm" :disabled="!newUngroupedItemText.trim()">
+                        Добавить
+                      </KitBtn>
+                    </form>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Состояние отсутствия задач -->
+              <div v-else class="empty-state">
+                <Icon icon="mdi:clipboard-check-outline" class="empty-icon" />
+                <p v-if="searchQuery">
+                  По вашему запросу ничего не найдено.
+                </p>
+                <p v-else-if="hideCompleted && (items.filter(i => i.type === activeTab)).length > 0">
+                  Все задачи выполнены!
+                </p>
+                <p v-else>
+                  В этой вкладке пока нет задач.
+                </p>
+                <div v-if="!readonly && !searchQuery" class="empty-state-actions">
+                  <KitBtn variant="tonal" icon="mdi:file-import-outline" @click="isImportModalOpen = true">
+                    Импортировать из Markdown
                   </KitBtn>
-                </form>
+                  <KitBtn variant="tonal" icon="mdi:playlist-star" @click="isPresetsModalOpen = true">
+                    Выбрать готовый набор
+                  </KitBtn>
+                  <KitBtn variant="tonal" icon="mdi:playlist-plus" @click="addGroup(activeTab)">
+                    Добавить группу
+                  </KitBtn>
+                </div>
               </div>
             </div>
-          </div>
+          </template>
+        </KitTabs>
+      </div>
 
-          <div v-if="currentTabGroups.length === 0 && currentTabUngroupedItems.length === 0" class="empty-state">
-            <Icon icon="mdi:clipboard-check-outline" class="empty-icon" />
-            <p v-if="searchQuery">
-              По вашему запросу ничего не найдено.
-            </p>
-            <p v-else-if="hideCompleted && (items.filter(i => i.type === activeTab)).length > 0">
-              Все задачи выполнены!
-            </p>
-            <p v-else>
-              Задач пока нет.
-            </p>
-            <div v-if="!readonly && !searchQuery" class="empty-state-actions">
-              <KitBtn variant="tonal" icon="mdi:playlist-star" @click="isPresetsModalOpen = true">
-                Выбрать готовый набор
-              </KitBtn>
-            </div>
-          </div>
-        </div>
-      </template>
-      <template #in-trip>
-        <div class="tab-content-wrapper">
-          <div v-if="hasItemsInCurrentTab || !props.readonly" class="actions-panel">
-            <KitInput v-model="searchQuery" placeholder="Поиск по задачам..." icon="mdi:magnify" class="search-input" />
-            <div class="action-controls">
-              <KitBtn
-                v-if="!readonly"
-                variant="subtle"
-                size="sm"
-                icon="mdi:playlist-star"
-                class="presets-btn"
-                @click="isPresetsModalOpen = true"
-              >
-                Пресеты
-              </KitBtn>
-              <KitCheckbox v-model="hideCompleted">
-                Скрыть выполненные
-              </KitCheckbox>
-              <KitBtn v-if="!readonly" variant="tonal" icon="mdi:playlist-plus" @click="addGroup('in-trip')">
-                Добавить группу
-              </KitBtn>
-            </div>
-          </div>
-          <div v-if="hasItemsInCurrentTab || !props.readonly" class="progress-container">
-            <div class="progress-bar-container">
-              <div class="progress-bar" :style="{ width: `${progress}%` }" />
-            </div>
-            <span class="progress-text">{{ progress }}%</span>
-          </div>
-          <div class="checklist-content">
-            <draggable
-              :model-value="currentTabGroups"
-              item-key="id"
-              handle=".drag-handle-group"
-              ghost-class="ghost-item"
-              :disabled="readonly"
-              class="groups-list"
-              @update:model-value="groups = $event"
-            >
-              <template #item="{ element: group }">
-                <ChecklistGroupComponent
-                  :group="group"
-                  :items="itemsByGroupId[group.id] || []"
-                  :readonly="readonly"
-                  @update:group="updateGroup"
-                  @update:items="onGroupItemsUpdate(group.id, $event)"
-                  @delete="deleteGroup(group.id)"
-                  @add-item="text => addItem(text, 'in-trip', group.id)"
-                />
-              </template>
-            </draggable>
-            <div v-if="currentTabUngroupedItems.length > 0 || !readonly">
-              <KitDivider v-if="currentTabGroups.length > 0" class="group-divider">
-                Прочие задачи
-              </KitDivider>
-              <div class="ungrouped-wrapper">
-                <draggable
-                  :model-value="currentTabUngroupedItems"
-                  item-key="id"
-                  handle=".drag-handle"
-                  ghost-class="ghost-item"
-                  :disabled="readonly"
-                  class="ungrouped-items-list"
-                  @update:model-value="onUngroupedItemsUpdate"
-                >
-                  <template #item="{ element: item }">
-                    <ChecklistItemComponent
-                      :item="item"
-                      :readonly="readonly"
-                      @update:item="updateItem"
-                      @delete="deleteItem(item.id)"
-                    />
-                  </template>
-                </draggable>
-                <form
-                  v-if="!readonly"
-                  class="add-item-form"
-                  :class="{ 'has-items': currentTabUngroupedItems.length > 0 }"
-                  @submit.prevent="onAddUngroupedItem"
-                >
-                  <input
-                    ref="newUngroupedItemInputRef"
-                    v-model="newUngroupedItemText"
-                    type="text"
-                    placeholder="Добавить прочую задачу..."
-                    class="add-item-input"
-                  >
-                  <KitBtn type="submit" size="sm" :disabled="!newUngroupedItemText.trim()">
-                    Добавить
-                  </KitBtn>
-                </form>
-              </div>
-            </div>
-          </div>
-          <div v-if="currentTabGroups.length === 0 && currentTabUngroupedItems.length === 0" class="empty-state">
-            <Icon icon="mdi:clipboard-check-outline" class="empty-icon" />
-            <p v-if="searchQuery">
-              По вашему запросу ничего не найдено.
-            </p>
-            <p v-else-if="hideCompleted && (items.filter(i => i.type === activeTab)).length > 0">
-              Все задачи выполнены!
-            </p>
-            <p v-else>
-              Задач пока нет.
-            </p>
-            <div v-if="!readonly && !searchQuery" class="empty-state-actions">
-              <KitBtn variant="tonal" icon="mdi:playlist-star" @click="isPresetsModalOpen = true">
-                Выбрать готовый набор
-              </KitBtn>
-            </div>
-          </div>
-        </div>
-      </template>
-    </KitTabs>
+      <!-- Кнопки управления вкладками -->
+      <div v-if="!readonly" class="tab-management-actions">
+        <KitTooltip text="Добавить новую вкладку">
+          <button class="tab-action-btn" @click="openNewTabDialog">
+            <Icon icon="mdi:tab-plus" />
+          </button>
+        </KitTooltip>
+        <KitTooltip v-if="currentTabConfig?.isCustom" text="Настроить активную вкладку">
+          <button class="tab-action-btn" @click="openEditTabDialog">
+            <Icon icon="mdi:dots-vertical" />
+          </button>
+        </KitTooltip>
+      </div>
+    </div>
 
+    <!-- Модальные окна -->
     <ChecklistPresetsModal
       v-model:visible="isPresetsModalOpen"
       :current-tab="activeTab"
       @select="applyPreset"
+    />
+
+    <ChecklistMarkdownImportDialog
+      v-model:visible="isImportModalOpen"
+      :current-tab-name="currentTabConfig?.name || 'Текущая'"
+      :current-tab-id="activeTab"
+      @import="handleMarkdownImport"
+    />
+
+    <ChecklistTabEditDialog
+      v-model:visible="isTabEditDialogOpen"
+      :tab="editingTab"
+      :is-new="isNewTab"
+      @save="handleTabSave"
+      @delete="deleteTab"
     />
   </div>
 </template>
@@ -328,6 +324,49 @@ watch(activeTab, () => {
   flex-direction: column;
   gap: 0.75rem;
   z-index: 6;
+}
+
+.tabs-header-wrapper {
+  position: relative;
+  display: flex;
+  align-items: flex-start;
+  width: 100%;
+}
+
+.tabs-control {
+  flex-grow: 1;
+  min-width: 0;
+}
+
+.tab-management-actions {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  position: absolute;
+  right: 0;
+  top: 6px;
+  z-index: 10;
+}
+
+.tab-action-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  border-radius: var(--r-s);
+  background: var(--bg-secondary-color);
+  border: 1px solid var(--border-secondary-color);
+  color: var(--fg-secondary-color);
+  cursor: pointer;
+  font-size: 1.1rem;
+  transition: all 0.2s ease;
+
+  &:hover {
+    background: var(--bg-hover-color);
+    color: var(--fg-primary-color);
+    border-color: var(--border-primary-color);
+  }
 }
 
 .tab-content-wrapper {
@@ -344,18 +383,18 @@ watch(activeTab, () => {
 .actions-panel {
   display: flex;
   flex-wrap: wrap;
-  gap: 1rem;
+  gap: 0.75rem;
   align-items: center;
 }
 
 .search-input {
-  flex: 1 1 250px;
+  flex: 1 1 240px;
 }
 
 .action-controls {
   display: flex;
   flex-wrap: wrap;
-  gap: 1rem;
+  gap: 0.5rem;
   align-items: center;
   flex: 1 1 auto;
   justify-content: flex-end;
@@ -371,7 +410,7 @@ watch(activeTab, () => {
     align-items: stretch;
   }
   .action-controls {
-    justify-content: space-between;
+    justify-content: flex-start;
   }
   .presets-btn {
     margin-right: 0;
@@ -386,7 +425,7 @@ watch(activeTab, () => {
 
 .progress-bar-container {
   flex-grow: 1;
-  height: 16px;
+  height: 14px;
   background-color: var(--bg-tertiary-color);
   border-radius: var(--r-full);
   overflow: hidden;
@@ -409,7 +448,7 @@ watch(activeTab, () => {
   display: flex;
   flex-direction: column;
   gap: 0.75rem;
-  margin-bottom: 96px;
+  margin-bottom: 1.5rem;
 }
 
 .groups-list,
@@ -463,7 +502,7 @@ watch(activeTab, () => {
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  padding: 2rem 1rem;
+  padding: 2.5rem 1rem;
   margin-top: 1rem;
   text-align: center;
   color: var(--fg-tertiary-color);
@@ -474,10 +513,14 @@ watch(activeTab, () => {
 
 .empty-icon {
   font-size: 3rem;
-  margin-bottom: 1rem;
+  margin-bottom: 0.75rem;
 }
 
 .empty-state-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  justify-content: center;
   margin-top: 16px;
 }
 </style>

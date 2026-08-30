@@ -298,11 +298,17 @@ onBeforeUnmount(() => {
       font-family: var(--font-mono);
     }
     blockquote {
-      padding-left: 8px;
-      border-left: none;
-      ::before {
-        top: 1px;
-        bottom: 1px;
+      margin: 1em 0;
+      padding: 12px 16px;
+      border-left: 4px solid var(--fg-accent-color);
+      background-color: var(--bg-secondary-color);
+      border-radius: 0 var(--r-s) var(--r-s) 0;
+      color: var(--fg-primary-color);
+      font-size: 0.95em;
+      line-height: 1.5;
+
+      p {
+        margin: 4px 0;
       }
     }
     ul,

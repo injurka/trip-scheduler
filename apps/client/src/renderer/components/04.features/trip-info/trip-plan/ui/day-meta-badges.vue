@@ -87,7 +87,7 @@ const groupedPresets = computed(() => {
 })
 
 const bookingsForSelectedDay = computed(() => {
-  if (!getSelectedDay.value)
+  if (!getSelectedDay.value || !getSelectedDay.value.date)
     return []
 
   const bookingSection = store.sections.sections.find(s => s.type === TripSectionType.BOOKINGS)
@@ -306,7 +306,7 @@ function createBlankBadge() {
       </TooltipProvider>
     </div>
 
-    <DropdownMenuRoot v-if="!readonly" v-model:open="isAddMenuOpen">
+    <DropdownMenuRoot v-if="!readonly" v-model:open="isAddMenuOpen" :modal="false">
       <DropdownMenuTrigger as-child>
         <KitBtn
           variant="subtle"

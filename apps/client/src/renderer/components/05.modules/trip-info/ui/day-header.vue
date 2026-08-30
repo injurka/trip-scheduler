@@ -7,12 +7,13 @@ import { useModuleStore } from '~/components/05.modules/trip-info/composables/us
 
 const store = useModuleStore(['plan', 'ui'])
 
-const { getSelectedDay: selectedDay, currentDayIndex } = storeToRefs(store.plan)
+const { getSelectedDay: selectedDay, currentCalendarDayIndex } = storeToRefs(store.plan)
 const { isViewMode } = storeToRefs(store.ui)
 
 const isVisualizerOpen = ref(false)
 
-const dayNumber = computed(() => currentDayIndex.value + 1)
+const isDraft = computed(() => !selectedDay.value?.date)
+const dayNumber = computed(() => currentCalendarDayIndex.value + 1)
 const activitiesCount = computed(() => selectedDay.value?.activities?.length || 0)
 
 function updateDayDetails(details: { title?: string, description?: string, meta?: any[] }) {
@@ -48,9 +49,13 @@ function handleScrollToActivity(activityId: string) {
 
     <div class="day-header__inner">
       <div class="day-header__meta">
-        <span class="day-badge">
+        <span v-if="!isDraft" class="day-badge">
           <span class="day-badge__label">день</span>
           <span class="day-badge__number">{{ dayNumber }}</span>
+        </span>
+        <span v-else class="day-badge day-badge--draft">
+          <Icon icon="mdi:file-document-edit-outline" />
+          <span class="day-badge__label">черновик</span>
         </span>
         <div class="day-header__separator" />
 
@@ -178,6 +183,25 @@ function handleScrollToActivity(activityId: string) {
   padding: 3px 12px 3px 10px;
   line-height: 1;
   flex-shrink: 0;
+
+  &--draft {
+    align-items: center;
+    gap: 6px;
+    background: var(--bg-primary-color);
+    border: 1px dashed var(--border-secondary-color);
+    padding: 4px 10px;
+
+    .iconify {
+      font-size: 0.95rem;
+      color: var(--fg-accent-color);
+    }
+
+    .day-badge__label {
+      color: var(--fg-accent-color);
+      opacity: 1;
+      font-size: 0.7rem;
+    }
+  }
 }
 
 .day-badge__label {

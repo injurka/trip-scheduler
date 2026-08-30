@@ -99,7 +99,7 @@ useEventListener('keydown', (e) => {
 </script>
 
 <template>
-  <DropdownMenuRoot v-model:open="isOpen">
+  <DropdownMenuRoot v-model:open="isOpen" :modal="false">
     <DropdownMenuTrigger as-child>
       <button
         class="add-section-trigger"

@@ -4,7 +4,12 @@ import type { IImageViewerImageMeta, ImageQuality, ImageViewerImage } from '../m
 import { Icon } from '@iconify/vue'
 import { toRef, useEventListener, useIdle } from '@vueuse/core'
 import { computed, onUnmounted, reactive, ref, toRaw, watch } from 'vue'
-import { useImageViewerSwipe, useImageViewerTransform, useImageViewerUi } from '../composables'
+import {
+  useImageViewerSwipe,
+  useImageViewerThumbnails,
+  useImageViewerTransform,
+  useImageViewerUi,
+} from '../composables'
 import ImageMetadataPanel from './kit-image-metadata-panel.vue'
 import KitViewerControls from './kit-viewer-controls.vue'
 import KitViewerTooltip from './kit-viewer-tooltip.vue'
@@ -73,13 +78,6 @@ const currentImage = computed(() => props.images[props.currentIndex] ?? null)
 const hasMultipleImages = computed(() => props.images.length > 1)
 
 const paginationPromptDirection = ref<'next' | 'prev' | null>(null)
-const failedThumbnails = ref<Set<number>>(new Set())
-const loadedThumbnails = ref<Set<number>>(new Set())
-
-watch(() => props.images, () => {
-  failedThumbnails.value = new Set()
-  loadedThumbnails.value = new Set()
-})
 
 function closePaginationPrompt() {
   paginationPromptDirection.value = null
@@ -96,6 +94,23 @@ function confirmPagination() {
 }
 
 const {
+  thumbnailSize,
+  totalWidth: totalThumbnailsWidth,
+  visibleThumbnails,
+  failedThumbnails,
+  loadedThumbnails,
+  onThumbnailsScroll,
+  scrollThumbnailIntoView,
+  resolveThumbnailUrl,
+  isVideoImage,
+} = useImageViewerThumbnails({
+  images: toRef(props, 'images'),
+  currentIndex: toRef(props, 'currentIndex'),
+  thumbnailsRef,
+  resolveUrl: props.resolveUrl,
+})
+
+const {
   selectedQuality,
   qualityItems,
   onImageLoad,
@@ -103,7 +118,6 @@ const {
   isMetadataPanelOpen,
   hasMetadata,
   closeMetadataPanel,
-  scrollThumbnailIntoView,
   isDownloading,
   downloadCurrentImage,
 } = useImageViewerUi({
@@ -225,18 +239,6 @@ function getImageUrl(image: ImageViewerImage, quality: ImageQuality): string {
   return props.resolveUrl ? props.resolveUrl(rawUrl) : rawUrl
 }
 
-function resolveThumbnailUrl(image: ImageViewerImage): string {
-  const v = image.variants
-  const rawUrl = v?.small || v?.thumbnail || v?.thumb || v?.preview || v?.medium || image.url || ''
-  return props.resolveUrl ? props.resolveUrl(rawUrl) : rawUrl
-}
-
-function isVideoImage(img?: ImageViewerImage | null): boolean {
-  if (!img)
-    return false
-  return img.mediaType === 'video' || img.meta?.mediaType === 'video' || /\.(?:mp4|webm|mov|mkv|avi|ogg|quicktime)$/i.test(img.url || '')
-}
-
 function handleImageLoad(index: number, event: Event) {
   if (!imageLoadStates[index]) {
     imageLoadStates[index] = { loaded: true, error: false, loader: false }
@@ -279,7 +281,6 @@ function handleVideoLoadedMetadata(index: number, event: Event) {
   }
 }
 
-void isVideoImage
 void handleVideoLoadedMetadata
 
 function handleImageError(index: number, event: Event) {
@@ -727,54 +728,74 @@ onUnmounted(() => {
           <template v-if="enableThumbnails && hasMultipleImages">
             <Transition name="controls-fade">
               <div v-show="areControlsVisible && isUiVisible" class="thumbnails-container">
-                <div ref="thumbnailsRef" class="thumbnails-wrapper">
-                  <KitViewerTooltip
-                    v-for="(image, index) in images"
-                    :key="`thumb-${index}`"
-                    :text="`К ${isVideoImage(image) ? 'видео' : 'изображению'} ${index + 1}`"
+                <div
+                  ref="thumbnailsRef"
+                  class="thumbnails-wrapper"
+                  @scroll.passive="onThumbnailsScroll"
+                >
+                  <div
+                    class="thumbnails-track"
+                    :style="{
+                      width: `${totalThumbnailsWidth}px`,
+                      height: `${thumbnailSize}px`,
+                    }"
                   >
-                    <button
-                      class="thumbnail"
-                      :class="{
-                        'active': index === currentIndex,
-                        'is-broken': failedThumbnails.has(index),
-                        'is-loaded': loadedThumbnails.has(index),
-                        'is-video-thumb': isVideoImage(image),
+                    <KitViewerTooltip
+                      v-for="item in visibleThumbnails"
+                      :key="`thumb-${item.index}`"
+                      :text="`К ${isVideoImage(item.image) ? 'видео' : 'изображению'} ${item.index + 1}`"
+                      :style="{
+                        position: 'absolute',
+                        left: `${item.offset}px`,
+                        top: 0,
+                        width: `${thumbnailSize}px`,
+                        height: `${thumbnailSize}px`,
+                        zIndex: item.index === currentIndex ? 2 : 1,
                       }"
-                      @click.stop="goToIndex(index)"
                     >
-                      <template v-if="!failedThumbnails.has(index)">
-                        <video
-                          v-if="isVideoImage(image)"
-                          :src="resolveThumbnailUrl(image)"
-                          muted
-                          playsinline
-                          preload="metadata"
-                          :class="{ loaded: loadedThumbnails.has(index) }"
-                          @loadedmetadata="loadedThumbnails.add(index)"
-                          @error="failedThumbnails.add(index)"
-                        />
-                        <img
-                          v-else
-                          :src="resolveThumbnailUrl(image)"
-                          :alt="image.alt || `Thumbnail ${index + 1}`"
-                          loading="lazy"
-                          :class="{ loaded: loadedThumbnails.has(index) }"
-                          @load="loadedThumbnails.add(index)"
-                          @error="failedThumbnails.add(index)"
-                        >
-                        <div v-if="isVideoImage(image)" class="thumb-video-badge">
-                          <Icon icon="mdi:play" />
+                      <button
+                        class="thumbnail"
+                        :class="{
+                          'active': item.index === currentIndex,
+                          'is-broken': failedThumbnails.has(item.index),
+                          'is-loaded': loadedThumbnails.has(item.index),
+                          'is-video-thumb': isVideoImage(item.image),
+                        }"
+                        @click.stop="goToIndex(item.index)"
+                      >
+                        <template v-if="!failedThumbnails.has(item.index)">
+                          <video
+                            v-if="isVideoImage(item.image)"
+                            :src="resolveThumbnailUrl(item.image)"
+                            muted
+                            playsinline
+                            preload="metadata"
+                            :class="{ loaded: loadedThumbnails.has(item.index) }"
+                            @loadedmetadata="loadedThumbnails.add(item.index)"
+                            @error="failedThumbnails.add(item.index)"
+                          />
+                          <img
+                            v-else
+                            :src="resolveThumbnailUrl(item.image)"
+                            :alt="item.image.alt || `Thumbnail ${item.index + 1}`"
+                            loading="lazy"
+                            :class="{ loaded: loadedThumbnails.has(item.index) }"
+                            @load="loadedThumbnails.add(item.index)"
+                            @error="failedThumbnails.add(item.index)"
+                          >
+                          <div v-if="isVideoImage(item.image)" class="thumb-video-badge">
+                            <Icon icon="mdi:play" />
+                          </div>
+                          <div v-if="!loadedThumbnails.has(item.index)" class="thumb-skeleton">
+                            <div class="thumb-skeleton-wave" />
+                          </div>
+                        </template>
+                        <div v-else class="thumb-broken-placeholder">
+                          <Icon icon="mdi:image-off-outline" />
                         </div>
-                        <div v-if="!loadedThumbnails.has(index)" class="thumb-skeleton">
-                          <div class="thumb-skeleton-wave" />
-                        </div>
-                      </template>
-                      <div v-else class="thumb-broken-placeholder">
-                        <Icon icon="mdi:image-off-outline" />
-                      </div>
-                    </button>
-                  </KitViewerTooltip>
+                      </button>
+                    </KitViewerTooltip>
+                  </div>
                 </div>
               </div>
             </Transition>
@@ -1248,14 +1269,16 @@ onUnmounted(() => {
 }
 
 .thumbnails-wrapper {
+  --thumb-size: 56px;
+  --thumb-gap: 10px;
   display: flex;
-  gap: 10px;
-  padding: 10px calc(50% - 28px);
-  scroll-padding: 0 calc(50% - 28px);
+  padding: 10px calc(50% - (var(--thumb-size) / 2));
+  scroll-padding: 0 calc(50% - (var(--thumb-size) / 2));
   background: transparent;
   border: none;
 
   overflow-x: auto;
+  overflow-y: hidden;
   max-width: 100%;
   mask-image: linear-gradient(to right, transparent 0%, black 15%, black 85%, transparent 100%);
   -webkit-mask-image: linear-gradient(to right, transparent 0%, black 15%, black 85%, transparent 100%);
@@ -1275,11 +1298,22 @@ onUnmounted(() => {
   }
 }
 
-.thumbnail {
+.thumbnails-track {
   position: relative;
   flex-shrink: 0;
-  width: 56px;
-  height: 56px;
+
+  :deep(.kit-viewer-tooltip-wrapper),
+  :deep(.kit-viewer-tooltip-trigger) {
+    width: 100%;
+    height: 100%;
+    display: block;
+  }
+}
+
+.thumbnail {
+  position: relative;
+  width: 100%;
+  height: 100%;
   border-radius: var(--r-s, 6px);
   overflow: hidden;
   cursor: pointer;
@@ -1488,9 +1522,8 @@ onUnmounted(() => {
   .thumbnails-container {
     bottom: 16px;
   }
-  .thumbnail {
-    width: 44px;
-    height: 44px;
+  .thumbnails-wrapper {
+    --thumb-size: 44px;
   }
 }
 

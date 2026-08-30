@@ -61,7 +61,7 @@ function saveTime() {
     return
   }
   const day = tripPlanStore.getSelectedDay
-  if (!day) {
+  if (!day || !day.date) {
     isEditingTime.value = false
     return
   }

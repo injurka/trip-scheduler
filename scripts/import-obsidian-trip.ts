@@ -63,7 +63,7 @@ export const DEFAULT_TRIP_SECTIONS = [
   },
   {
     type: 'checklist',
-    title: 'Чек-лист',
+    title: 'Чек-листы',
     icon: 'mdi:format-list-checks',
   },
   {
@@ -111,6 +111,75 @@ interface ParsedNoteFolder {
   files: ParsedNoteFile[]
 }
 
+export interface ChecklistSubtask {
+  id: string
+  text: string
+  completed: boolean
+}
+
+export interface ChecklistTabConfig {
+  id: string
+  name: string
+  icon: string
+  isCustom?: boolean
+}
+
+export interface ChecklistGroup {
+  id: string
+  name: string
+  icon?: string
+  type?: string
+}
+
+export type ChecklistPriority = 1 | 2 | 3 | 4 | 5
+
+export interface ChecklistItem {
+  id: string
+  text: string
+  completed: boolean
+  type: string
+  groupId?: string
+  priority?: ChecklistPriority
+  description?: string
+  cost?: string
+  location?: string
+  link?: string
+  tags?: string[]
+  subtasks?: ChecklistSubtask[]
+}
+
+export interface ChecklistSectionContent {
+  items?: ChecklistItem[]
+  groups?: ChecklistGroup[]
+  tabs?: ChecklistTabConfig[]
+}
+
+export interface FinanceTransaction {
+  id: string
+  title: string
+  amount: number
+  currency: string
+  categoryId: string
+  notes?: string
+  date?: string
+}
+
+export interface FinanceCategory {
+  id: string
+  name: string
+  icon: string
+  isDefault: boolean
+}
+
+export interface FinancesSectionContent {
+  settings: {
+    mainCurrency: string
+    exchangeRates: Record<string, number>
+  }
+  categories: FinanceCategory[]
+  transactions: FinanceTransaction[]
+}
+
 interface ParsedTripData {
   title: string
   description: string
@@ -122,6 +191,9 @@ interface ParsedTripData {
   days: ParsedDay[]
   sectionFolders: ParsedNoteFolder[]
   rootNotes: ParsedNoteFile[]
+  checklistContent: ChecklistSectionContent
+  checklistFilesCount: number
+  financesContent: FinancesSectionContent
 }
 
 interface ActivitySection {
@@ -150,6 +222,13 @@ interface CliOptions {
   dryRun: boolean
   visibility: 'private' | 'public'
   status: 'planned' | 'draft' | 'completed'
+  importTripMeta?: boolean
+  importDays?: boolean
+  importActivities?: boolean
+  importChecklists?: boolean
+  importNotes?: boolean
+  importSections?: boolean
+  nonInteractive?: boolean
 }
 
 // -----------------------------------------------------------------------------
@@ -201,6 +280,17 @@ function parseCliArgs(): CliOptions {
         options.status = val
       }
     }
+    else if (arg === '--yes' || arg === '-y') {
+      options.nonInteractive = true
+    }
+    else if (arg === '--all') {
+      options.importTripMeta = true
+      options.importDays = true
+      options.importActivities = true
+      options.importChecklists = true
+      options.importNotes = true
+      options.importSections = true
+    }
     else if (!arg.startsWith('-') && !options.dir) {
       options.dir = arg
     }
@@ -226,10 +316,12 @@ ${colors.yellow}Опции:${colors.reset}
   --dry-run                Режим предпросмотра без отправки запросов на сервер
   --public                 Сделать путешествие публичным (по умолчанию: private)
   --status <status>        Статус: planned | completed | draft (по умолчанию: planned)
+  --all                    Импортировать все разделы без дополнительных вопросов
+  -y, --yes                Неинтерактивный режим
   -h, --help               Показать справку
 
 ${colors.yellow}Примеры:${colors.reset}
-  bun run scripts/import-obsidian-trip.ts "/home/injurka/Documents/obsidian-mark/Personal Note/Travel/-- Kuala Lumpur & Taiwan"
+  bun run scripts/import-obsidian-trip.ts "/home/injurka/Documents/obsidian-mark/Personal Note/Travel/-- Taiwan"
   bun run scripts/import-obsidian-trip.ts --dir "./my-trip" --email "dev@dev.dev" --password "123456"
 `)
 }
@@ -529,7 +621,557 @@ You MUST return ONLY a valid JSON object with a single key "activities", which i
 }
 
 // -----------------------------------------------------------------------------
-// Obsidian Parser
+// Helper: Smart Group Icon Picker based on Emojis & Keywords
+// -----------------------------------------------------------------------------
+function detectIconForGroup(groupName: string): string {
+  const text = groupName.toLowerCase()
+
+  if (/🪪|документ|паспорт|виз|страхов|въезд/.test(text))
+    return 'mdi:card-account-details-outline'
+  if (/💳|финанс|деньг|валют|карт|easycard|оплат/.test(text))
+    return 'mdi:credit-card-outline'
+  if (/💻|воркейшн|ноутбук|техник|it|электроник|гаджет/.test(text))
+    return 'mdi:laptop'
+  if (/📱|софт|приложен|приложени|esim|связь|vpn/.test(text))
+    return 'mdi:cellphone-cog'
+  if (/💊|аптечк|здоров|медицин|лекарств|таблетк/.test(text))
+    return 'mdi:pill'
+  if (/👕|гардероб|одежд|обув|слои|куртк|дождевик/.test(text))
+    return 'mdi:tshirt-crew-outline'
+  if (/🎒|снаряжен|багаж|рюкзак|чемодан|вещи/.test(text))
+    return 'mdi:bag-personal-outline'
+  if (/🚨|таможн|запрет|правил|штраф/.test(text))
+    return 'mdi:alert-octagon-outline'
+  if (/⏳|таймлайн|готовност|предполетн|срок/.test(text))
+    return 'mdi:timeline-clock-outline'
+  if (/🏮|стритфуд|ночной рынок|рынок|закуск/.test(text))
+    return 'mdi:food'
+  if (/🍲|специалитет|блюд|деликатес|утка|говядин|суп|лапша/.test(text))
+    return 'mdi:pot-steam'
+  if (/🍵|чай|чайная|напитк|boba|bubble tea|гунфу/.test(text))
+    return 'mdi:tea'
+  if (/🥭|фрукт|десерт|бингсу|морожен/.test(text))
+    return 'mdi:fruit-cherries'
+  if (/🌊|природ|остров|снорклинг|онсэн|термал|пляж/.test(text))
+    return 'mdi:waves'
+  if (/⛩️|культур|храм|традици|лотере|гадан|фич/.test(text))
+    return 'mdi:torii-gate'
+  if (/🍃|улун|коллекци|лишан|алишан/.test(text))
+    return 'mdi:leaf'
+  if (/🍍|выпечк|сладост|фэнлису|тайянбин|пирог/.test(text))
+    return 'mdi:cake-variant'
+  if (/🥃|виски|алкогол|kavalan|пиво/.test(text))
+    return 'mdi:glass-cocktail'
+  if (/🛍️|шопинг|покупк|подарк|сувенир/.test(text))
+    return 'mdi:shopping-outline'
+  if (/🧴|косметик|уход|маск/.test(text))
+    return 'mdi:lotion-outline'
+
+  return 'mdi:checkbox-marked-circle-outline'
+}
+
+// -----------------------------------------------------------------------------
+// Helper: Extract Cost, Location, Link, Priority from task text
+// -----------------------------------------------------------------------------
+function extractCostFromText(text: string): string | undefined {
+  const match = text.match(/\((?:💰|~)?\s*([~≈]?\s*(?:\d+[\s\d]*[–—\-]\s*\d+|\d+[\s\d]*)\s*(?:TWD|NT\$|₽|USD|\$|EUR|€|CNY|¥|KRW|₩)(?:\s*\/[^\)]+)?)\)/i)
+  if (match)
+    return match[1].trim()
+
+  const plainMatch = text.match(/`(~?\s*\d+[\s\d]*(?:[–—\-]\d+[\s\d]*)?\s*(?:TWD|₽|\$|USD|EUR))`/)
+  if (plainMatch)
+    return plainMatch[1].trim()
+
+  return undefined
+}
+
+function extractLocationFromText(text: string): string | undefined {
+  const match = text.match(/\*(?:Где пробовать|Локация|Место|Где искать|Где купить):\*\s*([^;\n\)]+)/i)
+  if (match) {
+    return match[1].split('(`')[0].split('(`')[0].trim().replace(/\s*\(~.*$/, '')
+  }
+  return undefined
+}
+
+function extractLinkFromText(text: string): string | undefined {
+  const mdMatch = text.match(/\[([^\]]+)\]\((https?:\/\/[^\)]+)\)/i)
+  if (mdMatch)
+    return mdMatch[2]
+
+  const urlMatch = text.match(/(?:https?:\/\/|www\.)[^\s\)]+/i)
+  if (urlMatch) {
+    let url = urlMatch[0].replace(/[`\*,;.]+$/, '')
+    if (!url.startsWith('http'))
+      url = `https://${url}`
+    return url
+  }
+
+  const portalMatch = text.match(/`([a-z0-9.-]+\.[a-z]{2,}(?:\/[^\s`]*)?)`/i)
+  if (portalMatch) {
+    return `https://${portalMatch[1]}`
+  }
+
+  return undefined
+}
+
+function detectPriorityFromText(text: string): ChecklistPriority {
+  if (/🚨|❌|запрещен|штраф|критическ|обязательн|строго/i.test(text))
+    return 5
+  if (/⚡|важно|рекомендует|высок/i.test(text))
+    return 4
+  if (/\[P5\]/i.test(text))
+    return 5
+  if (/\[P4\]/i.test(text))
+    return 4
+  if (/\[P3\]/i.test(text))
+    return 3
+  if (/\[P2\]/i.test(text))
+    return 2
+  if (/\[P1\]/i.test(text))
+    return 1
+
+  return 1
+}
+
+// -----------------------------------------------------------------------------
+// Advanced Obsidian Checklist Parser
+// -----------------------------------------------------------------------------
+export function parseObsidianChecklists(checklistDirOrFiles: string[] | string): ChecklistSectionContent {
+  const filePaths: string[] = []
+
+  if (typeof checklistDirOrFiles === 'string') {
+    if (existsSync(checklistDirOrFiles)) {
+      if (statSync(checklistDirOrFiles).isDirectory()) {
+        const files = readdirSync(checklistDirOrFiles).filter(f => f.endsWith('.md'))
+        for (const file of files) {
+          filePaths.push(join(checklistDirOrFiles, file))
+        }
+      }
+      else {
+        filePaths.push(checklistDirOrFiles)
+      }
+    }
+  }
+  else if (Array.isArray(checklistDirOrFiles)) {
+    filePaths.push(...checklistDirOrFiles.filter(f => existsSync(f)))
+  }
+
+  if (filePaths.length === 0) {
+    return {
+      tabs: [
+        { id: 'preparation', name: 'Подготовка и сборы', icon: 'mdi:briefcase-check-outline', isCustom: false },
+        { id: 'in-trip', name: 'В путешествии', icon: 'mdi:map-marker-path', isCustom: false },
+      ],
+      groups: [],
+      items: [],
+    }
+  }
+
+  const tabs: ChecklistTabConfig[] = []
+  const groups: ChecklistGroup[] = []
+  const items: ChecklistItem[] = []
+
+  // Ensure default base tabs
+  const defaultPrepTab: ChecklistTabConfig = {
+    id: 'preparation',
+    name: 'Подготовка и сборы',
+    icon: 'mdi:briefcase-check-outline',
+    isCustom: false,
+  }
+  tabs.push(defaultPrepTab)
+
+  for (const filePath of filePaths) {
+    const fileName = basename(filePath)
+    const content = readFileSync(filePath, 'utf-8')
+    const lines = content.split('\n')
+
+    // Determine target tab based on filename
+    let currentTabId = 'preparation'
+
+    if (/must-try|что попробовать/i.test(fileName)) {
+      currentTabId = 'must-try'
+      if (!tabs.some(t => t.id === 'must-try')) {
+        tabs.push({ id: 'must-try', name: 'Must-Try: Гастрономия', icon: 'mdi:noodles', isCustom: true })
+      }
+    }
+    else if (/must-buy|шопинг|покупки/i.test(fileName)) {
+      currentTabId = 'must-buy'
+      if (!tabs.some(t => t.id === 'must-buy')) {
+        tabs.push({ id: 'must-buy', name: 'Must-Buy: Шопинг', icon: 'mdi:shopping-outline', isCustom: true })
+      }
+    }
+    else if (/активност|must-do|впечатлен/i.test(fileName)) {
+      currentTabId = 'must-do'
+      if (!tabs.some(t => t.id === 'must-do')) {
+        tabs.push({ id: 'must-do', name: 'Must-Do: Впечатления', icon: 'mdi:compass-outline', isCustom: true })
+      }
+    }
+
+    let currentGroupId: string | undefined
+    let currentItem: ChecklistItem | null = null
+
+    for (let lineIndex = 0; lineIndex < lines.length; lineIndex++) {
+      const rawLine = lines[lineIndex]
+      const trimmed = rawLine.trim()
+
+      if (!trimmed)
+        continue
+
+      // H1 Header (e.g. # Must-Try or # Must-Buy)
+      if (rawLine.startsWith('# ') && !rawLine.startsWith('## ')) {
+        const title = rawLine.replace(/^#\s*/, '').replace(/^[^\wА-Яа-яёЁ]+/, '').trim()
+        if (/must-try|гастрономи|что попробовать/i.test(title)) {
+          currentTabId = 'must-try'
+          if (!tabs.some(t => t.id === 'must-try')) {
+            tabs.push({ id: 'must-try', name: 'Must-Try: Гастрономия', icon: 'mdi:noodles', isCustom: true })
+          }
+        }
+        else if (/must-buy|шопинг|покупки/i.test(title)) {
+          currentTabId = 'must-buy'
+          if (!tabs.some(t => t.id === 'must-buy')) {
+            tabs.push({ id: 'must-buy', name: 'Must-Buy: Шопинг', icon: 'mdi:shopping-outline', isCustom: true })
+          }
+        }
+        else if (/must-do|активност|впечатлен/i.test(title)) {
+          currentTabId = 'must-do'
+          if (!tabs.some(t => t.id === 'must-do')) {
+            tabs.push({ id: 'must-do', name: 'Must-Do: Впечатления', icon: 'mdi:compass-outline', isCustom: true })
+          }
+        }
+        continue
+      }
+
+      // H2 Header (e.g. ## I. Must-Try, ## 1. Документы)
+      if (rawLine.startsWith('## ') && !rawLine.startsWith('### ')) {
+        const cleanH2 = rawLine.replace(/^##\s*/, '').trim()
+
+        if (/I\.\s*Must-Try|гастрономический гид/i.test(cleanH2)) {
+          currentTabId = 'must-try'
+          if (!tabs.some(t => t.id === 'must-try')) {
+            tabs.push({ id: 'must-try', name: 'Must-Try: Гастрономия', icon: 'mdi:noodles', isCustom: true })
+          }
+          continue
+        }
+        else if (/II\.\s*Must-Do|активностей|опыта/i.test(cleanH2)) {
+          currentTabId = 'must-do'
+          if (!tabs.some(t => t.id === 'must-do')) {
+            tabs.push({ id: 'must-do', name: 'Must-Do: Впечатления', icon: 'mdi:compass-outline', isCustom: true })
+          }
+          continue
+        }
+        else if (/III\.\s*Must-Buy|шопинг|подарки/i.test(cleanH2)) {
+          currentTabId = 'must-buy'
+          if (!tabs.some(t => t.id === 'must-buy')) {
+            tabs.push({ id: 'must-buy', name: 'Must-Buy: Шопинг', icon: 'mdi:shopping-outline', isCustom: true })
+          }
+          continue
+        }
+
+        // Create Group from H2
+        const groupTitle = cleanH2.replace(/^\d+[\.\)]\s*/, '').trim()
+        const groupId = crypto.randomUUID()
+        const groupIcon = detectIconForGroup(groupTitle)
+
+        groups.push({
+          id: groupId,
+          name: groupTitle,
+          icon: groupIcon,
+          type: currentTabId,
+        })
+        currentGroupId = groupId
+        currentItem = null
+        continue
+      }
+
+      // H3 Header (e.g. ### 🏮 1. Легендарный стритфуд)
+      if (rawLine.startsWith('### ')) {
+        const groupTitle = rawLine.replace(/^###\s*/, '').replace(/^\d+[\.\)]\s*/, '').trim()
+        const groupId = crypto.randomUUID()
+        const groupIcon = detectIconForGroup(groupTitle)
+
+        groups.push({
+          id: groupId,
+          name: groupTitle,
+          icon: groupIcon,
+          type: currentTabId,
+        })
+        currentGroupId = groupId
+        currentItem = null
+        continue
+      }
+
+      // Checkbox line: `- [ ]` or `- [x]`
+      const taskMatch = rawLine.match(/^(\s*)[-*+]\s+\[([ xX])\]\s+([^\s].*)$/)
+      if (taskMatch) {
+        const indent = taskMatch[1].length
+        const isChecked = taskMatch[2].toLowerCase() === 'x'
+        const taskText = taskMatch[3].trim()
+
+        // Subtask (indented 2+ spaces under current item)
+        if (indent >= 2 && currentItem) {
+          if (!currentItem.subtasks)
+            currentItem.subtasks = []
+
+          currentItem.subtasks.push({
+            id: crypto.randomUUID(),
+            text: taskText.replace(/^[*_`]+|[*_`]+$/g, '').trim(),
+            completed: isChecked,
+          })
+          continue
+        }
+
+        // Main Item
+        const priority = detectPriorityFromText(taskText)
+        const cost = extractCostFromText(taskText)
+        const location = extractLocationFromText(taskText)
+        const link = extractLinkFromText(taskText)
+
+        let cleanText = taskText.replace(/\[P[1-5]\]/gi, '').trim()
+        let description: string | undefined
+
+        const colonMatch = cleanText.match(/^(\*\*[^*]+\*\*:?)\s*([^\s].*)$/)
+        if (colonMatch && colonMatch[2].trim()) {
+          cleanText = colonMatch[1]
+          description = colonMatch[2].trim()
+        }
+
+        const newItem: ChecklistItem = {
+          id: crypto.randomUUID(),
+          text: cleanText,
+          completed: isChecked,
+          type: currentTabId,
+          groupId: currentGroupId,
+          priority,
+          description,
+          cost,
+          location,
+          link,
+          subtasks: [],
+        }
+
+        items.push(newItem)
+        currentItem = newItem
+        continue
+      }
+
+      // Indented description bullet: e.g. `  - *Что это:* ...`
+      if (currentItem && /^(\s{2,}|\t)[-*+]\s+/.test(rawLine)) {
+        const descText = rawLine.replace(/^(\s{2,}|\t)[-*+]\s+/, '').trim()
+
+        // Check if cost/location/link are inside this description bullet
+        const costInDesc = extractCostFromText(descText)
+        if (costInDesc && !currentItem.cost)
+          currentItem.cost = costInDesc
+
+        const locInDesc = extractLocationFromText(descText)
+        if (locInDesc && !currentItem.location)
+          currentItem.location = locInDesc
+
+        const linkInDesc = extractLinkFromText(descText)
+        if (linkInDesc && !currentItem.link)
+          currentItem.link = linkInDesc
+
+        if (currentItem.description) {
+          currentItem.description += `\n${descText}`
+        }
+        else {
+          currentItem.description = descText
+        }
+      }
+    }
+  }
+
+  // If we found Must-Try items in the default tab, ensure we also have the default in-trip tab if not present
+  if (!tabs.some(t => t.id === 'in-trip')) {
+    tabs.push({ id: 'in-trip', name: 'В путешествии', icon: 'mdi:map-marker-path', isCustom: false })
+  }
+
+  return {
+    tabs,
+    groups,
+    items,
+  }
+}
+
+// -----------------------------------------------------------------------------
+// Helper: Parse Finances from Obsidian "04 - Финансы/Финансы.md"
+// -----------------------------------------------------------------------------
+export function parseObsidianFinances(financesFilePath?: string): FinancesSectionContent {
+  const defaultCategories: FinanceCategory[] = [
+    { id: 'cat-housing', name: 'Жильё', icon: 'mdi:bed', isDefault: true },
+    { id: 'cat-transport', name: 'Транспорт', icon: 'mdi:train-car', isDefault: true },
+    { id: 'cat-flights', name: 'Авиабилеты', icon: 'mdi:airplane', isDefault: true },
+    { id: 'cat-food', name: 'Еда и напитки', icon: 'mdi:food-fork-drink', isDefault: true },
+    { id: 'cat-entertainment', name: 'Развлечения', icon: 'mdi:party-popper', isDefault: true },
+    { id: 'cat-shopping', name: 'Покупки', icon: 'mdi:shopping-outline', isDefault: true },
+    { id: 'cat-other', name: 'Прочее', icon: 'mdi:dots-horizontal-circle-outline', isDefault: true },
+  ]
+
+  const settings = {
+    mainCurrency: 'RUB',
+    exchangeRates: { TWD: 2.8, USD: 90, EUR: 100, CNY: 12.5 },
+  }
+
+  if (!financesFilePath || !existsSync(financesFilePath)) {
+    return {
+      settings,
+      categories: defaultCategories,
+      transactions: [],
+    }
+  }
+
+  const content = readFileSync(financesFilePath, 'utf-8')
+  const transactions: FinanceTransaction[] = []
+  const lines = content.split('\n')
+  let currentCategory = 'cat-other'
+
+  for (const line of lines) {
+    const trimmed = line.trim()
+
+    // Detect section category from headers
+    if (/###\s*\d*\.?\s*✈️|авиаперелет/i.test(trimmed)) {
+      currentCategory = 'cat-flights'
+    }
+    else if (/###\s*\d*\.?\s*🚗|🚄|поезд|транспорт|логистик/i.test(trimmed)) {
+      currentCategory = 'cat-transport'
+    }
+    else if (/###\s*\d*\.?\s*🏨|проживани|отел|гостиниц/i.test(trimmed)) {
+      currentCategory = 'cat-housing'
+    }
+    else if (/###\s*\d*\.?\s*🍜|питани|еда|ресторан|ночной рынок/i.test(trimmed)) {
+      currentCategory = 'cat-food'
+    }
+    else if (/###\s*\d*\.?\s*🎟️|входн|билет|активност|экскурси/i.test(trimmed)) {
+      currentCategory = 'cat-entertainment'
+    }
+    else if (/###\s*\d*\.?\s*🎁|сувенир|шопинг|покупк|чай/i.test(trimmed)) {
+      currentCategory = 'cat-shopping'
+    }
+
+    // Markdown Table Row parser
+    if (trimmed.startsWith('|') && trimmed.endsWith('|') && !trimmed.includes('---') && !/подитог|итого/i.test(trimmed)) {
+      const cols = trimmed.slice(1, -1).split('|').map(c => c.trim())
+      if (cols.length >= 2) {
+        const titleCol = cols[0]
+        const amountCol = cols.find(c => /`?[\d\s]+[–—\-]?[\d\s]*\s*(?:₽|RUB|TWD|\$|EUR)/i.test(c))
+        const notesCol = cols.length >= 3 ? cols.slice(2).join('; ') : undefined
+
+        if (amountCol && titleCol && !/статья|маршрут|тип поезда|сегмент|направление/i.test(titleCol)) {
+          const numMatch = amountCol.replace(/\s+/g, '').match(/(\d+)/)
+          if (numMatch) {
+            const amount = Number.parseInt(numMatch[1], 10)
+            if (amount > 0) {
+              const cleanTitle = titleCol.replace(/[*_`]/g, '').trim()
+              let cat = currentCategory
+              if (/авиа|перелет/i.test(cleanTitle))
+                cat = 'cat-flights'
+              else if (/thsr|tra|поезд|паром|автобус|байк|такси|трансфер|машин|easycard/i.test(cleanTitle))
+                cat = 'cat-transport'
+              else if (/отел|проживан|b&b|номер|ноч/i.test(cleanTitle))
+                cat = 'cat-housing'
+
+              transactions.push({
+                id: crypto.randomUUID(),
+                title: cleanTitle,
+                amount,
+                currency: 'RUB',
+                categoryId: cat,
+                notes: notesCol ? notesCol.replace(/[*_`]/g, '').trim() : undefined,
+              })
+            }
+          }
+        }
+      }
+    }
+
+    // Parse bullets for Hotels if not in tables (e.g. `* *Тайбэй (Morwing Hotel, 4н):* 12 732 ₽`)
+    if (/^\s*[-*]\s*\*(?:[^*]+)\*:\s*`?([\d\s]+)\s*₽/i.test(trimmed)) {
+      const match = trimmed.match(/^\s*[-*]\s*\*([^*]+)\*:\s*`?([\d\s]+)\s*₽/i)
+      if (match) {
+        const title = match[1].trim()
+        const amount = Number.parseInt(match[2].replace(/\s+/g, ''), 10)
+        if (amount > 0) {
+          transactions.push({
+            id: crypto.randomUUID(),
+            title: `Отель: ${title}`,
+            amount,
+            currency: 'RUB',
+            categoryId: 'cat-housing',
+          })
+        }
+      }
+    }
+    // Parse bullets for food/activities/souvenirs (e.g. `* **Завтраки в 7-Eleven (22 дня):** ... ➔ ~4 400 ₽`)
+    else if (/^\s*[-*]\s*\*\*([^*]+)\*\*:[^➔\n]+➔\s*`?~?([\d\s]+)\s*₽/i.test(trimmed)) {
+      const match = trimmed.match(/^\s*[-*]\s*\*\*([^*]+)\*\*:[^➔\n]+➔\s*`?~?([\d\s]+)\s*₽/i)
+      if (match) {
+        const title = match[1].trim()
+        const amount = Number.parseInt(match[2].replace(/\s+/g, ''), 10)
+        if (amount > 0) {
+          let cat = currentCategory
+          if (/завтрак|обед|ужин|питани|стритфуд/i.test(title))
+            cat = 'cat-food'
+          else if (/билет|парк|тур|снорклинг|музе/i.test(title))
+            cat = 'cat-entertainment'
+          else if (/чай|пирожн|сувенир/i.test(title))
+            cat = 'cat-shopping'
+
+          transactions.push({
+            id: crypto.randomUUID(),
+            title,
+            amount,
+            currency: 'RUB',
+            categoryId: cat,
+          })
+        }
+      }
+    }
+  }
+
+  // Fallback: If no granular transactions were parsed from tables, parse high-level summary from > [!summary]
+  if (transactions.length === 0) {
+    const summaryMatch = content.match(/>\s*-\s*([^\n:]+):\s*`?~?([\d\s]+)\s*₽`?/g)
+    if (summaryMatch) {
+      for (const item of summaryMatch) {
+        const parsed = item.match(/>\s*-\s*([^\n:]+):\s*`?~?([\d\s]+)\s*₽/i)
+        if (parsed) {
+          const title = parsed[1].replace(/[*_`]/g, '').trim()
+          const amount = Number.parseInt(parsed[2].replace(/\s+/g, ''), 10)
+          let cat = 'cat-other'
+          if (/авиа/i.test(title))
+            cat = 'cat-flights'
+          else if (/проживан|отел/i.test(title))
+            cat = 'cat-housing'
+          else if (/транспорт|поезд|паром/i.test(title))
+            cat = 'cat-transport'
+          else if (/питани|еда/i.test(title))
+            cat = 'cat-food'
+          else if (/билет|активност/i.test(title))
+            cat = 'cat-entertainment'
+          else if (/сувенир|подарк/i.test(title))
+            cat = 'cat-shopping'
+
+          transactions.push({
+            id: crypto.randomUUID(),
+            title,
+            amount,
+            currency: 'RUB',
+            categoryId: cat,
+          })
+        }
+      }
+    }
+  }
+
+  return {
+    settings,
+    categories: defaultCategories,
+    transactions,
+  }
+}
+
+// -----------------------------------------------------------------------------
+// Obsidian Full Vault Parser
 // -----------------------------------------------------------------------------
 export function parseObsidianTripFolder(tripPath: string, startDateStr?: string): ParsedTripData {
   const resolvedPath = resolve(tripPath)
@@ -648,8 +1290,11 @@ export function parseObsidianTripFolder(tripPath: string, startDateStr?: string)
 
   parsedDays.sort((a, b) => a.dayNumber - b.dayNumber)
 
-  // 3. Scan Section Folders ("01 - Заметки", "03 - Бронирования", "04 - Финансы", etc.)
+  // 3. Scan Section Folders ("01 - Заметки", "03 - Бронирования", "04 - Финансы", "05 - Полезная информация", "06 - Чек лист")
   const sectionFolders: ParsedNoteFolder[] = []
+  const checklistFiles: string[] = []
+  let financesFilePath: string | undefined
+
   for (const entry of entries) {
     if (entry.isDirectory()) {
       if (entry.name === basename(daysDirPath) || entry.name.startsWith('.') || entry.name === '_' || entry.name === 'attachments') {
@@ -669,6 +1314,16 @@ export function parseObsidianTripFolder(tripPath: string, startDateStr?: string)
           filePath,
           content,
         })
+
+        // Collect checklist files for rich checklist section
+        if (/06|чек|checklist|сборы|must-try|must-buy/i.test(entry.name) || /чек|checklist|сборы|must-try|must-buy/i.test(fileName)) {
+          checklistFiles.push(filePath)
+        }
+
+        // Collect finances file
+        if (/04|финанс|finance|budget|бюджет/i.test(entry.name) || /финанс|finance|budget|бюджет/i.test(fileName)) {
+          financesFilePath = filePath
+        }
       }
 
       sectionFolders.push({
@@ -679,7 +1334,14 @@ export function parseObsidianTripFolder(tripPath: string, startDateStr?: string)
     }
   }
 
-  // 4. Extract title, short description, cities, tags from concept/summary
+  // Sort sectionFolders numerically/alphabetically (01 - Заметки, 03 - Бронирования, 04 - Финансы, 05 - Полезная информация, 06 - Чек лист)
+  sectionFolders.sort((a, b) => a.folderName.localeCompare(b.folderName, undefined, { numeric: true }))
+
+  // 4. Parse Checklists & Finances into Rich Structures
+  const checklistContent = parseObsidianChecklists(checklistFiles)
+  const financesContent = parseObsidianFinances(financesFilePath)
+
+  // 5. Extract title, short description, cities, tags from concept/summary
   const mainText = conceptContent || summaryContent || ''
 
   const titleMatch = mainText.match(/^#\s*(?:Концепция маршрута:\s*)?[«"']?([^»"'\n(]+)[»"']?/m)
@@ -750,6 +1412,9 @@ export function parseObsidianTripFolder(tripPath: string, startDateStr?: string)
     days: parsedDays,
     sectionFolders,
     rootNotes,
+    checklistContent,
+    checklistFilesCount: checklistFiles.length,
+    financesContent,
   }
 }
 
@@ -989,9 +1654,10 @@ async function runImport() {
   const cliOptions = parseCliArgs()
 
   console.log(`\n${colors.bright}${colors.cyan}════════════════════════════════════════════════════════════════════${colors.reset}`)
-  console.log(`${colors.bright}${colors.cyan}    🛫 Obsidian ➔ Trip Scheduler Import Tool${colors.reset}`)
+  console.log(`${colors.bright}${colors.cyan}    🛫 Obsidian ➔ Trip Scheduler Import Tool (Advanced)${colors.reset}`)
   console.log(`${colors.bright}${colors.cyan}════════════════════════════════════════════════════════════════════${colors.reset}\n`)
 
+  // Step 1: Select or enter directory
   let targetDir = cliOptions.dir
   if (!targetDir) {
     const discovered = discoverObsidianTravelFolders()
@@ -1049,25 +1715,83 @@ async function runImport() {
   console.log(`  ${colors.green}•${colors.reset} Теги:             ${tripData.tags.join(', ')}`)
   console.log(`  ${colors.green}•${colors.reset} Период:           ${tripData.startDate} ➔ ${tripData.endDate} (${tripData.days.length} дн.)`)
   console.log(`  ${colors.green}•${colors.reset} Дней найдено:     ${colors.yellow}${tripData.days.length}${colors.reset}`)
+  console.log(`  ${colors.green}•${colors.reset} Чек-листы:        ${colors.yellow}${tripData.checklistContent.items?.length || 0} задач в ${tripData.checklistContent.groups?.length || 0} группах (${tripData.checklistContent.tabs?.length || 0} вкладок)${colors.reset}`)
+  console.log(`  ${colors.green}•${colors.reset} Финансы:          ${colors.yellow}${tripData.financesContent.transactions.length} расходов (${tripData.financesContent.transactions.reduce((s, t) => s + t.amount, 0).toLocaleString('ru-RU')} ₽)${colors.reset}`)
   console.log(`  ${colors.green}•${colors.reset} Секций заметок:   ${colors.yellow}${tripData.sectionFolders.length}${colors.reset} (${tripData.sectionFolders.map(s => `${s.folderName} [${s.files.length} ф.]`).join(', ')})`)
   console.log(`  ${colors.green}•${colors.reset} Корневых заметок: ${colors.yellow}${tripData.rootNotes.length}${colors.reset}`)
 
+  // Step 2: Interactive Prompt to Select Modules to Import
+  let importTripMeta = cliOptions.importTripMeta ?? true
+  let importDays = cliOptions.importDays ?? true
+  let importActivities = cliOptions.importActivities ?? true
+  let importChecklists = cliOptions.importChecklists ?? true
+  let importNotes = cliOptions.importNotes ?? true
+  let importSections = cliOptions.importSections ?? true
+  let useLlm = cliOptions.useLlm
+
+  if (!cliOptions.nonInteractive && cliOptions.importTripMeta === undefined) {
+    const modulesResponse = await prompts({
+      type: 'multiselect',
+      name: 'modules',
+      message: 'Выберите, что вы хотите импортировать в Trip Scheduler:',
+      choices: [
+        { title: '🚀 Путешествие (Название, описание, даты, города, теги)', value: 'tripMeta', selected: true },
+        { title: `📅 Дни маршрута (${tripData.days.length} дн. из «02 - Маршрутный план»)`, value: 'days', selected: true },
+        { title: '🧩 Блоки активностей (расписание по часам, теги, секции)', value: 'activities', selected: true },
+        { title: `✅ Интерактивные Чек-листы (${tripData.checklistContent.items?.length || 0} задач: Сборы, Must-Try, Must-Buy)`, value: 'checklists', selected: true },
+        { title: `📚 База знаний и заметки (01 - Заметки, 05 - Полезная информация, концепция)`, value: 'notes', selected: true },
+        { title: '📑 Дополнительные вкладки (Бронирования, Финансы, Документы, Воспоминания)', value: 'sections', selected: true },
+      ],
+      hint: '- Пробел для выбора, Enter для подтверждения',
+    })
+
+    if (!modulesResponse.modules || modulesResponse.modules.length === 0) {
+      console.log(`${colors.yellow}Ни один модуль не выбран для импорта. Завершение.${colors.reset}`)
+      return
+    }
+
+    const selectedModules = new Set(modulesResponse.modules)
+    importTripMeta = selectedModules.has('tripMeta')
+    importDays = selectedModules.has('days')
+    importActivities = selectedModules.has('activities')
+    importChecklists = selectedModules.has('checklists')
+    importNotes = selectedModules.has('notes')
+    importSections = selectedModules.has('sections')
+
+    // If activities are selected, ask about LLM vs Local Parser
+    if (importActivities) {
+      const modeResponse = await prompts({
+        type: 'select',
+        name: 'generationMode',
+        message: 'Способ генерации активностей для дней маршрута:',
+        choices: [
+          { title: '🤖 Умный LLM (AI расписание по часам, теги и секции) [OpenAI / HubMix / Сервер]', value: 'llm' },
+          { title: '⚡ Быстрый локальный парсер (по таймлайну и секциям Markdown)', value: 'parser' },
+        ],
+      })
+      useLlm = modeResponse.generationMode === 'llm'
+    }
+  }
+
   if (cliOptions.dryRun) {
     console.log(`\n${colors.yellow}🔍 [DRY-RUN] Режим предпросмотра включен. Запросы к API отправляться не будут.${colors.reset}`)
-    console.log(`\n${colors.bright}📑 Разделы, которые будут созданы:${colors.reset}`)
-    for (const sec of DEFAULT_TRIP_SECTIONS) {
-      console.log(`  ${colors.cyan}• [${sec.type}] ${sec.title}${colors.reset} (${sec.icon})`)
+    console.log(`\n${colors.bright}Выбранные модули:${colors.reset}`)
+    console.log(`  • Путешествие:    ${importTripMeta ? colors.green + 'Да' : colors.red + 'Нет'}${colors.reset}`)
+    console.log(`  • Дни маршрута:   ${importDays ? colors.green + 'Да' : colors.red + 'Нет'}${colors.reset}`)
+    console.log(`  • Активности:     ${importActivities ? colors.green + `Да (${useLlm ? 'LLM' : 'Парсер'})` : colors.red + 'Нет'}${colors.reset}`)
+    console.log(`  • Чек-листы:      ${importChecklists ? colors.green + `Да (${tripData.checklistContent.items?.length} задач)` : colors.red + 'Нет'}${colors.reset}`)
+    console.log(`  • Заметки:        ${importNotes ? colors.green + `Да (${tripData.sectionFolders.length} папок)` : colors.red + 'Нет'}${colors.reset}`)
+    console.log(`  • Разделы:        ${importSections ? colors.green + 'Да' : colors.red + 'Нет'}${colors.reset}`)
+
+    if (importChecklists) {
+      console.log(`\n${colors.bright}📋 Чек-листы, которые будут загружены:${colors.reset}`)
+      tripData.checklistContent.tabs?.forEach((t) => {
+        const tabGroups = (tripData.checklistContent.groups || []).filter(g => g.type === t.id)
+        const tabItems = (tripData.checklistContent.items || []).filter(i => i.type === t.id)
+        console.log(`  ${colors.cyan}[Вкладка: ${t.name}]${colors.reset} (${tabGroups.length} групп, ${tabItems.length} задач)`)
+      })
     }
-    console.log(`\n${colors.bright}📅 Обнаруженные дни и блоки:${colors.reset}`)
-    for (const day of tripData.days) {
-      const activities = parseActivitiesFromMarkdown(day.rawContent)
-      console.log(`\n  ${colors.cyan}День ${day.dayNumber}: ${day.title} (${day.date})${colors.reset}`)
-      console.log(`  Описание: ${day.description || '(нет)'}`)
-      console.log(`  Блоков расписания найдено: ${activities.length}`)
-      for (const act of activities) {
-        console.log(`    [${act.startTime} - ${act.endTime}] [${act.tag}] ${act.title}`)
-      }
-    }
+
     console.log(`\n${colors.green}✅ Предпросмотр завершен.${colors.reset}\n`)
     return
   }
@@ -1125,13 +1849,15 @@ async function runImport() {
     })
     console.log(`${colors.green}✅ Путешествие создано!${colors.reset} ID: ${colors.yellow}${createdTrip.id}${colors.reset}`)
 
-    await api.updateTrip(createdTrip.id, {
-      descriptionShort: tripData.descriptionShort,
-      cities: tripData.cities,
-      tags: tripData.tags,
-      status: cliOptions.status,
-      visibility: cliOptions.visibility,
-    })
+    if (importTripMeta) {
+      await api.updateTrip(createdTrip.id, {
+        descriptionShort: tripData.descriptionShort,
+        cities: tripData.cities,
+        tags: tripData.tags,
+        status: cliOptions.status,
+        visibility: cliOptions.visibility,
+      })
+    }
   }
   catch (err: any) {
     console.error(`${colors.red}❌ Ошибка при создании путешествия: ${err.message}${colors.reset}`)
@@ -1140,18 +1866,37 @@ async function runImport() {
 
   const tripId = createdTrip.id
 
-  // 3. Create all Trip Sections (Tabs: Bookings, Checklist, Finances, Memories, Notes, Documents)
+  // 3. Create all Trip Sections (Tabs) with populated Rich Checklist
   console.log(`\n${colors.dim}📑 Создание разделов путешествия...${colors.reset}`)
   for (const sec of DEFAULT_TRIP_SECTIONS) {
     try {
+      let sectionContent: any = {}
+
+      // If Checklist section and user wants to import checklists, pass parsed content
+      if (sec.type === 'checklist' && importChecklists) {
+        sectionContent = tripData.checklistContent
+      }
+      else if (sec.type === 'finances' && importSections) {
+        sectionContent = tripData.financesContent
+      }
+
       await api.createTripSection({
         tripId,
         type: sec.type,
         title: sec.title,
         icon: sec.icon,
-        content: {},
+        content: sectionContent,
       })
-      console.log(`  ${colors.green}✓${colors.reset} Раздел создан: ${colors.bright}${sec.title}${colors.reset}`)
+
+      if (sec.type === 'checklist' && importChecklists) {
+        console.log(`  ${colors.green}✓${colors.reset} Раздел ${colors.bright}«${sec.title}»${colors.reset} создан с ${colors.yellow}${tripData.checklistContent.items?.length || 0}${colors.reset} задачами и ${colors.yellow}${tripData.checklistContent.tabs?.length || 0}${colors.reset} вкладками`)
+      }
+      else if (sec.type === 'finances' && importSections && tripData.financesContent.transactions.length > 0) {
+        console.log(`  ${colors.green}✓${colors.reset} Раздел ${colors.bright}«${sec.title}»${colors.reset} создан с ${colors.yellow}${tripData.financesContent.transactions.length}${colors.reset} расходами на сумму ${colors.yellow}${tripData.financesContent.transactions.reduce((s, t) => s + t.amount, 0).toLocaleString('ru-RU')} ₽${colors.reset}`)
+      }
+      else {
+        console.log(`  ${colors.green}✓${colors.reset} Раздел создан: ${colors.bright}${sec.title}${colors.reset}`)
+      }
     }
     catch (secErr: any) {
       console.warn(`  ${colors.yellow}⚠ Раздел "${sec.title}": ${secErr.message}${colors.reset}`)
@@ -1159,189 +1904,195 @@ async function runImport() {
   }
 
   // 4. Create / Sync Days
-  console.log(`\n${colors.dim}📅 Создание дней маршрута (${tripData.days.length} дн.)...${colors.reset}`)
-  const existingDays = await api.getDaysByTripId(tripId)
-
   const dayIdMap = new Map<number, string>()
 
-  for (let i = 0; i < tripData.days.length; i++) {
-    const day = tripData.days[i]
-    let dayId: string
+  if (importDays) {
+    console.log(`\n${colors.dim}📅 Создание дней маршрута (${tripData.days.length} дн.)...${colors.reset}`)
+    const existingDays = await api.getDaysByTripId(tripId)
 
-    if (i === 0 && existingDays.length > 0) {
-      dayId = existingDays[0].id
-      await api.updateDay(dayId, {
-        title: day.title,
-        description: day.description,
-        note: day.rawContent,
-        date: day.date,
-      })
+    for (let i = 0; i < tripData.days.length; i++) {
+      const day = tripData.days[i]
+      let dayId: string
+
+      if (i === 0 && existingDays.length > 0) {
+        dayId = existingDays[0].id
+        await api.updateDay(dayId, {
+          title: day.title,
+          description: day.description,
+          note: day.rawContent,
+          date: day.date,
+        })
+      }
+      else {
+        const newDay = await api.createDay({
+          tripId,
+          title: day.title,
+          description: day.description,
+          date: day.date,
+        })
+        dayId = newDay.id
+
+        await api.updateDay(dayId, {
+          note: day.rawContent,
+        })
+      }
+
+      dayIdMap.set(day.dayNumber, dayId)
+      process.stdout.write(`${colors.cyan}  ✓ День ${day.dayNumber}: ${day.title} (${day.date})${colors.reset}\n`)
     }
-    else {
-      const newDay = await api.createDay({
-        tripId,
-        title: day.title,
-        description: day.description,
-        date: day.date,
-      })
-      dayId = newDay.id
-
-      await api.updateDay(dayId, {
-        note: day.rawContent,
-      })
-    }
-
-    dayIdMap.set(day.dayNumber, dayId)
-    process.stdout.write(`${colors.cyan}  ✓ День ${day.dayNumber}: ${day.title} (${day.date})${colors.reset}\n`)
   }
 
   // 5. Generate & Create Activities (Blocks) for each day
-  console.log(`\n${colors.dim}🧩 Генерация и добавление блоков активностей...${colors.reset}`)
+  if (importActivities && importDays) {
+    console.log(`\n${colors.dim}🧩 Генерация и добавление блоков активностей...${colors.reset}`)
 
-  for (const day of tripData.days) {
-    const dayId = dayIdMap.get(day.dayNumber)
-    if (!dayId)
-      continue
+    for (const day of tripData.days) {
+      const dayId = dayIdMap.get(day.dayNumber)
+      if (!dayId)
+        continue
 
-    console.log(`\n${colors.bright}  [День ${day.dayNumber}] ${day.title}:${colors.reset}`)
+      console.log(`\n${colors.bright}  [День ${day.dayNumber}] ${day.title}:${colors.reset}`)
 
-    let activitiesToCreate: ActivityPayload[] = []
+      let activitiesToCreate: ActivityPayload[] = []
 
-    if (cliOptions.useLlm) {
-      // 1. Try server LLM endpoint
-      try {
-        process.stdout.write(`    ${colors.dim}🤖 Запрос к LLM на сервере...${colors.reset} `)
-        const generated = await api.generateDayTemplate(dayId, {
-          prompt: 'Преобразуй этот план дня в структурированные блоки расписания (активности) с точным временем начала и конца, тегами и подробными секциями с описанием.',
-          currentActivities: [],
-          canvasNote: day.rawContent,
-        })
+      if (useLlm) {
+        // 1. Try server LLM endpoint
+        try {
+          process.stdout.write(`    ${colors.dim}🤖 Запрос к LLM на сервере...${colors.reset} `)
+          const generated = await api.generateDayTemplate(dayId, {
+            prompt: 'Преобразуй этот план дня в структурированные блоки расписания (активности) с точным временем начала и конца, тегами и подробными секциями с описанием.',
+            currentActivities: [],
+            canvasNote: day.rawContent,
+          })
 
-        if (Array.isArray(generated) && generated.length > 0) {
-          activitiesToCreate = generated
-          process.stdout.write(`${colors.green}OK (получено ${generated.length} блоков)${colors.reset}\n`)
-        }
-        else {
-          throw new Error('Пустой ответ от сервера')
-        }
-      }
-      catch (serverLlmErr: any) {
-        // 2. Try Direct LLM via HubMix/OpenAI if available
-        process.stdout.write(`${colors.yellow}Серверный LLM: ${serverLlmErr.message}${colors.reset}\n`)
-
-        const directLlmKey = process.env.AI_HUBMIX_KEY || process.env.OPENAI_API_KEY
-        if (directLlmKey) {
-          process.stdout.write(`    ${colors.dim}🤖 Запрос к прямому LLM (HubMix/OpenAI)...${colors.reset} `)
-          const directGenerated = await generateActivitiesViaDirectLlm(day.rawContent)
-          if (directGenerated && directGenerated.length > 0) {
-            activitiesToCreate = directGenerated
-            process.stdout.write(`${colors.green}OK (получено ${directGenerated.length} блоков)${colors.reset}\n`)
+          if (Array.isArray(generated) && generated.length > 0) {
+            activitiesToCreate = generated
+            process.stdout.write(`${colors.green}OK (получено ${generated.length} блоков)${colors.reset}\n`)
           }
           else {
-            process.stdout.write(`${colors.yellow}использую встроенный парсер${colors.reset}\n`)
+            throw new Error('Пустой ответ от сервера')
+          }
+        }
+        catch (serverLlmErr: any) {
+          // 2. Try Direct LLM via HubMix/OpenAI if available
+          process.stdout.write(`${colors.yellow}Серверный LLM: ${serverLlmErr.message}${colors.reset}\n`)
+
+          const directLlmKey = process.env.AI_HUBMIX_KEY || process.env.OPENAI_API_KEY
+          if (directLlmKey) {
+            process.stdout.write(`    ${colors.dim}🤖 Запрос к прямому LLM (HubMix/OpenAI)...${colors.reset} `)
+            const directGenerated = await generateActivitiesViaDirectLlm(day.rawContent)
+            if (directGenerated && directGenerated.length > 0) {
+              activitiesToCreate = directGenerated
+              process.stdout.write(`${colors.green}OK (получено ${directGenerated.length} блоков)${colors.reset}\n`)
+            }
+            else {
+              process.stdout.write(`${colors.yellow}использую встроенный парсер${colors.reset}\n`)
+              activitiesToCreate = parseActivitiesFromMarkdown(day.rawContent)
+            }
+          }
+          else {
+            process.stdout.write(`    ${colors.dim}⚙️  Использую встроенный парсер таймлайна...${colors.reset}\n`)
             activitiesToCreate = parseActivitiesFromMarkdown(day.rawContent)
           }
         }
-        else {
-          process.stdout.write(`    ${colors.dim}⚙️  Использую встроенный парсер таймлайна...${colors.reset}\n`)
-          activitiesToCreate = parseActivitiesFromMarkdown(day.rawContent)
-        }
       }
-    }
-    else {
-      activitiesToCreate = parseActivitiesFromMarkdown(day.rawContent)
-    }
-
-    // Create activities in DB
-    for (const act of activitiesToCreate) {
-      try {
-        await api.createActivity({
-          dayId,
-          title: act.title,
-          startTime: act.startTime,
-          endTime: act.endTime,
-          tag: act.tag,
-          sections: act.sections || [],
-        })
-        console.log(`    ${colors.green}+${colors.reset} [${act.startTime}–${act.endTime}] [${act.tag}] ${act.title}`)
+      else {
+        activitiesToCreate = parseActivitiesFromMarkdown(day.rawContent)
       }
-      catch (actErr: any) {
-        console.warn(`    ${colors.red}⚠ Ошибка при создании активности "${act.title}": ${actErr.message}${colors.reset}`)
-      }
-    }
-  }
 
-  // 6. Add Section Folders & Notes into Trip Notes ("01 - Заметки", "03 - Бронирования", "04 - Финансы", etc.)
-  console.log(`\n${colors.dim}📚 Добавление заметок и секций в раздел «Заметки»...${colors.reset}`)
-
-  let noteOrder = 0
-
-  // 6.1 Root notes (e.g. Concept file and Summary plan)
-  for (const rootNote of tripData.rootNotes) {
-    try {
-      const noteRecord = await api.createNote({
-        tripId,
-        type: 'markdown',
-        title: rootNote.title,
-        order: noteOrder++,
-      })
-      await api.updateNote(noteRecord.id, {
-        title: rootNote.title,
-        content: rootNote.content,
-      })
-      console.log(`  ${colors.green}📄${colors.reset} Корневая заметка: ${colors.bright}${rootNote.title}${colors.reset}`)
-    }
-    catch (err: any) {
-      console.warn(`  ${colors.red}⚠ Ошибка при создании заметки "${rootNote.title}": ${err.message}${colors.reset}`)
-    }
-  }
-
-  // 6.2 Folders & their files
-  for (const sectionFolder of tripData.sectionFolders) {
-    try {
-      const folderRecord = await api.createNote({
-        tripId,
-        type: 'folder',
-        title: sectionFolder.folderName,
-        order: noteOrder++,
-      })
-      console.log(`\n  ${colors.yellow}📁${colors.reset} Папка: ${colors.bright}${sectionFolder.folderName}${colors.reset}`)
-
-      let fileOrder = 0
-      for (const noteFile of sectionFolder.files) {
+      // Create activities in DB
+      for (const act of activitiesToCreate) {
         try {
-          const fileRecord = await api.createNote({
-            tripId,
-            parentId: folderRecord.id,
-            type: 'markdown',
-            title: noteFile.title,
-            order: fileOrder++,
+          await api.createActivity({
+            dayId,
+            title: act.title,
+            startTime: act.startTime,
+            endTime: act.endTime,
+            tag: act.tag,
+            sections: act.sections || [],
           })
-          await api.updateNote(fileRecord.id, {
-            title: noteFile.title,
-            content: noteFile.content,
-          })
-          console.log(`    ${colors.green}└─ 📄${colors.reset} ${noteFile.title}`)
+          console.log(`    ${colors.green}+${colors.reset} [${act.startTime}–${act.endTime}] [${act.tag}] ${act.title}`)
         }
-        catch (fileErr: any) {
-          console.warn(`    ${colors.red}⚠ Ошибка при создании файла "${noteFile.title}": ${fileErr.message}${colors.reset}`)
+        catch (actErr: any) {
+          console.warn(`    ${colors.red}⚠ Ошибка при создании активности "${act.title}": ${actErr.message}${colors.reset}`)
         }
       }
     }
-    catch (folderErr: any) {
-      console.warn(`  ${colors.red}⚠ Ошибка при создании папки "${sectionFolder.folderName}": ${folderErr.message}${colors.reset}`)
+  }
+
+  // 6. Add Section Folders & Notes into Trip Notes ("01 - Заметки", "05 - Полезная информация", etc.)
+  if (importNotes) {
+    console.log(`\n${colors.dim}📚 Добавление заметок и базы знаний в раздел «Заметки»...${colors.reset}`)
+
+    let noteOrder = 0
+
+    // 6.1 Root notes (e.g. Concept file and Summary plan)
+    for (const rootNote of tripData.rootNotes) {
+      try {
+        const noteRecord = await api.createNote({
+          tripId,
+          type: 'markdown',
+          title: rootNote.title,
+          order: noteOrder++,
+        })
+        await api.updateNote(noteRecord.id, {
+          title: rootNote.title,
+          content: rootNote.content,
+        })
+        console.log(`  ${colors.green}📄${colors.reset} Корневая заметка: ${colors.bright}${rootNote.title}${colors.reset}`)
+      }
+      catch (err: any) {
+        console.warn(`  ${colors.red}⚠ Ошибка при создании заметки "${rootNote.title}": ${err.message}${colors.reset}`)
+      }
+    }
+
+    // 6.2 Folders & their files (e.g. "01 - Заметки", "05 - Полезная информация", "03 - Бронирования", "04 - Финансы")
+    for (const sectionFolder of tripData.sectionFolders) {
+      try {
+        const folderRecord = await api.createNote({
+          tripId,
+          type: 'folder',
+          title: sectionFolder.folderName,
+          order: noteOrder++,
+        })
+        console.log(`\n  ${colors.yellow}📁${colors.reset} Папка: ${colors.bright}${sectionFolder.folderName}${colors.reset}`)
+
+        let fileOrder = 0
+        for (const noteFile of sectionFolder.files) {
+          try {
+            const fileRecord = await api.createNote({
+              tripId,
+              parentId: folderRecord.id,
+              type: 'markdown',
+              title: noteFile.title,
+              order: fileOrder++,
+            })
+            await api.updateNote(fileRecord.id, {
+              title: noteFile.title,
+              content: noteFile.content,
+            })
+            console.log(`    ${colors.green}└─ 📄${colors.reset} ${noteFile.title} (${Math.round(noteFile.content.length / 1024)} KB)`)
+          }
+          catch (fileErr: any) {
+            console.warn(`    ${colors.red}⚠ Ошибка при создании файла "${noteFile.title}": ${fileErr.message}${colors.reset}`)
+          }
+        }
+      }
+      catch (folderErr: any) {
+        console.warn(`  ${colors.red}⚠ Ошибка при создании папки "${sectionFolder.folderName}": ${folderErr.message}${colors.reset}`)
+      }
     }
   }
 
   console.log(`\n${colors.bright}${colors.green}════════════════════════════════════════════════════════════════════${colors.reset}`)
   console.log(`${colors.bright}${colors.green}🎉 Путешествие успешно импортировано в приложение!${colors.reset}`)
   console.log(`${colors.bright}${colors.green}════════════════════════════════════════════════════════════════════${colors.reset}`)
-  console.log(`  ${colors.cyan}•${colors.reset} ID путешествия:  ${colors.bright}${tripId}${colors.reset}`)
-  console.log(`  ${colors.cyan}•${colors.reset} Название:        ${colors.bright}${tripData.title}${colors.reset}`)
-  console.log(`  ${colors.cyan}•${colors.reset} Дней:            ${tripData.days.length}`)
-  console.log(`  ${colors.cyan}•${colors.reset} Разделов (вкладок): ${DEFAULT_TRIP_SECTIONS.length}`)
-  console.log(`  ${colors.cyan}•${colors.reset} Папок в заметках: ${tripData.sectionFolders.length}`)
-  console.log(`  ${colors.cyan}•${colors.reset} Ссылка на сайт:  ${colors.blue}http://localhost:1420/trips/${tripId}${colors.reset}\n`)
+  console.log(`  ${colors.cyan}•${colors.reset} ID путешествия:       ${colors.bright}${tripId}${colors.reset}`)
+  console.log(`  ${colors.cyan}•${colors.reset} Название:             ${colors.bright}${tripData.title}${colors.reset}`)
+  console.log(`  ${colors.cyan}•${colors.reset} Дней маршрута:        ${importDays ? tripData.days.length : 0}`)
+  console.log(`  ${colors.cyan}•${colors.reset} Задач в чек-листе:    ${importChecklists ? (tripData.checklistContent.items?.length || 0) : 0}`)
+  console.log(`  ${colors.cyan}•${colors.reset} Папок в заметках:     ${importNotes ? tripData.sectionFolders.length : 0}`)
+  console.log(`  ${colors.cyan}•${colors.reset} Ссылка в приложении:  ${colors.blue}http://localhost:1420/trips/${tripId}${colors.reset}\n`)
 }
 
 // Run script

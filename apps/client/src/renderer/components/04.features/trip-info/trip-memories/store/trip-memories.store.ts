@@ -49,7 +49,7 @@ export const useTripMemoriesStore = defineStore('tripMemories', {
     memoriesForSelectedDay(state): Memory[] {
       const tripPlanStore = useTripPlanStore()
       const selectedDay = tripPlanStore.getSelectedDay
-      if (!selectedDay)
+      if (!selectedDay || !selectedDay.date)
         return []
 
       const selectedDateStr = new Date(selectedDay.date).toISOString().split('T')[0]
@@ -208,7 +208,7 @@ export const useTripMemoriesStore = defineStore('tripMemories', {
               : new Date(newImage.takenAt)
             const imageDateStr = imageDate.toISOString().split('T')[0]
 
-            if (!selectedDay)
+            if (!selectedDay || !selectedDay.date)
               return null
             const selectedDayStr = new Date(selectedDay.date).toISOString().split('T')[0]
 
@@ -286,7 +286,7 @@ export const useTripMemoriesStore = defineStore('tripMemories', {
       const tripPlanStore = useTripPlanStore()
       const tripId = tripPlanStore.currentTripId
       const day = tripPlanStore.getSelectedDay
-      if (!tripId || !day)
+      if (!tripId || !day || !day.date)
         return
 
       const datePart = day.date.split('T')[0]

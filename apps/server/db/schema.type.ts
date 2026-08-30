@@ -9,10 +9,10 @@ interface ActivitySectionBase {
 export interface DayMetaInfo {
   id: string
   title: string
-  subtitle?: string
-  icon?: string
-  color?: string
-  content?: string
+  subtitle?: string | null
+  icon?: string | null
+  color?: string | null
+  content?: string | null
 }
 
 interface ActivitySectionText extends ActivitySectionBase {

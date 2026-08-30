@@ -12,7 +12,7 @@ export const DayMetaInfoSchema = z.object({
 
 export const DaySchema = z.object({
   id: z.string().uuid(),
-  date: z.union([z.string(), z.date()]),
+  date: z.union([z.string(), z.date()]).nullable().optional(),
   title: z.string(),
   description: z.string().nullable(),
   note: z.string().optional().nullable(),

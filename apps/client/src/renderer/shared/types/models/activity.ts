@@ -93,7 +93,7 @@ export interface DayMetaInfo {
 export interface Day {
   id: string
   tripId: string
-  date: string
+  date: string | null
   title: string
   description: string
   activities: Activity[]

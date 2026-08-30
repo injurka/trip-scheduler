@@ -5,7 +5,7 @@ import { activities, days } from '../../db/schema'
 
 type Day = typeof days.$inferSelect
 type DayInsert = typeof days.$inferInsert
-type DayUpdateInput = Partial<Pick<Day, 'title' | 'description'>> & { date?: string | Date }
+type DayUpdateInput = Partial<Pick<Day, 'title' | 'description' | 'meta' | 'note'>> & { date?: string | Date | null }
 
 export const dayRepository = {
   /**
@@ -67,10 +67,19 @@ export const dayRepository = {
    */
   async update(id: string, details: DayUpdateInput) {
     const { date, ...rest } = details
-    const updatePayload = {
+    const updatePayload: Record<string, any> = {
       ...rest,
       updatedAt: new Date(),
-      ...(date && { date: date instanceof Date ? date.toISOString().split('T')[0] : date }),
+    }
+
+    if (date !== undefined) {
+      if (date === null) {
+        updatePayload.date = null
+      }
+      else {
+        const dateStr = date instanceof Date ? date.toISOString().split('T')[0] : (typeof date === 'string' ? date.split('T')[0] : date)
+        updatePayload.date = dateStr
+      }
     }
 
     const [updatedDay] = await db
@@ -101,9 +110,12 @@ export const dayRepository = {
    * @param dayData - Данные для создания дня.
    * @returns Созданный объект дня.
    */
-  async create(dayData: Omit<DayInsert, 'id' | 'createdAt' | 'updatedAt' | 'date'> & { date: string | Date }) {
+  async create(dayData: Omit<DayInsert, 'id' | 'createdAt' | 'updatedAt' | 'date'> & { date?: string | Date | null }) {
     const { date, ...rest } = dayData
-    const newDate = date instanceof Date ? date.toISOString().split('T')[0] : date
+    let newDate: string | null = null
+    if (date) {
+      newDate = date instanceof Date ? date.toISOString().split('T')[0] : (typeof date === 'string' ? date.split('T')[0] : date)
+    }
 
     const [newDay] = await db
       .insert(days)

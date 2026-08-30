@@ -50,8 +50,9 @@ function initializeDateTime() {
     }
   }
 
+  const defaultDateStr = getSelectedDay.value?.date?.split('T')[0] || new Date().toISOString().split('T')[0]
   return {
-    date: parseDate(getSelectedDay.value!.date.split('T')[0]),
+    date: parseDate(defaultDateStr),
     time: new Time(0, 0),
   }
 }
@@ -71,12 +72,12 @@ const isDeletingMemory = computed(() =>
 const validTripDates = computed(() => {
   if (!getAllDays.value)
     return new Set<string>()
-  const dates = getAllDays.value.map((day: IDay) => day.date.split('T')[0])
+  const dates = getAllDays.value.filter((day: IDay) => !!day.date).map((day: IDay) => day.date!.split('T')[0])
   return new Set(dates)
 })
 
 watch(getSelectedDay, (newDay) => {
-  if (newDay && !props.memory.timestamp)
+  if (newDay && newDay.date && !props.memory.timestamp)
     selectedDate.value = parseDate(newDay.date.split('T')[0])
 })
 
@@ -121,12 +122,12 @@ async function handleDelete() {
 }
 
 function handleResetDateInPopover() {
-  if (getSelectedDay.value)
+  if (getSelectedDay.value?.date)
     selectedDate.value = parseDate(getSelectedDay.value.date.split('T')[0])
 }
 
 function handleResetDateTime() {
-  if (getSelectedDay.value) {
+  if (getSelectedDay.value?.date) {
     selectedDate.value = parseDate(getSelectedDay.value.date.split('T')[0])
     selectedTime.value = new Time(0, 0)
   }

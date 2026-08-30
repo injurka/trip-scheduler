@@ -68,7 +68,8 @@ export const dayProcedures = {
       if (input.useContext) {
         const allDays = await dayService.getByTripId(day.tripId)
         contextStr = allDays
-          .map(d => `День ${new Date(d.date).toLocaleDateString('ru-RU')}: ${d.description || 'нет описания'}`)
+          .filter(d => !!d.date)
+          .map(d => `День ${new Date(d.date!).toLocaleDateString('ru-RU')}: ${d.description || 'нет описания'}`)
           .join('\n')
       }
 

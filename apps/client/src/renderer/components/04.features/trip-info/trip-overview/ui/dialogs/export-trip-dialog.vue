@@ -103,37 +103,81 @@ function getChecklistText(sections: TripSection[]): string[] {
 
   const content = checklistSection.content as ChecklistSectionContent
   const lines: string[] = []
-  lines.push('\n--- ЧЕК-ЛИСТ ---')
+  lines.push('\n--- ЧЕК-ЛИСТЫ ---')
 
+  const tabs = content.tabs || [
+    { id: 'preparation', name: 'Подготовка', icon: 'mdi:briefcase' },
+    { id: 'in-trip', name: 'В путешествии', icon: 'mdi:map-marker-path' },
+  ]
   const groups = content.groups || []
   const items = content.items || []
 
-  const groupedItems: Record<string, typeof items> = {}
-  items.forEach((item) => {
-    const gid = item.groupId || 'ungrouped'
-    if (!groupedItems[gid])
-      groupedItems[gid] = []
-    groupedItems[gid].push(item)
-  })
+  tabs.forEach((tab) => {
+    const tabItems = items.filter(i => i.type === tab.id)
+    if (tabItems.length === 0)
+      return
 
-  groups.forEach((g) => {
-    const gItems = groupedItems[g.id]
-    if (gItems && gItems.length > 0) {
-      lines.push(`\n[${g.name.toUpperCase()}]`)
-      gItems.forEach((i) => {
+    lines.push(`\n=== [ВКЛАДКА: ${tab.name.toUpperCase()}] ===`)
+
+    const tabGroups = groups.filter(g => g.type === tab.id)
+    const groupedItems: Record<string, typeof items> = {}
+
+    tabItems.forEach((item) => {
+      const gid = item.groupId || 'ungrouped'
+      if (!groupedItems[gid])
+        groupedItems[gid] = []
+      groupedItems[gid].push(item)
+    })
+
+    tabGroups.forEach((g) => {
+      const gItems = groupedItems[g.id]
+      if (gItems && gItems.length > 0) {
+        lines.push(`\n[${g.name.toUpperCase()}]`)
+        gItems.forEach((i) => {
+          const status = i.completed ? '[x]' : '[ ]'
+          let line = `  ${status} ${i.text}`
+          if (i.cost)
+            line += ` (💰 ${i.cost})`
+          if (i.location)
+            line += ` (📍 ${i.location})`
+          lines.push(line)
+
+          if (i.description)
+            lines.push(`     Заметка: ${i.description}`)
+
+          if (i.subtasks && i.subtasks.length > 0) {
+            i.subtasks.forEach((sub) => {
+              const subStatus = sub.completed ? '[x]' : '[ ]'
+              lines.push(`     └─ ${subStatus} ${sub.text}`)
+            })
+          }
+        })
+      }
+    })
+
+    if (groupedItems.ungrouped && groupedItems.ungrouped.length > 0) {
+      lines.push('\n[ПРОЧИЕ ЗАДАЧИ]')
+      groupedItems.ungrouped.forEach((i) => {
         const status = i.completed ? '[x]' : '[ ]'
-        lines.push(`  ${status} ${i.text}`)
+        let line = `  ${status} ${i.text}`
+        if (i.cost)
+          line += ` (💰 ${i.cost})`
+        if (i.location)
+          line += ` (📍 ${i.location})`
+        lines.push(line)
+
+        if (i.description)
+          lines.push(`     Заметка: ${i.description}`)
+
+        if (i.subtasks && i.subtasks.length > 0) {
+          i.subtasks.forEach((sub) => {
+            const subStatus = sub.completed ? '[x]' : '[ ]'
+            lines.push(`     └─ ${subStatus} ${sub.text}`)
+          })
+        }
       })
     }
   })
-
-  if (groupedItems.ungrouped && groupedItems.ungrouped.length > 0) {
-    lines.push('\n[ПРОЧЕЕ]')
-    groupedItems.ungrouped.forEach((i) => {
-      const status = i.completed ? '[x]' : '[ ]'
-      lines.push(`  ${status} ${i.text}`)
-    })
-  }
 
   return lines
 }
@@ -190,8 +234,13 @@ function generateTextContent(): string {
   lines.push('--- МАРШРУТ ПО ДНЯМ ---')
 
   days.forEach((day, index) => {
-    const date = new Date(day.date).toLocaleDateString('ru-RU', { weekday: 'long', day: 'numeric', month: 'long' })
-    lines.push(`\nДЕНЬ ${index + 1}: ${day.title || 'Без названия'} (${date})`)
+    const date = day.date
+      ? new Date(day.date).toLocaleDateString('ru-RU', { weekday: 'long', day: 'numeric', month: 'long' })
+      : 'Черновик'
+    const header = day.date
+      ? `\nДЕНЬ ${index + 1}: ${day.title || 'Без названия'} (${date})`
+      : `\nЧЕРНОВИК: ${day.title || 'Без названия'}`
+    lines.push(header)
 
     if (day.description)
       lines.push(`  > ${stripMarkdown(day.description)}`)

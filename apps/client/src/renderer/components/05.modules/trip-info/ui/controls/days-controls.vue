@@ -9,6 +9,7 @@ import { KitSkeleton } from '~/components/01.kit/kit-skeleton'
 import { KitTooltip } from '~/components/01.kit/kit-tooltip'
 import { CalendarPopover } from '~/components/02.shared/calendar-popover'
 import { useDisplay } from '~/shared/composables/use-display'
+import { useToast } from '~/shared/composables/use-toast'
 import { useModuleStore } from '../../composables/use-trip-info-module'
 import { useTripPermissions } from '../../composables/use-trip-permissions'
 import DaysPanel from './days-panel.vue'
@@ -31,6 +32,7 @@ const appStore = useAppStore(['layout'])
 const { isHeaderVisible, headerHeight } = storeToRefs(appStore.layout)
 const { canEdit } = useTripPermissions()
 const confirm = useConfirm()
+const toast = useToast()
 
 const controlsRef = ref<HTMLElement | null>(null)
 const fixedLeftControlsRef = ref<HTMLElement | null>(null)
@@ -58,15 +60,29 @@ function handleAddNewDay() {
     store.ui.closeDaysPanel()
 }
 
+function handleAddNewDraftDay() {
+  store.plan.addNewDraftDay()
+  if (!store.ui.isDaysPanelPinned)
+    store.ui.closeDaysPanel()
+}
+
 async function handleDeleteDay() {
+  const isDraft = !getSelectedDay.value?.date
   const isConfirmed = await confirm({
-    title: 'Удалить текущий день?',
+    title: isDraft ? 'Удалить черновик дня?' : 'Удалить текущий день?',
     description: 'Это действие необратимо. Все активности, связанные с этим днем, будут удалены.',
     type: 'danger',
     confirmText: 'Удалить',
   })
   if (isConfirmed)
     deleteDay()
+}
+
+function handleUnassignDay() {
+  if (!getSelectedDay.value)
+    return
+  updateDayDetails(getSelectedDay.value.id, { date: null })
+  toast.info('Маршрут отвязан от даты и перемещен в черновики.')
 }
 
 function toggleMode() {
@@ -81,7 +97,9 @@ const isDayInfoLoading = computed(() => isLoading.value || isLoadingNewDay.value
 
 const selectedCalendarDate = computed<CalendarDate | null>({
   get: () => {
-    return getSelectedDay.value ? parseDate(getSelectedDay.value.date.split('T')[0]) : null
+    return getSelectedDay.value && getSelectedDay.value.date
+      ? parseDate(getSelectedDay.value.date.split('T')[0])
+      : null
   },
   set: (newDate) => {
     if (!newDate || !getSelectedDay.value)
@@ -91,21 +109,29 @@ const selectedCalendarDate = computed<CalendarDate | null>({
     const originalDate = currentDay.date
     const newDateString = newDate.toString() // 'YYYY-MM-DD'
 
-    if (originalDate.startsWith(newDateString))
+    if (originalDate && originalDate.startsWith(newDateString))
       return
 
     const newIsoDate = new Date(newDateString).toISOString()
 
     const occupiedDay = getAllDays.value.find(
-      (day: IDay) => day.date.startsWith(newDateString) && day.id !== currentDay.id,
+      (day: IDay) => day.date && day.date.startsWith(newDateString) && day.id !== currentDay.id,
     )
 
     if (occupiedDay) {
       updateDayDetails(occupiedDay.id, { date: originalDate })
       updateDayDetails(currentDay.id, { date: newIsoDate })
+
+      if (!originalDate) {
+        toast.info(`Маршрут назначен на ${new Date(newDateString).toLocaleDateString('ru-RU', { day: 'numeric', month: 'long' })}. Прежний маршрут дня перемещен в черновики.`)
+      }
+      else {
+        toast.info('Маршруты дней поменялись местами.')
+      }
     }
     else {
       updateDayDetails(currentDay.id, { date: newIsoDate })
+      toast.success(`Маршрут назначен на ${new Date(newDateString).toLocaleDateString('ru-RU', { day: 'numeric', month: 'long' })}`)
     }
   },
 })
@@ -158,20 +184,51 @@ onUnmounted(() => {
           :disabled="isViewMode"
         >
           <template #trigger>
-            <div class="current-day-info" role="button" :class="{ readonly: isViewMode }">
-              <h3 v-if="getSelectedDay">
-                {{ new Date(getSelectedDay.date).toLocaleDateString('ru-RU', { day: 'numeric', month: 'long' }) }}
-              </h3>
-              <span v-if="getSelectedDay">
-                {{ new Date(getSelectedDay.date).toLocaleDateString('ru-RU', { weekday: 'long' }) }}
-              </span>
+            <div
+              class="current-day-info"
+              role="button"
+              :class="{ 'readonly': isViewMode, 'is-draft': !getSelectedDay?.date }"
+            >
+              <template v-if="getSelectedDay?.date">
+                <h3>
+                  {{ new Date(getSelectedDay.date).toLocaleDateString('ru-RU', { day: 'numeric', month: 'long' }) }}
+                </h3>
+                <span>
+                  {{ new Date(getSelectedDay.date).toLocaleDateString('ru-RU', { weekday: 'long' }) }}
+                </span>
+              </template>
+              <template v-else-if="getSelectedDay">
+                <div class="draft-badge-row">
+                  <Icon icon="mdi:calendar-question" />
+                  <h3>Без даты</h3>
+                </div>
+                <span class="draft-action-hint">{{ isViewMode ? 'Черновик маршрута' : 'Нажмите, чтобы назначить день' }}</span>
+              </template>
             </div>
           </template>
           <template #footer>
-            <KitBtn v-if="!isViewMode && !!getSelectedDay" variant="text" size="sm" class="delete-btn" title="Удалить день" @click="handleDeleteDay">
-              <Icon width="18" icon="mdi:trash-can-outline" />
+            <KitBtn
+              v-if="!isViewMode && !!getSelectedDay && !!getSelectedDay.date"
+              variant="text"
+              size="sm"
+              class="unassign-btn"
+              title="Переместить в черновики (отвязать от даты)"
+              @click="handleUnassignDay"
+            >
+              <Icon width="16" icon="mdi:archive-arrow-down-outline" />
+              <span>В черновики</span>
             </KitBtn>
             <div class="spacer" />
+            <KitBtn
+              v-if="!isViewMode && !!getSelectedDay"
+              variant="text"
+              size="sm"
+              class="delete-btn"
+              title="Удалить день"
+              @click="handleDeleteDay"
+            >
+              <Icon width="18" icon="mdi:trash-can-outline" />
+            </KitBtn>
           </template>
         </CalendarPopover>
       </div>
@@ -190,6 +247,7 @@ onUnmounted(() => {
       @close="isDaysPanelOpen = false"
       @select-day="setCurrentDay"
       @add-new-day="handleAddNewDay"
+      @add-new-draft-day="handleAddNewDraftDay"
     />
 
     <Teleport to="body">
@@ -219,20 +277,51 @@ onUnmounted(() => {
             :disabled="isViewMode"
           >
             <template #trigger>
-              <div class="current-day-info" role="button" :class="{ readonly: isViewMode }">
-                <h3 v-if="getSelectedDay">
-                  {{ new Date(getSelectedDay.date).toLocaleDateString('ru-RU', { day: 'numeric', month: 'long' }) }}
-                </h3>
-                <span v-if="getSelectedDay">
-                  {{ new Date(getSelectedDay.date).toLocaleDateString('ru-RU', { weekday: 'long' }) }}
-                </span>
+              <div
+                class="current-day-info"
+                role="button"
+                :class="{ 'readonly': isViewMode, 'is-draft': !getSelectedDay?.date }"
+              >
+                <template v-if="getSelectedDay?.date">
+                  <h3>
+                    {{ new Date(getSelectedDay.date).toLocaleDateString('ru-RU', { day: 'numeric', month: 'long' }) }}
+                  </h3>
+                  <span>
+                    {{ new Date(getSelectedDay.date).toLocaleDateString('ru-RU', { weekday: 'long' }) }}
+                  </span>
+                </template>
+                <template v-else-if="getSelectedDay">
+                  <div class="draft-badge-row">
+                    <Icon icon="mdi:calendar-question" />
+                    <h3>Без даты</h3>
+                  </div>
+                  <span class="draft-action-hint">{{ isViewMode ? 'Черновик маршрута' : 'Нажмите, чтобы назначить день' }}</span>
+                </template>
               </div>
             </template>
             <template #footer>
-              <KitBtn v-if="!isViewMode && !!getSelectedDay" variant="text" size="sm" class="delete-btn" title="Удалить день" @click="handleDeleteDay">
-                <Icon width="18" icon="mdi:trash-can-outline" />
+              <KitBtn
+                v-if="!isViewMode && !!getSelectedDay && !!getSelectedDay.date"
+                variant="text"
+                size="sm"
+                class="unassign-btn"
+                title="Переместить в черновики (отвязать от даты)"
+                @click="handleUnassignDay"
+              >
+                <Icon width="16" icon="mdi:archive-arrow-down-outline" />
+                <span>В черновики</span>
               </KitBtn>
               <div class="spacer" />
+              <KitBtn
+                v-if="!isViewMode && !!getSelectedDay"
+                variant="text"
+                size="sm"
+                class="delete-btn"
+                title="Удалить день"
+                @click="handleDeleteDay"
+              >
+                <Icon width="18" icon="mdi:trash-can-outline" />
+              </KitBtn>
             </template>
           </CalendarPopover>
         </div>
@@ -331,6 +420,9 @@ onUnmounted(() => {
 }
 .current-day-info {
   cursor: pointer;
+  display: flex;
+  flex-direction: column;
+
   h3 {
     margin: 0;
     font-size: 1.4rem;
@@ -341,11 +433,34 @@ onUnmounted(() => {
     color: var(--fg-secondary-color);
     text-transform: capitalize;
     font-family: 'Sansation';
-    font-family: 500x;
+    font-weight: 500;
   }
   &.readonly {
     cursor: default;
     pointer-events: none;
+  }
+
+  &.is-draft {
+    .draft-badge-row {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      color: var(--fg-accent-color);
+
+      .iconify {
+        font-size: 1.3rem;
+      }
+
+      h3 {
+        color: var(--fg-primary-color);
+      }
+    }
+
+    .draft-action-hint {
+      color: var(--fg-accent-color);
+      font-size: 0.85rem;
+      text-transform: none;
+    }
   }
 }
 
@@ -380,6 +495,17 @@ onUnmounted(() => {
     opacity: 1;
     transform: translateY(0);
     pointer-events: auto;
+  }
+}
+
+.unassign-btn {
+  color: var(--fg-secondary-color);
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+
+  &:hover {
+    color: var(--fg-accent-color);
   }
 }
 

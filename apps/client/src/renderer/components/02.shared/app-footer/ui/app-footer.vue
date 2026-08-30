@@ -8,7 +8,7 @@ import { AppRouteNames } from '~/shared/constants/routes'
   <footer class="app-footer">
     <div class="footer-content">
       <div class="footer-info">
-        <span class="copyright">© 2025 TripScheduler</span>
+        <span class="copyright">© 2026 TripScheduler</span>
 
         <div class="divider-dot" />
 
