@@ -218,6 +218,12 @@ function cancelRename(): void {
   flex-direction: column;
   min-height: 10px;
   margin-bottom: 4px;
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+
+  &::-webkit-scrollbar {
+    display: none;
+  }
 
   &.is-empty {
     min-height: 34px;

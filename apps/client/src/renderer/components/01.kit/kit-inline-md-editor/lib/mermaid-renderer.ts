@@ -165,15 +165,17 @@ function setupFullscreenOverlay(svgClone: SVGSVGElement) {
   overlay.className = 'mermaid-fullscreen-overlay'
   overlay.style.cssText = `
     position: fixed; inset: 0; z-index: 10000;
-    background: rgba(0,0,0,0.7); backdrop-filter: blur(4px);
+    background-color: var(--bg-primary-color);
+    background-image: radial-gradient(var(--border-primary-color) 1.25px, transparent 1.25px);
+    background-size: 24px 24px;
     display: flex; align-items: center; justify-content: center;
     cursor: grab;
+    user-select: none;
   `
 
   const viewer = document.createElement('div')
   viewer.style.cssText = `
     position: relative; width: 100vw; height: 100vh;
-    display: flex; align-items: center; justify-content: center;
     overflow: hidden;
   `
   overlay.appendChild(viewer)
@@ -183,111 +185,176 @@ function setupFullscreenOverlay(svgClone: SVGSVGElement) {
   // Clone the SVG so we don't mess with the original
   const svgView = svgClone.cloneNode(true) as SVGSVGElement
   // Get natural SVG dimensions
-  const vb = svgView.viewBox.baseVal
-  const svgW = vb ? vb.width : svgView.width.baseVal.value
-  const svgH = vb ? vb.height : svgView.height.baseVal.value
+  const vb = svgView.viewBox?.baseVal
+  const svgW = (vb && vb.width > 0) ? vb.width : (svgView.width?.baseVal?.value || 800)
+  const svgH = (vb && vb.height > 0) ? vb.height : (svgView.height?.baseVal?.value || 600)
+
   // Calculate initial fit: fill available space while preserving aspect ratio
-  const winW = window.innerWidth * 0.9
-  const winH = window.innerHeight * 0.9
+  const winW = window.innerWidth * 0.85
+  const winH = window.innerHeight * 0.85
   const fitScale = Math.min(winW / svgW, winH / svgH, 1.5)
   state.scale = fitScale
+  state.translateX = (window.innerWidth - svgW * fitScale) / 2
+  state.translateY = (window.innerHeight - svgH * fitScale) / 2
+
   svgView.style.cssText = `
+    position: absolute;
+    top: 0;
+    left: 0;
     transform-origin: 0 0;
     transition: none;
     pointer-events: none;
     user-select: none;
+    will-change: transform;
   `
   viewer.appendChild(svgView)
+
+  function applyTransform() {
+    svgView.style.transform = `translate3d(${state.translateX}px, ${state.translateY}px, 0) scale(${state.scale})`
+  }
+
+  applyTransform()
+
+  function zoomAt(cx: number, cy: number, factor: number) {
+    const newScale = Math.max(0.1, Math.min(10, state.scale * factor))
+    state.translateX = cx - (cx - state.translateX) * (newScale / state.scale)
+    state.translateY = cy - (cy - state.translateY) * (newScale / state.scale)
+    state.scale = newScale
+    applyTransform()
+  }
+
+  // ── Cleanup & Close handler ──
+  const onMouseMove = (e: MouseEvent) => {
+    if (!state.isDragging)
+      return
+    state.translateX = state.origTranslateX + (e.clientX - state.dragStartX)
+    state.translateY = state.origTranslateY + (e.clientY - state.dragStartY)
+    applyTransform()
+  }
+
+  const onMouseUp = () => {
+    if (state.isDragging) {
+      state.isDragging = false
+      overlay.style.cursor = 'grab'
+    }
+  }
+
+  const onKeyDown = (e: KeyboardEvent) => {
+    if (e.key === 'Escape') {
+      e.stopPropagation()
+      closeOverlay()
+    }
+  }
+
+  function closeOverlay() {
+    window.removeEventListener('mousemove', onMouseMove)
+    window.removeEventListener('mouseup', onMouseUp)
+    window.removeEventListener('keydown', onKeyDown)
+    if (overlay.parentNode) {
+      overlay.parentNode.removeChild(overlay)
+    }
+  }
 
   // ── Close button ──
   const closeBtn = document.createElement('button')
   closeBtn.innerHTML = '✕'
+  closeBtn.title = 'Закрыть (Esc)'
+  closeBtn.setAttribute('aria-label', 'Закрыть')
   closeBtn.style.cssText = `
     position: fixed; top: 16px; right: 16px; z-index: 10001;
-    width: 40px; height: 40px; border-radius: 50%; border: none;
-    background: rgba(255,255,255,0.15); color: #fff;
-    font-size: 1.3rem; cursor: pointer;
+    width: 40px; height: 40px; border-radius: 50%;
+    border: 1px solid var(--border-secondary-color);
+    background: var(--bg-secondary-color);
+    color: var(--fg-primary-color);
+    font-size: 1.2rem; cursor: pointer;
     display: flex; align-items: center; justify-content: center;
-    backdrop-filter: blur(4px);
-    transition: background 0.2s;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+    transition: background 0.2s, border-color 0.2s, transform 0.1s;
   `
-  closeBtn.addEventListener('mouseenter', () => closeBtn.style.background = 'rgba(255,255,255,0.25)')
-  closeBtn.addEventListener('mouseleave', () => closeBtn.style.background = 'rgba(255,255,255,0.15)')
+  closeBtn.addEventListener('mouseenter', () => {
+    closeBtn.style.background = 'var(--bg-tertiary-color)'
+    closeBtn.style.borderColor = 'var(--border-primary-color)'
+  })
+  closeBtn.addEventListener('mouseleave', () => {
+    closeBtn.style.background = 'var(--bg-secondary-color)'
+    closeBtn.style.borderColor = 'var(--border-secondary-color)'
+  })
   closeBtn.addEventListener('click', (e) => {
     e.stopPropagation()
-    document.body.removeChild(overlay)
+    closeOverlay()
   })
   overlay.appendChild(closeBtn)
 
   // ── Zoom controls ──
   const zoomIn = document.createElement('button')
   zoomIn.innerHTML = '＋'
+  zoomIn.title = 'Приблизить'
+  zoomIn.setAttribute('aria-label', 'Приблизить')
+
   const zoomOut = document.createElement('button')
   zoomOut.innerHTML = '−'
+  zoomOut.title = 'Отдалить'
+  zoomOut.setAttribute('aria-label', 'Отдалить')
+
   const resetBtn = document.createElement('button')
   resetBtn.innerHTML = '⟲'
-  const controls = [zoomIn, zoomOut, resetBtn]
+  resetBtn.title = 'Сбросить масштаб'
+  resetBtn.setAttribute('aria-label', 'Сбросить масштаб')
+
+  const controls = [zoomOut, resetBtn, zoomIn]
   controls.forEach((btn) => {
     btn.style.cssText = `
       width: 36px; height: 36px; border-radius: 50%; border: none;
-      background: rgba(255,255,255,0.15); color: #fff;
+      background: transparent; color: var(--fg-primary-color);
       font-size: 1.1rem; cursor: pointer;
       display: flex; align-items: center; justify-content: center;
-      backdrop-filter: blur(4px); transition: background 0.2s;
+      transition: background 0.2s, transform 0.1s;
     `
-    btn.addEventListener('mouseenter', () => btn.style.background = 'rgba(255,255,255,0.25)')
-    btn.addEventListener('mouseleave', () => btn.style.background = 'rgba(255,255,255,0.15)')
+    btn.addEventListener('mouseenter', () => {
+      btn.style.background = 'var(--bg-tertiary-color)'
+    })
+    btn.addEventListener('mouseleave', () => {
+      btn.style.background = 'transparent'
+    })
   })
 
   const controlsContainer = document.createElement('div')
   controlsContainer.style.cssText = `
     position: fixed; bottom: 24px; left: 50%; transform: translateX(-50%);
-    z-index: 10001; display: flex; gap: 8px;
-    background: rgba(0,0,0,0.4); backdrop-filter: blur(6px);
-    padding: 6px 10px; border-radius: 999px;
+    z-index: 10001; display: flex; gap: 6px;
+    background: var(--bg-secondary-color);
+    border: 1px solid var(--border-secondary-color);
+    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.12);
+    padding: 6px 8px; border-radius: 999px;
   `
   controlsContainer.appendChild(zoomOut)
   controlsContainer.appendChild(resetBtn)
   controlsContainer.appendChild(zoomIn)
   overlay.appendChild(controlsContainer)
 
-  function applyTransform() {
-    svgView.style.transform = `translate(${state.translateX}px, ${state.translateY}px) scale(${state.scale})`
-  }
-
   zoomIn.addEventListener('click', () => {
-    state.scale = Math.min(state.scale * 1.3, 8)
-    applyTransform()
+    zoomAt(window.innerWidth / 2, window.innerHeight / 2, 1.3)
   })
   zoomOut.addEventListener('click', () => {
-    state.scale = Math.max(state.scale / 1.3, 0.2)
-    applyTransform()
+    zoomAt(window.innerWidth / 2, window.innerHeight / 2, 1 / 1.3)
   })
   resetBtn.addEventListener('click', () => {
-    state.scale = 1
-    state.translateX = 0
-    state.translateY = 0
+    state.scale = fitScale
+    state.translateX = (window.innerWidth - svgW * fitScale) / 2
+    state.translateY = (window.innerHeight - svgH * fitScale) / 2
     applyTransform()
   })
 
   // ── Mouse wheel zoom ──
   overlay.addEventListener('wheel', (e) => {
     e.preventDefault()
-    const rect = viewer.getBoundingClientRect()
-    const mx = e.clientX - rect.left
-    const my = e.clientY - rect.top
-    const delta = e.deltaY > 0 ? 0.85 : 1.18
-    const newScale = Math.max(0.2, Math.min(8, state.scale * delta))
-    state.translateX = mx - (mx - state.translateX) * (newScale / state.scale)
-    state.translateY = my - (my - state.translateY) * (newScale / state.scale)
-    state.scale = newScale
-    applyTransform()
+    const factor = e.deltaY > 0 ? 0.85 : 1.18
+    zoomAt(e.clientX, e.clientY, factor)
   }, { passive: false })
 
   // ── Mouse drag pan ──
   overlay.addEventListener('mousedown', (e) => {
-    // Don't start drag on buttons
-    if ((e.target as HTMLElement).tagName === 'BUTTON')
+    if ((e.target as HTMLElement).closest('button'))
       return
     state.isDragging = true
     state.dragStartX = e.clientX
@@ -297,23 +364,14 @@ function setupFullscreenOverlay(svgClone: SVGSVGElement) {
     overlay.style.cursor = 'grabbing'
   })
 
-  window.addEventListener('mousemove', (e) => {
-    if (!state.isDragging)
-      return
-    state.translateX = state.origTranslateX + (e.clientX - state.dragStartX)
-    state.translateY = state.origTranslateY + (e.clientY - state.dragStartY)
-    applyTransform()
-  })
-
-  window.addEventListener('mouseup', () => {
-    if (state.isDragging) {
-      state.isDragging = false
-      overlay.style.cursor = 'grab'
-    }
-  })
+  window.addEventListener('mousemove', onMouseMove)
+  window.addEventListener('mouseup', onMouseUp)
+  window.addEventListener('keydown', onKeyDown)
 
   // ── Touch support ──
   let lastTouchDist = 0
+  let lastTouchCenterX = 0
+  let lastTouchCenterY = 0
 
   overlay.addEventListener('touchstart', (e) => {
     if (e.touches.length === 1) {
@@ -328,6 +386,8 @@ function setupFullscreenOverlay(svgClone: SVGSVGElement) {
       const dx = e.touches[0].clientX - e.touches[1].clientX
       const dy = e.touches[0].clientY - e.touches[1].clientY
       lastTouchDist = Math.sqrt(dx * dx + dy * dy)
+      lastTouchCenterX = (e.touches[0].clientX + e.touches[1].clientX) / 2
+      lastTouchCenterY = (e.touches[0].clientY + e.touches[1].clientY) / 2
     }
   }, { passive: true })
 
@@ -338,21 +398,22 @@ function setupFullscreenOverlay(svgClone: SVGSVGElement) {
       state.translateY = state.origTranslateY + (e.touches[0].clientY - state.dragStartY)
       applyTransform()
     }
-    else if (e.touches.length === 2) {
+    else if (e.touches.length === 2 && lastTouchDist > 0) {
       const dx = e.touches[0].clientX - e.touches[1].clientX
       const dy = e.touches[0].clientY - e.touches[1].clientY
       const dist = Math.sqrt(dx * dx + dy * dy)
       const cx = (e.touches[0].clientX + e.touches[1].clientX) / 2
       const cy = (e.touches[0].clientY + e.touches[1].clientY) / 2
 
-      if (lastTouchDist > 0) {
-        const newScale = Math.max(0.2, Math.min(8, state.scale * (dist / lastTouchDist)))
-        state.translateX = cx - (cx - state.translateX) * (newScale / state.scale)
-        state.translateY = cy - (cy - state.translateY) * (newScale / state.scale)
-        state.scale = newScale
-        applyTransform()
-      }
+      const factor = dist / lastTouchDist
+      const newScale = Math.max(0.1, Math.min(10, state.scale * factor))
+      state.translateX = cx - (cx - state.translateX) * (newScale / state.scale) + (cx - lastTouchCenterX)
+      state.translateY = cy - (cy - state.translateY) * (newScale / state.scale) + (cy - lastTouchCenterY)
+      state.scale = newScale
       lastTouchDist = dist
+      lastTouchCenterX = cx
+      lastTouchCenterY = cy
+      applyTransform()
     }
   }, { passive: false })
 
@@ -371,13 +432,13 @@ export function addFullscreenButton(container: HTMLElement, getSvg: () => SVGSVG
   btn.title = 'Открыть на весь экран'
   btn.style.cssText = `
     position: absolute; right: 8px; bottom: 8px; z-index: 10;
-    width: 32px; height: 32px; border-radius: 8px; border: none;
+    width: 32px; height: 32px; border-radius: 8px;
+    border: 1px solid var(--border-secondary-color, rgba(255,255,255,0.1));
     background: var(--bg-tertiary-color, rgba(0,0,0,0.35));
     color: var(--fg-secondary-color, #ccc);
     font-size: 1.1rem; cursor: pointer;
     display: flex; align-items: center; justify-content: center;
-    opacity: 0; transition: opacity 0.2s, background 0.2s;
-    backdrop-filter: blur(2px);
+    opacity: 0; transition: opacity 0.2s, background 0.2s, border-color 0.2s;
   `
   container.style.position = 'relative'
   container.appendChild(btn)

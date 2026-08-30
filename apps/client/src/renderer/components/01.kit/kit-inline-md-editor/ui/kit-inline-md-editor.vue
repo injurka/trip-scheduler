@@ -7,6 +7,7 @@ import { codeBlockSchema, htmlSchema } from '@milkdown/preset-commonmark'
 import { $view } from '@milkdown/utils'
 import { Milkdown, useEditor } from '@milkdown/vue'
 import { addFullscreenButton, renderMermaidDiagram } from '../lib/mermaid-renderer'
+import { remarkHtmlMergePlugin } from '../lib/remark-html-merge'
 import '@milkdown/crepe/theme/common/style.css'
 import '@milkdown/crepe/theme/frame.css'
 
@@ -172,6 +173,7 @@ useEditor((root) => {
   crepe.editor
     .use(htmlView)
     .use(mermaidView)
+    .use(remarkHtmlMergePlugin)
     .config((ctx) => {
       ctx.update(editorViewOptionsCtx, prev => ({
         ...prev,
@@ -304,11 +306,12 @@ onBeforeUnmount(() => {
 .kit-inline-md-editor-minimal :deep(.table-container) {
   width: 100%;
   overflow-x: auto;
-  margin: 1rem 0;
+  margin: 0;
 
   table {
     min-width: 100%;
     border-collapse: collapse;
+    margin: 0;
   }
 }
 
@@ -513,16 +516,37 @@ onBeforeUnmount(() => {
 
     blockquote {
       margin: 0.8rem 0 !important;
-      padding: 0.6rem 1rem !important;
+      padding: 0.75rem 1rem !important;
       border-left: 3px solid var(--fg-accent-color) !important;
-      background: var(--bg-tertiary-color);
-      border-radius: 0 var(--r-xs, 4px) var(--r-xs, 4px) 0;
-      color: var(--fg-secondary-color);
-      font-style: italic;
+      background: var(--bg-secondary-color);
+      border-radius: 0 var(--r-xs, 6px) var(--r-xs, 6px) 0;
+      color: var(--fg-primary-color);
+      font-style: normal;
+      font-size: 0.92rem;
+      line-height: 1.6;
+
+      &::before {
+        display: none !important;
+        background: transparent !important;
+      }
 
       p {
         margin: 0 !important;
+        font-style: normal;
       }
+
+      strong {
+        color: var(--fg-accent-color);
+        font-weight: 600;
+        font-style: normal;
+      }
+    }
+
+    [data-type='hardbreak'] {
+      display: block;
+      content: '';
+      height: 0;
+      margin: 0.25rem 0 0;
     }
 
     pre {
@@ -539,12 +563,13 @@ onBeforeUnmount(() => {
 
     .table-container {
       overflow-x: auto;
+      margin: 0 !important;
     }
 
     table {
       border-collapse: collapse;
       width: 100%;
-      margin: 0.6rem 0;
+      margin: 0 !important;
       font-size: 0.875rem;
     }
 
@@ -593,6 +618,18 @@ onBeforeUnmount(() => {
         color: #f43f5e;
       }
     }
+
+    // Inline HTML / Rating badges
+    .milkdown-html-inline {
+      display: inline-flex;
+      vertical-align: middle;
+      align-items: center;
+      line-height: normal;
+
+      .tp-rate {
+        margin-right: 6px;
+      }
+    }
   }
 
   .milkdown-mermaid-container {
@@ -630,13 +667,14 @@ onBeforeUnmount(() => {
 
   .table-wrapper {
     overflow-x: auto;
-    margin: 1.25em 0;
+    margin: 0;
     border-radius: var(--r-s, 6px);
     border: 1px solid var(--border-secondary-color, #e0e0e0);
 
     table {
       width: 100%;
       border-collapse: collapse;
+      margin: 0;
       font-size: 0.875rem;
 
       th {

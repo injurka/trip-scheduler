@@ -2,7 +2,7 @@
 import type { NoteType } from '~/shared/services/api/model/types'
 import { Icon } from '@iconify/vue'
 import { onKeyStroke, useClipboard, useWindowSize } from '@vueuse/core'
-import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
+import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { KitBtn } from '~/components/01.kit/kit-btn'
 import { KitDropdown } from '~/components/01.kit/kit-dropdown'
 import { useRequest } from '~/plugins/request'
@@ -79,6 +79,16 @@ watch(isLoading, (loading) => {
         selectNote(id)
     }
   }
+})
+
+const editorBodyRef = ref<HTMLElement | null>(null)
+
+watch(activeNoteId, () => {
+  nextTick(() => {
+    if (editorBodyRef.value) {
+      editorBodyRef.value.scrollTop = 0
+    }
+  })
 })
 
 onKeyStroke('Escape', () => {
@@ -307,7 +317,7 @@ onBeforeUnmount(() => flushPendingSave())
           </div>
         </div>
 
-        <div class="editor-body">
+        <div ref="editorBodyRef" class="editor-body">
           <template v-if="activeNote">
             <NoteEditorMd v-if="activeNote.type === 'markdown'" :key="activeNote.id" :note-id="activeNote.id" :content="activeNote.content" :readonly="readonly" @update:content="saveContent" @upload-image="handlePasteImage" />
             <NoteEditorExcalidraw v-else-if="activeNote.type === 'excalidraw'" :key="activeNote.id + 2" ref="excalidrawRef" :note-id="activeNote.id" :content="activeNote.content" :readonly="readonly" @update:content="saveContent" />
@@ -489,6 +499,12 @@ onBeforeUnmount(() => flushPendingSave())
   flex: 1;
   overflow-y: auto;
   padding: 6px;
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+
+  &::-webkit-scrollbar {
+    display: none;
+  }
 }
 
 .empty-tree {
@@ -631,6 +647,12 @@ onBeforeUnmount(() => flushPendingSave())
   flex: 1;
   overflow-y: auto;
   position: relative;
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+
+  &::-webkit-scrollbar {
+    display: none;
+  }
 }
 
 .editor-empty {

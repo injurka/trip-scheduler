@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, watch } from 'vue'
+import { nextTick, ref, watch } from 'vue'
 import { KitInlineMdEditorWrapper } from '~/components/01.kit/kit-inline-md-editor'
 
 const props = defineProps<{
@@ -14,11 +14,17 @@ const emit = defineEmits<{
 }>()
 
 const localContent = ref(props.content ?? '')
+const containerRef = ref<HTMLElement | null>(null)
 
 // Обновляем локальный контент ТОЛЬКО при смене самой заметки.
 // Если сервер возвращает ответ, пока мы печатаем - мы его игнорируем
 watch(() => props.noteId, () => {
   localContent.value = props.content ?? ''
+  nextTick(() => {
+    if (containerRef.value) {
+      containerRef.value.scrollTop = 0
+    }
+  })
 }, { immediate: true })
 
 // Если мы в ReadOnly - разрешаем обновление извне
@@ -53,7 +59,7 @@ function handlePaste(event: ClipboardEvent) {
 </script>
 
 <template>
-  <div class="md-editor-container" @paste="handlePaste">
+  <div ref="containerRef" class="md-editor-container" @paste="handlePaste">
     <KitInlineMdEditorWrapper
       :model-value="localContent"
       :readonly="readonly"
@@ -68,5 +74,11 @@ function handlePaste(event: ClipboardEvent) {
   min-height: 100%;
   height: auto;
   padding: 24px;
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+
+  &::-webkit-scrollbar {
+    display: none;
+  }
 }
 </style>
