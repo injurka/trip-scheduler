@@ -6,6 +6,7 @@ import { listener, listenerCtx } from '@milkdown/kit/plugin/listener'
 import { codeBlockSchema, htmlSchema } from '@milkdown/preset-commonmark'
 import { $view } from '@milkdown/utils'
 import { Milkdown, useEditor } from '@milkdown/vue'
+import { calloutPlugin } from '../lib/callout-plugin'
 import { addFullscreenButton, renderMermaidDiagram } from '../lib/mermaid-renderer'
 import { remarkHtmlMergePlugin } from '../lib/remark-html-merge'
 import '@milkdown/crepe/theme/common/style.css'
@@ -174,6 +175,7 @@ useEditor((root) => {
     .use(htmlView)
     .use(mermaidView)
     .use(remarkHtmlMergePlugin)
+    .use(calloutPlugin)
     .config((ctx) => {
       ctx.update(editorViewOptionsCtx, prev => ({
         ...prev,
@@ -515,11 +517,11 @@ onBeforeUnmount(() => {
     }
 
     blockquote {
-      margin: 0.8rem 0 !important;
-      padding: 0.75rem 1rem !important;
+      margin: 0.9rem 0 !important;
+      padding: 0.75rem 1.1rem !important;
       border-left: 3px solid var(--fg-accent-color) !important;
       background: var(--bg-secondary-color);
-      border-radius: 0 var(--r-xs, 6px) var(--r-xs, 6px) 0;
+      border-radius: 0 var(--r-s, 8px) var(--r-s, 8px) 0;
       color: var(--fg-primary-color);
       font-style: normal;
       font-size: 0.92rem;
@@ -531,7 +533,7 @@ onBeforeUnmount(() => {
       }
 
       p {
-        margin: 0 !important;
+        margin: 0.3rem 0 !important;
         font-style: normal;
       }
 
@@ -539,6 +541,170 @@ onBeforeUnmount(() => {
         color: var(--fg-accent-color);
         font-weight: 600;
         font-style: normal;
+      }
+    }
+
+    // Callout / Alert Cards (GitHub & Obsidian style: [!TIP], [!NOTE], [!WARNING], [!CAUTION], [!IMPORTANT], etc.)
+    .milkdown-callout {
+      margin: 1.1rem 0 !important;
+      padding: 0.85rem 1.15rem 0.95rem !important;
+      border-radius: var(--r-s, 8px) !important;
+      border-left: 4px solid var(--callout-accent, var(--fg-accent-color)) !important;
+      border-top: 1px solid var(--callout-border, var(--border-secondary-color)) !important;
+      border-right: 1px solid var(--callout-border, var(--border-secondary-color)) !important;
+      border-bottom: 1px solid var(--callout-border, var(--border-secondary-color)) !important;
+      background: var(--callout-bg, var(--bg-secondary-color)) !important;
+      box-shadow: 0 2px 12px rgba(0, 0, 0, 0.06);
+      position: relative;
+      font-style: normal;
+      font-size: 0.92rem;
+      line-height: 1.6;
+      transition:
+        border-color 0.2s ease,
+        background-color 0.2s ease,
+        box-shadow 0.2s ease;
+
+      p {
+        margin: 0.35rem 0 !important;
+        font-style: normal;
+        line-height: 1.6 !important;
+      }
+
+      p:first-of-type {
+        margin-top: 0 !important;
+      }
+
+      p:last-of-type {
+        margin-bottom: 0 !important;
+      }
+
+      strong {
+        color: var(--fg-primary-color) !important;
+        font-weight: 600;
+      }
+
+      ul,
+      ol {
+        margin: 0.35rem 0 !important;
+      }
+
+      .milkdown-callout-header {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        margin-bottom: 0.55rem;
+        user-select: none;
+
+        .milkdown-callout-icon-badge {
+          display: inline-flex;
+          align-items: center;
+          justify-content: center;
+          width: 24px;
+          height: 24px;
+          border-radius: 6px;
+          background: var(--callout-badge-bg, rgba(255, 255, 255, 0.08));
+          color: var(--callout-accent, var(--fg-accent-color));
+          flex-shrink: 0;
+
+          svg {
+            width: 15px;
+            height: 15px;
+            stroke: currentColor;
+            fill: none;
+          }
+        }
+
+        .milkdown-callout-title {
+          font-size: 0.8rem;
+          font-weight: 700;
+          text-transform: uppercase;
+          letter-spacing: 0.06em;
+          color: var(--callout-title-color, var(--callout-accent));
+          font-family: 'Rubik', sans-serif !important;
+        }
+      }
+
+      .milkdown-callout-tag {
+        display: none !important;
+      }
+
+      .milkdown-callout-lead-empty {
+        display: none !important;
+        margin: 0 !important;
+        padding: 0 !important;
+        height: 0 !important;
+      }
+
+      // Tip / Hint / Success
+      &.milkdown-callout-tip {
+        --callout-accent: var(--fg-success-color, #67d174);
+        --callout-border: rgba(103, 209, 116, 0.25);
+        --callout-bg: rgba(44, 73, 47, 0.2);
+        --callout-badge-bg: rgba(103, 209, 116, 0.18);
+        --callout-title-color: var(--fg-success-color, #67d174);
+      }
+
+      // Note / Info
+      &.milkdown-callout-note {
+        --callout-accent: var(--fg-info-color, #79b3f7);
+        --callout-border: rgba(121, 179, 247, 0.25);
+        --callout-bg: rgba(42, 74, 110, 0.2);
+        --callout-badge-bg: rgba(121, 179, 247, 0.18);
+        --callout-title-color: var(--fg-info-color, #79b3f7);
+      }
+
+      // Important
+      &.milkdown-callout-important {
+        --callout-accent: #a855f7;
+        --callout-border: rgba(168, 85, 247, 0.28);
+        --callout-bg: rgba(88, 28, 135, 0.2);
+        --callout-badge-bg: rgba(168, 85, 247, 0.2);
+        --callout-title-color: #c084fc;
+      }
+
+      // Warning / Warn
+      &.milkdown-callout-warning {
+        --callout-accent: var(--fg-warning-color, #f5b971);
+        --callout-border: rgba(245, 185, 113, 0.28);
+        --callout-bg: rgba(90, 72, 44, 0.24);
+        --callout-badge-bg: rgba(245, 185, 113, 0.2);
+        --callout-title-color: var(--fg-warning-color, #f5b971);
+      }
+
+      // Caution / Danger / Error
+      &.milkdown-callout-caution {
+        --callout-accent: var(--fg-error-color, #ff879d);
+        --callout-border: rgba(255, 135, 157, 0.3);
+        --callout-bg: rgba(109, 59, 70, 0.24);
+        --callout-badge-bg: rgba(255, 135, 157, 0.2);
+        --callout-title-color: var(--fg-error-color, #ff879d);
+      }
+
+      // Question / Help
+      &.milkdown-callout-question {
+        --callout-accent: #2dd4bf;
+        --callout-border: rgba(45, 212, 191, 0.25);
+        --callout-bg: rgba(19, 78, 74, 0.2);
+        --callout-badge-bg: rgba(45, 212, 191, 0.18);
+        --callout-title-color: #2dd4bf;
+      }
+
+      // Todo
+      &.milkdown-callout-todo {
+        --callout-accent: #818cf8;
+        --callout-border: rgba(129, 140, 248, 0.25);
+        --callout-bg: rgba(49, 46, 129, 0.2);
+        --callout-badge-bg: rgba(129, 140, 248, 0.18);
+        --callout-title-color: #818cf8;
+      }
+
+      // Example
+      &.milkdown-callout-example {
+        --callout-accent: #c084fc;
+        --callout-border: rgba(192, 132, 252, 0.25);
+        --callout-bg: rgba(88, 28, 135, 0.18);
+        --callout-badge-bg: rgba(192, 132, 252, 0.18);
+        --callout-title-color: #c084fc;
       }
     }
 
