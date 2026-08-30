@@ -8,42 +8,68 @@ import { usePwaStore } from '~/shared/store/pwa.store'
  */
 function initializePwaUpdater(pinia: Pinia): void {
   const pwaStore = usePwaStore(pinia)
-  const intervalMS = 60 * 1 * 1000
+  const intervalMS = 60 * 60 * 1000
 
   const {
     offlineReady,
     needRefresh,
     updateServiceWorker,
   } = useRegisterSW({
-    onRegistered(r) {
+    onRegisteredSW(swUrl, r) {
       if (r) {
         setInterval(async () => {
-          if (r.installing || !navigator.onLine)
+          if (!navigator || !navigator.onLine)
+            return
+
+          if (('connection' in navigator) && !navigator.onLine)
             return
 
           try {
-            await r.update()
+            if (swUrl) {
+              const resp = await fetch(swUrl, {
+                cache: 'no-store',
+                headers: {
+                  'cache': 'no-store',
+                  'cache-control': 'no-cache',
+                },
+              })
+              if (resp?.status !== 200)
+                return
+            }
+
+            const currentReg = await navigator.serviceWorker?.getRegistration()
+            if (currentReg && !currentReg.installing) {
+              await currentReg.update()
+            }
           }
           catch (e) {
-            console.error('Error during Service Worker update:', e)
+            if (import.meta.env.DEV) {
+              console.warn('[PWA] Service Worker update warning:', e)
+            }
           }
         }, intervalMS)
       }
     },
     onRegisterError(error) {
-      console.error('Error during Service Worker registration:', error)
+      if (import.meta.env.DEV) {
+        console.error('Error during Service Worker registration:', error)
+      }
     },
   })
 
   watch(offlineReady, (value) => {
-    console.log(`App ready to work offline: ${value}`)
+    if (import.meta.env.DEV) {
+      console.log(`App ready to work offline: ${value}`)
+    }
     pwaStore.setOfflineReady(value)
-  }, { immediate: true })
+  })
 
   watch(needRefresh, (value) => {
-    console.log(`New content available, show refresh prompt: ${value}`)
+    if (import.meta.env.DEV) {
+      console.log(`New content available, show refresh prompt: ${value}`)
+    }
     pwaStore.setNeedRefresh(value)
-  }, { immediate: true })
+  })
 
   pwaStore.setUpdateFunction(updateServiceWorker)
 }

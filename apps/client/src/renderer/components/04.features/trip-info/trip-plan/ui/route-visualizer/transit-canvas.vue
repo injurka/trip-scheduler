@@ -51,13 +51,14 @@ const scale = ref(1)
 const translateX = ref(40)
 const translateY = ref(40)
 const isDragging = ref(false)
-const dragStart = { x: 0, y: 0 }
-const initialTranslate = { x: 0, y: 0 }
 
-// Touch pinch zoom state
-let initialPinchDistance = 0
-let initialPinchScale = 1
-let pinchMidpoint = { x: 0, y: 0 }
+// Multi-touch & Pointer gesture tracking
+const activePointers = new Map<number, { clientX: number, clientY: number }>()
+let pinchStartDistance = 0
+let pinchStartScale = 1
+let pinchStartContentPoint = { x: 0, y: 0 }
+let singleDragStart = { x: 0, y: 0 }
+let singleDragStartTranslate = { x: 0, y: 0 }
 
 // Selected Node / Dialog State
 const selectedActivityId = ref<string | null>(null)
@@ -274,9 +275,9 @@ function zoomAtCenter(factor: number) {
   scale.value = newScale
 }
 
-// Pointer Events (Pan)
+// Unified Pointer & Multi-Touch Gesture Handling
 function handlePointerDown(e: PointerEvent) {
-  if (e.button !== 0)
+  if (e.pointerType === 'mouse' && e.button !== 0)
     return
 
   if (isHoverTooltipVisible.value) {
@@ -288,33 +289,75 @@ function handlePointerDown(e: PointerEvent) {
   }
 
   const target = e.target as HTMLElement
-  if (target.closest('button, input, textarea, .action-btn, .transit-node-card, .canvas-floating-tabs, .canvas-floating-controls')) {
+  if (target.closest('button, input, textarea, .action-btn, .transit-node-card, .canvas-floating-tabs, .canvas-floating-controls, .edge-badge-group')) {
     return
   }
 
-  isDragging.value = true
-  dragStart.x = e.clientX
-  dragStart.y = e.clientY
-  initialTranslate.x = translateX.value
-  initialTranslate.y = translateY.value
+  activePointers.set(e.pointerId, { clientX: e.clientX, clientY: e.clientY })
 
   if (viewportRef.value) {
-    viewportRef.value.setPointerCapture(e.pointerId)
+    try {
+      viewportRef.value.setPointerCapture(e.pointerId)
+    }
+    catch {
+      // ignore
+    }
+  }
+
+  if (activePointers.size === 1) {
+    isDragging.value = true
+    singleDragStart = { x: e.clientX, y: e.clientY }
+    singleDragStartTranslate = { x: translateX.value, y: translateY.value }
+  }
+  else if (activePointers.size === 2) {
+    isDragging.value = true
+    const [p1, p2] = Array.from(activePointers.values())
+    pinchStartDistance = Math.hypot(p2.clientX - p1.clientX, p2.clientY - p1.clientY)
+    pinchStartScale = scale.value
+
+    const rect = viewportRef.value?.getBoundingClientRect() || { left: 0, top: 0 }
+    const midX = (p1.clientX + p2.clientX) / 2 - rect.left
+    const midY = (p1.clientY + p2.clientY) / 2 - rect.top
+
+    pinchStartContentPoint = {
+      x: (midX - translateX.value) / pinchStartScale,
+      y: (midY - translateY.value) / pinchStartScale,
+    }
   }
 }
 
 function handlePointerMove(e: PointerEvent) {
-  if (!isDragging.value)
+  if (!activePointers.has(e.pointerId))
     return
-  const dx = e.clientX - dragStart.x
-  const dy = e.clientY - dragStart.y
-  translateX.value = initialTranslate.x + dx
-  translateY.value = initialTranslate.y + dy
+
+  activePointers.set(e.pointerId, { clientX: e.clientX, clientY: e.clientY })
+
+  if (activePointers.size === 1 && isDragging.value) {
+    const p = activePointers.get(e.pointerId)!
+    const dx = p.clientX - singleDragStart.x
+    const dy = p.clientY - singleDragStart.y
+    translateX.value = singleDragStartTranslate.x + dx
+    translateY.value = singleDragStartTranslate.y + dy
+  }
+  else if (activePointers.size >= 2 && pinchStartDistance > 0) {
+    const [p1, p2] = Array.from(activePointers.values())
+    const currentDist = Math.hypot(p2.clientX - p1.clientX, p2.clientY - p1.clientY)
+    const factor = currentDist / pinchStartDistance
+    const newScale = Math.min(Math.max(pinchStartScale * factor, 0.2), 2.5)
+
+    const rect = viewportRef.value?.getBoundingClientRect() || { left: 0, top: 0 }
+    const currentMidX = (p1.clientX + p2.clientX) / 2 - rect.left
+    const currentMidY = (p1.clientY + p2.clientY) / 2 - rect.top
+
+    scale.value = newScale
+    translateX.value = currentMidX - pinchStartContentPoint.x * newScale
+    translateY.value = currentMidY - pinchStartContentPoint.y * newScale
+  }
 }
 
 function handlePointerUp(e: PointerEvent) {
-  if (isDragging.value) {
-    isDragging.value = false
+  if (activePointers.has(e.pointerId)) {
+    activePointers.delete(e.pointerId)
     try {
       if (viewportRef.value?.hasPointerCapture(e.pointerId)) {
         viewportRef.value.releasePointerCapture(e.pointerId)
@@ -323,6 +366,16 @@ function handlePointerUp(e: PointerEvent) {
     catch {
       // ignore
     }
+  }
+
+  if (activePointers.size === 1) {
+    const remaining = Array.from(activePointers.values())[0]
+    singleDragStart = { x: remaining.clientX, y: remaining.clientY }
+    singleDragStartTranslate = { x: translateX.value, y: translateY.value }
+  }
+  else if (activePointers.size === 0) {
+    isDragging.value = false
+    pinchStartDistance = 0
   }
 }
 
@@ -342,38 +395,6 @@ function handleWheel(e: WheelEvent) {
   translateX.value = mouseX - (mouseX - translateX.value) * (newScale / scale.value)
   translateY.value = mouseY - (mouseY - translateY.value) * (newScale / scale.value)
   scale.value = newScale
-}
-
-// Touch gestures (Pinch to zoom)
-function handleTouchStart(e: TouchEvent) {
-  if (e.touches.length === 2) {
-    const touch1 = e.touches[0]
-    const touch2 = e.touches[1]
-    initialPinchDistance = Math.hypot(touch2.clientX - touch1.clientX, touch2.clientY - touch1.clientY)
-    initialPinchScale = scale.value
-    if (viewportRef.value) {
-      const rect = viewportRef.value.getBoundingClientRect()
-      pinchMidpoint = {
-        x: (touch1.clientX + touch2.clientX) / 2 - rect.left,
-        y: (touch1.clientY + touch2.clientY) / 2 - rect.top,
-      }
-    }
-  }
-}
-
-function handleTouchMove(e: TouchEvent) {
-  if (e.touches.length === 2 && initialPinchDistance > 0) {
-    e.preventDefault()
-    const touch1 = e.touches[0]
-    const touch2 = e.touches[1]
-    const currentDistance = Math.hypot(touch2.clientX - touch1.clientX, touch2.clientY - touch1.clientY)
-    const factor = currentDistance / initialPinchDistance
-    const newScale = Math.min(Math.max(initialPinchScale * factor, 0.2), 2.5)
-
-    translateX.value = pinchMidpoint.x - (pinchMidpoint.x - translateX.value) * (newScale / scale.value)
-    translateY.value = pinchMidpoint.y - (pinchMidpoint.y - translateY.value) * (newScale / scale.value)
-    scale.value = newScale
-  }
 }
 
 watch([viewportWidth, viewportHeight], ([w, h]) => {
@@ -412,9 +433,7 @@ defineExpose({
     @pointermove="handlePointerMove"
     @pointerup="handlePointerUp"
     @pointercancel="handlePointerUp"
-    @wheel="handleWheel"
-    @touchstart="handleTouchStart"
-    @touchmove="handleTouchMove"
+    @wheel.prevent="handleWheel"
   >
     <!-- Background Grid Pattern -->
     <div class="canvas-grid-pattern" />
@@ -423,7 +442,7 @@ defineExpose({
     <div
       class="transit-canvas-stage"
       :style="{
-        transform: `translate(${translateX}px, ${translateY}px) scale(${scale})`,
+        transform: `translate3d(${translateX}px, ${translateY}px, 0) scale(${scale})`,
         transformOrigin: '0 0',
       }"
     >
@@ -780,6 +799,8 @@ defineExpose({
   width: 100%;
   height: 100%;
   will-change: transform;
+  transform-origin: 0 0;
+  backface-visibility: hidden;
 }
 
 /* Floating Layout Tabs */
@@ -886,14 +907,10 @@ defineExpose({
   stroke-linejoin: round;
   pointer-events: stroke;
   cursor: pointer;
-  filter: drop-shadow(0 2px 6px rgba(0, 0, 0, 0.25));
-  transition:
-    stroke-width 0.2s ease,
-    filter 0.2s ease;
+  transition: stroke-width 0.2s ease;
 
   &:hover {
     stroke-width: 7px;
-    filter: drop-shadow(0 0 8px currentColor);
   }
 
   &.is-dashed {
@@ -909,9 +926,9 @@ defineExpose({
   stroke-dasharray: 8 16;
   stroke-dashoffset: 0;
   animation: transitFlowDash 1.8s linear infinite;
-  opacity: 0.65;
+  opacity: 0.75;
   pointer-events: none;
-  filter: drop-shadow(0 0 4px #ffffff);
+  will-change: stroke-dashoffset;
 }
 
 @keyframes transitFlowDash {
@@ -931,7 +948,6 @@ defineExpose({
     .edge-badge-bg {
       fill: var(--bg-hover-color);
       stroke-width: 2.2px;
-      filter: drop-shadow(0 3px 8px rgba(0, 0, 0, 0.4));
     }
 
     .edge-badge-text {
@@ -944,11 +960,9 @@ defineExpose({
 .edge-badge-bg {
   fill: var(--bg-tertiary-color);
   stroke-width: 1.5px;
-  filter: drop-shadow(0 2px 5px rgba(0, 0, 0, 0.25));
   transition:
     fill 0.15s ease,
-    stroke-width 0.15s ease,
-    filter 0.15s ease;
+    stroke-width 0.15s ease;
 }
 
 .edge-badge-text {
@@ -972,7 +986,6 @@ defineExpose({
 .spine-hub-dot {
   stroke: var(--bg-secondary-color);
   stroke-width: 2.5px;
-  filter: drop-shadow(0 2px 5px rgba(0, 0, 0, 0.3));
 }
 
 /* Radial Layout Styles */
@@ -1003,7 +1016,6 @@ defineExpose({
     background: var(--bg-tertiary-color);
     border: 2px solid var(--border-secondary-color);
     box-shadow: 0 4px 20px rgba(0, 0, 0, 0.2);
-    backdrop-filter: blur(8px);
     text-align: center;
     padding: 8px;
     box-sizing: border-box;
@@ -1073,11 +1085,10 @@ defineExpose({
   top: 0;
   left: 0;
   border-radius: var(--r-m);
-  background: color-mix(in srgb, var(--bg-tertiary-color) 65%, transparent);
+  background: var(--bg-tertiary-color);
   border: 1px dashed var(--border-secondary-color);
   padding: 10px 12px;
   box-sizing: border-box;
-  backdrop-filter: blur(4px);
   transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
 
   &.phase--morning {
@@ -1150,7 +1161,6 @@ defineExpose({
   top: 0;
   left: 0;
   z-index: 2;
-  transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
 /* Floating Zoom & Fit Controls */

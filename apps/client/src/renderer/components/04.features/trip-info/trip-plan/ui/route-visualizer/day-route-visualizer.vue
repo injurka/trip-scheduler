@@ -320,6 +320,13 @@ onKeyStroke('Escape', (e) => {
   gap: 12px;
   flex-wrap: wrap;
   flex-shrink: 0;
+
+  @include media-down(sm) {
+    display: grid;
+    grid-template-columns: 1fr auto;
+    align-items: center;
+    gap: 8px 10px;
+  }
 }
 
 .visualizer-header__left {
@@ -327,6 +334,10 @@ onKeyStroke('Escape', (e) => {
   align-items: center;
   gap: 10px;
   flex-wrap: wrap;
+
+  @include media-down(sm) {
+    display: contents;
+  }
 }
 
 .header-badge {
@@ -345,6 +356,12 @@ onKeyStroke('Escape', (e) => {
   .header-badge__icon {
     font-size: 0.95rem;
   }
+
+  @include media-down(sm) {
+    grid-column: 1;
+    grid-row: 1;
+    justify-self: start;
+  }
 }
 
 .stats-summary {
@@ -352,6 +369,12 @@ onKeyStroke('Escape', (e) => {
   align-items: center;
   gap: 6px;
   flex-wrap: wrap;
+
+  @include media-down(sm) {
+    grid-column: 1 / -1;
+    grid-row: 2;
+    width: 100%;
+  }
 }
 
 .stat-pill {
@@ -379,6 +402,12 @@ onKeyStroke('Escape', (e) => {
   display: flex;
   align-items: center;
   gap: 6px;
+
+  @include media-down(sm) {
+    grid-column: 2;
+    grid-row: 1;
+    justify-self: end;
+  }
 }
 
 .header-tool-btn {

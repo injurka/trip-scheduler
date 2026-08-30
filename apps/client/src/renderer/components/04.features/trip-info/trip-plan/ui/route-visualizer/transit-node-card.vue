@@ -171,8 +171,11 @@ function handleCardClick(e: MouseEvent) {
   box-shadow: 0 4px 14px rgba(0, 0, 0, 0.15);
   cursor: pointer;
   user-select: none;
-  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
-  backdrop-filter: blur(10px);
+  transition:
+    border-color 0.18s ease,
+    box-shadow 0.18s ease,
+    background-color 0.18s ease,
+    transform 0.18s ease;
   display: flex;
   align-items: flex-start;
   gap: 10px;
