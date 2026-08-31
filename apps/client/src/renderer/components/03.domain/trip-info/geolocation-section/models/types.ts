@@ -41,6 +41,11 @@ export interface MapPoint {
 }
 
 /**
+ * Тип способа перемещения по маршруту.
+ */
+export type TransportMode = 'foot' | 'bike' | 'car'
+
+/**
  * Интерфейс для маршрута.
  */
 export interface MapRoute {
@@ -48,6 +53,7 @@ export interface MapRoute {
   title: string // Название маршрута, по умолчанию "Маршрут-<index>"
   points: MapPoint[] // Точки маршрута
   color?: string // Цвет линии маршрута
+  transportMode?: TransportMode // Способ перемещения (пешком, велосипед, машина)
   distance?: number // Общее расстояние в метрах (Первоначально расчитывается после запроса API, а после его можно будет изменить самостоятельно)
   duration?: number // Общее время в секундах
   geometry?: Coordinate[] // Геометрия маршрута для отображения на карте

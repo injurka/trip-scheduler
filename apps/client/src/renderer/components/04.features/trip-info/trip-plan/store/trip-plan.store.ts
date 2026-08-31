@@ -6,6 +6,7 @@ import { sanitizeActivity } from '~/components/05.modules/trip-info/lib/helpers'
 import { useRequest, useRequestError, useRequestStatus, useRequestStatusByPrefix, useRequestStore } from '~/plugins/request'
 import { createApiErrorHandler } from '~/plugins/request/lib/error-handler'
 import { AppRoutePaths } from '~/shared/constants/routes'
+import { useOfflineStore } from '~/shared/store/offline.store'
 import { useActivityDiff } from '../composables/use-activity-diff'
 
 export enum ETripPlanKeys {
@@ -714,6 +715,10 @@ export const useTripPlanStore = defineStore('tripPlan', {
         fn: db => db.trips.delete(tripId),
         onSuccess: () => {
           useToast().success('Путешествие успешно удалено.')
+          const offlineStore = useOfflineStore()
+          if (offlineStore.isTripCached(tripId)) {
+            offlineStore.removeOfflineTrip(tripId)
+          }
           router.push(AppRoutePaths.Trip.List)
         },
         onError: ({ error }) => {

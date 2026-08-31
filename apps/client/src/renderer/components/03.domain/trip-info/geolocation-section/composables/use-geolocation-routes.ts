@@ -1,5 +1,5 @@
 import type { Ref } from 'vue'
-import type { Coordinate, DrawnRoute, MapPoint, MapRoute } from '../models/types'
+import type { Coordinate, DrawnRoute, MapPoint, MapRoute, TransportMode } from '../models/types'
 import type { useGeolocationMap } from './use-geolocation-map'
 import { v4 as uuidv4 } from 'uuid'
 import { POI_COLORS } from '../constant'
@@ -11,7 +11,7 @@ export function useGeolocationRoutes(mapApiRef: Ref<GeolocationMapApi | undefine
   const drawnRoutes = ref<DrawnRoute[]>([])
   const isLoading = ref(false)
 
-  async function createNewRoute(startCoords: Coordinate) {
+  async function createNewRoute(startCoords: Coordinate, transportMode: TransportMode = 'foot') {
     if (!mapApiRef.value)
       return
     isLoading.value = true
@@ -29,6 +29,7 @@ export function useGeolocationRoutes(mapApiRef: Ref<GeolocationMapApi | undefine
       id: uuidv4(),
       title: `Маршрут ${routes.value.length + 1}`,
       points: [startPoint],
+      transportMode,
       isVisible: true,
       isFetching: false,
       color: POI_COLORS[routes.value.length % POI_COLORS.length],
@@ -182,12 +183,13 @@ export function useGeolocationRoutes(mapApiRef: Ref<GeolocationMapApi | undefine
     if (route.points.length < 2) {
       route.geometry = []
       route.distance = 0
+      route.duration = 0
       mapApiRef.value.removeRoute(routeId)
       return
     }
 
     route.isFetching = true
-    const routeData = await mapApiRef.value.fetchRoute(route.points)
+    const routeData = await mapApiRef.value.fetchRoute(route.points, route.transportMode || 'foot')
     route.isFetching = false
 
     if (routeData) {
@@ -197,6 +199,14 @@ export function useGeolocationRoutes(mapApiRef: Ref<GeolocationMapApi | undefine
       route.isDirect = routeData.isDirect
       mapApiRef.value.addOrUpdateRoute(route)
     }
+  }
+
+  async function setRouteTransportMode(routeId: string, mode: TransportMode) {
+    const route = routes.value.find(r => r.id === routeId)
+    if (!route)
+      return
+    route.transportMode = mode
+    await updateRouteGeometry(routeId)
   }
 
   async function setInitialRoutes(initialData: { routes?: MapRoute[], drawnRoutes?: DrawnRoute[] }) {
@@ -269,5 +279,7 @@ export function useGeolocationRoutes(mapApiRef: Ref<GeolocationMapApi | undefine
     addDrawnRoute,
     addSegmentToDrawnRoute,
     deleteSegmentFromDrawnRoute,
+    setRouteTransportMode,
+    updateRouteGeometry,
   }
 }

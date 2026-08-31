@@ -43,6 +43,36 @@ const defaultColors = [
   '#FFC6FF',
 ]
 
+const sectionMetaMap: Record<EActivitySectionType, { label: string, icon: string }> = {
+  [EActivitySectionType.DESCRIPTION]: {
+    label: 'Заметка',
+    icon: 'mdi:text-box-outline',
+  },
+  [EActivitySectionType.BOOKING]: {
+    label: 'Бронирование',
+    icon: 'mdi:ticket-confirmation-outline',
+  },
+  [EActivitySectionType.GALLERY]: {
+    label: 'Галерея',
+    icon: 'mdi:image-multiple-outline',
+  },
+  [EActivitySectionType.GEOLOCATION]: {
+    label: 'Локация',
+    icon: 'mdi:map-marker-outline',
+  },
+  [EActivitySectionType.METRO]: {
+    label: 'Метро',
+    icon: 'mdi:subway-variant',
+  },
+}
+
+const sectionMeta = computed(() => {
+  return sectionMetaMap[props.section.type] || {
+    label: 'Секция',
+    icon: 'mdi:view-grid-outline',
+  }
+})
+
 const editableTitle = ref((props.section as CustomActivitySection).title || '')
 const editableIcon = ref((props.section as CustomActivitySection).icon || 'mdi:map-marker')
 const editableColor = ref((props.section as CustomActivitySection).color || defaultColors[0])
@@ -67,7 +97,14 @@ function toggleAttached() {
 function updatePinSettings() {
   if (editableTitle.value !== ((props.section as CustomActivitySection).title || '')
     || editableIcon.value !== ((props.section as CustomActivitySection).icon || 'mdi:map-marker')
-    || editableColor.value !== ((props.section as CustomActivitySection).color || defaultColors[0])) { emit('updateSection', { ...props.section, title: editableTitle.value, icon: editableIcon.value, color: editableColor.value }) }
+    || editableColor.value !== ((props.section as CustomActivitySection).color || defaultColors[0])) {
+    emit('updateSection', {
+      ...props.section,
+      title: editableTitle.value,
+      icon: editableIcon.value,
+      color: editableColor.value,
+    })
+  }
 }
 
 watch(editableIcon, () => {
@@ -88,6 +125,7 @@ watch(() => props.section, (newSection) => {
 
 <template>
   <div class="activity-section-renderer" :class="{ 'is-attached': (section as CustomActivitySection).isAttached }">
+    <!-- Настройки прикрепленного пина (включая кнопку опций секции) -->
     <div v-if="(section as CustomActivitySection).isAttached && !isViewMode" class="pin-settings">
       <div class="pin-main-settings">
         <KitInput
@@ -126,6 +164,7 @@ watch(() => props.section, (newSection) => {
                 <button
                   v-for="color in defaultColors"
                   :key="color"
+                  type="button"
                   class="color-option"
                   :style="{ backgroundColor: color }"
                   :class="{ 'is-active': editableColor === color }"
@@ -135,9 +174,88 @@ watch(() => props.section, (newSection) => {
             </div>
           </KitDropdown>
         </KitTooltip>
+
+        <KitTooltip text="Опции секции">
+          <KitDropdown :side-offset="8" align="end">
+            <template #trigger>
+              <button class="section-menu-trigger" type="button">
+                <Icon icon="mdi:dots-vertical" />
+              </button>
+            </template>
+            <div class="section-menu-content">
+              <button class="menu-item" type="button" @click="emit('moveSectionUp')">
+                <Icon icon="mdi:arrow-up" />
+                <span>Переместить выше</span>
+              </button>
+              <button class="menu-item" type="button" @click="emit('moveSectionDown')">
+                <Icon icon="mdi:arrow-down" />
+                <span>Переместить ниже</span>
+              </button>
+              <button
+                class="menu-item"
+                type="button"
+                :class="{ 'is-active': (section as CustomActivitySection).isAttached }"
+                @click="toggleAttached"
+              >
+                <Icon :icon="(section as CustomActivitySection).isAttached ? 'mdi:link-variant-off' : 'mdi:link-variant-plus'" />
+                <span>{{ (section as CustomActivitySection).isAttached ? 'Открепить' : 'Прикрепить к предыдущей' }}</span>
+              </button>
+              <div class="menu-separator" />
+              <button class="menu-item delete" type="button" @click="emit('deleteSection')">
+                <Icon icon="mdi:delete-outline" />
+                <span>Удалить секцию</span>
+              </button>
+            </div>
+          </KitDropdown>
+        </KitTooltip>
       </div>
     </div>
 
+    <!-- Заголовок / панель управления для неприкрепленной секции в режиме редактирования -->
+    <div v-else-if="!isViewMode" class="section-header-bar">
+      <div class="section-badge">
+        <Icon :icon="sectionMeta.icon" class="section-badge-icon" />
+        <span class="section-badge-label">{{ sectionMeta.label }}</span>
+      </div>
+
+      <div class="section-header-actions">
+        <KitTooltip text="Опции секции">
+          <KitDropdown :side-offset="4" align="end">
+            <template #trigger>
+              <button class="section-menu-trigger" type="button">
+                <Icon icon="mdi:dots-vertical" />
+              </button>
+            </template>
+            <div class="section-menu-content">
+              <button class="menu-item" type="button" @click="emit('moveSectionUp')">
+                <Icon icon="mdi:arrow-up" />
+                <span>Переместить выше</span>
+              </button>
+              <button class="menu-item" type="button" @click="emit('moveSectionDown')">
+                <Icon icon="mdi:arrow-down" />
+                <span>Переместить ниже</span>
+              </button>
+              <button
+                class="menu-item"
+                type="button"
+                :class="{ 'is-active': (section as CustomActivitySection).isAttached }"
+                @click="toggleAttached"
+              >
+                <Icon :icon="(section as CustomActivitySection).isAttached ? 'mdi:link-variant-off' : 'mdi:link-variant-plus'" />
+                <span>{{ (section as CustomActivitySection).isAttached ? 'Открепить' : 'Прикрепить к предыдущей' }}</span>
+              </button>
+              <div class="menu-separator" />
+              <button class="menu-item delete" type="button" @click="emit('deleteSection')">
+                <Icon icon="mdi:delete-outline" />
+                <span>Удалить секцию</span>
+              </button>
+            </div>
+          </KitDropdown>
+        </KitTooltip>
+      </div>
+    </div>
+
+    <!-- Контент секций -->
     <DescriptionSection
       v-if="section.type === EActivitySectionType.DESCRIPTION"
       :section="section as ActivitySectionText"
@@ -167,41 +285,6 @@ watch(() => props.section, (newSection) => {
       @update-section="onUpdate"
       @delete-section="emit('deleteSection')"
     />
-
-    <div v-if="!isViewMode" class="section-controls-wrapper">
-      <KitTooltip text="Опции секции">
-        <KitDropdown :side-offset="4" align="end">
-          <template #trigger>
-            <button class="section-menu-trigger">
-              <Icon icon="mdi:dots-vertical" />
-            </button>
-          </template>
-          <div class="section-menu-content">
-            <button class="menu-item" @click="emit('moveSectionUp')">
-              <Icon icon="mdi:arrow-up" />
-              <span>Переместить выше</span>
-            </button>
-            <button class="menu-item" @click="emit('moveSectionDown')">
-              <Icon icon="mdi:arrow-down" />
-              <span>Переместить ниже</span>
-            </button>
-            <button
-              class="menu-item"
-              :class="{ 'is-active': (section as CustomActivitySection).isAttached }"
-              @click="toggleAttached"
-            >
-              <Icon :icon="(section as CustomActivitySection).isAttached ? 'mdi:link-variant-off' : 'mdi:link-variant-plus'" />
-              <span>{{ (section as CustomActivitySection).isAttached ? 'Открепить' : 'Прикрепить к предыдущей' }}</span>
-            </button>
-            <div class="menu-separator" />
-            <button class="menu-item delete" @click="emit('deleteSection')">
-              <Icon icon="mdi:delete-outline" />
-              <span>Удалить секцию</span>
-            </button>
-          </div>
-        </KitDropdown>
-      </KitTooltip>
-    </div>
   </div>
 </template>
 
@@ -214,9 +297,44 @@ watch(() => props.section, (newSection) => {
     padding-left: 8px;
     border-left: 2px dashed var(--border-secondary-color);
   }
+}
 
-  &:hover {
-    z-index: 5;
+.section-header-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 8px;
+  padding: 2px 0;
+}
+
+.section-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 3px 8px;
+  background-color: var(--bg-secondary-color);
+  border: 1px solid var(--border-secondary-color);
+  border-radius: var(--r-xs);
+  font-size: 0.78rem;
+  font-weight: 500;
+  color: var(--fg-secondary-color);
+  user-select: none;
+
+  .section-badge-icon {
+    font-size: 0.95rem;
+    color: var(--fg-accent-color);
+  }
+}
+
+.section-header-actions {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+
+  .section-menu-trigger {
+    width: 28px;
+    height: 28px;
+    font-size: 1.1rem;
   }
 }
 
@@ -235,6 +353,12 @@ watch(() => props.section, (newSection) => {
   display: flex;
   gap: 8px;
   align-items: center;
+
+  .section-menu-trigger {
+    width: 40px;
+    height: 40px;
+    flex-shrink: 0;
+  }
 }
 
 .pin-input {
@@ -339,26 +463,9 @@ watch(() => props.section, (newSection) => {
   }
 }
 
-.section-controls-wrapper {
-  position: absolute;
-  top: 8px;
-  right: 8px;
-  z-index: 10;
-  opacity: 0;
-  transition: opacity 0.2s ease;
-}
-
-.activity-section-renderer:hover .section-controls-wrapper,
-.activity-section-renderer:focus-within .section-controls-wrapper {
-  opacity: 1;
-}
-
 .section-menu-trigger {
-  width: 32px;
-  height: 32px;
   border-radius: var(--r-s);
-  background-color: rgba(var(--bg-primary-color-rgb), 0.8);
-  backdrop-filter: blur(4px);
+  background-color: var(--bg-secondary-color);
   border: 1px solid var(--border-secondary-color);
   color: var(--fg-secondary-color);
   display: flex;
@@ -367,11 +474,11 @@ watch(() => props.section, (newSection) => {
   cursor: pointer;
   font-size: 1.2rem;
   transition: all 0.2s ease;
-  box-shadow: var(--s-s);
 
   &:hover {
     background-color: var(--bg-hover-color);
     color: var(--fg-primary-color);
+    border-color: var(--border-primary-color);
   }
 }
 
@@ -428,13 +535,5 @@ watch(() => props.section, (newSection) => {
   height: 1px;
   background-color: var(--border-secondary-color);
   margin: 4px 0;
-}
-
-@include media-down(md) {
-  .section-controls-wrapper {
-    opacity: 1;
-    right: 4px;
-    top: 4px;
-  }
 }
 </style>

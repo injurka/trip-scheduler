@@ -1,5 +1,5 @@
 import type { OSM, XYZ } from 'ol/source'
-import type { Coordinate, DrawnRoute, GeolocationMapOptions, MapPoint, MapRoute, OSRMResponse } from '../models/types'
+import type { Coordinate, DrawnRoute, GeolocationMapOptions, MapPoint, MapRoute, OSRMResponse, TransportMode } from '../models/types'
 import type { TileSourceId } from '~/shared/lib/map-styles-sources'
 import Polyline from '@mapbox/polyline'
 import { Feature, Map, Overlay, View } from 'ol'
@@ -13,7 +13,11 @@ import { checkMapTilerAvailability, TILE_SOURCES } from '~/shared/lib/map-styles
 
 const NOMINATIM_URL = 'https://nominatim.openstreetmap.org/reverse'
 const NOMINATIM_SEARCH_URL = 'https://nominatim.openstreetmap.org/search'
-const OSRM_API_URL = 'https://routing.openstreetmap.de/routed-foot/route/v1/foot'
+const OSRM_ENDPOINTS: Record<TransportMode, string> = {
+  foot: 'https://routing.openstreetmap.de/routed-foot/route/v1/foot',
+  bike: 'https://routing.openstreetmap.de/routed-bike/route/v1/driving',
+  car: 'https://routing.openstreetmap.de/routed-car/route/v1/driving',
+}
 const SEARCH_RESULT_OVERLAY_ID = 'search-result-overlay'
 
 function useGeolocationMap() {
@@ -351,11 +355,13 @@ function useGeolocationMap() {
 
   const fetchRoute = async (
     waypoints: MapPoint[],
+    transportMode: TransportMode = 'foot',
   ): Promise<(Partial<MapRoute> & { isDirect?: boolean }) | null> => {
     if (waypoints.length < 2)
       return null
     const coordsString = waypoints.map(p => p.coordinates.join(',')).join(';')
-    const url = `${OSRM_API_URL}/${coordsString}?overview=full&geometries=polyline&steps=false`
+    const endpoint = OSRM_ENDPOINTS[transportMode] || OSRM_ENDPOINTS.foot
+    const url = `${endpoint}/${coordsString}?overview=full&geometries=polyline&steps=false`
     try {
       const response = await fetch(url)
       const data: OSRMResponse = await response.json()

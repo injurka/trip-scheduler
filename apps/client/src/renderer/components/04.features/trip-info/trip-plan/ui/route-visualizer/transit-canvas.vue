@@ -36,13 +36,13 @@ const emit = defineEmits<{
 const viewportRef = ref<HTMLElement | null>(null)
 const { width: viewportWidth, height: viewportHeight } = useElementSize(viewportRef)
 
-const validModes: TransitLayoutMode[] = ['serpentine', 'phases', 'column', 'trail', 'radial']
+const validModes: TransitLayoutMode[] = ['phases', 'column', 'trail', 'radial']
 const rawLayoutMode = useStorage<string>(
   'transit_canvas_layout_mode',
-  props.initialLayoutMode || 'serpentine',
+  props.initialLayoutMode || 'phases',
 )
 if (!validModes.includes(rawLayoutMode.value as TransitLayoutMode)) {
-  rawLayoutMode.value = 'serpentine'
+  rawLayoutMode.value = 'phases'
 }
 const layoutMode = rawLayoutMode as Ref<TransitLayoutMode>
 
@@ -765,7 +765,7 @@ defineExpose({
 .transit-canvas-viewport {
   position: relative;
   width: 100%;
-  height: 400px;
+  height: 600px;
   background-color: var(--bg-secondary-color);
   border: 1px solid var(--border-secondary-color);
   border-radius: var(--r-m);

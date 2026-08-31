@@ -4,7 +4,7 @@
   "private": true,
   "type": "module",
   "engines": {
-    "bun": ">=1.3.0"
+    "bun": ">=1.4.0"
   },
   "workspaces": [
     "apps/*",
@@ -27,7 +27,7 @@
     "test:e2e:ui": "bun --filter='./apps/client' test:e2e:ui",
     "test:e2e:mock": "bun --filter='./apps/client' test:e2e:mock",
     "--------------------------------<     HELPERS   >---------------------------------": "",
-    "import:obsidian": "bun run scripts/import-obsidian-trip.ts",
+    "import:obsidian": "bun run tools/obsidian-importer/src/run.ts",
     "postinstall": "simple-git-hooks",
     "remove-prompt": "find . -type f -name 'src_prompt.md' -delete"
   },

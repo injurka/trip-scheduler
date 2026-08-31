@@ -1,10 +1,12 @@
 import type { z } from 'zod'
 import type { CreateTripInputSchema, ListTripsInputSchema, TripWithDaysSchema, UpdateTripInputSchema } from './trip.schemas'
 import { createTRPCError } from '~/lib/trpc'
+import { commentRepository } from '~/repositories/comment.repository'
 import { dayRepository } from '~/repositories/day.repository'
 import { tripRepository } from '~/repositories/trip.repository'
 import { userRepository } from '~/repositories/user.repository'
 import { accessControlService } from '~/services/access-control.service'
+import { deleteTripFiles } from '~/services/file-storage.service'
 import { quotaService } from '~/services/quota.service'
 
 export const tripService = {
@@ -88,13 +90,37 @@ export const tripService = {
 
   async delete(id: string, userId: string, userRole: string) {
     const tripToDelete = await accessControlService.getTripAndVerifyAccess(id, userId, userRole)
+    const tripWithDays = await tripRepository.getByIdWithDays(id)
     const tripWithImages = await tripRepository.getByIdWithImages(id)
 
+    // 1. Очистка файлов из S3 (папка trips/{id} и возможные дополнительные файлы/обложка)
+    try {
+      await deleteTripFiles(
+        id,
+        tripWithImages?.images || [],
+        tripToDelete.imageUrl,
+      )
+    }
+    catch (storageError) {
+      console.error(`Ошибка при удалении файлов путешествия ${id} из S3:`, storageError)
+    }
+
+    // 2. Очистка полиморфных комментариев (к путешествию и его дням)
+    try {
+      const parentIds = [id, ...(tripWithDays?.days?.map(d => d.id) || [])]
+      await commentRepository.deleteByParentIds(parentIds)
+    }
+    catch (commentError) {
+      console.error(`Ошибка при удалении комментариев путешествия ${id}:`, commentError)
+    }
+
+    // 3. Удаление путешествия из БД (каскадно удаляет связанные секции, заметки, дни, активности, воспоминания и изображения)
     const deletedTrip = await tripRepository.delete(id)
     if (!deletedTrip) {
       throw createTRPCError('INTERNAL_SERVER_ERROR', `Не удалось удалить путешествие с ID ${id}.`)
     }
 
+    // 4. Пересчет квот пользователя
     await quotaService.decrementTripCount(tripToDelete.userId)
     const totalImageSize = tripWithImages?.images.reduce((sum, image) => sum + (image.sizeBytes || 0), 0) ?? 0
     if (totalImageSize > 0) {

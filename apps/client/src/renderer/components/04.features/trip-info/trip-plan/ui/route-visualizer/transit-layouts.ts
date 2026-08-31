@@ -4,8 +4,7 @@ import { timeToMinutes } from '~/shared/lib/date-time'
 import { EActivitySectionType, EActivityStatus, EActivityTag } from '~/shared/types/models/activity'
 
 export type TransitLayoutMode
-  = | 'serpentine' // Змейка (схема 45°/90°)
-    | 'phases' // Фазы дня
+  = | 'phases' // Фазы дня
     | 'column' // Вертикальная ось
     | 'trail' // Извилистая тропа
     | 'radial' // Суточный циферблат
@@ -18,7 +17,6 @@ export interface ILayoutOption {
 }
 
 export const TRANSIT_LAYOUT_OPTIONS: ILayoutOption[] = [
-  { id: 'serpentine', label: 'Змейка', icon: 'mdi:ray-start-arrow', tooltip: 'Схема-змейка (45° и 90°)' },
   { id: 'phases', label: 'Фазы дня', icon: 'mdi:view-column-outline', tooltip: 'Зонирование: Утро / День / Вечер' },
   { id: 'column', label: 'Ось', icon: 'mdi:source-commit', tooltip: 'Двусторонняя центральная ось' },
   { id: 'trail', label: 'Тропа', icon: 'mdi:sine-wave', tooltip: 'Плавная извилистая тропа' },
@@ -139,95 +137,6 @@ function computeEdgeBase(fromNode: LayoutNode, toNode: LayoutNode, index: number
     durationText,
     gapMinutes: gap,
   }
-}
-
-/** 1. SERPENTINE / METRO OCTOLINEAR LAYOUT (45° / 90°) */
-function computeSerpentineLayout(items: IActivity[]): LayoutResult {
-  const colCount = Math.min(Math.max(items.length, 1), 3)
-  const GAP_X = 85
-  const GAP_Y = 90
-
-  const nodes: LayoutNode[] = items.map((activity, index) => {
-    const row = Math.floor(index / colCount)
-    const isLeftToRight = row % 2 === 0
-    const colInRow = index % colCount
-    const col = isLeftToRight ? colInRow : colCount - 1 - colInRow
-
-    const x = PADDING_X + col * (NODE_WIDTH + GAP_X)
-    const y = PADDING_Y + row * (NODE_HEIGHT + GAP_Y)
-
-    return {
-      activity,
-      index,
-      x,
-      y,
-      width: NODE_WIDTH,
-      height: NODE_HEIGHT,
-      row,
-      col,
-      isLeftToRight,
-    }
-  })
-
-  const edges: LayoutEdge[] = []
-  for (let i = 0; i < nodes.length - 1; i++) {
-    const from = nodes[i]
-    const to = nodes[i + 1]
-    const base = computeEdgeBase(from, to, i)
-
-    let pathD = ''
-    let midX = 0
-    let midY = 0
-    const fromCenterY = from.y + from.height / 2
-    const toCenterY = to.y + to.height / 2
-
-    if (from.row === to.row) {
-      if (from.isLeftToRight) {
-        const startX = from.x + from.width
-        const endX = to.x
-        pathD = `M ${startX} ${fromCenterY} L ${endX} ${toCenterY}`
-        midX = (startX + endX) / 2
-        midY = fromCenterY
-      }
-      else {
-        const startX = from.x
-        const endX = to.x + to.width
-        pathD = `M ${startX} ${fromCenterY} L ${endX} ${toCenterY}`
-        midX = (startX + endX) / 2
-        midY = fromCenterY
-      }
-    }
-    else {
-      // 45° Chamfered Turns
-      if (from.isLeftToRight) {
-        const startX = from.x + from.width
-        const endX = to.x + to.width
-        const cornerX = Math.max(startX, endX) + 36
-        const halfY = (fromCenterY + toCenterY) / 2
-        pathD = `M ${startX} ${fromCenterY} L ${startX + 16} ${fromCenterY} L ${cornerX} ${fromCenterY + 20} L ${cornerX} ${toCenterY - 20} L ${endX + 16} ${toCenterY} L ${endX} ${toCenterY}`
-        midX = cornerX + 10
-        midY = halfY
-      }
-      else {
-        const startX = from.x
-        const endX = to.x
-        const cornerX = Math.min(startX, endX) - 36
-        const halfY = (fromCenterY + toCenterY) / 2
-        pathD = `M ${startX} ${fromCenterY} L ${startX - 16} ${fromCenterY} L ${cornerX} ${fromCenterY + 20} L ${cornerX} ${toCenterY - 20} L ${endX - 16} ${toCenterY} L ${endX} ${toCenterY}`
-        midX = cornerX - 10
-        midY = halfY
-      }
-    }
-
-    edges.push({ ...base, pathD, midX, midY })
-  }
-
-  const maxCol = Math.min(items.length, colCount)
-  const totalRows = Math.ceil(items.length / colCount)
-  const totalWidth = PADDING_X * 2 + maxCol * (NODE_WIDTH + GAP_X) + 60
-  const totalHeight = PADDING_Y * 2 + totalRows * (NODE_HEIGHT + GAP_Y) + 50
-
-  return { nodes, edges, totalWidth, totalHeight, decorators: {} }
 }
 
 /** 2. SCENIC WINDING TRAIL LAYOUT */
@@ -596,8 +505,7 @@ export function calculateTransitLayout(mode: TransitLayoutMode, items: IActivity
       return computeTrailLayout(items)
     case 'radial':
       return computeRadialLayout(items)
-    case 'serpentine':
     default:
-      return computeSerpentineLayout(items)
+      return computePhasesLayout(items)
   }
 }

@@ -36,15 +36,25 @@ function handleInlineEditorBlur() {
 .description-section {
   background-color: var(--bg-secondary-color);
   border: 1px solid var(--border-secondary-color);
-  border-radius: var(--r-2xs);
-  transition: border-color 0.2s;
+  border-radius: var(--r-s);
+  padding: 4px 8px;
+  transition:
+    border-color 0.2s ease,
+    box-shadow 0.2s ease;
 
   &:hover {
     border-color: var(--border-primary-color);
   }
 }
-.section-editor :deep(.milkdown) > div {
-  padding: 8px;
-  min-height: 30px;
+
+.section-editor {
+  width: 100%;
+
+  :deep(.ProseMirror) {
+    p {
+      margin: 0 !important;
+      line-height: 1.6;
+    }
+  }
 }
 </style>

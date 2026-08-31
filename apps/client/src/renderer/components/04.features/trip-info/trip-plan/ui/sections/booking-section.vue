@@ -190,7 +190,6 @@ function goToBookingsSection() {
   justify-content: space-between;
   min-height: 36px;
   padding: 4px 10px;
-  padding-right: 46px;
   background-color: var(--bg-tertiary-color);
   border: 1px dashed var(--border-secondary-color);
   border-radius: var(--r-s);

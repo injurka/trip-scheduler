@@ -1,12 +1,8 @@
 <script setup lang="ts">
 import type { useGeolocationMap } from '../composables/use-geolocation-map'
 import type { ActivitySectionGeolocation, Coordinate, DrawnRoute, MapPoint, MapRoute } from '../models/types'
-import type { ViewSwitcherItem } from '~/components/01.kit/kit-view-switcher'
 import { useDebounceFn } from '@vueuse/core'
 import { toLonLat } from 'ol/proj'
-import { KitBtn } from '~/components/01.kit/kit-btn'
-import { KitInput } from '~/components/01.kit/kit-input'
-import { KitViewSwitcher } from '~/components/01.kit/kit-view-switcher'
 import { useGeolocationDrawing } from '../composables/use-geolocation-drawing'
 import { useGeolocationPoints } from '../composables/use-geolocation-points'
 import { useGeolocationRoutes } from '../composables/use-geolocation-routes'
@@ -72,6 +68,7 @@ const {
   addDrawnRoute,
   addSegmentToDrawnRoute,
   deleteSegmentFromDrawnRoute,
+  setRouteTransportMode,
 } = useGeolocationRoutes(mapController)
 
 const { startDrawing, stopDrawing } = useGeolocationDrawing(mapController)
@@ -94,6 +91,7 @@ const debouncedUpdate = useDebounceFn(() => {
 }, 1000)
 
 const isLoading = computed(() => isPointsLoading.value || isRoutesLoading.value)
+
 const poiPointsWithStyle = computed(() => points.value.map((point, index) => ({
   ...point,
   style: {
@@ -101,6 +99,7 @@ const poiPointsWithStyle = computed(() => points.value.map((point, index) => ({
     color: POI_COLORS[index % POI_COLORS.length],
   },
 })))
+
 const allMapPoints = computed(() => {
   const routePoints = routes.value.flatMap(r => r.points.map((p, index) => {
     let type: MapPoint['type'] = p.type
@@ -121,10 +120,6 @@ const allMapPoints = computed(() => {
   return [...poiPointsWithStyle.value, ...routePoints]
 })
 
-const areItemsEmpty = computed(() => {
-  return points.value.length === 0 && routes.value.length === 0 && drawnRoutes.value.length === 0
-})
-
 const mapCenter = computed<Coordinate>(() => {
   if (props.section?.center)
     return props.section.center
@@ -138,16 +133,17 @@ const mapCenter = computed<Coordinate>(() => {
   return [37.6176, 55.7558] // Москва
 })
 
-const viewItems: ViewSwitcherItem[] = [
-  { id: 'points', icon: 'mdi:map-marker-multiple', label: 'Точки' },
-  { id: 'routes', icon: 'mdi:directions', label: 'Маршруты' },
-]
-
 function toggleMode(targetMode: typeof mode.value) {
   if (mode.value === targetMode)
     mode.value = 'pan'
   else
     mode.value = targetMode
+}
+
+function startNewRouteMode() {
+  activeView.value = 'routes'
+  activeRouteId.value = null
+  mode.value = 'add_route_point'
 }
 
 async function handleMapClick(coords: Coordinate) {
@@ -160,7 +156,10 @@ async function handleMapClick(coords: Coordinate) {
   }
   else if (mode.value === 'add_route_point') {
     if (!activeRouteId.value) {
-      useToast().info('Сначала выберите или создайте маршрут для добавления точки.')
+      const newRoute = await createNewRoute(coords)
+      if (newRoute) {
+        activeRouteId.value = newRoute.id
+      }
       return
     }
     await addPointToRoute(activeRouteId.value, coords, routePointType.value)
@@ -233,7 +232,11 @@ function handleStartMovePoint(pointId: string) {
 function handleRouteUpdate(route: MapRoute | DrawnRoute) {
   const pointRouteIndex = routes.value.findIndex(r => r.id === route.id)
   if (pointRouteIndex !== -1) {
+    const prevMode = routes.value[pointRouteIndex].transportMode
     routes.value[pointRouteIndex] = { ...routes.value[pointRouteIndex], ...route }
+    if ('transportMode' in route && route.transportMode !== prevMode) {
+      setRouteTransportMode(route.id, route.transportMode || 'foot')
+    }
     return
   }
   const drawnRouteIndex = drawnRoutes.value.findIndex(r => r.id === route.id)
@@ -343,119 +346,240 @@ onUnmounted(() => {
       class="main-panel"
       :class="{ 'fullscreen-panel': isMapFullscreen }"
     >
-      <div v-if="!readonly">
-        <div class="geolocation-controls-panel">
-          <div class="search-control">
-            <KitInput v-model="searchQuery" size="sm" placeholder="Найти место на карте..." @keydown.enter="handleSearch" />
-            <KitBtn icon="mdi:magnify" size="sm" @click="handleSearch" />
-            <KitBtn v-if="searchQuery" icon="mdi:close" size="sm" variant="subtle" @click="clearSearch" />
-          </div>
+      <!-- Верхний тулбар: Поиск и сегментные табы -->
+      <div v-if="!readonly" class="geo-top-toolbar">
+        <div class="search-input-wrapper">
+          <Icon icon="mdi:magnify" class="search-icon" />
+          <input
+            v-model="searchQuery"
+            type="text"
+            placeholder="Поиск места на карте..."
+            class="search-input"
+            @keydown.enter="handleSearch"
+          >
+          <button v-if="searchQuery" type="button" class="clear-search-btn" @click="clearSearch">
+            <Icon icon="mdi:close-circle" />
+          </button>
+          <button type="button" class="search-submit-btn" @click="handleSearch">
+            Найти
+          </button>
+        </div>
 
-          <KitViewSwitcher v-model="activeView" :items="viewItems" />
+        <div class="geo-tabs">
+          <button
+            type="button"
+            class="geo-tab-btn"
+            :class="{ 'is-active': activeView === 'points' }"
+            @click="activeView = 'points'"
+          >
+            <Icon icon="mdi:map-marker-multiple" />
+            <span>Точки</span>
+            <span class="tab-count">{{ points.length }}</span>
+          </button>
 
-          <div class="tools-panel">
-            <template v-if="activeView === 'points'">
-              <KitBtn
-                :variant="mode === 'add_point' ? 'solid' : 'subtle'"
-                color="secondary"
-                icon="mdi:map-marker-plus"
-                class="tool-btn"
-                @click="toggleMode('add_point')"
-              >
-                {{ mode === 'add_point' ? 'Режим добавления' : 'Добавить точку' }}
-              </KitBtn>
-            </template>
-
-            <template v-if="activeView === 'routes'">
-              <div v-if="activeRouteId" class="route-tools">
-                <KitBtn
-                  :variant="mode === 'add_route_point' ? 'solid' : 'outlined'"
-                  color="secondary"
-                  icon="mdi:map-marker-path"
-                  class="tool-btn"
-                  @click="toggleMode('add_route_point')"
-                >
-                  {{ mode === 'add_route_point' ? 'Кликните на карту' : 'Активировать добавление' }}
-                </KitBtn>
-
-                <div v-if="mode === 'add_route_point'" class="point-type-switcher">
-                  <span class="switcher-label">Тип:</span>
-                  <div class="switcher-buttons">
-                    <button
-                      class="type-btn"
-                      :class="{ active: routePointType === 'via' }"
-                      @click="routePointType = 'via'"
-                    >
-                      Метка
-                    </button>
-                    <button
-                      class="type-btn"
-                      :class="{ active: routePointType === 'connect' }"
-                      @click="routePointType = 'connect'"
-                    >
-                      Точка
-                    </button>
-                  </div>
-                </div>
-              </div>
-              <div v-else class="route-hint">
-                <p>Выберите маршрут в списке или создайте новый через контекстное меню (ПКМ на карте).</p>
-              </div>
-            </template>
-          </div>
+          <button
+            type="button"
+            class="geo-tab-btn"
+            :class="{ 'is-active': activeView === 'routes' }"
+            @click="activeView = 'routes'"
+          >
+            <Icon icon="mdi:directions" />
+            <span>Маршруты</span>
+            <span class="tab-count">{{ routes.length + drawnRoutes.length }}</span>
+          </button>
         </div>
       </div>
 
+      <!-- Панель быстрых действий и активных режимов -->
+      <div v-if="!readonly" class="geo-actions-toolbar">
+        <!-- Режим: ТОЧКИ -->
+        <template v-if="activeView === 'points'">
+          <div v-if="mode === 'add_point'" class="active-banner">
+            <span class="banner-text">
+              <span class="pulse-dot" />
+              Кликните на карту, чтобы поставить метку
+            </span>
+            <button type="button" class="banner-cancel-btn" @click="mode = 'pan'">
+              Отмена
+            </button>
+          </div>
+
+          <div v-else-if="mode === 'move_point'" class="active-banner move-banner">
+            <span class="banner-text">
+              <Icon icon="mdi:cursor-move" />
+              Кликните на карте новое место для точки
+            </span>
+            <button type="button" class="banner-cancel-btn" @click="mode = 'pan'; pointToMoveId = null">
+              Отмена
+            </button>
+          </div>
+
+          <div v-else class="quick-actions-row">
+            <button
+              type="button"
+              class="primary-action-pill"
+              @click="toggleMode('add_point')"
+            >
+              <Icon icon="mdi:map-marker-plus" />
+              <span>Добавить точку на карту</span>
+            </button>
+          </div>
+        </template>
+
+        <!-- Режим: МАРШРУТЫ -->
+        <template v-if="activeView === 'routes'">
+          <!-- Если активен режим редактирования маршрута -->
+          <div v-if="activeRouteId" class="active-banner route-edit-banner">
+            <div class="banner-left">
+              <span class="pulse-dot" />
+              <span class="banner-text">Добавление точек в маршрут</span>
+              <div class="point-type-pills">
+                <button
+                  type="button"
+                  class="type-pill"
+                  :class="{ 'is-active': routePointType === 'via' }"
+                  @click="routePointType = 'via'"
+                >
+                  Метка
+                </button>
+                <button
+                  type="button"
+                  class="type-pill"
+                  :class="{ 'is-active': routePointType === 'connect' }"
+                  @click="routePointType = 'connect'"
+                >
+                  Точка
+                </button>
+              </div>
+            </div>
+            <button type="button" class="banner-done-btn" @click="setActiveRoute(null)">
+              ✓ Готово
+            </button>
+          </div>
+
+          <!-- Если активен режим рисования -->
+          <div v-else-if="mode === 'draw_route'" class="active-banner draw-banner">
+            <span class="banner-text">
+              <Icon icon="mdi:draw" />
+              Зажмите и ведите по карте для рисования линии
+            </span>
+            <button type="button" class="banner-cancel-btn" @click="mode = 'pan'">
+              Завершить
+            </button>
+          </div>
+
+          <!-- Обычный режим маршрутов -->
+          <div v-else class="quick-actions-row">
+            <button
+              type="button"
+              class="primary-action-pill"
+              @click="startNewRouteMode"
+            >
+              <Icon icon="mdi:plus" />
+              <span>Новый маршрут</span>
+            </button>
+
+            <button
+              type="button"
+              class="secondary-action-pill"
+              @click="toggleMode('draw_route')"
+            >
+              <Icon icon="mdi:draw" />
+              <span>Нарисовать</span>
+            </button>
+          </div>
+        </template>
+      </div>
+
+      <!-- Список точек / маршрутов -->
       <div class="lists-container">
-        <p v-if="areItemsEmpty" class="no-items-message">
-          Маршруты или маркеры не созданы.
-        </p>
-        <template v-else>
-          <template v-if="!readonly">
-            <GeolocationPoiList
-              v-if="activeView === 'points'"
-              :points="poiPointsWithStyle"
-              :readonly="readonly"
-              @focus-on-point="handleFocusOnPoint"
-              @update-point="handlePointUpdate"
-              @update-point-coords="updatePointCoords"
-              @start-move-point="handleStartMovePoint"
-              @delete-point="deletePoiPoint"
-              @refresh-address="refreshPointAddress"
-            />
-            <GeolocationRouteList
-              v-if="activeView === 'routes'"
-              :routes="routes"
-              :drawn-routes="drawnRoutes"
-              :readonly="readonly"
-              :active-route-id="activeRouteId"
-              @focus-on-point="handleFocusOnPoint"
-              @update-point="handleRoutePointUpdate"
-              @update-route="handleRouteUpdate"
-              @update-point-coords="updatePointCoords"
-              @start-move-point="handleStartMovePoint"
-              @delete-point="deletePointFromRoute"
-              @delete-route="deleteRoute"
-              @set-active-route="setActiveRoute"
-              @add-segment="handleAddSegment"
-              @delete-segment="deleteSegmentFromDrawnRoute"
-              @refresh-address="refreshRoutePointAddress"
-            />
-          </template>
-          <template v-else>
-            <GeolocationPoiList
-              :points="poiPointsWithStyle"
-              :readonly="readonly"
-              @focus-on-point="handleFocusOnPoint"
-            />
-            <GeolocationRouteList
-              :routes="routes"
-              :drawn-routes="drawnRoutes"
-              :readonly="readonly"
-              :active-route-id="activeRouteId"
-              @focus-on-point="handleFocusOnPoint"
-            />
-          </template>
+        <!-- Вкладка ТОЧКИ -->
+        <template v-if="activeView === 'points'">
+          <div v-if="points.length === 0" class="empty-state-card">
+            <div class="empty-icon-wrap">
+              <Icon icon="mdi:map-marker-outline" />
+            </div>
+            <div class="empty-title">
+              Нет добавленных точек
+            </div>
+            <div class="empty-subtitle">
+              Поставьте метку кликом на карту или найдите адрес через поиск выше
+            </div>
+            <button
+              v-if="!readonly"
+              type="button"
+              class="empty-action-btn"
+              @click="toggleMode('add_point')"
+            >
+              <Icon icon="mdi:plus" />
+              <span>Поставить точку на карте</span>
+            </button>
+          </div>
+
+          <GeolocationPoiList
+            v-else
+            :points="poiPointsWithStyle"
+            :readonly="readonly"
+            @focus-on-point="handleFocusOnPoint"
+            @update-point="handlePointUpdate"
+            @update-point-coords="updatePointCoords"
+            @start-move-point="handleStartMovePoint"
+            @delete-point="deletePoiPoint"
+            @refresh-address="refreshPointAddress"
+          />
+        </template>
+
+        <!-- Вкладка МАРШРУТЫ -->
+        <template v-if="activeView === 'routes'">
+          <div v-if="routes.length === 0 && drawnRoutes.length === 0" class="empty-state-card">
+            <div class="empty-icon-wrap">
+              <Icon icon="mdi:routes" />
+            </div>
+            <div class="empty-title">
+              Маршруты не созданы
+            </div>
+            <div class="empty-subtitle">
+              Стройте пешеходные, велосипедные или автомобильные маршруты между точками
+            </div>
+            <div v-if="!readonly" class="empty-actions-row">
+              <button
+                type="button"
+                class="empty-action-btn"
+                @click="startNewRouteMode"
+              >
+                <Icon icon="mdi:plus" />
+                <span>Создать маршрут</span>
+              </button>
+              <button
+                type="button"
+                class="empty-action-btn secondary"
+                @click="toggleMode('draw_route')"
+              >
+                <Icon icon="mdi:draw" />
+                <span>Нарисовать от руки</span>
+              </button>
+            </div>
+          </div>
+
+          <GeolocationRouteList
+            v-else
+            :routes="routes"
+            :drawn-routes="drawnRoutes"
+            :readonly="readonly"
+            :active-route-id="activeRouteId"
+            @focus-on-point="handleFocusOnPoint"
+            @update-point="handleRoutePointUpdate"
+            @update-route="handleRouteUpdate"
+            @update-point-coords="updatePointCoords"
+            @start-move-point="handleStartMovePoint"
+            @delete-point="deletePointFromRoute"
+            @delete-route="deleteRoute"
+            @set-active-route="setActiveRoute"
+            @add-segment="handleAddSegment"
+            @delete-segment="deleteSegmentFromDrawnRoute"
+            @refresh-address="refreshRoutePointAddress"
+            @set-transport-mode="setRouteTransportMode"
+          />
         </template>
       </div>
     </div>
@@ -487,8 +611,8 @@ onUnmounted(() => {
 .geolocation-section {
   display: flex;
   flex-direction: column;
-  gap: 4px;
-  padding: 4px;
+  gap: 8px;
+  padding: 6px;
   background-color: var(--bg-secondary-color);
   border: 1px solid var(--border-secondary-color);
   border-radius: var(--r-s);
@@ -513,8 +637,9 @@ onUnmounted(() => {
   gap: 8px;
   min-width: 0;
   background-color: var(--bg-primary-color);
-  border-radius: var(--r-xs);
-  padding: 4px;
+  border: 1px solid var(--border-secondary-color);
+  border-radius: var(--r-s);
+  padding: 10px;
 
   &.fullscreen-panel {
     position: absolute;
@@ -526,116 +651,391 @@ onUnmounted(() => {
     max-width: calc(100% - 80px);
     box-shadow: var(--s-l);
     border: 1px solid var(--border-primary-color);
+    backdrop-filter: blur(12px);
+    background-color: rgba(var(--bg-primary-color-rgb), 0.95);
   }
 }
 
-.geolocation-controls-panel {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-  background-color: var(--bg-secondary-color);
-  padding: 6px;
-  border-radius: var(--r-xs);
-
-  .kit-view-switcher {
-    display: flex;
-    :deep(> *) {
-      flex: 1 1 0;
-      justify-content: center;
-      text-align: center;
-    }
-  }
-}
-
-.tools-panel {
-  display: flex;
-  flex-direction: column;
-}
-
-.tool-btn {
-  width: 100%;
-  justify-content: center;
-}
-
-.route-tools {
+.geo-top-toolbar {
   display: flex;
   flex-direction: column;
   gap: 8px;
 }
 
-.point-type-switcher {
+.search-input-wrapper {
+  position: relative;
   display: flex;
   align-items: center;
-  justify-content: space-between;
   background-color: var(--bg-tertiary-color);
-  padding: 4px 8px;
-  border-radius: var(--r-xs);
+  border: 1px solid var(--border-secondary-color);
+  border-radius: var(--r-s);
+  padding: 2px 4px 2px 10px;
+  transition: all 0.2s ease;
 
-  .switcher-label {
-    font-size: 0.8rem;
-    font-weight: 500;
-    color: var(--fg-secondary-color);
+  &:focus-within {
+    border-color: var(--fg-accent-color);
+    box-shadow: 0 0 0 1px var(--fg-accent-color);
   }
 
-  .switcher-buttons {
+  .search-icon {
+    font-size: 1.1rem;
+    color: var(--fg-secondary-color);
+    margin-right: 6px;
+    flex-shrink: 0;
+  }
+
+  .search-input {
+    flex: 1;
+    height: 32px;
+    border: none;
+    background: transparent;
+    color: var(--fg-primary-color);
+    font-size: 0.85rem;
+    outline: none;
+
+    &::placeholder {
+      color: var(--fg-tertiary-color);
+    }
+  }
+
+  .clear-search-btn {
+    border: none;
+    background: transparent;
+    color: var(--fg-tertiary-color);
     display: flex;
-    gap: 4px;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    padding: 4px;
+    font-size: 0.95rem;
+
+    &:hover {
+      color: var(--fg-primary-color);
+    }
   }
 
-  .type-btn {
-    padding: 2px 8px;
-    font-size: 0.75rem;
+  .search-submit-btn {
+    padding: 4px 10px;
     border-radius: var(--r-xs);
-    border: 1px solid transparent;
-    background: none;
-    cursor: pointer;
+    border: 1px solid var(--border-secondary-color);
+    background-color: var(--bg-secondary-color);
     color: var(--fg-secondary-color);
-    transition: all 0.2s;
+    font-size: 0.78rem;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.15s ease;
 
     &:hover {
       background-color: var(--bg-hover-color);
-    }
-
-    &.active {
-      background-color: var(--c-primary);
-      color: var(--fg-accent-color);
+      color: var(--fg-primary-color);
+      border-color: var(--border-primary-color);
     }
   }
 }
 
-.route-hint {
-  padding: 8px;
-  background-color: var(--bg-tertiary-color);
-  border-radius: var(--r-xs);
-  color: var(--fg-secondary-color);
-  font-size: 0.8rem;
-  text-align: center;
-  border: 1px dashed var(--border-secondary-color);
-
-  p {
-    margin: 0;
-  }
-}
-
-.search-control {
+.geo-tabs {
   display: flex;
+  background-color: var(--bg-tertiary-color);
+  border: 1px solid var(--border-secondary-color);
+  border-radius: var(--r-s);
+  padding: 3px;
   gap: 4px;
+}
+
+.geo-tab-btn {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 6px 12px;
+  border-radius: var(--r-xs);
+  border: none;
+  background: transparent;
+  color: var(--fg-secondary-color);
+  font-size: 0.82rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.15s ease;
+
+  .iconify {
+    font-size: 1rem;
+  }
+
+  .tab-count {
+    font-size: 0.72rem;
+    padding: 1px 6px;
+    border-radius: var(--r-full);
+    background-color: rgba(var(--fg-secondary-color-rgb), 0.15);
+    color: var(--fg-secondary-color);
+  }
+
+  &:hover {
+    color: var(--fg-primary-color);
+  }
+
+  &.is-active {
+    background-color: var(--bg-primary-color);
+    color: var(--fg-primary-color);
+    box-shadow: var(--s-xs);
+
+    .tab-count {
+      background-color: var(--fg-accent-color);
+      color: var(--fg-inverted-color);
+    }
+  }
+}
+
+.geo-actions-toolbar {
+  display: flex;
+  flex-direction: column;
+}
+
+.quick-actions-row {
+  display: flex;
+  gap: 6px;
+}
+
+.primary-action-pill {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 8px 12px;
+  border-radius: var(--r-s);
+  border: 1px solid var(--border-secondary-color);
+  background-color: var(--bg-tertiary-color);
+  color: var(--fg-primary-color);
+  font-size: 0.82rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.15s ease;
+
+  .iconify {
+    font-size: 1rem;
+    color: var(--fg-accent-color);
+  }
+
+  &:hover {
+    background-color: var(--bg-hover-color);
+    border-color: var(--fg-accent-color);
+    color: var(--fg-accent-color);
+  }
+}
+
+.secondary-action-pill {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 8px 12px;
+  border-radius: var(--r-s);
+  border: 1px solid var(--border-secondary-color);
+  background-color: transparent;
+  color: var(--fg-secondary-color);
+  font-size: 0.82rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.15s ease;
+
+  &:hover {
+    background-color: var(--bg-hover-color);
+    color: var(--fg-primary-color);
+  }
+}
+
+.active-banner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 8px 12px;
+  border-radius: var(--r-s);
+  background-color: rgba(var(--fg-accent-color-rgb), 0.1);
+  border: 1px solid rgba(var(--fg-accent-color-rgb), 0.3);
+  font-size: 0.82rem;
+  color: var(--fg-primary-color);
+
+  .banner-left {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex-wrap: wrap;
+  }
+
+  .banner-text {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-weight: 500;
+  }
+
+  .banner-cancel-btn {
+    border: none;
+    background: transparent;
+    color: var(--fg-secondary-color);
+    font-size: 0.78rem;
+    font-weight: 600;
+    cursor: pointer;
+    padding: 2px 6px;
+
+    &:hover {
+      color: var(--fg-error-color);
+    }
+  }
+
+  .banner-done-btn {
+    padding: 4px 10px;
+    border-radius: var(--r-xs);
+    border: none;
+    background-color: var(--fg-accent-color);
+    color: var(--fg-inverted-color);
+    font-size: 0.78rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.15s ease;
+
+    &:hover {
+      opacity: 0.9;
+    }
+  }
+}
+
+.point-type-pills {
+  display: flex;
+  background-color: var(--bg-primary-color);
+  border: 1px solid var(--border-secondary-color);
+  border-radius: var(--r-xs);
+  padding: 1px;
+}
+
+.type-pill {
+  padding: 2px 8px;
+  font-size: 0.72rem;
+  border: none;
+  background: transparent;
+  color: var(--fg-secondary-color);
+  border-radius: var(--r-2xs);
+  cursor: pointer;
+
+  &.is-active {
+    background-color: var(--fg-accent-color);
+    color: var(--fg-inverted-color);
+  }
+}
+
+.pulse-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background-color: var(--fg-accent-color);
+  animation: pulse 1.5s infinite;
+}
+
+@keyframes pulse {
+  0% {
+    transform: scale(0.9);
+    opacity: 1;
+  }
+  50% {
+    transform: scale(1.3);
+    opacity: 0.5;
+  }
+  100% {
+    transform: scale(0.9);
+    opacity: 1;
+  }
 }
 
 .lists-container {
   overflow-y: auto;
-  flex-grow: 1;
+  max-height: 280px;
+  padding-right: 2px;
+
+  &::-webkit-scrollbar {
+    width: 4px;
+  }
+  &::-webkit-scrollbar-thumb {
+    background: var(--border-secondary-color);
+    border-radius: var(--r-full);
+  }
+}
+
+.empty-state-card {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  padding: 24px 16px;
+  background-color: var(--bg-tertiary-color);
+  border: 1px dashed var(--border-secondary-color);
+  border-radius: var(--r-s);
+
+  .empty-icon-wrap {
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    background-color: rgba(var(--fg-accent-color-rgb), 0.1);
+    color: var(--fg-accent-color);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.3rem;
+    margin-bottom: 8px;
+  }
+
+  .empty-title {
+    font-size: 0.88rem;
+    font-weight: 600;
+    color: var(--fg-primary-color);
+    margin-bottom: 4px;
+  }
+
+  .empty-subtitle {
+    font-size: 0.78rem;
+    color: var(--fg-secondary-color);
+    max-width: 280px;
+    line-height: 1.3;
+    margin-bottom: 12px;
+  }
+
+  .empty-actions-row {
+    display: flex;
+    gap: 6px;
+  }
+
+  .empty-action-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 6px 12px;
+    border-radius: var(--r-xs);
+    border: 1px solid var(--fg-accent-color);
+    background-color: var(--fg-accent-color);
+    color: var(--fg-inverted-color);
+    font-size: 0.78rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.15s ease;
+
+    &:hover {
+      opacity: 0.9;
+    }
+
+    &.secondary {
+      background-color: transparent;
+      border-color: var(--border-secondary-color);
+      color: var(--fg-primary-color);
+
+      &:hover {
+        background-color: var(--bg-hover-color);
+      }
+    }
+  }
 }
 
 .map-wrapper {
   min-width: 0;
   flex-grow: 1;
-}
-
-.no-items-message {
-  text-align: center;
-  padding: 16px 8px;
-  color: var(--fg-tertiary-color);
-  font-size: 0.9rem;
 }
 </style>

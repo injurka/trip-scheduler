@@ -2,7 +2,6 @@
 import type { MapPoint } from '../models/types'
 import { Icon } from '@iconify/vue'
 import { onClickOutside } from '@vueuse/core'
-import { KitBtn } from '~/components/01.kit/kit-btn'
 import { KitInlineMdEditorWrapper } from '~/components/01.kit/kit-inline-md-editor'
 import { KitInput } from '~/components/01.kit/kit-input'
 import { KitTooltip } from '~/components/01.kit/kit-tooltip'
@@ -31,10 +30,10 @@ const selectedMapUrl = ref<string | null>(null)
 const selectedPointForMap = ref<MapPoint | null>(null)
 
 const mapProviders = [
-  { name: 'Google Maps', urlTemplate: 'https://www.google.com/maps?q={lat},{lon}&output=embed' },
-  { name: 'Yandex Maps', urlTemplate: 'https://yandex.ru/map-widget/v1/?ll={lon}%2C{lat}&z=15&pt={lon},{lat}' },
-  { name: 'OpenStreetMap', urlTemplate: 'https://www.openstreetmap.org/export/embed.html?bbox={bbox}&layer=mapnik&marker={lat},{lon}' },
-  { name: 'Baidu Maps', urlTemplate: 'http://api.map.baidu.com/marker?location={lat},{lon}&output=html' },
+  { name: 'Google Maps', icon: 'mdi:google-maps', urlTemplate: 'https://www.google.com/maps?q={lat},{lon}&output=embed' },
+  { name: 'Yandex Maps', icon: 'mdi:map-marker', urlTemplate: 'https://yandex.ru/map-widget/v1/?ll={lon}%2C{lat}&z=15&pt={lon},{lat}' },
+  { name: 'OpenStreetMap', icon: 'mdi:map', urlTemplate: 'https://www.openstreetmap.org/export/embed.html?bbox={bbox}&layer=mapnik&marker={lat},{lon}' },
+  { name: 'Baidu Maps', icon: 'mdi:map-legend', urlTemplate: 'http://api.map.baidu.com/marker?location={lat},{lon}&output=html' },
 ]
 
 function openMapChoice(point: MapPoint) {
@@ -89,7 +88,7 @@ onClickOutside(mapIframeContainerRef, () => {
       @click="emit('focusOnPoint', point)"
     >
       <div class="poi-marker-visual">
-        <span class="poi-number" :style="{ backgroundColor: point.style?.color }">
+        <span class="poi-number" :style="{ backgroundColor: point.style?.color || 'var(--fg-accent-color)' }">
           <span v-if="point.type === 'connect'" class="connect-dot" />
           <span v-else>{{ index + 1 }}</span>
         </span>
@@ -111,10 +110,21 @@ onClickOutside(mapIframeContainerRef, () => {
               @blur="emit('updatePoint', point)"
             />
             <span v-else class="poi-text">{{ point.address || 'Адрес не найден' }}</span>
-            <KitBtn v-if="!readonly" icon="mdi:refresh" variant="subtle" size="xs" aria-label="Обновить адрес" @click.stop="emit('refreshAddress', point.id)" />
-            <KitBtn icon="mdi:map-search-outline" variant="subtle" size="xs" aria-label="Показать на карте" @click.stop="openMapChoice(point)" />
+            <div class="poi-inline-actions">
+              <KitTooltip v-if="!readonly" text="Обновить адрес">
+                <button type="button" class="mini-btn" @click.stop="emit('refreshAddress', point.id)">
+                  <Icon icon="mdi:refresh" />
+                </button>
+              </KitTooltip>
+              <KitTooltip text="Открыть на внешней карте">
+                <button type="button" class="mini-btn" @click.stop="openMapChoice(point)">
+                  <Icon icon="mdi:map-search-outline" />
+                </button>
+              </KitTooltip>
+            </div>
           </div>
-          <div v-if="point.comment || !readonly" class="poi-field">
+
+          <div v-if="point.comment || !readonly" class="poi-field comment-field">
             <Icon icon="mdi:comment-text-outline" class="field-icon" />
             <KitInlineMdEditorWrapper
               v-if="!readonly"
@@ -123,14 +133,14 @@ onClickOutside(mapIframeContainerRef, () => {
               :features="{
                 'block-edit': false, 'code-mirror': false, 'cursor': false, 'image-block': false, 'latex': false, 'link-tooltip': false, 'table': false, 'toolbar': false,
               }"
-              placeholder="Добавить комментарий"
+              placeholder="Добавить комментарий..."
               @update:model-value="point.comment = $event"
               @blur="emit('updatePoint', point)"
             />
             <span v-else-if="point.comment" class="poi-text poi-text-comment">{{ point.comment }}</span>
           </div>
         </template>
-        <!-- Если это соединительная точка (connect) -->
+
         <template v-else>
           <div class="poi-field connect-field">
             <span class="poi-text connect-text">Соединительная точка</span>
@@ -139,26 +149,46 @@ onClickOutside(mapIframeContainerRef, () => {
 
         <div v-if="!readonly" class="poi-controls" :class="{ 'connect-controls': point.type === 'connect' }">
           <div v-if="point.type !== 'connect'" class="poi-coords">
+            <span class="coord-label">LAT</span>
             <KitInput
               :model-value="point.coordinates[1]"
-              size="sm"
               type="text"
+              class="coord-input"
               @update:model-value="point.coordinates[1] = Number($event)"
               @keydown.enter="emit('updatePointCoords', point)"
               @blur="emit('updatePointCoords', point)"
             />
+            <span class="coord-label">LON</span>
             <KitInput
               :model-value="point.coordinates[0]"
-              size="sm"
               type="text"
+              class="coord-input"
               @update:model-value="point.coordinates[0] = Number($event)"
               @keydown.enter="emit('updatePointCoords', point)"
               @blur="emit('updatePointCoords', point)"
             />
           </div>
+
           <div class="poi-actions">
-            <KitBtn icon="mdi:arrow-all" variant="outlined" size="sm" aria-label="Переместить точку" @click="emit('startMovePoint', point.id)" />
-            <KitBtn icon="mdi:delete-outline" variant="solid" size="sm" aria-label="Удалить точку" @click="emit('deletePoint', point.id)" />
+            <KitTooltip text="Переместить точку по карте">
+              <button
+                type="button"
+                class="action-btn"
+                @click.stop="emit('startMovePoint', point.id)"
+              >
+                <Icon icon="mdi:cursor-move" />
+              </button>
+            </KitTooltip>
+
+            <KitTooltip text="Удалить точку">
+              <button
+                type="button"
+                class="action-btn delete-btn"
+                @click.stop="emit('deletePoint', point.id)"
+              >
+                <Icon icon="mdi:trash-can-outline" />
+              </button>
+            </KitTooltip>
           </div>
         </div>
       </div>
@@ -174,9 +204,11 @@ onClickOutside(mapIframeContainerRef, () => {
             <button
               v-for="provider in mapProviders"
               :key="provider.name"
+              type="button"
               class="map-provider-btn"
               @click="selectMapProvider(provider)"
             >
+              <Icon :icon="provider.icon" class="provider-icon" />
               <span>{{ provider.name }}</span>
             </button>
           </div>
@@ -198,7 +230,7 @@ onClickOutside(mapIframeContainerRef, () => {
           />
         </div>
         <KitTooltip text="Закрыть карту" class="close-map-btn-tooltip">
-          <button class="close-map-btn" @click="closeMap">
+          <button type="button" class="close-map-btn" @click="closeMap">
             <Icon icon="mdi:close" />
           </button>
         </KitTooltip>
@@ -211,61 +243,64 @@ onClickOutside(mapIframeContainerRef, () => {
 .poi-list {
   display: flex;
   flex-direction: column;
+  gap: 6px;
 }
 
 .poi-item {
   position: relative;
   display: flex;
-  gap: 8px;
-  padding: 12px;
+  gap: 10px;
+  padding: 10px 12px;
   background-color: var(--bg-tertiary-color);
-  border-radius: var(--r-xs);
-  transition: background-color 0.2s ease;
-  margin: 4px;
+  border: 1px solid var(--border-secondary-color);
+  border-radius: var(--r-s);
+  transition: all 0.2s ease;
+
+  &:hover {
+    border-color: var(--border-primary-color);
+  }
 
   &.is-readonly {
     cursor: pointer;
-
     &:hover {
       background-color: var(--bg-hover-color);
     }
   }
 
   &.is-connect {
-    padding: 6px 12px;
+    padding: 6px 10px;
     align-items: center;
   }
 }
 
 .poi-marker-visual {
-  position: absolute;
-  left: -4px;
-  top: -4px;
-  opacity: 0.6;
+  flex-shrink: 0;
+  display: flex;
+  align-items: flex-start;
+  padding-top: 2px;
 
   .is-connect & {
-    position: static;
-    opacity: 1;
-    margin-right: 4px;
+    padding-top: 0;
   }
 
   .poi-number {
     display: flex;
     align-items: center;
     justify-content: center;
-    font-family: 'Sansation';
-    width: 20px;
-    height: 20px;
+    font-family: var(--font-mono, monospace);
+    width: 22px;
+    height: 22px;
     border-radius: var(--r-xs);
     color: white;
-    font-size: 0.65rem;
-    line-height: 20px;
-    font-weight: 600;
+    font-size: 0.7rem;
+    font-weight: 700;
     flex-shrink: 0;
+    box-shadow: var(--s-xs);
 
     .is-connect & {
       width: 14px;
       height: 14px;
+      border-radius: 50%;
     }
   }
 }
@@ -279,9 +314,8 @@ onClickOutside(mapIframeContainerRef, () => {
 }
 
 .poi-info {
-  flex-grow: 1;
+  flex: 1;
   display: flex;
-  justify-content: center;
   flex-direction: column;
   gap: 4px;
   min-width: 0;
@@ -296,12 +330,16 @@ onClickOutside(mapIframeContainerRef, () => {
 .poi-field {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 6px;
 
   .field-icon {
-    font-size: 1.1rem;
+    font-size: 1rem;
     color: var(--fg-secondary-color);
     flex-shrink: 0;
+  }
+
+  &.comment-field {
+    opacity: 0.9;
   }
 
   &.connect-field {
@@ -311,14 +349,14 @@ onClickOutside(mapIframeContainerRef, () => {
 
 .poi-text {
   font-weight: 500;
-  font-size: 0.9rem;
+  font-size: 0.85rem;
   line-height: 1.4;
   white-space: normal;
   word-break: break-word;
   flex-grow: 1;
 
   &-comment {
-    font-size: 0.85rem;
+    font-size: 0.8rem;
     color: var(--fg-secondary-color);
     font-style: italic;
   }
@@ -329,18 +367,46 @@ onClickOutside(mapIframeContainerRef, () => {
   }
 }
 
+.poi-inline-actions {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  flex-shrink: 0;
+}
+
+.mini-btn {
+  width: 32px;
+  height: 32px;
+  border-radius: var(--r-xs);
+  border: 1px solid var(--border-secondary-color);
+  background-color: var(--bg-secondary-color);
+  color: var(--fg-secondary-color);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  font-size: 1.15rem;
+  transition: all 0.15s ease;
+
+  &:hover {
+    background-color: var(--bg-hover-color);
+    color: var(--fg-primary-color);
+    border-color: var(--border-primary-color);
+  }
+}
+
 .poi-editor {
-  width: 100%;
-  padding: 4px 0;
+  flex: 1;
+  padding: 2px 0;
   line-height: 1.4;
-  min-height: 25px;
+  min-height: 22px;
 }
 
 .poi-address {
   :deep() {
     .milkdown .ProseMirror p {
       font-weight: 500;
-      font-size: 0.9rem;
+      font-size: 0.85rem;
       color: var(--fg-primary-color);
     }
   }
@@ -349,7 +415,7 @@ onClickOutside(mapIframeContainerRef, () => {
 .poi-comment {
   :deep() {
     .milkdown .ProseMirror p {
-      font-size: 0.85rem;
+      font-size: 0.8rem;
       color: var(--fg-secondary-color);
     }
   }
@@ -360,30 +426,77 @@ onClickOutside(mapIframeContainerRef, () => {
   justify-content: space-between;
   align-items: center;
   gap: 8px;
-  margin-top: 4px;
+  margin-top: 8px;
+  padding-top: 8px;
+  border-top: 1px dashed var(--border-secondary-color);
 
   &.connect-controls {
     margin-top: 0;
+    padding-top: 0;
+    border-top: none;
   }
 }
 
 .poi-coords {
   display: flex;
   align-items: center;
-  gap: 4px;
-  flex-shrink: 1;
+  gap: 6px;
+  flex: 1;
   min-width: 0;
 
-  .kit-input-group {
-    max-width: 170px;
-    font-family: var(--font-mono);
-    font-size: 0.8rem;
+  .coord-label {
+    font-size: 0.72rem;
+    font-weight: 600;
+    color: var(--fg-tertiary-color);
+    letter-spacing: 0.5px;
+  }
+
+  .coord-input {
+    flex: 1;
+    max-width: 140px;
+    font-family: var(--font-mono, monospace);
+
+    :deep(input) {
+      height: 38px;
+      padding: 0 8px;
+      font-size: 0.85rem;
+      font-family: var(--font-mono, monospace);
+    }
   }
 }
 
 .poi-actions {
   display: flex;
-  gap: 4px;
+  align-items: center;
+  gap: 6px;
+  flex-shrink: 0;
+}
+
+.action-btn {
+  width: 38px;
+  height: 38px;
+  border-radius: var(--r-s);
+  border: 1px solid var(--border-secondary-color);
+  background-color: var(--bg-secondary-color);
+  color: var(--fg-secondary-color);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  font-size: 1.25rem;
+  transition: all 0.15s ease;
+
+  &:hover {
+    background-color: var(--bg-hover-color);
+    color: var(--fg-primary-color);
+    border-color: var(--border-primary-color);
+  }
+
+  &.delete-btn:hover {
+    background-color: rgba(var(--fg-error-color-rgb), 0.12);
+    color: var(--fg-error-color);
+    border-color: var(--fg-error-color);
+  }
 }
 </style>
 
@@ -402,7 +515,7 @@ onClickOutside(mapIframeContainerRef, () => {
 .map-choice-panel {
   background-color: var(--bg-secondary-color);
   color: var(--fg-primary-color);
-  padding: 24px;
+  padding: 20px;
   border-radius: var(--r-m);
   border: 1px solid var(--border-primary-color);
   box-shadow: var(--s-xl);
@@ -410,43 +523,44 @@ onClickOutside(mapIframeContainerRef, () => {
   max-width: 320px;
 
   h4 {
-    margin: 0 0 20px 0;
+    margin: 0 0 16px 0;
     text-align: center;
-    font-size: 1.1rem;
+    font-size: 1.05rem;
     font-weight: 600;
-    color: var(--fg-secondary-color);
+    color: var(--fg-primary-color);
   }
 }
 
 .map-provider-list {
   display: flex;
   flex-direction: column;
-  gap: 12px;
+  gap: 8px;
 }
 
 .map-provider-btn {
   display: flex;
   align-items: center;
   gap: 12px;
-  padding: 12px 16px;
+  padding: 10px 14px;
   width: 100%;
   text-align: left;
   border-radius: var(--r-s);
+  border: 1px solid var(--border-secondary-color);
   background-color: var(--bg-tertiary-color);
   color: var(--fg-primary-color);
-  font-size: 1rem;
+  font-size: 0.92rem;
   font-weight: 500;
-  transition:
-    background-color 0.2s ease,
-    transform 0.2s ease;
+  cursor: pointer;
+  transition: all 0.15s ease;
 
   &:hover {
     background-color: var(--bg-hover-color);
-    transform: translateY(-2px);
+    border-color: var(--fg-accent-color);
+    transform: translateY(-1px);
   }
 
   .provider-icon {
-    font-size: 22px;
+    font-size: 1.2rem;
     color: var(--fg-accent-color);
   }
 }
@@ -501,7 +615,7 @@ onClickOutside(mapIframeContainerRef, () => {
 
 .fade-enter-active,
 .fade-leave-active {
-  transition: opacity 0.3s ease;
+  transition: opacity 0.2s ease;
 }
 
 .fade-enter-from,

@@ -4,6 +4,7 @@ import type { UpdateTripInput } from '~/shared/types/models/trip'
 import { refDebounced, useLocalStorage } from '@vueuse/core'
 import { useAbortRequest, useRequest, useRequestError, useRequestStatus } from '~/plugins/request'
 import { useLastCounts } from '~/shared/composables/use-last-counts'
+import { useOfflineStore } from '~/shared/store/offline.store'
 import { TripStatus, TripVisibility } from '~/shared/types/models/trip'
 
 export type TripsHubTab = 'my' | 'public'
@@ -205,6 +206,10 @@ export function useTripsHub() {
       fn: db => db.trips.delete(tripId),
       onSuccess: () => {
         authStore.decrementTripCount()
+        const offlineStore = useOfflineStore()
+        if (offlineStore.isTripCached(tripId)) {
+          offlineStore.removeOfflineTrip(tripId)
+        }
       },
       onError: ({ error }) => {
         trips.value.splice(tripIndex, 0, removedTrip)

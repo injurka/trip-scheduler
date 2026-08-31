@@ -1150,14 +1150,20 @@ onClickOutside(timeEditorRef, saveTimeChanges)
 
   .activity-title {
     display: flex;
+    align-items: flex-start;
     margin-top: 4px;
-    gap: 4px;
+    margin-bottom: 2px;
+    gap: 6px;
     transition: margin 0.3s ease;
 
     .iconify {
-      height: 24px;
+      width: 18px;
+      height: 18px;
+      font-size: 1.15rem;
       opacity: 0.5;
       color: var(--fg-secondary-color);
+      flex-shrink: 0;
+      margin-top: 6px;
       transition: display 0.3s ease;
     }
 
@@ -1166,12 +1172,18 @@ onClickOutside(timeEditorRef, saveTimeChanges)
       :deep(.milkdown) {
         * {
           font-weight: 500;
-          font-size: 1.1rem;
+          font-size: 1.05rem;
         }
         > div {
           margin: 0;
           padding: 0;
           transition: padding 0.3s ease;
+        }
+        .ProseMirror {
+          p {
+            margin: 0 !important;
+            line-height: 1.45 !important;
+          }
         }
       }
     }
@@ -1182,8 +1194,9 @@ onClickOutside(timeEditorRef, saveTimeChanges)
   }
 
   .activity-sections {
-    margin-top: 12px;
+    margin-top: 10px;
     padding-left: 8px;
+    padding-right: 4px;
   }
 
   .sections-list {

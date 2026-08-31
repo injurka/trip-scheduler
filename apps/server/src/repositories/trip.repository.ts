@@ -169,7 +169,7 @@ export const tripRepository = {
   },
 
   /**
-   * Получает путешествие со всеми прикрепленными изображениями (для подсчета квот).
+   * Получает путешествие со всеми прикрепленными изображениями (для подсчета квот и удаления файлов).
    */
   async getByIdWithImages(id: string) {
     return measureDbQuery('trips', 'select', async () => {
@@ -178,6 +178,8 @@ export const tripRepository = {
         with: {
           images: {
             columns: {
+              url: true,
+              variants: true,
               sizeBytes: true,
             },
           },

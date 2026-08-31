@@ -4,6 +4,7 @@ import {
   CompleteMultipartUploadCommand,
   CreateMultipartUploadCommand,
   DeleteObjectCommand,
+  DeleteObjectsCommand,
   GetObjectCommand,
   HeadBucketCommand,
   HeadObjectCommand,
@@ -145,6 +146,63 @@ class S3Service {
     }
     catch (error) {
       console.error(`S3 Delete Error for key ${key}:`, error)
+    }
+  }
+
+  async deleteFiles(keys: string[]): Promise<void> {
+    const validKeys = keys.filter(Boolean)
+    if (validKeys.length === 0)
+      return
+
+    try {
+      for (let i = 0; i < validKeys.length; i += 1000) {
+        const chunk = validKeys.slice(i, i + 1000)
+        await this.client.send(
+          new DeleteObjectsCommand({
+            Bucket: this.bucket,
+            Delete: {
+              Objects: chunk.map(Key => ({ Key })),
+              Quiet: true,
+            },
+          }),
+        )
+      }
+    }
+    catch (error) {
+      console.error('S3 DeleteFiles Error:', error)
+    }
+  }
+
+  async deleteFolder(prefix: string): Promise<void> {
+    try {
+      const normalizedPrefix = prefix.endsWith('/') ? prefix : `${prefix}/`
+      let continuationToken: string | undefined
+
+      do {
+        const listResponse = await this.client.send(
+          new ListObjectsV2Command({
+            Bucket: this.bucket,
+            Prefix: normalizedPrefix,
+            ContinuationToken: continuationToken,
+          }),
+        )
+
+        const objects = listResponse.Contents || []
+        if (objects.length > 0) {
+          const keysToDelete = objects
+            .map(obj => obj.Key)
+            .filter((key): key is string => Boolean(key))
+
+          if (keysToDelete.length > 0) {
+            await this.deleteFiles(keysToDelete)
+          }
+        }
+
+        continuationToken = listResponse.IsTruncated ? listResponse.NextContinuationToken : undefined
+      } while (continuationToken)
+    }
+    catch (error) {
+      console.error(`S3 DeleteFolder Error for prefix ${prefix}:`, error)
     }
   }
 

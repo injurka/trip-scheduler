@@ -114,3 +114,38 @@ export async function deleteFileWithVariants(image: Pick<TripImage, 'url' | 'var
 
   await Promise.all(filesToDelete.map(filePath => deleteFileFromStorage(filePath)))
 }
+
+/**
+ * Удаляет всю папку путешествия и любые дополнительные файлы из S3.
+ */
+export async function deleteTripFiles(
+  tripId: string,
+  extraImages: Pick<TripImage, 'url' | 'variants'>[] = [],
+  coverUrl?: string | null,
+) {
+  // 1. Удаляем всю директорию trips/${tripId} в S3
+  await s3Service.deleteFolder(`trips/${tripId}`)
+
+  // 2. Если есть изображения вне стандартной директории, удаляем их явно
+  const extraKeys: string[] = []
+  for (const img of extraImages) {
+    if (img.url && !img.url.startsWith(`trips/${tripId}/`)) {
+      extraKeys.push(img.url)
+    }
+    if (img.variants) {
+      for (const vUrl of Object.values(img.variants)) {
+        if (vUrl && !vUrl.startsWith(`trips/${tripId}/`)) {
+          extraKeys.push(vUrl)
+        }
+      }
+    }
+  }
+
+  if (coverUrl && !coverUrl.startsWith(`trips/${tripId}/`) && !coverUrl.startsWith('http://') && !coverUrl.startsWith('https://')) {
+    extraKeys.push(coverUrl)
+  }
+
+  if (extraKeys.length > 0) {
+    await s3Service.deleteFiles(extraKeys)
+  }
+}

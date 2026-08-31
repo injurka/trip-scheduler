@@ -335,7 +335,7 @@ onBeforeUnmount(() => {
   }
 
   .milkdown .ProseMirror {
-    padding: 0 !important;
+    padding: 0;
   }
 
   .milkdown-menu-wrapper,
@@ -355,6 +355,15 @@ onBeforeUnmount(() => {
     color: var(--fg-primary-color);
     font-size: 0.9375rem;
     line-height: 1.6;
+
+    &[contenteditable='false'] {
+      .ProseMirror-trailingBreak {
+        display: none !important;
+      }
+      p:has(> .ProseMirror-trailingBreak:only-child) {
+        display: none !important;
+      }
+    }
 
     // Headings - Compact, balanced, elegant typography
     h1,

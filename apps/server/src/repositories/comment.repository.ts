@@ -1,6 +1,6 @@
 import type { z } from 'zod'
 import type { CreateCommentInputSchema } from '~/modules/comment/comment.schemas'
-import { desc, eq, sql } from 'drizzle-orm'
+import { desc, eq, inArray, sql } from 'drizzle-orm'
 import { db } from '~/../db'
 import { comments } from '~/../db/schema'
 
@@ -94,5 +94,17 @@ export const commentRepository = {
       .returning()
 
     return deletedComment
+  },
+
+  /**
+   * Удаляет комментарии для указанных parentId.
+   */
+  async deleteByParentIds(parentIds: string[]) {
+    if (parentIds.length === 0)
+      return
+
+    await db
+      .delete(comments)
+      .where(inArray(comments.parentId, parentIds))
   },
 }

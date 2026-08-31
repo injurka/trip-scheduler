@@ -1,0 +1,29 @@
+{
+  "name": "@injurkx/trip-scheduler-obsidian-importer",
+  "type": "module",
+  "version": "1.0.0",
+  "private": true,
+  "main": "src/index.ts",
+  "engines": {
+    "bun": ">=1.4.0"
+  },
+  "scripts": {
+    "start": "bun run src/run.ts",
+    "dev": "bun run --hot --watch src/run.ts",
+    "lint": "eslint .",
+    "lint:fix": "eslint . --fix",
+    "typecheck": "bunx tsc --noEmit"
+  },
+  "dependencies": {
+    "prompts": "^2.4.2"
+  },
+  "devDependencies": {
+    "@antfu/eslint-config": "8.2.0",
+    "@types/bun": "latest",
+    "@types/node": "24.10.1",
+    "@types/prompts": "^2.4.9",
+    "eslint": "^9.29.0",
+    "eslint-plugin-format": "2.0.1",
+    "typescript": "5.9.3"
+  }
+}
