@@ -162,7 +162,7 @@ function handleAddLink() {
 </script>
 
 <template>
-  <div class="gallery-section">
+  <div class="gallery-section" :class="{ 'is-editing': !isViewMode }">
     <div v-if="!isViewMode" class="edit-controls">
       <div class="controls-group">
         <KitBtn
@@ -360,14 +360,17 @@ function handleAddLink() {
 .gallery-section {
   display: flex;
   flex-direction: column;
-  background-color: var(--bg-secondary-color);
-  border: 1px solid var(--border-secondary-color);
-  border-radius: var(--r-s);
-  padding: 8px;
   transition: all 0.2s ease-in-out;
 
-  &:hover {
-    border-color: var(--border-primary-color);
+  &.is-editing {
+    background-color: var(--bg-secondary-color);
+    border: 1px solid var(--border-secondary-color);
+    border-radius: var(--r-s);
+    padding: 8px;
+
+    &:hover {
+      border-color: var(--border-primary-color);
+    }
   }
 }
 

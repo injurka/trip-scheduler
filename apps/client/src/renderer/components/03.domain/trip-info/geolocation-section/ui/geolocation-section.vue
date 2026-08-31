@@ -31,7 +31,12 @@ const isInitialized = ref(false)
 
 const sectionContainerRef = ref<HTMLElement | null>(null)
 const mapController = ref<ReturnType<typeof useGeolocationMap>>()
-const activeView = ref<'points' | 'routes'>('points')
+const activeView = ref<'points' | 'routes'>(
+  (!props.section?.points || props.section.points.length === 0)
+  && ((props.section?.routes && props.section.routes.length > 0) || (props.section?.drawnRoutes && props.section.drawnRoutes.length > 0))
+    ? 'routes'
+    : 'points',
+)
 const activeRouteId = ref<string | null>(null)
 const isMapFullscreen = ref(false)
 const isPanelVisible = ref(false)
@@ -294,12 +299,34 @@ async function onMapReady(controller: ReturnType<typeof useGeolocationMap>) {
   })
 
   isInitialized.value = true
+  if (
+    (!points.value || points.value.length === 0)
+    && ((routes.value && routes.value.length > 0) || (drawnRoutes.value && drawnRoutes.value.length > 0))
+  ) {
+    activeView.value = 'routes'
+  }
+
   watch(
     [points, routes, drawnRoutes],
     debouncedUpdate,
     { deep: true },
   )
 }
+
+watch(
+  () => [props.readonly, points.value.length, routes.value.length, drawnRoutes.value.length],
+  () => {
+    if (
+      props.readonly
+      && points.value.length === 0
+      && (routes.value.length > 0 || drawnRoutes.value.length > 0)
+      && activeView.value === 'points'
+    ) {
+      activeView.value = 'routes'
+    }
+  },
+  { immediate: true },
+)
 
 watch(
   activeView,
@@ -341,15 +368,19 @@ onUnmounted(() => {
 </script>
 
 <template>
-  <div ref="sectionContainerRef" class="geolocation-section" :class="{ 'is-fullscreen': isMapFullscreen }">
+  <div
+    ref="sectionContainerRef"
+    class="geolocation-section"
+    :class="{ 'is-fullscreen': isMapFullscreen, 'is-editing': !readonly }"
+  >
     <div
-      v-show="!isMapFullscreen || isPanelVisible"
+      v-show="(!readonly || points.length > 0 || routes.length > 0 || drawnRoutes.length > 0) && (!isMapFullscreen || isPanelVisible)"
       class="main-panel"
       :class="{ 'fullscreen-panel': isMapFullscreen }"
     >
       <!-- Верхний тулбар: Поиск и сегментные табы -->
-      <div v-if="!readonly" class="geo-top-toolbar">
-        <div class="search-input-wrapper">
+      <div v-if="!readonly || (points.length > 0 && (routes.length > 0 || drawnRoutes.length > 0))" class="geo-top-toolbar">
+        <div v-if="!readonly" class="search-input-wrapper">
           <Icon icon="mdi:magnify" class="search-icon" />
           <input
             v-model="searchQuery"
@@ -503,7 +534,7 @@ onUnmounted(() => {
             <div class="empty-title">
               Нет добавленных точек
             </div>
-            <div class="empty-subtitle">
+            <div v-if="!readonly" class="empty-subtitle">
               Поставьте метку кликом на карту или найдите адрес через поиск выше
             </div>
             <button
@@ -539,7 +570,7 @@ onUnmounted(() => {
             <div class="empty-title">
               Маршруты не созданы
             </div>
-            <div class="empty-subtitle">
+            <div v-if="!readonly" class="empty-subtitle">
               Стройте пешеходные, велосипедные или автомобильные маршруты между точками
             </div>
             <div v-if="!readonly" class="empty-actions-row">
@@ -613,10 +644,13 @@ onUnmounted(() => {
   display: flex;
   flex-direction: column;
   gap: 8px;
-  padding: 6px;
-  background-color: var(--bg-secondary-color);
-  border: 1px solid var(--border-secondary-color);
-  border-radius: var(--r-s);
+
+  &.is-editing {
+    padding: 6px;
+    background-color: var(--bg-secondary-color);
+    border: 1px solid var(--border-secondary-color);
+    border-radius: var(--r-s);
+  }
 
   &.is-fullscreen {
     position: fixed;
@@ -637,10 +671,6 @@ onUnmounted(() => {
   flex-direction: column;
   gap: 8px;
   min-width: 0;
-  background-color: var(--bg-primary-color);
-  border: 1px solid var(--border-secondary-color);
-  border-radius: var(--r-s);
-  padding: 10px;
 
   &.fullscreen-panel {
     position: absolute;

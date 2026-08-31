@@ -94,6 +94,8 @@ onClickOutside(mapIframeContainerRef, () => {
         </span>
       </div>
 
+      <div class="poi-divider" />
+
       <div class="poi-info">
         <template v-if="point.type !== 'connect'">
           <div class="poi-field">
@@ -243,87 +245,111 @@ onClickOutside(mapIframeContainerRef, () => {
 .poi-list {
   display: flex;
   flex-direction: column;
-  gap: 6px;
+  gap: 4px;
 }
 
 .poi-item {
   position: relative;
   display: flex;
-  gap: 10px;
-  padding: 10px 12px;
-  background-color: var(--bg-tertiary-color);
+  gap: 0;
+  background-color: var(--bg-secondary-color);
   border: 1px solid var(--border-secondary-color);
   border-radius: var(--r-s);
-  transition: all 0.2s ease;
+  overflow: hidden;
+  transition:
+    border-color 0.18s ease,
+    box-shadow 0.18s ease,
+    background-color 0.18s ease;
 
   &:hover {
     border-color: var(--border-primary-color);
+    box-shadow: var(--s-s);
   }
 
   &.is-readonly {
     cursor: pointer;
+
     &:hover {
-      background-color: var(--bg-hover-color);
+      background-color: var(--bg-tertiary-color);
     }
   }
 
   &.is-connect {
-    padding: 6px 10px;
     align-items: center;
   }
 }
 
+// Левая цветная полоса — визуальный акцент
 .poi-marker-visual {
   flex-shrink: 0;
   display: flex;
-  align-items: flex-start;
-  padding-top: 2px;
+  flex-direction: column;
+  align-items: center;
+  justify-content: flex-start;
+  padding: 10px 0 10px 10px;
+  gap: 0;
 
   .is-connect & {
-    padding-top: 0;
-  }
-
-  .poi-number {
-    display: flex;
-    align-items: center;
+    padding: 8px 0 8px 10px;
     justify-content: center;
-    font-family: var(--font-mono, monospace);
-    width: 22px;
-    height: 22px;
-    border-radius: var(--r-xs);
-    color: white;
-    font-size: 0.7rem;
-    font-weight: 700;
-    flex-shrink: 0;
-    box-shadow: var(--s-xs);
+  }
+}
 
-    .is-connect & {
-      width: 14px;
-      height: 14px;
-      border-radius: 50%;
-    }
+.poi-number {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-family: var(--font-mono, monospace);
+  width: 24px;
+  height: 24px;
+  border-radius: var(--r-xs);
+  color: white;
+  font-size: 0.68rem;
+  font-weight: 800;
+  flex-shrink: 0;
+  letter-spacing: 0.02em;
+  box-shadow:
+    0 2px 6px rgba(0, 0, 0, 0.35),
+    inset 0 1px 0 rgba(255, 255, 255, 0.18);
+
+  .is-connect & {
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    box-shadow: 0 0 0 3px rgba(255, 255, 255, 0.1);
   }
 }
 
 .connect-dot {
   display: block;
-  width: 6px;
-  height: 6px;
+  width: 5px;
+  height: 5px;
   background-color: white;
   border-radius: 50%;
+}
+
+// Разделитель между маркером и контентом
+.poi-divider {
+  width: 1px;
+  align-self: stretch;
+  background-color: var(--border-secondary-color);
+  margin: 8px 10px;
+  flex-shrink: 0;
 }
 
 .poi-info {
   flex: 1;
   display: flex;
   flex-direction: column;
-  gap: 4px;
+  gap: 2px;
   min-width: 0;
+  padding: 8px 10px 8px 0;
 
   .is-connect & {
     flex-direction: row;
     align-items: center;
     justify-content: space-between;
+    padding: 6px 10px 6px 0;
   }
 }
 
@@ -333,80 +359,89 @@ onClickOutside(mapIframeContainerRef, () => {
   gap: 6px;
 
   .field-icon {
-    font-size: 1rem;
-    color: var(--fg-secondary-color);
+    font-size: 0.95rem;
+    color: var(--fg-tertiary-color);
     flex-shrink: 0;
   }
 
   &.comment-field {
-    opacity: 0.9;
+    margin-top: 1px;
+
+    .field-icon {
+      font-size: 0.85rem;
+    }
   }
 
   &.connect-field {
-    opacity: 0.7;
+    opacity: 0.6;
   }
 }
 
 .poi-text {
   font-weight: 500;
-  font-size: 0.85rem;
-  line-height: 1.4;
+  font-size: 0.83rem;
+  line-height: 1.45;
   white-space: normal;
   word-break: break-word;
   flex-grow: 1;
+  color: var(--fg-primary-color);
 
   &-comment {
-    font-size: 0.8rem;
+    font-size: 0.78rem;
     color: var(--fg-secondary-color);
+    font-weight: 400;
     font-style: italic;
   }
 
   &.connect-text {
-    font-size: 0.8rem;
+    font-size: 0.78rem;
     font-style: italic;
+    color: var(--fg-tertiary-color);
   }
 }
 
 .poi-inline-actions {
   display: flex;
   align-items: center;
-  gap: 4px;
+  gap: 2px;
   flex-shrink: 0;
+  margin-left: 4px;
 }
 
 .mini-btn {
-  width: 32px;
-  height: 32px;
+  width: 26px;
+  height: 26px;
   border-radius: var(--r-xs);
-  border: 1px solid var(--border-secondary-color);
-  background-color: var(--bg-secondary-color);
-  color: var(--fg-secondary-color);
+  border: none;
+  background-color: transparent;
+  color: var(--fg-tertiary-color);
   display: flex;
   align-items: center;
   justify-content: center;
   cursor: pointer;
-  font-size: 1.15rem;
-  transition: all 0.15s ease;
+  font-size: 1rem;
+  transition:
+    background-color 0.12s ease,
+    color 0.12s ease;
 
   &:hover {
     background-color: var(--bg-hover-color);
     color: var(--fg-primary-color);
-    border-color: var(--border-primary-color);
   }
 }
 
 .poi-editor {
   flex: 1;
-  padding: 2px 0;
-  line-height: 1.4;
-  min-height: 22px;
+  padding: 1px 0;
+  line-height: 1.45;
+  min-height: 20px;
 }
 
 .poi-address {
   :deep() {
     .milkdown .ProseMirror p {
       font-weight: 500;
-      font-size: 0.85rem;
+      font-size: 0.83rem;
       color: var(--fg-primary-color);
     }
   }
@@ -415,8 +450,9 @@ onClickOutside(mapIframeContainerRef, () => {
 .poi-comment {
   :deep() {
     .milkdown .ProseMirror p {
-      font-size: 0.8rem;
+      font-size: 0.78rem;
       color: var(--fg-secondary-color);
+      font-style: italic;
     }
   }
 }
@@ -426,9 +462,9 @@ onClickOutside(mapIframeContainerRef, () => {
   justify-content: space-between;
   align-items: center;
   gap: 8px;
-  margin-top: 8px;
-  padding-top: 8px;
-  border-top: 1px dashed var(--border-secondary-color);
+  margin-top: 6px;
+  padding-top: 6px;
+  border-top: 1px solid var(--border-secondary-color);
 
   &.connect-controls {
     margin-top: 0;
@@ -440,26 +476,27 @@ onClickOutside(mapIframeContainerRef, () => {
 .poi-coords {
   display: flex;
   align-items: center;
-  gap: 6px;
+  gap: 5px;
   flex: 1;
   min-width: 0;
 
   .coord-label {
-    font-size: 0.72rem;
-    font-weight: 600;
+    font-size: 0.68rem;
+    font-weight: 700;
     color: var(--fg-tertiary-color);
-    letter-spacing: 0.5px;
+    letter-spacing: 0.8px;
+    text-transform: uppercase;
   }
 
   .coord-input {
     flex: 1;
-    max-width: 140px;
+    max-width: 130px;
     font-family: var(--font-mono, monospace);
 
     :deep(input) {
-      height: 38px;
+      height: 34px;
       padding: 0 8px;
-      font-size: 0.85rem;
+      font-size: 0.8rem;
       font-family: var(--font-mono, monospace);
     }
   }
@@ -468,34 +505,34 @@ onClickOutside(mapIframeContainerRef, () => {
 .poi-actions {
   display: flex;
   align-items: center;
-  gap: 6px;
+  gap: 4px;
   flex-shrink: 0;
 }
 
 .action-btn {
-  width: 38px;
-  height: 38px;
-  border-radius: var(--r-s);
-  border: 1px solid var(--border-secondary-color);
-  background-color: var(--bg-secondary-color);
-  color: var(--fg-secondary-color);
+  width: 34px;
+  height: 34px;
+  border-radius: var(--r-xs);
+  border: none;
+  background-color: transparent;
+  color: var(--fg-tertiary-color);
   display: flex;
   align-items: center;
   justify-content: center;
   cursor: pointer;
-  font-size: 1.25rem;
-  transition: all 0.15s ease;
+  font-size: 1.1rem;
+  transition:
+    background-color 0.12s ease,
+    color 0.12s ease;
 
   &:hover {
     background-color: var(--bg-hover-color);
     color: var(--fg-primary-color);
-    border-color: var(--border-primary-color);
   }
 
   &.delete-btn:hover {
     background-color: rgba(var(--fg-error-color-rgb), 0.12);
     color: var(--fg-error-color);
-    border-color: var(--fg-error-color);
   }
 }
 </style>
