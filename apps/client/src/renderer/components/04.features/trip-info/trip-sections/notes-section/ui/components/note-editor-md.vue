@@ -71,9 +71,14 @@ function handlePaste(event: ClipboardEvent) {
 
 <style scoped lang="scss">
 .md-editor-container {
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
   min-height: 100%;
   height: auto;
   padding: 24px;
+  box-sizing: border-box;
+  overflow-x: hidden;
   scrollbar-width: none;
   -ms-overflow-style: none;
 

@@ -1,3 +1,4 @@
+import type { BookingSectionContent } from './booking'
 import type { ChecklistSectionContent } from './checklist'
 import type { FinancesSectionContent } from './finances'
 import type { ParsedNoteFile, ParsedNoteFolder } from './notes'
@@ -36,4 +37,5 @@ export interface ParsedTripData {
   checklistContent: ChecklistSectionContent
   checklistFilesCount: number
   financesContent: FinancesSectionContent
+  bookingsContent: BookingSectionContent
 }

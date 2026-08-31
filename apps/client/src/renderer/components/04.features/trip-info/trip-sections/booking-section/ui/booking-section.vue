@@ -6,6 +6,7 @@ import { KitBtn } from '~/components/01.kit/kit-btn'
 import { KitTabs } from '~/components/01.kit/kit-tabs'
 import { useBookingSection } from '../composables'
 import AttractionCard from './cards/attraction-card.vue'
+import CarCard from './cards/car-card.vue'
 import FlightCard from './cards/flight-card.vue'
 import HotelCard from './cards/hotel-card.vue'
 import TrainCard from './cards/train-card.vue'
@@ -48,6 +49,7 @@ const cardComponents = {
   flight: FlightCard,
   hotel: HotelCard,
   train: TrainCard,
+  car: CarCard,
   attraction: AttractionCard,
 }
 

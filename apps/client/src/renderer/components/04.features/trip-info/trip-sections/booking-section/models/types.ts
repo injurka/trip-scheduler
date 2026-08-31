@@ -103,10 +103,33 @@ export interface AttractionData {
   sourceUrl?: string
 }
 
+/**
+ * Тип данных для аренды авто / трансфера / поездки на автомобиле.
+ */
+export interface CarData {
+  company?: string // Прокатная компания или перевозчик
+  carModel?: string // Модель/марка авто
+  carType?: string // Класс авто (SUV, Седан, Минивэн)
+  pickupLocation?: string
+  pickupCoords?: LocationCoords
+  dropoffLocation?: string
+  dropoffCoords?: LocationCoords
+  pickupDateTime?: string // ISO 8601 format
+  dropoffDateTime?: string // ISO 8601 format
+  pickupTimeZone?: string
+  dropoffTimeZone?: string
+  confirmationNumber?: string // Номер брони/ваучера
+  phone?: string
+  email?: string
+  notes?: string
+  sourceUrl?: string
+}
+
 export type Booking
   = | (BookingBase & { type: 'flight', data: FlightData })
     | (BookingBase & { type: 'hotel', data: HotelData })
     | (BookingBase & { type: 'train', data: TrainData })
+    | (BookingBase & { type: 'car', data: CarData })
     | (BookingBase & { type: 'attraction', data: AttractionData })
 
 export type BookingType = Booking['type']

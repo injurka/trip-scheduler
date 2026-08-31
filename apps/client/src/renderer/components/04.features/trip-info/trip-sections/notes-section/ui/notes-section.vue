@@ -343,14 +343,13 @@ onBeforeUnmount(() => flushPendingSave())
 .notes-section {
   height: 70vh;
   min-height: calc(100vh - 150px);
-  max-width: 1600px;
+  max-width: 1800px;
   width: 100%;
   display: flex;
   margin: 0 auto;
   flex-direction: column;
   padding: 10px;
   z-index: 6;
-  max-width: 100%;
   overflow: hidden;
 }
 
@@ -646,7 +645,11 @@ onBeforeUnmount(() => flushPendingSave())
 .editor-body {
   flex: 1;
   overflow-y: auto;
+  overflow-x: hidden;
   position: relative;
+  min-width: 0;
+  width: 100%;
+  max-width: 100%;
   scrollbar-width: none;
   -ms-overflow-style: none;
 

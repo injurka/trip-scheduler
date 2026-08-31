@@ -22,6 +22,83 @@ export function inferActivityTag(title: string, content: string): ActivityPayloa
   return 'activity'
 }
 
+export function normalizeIframeLineBreaks(markdown: string): string {
+  if (!markdown)
+    return ''
+
+  return markdown.replace(/^([ \t]*)(?:([*+-]\s+))?(.*?)(\s*<iframe\b[^>]*>.*?<\/iframe>)/gmi, (match, baseIndent, listBullet, linePrefix, iframe) => {
+    const trimmedPrefix = linePrefix ? linePrefix.trim() : ''
+    const trimmedIframe = iframe ? iframe.trim() : ''
+    if (!trimmedPrefix) {
+      return `${baseIndent || ''}${listBullet || ''}${trimmedIframe}`
+    }
+    if (listBullet) {
+      const continuationIndent = `${baseIndent || ''}    `
+      return `${baseIndent || ''}${listBullet}${trimmedPrefix}\n${continuationIndent}${trimmedIframe}`
+    }
+    return `${baseIndent || ''}${trimmedPrefix}\n\n${trimmedIframe}`
+  })
+}
+
+export function normalizeMarkdownIndentation(text: string): string {
+  if (!text)
+    return ''
+
+  const formattedText = normalizeIframeLineBreaks(text)
+  const lines = formattedText.split('\n')
+  const resultLines: string[] = []
+  let currentBlock: string[] = []
+
+  function flushBlock() {
+    if (currentBlock.length === 0)
+      return
+
+    const nonEmpty = currentBlock.filter(l => l.trim().length > 0)
+    if (nonEmpty.length > 0) {
+      let minIndent = Number.POSITIVE_INFINITY
+      for (const line of nonEmpty) {
+        const m = line.match(/^[ \t]*/)
+        const len = m ? m[0].length : 0
+        if (len < minIndent)
+          minIndent = len
+      }
+      if (minIndent > 0 && minIndent !== Number.POSITIVE_INFINITY) {
+        for (const line of currentBlock) {
+          resultLines.push(line.length >= minIndent ? line.slice(minIndent) : line.trimStart())
+        }
+        currentBlock = []
+        return
+      }
+    }
+
+    for (const line of currentBlock) {
+      resultLines.push(line)
+    }
+    currentBlock = []
+  }
+
+  for (const line of lines) {
+    if (line.trim().startsWith('>')) {
+      flushBlock()
+      resultLines.push(line.trim())
+    }
+    else if (line.trim() === '') {
+      flushBlock()
+      resultLines.push('')
+    }
+    else {
+      currentBlock.push(line)
+    }
+  }
+  flushBlock()
+
+  return resultLines.join('\n').trim()
+}
+
+export function dedentText(text: string): string {
+  return normalizeMarkdownIndentation(text)
+}
+
 export function parseActivitiesFromMarkdown(dayContent: string): ActivityPayload[] {
   const activities: ActivityPayload[] = []
   const lines = dayContent.split('\n')
@@ -39,7 +116,7 @@ export function parseActivitiesFromMarkdown(dayContent: string): ActivityPayload
     if (!currentActivity)
       return
 
-    const sectionText = currentActivity.lines.join('\n').trim()
+    const sectionText = normalizeMarkdownIndentation(currentActivity.lines.join('\n'))
     const cleanTitle = currentActivity.title
       .replace(/^[—–-]\s*/, '')
       .replace(/\s*[—–-]$/, '')

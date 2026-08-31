@@ -113,6 +113,19 @@ export class ApiClient {
     })
   }
 
+  async getTripDetails(tripId: string): Promise<any> {
+    try {
+      return await this.request<any>(`/trips/${tripId}/details`, {
+        method: 'GET',
+      })
+    }
+    catch {
+      return await this.request<any>(`/trips/${tripId}`, {
+        method: 'GET',
+      })
+    }
+  }
+
   // 3. Trip Sections (Tabs: Bookings, Checklist, Finances, Memories, Notes, Documents)
   async createTripSection(payload: {
     tripId: string
@@ -131,6 +144,25 @@ export class ApiClient {
       return await this.request<any>('/trpc/tripSection.create', {
         method: 'POST',
         body: JSON.stringify(payload),
+      })
+    }
+  }
+
+  async updateTripSection(id: string, payload: {
+    title?: string
+    icon?: string | null
+    content?: any
+  }): Promise<any> {
+    try {
+      return await this.request<any>(`/trip-sections/${id}`, {
+        method: 'PATCH',
+        body: JSON.stringify({ id, ...payload }),
+      })
+    }
+    catch {
+      return await this.request<any>('/trpc/tripSection.update', {
+        method: 'POST',
+        body: JSON.stringify({ id, ...payload }),
       })
     }
   }
@@ -164,6 +196,12 @@ export class ApiClient {
     return await this.request<any>(`/days/${id}`, {
       method: 'PATCH',
       body: JSON.stringify({ id, details }),
+    })
+  }
+
+  async deleteDay(id: string): Promise<any> {
+    return await this.request<any>(`/days/${id}`, {
+      method: 'DELETE',
     })
   }
 

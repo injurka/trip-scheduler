@@ -8,6 +8,7 @@ import { KitSelectWithSearch } from '~/components/01.kit/kit-select-with-search'
 import { useRequest, useRequestStatus } from '~/plugins/request'
 import { BOOKING_TYPES_CONFIG } from '../../composables'
 import AttractionCard from '../cards/attraction-card.vue'
+import CarCard from '../cards/car-card.vue'
 import FlightCard from '../cards/flight-card.vue'
 import HotelCard from '../cards/hotel-card.vue'
 import TrainCard from '../cards/train-card.vue'
@@ -41,6 +42,7 @@ const cardComponents = {
   flight: FlightCard,
   hotel: HotelCard,
   train: TrainCard,
+  car: CarCard,
   attraction: AttractionCard,
 }
 const previewCardComponent = computed(() => {

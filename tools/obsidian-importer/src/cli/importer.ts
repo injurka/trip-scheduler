@@ -1,4 +1,4 @@
-import type { ActivityPayload } from '../types'
+import type { ActivityPayload, Booking } from '../types'
 import process from 'node:process'
 import { colors } from '../config/colors'
 import { DEFAULT_TRIP_SECTIONS } from '../config/constants'
@@ -34,7 +34,9 @@ export async function runImport(): Promise<void> {
 
   console.log(`\n${colors.green}✔ Найдено в структуре Obsidian:${colors.reset}`)
   console.log(`  • Название:        ${colors.bright}${tripData.title}${colors.reset}`)
+  console.log(`  • Описание:        ${colors.cyan}${tripData.descriptionShort}${colors.reset}`)
   console.log(`  • Города:          ${tripData.cities.join(', ') || 'Не определены'}`)
+  console.log(`  • Теги:            ${tripData.tags.join(', ') || '—'}`)
   console.log(`  • Даты:            ${tripData.startDate} ➔ ${tripData.endDate} (${tripData.days.length} дн.)`)
   console.log(`  • Дней маршрута:   ${tripData.days.length}`)
   console.log(`  • Корневых файлов: ${tripData.rootNotes.length}`)
@@ -139,28 +141,76 @@ export async function runImport(): Promise<void> {
     }
   }
 
-  // 2. Create Trip Section Tabs
+  // 2. Create / Update Trip Section Tabs (All 6 Standard Sections)
+  const createdBookings: Booking[] = tripData.bookingsContent?.bookings || []
+
   if (importSections) {
-    console.log(`\n${colors.dim}📑 Создание разделов-вкладок путешествия...${colors.reset}`)
+    console.log(`\n${colors.dim}📑 Наполнение разделов-вкладок путешествия...${colors.reset}`)
+
+    let existingSections: Array<{ id: string, type: string, title: string }> = []
+    try {
+      const details = await api.getTripDetails(createdTrip.id)
+      if (Array.isArray(details?.sections)) {
+        existingSections = details.sections
+      }
+    }
+    catch {
+      existingSections = []
+    }
+
     for (const sec of DEFAULT_TRIP_SECTIONS) {
       try {
         let sectionContent: any = null
 
-        if (sec.type === 'checklist' && importChecklists) {
-          sectionContent = tripData.checklistContent
+        if (sec.type === 'bookings') {
+          sectionContent = tripData.bookingsContent && tripData.bookingsContent.bookings.length > 0 ? tripData.bookingsContent : null
+        }
+        else if (sec.type === 'checklist' && importChecklists) {
+          sectionContent = tripData.checklistContent && tripData.checklistContent.items && tripData.checklistContent.items.length > 0 ? tripData.checklistContent : null
         }
         else if (sec.type === 'finances') {
-          sectionContent = tripData.financesContent
+          // Раздел «Финансы» создается чистым для логирования реальных трат во время поездки
+          sectionContent = null
         }
 
-        await api.createTripSection({
-          tripId: createdTrip.id,
-          type: sec.type as any,
-          title: sec.title,
-          icon: sec.icon,
-          content: sectionContent,
-        })
-        console.log(`  ${colors.green}✔ Раздел создан:${colors.reset} ${sec.title}`)
+        const existingSec = existingSections.find(s => s.type === sec.type)
+
+        if (existingSec) {
+          await api.updateTripSection(existingSec.id, {
+            title: sec.title,
+            icon: sec.icon,
+            content: sectionContent,
+          })
+        }
+        else {
+          await api.createTripSection({
+            tripId: createdTrip.id,
+            type: sec.type as any,
+            title: sec.title,
+            icon: sec.icon,
+            content: sectionContent,
+          })
+        }
+
+        if (sec.type === 'bookings' && sectionContent?.bookings?.length > 0) {
+          const hotelsCount = sectionContent.bookings.filter((b: any) => b.type === 'hotel').length
+          const flightsCount = sectionContent.bookings.filter((b: any) => b.type === 'flight').length
+          const trainsCount = sectionContent.bookings.filter((b: any) => b.type === 'train').length
+          const carsCount = sectionContent.bookings.filter((b: any) => b.type === 'car').length
+          const attractionsCount = sectionContent.bookings.filter((b: any) => b.type === 'attraction').length
+          console.log(`  ${colors.green}✔ Раздел «${sec.title}» наполнен:${colors.reset} ${hotelsCount > 0 ? `🏨 ${hotelsCount} отелей ` : ''}${flightsCount > 0 ? `✈️ ${flightsCount} рейсов ` : ''}${trainsCount > 0 ? `🚆 ${trainsCount} поездов ` : ''}${carsCount > 0 ? `🚗 ${carsCount} авто/трансферов ` : ''}${attractionsCount > 0 ? `🎟️ ${attractionsCount} билетов/пропусков` : ''}`)
+        }
+        else if (sec.type === 'checklist' && sectionContent?.items?.length > 0) {
+          const totalItems = sectionContent.items.length
+          const totalGroups = sectionContent.groups?.length || 0
+          console.log(`  ${colors.green}✔ Раздел «${sec.title}» наполнен:${colors.reset} 📝 ${totalGroups} групп (${totalItems} пунктов)`)
+        }
+        else if (sec.type === 'finances') {
+          console.log(`  ${colors.green}✔ Раздел создан:${colors.reset} ${sec.title} (готов для учета трат в поездке)`)
+        }
+        else {
+          console.log(`  ${colors.green}✔ Раздел создан:${colors.reset} ${sec.title}`)
+        }
       }
       catch (err: any) {
         console.warn(`  ${colors.yellow}⚠ Раздел «${sec.title}»: ${err.message}${colors.reset}`)
@@ -174,14 +224,50 @@ export async function runImport(): Promise<void> {
   if (importDays) {
     console.log(`\n${colors.dim}📅 Создание дней маршрута (${tripData.days.length} дн.)...${colors.reset}`)
 
-    for (const day of tripData.days) {
+    // Clean up initial placeholder days created automatically by server upon trip creation
+    let existingDays: Array<{ id: string, date: string, title: string }> = []
+    try {
+      existingDays = await api.getDaysByTripId(createdTrip.id)
+      if (Array.isArray(existingDays) && existingDays.length > 0) {
+        for (const exDay of existingDays) {
+          try {
+            await api.deleteDay(exDay.id)
+          }
+          catch {
+            // ignore if individual delete fails
+          }
+        }
+        // Refresh remaining days in case delete failed
+        existingDays = await api.getDaysByTripId(createdTrip.id)
+      }
+    }
+    catch {
+      existingDays = []
+    }
+
+    for (let i = 0; i < tripData.days.length; i++) {
+      const day = tripData.days[i]
       try {
-        const createdDay = await api.createDay({
-          tripId: createdTrip.id,
-          title: day.title,
-          description: day.description,
-          date: day.date,
-        })
+        let createdDay: { id: string, title: string }
+
+        if (existingDays && existingDays.length > i && existingDays[i]?.id) {
+          // Reuse remaining placeholder day if it couldn't be deleted
+          const targetId = existingDays[i].id
+          await api.updateDay(targetId, {
+            title: day.title,
+            description: day.description,
+            date: day.date,
+          })
+          createdDay = { id: targetId, title: day.title }
+        }
+        else {
+          createdDay = await api.createDay({
+            tripId: createdTrip.id,
+            title: day.title,
+            description: day.description,
+            date: day.date,
+          })
+        }
 
         dayIdMap.set(day.dayNumber, createdDay.id)
         console.log(`  ${colors.green}✔ [День ${day.dayNumber}]${colors.reset} ${day.title} (${day.date})`)
@@ -363,7 +449,7 @@ export async function runImport(): Promise<void> {
         activitiesToCreate = rawActivities
       }
 
-      // Enrich activities with geolocations, uploaded image galleries, and note callouts
+      // Enrich activities with geolocations, uploaded image galleries, note callouts, and matched bookings
       const enrichedActivities: ActivityPayload[] = []
       const locationContext = tripData.cities.length > 0 ? tripData.cities[0] : undefined
 
@@ -380,6 +466,7 @@ export async function runImport(): Promise<void> {
               uploadImages: cliOptions.uploadImages,
               geocode: cliOptions.geocode,
               locationContext,
+              bookings: createdBookings,
             },
           )
           enrichedActivities.push(enriched)
@@ -401,13 +488,25 @@ export async function runImport(): Promise<void> {
           })
 
           const descSections = act.sections?.filter(s => s.type === 'description') || []
-          const noteBadge = descSections.length > 1 ? ` ${colors.magenta}[📝 +${descSections.length - 1} заметка]${colors.reset}` : ''
+          const attachedNotes = descSections.filter(s => s.isAttached)
+          const noteBadge = attachedNotes.length > 0
+            ? ` ${colors.magenta}[📌 +${attachedNotes.length} ${attachedNotes.length === 1 ? 'заметка' : 'заметки'}: ${attachedNotes.map(n => n.title || 'Заметка').join(', ')}]${colors.reset}`
+            : (descSections.length > 1 ? ` ${colors.magenta}[📝 +${descSections.length - 1} заметка]${colors.reset}` : '')
           const gallerySection = act.sections?.find(s => s.type === 'gallery') as any
           const galleryBadge = gallerySection?.imageUrls?.length ? ` ${colors.cyan}[📸 ${gallerySection.imageUrls.length} фото]${colors.reset}` : ''
           const geoSection = act.sections?.find(s => s.type === 'geolocation') as any
           const geoBadge = geoSection?.points?.length ? ` ${colors.green}[📍 ${geoSection.points[0].address || 'Локация'}]${colors.reset}` : ''
+          const bookingSection = act.sections?.find(s => s.type === 'booking') as any
+          let bookingBadge = ''
+          if (bookingSection?.bookingId) {
+            const matchedBooking = createdBookings.find(b => b.id === bookingSection.bookingId)
+            if (matchedBooking) {
+              const bType = matchedBooking.type === 'hotel' ? 'Отель' : (matchedBooking.type === 'flight' ? 'Билет' : 'Поезд')
+              bookingBadge = ` ${colors.blue}[🎫 ${bType}: ${matchedBooking.title}]${colors.reset}`
+            }
+          }
 
-          console.log(`    ${colors.green}✔ [${act.startTime}–${act.endTime}]${colors.reset} [${act.tag}] ${act.title}${noteBadge}${geoBadge}${galleryBadge}`)
+          console.log(`    ${colors.green}✔ [${act.startTime}–${act.endTime}]${colors.reset} [${act.tag}] ${act.title}${noteBadge}${bookingBadge}${geoBadge}${galleryBadge}`)
         }
         catch (actErr: any) {
           console.warn(`    ${colors.yellow}⚠ Активность «${act.title}»: ${actErr.message}${colors.reset}`)

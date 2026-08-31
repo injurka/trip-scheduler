@@ -3,11 +3,13 @@ import type { CreateTripInputSchema, ListTripsInputSchema, TripWithDaysSchema, U
 import { createTRPCError } from '~/lib/trpc'
 import { commentRepository } from '~/repositories/comment.repository'
 import { dayRepository } from '~/repositories/day.repository'
+import { tripSectionRepository } from '~/repositories/trip-section.repository'
 import { tripRepository } from '~/repositories/trip.repository'
 import { userRepository } from '~/repositories/user.repository'
 import { accessControlService } from '~/services/access-control.service'
 import { deleteTripFiles } from '~/services/file-storage.service'
 import { quotaService } from '~/services/quota.service'
+import { TripSectionType } from '../trip-section/trip-section.schemas'
 
 export const tripService = {
   async getAll(filters?: z.infer<typeof ListTripsInputSchema>, userId?: string) {
@@ -58,6 +60,31 @@ export const tripService = {
     }
     catch (error) {
       console.error(`Failed to create initial day for trip ${newTrip.id}:`, error)
+    }
+
+    // Создаем все разделы по умолчанию для нового путешествия
+    const defaultSections = [
+      { type: TripSectionType.BOOKINGS, title: 'Бронирования', icon: 'mdi:book-multiple-outline' },
+      { type: TripSectionType.CHECKLIST, title: 'Чек-листы', icon: 'mdi:format-list-checks' },
+      { type: TripSectionType.FINANCES, title: 'Финансы', icon: 'mdi:cash-multiple' },
+      { type: TripSectionType.MEMORIES, title: 'Галерея воспоминаний', icon: 'mdi:image-filter-hdr' },
+      { type: TripSectionType.NOTES, title: 'Заметки', icon: 'mdi:note-edit-outline' },
+      { type: TripSectionType.DOCUMENTS, title: 'Документы', icon: 'mdi:file-document-outline' },
+    ]
+
+    for (const sec of defaultSections) {
+      try {
+        await tripSectionRepository.create({
+          tripId: newTrip.id,
+          type: sec.type,
+          title: sec.title,
+          icon: sec.icon,
+          content: null,
+        })
+      }
+      catch (error) {
+        console.error(`Failed to create default section ${sec.type} for trip ${newTrip.id}:`, error)
+      }
     }
 
     await quotaService.incrementTripCount(userId)

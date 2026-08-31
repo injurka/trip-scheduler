@@ -201,6 +201,7 @@ onUnmounted(() => {
   display: flex;
   flex-direction: column;
   flex: 1;
+  width: 100%;
 
   @include media-down(sm) {
     padding: 0 4px;

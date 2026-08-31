@@ -1,4 +1,5 @@
 export * from './activity'
+export * from './booking'
 export * from './checklist'
 export * from './day-meta'
 export * from './finances'

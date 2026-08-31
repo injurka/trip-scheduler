@@ -23,7 +23,7 @@ const model = defineModel<string>({ required: true, default: '' })
 </script>
 
 <template>
-  <div>
+  <div class="kit-inline-md-editor-wrapper">
     <MilkdownProvider>
       <KitInlineMdEditor
         v-model="model"
@@ -36,3 +36,12 @@ const model = defineModel<string>({ required: true, default: '' })
     </MilkdownProvider>
   </div>
 </template>
+
+<style scoped lang="scss">
+.kit-inline-md-editor-wrapper {
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
+  box-sizing: border-box;
+}
+</style>

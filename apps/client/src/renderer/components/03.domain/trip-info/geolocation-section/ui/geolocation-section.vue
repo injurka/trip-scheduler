@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import type { useGeolocationMap } from '../composables/use-geolocation-map'
 import type { ActivitySectionGeolocation, Coordinate, DrawnRoute, MapPoint, MapRoute } from '../models/types'
+import { Icon } from '@iconify/vue'
 import { useDebounceFn } from '@vueuse/core'
 import { toLonLat } from 'ol/proj'
 import { useGeolocationDrawing } from '../composables/use-geolocation-drawing'

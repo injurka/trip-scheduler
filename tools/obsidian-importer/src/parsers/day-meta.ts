@@ -1,5 +1,9 @@
 import type { DayMetaInfo } from '../types'
 
+function cleanEmoji(str: string): string {
+  return str.replace(/\p{Extended_Pictographic}/gu, '').replace(/\s+/g, ' ').trim()
+}
+
 export function parseDayMetaFromMarkdown(dayContent: string): DayMetaInfo[] {
   const metaBadges: DayMetaInfo[] = []
   const lines = dayContent.split('\n')
@@ -27,70 +31,8 @@ export function parseDayMetaFromMarkdown(dayContent: string): DayMetaInfo[] {
   const preText = preLines.join('\n')
   const finText = lines.slice(finStartIndex).join('\n')
 
-  // 1. Parse header block quotes (> **Key:** Value)
-  const headerSection = preText.split('---')[0]
-  const headerQuoteRegex = /^>\s*\*\*([^*:]+):\*\*\s*(.*)$/gm
-  let match: RegExpExecArray | null
-
-  while ((match = headerQuoteRegex.exec(headerSection)) !== null) {
-    const key = match[1].trim()
-    const value = match[2].trim()
-
-    if (!value)
-      continue
-
-    if (/локаци/i.test(key)) {
-      const shortVal = value.replace(/\(.*?\)/g, '').replace(/`[^`]+`/g, '').replace(/\s+/g, ' ').trim()
-      metaBadges.push({
-        id: crypto.randomUUID(),
-        title: 'Локация',
-        subtitle: shortVal.length > 50 ? `${shortVal.slice(0, 47)}...` : shortVal,
-        icon: 'mdi:map-marker-radius-outline',
-        color: '#9BF6FF',
-        content: `**Локация:** ${value}`,
-      })
-    }
-    else if (/фаза/i.test(key)) {
-      const phaseTitleMatch = value.match(/(?:🌴|💻|🏔️|🌊|🍵)?\s*(Фаза\s*\d[^—–\n(]*)/i)
-      const subtitle = phaseTitleMatch ? phaseTitleMatch[0].trim() : (value.length > 40 ? `${value.slice(0, 37)}...` : value)
-      metaBadges.push({
-        id: crypto.randomUUID(),
-        title: 'Фаза тура',
-        subtitle,
-        icon: 'mdi:compass-outline',
-        color: '#BDB2FF',
-        content: `**Фаза тура:** ${value}`,
-      })
-    }
-    else if (/проживани/i.test(key)) {
-      const hotelMatch = value.match(/\*([^*]+)\*(?:\s*`([^`]+)`)?/)
-      let subtitle = ''
-      if (hotelMatch) {
-        subtitle = hotelMatch[1].trim() + (hotelMatch[2] ? ` (${hotelMatch[2].trim()})` : '')
-      }
-      else {
-        subtitle = value.replace(/\(.*?\)/g, '').trim().slice(0, 40)
-      }
-      metaBadges.push({
-        id: crypto.randomUUID(),
-        title: 'Проживание',
-        subtitle: subtitle.length > 45 ? `${subtitle.slice(0, 42)}...` : subtitle,
-        icon: 'mdi:bed',
-        color: '#FFD6A5',
-        content: `**Проживание:** ${value}`,
-      })
-    }
-    else if (/хайлайт|акцент|особенност/i.test(key)) {
-      metaBadges.push({
-        id: crypto.randomUUID(),
-        title: key,
-        subtitle: value.length > 45 ? `${value.slice(0, 42)}...` : value,
-        icon: 'mdi:star-outline',
-        color: '#FDFFB6',
-        content: `**${key}:** ${value}`,
-      })
-    }
-  }
+  // 1. Header block quotes (> **Фаза:**, > **Хайлайт:**, > **Проживание:**) are extracted
+  // directly into day.description and bookings, so they are not duplicated as meta-chips.
 
   // 2. Parse Preparation Callouts & Subsections before activities
   const bodyPreText = preText.includes('---') ? preText.split('---').slice(1).join('---') : preText
@@ -207,8 +149,8 @@ export function parseDayMetaFromMarkdown(dayContent: string): DayMetaInfo[] {
 
     metaBadges.push({
       id: crypto.randomUUID(),
-      title: title || rawTitleLine,
-      subtitle: subtitle || undefined,
+      title: cleanEmoji(title || rawTitleLine),
+      subtitle: subtitle ? cleanEmoji(subtitle) : undefined,
       icon,
       color,
       content: fullContent,
@@ -222,10 +164,11 @@ export function parseDayMetaFromMarkdown(dayContent: string): DayMetaInfo[] {
     const rawSectionHeader = preSecMatch[0].split('\n')[0].replace(/^###\s*/, '').trim()
     const sectionBody = preSecMatch[2].trim()
 
-    if (sectionBody && !metaBadges.some(b => b.title.includes(rawSectionHeader))) {
+    const cleanSectionHeader = cleanEmoji(rawSectionHeader)
+    if (sectionBody && !metaBadges.some(b => b.title.includes(cleanSectionHeader))) {
       metaBadges.push({
         id: crypto.randomUUID(),
-        title: rawSectionHeader,
+        title: cleanSectionHeader,
         subtitle: 'Ориентиры и остановки',
         icon: 'mdi:map-marker-path',
         color: '#BDB2FF',
@@ -245,7 +188,7 @@ export function parseDayMetaFromMarkdown(dayContent: string): DayMetaInfo[] {
       metaBadges.push({
         id: crypto.randomUUID(),
         title: 'Финансовые затраты на день',
-        subtitle: totalSubtitle,
+        subtitle: cleanEmoji(totalSubtitle),
         icon: 'mdi:currency-usd',
         color: '#A3D9A5',
         content: `## Финансовые затраты на день (на 1 чел)\n\n${finBody}`,

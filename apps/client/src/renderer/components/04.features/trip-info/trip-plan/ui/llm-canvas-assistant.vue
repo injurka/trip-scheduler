@@ -15,6 +15,7 @@ const prompt = ref('')
 const useDaysContext = ref(false)
 const useCanvasAsRef = ref(false)
 const isGenerating = ref(false)
+const isExpanded = ref(false)
 
 const isDisabled = computed(() => isGenerating.value || !!props.isExternalGenerating)
 
@@ -49,7 +50,7 @@ defineExpose({
 
     <div class="bar-inner">
       <!-- Header -->
-      <div class="assistant-header">
+      <div class="assistant-header" @click="isExpanded = !isExpanded">
         <div class="header-icon-wrap">
           <Icon icon="mdi:creation" class="magic-icon" />
         </div>
@@ -61,10 +62,13 @@ defineExpose({
           <span class="badge-dot" />
           Генерирует...
         </div>
+        <button class="expand-btn" @click.stop="isExpanded = !isExpanded">
+          <Icon :icon="isExpanded ? 'mdi:chevron-up' : 'mdi:chevron-down'" />
+        </button>
       </div>
 
       <!-- Input area -->
-      <div class="input-wrap" :class="{ 'is-focused': !!prompt }">
+      <div v-if="isExpanded" class="input-wrap" :class="{ 'is-focused': !!prompt }">
         <textarea
           v-model="prompt"
           class="prompt-textarea"
@@ -87,7 +91,7 @@ defineExpose({
       </div>
 
       <!-- Options -->
-      <div class="options-row">
+      <div v-if="isExpanded" class="options-row">
         <label class="option-chip" :class="{ active: useDaysContext }">
           <input v-model="useDaysContext" type="checkbox" class="option-input">
           <Icon icon="mdi:calendar-multiple" class="option-icon" />
@@ -207,6 +211,29 @@ defineExpose({
   display: flex;
   align-items: center;
   gap: 10px;
+  cursor: pointer;
+  user-select: none;
+
+  .expand-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 28px;
+    height: 28px;
+    border-radius: var(--r-s);
+    border: none;
+    background: transparent;
+    color: var(--fg-secondary-color);
+    cursor: pointer;
+    transition: all 0.2s ease;
+    margin-left: auto;
+    font-size: 1.2rem;
+
+    &:hover {
+      background: rgba(var(--fg-accent-color-rgb), 0.1);
+      color: var(--fg-accent-color);
+    }
+  }
 
   .header-icon-wrap {
     display: flex;

@@ -5,6 +5,7 @@ import { Icon } from '@iconify/vue'
 import { KitBtn } from '~/components/01.kit/kit-btn'
 import { KitTooltip } from '~/components/01.kit/kit-tooltip'
 import AttractionCard from '~/components/04.features/trip-info/trip-sections/booking-section/ui/cards/attraction-card.vue'
+import CarCard from '~/components/04.features/trip-info/trip-sections/booking-section/ui/cards/car-card.vue'
 import FlightCard from '~/components/04.features/trip-info/trip-sections/booking-section/ui/cards/flight-card.vue'
 import HotelCard from '~/components/04.features/trip-info/trip-sections/booking-section/ui/cards/hotel-card.vue'
 import TrainCard from '~/components/04.features/trip-info/trip-sections/booking-section/ui/cards/train-card.vue'
@@ -45,6 +46,7 @@ const cardComponents = {
   flight: FlightCard,
   hotel: HotelCard,
   train: TrainCard,
+  car: CarCard,
   attraction: AttractionCard,
 }
 

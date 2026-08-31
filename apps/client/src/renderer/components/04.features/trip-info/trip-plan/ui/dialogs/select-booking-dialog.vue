@@ -55,6 +55,16 @@ function isBookingMatchingDay(booking: Booking, dateStr: string | null): boolean
     }
     case 'train':
       return !!booking.data.departureDateTime?.startsWith(dateStr)
+    case 'car': {
+      if (!booking.data.pickupDateTime)
+        return false
+      if (booking.data.dropoffDateTime) {
+        const pickup = new Date(booking.data.pickupDateTime.split('T')[0])
+        const dropoff = new Date(booking.data.dropoffDateTime.split('T')[0])
+        return selectedDate >= pickup && selectedDate <= dropoff
+      }
+      return booking.data.pickupDateTime.startsWith(dateStr)
+    }
     case 'attraction':
       return !!booking.data.dateTime?.startsWith(dateStr)
     default:
@@ -94,6 +104,20 @@ function getBookingSummary(booking: Booking): { title: string, subtitle: string,
         : ''
       return {
         title: booking.title || (booking.data.trainNumber ? `Поезд ${booking.data.trainNumber}` : 'Поезд'),
+        subtitle: route,
+        dateInfo: date,
+      }
+    }
+    case 'car': {
+      const route = booking.data.pickupLocation && booking.data.dropoffLocation
+        ? `${booking.data.pickupLocation} → ${booking.data.dropoffLocation}`
+        : (booking.data.pickupLocation || 'Адрес не указан')
+      const title = booking.title || booking.data.carModel || booking.data.company || 'Автомобиль'
+      const date = booking.data.pickupDateTime
+        ? new Date(booking.data.pickupDateTime).toLocaleString('ru-RU', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })
+        : ''
+      return {
+        title,
         subtitle: route,
         dateInfo: date,
       }

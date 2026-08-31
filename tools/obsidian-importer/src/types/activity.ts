@@ -2,16 +2,20 @@ export interface ActivitySectionDescription {
   id: string
   type: 'description'
   text: string
-  title?: string
-  icon?: string
+  isAttached?: boolean
+  title?: string | null
+  icon?: string | null
+  color?: string | null
 }
 
 export interface ActivitySectionGallery {
   id: string
   type: 'gallery'
   imageUrls: string[]
-  title?: string
-  icon?: string
+  isAttached?: boolean
+  title?: string | null
+  icon?: string | null
+  color?: string | null
 }
 
 export interface GeolocationPoint {

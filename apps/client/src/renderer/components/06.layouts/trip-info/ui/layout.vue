@@ -10,11 +10,12 @@ import { BackgroundEffects } from '~/components/02.shared/background-effects'
 import { ThemeManager } from '~/components/02.shared/theme-manager'
 import { TripCommentsWidget } from '~/components/04.features/trip-info/trip-comments'
 import { useModuleStore } from '~/components/05.modules/trip-info'
+import { SECTION_TYPE_MAP } from '~/components/05.modules/trip-info/composables/use-trip-info-view'
 import { useTripPermissions } from '~/components/05.modules/trip-info/composables/use-trip-permissions'
 import { vRipple } from '~/shared/directives/ripple'
 import { CommentParentType } from '~/shared/types/models/comment'
+import { TripSectionType } from '~/shared/types/models/trip'
 import { useTripInfoLayout } from '../composables'
-import AddSectionDialog from './dialogs/add-section-dialog.vue'
 import EditSectionDialog from './dialogs/edit-section-dialog.vue'
 
 const layout = useTripInfoLayout()
@@ -29,15 +30,18 @@ const { mdAndDown } = useDisplay()
 
 const dayId = computed(() => route.query.day as string)
 const isMapView = computed(() => route.query.section === 'map')
-const isNotesView = computed(() => route.query.section === 'notes')
+const isNotesView = computed(() => {
+  const q = route.query.section as string
+  if (!q)
+    return false
+  if (q === 'notes')
+    return true
+  const section = sections.sections.find(s => s.id === q || SECTION_TYPE_MAP[s.type] === q)
+  return section?.type === TripSectionType.NOTES
+})
 
 const { isLoading: isTripLoading, fetchError } = storeToRefs(plan)
 const { isDaysPanelPinned, activeView, isParallelPlanView } = storeToRefs(ui)
-
-function handleAddSection(type: any) {
-  sections.addSection(type)
-  ui.closeAddSectionDialog()
-}
 
 function toggleMode() {
   const newMode = ui.isViewMode ? 'edit' : 'view'
@@ -115,13 +119,6 @@ onBeforeUnmount(() => {
                       <span>{{ item.label }}</span>
                     </li>
                   </ul>
-
-                  <div v-if="canEdit && !ui.isViewMode" class="dropdown-footer">
-                    <button class="add-section-btn" @click="ui.openAddSectionDialog">
-                      <Icon icon="mdi:plus-circle-outline" />
-                      <span>Добавить раздел</span>
-                    </button>
-                  </div>
                 </div>
               </Transition>
             </template>
@@ -176,19 +173,7 @@ onBeforeUnmount(() => {
         <span>{{ item.label }}</span>
       </li>
     </ul>
-
-    <template v-if="canEdit && !ui.isViewMode" #footer>
-      <button
-        class="add-section-btn"
-        @click="ui.openAddSectionDialog(), layout.isDrawerOpen.value = false"
-      >
-        <Icon icon="mdi:plus-circle-outline" />
-        <span>Добавить раздел</span>
-      </button>
-    </template>
   </KitBottomSheet>
-
-  <AddSectionDialog v-model:visible="ui.isAddSectionDialogOpen" @add-section="handleAddSection" />
 
   <EditSectionDialog
     v-model:visible="layout.isEditSectionDialogOpen.value"

@@ -10,13 +10,10 @@
 			"path": "apps/server"
 		},
 		{
-			"path": "packages/kit-image-viewer"
+			"path": "packages"
 		},
 		{
-			"path": "tools/scraper"
-		},
-		{
-			"path": "tools/browse-agent"
+			"path": "tools"
 		},
 		{
 			"path": "docker"

@@ -2,14 +2,40 @@ import type {
   ActivityPayload,
   ActivitySection,
   ActivitySectionDescription,
+  Booking,
   GeolocationPoint,
 } from '../types'
 import type { ApiClient } from './api-client'
 import { existsSync } from 'node:fs'
 import { basename } from 'node:path'
 import { colors } from '../config/colors'
+import { dedentText } from '../parsers/activity'
 import { extractLocationsFromText } from '../parsers/location'
 import { geocodeLocation } from './geocode'
+
+const CALLOUT_META_MAP: Record<string, { defaultTitle: string, icon: string, color: string }> = {
+  TIP: { defaultTitle: 'Совет', icon: 'mdi:lightbulb-outline', color: '#A3D9A5' },
+  INFO: { defaultTitle: 'Информация', icon: 'mdi:information-outline', color: '#9BF6FF' },
+  NOTE: { defaultTitle: 'Заметка', icon: 'mdi:note-text-outline', color: '#FDFFB6' },
+  IMPORTANT: { defaultTitle: 'Важно', icon: 'mdi:alert-circle-outline', color: '#FFD6A5' },
+  WARNING: { defaultTitle: 'Внимание', icon: 'mdi:alert-outline', color: '#FFADAD' },
+  CAUTION: { defaultTitle: 'Осторожно', icon: 'mdi:alert-octagon-outline', color: '#FFADAD' },
+  FAQ: { defaultTitle: 'Вопрос-ответ', icon: 'mdi:help-circle-outline', color: '#A0C4FF' },
+  QUESTION: { defaultTitle: 'Вопрос-ответ', icon: 'mdi:help-circle-outline', color: '#A0C4FF' },
+  EXAMPLE: { defaultTitle: 'Пример', icon: 'mdi:bookmark-outline', color: '#BDB2FF' },
+  QUOTE: { defaultTitle: 'Цитата', icon: 'mdi:format-quote-close', color: '#FFC6FF' },
+}
+
+export function getCalloutMetadata(type: string, rawTitle?: string): { title: string, icon: string, color: string } {
+  const upperType = type.toUpperCase()
+  const meta = CALLOUT_META_MAP[upperType] || { defaultTitle: 'Заметка', icon: 'mdi:information-outline', color: '#A3D9A5' }
+  const cleanTitle = rawTitle?.trim() || meta.defaultTitle
+  return {
+    title: cleanTitle,
+    icon: meta.icon,
+    color: meta.color,
+  }
+}
 
 export async function enrichActivityWithMediaAndLocation(
   act: ActivityPayload,
@@ -18,7 +44,12 @@ export async function enrichActivityWithMediaAndLocation(
   tripId: string | null,
   geoCache: Map<string, [number, number]>,
   uploadCache: Map<string, string>,
-  options: { uploadImages?: boolean, geocode?: boolean, locationContext?: string } = {},
+  options: {
+    uploadImages?: boolean
+    geocode?: boolean
+    locationContext?: string
+    bookings?: Booking[]
+  } = {},
 ): Promise<ActivityPayload> {
   const shouldUpload = options.uploadImages !== false && api !== null && tripId !== null
   const shouldGeocode = options.geocode !== false
@@ -86,13 +117,13 @@ export async function enrichActivityWithMediaAndLocation(
     }
   }
 
-  // 3. Extract note/tip callouts inside activity as separate Note sections
+  // 3. Extract note/tip callouts inside activity as separate attached Note sections (isAttached: true)
   const noteSections: ActivitySectionDescription[] = []
   const noteCalloutRegex = />\s*\[!(TIP|NOTE|IMPORTANT|WARNING|CAUTION|INFO|QUOTE|FAQ|QUESTION|EXAMPLE)\]-?\s*([^\n]*)\n((?:[ \t]*>[^\n]*\n?)*)/gi
   for (const match of text.matchAll(noteCalloutRegex)) {
     const type = match[1].toUpperCase()
-    const title = match[2].trim()
-    if (/^(?:Картинки|Изображения|Фото|Photos|Images)$/i.test(title))
+    const rawTitle = match[2].trim()
+    if (/^(?:Картинки|Изображения|Фото|Photos|Images)$/i.test(rawTitle))
       continue
 
     const rawBody = match[3] || ''
@@ -102,12 +133,17 @@ export async function enrichActivityWithMediaAndLocation(
       .join('\n')
       .trim()
 
-    const fullCalloutText = `> [!${type}] ${title}\n${cleanBodyLines ? cleanBodyLines.split('\n').map(l => `> ${l}`).join('\n') : ''}`.trim()
+    const meta = getCalloutMetadata(type, rawTitle)
+    const calloutBody = dedentText(cleanBodyLines) || meta.title
 
     noteSections.push({
       id: crypto.randomUUID(),
       type: 'description',
-      text: fullCalloutText,
+      isAttached: true,
+      title: meta.title,
+      icon: meta.icon,
+      color: meta.color,
+      text: calloutBody,
     })
   }
 
@@ -122,7 +158,8 @@ export async function enrichActivityWithMediaAndLocation(
     .replace(/!\[[^\]]*\]\([^)]+\)/g, '')
     .replace(noteCalloutRegex, '')
     .replace(/\n{3,}/g, '\n\n')
-    .trim()
+
+  text = dedentText(text)
 
   // Add primary cleaned description section if text remains
   if (text) {
@@ -214,6 +251,67 @@ export async function enrichActivityWithMediaAndLocation(
         type: 'gallery',
         imageUrls: uploadedImageUrls,
       })
+    }
+  }
+
+  // 7. Process Bookings Matching -> Booking Section ("Бронирование")
+  if (options.bookings && options.bookings.length > 0) {
+    const actText = `${act.title} ${accumulatedDescription}`.toLowerCase()
+    const hasBookingSection = newSections.some(s => s.type === 'booking') || customOtherSections.some(s => s.type === 'booking')
+
+    if (!hasBookingSection) {
+      for (const booking of options.bookings) {
+        let isMatched = false
+        if (booking.type === 'hotel') {
+          const hotelName = booking.data.hotelName?.toLowerCase() || ''
+          const shortName = hotelName.replace(/hotel|hostel|villa|inn|b&b|boutique|resort|гостиница|отель/gi, '').trim()
+          if (shortName.length >= 3 && actText.includes(shortName)) {
+            isMatched = true
+          }
+          else if (hotelName && actText.includes(hotelName)) {
+            isMatched = true
+          }
+        }
+        else if (booking.type === 'flight') {
+          for (const seg of booking.data.segments || []) {
+            if (seg.flightNumber && actText.includes(seg.flightNumber.toLowerCase())) {
+              isMatched = true
+              break
+            }
+          }
+          if (!isMatched && /авиаперелет|перелет|вылет|аэропорт/i.test(act.title)) {
+            const depCity = booking.data.segments?.[0]?.departureCity?.toLowerCase()
+            const arrCity = booking.data.segments?.[booking.data.segments.length - 1]?.arrivalCity?.toLowerCase()
+            if (depCity && arrCity && actText.includes(depCity) && actText.includes(arrCity)) {
+              isMatched = true
+            }
+          }
+        }
+        else if (booking.type === 'train') {
+          const trainNum = booking.data.trainNumber?.toLowerCase()
+          if (trainNum && actText.includes(trainNum)) {
+            isMatched = true
+          }
+        }
+        else if (booking.type === 'car') {
+          const company = booking.data.company?.toLowerCase()
+          const model = booking.data.carModel?.toLowerCase()
+          if ((company && company.length >= 3 && actText.includes(company))
+            || (model && model.length >= 3 && actText.includes(model))
+            || (booking.title && booking.title.length >= 5 && actText.includes(booking.title.toLowerCase()))) {
+            isMatched = true
+          }
+        }
+
+        if (isMatched) {
+          newSections.push({
+            id: crypto.randomUUID(),
+            type: 'booking',
+            bookingId: booking.id,
+          })
+          break
+        }
+      }
     }
   }
 

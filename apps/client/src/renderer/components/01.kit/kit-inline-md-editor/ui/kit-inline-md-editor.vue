@@ -37,15 +37,20 @@ const isInternalUpdate = ref(false)
 const isEditorMounted = ref(false)
 
 const htmlView = $view(htmlSchema.node, () => (node) => {
-  const dom = document.createElement('span')
-  dom.className = 'milkdown-html-inline'
-  dom.innerHTML = (node.attrs.value as string) || ''
+  const htmlContent = (node.attrs.value as string) || ''
+  const isBlock = /<(?:iframe|div|table|p|blockquote)\b/i.test(htmlContent)
+  const dom = document.createElement(isBlock ? 'div' : 'span')
+  dom.className = isBlock ? 'milkdown-html-block' : 'milkdown-html-inline'
+  dom.innerHTML = htmlContent
   return {
     dom,
     update: (updatedNode) => {
       if (updatedNode.type.name !== 'html')
         return false
-      dom.innerHTML = (updatedNode.attrs.value as string) || ''
+      const val = (updatedNode.attrs.value as string) || ''
+      const updatedIsBlock = /<(?:iframe|div|table|p|blockquote)\b/i.test(val)
+      dom.className = updatedIsBlock ? 'milkdown-html-block' : 'milkdown-html-inline'
+      dom.innerHTML = val
       return true
     },
   }
@@ -85,8 +90,9 @@ const mermaidView = $view(codeBlockSchema.node, () => (node) => {
           if (svgEl) {
             const vb = svgEl.viewBox?.baseVal
             if (vb && vb.width > 0 && vb.height > 0) {
-              svgEl.style.width = `${vb.width}px`
-              svgEl.style.maxWidth = 'none'
+              svgEl.style.maxWidth = `${vb.width}px`
+              svgEl.style.width = '100%'
+              svgEl.style.minWidth = '0'
               svgEl.style.height = 'auto'
             }
           }
@@ -332,6 +338,10 @@ onBeforeUnmount(() => {
     background-color: transparent !important;
     background: transparent !important;
     color: var(--fg-primary-color) !important;
+    width: 100%;
+    max-width: 100%;
+    min-width: 0;
+    box-sizing: border-box;
   }
 
   .milkdown .ProseMirror {
@@ -355,6 +365,12 @@ onBeforeUnmount(() => {
     color: var(--fg-primary-color);
     font-size: 0.9375rem;
     line-height: 1.6;
+    width: 100%;
+    max-width: 100%;
+    min-width: 0;
+    box-sizing: border-box;
+    overflow-wrap: break-word;
+    word-break: break-word;
 
     &[contenteditable='false'] {
       .ProseMirror-trailingBreak {
@@ -804,12 +820,36 @@ onBeforeUnmount(() => {
       }
     }
 
+    // Block HTML (iframes, maps, embed widgets)
+    .milkdown-html-block {
+      display: block;
+      width: 100%;
+      margin: 10px 0;
+      clear: both;
+
+      iframe {
+        width: 100%;
+        min-width: 100%;
+        display: block;
+        border: 0;
+        border-radius: var(--r-m, 8px);
+      }
+    }
+
     // Inline HTML / Rating badges
     .milkdown-html-inline {
       display: inline-flex;
       vertical-align: middle;
       align-items: center;
       line-height: normal;
+
+      &:has(iframe),
+      &:has(div) {
+        display: block;
+        width: 100%;
+        margin: 10px 0;
+        clear: both;
+      }
 
       .tp-rate {
         margin-right: 6px;
@@ -820,7 +860,7 @@ onBeforeUnmount(() => {
   .milkdown-mermaid-container {
     margin: 1.25rem 0;
     display: flex;
-    justify-content: center;
+    justify-content: safe center;
     align-items: center;
     background: var(--bg-secondary-color);
     border: 1px solid var(--border-secondary-color);
@@ -828,20 +868,80 @@ onBeforeUnmount(() => {
     padding: 16px;
     overflow-x: auto;
     overflow-y: hidden;
+    width: 100%;
     max-width: 100%;
+    min-width: 0;
+    box-sizing: border-box;
+    position: relative;
 
     .mermaid-diagram {
       display: flex;
-      justify-content: center;
+      justify-content: safe center;
       align-items: center;
       min-height: 80px;
-      min-width: 100%;
-      width: max-content;
+      width: 100%;
+      max-width: 100%;
+      min-width: 0;
+      margin: 0 auto;
+
+      // CSS Reset / Typography isolation to prevent ProseMirror styles from leaking into SVG
+      font-family: 'Rubik', sans-serif !important;
+      font-size: 16px !important;
+      line-height: normal !important;
+      letter-spacing: normal !important;
 
       svg {
-        max-width: none !important;
+        display: block;
+        max-width: 100% !important;
+        min-width: 0 !important;
+        width: 100%;
         height: auto !important;
-        flex-shrink: 0;
+        flex-shrink: 1;
+        margin: 0 auto;
+
+        foreignObject {
+          overflow: visible !important;
+
+          div,
+          span,
+          p {
+            font-family: 'Rubik', sans-serif !important;
+            font-size: inherit;
+            line-height: 1.25 !important;
+            margin: 0 !important;
+            padding: 0 !important;
+            box-sizing: border-box !important;
+            letter-spacing: normal !important;
+          }
+
+          p {
+            margin: 0 !important;
+            line-height: 1.25 !important;
+          }
+        }
+
+        text {
+          font-family: 'Rubik', sans-serif !important;
+          font-size: inherit;
+          line-height: normal !important;
+          letter-spacing: normal !important;
+        }
+
+        .node,
+        .cluster,
+        .edgeLabel,
+        .label {
+          font-family: 'Rubik', sans-serif !important;
+          line-height: normal !important;
+
+          span,
+          p,
+          div {
+            font-family: 'Rubik', sans-serif !important;
+            line-height: 1.25 !important;
+            margin: 0 !important;
+          }
+        }
       }
     }
 

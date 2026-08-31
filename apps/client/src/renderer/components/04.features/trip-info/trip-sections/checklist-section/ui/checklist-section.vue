@@ -123,6 +123,7 @@ watch(activeTab, () => {
                   v-model="searchQuery"
                   placeholder="Поиск по задачам, ценам, тегам..."
                   icon="mdi:magnify"
+                  size="sm"
                   class="search-input"
                 />
                 <div class="action-controls">

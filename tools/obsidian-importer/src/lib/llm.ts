@@ -1,6 +1,7 @@
 import type { ActivityPayload } from '../types'
 import process from 'node:process'
 import { DEFAULT_AIHUBMIX_MODEL } from '../config/constants'
+import { dedentText } from '../parsers/activity'
 
 export function mergeLlmActivitiesWithRawMarkdown(
   llmActs: ActivityPayload[],
@@ -134,9 +135,9 @@ IMPORTANT Guidelines:
           ? item.sections.map((s: any) => ({
               id: crypto.randomUUID(),
               type: s.type || 'description',
-              text: s.text || '',
+              text: typeof s.text === 'string' ? dedentText(s.text) : '',
             }))
-          : (item.text ? [{ id: crypto.randomUUID(), type: 'description', text: item.text }] : []),
+          : (item.text ? [{ id: crypto.randomUUID(), type: 'description', text: dedentText(item.text) }] : []),
       }))
     }
   }

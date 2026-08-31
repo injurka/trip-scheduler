@@ -64,9 +64,19 @@ function handleSectionUpdate(updatedSectionData: TripSection) {
   width: 100%;
   flex: 1;
 }
+
+.section-renderer {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+}
+
 .section-content {
+  width: 100%;
   position: relative;
 }
+
 .section-not-found {
   text-align: center;
   padding: 4rem;
