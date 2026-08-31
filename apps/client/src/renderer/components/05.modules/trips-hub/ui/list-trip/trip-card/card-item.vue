@@ -326,6 +326,7 @@ const tripData = computed<Trip>(() => ({
 
   .badge-icon {
     font-size: 1rem;
+    flex-shrink: 0;
   }
 }
 

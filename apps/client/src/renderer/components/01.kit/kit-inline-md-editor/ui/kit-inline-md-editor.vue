@@ -373,10 +373,10 @@ onBeforeUnmount(() => {
     word-break: break-word;
 
     &[contenteditable='false'] {
-      .ProseMirror-trailingBreak {
-        display: none !important;
-      }
-      p:has(> .ProseMirror-trailingBreak:only-child) {
+      // Hide trailing empty paragraph(s) at the very end of the content in read-only mode
+      > p:is(:empty, :has(> .ProseMirror-trailingBreak:only-child)):not(
+          :has(~ :not(p:is(:empty, :has(> .ProseMirror-trailingBreak:only-child))))
+        ) {
         display: none !important;
       }
     }

@@ -520,6 +520,7 @@ const renderedDescription = computed(() => renderMarkdown(props.item.description
 
   .badge-icon {
     font-size: 0.85rem;
+    flex-shrink: 0;
   }
 
   &.badge-cost {
