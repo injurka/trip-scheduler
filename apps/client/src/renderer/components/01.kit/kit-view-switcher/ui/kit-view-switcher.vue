@@ -245,7 +245,6 @@ onMounted(() => {
   min-height: 36px;
   flex-shrink: 0;
 
-  // full-width: buttons share space evenly, but still no text wrap
   .is-full-width & {
     flex: 1 0 0;
     min-width: 0;
@@ -276,26 +275,22 @@ onMounted(() => {
   white-space: nowrap;
 }
 
-// ── Mobile: icon-only mode ─────────────────────────────────────
 @include media-down(sm) {
-  // full-width switcher: when content overflows → enable scroll,
-  // buttons become icon-only so they stay compact
   .kit-view-switcher.is-full-width {
     overflow-x: auto;
     overflow-y: hidden;
     justify-content: flex-start;
 
     .kit-view-switcher-button {
-      flex: 0 0 auto; // don't stretch – let it scroll
+      flex: 1 0 auto;
       padding: 8px 10px;
 
       .kit-view-switcher-label {
-        display: none; // icons only on mobile
+        display: none;
       }
     }
   }
 
-  // non-full-width switchers stay scrollable too
   .kit-view-switcher:not(.is-full-width) {
     width: 100%;
     justify-content: flex-start;
