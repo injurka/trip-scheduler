@@ -1,7 +1,15 @@
 import type { DayMetaInfo } from '../types'
 
-function cleanEmoji(str: string): string {
-  return str.replace(/\p{Extended_Pictographic}/gu, '').replace(/\s+/g, ' ').trim()
+export function cleanEmoji(str: string): string {
+  if (!str)
+    return ''
+  return str
+    .replace(/\p{Extended_Pictographic}/gu, '')
+    .replace(/[\uFE00-\uFE0F\u200D]/gu, '')
+    .replace(/^[—–\-:\s]+/, '')
+    .replace(/[—–\-:\s]+$/, '')
+    .replace(/\s+/g, ' ')
+    .trim()
 }
 
 export function parseDayMetaFromMarkdown(dayContent: string): DayMetaInfo[] {
@@ -53,42 +61,35 @@ export function parseDayMetaFromMarkdown(dayContent: string): DayMetaInfo[] {
       .join('\n')
       .trim()
 
-    let title = rawTitleLine
+    const cleanTitleLine = cleanEmoji(rawTitleLine)
+    let title = cleanTitleLine
     let subtitle = ''
 
-    if (rawTitleLine.includes('—')) {
-      const parts = rawTitleLine.split('—')
-      title = parts[0].trim()
-      subtitle = parts.slice(1).join('—').trim()
+    if (cleanTitleLine.includes('—')) {
+      const parts = cleanTitleLine.split('—')
+      title = cleanEmoji(parts[0])
+      subtitle = cleanEmoji(parts.slice(1).join('—'))
     }
-    else if (rawTitleLine.includes('–')) {
-      const parts = rawTitleLine.split('–')
-      title = parts[0].trim()
-      subtitle = parts.slice(1).join('–').trim()
+    else if (cleanTitleLine.includes('–')) {
+      const parts = cleanTitleLine.split('–')
+      title = cleanEmoji(parts[0])
+      subtitle = cleanEmoji(parts.slice(1).join('–'))
     }
-    else if (rawTitleLine.includes(': ')) {
-      const parts = rawTitleLine.split(': ')
-      title = parts[0].trim()
-      subtitle = parts.slice(1).join(': ').trim()
-    }
-
-    if (!subtitle) {
-      if (/youbike|велосипед/i.test(rawTitleLine))
-        subtitle = 'YouBike 2.0'
-      else if (/миграцион|twac|таможн/i.test(rawTitleLine))
-        subtitle = 'Правила въезда и таможня'
-      else if (/ветк|mrt|метро/i.test(rawTitleLine))
-        subtitle = 'Навигация MRT'
-      else if (/купален|онсэн|бэйтоу/i.test(rawTitleLine))
-        subtitle = 'Правила купален'
-      else if (/билеты|поезд|tra|emu3000|thsr/i.test(rawTitleLine))
-        subtitle = 'Билеты и поезда'
-      else if (/дождевик|зонт/i.test(rawTitleLine))
-        subtitle = 'Экипировка в дождь'
+    else if (cleanTitleLine.includes(': ')) {
+      const parts = cleanTitleLine.split(': ')
+      title = cleanEmoji(parts[0])
+      subtitle = cleanEmoji(parts.slice(1).join(': '))
     }
 
-    if (subtitle.length > 50) {
-      subtitle = `${subtitle.slice(0, 47)}...`
+    if (subtitle) {
+      const normTitle = title.toLowerCase()
+      const normSub = subtitle.toLowerCase()
+      if (normTitle.includes(normSub) || normSub.includes(normTitle)) {
+        subtitle = ''
+      }
+      else if (subtitle.length > 50) {
+        subtitle = `${subtitle.slice(0, 47)}...`
+      }
     }
 
     const combo = `${calloutType} ${rawTitleLine} ${cleanBodyLines}`.toLowerCase()
@@ -145,34 +146,40 @@ export function parseDayMetaFromMarkdown(dayContent: string): DayMetaInfo[] {
       color = '#FDFFB6'
     }
 
-    const fullContent = `> [!${calloutType}] ${rawTitleLine}\n${cleanBodyLines ? cleanBodyLines.split('\n').map(l => `> ${l}`).join('\n') : ''}`
+    const content = cleanBodyLines || cleanTitleLine
 
     metaBadges.push({
       id: crypto.randomUUID(),
-      title: cleanEmoji(title || rawTitleLine),
-      subtitle: subtitle ? cleanEmoji(subtitle) : undefined,
+      title: title || cleanTitleLine,
+      subtitle: subtitle || undefined,
       icon,
       color,
-      content: fullContent,
+      content,
     })
   }
 
   // Also check for pre-activity non-callout special sections (e.g. ### 🗺️ Пошаговые ориентиры...)
-  const preSectionRegex = /###\s*(🗺️|📍|[^\n]*ориентир|[^\n]*навигац|[^\n]*останов)[^\n]*\n([\s\S]*?)(?=\n###|\n##|$)/gi
+  const preSectionRegex = /###\s*(🗺️|📍|[^\n]*ориентир|[^\n]*останов)[^\n]*\n([\s\S]*?)(?=\n###|\n##|$)/gi
   let preSecMatch: RegExpExecArray | null
   while ((preSecMatch = preSectionRegex.exec(bodyPreText)) !== null) {
     const rawSectionHeader = preSecMatch[0].split('\n')[0].replace(/^###\s*/, '').trim()
-    const sectionBody = preSecMatch[2].trim()
+    if (/подготовк/i.test(rawSectionHeader))
+      continue
+
+    // Remove any callouts that were already extracted as individual badges
+    const sectionBody = preSecMatch[2]
+      .replace(/>\s*\[![\w-]+\]-?[^\n]*\n(?:[ \t]*>[^\n]*\n?)*/g, '')
+      .trim()
 
     const cleanSectionHeader = cleanEmoji(rawSectionHeader)
     if (sectionBody && !metaBadges.some(b => b.title.includes(cleanSectionHeader))) {
       metaBadges.push({
         id: crypto.randomUUID(),
         title: cleanSectionHeader,
-        subtitle: 'Ориентиры и остановки',
+        subtitle: undefined,
         icon: 'mdi:map-marker-path',
         color: '#BDB2FF',
-        content: `### ${rawSectionHeader}\n\n${sectionBody}`,
+        content: sectionBody,
       })
     }
   }
@@ -183,15 +190,15 @@ export function parseDayMetaFromMarkdown(dayContent: string): DayMetaInfo[] {
     if (finMatch) {
       const finBody = finMatch[1].trim()
       const totalMatch = finBody.match(/(?:\*\*Итого[^*]*\*\*|Итого[^:\n]*):?\s*(?:около\s*)?`?([~≈]?[\d\s]+(?:[–—\-][\d\s]*)?(?:₽|RUB|TWD|\$|EUR))`?/i)
-      const totalSubtitle = totalMatch ? totalMatch[1].trim() : '~... ₽'
+      const totalSubtitle = totalMatch ? totalMatch[1].trim() : undefined
 
       metaBadges.push({
         id: crypto.randomUUID(),
         title: 'Финансовые затраты на день',
-        subtitle: cleanEmoji(totalSubtitle),
+        subtitle: totalSubtitle ? cleanEmoji(totalSubtitle) : undefined,
         icon: 'mdi:currency-usd',
         color: '#A3D9A5',
-        content: `## Финансовые затраты на день (на 1 чел)\n\n${finBody}`,
+        content: finBody,
       })
     }
   }

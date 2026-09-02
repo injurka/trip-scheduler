@@ -351,6 +351,10 @@ onBeforeUnmount(() => flushPendingSave())
   padding: 10px;
   z-index: 6;
   overflow: hidden;
+
+  @media (max-width: 768px) {
+    padding: 0px;
+  }
 }
 
 .loading-state {
@@ -385,6 +389,10 @@ onBeforeUnmount(() => flushPendingSave())
   border-radius: var(--r-m);
   background: var(--bg-primary-color);
 
+  @media (max-width: 768px) {
+    border-radius: 0;
+  }
+
   &.is-fullscreen {
     position: fixed;
     inset: 0;
@@ -418,7 +426,7 @@ onBeforeUnmount(() => flushPendingSave())
   overflow: hidden;
   z-index: 9;
 
-  @include media-down(sm) {
+  @media (max-width: 768px) {
     position: absolute;
     top: 0;
     bottom: 0;
@@ -426,9 +434,11 @@ onBeforeUnmount(() => flushPendingSave())
     max-width: 85%;
     transform: translateX(-100%);
     transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    z-index: 50;
 
     &.is-open {
       transform: translateX(0);
+      z-index: 50;
     }
   }
 }

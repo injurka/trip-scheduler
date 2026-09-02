@@ -167,35 +167,40 @@ const formattedValue = computed(() => {
 .readonly-wrapper {
   display: flex;
   flex-direction: column;
-  gap: 2px;
+  gap: 3px;
 }
 
 .field-label {
-  font-size: 0.75rem;
+  font-size: 0.725rem;
   margin-left: 2px;
   color: var(--fg-tertiary-color);
-  font-weight: 500;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.3px;
 }
 
 .readonly-content {
   display: flex;
   align-items: center;
-  gap: 6px;
-  min-height: 36px;
+  gap: 8px;
+  min-height: 34px;
   box-sizing: border-box;
-  padding: 6px 2px;
+  padding: 4px 10px;
+  background-color: var(--bg-primary-color);
+  border: 1px solid var(--border-secondary-color);
+  border-radius: var(--r-s);
 }
 
 .field-icon {
   font-size: 1rem;
-  color: var(--fg-secondary-color);
+  color: var(--fg-accent-color);
   flex-shrink: 0;
 }
 
 .readonly-value {
   color: var(--fg-primary-color);
   line-height: 1.4;
-  font-size: 0.9rem;
+  font-size: 0.875rem;
   white-space: pre-wrap;
   word-break: break-word;
 }

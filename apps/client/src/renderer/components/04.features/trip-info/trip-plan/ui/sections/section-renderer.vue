@@ -323,6 +323,7 @@ watch(() => props.section, (newSection) => {
   .section-badge-icon {
     font-size: 0.95rem;
     color: var(--fg-accent-color);
+    flex-shrink: 0;
   }
 }
 

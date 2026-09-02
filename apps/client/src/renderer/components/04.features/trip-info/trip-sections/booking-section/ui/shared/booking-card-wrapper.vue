@@ -37,11 +37,6 @@ const statusBadge = computed(() => {
   }
 })
 
-function showVisibleIfClose() {
-  if (!isDetailsVisible.value)
-    isDetailsVisible.value = !isDetailsVisible.value
-}
-
 async function handleDelete() {
   const isConfirmed = await confirm({
     title: 'Подтвердите удаление',
@@ -93,22 +88,22 @@ async function handleDelete() {
           </button>
         </KitTooltip>
         <KitTooltip v-if="!readonly" text="Удалить">
-          <button class="delete-btn" @click="handleDelete">
+          <button class="delete-btn" @click.stop="handleDelete">
             <Icon icon="mdi:trash-can-outline" />
           </button>
         </KitTooltip>
       </div>
     </header>
-    <div class="card-body" @click="showVisibleIfClose">
+    <div class="card-body">
       <slot />
 
-      <template v-if="$slots.details">
-        <Transition name="fade-height">
-          <div v-if="isDetailsVisible" class="details-content">
+      <div v-if="$slots.details" class="details-collapse-wrapper" :class="{ 'is-open': isDetailsVisible }">
+        <div class="details-collapse-inner">
+          <div class="details-content">
             <slot name="details" />
           </div>
-        </Transition>
-      </template>
+        </div>
+      </div>
     </div>
   </div>
 </template>
@@ -251,28 +246,31 @@ async function handleDelete() {
   padding: 0.75rem 1rem;
 }
 
+.details-collapse-wrapper {
+  display: grid;
+  grid-template-rows: 0fr;
+  transition: grid-template-rows 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+
+  &.is-open {
+    grid-template-rows: 1fr;
+  }
+}
+
+.details-collapse-inner {
+  overflow: hidden;
+  min-height: 0;
+}
+
 .details-content {
   padding-top: 0.75rem;
   display: flex;
   flex-direction: column;
   gap: 0.75rem;
-}
-
-.fade-height-enter-active,
-.fade-height-leave-active {
-  transition: all 0.3s ease-in-out;
-  overflow: hidden;
-}
-.fade-height-enter-from,
-.fade-height-leave-to {
   opacity: 0;
-  max-height: 0;
-  padding-top: 0;
-  margin-top: 0;
-}
-.fade-height-enter-to,
-.fade-height-leave-from {
-  opacity: 1;
-  max-height: 1000px;
+  transition: opacity 0.2s ease;
+
+  .is-open & {
+    opacity: 1;
+  }
 }
 </style>

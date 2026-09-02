@@ -490,6 +490,7 @@ function createBlankBadge() {
 
 .badge-icon {
   font-size: 1.1rem;
+  flex-shrink: 0;
 }
 
 .badge-text {
@@ -508,6 +509,10 @@ function createBlankBadge() {
   font-family: 'Sansation';
   font-weight: 500;
   font-size: 0.9rem;
+
+  @include media-down(sm) {
+    display: none;
+  }
 }
 
 .badge-actions {
