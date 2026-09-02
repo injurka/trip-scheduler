@@ -65,10 +65,6 @@ const visible = defineModel<boolean>('open', { required: true })
   &[data-state='closed'] {
     animation: overlay-hide 300ms cubic-bezier(0.7, 0, 0.84, 0) forwards;
   }
-
-  @include media-down(sm) {
-    display: none;
-  }
 }
 
 .drawer-content-wrapper {

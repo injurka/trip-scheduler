@@ -97,13 +97,10 @@ function formatBytes(bytes: number, decimals = 2) {
   text-decoration: none;
 
   cursor: pointer;
-  transition:
-    background-color 0.2s ease,
-    transform 0.2s ease;
+  transition: background-color 0.2s ease;
 
   &:hover {
     background-color: var(--bg-hover-color);
-    transform: translateY(-2px);
   }
 }
 

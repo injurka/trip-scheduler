@@ -286,7 +286,8 @@ onMounted(() => {
     justify-content: flex-start;
 
     .kit-view-switcher-button {
-      flex: 0 0 auto; // don't stretch – let it scroll
+      flex: 1 0 80px;
+      min-width: 80px;
       padding: 8px 10px;
 
       .kit-view-switcher-label {
