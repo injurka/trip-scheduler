@@ -40,7 +40,7 @@ export function discoverObsidianTravelFolders(): string[] {
 
 export function cleanMarkdownFormatting(text: string): string {
   return text
-    .replace(/^[\s\uFE00-\uFE0F\u1F300-\u1F9FF\u2600-\u26FF\u2700-\u27BF]+/u, '')
+    .replace(/^[\s\uFE00-\uFE0F\u{1F300}-\u{1F9FF}\u2600-\u26FF\u2700-\u27BF]+/u, '')
     .replace(/!\[\[[^\]]+\]\]/g, '')
     .replace(/\[\[(?:[^|\]]*\|)?([^\]]+)\]\]/g, '$1')
     .replace(/\\([*_[\]()])/g, '$1')
