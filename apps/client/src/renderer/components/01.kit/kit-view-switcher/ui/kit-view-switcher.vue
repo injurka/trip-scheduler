@@ -278,9 +278,9 @@ onMounted(() => {
 
 // ── Mobile: icon-only mode ─────────────────────────────────────
 @include media-down(sm) {
-  // full-width switcher: when content overflows → enable scroll,
-  // buttons become icon-only so they stay compact
-  .kit-view-switcher.is-full-width {
+  .kit-view-switcher {
+    width: 100%;
+    display: flex;
     overflow-x: auto;
     overflow-y: hidden;
     justify-content: flex-start;
@@ -288,25 +288,11 @@ onMounted(() => {
     .kit-view-switcher-button {
       flex: 1 0 80px;
       min-width: 80px;
+      justify-content: center;
       padding: 8px 10px;
 
       .kit-view-switcher-label {
         display: none; // icons only on mobile
-      }
-    }
-  }
-
-  // non-full-width switchers stay scrollable too
-  .kit-view-switcher:not(.is-full-width) {
-    width: 100%;
-    justify-content: flex-start;
-
-    .kit-view-switcher-button {
-      padding: 8px 12px;
-      font-size: 0.85rem;
-
-      .kit-view-switcher-label {
-        display: none;
       }
     }
   }
