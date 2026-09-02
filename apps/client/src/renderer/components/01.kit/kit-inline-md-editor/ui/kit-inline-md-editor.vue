@@ -884,64 +884,14 @@ onBeforeUnmount(() => {
       min-width: 0;
       margin: 0 auto;
 
-      // CSS Reset / Typography isolation to prevent ProseMirror styles from leaking into SVG
-      font-family: 'Rubik', sans-serif !important;
-      font-size: 16px !important;
-      line-height: normal !important;
-      letter-spacing: normal !important;
-
       svg {
         display: block;
-        max-width: 100% !important;
-        min-width: 0 !important;
+        max-width: 100%;
+        min-width: 0;
         width: 100%;
-        height: auto !important;
+        height: auto;
         flex-shrink: 1;
         margin: 0 auto;
-
-        foreignObject {
-          overflow: visible !important;
-
-          div,
-          span,
-          p {
-            font-family: 'Rubik', sans-serif !important;
-            font-size: inherit;
-            line-height: 1.25 !important;
-            margin: 0 !important;
-            padding: 0 !important;
-            box-sizing: border-box !important;
-            letter-spacing: normal !important;
-          }
-
-          p {
-            margin: 0 !important;
-            line-height: 1.25 !important;
-          }
-        }
-
-        text {
-          font-family: 'Rubik', sans-serif !important;
-          font-size: inherit;
-          line-height: normal !important;
-          letter-spacing: normal !important;
-        }
-
-        .node,
-        .cluster,
-        .edgeLabel,
-        .label {
-          font-family: 'Rubik', sans-serif !important;
-          line-height: normal !important;
-
-          span,
-          p,
-          div {
-            font-family: 'Rubik', sans-serif !important;
-            line-height: 1.25 !important;
-            margin: 0 !important;
-          }
-        }
       }
     }
 

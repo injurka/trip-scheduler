@@ -54,13 +54,9 @@ export default defineConfig({
     },
   },
   server: {
+    host: true,
     port: 1420,
     proxy: {
-      '/api/rm': {
-        target: 'https://realtimemap.ru',
-        changeOrigin: true,
-        rewrite: path => path.replace(/^\/api\/rm/, ''),
-      },
       '/api': {
         target: 'http://localhost:8080',
         changeOrigin: true,

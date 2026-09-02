@@ -3,6 +3,7 @@ import storybook from 'eslint-plugin-storybook'
 
 export default antfu({
   vue: true,
+  markdown: false,
   formatters: true,
   ignores: [
     '**/.vitestcache/**',
