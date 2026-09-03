@@ -1,6 +1,6 @@
 import type { ParsedDay, ParsedNoteFile, ParsedNoteFolder, ParsedTripData } from '../types'
 import { existsSync, readdirSync, readFileSync, statSync } from 'node:fs'
-import { homedir } from 'node:os'
+import { homedir, platform } from 'node:os'
 import { basename, join, resolve } from 'node:path'
 import { normalizeIframeLineBreaks } from './activity'
 import { parseObsidianBookings } from './booking'
@@ -8,14 +8,55 @@ import { parseObsidianChecklists } from './checklist'
 import { parseDayMetaFromMarkdown } from './day-meta'
 import { parseObsidianFinances } from './finances'
 
+export function normalizeVaultPath(rawPath: string): string {
+  if (!rawPath)
+    return rawPath
+
+  let p = rawPath.trim()
+  if ((p.startsWith('"') && p.endsWith('"')) || (p.startsWith('\'') && p.endsWith('\''))) {
+    p = p.slice(1, -1).trim()
+  }
+
+  p = p.replace(/\\/g, '/')
+
+  if (platform() === 'linux') {
+    const winDriveMatch = p.match(/^([a-zA-Z]):\/(.*)$/)
+    if (winDriveMatch) {
+      const driveLetter = winDriveMatch[1].toLowerCase()
+      const rest = winDriveMatch[2]
+      p = `/mnt/${driveLetter}/${rest}`
+    }
+  }
+
+  return p
+}
+
 export function discoverObsidianTravelFolders(): string[] {
   const home = homedir()
   const candidateDirs = [
+    '/mnt/c/Users/injurka/Documents/obsidian-mark/Personal Note/Travel',
     join(home, 'Documents/obsidian-mark/Personal Note/Travel'),
     join(home, 'Documents/Obsidian/Travel'),
     join(home, 'Obsidian/Travel'),
     join(home, 'Documents/Travel'),
   ]
+
+  if (platform() === 'linux' && existsSync('/mnt/c/Users')) {
+    try {
+      const users = readdirSync('/mnt/c/Users', { withFileTypes: true })
+      for (const u of users) {
+        if (u.isDirectory() && !u.name.startsWith('.')) {
+          const userVault = join('/mnt/c/Users', u.name, 'Documents/obsidian-mark/Personal Note/Travel')
+          if (!candidateDirs.includes(userVault)) {
+            candidateDirs.push(userVault)
+          }
+        }
+      }
+    }
+    catch {
+      // ignore errors
+    }
+  }
 
   const discovered: string[] = []
 
@@ -125,7 +166,8 @@ export function extractDayDescription(content: string): string {
 }
 
 export function parseObsidianTripFolder(tripPath: string, startDateStr?: string): ParsedTripData {
-  const resolvedPath = resolve(tripPath)
+  const normalized = normalizeVaultPath(tripPath)
+  const resolvedPath = resolve(normalized)
   if (!existsSync(resolvedPath)) {
     throw new Error(`Папка путешествия не найдена: ${resolvedPath}`)
   }

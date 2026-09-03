@@ -4,7 +4,7 @@ import process from 'node:process'
 import prompts from 'prompts'
 import { colors } from '../config/colors'
 import { AIHUBMIX_MODELS, DEFAULT_AIHUBMIX_MODEL } from '../config/constants'
-import { discoverObsidianTravelFolders } from '../parsers/vault'
+import { discoverObsidianTravelFolders, normalizeVaultPath } from '../parsers/vault'
 
 export async function promptForTargetDirectory(initialDir?: string): Promise<string> {
   let targetDir = initialDir
@@ -54,7 +54,7 @@ export async function promptForTargetDirectory(initialDir?: string): Promise<str
     process.exit(1)
   }
 
-  return targetDir
+  return normalizeVaultPath(targetDir)
 }
 
 export async function promptForInteractiveOptions(

@@ -28,6 +28,7 @@
     "test:e2e:mock": "bun --filter='./apps/client' test:e2e:mock",
     "--------------------------------<     HELPERS   >---------------------------------": "",
     "import:obsidian": "bun run tools/obsidian-importer/src/run.ts",
+    "skills:install": "bun run tools/skills-installer/src/run.ts",
     "postinstall": "simple-git-hooks",
     "remove-prompt": "find . -type f -name 'src_prompt.md' -delete"
   },
