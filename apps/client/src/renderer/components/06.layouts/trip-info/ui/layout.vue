@@ -51,6 +51,38 @@ function toggleMode() {
   ui.setInteractionMode(newMode)
 }
 
+function getSectionThemeColor(id: string): string {
+  if (id === 'overview')
+    return '#3b82f6' // Синий (дашборд / обзор)
+  if (id === 'trip-map')
+    return '#10b981' // Изумрудный (карта / навигация)
+  if (id === 'daily-route')
+    return '#f59e0b' // Янтарный (дни / календарь)
+
+  const section = sections.sections.find(s => s.id === id)
+  if (!section)
+    return 'var(--fg-accent-color)'
+
+  switch (section.type) {
+    case TripSectionType.BOOKINGS:
+      return '#8b5cf6' // Фиолетовый (билеты, отели)
+    case TripSectionType.FINANCES:
+      return '#22c55e' // Зеленый (деньги, бюджет)
+    case TripSectionType.CHECKLIST:
+      return '#f97316' // Оранжевый (чек-листы, задачи)
+    case TripSectionType.MEMORIES:
+      return '#ec4899' // Розовый (фото, воспоминания)
+    case TripSectionType.NOTES:
+      return '#06b6d4' // Циан / бирюзовый (заметки, тексты)
+    case TripSectionType.DOCUMENTS:
+      return '#6366f1' // Индиго (важные документы)
+    case TripSectionType.MAP:
+      return '#10b981'
+    default:
+      return 'var(--fg-accent-color)'
+  }
+}
+
 onBeforeUnmount(() => {
   plan.reset()
   memories.reset()
@@ -114,9 +146,32 @@ onBeforeUnmount(() => {
               <Transition name="fade-dropdown">
                 <div v-if="!layout.isMobile.value && layout.isLayoutDropdownOpen.value" class="sections-dropdown-panel">
                   <ul class="sections-list">
-                    <li v-for="item in layout.tabItems.value" :key="item.id" @click="layout.selectSection(item.id)">
-                      <Icon :icon="item.icon!" class="section-item-icon" />
-                      <span>{{ item.label }}</span>
+                    <li
+                      v-for="item in layout.tabItems.value"
+                      :key="item.id"
+                      v-ripple
+                      class="section-item"
+                      :class="{ 'is-active': layout.activeTab.value?.id === item.id }"
+                      :style="{ '--section-theme-color': getSectionThemeColor(item.id) }"
+                      @click="layout.selectSection(item.id)"
+                    >
+                      <div class="section-item-icon-wrapper">
+                        <Icon :icon="item.icon!" class="section-item-icon" />
+                      </div>
+                      <span class="section-item-label">{{ item.label }}</span>
+                      <Icon
+                        v-if="layout.activeTab.value?.id === item.id"
+                        icon="mdi:check"
+                        class="section-item-check"
+                      />
+                      <button
+                        v-if="canEdit && !ui.isViewMode && !['daily-route', 'overview', 'trip-map'].includes(item.id)"
+                        class="section-item-edit-btn"
+                        title="Настроить раздел"
+                        @click.stop="layout.openEditDialog(item.id)"
+                      >
+                        <Icon icon="mdi:pencil-outline" />
+                      </button>
                     </li>
                   </ul>
                 </div>
@@ -167,10 +222,20 @@ onBeforeUnmount(() => {
       <li
         v-for="item in layout.tabItems.value"
         :key="item.id"
+        v-ripple
+        :class="{ 'is-active': layout.activeTab.value?.id === item.id }"
+        :style="{ '--section-theme-color': getSectionThemeColor(item.id) }"
         @click="layout.selectSection(item.id), layout.isDrawerOpen.value = false"
       >
-        <Icon :icon="item.icon!" class="sheet-section-icon" />
-        <span>{{ item.label }}</span>
+        <div class="sheet-section-icon-wrapper">
+          <Icon :icon="item.icon!" class="sheet-section-icon" />
+        </div>
+        <span class="sheet-section-label">{{ item.label }}</span>
+        <Icon
+          v-if="layout.activeTab.value?.id === item.id"
+          icon="mdi:check"
+          class="sheet-section-check"
+        />
       </li>
     </ul>
   </KitBottomSheet>
@@ -408,27 +473,70 @@ onBeforeUnmount(() => {
   list-style: none;
   padding: 8px;
   margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
 
   li {
     display: flex;
     align-items: center;
-    gap: 16px;
-    padding: 12px 16px;
+    gap: 14px;
+    padding: 10px 14px;
     border-radius: var(--r-m);
     cursor: pointer;
-    transition: background-color 0.2s ease;
-    font-size: 1rem;
+    transition: all 0.2s ease;
+    font-size: 0.95rem;
     color: var(--fg-secondary-color);
+    border: 1px solid transparent;
 
-    .sheet-section-icon {
-      font-size: 1.2rem;
+    .sheet-section-icon-wrapper {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      width: 34px;
+      height: 34px;
+      border-radius: var(--r-s);
+      background-color: var(--bg-tertiary-color);
       color: var(--fg-secondary-color);
       flex-shrink: 0;
+      transition: all 0.2s ease;
+    }
+
+    .sheet-section-icon {
+      font-size: 1.25rem;
+    }
+
+    .sheet-section-label {
+      flex: 1;
+      font-weight: 500;
+    }
+
+    .sheet-section-check {
+      font-size: 1.15rem;
+      color: var(--fg-accent-color);
+      margin-left: auto;
     }
 
     &:hover {
       background-color: var(--bg-hover-color);
       color: var(--fg-primary-color);
+
+      .sheet-section-icon-wrapper {
+        color: var(--section-theme-color, var(--fg-primary-color));
+        background-color: var(--bg-secondary-color);
+      }
+    }
+
+    &.is-active {
+      background-color: var(--bg-accent-color);
+      color: var(--fg-accent-color);
+      font-weight: 600;
+
+      .sheet-section-icon-wrapper {
+        background-color: var(--bg-primary-color);
+        color: var(--fg-accent-color);
+        box-shadow: var(--s-xs);
+      }
     }
   }
 }
@@ -462,48 +570,121 @@ onBeforeUnmount(() => {
   left: 50%;
   transform: translateX(-50%);
   width: 1000px;
+  max-width: calc(100vw - 32px);
   background-color: var(--bg-secondary-color);
   border: 1px solid var(--border-secondary-color);
   border-radius: var(--r-l);
   box-shadow: var(--s-xl);
+  backdrop-filter: blur(12px);
   z-index: 10;
   padding: 0;
-  max-height: 60vh;
+  max-height: 65vh;
   display: flex;
   flex-direction: column;
+  overflow: hidden;
 }
 
 .sections-list {
   list-style: none;
   padding: 16px;
   margin: 0;
-  column-count: 3;
-  column-gap: 24px;
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12px;
   overflow-y: auto;
   flex: 1;
 
-  li {
+  .section-item {
     display: flex;
     align-items: center;
-    gap: 16px;
-    padding: 12px 16px;
+    gap: 12px;
+    padding: 8px 12px;
     border-radius: var(--r-m);
     cursor: pointer;
-    transition: background-color 0.2s ease;
-    font-size: 1rem;
+    transition: all 0.18s ease;
+    font-size: 0.95rem;
     color: var(--fg-secondary-color);
-    break-inside: avoid;
-    page-break-inside: avoid;
+    border: 1px solid transparent;
+    position: relative;
+    user-select: none;
+
+    .section-item-icon-wrapper {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      width: 32px;
+      height: 32px;
+      border-radius: var(--r-s);
+      background-color: var(--bg-tertiary-color);
+      color: var(--fg-secondary-color);
+      flex-shrink: 0;
+      transition: all 0.18s ease;
+    }
 
     .section-item-icon {
       font-size: 1.2rem;
-      color: var(--fg-secondary-color);
+    }
+
+    .section-item-label {
+      flex: 1;
+      font-weight: 500;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .section-item-check {
+      font-size: 1.15rem;
+      color: var(--fg-accent-color);
       flex-shrink: 0;
+    }
+
+    .section-item-edit-btn {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      width: 26px;
+      height: 26px;
+      border-radius: var(--r-s);
+      border: none;
+      background: transparent;
+      color: var(--fg-tertiary-color);
+      opacity: 0;
+      cursor: pointer;
+      flex-shrink: 0;
+      transition: all 0.18s ease;
+
+      &:hover {
+        background-color: var(--bg-hover-color);
+        color: var(--fg-accent-color);
+      }
     }
 
     &:hover {
       background-color: var(--bg-hover-color);
       color: var(--fg-primary-color);
+
+      .section-item-icon-wrapper {
+        background-color: var(--bg-secondary-color);
+        color: var(--section-theme-color, var(--fg-primary-color));
+      }
+
+      .section-item-edit-btn {
+        opacity: 1;
+      }
+    }
+
+    &.is-active {
+      background-color: var(--bg-accent-color);
+      color: var(--fg-accent-color);
+      border-color: var(--border-accent-color);
+      font-weight: 600;
+
+      .section-item-icon-wrapper {
+        background-color: var(--bg-primary-color);
+        color: var(--fg-accent-color);
+        box-shadow: var(--s-xs);
+      }
     }
   }
 }
@@ -532,8 +713,9 @@ onBeforeUnmount(() => {
   .sections-dropdown-panel {
     width: calc(100vw - 48px);
   }
+
   .sections-list {
-    column-count: 2;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 }
 
