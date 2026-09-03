@@ -54,6 +54,24 @@ export function cleanMarkdownFormatting(text: string): string {
     .trim()
 }
 
+export function extractDayTitle(fileNameWithoutExt: string, dayNumber: number): string {
+  // Ищем первое вхождение эмодзи / пиктограммы
+  const emojiMatch = fileNameWithoutExt.match(/\p{Extended_Pictographic}/u)
+  if (emojiMatch && emojiMatch.index !== undefined) {
+    const fromEmoji = fileNameWithoutExt.slice(emojiMatch.index).trim()
+    if (fromEmoji) {
+      return fromEmoji
+    }
+  }
+
+  // Fallback, если эмодзи в названии файла нет: убираем префиксы вроде "01 ", "День 1 - " и т.д.
+  const fallbackTitle = fileNameWithoutExt
+    .replace(/^(?:\d{1,2}|day\s*\d{1,2}|день\s*\d{1,2})\s*[-–—:]?\s*/i, '')
+    .trim()
+
+  return fallbackTitle || `День ${dayNumber}`
+}
+
 export function extractDayDescription(content: string): string {
   if (!content)
     return ''
@@ -189,11 +207,7 @@ export function parseObsidianTripFolder(tripPath: string, startDateStr?: string)
         ? Number.parseInt(dayNumberMatch[1] || dayNumberMatch[2] || dayNumberMatch[3], 10)
         : (parsedDays.length + 1)
 
-      let title = fileNameWithoutExt.replace(/^\d{1,2}\s*/, '').trim()
-      if (!title) {
-        title = `День ${dayNumber}`
-      }
-
+      const title = extractDayTitle(fileNameWithoutExt, dayNumber)
       const dayDescription = extractDayDescription(content)
 
       const dayDate = new Date(startDate)
