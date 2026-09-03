@@ -2,7 +2,7 @@
 import type { KitDropdownItem } from '~/components/01.kit/kit-dropdown'
 import type { MapRoute } from '~/components/03.domain/trip-info/geolocation-section'
 import type { IDay } from '~/components/04.features/trip-info/trip-plan/models/types'
-import type { Trip, TripSection } from '~/shared/types/models/trip'
+import type { Trip, TripSection, TripWeatherData } from '~/shared/types/models/trip'
 import { Icon } from '@iconify/vue'
 import { useClipboard, useShare } from '@vueuse/core'
 import { DropdownMenuItem } from 'reka-ui'
@@ -55,7 +55,9 @@ const { canEdit } = useTripPermissions()
 const { share, isSupported: isShareSupported } = useShare()
 const { copy } = useClipboard()
 const offlineStore = useOfflineStore()
-const moduleStore = useModuleStore(['plan'])
+const moduleStore = useModuleStore(['plan', 'ui'])
+const { isViewMode } = storeToRefs(moduleStore.ui)
+const isEditable = computed(() => canEdit.value && !isViewMode.value)
 
 const isMoreMenuOpen = ref(false)
 
@@ -238,6 +240,12 @@ async function handleDeleteTrip() {
   })
   if (isConfirmed)
     await emit('delete')
+}
+
+function handleWeatherUpdated(data: TripWeatherData) {
+  if (moduleStore.plan.trip) {
+    moduleStore.plan.trip.weatherData = data
+  }
 }
 
 const isCached = computed(() => props.trip && offlineStore.isTripCached(props.trip.id))
@@ -522,6 +530,10 @@ watch(() => props.trip?.id, (newId) => {
         v-if="trip.cities.length > 0"
         :cities="trip.cities"
         :start-date="trip.startDate"
+        :trip-id="trip.id"
+        :weather-data="trip.weatherData"
+        :is-editable="isEditable"
+        @weather-updated="handleWeatherUpdated"
       />
     </div>
 

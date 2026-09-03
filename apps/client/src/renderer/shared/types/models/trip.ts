@@ -158,6 +158,29 @@ export interface TripSection {
   updatedAt: string
 }
 
+export type SeasonalityLevel = 'low' | 'medium' | 'high' | 'peak'
+
+export interface CityWeatherData {
+  city: string
+  tempAverage: number | null
+  tempMin: number | null
+  tempMax: number | null
+  feelsLike?: number | null
+  rainyDays?: number | null
+  precipitationProbability?: number | null
+  precipitationType?: string | null
+  windSpeed?: number | null
+  windDescription?: string | null
+  seasonality?: SeasonalityLevel | null
+  seasonalityDescription?: string | null
+  daylight?: string | null
+  clothingRecommendation?: string | null
+  summary?: string | null
+  updatedAt: string
+}
+
+export type TripWeatherData = Record<string, CityWeatherData>
+
 export interface Trip {
   id: string
   userId: string
@@ -177,6 +200,7 @@ export interface Trip {
     avatarUrl: string
   }[]
   tags: string[]
+  weatherData?: TripWeatherData | null
   visibility: TripVisibility
   createdAt: string
   updatedAt: string

@@ -21,10 +21,10 @@
 
 ```bash
 # Интерактивный мастер
-bun run import:obsidian
+bun run start
 
 # С передачей параметров
-bun run import:obsidian \
+bun run start \
   --dir "/home/injurka/Documents/obsidian-mark/Personal Note/Travel/-- Murmansk" \
   --start-date "2027-01-29" \
   --status draft

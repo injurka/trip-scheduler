@@ -1,5 +1,5 @@
 import type { ITripRepository, TripListFilters } from '../model/types'
-import type { CreateTripInput, Trip, TripWithDays, UpdateTripInput } from '~/shared/types/models/trip'
+import type { CreateTripInput, Trip, TripWeatherData, TripWithDays, UpdateTripInput } from '~/shared/types/models/trip'
 import { trpc } from '~/shared/services/trpc/trpc.service'
 import { throttle } from '../lib/decorators'
 
@@ -52,6 +52,10 @@ class TripRepository implements ITripRepository {
   @throttle(500)
   async addParticipant(tripId: string, userId: string): Promise<void> {
     await trpc.trip.addParticipant.mutate({ tripId, userId })
+  }
+
+  async generateWeather(params: { tripId: string, city?: string, forceRefresh?: boolean }): Promise<{ weatherData: TripWeatherData, fromCache: boolean }> {
+    return await trpc.trip.generateWeather.mutate(params) as { weatherData: TripWeatherData, fromCache: boolean }
   }
 }
 
