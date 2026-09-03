@@ -176,15 +176,6 @@ onMounted(() => {
         >
           <Icon :icon="isGenerating ? 'mdi:loading' : 'mdi:refresh'" :class="{ spin: isGenerating }" />
         </button>
-
-        <span
-          v-if="currentCityWeather"
-          class="saved-badge"
-          title="Контекст сохранен в базу данных путешествия"
-        >
-          <Icon icon="mdi:check-circle-outline" />
-          <span class="badge-text">В поездке</span>
-        </span>
       </div>
     </div>
 
@@ -311,19 +302,27 @@ onMounted(() => {
 
         <!-- Практические рекомендации (одежда и советы) -->
         <div v-if="currentCityWeather.clothingRecommendation || currentCityWeather.summary" class="recommendations-box">
-          <div v-if="currentCityWeather.clothingRecommendation" class="recommendation-item">
-            <Icon icon="mdi:tshirt-crew-outline" class="rec-icon" />
-            <div class="rec-body">
-              <span class="rec-title">Одежда:</span>
-              <span class="rec-text">{{ currentCityWeather.clothingRecommendation }}</span>
+          <div v-if="currentCityWeather.clothingRecommendation" class="recommendation-item clothing">
+            <div class="rec-icon-wrapper">
+              <Icon icon="mdi:tshirt-crew-outline" class="rec-icon" />
+            </div>
+            <div class="rec-content">
+              <span class="rec-badge">Одежда</span>
+              <p class="rec-text">
+                {{ currentCityWeather.clothingRecommendation }}
+              </p>
             </div>
           </div>
 
-          <div v-if="currentCityWeather.summary" class="recommendation-item">
-            <Icon icon="mdi:lightbulb-on-outline" class="rec-icon tip" />
-            <div class="rec-body">
-              <span class="rec-title">Совет:</span>
-              <span class="rec-text">{{ currentCityWeather.summary }}</span>
+          <div v-if="currentCityWeather.summary" class="recommendation-item tip">
+            <div class="rec-icon-wrapper">
+              <Icon icon="mdi:lightbulb-on-outline" class="rec-icon" />
+            </div>
+            <div class="rec-content">
+              <span class="rec-badge">Совет</span>
+              <p class="rec-text">
+                {{ currentCityWeather.summary }}
+              </p>
             </div>
           </div>
         </div>
@@ -438,18 +437,6 @@ onMounted(() => {
     opacity: 0.5;
     cursor: not-allowed;
   }
-}
-
-.saved-badge {
-  display: inline-flex;
-  align-items: center;
-  gap: 4px;
-  padding: 3px 8px;
-  border-radius: var(--r-s);
-  background: rgba(16, 185, 129, 0.1);
-  color: #10b981;
-  font-size: 0.725rem;
-  font-weight: 500;
 }
 
 .city-selector-container {
@@ -644,7 +631,9 @@ onMounted(() => {
     display: flex;
     flex-direction: column;
     text-align: left;
-    overflow: hidden;
+    min-width: 0;
+    flex: 1;
+    gap: 2px;
   }
 
   .detail-value {
@@ -660,9 +649,12 @@ onMounted(() => {
   .detail-label {
     font-size: 0.725rem;
     color: var(--fg-secondary-color);
-    white-space: nowrap;
+    line-height: 1.25;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
     overflow: hidden;
-    text-overflow: ellipsis;
+    word-break: break-word;
   }
 }
 
@@ -689,42 +681,87 @@ onMounted(() => {
 .recommendations-box {
   display: flex;
   flex-direction: column;
-  gap: 8px;
-  padding-top: 0.75rem;
-  border-top: 1px dashed var(--border-secondary-color);
+  gap: 10px;
+  padding-top: 0.85rem;
+  border-top: 1px solid var(--border-secondary-color);
 }
 
 .recommendation-item {
   display: flex;
   align-items: flex-start;
-  gap: 8px;
-  font-size: 0.825rem;
-  line-height: 1.4;
+  gap: 10px;
+  padding: 10px 12px;
+  border-radius: var(--r-m);
+  background: var(--bg-secondary-color);
+  border: 1px solid var(--border-secondary-color);
+  transition:
+    border-color 0.2s ease,
+    background-color 0.2s ease;
+
+  &:hover {
+    border-color: var(--border-primary-color);
+  }
+
+  .rec-icon-wrapper {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 28px;
+    height: 28px;
+    border-radius: var(--r-s);
+    flex-shrink: 0;
+    background: var(--bg-tertiary-color);
+  }
 
   .rec-icon {
-    font-size: 1rem;
-    color: var(--fg-accent-color);
-    flex-shrink: 0;
-    margin-top: 2px;
+    font-size: 1.1rem;
+  }
 
-    &.tip {
-      color: #f59e0b;
+  &.clothing {
+    .rec-icon-wrapper {
+      background: rgba(99, 102, 241, 0.1);
+      color: #6366f1;
+    }
+    .rec-badge {
+      color: #6366f1;
+      background: rgba(99, 102, 241, 0.1);
     }
   }
 
-  .rec-body {
-    display: flex;
-    gap: 4px;
+  &.tip {
+    .rec-icon-wrapper {
+      background: rgba(245, 158, 11, 0.1);
+      color: #f59e0b;
+    }
+    .rec-badge {
+      color: #f59e0b;
+      background: rgba(245, 158, 11, 0.1);
+    }
   }
 
-  .rec-title {
+  .rec-content {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    min-width: 0;
+    flex: 1;
+  }
+
+  .rec-badge {
+    align-self: flex-start;
+    font-size: 0.7rem;
     font-weight: 600;
-    color: var(--fg-primary-color);
-    flex-shrink: 0;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    padding: 1px 6px;
+    border-radius: 4px;
   }
 
   .rec-text {
+    font-size: 0.825rem;
     color: var(--fg-secondary-color);
+    line-height: 1.45;
+    margin: 0;
   }
 }
 

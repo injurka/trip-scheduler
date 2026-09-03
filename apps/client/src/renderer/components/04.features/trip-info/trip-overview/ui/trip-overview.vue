@@ -1115,8 +1115,8 @@ watch(() => props.trip?.id, (newId) => {
 }
 
 .info-widgets {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  display: flex;
+  flex-direction: column;
   gap: 1.5rem;
 }
 
