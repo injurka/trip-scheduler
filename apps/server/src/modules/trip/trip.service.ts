@@ -1,4 +1,5 @@
 import type { z } from 'zod'
+import type { TripWeatherData } from '../../../db/schema.type'
 import type { CreateTripInputSchema, ListTripsInputSchema, TripWithDaysSchema, UpdateTripInputSchema } from './trip.schemas'
 import { createTRPCError } from '~/lib/trpc'
 import { commentRepository } from '~/repositories/comment.repository'
@@ -8,6 +9,7 @@ import { tripRepository } from '~/repositories/trip.repository'
 import { userRepository } from '~/repositories/user.repository'
 import { accessControlService } from '~/services/access-control.service'
 import { deleteTripFiles } from '~/services/file-storage.service'
+import { weatherGenerationService } from '~/services/llm/weather-generation.service'
 import { quotaService } from '~/services/quota.service'
 import { TripSectionType } from '../trip-section/trip-section.schemas'
 
@@ -98,12 +100,79 @@ export const tripService = {
     userId: string,
     userRole: string,
   ) {
-    await accessControlService.getTripAndVerifyAccess(id, userId, userRole)
+    const existingTrip = await accessControlService.getTripAndVerifyAccess(id, userId, userRole)
+
+    // Если обновляются города или дата, но не передана погода, пробуем дополнить из кэша БД
+    if (details.cities && details.cities.length > 0 && !details.weatherData) {
+      try {
+        const targetDate = details.startDate ? new Date(details.startDate) : new Date(existingTrip.startDate)
+        const month = targetDate.getMonth() + 1
+        const cachedBatch = await weatherGenerationService.getBatchWeatherFromCache(details.cities, month)
+        if (Object.keys(cachedBatch).length > 0) {
+          details.weatherData = {
+            ...((existingTrip.weatherData as any) || {}),
+            ...cachedBatch,
+          }
+        }
+      }
+      catch (error) {
+        console.warn('Не удалось автоматически подгрузить погоду из кэша БД:', error)
+      }
+    }
+
     const updatedTrip = await tripRepository.update(id, details)
     if (!updatedTrip) {
       throw createTRPCError('NOT_FOUND', `Путешествие с ID ${id} не найдено.`)
     }
     return updatedTrip
+  },
+
+  async generateWeather(
+    tripId: string,
+    city: string | undefined,
+    forceRefresh: boolean,
+    userId: string,
+    userRole: string,
+  ) {
+    await accessControlService.getTripAndVerifyAccess(tripId, userId, userRole)
+    const tripData = await tripRepository.getById(tripId)
+    if (!tripData) {
+      throw createTRPCError('NOT_FOUND', `Путешествие с ID ${tripId} не найдено.`)
+    }
+
+    const citiesToProcess = city ? [city] : (tripData.cities || [])
+    if (citiesToProcess.length === 0) {
+      throw createTRPCError('BAD_REQUEST', 'В путешествии не указаны города для генерации сводки погоды.')
+    }
+
+    const startDate = tripData.startDate ? new Date(tripData.startDate) : new Date()
+    const month = startDate.getMonth() + 1 // 1-12
+
+    const currentWeatherData = (tripData.weatherData || {}) as TripWeatherData
+    const updatedWeatherData: TripWeatherData = { ...currentWeatherData }
+    let hasGeneratedAny = false
+
+    for (const c of citiesToProcess) {
+      const { data, fromCache } = await weatherGenerationService.generateOrGetCityWeather(
+        c,
+        month,
+        userId,
+        forceRefresh,
+      )
+      updatedWeatherData[c] = data
+      if (!fromCache) {
+        hasGeneratedAny = true
+      }
+    }
+
+    await tripRepository.update(tripId, {
+      weatherData: updatedWeatherData,
+    })
+
+    return {
+      weatherData: updatedWeatherData,
+      fromCache: !hasGeneratedAny,
+    }
   },
 
   async addParticipant(tripId: string, participantId: string, currentUserId: string, userRole: string) {

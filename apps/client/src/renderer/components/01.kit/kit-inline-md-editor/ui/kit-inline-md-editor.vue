@@ -323,10 +323,17 @@ onBeforeUnmount(() => {
 
 .kit-inline-md-editor-minimal :deep(.table-container) {
   width: 100%;
+  max-width: 100%;
   overflow-x: auto;
-  margin: 0;
+  -webkit-overflow-scrolling: touch;
+  touch-action: pan-x pan-y;
+  margin: 0.75rem 0;
+  border-radius: var(--r-s, 6px);
+  border: 1px solid var(--border-secondary-color);
+  scrollbar-width: thin;
 
   table {
+    width: max-content;
     min-width: 100%;
     border-collapse: collapse;
     margin: 0;
@@ -763,13 +770,21 @@ onBeforeUnmount(() => {
     }
 
     .table-container {
+      width: 100%;
+      max-width: 100%;
       overflow-x: auto;
-      margin: 0 !important;
+      -webkit-overflow-scrolling: touch;
+      touch-action: pan-x pan-y;
+      margin: 0.75rem 0 !important;
+      border-radius: var(--r-s, 6px);
+      border: 1px solid var(--border-secondary-color);
+      scrollbar-width: thin;
     }
 
     table {
       border-collapse: collapse;
-      width: 100%;
+      width: max-content;
+      min-width: 100%;
       margin: 0 !important;
       font-size: 0.875rem;
     }
@@ -826,6 +841,9 @@ onBeforeUnmount(() => {
       width: 100%;
       margin: 10px 0;
       clear: both;
+      overflow-x: auto;
+      -webkit-overflow-scrolling: touch;
+      touch-action: pan-x pan-y;
 
       iframe {
         width: 100%;
@@ -833,6 +851,14 @@ onBeforeUnmount(() => {
         display: block;
         border: 0;
         border-radius: var(--r-m, 8px);
+      }
+
+      table {
+        border-collapse: collapse;
+        width: max-content;
+        min-width: 100%;
+        margin: 0 !important;
+        font-size: 0.875rem;
       }
     }
 
@@ -842,6 +868,8 @@ onBeforeUnmount(() => {
       vertical-align: middle;
       align-items: center;
       line-height: normal;
+      white-space: nowrap;
+      flex-shrink: 0;
 
       &:has(iframe),
       &:has(div) {
@@ -905,13 +933,19 @@ onBeforeUnmount(() => {
   }
 
   .table-wrapper {
+    width: 100%;
+    max-width: 100%;
     overflow-x: auto;
-    margin: 0;
+    -webkit-overflow-scrolling: touch;
+    touch-action: pan-x pan-y;
+    margin: 0.75rem 0;
     border-radius: var(--r-s, 6px);
     border: 1px solid var(--border-secondary-color, #e0e0e0);
+    scrollbar-width: thin;
 
     table {
-      width: 100%;
+      width: max-content;
+      min-width: 100%;
       border-collapse: collapse;
       margin: 0;
       font-size: 0.875rem;

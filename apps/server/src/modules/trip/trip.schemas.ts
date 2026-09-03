@@ -9,6 +9,27 @@ export const TripParticipantSchema = UserSchema.pick({
   avatarUrl: true,
 })
 
+export const CityWeatherSchema = z.object({
+  city: z.string(),
+  tempAverage: z.number().nullable(),
+  tempMin: z.number().nullable(),
+  tempMax: z.number().nullable(),
+  feelsLike: z.number().nullable().optional(),
+  rainyDays: z.number().nullable().optional(),
+  precipitationProbability: z.number().nullable().optional(),
+  precipitationType: z.string().nullable().optional(),
+  windSpeed: z.number().nullable().optional(),
+  windDescription: z.string().nullable().optional(),
+  seasonality: z.enum(['low', 'medium', 'high', 'peak']).nullable().optional(),
+  seasonalityDescription: z.string().nullable().optional(),
+  daylight: z.string().nullable().optional(),
+  clothingRecommendation: z.string().nullable().optional(),
+  summary: z.string().nullable().optional(),
+  updatedAt: z.string(),
+})
+
+export const TripWeatherSchema = z.record(z.string(), CityWeatherSchema)
+
 export const TripSchema = z.object({
   id: z.string().uuid(),
   title: z.string(),
@@ -23,6 +44,7 @@ export const TripSchema = z.object({
   currency: z.string().nullable(),
   participants: z.array(TripParticipantSchema),
   tags: z.array(z.string()),
+  weatherData: TripWeatherSchema.nullable().optional(),
   visibility: z.enum(['public', 'private']),
   createdAt: z.date(),
   updatedAt: z.date(),
@@ -52,9 +74,21 @@ export const UpdateTripInputSchema = z.object({
     tags: true,
     visibility: true,
     imageUrl: true,
+    weatherData: true,
   }).partial().extend({
     participantIds: z.array(z.string().uuid()).optional(),
   }),
+})
+
+export const GenerateWeatherInputSchema = z.object({
+  tripId: z.string().uuid(),
+  city: z.string().optional(),
+  forceRefresh: z.boolean().optional().default(false),
+})
+
+export const GenerateWeatherOutputSchema = z.object({
+  weatherData: TripWeatherSchema,
+  fromCache: z.boolean(),
 })
 
 export const CreateTripInputSchema = TripSchema.pick({

@@ -21,15 +21,12 @@
 
 ```bash
 # Интерактивный мастер
-bun run import:obsidian
+bun run start
 
 # С передачей параметров
-bun run import:obsidian \
-  --dir "/path/to/Obsidian/Travel/-- TripName" \
-  --api-url "https://trip-scheduler-api.limited-dissolve.ru" \
-  --email "dev@dev.dev" \
-  --password "password" \
-  --start-date "2026-09-01" \
+bun run start \
+  --dir "/home/injurka/Documents/obsidian-mark/Personal Note/Travel/-- Murmansk" \
+  --start-date "2027-01-29" \
   --status draft
 ```
 

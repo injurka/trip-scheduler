@@ -77,14 +77,41 @@ const id = `kit-checkbox-${Math.random().toString(36).substring(2, 9)}`
   transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
   position: relative;
 
-  &:hover:not([data-disabled]) {
-    transform: scale(1.05);
+  @include hover {
+    &:not([data-disabled]) {
+      transform: scale(1.05);
+    }
+
+    &.is-color-accent:not([data-disabled]) {
+      border-color: var(--border-accent-color);
+    }
+
+    &.is-color-primary:not([data-disabled]) {
+      border-color: var(--border-primary-color);
+    }
+
+    &.is-color-secondary:not([data-disabled]) {
+      border-color: var(--border-secondary-color);
+    }
+
+    &.is-color-tertiary:not([data-disabled]) {
+      border-color: var(--border-secondary-color);
+    }
+
+    &.is-color-success:not([data-disabled]) {
+      border-color: var(--border-success-color);
+    }
+
+    &.is-color-warning:not([data-disabled]) {
+      border-color: var(--border-warning-color);
+    }
+
+    &.is-color-error:not([data-disabled]) {
+      border-color: var(--border-error-color);
+    }
   }
 
   &.is-color-accent {
-    &:hover:not([data-disabled]) {
-      border-color: var(--border-accent-color);
-    }
     &[data-state='checked'] {
       background-color: var(--fg-accent-color);
       border-color: var(--fg-accent-color);
@@ -92,9 +119,6 @@ const id = `kit-checkbox-${Math.random().toString(36).substring(2, 9)}`
   }
 
   &.is-color-primary {
-    &:hover:not([data-disabled]) {
-      border-color: var(--border-primary-color);
-    }
     &[data-state='checked'] {
       background-color: var(--fg-primary-color);
       border-color: var(--fg-primary-color);
@@ -102,9 +126,6 @@ const id = `kit-checkbox-${Math.random().toString(36).substring(2, 9)}`
   }
 
   &.is-color-secondary {
-    &:hover:not([data-disabled]) {
-      border-color: var(--border-secondary-color);
-    }
     &[data-state='checked'] {
       background-color: var(--fg-secondary-color);
       border-color: var(--fg-secondary-color);
@@ -112,9 +133,6 @@ const id = `kit-checkbox-${Math.random().toString(36).substring(2, 9)}`
   }
 
   &.is-color-tertiary {
-    &:hover:not([data-disabled]) {
-      border-color: var(--border-secondary-color);
-    }
     &[data-state='checked'] {
       background-color: var(--fg-tertiary-color);
       border-color: var(--fg-tertiary-color);
@@ -122,9 +140,6 @@ const id = `kit-checkbox-${Math.random().toString(36).substring(2, 9)}`
   }
 
   &.is-color-success {
-    &:hover:not([data-disabled]) {
-      border-color: var(--border-success-color);
-    }
     &[data-state='checked'] {
       background-color: var(--fg-success-color);
       border-color: var(--fg-success-color);
@@ -132,9 +147,6 @@ const id = `kit-checkbox-${Math.random().toString(36).substring(2, 9)}`
   }
 
   &.is-color-warning {
-    &:hover:not([data-disabled]) {
-      border-color: var(--border-warning-color);
-    }
     &[data-state='checked'] {
       background-color: var(--fg-warning-color);
       border-color: var(--fg-warning-color);
@@ -142,9 +154,6 @@ const id = `kit-checkbox-${Math.random().toString(36).substring(2, 9)}`
   }
 
   &.is-color-error {
-    &:hover:not([data-disabled]) {
-      border-color: var(--border-error-color);
-    }
     &[data-state='checked'] {
       background-color: var(--fg-error-color);
       border-color: var(--fg-error-color);

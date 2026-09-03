@@ -14,6 +14,7 @@ import { KitRadioGroup } from '~/components/01.kit/kit-radio-group'
 import { KitSelectWithSearch } from '~/components/01.kit/kit-select-with-search'
 import { CalendarPopover } from '~/components/02.shared/calendar-popover'
 import { useRequest, useRequestStatus } from '~/plugins/request'
+import { useToast } from '~/shared/composables/use-toast'
 import { TripMediaPlacement, TripStatus, TripVisibility } from '~/shared/types/models/trip'
 
 const props = defineProps<Props>()
@@ -47,6 +48,7 @@ const fieldsToCompare: (keyof UpdateTripInput)[] = [
   'tags',
   'imageUrl',
   'visibility',
+  'weatherData',
 ]
 
 const statusOptions = [
@@ -225,11 +227,51 @@ watch(() => props.visible, (isVisible) => {
       tags: props.trip.tags?.map(t => t.toLowerCase()) ?? [],
       imageUrl: props.trip.imageUrl,
       visibility: props.trip.visibility,
+      weatherData: props.trip.weatherData ? { ...props.trip.weatherData } : {},
     }
     hasFetchedImages.value = false
     fetchDialogData()
   }
 }, { immediate: true })
+
+const isGeneratingWeather = ref(false)
+
+const hasWeatherDataForAllCities = computed(() => {
+  const cities = editableTrip.value.cities || []
+  if (cities.length === 0)
+    return false
+  const wData = editableTrip.value.weatherData as any
+  if (!wData)
+    return false
+  return cities.every((c: string) => !!wData[c])
+})
+
+async function handleGenerateWeatherInDialog() {
+  if (!props.trip?.id || !editableTrip.value.cities?.length)
+    return
+
+  isGeneratingWeather.value = true
+  try {
+    const res = await useRequest({
+      key: `trip-edit:generate-weather:${props.trip.id}`,
+      fn: db => db.trips.generateWeather({
+        tripId: props.trip!.id,
+        forceRefresh: false,
+      }),
+    })
+    if (res?.weatherData) {
+      editableTrip.value.weatherData = res.weatherData
+      useToast().success('Климатический контекст подготовлен!')
+    }
+  }
+  catch (e: any) {
+    console.error('Failed to generate weather in dialog:', e)
+    useToast().error('Не удалось получить данные о погоде.')
+  }
+  finally {
+    isGeneratingWeather.value = false
+  }
+}
 </script>
 
 <template>
@@ -277,6 +319,43 @@ watch(() => props.visible, (isVisible) => {
         multiple
         creatable
       />
+
+      <!-- Климатический контекст городов во время редактирования/планирования -->
+      <div v-if="editableTrip.cities && editableTrip.cities.length > 0" class="weather-preview-box">
+        <div class="weather-preview-header">
+          <div class="header-left">
+            <Icon icon="mdi:weather-partly-cloudy" class="weather-icon" />
+            <span class="preview-title">Климатический контекст городов</span>
+          </div>
+          <KitBtn
+            v-if="props.trip?.id"
+            size="sm"
+            variant="tonal"
+            color="primary"
+            :loading="isGeneratingWeather"
+            @click="handleGenerateWeatherInDialog"
+          >
+            <Icon icon="mdi:creation" />
+            <span>{{ hasWeatherDataForAllCities ? 'Обновить данные' : 'Сгенерировать сводку' }}</span>
+          </KitBtn>
+        </div>
+
+        <div class="weather-cities-status">
+          <div
+            v-for="city in editableTrip.cities"
+            :key="city"
+            class="city-weather-badge"
+            :class="{ 'is-ready': !!editableTrip.weatherData?.[city] }"
+          >
+            <span class="city-name">{{ city }}</span>
+            <span v-if="editableTrip.weatherData?.[city]" class="city-info">
+              {{ editableTrip.weatherData[city].tempAverage !== null ? `${editableTrip.weatherData[city].tempAverage > 0 ? '+' : ''}${editableTrip.weatherData[city].tempAverage}°` : '' }}
+              <template v-if="editableTrip.weatherData[city].windSpeed">, {{ editableTrip.weatherData[city].windSpeed }} км/ч</template>
+            </span>
+            <span v-else class="city-missing">нет данных</span>
+          </div>
+        </div>
+      </div>
 
       <div class="date-pickers">
         <div class="date-picker">
@@ -606,5 +685,74 @@ watch(() => props.visible, (isVisible) => {
   padding: 16px;
   background-color: var(--bg-tertiary-color);
   border-radius: var(--r-m);
+}
+
+.weather-preview-box {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  background: var(--bg-tertiary-color);
+  padding: 12px 14px;
+  border-radius: var(--r-m);
+  border: 1px solid var(--border-secondary-color);
+}
+
+.weather-preview-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+
+  .header-left {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 0.85rem;
+    font-weight: 600;
+    color: var(--fg-primary-color);
+
+    .weather-icon {
+      font-size: 1.1rem;
+      color: var(--fg-accent-color);
+    }
+  }
+}
+
+.weather-cities-status {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.city-weather-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: var(--bg-secondary-color);
+  border: 1px solid var(--border-secondary-color);
+  padding: 4px 10px;
+  border-radius: var(--r-s);
+  font-size: 0.775rem;
+
+  .city-name {
+    font-weight: 600;
+    color: var(--fg-primary-color);
+  }
+
+  .city-info {
+    color: var(--fg-accent-color);
+    font-weight: 500;
+  }
+
+  .city-missing {
+    color: var(--fg-secondary-color);
+    opacity: 0.7;
+    font-style: italic;
+  }
+
+  &.is-ready {
+    border-color: rgba(16, 185, 129, 0.4);
+    background: rgba(16, 185, 129, 0.05);
+  }
 }
 </style>

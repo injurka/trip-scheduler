@@ -43,6 +43,13 @@
       "when": 1788084809540,
       "tag": "0005_daffy_amazoness",
       "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1788425806967,
+      "tag": "0006_rapid_doctor_doom",
+      "breakpoints": true
     }
   ]
 }

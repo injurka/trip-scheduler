@@ -1,6 +1,6 @@
 /* eslint-disable ts/no-use-before-define */
 import type { AnyPgColumn } from 'drizzle-orm/pg-core'
-import type { ActivitySection, DayMetaInfo, PostElementContent, PostStatsDetail } from './schema.type'
+import type { ActivitySection, CityWeatherData, DayMetaInfo, PostElementContent, PostStatsDetail, TripWeatherData } from './schema.type'
 import { relations } from 'drizzle-orm'
 import {
   bigint,
@@ -110,6 +110,7 @@ export const trips = pgTable('trips', {
   budget: real('budget'),
   currency: text('currency').default('RUB'),
   tags: jsonb('tags').$type<string[]>().notNull().default([]),
+  weatherData: jsonb('weather_data').$type<TripWeatherData>(),
   visibility: visibilityEnum('visibility').notNull().default('private'),
   userId: uuid('user_id').notNull().references(() => users.id, { onDelete: 'cascade' }),
   createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
@@ -461,6 +462,17 @@ export const highlights = pgTable('highlights', {
 }, t => ({
   countryIdx: index('highlights_country_idx').on(t.countryId),
   userIdIdx: index('highlights_user_idx').on(t.userId),
+}))
+
+export const cityWeatherCache = pgTable('city_weather_cache', {
+  id: serial('id').primaryKey(),
+  cityNormalized: text('city_normalized').notNull(),
+  month: integer('month').notNull(),
+  data: jsonb('data').$type<CityWeatherData>().notNull(),
+  createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
+  updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow().notNull(),
+}, t => ({
+  cityMonthIdx: index('city_weather_cache_city_month_idx').on(t.cityNormalized, t.month),
 }))
 
 // --- RELATIONS ---

@@ -62,9 +62,11 @@ const componentClasses = computed(() => [
     pointer-events: none;
   }
 
-  &:not(.kit-btn--text):not(:disabled):hover {
-    transform: translateY(-2px);
-    box-shadow: var(--s-l);
+  @include hover {
+    &:not(.kit-btn--text):not(:disabled) {
+      transform: translateY(-2px);
+      box-shadow: var(--s-l);
+    }
   }
 
   &:not(.kit-btn--text):not(:disabled):active {
@@ -135,17 +137,21 @@ const componentClasses = computed(() => [
       border-color: var(--fg-accent-color);
       color: var(--fg-inverted-color);
 
-      &:not(:disabled):hover {
-        background-color: var(--bg-action-hover-color);
-        border-color: var(--bg-action-hover-color);
+      @include hover {
+        &:not(:disabled) {
+          background-color: var(--bg-action-hover-color);
+          border-color: var(--bg-action-hover-color);
+        }
       }
     }
     &.kit-btn--color-secondary {
       background-color: var(--bg-tertiary-color);
       color: var(--fg-primary-color);
 
-      &:not(:disabled):hover {
-        background-color: var(--bg-hover-color);
+      @include hover {
+        &:not(:disabled) {
+          background-color: var(--bg-hover-color);
+        }
       }
     }
   }
@@ -158,8 +164,10 @@ const componentClasses = computed(() => [
       background-color: var(--bg-tertiary-color);
       color: var(--fg-accent-color);
 
-      &:not(:disabled):hover {
-        background-color: var(--bg-disabled-color);
+      @include hover {
+        &:not(:disabled) {
+          background-color: var(--bg-disabled-color);
+        }
       }
     }
 
@@ -167,9 +175,11 @@ const componentClasses = computed(() => [
       background-color: var(--bg-disabled-color);
       color: var(--fg-secondary-color);
 
-      &:not(:disabled):hover {
-        background-color: var(--bg-tertiary-color);
-        color: var(--fg-primary-color);
+      @include hover {
+        &:not(:disabled) {
+          background-color: var(--bg-tertiary-color);
+          color: var(--fg-primary-color);
+        }
       }
     }
   }
@@ -182,18 +192,22 @@ const componentClasses = computed(() => [
       border-color: var(--fg-accent-color);
       color: var(--fg-accent-color);
 
-      &:not(:disabled):hover {
-        background-color: var(--bg-disabled-color);
+      @include hover {
+        &:not(:disabled) {
+          background-color: var(--bg-disabled-color);
+        }
       }
     }
     &.kit-btn--color-secondary {
       border-color: var(--border-secondary-color);
       color: var(--fg-secondary-color);
 
-      &:not(:disabled):hover {
-        background-color: var(--bg-hover-color);
-        color: var(--fg-primary-color);
-        border-color: var(--border-primary-color);
+      @include hover {
+        &:not(:disabled) {
+          background-color: var(--bg-hover-color);
+          color: var(--fg-primary-color);
+          border-color: var(--border-primary-color);
+        }
       }
     }
   }
@@ -206,16 +220,20 @@ const componentClasses = computed(() => [
     &.kit-btn--color-primary {
       color: var(--fg-accent-color);
 
-      &:not(:disabled):hover {
-        background-color: var(--bg-disabled-color);
+      @include hover {
+        &:not(:disabled) {
+          background-color: var(--bg-disabled-color);
+        }
       }
     }
     &.kit-btn--color-secondary {
       color: var(--fg-secondary-color);
 
-      &:not(:disabled):hover {
-        background-color: var(--bg-hover-color);
-        color: var(--fg-primary-color);
+      @include hover {
+        &:not(:disabled) {
+          background-color: var(--bg-hover-color);
+          color: var(--fg-primary-color);
+        }
       }
     }
   }
@@ -231,8 +249,10 @@ const componentClasses = computed(() => [
       border-color: var(--fg-accent-color);
       color: var(--fg-accent-color);
 
-      &:not(:disabled):hover {
-        background-color: var(--bg-disabled-color);
+      @include hover {
+        &:not(:disabled) {
+          background-color: var(--bg-disabled-color);
+        }
       }
     }
 
@@ -240,10 +260,12 @@ const componentClasses = computed(() => [
       border-color: var(--border-secondary-color);
       color: var(--fg-secondary-color);
 
-      &:not(:disabled):hover {
-        background-color: var(--bg-hover-color);
-        color: var(--fg-primary-color);
-        border-color: var(--border-primary-color);
+      @include hover {
+        &:not(:disabled) {
+          background-color: var(--bg-hover-color);
+          color: var(--fg-primary-color);
+          border-color: var(--border-primary-color);
+        }
       }
     }
   }

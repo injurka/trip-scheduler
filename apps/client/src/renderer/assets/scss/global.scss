@@ -13,6 +13,7 @@ body {
   box-sizing: border-box;
   margin: 0;
   padding: 0;
+  padding-right: 0 !important;
   border: none;
   background-color: var(--bg-primary-color);
   color: var(--fg-primary-color);
@@ -44,6 +45,17 @@ img,
 }
 
 // -----------------------------------------------------------------------------
+// Touch Devices Hover Fix (убирает залипание :hover при тапах на смартфонах)
+// -----------------------------------------------------------------------------
+@media (hover: none) and (pointer: coarse) {
+  *:hover {
+    transform: none !important;
+    box-shadow: none !important;
+  }
+}
+
+
+// -----------------------------------------------------------------------------
 // Travel Note Rating & Score Badges (.tp-rate, .r-top, .r-high, etc.)
 // -----------------------------------------------------------------------------
 .tp-rate {
@@ -58,6 +70,8 @@ img,
   margin-right: 6px;
   user-select: none;
   font-family: inherit;
+  white-space: nowrap;
+  flex-shrink: 0;
 
   .tp-score {
     font-weight: 700;
