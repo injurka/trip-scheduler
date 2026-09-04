@@ -24,6 +24,8 @@ const MONTH_NAMES_RU = [
 const DAYS_IN_MONTHS = [31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31]
 
 export const CityWeatherResponseSchema = z.object({
+  latitude: z.number().nullable().optional(),
+  longitude: z.number().nullable().optional(),
   tempAverage: z.number().nullable().optional(),
   tempMin: z.number().nullable().optional(),
   tempMax: z.number().nullable().optional(),
@@ -70,6 +72,87 @@ export interface AstronomicalDaylight {
 }
 
 /**
+ * Локальный справочник ключевых туристических и арктических локаций.
+ * Исключает сетевые тайм-ауты и сбои внешнего геокодера.
+ */
+export const KNOWN_LOCATIONS: Record<string, GeoLocation> = {
+  // Арктика и Заполярье
+  'мурманск': { name: 'Мурманск', latitude: 68.9707, longitude: 33.0750, country: 'Россия' },
+  'териберка': { name: 'Териберка', latitude: 69.1641, longitude: 35.1436, country: 'Россия' },
+  'кировск': { name: 'Кировск', latitude: 67.6144, longitude: 33.6738, country: 'Россия' },
+  'апатиты': { name: 'Апатиты', latitude: 67.5641, longitude: 33.4031, country: 'Россия' },
+  'североморск': { name: 'Североморск', latitude: 69.0706, longitude: 33.4243, country: 'Россия' },
+  'мончегорск': { name: 'Мончегорск', latitude: 67.9400, longitude: 32.9100, country: 'Россия' },
+  'кандалакша': { name: 'Кандалакша', latitude: 67.1561, longitude: 32.4131, country: 'Россия' },
+  'полярные зори': { name: 'Полярные Зори', latitude: 67.3670, longitude: 32.4988, country: 'Россия' },
+  'норильск': { name: 'Норильск', latitude: 69.3535, longitude: 88.2027, country: 'Россия' },
+  'дудинка': { name: 'Дудинка', latitude: 69.4058, longitude: 86.1778, country: 'Россия' },
+  'воркута': { name: 'Воркута', latitude: 67.4975, longitude: 64.0611, country: 'Россия' },
+  'салехард': { name: 'Салехард', latitude: 66.5299, longitude: 66.6019, country: 'Россия' },
+  'новый уренгой': { name: 'Новый Уренгой', latitude: 66.0845, longitude: 76.6791, country: 'Россия' },
+  'нарьян-мар': { name: 'Нарьян-Мар', latitude: 67.6381, longitude: 53.0069, country: 'Россия' },
+  'архангельск': { name: 'Архангельск', latitude: 64.5401, longitude: 40.5433, country: 'Россия' },
+  'северодвинск': { name: 'Северодвинск', latitude: 64.5635, longitude: 39.8302, country: 'Россия' },
+  'петрозаводск': { name: 'Петрозаводск', latitude: 61.7849, longitude: 34.3469, country: 'Россия' },
+  'сортавала': { name: 'Сортавала', latitude: 61.7046, longitude: 30.6917, country: 'Россия' },
+  'рускеала': { name: 'Рускеала', latitude: 61.9328, longitude: 30.5806, country: 'Россия' },
+  'якутск': { name: 'Якутск', latitude: 62.0355, longitude: 129.6755, country: 'Россия' },
+  'анадырь': { name: 'Анадырь', latitude: 64.7342, longitude: 177.5103, country: 'Россия' },
+
+  // Крупные российские города и туристические центры
+  'москва': { name: 'Москва', latitude: 55.7558, longitude: 37.6173, country: 'Россия' },
+  'санкт-петербург': { name: 'Санкт-Петербург', latitude: 59.9343, longitude: 30.3351, country: 'Россия' },
+  'питер': { name: 'Санкт-Петербург', latitude: 59.9343, longitude: 30.3351, country: 'Россия' },
+  'казань': { name: 'Казань', latitude: 55.7961, longitude: 49.1064, country: 'Россия' },
+  'нижний новгород': { name: 'Нижний Новгород', latitude: 56.3269, longitude: 44.0059, country: 'Россия' },
+  'екатеринбург': { name: 'Екатеринбург', latitude: 56.8389, longitude: 60.6057, country: 'Россия' },
+  'новосибирск': { name: 'Новосибирск', latitude: 55.0084, longitude: 82.9357, country: 'Россия' },
+  'красноярск': { name: 'Красноярск', latitude: 56.0153, longitude: 92.8932, country: 'Россия' },
+  'иркутск': { name: 'Иркутск', latitude: 52.2864, longitude: 104.3050, country: 'Россия' },
+  'байкальск': { name: 'Байкальск', latitude: 51.5208, longitude: 104.1481, country: 'Россия' },
+  'листвянка': { name: 'Листвянка', latitude: 51.8547, longitude: 104.8694, country: 'Россия' },
+  'улан-удэ': { name: 'Улан-Удэ', latitude: 51.8348, longitude: 107.5848, country: 'Россия' },
+  'владивосток': { name: 'Владивосток', latitude: 43.1155, longitude: 131.8855, country: 'Россия' },
+  'хабаровск': { name: 'Хабаровск', latitude: 48.4827, longitude: 135.0838, country: 'Россия' },
+  'калининград': { name: 'Калининград', latitude: 54.7104, longitude: 20.4522, country: 'Россия' },
+  'сочи': { name: 'Сочи', latitude: 43.6028, longitude: 39.7342, country: 'Россия' },
+  'адлер': { name: 'Адлер', latitude: 43.4273, longitude: 39.9231, country: 'Россия' },
+  'красная поляна': { name: 'Красная Поляна', latitude: 43.6792, longitude: 40.2056, country: 'Россия' },
+  'кисловодск': { name: 'Кисловодск', latitude: 43.9056, longitude: 42.7153, country: 'Россия' },
+  'пятигорск': { name: 'Пятигорск', latitude: 44.0486, longitude: 43.0594, country: 'Россия' },
+  'минеральные воды': { name: 'Минеральные Воды', latitude: 44.2108, longitude: 43.1347, country: 'Россия' },
+  'петропавловск-камчатский': { name: 'Петропавловск-Камчатский', latitude: 53.0452, longitude: 158.6500, country: 'Россия' },
+  'южно-сахалинск': { name: 'Южно-Сахалинск', latitude: 46.9592, longitude: 142.7380, country: 'Россия' },
+  'горно-алтайск': { name: 'Горно-Алтайск', latitude: 51.9581, longitude: 85.9603, country: 'Россия' },
+  'чемал': { name: 'Чемал', latitude: 51.4111, longitude: 86.0028, country: 'Россия' },
+  'выборг': { name: 'Выборг', latitude: 60.7100, longitude: 28.7497, country: 'Россия' },
+
+  // Зарубежные направления
+  'тромсё': { name: 'Тромсё', latitude: 69.6492, longitude: 18.9553, country: 'Норвегия' },
+  'рейкьявик': { name: 'Рейкьявик', latitude: 64.1466, longitude: -21.9426, country: 'Исландия' },
+  'рованиеми': { name: 'Рованиеми', latitude: 66.5039, longitude: 25.7294, country: 'Финляндия' },
+  'минск': { name: 'Минск', latitude: 53.9006, longitude: 27.5590, country: 'Беларусь' },
+  'тбилиси': { name: 'Тбилиси', latitude: 41.7151, longitude: 44.8271, country: 'Грузия' },
+  'ереван': { name: 'Ереван', latitude: 40.1792, longitude: 44.4991, country: 'Армения' },
+  'баку': { name: 'Баку', latitude: 40.4093, longitude: 49.8671, country: 'Азербайджан' },
+  'ташкент': { name: 'Ташкент', latitude: 41.2995, longitude: 69.2401, country: 'Узбекистан' },
+  'алматы': { name: 'Алматы', latitude: 43.2389, longitude: 76.8897, country: 'Казахстан' },
+  'астана': { name: 'Астана', latitude: 51.1694, longitude: 71.4491, country: 'Казахстан' },
+  'стамбул': { name: 'Стамбул', latitude: 41.0082, longitude: 28.9784, country: 'Турция' },
+  'анталья': { name: 'Анталья', latitude: 36.8969, longitude: 30.7133, country: 'Турция' },
+  'дубай': { name: 'Дубай', latitude: 25.2048, longitude: 55.2708, country: 'ОАЭ' },
+  'париж': { name: 'Париж', latitude: 48.8566, longitude: 2.3522, country: 'Франция' },
+  'рим': { name: 'Рим', latitude: 41.9028, longitude: 12.4964, country: 'Италия' },
+  'бангкок': { name: 'Бангкок', latitude: 13.7563, longitude: 100.5018, country: 'Таиланд' },
+  'пхукет': { name: 'Пхукет', latitude: 7.8804, longitude: 98.3923, country: 'Таиланд' },
+}
+
+export function findKnownLocation(cityName: string): GeoLocation | null {
+  const norm = normalizeCityName(cityName)
+  return KNOWN_LOCATIONS[norm] || null
+}
+
+/**
  * Нормализует название города для гарантированного попадания в кэш.
  */
 export function normalizeCityName(raw: string): string {
@@ -82,7 +165,7 @@ export function normalizeCityName(raw: string): string {
 }
 
 /**
- * Безопасное разделение сырого текста длины дня (на случай старых данных или галлюцинаций LLM)
+ * Безопасное разделение сырого текста длины дня на компактное значение и описание
  */
 export function splitDaylightText(rawText?: string | null): { value: string, description: string } {
   if (!rawText)
@@ -90,12 +173,10 @@ export function splitDaylightText(rawText?: string | null): { value: string, des
 
   const text = rawText.trim()
 
-  // Если уже компактное значение, например "~14 ч", "~1-2 ч", "24 ч", "0 ч"
   if (/^~?\d+(?:-\d+)?\s*(?:ч|час(?:а|ов)?)$/i.test(text)) {
     return { value: text, description: 'Световой день' }
   }
 
-  // Если строка вида "Полярная ночь (~1-2 часа)" или "Сумерки (~1-2 ч)"
   const inParensMatch = text.match(/\((~?\d+(?:-\d+)?\s*(?:ч|час)[^)]*)\)/i)
   if (inParensMatch && inParensMatch[1]) {
     const value = inParensMatch[1].trim()
@@ -107,7 +188,7 @@ export function splitDaylightText(rawText?: string | null): { value: string, des
 }
 
 /**
- * Расчет длины светового дня с разделением на компактное значение и подробное описание.
+ * Астрономический расчет длины светового дня по широте и месяцу.
  */
 export function calculateAstronomicalDaylight(latitude: number, month: number, day = 15): AstronomicalDaylight {
   const clampedLat = Math.max(-89.9, Math.min(89.9, latitude))
@@ -116,7 +197,6 @@ export function calculateAstronomicalDaylight(latitude: number, month: number, d
   const daysBeforeMonth = [0, 31, 59, 90, 120, 151, 181, 212, 243, 273, 304, 334]
   const dayOfYear = (daysBeforeMonth[month - 1] ?? 0) + day
 
-  // Угол склонения Солнца
   const declinationRad = (23.44 * Math.PI / 180) * Math.sin((2 * Math.PI / 365) * (dayOfYear - 81))
 
   const cosLat = Math.cos(latRad)
@@ -173,7 +253,6 @@ export function calculateAstronomicalDaylight(latitude: number, month: number, d
   }
   else if (isPolarNight) {
     if (twilightHours > 0.5) {
-      // Для полярной ночи с сумерками выводим диапазон ~1-2 ч (или точные часы)
       const roundedTw = Math.round(twilightHours * 10) / 10
       daylightValue = roundedTw >= 1 && roundedTw <= 2.2 ? '~1-2 ч' : `~${Math.round(twilightHours)} ч`
       daylightDescription = 'Полярная ночь: солнце не восходит, короткие светлые сумерки'
@@ -227,22 +306,45 @@ export function calculateFeelsLike(temp: number, windSpeedKmh: number): number {
 }
 
 async function fetchCityCoordinates(cityName: string): Promise<GeoLocation | null> {
-  try {
-    const url = `https://geocoding-api.open-meteo.com/v1/search?name=${encodeURIComponent(cityName)}&count=1&language=ru&format=json`
-    const res = await fetch(url, { signal: AbortSignal.timeout(3500) })
-    if (!res.ok)
-      return null
-    const data = await res.json()
-    if (!data.results || !data.results.length)
-      return null
+  const localMatch = findKnownLocation(cityName)
+  if (localMatch) {
+    return localMatch
+  }
 
-    const first = data.results[0]
-    return {
-      name: first.name,
-      latitude: first.latitude,
-      longitude: first.longitude,
-      country: first.country,
+  const cleanName = normalizeCityName(cityName)
+
+  try {
+    const url = `https://geocoding-api.open-meteo.com/v1/search?name=${encodeURIComponent(cleanName)}&count=3&language=ru&format=json`
+    const res = await fetch(url, { signal: AbortSignal.timeout(6000) })
+    if (res.ok) {
+      const data = await res.json()
+      if (data.results && data.results.length > 0) {
+        const first = data.results[0]
+        return {
+          name: first.name,
+          latitude: first.latitude,
+          longitude: first.longitude,
+          country: first.country,
+        }
+      }
     }
+
+    // Резервная попытка поиска на английском
+    const fallbackUrl = `https://geocoding-api.open-meteo.com/v1/search?name=${encodeURIComponent(cleanName)}&count=3&language=en&format=json`
+    const fallbackRes = await fetch(fallbackUrl, { signal: AbortSignal.timeout(5000) })
+    if (fallbackRes.ok) {
+      const data = await fallbackRes.json()
+      if (data.results && data.results.length > 0) {
+        const first = data.results[0]
+        return {
+          name: first.name,
+          latitude: first.latitude,
+          longitude: first.longitude,
+          country: first.country,
+        }
+      }
+    }
+    return null
   }
   catch {
     return null
@@ -259,7 +361,7 @@ async function fetchClimateNormals(lat: number, lon: number, month: number): Pro
 
     const url = `https://archive-api.open-meteo.com/v1/archive?latitude=${lat}&longitude=${lon}&start_date=${startDate}&end_date=${endDate}&daily=temperature_2m_max,temperature_2m_min,temperature_2m_mean,precipitation_sum,wind_speed_10m_max&timezone=auto`
 
-    const res = await fetch(url, { signal: AbortSignal.timeout(3500) })
+    const res = await fetch(url, { signal: AbortSignal.timeout(6000) })
     if (!res.ok)
       return null
 
@@ -300,6 +402,106 @@ async function fetchClimateNormals(lat: number, lon: number, month: number): Pro
   }
 }
 
+/**
+ * Валидирует и корректирует показатели погоды, устраняя галлюцинации нейросети.
+ */
+export function sanitizeAndValidateWeather(
+  data: Partial<CityWeatherData>,
+  cityNormalized: string,
+  month: number,
+  knownLat?: number | null,
+): CityWeatherData {
+  const localGeo = findKnownLocation(cityNormalized)
+  const latitude = knownLat ?? localGeo?.latitude ?? null
+  const monthName = MONTH_NAMES_RU[month - 1] || 'выбранный месяц'
+
+  const isArcticCity = (latitude !== null && latitude >= 66.0) || [
+    'мурманск',
+    'териберка',
+    'кировск',
+    'апатиты',
+    'норильск',
+    'дудинка',
+    'воркута',
+    'салехард',
+    'североморск',
+    'полярные зори',
+    'нарьян-мар',
+  ].includes(cityNormalized)
+
+  const isWinter = [12, 1, 2].includes(month)
+
+  let avgT = data.tempAverage ?? -5
+  let minT = data.tempMin ?? avgT - 5
+  let maxT = data.tempMax ?? avgT + 5
+  let windSpeed = data.windSpeed ?? 15
+
+  // Коррекция арктической зимы: исключаем плюсовую температуру в Заполярье в январе
+  if (isArcticCity && isWinter) {
+    if (avgT > -3) {
+      avgT = -10
+      minT = -15
+      maxT = -6
+    }
+    else {
+      maxT = Math.min(maxT, -1)
+    }
+  }
+
+  // Гарантия min <= avg <= max
+  if (minT > maxT) {
+    const tmp = minT
+    minT = maxT
+    maxT = tmp
+  }
+  if (avgT < minT)
+    avgT = minT
+  if (avgT > maxT)
+    avgT = maxT
+
+  windSpeed = Math.max(0, windSpeed)
+  const feelsLike = calculateFeelsLike(avgT, windSpeed)
+
+  // Расчет и защита светового дня
+  let daylightVal = data.daylight || '~10 ч'
+  let daylightDesc = data.daylightDescription || 'Световой день'
+
+  if (latitude !== null) {
+    const astro = calculateAstronomicalDaylight(latitude, month)
+    daylightVal = astro.daylightValue
+    daylightDesc = astro.daylightDescription
+  }
+  else if (isArcticCity && [12, 1].includes(month)) {
+    daylightVal = month === 1 ? '~1-2 ч' : '0 ч'
+    daylightDesc = 'Полярная ночь: солнце не восходит, короткие светлые сумерки'
+  }
+  else if (data.daylight) {
+    const split = splitDaylightText(data.daylight)
+    daylightVal = split.value
+    daylightDesc = data.daylightDescription || split.description
+  }
+
+  return {
+    city: data.city || cityNormalized,
+    tempAverage: avgT,
+    tempMin: minT,
+    tempMax: maxT,
+    feelsLike,
+    rainyDays: Math.min(31, Math.max(0, data.rainyDays ?? 8)),
+    precipitationProbability: Math.min(100, Math.max(0, data.precipitationProbability ?? 25)),
+    precipitationType: data.precipitationType || (avgT <= 0 ? 'Снег' : 'Дождь'),
+    windSpeed,
+    windDescription: data.windDescription || (windSpeed > 25 ? 'Порывистый ветер' : 'Умеренный ветер'),
+    seasonality: (data.seasonality as SeasonalityLevel) ?? 'medium',
+    seasonalityDescription: data.seasonalityDescription ?? `Туристический сезон в ${monthName}`,
+    daylight: daylightVal,
+    daylightDescription: daylightDesc,
+    clothingRecommendation: data.clothingRecommendation || (avgT <= -5 ? 'Теплая зимняя куртка, термобелье, шапка, перчатки' : 'Удобная одежда по сезону'),
+    summary: data.summary || `Климатические условия для путешествия в ${monthName}.`,
+    updatedAt: data.updatedAt || new Date().toISOString(),
+  }
+}
+
 function getSystemPrompt(hasRealMetrics: boolean): string {
   return `
 Ты профессиональный климатолог и опытный гид-путешественник. Твоя задача — составить точную климатическую справку и туристический контекст для путешественника по указанному городу и месяцу.
@@ -308,6 +510,8 @@ ${hasRealMetrics ? 'ВНИМАНИЕ: Тебе предоставлены про
 
 Отвечай СТРОГО в формате валидного JSON-объекта со следующими полями:
 {
+  "latitude": number (географическая широта города от -90 до 90),
+  "longitude": number (географическая долгота города от -180 до 180),
   "tempAverage": number (среднесуточная температура в градусах Цельсия, целое число),
   "tempMin": number (минимальная температура ночью/утром в градусах Цельсия),
   "tempMax": number (максимальная дневная температура в градусах Цельсия),
@@ -327,9 +531,9 @@ ${hasRealMetrics ? 'ВНИМАНИЕ: Тебе предоставлены про
 
 ПРАВИЛА:
 1. tempMin <= tempAverage <= tempMax.
-2. seasonality строго одно из: "low", "medium", "high", "peak".
-3. В поле daylight пиши ТОЛЬКО компактное время (например "~1-2 ч", "~14 ч", "24 ч", "0 ч"). Любые слова "Полярная ночь", "сумерки", "белые ночи" пиши ИСКЛЮЧИТЕЛЬНО в daylightDescription!
-4. Отвечай только JSON-объектом, без markdown-разметки и пояснений.
+2. В арктических регионах (Мурманск, Териберка, Кировск, Норильск) в декабре и январе средняя температура ВСЕГДА отрицательная (зимой типично от -10°C до -20°C, никакой плюсовой температуры на регулярной основе быть не может).
+3. В период полярной ночи длина дня составляет строго 0 ч (или ~1-2 ч сумерек в январе), никогда не указывай 8-9 часов дня для Арктики зимой!
+4. В поле daylight пиши ТОЛЬКО компактное время (например "~1-2 ч", "~14 ч", "24 ч", "0 ч"). Любые пояснения пиши ИСКЛЮЧИТЕЛЬНО в daylightDescription!
 `
 }
 
@@ -340,16 +544,25 @@ function getSeasonalFallbackWeather(city: string, month: number, latitude?: numb
   const isSummer = isNorthern ? [6, 7, 8].includes(month) : [12, 1, 2].includes(month)
   const isTransition = !isWinter && !isSummer
 
+  const isArctic = latitude !== null && latitude !== undefined && latitude >= 66.0
+
   let avg = 15
   let min = 10
   let max = 20
   let precipType = 'Переменная облачность, возможны кратковременные дожди'
   let clothing = 'Удобная многослойная одежда, куртка-ветровка'
 
-  if (isWinter) {
-    avg = -5
-    min = -10
-    max = 0
+  if (isArctic && isWinter) {
+    avg = -11
+    min = -17
+    max = -6
+    precipType = 'Снег, метели, поземок'
+    clothing = 'Теплая непродуваемая парка или пуховик, термобелье, теплая обувь'
+  }
+  else if (isWinter) {
+    avg = -6
+    min = -11
+    max = -1
     precipType = 'Снег, гололедица'
     clothing = 'Теплая зимняя куртка, шапка, перчатки, теплая обувь'
   }
@@ -377,18 +590,18 @@ function getSeasonalFallbackWeather(city: string, month: number, latitude?: numb
     tempAverage: avg,
     tempMin: min,
     tempMax: max,
-    feelsLike: calculateFeelsLike(avg, 15),
+    feelsLike: calculateFeelsLike(avg, 18),
     rainyDays: 8,
     precipitationProbability: 30,
     precipitationType: precipType,
-    windSpeed: 15,
-    windDescription: 'Умеренный ветер',
+    windSpeed: 18,
+    windDescription: isArctic ? 'Сильный порывистый арктический ветер' : 'Умеренный ветер',
     seasonality: 'medium',
-    seasonalityDescription: `Обычный туристический сезон в ${monthName}`,
-    daylight: daylightInfo?.daylightValue ?? '~10–12 ч',
+    seasonalityDescription: `Сезон в ${monthName}`,
+    daylight: daylightInfo?.daylightValue ?? (isArctic && isWinter ? '~1-2 ч' : '~10 ч'),
     daylightDescription: daylightInfo?.daylightDescription ?? 'Световой день',
     clothingRecommendation: clothing,
-    summary: `Поездка в ${city} в ${monthName}. Уточняйте краткосрочный прогноз перед выездом.`,
+    summary: `Поездка в ${city} в ${monthName}. Учитывайте погодные условия при подготовке багажа.`,
     updatedAt: new Date().toISOString(),
   }
 }
@@ -403,11 +616,10 @@ export const weatherGenerationService = {
     const trimmedCity = city.trim()
     const cityNormalized = normalizeCityName(trimmedCity)
 
-    // 1. Проверяем кэш в БД
+    // 1. Проверяем кэш в БД (при forceRefresh игнорируем кэш)
     if (!forceRefresh) {
       const cached = await cityWeatherCacheRepository.getByCityAndMonth(cityNormalized, month)
       if (cached) {
-        // Если в кэше старый формат со склеенным текстом — разделяем на лету
         if (cached.daylight && !cached.daylightDescription) {
           const parsedDaylight = splitDaylightText(cached.daylight)
           cached.daylight = parsedDaylight.value
@@ -419,19 +631,20 @@ export const weatherGenerationService = {
 
     const monthName = MONTH_NAMES_RU[month - 1] || `${month}-й месяц`
 
-    // 2. Координаты и астрономический световой день
+    // 2. Определение координат города (локальный словарь -> внешний геокодер)
     const geo = await fetchCityCoordinates(trimmedCity)
-    const lat = geo?.latitude ?? 55.75
-    const daylight = calculateAstronomicalDaylight(lat, month)
+    const lat = geo?.latitude ?? null
+    const daylight = lat !== null ? calculateAstronomicalDaylight(lat, month) : null
 
-    // 3. Реальные метеорологические нормы
+    // 3. Реальные метеорологические нормы из архива
     const realClimate = geo ? await fetchClimateNormals(geo.latitude, geo.longitude, month) : null
 
     try {
-      let userPrompt = `Составь климатический контекст и прогноз для города "${trimmedCity}" на месяц "${monthName}" (${month}-й месяц года).`
-      if (realClimate && geo) {
+      let userPrompt = `Составь климатический контекст и туристический прогноз для города "${trimmedCity}" на месяц "${monthName}" (${month}-й месяц года).`
+      if (realClimate && geo && daylight) {
         userPrompt += `
 Реальные климатические наблюдения (${geo.name}, ${geo.country || ''}):
+- Широта: ${geo.latitude}, долгота: ${geo.longitude}
 - Средняя температура: ${realClimate.tempAverage}°C (ночь/утро от ${realClimate.tempMin}°C, день до ${realClimate.tempMax}°C)
 - Ощущается как: ${realClimate.feelsLike}°C
 - Скорость ветра: ${realClimate.windSpeed} км/ч
@@ -440,10 +653,14 @@ export const weatherGenerationService = {
 
 Используй эти фактические цифры и составь точный туристический контекст.`
       }
+      else if (daylight && lat !== null) {
+        userPrompt += `
+Географическая широта: ${lat}. Астрономический день для этой широты: значение "${daylight.daylightValue}", описание "${daylight.daylightDescription}".
+Составь реалистичные климатические показатели для этого региона в ${monthName}.`
+      }
       else {
         userPrompt += `
-Астрономический день для этой широты: значение "${daylight.daylightValue}", описание "${daylight.daylightDescription}".
-Составь реалистичные климатические показатели для этого региона в ${monthName}.`
+Координаты города не найдены в базе. Определи его реальные географические координаты (широту и долготу), климатический пояс и реалистичную погоду на ${monthName}.`
       }
 
       const prompts: AiRequestPrompts = {
@@ -455,7 +672,7 @@ export const weatherGenerationService = {
       const completion = await createAiChatRequest(prompts, {
         model: modelId,
         response_format: { type: 'json_object' },
-        temperature: 0.2,
+        temperature: 0.1,
       })
 
       if (completion.usage) {
@@ -489,64 +706,39 @@ export const weatherGenerationService = {
         schema: CityWeatherResponseSchema,
       })
 
-      let minT = realClimate?.tempMin ?? parsed.tempMin ?? (parsed.tempAverage ? parsed.tempAverage - 5 : -5)
-      let maxT = realClimate?.tempMax ?? parsed.tempMax ?? (parsed.tempAverage ? parsed.tempAverage + 5 : 5)
-      let avgT = realClimate?.tempAverage ?? parsed.tempAverage ?? Math.round((minT + maxT) / 2)
+      const finalLat = lat ?? parsed.latitude ?? null
 
-      if (minT > maxT) {
-        const tmp = minT
-        minT = maxT
-        maxT = tmp
-      }
-      if (avgT < minT)
-        avgT = minT
-      if (avgT > maxT)
-        avgT = maxT
-
-      const windSpeed = realClimate?.windSpeed ?? parsed.windSpeed ?? 15
-      const feelsLike = realClimate?.feelsLike ?? parsed.feelsLike ?? calculateFeelsLike(avgT, windSpeed)
-      const rainyDays = realClimate?.rainyDays ?? parsed.rainyDays ?? 8
-      const precipProb = realClimate?.precipitationProbability ?? parsed.precipitationProbability ?? 30
-
-      // Астрономический расчет имеет абсолютный приоритет над текстом LLM
-      let resolvedDaylight = daylight.daylightValue
-      let resolvedDaylightDescription = daylight.daylightDescription
-
-      // Если астрономия не дала специфики, но LLM вернула данные — парсим их с защитой от склейки
-      if (!geo && !daylight.isPolarNight && !daylight.isPolarDay && parsed.daylight) {
-        const split = splitDaylightText(parsed.daylight)
-        resolvedDaylight = split.value
-        resolvedDaylightDescription = parsed.daylightDescription || split.description
-      }
-
-      const weatherResult: CityWeatherData = {
+      const rawResult: Partial<CityWeatherData> = {
         city: trimmedCity,
-        tempAverage: avgT,
-        tempMin: minT,
-        tempMax: maxT,
-        feelsLike,
-        rainyDays,
-        precipitationProbability: precipProb,
-        precipitationType: parsed.precipitationType || (avgT <= 0 ? 'Снег' : 'Кратковременные дожди'),
-        windSpeed,
-        windDescription: parsed.windDescription || (windSpeed > 25 ? 'Сильный ветер' : 'Умеренный ветер'),
+        tempAverage: realClimate?.tempAverage ?? parsed.tempAverage,
+        tempMin: realClimate?.tempMin ?? parsed.tempMin,
+        tempMax: realClimate?.tempMax ?? parsed.tempMax,
+        feelsLike: realClimate?.feelsLike ?? parsed.feelsLike,
+        rainyDays: realClimate?.rainyDays ?? parsed.rainyDays,
+        precipitationProbability: realClimate?.precipitationProbability ?? parsed.precipitationProbability,
+        precipitationType: parsed.precipitationType,
+        windSpeed: realClimate?.windSpeed ?? parsed.windSpeed,
+        windDescription: parsed.windDescription,
         seasonality: (parsed.seasonality as SeasonalityLevel) ?? 'medium',
-        seasonalityDescription: parsed.seasonalityDescription ?? `Сезон в ${monthName}`,
-        daylight: resolvedDaylight,
-        daylightDescription: resolvedDaylightDescription,
-        clothingRecommendation: parsed.clothingRecommendation ?? 'Комфортная одежда по погоде',
-        summary: parsed.summary ?? `Поездка в ${trimmedCity} в ${monthName}.`,
+        seasonalityDescription: parsed.seasonalityDescription,
+        daylight: parsed.daylight,
+        daylightDescription: parsed.daylightDescription,
+        clothingRecommendation: parsed.clothingRecommendation,
+        summary: parsed.summary,
         updatedAt: new Date().toISOString(),
       }
 
-      // Сохраняем в кэш БД
-      await cityWeatherCacheRepository.save(cityNormalized, month, weatherResult)
+      // Физическая валидация и защита от климатических галлюцинаций
+      const validatedResult = sanitizeAndValidateWeather(rawResult, cityNormalized, month, finalLat)
 
-      return { data: weatherResult, fromCache: false }
+      // Сохраняем результат в кэш базы данных (перезаписывает предыдущий)
+      await cityWeatherCacheRepository.save(cityNormalized, month, validatedResult)
+
+      return { data: validatedResult, fromCache: false }
     }
     catch (err) {
       console.error(`[Weather Generation] Ошибка генерации для города ${trimmedCity}:`, err)
-      const fallback = getSeasonalFallbackWeather(trimmedCity, month, geo?.latitude)
+      const fallback = getSeasonalFallbackWeather(trimmedCity, month, lat ?? undefined)
       return { data: fallback, fromCache: false }
     }
   },
@@ -569,7 +761,6 @@ export const weatherGenerationService = {
 
     for (const [norm, data] of cachedMap.entries()) {
       const originalName = normalizedMap.get(norm) || data.city
-      // Защита для старого кэша
       if (data.daylight && !data.daylightDescription) {
         const parsedDaylight = splitDaylightText(data.daylight)
         data.daylight = parsedDaylight.value
@@ -578,6 +769,32 @@ export const weatherGenerationService = {
       result[originalName] = { ...data, city: originalName }
     }
 
+    return result
+  },
+
+  sanitizeAndValidateWeather,
+
+  /**
+   * Санитизация сохраненного weatherData путешествия: прогоняет каждую городскую сводку
+   * через физическую валидацию по месяцу начала поездки.
+   */
+  sanitizeTripWeatherPayload(
+    payload: Record<string, unknown>,
+    startDate?: string | Date | null,
+  ): Record<string, CityWeatherData> {
+    const month = startDate
+      ? new Date(startDate).getMonth() + 1
+      : new Date().getMonth() + 1
+    const result: Record<string, CityWeatherData> = {}
+    for (const [city, data] of Object.entries(payload)) {
+      if (!data || typeof data !== 'object')
+        continue
+      result[city] = sanitizeAndValidateWeather(
+        data as Partial<CityWeatherData>,
+        normalizeCityName(city),
+        month,
+      )
+    }
     return result
   },
 }

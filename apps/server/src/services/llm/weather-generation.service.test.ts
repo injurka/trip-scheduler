@@ -2,7 +2,10 @@ import { describe, expect, it } from 'bun:test'
 import {
   calculateAstronomicalDaylight,
   calculateFeelsLike,
+  findKnownLocation,
   normalizeCityName,
+  sanitizeAndValidateWeather,
+  splitDaylightText,
 } from './weather-generation.service'
 
 describe('weather-generation.service astronomical and physics computations', () => {
@@ -12,6 +15,18 @@ describe('weather-generation.service astronomical and physics computations', () 
     expect(normalizeCityName('пос. Териберка')).toBe('териберка')
     expect(normalizeCityName('город Санкт-Петербург')).toBe('санкт-петербург')
     expect(normalizeCityName('с. Териберка, Мурманская область')).toBe('териберка')
+  })
+
+  it('accurately resolves locations from the offline dictionary', () => {
+    const murmansk = findKnownLocation('Мурманск')
+    expect(murmansk).not.toBeNull()
+    expect(murmansk?.latitude).toBeCloseTo(68.97, 1)
+
+    const teriberka = findKnownLocation('г. Териберка, Россия')
+    expect(teriberka).not.toBeNull()
+    expect(teriberka?.latitude).toBeCloseTo(69.16, 1)
+
+    expect(findKnownLocation('НеизвестноеСело12345')).toBeNull()
   })
 
   it('accurately identifies Polar Night and twilight for Murmansk and Teriberka in January', () => {
@@ -62,5 +77,34 @@ describe('weather-generation.service astronomical and physics computations', () 
     // При плюсовой спокойной погоде ощущаемая совпадает с фактической
     const feelsWarm = calculateFeelsLike(22, 10)
     expect(feelsWarm).toBe(22)
+  })
+
+  it('correctly splits daylight text into value and description', () => {
+    expect(splitDaylightText('~9 ч')).toEqual({ value: '~9 ч', description: 'Световой день' })
+    expect(splitDaylightText('Полярная ночь (~1-2 ч)')).toEqual({
+      value: '~1-2 ч',
+      description: 'Полярная ночь',
+    })
+    expect(splitDaylightText(null)).toEqual({ value: '—', description: 'Световой день' })
+  })
+
+  it('sanitizes and clamps hallucinated winter temperatures and daylights for Arctic cities', () => {
+    const badInput = {
+      city: 'Мурманск',
+      tempAverage: 1,
+      tempMin: -2,
+      tempMax: 4,
+      daylight: '~9 ч',
+      windSpeed: 20,
+    }
+
+    const sanitized = sanitizeAndValidateWeather(badInput, 'мурманск', 1, 68.97)
+
+    expect(sanitized.tempAverage).toBeLessThanOrEqual(-6)
+    expect(sanitized.tempMax).toBeLessThanOrEqual(-1)
+    expect(sanitized.tempMin!).toBeLessThan(sanitized.tempAverage!)
+    expect(sanitized.daylight).toMatch(/^~\d+(?:[.-]\d+)?\s*ч$/)
+    expect(sanitized.daylightDescription).toMatch(/Полярная ночь|Короткий световой день/)
+    expect(sanitized.feelsLike!).toBeLessThan(sanitized.tempAverage!)
   })
 })

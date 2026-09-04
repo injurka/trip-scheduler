@@ -32,6 +32,13 @@ export const tripService = {
     if (!trip)
       throw createTRPCError('NOT_FOUND', `Путешествие с ID ${id} не найдено.`)
 
+    if (trip.weatherData) {
+      trip.weatherData = weatherGenerationService.sanitizeTripWeatherPayload(
+        trip.weatherData as any,
+        trip.startDate,
+      )
+    }
+
     return trip
   },
 
@@ -39,6 +46,13 @@ export const tripService = {
     const trip = await tripRepository.getByIdWithDays(id)
     if (!trip)
       throw createTRPCError('NOT_FOUND', `Путешествие с ID ${id} не найдено.`)
+
+    if (trip.weatherData) {
+      trip.weatherData = weatherGenerationService.sanitizeTripWeatherPayload(
+        trip.weatherData,
+        trip.startDate,
+      )
+    }
 
     return trip as unknown as z.infer<typeof TripWithDaysSchema>
   },
@@ -124,6 +138,14 @@ export const tripService = {
     if (!updatedTrip) {
       throw createTRPCError('NOT_FOUND', `Путешествие с ID ${id} не найдено.`)
     }
+
+    if (updatedTrip.weatherData) {
+      updatedTrip.weatherData = weatherGenerationService.sanitizeTripWeatherPayload(
+        updatedTrip.weatherData,
+        updatedTrip.startDate,
+      )
+    }
+
     return updatedTrip
   },
 

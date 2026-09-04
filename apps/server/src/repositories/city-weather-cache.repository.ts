@@ -67,4 +67,17 @@ export const cityWeatherCacheRepository = {
       }
     })
   },
+
+  async delete(cityNormalized: string, month: number): Promise<void> {
+    return measureDbQuery('cityWeatherCache', 'delete', async () => {
+      await db
+        .delete(cityWeatherCache)
+        .where(
+          and(
+            eq(cityWeatherCache.cityNormalized, cityNormalized),
+            eq(cityWeatherCache.month, month),
+          ),
+        )
+    })
+  },
 }
