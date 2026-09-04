@@ -61,7 +61,7 @@ fn pick_vault_folder(app: &tauri::AppHandle) -> Option<String> {
 fn pick_vault_folder(app: &tauri::AppHandle) -> Option<String> {
     let dir = app.path().app_local_data_dir().ok()?.join("vault");
     fs::create_dir_all(&dir).ok()?;
-    Some(dir.to_string())
+    Some(dir.display().to_string())
 }
 
 #[tauri::command]
