@@ -391,14 +391,16 @@ function cancelEditing() {
   height: 50px;
   min-width: 0;
 
-  &:hover {
-    border-color: var(--fg-accent-color);
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
-    transform: translateY(-2px);
+  @include hover {
+    & {
+      border-color: var(--fg-accent-color);
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
+      transform: translateY(-2px);
 
-    .delete-folder-btn {
-      opacity: 1;
-      visibility: visible;
+      .delete-folder-btn {
+        opacity: 1;
+        visibility: visible;
+      }
     }
   }
 
@@ -464,8 +466,10 @@ function cancelEditing() {
   box-shadow: 0 2px 6px rgba(0, 0, 0, 0.15);
   border: 2px solid var(--bg-primary-color);
 
-  &:hover {
-    transform: scale(1.1);
+  @include hover {
+    & {
+      transform: scale(1.1);
+    }
   }
 }
 

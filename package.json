@@ -13,11 +13,17 @@
   ],
   "scripts": {
     "--------------------------------<      DEV       >--------------------------------": "",
-    "dev:client": "bun --parallel run --filter='./apps/client' dev:web",
-    "dev:server": "bun --cwd ./apps/server dev",
+    "dev:client": "bun --filter='@injurkx/trip-scheduler-client' dev",
+    "dev:server": "bun run --cwd ./apps/server dev",
+    "dev:native": "bun run --filter='@injurkx/trip-scheduler-native' tauri:dev",
     "--------------------------------<      BUILD     >--------------------------------": "",
     "build": "bun run --filter='./apps/*' --filter='./packages/*' --filter='./tools/*' build",
-    "build:web": "bun run --filter='./apps/*' build:web",
+    "build:web": "bun run --filter='@injurkx/trip-scheduler-client' build",
+    "build:client:tauri": "bun run --filter='@injurkx/trip-scheduler-client' build:tauri",
+    "build:native": "bun run --filter='@injurkx/trip-scheduler-native' tauri:build",
+    "build:native:linux:x64": "bun run --filter='@injurkx/trip-scheduler-native' tauri:build:linux:x64",
+    "build:native:win:x64": "bun run --filter='@injurkx/trip-scheduler-native' tauri:build:win:x64",
+    "build:native:android": "bun run --filter='@injurkx/trip-scheduler-native' tauri:android:build",
     "--------------------------------< LINT & FORMAT >---------------------------------": "",
     "lint": "bun run --filter='./apps/*' --filter='./packages/*' --filter='./tools/*' lint",
     "lint:fix": "bun run --filter='./apps/*' --filter='./packages/*' --filter='./tools/*' lint:fix",
@@ -29,15 +35,10 @@
     "--------------------------------<     HELPERS   >---------------------------------": "",
     "import:obsidian": "bun run tools/obsidian-importer/src/run.ts",
     "skills:install": "bun run tools/skills-installer/src/run.ts",
-    "postinstall": "simple-git-hooks",
+    "postinstall": "lefthook install",
     "remove-prompt": "find . -type f -name 'src_prompt.md' -delete"
   },
   "devDependencies": {
-    "simple-git-hooks": "^2.13.1"
-  },
-  "simple-git-hooks": {
-    "pre-commit": "bun run lint && bun run typecheck",
-    "post-commit": "git status",
-    "post-merge": "bun i"
+    "lefthook": "^1.13.6"
   }
 }

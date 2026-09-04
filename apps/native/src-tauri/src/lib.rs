@@ -1,0 +1,149 @@
+use std::fs;
+use std::path::{Path, PathBuf};
+
+use tauri::Manager;
+use tauri_plugin_dialog::DialogExt;
+
+/// Приложение запущено под Hyprland (или другим специфичным окружением) —
+/// оставлено по аналогии с insight-book как точка для платформенных хаков UI.
+#[tauri::command]
+fn is_hyprland() -> bool {
+    std::env::var("HYPRLAND_INSTANCE_SIGNATURE").is_ok()
+        || std::env::var("XDG_CURRENT_DESKTOP")
+            .map(|v| v.to_lowercase().contains("hyprland"))
+            .unwrap_or(false)
+}
+
+/// Настройки vault хранятся в app-config dir (аналог Electron userData/vault-settings.json).
+fn settings_file(app: &tauri::AppHandle) -> PathBuf {
+    let dir = app.path().app_config_dir().unwrap_or_else(|_| std::env::temp_dir());
+    let _ = fs::create_dir_all(&dir);
+    dir.join("vault-settings.json")
+}
+
+fn read_vault_path(app: &tauri::AppHandle) -> Option<String> {
+    let file = settings_file(app);
+    let data = fs::read_to_string(file).ok()?;
+    let parsed = serde_json::from_str::<serde_json::Value>(&data).ok()?;
+    let saved = parsed.get("vaultPath")?.as_str()?.to_string();
+    if !Path::new(&saved).exists() {
+        return None;
+    }
+    Some(saved)
+}
+
+fn write_vault_path(app: &tauri::AppHandle, vault_path: &str) {
+    let payload = serde_json::json!({ "vaultPath": vault_path });
+    let _ = fs::write(settings_file(app), payload.to_string());
+}
+
+#[tauri::command]
+fn vault_get_path(app: tauri::AppHandle) -> Option<String> {
+    read_vault_path(&app)
+}
+
+#[tauri::command]
+async fn vault_select_folder(app: tauri::AppHandle) -> Option<String> {
+    let picked = app
+        .dialog()
+        .file()
+        .set_title("Выберите папку для хранения фотографий")
+        .blocking_pick_folder();
+
+    let path = match picked {
+        // На десктопе приходит Path, на мобильных — Url (content://); приводим к строке.
+        Some(p) => p.to_string(),
+        None => return None,
+    };
+
+    write_vault_path(&app, &path);
+    Some(path)
+}
+
+/// Проверка существования файлов в vault (аналог Electron IPC vault:check-files).
+#[tauri::command]
+fn vault_check_files(app: tauri::AppHandle, relative_paths: Vec<String>) -> Vec<String> {
+    let Some(root) = read_vault_path(&app) else {
+        return vec![];
+    };
+
+    relative_paths
+        .into_iter()
+        .filter(|rel| {
+            // Пути с ../ не пропускаем — защита от выхода за пределы vault.
+            !rel.contains("..") && Path::new(&root).join(rel).is_file()
+        })
+        .collect()
+}
+
+/// Скачивание файла с сервера в vault (аналог Electron IPC vault:download-file).
+#[tauri::command]
+async fn vault_download_file(
+    app: tauri::AppHandle,
+    url: String,
+    relative_path: String,
+) -> Result<bool, String> {
+    let root = read_vault_path(&app).ok_or_else(|| "Vault not set".to_string())?;
+    if relative_path.contains("..") {
+        return Err("Invalid path".to_string());
+    }
+
+    let dest = Path::new(&root).join(&relative_path);
+    let dir = dest
+        .parent()
+        .ok_or_else(|| "Invalid destination".to_string())?;
+    fs::create_dir_all(dir).map_err(|e| e.to_string())?;
+
+    let bytes = reqwest::get(&url)
+        .await
+        .map_err(|e| format!("Network error: {e}"))?
+        .error_for_status()
+        .map_err(|e| format!("Status: {e}"))?
+        .bytes()
+        .await
+        .map_err(|e| e.to_string())?;
+
+    fs::write(&dest, &bytes).map_err(|e| e.to_string())?;
+    log::info!("[Vault] Saved: {} ({} bytes)", dest.display(), bytes.len());
+    Ok(true)
+}
+
+#[tauri::command]
+fn vault_delete_file(app: tauri::AppHandle, relative_path: String) {
+    if relative_path.contains("..") {
+        return;
+    }
+    let Some(root) = read_vault_path(&app) else {
+        return;
+    };
+    let _ = fs::remove_file(Path::new(&root).join(relative_path));
+}
+
+#[cfg_attr(mobile, tauri::mobile_entry_point)]
+pub fn run() {
+    tauri::Builder::default()
+        .plugin(tauri_plugin_deep_link::init())
+        .plugin(tauri_plugin_dialog::init())
+        .plugin(tauri_plugin_http::init())
+        .plugin(tauri_plugin_opener::init())
+        .invoke_handler(tauri::generate_handler![
+            is_hyprland,
+            vault_get_path,
+            vault_select_folder,
+            vault_check_files,
+            vault_download_file,
+            vault_delete_file
+        ])
+        .setup(|app| {
+            if cfg!(debug_assertions) {
+                app.handle().plugin(
+                    tauri_plugin_log::Builder::default()
+                        .level(log::LevelFilter::Info)
+                        .build(),
+                )?;
+            }
+            Ok(())
+        })
+        .run(tauri::generate_context!())
+        .expect("error while running tauri application");
+}

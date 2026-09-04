@@ -1,9 +1,12 @@
 <script setup lang="ts">
 import { ActivityMap } from '~/components/05.modules/activity-map'
+import DayMemoriesPlayer from '~/components/05.modules/activity-map/ui/memories/day-memories-player.vue'
+import TrackingToggle from '~/components/05.modules/activity-map/ui/memories/tracking-toggle.vue'
 
 const route = useRoute()
 
 const isMapMode = ref(route.query.view === 'map')
+const isMemoriesMode = ref(route.query.view === 'memories')
 
 function handleModeChange(mode: 'list' | 'map') {
   isMapMode.value = mode === 'map'
@@ -13,9 +16,16 @@ function handleModeChange(mode: 'list' | 'map') {
 <template>
   <section
     class="content-wrapper"
-    :class="{ 'is-map-mode': isMapMode }"
+    :class="{ 'is-map-mode': isMapMode || isMemoriesMode }"
   >
-    <ActivityMap @mode-change="handleModeChange" />
+    <template v-if="isMemoriesMode">
+      <TrackingToggle />
+      <DayMemoriesPlayer class="memories-full" />
+    </template>
+    <ActivityMap
+      v-else
+      @mode-change="handleModeChange"
+    />
   </section>
 </template>
 
@@ -37,5 +47,10 @@ function handleModeChange(mode: 'list' | 'map') {
     height: calc(100vh - 53px);
     overflow: hidden;
   }
+}
+
+.memories-full {
+  flex: 1;
+  min-height: 0;
 }
 </style>

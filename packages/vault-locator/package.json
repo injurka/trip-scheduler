@@ -1,0 +1,23 @@
+{
+  "name": "@injurkx/vault-locator",
+  "type": "module",
+  "version": "1.0.0",
+  "private": true,
+  "main": "./src/index.ts",
+  "types": "./src/index.ts",
+  "engines": {
+    "bun": ">=1.4.0"
+  },
+  "scripts": {
+    "lint": "eslint .",
+    "lint:fix": "eslint . --fix",
+    "typecheck": "bunx tsc --noEmit"
+  },
+  "devDependencies": {
+    "@antfu/eslint-config": "8.2.0",
+    "@types/node": "24.10.1",
+    "eslint": "^9.29.0",
+    "eslint-plugin-format": "2.0.1",
+    "typescript": "5.9.3"
+  }
+}

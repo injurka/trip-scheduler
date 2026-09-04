@@ -439,9 +439,11 @@ function handleFocusBlock(block: TimelineBlock) {
     transform 0.2s,
     box-shadow 0.2s;
 
-  &:hover {
-    transform: translateY(-2px);
-    box-shadow: 0 6px 20px rgba(var(--fg-accent-color-rgb), 0.5);
+  @include hover {
+    & {
+      transform: translateY(-2px);
+      box-shadow: 0 6px 20px rgba(var(--fg-accent-color-rgb), 0.5);
+    }
   }
 }
 
@@ -483,8 +485,10 @@ function handleFocusBlock(block: TimelineBlock) {
     transition: transform 0.2s;
   }
 
-  &:hover .iconify {
-    transform: scale(1.1);
+  @include hover {
+    .iconify {
+      transform: scale(1.1);
+    }
   }
 }
 

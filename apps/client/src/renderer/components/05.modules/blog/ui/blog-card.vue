@@ -50,10 +50,12 @@ defineProps<Props>()
     box-shadow 0.2s;
   height: 100%;
 
-  &:hover {
-    transform: translateY(-4px);
-    box-shadow: var(--s-l);
-    border-color: var(--border-primary-color);
+  @include hover {
+    & {
+      transform: translateY(-4px);
+      box-shadow: var(--s-l);
+      border-color: var(--border-primary-color);
+    }
   }
 }
 

@@ -44,16 +44,6 @@ img,
   -webkit-user-select: none;
 }
 
-// -----------------------------------------------------------------------------
-// Touch Devices Hover Fix (убирает залипание :hover при тапах на смартфонах)
-// -----------------------------------------------------------------------------
-@media (hover: none) and (pointer: coarse) {
-  *:hover {
-    transform: none !important;
-    box-shadow: none !important;
-  }
-}
-
 
 // -----------------------------------------------------------------------------
 // Travel Note Rating & Score Badges (.tp-rate, .r-top, .r-high, etc.)

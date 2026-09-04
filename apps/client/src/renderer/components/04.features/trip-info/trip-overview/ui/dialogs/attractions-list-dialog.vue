@@ -115,11 +115,13 @@ function showOnMap() {
   color: inherit;
   font-family: inherit;
 
-  &:hover {
-    background-color: var(--bg-hover-color);
-    .chevron-icon {
-      transform: translateX(4px);
-      color: var(--fg-accent-color);
+  @include hover {
+    & {
+      background-color: var(--bg-hover-color);
+      .chevron-icon {
+        transform: translateX(4px);
+        color: var(--fg-accent-color);
+      }
     }
   }
 }

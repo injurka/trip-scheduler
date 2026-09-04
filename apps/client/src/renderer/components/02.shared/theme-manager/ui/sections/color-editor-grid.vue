@@ -52,11 +52,13 @@ const palette = defineModel<ColorPalette>({ required: true })
   background: var(--bg-secondary-color);
   transition: all 0.2s ease;
 
-  &:hover {
-    border-color: var(--border-focus-color);
-    background: var(--bg-primary-color);
-    transform: translateY(-2px);
-    box-shadow: 0 4px 12px var(--bg-overlay-primary-color);
+  @include hover {
+    & {
+      border-color: var(--border-focus-color);
+      background: var(--bg-primary-color);
+      transform: translateY(-2px);
+      box-shadow: 0 4px 12px var(--bg-overlay-primary-color);
+    }
   }
 }
 
@@ -119,9 +121,11 @@ const palette = defineModel<ColorPalette>({ required: true })
   position: relative;
   overflow: hidden;
 
-  &:hover {
-    border-color: var(--border-accent-color);
-    transform: scale(1.05);
+  @include hover {
+    & {
+      border-color: var(--border-accent-color);
+      transform: scale(1.05);
+    }
   }
 
   &::-webkit-color-swatch-wrapper {

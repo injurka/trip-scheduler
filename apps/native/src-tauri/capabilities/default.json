@@ -1,0 +1,26 @@
+{
+  "identifier": "default",
+  "description": "TripScheduler native shell permissions",
+  "windows": [
+    "main"
+  ],
+  "permissions": [
+    "core:default",
+    "log:default",
+    "dialog:default",
+    "http:allow-fetch",
+    {
+      "identifier": "http:default",
+      "allow": [
+        {
+          "url": "https://trip-scheduler-api.limited-dissolve.ru/*"
+        },
+        {
+          "url": "http://localhost:*/*"
+        }
+      ]
+    },
+    "deep-link:default",
+    "opener:default"
+  ]
+}

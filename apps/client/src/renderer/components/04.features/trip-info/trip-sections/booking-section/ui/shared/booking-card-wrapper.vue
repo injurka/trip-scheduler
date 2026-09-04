@@ -118,8 +118,10 @@ async function handleDelete() {
   flex-direction: column;
   transition: all 0.3s ease;
 
-  &:hover {
-    box-shadow: var(--s-m);
+  @include hover {
+    & {
+      box-shadow: var(--s-m);
+    }
   }
 
   &.highlight-active {

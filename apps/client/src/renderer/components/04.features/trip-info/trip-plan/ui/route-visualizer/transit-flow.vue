@@ -215,12 +215,14 @@ function scrollRight() {
   transition: all 0.2s ease;
   opacity: 0.85;
 
-  &:hover {
-    opacity: 1;
-    color: var(--fg-accent-color);
-    border-color: var(--fg-accent-color);
-    background: var(--bg-primary-color);
-    transform: translateY(-50%) scale(1.1);
+  @include hover {
+    & {
+      opacity: 1;
+      color: var(--fg-accent-color);
+      border-color: var(--fg-accent-color);
+      background: var(--bg-primary-color);
+      transform: translateY(-50%) scale(1.1);
+    }
   }
 
   &.prev {
@@ -322,10 +324,12 @@ function scrollRight() {
   transition: all 0.2s ease;
   white-space: nowrap;
 
-  &:hover {
-    background: rgba(var(--fg-accent-color-rgb), 0.15);
-    border-style: solid;
-    transform: translateY(-1px);
+  @include hover {
+    & {
+      background: rgba(var(--fg-accent-color-rgb), 0.15);
+      border-style: solid;
+      transform: translateY(-1px);
+    }
   }
 }
 

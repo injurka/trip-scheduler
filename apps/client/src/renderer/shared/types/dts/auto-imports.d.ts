@@ -59,12 +59,15 @@ declare global {
   const inject: typeof import('vue').inject
   const injectLocal: typeof import('@vueuse/core').injectLocal
   const isDefined: typeof import('@vueuse/core').isDefined
+  const isMobile: typeof import('../../lib/env').isMobile
+  const isMobileApp: typeof import('../../lib/env').isMobileApp
   const isNetworkOrServerError: typeof import('../../lib/error').isNetworkOrServerError
   const isProxy: typeof import('vue').isProxy
   const isReactive: typeof import('vue').isReactive
   const isReadonly: typeof import('vue').isReadonly
   const isRef: typeof import('vue').isRef
   const isShallow: typeof import('vue').isShallow
+  const isTauri: typeof import('../../lib/env').isTauri
   const lazyComponent: typeof import('../../lib/lazy-component').lazyComponent
   const makeDestructurable: typeof import('@vueuse/core').makeDestructurable
   const manualResetRef: typeof import('@vueuse/core')['manualResetRef']
@@ -425,12 +428,15 @@ declare module 'vue' {
     readonly inject: UnwrapRef<typeof import('vue')['inject']>
     readonly injectLocal: UnwrapRef<typeof import('@vueuse/core')['injectLocal']>
     readonly isDefined: UnwrapRef<typeof import('@vueuse/core')['isDefined']>
+    readonly isMobile: UnwrapRef<typeof import('../../lib/env')['isMobile']>
+    readonly isMobileApp: UnwrapRef<typeof import('../../lib/env')['isMobileApp']>
     readonly isNetworkOrServerError: UnwrapRef<typeof import('../../lib/error')['isNetworkOrServerError']>
     readonly isProxy: UnwrapRef<typeof import('vue')['isProxy']>
     readonly isReactive: UnwrapRef<typeof import('vue')['isReactive']>
     readonly isReadonly: UnwrapRef<typeof import('vue')['isReadonly']>
     readonly isRef: UnwrapRef<typeof import('vue')['isRef']>
     readonly isShallow: UnwrapRef<typeof import('vue')['isShallow']>
+    readonly isTauri: UnwrapRef<typeof import('../../lib/env')['isTauri']>
     readonly lazyComponent: UnwrapRef<typeof import('../../lib/lazy-component')['lazyComponent']>
     readonly makeDestructurable: UnwrapRef<typeof import('@vueuse/core')['makeDestructurable']>
     readonly mapActions: UnwrapRef<typeof import('pinia')['mapActions']>

@@ -1,7 +1,7 @@
-import { existsSync, readdirSync, statSync } from 'node:fs'
-import { homedir, platform } from 'node:os'
+import { existsSync } from 'node:fs'
+import { homedir } from 'node:os'
 import { join } from 'node:path'
-import { normalizeFsPath } from '../lib/path-utils'
+import { discoverVaultFolders, normalizeFsPath } from '../../../../packages/vault-locator/src/index'
 
 export interface TargetLocation {
   id: string
@@ -13,6 +13,21 @@ export interface TargetLocation {
   rulesDir: string
   exists: boolean
   isDefault?: boolean
+}
+
+/** Регистрирует цель установки навыков в директорию Obsidian-вольта (папка <agents>/skills|rules). */
+function pushVaultTarget(targets: TargetLocation[], location: { path: string, vaultRoot: string }, label: string): void {
+  const vaultAgents = join(location.path, '.agents')
+  targets.push({
+    id: 'obsidian-travel-vault',
+    title: `💎 Obsidian Travel Vault (${label})`,
+    description: `${vaultAgents}`,
+    path: location.path,
+    agentsDir: vaultAgents,
+    skillsDir: join(vaultAgents, 'skills'),
+    rulesDir: join(vaultAgents, 'rules'),
+    exists: true,
+  })
 }
 
 export function detectCandidateTargets(): TargetLocation[] {
@@ -34,47 +49,11 @@ export function detectCandidateTargets(): TargetLocation[] {
     isDefault: true,
   })
 
-  // 2. Obsidian Travel Vault
-  const obsidianCandidates: string[] = [
-    '/mnt/c/Users/injurka/Documents/obsidian-mark/Personal Note/Travel',
-    join(home, 'Documents/obsidian-mark/Personal Note/Travel'),
-    join(home, 'Documents/Obsidian/Travel'),
-    join(home, 'Obsidian/Travel'),
-  ]
-
-  // Если это WSL/Linux, поищем по всем пользователям Windows
-  if (platform() === 'linux' && existsSync('/mnt/c/Users')) {
-    try {
-      const users = readdirSync('/mnt/c/Users', { withFileTypes: true })
-      for (const u of users) {
-        if (u.isDirectory() && !u.name.startsWith('.')) {
-          const userVault = join('/mnt/c/Users', u.name, 'Documents/obsidian-mark/Personal Note/Travel')
-          if (!obsidianCandidates.includes(userVault)) {
-            obsidianCandidates.push(userVault)
-          }
-        }
-      }
-    }
-    catch {
-      // ignore
-    }
-  }
-
-  for (const vaultPath of obsidianCandidates) {
-    if (existsSync(vaultPath) && statSync(vaultPath).isDirectory()) {
-      const vaultAgents = join(vaultPath, '.agents')
-      targets.push({
-        id: 'obsidian-travel-vault',
-        title: '💎 Obsidian Travel Vault (Personal Note/Travel)',
-        description: `${vaultAgents}`,
-        path: vaultPath,
-        agentsDir: vaultAgents,
-        skillsDir: join(vaultAgents, 'skills'),
-        rulesDir: join(vaultAgents, 'rules'),
-        exists: true,
-      })
-      break
-    }
+  // 2. Obsidian Travel Vault — автоматическое обнаружение по реестру Obsidian и маркерам .obsidian
+  const vaultFolders = discoverVaultFolders('Travel')
+  for (const location of vaultFolders) {
+    const label = location.path.slice(location.vaultRoot.length + 1) || location.name
+    pushVaultTarget(targets, location, label)
   }
 
   // 3. Antigravity Agent Global directory

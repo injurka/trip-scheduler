@@ -368,8 +368,10 @@ watch(() => props.visible, (isOpen) => {
     color: #000;
   }
 
-  &:hover {
-    transform: scale(1.1);
+  @include hover {
+    & {
+      transform: scale(1.1);
+    }
   }
 }
 

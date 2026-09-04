@@ -198,10 +198,12 @@ function handleOpen() {
   width: 100%;
   box-sizing: border-box;
 
-  &:hover:not(.readonly) {
-    background-color: var(--bg-hover-color);
-    border-color: var(--border-primary-color);
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
+  @include hover {
+    &:not(.readonly) {
+      background-color: var(--bg-hover-color);
+      border-color: var(--border-primary-color);
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
+    }
   }
 }
 
@@ -286,8 +288,10 @@ function handleOpen() {
 
   &:not(:disabled) {
     cursor: pointer;
-    &:hover {
-      transform: scale(1.05);
+    @include hover {
+      & {
+        transform: scale(1.05);
+      }
     }
   }
 }

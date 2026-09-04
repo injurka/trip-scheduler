@@ -174,10 +174,12 @@ import { AppRouteNames } from '~/shared/constants/routes'
   transition: all 0.2s ease;
   font-size: 1.25rem;
 
-  &:hover {
-    background-color: var(--bg-tertiary-color);
-    color: var(--fg-primary-color);
-    transform: translateY(-2px);
+  @include hover {
+    & {
+      background-color: var(--bg-tertiary-color);
+      color: var(--fg-primary-color);
+      transform: translateY(-2px);
+    }
   }
 
   &:active {

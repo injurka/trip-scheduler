@@ -45,11 +45,11 @@ ${colors.bright}ПРИМЕРЫ:${colors.reset}
   ${colors.dim}# Установить все навыки в текущий проект:${colors.reset}
   bun run skills:install --all
 
-  ${colors.dim}# Установить все навыки в хранилище Obsidian на диске C: (Windows/WSL):${colors.reset}
-  bun run skills:install -t "C:\\Users\\injurka\\Documents\\obsidian-mark\\Personal Note\\Travel" --all
+  ${colors.dim}# Установить все навыки в хранилище Obsidian (путь нормализуется автоматически):${colors.reset}
+  bun run skills:install -t "~/Documents/obsidian-mark/Personal Note/Travel" --all
 
   ${colors.dim}# Проверить качество разметки тура в Obsidian для obsidian-importer:${colors.reset}
-  bun run skills:install --check "/mnt/c/Users/injurka/Documents/obsidian-mark/Personal Note/Travel/-- Taiwan"
+  bun run skills:install --check "~/Documents/obsidian-mark/Personal Note/Travel/-- Taiwan"
 `)
 }
 

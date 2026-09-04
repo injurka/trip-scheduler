@@ -41,6 +41,14 @@ const mainMenuItems = computed(() => [
       open.value = false
     },
   },
+  {
+    label: 'Активность',
+    icon: 'mdi:map-marker-path',
+    action: () => {
+      router.push({ name: AppRouteNames.Activity })
+      open.value = false
+    },
+  },
 ])
 
 const secondaryMenuItems = computed(() => [

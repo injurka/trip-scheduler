@@ -337,10 +337,12 @@ function handleClose() {
   cursor: pointer;
   transition: all 0.2s ease;
 
-  &:hover {
-    border-color: var(--fg-accent-color);
-    background-color: var(--bg-hover-color);
-    box-shadow: var(--s-s);
+  @include hover {
+    & {
+      border-color: var(--fg-accent-color);
+      background-color: var(--bg-hover-color);
+      box-shadow: var(--s-s);
+    }
   }
 
   &.is-selected {

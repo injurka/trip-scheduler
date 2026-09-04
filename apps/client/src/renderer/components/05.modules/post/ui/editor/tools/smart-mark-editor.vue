@@ -219,10 +219,12 @@ watch(() => props.visible, (isOpen) => {
   cursor: pointer;
 }
 
-.mark-point:hover .dot,
-.mark-point.is-active .dot {
-  transform: scale(1.2);
-  background: white;
+@media (hover: hover) and (pointer: fine) {
+  .mark-point:hover .dot,
+  .mark-point.is-active .dot {
+    transform: scale(1.2);
+    background: white;
+  }
 }
 
 .mark-label {

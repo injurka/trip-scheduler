@@ -191,15 +191,17 @@ function handleNodeClick() {
   box-shadow: var(--s-xs);
   flex-shrink: 0;
 
-  &:hover {
-    transform: translateY(-2px);
-    border-color: var(--fg-accent-color);
-    box-shadow: var(--s-m);
-    background: var(--bg-hover-color);
+  @include hover {
+    & {
+      transform: translateY(-2px);
+      border-color: var(--fg-accent-color);
+      box-shadow: var(--s-m);
+      background: var(--bg-hover-color);
 
-    .node-marker {
-      transform: scale(1.1);
-      box-shadow: 0 0 12px var(--node-accent);
+      .node-marker {
+        transform: scale(1.1);
+        box-shadow: 0 0 12px var(--node-accent);
+      }
     }
   }
 

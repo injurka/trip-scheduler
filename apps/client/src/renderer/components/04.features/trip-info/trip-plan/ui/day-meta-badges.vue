@@ -458,9 +458,11 @@ function createBlankBadge() {
 .badge-wrapper {
   position: relative;
 
-  &:hover .badge-actions {
-    opacity: 1;
-    transform: translateY(0);
+  @include hover {
+    & .badge-actions {
+      opacity: 1;
+      transform: translateY(0);
+    }
   }
 }
 
@@ -476,9 +478,11 @@ function createBlankBadge() {
   transition: all 0.2s ease;
   backdrop-filter: blur(4px);
 
-  &:hover {
-    transform: translateY(-2px);
-    box-shadow: var(--s-m);
+  @include hover {
+    & {
+      transform: translateY(-2px);
+      box-shadow: var(--s-m);
+    }
   }
 }
 

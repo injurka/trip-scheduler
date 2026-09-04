@@ -40,10 +40,12 @@ defineProps<{ place: Place }>()
   transition: all 0.2s ease-in-out;
   height: 100%;
 
-  &:hover {
-    transform: translateY(-4px);
-    box-shadow: var(--s-l);
-    border-color: var(--border-primary-color);
+  @include hover {
+    & {
+      transform: translateY(-4px);
+      box-shadow: var(--s-l);
+      border-color: var(--border-primary-color);
+    }
   }
 }
 .card-cover {

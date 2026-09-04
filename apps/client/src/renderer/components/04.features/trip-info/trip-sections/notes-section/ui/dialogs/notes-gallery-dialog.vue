@@ -355,8 +355,10 @@ function openPreview(index: number): void {
   background: var(--bg-secondary-color);
   transition: box-shadow 0.15s;
 
-  &:hover {
-    box-shadow: var(--shadow-s, 0 2px 8px rgba(0, 0, 0, 0.1));
+  @include hover {
+    & {
+      box-shadow: var(--shadow-s, 0 2px 8px rgba(0, 0, 0, 0.1));
+    }
   }
 }
 

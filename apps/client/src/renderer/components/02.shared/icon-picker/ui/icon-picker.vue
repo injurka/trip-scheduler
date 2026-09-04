@@ -532,10 +532,12 @@ function clearSearch() {
   color: var(--fg-secondary-color);
   transition: all 0.15s ease;
 
-  &:hover {
-    background-color: var(--bg-hover-color);
-    color: var(--fg-primary-color);
-    transform: scale(1.1);
+  @include hover {
+    & {
+      background-color: var(--bg-hover-color);
+      color: var(--fg-primary-color);
+      transform: scale(1.1);
+    }
   }
 
   &.selected {

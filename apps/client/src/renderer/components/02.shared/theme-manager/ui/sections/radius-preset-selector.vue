@@ -69,10 +69,12 @@ const emit = defineEmits<{
   cursor: pointer;
   transition: all 0.2s ease;
 
-  &:hover {
-    transform: translateY(-2px);
-    border-color: var(--border-accent-color);
-    box-shadow: 0 4px 12px var(--bg-overlay-primary-color);
+  @include hover {
+    & {
+      transform: translateY(-2px);
+      border-color: var(--border-accent-color);
+      box-shadow: 0 4px 12px var(--bg-overlay-primary-color);
+    }
   }
 }
 

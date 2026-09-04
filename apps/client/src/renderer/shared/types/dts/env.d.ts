@@ -10,23 +10,11 @@ interface ImportMeta {
   readonly env: ImportMetaEnv
 }
 
-export interface IElectronAPI {
-  window: {
-    minimize: () => Promise<void>
-    toggleMaximize: () => Promise<void>
-    close: () => Promise<void>
-  }
-  vault: {
-    selectFolder: () => Promise<string | null>
-    getPath: () => Promise<string | null>
-    checkFiles: (paths: string[]) => Promise<string[]>
-    downloadFile: (url: string, path: string) => Promise<boolean>
-    deleteFile: (path: string) => Promise<void>
+declare global {
+  interface Window {
+    __TAURI_INTERNALS__?: unknown
+    __TAURI__?: unknown
   }
 }
 
-declare global {
-  interface Window {
-    electronAPI: IElectronAPI
-  }
-}
+export {}

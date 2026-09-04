@@ -18,6 +18,18 @@ CLI-инструмент для управления и установки на�
 
 ---
 
+## 🔎 Обнаружение Obsidian-вольтов
+
+Инструменты автоматически находят Obsidian-вольты без хардкода путей:
+
+1. **Реестр Obsidian** (`~/.config/obsidian/obsidian.json`, Windows: `%APPDATA%/obsidian/obsidian.json`, macOS: `~/Library/Application Support/obsidian/obsidian.json`) — официальный список всех вольтов.
+2. **Маркер `.obsidian`** в стандартных директориях (`~/Documents`, `~/Obsidian` и подпапках).
+3. **WSL**: дополнительно сканируются реестры `/mnt/c/Users/*/AppData/Roaming/obsidian/obsidian.json`.
+
+Логика вынесена в общий workspace-пакет `packages/vault-locator` и используется обоими CLI-инструментами (через относительный импорт исходников, без сборки).
+
+---
+
 ## 🚀 Использование
 
 ### Интерактивный запуск:
@@ -34,16 +46,16 @@ bun run tools/skills-installer/src/run.ts
 bun run skills:install --all
 ```
 
-### Установка в хранилище Obsidian на Windows (WSL):
+### Установка в конкретное хранилище Obsidian (путь опционален — иначе интерактивный выбор из найденных вольтов):
 
 ```bash
-bun run skills:install -t "C:\Users\injurka\Documents\obsidian-mark\Personal Note\Travel" --all
+bun run skills:install -t "~/Documents/obsidian-mark/Personal Note/Travel" --all
 ```
 
 ### Аудит готовности заметок тура к веб-импорту:
 
 ```bash
-bun run skills:install --check "/mnt/c/Users/injurka/Documents/obsidian-mark/Personal Note/Travel/-- Taiwan"
+bun run skills:install --check "~/Documents/obsidian-mark/Personal Note/Travel/-- Taiwan"
 ```
 
 ### Просмотр доступных навыков:
@@ -55,5 +67,8 @@ bun run skills:install --list
 ### Синхронизация шаблонов из внешнего хранилища:
 
 ```bash
+# Источник по умолчанию — первый обнаруженный Travel-вольт (.agents)
 bun run skills:install --sync-source
+# или явно:
+bun run skills:install --sync-source "~/Documents/obsidian-mark/Personal Note/Travel/.agents"
 ```

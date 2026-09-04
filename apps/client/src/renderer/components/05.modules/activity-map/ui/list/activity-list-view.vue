@@ -130,10 +130,12 @@ const dateRange = defineModel<DateRange>('dateRange', { required: true })
   transition: all 0.2s;
   overflow: hidden;
 
-  &:hover {
-    border-color: var(--border-primary-color);
-    transform: translateY(-2px);
-    box-shadow: var(--s-m);
+  @include hover {
+    & {
+      border-color: var(--border-primary-color);
+      transform: translateY(-2px);
+      box-shadow: var(--s-m);
+    }
   }
 
   .card-status-line {

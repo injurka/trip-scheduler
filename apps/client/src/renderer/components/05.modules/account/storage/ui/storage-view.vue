@@ -461,14 +461,16 @@ onMounted(() => {
   cursor: pointer;
   transition: all 0.2s ease;
 
-  &:hover {
-    border-color: var(--border-primary-color);
-    transform: translateY(-2px);
-    box-shadow: var(--s-m);
+  @include hover {
+    & {
+      border-color: var(--border-primary-color);
+      transform: translateY(-2px);
+      box-shadow: var(--s-m);
 
-    .delete-btn {
-      opacity: 1;
-      transform: translateY(0);
+      .delete-btn {
+        opacity: 1;
+        transform: translateY(0);
+      }
     }
   }
 }
@@ -510,8 +512,10 @@ onMounted(() => {
   z-index: 2;
   transition: all 0.2s ease;
 
-  &:hover {
-    transform: scale(1.1);
+  @include hover {
+    & {
+      transform: scale(1.1);
+    }
   }
 }
 

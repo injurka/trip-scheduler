@@ -10,6 +10,7 @@ import { KitDropdown } from '~/components/01.kit/kit-dropdown'
 import { KitTooltip } from '~/components/01.kit/kit-tooltip'
 import { AsyncStateWrapper } from '~/components/02.shared/async-state-wrapper'
 import { ETripMemoriesKeys } from '~/components/04.features/trip-info/trip-memories/store/trip-memories.store'
+import DayMemoriesPlayer from '~/components/05.modules/activity-map/ui/memories/day-memories-player.vue'
 import { useModuleStore } from '~/components/05.modules/trip-info/composables/use-trip-info-module'
 import { getTagInfo } from '~/components/05.modules/trip-info/lib/helpers'
 import { useRequestError } from '~/plugins/request'
@@ -37,7 +38,7 @@ const {
   vaultStore,
   handleDownloadVault,
   handleToggleLocalMode,
-  isElectron,
+  isNative,
   syncState,
 } = useTripMemoriesVault()
 
@@ -225,6 +226,9 @@ function handleImport(activity: Activity) {
 
 const isNotifyLoading = ref(false)
 
+// ─── Маршрут подвижности дня ──────────────────────────────────────────────────
+const isTrackPlayerOpen = ref(false)
+
 async function handleNotifyParticipants() {
   if (!tripData.currentTripId || !getSelectedDay.value)
     return
@@ -261,7 +265,7 @@ async function handleNotifyParticipants() {
         :is-loading="isLoadingMemories || memories.isCreatingMemory || memories.isMutateMemory"
       />
       <div class="controls-wrapper">
-        <template v-if="isElectron">
+        <template v-if="isNative">
           <KitTooltip :text="vaultStore.isLocalMode ? 'Локальный режим включён' : 'Включить локальный режим'">
             <button
               class="control-btn local-mode-btn"
@@ -386,6 +390,16 @@ async function handleNotifyParticipants() {
           </template>
         </KitTooltip>
 
+        <KitTooltip text="Маршрут дня (подвижность)">
+          <button
+            class="control-btn track-route-btn"
+            :class="{ 'is-active': isTrackPlayerOpen }"
+            @click="isTrackPlayerOpen = !isTrackPlayerOpen"
+          >
+            <Icon icon="mdi:map-marker-path" />
+          </button>
+        </KitTooltip>
+
         <KitTooltip v-if="!isViewMode && memoriesForSelectedDay.length > 0" text="Уведомить участников">
           <button
             class="control-btn notify-btn"
@@ -481,6 +495,17 @@ async function handleNotifyParticipants() {
       v-model:visible="isAddActivityDialogVisible"
       @save="handleSaveActivity"
     />
+
+    <Teleport to="body">
+      <div v-if="isTrackPlayerOpen" class="track-route-overlay">
+        <div class="track-route-sheet">
+          <button class="track-route-close" aria-label="Закрыть маршрут" @click="isTrackPlayerOpen = false">
+            <Icon icon="mdi:close" />
+          </button>
+          <DayMemoriesPlayer />
+        </div>
+      </div>
+    </Teleport>
   </div>
 </template>
 
@@ -696,6 +721,45 @@ async function handleNotifyParticipants() {
 
   &:hover {
     filter: brightness(1.1);
+  }
+}
+
+.track-route-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 200;
+  background: rgba(0, 0, 0, 0.6);
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+}
+
+.track-route-sheet {
+  position: relative;
+  width: min(900px, 100vw);
+  height: 88vh;
+  background: var(--bg-primary-color);
+  border-radius: var(--r-l, 16px) var(--r-l, 16px) 0 0;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+
+  .track-route-close {
+    position: absolute;
+    top: 8px;
+    right: 8px;
+    z-index: 10;
+    width: 36px;
+    height: 36px;
+    border-radius: 50%;
+    border: none;
+    background: var(--bg-primary-color);
+    color: var(--fg-primary-color);
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
   }
 }
 </style>

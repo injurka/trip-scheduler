@@ -731,3 +731,43 @@ export const postLikesRelations = relations(postLikes, ({ one }) => ({
     references: [posts.id],
   }),
 }))
+
+export const trackActivityTypeEnum = pgEnum('track_activity_type', ['still', 'walk', 'bike', 'vehicle', 'rail', 'unknown'])
+
+/** Сырые GPS-точки, выгружаемые батчами с мобильного клиента. */
+export const trackPoints = pgTable('track_points', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  clientPointId: text('client_point_id').notNull().unique(),
+  userId: uuid('user_id').notNull().references(() => users.id, { onDelete: 'cascade' }),
+  sessionId: text('session_id').notNull(),
+  tsUtc: timestamp('ts_utc', { withTimezone: true }).notNull(),
+  lat: doublePrecision('lat').notNull(),
+  lng: doublePrecision('lng').notNull(),
+  altitude: real('altitude'),
+  accuracy: real('accuracy'),
+  speed: real('speed'),
+  bearing: real('bearing'),
+  activity: trackActivityTypeEnum('activity').notNull().default('unknown'),
+  activityConfidence: integer('activity_confidence').notNull().default(0),
+  createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
+}, t => ({
+  userTsIndex: index('track_points_user_ts_idx').on(t.userId, t.tsUtc),
+  sessionIndex: index('track_points_session_idx').on(t.sessionId),
+}))
+
+/** Сегменты после пост-обработки (классификация активности + RDP-сжатие). */
+export const trackSegments = pgTable('track_segments', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  userId: uuid('user_id').notNull().references(() => users.id, { onDelete: 'cascade' }),
+  sessionId: text('session_id').notNull(),
+  activity: trackActivityTypeEnum('activity').notNull(),
+  confidence: real('confidence').notNull().default(0),
+  startedAt: timestamp('started_at', { withTimezone: true }).notNull(),
+  endedAt: timestamp('ended_at', { withTimezone: true }).notNull(),
+  distanceM: real('distance_m').notNull().default(0),
+  pointCount: integer('point_count').notNull().default(0),
+  geometry: jsonb('geometry').$type<[number, number][]>().notNull().default([]),
+  createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
+}, t => ({
+  userSessionIndex: index('track_segments_user_session_idx').on(t.userId, t.sessionId, t.startedAt),
+}))

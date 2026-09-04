@@ -99,7 +99,7 @@ export function useTripMemoriesVault() {
     handleToggleLocalMode,
     handleDownloadVault,
 
-    isElectron: computed(() => vaultStore.isElectron),
+    isNative: computed(() => vaultStore.isNative),
     syncState: computed(() => vaultStore.syncState),
     isLocalMode: computed(() => vaultStore.isLocalMode),
     isConfigured: computed(() => vaultStore.isConfigured),

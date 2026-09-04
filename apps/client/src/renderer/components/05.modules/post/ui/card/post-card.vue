@@ -364,9 +364,11 @@ const cardStyle = computed(() => ({
   border: 1px solid var(--border-secondary-color);
   border-left: 4px solid var(--post-card-accent);
 
-  &:hover {
-    transform: translateY(-2px);
-    box-shadow: var(--s-l);
+  @include hover {
+    & {
+      transform: translateY(-2px);
+      box-shadow: var(--s-l);
+    }
   }
 }
 
@@ -644,9 +646,11 @@ const cardStyle = computed(() => ({
   animation: pulse 2s infinite;
 }
 
-.smart-mark:hover .mark-dot,
-.smart-mark.is-active .mark-dot {
-  transform: scale(1.2);
+@media (hover: hover) and (pointer: fine) {
+  .smart-mark:hover .mark-dot,
+  .smart-mark.is-active .mark-dot {
+    transform: scale(1.2);
+  }
 }
 
 .mark-bubble {
@@ -665,11 +669,13 @@ const cardStyle = computed(() => ({
   transition: all 0.2s;
 }
 
-.smart-mark:hover .mark-bubble,
-.smart-mark.is-active .mark-bubble {
-  opacity: 1;
-  transform: translateX(-50%) scale(1);
-  pointer-events: auto;
+@media (hover: hover) and (pointer: fine) {
+  .smart-mark:hover .mark-bubble,
+  .smart-mark.is-active .mark-bubble {
+    opacity: 1;
+    transform: translateX(-50%) scale(1);
+    pointer-events: auto;
+  }
 }
 
 .bubble-tail {

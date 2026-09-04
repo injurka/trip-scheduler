@@ -3,9 +3,12 @@ import { createHead } from '@vueuse/head'
 
 // файл генерируется скриптом
 import iconsBundle from '~/assets/icons-bundle.json'
-import router from '~/shared/lib/router'
+import { isMobileApp } from '~/shared/lib/env'
 
+import router from '~/shared/lib/router'
 import { initializePwaUpdater } from '~/shared/services/pwa/pwa.service'
+import { startSyncWorker } from '~/shared/services/tracking/track-sync'
+import { useTrackingStore } from '~/shared/store/tracking.store'
 // @ts-expect-error бред какой то
 import application from './app.vue'
 import { requestPlugin } from './plugins/request'
@@ -36,6 +39,13 @@ async function initializeApp() {
 
   await restoreSession(pinia)
   initializePwaUpdater(pinia)
+
+  // GPS-трекинг: запуск опроса статуса плагина и синк-воркера (только мобильная сборка)
+  if (isMobileApp) {
+    const trackingStore = useTrackingStore(pinia)
+    void trackingStore.startPolling()
+    startSyncWorker()
+  }
 
   app.mount('#app')
 }

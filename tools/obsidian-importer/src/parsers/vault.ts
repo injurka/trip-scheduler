@@ -1,7 +1,7 @@
 import type { ParsedDay, ParsedNoteFile, ParsedNoteFolder, ParsedTripData } from '../types'
 import { existsSync, readdirSync, readFileSync, statSync } from 'node:fs'
-import { homedir, platform } from 'node:os'
 import { basename, join, resolve } from 'node:path'
+import { discoverVaultFolders, normalizeFsPath } from '../../../../packages/vault-locator/src/index'
 import { normalizeIframeLineBreaks } from './activity'
 import { parseObsidianBookings } from './booking'
 import { parseObsidianChecklists } from './checklist'
@@ -9,70 +9,28 @@ import { parseDayMetaFromMarkdown } from './day-meta'
 import { parseObsidianFinances } from './finances'
 
 export function normalizeVaultPath(rawPath: string): string {
-  if (!rawPath)
-    return rawPath
-
-  let p = rawPath.trim()
-  if ((p.startsWith('"') && p.endsWith('"')) || (p.startsWith('\'') && p.endsWith('\''))) {
-    p = p.slice(1, -1).trim()
-  }
-
-  p = p.replace(/\\/g, '/')
-
-  if (platform() === 'linux') {
-    const winDriveMatch = p.match(/^([a-zA-Z]):\/(.*)$/)
-    if (winDriveMatch) {
-      const driveLetter = winDriveMatch[1].toLowerCase()
-      const rest = winDriveMatch[2]
-      p = `/mnt/${driveLetter}/${rest}`
-    }
-  }
-
-  return p
+  return normalizeFsPath(rawPath)
 }
 
+/**
+ * Обнаруживает папки путешествий в известных Obsidian-вольтах через общий
+ * vault-locator (реестр obsidian.json + маркеры .obsidian, без хардкода путей).
+ * Возвращает пути к подпапкам-путешествиям внутри Travel-директорий.
+ */
 export function discoverObsidianTravelFolders(): string[] {
-  const home = homedir()
-  const candidateDirs = [
-    '/mnt/c/Users/injurka/Documents/obsidian-mark/Personal Note/Travel',
-    join(home, 'Documents/obsidian-mark/Personal Note/Travel'),
-    join(home, 'Documents/Obsidian/Travel'),
-    join(home, 'Obsidian/Travel'),
-    join(home, 'Documents/Travel'),
-  ]
+  const discovered: string[] = []
 
-  if (platform() === 'linux' && existsSync('/mnt/c/Users')) {
+  for (const location of discoverVaultFolders('Travel')) {
     try {
-      const users = readdirSync('/mnt/c/Users', { withFileTypes: true })
-      for (const u of users) {
-        if (u.isDirectory() && !u.name.startsWith('.')) {
-          const userVault = join('/mnt/c/Users', u.name, 'Documents/obsidian-mark/Personal Note/Travel')
-          if (!candidateDirs.includes(userVault)) {
-            candidateDirs.push(userVault)
-          }
+      const entries = readdirSync(location.path, { withFileTypes: true })
+      for (const entry of entries) {
+        if (entry.isDirectory() && !entry.name.startsWith('.')) {
+          discovered.push(join(location.path, entry.name))
         }
       }
     }
     catch {
-      // ignore errors
-    }
-  }
-
-  const discovered: string[] = []
-
-  for (const base of candidateDirs) {
-    if (existsSync(base) && statSync(base).isDirectory()) {
-      try {
-        const entries = readdirSync(base, { withFileTypes: true })
-        for (const entry of entries) {
-          if (entry.isDirectory() && !entry.name.startsWith('.')) {
-            discovered.push(join(base, entry.name))
-          }
-        }
-      }
-      catch {
-        // ignore errors
-      }
+      // ignore unreadable travel dir
     }
   }
 

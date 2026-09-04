@@ -181,16 +181,18 @@ function handleCardClick(e: MouseEvent) {
   gap: 10px;
   box-sizing: border-box;
 
-  &:hover {
-    transform: translateY(-2px);
-    border-color: var(--accent-color);
-    box-shadow:
-      0 6px 20px rgba(0, 0, 0, 0.25),
-      0 0 12px rgba(var(--fg-accent-color-rgb), 0.18);
+  @include hover {
+    & {
+      transform: translateY(-2px);
+      border-color: var(--accent-color);
+      box-shadow:
+        0 6px 20px rgba(0, 0, 0, 0.25),
+        0 0 12px rgba(var(--fg-accent-color-rgb), 0.18);
 
-    .station-bullet {
-      transform: scale(1.1);
-      box-shadow: 0 0 12px var(--accent-color);
+      .station-bullet {
+        transform: scale(1.1);
+        box-shadow: 0 0 12px var(--accent-color);
+      }
     }
   }
 

@@ -318,13 +318,15 @@ onMounted(() => {
       cursor: pointer;
       overflow: hidden;
 
-      &:hover {
-        border-radius: 10px;
-        transform: translateY(-1px);
-        box-shadow: var(--s-l);
+      @include hover {
+        & {
+          border-radius: 10px;
+          transform: translateY(-1px);
+          box-shadow: var(--s-l);
 
-        .logo-icon {
-          transform: rotate(10deg) scale(1.1);
+          .logo-icon {
+            transform: rotate(10deg) scale(1.1);
+          }
         }
       }
 
@@ -377,10 +379,12 @@ onMounted(() => {
       box-shadow 0.2s ease;
     height: 40px;
 
-    &:hover {
-      border-radius: 10px;
-      transform: translateY(-1px);
-      box-shadow: var(--s-l);
+    @include hover {
+      & {
+        border-radius: 10px;
+        transform: translateY(-1px);
+        box-shadow: var(--s-l);
+      }
     }
 
     &:active {
@@ -420,14 +424,16 @@ onMounted(() => {
         z-index: -1;
       }
 
-      &:hover,
-      &.is-active {
-        color: var(--fg-accent-color);
-        transform: scale(1.1);
+      @media (hover: hover) and (pointer: fine) {
+        &:hover,
+        &.is-active {
+          color: var(--fg-accent-color);
+          transform: scale(1.1);
 
-        &::before {
-          width: 100%;
-          height: 100%;
+          &::before {
+            width: 100%;
+            height: 100%;
+          }
         }
       }
 
@@ -457,10 +463,12 @@ onMounted(() => {
           transform 0.2s ease,
           box-shadow 0.2s ease;
 
-        &:hover {
-          border-color: var(--border-accent-color);
-          transform: scale(1.05);
-          box-shadow: 0 2px 8px var(--border-accent-color);
+        @include hover {
+          & {
+            border-color: var(--border-accent-color);
+            transform: scale(1.05);
+            box-shadow: 0 2px 8px var(--border-accent-color);
+          }
         }
       }
     }
@@ -527,14 +535,16 @@ onMounted(() => {
   transition: all 0.2s cubic-bezier(0.25, 0.8, 0.25, 1);
   width: 100%;
 
-  &:hover {
-    background-color: var(--bg-secondary-color);
-    border-color: var(--border-secondary-color);
-    transform: translateX(4px);
+  @include hover {
+    & {
+      background-color: var(--bg-secondary-color);
+      border-color: var(--border-secondary-color);
+      transform: translateX(4px);
 
-    .nav-arrow {
-      opacity: 1;
-      transform: translateX(0);
+      .nav-arrow {
+        opacity: 1;
+        transform: translateX(0);
+      }
     }
   }
 
@@ -550,8 +560,10 @@ onMounted(() => {
     transition: transform 0.2s ease;
   }
 
-  &:hover &-icon {
-    transform: scale(1.1) rotate(5deg);
+  @media (hover: hover) and (pointer: fine) {
+    &:hover &-icon {
+      transform: scale(1.1) rotate(5deg);
+    }
   }
 
   &-info {

@@ -34,6 +34,7 @@ const isEditMode = computed(() => {
 
 const selectedCity = ref<string | null>(null)
 const isDropdownOpen = ref(false)
+const isDetailsExpanded = ref(false)
 const isGeneratingLocal = ref(false)
 const errorMessage = ref<string | null>(null)
 
@@ -78,6 +79,29 @@ const currentCityWeather = computed(() => {
   if (!selectedCity.value || !effectiveWeatherData.value)
     return null
   return effectiveWeatherData.value[selectedCity.value] || null
+})
+
+const hasDetailedInfo = computed(() => {
+  if (!currentCityWeather.value)
+    return false
+  const w = currentCityWeather.value
+  return Boolean(
+    w.clothingRecommendation
+    || w.summary
+    || w.windDescription
+    || w.seasonalityDescription
+    || w.precipitationType
+    || w.rainyDays,
+  )
+})
+
+const rainDetailText = computed(() => {
+  if (!currentCityWeather.value)
+    return ''
+  const { rainyDays, precipitationType } = currentCityWeather.value
+  if (rainyDays)
+    return `${rainyDays} дн. с осадками`
+  return precipitationType || ''
 })
 
 function formatTemp(temp: number | null | undefined): string {
@@ -179,7 +203,7 @@ onMounted(() => {
       </div>
     </div>
 
-    <!-- Селектор городов (если больше одного) -->
+    <!-- Селектор городов -->
     <div v-if="cities.length > 1" class="city-selector-container">
       <KitDropdown
         v-model="selectedCity"
@@ -218,7 +242,7 @@ onMounted(() => {
         </KitBtn>
       </div>
 
-      <!-- Отображение данных погоды и контекста -->
+      <!-- Отображение данных погоды -->
       <div v-else-if="currentCityWeather" class="weather-content">
         <!-- Сводка температур -->
         <div class="weather-summary">
@@ -239,96 +263,120 @@ onMounted(() => {
           </div>
         </div>
 
-        <!-- Сетка ключевых климатических показателей -->
-        <div class="weather-details-grid">
+        <!-- Единая панель показателей (монолитный блок с внутренними разделителями) -->
+        <div class="climate-grid-panel">
           <!-- Осадки -->
-          <div class="detail-card">
-            <div class="icon-box rain">
-              <Icon icon="mdi:weather-rainy" />
+          <div class="climate-cell">
+            <div class="cell-header">
+              <Icon icon="mdi:weather-rainy" class="cell-icon rain" />
+              <span class="cell-title">Осадки</span>
             </div>
-            <div class="detail-text">
-              <span class="detail-value">
-                {{ currentCityWeather.precipitationProbability !== null && currentCityWeather.precipitationProbability !== undefined ? `${currentCityWeather.precipitationProbability}%` : 'Осадки' }}
-              </span>
-              <span class="detail-label" :title="currentCityWeather.precipitationType || ''">
-                {{ currentCityWeather.rainyDays ? `${currentCityWeather.rainyDays} дн. с осадками` : (currentCityWeather.precipitationType || 'осадки') }}
-              </span>
+            <div class="cell-value">
+              {{ currentCityWeather.precipitationProbability !== null && currentCityWeather.precipitationProbability !== undefined ? `${currentCityWeather.precipitationProbability}%` : '—' }}
+            </div>
+            <div v-if="rainDetailText" class="cell-details" :class="{ 'is-visible': isDetailsExpanded }">
+              <span>{{ rainDetailText }}</span>
             </div>
           </div>
 
           <!-- Ветер -->
-          <div class="detail-card">
-            <div class="icon-box wind">
-              <Icon icon="mdi:weather-windy" />
+          <div class="climate-cell">
+            <div class="cell-header">
+              <Icon icon="mdi:weather-windy" class="cell-icon wind" />
+              <span class="cell-title">Ветер</span>
             </div>
-            <div class="detail-text">
-              <span class="detail-value">
-                {{ currentCityWeather.windSpeed !== null && currentCityWeather.windSpeed !== undefined ? `${currentCityWeather.windSpeed} км/ч` : 'Ветер' }}
-              </span>
-              <span class="detail-label" :title="currentCityWeather.windDescription || ''">
-                {{ currentCityWeather.windDescription || 'ветер' }}
-              </span>
+            <div class="cell-value">
+              {{ currentCityWeather.windSpeed !== null && currentCityWeather.windSpeed !== undefined ? `${currentCityWeather.windSpeed} км/ч` : '—' }}
+            </div>
+            <div v-if="currentCityWeather.windDescription" class="cell-details" :class="{ 'is-visible': isDetailsExpanded }">
+              <span>{{ currentCityWeather.windDescription }}</span>
             </div>
           </div>
 
           <!-- Загруженность / Сезон -->
-          <div class="detail-card">
-            <div class="icon-box crowds">
-              <Icon icon="mdi:account-group-outline" />
+          <div class="climate-cell">
+            <div class="cell-header">
+              <Icon icon="mdi:account-group-outline" class="cell-icon crowds" />
+              <span class="cell-title">Загруженность</span>
             </div>
-            <div class="detail-text">
-              <div class="season-badge" :class="getSeasonalityClass(currentCityWeather.seasonality)">
+            <div class="cell-value">
+              <span class="season-text" :class="getSeasonalityClass(currentCityWeather.seasonality)">
                 {{ getSeasonalityLabel(currentCityWeather.seasonality) }}
-              </div>
-              <span class="detail-label" :title="currentCityWeather.seasonalityDescription || ''">
-                {{ currentCityWeather.seasonalityDescription || 'загруженность' }}
               </span>
+            </div>
+            <div v-if="currentCityWeather.seasonalityDescription" class="cell-details" :class="{ 'is-visible': isDetailsExpanded }">
+              <span>{{ currentCityWeather.seasonalityDescription }}</span>
             </div>
           </div>
 
           <!-- Световой день -->
-          <div class="detail-card">
-            <div class="icon-box sun">
-              <Icon icon="mdi:white-balance-sunny" />
+          <div class="climate-cell">
+            <div class="cell-header">
+              <Icon icon="mdi:white-balance-sunny" class="cell-icon sun" />
+              <span class="cell-title">Световой день</span>
             </div>
-            <div class="detail-text">
-              <span class="detail-value">
-                {{ currentCityWeather.daylight || 'Обычный' }}
-              </span>
-              <span class="detail-label">световой день</span>
+            <div class="cell-value">
+              {{ currentCityWeather.daylight || 'Обычный' }}
+            </div>
+            <div class="cell-details" :class="{ 'is-visible': isDetailsExpanded }">
+              <span>длительность дня</span>
             </div>
           </div>
         </div>
 
-        <!-- Практические рекомендации (одежда и советы) -->
-        <div v-if="currentCityWeather.clothingRecommendation || currentCityWeather.summary" class="recommendations-box">
-          <div v-if="currentCityWeather.clothingRecommendation" class="recommendation-item clothing">
-            <div class="rec-icon-wrapper">
-              <Icon icon="mdi:tshirt-crew-outline" class="rec-icon" />
-            </div>
-            <div class="rec-content">
-              <span class="rec-badge">Одежда</span>
-              <p class="rec-text">
-                {{ currentCityWeather.clothingRecommendation }}
-              </p>
-            </div>
-          </div>
+        <!-- Кнопка раскрытия подробностей и советов -->
+        <button
+          v-if="hasDetailedInfo"
+          type="button"
+          class="details-toggle-btn"
+          :class="{ 'is-expanded': isDetailsExpanded }"
+          :aria-expanded="isDetailsExpanded"
+          @click="isDetailsExpanded = !isDetailsExpanded"
+        >
+          <span class="toggle-text">
+            {{ isDetailsExpanded ? 'Скрыть подробности' : 'Подробности и советы' }}
+          </span>
+          <Icon icon="mdi:chevron-down" class="toggle-chevron" />
+        </button>
 
-          <div v-if="currentCityWeather.summary" class="recommendation-item tip">
-            <div class="rec-icon-wrapper">
-              <Icon icon="mdi:lightbulb-on-outline" class="rec-icon" />
-            </div>
-            <div class="rec-content">
-              <span class="rec-badge">Совет</span>
-              <p class="rec-text">
-                {{ currentCityWeather.summary }}
-              </p>
+        <!-- Сворачиваемая зона: практические рекомендации -->
+        <div
+          v-if="currentCityWeather.clothingRecommendation || currentCityWeather.summary"
+          class="details-collapse"
+          :class="{ 'is-open': isDetailsExpanded }"
+          :inert="!isDetailsExpanded"
+        >
+          <div class="details-collapse-inner">
+            <div class="recommendations-box">
+              <div v-if="currentCityWeather.clothingRecommendation" class="recommendation-item clothing">
+                <div class="rec-icon-wrapper">
+                  <Icon icon="mdi:tshirt-crew-outline" class="rec-icon" />
+                </div>
+                <div class="rec-content">
+                  <span class="rec-badge">Одежда</span>
+                  <p class="rec-text">
+                    {{ currentCityWeather.clothingRecommendation }}
+                  </p>
+                </div>
+              </div>
+
+              <div v-if="currentCityWeather.summary" class="recommendation-item tip">
+                <div class="rec-icon-wrapper">
+                  <Icon icon="mdi:lightbulb-on-outline" class="rec-icon" />
+                </div>
+                <div class="rec-content">
+                  <span class="rec-badge">Совет</span>
+                  <p class="rec-text">
+                    {{ currentCityWeather.summary }}
+                  </p>
+                </div>
+              </div>
             </div>
           </div>
         </div>
       </div>
 
-      <!-- Состояние пустоты: данные еще не сгенерированы -->
+      <!-- Состояние пустоты -->
       <div v-else class="empty-state">
         <div class="empty-icon-box">
           <Icon icon="mdi:weather-partly-cloudy" />
@@ -376,8 +424,6 @@ onMounted(() => {
 </template>
 
 <style scoped lang="scss">
-@use '~/assets/scss/_setup.scss' as *;
-
 .weather-widget {
   display: flex;
   flex-direction: column;
@@ -421,7 +467,7 @@ onMounted(() => {
   width: 28px;
   height: 28px;
   border-radius: var(--r-s);
-  background: var(--bg-tertiary-color);
+  background-color: transparent;
   border: 1px solid var(--border-secondary-color);
   color: var(--fg-secondary-color);
   cursor: pointer;
@@ -430,7 +476,7 @@ onMounted(() => {
   &:hover:not(:disabled) {
     color: var(--fg-accent-color);
     border-color: var(--border-primary-color);
-    background: var(--bg-secondary-color);
+    background-color: rgba(var(--bg-secondary-color-rgb), 0.7);
   }
 
   &:disabled {
@@ -447,18 +493,21 @@ onMounted(() => {
   display: flex;
   align-items: center;
   gap: 8px;
-  background-color: var(--bg-tertiary-color);
+  background-color: rgba(var(--bg-secondary-color-rgb), 0.4);
   border-radius: var(--r-m);
   padding: 8px 12px;
   color: var(--fg-secondary-color);
   width: 100%;
   border: 1px solid var(--border-secondary-color);
   cursor: pointer;
-  transition: border-color 0.2s ease;
+  transition:
+    border-color 0.2s ease,
+    background-color 0.2s ease;
   font-family: inherit;
 
   &:hover {
     border-color: var(--border-primary-color);
+    background-color: rgba(var(--bg-secondary-color-rgb), 0.6);
   }
 }
 
@@ -484,7 +533,7 @@ onMounted(() => {
   justify-content: center;
   background-color: var(--bg-tertiary-color);
   border-radius: var(--r-m);
-  padding: 1.25rem 1rem;
+  padding: 1.15rem 1rem;
   min-height: 220px;
 }
 
@@ -538,7 +587,7 @@ onMounted(() => {
   width: 100%;
   display: flex;
   flex-direction: column;
-  gap: 1.25rem;
+  gap: 1rem;
 }
 
 .weather-summary {
@@ -554,31 +603,31 @@ onMounted(() => {
   flex-direction: column;
   align-items: center;
   padding: 0 0.5rem;
-  gap: 4px;
+  gap: 3px;
 
   .label {
-    font-size: 0.75rem;
+    font-size: 0.725em;
     color: var(--fg-secondary-color);
     text-transform: uppercase;
     letter-spacing: 0.5px;
   }
 
   .value {
-    font-size: 1.4rem;
+    font-size: 1.35em;
     font-weight: 600;
     color: var(--fg-primary-color);
     line-height: 1.1;
   }
 
   .sub-label {
-    font-size: 0.75rem;
+    font-size: 0.725em;
     color: var(--fg-secondary-color);
     margin-top: 2px;
   }
 
   &.average {
     .value {
-      font-size: 2.2rem;
+      font-size: 2.1em;
       color: var(--fg-accent-color);
     }
     .label {
@@ -588,29 +637,39 @@ onMounted(() => {
   }
 }
 
-.weather-details-grid {
+/* Единая панель показателей с полупрозрачным фоном */
+.climate-grid-panel {
   display: grid;
   grid-template-columns: repeat(2, 1fr);
-  gap: 0.75rem;
-  padding-top: 1rem;
-  border-top: 1px solid var(--border-secondary-color);
+  background-color: rgba(var(--bg-secondary-color-rgb), 0.55);
+  border: 1px solid var(--border-secondary-color);
+  border-radius: var(--r-m);
+  overflow: hidden;
 }
 
-.detail-card {
+.climate-cell {
+  padding: 9px 12px;
   display: flex;
-  align-items: center;
-  gap: 10px;
-  background: var(--bg-secondary-color);
-  padding: 8px 12px;
-  border-radius: var(--r-s);
-  border: 1px solid var(--border-secondary-color);
-  overflow: hidden;
+  flex-direction: column;
+  gap: 2px;
 
-  .icon-box {
-    font-size: 1.4rem;
+  &:nth-child(odd) {
+    border-right: 1px solid var(--border-secondary-color);
+  }
+
+  &:nth-child(1),
+  &:nth-child(2) {
+    border-bottom: 1px solid var(--border-secondary-color);
+  }
+
+  .cell-header {
     display: flex;
     align-items: center;
-    justify-content: center;
+    gap: 6px;
+  }
+
+  .cell-icon {
+    font-size: 1.05rem;
     flex-shrink: 0;
 
     &.rain {
@@ -627,42 +686,52 @@ onMounted(() => {
     }
   }
 
-  .detail-text {
-    display: flex;
-    flex-direction: column;
-    text-align: left;
-    min-width: 0;
-    flex: 1;
-    gap: 2px;
+  .cell-title {
+    font-size: 0.725rem;
+    font-weight: 500;
+    color: var(--fg-secondary-color);
+    letter-spacing: 0.2px;
   }
 
-  .detail-value {
-    font-size: 0.95rem;
+  .cell-value {
+    font-size: 0.85rem;
     font-weight: 600;
     color: var(--fg-primary-color);
     line-height: 1.2;
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
+    margin-top: 2px;
   }
 
-  .detail-label {
-    font-size: 0.725rem;
-    color: var(--fg-secondary-color);
-    line-height: 1.25;
-    display: -webkit-box;
-    -webkit-line-clamp: 2;
-    -webkit-box-orient: vertical;
-    overflow: hidden;
-    word-break: break-word;
+  .cell-details {
+    display: grid;
+    grid-template-rows: 0fr;
+    opacity: 0;
+    transition:
+      grid-template-rows 0.25s ease,
+      opacity 0.2s ease,
+      margin-top 0.2s ease;
+
+    span {
+      overflow: hidden;
+      min-height: 0;
+      font-size: 0.725rem;
+      color: var(--fg-secondary-color);
+      line-height: 1.3;
+      display: -webkit-box;
+      -webkit-line-clamp: 2;
+      -webkit-box-orient: vertical;
+    }
+
+    &.is-visible {
+      grid-template-rows: 1fr;
+      opacity: 1;
+      margin-top: 4px;
+    }
   }
 }
 
-.season-badge {
-  display: inline-block;
-  font-size: 0.8rem;
+.season-text {
+  font-size: 0.95rem;
   font-weight: 600;
-  line-height: 1.2;
 
   &.seasonality-low {
     color: #10b981;
@@ -678,21 +747,76 @@ onMounted(() => {
   }
 }
 
+/* Кнопка с мягким полупрозрачным фоном */
+.details-toggle-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  width: 100%;
+  padding: 6px 12px;
+  background-color: rgba(var(--bg-secondary-color-rgb), 0.35);
+  border: 1px solid var(--border-secondary-color);
+  border-radius: var(--r-s);
+  color: var(--fg-secondary-color);
+  font-family: inherit;
+  font-size: 0.75rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s ease;
+
+  &:hover {
+    color: var(--fg-primary-color);
+    border-color: var(--border-primary-color);
+    background-color: rgba(var(--bg-secondary-color-rgb), 0.7);
+  }
+
+  &.is-expanded {
+    border-color: var(--border-primary-color);
+    color: var(--fg-primary-color);
+    background-color: rgba(var(--bg-secondary-color-rgb), 0.5);
+  }
+
+  .toggle-chevron {
+    font-size: 0.95rem;
+    transition: transform 0.25s ease;
+  }
+
+  &.is-expanded .toggle-chevron {
+    transform: rotate(180deg);
+  }
+}
+
+/* Аккордеон рекомендаций */
+.details-collapse {
+  display: grid;
+  grid-template-rows: 0fr;
+  transition: grid-template-rows 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+
+  &.is-open {
+    grid-template-rows: 1fr;
+  }
+}
+
+.details-collapse-inner {
+  min-height: 0;
+  overflow: hidden;
+}
+
 .recommendations-box {
   display: flex;
   flex-direction: column;
-  gap: 10px;
-  padding-top: 0.85rem;
-  border-top: 1px solid var(--border-secondary-color);
+  gap: 6px;
+  padding-top: 0.25rem;
 }
 
 .recommendation-item {
   display: flex;
   align-items: flex-start;
-  gap: 10px;
-  padding: 10px 12px;
-  border-radius: var(--r-m);
-  background: var(--bg-secondary-color);
+  gap: 8px;
+  padding: 8px 11px;
+  border-radius: var(--r-s);
+  background-color: rgba(var(--bg-secondary-color-rgb), 0.55);
   border: 1px solid var(--border-secondary-color);
   transition:
     border-color 0.2s ease,
@@ -700,67 +824,67 @@ onMounted(() => {
 
   &:hover {
     border-color: var(--border-primary-color);
+    background-color: rgba(var(--bg-secondary-color-rgb), 0.75);
   }
 
   .rec-icon-wrapper {
     display: flex;
     align-items: center;
     justify-content: center;
-    width: 28px;
-    height: 28px;
+    width: 24px;
+    height: 24px;
     border-radius: var(--r-s);
     flex-shrink: 0;
-    background: var(--bg-tertiary-color);
   }
 
   .rec-icon {
-    font-size: 1.1rem;
+    font-size: 0.95em;
   }
 
   &.clothing {
     .rec-icon-wrapper {
-      background: rgba(99, 102, 241, 0.1);
+      background-color: rgba(99, 102, 241, 0.12);
       color: #6366f1;
     }
     .rec-badge {
       color: #6366f1;
-      background: rgba(99, 102, 241, 0.1);
+      background-color: rgba(99, 102, 241, 0.12);
     }
   }
 
   &.tip {
     .rec-icon-wrapper {
-      background: rgba(245, 158, 11, 0.1);
+      background-color: rgba(245, 158, 11, 0.12);
       color: #f59e0b;
     }
     .rec-badge {
       color: #f59e0b;
-      background: rgba(245, 158, 11, 0.1);
+      background-color: rgba(245, 158, 11, 0.12);
     }
   }
 
   .rec-content {
     display: flex;
     flex-direction: column;
-    gap: 4px;
+    gap: 2px;
     min-width: 0;
     flex: 1;
   }
 
   .rec-badge {
     align-self: flex-start;
-    font-size: 0.7rem;
+    font-size: 0.65em;
     font-weight: 600;
     text-transform: uppercase;
-    letter-spacing: 0.5px;
-    padding: 1px 6px;
-    border-radius: 4px;
+    letter-spacing: 0.4px;
+    padding: 1px 4px;
+    border-radius: 3px;
   }
 
   .rec-text {
-    font-size: 0.825rem;
+    font-size: 0.775rem;
     color: var(--fg-secondary-color);
-    line-height: 1.45;
+    line-height: 1.35;
     margin: 0;
   }
 }
@@ -825,11 +949,7 @@ onMounted(() => {
 
 @include media-down(sm) {
   .forecast-display {
-    padding: 1rem;
-  }
-
-  .weather-details-grid {
-    grid-template-columns: 1fr;
+    padding: 0.75rem;
   }
 }
 </style>

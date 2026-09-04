@@ -1,9 +1,8 @@
 import type { Router, RouteRecordRaw, RouterScrollBehavior } from 'vue-router'
 import { createRouter, createWebHashHistory, createWebHistory } from 'vue-router'
 import { AppRouteNames, AppRoutePaths } from '~/shared/constants/routes'
+import { isTauri } from '~/shared/lib/env'
 import { useAuthStore } from '~/shared/store/auth.store'
-
-const isElectron = !!window.electronAPI
 
 // --- Компоненты страниц ---
 const Root = () => import('~/pages/root.vue')
@@ -42,6 +41,7 @@ const BlogCreate = () => import('~/pages/blog/create.vue')
 const BlogEdit = () => import('~/pages/blog/edit/[id].vue')
 
 const ActivityMapPage = () => import('~/pages/activity-map.vue')
+const ActivityPage = () => import('~/pages/activity.vue')
 
 async function requireOwner(to: any, _from: any, next: any) {
   const authStore = useAuthStore()
@@ -239,6 +239,13 @@ const routes: RouteRecordRaw[] = [
     component: ActivityMapPage,
     meta: { layout: 'default' },
   },
+
+  {
+    path: AppRoutePaths.Activity,
+    name: AppRouteNames.Activity,
+    component: ActivityPage,
+    meta: { layout: 'default', requiresAuth: true },
+  },
 ]
 
 const scrollBehavior: RouterScrollBehavior = (to, from, savedPosition) => {
@@ -254,7 +261,7 @@ const scrollBehavior: RouterScrollBehavior = (to, from, savedPosition) => {
 }
 
 const router: Router = createRouter({
-  history: isElectron ? createWebHashHistory() : createWebHistory('/'),
+  history: isTauri ? createWebHashHistory() : createWebHistory('/'),
   routes,
   scrollBehavior,
 })

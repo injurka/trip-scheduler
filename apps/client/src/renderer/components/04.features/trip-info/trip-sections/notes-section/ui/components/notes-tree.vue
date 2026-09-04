@@ -411,9 +411,11 @@ function cancelRename(): void {
     padding: 0;
     transition: transform 0.15s;
 
-    &:hover {
-      transform: scale(1.15);
-      background: var(--bg-hover-color) !important;
+    @include hover {
+      & {
+        transform: scale(1.15);
+        background: var(--bg-hover-color) !important;
+      }
     }
 
     &.none {

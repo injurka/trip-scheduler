@@ -656,8 +656,10 @@ async function handleGenerateWeatherInDialog() {
   transition: all 0.2s ease;
   position: relative;
 
-  &:hover {
-    transform: translateY(-2px);
+  @include hover {
+    & {
+      transform: translateY(-2px);
+    }
   }
 
   &.selected {

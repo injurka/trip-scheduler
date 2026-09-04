@@ -721,8 +721,10 @@ watch(() => props.trip?.id, (newId) => {
     transition: transform 0.4s cubic-bezier(0.22, 1, 0.36, 1);
   }
 
-  &:hover .banner-image :deep(.image) {
-    transform: scale(1.05);
+  @include hover {
+    & .banner-image :deep(.image) {
+      transform: scale(1.05);
+    }
   }
 
   .cover-placeholder {
@@ -881,9 +883,11 @@ watch(() => props.trip?.id, (newId) => {
       margin-left: 0;
     }
 
-    &:hover {
-      transform: translateY(-4px);
-      z-index: 10;
+    @include hover {
+      & {
+        transform: translateY(-4px);
+        z-index: 10;
+      }
     }
   }
 }
@@ -934,10 +938,12 @@ watch(() => props.trip?.id, (newId) => {
     backdrop-filter: blur(4px);
     transition: all 0.2s ease;
 
-    &:hover {
-      background-color: var(--bg-hover-color);
-      transform: scale(1.1);
-      color: var(--fg-accent-color);
+    @include hover {
+      & {
+        background-color: var(--bg-hover-color);
+        transform: scale(1.1);
+        color: var(--fg-accent-color);
+      }
     }
   }
 }
@@ -1171,10 +1177,12 @@ watch(() => props.trip?.id, (newId) => {
   animation: fadeInUp 0.4s ease-out forwards;
   opacity: 0;
 
-  &:hover {
-    background-color: var(--bg-hover-color);
-    border-color: var(--border-primary-color);
-    transform: translateX(4px);
+  @include hover {
+    & {
+      background-color: var(--bg-hover-color);
+      border-color: var(--border-primary-color);
+      transform: translateX(4px);
+    }
   }
 }
 

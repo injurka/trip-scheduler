@@ -38,7 +38,7 @@ const {
   isDeletingAccount,
   vaultPath,
   selectVaultFolder,
-  isElectron,
+  isNative,
   // OAuth & Integrations
   isYandexLinked,
   isGoogleLinked,
@@ -92,7 +92,7 @@ function applyCrop() {
     </header>
 
     <section class="profile-section">
-      <template v-if="isElectron">
+      <template v-if="isNative">
         <h2 class="section-title">
           Папка для медиафайлов
         </h2>

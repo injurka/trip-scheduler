@@ -70,9 +70,11 @@ const emit = defineEmits<{
   transition: all 0.3s ease;
   background: var(--bg-secondary-color);
 
-  &:hover {
-    border-color: var(--border-focus-color);
-    transform: translateY(-2px);
+  @include hover {
+    & {
+      border-color: var(--border-focus-color);
+      transform: translateY(-2px);
+    }
   }
 
   &.active {

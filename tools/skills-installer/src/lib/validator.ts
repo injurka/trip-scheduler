@@ -80,7 +80,7 @@ export function validateTripFolder(tripPath: string): TripValidationReport {
         if (/^[*-]\s*\*\*\d{1,2}:\d{2}\+?\s*(?:[-–—]\s*\d{1,2}:\d{2})?\+?\*\*/m.test(content)) {
           daysWithTimeRegex++
         }
-        if (/<iframe\b[^>]*maps\.google\.com[^>]*>.*?<\/iframe>/i.test(content) || /maps\.google\.com/i.test(content)) {
+        if (/<iframe\b[^>]+maps\.google\.com[^>]*>.*?<\/iframe>/i.test(content) || /maps\.google\.com/i.test(content)) {
           daysWithMaps++
         }
         if (/##\s*(?:💰\s*)?Финансовые затраты/i.test(content)) {

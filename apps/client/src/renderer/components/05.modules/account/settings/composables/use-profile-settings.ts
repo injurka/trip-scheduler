@@ -351,7 +351,7 @@ export function useProfileSettings() {
   return {
     vaultPath: vaultStore.vaultPath,
     selectVaultFolder: vaultStore.selectFolder,
-    isElectron: vaultStore.isElectron,
+    isNative: vaultStore.isNative,
     user,
     profileForm,
     passwordForm,

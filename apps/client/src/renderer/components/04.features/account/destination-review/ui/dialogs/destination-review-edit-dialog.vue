@@ -287,8 +287,10 @@ function getSliderColor(value: number) {
   cursor: pointer;
   transition: transform 0.2s;
 
-  &:hover:not(.disabled) {
-    transform: translateY(-2px);
+  @include hover {
+    &:not(.disabled) {
+      transform: translateY(-2px);
+    }
   }
   &.disabled {
     cursor: not-allowed;

@@ -879,10 +879,12 @@ function handleCategoryClick(catId: CategoryId | 'all') {
   position: relative;
   gap: 0.75rem;
 
-  &:hover {
-    border-color: var(--border-primary-color);
-    transform: translateY(-2px);
-    box-shadow: var(--s-m);
+  @include hover {
+    & {
+      border-color: var(--border-primary-color);
+      transform: translateY(-2px);
+      box-shadow: var(--s-m);
+    }
 
     .link-title {
       color: var(--fg-accent-color);

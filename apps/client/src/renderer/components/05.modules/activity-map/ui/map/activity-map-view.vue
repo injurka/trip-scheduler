@@ -330,14 +330,16 @@ const controlsLeftPosition = computed(() => `${sidebarWidth.value + 32}px`)
   cursor: pointer;
   transition: all 0.2s ease;
 
-  &:hover {
-    background-color: var(--bg-primary-color);
-    border-color: var(--border-secondary-color);
-    transform: translateX(4px);
-    box-shadow: var(--s-s);
-    .item-arrow {
-      opacity: 1;
-      transform: translateX(0);
+  @include hover {
+    & {
+      background-color: var(--bg-primary-color);
+      border-color: var(--border-secondary-color);
+      transform: translateX(4px);
+      box-shadow: var(--s-s);
+      .item-arrow {
+        opacity: 1;
+        transform: translateX(0);
+      }
     }
   }
 

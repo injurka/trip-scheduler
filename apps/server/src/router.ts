@@ -12,6 +12,7 @@ import { metroRouter } from './modules/metro/metro.router'
 import { noteRouter } from './modules/note/note.router'
 import { notificationRouter } from './modules/notification/notification.router'
 import { postRouter } from './modules/post/post.router'
+import { trackingRouter } from './modules/tracking/tracking.router'
 import { tripSectionRouter } from './modules/trip-section/trip-section.router'
 import { tripRouter } from './modules/trip/trip.router'
 import { userRouter } from './modules/user/user.router'
@@ -33,6 +34,7 @@ export const appRouter = router({
   notification: notificationRouter,
   mark: markRouter,
   note: noteRouter,
+  tracking: trackingRouter,
 })
 
 export type AppRouter = typeof appRouter

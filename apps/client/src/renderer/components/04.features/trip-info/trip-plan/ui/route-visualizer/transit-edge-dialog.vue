@@ -203,13 +203,15 @@ function handleSelectActivity(id: string) {
   cursor: pointer;
   transition: all 0.15s ease;
 
-  &:hover {
-    border-color: var(--fg-accent-color);
-    background: var(--bg-hover-color);
-    transform: translateX(2px);
+  @include hover {
+    & {
+      border-color: var(--fg-accent-color);
+      background: var(--bg-hover-color);
+      transform: translateX(2px);
 
-    .step-arrow {
-      color: var(--fg-accent-color);
+      .step-arrow {
+        color: var(--fg-accent-color);
+      }
     }
   }
 

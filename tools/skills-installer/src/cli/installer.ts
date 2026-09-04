@@ -1,11 +1,11 @@
 import { existsSync, mkdirSync } from 'node:fs'
 import { join } from 'node:path'
+import process from 'node:process'
 import { colors } from '../config/colors'
-import { resolveTargetDir } from '../config/targets'
+import { detectCandidateTargets, resolveTargetDir } from '../config/targets'
 import { installRule, installSkill, syncSkillsSource } from '../lib/copy'
 import { normalizeFsPath } from '../lib/path-utils'
 import {
-  checkInstalledRules,
   checkInstalledSkills,
   DEFAULT_SOURCE_DIR,
   loadSourceRules,
@@ -82,7 +82,9 @@ export async function runInstaller(): Promise<void> {
 
   // 3. Режим синхронизации исходных шаблонов (--sync-source)
   if (cliOptions.syncSource) {
-    const defaultSyncPath = '/mnt/c/Users/injurka/Documents/obsidian-mark/Personal Note/Travel/.agents'
+    const vaultCandidates = detectCandidateTargets()
+      .filter(t => t.id === 'obsidian-travel-vault')
+    const defaultSyncPath = vaultCandidates[0]?.agentsDir ?? join(process.cwd(), '.agents')
     const syncFrom = normalizeFsPath(cliOptions.syncSourcePath || defaultSyncPath)
 
     console.log(`${colors.dim}🔄 Синхронизация шаблонов навыков из:${colors.reset}`)
@@ -119,7 +121,7 @@ export async function runInstaller(): Promise<void> {
   console.log(`   Правила: ${colors.cyan}${rulesDir}${colors.reset}\n`)
 
   const installedSkills = checkInstalledSkills(skillsDir)
-  const installedRules = checkInstalledRules(rulesDir)
+  // installedRules вычисляется лениво в promptSkillsSelection при интерактивном выборе
 
   // 5. Выбор навыков для установки
   let skillsToInstall: string[] = []

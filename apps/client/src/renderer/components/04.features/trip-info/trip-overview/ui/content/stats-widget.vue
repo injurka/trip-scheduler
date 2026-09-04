@@ -127,10 +127,12 @@ const attractionLabel = computed(() => getRussianPlural(props.attractionCount, [
       color: var(--fg-secondary-color);
     }
 
-    &:hover {
-      transform: translateY(-4px);
-      box-shadow: var(--s-m);
-      background-color: var(--bg-hover-color);
+    @include hover {
+      & {
+        transform: translateY(-4px);
+        box-shadow: var(--s-m);
+        background-color: var(--bg-hover-color);
+      }
     }
   }
 }
@@ -178,10 +180,12 @@ const attractionLabel = computed(() => getRussianPlural(props.attractionCount, [
   font-family: inherit;
   width: 100%;
 
-  &:hover {
-    transform: translateY(-4px);
-    box-shadow: var(--s-m);
-    background-color: var(--bg-hover-color);
+  @include hover {
+    & {
+      transform: translateY(-4px);
+      box-shadow: var(--s-m);
+      background-color: var(--bg-hover-color);
+    }
   }
 
   .icon-wrapper {

@@ -185,23 +185,29 @@ function toggleTooltip(e: Event) {
   outline: none;
   cursor: pointer;
 
-  &:hover,
-  &:focus-visible {
-    transform: translateY(-3px);
-    box-shadow: var(--s-md);
+  @media (hover: hover) and (pointer: fine) {
+    &:hover,
+    &:focus-visible {
+      transform: translateY(-3px);
+      box-shadow: var(--s-md);
+    }
   }
 
-  &:hover .card-actions,
-  &:focus-visible .card-actions {
-    opacity: 1;
-    transform: translateY(0);
+  @media (hover: hover) and (pointer: fine) {
+    &:hover .card-actions,
+    &:focus-visible .card-actions {
+      opacity: 1;
+      transform: translateY(0);
+    }
   }
 
-  &:hover .overlay-body,
-  &:focus-visible .overlay-body {
-    opacity: 1;
-    transform: translateY(0);
-    pointer-events: auto;
+  @media (hover: hover) and (pointer: fine) {
+    &:hover .overlay-body,
+    &:focus-visible .overlay-body {
+      opacity: 1;
+      transform: translateY(0);
+      pointer-events: auto;
+    }
   }
 }
 
@@ -246,9 +252,11 @@ function toggleTooltip(e: Event) {
     transform 0.2s ease,
     background-color 0.2s ease;
 
-  &:hover {
-    transform: scale(1.06);
-    background: rgba(0, 0, 0, 0.74);
+  @include hover {
+    & {
+      transform: scale(1.06);
+      background: rgba(0, 0, 0, 0.74);
+    }
   }
 }
 
