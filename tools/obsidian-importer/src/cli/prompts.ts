@@ -147,7 +147,7 @@ export async function promptForInteractiveOptions(
           const customModelResp = await prompts({
             type: 'text',
             name: 'customModel',
-            message: 'Введите идентификатор модели (например, gpt-4o, claude-3-7-sonnet-20250219, deepseek-ai/DeepSeek-V3):',
+            message: 'Введите идентификатор модели (например, gemini-3.8-flash, claude-sonnet-5, gpt-5.6-terra):',
             initial: DEFAULT_AIHUBMIX_MODEL,
           })
           selectedModel = customModelResp.customModel?.trim() || DEFAULT_AIHUBMIX_MODEL
