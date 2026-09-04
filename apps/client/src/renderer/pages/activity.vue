@@ -170,7 +170,7 @@ function formatTime(ts: number): string {
   display: flex;
   flex-direction: column;
   gap: 12px;
-  min-height: calc(100vh - 53px);
+  min-height: calc(100vh - var(--header-height, 56px));
 }
 
 .activity-header {

@@ -32,25 +32,5 @@ function handleModeChange(mode: 'list' | 'map') {
 <style scoped lang="scss">
 .content-wrapper {
   width: 100%;
-  margin: 0 auto;
-  display: flex;
-  flex-direction: column;
-  padding: 16px;
-  max-width: 1400px;
-  height: 100%;
-  min-height: calc(100vh - 53px);
-
-  &.is-map-mode {
-    max-width: 100%;
-    padding: 0;
-    margin: 0;
-    height: calc(100vh - 53px);
-    overflow: hidden;
-  }
-}
-
-.memories-full {
-  flex: 1;
-  min-height: 0;
 }
 </style>

@@ -1,6 +1,7 @@
 import { useVaultMemoriesStore } from '~/components/04.features/trip-info/trip-memories/store/vault-memories.store'
 import { useRequestStatus } from '~/plugins/request'
 import { AppRouteNames } from '~/shared/constants/routes'
+import { SERVER_URL } from '~/shared/lib/env'
 import { trpc } from '~/shared/services/trpc/trpc.service'
 import { EAuthRequestKeys, TOKEN_KEY, useAuthStore } from '~/shared/store/auth.store'
 
@@ -133,7 +134,7 @@ export function useProfileSettings() {
   }
 
   function linkOAuth(provider: 'google' | 'github' | 'yandex') {
-    const serverUrl = import.meta.env.VITE_APP_SERVER_URL || ''
+    const serverUrl = SERVER_URL
     const token = authStore.tokenPair?.accessToken || localStorage.getItem(TOKEN_KEY) || ''
     window.location.href = `${serverUrl}/api/auth/${provider}/login?linkToken=${encodeURIComponent(token)}`
   }

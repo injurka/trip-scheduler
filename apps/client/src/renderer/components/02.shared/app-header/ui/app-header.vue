@@ -25,7 +25,12 @@ const isSmallScreen = ref(false)
 
 const { height: headerHeight } = useElementBounding(headerEl)
 
-watch(headerHeight, newHeight => appStore.layout.setHeaderHeight(newHeight))
+watch(headerHeight, (newHeight) => {
+  if (newHeight > 0 && typeof document !== 'undefined') {
+    document.documentElement.style.setProperty('--header-actual-height', `${newHeight}px`)
+  }
+  appStore.layout.setHeaderHeight(newHeight)
+})
 watch(isHeaderVisible, isVisible => appStore.layout.setHeaderVisibility(isVisible))
 
 const navItems = [
@@ -240,18 +245,17 @@ onMounted(() => {
 <style lang="scss" scoped>
 .header {
   position: sticky;
-  top: env(safe-area-inset-top);
+  top: 0;
   display: flex;
   flex-direction: row;
   width: 100%;
   z-index: 7;
   transition:
-    top 0.3s cubic-bezier(0.4, 0, 0.2, 1),
     backdrop-filter 0.3s ease,
     background-color 0.3s ease,
     transform 0.3s cubic-bezier(0.4, 0, 0.2, 1),
     box-shadow 0.3s ease;
-  padding-top: env(safe-area-inset-top);
+  padding-top: env(safe-area-inset-top, 0px);
 
   &--scrolled {
     backdrop-filter: blur(8px);

@@ -1,6 +1,7 @@
 import type { EntityType, IFileRepository, TripDocumentResponse } from '../model/types'
 import type { ImageMetadata, TripMedia, TripMediaPlacement } from '~/shared/types/models/trip'
 import { ofetch } from 'ofetch'
+import { SERVER_URL } from '~/shared/lib/env'
 import { refreshTokensIfNeeded } from '~/shared/services/trpc/auth-token.service'
 import { trpc } from '~/shared/services/trpc/trpc.service'
 import { TOKEN_KEY, useAuthStore } from '~/shared/store/auth.store'
@@ -37,7 +38,7 @@ export class FileRepository implements IFileRepository {
     let accessToken = authStore.tokenPair?.accessToken || localStorage.getItem(TOKEN_KEY)
 
     try {
-      return await ofetch<TripMedia>(`${import.meta.env.VITE_APP_SERVER_URL}/api/upload`, {
+      return await ofetch<TripMedia>(`${SERVER_URL}/api/upload`, {
         method: 'POST',
         body: formData,
         headers: { Authorization: `Bearer ${accessToken}` },
@@ -48,7 +49,7 @@ export class FileRepository implements IFileRepository {
         const refreshed = await refreshTokensIfNeeded()
         if (refreshed) {
           accessToken = authStore.tokenPair?.accessToken || localStorage.getItem(TOKEN_KEY)
-          return await ofetch<TripMedia>(`${import.meta.env.VITE_APP_SERVER_URL}/api/upload`, {
+          return await ofetch<TripMedia>(`${SERVER_URL}/api/upload`, {
             method: 'POST',
             body: formData,
             headers: { Authorization: `Bearer ${accessToken}` },
@@ -71,7 +72,7 @@ export class FileRepository implements IFileRepository {
     onProgress: (percentage: number) => void,
     signal: AbortSignal,
   ): Promise<TripMedia> {
-    const serverUrl = import.meta.env.VITE_APP_SERVER_URL
+    const serverUrl = SERVER_URL
     const accessToken = localStorage.getItem(TOKEN_KEY)
     const headers: Record<string, string> = {
       'Authorization': `Bearer ${accessToken}`,
@@ -204,7 +205,7 @@ export class FileRepository implements IFileRepository {
 
     return new Promise((resolve, reject) => {
       const xhr = new XMLHttpRequest()
-      const url = `${import.meta.env.VITE_APP_SERVER_URL}/api/upload`
+      const url = `${SERVER_URL}/api/upload`
 
       xhr.open('POST', url, true)
 

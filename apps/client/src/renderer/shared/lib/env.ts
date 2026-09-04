@@ -6,3 +6,6 @@ export const isMobile = /android|webos|iphone|ipad|ipod|blackberry|iemobile|oper
 
 /** Мобильная сборка приложения (APK/iOS через Tauri) */
 export const isMobileApp = isTauri && isMobile
+
+/** Базовый URL сервера: env при сборке → прод для Tauri → пусто для веба */
+export const SERVER_URL = import.meta.env.VITE_APP_SERVER_URL || (isTauri ? 'https://trip-scheduler-api.limited-dissolve.ru' : '')

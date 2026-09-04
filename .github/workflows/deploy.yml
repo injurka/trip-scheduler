@@ -178,6 +178,7 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           VITE_APP_VERSION: ${{ github.ref_name }}
+          VITE_APP_SERVER_URL: ${{ secrets.VITE_APP_SERVER_URL || 'https://trip-scheduler-api.limited-dissolve.ru' }}
         with:
           releaseId: ${{ needs.create-release.outputs.release_id }}
           projectPath: apps/native
@@ -255,6 +256,7 @@ jobs:
         env:
           NDK_HOME: ${{ env.ANDROID_HOME }}/ndk/26.3.11579264
           VITE_APP_VERSION: ${{ github.ref_name }}
+          VITE_APP_SERVER_URL: ${{ secrets.VITE_APP_SERVER_URL || 'https://trip-scheduler-api.limited-dissolve.ru' }}
 
       - name: Sign APK
         uses: r0adkll/sign-android-release@v1.0.4

@@ -254,8 +254,6 @@ onBeforeUnmount(() => {
   flex: 1;
   position: relative;
   overflow: hidden;
-  margin-top: -56px;
-  padding-top: 56px;
 
   .trip-info-divider {
     margin: 0 auto;

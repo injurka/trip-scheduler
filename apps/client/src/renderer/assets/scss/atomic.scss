@@ -1,6 +1,12 @@
 :root {
   --content-bg-opacity: 1;
   --content-gradient-width: 100px;
+  --header-base-height: 56px;
+  --safe-area-inset-top: env(safe-area-inset-top, 0px);
+  --safe-area-inset-bottom: env(safe-area-inset-bottom, 0px);
+  --safe-area-inset-left: env(safe-area-inset-left, 0px);
+  --safe-area-inset-right: env(safe-area-inset-right, 0px);
+  --header-height: calc(var(--header-base-height) + var(--safe-area-inset-top));
 }
 
 .content-wrapper {
@@ -15,8 +21,6 @@
   min-height: 100%;
   width: 100%;
   margin: 0 auto;
-  margin-top: -56px !important;
-  padding-top: 56px !important;
   background-color: rgba(var(--bg-primary-color-rgb), var(--content-bg-opacity));
   transition: background-color 0.3s ease;
 

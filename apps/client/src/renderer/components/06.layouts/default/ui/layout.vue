@@ -29,8 +29,6 @@ import { ThemeManager } from '~/components/02.shared/theme-manager'
   flex: 1;
   position: relative;
   overflow: clip;
-  margin-top: -56px;
-  padding-top: 56px;
 }
 
 .main-content {

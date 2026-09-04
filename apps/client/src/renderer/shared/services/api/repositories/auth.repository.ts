@@ -4,6 +4,7 @@ import type {
   SignUpPayload,
   User,
 } from '~/shared/types/models/auth'
+import { SERVER_URL } from '~/shared/lib/env'
 import { refreshTokensIfNeeded } from '~/shared/services/trpc/auth-token.service'
 import { trpc } from '~/shared/services/trpc/trpc.service'
 import { TOKEN_KEY, useAuthStore } from '~/shared/store/auth.store'
@@ -59,7 +60,7 @@ export class AuthRepository implements IAuthRepository {
     const authStore = useAuthStore()
     let accessToken = authStore.tokenPair?.accessToken || localStorage.getItem(TOKEN_KEY)
 
-    let response = await fetch(`${import.meta.env.VITE_APP_SERVER_URL}/api/upload`, {
+    let response = await fetch(`${SERVER_URL}/api/upload`, {
       method: 'POST',
       body: formData,
       headers: { Authorization: `Bearer ${accessToken}` },
@@ -69,7 +70,7 @@ export class AuthRepository implements IAuthRepository {
       const refreshed = await refreshTokensIfNeeded()
       if (refreshed) {
         accessToken = authStore.tokenPair?.accessToken || localStorage.getItem(TOKEN_KEY)
-        response = await fetch(`${import.meta.env.VITE_APP_SERVER_URL}/api/upload`, {
+        response = await fetch(`${SERVER_URL}/api/upload`, {
           method: 'POST',
           body: formData,
           headers: { Authorization: `Bearer ${accessToken}` },

@@ -1,4 +1,6 @@
-const serverUrl = import.meta.env.VITE_APP_SERVER_URL
+import { SERVER_URL } from './env'
+
+const serverUrl = SERVER_URL
 const IMAGE_ROUTE = 'image'
 
 /**

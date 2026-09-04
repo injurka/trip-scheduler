@@ -4,6 +4,7 @@ import { onBeforeUnmount, ref } from 'vue'
 import { KitBtn } from '~/components/01.kit/kit-btn'
 import { KitDivider } from '~/components/01.kit/kit-divider'
 import { AppRoutePaths } from '~/shared/constants/routes'
+import { SERVER_URL } from '~/shared/lib/env'
 import { useAuthStore } from '~/shared/store/auth.store'
 
 enum OAuthProviders {
@@ -30,7 +31,7 @@ onBeforeUnmount(() => {
 })
 
 function handleOAuth(provider: OAuthProviders) {
-  const serverUrl = import.meta.env.VITE_APP_SERVER_URL || ''
+  const serverUrl = SERVER_URL
   window.location.href = `${serverUrl}/api/auth/${provider}/login`
 }
 
