@@ -1,6 +1,6 @@
 {
   "name": "@injurka/obsidian-importer",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "Import Obsidian travel vault notes (route, day meta, activities, checklists, finances) into Trip Scheduler via its REST API",
   "exports": "./src/index.ts",
   "imports": {
