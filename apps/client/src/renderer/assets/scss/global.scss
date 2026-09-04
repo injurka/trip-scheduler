@@ -16,6 +16,7 @@ body {
   padding-right: 0 !important;
   border: none;
   background-color: var(--bg-primary-color);
+  transition: background-color 0.3s ease;
   color: var(--fg-primary-color);
   font-size: map.get($font-sizes, 'base');
 

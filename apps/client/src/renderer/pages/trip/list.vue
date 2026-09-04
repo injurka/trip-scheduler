@@ -17,7 +17,6 @@ const hasFetchError = ref(false)
 
 <style lang="scss" scoped>
 .content-wrapper {
-  transition: background-color 0.2s ease;
   display: flex;
   flex-direction: column;
   gap: 16px;

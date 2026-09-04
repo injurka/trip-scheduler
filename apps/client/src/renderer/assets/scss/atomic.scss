@@ -34,17 +34,22 @@
     width: var(--content-gradient-width);
     pointer-events: none;
     z-index: 0;
-    transition: all 0.3s ease;
+    background-color: rgba(var(--bg-primary-color-rgb), var(--content-bg-opacity));
+    transition: background-color 0.3s ease;
+    -webkit-mask-image: linear-gradient(to left, black, transparent);
+    mask-image: linear-gradient(to left, black, transparent);
   }
 
   &::before {
     right: 100%;
-    background: linear-gradient(to left, rgba(var(--bg-primary-color-rgb), var(--content-bg-opacity)), transparent);
+    -webkit-mask-image: linear-gradient(to left, black, transparent);
+    mask-image: linear-gradient(to left, black, transparent);
   }
 
   &::after {
     left: 100%;
-    background: linear-gradient(to right, rgba(var(--bg-primary-color-rgb), var(--content-bg-opacity)), transparent);
+    -webkit-mask-image: linear-gradient(to right, black, transparent);
+    mask-image: linear-gradient(to right, black, transparent);
   }
 }
 

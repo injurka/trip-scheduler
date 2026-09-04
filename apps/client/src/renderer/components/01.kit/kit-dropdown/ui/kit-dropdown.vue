@@ -94,6 +94,17 @@ function handleSelect(item: KitDropdownItem<T>) {
   max-height: var(--reka-dropdown-menu-content-available-height);
   max-width: var(--reka-dropdown-menu-content-available-width);
   overflow-y: auto;
+
+  animation: kitDropdownFadeIn 0.15s ease-out;
+}
+
+@keyframes kitDropdownFadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
 }
 
 .kit-dropdown-item {
