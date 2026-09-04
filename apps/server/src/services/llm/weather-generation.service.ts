@@ -36,6 +36,7 @@ export const CityWeatherResponseSchema = z.object({
   seasonality: z.enum(['low', 'medium', 'high', 'peak']).nullable().optional(),
   seasonalityDescription: z.string().nullable().optional(),
   daylight: z.string().nullable().optional(),
+  daylightDescription: z.string().nullable().optional(),
   clothingRecommendation: z.string().nullable().optional(),
   summary: z.string().nullable().optional(),
 })
@@ -64,11 +65,12 @@ export interface AstronomicalDaylight {
   isPolarDay: boolean
   isWhiteNights: boolean
   daylightText: string
+  daylightValue: string
+  daylightDescription: string
 }
 
 /**
- * Нормализует название города (удаляет приставки "г.", "город", "с.", запятые и страны)
- * для гарантированного попадания в кэш.
+ * Нормализует название города для гарантированного попадания в кэш.
  */
 export function normalizeCityName(raw: string): string {
   let name = (raw || '').trim().toLowerCase()
@@ -80,8 +82,32 @@ export function normalizeCityName(raw: string): string {
 }
 
 /**
- * Расчет длины светового дня, полярной ночи, полярного дня и сумерек
- * по строгим астрономическим формулам солнечного склонения.
+ * Безопасное разделение сырого текста длины дня (на случай старых данных или галлюцинаций LLM)
+ */
+export function splitDaylightText(rawText?: string | null): { value: string, description: string } {
+  if (!rawText)
+    return { value: '—', description: 'Световой день' }
+
+  const text = rawText.trim()
+
+  // Если уже компактное значение, например "~14 ч", "~1-2 ч", "24 ч", "0 ч"
+  if (/^~?\d+(?:-\d+)?\s*(?:ч|час(?:а|ов)?)$/i.test(text)) {
+    return { value: text, description: 'Световой день' }
+  }
+
+  // Если строка вида "Полярная ночь (~1-2 часа)" или "Сумерки (~1-2 ч)"
+  const inParensMatch = text.match(/\((~?\d+(?:-\d+)?\s*(?:ч|час)[^)]*)\)/i)
+  if (inParensMatch && inParensMatch[1]) {
+    const value = inParensMatch[1].trim()
+    const description = text.replace(inParensMatch[0], '').replace(/[,;]\s*$/, '').trim()
+    return { value, description: description || 'Световой день' }
+  }
+
+  return { value: text, description: 'Световой день' }
+}
+
+/**
+ * Расчет длины светового дня с разделением на компактное значение и подробное описание.
  */
 export function calculateAstronomicalDaylight(latitude: number, month: number, day = 15): AstronomicalDaylight {
   const clampedLat = Math.max(-89.9, Math.min(89.9, latitude))
@@ -90,7 +116,7 @@ export function calculateAstronomicalDaylight(latitude: number, month: number, d
   const daysBeforeMonth = [0, 31, 59, 90, 120, 151, 181, 212, 243, 273, 304, 334]
   const dayOfYear = (daysBeforeMonth[month - 1] ?? 0) + day
 
-  // Угол склонения Солнца (Spencer / Cooper formula)
+  // Угол склонения Солнца
   const declinationRad = (23.44 * Math.PI / 180) * Math.sin((2 * Math.PI / 365) * (dayOfYear - 81))
 
   const cosLat = Math.cos(latRad)
@@ -99,11 +125,8 @@ export function calculateAstronomicalDaylight(latitude: number, month: number, d
   const sinDec = Math.sin(declinationRad)
   const denominator = cosLat * cosDec
 
-  // Восход/закат с учетом рефракции (солнечный диск -0.833 градуса)
   const cosOmega0 = (Math.sin((-0.833 * Math.PI) / 180) - sinLat * sinDec) / denominator
-  // Гражданские сумерки (-6 градусов)
   const cosOmegaTwCivil = (Math.sin((-6.0 * Math.PI) / 180) - sinLat * sinDec) / denominator
-  // Навигационные сумерки (-12 градусов, критерий белых ночей — солнце не опускается ниже 12°)
   const cosOmegaTwNautical = (Math.sin((-12.0 * Math.PI) / 180) - sinLat * sinDec) / denominator
 
   let daylightHours = 0
@@ -137,35 +160,47 @@ export function calculateAstronomicalDaylight(latitude: number, month: number, d
     twilightHours = (omegaTw / Math.PI) * 24
   }
 
-  // Белые ночи: истинная ночь не наступает (солнце не опускается ниже астрономических/навигационных сумерек -12°), но солнце заходит
   if (!isPolarDay && cosOmegaTwNautical <= -1) {
     isWhiteNights = true
   }
 
-  let daylightText = ''
+  let daylightValue = ''
+  let daylightDescription = ''
+
   if (isPolarDay) {
-    daylightText = 'Полярный день (круглосуточное солнце 24 ч)'
+    daylightValue = '24 ч'
+    daylightDescription = 'Полярный день, круглосуточное солнце'
   }
   else if (isPolarNight) {
     if (twilightHours > 0.5) {
-      daylightText = `Полярная ночь (солнце не восходит, светлые сумерки ~${Math.round(twilightHours)} ч)`
+      // Для полярной ночи с сумерками выводим диапазон ~1-2 ч (или точные часы)
+      const roundedTw = Math.round(twilightHours * 10) / 10
+      daylightValue = roundedTw >= 1 && roundedTw <= 2.2 ? '~1-2 ч' : `~${Math.round(twilightHours)} ч`
+      daylightDescription = 'Полярная ночь: солнце не восходит, короткие светлые сумерки'
     }
     else {
-      daylightText = 'Полярная ночь (круглосуточная темнота)'
+      daylightValue = '0 ч'
+      daylightDescription = 'Полярная ночь: круглосуточная темнота, солнце не восходит'
     }
   }
   else if (isWhiteNights) {
-    daylightText = `~${Math.round(daylightHours)} ч, сезон белых ночей`
+    daylightValue = `~${Math.round(daylightHours)} ч`
+    daylightDescription = 'Сезон белых ночей: вечерние сумерки сразу переходят в утренние'
   }
   else if (daylightHours < 4) {
-    daylightText = `Короткий день ~${Math.round(daylightHours * 10) / 10} ч, низкое солнце`
+    daylightValue = `~${Math.round(daylightHours * 10) / 10} ч`
+    daylightDescription = 'Короткий световой день, низкое солнце над горизонтом'
   }
   else if (daylightHours < 8) {
-    daylightText = `Короткий день ~${Math.round(daylightHours)} ч`
+    daylightValue = `~${Math.round(daylightHours)} ч`
+    daylightDescription = 'Короткий зимний световой день'
   }
   else {
-    daylightText = `Световой день ~${Math.round(daylightHours)} ч`
+    daylightValue = `~${Math.round(daylightHours)} ч`
+    daylightDescription = 'Световой день обычной продолжительности'
   }
+
+  const daylightText = `${daylightDescription} (${daylightValue})`
 
   return {
     daylightHours: Math.round(daylightHours * 10) / 10,
@@ -174,11 +209,13 @@ export function calculateAstronomicalDaylight(latitude: number, month: number, d
     isPolarDay,
     isWhiteNights,
     daylightText,
+    daylightValue,
+    daylightDescription,
   }
 }
 
 /**
- * Расчет ощущаемой температуры по формуле Wind Chill Index (для низких температур и ветра)
+ * Расчет ощущаемой температуры по формуле Wind Chill Index
  */
 export function calculateFeelsLike(temp: number, windSpeedKmh: number): number {
   if (temp <= 10 && windSpeedKmh >= 4.8) {
@@ -189,9 +226,6 @@ export function calculateFeelsLike(temp: number, windSpeedKmh: number): number {
   return temp
 }
 
-/**
- * Геокодирование через Open-Meteo Geocoding API (бесплатно, без API ключа)
- */
 async function fetchCityCoordinates(cityName: string): Promise<GeoLocation | null> {
   try {
     const url = `https://geocoding-api.open-meteo.com/v1/search?name=${encodeURIComponent(cityName)}&count=1&language=ru&format=json`
@@ -215,9 +249,6 @@ async function fetchCityCoordinates(cityName: string): Promise<GeoLocation | nul
   }
 }
 
-/**
- * Запрос реальных климатических наблюдений из архива Open-Meteo
- */
 async function fetchClimateNormals(lat: number, lon: number, month: number): Promise<ClimateNormals | null> {
   try {
     const daysInMonth = DAYS_IN_MONTHS[month - 1] || 30
@@ -288,7 +319,8 @@ ${hasRealMetrics ? 'ВНИМАНИЕ: Тебе предоставлены про
   "windDescription": string (описание ветра на русском: например "Штормовой арктический ветер", "Свежий морской бриз", "Слабый / штиль"),
   "seasonality": "low" | "medium" | "high" | "peak",
   "seasonalityDescription": string (описание сезона и загрузки: например "Пик сезона северного сияния, бронировать жилье заранее"),
-  "daylight": string (длина светового дня: например "Полярная ночь (солнце не восходит, сумерки ~4 ч)", "Световой день ~14 ч"),
+  "daylight": string (СТРОГО ТОЛЬКО компактное значение времени: например "~14 ч", "~1-2 ч", "24 ч", "0 ч"),
+  "daylightDescription": string (подробное описание: например "Полярная ночь: солнце не восходит, короткие сумерки", "Полярный день, круглосуточное солнце", "Сезон белых ночей", "Стандартная продолжительность дня"),
   "clothingRecommendation": string (рекомендации по одежде: например "Непродуваемый пуховик, термобелье, балаклава, нескользкая обувь"),
   "summary": string (1-2 емких предложения с главным советом для поездки в этом месяце)
 }
@@ -296,15 +328,11 @@ ${hasRealMetrics ? 'ВНИМАНИЕ: Тебе предоставлены про
 ПРАВИЛА:
 1. tempMin <= tempAverage <= tempMax.
 2. seasonality строго одно из: "low", "medium", "high", "peak".
-3. Если город за Полярным кругом (Мурманск, Териберка, Кировск, Нарьян-Мар и т.д.) зимой — явно указывай "Полярная ночь" в daylight и учитывай силу ветров на побережье!
+3. В поле daylight пиши ТОЛЬКО компактное время (например "~1-2 ч", "~14 ч", "24 ч", "0 ч"). Любые слова "Полярная ночь", "сумерки", "белые ночи" пиши ИСКЛЮЧИТЕЛЬНО в daylightDescription!
 4. Отвечай только JSON-объектом, без markdown-разметки и пояснений.
 `
 }
 
-/**
- * Безопасный сезонный fallback на случай полной недоступности сети/LLM.
- * НЕ сохраняется в постоянный кэш БД, предотвращая порчу данных.
- */
 function getSeasonalFallbackWeather(city: string, month: number, latitude?: number): CityWeatherData {
   const monthName = MONTH_NAMES_RU[month - 1] || 'выбранный месяц'
   const isNorthern = latitude === undefined ? true : latitude >= 0
@@ -340,9 +368,9 @@ function getSeasonalFallbackWeather(city: string, month: number, latitude?: numb
     clothing = 'Демисезонная непромокаемая куртка, свитер, удобная обувь'
   }
 
-  const daylight = latitude !== undefined
-    ? calculateAstronomicalDaylight(latitude, month).daylightText
-    : '~10–12 часов'
+  const daylightInfo = latitude !== undefined
+    ? calculateAstronomicalDaylight(latitude, month)
+    : null
 
   return {
     city,
@@ -357,7 +385,8 @@ function getSeasonalFallbackWeather(city: string, month: number, latitude?: numb
     windDescription: 'Умеренный ветер',
     seasonality: 'medium',
     seasonalityDescription: `Обычный туристический сезон в ${monthName}`,
-    daylight,
+    daylight: daylightInfo?.daylightValue ?? '~10–12 ч',
+    daylightDescription: daylightInfo?.daylightDescription ?? 'Световой день',
     clothingRecommendation: clothing,
     summary: `Поездка в ${city} в ${monthName}. Уточняйте краткосрочный прогноз перед выездом.`,
     updatedAt: new Date().toISOString(),
@@ -374,26 +403,31 @@ export const weatherGenerationService = {
     const trimmedCity = city.trim()
     const cityNormalized = normalizeCityName(trimmedCity)
 
-    // 1. Проверяем кэш в БД, если не запрошено принудительное обновление
+    // 1. Проверяем кэш в БД
     if (!forceRefresh) {
       const cached = await cityWeatherCacheRepository.getByCityAndMonth(cityNormalized, month)
       if (cached) {
+        // Если в кэше старый формат со склеенным текстом — разделяем на лету
+        if (cached.daylight && !cached.daylightDescription) {
+          const parsedDaylight = splitDaylightText(cached.daylight)
+          cached.daylight = parsedDaylight.value
+          cached.daylightDescription = parsedDaylight.description
+        }
         return { data: { ...cached, city: trimmedCity }, fromCache: true }
       }
     }
 
     const monthName = MONTH_NAMES_RU[month - 1] || `${month}-й месяц`
 
-    // 2. Получаем реальные координаты и астрономический световой день
+    // 2. Координаты и астрономический световой день
     const geo = await fetchCityCoordinates(trimmedCity)
-    const lat = geo?.latitude ?? 55.75 // дефолт для умеренной полосы, если геокодинг недоступен
+    const lat = geo?.latitude ?? 55.75
     const daylight = calculateAstronomicalDaylight(lat, month)
 
-    // 3. Запрашиваем реальные метеорологические нормы из открытого архива
+    // 3. Реальные метеорологические нормы
     const realClimate = geo ? await fetchClimateNormals(geo.latitude, geo.longitude, month) : null
 
     try {
-      // Формируем детальный пользовательский промпт
       let userPrompt = `Составь климатический контекст и прогноз для города "${trimmedCity}" на месяц "${monthName}" (${month}-й месяц года).`
       if (realClimate && geo) {
         userPrompt += `
@@ -402,13 +436,13 @@ export const weatherGenerationService = {
 - Ощущается как: ${realClimate.feelsLike}°C
 - Скорость ветра: ${realClimate.windSpeed} км/ч
 - Дней с осадками: ${realClimate.rainyDays}, вероятность: ${realClimate.precipitationProbability}%
-- Астрономический день: "${daylight.daylightText}"
+- Астрономический день: значение "${daylight.daylightValue}", описание "${daylight.daylightDescription}"
 
-Используй эти фактические цифры и составь точный туристический контекст (характер осадков, описание ветра, сезонность, экипировку и практический совет).`
+Используй эти фактические цифры и составь точный туристический контекст.`
       }
       else {
         userPrompt += `
-Астрономическая длина дня для этой широты: "${daylight.daylightText}".
+Астрономический день для этой широты: значение "${daylight.daylightValue}", описание "${daylight.daylightDescription}".
 Составь реалистичные климатические показатели для этого региона в ${monthName}.`
       }
 
@@ -455,12 +489,10 @@ export const weatherGenerationService = {
         schema: CityWeatherResponseSchema,
       })
 
-      // Приоритет реальным климатическим данным, если они были получены
       let minT = realClimate?.tempMin ?? parsed.tempMin ?? (parsed.tempAverage ? parsed.tempAverage - 5 : -5)
       let maxT = realClimate?.tempMax ?? parsed.tempMax ?? (parsed.tempAverage ? parsed.tempAverage + 5 : 5)
       let avgT = realClimate?.tempAverage ?? parsed.tempAverage ?? Math.round((minT + maxT) / 2)
 
-      // Защита от математических инверсий
       if (minT > maxT) {
         const tmp = minT
         minT = maxT
@@ -476,10 +508,16 @@ export const weatherGenerationService = {
       const rainyDays = realClimate?.rainyDays ?? parsed.rainyDays ?? 8
       const precipProb = realClimate?.precipitationProbability ?? parsed.precipitationProbability ?? 30
 
-      // Астрономический расчет имеет приоритет перед галлюцинациями LLM
-      const resolvedDaylight = (geo || daylight.isPolarNight || daylight.isPolarDay)
-        ? daylight.daylightText
-        : (parsed.daylight || daylight.daylightText)
+      // Астрономический расчет имеет абсолютный приоритет над текстом LLM
+      let resolvedDaylight = daylight.daylightValue
+      let resolvedDaylightDescription = daylight.daylightDescription
+
+      // Если астрономия не дала специфики, но LLM вернула данные — парсим их с защитой от склейки
+      if (!geo && !daylight.isPolarNight && !daylight.isPolarDay && parsed.daylight) {
+        const split = splitDaylightText(parsed.daylight)
+        resolvedDaylight = split.value
+        resolvedDaylightDescription = parsed.daylightDescription || split.description
+      }
 
       const weatherResult: CityWeatherData = {
         city: trimmedCity,
@@ -495,20 +533,19 @@ export const weatherGenerationService = {
         seasonality: (parsed.seasonality as SeasonalityLevel) ?? 'medium',
         seasonalityDescription: parsed.seasonalityDescription ?? `Сезон в ${monthName}`,
         daylight: resolvedDaylight,
+        daylightDescription: resolvedDaylightDescription,
         clothingRecommendation: parsed.clothingRecommendation ?? 'Комфортная одежда по погоде',
         summary: parsed.summary ?? `Поездка в ${trimmedCity} в ${monthName}.`,
         updatedAt: new Date().toISOString(),
       }
 
-      // Сохраняем в кэш БД только успешный валидный результат
+      // Сохраняем в кэш БД
       await cityWeatherCacheRepository.save(cityNormalized, month, weatherResult)
 
       return { data: weatherResult, fromCache: false }
     }
     catch (err) {
       console.error(`[Weather Generation] Ошибка генерации для города ${trimmedCity}:`, err)
-      // ВАЖНО: Мы НЕ кэшируем fallback в базу данных cityWeatherCacheRepository.save!
-      // Это защищает кэш от сохранения некорректных значений (+15°C) при временных сбоях.
       const fallback = getSeasonalFallbackWeather(trimmedCity, month, geo?.latitude)
       return { data: fallback, fromCache: false }
     }
@@ -532,6 +569,12 @@ export const weatherGenerationService = {
 
     for (const [norm, data] of cachedMap.entries()) {
       const originalName = normalizedMap.get(norm) || data.city
+      // Защита для старого кэша
+      if (data.daylight && !data.daylightDescription) {
+        const parsedDaylight = splitDaylightText(data.daylight)
+        data.daylight = parsedDaylight.value
+        data.daylightDescription = parsedDaylight.description
+      }
       result[originalName] = { ...data, city: originalName }
     }
 

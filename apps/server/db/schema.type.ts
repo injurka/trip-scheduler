@@ -22,6 +22,7 @@ export interface CityWeatherData {
   seasonality?: SeasonalityLevel | null
   seasonalityDescription?: string | null
   daylight?: string | null
+  daylightDescription?: string | null
   clothingRecommendation?: string | null
   summary?: string | null
   updatedAt: string

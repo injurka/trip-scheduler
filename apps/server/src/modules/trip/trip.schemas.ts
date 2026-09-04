@@ -23,6 +23,7 @@ export const CityWeatherSchema = z.object({
   seasonality: z.enum(['low', 'medium', 'high', 'peak']).nullable().optional(),
   seasonalityDescription: z.string().nullable().optional(),
   daylight: z.string().nullable().optional(),
+  daylightDescription: z.string().nullable().optional(),
   clothingRecommendation: z.string().nullable().optional(),
   summary: z.string().nullable().optional(),
   updatedAt: z.string(),

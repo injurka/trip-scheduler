@@ -78,6 +78,7 @@ const effectiveWeatherData = computed(() => {
 const currentCityWeather = computed(() => {
   if (!selectedCity.value || !effectiveWeatherData.value)
     return null
+
   return effectiveWeatherData.value[selectedCity.value] || null
 })
 
@@ -98,10 +99,17 @@ const hasDetailedInfo = computed(() => {
 const rainDetailText = computed(() => {
   if (!currentCityWeather.value)
     return ''
+
   const { rainyDays, precipitationType } = currentCityWeather.value
+  const parts: string[] = []
+
   if (rainyDays)
-    return `${rainyDays} дн. с осадками`
-  return precipitationType || ''
+    parts.push(`${rainyDays} дн. с осадками`)
+
+  if (precipitationType)
+    parts.push(precipitationType)
+
+  return parts.join(' • ')
 })
 
 function formatTemp(temp: number | null | undefined): string {
@@ -263,7 +271,7 @@ onMounted(() => {
           </div>
         </div>
 
-        <!-- Единая панель показателей (монолитный блок с внутренними разделителями) -->
+        <!-- Единая панель показателей -->
         <div class="climate-grid-panel">
           <!-- Осадки -->
           <div class="climate-cell">
@@ -319,7 +327,7 @@ onMounted(() => {
               {{ currentCityWeather.daylight || 'Обычный' }}
             </div>
             <div class="cell-details" :class="{ 'is-visible': isDetailsExpanded }">
-              <span>длительность дня</span>
+              <span>{{ currentCityWeather.daylightDescription || 'продолжительность дня' }}</span>
             </div>
           </div>
         </div>
@@ -637,7 +645,7 @@ onMounted(() => {
   }
 }
 
-/* Единая панель показателей с полупрозрачным фоном */
+/* Единая панель показателей */
 .climate-grid-panel {
   display: grid;
   grid-template-columns: repeat(2, 1fr);
@@ -651,6 +659,7 @@ onMounted(() => {
   padding: 9px 12px;
   display: flex;
   flex-direction: column;
+  justify-content: flex-start;
   gap: 2px;
 
   &:nth-child(odd) {
@@ -701,12 +710,13 @@ onMounted(() => {
     margin-top: 2px;
   }
 
+  /* Без ограничения количества строк: текст отображается полностью */
   .cell-details {
     display: grid;
     grid-template-rows: 0fr;
     opacity: 0;
     transition:
-      grid-template-rows 0.25s ease,
+      grid-template-rows 0.28s ease,
       opacity 0.2s ease,
       margin-top 0.2s ease;
 
@@ -715,22 +725,21 @@ onMounted(() => {
       min-height: 0;
       font-size: 0.725rem;
       color: var(--fg-secondary-color);
-      line-height: 1.3;
-      display: -webkit-box;
-      -webkit-line-clamp: 2;
-      -webkit-box-orient: vertical;
+      line-height: 1.35;
+      display: block;
+      word-break: break-word;
     }
 
     &.is-visible {
       grid-template-rows: 1fr;
       opacity: 1;
-      margin-top: 4px;
+      margin-top: 5px;
     }
   }
 }
 
 .season-text {
-  font-size: 0.95rem;
+  font-size: 0.85rem;
   font-weight: 600;
 
   &.seasonality-low {
