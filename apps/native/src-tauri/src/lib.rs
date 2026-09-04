@@ -2,6 +2,7 @@ use std::fs;
 use std::path::{Path, PathBuf};
 
 use tauri::Manager;
+#[cfg(desktop)]
 use tauri_plugin_dialog::DialogExt;
 
 /// Приложение запущено под Hyprland (или другим специфичным окружением) —
@@ -42,20 +43,30 @@ fn vault_get_path(app: tauri::AppHandle) -> Option<String> {
     read_vault_path(&app)
 }
 
-#[tauri::command]
-async fn vault_select_folder(app: tauri::AppHandle) -> Option<String> {
-    let picked = app
-        .dialog()
+/// Диалог выбора папки существует только на десктопе: в tauri-plugin-dialog
+/// pick_folder/blocking_pick_folder объявлены под #[cfg(desktop)].
+#[cfg(desktop)]
+fn pick_vault_folder(app: &tauri::AppHandle) -> Option<String> {
+    app.dialog()
         .file()
         .set_title("Выберите папку для хранения фотографий")
-        .blocking_pick_folder();
+        .blocking_pick_folder()
+        .map(|p| p.to_string())
+}
 
-    let path = match picked {
-        // На десктопе приходит Path, на мобильных — Url (content://); приводим к строке.
-        Some(p) => p.to_string(),
-        None => return None,
-    };
+/// На мобильных SAF-диалога выбора папки в плагине нет, а URI content://
+/// несовместим с std::fs, которым работают остальные vault-команды.
+/// Используем приватную папку приложения — она всегда доступна для записи.
+#[cfg(mobile)]
+fn pick_vault_folder(app: &tauri::AppHandle) -> Option<String> {
+    let dir = app.path().app_local_data_dir().ok()?.join("vault");
+    fs::create_dir_all(&dir).ok()?;
+    Some(dir.to_string())
+}
 
+#[tauri::command]
+async fn vault_select_folder(app: tauri::AppHandle) -> Option<String> {
+    let path = pick_vault_folder(&app)?;
     write_vault_path(&app, &path);
     Some(path)
 }
