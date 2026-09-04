@@ -19,8 +19,8 @@ bun add @injurka/obsidian-importer
 
 ```bash
 bunx --bun @injurka/obsidian-importer \
-  --dir "~/Documents/obsidian-mark/Personal Note/Travel/-- Murmansk" \
-  --start-date "2027-01-29" \
+  --dir "~/Documents/obsidian-mark/Personal Note/Travel/-- Taiwan" \
+  --start-date "2026-10-29" \
   --status draft
 ```
 

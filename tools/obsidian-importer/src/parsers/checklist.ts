@@ -115,6 +115,33 @@ export function detectPriorityFromText(text: string): ChecklistPriority {
   return 1
 }
 
+export function routeTabFromTitle(title: string): string | undefined {
+  const matches: string[] = []
+  if (/must-try|что попробовать|гастрономи|вкус/i.test(title))
+    matches.push('must-try')
+  if (/must-buy|шопинг|покупки|сувенир/i.test(title))
+    matches.push('must-buy')
+  if (/must-do|активност|впечатлен/i.test(title))
+    matches.push('must-do')
+
+  // Composite titles (e.g. master navigation pages like
+  // «Чек-листы: Подготовка, Сборы, Must-Try и Покупки») span multiple
+  // categories — they must not claim a single custom tab; keep the default.
+  return matches.length === 1 ? matches[0] : undefined
+}
+
+const CUSTOM_TAB_META: Record<string, { name: string, icon: string }> = {
+  'must-try': { name: 'Must-Try: Гастрономия', icon: 'mdi:noodles' },
+  'must-buy': { name: 'Must-Buy: Шопинг', icon: 'mdi:shopping-outline' },
+  'must-do': { name: 'Must-Do: Впечатления', icon: 'mdi:compass-outline' },
+}
+
+function ensureCustomTab(tabs: ChecklistTabConfig[], tabId: string): void {
+  const meta = CUSTOM_TAB_META[tabId]
+  if (meta && !tabs.some(t => t.id === tabId))
+    tabs.push({ id: tabId, name: meta.name, icon: meta.icon, isCustom: true })
+}
+
 export function parseObsidianChecklists(checklistDirOrFiles: string[] | string): ChecklistSectionContent {
   const filePaths: string[] = []
 
@@ -165,24 +192,12 @@ export function parseObsidianChecklists(checklistDirOrFiles: string[] | string):
     const lines = content.split('\n')
 
     let currentTabId = 'preparation'
+    let inFencedCodeBlock = false
 
-    if (/must-try|что попробовать/i.test(fileName)) {
-      currentTabId = 'must-try'
-      if (!tabs.some(t => t.id === 'must-try')) {
-        tabs.push({ id: 'must-try', name: 'Must-Try: Гастрономия', icon: 'mdi:noodles', isCustom: true })
-      }
-    }
-    else if (/must-buy|шопинг|покупки/i.test(fileName)) {
-      currentTabId = 'must-buy'
-      if (!tabs.some(t => t.id === 'must-buy')) {
-        tabs.push({ id: 'must-buy', name: 'Must-Buy: Шопинг', icon: 'mdi:shopping-outline', isCustom: true })
-      }
-    }
-    else if (/активност|must-do|впечатлен/i.test(fileName)) {
-      currentTabId = 'must-do'
-      if (!tabs.some(t => t.id === 'must-do')) {
-        tabs.push({ id: 'must-do', name: 'Must-Do: Впечатления', icon: 'mdi:compass-outline', isCustom: true })
-      }
+    const fileTabId = routeTabFromTitle(fileName)
+    if (fileTabId) {
+      currentTabId = fileTabId
+      ensureCustomTab(tabs, fileTabId)
     }
 
     let currentH2GroupId: string | undefined
@@ -196,32 +211,24 @@ export function parseObsidianChecklists(checklistDirOrFiles: string[] | string):
       if (!trimmed)
         continue
 
+      // Skip fenced code blocks (```/~~~) and blockquotes/callouts (`>`),
+      // so mermaid mindmaps and tip-callout summaries don't pollute tabs
+      if (trimmed.startsWith('```') || trimmed.startsWith('~~~')) {
+        inFencedCodeBlock = !inFencedCodeBlock
+        continue
+      }
+      if (inFencedCodeBlock || trimmed.startsWith('>'))
+        continue
+
       // H1 Header
       if (rawLine.startsWith('# ') && !rawLine.startsWith('## ')) {
         const title = rawLine.replace(/^#\s*/, '').replace(/^[^\wА-Яа-яёЁ]+/, '').trim()
-        if (/must-try|гастрономи|что попробовать/i.test(title)) {
-          currentTabId = 'must-try'
+        const tabId = routeTabFromTitle(title)
+        if (tabId) {
+          currentTabId = tabId
           currentH2GroupId = undefined
           currentGroupId = undefined
-          if (!tabs.some(t => t.id === 'must-try')) {
-            tabs.push({ id: 'must-try', name: 'Must-Try: Гастрономия', icon: 'mdi:noodles', isCustom: true })
-          }
-        }
-        else if (/must-buy|шопинг|покупки/i.test(title)) {
-          currentTabId = 'must-buy'
-          currentH2GroupId = undefined
-          currentGroupId = undefined
-          if (!tabs.some(t => t.id === 'must-buy')) {
-            tabs.push({ id: 'must-buy', name: 'Must-Buy: Шопинг', icon: 'mdi:shopping-outline', isCustom: true })
-          }
-        }
-        else if (/must-do|активност|впечатлен/i.test(title)) {
-          currentTabId = 'must-do'
-          currentH2GroupId = undefined
-          currentGroupId = undefined
-          if (!tabs.some(t => t.id === 'must-do')) {
-            tabs.push({ id: 'must-do', name: 'Must-Do: Впечатления', icon: 'mdi:compass-outline', isCustom: true })
-          }
+          ensureCustomTab(tabs, tabId)
         }
         continue
       }
@@ -230,31 +237,12 @@ export function parseObsidianChecklists(checklistDirOrFiles: string[] | string):
       if (rawLine.startsWith('## ') && !rawLine.startsWith('### ')) {
         const cleanH2 = rawLine.replace(/^##\s*/, '').trim()
 
-        if (/I\.\s*Must-Try|гастрономический гид/i.test(cleanH2)) {
-          currentTabId = 'must-try'
+        const sectionTabId = routeTabFromTitle(cleanH2)
+        if (sectionTabId) {
+          currentTabId = sectionTabId
           currentH2GroupId = undefined
           currentGroupId = undefined
-          if (!tabs.some(t => t.id === 'must-try')) {
-            tabs.push({ id: 'must-try', name: 'Must-Try: Гастрономия', icon: 'mdi:noodles', isCustom: true })
-          }
-          continue
-        }
-        else if (/II\.\s*Must-Do|активностей|опыта/i.test(cleanH2)) {
-          currentTabId = 'must-do'
-          currentH2GroupId = undefined
-          currentGroupId = undefined
-          if (!tabs.some(t => t.id === 'must-do')) {
-            tabs.push({ id: 'must-do', name: 'Must-Do: Впечатления', icon: 'mdi:compass-outline', isCustom: true })
-          }
-          continue
-        }
-        else if (/III\.\s*Must-Buy|шопинг|подарки/i.test(cleanH2)) {
-          currentTabId = 'must-buy'
-          currentH2GroupId = undefined
-          currentGroupId = undefined
-          if (!tabs.some(t => t.id === 'must-buy')) {
-            tabs.push({ id: 'must-buy', name: 'Must-Buy: Шопинг', icon: 'mdi:shopping-outline', isCustom: true })
-          }
+          ensureCustomTab(tabs, sectionTabId)
           continue
         }
 
