@@ -1,4 +1,4 @@
-# @injurkx/vault-locator
+# @injurka/vault-locator
 
 Discover Obsidian vaults on the local machine and normalize cross-platform paths (Windows / WSL / tilde).
 
@@ -10,13 +10,13 @@ The lookup strategy mirrors how Obsidian itself knows about vaults:
 ## Install
 
 ```bash
-bun add @injurkx/vault-locator
+bun add @injurka/vault-locator
 ```
 
 ## Usage
 
 ```typescript
-import { discoverVaultFolders, discoverVaultRoots, normalizeFsPath } from '@injurkx/vault-locator'
+import { discoverVaultFolders, discoverVaultRoots, normalizeFsPath } from '@injurka/vault-locator'
 
 // All known vault roots (registry + .obsidian marker folders)
 const roots = discoverVaultRoots()

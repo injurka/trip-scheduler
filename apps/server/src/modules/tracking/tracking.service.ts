@@ -104,8 +104,8 @@ export const trackingService = {
     if (rawPoints.length < 2)
       return { segments: 0 }
 
-    // Алгоритм в общем пакете @injurkx/track-processing (общий с клиентом)
-    const { processDayTrack } = await import('@injurkx/track-processing')
+    // Алгоритм в общем пакете @injurka/track-processing (общий с клиентом)
+    const { processDayTrack } = await import('@injurka/track-processing')
 
     const segments = processDayTrack(rawPoints.map((p, i) => ({
       clientPointId: `srv-${sessionId}-${i}`,

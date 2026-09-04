@@ -1,3 +1,9 @@
+/**
+ * Agent Skills Installer — установка AI-навыков и правил в проекты и Obsidian-вольты.
+ *
+ * @module
+ */
+
 export * from './cli/args'
 export * from './cli/installer'
 export * from './cli/interactive'

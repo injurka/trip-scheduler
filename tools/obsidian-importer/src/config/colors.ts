@@ -1,4 +1,4 @@
-export const colors = {
+export const colors: Record<string, string> = {
   reset: '\x1B[0m',
   bright: '\x1B[1m',
   dim: '\x1B[2m',

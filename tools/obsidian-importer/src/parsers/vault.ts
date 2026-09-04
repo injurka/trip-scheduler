@@ -1,7 +1,7 @@
 import type { ParsedDay, ParsedNoteFile, ParsedNoteFolder, ParsedTripData } from '../types'
 import { existsSync, readdirSync, readFileSync, statSync } from 'node:fs'
 import { basename, join, resolve } from 'node:path'
-import { discoverVaultFolders, normalizeFsPath } from '../../../../packages/vault-locator/src/index'
+import { discoverVaultFolders, normalizeFsPath } from '@injurka/vault-locator'
 import { normalizeIframeLineBreaks } from './activity'
 import { parseObsidianBookings } from './booking'
 import { parseObsidianChecklists } from './checklist'

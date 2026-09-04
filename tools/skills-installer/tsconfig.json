@@ -26,7 +26,6 @@
     "skipLibCheck": true
   },
   "include": [
-    "src/**/*.ts",
-    "../../packages/vault-locator/src/**/*.ts"
+    "src/**/*.ts"
   ]
 }

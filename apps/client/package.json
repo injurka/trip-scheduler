@@ -1,5 +1,5 @@
 {
-  "name": "@injurkx/trip-scheduler-client",
+  "name": "@injurka/trip-scheduler-client",
   "type": "module",
   "version": "1.0.1",
   "private": true,
@@ -42,8 +42,8 @@
   "dependencies": {
     "@excalidraw/excalidraw": "^0.18.0",
     "@iconify-icons/mdi": "^1.2.48",
-    "@injurkx/kit-image-viewer": "workspace:*",
-    "@injurkx/track-processing": "workspace:*",
+    "@injurka/kit-image-viewer": "workspace:*",
+    "@injurka/track-processing": "workspace:*",
     "@internationalized/date": "^3.12.0",
     "@mapbox/polyline": "^1.2.1",
     "@milkdown/crepe": "^7.20.0",

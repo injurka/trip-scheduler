@@ -142,7 +142,7 @@
 | `bun lint`                             | Проверка кода всего проекта с помощью ESLint.                          | `root`         |
 | `bun typecheck`                        | Проверка типов TypeScript во всем проекте.                             | `root`         |
 | **Мобильная сборка (Tauri)**           |                                                                        |                |
-| `bun run --filter '@injurkx/trip-scheduler-native' tauri:android:init` | Инициализация Android-проекта (генерирует `gen/android`). | `native`       |
+| `bun run --filter '@injurka/trip-scheduler-native' tauri:android:init` | Инициализация Android-проекта (генерирует `gen/android`). | `native`       |
 | `bun build:native:android`             | Сборка Android APK.                                                    | `root`         |
 
 ## 📜 Пример приложения

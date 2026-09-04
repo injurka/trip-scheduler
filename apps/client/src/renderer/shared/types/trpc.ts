@@ -1,7 +1,7 @@
 // eslint-disable-next-line ts/ban-ts-comment
 // @ts-nocheck
 // @ts-expect-error - другой проект
-import type { AppRouter } from '@injurkx/trip-scheduler-server/router'
+import type { AppRouter } from '@injurka/trip-scheduler-server/router'
 
 import type { inferRouterInputs, inferRouterOutputs } from '@trpc/server'
 

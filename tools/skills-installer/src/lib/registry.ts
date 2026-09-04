@@ -20,9 +20,9 @@ export interface RuleItem {
   path: string
 }
 
-const __filename = fileURLToPath(import.meta.url)
-const __dirname = dirname(__filename)
-export const DEFAULT_SOURCE_DIR = join(__dirname, '../../source')
+const __filename: string = fileURLToPath(import.meta.url)
+const __dirname: string = dirname(__filename)
+export const DEFAULT_SOURCE_DIR: string = join(__dirname, '../../source')
 
 export function parseSkillFrontmatter(skillMdPath: string): { name: string, description: string, title?: string } {
   if (!existsSync(skillMdPath)) {

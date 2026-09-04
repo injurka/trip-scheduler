@@ -1,4 +1,4 @@
-import type { TrackActivityType } from '@injurkx/track-processing'
+import type { TrackActivityType } from '@injurka/track-processing'
 
 export type ActivityType = TrackActivityType
 

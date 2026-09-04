@@ -71,7 +71,7 @@ export default defineConfig({
     dedupe: ['vue', 'vue-router', 'pinia', 'react', 'react-dom', 'react/jsx-runtime', 'react/jsx-dev-runtime'],
     alias: {
       '~': fileURLToPath(new URL('../src/renderer', import.meta.url)),
-      '@injurkx/kit-image-viewer': resolve(__dirname, '../../../packages/kit-image-viewer/src/index.ts'),
+      '@injurka/kit-image-viewer': resolve(__dirname, '../../../packages/kit-image-viewer/src/index.ts'),
       'react': path.dirname(require.resolve('react/package.json')),
       'react-dom': path.dirname(require.resolve('react-dom/package.json')),
     },

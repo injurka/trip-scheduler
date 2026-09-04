@@ -1,57 +1,48 @@
-# 🛫 @injurkx/trip-scheduler-obsidian-importer
+# 🛫 @injurka/obsidian-importer
 
-Инструмент расширенного импорта и синхронизации путешествий из **Obsidian Vault** в **Trip Scheduler**.
+Импорт путешествий из **Obsidian Vault** в **Trip Scheduler**: маршрут, day.meta-бейджи, активности, чек-листы, финансы, заметки и медиа.
 
-## 🚀 Особенности
+## Возможности
 
-- **📁 Автоматическое обнаружение папок**: Сканирует Vault и находит папки с путешествиями.
-- **📅 Парсинг маршрута и day.meta**: Извлекает дни, мета-бейджи (Локация, Фаза тура, Проживание, Хайлайты, Подготовка, Финансы).
-- **🤖 Умная генерация активностей**: Поддержка моделей через **AIHubMix** / OpenAI (Gemini 2.5 Flash/Pro, Claude 3.7 Sonnet, DeepSeek V3, GPT-4o) или встроенный офлайн-парсер таймлайна Markdown.
-- **📍 Извлечение координат и карт**: Поддерживает Яндекс Карты (с извлечением координат из `ll=lon,lat` виджетов без геокодинга), Google Maps, 2GIS, OpenStreetMap.
-- **📸 Загрузка фото и галерей**: Автоматическая индексация локальных медиа-файлов и создание секций `gallery`.
-- **📝 Заметки и статьи**: Сохранение структуры папок и Markdown-файлов заметок.
-- **📋 Чек-листы и списки сборов**: Интеллектуальный парсер задач с приоритетами, иконками групп, стоимостью и локациями.
-- **💰 Финансы**: Распознавание категорий расходов, таблиц затрат и конвертации валют.
+- Автоматическое обнаружение вольтов и папок с турами (`@injurka/vault-locator` — реестр Obsidian + маркер `.obsidian`, WSL-пути).
+- Парсинг таймлайна дня, инфо-плашек `day.meta`, таблиц бронирований и чек-листов.
+- Умная генерация активностей через LLM (AIHubMix / OpenAI: Gemini, Claude, DeepSeek, GPT-4o) или офлайн-парсер.
+- Извлечение координат из ссылок Яндекс Карт / Google Maps / 2GIS / OSM, геокодинг, индексация локальных медиа и загрузка галерей.
 
----
-
-## 🛠️ Запуск
-
-### Из корня репозитория:
+## Install
 
 ```bash
-# Интерактивный мастер
-bun run start
+bun add @injurka/obsidian-importer
+```
 
-# С передачей параметров
-bun run start \
+## Usage
+
+```bash
+bunx --bun @injurka/obsidian-importer \
   --dir "~/Documents/obsidian-mark/Personal Note/Travel/-- Murmansk" \
   --start-date "2027-01-29" \
   --status draft
 ```
 
-### Из папки инструмента:
+Требуются переменные окружения `TRIP_API_URL` / `TRIP_API_TOKEN` (или интерактивный вход) и `AI_HUBMIX_KEY` / `OPENAI_API_KEY` для LLM-режима.
 
-```bash
-bun --cwd tools/obsidian-importer start
+### Programmatic API
+
+```typescript
+import { parseObsidianTripFolder, runImport } from '@injurka/obsidian-importer'
+import { discoverVaultFolders } from '@injurka/vault-locator'
+
+// Найти папки туров в известных вольтах
+const folders = discoverVaultFolders('Travel')
+
+// Разобрать папку тура в структурированные данные
+const trip = parseObsidianTripFolder('-- Murmansk', '2027-01-29')
+// => { tripMeta, days: [...], checklists, finances, notes }
+
+// Полный импорт (интерактивный, если нет CLI-флагов)
+await runImport()
 ```
 
----
+## License
 
-## ⚙️ Опции CLI
-
-| Параметр                        | Описание                                        | По умолчанию                                     |
-| ------------------------------- | ----------------------------------------------- | ------------------------------------------------ |
-| `-d, --dir <path>`              | Путь к папке путешествия в Obsidian Vault       | Интерактивный выбор                              |
-| `-u, --api-url <url>`           | Базовый URL API сервера                         | `https://trip-scheduler-api.limited-dissolve.ru` |
-| `-e, --email <email>`           | Email пользователя для авторизации              | `dev@dev.dev`                                    |
-| `-p, --password <pass>`         | Пароль пользователя                             | Из `.env` / запрос                               |
-| `-s, --start-date <YYYY-MM-DD>` | Дата начала путешествия                         | Текущая дата                                     |
-| `-m, --model <name>`            | Имя модели LLM (AIHubMix / OpenAI)              | `gemini-2.5-flash`                               |
-| `--llm` / `--no-llm`            | Включить / отключить обработку через LLM        | `--llm`                                          |
-| `--dry-run`                     | Предпросмотр без сохранения в базу              | `false`                                          |
-| `--status <status>`             | Статус поездки: `planned`, `draft`, `completed` | `draft`                                          |
-| `--visibility <vis>`            | Видимость: `private`, `public`                  | `private`                                        |
-| `--no-images`                   | Не загружать фотографии на сервер               | `false`                                          |
-| `--no-geo`                      | Отключить автоматический геокодинг              | `false`                                          |
-| `-y, --yes`                     | Не задавать интерактивных вопросов              | `false`                                          |
+MIT

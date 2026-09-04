@@ -1,8 +1,11 @@
 {
-  "name": "@injurka/vault-locator",
+  "name": "@injurka/obsidian-importer",
   "version": "1.0.0",
-  "description": "Discover Obsidian vaults cross-platform.",
+  "description": "Import Obsidian travel vault notes (route, day meta, activities, checklists, finances) into Trip Scheduler via its REST API",
   "exports": "./src/index.ts",
+  "imports": {
+    "@injurka/vault-locator": "jsr:@injurka/vault-locator@^1.0.0"
+  },
   "publish": {
     "include": [
       "src/**/*.ts",

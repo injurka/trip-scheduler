@@ -1,5 +1,5 @@
 {
-  "name": "@injurkx/kit-image-viewer",
+  "name": "@injurka/kit-image-viewer",
   "type": "module",
   "version": "1.0.0",
   "description": "Full-featured Vue 3 Image Viewer with zoom, swipe gestures, EXIF metadata and thumbnails",

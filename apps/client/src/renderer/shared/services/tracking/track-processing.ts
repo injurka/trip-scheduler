@@ -1,1 +1,1 @@
-export * from '@injurkx/track-processing'
+export * from '@injurka/track-processing'

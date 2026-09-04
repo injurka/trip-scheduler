@@ -1,7 +1,7 @@
 import { existsSync } from 'node:fs'
 import { homedir } from 'node:os'
 import { join } from 'node:path'
-import { discoverVaultFolders, normalizeFsPath } from '../../../../packages/vault-locator/src/index'
+import { discoverVaultFolders, normalizeFsPath } from '@injurka/vault-locator'
 
 export interface TargetLocation {
   id: string

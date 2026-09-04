@@ -1,0 +1,25 @@
+{
+  "name": "@injurka/skills-installer",
+  "version": "1.0.0",
+  "description": "CLI to install AI agent travel skills and rules into projects and Obsidian vaults; validates trip folder markup for obsidian-importer",
+  "exports": {
+    ".": "./src/index.ts",
+    "./bin": "./src/run.ts"
+  },
+  "imports": {
+    "@injurka/vault-locator": "jsr:@injurka/vault-locator@^1.0.0"
+  },
+  "publish": {
+    "include": [
+      "src/**/*.ts",
+      "README.md",
+      "LICENSE"
+    ]
+  },
+  "runtimeCompat": {
+    "bun": "compatible",
+    "node": "compatible",
+    "deno": "unsupported",
+    "workerd": "unsupported"
+  }
+}
