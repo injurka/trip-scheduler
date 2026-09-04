@@ -502,7 +502,10 @@ async function handleNotifyParticipants() {
           <button class="track-route-close" aria-label="Закрыть маршрут" @click="isTrackPlayerOpen = false">
             <Icon icon="mdi:close" />
           </button>
-          <DayMemoriesPlayer />
+          <DayMemoriesPlayer
+            :day-utc="getSelectedDay?.date ? getSelectedDay.date.split('T')[0] : undefined"
+            :show-back-button="false"
+          />
         </div>
       </div>
     </Teleport>

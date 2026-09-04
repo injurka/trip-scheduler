@@ -1,18 +1,16 @@
 import type { TrackPoint } from './geotrack-client'
+import { trpc } from '~/shared/services/trpc/trpc.service'
 import { useTrackingStore } from '~/shared/store/tracking.store'
 import { geotrack, parseTrackPoint } from './geotrack-client'
 
 /**
- * Синк-воркер: выгружает несинхронизированные точки из нативного буфера
+ * Синк-воркер: выгружает несинхронизированные точки из локального/нативного буфера
  * батчами через tRPC tracking.ingestBatch (идемпотентно по clientPointId).
- *
- * Триггеры: вызов из tracking.store при открытии приложения, после toggle(true)
- * и периодически по таймеру, пока WebView жив.
  */
 
 const BATCH_SIZE = 500
-const MAX_BATCHES_PER_RUN = 20 // защита от бесконечного цикла при плохой сети
-const INTERVAL_IDLE_MS = 120_000 // 2 мин, когда буфер пуст
+const MAX_BATCHES_PER_RUN = 20
+const INTERVAL_IDLE_MS = 60_000 // 1 мин периодический опрос
 
 let timer: ReturnType<typeof setInterval> | null = null
 let running = false
@@ -30,8 +28,7 @@ async function syncOnce(): Promise<number> {
     if (points.length === 0)
       break
 
-    const { tracking } = await import('~/shared/services/trpc/trpc.service').then(m => ({ tracking: (m.trpc as any).tracking }))
-    const result = await (tracking.ingestBatch as any).mutate({
+    const result = await (trpc as any).tracking.ingestBatch.mutate({
       points: points.map(p => ({
         clientPointId: p.clientPointId,
         sessionId: p.sessionId,
@@ -59,7 +56,7 @@ async function syncOnce(): Promise<number> {
   return total
 }
 
-/** Однократная попытка синка; ошибки глушатся (следующий тик повторит). */
+/** Однократная попытка синка */
 export async function runSync(): Promise<number> {
   if (running)
     return 0
@@ -78,6 +75,8 @@ export async function runSync(): Promise<number> {
 export function startSyncWorker(): void {
   if (timer)
     return
+  // Немедленный запуск синка при старте
+  void runSync()
   timer = setInterval(() => {
     void runSync()
   }, INTERVAL_IDLE_MS)

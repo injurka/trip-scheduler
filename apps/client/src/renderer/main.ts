@@ -3,7 +3,6 @@ import { createHead } from '@vueuse/head'
 
 // файл генерируется скриптом
 import iconsBundle from '~/assets/icons-bundle.json'
-import { isMobileApp } from '~/shared/lib/env'
 
 import router from '~/shared/lib/router'
 import { initializePwaUpdater } from '~/shared/services/pwa/pwa.service'
@@ -40,12 +39,10 @@ async function initializeApp() {
   await restoreSession(pinia)
   initializePwaUpdater(pinia)
 
-  // GPS-трекинг: запуск опроса статуса плагина и синк-воркера (только мобильная сборка)
-  if (isMobileApp) {
-    const trackingStore = useTrackingStore(pinia)
-    void trackingStore.startPolling()
-    startSyncWorker()
-  }
+  // GPS-трекинг: инициализация опроса статуса и синк-воркера
+  const trackingStore = useTrackingStore(pinia)
+  void trackingStore.startPolling()
+  startSyncWorker()
 
   app.mount('#app')
 }
