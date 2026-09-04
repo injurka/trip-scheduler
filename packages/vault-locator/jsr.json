@@ -1,0 +1,19 @@
+{
+  "name": "@injurkx/vault-locator",
+  "version": "1.0.0",
+  "description": "Discover Obsidian vaults: official registry, WSL mounts, standard folders; normalize Windows/WSL/tilde paths",
+  "exports": "./src/index.ts",
+  "publish": {
+    "include": [
+      "src/**/*.ts",
+      "README.md",
+      "LICENSE"
+    ]
+  },
+  "runtimeCompat": {
+    "bun": "compatible",
+    "node": "compatible",
+    "deno": "unsupported",
+    "workerd": "unsupported"
+  }
+}

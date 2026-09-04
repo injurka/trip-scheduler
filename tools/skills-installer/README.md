@@ -24,7 +24,6 @@ CLI-инструмент для управления и установки на�
 
 1. **Реестр Obsidian** (`~/.config/obsidian/obsidian.json`, Windows: `%APPDATA%/obsidian/obsidian.json`, macOS: `~/Library/Application Support/obsidian/obsidian.json`) — официальный список всех вольтов.
 2. **Маркер `.obsidian`** в стандартных директориях (`~/Documents`, `~/Obsidian` и подпапках).
-3. **WSL**: дополнительно сканируются реестры `/mnt/c/Users/*/AppData/Roaming/obsidian/obsidian.json`.
 
 Логика вынесена в общий workspace-пакет `packages/vault-locator` и используется обоими CLI-инструментами (через относительный импорт исходников, без сборки).
 

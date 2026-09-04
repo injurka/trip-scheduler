@@ -11,7 +11,9 @@
   "scripts": {
     "lint": "eslint .",
     "lint:fix": "eslint . --fix",
-    "typecheck": "bunx tsc --noEmit"
+    "typecheck": "bunx tsc --noEmit",
+    "publish:jsr": "npx jsr publish",
+    "publish:jsr:dry": "npx jsr publish --dry-run"
   },
   "devDependencies": {
     "@antfu/eslint-config": "8.2.0",

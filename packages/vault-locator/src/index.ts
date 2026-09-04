@@ -6,6 +6,8 @@ import process from 'node:process'
 /**
  * Утилиты для обнаружения Obsidian-хранилищ и нормализации путей.
  * Общая логика для tools/skills-installer и tools/obsidian-importer.
+ *
+ * @module
  */
 
 /**
