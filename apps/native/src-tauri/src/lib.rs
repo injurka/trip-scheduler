@@ -71,6 +71,36 @@ async fn vault_select_folder(app: tauri::AppHandle) -> Option<String> {
     Some(path)
 }
 
+/// Безопасное сопоставление относительного пути внутри корня vault.
+/// Защищает от Path Traversal, абсолютных путей и выхода за пределы корня хранилища.
+fn safe_vault_path(root_str: &str, rel: &str) -> Result<PathBuf, String> {
+    let rel_path = Path::new(rel);
+    if rel_path.is_absolute() || rel.contains("..") {
+        return Err("Invalid path".to_string());
+    }
+
+    let mut clean_rel = PathBuf::new();
+    for comp in rel_path.components() {
+        match comp {
+            std::path::Component::Normal(c) => clean_rel.push(c),
+            _ => return Err("Invalid path component".to_string()),
+        }
+    }
+
+    if clean_rel.as_os_str().is_empty() {
+        return Err("Empty path".to_string());
+    }
+
+    let root = Path::new(root_str);
+    let target = root.join(clean_rel);
+
+    if !target.starts_with(root) {
+        return Err("Path traversal detected".to_string());
+    }
+
+    Ok(target)
+}
+
 /// Проверка существования файлов в vault (аналог Electron IPC vault:check-files).
 #[tauri::command]
 fn vault_check_files(app: tauri::AppHandle, relative_paths: Vec<String>) -> Vec<String> {
@@ -81,8 +111,7 @@ fn vault_check_files(app: tauri::AppHandle, relative_paths: Vec<String>) -> Vec<
     relative_paths
         .into_iter()
         .filter(|rel| {
-            // Пути с ../ не пропускаем — защита от выхода за пределы vault.
-            !rel.contains("..") && Path::new(&root).join(rel).is_file()
+            safe_vault_path(&root, rel).map(|p| p.is_file()).unwrap_or(false)
         })
         .collect()
 }
@@ -95,11 +124,8 @@ async fn vault_download_file(
     relative_path: String,
 ) -> Result<bool, String> {
     let root = read_vault_path(&app).ok_or_else(|| "Vault not set".to_string())?;
-    if relative_path.contains("..") {
-        return Err("Invalid path".to_string());
-    }
+    let dest = safe_vault_path(&root, &relative_path)?;
 
-    let dest = Path::new(&root).join(&relative_path);
     let dir = dest
         .parent()
         .ok_or_else(|| "Invalid destination".to_string())?;
@@ -121,13 +147,12 @@ async fn vault_download_file(
 
 #[tauri::command]
 fn vault_delete_file(app: tauri::AppHandle, relative_path: String) {
-    if relative_path.contains("..") {
-        return;
-    }
     let Some(root) = read_vault_path(&app) else {
         return;
     };
-    let _ = fs::remove_file(Path::new(&root).join(relative_path));
+    if let Ok(target) = safe_vault_path(&root, &relative_path) {
+        let _ = fs::remove_file(target);
+    }
 }
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]

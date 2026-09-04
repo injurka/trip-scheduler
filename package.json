@@ -14,6 +14,7 @@
   "scripts": {
     "--------------------------------<      DEV       >--------------------------------": "",
     "dev:client": "bun --filter='@injurka/trip-scheduler-client' dev",
+    "dev:client:tauri": "bun --filter='@injurka/trip-scheduler-client' dev:tauri",
     "dev:server": "bun run --cwd ./apps/server dev",
     "dev:native": "bun run --filter='@injurka/trip-scheduler-native' tauri:dev",
     "--------------------------------<      BUILD     >--------------------------------": "",

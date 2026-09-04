@@ -15,6 +15,7 @@
   "scripts": {
     "--------------------------------<      DEV       >--------------------------------": "",
     "dev": "vite --config build/vite.config.web.ts",
+    "dev:tauri": "vite --config build/vite.config.tauri.ts",
     "--------------------------------<      BUILD     >--------------------------------": "",
     "build": "vite build --config build/vite.config.web.ts",
     "build:tauri": "vite build --config build/vite.config.tauri.ts",

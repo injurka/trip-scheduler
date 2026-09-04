@@ -6,12 +6,13 @@
   "build": {
     "frontendDist": "../../client/dist",
     "devUrl": "http://localhost:1420",
-    "beforeDevCommand": "bun run --cwd ../.. dev:client",
+    "beforeDevCommand": "bun run --cwd ../.. dev:client:tauri",
     "beforeBuildCommand": "bun run --cwd ../.. build:client:tauri"
   },
   "app": {
     "windows": [
       {
+        "label": "main",
         "title": "TripScheduler",
         "width": 1200,
         "height": 800,
