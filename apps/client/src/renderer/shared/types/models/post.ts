@@ -103,7 +103,7 @@ export interface PostElement {
 export interface PostDetail {
   id: string
   title: string
-  insight?: string
+  insight: string | null
   description?: string
   country?: string
   city?: string
