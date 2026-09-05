@@ -1,6 +1,17 @@
 import type { TrackPoint } from '../src/index'
 import { describe, expect, it } from 'vitest'
-import { catmullRomSpline, classifySegment, filterStaticDrift, processDayTrack, rdpSimplify, windowFeatures } from '../src/index'
+import {
+  catmullRomSpline,
+  classifySegment,
+  evaluatePointValidity,
+  filterGpsOutliers,
+  filterStaticDrift,
+  normalizeSplineVertices,
+  processDayTrack,
+  rdpSimplify,
+  splitTrackIntoLegs,
+  windowFeatures,
+} from '../src/index'
 
 let t = 1_735_689_600_000 // 2025-01-01T00:00 UTC
 
@@ -162,5 +173,110 @@ describe('windowFeatures', () => {
     const fTrain = windowFeatures(trainTrack())
     const fCar = windowFeatures(carTrack())
     expect(fTrain.speedCv).toBeLessThan(fCar.speedCv)
+  })
+})
+
+describe('filterGpsOutliers', () => {
+  it('отсекает одиночный бумеранг-выброс (скачок далеко и сразу назад)', () => {
+    const track = walkTrack().slice(0, 30)
+    // Внедряем аномальный скачок в точку 15: улет на 3 км за 2 секунды
+    track[15] = {
+      ...track[15],
+      lat: track[15].lat + 0.03, // ~3.3 км
+      lng: track[15].lng + 0.03,
+      speed: 1600 / 3.6,
+    }
+
+    const filtered = filterGpsOutliers(track)
+    expect(filtered.length).toBe(track.length - 1)
+    // Проверяем, что выброшенная точка отсутствует
+    expect(filtered.some(p => p.clientPointId === track[15].clientPointId)).toBe(false)
+  })
+
+  it('сохраняет авиаперелет (большой dt, скорость самолета ~800 км/ч)', () => {
+    const startPt = pt(55.75, 37.61, 5) // Москва
+    // Перелет через 2 часа (7200 сек) в Сочи (~1360 км)
+    const flightTime = 7200 * 1000
+    t += flightTime
+    const endPt: TrackPoint = {
+      clientPointId: `p-${t}`,
+      tsUtc: t,
+      lat: 43.58,
+      lng: 39.72,
+      altitude: 10000,
+      accuracy: 10,
+      speed: 220, // ~800 км/ч
+      bearing: 180,
+      activity: 'unknown',
+      activityConfidence: 0,
+      sessionId: 'test',
+    }
+
+    const filtered = filterGpsOutliers([startPt, endPt])
+    expect(filtered.length).toBe(2)
+  })
+
+  it('отсекает точки с критически плохой точностью GPS (> 140м)', () => {
+    const validPt = pt(55.75, 37.61, 5)
+    const badAccPt = { ...pt(55.751, 37.611, 5), accuracy: 250 }
+    const validPt2 = pt(55.752, 37.612, 5)
+
+    const filtered = filterGpsOutliers([validPt, badAccPt, validPt2])
+    expect(filtered.length).toBe(2)
+    expect(filtered.some(p => p.accuracy === 250)).toBe(false)
+  })
+})
+
+describe('evaluatePointValidity', () => {
+  it('определяет нормальное движение', () => {
+    const p1 = { lat: 55.75, lng: 37.61, tsUtc: 10000 }
+    const p2 = { lat: 55.7501, lng: 37.6101, tsUtc: 12000, speed: 1.5, accuracy: 5 }
+    const res = evaluatePointValidity(p2, p1)
+    expect(res.isValid).toBe(true)
+    expect(res.isFlight).toBe(false)
+  })
+
+  it('детектирует аномальный гиперзвуковой скачок как невалидный', () => {
+    const p1 = { lat: 55.75, lng: 37.61, tsUtc: 10000 }
+    // Прыжок на 1 градус (~111 км) за 5 секунд = 80 000 км/ч!
+    const p2 = { lat: 56.75, lng: 37.61, tsUtc: 15000, speed: 50, accuracy: 10 }
+    const res = evaluatePointValidity(p2, p1)
+    expect(res.isValid).toBe(false)
+    expect(res.reason).toContain('Невозможная скорость')
+  })
+})
+
+describe('splitTrackIntoLegs', () => {
+  it('разбивает трек на отдельные плечи при паузе более 15 минут', () => {
+    const p1 = { lat: 55.75, lng: 37.61, tsUtc: 1000 }
+    const p2 = { lat: 55.751, lng: 37.611, tsUtc: 5000 }
+    // Пауза 30 минут
+    const p3 = { lat: 55.76, lng: 37.62, tsUtc: 5000 + 30 * 60 * 1000 }
+    const p4 = { lat: 55.761, lng: 37.621, tsUtc: 5000 + 30 * 60 * 1000 + 4000 }
+
+    const legs = splitTrackIntoLegs([p1, p2, p3, p4])
+    expect(legs.length).toBe(2)
+    expect(legs[0].points.length).toBe(2)
+    expect(legs[1].points.length).toBe(2)
+  })
+})
+
+describe('normalizeSplineVertices', () => {
+  it('плавно пересчитывает сплайн при удалении любой промежуточной точки', () => {
+    const pts = [
+      { lat: 55.70, lng: 37.60 },
+      { lat: 55.72, lng: 37.62 },
+      { lat: 55.74, lng: 37.64 },
+      { lat: 55.76, lng: 37.66 },
+    ]
+    const splineBefore = normalizeSplineVertices(pts, 4)
+    expect(splineBefore.length).toBeGreaterThan(pts.length)
+
+    // Удаляем вторую точку
+    const ptsAfter = pts.filter((_, idx) => idx !== 1)
+    const splineAfter = normalizeSplineVertices(ptsAfter, 4)
+    expect(splineAfter.length).toBeGreaterThan(ptsAfter.length)
+    expect(splineAfter[0].lat).toBeCloseTo(55.70, 2)
+    expect(splineAfter[splineAfter.length - 1].lat).toBeCloseTo(55.76, 2)
   })
 })

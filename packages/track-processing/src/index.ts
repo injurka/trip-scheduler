@@ -74,6 +74,182 @@ export function filterStaticDrift(points: TrackPoint[], maxDriftM = 2): TrackPoi
   return out
 }
 
+export interface PointValidityResult {
+  isValid: boolean
+  isFlight: boolean
+  isGap: boolean
+  reason?: string
+  estimatedSpeedKmh: number
+}
+
+/**
+ * Оценка валидности точки относительно предыдущей точки с учетом времени и расстояния.
+ * Позволяет отличать:
+ * 1) Нормальное движение (пешком, авто, поезд).
+ * 2) Быстрое перемещение / Авиаперелет (большой dt, скорость до 1150 км/ч).
+ * 3) GPS-сбой / аномальный скачок (короткий dt, физически невозможная скорость).
+ * 4) Разрыв записи / отключение GPS (большой dt без аномальной скорости).
+ */
+export function evaluatePointValidity(
+  current: { lat: number, lng: number, tsUtc: number, accuracy?: number | null, speed?: number | null },
+  prev?: { lat: number, lng: number, tsUtc: number },
+): PointValidityResult {
+  // 1. Проверка точности GPS (если передана и критически плохая)
+  if (current.accuracy != null && current.accuracy > 140) {
+    return {
+      isValid: false,
+      isFlight: false,
+      isGap: false,
+      reason: 'Низкая точность GPS (> 140м)',
+      estimatedSpeedKmh: 0,
+    }
+  }
+
+  if (!prev) {
+    return { isValid: true, isFlight: false, isGap: false, estimatedSpeedKmh: 0 }
+  }
+
+  const dtSec = Math.max(0.1, (current.tsUtc - prev.tsUtc) / 1000)
+  const dM = haversineM(prev.lat, prev.lng, current.lat, current.lng)
+  const speedMs = dM / dtSec
+  const speedKmh = speedMs * 3.6
+
+  // Проверка на разрыв по времени (например, телефон спал или GPS был выключен)
+  const isGap = dtSec > 15 * 60 // разрыв более 15 минут
+
+  // Авиаперелет: скорость свыше 320 км/ч, но в пределах физических возможностей пассажирской авиации (≤ 1150 км/ч)
+  const isFlight = (speedKmh > 320 && speedKmh <= 1150) || (isGap && dM > 50_000 && speedKmh <= 1150)
+
+  // Аномалия 1: Физически невозможная скорость даже для авиации (> 1250 км/ч)
+  if (speedKmh > 1250) {
+    return {
+      isValid: false,
+      isFlight: false,
+      isGap,
+      reason: `Невозможная скорость перемещения (${Math.round(speedKmh)} км/ч)`,
+      estimatedSpeedKmh: speedKmh,
+    }
+  }
+
+  // Аномалия 2: Мгновенный телепорт (при малом dt < 90 сек скорость выше 380 км/ч для наземного движения)
+  if (dtSec < 90 && speedKmh > 380) {
+    return {
+      isValid: false,
+      isFlight: false,
+      isGap: false,
+      reason: `Аномальный скачок GPS (${Math.round(dM)}м за ${Math.round(dtSec)}с)`,
+      estimatedSpeedKmh: speedKmh,
+    }
+  }
+
+  return {
+    isValid: true,
+    isFlight,
+    isGap,
+    estimatedSpeedKmh: speedKmh,
+  }
+}
+
+export interface OutlierFilterOptions {
+  /** Максимальная скорость в км/ч (по умолчанию 1150) */
+  maxSpeedKmh?: number
+  /** Порог персентиля скорости для отсечения локальных выбросов (по умолч. 0.95) */
+  percentileThreshold?: number
+  /** Отсекать ли одиночные бумеранги (отскоки туда-обратно) */
+  filterBoomerangs?: boolean
+}
+
+/**
+ * Нормализация и фильтрация GPS-выбросов с использованием персентилей скорости,
+ * геометрического анализа треугольников (детект бумерангов/скачков) и учета авиаперелетов.
+ */
+export function filterGpsOutliers<T extends { lat: number, lng: number, tsUtc: number, accuracy?: number | null, speed?: number | null }>(
+  points: T[],
+  options: OutlierFilterOptions = {},
+): T[] {
+  if (points.length <= 2)
+    return [...points]
+
+  const maxSpeedKmh = options.maxSpeedKmh ?? 1150
+  const filterBoomerangs = options.filterBoomerangs !== false
+
+  // Шаг 1: базовый отсев явных аномалий точности и абсолютной гиперзвуковой скорости
+  const stage1: T[] = []
+  for (let i = 0; i < points.length; i++) {
+    const pt = points[i]
+    if (pt.accuracy != null && pt.accuracy > 140)
+      continue
+
+    if (stage1.length > 0) {
+      const prev = stage1[stage1.length - 1]
+      const dtSec = Math.max(0.1, (pt.tsUtc - prev.tsUtc) / 1000)
+      const dM = haversineM(prev.lat, prev.lng, pt.lat, pt.lng)
+      const vKmh = (dM / dtSec) * 3.6
+
+      if (vKmh > maxSpeedKmh)
+        continue
+      if (dtSec < 45 && vKmh > 360)
+        continue
+    }
+
+    stage1.push(pt)
+  }
+
+  if (stage1.length <= 2)
+    return stage1
+
+  // Шаг 2: Вычисление персентилей скорости между соседними точками для адаптивной калибровки
+  const pairSpeeds: number[] = []
+  for (let i = 1; i < stage1.length; i++) {
+    const p1 = stage1[i - 1]
+    const p2 = stage1[i]
+    const dt = Math.max(0.1, (p2.tsUtc - p1.tsUtc) / 1000)
+    if (dt < 300) {
+      const d = haversineM(p1.lat, p1.lng, p2.lat, p2.lng)
+      pairSpeeds.push((d / dt) * 3.6)
+    }
+  }
+
+  pairSpeeds.sort((a, b) => a - b)
+  const p95 = pairSpeeds.length > 10
+    ? pairSpeeds[Math.floor(pairSpeeds.length * 0.95)]
+    : 120
+  const p98 = pairSpeeds.length > 10
+    ? pairSpeeds[Math.floor(pairSpeeds.length * 0.98)]
+    : 160
+
+  const outlierSpeedThreshold = Math.max(120, Math.min(Math.max(p95 * 1.8, p98 * 1.4), 320))
+
+  // Шаг 3: Детекция бумерангов (скачков A -> B -> C, где B отскакивает далеко, а A и C рядом)
+  const keep = Array.from({ length: stage1.length }).fill(true)
+
+  if (filterBoomerangs) {
+    for (let i = 1; i < stage1.length - 1; i++) {
+      const A = stage1[i - 1]
+      const B = stage1[i]
+      const C = stage1[i + 1]
+
+      const dAB = haversineM(A.lat, A.lng, B.lat, B.lng)
+      const dBC = haversineM(B.lat, B.lng, C.lat, C.lng)
+      const dAC = haversineM(A.lat, A.lng, C.lat, C.lng)
+
+      const dtAB = Math.max(0.1, (B.tsUtc - A.tsUtc) / 1000)
+      const dtBC = Math.max(0.1, (C.tsUtc - B.tsUtc) / 1000)
+      const vAB = (dAB / dtAB) * 3.6
+      const vBC = (dBC / dtBC) * 3.6
+
+      const isDetour = (dAB + dBC) > 250 && (dAB + dBC) > 3 * Math.max(dAC, 30)
+      const isHighSpeed = vAB > outlierSpeedThreshold || vBC > outlierSpeedThreshold
+
+      if (isDetour && isHighSpeed) {
+        keep[i] = false
+      }
+    }
+  }
+
+  return stage1.filter((_, i) => keep[i])
+}
+
 /**
  * Медианный фильтр позиций (окно 3): устойчив к одиночным GPS-скачкам.
  */
@@ -149,33 +325,157 @@ export interface SplinePoint {
   lng: number
 }
 
+export interface TrackLeg<T> {
+  points: T[]
+  isFlight: boolean
+  isGap: boolean
+}
+
 /**
- * Стандартный Catmull-Rom (uniform). subdivPerSegment — число интерполированных
- * точек на сегмент.
+ * Центростремительный (centripetal, alpha = 0.5) Catmull-Rom сплайн.
+ * В отличие от uniform Catmull-Rom, центростремительный сплайн математически
+ * гарантирует отсутствие самопересечений, петель и перелетов при неравномерном
+ * расстоянии между точками трека.
  */
-export function catmullRomSpline(points: SplinePoint[], subdivPerSegment = 6): SplinePoint[] {
-  if (points.length < 3)
+export function centripetalCatmullRom(
+  points: SplinePoint[],
+  subdivPerSegment = 6,
+  alpha = 0.5,
+): SplinePoint[] {
+  if (points.length < 2)
     return [...points]
-  const out: SplinePoint[] = []
-  const pts = [points[0], ...points, points[points.length - 1]]
-  for (let i = 1; i < pts.length - 2; i++) {
-    const [p0, p1, p2, p3] = [pts[i - 1], pts[i], pts[i + 1], pts[i + 2]]
-    for (let j = 0; j < subdivPerSegment; j++) {
-      const t = j / subdivPerSegment
-      const t2 = t * t
-      const t3 = t2 * t
-      out.push({
-        lat: 0.5 * ((2 * p1.lat) + (-p0.lat + p2.lat) * t
-          + (2 * p0.lat - 5 * p1.lat + 4 * p2.lat - p3.lat) * t2
-          + (-p0.lat + 3 * p1.lat - 3 * p2.lat + p3.lat) * t3),
-        lng: 0.5 * ((2 * p1.lng) + (-p0.lng + p2.lng) * t
-          + (2 * p0.lng - 5 * p1.lng + 4 * p2.lng - p3.lng) * t2
-          + (-p0.lng + 3 * p1.lng - 3 * p2.lng + p3.lng) * t3),
-      })
+  if (points.length === 2)
+    return [...points]
+
+  // Удаляем близкие дубликаты (< 0.5 метра)
+  const deduped: SplinePoint[] = [points[0]]
+  for (let i = 1; i < points.length; i++) {
+    const prev = deduped[deduped.length - 1]
+    const d = haversineM(prev.lat, prev.lng, points[i].lat, points[i].lng)
+    if (d >= 0.5) {
+      deduped.push(points[i])
     }
   }
-  out.push(points[points.length - 1])
+
+  if (deduped.length <= 2)
+    return deduped
+
+  const n = deduped.length
+  const pts = [deduped[0], ...deduped, deduped[n - 1]]
+  const out: SplinePoint[] = []
+
+  for (let i = 1; i < pts.length - 2; i++) {
+    const p0 = pts[i - 1]
+    const p1 = pts[i]
+    const p2 = pts[i + 1]
+    const p3 = pts[i + 2]
+
+    const getT = (tPrev: number, pA: SplinePoint, pB: SplinePoint) => {
+      const d = Math.hypot(pB.lng - pA.lng, pB.lat - pA.lat)
+      return tPrev + (Math.max(d, 1e-9) ** alpha)
+    }
+
+    const t0 = 0
+    const t1 = getT(t0, p0, p1)
+    const t2 = getT(t1, p1, p2)
+    const t3 = getT(t2, p2, p3)
+
+    for (let j = 0; j < subdivPerSegment; j++) {
+      const t = t1 + (j / subdivPerSegment) * (t2 - t1)
+
+      const a1Lat = ((t1 - t) * p0.lat + (t - t0) * p1.lat) / (t1 - t0)
+      const a1Lng = ((t1 - t) * p0.lng + (t - t0) * p1.lng) / (t1 - t0)
+      const a2Lat = ((t2 - t) * p1.lat + (t - t1) * p2.lat) / (t2 - t1)
+      const a2Lng = ((t2 - t) * p1.lng + (t - t1) * p2.lng) / (t2 - t1)
+      const a3Lat = ((t3 - t) * p2.lat + (t - t2) * p3.lat) / (t3 - t2)
+      const a3Lng = ((t3 - t) * p2.lng + (t - t2) * p3.lng) / (t3 - t2)
+
+      const b1Lat = ((t2 - t) * a1Lat + (t - t0) * a2Lat) / (t2 - t0)
+      const b1Lng = ((t2 - t) * a1Lng + (t - t0) * a2Lng) / (t2 - t0)
+      const b2Lat = ((t3 - t) * a2Lat + (t - t1) * a3Lat) / (t3 - t1)
+      const b2Lng = ((t3 - t) * a2Lng + (t - t1) * a3Lng) / (t3 - t1)
+
+      const cLat = ((t2 - t) * b1Lat + (t - t1) * b2Lat) / (t2 - t1)
+      const cLng = ((t2 - t) * b1Lng + (t - t1) * b2Lng) / (t2 - t1)
+
+      if (Number.isFinite(cLat) && Number.isFinite(cLng)) {
+        out.push({ lat: cLat, lng: cLng })
+      }
+    }
+  }
+
+  out.push(deduped[deduped.length - 1])
   return out
+}
+
+/**
+ * Обратная совместимость: catmullRomSpline делегирует в centripetalCatmullRom,
+ * гарантируя отсутствие петель и стабильность при удалении любых точек.
+ */
+export function catmullRomSpline(points: SplinePoint[], subdivPerSegment = 6): SplinePoint[] {
+  return centripetalCatmullRom(points, subdivPerSegment, 0.5)
+}
+
+/**
+ * Разбивает последовательность точек на непрерывные плечи/участки (legs),
+ * чтобы не соединять единой непрерывной кривой места, где GPS долго не работал
+ * (например, телефон спал 2 часа) или происходил дальний авиаперелет.
+ */
+export function splitTrackIntoLegs<T extends { lat: number, lng: number, tsUtc: number }>(
+  points: T[],
+  maxGapTimeMs = 15 * 60 * 1000,
+  maxGapDistanceM = 8000,
+): TrackLeg<T>[] {
+  if (points.length === 0)
+    return []
+
+  const legs: TrackLeg<T>[] = []
+  let currentLeg: T[] = [points[0]]
+
+  for (let i = 1; i < points.length; i++) {
+    const prev = points[i - 1]
+    const cur = points[i]
+    const dt = cur.tsUtc - prev.tsUtc
+    const dist = haversineM(prev.lat, prev.lng, cur.lat, cur.lng)
+    const vKmh = dt > 0 ? (dist / (dt / 1000)) * 3.6 : 0
+
+    const isTimeGap = dt > maxGapTimeMs
+    const isDistGap = dist > maxGapDistanceM && vKmh < 350
+    const isFlightJump = dist > 40_000 && vKmh > 350
+
+    if (isTimeGap || isDistGap || isFlightJump) {
+      if (currentLeg.length > 0) {
+        legs.push({ points: currentLeg, isFlight: isFlightJump, isGap: isTimeGap || isDistGap })
+      }
+      currentLeg = [cur]
+    }
+    else {
+      currentLeg.push(cur)
+    }
+  }
+
+  if (currentLeg.length > 0) {
+    legs.push({ points: currentLeg, isFlight: false, isGap: false })
+  }
+
+  return legs
+}
+
+/**
+ * Нормализует вершины и строит центростремительный сплайн для каждой непрерывной секции.
+ * Гарантирует, что при удалении любой точки геометрия пересчитывается без поломки
+ * и без неестественных паразитных петель через весь город.
+ */
+export function normalizeSplineVertices(
+  points: SplinePoint[],
+  subdivPerSegment = 6,
+): SplinePoint[] {
+  if (points.length < 2)
+    return [...points]
+  if (points.length === 2)
+    return [...points]
+
+  return centripetalCatmullRom(points, subdivPerSegment, 0.5)
 }
 
 // ─── Кинематические признаки окна ─────────────────────────────────────────────
@@ -366,7 +666,7 @@ export function railScoreOf(f: WindowFeatures): number {
  * Пост-обработка дня: фильтр → скользящие окна → classify → слияние → RDP.
  */
 export function processDayTrack(raw: TrackPoint[]): TrackSegment[] {
-  const cleaned = medianFilter(filterStaticDrift(raw))
+  const cleaned = medianFilter(filterStaticDrift(filterGpsOutliers(raw)))
   const winSize = 40
   const step = 20
   const classified: TrackSegment[] = []

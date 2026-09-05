@@ -1,6 +1,6 @@
 import { z } from 'zod'
 import { protectedProcedure } from '~/lib/trpc'
-import { GetTrackDayInputSchema, IngestBatchInputSchema, TrackActivityTypeSchema } from './tracking.schemas'
+import { DeleteTrackPointInputSchema, GetTrackDayInputSchema, IngestBatchInputSchema, TrackActivityTypeSchema } from './tracking.schemas'
 import { trackingService } from './tracking.service'
 
 const SegmentOutputSchema = z.object({
@@ -20,8 +20,10 @@ const PointOutputSchema = z.object({
   tsUtc: z.number(),
   lat: z.number(),
   lng: z.number(),
-  speed: z.number().nullable(),
+  altitude: z.number().nullable().optional(),
   accuracy: z.number().nullable(),
+  speed: z.number().nullable(),
+  bearing: z.number().nullable().optional(),
   activity: TrackActivityTypeSchema,
   sessionId: z.string(),
 })
@@ -127,5 +129,24 @@ export const trackingProcedures = {
     .output(z.object({ segments: z.number().int() }))
     .mutation(async ({ input, ctx }) => {
       return trackingService.reprocessDay(ctx.user.id, input.sessionId, input.points)
+    }),
+
+  deletePoint: protectedProcedure
+    .meta({
+      openapi: {
+        method: 'POST',
+        path: '/tracking/delete-point',
+        tags: ['Tracking'],
+        summary: 'Удаление ошибочной GPS-точки и нормализация маршрута',
+      },
+    })
+    .input(DeleteTrackPointInputSchema)
+    .output(z.object({
+      success: z.boolean(),
+      clientPointId: z.string(),
+      reprocessedSegments: z.number().int(),
+    }))
+    .mutation(async ({ input, ctx }) => {
+      return trackingService.deletePoint(ctx.user.id, input.clientPointId)
     }),
 }

@@ -24,6 +24,11 @@ export const GetTrackDayInputSchema = z.object({
   dayUtc: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
 })
 
+export const DeleteTrackPointInputSchema = z.object({
+  clientPointId: z.string().min(1).max(64),
+})
+
 export type TrackPointInput = z.infer<typeof TrackPointInputSchema>
 export type IngestBatchInput = z.infer<typeof IngestBatchInputSchema>
 export type GetTrackDayInput = z.infer<typeof GetTrackDayInputSchema>
+export type DeleteTrackPointInput = z.infer<typeof DeleteTrackPointInputSchema>

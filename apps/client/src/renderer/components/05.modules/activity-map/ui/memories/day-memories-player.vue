@@ -4,7 +4,7 @@
 import type PointGeom from 'ol/geom/Point'
 import type { ActivityType } from '~/shared/services/tracking/track-processing'
 import { Icon } from '@iconify/vue'
-import { Feature } from 'ol'
+import { Feature, Overlay } from 'ol'
 import LineString from 'ol/geom/LineString'
 import Point from 'ol/geom/Point'
 import VectorLayer from 'ol/layer/Vector'
@@ -15,7 +15,13 @@ import { computed, getCurrentInstance, onBeforeUnmount, onMounted, ref, shallowR
 import { KitBtn } from '~/components/01.kit/kit-btn'
 import { useKitMap } from '~/components/01.kit/kit-map/composables/use-kit-map'
 import { AppRouteNames } from '~/shared/constants/routes'
-import { catmullRomSpline } from '~/shared/services/tracking/track-processing'
+import { deleteStoredPoint } from '~/shared/services/tracking/geotrack-client'
+import {
+  filterGpsOutliers,
+  normalizeSplineVertices,
+  processDayTrack,
+  splitTrackIntoLegs,
+} from '~/shared/services/tracking/track-processing'
 import { trpc } from '~/shared/services/trpc/trpc.service'
 
 const props = withDefaults(defineProps<{
@@ -44,8 +50,10 @@ interface DayData {
     tsUtc: number
     lat: number
     lng: number
+    altitude?: number | null
     speed: number | null
     accuracy: number | null
+    bearing?: number | null
     activity: ActivityType
     sessionId: string
   }>
@@ -97,7 +105,11 @@ async function loadDay(targetDay: string) {
   isLoading.value = true
   loadError.value = null
   try {
-    dayData.value = await (trpc as any).tracking.getDay.query({ dayUtc: targetDay })
+    const res = await (trpc as any).tracking.getDay.query({ dayUtc: targetDay })
+    if (res && Array.isArray(res.points)) {
+      res.points = filterGpsOutliers(res.points)
+    }
+    dayData.value = res
   }
   catch (e) {
     loadError.value = e instanceof Error ? e.message : String(e)
@@ -232,14 +244,48 @@ const selectedPoint = ref<SelectedPointInfo | null>(null)
 // ─── Карта ────────────────────────────────────────────────────────────────────
 const mapHost = ref<HTMLElement | null>(null)
 const popupHost = ref<HTMLElement | null>(null)
+const playbackMarkerHost = ref<HTMLElement | null>(null)
 const { mapInstance, isMapReady, initMap } = useKitMap()
 const routeSource = shallowRef(new VectorSource())
+const progressSource = shallowRef(new VectorSource())
 const markerFeature = shallowRef<Feature<PointGeom> | null>(null)
 const mapCenter: [number, number] = [37.6176, 55.7558]
 
+let pointOverlay: Overlay | null = null
+let playbackOverlay: Overlay | null = null
+
+const isFollowCamera = ref(true)
+const isDeletingPoint = ref(false)
+const isCopied = ref(false)
+let copyTimer: ReturnType<typeof setTimeout> | null = null
+
+function copyCoords(p: DayData['points'][0]) {
+  const txt = `${p.lat.toFixed(6)}, ${p.lng.toFixed(6)}`
+  if (navigator.clipboard) {
+    navigator.clipboard.writeText(txt)
+    isCopied.value = true
+    if (copyTimer)
+      clearTimeout(copyTimer)
+    copyTimer = setTimeout(() => {
+      isCopied.value = false
+    }, 2000)
+  }
+}
+
+function getPointStatusBadge(p: DayData['points'][0]) {
+  const speed = (p.speed ?? 0) * 3.6
+  if (speed > 350) {
+    return { type: 'flight', icon: 'mdi:airplane', label: 'Авиаперелет / Скоростное перемещение' }
+  }
+  if ((p.accuracy ?? 0) > 60) {
+    return { type: 'warning', icon: 'mdi:alert-outline', label: 'Низкая точность спутника' }
+  }
+  return { type: 'valid', icon: 'mdi:check-circle-outline', label: 'Валидная GPS-точка' }
+}
+
 function closePointPopup() {
   selectedPoint.value = null
-  mapInstance.value?.getOverlays().item(0)?.setPosition(undefined)
+  pointOverlay?.setPosition(undefined)
 }
 
 function formatPointTime(tsUtc: number): string {
@@ -251,11 +297,98 @@ function formatPointTime(tsUtc: number): string {
   })
 }
 
+async function handleDeletePoint(pt: DayData['points'][0]) {
+  if (!dayData.value)
+    return
+  isDeletingPoint.value = true
+  try {
+    // 1. Запрос на сервер для удаления точки и нормализации сегментов сессии
+    await (trpc as any).tracking.deletePoint.mutate({ clientPointId: pt.clientPointId })
+
+    // 2. Удаляем из локальной очереди клиента (если еще не отправлена)
+    deleteStoredPoint(pt.clientPointId)
+
+    // 3. Удаляем из текущего массива точек
+    dayData.value.points = dayData.value.points.filter(p => p.clientPointId !== pt.clientPointId)
+
+    // 4. Мгновенная нормализация сегментов на клиенте из оставшихся точек
+    const remaining = dayData.value.points
+    if (remaining.length >= 2) {
+      const processed = processDayTrack(remaining.map(p => ({
+        clientPointId: p.clientPointId,
+        tsUtc: p.tsUtc,
+        lat: p.lat,
+        lng: p.lng,
+        altitude: p.altitude ?? null,
+        accuracy: p.accuracy,
+        speed: p.speed,
+        bearing: p.bearing ?? null,
+        activity: p.activity,
+        activityConfidence: 85,
+        sessionId: p.sessionId,
+      })))
+      dayData.value.segments = processed.map((s, idx) => ({
+        id: `client-seg-${idx}`,
+        sessionId: s.points[0]?.sessionId || '',
+        activity: s.activity,
+        confidence: s.confidence,
+        startedAt: s.points[0].tsUtc,
+        endedAt: s.points[s.points.length - 1].tsUtc,
+        distanceM: s.features.distanceM,
+        pointCount: s.points.length,
+        geometry: s.points.map(p => [p.lng, p.lat] as [number, number]),
+      }))
+    }
+    else {
+      dayData.value.segments = []
+    }
+
+    closePointPopup()
+    rebuildFeatures()
+  }
+  catch (err) {
+    console.error('Ошибка удаления точки:', err)
+  }
+  finally {
+    isDeletingPoint.value = false
+  }
+}
+
 onMounted(async () => {
   if (!mapHost.value || !popupHost.value)
     return
   await initMap(mapHost.value!, popupHost.value!, { center: mapCenter, zoom: 11 })
+
+  // Слой базового маршрута (фон и интерактивные точки)
   mapInstance.value?.addLayer(new VectorLayer({ source: routeSource.value, zIndex: 5 }))
+
+  // Слой активного пройденного пути с подсветкой
+  mapInstance.value?.addLayer(new VectorLayer({ source: progressSource.value, zIndex: 7 }))
+
+  // Оверлей для маркера воспроизведения
+  if (playbackMarkerHost.value) {
+    playbackOverlay = new Overlay({
+      element: playbackMarkerHost.value,
+      positioning: 'center-center',
+      stopEvent: false,
+    })
+    mapInstance.value?.addOverlay(playbackOverlay)
+  }
+
+  // Оверлей для попапа точки (с stopEvent: true чтобы клики внутри карточки не перехватывались картой!)
+  if (popupHost.value) {
+    pointOverlay = new Overlay({
+      element: popupHost.value,
+      positioning: 'bottom-center',
+      offset: [0, -14],
+      stopEvent: true,
+      autoPan: {
+        animation: { duration: 250 },
+        margin: 20,
+      },
+    })
+    mapInstance.value?.addOverlay(pointOverlay)
+  }
 
   markerFeature.value = new Feature({ geometry: new Point(fromLonLat(mapCenter)) })
   markerFeature.value.setStyle(new Style({
@@ -277,12 +410,20 @@ onMounted(async () => {
           index: (feat.get('pointIndex') as number) || 1,
           total: (feat.get('totalPoints') as number) || 1,
         }
-        const overlay = mapInstance.value?.getOverlays().item(0)
-        overlay?.setPosition(evt.coordinate)
+        const geom = feat.getGeometry()
+        if (geom && geom instanceof Point) {
+          pointOverlay?.setPosition(geom.getCoordinates())
+        }
+        else {
+          pointOverlay?.setPosition(evt.coordinate)
+        }
         found = true
         return true
       }
       return false
+    }, {
+      layerFilter: l => l.getZIndex() === 5 || l.getZIndex() === 7,
+      hitTolerance: 6,
     })
     if (!found) {
       closePointPopup()
@@ -294,7 +435,8 @@ onMounted(async () => {
       return
     }
     const hit = mapInstance.value?.hasFeatureAtPixel(evt.pixel, {
-      layerFilter: l => l.getZIndex() === 5,
+      layerFilter: l => l.getZIndex() === 5 || l.getZIndex() === 7,
+      hitTolerance: 6,
     })
     if (mapHost.value) {
       mapHost.value.style.cursor = hit ? 'pointer' : ''
@@ -316,8 +458,62 @@ function fitTrackBounds() {
   }
 }
 
+function updateProgressLine() {
+  progressSource.value.clear()
+  if (t.value === 0 || !dayData.value?.points?.length)
+    return
+
+  const covered = dayData.value.points
+    .filter(p => p.tsUtc <= t.value)
+    .sort((a, b) => a.tsUtc - b.tsUtc)
+
+  if (covered.length < 2)
+    return
+
+  const legs = splitTrackIntoLegs(covered)
+  for (const leg of legs) {
+    if (leg.points.length < 2)
+      continue
+    const smooth = normalizeSplineVertices(
+      leg.points.map(p => ({ lat: p.lat, lng: p.lng })),
+      6,
+    )
+    if (smooth.length < 2)
+      continue
+
+    const coords = smooth.map(p => fromLonLat([p.lng, p.lat]))
+    const act = leg.points[leg.points.length - 1]?.activity || 'unknown'
+    const color = ACTIVITY_COLORS[act] || '#2196f3'
+
+    // Светящаяся подложка
+    const glowFeat = new Feature(new LineString(coords))
+    glowFeat.setStyle(new Style({
+      stroke: new Stroke({
+        color: `${color}40`,
+        width: 8,
+        lineCap: 'round',
+      }),
+      zIndex: 6,
+    }))
+    progressSource.value.addFeature(glowFeat)
+
+    // Яркая линия прогресса
+    const progressFeat = new Feature(new LineString(coords))
+    progressFeat.setStyle(new Style({
+      stroke: new Stroke({
+        color,
+        width: 4.5,
+        lineCap: 'round',
+      }),
+      zIndex: 7,
+    }))
+    progressSource.value.addFeature(progressFeat)
+  }
+}
+
 function rebuildFeatures() {
   routeSource.value.clear()
+  progressSource.value.clear()
   closePointPopup()
 
   if (markerFeature.value) {
@@ -325,74 +521,85 @@ function rebuildFeatures() {
   }
 
   const rawPoints = dayData.value?.points || []
+  const sorted = [...rawPoints].sort((a, b) => a.tsUtc - b.tsUtc)
+
+  const uniquePoints: typeof sorted = []
+  for (const p of sorted) {
+    const prev = uniquePoints[uniquePoints.length - 1]
+    if (!prev || Math.abs(prev.lat - p.lat) > 1e-6 || Math.abs(prev.lng - p.lng) > 1e-6) {
+      uniquePoints.push(p)
+    }
+  }
 
   if (viewMode.value === 'route') {
     for (const seg of renderSegments.value) {
-      const smooth = catmullRomSpline(
-        seg.points.map(p => ({ lat: p.lat, lng: p.lng })),
-        6,
-      )
-      if (smooth.length < 2)
-        continue
-      const feature = new Feature(new LineString(smooth.map(p => fromLonLat([p.lng, p.lat]))))
-      feature.setStyle(new Style({
-        stroke: new Stroke({
-          color: ACTIVITY_COLORS[seg.activity],
-          width: seg.activity === 'rail' ? 6 : 4,
-          lineCap: 'round',
-        }),
-      }))
-      routeSource.value.addFeature(feature)
+      const legs = splitTrackIntoLegs(seg.points)
+      for (const leg of legs) {
+        if (leg.points.length < 2)
+          continue
+        const smooth = normalizeSplineVertices(
+          leg.points.map(p => ({ lat: p.lat, lng: p.lng })),
+          6,
+        )
+        if (smooth.length < 2)
+          continue
+        const feature = new Feature(new LineString(smooth.map(p => fromLonLat([p.lng, p.lat]))))
+        feature.setStyle(new Style({
+          stroke: new Stroke({
+            color: `${ACTIVITY_COLORS[seg.activity]}55`,
+            width: seg.activity === 'rail' ? 5 : 3.5,
+            lineCap: 'round',
+          }),
+        }))
+        routeSource.value.addFeature(feature)
+      }
     }
   }
   else if (viewMode.value === 'points') {
-    const sorted = [...rawPoints].sort((a, b) => a.tsUtc - b.tsUtc)
-
-    // 1. Плавная кривая Безье (Catmull-Rom сплайн) через все точки активности
-    const uniquePoints: typeof sorted = []
-    for (const p of sorted) {
-      const prev = uniquePoints[uniquePoints.length - 1]
-      if (!prev || Math.abs(prev.lat - p.lat) > 1e-6 || Math.abs(prev.lng - p.lng) > 1e-6) {
-        uniquePoints.push(p)
-      }
-    }
-
-    if (uniquePoints.length >= 2) {
-      const smooth = catmullRomSpline(
-        uniquePoints.map(p => ({ lat: p.lat, lng: p.lng })),
+    const legs = splitTrackIntoLegs(uniquePoints)
+    for (const leg of legs) {
+      if (leg.points.length < 2)
+        continue
+      const smooth = normalizeSplineVertices(
+        leg.points.map(p => ({ lat: p.lat, lng: p.lng })),
         8,
       )
+      if (smooth.length < 2)
+        continue
       const curveFeature = new Feature(new LineString(smooth.map(p => fromLonLat([p.lng, p.lat]))))
       curveFeature.setStyle(new Style({
         stroke: new Stroke({
-          color: '#3b82f6',
-          width: 3.5,
+          color: 'rgba(59, 130, 246, 0.45)',
+          width: 3,
           lineCap: 'round',
         }),
       }))
       routeSource.value.addFeature(curveFeature)
     }
-
-    // 2. Интерактивные маркеры для каждой точки
-    for (let i = 0; i < sorted.length; i++) {
-      const p = sorted[i]
-      const ptFeature = new Feature({
-        geometry: new Point(fromLonLat([p.lng, p.lat])),
-      })
-      ptFeature.set('pointData', p)
-      ptFeature.set('pointIndex', i + 1)
-      ptFeature.set('totalPoints', sorted.length)
-      ptFeature.setStyle(new Style({
-        image: new CircleStyle({
-          radius: 5.5,
-          fill: new Fill({ color: ACTIVITY_COLORS[p.activity] || '#2196f3' }),
-          stroke: new Stroke({ color: '#ffffff', width: 1.5 }),
-        }),
-        zIndex: 20,
-      }))
-      routeSource.value.addFeature(ptFeature)
-    }
   }
+
+  // Интерактивные маркеры для каждой точки в обоих режимах
+  const isPointsMode = viewMode.value === 'points'
+  for (let i = 0; i < sorted.length; i++) {
+    const p = sorted[i]
+    const ptFeature = new Feature({
+      geometry: new Point(fromLonLat([p.lng, p.lat])),
+    })
+    ptFeature.set('pointData', p)
+    ptFeature.set('pointIndex', i + 1)
+    ptFeature.set('totalPoints', sorted.length)
+    ptFeature.setStyle(new Style({
+      image: new CircleStyle({
+        radius: isPointsMode ? 5.5 : 4,
+        fill: new Fill({ color: ACTIVITY_COLORS[p.activity] || '#2196f3' }),
+        stroke: new Stroke({ color: '#ffffff', width: isPointsMode ? 1.5 : 1 }),
+      }),
+      zIndex: 20,
+    }))
+    routeSource.value.addFeature(ptFeature)
+  }
+
+  updateProgressLine()
 
   if (renderSegments.value.length > 0 || rawPoints.length > 0) {
     fitTrackBounds()
@@ -416,7 +623,7 @@ const dayEnd = computed(() => renderSegments.value.length > 0
 let raf = 0
 let lastTs = 0
 
-// Скорости воспроизведения: 1x, 2x, 5x, 10x
+// Скорости воспроизведения: 1x, 2x, 5x, 10x, 20x
 const speedMultiplier = ref<number>(2)
 const SPEED_BASE = 150 // базовая скорость
 
@@ -451,10 +658,18 @@ watch(dayStart, (v) => {
     t.value = v
 })
 
+function stepSeconds(deltaSec: number) {
+  t.value = Math.max(dayStart.value, Math.min(dayEnd.value, t.value + deltaSec * 1000))
+}
+
 const currentSegment = computed(() =>
   renderSegments.value.find(s => t.value >= s.t0 && t.value <= s.t1)
   ?? renderSegments.value[0],
 )
+
+const currentActivity = computed<ActivityType>(() => currentSegment.value?.activity || 'still')
+const currentActivityColor = computed(() => ACTIVITY_COLORS[currentActivity.value] || '#2196f3')
+const currentActivityIcon = computed(() => ACTIVITY_ICONS[currentActivity.value] || 'mdi:crosshairs-question')
 
 const currentPoint = computed(() => {
   const seg = currentSegment.value
@@ -470,10 +685,11 @@ const currentPoint = computed(() => {
 })
 
 watch(currentPoint, (p) => {
-  if (p && markerFeature.value) {
-    markerFeature.value.getGeometry()?.setCoordinates(fromLonLat([p.lng, p.lat]))
-    if (currentSegment.value) {
-      const color = ACTIVITY_COLORS[currentSegment.value.activity]
+  if (p) {
+    const coords = fromLonLat([p.lng, p.lat])
+    if (markerFeature.value) {
+      markerFeature.value.getGeometry()?.setCoordinates(coords)
+      const color = currentActivityColor.value
       markerFeature.value.setStyle(new Style({
         image: new CircleStyle({
           radius: 8,
@@ -482,7 +698,20 @@ watch(currentPoint, (p) => {
         }),
       }))
     }
+    if (playbackOverlay) {
+      playbackOverlay.setPosition(coords)
+    }
+    if (isFollowCamera.value && isPlaying.value) {
+      mapInstance.value?.getView().animate({
+        center: coords,
+        duration: 100,
+      })
+    }
   }
+})
+
+watch(t, () => {
+  updateProgressLine()
 })
 
 const timeLabel = computed(() =>
@@ -525,19 +754,6 @@ function fmtRange(ms: number) {
   <div class="memories-player">
     <!-- Верхняя плавающая панель навигации по дням -->
     <div class="top-nav-bar">
-      <KitBtn
-        v-if="props.showBackButton"
-        variant="tonal"
-        size="sm"
-        class="nav-btn back-btn"
-        @click="handleBack"
-      >
-        <template #prepend>
-          <Icon icon="mdi:arrow-left" />
-        </template>
-        Назад
-      </KitBtn>
-
       <div class="day-picker-group">
         <button
           class="day-arrow-btn"
@@ -626,6 +842,19 @@ function fmtRange(ms: number) {
 
     <!-- Карта OpenLayers -->
     <div ref="mapHost" class="memories-map" />
+
+    <!-- Анимированный маркер воспроизведения на карте -->
+    <div ref="playbackMarkerHost" class="playback-beacon" :class="{ 'is-active': currentPoint != null }">
+      <div class="beacon-ripple" :style="{ borderColor: currentActivityColor }" />
+      <div class="beacon-core" :style="{ backgroundColor: currentActivityColor }">
+        <Icon :icon="currentActivityIcon" class="beacon-icon" />
+      </div>
+      <div v-if="speedKmhFromPoints !== null && speedKmhFromPoints > 0.5" class="beacon-speed-pill">
+        {{ speedKmhFromPoints.toFixed(0) }} км/ч
+      </div>
+    </div>
+
+    <!-- Интерактивный попап точки -->
     <div ref="popupHost" class="memories-popup">
       <div v-if="selectedPoint" class="point-popup-card">
         <div class="popup-head">
@@ -642,9 +871,25 @@ function fmtRange(ms: number) {
               {{ ACTIVITY_LABELS[selectedPoint.point.activity] }}
             </span>
           </div>
-          <button class="popup-close-btn" aria-label="Закрыть" @click="closePointPopup">
-            <Icon icon="mdi:close" />
-          </button>
+
+          <div class="popup-actions">
+            <!-- Кнопка удаления точки с автоматической нормализацией маршрута -->
+            <button
+              class="popup-action-btn delete-btn"
+              :disabled="isDeletingPoint"
+              title="Удалить эту точку и пересчитать маршрут"
+              aria-label="Удалить точку"
+              @click.stop="handleDeletePoint(selectedPoint.point)"
+            >
+              <Icon v-if="isDeletingPoint" icon="mdi:loading" class="spin" />
+              <Icon v-else icon="mdi:trash-can-outline" />
+            </button>
+
+            <!-- Кнопка закрытия попапа -->
+            <button class="popup-action-btn close-btn" aria-label="Закрыть" @click.stop="closePointPopup">
+              <Icon icon="mdi:close" />
+            </button>
+          </div>
         </div>
 
         <div class="popup-grid">
@@ -652,18 +897,40 @@ function fmtRange(ms: number) {
             <span class="item-lbl">Время</span>
             <span class="item-val">{{ formatPointTime(selectedPoint.point.tsUtc) }}</span>
           </div>
-          <div v-if="selectedPoint.point.speed !== null" class="popup-item">
+          <div class="popup-item">
             <span class="item-lbl">Скорость</span>
-            <span class="item-val">{{ (selectedPoint.point.speed * 3.6).toFixed(1) }} км/ч</span>
+            <span class="item-val">
+              {{ selectedPoint.point.speed !== null ? `${(selectedPoint.point.speed * 3.6).toFixed(1)} км/ч` : 'Покой' }}
+            </span>
           </div>
-          <div v-if="selectedPoint.point.accuracy !== null" class="popup-item">
+          <div class="popup-item">
             <span class="item-lbl">Точность GPS</span>
-            <span class="item-val">±{{ Math.round(selectedPoint.point.accuracy) }} м</span>
+            <span class="item-val" :class="{ 'is-warning': (selectedPoint.point.accuracy ?? 0) > 30 }">
+              ±{{ Math.round(selectedPoint.point.accuracy ?? 0) }} м
+            </span>
+          </div>
+          <div v-if="selectedPoint.point.altitude != null" class="popup-item">
+            <span class="item-lbl">Высота</span>
+            <span class="item-val">{{ Math.round(selectedPoint.point.altitude) }} м</span>
           </div>
           <div class="popup-item popup-coords">
             <span class="item-lbl">Координаты</span>
-            <span class="item-val font-mono">{{ selectedPoint.point.lat.toFixed(5) }}, {{ selectedPoint.point.lng.toFixed(5) }}</span>
+            <div class="coords-row">
+              <span class="item-val font-mono">{{ selectedPoint.point.lat.toFixed(5) }}, {{ selectedPoint.point.lng.toFixed(5) }}</span>
+              <button
+                class="copy-coords-btn"
+                :title="isCopied ? 'Скопировано!' : 'Скопировать координаты'"
+                @click.stop="copyCoords(selectedPoint.point)"
+              >
+                <Icon :icon="isCopied ? 'mdi:check' : 'mdi:content-copy'" />
+              </button>
+            </div>
           </div>
+        </div>
+
+        <div v-if="getPointStatusBadge(selectedPoint.point)" class="popup-validity-tag" :class="getPointStatusBadge(selectedPoint.point)?.type">
+          <Icon :icon="getPointStatusBadge(selectedPoint.point)!.icon" />
+          <span>{{ getPointStatusBadge(selectedPoint.point)!.label }}</span>
         </div>
       </div>
     </div>
@@ -745,6 +1012,15 @@ function fmtRange(ms: number) {
         </div>
 
         <div class="track-stats-right">
+          <button
+            class="camera-follow-btn"
+            :class="{ 'is-active': isFollowCamera }"
+            title="Слежение камерой за движением"
+            @click="isFollowCamera = !isFollowCamera"
+          >
+            <Icon :icon="isFollowCamera ? 'mdi:crosshairs-gps' : 'mdi:crosshairs'" />
+            <span class="camera-btn-text">{{ isFollowCamera ? 'Слежение' : 'Свободная' }}</span>
+          </button>
           <span class="points-count">{{ totalPointsCount }} точек</span>
         </div>
       </div>
@@ -775,6 +1051,15 @@ function fmtRange(ms: number) {
           </button>
 
           <button
+            class="control-btn step-btn"
+            aria-label="Назад на 15 секунд"
+            title="-15 сек"
+            @click="stepSeconds(-15)"
+          >
+            <Icon icon="mdi:replay-15" />
+          </button>
+
+          <button
             class="control-btn play-btn"
             :disabled="dayEnd === 0"
             :aria-label="isPlaying ? 'Пауза' : 'Воспроизвести'"
@@ -782,6 +1067,15 @@ function fmtRange(ms: number) {
             @click="isPlaying = !isPlaying"
           >
             <Icon :icon="isPlaying ? 'mdi:pause' : 'mdi:play'" />
+          </button>
+
+          <button
+            class="control-btn step-btn"
+            aria-label="Вперед на 15 секунд"
+            title="+15 сек"
+            @click="stepSeconds(15)"
+          >
+            <Icon icon="mdi:forward-15" />
           </button>
 
           <button
@@ -797,7 +1091,7 @@ function fmtRange(ms: number) {
         <!-- Переключатель множителя скорости -->
         <div class="speed-selector">
           <button
-            v-for="s in [1, 2, 5, 10]"
+            v-for="s in [1, 2, 5, 10, 20]"
             :key="s"
             class="speed-chip"
             :class="{ 'is-active': speedMultiplier === s }"
@@ -830,6 +1124,64 @@ function fmtRange(ms: number) {
     width: 100%;
   }
 
+  .playback-beacon {
+    position: relative;
+    width: 32px;
+    height: 32px;
+    transform: translate(-50%, -50%);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    pointer-events: none;
+    z-index: 25;
+
+    .beacon-ripple {
+      position: absolute;
+      inset: -6px;
+      border-radius: var(--r-full);
+      border: 2.5px solid var(--fg-accent-color);
+      animation: beaconRipple 1.6s cubic-bezier(0.2, 0.8, 0.2, 1) infinite;
+      pointer-events: none;
+    }
+
+    .beacon-core {
+      width: 28px;
+      height: 28px;
+      border-radius: var(--r-full);
+      background-color: var(--fg-accent-color);
+      border: 2px solid #ffffff;
+      box-shadow: var(--s-m);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: #ffffff;
+      transition:
+        background-color 0.2s ease,
+        transform 0.2s ease;
+
+      .beacon-icon {
+        font-size: 16px;
+      }
+    }
+
+    .beacon-speed-pill {
+      position: absolute;
+      bottom: -22px;
+      left: 50%;
+      transform: translateX(-50%);
+      background-color: var(--bg-secondary-color);
+      backdrop-filter: blur(8px);
+      border: 1px solid var(--border-secondary-color);
+      color: var(--fg-primary-color);
+      font-size: 0.68rem;
+      font-weight: 700;
+      padding: 1px 6px;
+      border-radius: var(--r-full);
+      white-space: nowrap;
+      box-shadow: var(--s-s);
+    }
+  }
+
   .memories-popup {
     position: relative;
     pointer-events: auto;
@@ -842,8 +1194,8 @@ function fmtRange(ms: number) {
       border: 1px solid var(--border-secondary-color);
       border-radius: var(--r-m);
       padding: 10px 14px;
-      min-width: 220px;
-      max-width: 280px;
+      min-width: 230px;
+      max-width: 290px;
       box-shadow: var(--s-l);
       color: var(--fg-primary-color);
       display: flex;
@@ -892,22 +1244,42 @@ function fmtRange(ms: number) {
           }
         }
 
-        .popup-close-btn {
-          width: 20px;
-          height: 20px;
-          border-radius: 50%;
-          border: none;
-          background: transparent;
-          color: var(--fg-secondary-color);
+        .popup-actions {
           display: flex;
           align-items: center;
-          justify-content: center;
-          cursor: pointer;
-          padding: 0;
+          gap: 4px;
 
-          &:hover {
-            color: var(--fg-primary-color);
-            background: rgba(255, 255, 255, 0.1);
+          .popup-action-btn {
+            width: 24px;
+            height: 24px;
+            border-radius: var(--r-full);
+            border: none;
+            background: transparent;
+            color: var(--fg-secondary-color);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            padding: 0;
+            font-size: 0.95rem;
+            transition: all 0.2s;
+
+            &:hover:not(:disabled) {
+              color: var(--fg-primary-color);
+              background: var(--bg-hover-color);
+            }
+
+            &.delete-btn {
+              &:hover:not(:disabled) {
+                color: var(--fg-error-color);
+                background: rgba(239, 68, 68, 0.15);
+              }
+            }
+
+            &:disabled {
+              opacity: 0.5;
+              cursor: not-allowed;
+            }
           }
         }
       }
@@ -931,19 +1303,86 @@ function fmtRange(ms: number) {
           .item-val {
             font-weight: 500;
             color: var(--fg-primary-color);
+
+            &.is-warning {
+              color: var(--fg-warning-color);
+            }
           }
 
           &.popup-coords {
             grid-column: 1 / -1;
 
-            .font-mono {
-              font-family: monospace;
-              font-size: 0.74rem;
+            .coords-row {
+              display: flex;
+              align-items: center;
+              justify-content: space-between;
+              gap: 6px;
+
+              .font-mono {
+                font-family: monospace;
+                font-size: 0.74rem;
+              }
+
+              .copy-coords-btn {
+                background: transparent;
+                border: none;
+                color: var(--fg-secondary-color);
+                cursor: pointer;
+                padding: 2px;
+                display: flex;
+                align-items: center;
+                border-radius: var(--r-xs);
+                font-size: 0.85rem;
+                transition: color 0.2s;
+
+                &:hover {
+                  color: var(--fg-primary-color);
+                }
+              }
             }
           }
         }
       }
+
+      .popup-validity-tag {
+        display: flex;
+        align-items: center;
+        gap: 5px;
+        font-size: 0.7rem;
+        font-weight: 500;
+        padding: 3px 7px;
+        border-radius: var(--r-xs);
+        margin-top: 2px;
+        background: var(--bg-tertiary-color);
+        color: var(--fg-secondary-color);
+
+        &.flight {
+          background: rgba(59, 130, 246, 0.15);
+          color: #60a5fa;
+        }
+
+        &.warning {
+          background: rgba(245, 158, 11, 0.15);
+          color: #f59e0b;
+        }
+
+        &.valid {
+          background: rgba(34, 197, 94, 0.15);
+          color: #22c55e;
+        }
+      }
     }
+  }
+}
+
+@keyframes beaconRipple {
+  0% {
+    transform: scale(0.6);
+    opacity: 0.95;
+  }
+  100% {
+    transform: scale(2.2);
+    opacity: 0;
   }
 }
 
@@ -971,8 +1410,9 @@ function fmtRange(ms: number) {
     backdrop-filter: blur(12px);
     border: 1px solid var(--border-secondary-color);
     border-radius: var(--r-full);
-    padding: 4px 10px;
+    padding: 4px;
     box-shadow: var(--s-m);
+    height: 38px;
 
     .day-arrow-btn {
       width: 28px;
@@ -1040,6 +1480,7 @@ function fmtRange(ms: number) {
       border-radius: var(--r-full);
       padding: 3px;
       box-shadow: var(--s-m);
+      height: 38px;
 
       .mode-tab-btn {
         display: inline-flex;
@@ -1054,6 +1495,7 @@ function fmtRange(ms: number) {
         font-weight: 600;
         cursor: pointer;
         transition: all 0.2s;
+        height: 100%;
 
         .tab-icon {
           font-size: 1rem;
@@ -1254,8 +1696,44 @@ function fmtRange(ms: number) {
 
     .track-stats-right {
       margin-left: auto;
+      display: flex;
+      align-items: center;
+      gap: 10px;
       font-size: 0.78rem;
       color: var(--fg-secondary-color);
+
+      .camera-follow-btn {
+        display: inline-flex;
+        align-items: center;
+        gap: 5px;
+        padding: 4px 10px;
+        border-radius: var(--r-full);
+        border: 1px solid var(--border-secondary-color);
+        background: var(--bg-tertiary-color);
+        color: var(--fg-secondary-color);
+        font-size: 0.75rem;
+        font-weight: 500;
+        cursor: pointer;
+        transition: all 0.2s;
+
+        &:hover {
+          background: var(--bg-hover-color);
+          color: var(--fg-primary-color);
+        }
+
+        &.is-active {
+          background: rgba(var(--fg-accent-color-rgb, 59, 130, 246), 0.18);
+          border-color: var(--border-accent-color);
+          color: var(--fg-accent-color);
+          font-weight: 600;
+        }
+
+        @media (max-width: 600px) {
+          .camera-btn-text {
+            display: none;
+          }
+        }
+      }
     }
   }
 
@@ -1307,6 +1785,10 @@ function fmtRange(ms: number) {
 
         &:active:not(:disabled) {
           transform: scale(0.95);
+        }
+
+        &.step-btn {
+          font-size: 1.15rem;
         }
 
         &.play-btn {

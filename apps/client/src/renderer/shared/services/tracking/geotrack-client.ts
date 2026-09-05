@@ -1,5 +1,5 @@
 import type { TrackActivityType } from '@injurka/track-processing'
-import { bearingDeg, haversineM } from '@injurka/track-processing'
+import { bearingDeg, evaluatePointValidity, haversineM } from '@injurka/track-processing'
 import {
   checkPermissions as tauriCheckPermissions,
   clearWatch as tauriClearWatch,
@@ -86,6 +86,11 @@ function writeStoredPoints(points: TrackPoint[]): void {
   catch (e) {
     console.warn('[Tracking] Не удалось сохранить точки в LocalStorage:', e)
   }
+}
+
+export function deleteStoredPoint(clientPointId: string): void {
+  const points = readStoredPoints().filter(p => p.clientPointId !== clientPointId)
+  writeStoredPoints(points)
 }
 
 interface StoredSession {
@@ -438,6 +443,16 @@ class WebGeolocationTracker {
       const dM = haversineM(this.lastFixPoint.lat, this.lastFixPoint.lng, lat, lng)
       const dtSec = Math.max(0.1, (ts - this.lastFixPoint.tsUtc) / 1000)
 
+      // Проверка валидности точки и отсечение сбоев GPS / мгновенных телепортов
+      const validity = evaluatePointValidity(
+        { lat, lng, tsUtc: ts, accuracy, speed },
+        this.lastFixPoint,
+      )
+      if (!validity.isValid) {
+        console.warn(`[Tracking] Точка пропущена из-за аномалии: ${validity.reason}`)
+        return
+      }
+
       // Если девайс не отдал мгновенную скорость, рассчитываем по дельте
       if (speed === null && dtSec > 0) {
         speed = dM / dtSec
@@ -448,8 +463,8 @@ class WebGeolocationTracker {
         bearing = bearingDeg(this.lastFixPoint.lat, this.lastFixPoint.lng, lat, lng)
       }
 
-      // Прибавляем дистанцию, отсекая статичный GPS-дрейф (< 1.5м на месте)
-      if (dM >= 1.5 && (speed == null || speed >= 0.3)) {
+      // Прибавляем дистанцию, отсекая статичный GPS-дрейф (< 1.5м на месте) и не накручивая одометр при длинных разрывах
+      if (dM >= 1.5 && (speed == null || speed >= 0.3) && !validity.isGap) {
         this.sessionDistanceM += dM
       }
     }

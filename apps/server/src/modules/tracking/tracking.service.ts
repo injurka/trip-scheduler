@@ -86,8 +86,10 @@ export const trackingService = {
           tsUtc: trackPoints.tsUtc,
           lat: trackPoints.lat,
           lng: trackPoints.lng,
-          speed: trackPoints.speed,
+          altitude: trackPoints.altitude,
           accuracy: trackPoints.accuracy,
+          speed: trackPoints.speed,
+          bearing: trackPoints.bearing,
           activity: trackPoints.activity,
           sessionId: trackPoints.sessionId,
         })
@@ -358,5 +360,70 @@ export const trackingService = {
         }
       })
       .sort((a, b) => b.dayUtc.localeCompare(a.dayUtc))
+  },
+
+  /**
+   * Удаление точки: удаляет из базы и перезапускает сегментацию для сессии,
+   * чтобы нормализовать маршрут и вершины Безье без удаленной точки.
+   */
+  async deletePoint(userId: string, clientPointId: string) {
+    const [target] = await db
+      .select({
+        sessionId: trackPoints.sessionId,
+      })
+      .from(trackPoints)
+      .where(and(
+        eq(trackPoints.userId, userId),
+        eq(trackPoints.clientPointId, clientPointId),
+      ))
+      .limit(1)
+
+    if (!target) {
+      return { success: false, clientPointId, reprocessedSegments: 0 }
+    }
+
+    await db
+      .delete(trackPoints)
+      .where(and(
+        eq(trackPoints.userId, userId),
+        eq(trackPoints.clientPointId, clientPointId),
+      ))
+
+    let reprocessedSegments = 0
+    if (target.sessionId) {
+      const remaining = await db
+        .select({
+          tsUtc: trackPoints.tsUtc,
+          lat: trackPoints.lat,
+          lng: trackPoints.lng,
+          speed: trackPoints.speed,
+          activity: trackPoints.activity,
+        })
+        .from(trackPoints)
+        .where(and(
+          eq(trackPoints.userId, userId),
+          eq(trackPoints.sessionId, target.sessionId),
+        ))
+        .orderBy(trackPoints.tsUtc)
+
+      if (remaining.length >= 2) {
+        const res = await trackingService.reprocessDay(userId, target.sessionId, remaining.map(p => ({
+          tsUtc: p.tsUtc.getTime(),
+          lat: p.lat,
+          lng: p.lng,
+          speed: p.speed,
+          activity: p.activity,
+        })))
+        reprocessedSegments = res.segments
+      }
+      else {
+        await db.delete(trackSegments).where(and(
+          eq(trackSegments.userId, userId),
+          eq(trackSegments.sessionId, target.sessionId),
+        ))
+      }
+    }
+
+    return { success: true, clientPointId, reprocessedSegments }
   },
 }
