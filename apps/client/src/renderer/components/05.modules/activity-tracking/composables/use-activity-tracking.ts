@@ -1,11 +1,9 @@
 import type { DaySummary } from '../models/types'
-import { useRouter } from 'vue-router'
-import { AppRouteNames } from '~/shared/constants/routes'
+import { computed, onMounted, ref } from 'vue'
+import { useDialogHistory } from '~/components/01.kit/kit-dialog-with-close/composables/use-dialog-history'
 import { trpc } from '~/shared/services/trpc/trpc.service'
 
 export function useActivityTracking() {
-  const router = useRouter()
-
   const selectedDays = ref<number>(14)
   const isLoading = ref<boolean>(true)
   const isRefreshing = ref<boolean>(false)
@@ -109,20 +107,25 @@ export function useActivityTracking() {
     return new Date(ts).toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit', timeZone: 'UTC' })
   }
 
+  const isPlayerOpen = ref(false)
+  const playerDayUtc = ref<string>(todayUtc.value)
+
   function openDayOnMap(dayUtc: string) {
-    router.push({
-      name: AppRouteNames.ActivityMap,
-      query: { view: 'memories', day: dayUtc },
-    })
+    playerDayUtc.value = dayUtc
+    isPlayerOpen.value = true
   }
 
   /** Вход в просмотрщик «Воспоминания дня» без привязки к конкретному дню */
   function openMemories() {
-    router.push({
-      name: AppRouteNames.ActivityMap,
-      query: { view: 'memories' },
-    })
+    playerDayUtc.value = todayUtc.value
+    isPlayerOpen.value = true
   }
+
+  function closePlayer() {
+    isPlayerOpen.value = false
+  }
+
+  useDialogHistory('activity-tracking-player', isPlayerOpen)
 
   onMounted(() => {
     void loadSummaries()
@@ -140,6 +143,8 @@ export function useActivityTracking() {
     recordedDays,
     hasAnyData,
     todayUtc,
+    isPlayerOpen,
+    playerDayUtc,
     loadSummaries,
     refresh,
     setDaysRange,
@@ -150,5 +155,6 @@ export function useActivityTracking() {
     formatTime,
     openDayOnMap,
     openMemories,
+    closePlayer,
   }
 }

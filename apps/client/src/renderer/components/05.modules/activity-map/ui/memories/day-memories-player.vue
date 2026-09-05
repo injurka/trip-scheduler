@@ -12,6 +12,7 @@ import { fromLonLat } from 'ol/proj'
 import VectorSource from 'ol/source/Vector'
 import { Circle as CircleStyle, Fill, Stroke, Style } from 'ol/style'
 import { computed, getCurrentInstance, onBeforeUnmount, onMounted, ref, shallowRef, watch } from 'vue'
+import { KitBtn } from '~/components/01.kit/kit-btn'
 import { useKitMap } from '~/components/01.kit/kit-map/composables/use-kit-map'
 import { AppRouteNames } from '~/shared/constants/routes'
 import { catmullRomSpline } from '~/shared/services/tracking/track-processing'
@@ -609,6 +610,17 @@ function fmtRange(ms: number) {
         </KitBtn>
 
         <slot name="top-actions" />
+
+        <KitBtn
+          variant="tonal"
+          size="sm"
+          class="nav-btn close-btn"
+          title="Закрыть"
+          aria-label="Закрыть"
+          @click="handleBack"
+        >
+          <Icon icon="mdi:close" />
+        </KitBtn>
       </div>
     </div>
 
@@ -937,7 +949,7 @@ function fmtRange(ms: number) {
 
 .top-nav-bar {
   position: absolute;
-  top: 14px;
+  top: max(14px, env(safe-area-inset-top, 0px));
   left: 14px;
   right: 14px;
   z-index: 20;
@@ -973,10 +985,10 @@ function fmtRange(ms: number) {
       align-items: center;
       justify-content: center;
       cursor: pointer;
-      transition: background 0.2s;
+      transition: background-color 0.2s;
 
       &:hover:not(:disabled) {
-        background: rgba(255, 255, 255, 0.16);
+        background: var(--bg-hover-color);
       }
 
       &:disabled {
@@ -993,23 +1005,23 @@ function fmtRange(ms: number) {
 
       .cal-icon {
         font-size: 1.1rem;
-        color: var(--primary, #4caf50);
+        color: var(--fg-accent-color);
       }
 
       .day-text {
         font-size: 0.88rem;
         font-weight: 600;
-        color: var(--fg-color, #fff);
+        color: var(--fg-primary-color);
         text-transform: capitalize;
       }
 
       .today-chip {
         padding: 1px 6px;
-        border-radius: 10px;
+        border-radius: var(--r-full);
         font-size: 0.68rem;
         font-weight: 600;
-        background: rgba(76, 175, 80, 0.2);
-        color: #81c784;
+        background: var(--bg-success-color);
+        color: var(--fg-success-color);
       }
     }
   }
@@ -1058,17 +1070,17 @@ function fmtRange(ms: number) {
 
         &:hover:not(.is-active) {
           color: var(--fg-primary-color);
-          background: rgba(255, 255, 255, 0.08);
+          background: var(--bg-hover-color);
         }
 
         &.is-active {
-          background: var(--primary, #4caf50);
-          color: #fff;
-          box-shadow: 0 1px 4px rgba(0, 0, 0, 0.2);
+          background: var(--fg-accent-color);
+          color: var(--fg-inverted-color);
+          box-shadow: var(--s-xs);
 
           .points-pill {
-            background: rgba(255, 255, 255, 0.25);
-            color: #fff;
+            background: rgba(var(--fg-inverted-color-rgb, 255, 255, 255), 0.25);
+            color: var(--fg-inverted-color);
           }
         }
       }
@@ -1212,12 +1224,12 @@ function fmtRange(ms: number) {
       .time {
         font-size: 1.25rem;
         font-weight: 700;
-        color: var(--fg-color, #fff);
+        color: var(--fg-primary-color);
       }
 
       .time-tz {
         font-size: 0.7rem;
-        color: var(--fg-secondary-color, rgba(255, 255, 255, 0.5));
+        color: var(--fg-secondary-color);
       }
     }
 
@@ -1226,7 +1238,7 @@ function fmtRange(ms: number) {
       align-items: center;
       gap: 5px;
       padding: 3px 10px;
-      border-radius: 20px;
+      border-radius: var(--r-full);
       font-size: 0.8rem;
       font-weight: 600;
       border: 1px solid;
@@ -1237,13 +1249,13 @@ function fmtRange(ms: number) {
       align-items: center;
       gap: 4px;
       font-size: 0.82rem;
-      color: var(--fg-secondary-color, rgba(255, 255, 255, 0.8));
+      color: var(--fg-secondary-color);
     }
 
     .track-stats-right {
       margin-left: auto;
       font-size: 0.78rem;
-      color: var(--fg-secondary-color, rgba(255, 255, 255, 0.6));
+      color: var(--fg-secondary-color);
     }
   }
 
@@ -1257,7 +1269,7 @@ function fmtRange(ms: number) {
       height: 6px;
       border-radius: 3px;
       outline: none;
-      accent-color: var(--primary, #4caf50);
+      accent-color: var(--fg-accent-color);
       cursor: pointer;
     }
   }
@@ -1276,21 +1288,21 @@ function fmtRange(ms: number) {
       .control-btn {
         width: 34px;
         height: 34px;
-        border-radius: 50%;
-        border: none;
-        background: rgba(255, 255, 255, 0.08);
-        color: var(--fg-color, #fff);
+        border-radius: var(--r-full);
+        border: 1px solid var(--border-secondary-color);
+        background: var(--bg-tertiary-color);
+        color: var(--fg-primary-color);
         display: flex;
         align-items: center;
         justify-content: center;
         cursor: pointer;
         font-size: 1.1rem;
         transition:
-          background 0.2s,
+          background-color 0.2s,
           transform 0.1s;
 
         &:hover:not(:disabled) {
-          background: rgba(255, 255, 255, 0.16);
+          background: var(--bg-hover-color);
         }
 
         &:active:not(:disabled) {
@@ -1300,12 +1312,13 @@ function fmtRange(ms: number) {
         &.play-btn {
           width: 42px;
           height: 42px;
-          background: var(--primary, #4caf50);
-          color: #fff;
+          background: var(--fg-accent-color);
+          color: var(--fg-inverted-color);
+          border-color: var(--border-accent-color);
           font-size: 1.3rem;
 
           &:hover:not(:disabled) {
-            background: #43a047;
+            background: var(--bg-action-hover-color);
           }
         }
 
@@ -1320,31 +1333,32 @@ function fmtRange(ms: number) {
       display: flex;
       align-items: center;
       gap: 4px;
-      background: rgba(255, 255, 255, 0.06);
+      background: var(--bg-tertiary-color);
+      border: 1px solid var(--border-secondary-color);
       padding: 3px;
-      border-radius: 20px;
+      border-radius: var(--r-full);
 
       .speed-chip {
         padding: 2px 8px;
-        border-radius: 14px;
+        border-radius: var(--r-full);
         font-size: 0.72rem;
         font-weight: 600;
         border: none;
         background: transparent;
-        color: var(--fg-secondary-color, rgba(255, 255, 255, 0.6));
+        color: var(--fg-secondary-color);
         cursor: pointer;
         transition: all 0.2s;
 
         &.is-active {
-          background: rgba(255, 255, 255, 0.2);
-          color: var(--fg-color, #fff);
+          background: var(--bg-hover-color);
+          color: var(--fg-primary-color);
         }
       }
     }
 
     .time-range-display {
       font-size: 0.8rem;
-      color: var(--fg-secondary-color, rgba(255, 255, 255, 0.65));
+      color: var(--fg-secondary-color);
       font-variant-numeric: tabular-nums;
     }
   }

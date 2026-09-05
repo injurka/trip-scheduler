@@ -4,6 +4,7 @@ import type { DateRange, MapBounds } from '../../models/types'
 import type { ActivityItem } from '../activity-map.vue'
 import type { MapMarker } from '~/components/01.kit/kit-map'
 import { Icon } from '@iconify/vue'
+import { useMediaQuery } from '@vueuse/core'
 import { toLonLat } from 'ol/proj'
 import { KitBtn } from '~/components/01.kit/kit-btn'
 import { KitMap } from '~/components/01.kit/kit-map'
@@ -31,6 +32,9 @@ const emit = defineEmits<{
 
 const dateRange = defineModel<DateRange>('dateRange', { required: true })
 const hoverPopupRef = ref<HTMLElement | null>(null)
+
+const isMobileScreen = useMediaQuery('(max-width: 640px)')
+const isMobileSidebarOpen = ref(false)
 
 const sidebarWidth = ref(360)
 const isResizing = ref(false)
@@ -128,15 +132,29 @@ function handleSidebarItemClick(act: ActivityItem) {
   emit('focusItem', act.coords)
 }
 
-const controlsLeftPosition = computed(() => `${sidebarWidth.value + 32}px`)
+const controlsLeftPosition = computed(() => isMobileScreen.value ? '16px' : `${sidebarWidth.value + 32}px`)
 </script>
 
 <template>
   <div class="activity-map-view">
-    <aside class="floating-sidebar" :style="{ width: `${sidebarWidth}px` }">
+    <aside
+      class="floating-sidebar"
+      :class="{ 'is-mobile-open': isMobileSidebarOpen }"
+      :style="{ width: isMobileScreen ? undefined : `${sidebarWidth}px` }"
+    >
       <div class="sidebar-header">
-        <h3>Метки на экране</h3>
-        <span class="count">{{ activities.length }}</span>
+        <div class="sidebar-title-group">
+          <h3>Метки на экране</h3>
+          <span class="count">{{ activities.length }}</span>
+        </div>
+        <button
+          v-if="isMobileScreen"
+          class="sidebar-close-btn"
+          aria-label="Закрыть список меток"
+          @click="isMobileSidebarOpen = false"
+        >
+          <Icon icon="mdi:close" />
+        </button>
       </div>
       <div class="sidebar-scroll">
         <div v-if="activities.length === 0" class="empty-sidebar">
@@ -167,12 +185,28 @@ const controlsLeftPosition = computed(() => `${sidebarWidth.value + 32}px`)
           </div>
         </div>
       </div>
-      <div class="resize-handle" @mousedown.prevent="startResize" />
+      <div v-if="!isMobileScreen" class="resize-handle" @mousedown.prevent="startResize" />
     </aside>
+
+    <!-- Мобильный оверлей для закрытия шторки меток -->
+    <div
+      v-if="isMobileSidebarOpen && isMobileScreen"
+      class="sidebar-mobile-backdrop"
+      @click="isMobileSidebarOpen = false"
+    />
 
     <div class="floating-controls" :style="{ left: controlsLeftPosition }">
       <KitBtn icon="mdi:format-list-bulleted" variant="tonal" class="glass-btn" @click="emit('switchToList')">
         Список
+      </KitBtn>
+      <KitBtn
+        v-if="isMobileScreen"
+        icon="mdi:map-marker-multiple-outline"
+        variant="tonal"
+        class="glass-btn mobile-sidebar-toggle"
+        @click="isMobileSidebarOpen = !isMobileSidebarOpen"
+      >
+        Метки ({{ activities.length }})
       </KitBtn>
       <ActivityFilters v-model:date-range="dateRange" transparent />
     </div>
@@ -220,6 +254,8 @@ const controlsLeftPosition = computed(() => `${sidebarWidth.value + 32}px`)
   position: relative;
   width: 100%;
   height: 100%;
+  flex: 1;
+  min-height: 0;
   overflow: hidden;
   isolation: isolate;
 
@@ -249,10 +285,10 @@ const controlsLeftPosition = computed(() => `${sidebarWidth.value + 32}px`)
   top: 16px;
   left: 16px;
   bottom: 16px;
-  background-color: rgba(var(--bg-secondary-color-rgb), 0.85);
-  backdrop-filter: blur(12px);
-  -webkit-backdrop-filter: blur(12px);
-  border: 1px solid rgba(var(--border-secondary-color-rgb), 0.5);
+  background-color: var(--bg-secondary-color);
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+  border: 1px solid var(--border-secondary-color);
   border-radius: var(--r-l);
   z-index: 10;
   display: flex;
@@ -262,6 +298,23 @@ const controlsLeftPosition = computed(() => `${sidebarWidth.value + 32}px`)
 
   @include media-down(sm) {
     display: none;
+    position: fixed;
+    top: auto;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    width: 100% !important;
+    max-height: 70dvh;
+    border-radius: var(--r-xl) var(--r-xl) 0 0;
+    border-left: none;
+    border-right: none;
+    border-bottom: none;
+    z-index: 1001;
+
+    &.is-mobile-open {
+      display: flex;
+      animation: slide-up-drawer 0.25s cubic-bezier(0.2, 0.9, 0.3, 1);
+    }
   }
 }
 
@@ -276,16 +329,22 @@ const controlsLeftPosition = computed(() => `${sidebarWidth.value + 32}px`)
   transition: background-color 0.2s;
   &:hover,
   &:active {
-    background-color: rgba(var(--fg-primary-color-rgb), 0.2);
+    background-color: rgba(var(--fg-primary-color-rgb, 100, 100, 100), 0.2);
   }
 }
 
 .sidebar-header {
-  padding: 16px;
-  border-bottom: 1px solid rgba(var(--border-secondary-color-rgb), 0.3);
+  padding: 14px 16px;
+  border-bottom: 1px solid var(--border-secondary-color);
   display: flex;
   justify-content: space-between;
   align-items: center;
+
+  .sidebar-title-group {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
 
   h3 {
     margin: 0;
@@ -294,11 +353,31 @@ const controlsLeftPosition = computed(() => `${sidebarWidth.value + 32}px`)
     color: var(--fg-primary-color);
   }
   .count {
-    background: rgba(var(--bg-tertiary-color-rgb), 0.6);
+    background: var(--bg-tertiary-color);
+    color: var(--fg-primary-color);
     padding: 2px 8px;
-    border-radius: 12px;
+    border-radius: var(--r-full);
     font-size: 0.8rem;
     font-weight: 600;
+  }
+
+  .sidebar-close-btn {
+    width: 28px;
+    height: 28px;
+    border-radius: var(--r-full);
+    border: none;
+    background: var(--bg-tertiary-color);
+    color: var(--fg-secondary-color);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    transition: background-color 0.2s;
+
+    &:hover {
+      color: var(--fg-primary-color);
+      background: var(--bg-hover-color);
+    }
   }
 }
 
@@ -324,16 +403,16 @@ const controlsLeftPosition = computed(() => `${sidebarWidth.value + 32}px`)
   align-items: center;
   gap: 12px;
   padding: 12px;
-  background-color: rgba(var(--bg-primary-color-rgb), 0.6);
-  border: 1px solid transparent;
+  background-color: var(--bg-primary-color);
+  border: 1px solid var(--border-secondary-color);
   border-radius: var(--r-m);
   cursor: pointer;
   transition: all 0.2s ease;
 
   @include hover {
     & {
-      background-color: var(--bg-primary-color);
-      border-color: var(--border-secondary-color);
+      background-color: var(--bg-hover-color);
+      border-color: var(--border-primary-color);
       transform: translateX(4px);
       box-shadow: var(--s-s);
       .item-arrow {
@@ -420,12 +499,39 @@ const controlsLeftPosition = computed(() => `${sidebarWidth.value + 32}px`)
 }
 
 .glass-btn {
-  background-color: rgba(var(--bg-secondary-color-rgb), 0.85) !important;
+  background-color: var(--bg-secondary-color) !important;
   backdrop-filter: blur(8px);
-  border: 1px solid rgba(var(--border-secondary-color-rgb), 0.5);
+  border: 1px solid var(--border-secondary-color);
   box-shadow: var(--s-s);
+  color: var(--fg-primary-color) !important;
   &:hover {
-    background-color: rgba(var(--bg-secondary-color-rgb), 0.95) !important;
+    background-color: var(--bg-hover-color) !important;
+  }
+}
+
+.mobile-sidebar-toggle {
+  display: none;
+
+  @include media-down(sm) {
+    display: inline-flex;
+    white-space: nowrap;
+  }
+}
+
+.sidebar-mobile-backdrop {
+  position: fixed;
+  inset: 0;
+  background-color: rgba(0, 0, 0, 0.45);
+  backdrop-filter: blur(2px);
+  z-index: 1000;
+}
+
+@keyframes slide-up-drawer {
+  from {
+    transform: translateY(100%);
+  }
+  to {
+    transform: translateY(0);
   }
 }
 

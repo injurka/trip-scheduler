@@ -53,9 +53,13 @@ import { ThemeManager } from '~/components/02.shared/theme-manager'
   > :deep(.content-wrapper) {
     padding-top: var(--header-actual-height, var(--header-height)) !important;
 
-    // Полноэкранный режим карты — отступ не нужен
+    // Полноэкранный режим карты — в вебе отступ не нужен, но в Tauri он обязателен
     &.is-map-mode {
       padding-top: 0 !important;
+
+      :global(html.is-tauri) & {
+        padding-top: var(--header-actual-height, var(--header-height)) !important;
+      }
     }
   }
 }

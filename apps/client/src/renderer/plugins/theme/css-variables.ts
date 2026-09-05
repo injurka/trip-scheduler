@@ -38,6 +38,31 @@ function applyGenericPalette(element: HTMLElement, palette: Record<string, strin
   }
 }
 
+function isDarkColor(hex: string): boolean {
+  const rgb = hexToRgbString(hex)
+  if (!rgb)
+    return false
+  const [r, g, b] = rgb.split(',').map(n => Number(n.trim()))
+  const yiq = (r * 299 + g * 587 + b * 114) / 1000
+  return yiq < 128
+}
+
+function updateSystemBarTheme(isDark: boolean, themeColor: string) {
+  if (typeof document === 'undefined')
+    return
+
+  const htmlElement = document.documentElement
+  htmlElement.style.colorScheme = isDark ? 'dark' : 'light'
+
+  let metaThemeColor = document.querySelector('meta[name="theme-color"]') as HTMLMetaElement | null
+  if (!metaThemeColor) {
+    metaThemeColor = document.createElement('meta')
+    metaThemeColor.name = 'theme-color'
+    document.head.appendChild(metaThemeColor)
+  }
+  metaThemeColor.content = themeColor
+}
+
 export function setupCssVariablesUpdater() {
   const themeStore = useThemeStore()
 
@@ -55,12 +80,18 @@ export function setupCssVariablesUpdater() {
       htmlElement.style.setProperty('--content-gradient-width', '0px')
     }
 
+    let isDark = false
+    let primaryBgColor = '#faf4f2'
+
     if (themeStore.isCustomThemeActive) {
       htmlElement.setAttribute('data-theme', 'custom')
 
       applyColorPalette(htmlElement, themeStore.customThemePalette)
       applyGenericPalette(htmlElement, themeStore.customThemeRadius)
       applyGenericPalette(htmlElement, themeStore.customThemeShadows)
+
+      primaryBgColor = themeStore.customThemePalette['bg-primary-color'] || '#faf4f2'
+      isDark = isDarkColor(primaryBgColor)
     }
     else {
       htmlElement.setAttribute('data-theme', themeStore.activeThemeName)
@@ -74,6 +105,11 @@ export function setupCssVariablesUpdater() {
         htmlElement.style.setProperty('--content-bg-opacity', currentOpacity)
       if (currentWidth)
         htmlElement.style.setProperty('--content-gradient-width', currentWidth)
+
+      isDark = themeStore.activeThemeName === 'dark'
+      primaryBgColor = isDark ? '#1e1f20' : '#faf4f2'
     }
+
+    updateSystemBarTheme(isDark, primaryBgColor)
   })
 }

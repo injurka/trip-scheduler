@@ -1,5 +1,8 @@
 <script setup lang="ts">
+import { useScrollLock } from '@vueuse/core'
+import { watch } from 'vue'
 import { AsyncStateWrapper } from '~/components/02.shared/async-state-wrapper'
+import DayMemoriesPlayer from '~/components/05.modules/activity-map/ui/memories/day-memories-player.vue'
 import { useTrackingStore } from '~/shared/store/tracking.store'
 import { useActivityTracking } from '../composables/use-activity-tracking'
 import ActivityTrackingDays from './activity-tracking-days.vue'
@@ -21,6 +24,8 @@ const {
   activeDaysCount,
   recordedDays,
   hasAnyData,
+  isPlayerOpen,
+  playerDayUtc,
   loadSummaries,
   refresh,
   setDaysRange,
@@ -31,7 +36,13 @@ const {
   formatTime,
   openDayOnMap,
   openMemories,
+  closePlayer,
 } = useActivityTracking()
+
+const isScrollLocked = useScrollLock(typeof document !== 'undefined' ? document.body : null)
+watch(isPlayerOpen, (open) => {
+  isScrollLocked.value = open
+})
 
 async function handleSync() {
   await trackingStore.syncNow()
@@ -98,6 +109,28 @@ async function handleSync() {
         </div>
       </template>
     </AsyncStateWrapper>
+
+    <!-- Drawer просмотра GPS-трекинга на карте -->
+    <Transition name="tracking-drawer">
+      <div
+        v-if="isPlayerOpen"
+        class="tracking-drawer-overlay"
+        @click.self="closePlayer"
+      >
+        <div class="tracking-drawer-sheet">
+          <div class="drawer-handle-bar">
+            <span class="drawer-drag-handle" />
+          </div>
+
+          <DayMemoriesPlayer
+            class="tracking-player-embedded"
+            :day-utc="playerDayUtc"
+            @close="closePlayer"
+            @back="closePlayer"
+          />
+        </div>
+      </div>
+    </Transition>
   </div>
 </template>
 
@@ -120,6 +153,74 @@ async function handleSync() {
   &.is-refreshing {
     opacity: 0.65;
     pointer-events: none;
+  }
+}
+
+.tracking-drawer-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 1000;
+  background-color: rgba(0, 0, 0, 0.45);
+  backdrop-filter: blur(4px);
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+}
+
+.tracking-drawer-sheet {
+  width: 100%;
+  height: 94dvh;
+  max-height: calc(100dvh - env(safe-area-inset-top, 0px) - 8px);
+  background-color: var(--bg-primary-color);
+  border-radius: var(--r-xl) var(--r-xl) 0 0;
+  border: 1px solid var(--border-secondary-color);
+  border-bottom: none;
+  box-shadow: var(--s-xl);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  position: relative;
+
+  .drawer-handle-bar {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 8px 0 4px;
+    background-color: var(--bg-secondary-color);
+    border-bottom: 1px solid var(--border-secondary-color);
+    flex-shrink: 0;
+
+    .drawer-drag-handle {
+      width: 44px;
+      height: 4px;
+      border-radius: var(--r-full);
+      background-color: var(--border-primary-color);
+    }
+  }
+
+  .tracking-player-embedded {
+    flex: 1;
+    min-height: 0;
+    width: 100%;
+    height: 100%;
+  }
+}
+
+.tracking-drawer-enter-active,
+.tracking-drawer-leave-active {
+  transition: opacity 0.25s ease;
+
+  .tracking-drawer-sheet {
+    transition: transform 0.28s cubic-bezier(0.32, 0.72, 0, 1);
+  }
+}
+
+.tracking-drawer-enter-from,
+.tracking-drawer-leave-to {
+  opacity: 0;
+
+  .tracking-drawer-sheet {
+    transform: translateY(100%);
   }
 }
 </style>

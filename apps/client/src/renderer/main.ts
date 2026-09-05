@@ -4,6 +4,7 @@ import { createHead } from '@vueuse/head'
 // файл генерируется скриптом
 import iconsBundle from '~/assets/icons-bundle.json'
 
+import { isTauri } from '~/shared/lib/env'
 import router from '~/shared/lib/router'
 import { initializePwaUpdater } from '~/shared/services/pwa/pwa.service'
 import { startSyncWorker } from '~/shared/services/tracking/track-sync'
@@ -20,6 +21,10 @@ import { TRPCDatabaseClient } from './shared/services/api'
  * Асинхронная функция для инициализации приложения.
  */
 async function initializeApp() {
+  if (isTauri && typeof document !== 'undefined') {
+    document.documentElement.classList.add('is-tauri')
+  }
+
   addCollection(iconsBundle)
 
   const app = createApp(application)
