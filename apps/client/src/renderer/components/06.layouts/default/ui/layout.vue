@@ -29,6 +29,7 @@ import { ThemeManager } from '~/components/02.shared/theme-manager'
   flex: 1;
   position: relative;
   overflow: clip;
+  padding-top: var(--header-actual-height, var(--header-height));
 }
 
 .main-content {

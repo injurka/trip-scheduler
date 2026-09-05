@@ -254,6 +254,7 @@ onBeforeUnmount(() => {
   flex: 1;
   position: relative;
   overflow: hidden;
+  padding-top: var(--header-actual-height, var(--header-height));
 
   .trip-info-divider {
     margin: 0 auto;
