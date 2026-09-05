@@ -42,6 +42,7 @@ export interface TrackingStatus {
   lastFixTsUtc: number | null
   batteryIgnored: boolean
   telemetry?: TrackingTelemetry
+  error?: string | null
 }
 
 const STORAGE_POINTS_KEY = 'tripscheduler_tracking_points'
@@ -93,21 +94,28 @@ export function deleteStoredPoint(clientPointId: string): void {
   writeStoredPoints(points)
 }
 
-interface StoredSession {
+export interface StoredSession {
   sessionId: string
   startedAt: number
   distanceM: number
   lastPoint: TrackPoint | null
+  isRunning: boolean
 }
 
-function readStoredSession(): StoredSession | null {
+export function readStoredSession(): StoredSession | null {
   try {
     const raw = localStorage.getItem(STORAGE_SESSION_KEY)
     if (!raw)
       return null
     const parsed = JSON.parse(raw)
     if (parsed && typeof parsed.sessionId === 'string' && typeof parsed.startedAt === 'number') {
-      return parsed as StoredSession
+      return {
+        sessionId: parsed.sessionId,
+        startedAt: parsed.startedAt,
+        distanceM: typeof parsed.distanceM === 'number' ? parsed.distanceM : 0,
+        lastPoint: parsed.lastPoint ? parseTrackPoint(parsed.lastPoint) : null,
+        isRunning: Boolean(parsed.isRunning),
+      }
     }
     return null
   }
@@ -116,7 +124,7 @@ function readStoredSession(): StoredSession | null {
   }
 }
 
-function writeStoredSession(session: StoredSession | null): void {
+export function writeStoredSession(session: StoredSession | null): void {
   try {
     if (session) {
       localStorage.setItem(STORAGE_SESSION_KEY, JSON.stringify(session))
@@ -128,6 +136,12 @@ function writeStoredSession(session: StoredSession | null): void {
   catch {
     // игнорируем ошибку LocalStorage
   }
+}
+
+/** Проверка: была ли активна сессия до закрытия приложения / перезагрузки */
+export function hasActiveStoredSession(): boolean {
+  const session = readStoredSession()
+  return Boolean(session?.isRunning)
 }
 
 function detectNetwork(): 'wifi' | 'cellular' | 'offline' | 'other' {
@@ -161,12 +175,82 @@ function estimateActivity(speedMs: number): ActivityType {
   return 'rail' // свыше 130 км/ч
 }
 
-// ─── Трекер на базе Web Geolocation API ───────────────────────────────────────
+/**
+ * Фоновый кипалив через скрытый аудиопоток (бесшумный WAV loop).
+ * На Android предотвращает засыпание WebView и троттлинг таймеров/геолокации при заблокированном экране.
+ */
+class BackgroundAudioKeepalive {
+  private audio: HTMLAudioElement | null = null
+  private isPlaying = false
+  // 1-секундный закольцованный бесшумный WAV
+  private readonly SILENT_WAV_URI
+    = 'data:audio/wav;base64,UklGRjIAAABXQVZFZm10IBIAAAABAAEAQB8AAEAfAAABAAgAAABmYWN0BAAAAAAAAABkYXRhAAAAAA=='
+
+  public start(): void {
+    if (typeof window === 'undefined' || typeof document === 'undefined')
+      return
+
+    if (this.isPlaying && this.audio)
+      return
+
+    try {
+      if (!this.audio) {
+        this.audio = new Audio()
+        this.audio.src = this.SILENT_WAV_URI
+        this.audio.loop = true
+        this.audio.preload = 'auto'
+        this.audio.volume = 0.01 // минимальная ненулевая громкость для предотвращения выгрузки потока ОС
+        this.audio.setAttribute('playsinline', 'true')
+        this.audio.setAttribute('webkit-playsinline', 'true')
+      }
+
+      const promise = this.audio.play()
+      if (promise !== undefined) {
+        promise
+          .then(() => {
+            this.isPlaying = true
+          })
+          .catch(() => {
+            // Если autoplay заблокирован политикой браузера, возобновляем при первом жесте
+            const resumeOnGesture = () => {
+              if (this.audio && !this.isPlaying) {
+                this.audio.play().then(() => {
+                  this.isPlaying = true
+                }).catch(() => {})
+              }
+            }
+            window.addEventListener('touchstart', resumeOnGesture, { once: true })
+            window.addEventListener('click', resumeOnGesture, { once: true })
+          })
+      }
+    }
+    catch (e) {
+      console.warn('[Tracking] Ошибка запуска аудио-кипалива:', e)
+    }
+  }
+
+  public stop(): void {
+    if (this.audio) {
+      try {
+        this.audio.pause()
+        this.audio.currentTime = 0
+      }
+      catch {
+        // игнорируем
+      }
+      this.isPlaying = false
+    }
+  }
+}
+
+// ─── Трекер на базе Web Geolocation API и Tauri Geolocation ──────────────────
 
 class WebGeolocationTracker {
   private watchId: number | null = null
   private tauriWatchId: number | null = null
   private wakeLockSentinel: any = null
+  private watchdogTimer: ReturnType<typeof setInterval> | null = null
+  private keepalive = new BackgroundAudioKeepalive()
   private currentSessionId: string | null = null
   private sessionStartedAt = 0
   private sessionEndedAt = 0
@@ -177,6 +261,8 @@ class WebGeolocationTracker {
   private consecutiveRejectedCount = 0
 
   constructor() {
+    this.setupLifecycleListeners()
+
     const saved = readStoredSession()
     if (saved) {
       this.currentSessionId = saved.sessionId
@@ -184,6 +270,11 @@ class WebGeolocationTracker {
       this.sessionDistanceM = saved.distanceM
       this.lastFixPoint = saved.lastPoint
       this.sessionEndedAt = saved.lastPoint?.tsUtc || saved.startedAt
+      if (saved.isRunning) {
+        this.isRunning = true
+        // Автоматически возобновляем отслеживание в фоне
+        void this.resumeTracking()
+      }
     }
   }
 
@@ -220,7 +311,12 @@ class WebGeolocationTracker {
       lastFixTsUtc: this.lastFixPoint?.tsUtc ?? null,
       batteryIgnored: false,
       telemetry,
+      error: this.lastError,
     }
+  }
+
+  public getLastError(): string | null {
+    return this.lastError
   }
 
   public async start(): Promise<TrackingStatus> {
@@ -240,136 +336,59 @@ class WebGeolocationTracker {
     this.sessionEndedAt = 0
     this.sessionDistanceM = 0
     this.lastFixPoint = null
+    this.isRunning = true
+
     writeStoredSession({
       sessionId: this.currentSessionId,
       startedAt: this.sessionStartedAt,
       distanceM: 0,
       lastPoint: null,
+      isRunning: true,
     })
 
-    // Попытка заблокировать засыпание экрана на мобильных устройствах
+    await this.acquireWakeLock()
+    this.keepalive.start()
+    await this.startWatchers()
+    this.startWatchdog()
+    this.requestImmediateFix()
+
+    return this.getStatus()
+  }
+
+  /** Автоматическое возобновление ранее активной сессии после перезапуска/сворачивания */
+  private async resumeTracking(): Promise<void> {
+    if (!this.isRunning)
+      return
+
+    await this.acquireWakeLock()
+    this.keepalive.start()
+    await this.startWatchers()
+    this.startWatchdog()
+    this.requestImmediateFix()
+
+    // Запускаем синк точек, накопившихся в буфере
+    void import('./track-sync').then(m => m.runSync()).catch(() => {})
+  }
+
+  private async acquireWakeLock(): Promise<void> {
+    if (typeof navigator === 'undefined' || !('wakeLock' in navigator))
+      return
     try {
-      if ('wakeLock' in navigator && (navigator as any).wakeLock?.request) {
-        this.wakeLockSentinel = await (navigator as any).wakeLock.request('screen')
-      }
+      if (this.wakeLockSentinel && !this.wakeLockSentinel.released)
+        return
+      this.wakeLockSentinel = await (navigator as any).wakeLock.request('screen')
+      this.wakeLockSentinel.addEventListener('release', () => {
+        if (this.isRunning && typeof document !== 'undefined' && document.visibilityState === 'visible') {
+          void this.acquireWakeLock()
+        }
+      })
     }
     catch {
       // Игнорируем отказ в wake lock
     }
-
-    if (isMobileApp) {
-      return this.startTauriTracking()
-    }
-
-    return this.startWebTracking()
   }
 
-  private async startTauriTracking(): Promise<TrackingStatus> {
-    try {
-      let status = await tauriCheckPermissions()
-      if (status.location === 'prompt' || status.location === 'prompt-with-rationale') {
-        status = await tauriRequestPermissions(['location'])
-      }
-      if (status.location === 'denied') {
-        this.lastError = 'Доступ к геолокации запрещён в настройках приложения или системы'
-        throw new Error(this.lastError)
-      }
-    }
-    catch (err: any) {
-      if (err instanceof Error && err.message === this.lastError) {
-        throw err
-      }
-      console.warn('[Tracking] Ошибка проверки прав геолокации в Tauri:', err)
-    }
-
-    return new Promise((resolve, reject) => {
-      let isFirstFix = true
-
-      tauriWatchPosition(
-        {
-          enableHighAccuracy: true,
-          timeout: 15000,
-          maximumAge: 3000,
-        },
-        (pos, err) => {
-          if (err) {
-            this.lastError = typeof err === 'string' ? err : 'Ошибка получения координат GPS'
-            if (isFirstFix) {
-              isFirstFix = false
-              this.isRunning = false
-              reject(new Error(this.lastError))
-            }
-            return
-          }
-
-          if (pos) {
-            this.handlePositionUpdate(pos)
-            if (isFirstFix) {
-              isFirstFix = false
-              this.isRunning = true
-              resolve(this.getStatus())
-            }
-          }
-        },
-      ).then((id) => {
-        this.tauriWatchId = id
-      }).catch((err) => {
-        this.lastError = err?.message || String(err)
-        if (isFirstFix) {
-          isFirstFix = false
-          this.isRunning = false
-          reject(new Error(this.lastError || 'Ошибка получения координат GPS'))
-        }
-      })
-    })
-  }
-
-  private startWebTracking(): Promise<TrackingStatus> {
-    return new Promise((resolve, reject) => {
-      let isFirstFix = true
-
-      this.watchId = navigator.geolocation.watchPosition(
-        (pos) => {
-          this.handlePositionUpdate(pos)
-          if (isFirstFix) {
-            isFirstFix = false
-            this.isRunning = true
-            resolve(this.getStatus())
-          }
-        },
-        (err) => {
-          this.handlePositionError(err)
-          if (isFirstFix) {
-            isFirstFix = false
-            this.isRunning = false
-            reject(new Error(this.lastError || 'Ошибка получения координат GPS'))
-          }
-        },
-        {
-          enableHighAccuracy: true,
-          maximumAge: 3000,
-          timeout: 15000,
-        },
-      )
-    })
-  }
-
-  public async stop(): Promise<TrackingStatus> {
-    if (this.watchId !== null) {
-      navigator.geolocation.clearWatch(this.watchId)
-      this.watchId = null
-    }
-
-    if (this.tauriWatchId !== null) {
-      try {
-        await tauriClearWatch(this.tauriWatchId)
-      }
-      catch (e) {
-        console.warn('[Tracking] Ошибка clearWatch в Tauri:', e)
-      }
-      this.tauriWatchId = null
-    }
-
+  private async releaseWakeLock(): Promise<void> {
     if (this.wakeLockSentinel) {
       try {
         await this.wakeLockSentinel.release()
@@ -379,8 +398,158 @@ class WebGeolocationTracker {
       }
       this.wakeLockSentinel = null
     }
+  }
 
+  private setupLifecycleListeners(): void {
+    if (typeof document !== 'undefined') {
+      document.addEventListener('visibilitychange', () => {
+        if (document.visibilityState === 'visible') {
+          this.onAppResume()
+        }
+      })
+    }
+
+    if (typeof window !== 'undefined') {
+      window.addEventListener('focus', () => {
+        this.onAppResume()
+      })
+      window.addEventListener('online', () => {
+        if (this.isRunning) {
+          void import('./track-sync').then(m => m.runSync()).catch(() => {})
+        }
+      })
+    }
+  }
+
+  private onAppResume(): void {
+    if (!this.isRunning)
+      return
+
+    void this.acquireWakeLock()
+    this.keepalive.start()
+    this.requestImmediateFix()
+    void import('./track-sync').then(m => m.runSync()).catch(() => {})
+  }
+
+  private async startWatchers(): Promise<void> {
+    this.stopWatchers()
+
+    // 1. Web Geolocation Watcher (работает внутри Chromium WebView при активном аудио-кипаливе)
+    if (typeof navigator !== 'undefined' && 'geolocation' in navigator) {
+      try {
+        this.watchId = navigator.geolocation.watchPosition(
+          pos => this.handlePositionUpdate(pos),
+          err => this.handlePositionError(err),
+          {
+            enableHighAccuracy: true,
+            maximumAge: 3000,
+            timeout: 15000,
+          },
+        )
+      }
+      catch (e) {
+        console.warn('[Tracking] Web watchPosition failed:', e)
+      }
+    }
+
+    // 2. Tauri Geolocation Watcher (FusedLocationProviderClient на Android для высокой точности)
+    if (isMobileApp) {
+      try {
+        let status = await tauriCheckPermissions()
+        if (status.location === 'prompt' || status.location === 'prompt-with-rationale') {
+          status = await tauriRequestPermissions(['location'])
+        }
+        if (status.location === 'denied') {
+          this.lastError = 'Доступ к геолокации запрещён в настройках приложения или системы'
+        }
+        else {
+          this.tauriWatchId = await tauriWatchPosition(
+            {
+              enableHighAccuracy: true,
+              timeout: 15000,
+              maximumAge: 3000,
+            },
+            (pos, err) => {
+              if (err) {
+                this.lastError = typeof err === 'string' ? err : 'Ошибка получения координат GPS'
+                return
+              }
+              if (pos) {
+                this.handlePositionUpdate(pos)
+              }
+            },
+          )
+        }
+      }
+      catch (err: any) {
+        console.warn('[Tracking] Tauri watchPosition failed:', err)
+      }
+    }
+  }
+
+  private stopWatchers(): void {
+    if (this.watchId !== null && typeof navigator !== 'undefined' && 'geolocation' in navigator) {
+      try {
+        navigator.geolocation.clearWatch(this.watchId)
+      }
+      catch {
+        // игнорируем
+      }
+      this.watchId = null
+    }
+
+    if (this.tauriWatchId !== null) {
+      try {
+        void tauriClearWatch(this.tauriWatchId)
+      }
+      catch (e) {
+        console.warn('[Tracking] Tauri clearWatch error:', e)
+      }
+      this.tauriWatchId = null
+    }
+  }
+
+  private startWatchdog(): void {
+    this.stopWatchdog()
+    this.watchdogTimer = setInterval(() => {
+      if (!this.isRunning) {
+        this.stopWatchdog()
+        return
+      }
+
+      const now = Date.now()
+      const timeSinceLastFix = this.lastFixPoint ? (now - this.lastFixPoint.tsUtc) : (now - this.sessionStartedAt)
+
+      // Если координаты не поступали более 20 секунд, принудительно запрашиваем фикс
+      if (timeSinceLastFix > 20000) {
+        this.requestImmediateFix()
+      }
+    }, 15000)
+  }
+
+  private stopWatchdog(): void {
+    if (this.watchdogTimer) {
+      clearInterval(this.watchdogTimer)
+      this.watchdogTimer = null
+    }
+  }
+
+  private requestImmediateFix(): void {
+    if (typeof navigator !== 'undefined' && 'geolocation' in navigator) {
+      navigator.geolocation.getCurrentPosition(
+        pos => this.handlePositionUpdate(pos),
+        err => console.warn('[Tracking] Ошибка immediate fix:', err?.message || err),
+        { enableHighAccuracy: true, timeout: 6000, maximumAge: 0 },
+      )
+    }
+  }
+
+  public async stop(): Promise<TrackingStatus> {
     this.isRunning = false
+    this.stopWatchers()
+    this.stopWatchdog()
+    this.keepalive.stop()
+    await this.releaseWakeLock()
 
     if (this.sessionStartedAt > 0) {
       this.sessionEndedAt = Date.now()
@@ -444,6 +613,11 @@ class WebGeolocationTracker {
     if (this.lastFixPoint) {
       const dM = haversineM(this.lastFixPoint.lat, this.lastFixPoint.lng, lat, lng)
       const dtSec = Math.max(0.1, (ts - this.lastFixPoint.tsUtc) / 1000)
+
+      // Игнорируем дублирующие точки от параллельных слушателей (Tauri + Web)
+      if (dM < 1.0 && (ts - this.lastFixPoint.tsUtc) < 800) {
+        return
+      }
 
       // Проверка валидности точки и отсечение сбоев GPS / мгновенных телепортов
       const validity = evaluatePointValidity(
@@ -510,6 +684,7 @@ class WebGeolocationTracker {
       startedAt: this.sessionStartedAt,
       distanceM: this.sessionDistanceM,
       lastPoint: point,
+      isRunning: this.isRunning,
     })
   }
 

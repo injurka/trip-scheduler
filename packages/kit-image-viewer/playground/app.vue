@@ -396,7 +396,7 @@ function openViewer(galleryIndex: number, imageIndex = 0) {
 
 <style scoped>
 .playground {
-  min-height: 100vh;
+  min-height: 100dvh;
   display: flex;
   flex-direction: column;
 }

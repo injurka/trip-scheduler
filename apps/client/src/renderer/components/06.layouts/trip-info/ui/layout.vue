@@ -414,7 +414,7 @@ onBeforeUnmount(() => {
     // Хедер absolute (вне потока) — отступ от него лежит на .content-wrapper:
     // фон тянется до верха под хедером, контент начинается ниже
     .content-wrapper {
-      padding-top: var(--header-actual-height, var(--header-height));
+      padding-top: var(--header-height);
 
       // Карта/заметки — полноэкранный режим, отступ не нужен
       &.is-wide-mode {

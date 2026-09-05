@@ -1,6 +1,11 @@
 import type { TrackingStatus, TrackingTelemetry } from '../services/tracking/geotrack-client'
 import { defineStore } from 'pinia'
-import { geotrack, GeotrackUnavailableError, parseTrackPoint } from '../services/tracking/geotrack-client'
+import {
+  geotrack,
+  GeotrackUnavailableError,
+  hasActiveStoredSession,
+  parseTrackPoint,
+} from '../services/tracking/geotrack-client'
 import { runSync } from '../services/tracking/track-sync'
 import { useAuthStore } from './auth.store'
 
@@ -35,7 +40,7 @@ const defaultTelemetry: TrackingTelemetry = {
 export const useTrackingStore = defineStore('tracking', {
   state: (): ITrackingState => ({
     isSupported: true,
-    isRunning: false,
+    isRunning: hasActiveStoredSession(),
     isStarting: false,
     isSyncing: false,
     unsentCount: 0,

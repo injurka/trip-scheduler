@@ -51,14 +51,14 @@ import { ThemeManager } from '~/components/02.shared/theme-manager'
   // начинается ниже. !important перебивает scoped padding страниц
   // (специфичность ничья 0,2,0, порядок в бандле ненадёжен)
   > :deep(.content-wrapper) {
-    padding-top: var(--header-actual-height, var(--header-height)) !important;
+    padding-top: var(--header-height) !important;
 
     // Полноэкранный режим карты — в вебе отступ не нужен, но в Tauri он обязателен
     &.is-map-mode {
       padding-top: 0 !important;
 
       :global(html.is-tauri) & {
-        padding-top: var(--header-actual-height, var(--header-height)) !important;
+        padding-top: var(--header-height) !important;
       }
     }
   }

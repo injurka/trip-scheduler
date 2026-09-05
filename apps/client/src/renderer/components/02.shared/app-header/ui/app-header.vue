@@ -1,6 +1,5 @@
 <script lang="ts" setup>
 import { Icon } from '@iconify/vue'
-import { useElementBounding } from '@vueuse/core'
 import { useRoute, useRouter } from 'vue-router'
 import { KitAvatar } from '~/components/01.kit/kit-avatar'
 import { KitDropdown } from '~/components/01.kit/kit-dropdown'
@@ -10,7 +9,6 @@ import { ThemePopover } from '~/components/02.shared/theme-manager'
 import { useAppStore } from '~/shared/composables/use-store'
 import { AppRouteNames, AppRoutePaths } from '~/shared/constants/routes'
 
-const headerEl = ref<HTMLElement>()
 const router = useRouter()
 const route = useRoute()
 const appStore = useAppStore(['auth', 'layout'])
@@ -23,14 +21,6 @@ const isHeaderVisible = ref(true)
 const lastScrollY = ref(0)
 const isSmallScreen = ref(false)
 
-const { height: headerHeight } = useElementBounding(headerEl)
-
-watch(headerHeight, (newHeight) => {
-  if (newHeight > 0 && typeof document !== 'undefined') {
-    document.documentElement.style.setProperty('--header-actual-height', `${newHeight}px`)
-  }
-  appStore.layout.setHeaderHeight(newHeight)
-})
 watch(isHeaderVisible, isVisible => appStore.layout.setHeaderVisibility(isVisible))
 
 const navItems = [
@@ -149,7 +139,6 @@ onMounted(() => {
 
 <template>
   <header
-    ref="headerEl"
     class="header"
     :class="{
       'header--scrolled': isScrolled,
@@ -244,7 +233,7 @@ onMounted(() => {
 
 <style lang="scss" scoped>
 .header {
-  position: absolute;
+  position: fixed;
   top: 0;
   left: 0;
   right: 0;

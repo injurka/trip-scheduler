@@ -39,7 +39,7 @@ function handleModeChange(mode: 'list' | 'map') {
   height: 100%;
   padding: 16px;
   max-width: 1400px;
-  min-height: calc(100vh - var(--header-actual-height, var(--header-height, 53px)));
+  min-height: calc(100vh - var(--header-height));
 
   &.is-map-mode {
     max-width: 100%;
@@ -51,7 +51,7 @@ function handleModeChange(mode: 'list' | 'map') {
     overflow: hidden;
 
     :global(html.is-tauri) & {
-      padding-top: var(--header-actual-height, var(--header-height)) !important;
+      padding-top: var(--header-height) !important;
     }
   }
 }

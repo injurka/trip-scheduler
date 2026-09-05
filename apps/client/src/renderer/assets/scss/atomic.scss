@@ -6,7 +6,7 @@
   --safe-area-inset-bottom: env(safe-area-inset-bottom, 0px);
   --safe-area-inset-left: env(safe-area-inset-left, 0px);
   --safe-area-inset-right: env(safe-area-inset-right, 0px);
-  --header-height: calc(var(--header-base-height) + var(--safe-area-inset-top));
+  --header-height: var(--header-base-height);
 }
 
 .content-wrapper {

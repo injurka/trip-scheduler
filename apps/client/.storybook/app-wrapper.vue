@@ -29,7 +29,7 @@ html {
 .sb-story {
   border-radius: var(--r-xs);
   overflow: hidden;
-  min-height: 100vh;
+  min-height: 100dvh;
   position: relative;
   margin: 0 auto;
   background-color: var(--bg-primary-color);
