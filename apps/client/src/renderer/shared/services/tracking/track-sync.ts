@@ -19,30 +19,40 @@ async function syncOnce(): Promise<number> {
   let total = 0
   for (let i = 0; i < MAX_BATCHES_PER_RUN; i++) {
     const raw = await geotrack.getUnsent(BATCH_SIZE)
+    if (raw.length === 0)
+      break
+
     const points: TrackPoint[] = []
     for (const r of raw) {
       const p = parseTrackPoint(r)
       if (p)
         points.push(p)
     }
-    if (points.length === 0)
+    if (points.length === 0) {
+      const invalidIds = raw.map(r => r.clientPointId).filter(Boolean)
+      if (invalidIds.length > 0) {
+        await useTrackingStore().markSynced(invalidIds)
+      }
       break
+    }
 
     const result = await (trpc as any).tracking.ingestBatch.mutate({
       points: points.map(p => ({
         clientPointId: p.clientPointId,
         sessionId: p.sessionId,
-        tsUtc: p.tsUtc,
+        tsUtc: Math.round(p.tsUtc),
         lat: p.lat,
         lng: p.lng,
-        altitude: p.altitude,
-        accuracy: p.accuracy,
-        speed: p.speed,
-        bearing: p.bearing,
+        altitude: p.altitude != null && Number.isFinite(p.altitude) ? p.altitude : null,
+        accuracy: p.accuracy != null && Number.isFinite(p.accuracy) && p.accuracy >= 0 ? p.accuracy : null,
+        speed: p.speed != null && Number.isFinite(p.speed) && p.speed >= 0 ? p.speed : null,
+        bearing: p.bearing != null && Number.isFinite(p.bearing) ? (((p.bearing % 360) + 360) % 360) : null,
         activity: p.activity,
-        activityConfidence: p.activityConfidence,
+        activityConfidence: p.activityConfidence <= 1 && p.activityConfidence > 0
+          ? Math.round(p.activityConfidence * 100)
+          : Math.round(Math.min(100, Math.max(0, p.activityConfidence || 0))),
       })),
-    }) as { accepted: string[] }
+    }) as { accepted: string[], rejectedCount: number }
 
     const acceptedSet = new Set(result.accepted)
     const syncedIds = points.filter(p => acceptedSet.has(p.clientPointId)).map(p => p.clientPointId)
@@ -64,9 +74,6 @@ export async function runSync(): Promise<number> {
   try {
     return await syncOnce()
   }
-  catch {
-    return 0
-  }
   finally {
     running = false
   }
@@ -76,9 +83,13 @@ export function startSyncWorker(): void {
   if (timer)
     return
   // Немедленный запуск синка при старте
-  void runSync()
+  void runSync().catch((err) => {
+    console.warn('[Tracking sync worker]', err?.message || err)
+  })
   timer = setInterval(() => {
-    void runSync()
+    void runSync().catch((err) => {
+      console.warn('[Tracking sync worker]', err?.message || err)
+    })
   }, INTERVAL_IDLE_MS)
 }
 

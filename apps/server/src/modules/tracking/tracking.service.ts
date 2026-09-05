@@ -13,27 +13,28 @@ export const trackingService = {
       clientPointId: p.clientPointId,
       userId,
       sessionId: p.sessionId,
-      tsUtc: new Date(p.tsUtc),
+      tsUtc: new Date(Math.round(p.tsUtc)),
       lat: p.lat,
       lng: p.lng,
-      altitude: p.altitude ?? null,
-      accuracy: p.accuracy ?? null,
-      speed: p.speed ?? null,
-      bearing: p.bearing ?? null,
+      altitude: p.altitude != null && Number.isFinite(p.altitude) ? p.altitude : null,
+      accuracy: p.accuracy != null && Number.isFinite(p.accuracy) && p.accuracy >= 0 ? p.accuracy : null,
+      speed: p.speed != null && Number.isFinite(p.speed) && p.speed >= 0 ? p.speed : null,
+      bearing: p.bearing != null && Number.isFinite(p.bearing) ? (((p.bearing % 360) + 360) % 360) : null,
       activity: p.activity,
-      activityConfidence: p.activityConfidence,
+      activityConfidence: p.activityConfidence <= 1 && p.activityConfidence > 0
+        ? Math.round(p.activityConfidence * 100)
+        : Math.round(Math.min(100, Math.max(0, p.activityConfidence))),
     }))
 
     const accepted: string[] = []
     const CHUNK = 500
     for (let i = 0; i < rows.length; i += CHUNK) {
       const chunk = rows.slice(i, i + CHUNK)
-      const inserted = await db
+      await db
         .insert(trackPoints)
         .values(chunk)
         .onConflictDoNothing({ target: trackPoints.clientPointId })
-        .returning({ clientPointId: trackPoints.clientPointId })
-      accepted.push(...inserted.map(r => r.clientPointId))
+      accepted.push(...chunk.map(r => r.clientPointId))
     }
 
     return { accepted, rejectedCount: rows.length - accepted.length }

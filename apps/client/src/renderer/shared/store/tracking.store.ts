@@ -2,6 +2,7 @@ import type { TrackingStatus, TrackingTelemetry } from '../services/tracking/geo
 import { defineStore } from 'pinia'
 import { geotrack, GeotrackUnavailableError, parseTrackPoint } from '../services/tracking/geotrack-client'
 import { runSync } from '../services/tracking/track-sync'
+import { useAuthStore } from './auth.store'
 
 export interface ITrackingState {
   isSupported: boolean
@@ -182,14 +183,28 @@ export const useTrackingStore = defineStore('tracking', {
       if (this.isSyncing)
         return 0
       this.isSyncing = true
+      this.lastError = null
       try {
+        const auth = useAuthStore()
+        if (!auth.isAuthenticated) {
+          throw new Error('Для синхронизации точек войдите в аккаунт')
+        }
+
         const synced = await runSync()
         await this.refreshStatus()
         this.lastSyncAt = Date.now()
         return synced
       }
-      catch (e) {
-        this.lastError = e instanceof Error ? e.message : 'Ошибка синхронизации'
+      catch (e: any) {
+        const raw = e instanceof Error ? e.message : String(e)
+        let msg = raw
+        if (raw.includes('UNAUTHORIZED') || raw.includes('Not authenticated')) {
+          msg = 'Для синхронизации точек войдите в аккаунт'
+        }
+        else if (raw.includes('Failed to fetch') || raw.includes('NetworkError') || raw.includes('Load failed')) {
+          msg = 'Сервер недоступен. Проверьте подключение к сети'
+        }
+        this.lastError = msg
         return 0
       }
       finally {

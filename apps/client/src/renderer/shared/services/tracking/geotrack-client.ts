@@ -44,7 +44,6 @@ export interface TrackingStatus {
   telemetry?: TrackingTelemetry
 }
 
-const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
 const STORAGE_POINTS_KEY = 'tripscheduler_tracking_points'
 const STORAGE_SESSION_KEY = 'tripscheduler_tracking_session'
 
@@ -59,7 +58,6 @@ export class GeotrackUnavailableError extends Error {
   }
 }
 
-// Хранилище неотправленных точек в LocalStorage с защитой от сбоев
 function readStoredPoints(): TrackPoint[] {
   try {
     const raw = localStorage.getItem(STORAGE_POINTS_KEY)
@@ -68,7 +66,11 @@ function readStoredPoints(): TrackPoint[] {
     const parsed = JSON.parse(raw)
     if (!Array.isArray(parsed))
       return []
-    return parsed.map(parseTrackPoint).filter((p): p is TrackPoint => p !== null)
+    const valid = parsed.map(parseTrackPoint).filter((p): p is TrackPoint => p !== null)
+    if (valid.length !== parsed.length) {
+      writeStoredPoints(valid)
+    }
+    return valid
   }
   catch {
     return []
@@ -456,7 +458,7 @@ class WebGeolocationTracker {
       speed,
       bearing,
       activity,
-      activityConfidence: 0.85,
+      activityConfidence: 85,
       sessionId: this.currentSessionId || uuidv4(),
     }
 
@@ -551,14 +553,13 @@ export const geotrack = {
   },
 }
 
-/** Строгая валидация точки от нативного/локального слоя. */
 export function parseTrackPoint(raw: unknown): TrackPoint | null {
   if (!isRecord(raw))
     return null
   const r = raw
   const num = (v: unknown) => typeof v === 'number' && Number.isFinite(v)
   if (
-    typeof r.clientPointId !== 'string' || !UUID_RE.test(r.clientPointId)
+    typeof r.clientPointId !== 'string' || r.clientPointId.length < 8 || r.clientPointId.length > 64
     || !num(r.tsUtc) || (r.tsUtc as number) <= 0
     || !num(r.lat) || (r.lat as number) < -90 || (r.lat as number) > 90
     || !num(r.lng) || (r.lng as number) < -180 || (r.lng as number) > 180
@@ -573,17 +574,22 @@ export function parseTrackPoint(raw: unknown): TrackPoint | null {
   if (!activities.includes(activity))
     return null
 
+  const rawConf = num(r.activityConfidence) ? (r.activityConfidence as number) : 85
+  const activityConfidence = rawConf > 0 && rawConf <= 1
+    ? Math.round(rawConf * 100)
+    : Math.round(Math.min(100, Math.max(0, rawConf)))
+
   return {
     clientPointId: r.clientPointId,
-    tsUtc: r.tsUtc as number,
+    tsUtc: Math.round(r.tsUtc as number),
     lat: r.lat as number,
     lng: r.lng as number,
     altitude: num(r.altitude) ? (r.altitude as number) : null,
-    accuracy: num(r.accuracy) ? (r.accuracy as number) : null,
-    speed: num(r.speed) ? (r.speed as number) : null,
-    bearing: num(r.bearing) ? (r.bearing as number) : null,
+    accuracy: num(r.accuracy) && (r.accuracy as number) >= 0 ? (r.accuracy as number) : null,
+    speed: num(r.speed) && (r.speed as number) >= 0 ? (r.speed as number) : null,
+    bearing: num(r.bearing) ? ((((r.bearing as number) % 360) + 360) % 360) : null,
     activity,
-    activityConfidence: num(r.activityConfidence) ? (r.activityConfidence as number) : 0,
+    activityConfidence,
     sessionId: r.sessionId,
   }
 }

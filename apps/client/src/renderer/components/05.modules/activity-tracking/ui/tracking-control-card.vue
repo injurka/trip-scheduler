@@ -40,13 +40,31 @@ async function onToggle(e: Event) {
   }
 }
 
+function formatPointsCount(count: number): string {
+  const c = Math.abs(count) % 100
+  const n = c % 10
+  if (c > 10 && c < 20)
+    return 'точек'
+  if (n > 1 && n < 5)
+    return 'точки'
+  if (n === 1)
+    return 'точка'
+  return 'точек'
+}
+
 async function handleManualSync() {
   const count = await tracking.syncNow()
   if (count > 0) {
-    toast.success(`Синхронизировано ${count} точек с сервером!`)
+    toast.success(`Синхронизировано ${count} ${formatPointsCount(count)} с сервером!`)
     emit('changed', tracking.isRunning)
   }
-  else if (!tracking.lastError) {
+  else if (tracking.lastError) {
+    toast.error(tracking.lastError)
+  }
+  else if (tracking.unsentCount > 0) {
+    toast.warn('Не удалось синхронизировать точки. Попробуйте позже.')
+  }
+  else {
     toast.info('Буфер пуст, все точки уже синхронизированы.')
   }
 }
@@ -225,21 +243,25 @@ function formatSyncTime(ts: number | null): string {
     <!-- Футер синхронизации буфера с сервером -->
     <div class="sync-bar">
       <div class="sync-status">
-        <template v-if="tracking.unsentCount > 0">
-          <span class="sync-dot unsent" />
-          <span class="sync-text">В локальном буфере: <strong>{{ tracking.unsentCount }}</strong> точек</span>
-        </template>
-        <template v-else>
-          <span class="sync-dot synced" />
-          <span class="sync-text">Все точки синхронизированы</span>
-        </template>
+        <div class="sync-status-main">
+          <span class="sync-dot" :class="tracking.unsentCount > 0 ? 'unsent' : 'synced'" />
+          <span class="sync-text">
+            <template v-if="tracking.unsentCount > 0">
+              В локальном буфере: <strong>{{ tracking.unsentCount }}</strong> {{ formatPointsCount(tracking.unsentCount) }}
+            </template>
+            <template v-else>
+              Все точки синхронизированы
+            </template>
+          </span>
+        </div>
 
         <span v-if="tracking.lastSyncAt" class="sync-time">
-          · Синхр. в {{ formatSyncTime(tracking.lastSyncAt) }}
+          Синхр. в {{ formatSyncTime(tracking.lastSyncAt) }}
         </span>
       </div>
 
       <KitBtn
+        class="sync-btn"
         variant="tonal"
         size="xs"
         :disabled="tracking.isSyncing || tracking.unsentCount === 0"
@@ -572,14 +594,23 @@ function formatSyncTime(ts: number | null): string {
   .sync-status {
     display: flex;
     align-items: center;
-    gap: 6px;
+    gap: var(--p-xs);
     font-size: 0.78rem;
     color: var(--fg-secondary-color);
+    min-width: 0;
+
+    .sync-status-main {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      min-width: 0;
+    }
 
     .sync-dot {
       width: 7px;
       height: 7px;
       border-radius: var(--r-full);
+      flex-shrink: 0;
 
       &.synced {
         background-color: var(--fg-success-color);
@@ -598,6 +629,42 @@ function formatSyncTime(ts: number | null): string {
 
     .sync-time {
       opacity: 0.7;
+      white-space: nowrap;
+
+      &::before {
+        content: '· ';
+      }
+    }
+  }
+
+  .sync-btn {
+    flex-shrink: 0;
+  }
+
+  @include media-down(sm) {
+    flex-direction: column;
+    align-items: stretch;
+    gap: var(--p-xs);
+
+    .sync-status {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      flex-wrap: wrap;
+      gap: 4px;
+
+      .sync-time {
+        font-size: 0.72rem;
+
+        &::before {
+          content: '';
+        }
+      }
+    }
+
+    .sync-btn {
+      width: 100%;
+      justify-content: center;
     }
   }
 }
