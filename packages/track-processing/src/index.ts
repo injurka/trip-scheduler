@@ -74,6 +74,110 @@ export function filterStaticDrift(points: TrackPoint[], maxDriftM = 2): TrackPoi
   return out
 }
 
+export interface MergeStationaryPointsOptions {
+  /** Максимальное расстояние в метрах между точками скопления (по умолчанию 5м) */
+  maxDistanceM?: number
+  /** Максимальный разрыв во времени в мс для разделения независимых стоянок/плеч (по умолчанию 15 мин) */
+  maxGapTimeMs?: number
+  /** Максимальная скорость для точки покоя в м/с (по умолчанию 0.7 м/с) */
+  maxStationarySpeedMs?: number
+}
+
+/**
+ * Объединяет последовательные скопления точек в радиусе maxDistanceM (по умолчанию 5 метров),
+ * когда устройство находится на одном месте (стоянка / сидение на месте).
+ *
+ * Предотвращает появление сотен паразитных точек-дубликатов, петель в сплайнах
+ * и нагромождения маркеров на карте. При объединении сохраняется первая точка скопления
+ * (с обновленным временем последней активности в кластере или средневзвешенными координатами).
+ */
+export function mergeStationaryPoints<T extends { lat: number, lng: number, tsUtc: number, speed?: number | null, activity?: string }>(
+  points: T[],
+  options: MergeStationaryPointsOptions = {},
+): T[] {
+  if (points.length <= 1)
+    return [...points]
+
+  const maxDistanceM = options.maxDistanceM ?? 5.0
+  const maxGapTimeMs = options.maxGapTimeMs ?? 15 * 60 * 1000
+  const maxStationarySpeedMs = options.maxStationarySpeedMs ?? 0.7
+
+  const out: T[] = []
+  let cluster: T[] = []
+
+  const flushCluster = () => {
+    if (cluster.length === 0)
+      return
+
+    if (cluster.length === 1) {
+      out.push(cluster[0])
+      cluster = []
+      return
+    }
+
+    // Для группы в пределах 5м формируем единую репрезентативную точку
+    // Вычисляем средневзвешенные центроидные координаты
+    let sumLat = 0
+    let sumLng = 0
+    for (const p of cluster) {
+      sumLat += p.lat
+      sumLng += p.lng
+    }
+    const centerLat = sumLat / cluster.length
+    const centerLng = sumLng / cluster.length
+
+    // Если первая точка была стояночной, сохраняем её метаданные,
+    // но центрируем координаты и фиксируем tsUtc первой точки кластера
+    const first = cluster[0]
+    out.push({
+      ...first,
+      lat: centerLat,
+      lng: centerLng,
+      speed: 0,
+      activity: first.activity === 'unknown' ? 'still' : first.activity,
+    })
+    cluster = []
+  }
+
+  for (let i = 0; i < points.length; i++) {
+    const pt = points[i]
+    const ptSpeed = pt.speed ?? 0
+    const isPotentiallyStill = ptSpeed <= maxStationarySpeedMs || pt.activity === 'still'
+
+    if (cluster.length === 0) {
+      cluster.push(pt)
+      continue
+    }
+
+    const anchor = cluster[0]
+    const last = cluster[cluster.length - 1]
+    const dt = pt.tsUtc - last.tsUtc
+    const distFromAnchor = haversineM(anchor.lat, anchor.lng, pt.lat, pt.lng)
+
+    // Если есть большой разрыв во времени (> 15 мин), сбрасываем кластер чтобы не ломать временные плечи
+    const isTimeGap = dt > maxGapTimeMs
+
+    // Точка считается частью того же стояночного скопления, если расстояние <= maxDistanceM
+    // и она либо медленная/покоится, либо предыдущая в кластере тоже стояла и расстояние крайне мало
+    const isNearby = distFromAnchor <= maxDistanceM
+
+    if (!isTimeGap && isNearby && isPotentiallyStill) {
+      cluster.push(pt)
+    }
+    else if (!isTimeGap && isNearby && cluster.length > 1 && ptSpeed <= maxStationarySpeedMs * 1.5) {
+      // Плавный переход при начале движения
+      cluster.push(pt)
+    }
+    else {
+      flushCluster()
+      cluster.push(pt)
+    }
+  }
+
+  flushCluster()
+  return out
+}
+
 export interface PointValidityResult {
   isValid: boolean
   isFlight: boolean

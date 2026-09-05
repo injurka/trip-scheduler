@@ -256,6 +256,7 @@ class WebGeolocationTracker {
   private sessionEndedAt = 0
   private sessionDistanceM = 0
   private lastFixPoint: TrackPoint | null = null
+  private stationaryAnchorPoint: TrackPoint | null = null
   private lastError: string | null = null
   private isRunning = false
   private consecutiveRejectedCount = 0
@@ -336,6 +337,7 @@ class WebGeolocationTracker {
     this.sessionEndedAt = 0
     this.sessionDistanceM = 0
     this.lastFixPoint = null
+    this.stationaryAnchorPoint = null
     this.isRunning = true
 
     writeStoredSession({
@@ -656,6 +658,72 @@ class WebGeolocationTracker {
 
     const estimatedSpeed = speed ?? 0
     const activity = estimateActivity(estimatedSpeed)
+
+    // Если устройство находится на одном месте (скорость < 0.6 м/с или still):
+    // группируем точки в радиусе 5 метров, предотвращая создание сотен одинаковых точек в БД.
+    // При нахождении на месте мы обновляем последнюю точку / телеметрию,
+    // а новую точку в очередь пишем только раз в 3 минуты (или при выходе из радиуса 5м).
+    const isStationary = activity === 'still' || estimatedSpeed < 0.6
+    if (isStationary) {
+      if (!this.stationaryAnchorPoint) {
+        this.stationaryAnchorPoint = {
+          clientPointId: uuidv4(),
+          tsUtc: ts,
+          lat,
+          lng,
+          altitude,
+          accuracy,
+          speed: 0,
+          bearing,
+          activity: 'still',
+          activityConfidence: 90,
+          sessionId: this.currentSessionId || uuidv4(),
+        }
+      }
+      else {
+        const distFromAnchor = haversineM(this.stationaryAnchorPoint.lat, this.stationaryAnchorPoint.lng, lat, lng)
+        if (distFromAnchor <= 5.0) {
+          // Устройство всё ещё в пределах 5 метров от якорной стоянки.
+          // Если с момента последней сохраненной точки прошло менее 3 минут,
+          // обновляем только телеметрию и текущую точку, не создавая дубликат в очереди.
+          const timeSinceLastSaved = this.lastFixPoint ? (ts - this.lastFixPoint.tsUtc) : 0
+          if (timeSinceLastSaved < 3 * 60 * 1000) {
+            // Обновляем текущее состояние без засорения БД
+            const updatedPoint: TrackPoint = {
+              clientPointId: this.lastFixPoint?.clientPointId || this.stationaryAnchorPoint.clientPointId,
+              tsUtc: ts,
+              lat: this.stationaryAnchorPoint.lat,
+              lng: this.stationaryAnchorPoint.lng,
+              altitude,
+              accuracy,
+              speed: 0,
+              bearing,
+              activity: 'still',
+              activityConfidence: 90,
+              sessionId: this.currentSessionId || uuidv4(),
+            }
+            this.lastFixPoint = updatedPoint
+
+            writeStoredSession({
+              sessionId: this.currentSessionId || updatedPoint.sessionId,
+              startedAt: this.sessionStartedAt,
+              distanceM: this.sessionDistanceM,
+              lastPoint: updatedPoint,
+              isRunning: this.isRunning,
+            })
+            return
+          }
+        }
+        else {
+          // Вышли за 5м — сбрасываем старый якорь
+          this.stationaryAnchorPoint = null
+        }
+      }
+    }
+    else {
+      // Началось реальное движение (> 0.6 м/с)
+      this.stationaryAnchorPoint = null
+    }
 
     const point: TrackPoint = {
       clientPointId: uuidv4(),

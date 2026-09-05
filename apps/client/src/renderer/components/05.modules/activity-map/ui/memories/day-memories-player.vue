@@ -17,6 +17,7 @@ import { deleteStoredPoint } from '~/shared/services/tracking/geotrack-client'
 import {
   filterGpsOutliers,
   haversineM,
+  mergeStationaryPoints,
   normalizeSplineVertices,
   processDayTrack,
   splitTrackIntoLegs,
@@ -550,8 +551,12 @@ function rebuildFeatures() {
   const rawPoints = dayData.value?.points || []
   const sorted = [...rawPoints].sort((a, b) => a.tsUtc - b.tsUtc)
 
-  const uniquePoints: typeof sorted = []
-  for (const p of sorted) {
+  // Объединяем стояночные точки в радиусе 5м в одну репрезентативную точку,
+  // исключая паразитные нагромождения маркеров и петли в сплайнах.
+  const displayPoints = mergeStationaryPoints(sorted, { maxDistanceM: 5.0 })
+
+  const uniquePoints: typeof displayPoints = []
+  for (const p of displayPoints) {
     const prev = uniquePoints[uniquePoints.length - 1]
     if (!prev || Math.abs(prev.lat - p.lat) > 1e-6 || Math.abs(prev.lng - p.lng) > 1e-6) {
       uniquePoints.push(p)
@@ -605,16 +610,16 @@ function rebuildFeatures() {
     }
   }
 
-  // Интерактивные маркеры для каждой точки в обоих режимах
+  // Интерактивные маркеры для каждой объединенной точки в обоих режимах
   const isPointsMode = viewMode.value === 'points'
-  for (let i = 0; i < sorted.length; i++) {
-    const p = sorted[i]
+  for (let i = 0; i < displayPoints.length; i++) {
+    const p = displayPoints[i]
     const ptFeature = new Feature({
       geometry: new Point(fromLonLat([p.lng, p.lat])),
     })
     ptFeature.set('pointData', p)
     ptFeature.set('pointIndex', i + 1)
-    ptFeature.set('totalPoints', sorted.length)
+    ptFeature.set('totalPoints', displayPoints.length)
     ptFeature.setStyle(new Style({
       image: new CircleStyle({
         radius: isPointsMode ? 5.5 : 4,

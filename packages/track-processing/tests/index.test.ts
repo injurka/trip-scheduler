@@ -6,6 +6,7 @@ import {
   evaluatePointValidity,
   filterGpsOutliers,
   filterStaticDrift,
+  mergeStationaryPoints,
   normalizeSplineVertices,
   processDayTrack,
   rdpSimplify,
@@ -103,6 +104,66 @@ describe('filterStaticDrift', () => {
     const filtered = filterStaticDrift(still)
     const span = Math.max(...filtered.map(p => p.lat)) - Math.min(...filtered.map(p => p.lat))
     expect(span * 111_320).toBeLessThan(10)
+  })
+})
+
+describe('mergeStationaryPoints', () => {
+  it('объединяет множество близких стояночных точек (в пределах 5м) в одну', () => {
+    const baseLat = 55.751234
+    const baseLng = 37.618456
+    const stationaryPoints: TrackPoint[] = []
+    let currentT = 1_700_000_000_000
+
+    // Генерируем 50 точек стояния на месте с микро-дрейфом 1-3 метра
+    for (let i = 0; i < 50; i++) {
+      currentT += 3000 // каждые 3 сек
+      stationaryPoints.push({
+        clientPointId: `stat-${i}`,
+        tsUtc: currentT,
+        lat: baseLat + (Math.sin(i) * 0.00002), // ~1-2 метра
+        lng: baseLng + (Math.cos(i) * 0.00002),
+        altitude: 150,
+        accuracy: 6,
+        speed: 0.1,
+        bearing: null,
+        activity: 'still',
+        activityConfidence: 90,
+        sessionId: 'sess-1',
+      })
+    }
+
+    const merged = mergeStationaryPoints(stationaryPoints, { maxDistanceM: 5.0 })
+    expect(merged.length).toBe(1)
+    expect(merged[0].clientPointId).toBe('stat-0')
+    expect(merged[0].lat).toBeCloseTo(baseLat, 4)
+    expect(merged[0].lng).toBeCloseTo(baseLng, 4)
+    expect(merged[0].activity).toBe('still')
+  })
+
+  it('сохраняет точки реального движения при выходе за радиус 5м', () => {
+    const p1 = pt(55.750, 37.610, 0.1) // стоянка
+    const p2 = pt(55.75001, 37.61001, 0.1) // стоянка рядом (~1м)
+    const p3 = pt(55.7501, 37.6101, 1.4) // пошел пешком (>10м)
+    const p4 = pt(55.7502, 37.6102, 1.4) // идет дальше
+
+    const merged = mergeStationaryPoints([p1, p2, p3, p4], { maxDistanceM: 5.0 })
+    // p1 и p2 объединяются в одну, p3 и p4 сохраняются
+    expect(merged.length).toBe(3)
+    expect(merged[0].lat).toBeCloseTo(55.750005, 5)
+    expect(merged[1].clientPointId).toBe(p3.clientPointId)
+    expect(merged[2].clientPointId).toBe(p4.clientPointId)
+  })
+
+  it('разделяет стоянки при большом временном разрыве (разные плечи)', () => {
+    const t0 = 1_700_000_000_000
+    const p1 = { lat: 55.75, lng: 37.61, tsUtc: t0, speed: 0, activity: 'still' }
+    const p2 = { lat: 55.75001, lng: 37.61001, tsUtc: t0 + 2000, speed: 0, activity: 'still' }
+    // Прошло 2 часа в том же месте
+    const p3 = { lat: 55.75002, lng: 37.61002, tsUtc: t0 + 2 * 3600 * 1000, speed: 0, activity: 'still' }
+
+    const merged = mergeStationaryPoints([p1, p2, p3], { maxDistanceM: 5.0, maxGapTimeMs: 15 * 60 * 1000 })
+    // p1 и p2 в первой стоянке, p3 — отдельная стоянка после паузы
+    expect(merged.length).toBe(2)
   })
 })
 
