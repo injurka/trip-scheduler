@@ -15,6 +15,7 @@ declare global {
     __TAURI_INTERNALS__?: unknown
     __TAURI__?: unknown
   }
+  const __APP_VERSION__: string
 }
 
 export {}

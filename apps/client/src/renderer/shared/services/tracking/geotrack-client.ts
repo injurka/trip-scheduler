@@ -174,6 +174,7 @@ class WebGeolocationTracker {
   private lastFixPoint: TrackPoint | null = null
   private lastError: string | null = null
   private isRunning = false
+  private consecutiveRejectedCount = 0
 
   constructor() {
     const saved = readStoredSession()
@@ -182,6 +183,7 @@ class WebGeolocationTracker {
       this.sessionStartedAt = saved.startedAt
       this.sessionDistanceM = saved.distanceM
       this.lastFixPoint = saved.lastPoint
+      this.sessionEndedAt = saved.lastPoint?.tsUtc || saved.startedAt
     }
   }
 
@@ -198,8 +200,8 @@ class WebGeolocationTracker {
     let telemetry: TrackingTelemetry | undefined
     if (this.isRunning || this.lastFixPoint) {
       const speedKmh = this.lastFixPoint?.speed != null ? Math.round(this.lastFixPoint.speed * 3.6) : null
-      // После остановки длительность фиксируется на моменте stop(), а не «сейчас»
-      const endTs = this.isRunning ? now : (this.sessionEndedAt || now)
+      // После остановки длительность фиксируется на моменте stop() или последней точке, а не «сейчас»
+      const endTs = this.isRunning ? now : (this.sessionEndedAt || this.lastFixPoint?.tsUtc || now)
       telemetry = {
         speedKmh,
         accuracyM: this.lastFixPoint?.accuracy != null ? Math.round(this.lastFixPoint.accuracy) : null,
@@ -431,8 +433,8 @@ class WebGeolocationTracker {
     const accuracy = typeof coords.accuracy === 'number' && Number.isFinite(coords.accuracy) ? coords.accuracy : null
     const altitude = typeof coords.altitude === 'number' && Number.isFinite(coords.altitude) ? coords.altitude : null
 
-    // Отсекаем координаты с критически плохой точностью (> 100 метров)
-    if (accuracy && accuracy > 100) {
+    // Отсекаем координаты с критически плохой точностью (> 140 метров)
+    if (accuracy && accuracy > 140) {
       return
     }
 
@@ -449,9 +451,18 @@ class WebGeolocationTracker {
         this.lastFixPoint,
       )
       if (!validity.isValid) {
-        console.warn(`[Tracking] Точка пропущена из-за аномалии: ${validity.reason}`)
+        this.consecutiveRejectedCount++
+        console.warn(`[Tracking] Точка пропущена из-за аномалии (${this.consecutiveRejectedCount}/3): ${validity.reason}`)
+        // Если накопилось ≥ 3 отклоненных точек подряд, сбрасываем старую якорную точку для перекалибровки
+        if (this.consecutiveRejectedCount >= 3) {
+          console.warn('[Tracking] Серия отклонений: сброс якорной точки и перекалибровка на новые координаты.')
+          this.lastFixPoint = null
+          this.consecutiveRejectedCount = 0
+        }
         return
       }
+
+      this.consecutiveRejectedCount = 0
 
       // Если девайс не отдал мгновенную скорость, рассчитываем по дельте
       if (speed === null && dtSec > 0) {

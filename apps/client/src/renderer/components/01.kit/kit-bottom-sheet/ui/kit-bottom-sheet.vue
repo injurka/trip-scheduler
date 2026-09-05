@@ -123,7 +123,7 @@ function onTouchEnd() {
   flex-direction: column;
   overflow: hidden;
   transition: transform 0.35s cubic-bezier(0.32, 0.72, 0, 1);
-  padding-bottom: env(safe-area-inset-bottom, 0);
+  padding-bottom: var(--safe-area-inset-bottom);
 
   &-handle-wrap {
     display: flex;

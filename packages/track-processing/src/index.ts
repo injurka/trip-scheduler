@@ -175,6 +175,8 @@ export function filterGpsOutliers<T extends { lat: number, lng: number, tsUtc: n
 
   // Шаг 1: базовый отсев явных аномалий точности и абсолютной гиперзвуковой скорости
   const stage1: T[] = []
+  const rejectedBuffer: T[] = []
+
   for (let i = 0; i < points.length; i++) {
     const pt = points[i]
     if (pt.accuracy != null && pt.accuracy > 140)
@@ -186,12 +188,29 @@ export function filterGpsOutliers<T extends { lat: number, lng: number, tsUtc: n
       const dM = haversineM(prev.lat, prev.lng, pt.lat, pt.lng)
       const vKmh = (dM / dtSec) * 3.6
 
-      if (vKmh > maxSpeedKmh)
+      const isAnomaly = vKmh > maxSpeedKmh || (dtSec < 45 && vKmh > 360)
+      if (isAnomaly) {
+        rejectedBuffer.push(pt)
+        // Если накопилось ≥ 2 отклоненных подряд точек, проверяем их взаимную согласованность:
+        // если они согласованы друг с другом, значит выбросом была предыдущая якорная точка!
+        if (rejectedBuffer.length >= 2) {
+          const r1 = rejectedBuffer[rejectedBuffer.length - 2]
+          const r2 = rejectedBuffer[rejectedBuffer.length - 1]
+          const dtR = Math.max(0.1, (r2.tsUtc - r1.tsUtc) / 1000)
+          const vR = (haversineM(r1.lat, r1.lng, r2.lat, r2.lng) / dtR) * 3.6
+          if (vR <= maxSpeedKmh && !(dtR < 45 && vR > 360)) {
+            // Предыдущая якорная точка была ложным выбросом — убираем её и восстанавливаем согласованные точки
+            stage1.pop()
+            stage1.push(...rejectedBuffer)
+            rejectedBuffer.length = 0
+            continue
+          }
+        }
         continue
-      if (dtSec < 45 && vKmh > 360)
-        continue
+      }
     }
 
+    rejectedBuffer.length = 0
     stage1.push(pt)
   }
 
@@ -258,12 +277,22 @@ export function medianFilter(points: TrackPoint[]): TrackPoint[] {
     return points
   const out: TrackPoint[] = [points[0]]
   for (let i = 1; i < points.length - 1; i++) {
-    const win = [points[i - 1], points[i], points[i + 1]]
+    const pPrev = points[i - 1]
+    const pCur = points[i]
+    const pNext = points[i + 1]
+
+    // Не применяем медианный фильтр на границах временных пауз / разрывов (> 15 мин)
+    if (pCur.tsUtc - pPrev.tsUtc > 15 * 60_000 || pNext.tsUtc - pCur.tsUtc > 15 * 60_000) {
+      out.push(pCur)
+      continue
+    }
+
+    const win = [pPrev, pCur, pNext]
     win.sort((a, b) => a.lat - b.lat)
     const lat = win[1].lat
     win.sort((a, b) => a.lng - b.lng)
     const lng = win[1].lng
-    out.push({ ...points[i], lat, lng })
+    out.push({ ...pCur, lat, lng })
   }
   out.push(points[points.length - 1])
   return out
@@ -663,43 +692,114 @@ export function railScoreOf(f: WindowFeatures): number {
 }
 
 /**
- * Пост-обработка дня: фильтр → скользящие окна → classify → слияние → RDP.
+ * Пост-обработка дня: фильтр → разбиение на плечи → классификация без дублирования точек → RDP.
  */
 export function processDayTrack(raw: TrackPoint[]): TrackSegment[] {
+  if (raw.length < 2)
+    return []
+
+  // 1. Очистка от шума и выбросов
   const cleaned = medianFilter(filterStaticDrift(filterGpsOutliers(raw)))
+  if (cleaned.length < 2)
+    return []
+
+  // 2. Разделение на непрерывные плечи (без разрывов по времени/расстоянию)
+  const legs = splitTrackIntoLegs(cleaned)
+  const classifiedSegments: TrackSegment[] = []
   const winSize = 40
-  const step = 20
-  const classified: TrackSegment[] = []
+  const step = 10
 
-  let i = 0
-  while (i + winSize <= cleaned.length) {
-    const win = cleaned.slice(i, i + winSize)
-    const hint = dominantReco(win)
-    classified.push(classifySegment(win, hint))
-    i += step
-  }
-  if (classified.length === 0 && cleaned.length > 1) {
-    classified.push(classifySegment(cleaned, dominantReco(cleaned)))
-  }
+  for (const leg of legs) {
+    const pts = leg.points
+    if (pts.length < 2)
+      continue
 
-  const merged: TrackSegment[] = []
-  for (const seg of classified) {
-    const last = merged[merged.length - 1]
-    if (last && last.activity === seg.activity) {
-      last.points = last.points
-        .concat(seg.points)
-        .filter((p, idx, arr) => idx === 0 || p.tsUtc !== arr[idx - 1].tsUtc)
+    // Если плечо слишком короткое для скользящего окна, классифицируем целиком
+    if (pts.length <= winSize) {
+      const seg = classifySegment(pts, dominantReco(pts))
+      classifiedSegments.push(seg)
+      continue
     }
-    else {
-      merged.push({ ...seg, points: [...seg.points] })
+
+    // Голосование скользящих окон для каждой точки плеча
+    const pointVotes: Array<Map<TrackActivityType, number>> = pts.map(() => new Map())
+
+    let i = 0
+    while (i + winSize <= pts.length) {
+      const win = pts.slice(i, i + winSize)
+      const seg = classifySegment(win, dominantReco(win))
+      for (let k = i; k < i + winSize; k++) {
+        const votes = pointVotes[k]
+        votes.set(seg.activity, (votes.get(seg.activity) ?? 0) + (seg.confidence || 0.5))
+      }
+      i += step
+    }
+
+    // Хвостовые точки покрываем последним окном
+    const lastWinStart = Math.max(0, pts.length - winSize)
+    const tailWin = pts.slice(lastWinStart)
+    const tailSeg = classifySegment(tailWin, dominantReco(tailWin))
+    for (let k = lastWinStart; k < pts.length; k++) {
+      const votes = pointVotes[k]
+      votes.set(tailSeg.activity, (votes.get(tailSeg.activity) ?? 0) + (tailSeg.confidence || 0.5))
+    }
+
+    // Определяем активность для каждой точки по большинству голосов
+    const pointActivities: TrackActivityType[] = pts.map((p, idx) => {
+      const votes = pointVotes[idx]
+      let bestAct: TrackActivityType = p.activity || 'unknown'
+      let maxScore = -1
+      for (const [act, score] of votes.entries()) {
+        if (score > maxScore) {
+          maxScore = score
+          bestAct = act
+        }
+      }
+      return bestAct
+    })
+
+    // Группируем последовательные точки одной активности в сегменты
+    let curPoints: TrackPoint[] = [pts[0]]
+    let curActivity: TrackActivityType = pointActivities[0]
+
+    for (let j = 1; j < pts.length; j++) {
+      const act = pointActivities[j]
+      if (act === curActivity) {
+        curPoints.push(pts[j])
+      }
+      else {
+        if (curPoints.length >= 2) {
+          const feats = windowFeatures(curPoints)
+          classifiedSegments.push({
+            points: curPoints,
+            activity: curActivity,
+            confidence: 0.85,
+            features: feats,
+          })
+        }
+        curPoints = [pts[j - 1], pts[j]] // связываем граничную точку для непрерывности полилинии
+        curActivity = act
+      }
+    }
+
+    if (curPoints.length >= 2) {
+      const feats = windowFeatures(curPoints)
+      classifiedSegments.push({
+        points: curPoints,
+        activity: curActivity,
+        confidence: 0.85,
+        features: feats,
+      })
     }
   }
 
+  // 3. RDP-упрощение геометрии сегментов с сохранением точных кинематических признаков (дистанция, длительность)
   const eps: Record<TrackActivityType, number> = { still: 5, walk: 3, bike: 5, vehicle: 7, rail: 15, unknown: 5 }
-  for (const seg of merged) {
+  for (const seg of classifiedSegments) {
     seg.points = rdpSimplify(seg.points, eps[seg.activity])
   }
-  return merged.filter(s => s.points.length > 1)
+
+  return classifiedSegments.filter(s => s.points.length > 1)
 }
 
 function dominantReco(points: TrackPoint[]): TrackActivityType {

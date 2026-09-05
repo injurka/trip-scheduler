@@ -1,5 +1,6 @@
 import type { TrackPoint } from './geotrack-client'
 import { trpc } from '~/shared/services/trpc/trpc.service'
+import { useAuthStore } from '~/shared/store/auth.store'
 import { useTrackingStore } from '~/shared/store/tracking.store'
 import { geotrack, parseTrackPoint } from './geotrack-client'
 
@@ -16,6 +17,10 @@ let timer: ReturnType<typeof setInterval> | null = null
 let running = false
 
 async function syncOnce(): Promise<number> {
+  const auth = useAuthStore()
+  if (!auth.isAuthenticated)
+    return 0
+
   let total = 0
   for (let i = 0; i < MAX_BATCHES_PER_RUN; i++) {
     const raw = await geotrack.getUnsent(BATCH_SIZE)

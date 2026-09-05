@@ -1,7 +1,7 @@
 import type { GetTrackDayInput, IngestBatchInput } from './tracking.schemas'
 import { db } from 'db'
 import { trackPoints, trackSegments } from 'db/schema'
-import { and, eq, gte, lte } from 'drizzle-orm'
+import { and, eq, gte, lt, lte } from 'drizzle-orm'
 
 export const trackingService = {
   /**
@@ -97,7 +97,7 @@ export const trackingService = {
         .where(and(
           eq(trackPoints.userId, userId),
           gte(trackPoints.tsUtc, from),
-          lte(trackPoints.tsUtc, to),
+          lt(trackPoints.tsUtc, to),
         ))
         .orderBy(trackPoints.tsUtc),
       db
@@ -217,16 +217,17 @@ export const trackingService = {
    * Считается по сегментам (пост-обработка), fallback — по сырым точкам.
    */
   async getSummaries(userId: string, days: number) {
-    const to = new Date()
-    const from = new Date(to.getTime() - days * 24 * 3600_000)
+    const now = new Date()
+    const from = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate() - (days - 1), 0, 0, 0, 0))
+    const to = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate(), 23, 59, 59, 999))
 
     const segments = await db
       .select()
       .from(trackSegments)
       .where(and(
         eq(trackSegments.userId, userId),
-        gte(trackSegments.startedAt, from),
-        lte(trackSegments.endedAt, to),
+        lte(trackSegments.startedAt, to),
+        gte(trackSegments.endedAt, from),
       ))
       .orderBy(trackSegments.startedAt)
 

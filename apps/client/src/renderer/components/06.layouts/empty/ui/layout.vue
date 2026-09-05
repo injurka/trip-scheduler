@@ -19,7 +19,7 @@ import { BackgroundEffects } from '~/components/02.shared/background-effects'
   flex: 1;
   position: relative;
   overflow: clip;
-  padding-top: env(safe-area-inset-top, 0px);
+  padding-top: var(--safe-area-inset-top);
 }
 
 .main-content {

@@ -3,6 +3,7 @@ import { useScrollLock } from '@vueuse/core'
 import { watch } from 'vue'
 import { AsyncStateWrapper } from '~/components/02.shared/async-state-wrapper'
 import DayMemoriesPlayer from '~/components/05.modules/activity-map/ui/memories/day-memories-player.vue'
+import { isMobile } from '~/shared/lib/env'
 import { useTrackingStore } from '~/shared/store/tracking.store'
 import { useActivityTracking } from '../composables/use-activity-tracking'
 import ActivityTrackingDays from './activity-tracking-days.vue'
@@ -39,9 +40,12 @@ const {
   closePlayer,
 } = useActivityTracking()
 
-const isScrollLocked = useScrollLock(typeof document !== 'undefined' ? document.body : null)
+const isBodyScrollLocked = useScrollLock(typeof document !== 'undefined' ? document.body : null)
+const isHtmlScrollLocked = useScrollLock(typeof document !== 'undefined' ? document.documentElement : null)
+
 watch(isPlayerOpen, (open) => {
-  isScrollLocked.value = open
+  isBodyScrollLocked.value = open
+  isHtmlScrollLocked.value = open
 })
 
 async function handleSync() {
@@ -111,26 +115,29 @@ async function handleSync() {
     </AsyncStateWrapper>
 
     <!-- Drawer просмотра GPS-трекинга на карте -->
-    <Transition name="tracking-drawer">
-      <div
-        v-if="isPlayerOpen"
-        class="tracking-drawer-overlay"
-        @click.self="closePlayer"
-      >
-        <div class="tracking-drawer-sheet">
-          <div class="drawer-handle-bar">
-            <span class="drawer-drag-handle" />
-          </div>
+    <Teleport to="body">
+      <Transition name="tracking-drawer">
+        <div
+          v-if="isPlayerOpen"
+          class="tracking-drawer-overlay"
+          @click.self="closePlayer"
+          @touchmove.self.prevent
+        >
+          <div class="tracking-drawer-sheet">
+            <div v-if="isMobile" class="drawer-handle-bar">
+              <span class="drawer-drag-handle" />
+            </div>
 
-          <DayMemoriesPlayer
-            class="tracking-player-embedded"
-            :day-utc="playerDayUtc"
-            @close="closePlayer"
-            @back="closePlayer"
-          />
+            <DayMemoriesPlayer
+              class="tracking-player-embedded"
+              :day-utc="playerDayUtc"
+              @close="closePlayer"
+              @back="closePlayer"
+            />
+          </div>
         </div>
-      </div>
-    </Transition>
+      </Transition>
+    </Teleport>
   </div>
 </template>
 
@@ -170,7 +177,7 @@ async function handleSync() {
 .tracking-drawer-sheet {
   width: 100%;
   height: 94dvh;
-  max-height: calc(100dvh - env(safe-area-inset-top, 0px) - 8px);
+  max-height: calc(100dvh - var(--safe-area-inset-top) - 8px);
   background-color: var(--bg-primary-color);
   border-radius: var(--r-xl) var(--r-xl) 0 0;
   border: 1px solid var(--border-secondary-color);
@@ -189,6 +196,10 @@ async function handleSync() {
     background-color: var(--bg-secondary-color);
     border-bottom: 1px solid var(--border-secondary-color);
     flex-shrink: 0;
+
+    @include media-up(md) {
+      display: none;
+    }
 
     .drawer-drag-handle {
       width: 44px;

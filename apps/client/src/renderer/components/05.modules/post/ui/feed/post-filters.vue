@@ -57,6 +57,7 @@ watchDebounced(
   flex-direction: column;
   gap: 12px;
   padding: 8px 0;
+  padding-top: 0px;
 }
 
 .top-row {

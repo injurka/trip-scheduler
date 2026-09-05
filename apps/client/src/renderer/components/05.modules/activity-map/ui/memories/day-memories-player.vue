@@ -1,6 +1,4 @@
 <script setup lang="ts">
-// «Воспоминания дня»: карта OL + сплайн-маршрут с окраской по активности + таймлайн-плеер.
-// Данные: tRPC tracking.getDay (точки и сегменты дня, UTC).
 import type PointGeom from 'ol/geom/Point'
 import type { ActivityType } from '~/shared/services/tracking/track-processing'
 import { Icon } from '@iconify/vue'
@@ -18,6 +16,7 @@ import { AppRouteNames } from '~/shared/constants/routes'
 import { deleteStoredPoint } from '~/shared/services/tracking/geotrack-client'
 import {
   filterGpsOutliers,
+  haversineM,
   normalizeSplineVertices,
   processDayTrack,
   splitTrackIntoLegs,
@@ -450,8 +449,35 @@ onMounted(async () => {
 })
 
 function fitTrackBounds() {
-  if (renderSegments.value.length === 0 && totalPointsCount.value === 0)
+  const pts = dayData.value?.points
+  if (!pts || pts.length === 0) {
+    if (renderSegments.value.length === 0)
+      return
+  }
+
+  // Считаем экстент строго по реальным точкам трека, исключая дефолтный маркер Москвы
+  if (pts && pts.length > 0) {
+    let minLon = Number.POSITIVE_INFINITY
+    let minLat = Number.POSITIVE_INFINITY
+    let maxLon = Number.NEGATIVE_INFINITY
+    let maxLat = Number.NEGATIVE_INFINITY
+    for (const p of pts) {
+      if (p.lng < minLon)
+        minLon = p.lng
+      if (p.lng > maxLon)
+        maxLon = p.lng
+      if (p.lat < minLat)
+        minLat = p.lat
+      if (p.lat > maxLat)
+        maxLat = p.lat
+    }
+    const minCoord = fromLonLat([minLon, minLat])
+    const maxCoord = fromLonLat([maxLon, maxLat])
+    const extent: [number, number, number, number] = [minCoord[0], minCoord[1], maxCoord[0], maxCoord[1]]
+    mapInstance.value?.getView().fit(extent, { padding: [60, 60, 140, 60], maxZoom: 16, duration: 600 })
     return
+  }
+
   const ext = routeSource.value.getExtent()
   if (ext && ext.some(v => v !== Number.POSITIVE_INFINITY && v !== Number.NEGATIVE_INFINITY)) {
     mapInstance.value?.getView().fit(ext, { padding: [60, 60, 140, 60], maxZoom: 16, duration: 600 })
@@ -613,12 +639,22 @@ onBeforeUnmount(() => {
 })
 
 // ─── Таймлайн-плеер ───────────────────────────────────────────────────────────
-const dayStart = computed(() => renderSegments.value.length > 0
-  ? Math.min(...renderSegments.value.map(s => s.t0))
-  : 0)
-const dayEnd = computed(() => renderSegments.value.length > 0
-  ? Math.max(...renderSegments.value.map(s => s.t1))
-  : 0)
+const dayStart = computed(() => {
+  if (dayData.value?.points?.length) {
+    return dayData.value.points[0].tsUtc
+  }
+  return renderSegments.value.length > 0
+    ? Math.min(...renderSegments.value.map(s => s.t0))
+    : 0
+})
+const dayEnd = computed(() => {
+  if (dayData.value?.points?.length) {
+    return dayData.value.points[dayData.value.points.length - 1].tsUtc
+  }
+  return renderSegments.value.length > 0
+    ? Math.max(...renderSegments.value.map(s => s.t1))
+    : 0
+})
 
 let raf = 0
 let lastTs = 0
@@ -671,12 +707,13 @@ const currentActivity = computed<ActivityType>(() => currentSegment.value?.activ
 const currentActivityColor = computed(() => ACTIVITY_COLORS[currentActivity.value] || '#2196f3')
 const currentActivityIcon = computed(() => ACTIVITY_ICONS[currentActivity.value] || 'mdi:crosshairs-question')
 
-const currentPoint = computed(() => {
-  const seg = currentSegment.value
-  if (!seg || seg.points.length === 0)
+const currentPoint = computed<DayData['points'][0] | null>(() => {
+  const pts = dayData.value?.points
+  if (!pts || pts.length === 0)
     return null
-  let p = seg.points[0]
-  for (const q of seg.points) {
+
+  let p = pts[0]
+  for (const q of pts) {
     if (q.tsUtc <= t.value)
       p = q
     else break
@@ -721,10 +758,12 @@ const timeLabel = computed(() =>
 )
 
 const speedKmhFromPoints = computed(() => {
-  const seg = currentSegment.value
-  if (!seg || seg.points.length < 2)
+  if (currentPoint.value?.speed != null && currentPoint.value.speed >= 0) {
+    return currentPoint.value.speed * 3.6
+  }
+  const pts = dayData.value?.points
+  if (!pts || pts.length < 2)
     return null
-  const pts = seg.points
   let i = 0
   for (let j = 1; j < pts.length; j++) {
     if (pts[j].tsUtc <= t.value)
@@ -733,13 +772,9 @@ const speedKmhFromPoints = computed(() => {
   const a = pts[Math.max(0, i - 1)]
   const b = pts[i]
   const dtH = (b.tsUtc - a.tsUtc) / 3_600_000
-  if (dtH <= 0)
+  if (dtH <= 0 || dtH > 0.25)
     return null
-  const R = 6_371_000
-  const dLat = (b.lat - a.lat) * Math.PI / 180
-  const dLng = (b.lng - a.lng) * Math.PI / 180
-  const a2 = Math.sin(dLat / 2) ** 2 + Math.cos(a.lat * Math.PI / 180) * Math.cos(b.lat * Math.PI / 180) * Math.sin(dLng / 2) ** 2
-  const dM = 2 * R * Math.asin(Math.sqrt(a2))
+  const dM = haversineM(a.lat, a.lng, b.lat, b.lng)
   return dM / 1000 / dtH
 })
 
@@ -1056,7 +1091,7 @@ function fmtRange(ms: number) {
             title="-15 сек"
             @click="stepSeconds(-15)"
           >
-            <Icon icon="mdi:replay-15" />
+            <Icon icon="mdi:rewind-15" />
           </button>
 
           <button
@@ -1075,7 +1110,7 @@ function fmtRange(ms: number) {
             title="+15 сек"
             @click="stepSeconds(15)"
           >
-            <Icon icon="mdi:forward-15" />
+            <Icon icon="mdi:fast-forward-15" />
           </button>
 
           <button
@@ -1388,7 +1423,7 @@ function fmtRange(ms: number) {
 
 .top-nav-bar {
   position: absolute;
-  top: max(14px, env(safe-area-inset-top, 0px));
+  top: 14px;
   left: 14px;
   right: 14px;
   z-index: 20;
@@ -1532,11 +1567,70 @@ function fmtRange(ms: number) {
 
 @media (max-width: 640px) {
   .top-nav-bar {
-    flex-wrap: wrap;
-    gap: 8px;
+    top: 8px;
+    left: 8px;
+    right: 8px;
+    display: flex;
+    flex-direction: column;
+    align-items: stretch;
+    gap: 6px;
 
-    .top-actions .view-mode-tabs .mode-tab-btn .tab-label {
-      display: none;
+    .day-picker-group {
+      width: 100%;
+      justify-content: space-between;
+      height: 36px;
+      padding: 3px 6px;
+
+      .day-current {
+        flex: 1;
+        justify-content: center;
+        min-width: 0;
+        gap: 5px;
+
+        .day-text {
+          font-size: 0.82rem;
+          white-space: nowrap;
+          overflow: hidden;
+          text-overflow: ellipsis;
+        }
+
+        .today-chip {
+          display: none;
+        }
+      }
+    }
+
+    .top-actions {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      width: 100%;
+      gap: 6px;
+
+      .view-mode-tabs {
+        flex: 1;
+        height: 36px;
+        min-width: 0;
+
+        .mode-tab-btn {
+          flex: 1;
+          justify-content: center;
+          padding: 4px 6px;
+
+          .tab-label {
+            display: inline;
+            font-size: 0.74rem;
+          }
+
+          .points-pill {
+            display: none;
+          }
+        }
+      }
+
+      .close-btn {
+        flex-shrink: 0;
+      }
     }
   }
 }
@@ -1842,6 +1936,89 @@ function fmtRange(ms: number) {
       font-size: 0.8rem;
       color: var(--fg-secondary-color);
       font-variant-numeric: tabular-nums;
+    }
+  }
+
+  @media (max-width: 640px) {
+    bottom: 8px;
+    left: 8px;
+    right: 8px;
+    padding: 10px 12px;
+    gap: 8px;
+
+    .memories-readout {
+      flex-wrap: wrap;
+      gap: 6px 10px;
+
+      .readout-time-group {
+        .time {
+          font-size: 1.1rem;
+        }
+      }
+
+      .activity-badge {
+        padding: 2px 7px;
+        font-size: 0.74rem;
+      }
+
+      .speed-badge {
+        font-size: 0.74rem;
+      }
+
+      .track-stats-right {
+        gap: 6px;
+        font-size: 0.72rem;
+
+        .points-count {
+          font-size: 0.7rem;
+        }
+      }
+    }
+
+    .slider-container {
+      margin: 2px 0;
+    }
+
+    .memories-actions {
+      flex-wrap: wrap;
+      gap: 8px;
+      justify-content: center;
+
+      .playback-controls {
+        order: 1;
+        gap: 6px;
+
+        .control-btn {
+          width: 32px;
+          height: 32px;
+          font-size: 1rem;
+
+          &.play-btn {
+            width: 38px;
+            height: 38px;
+            font-size: 1.2rem;
+          }
+        }
+      }
+
+      .speed-selector {
+        order: 2;
+        padding: 2px;
+        gap: 2px;
+
+        .speed-chip {
+          padding: 2px 6px;
+          font-size: 0.68rem;
+        }
+      }
+
+      .time-range-display {
+        order: 3;
+        width: 100%;
+        text-align: center;
+        font-size: 0.72rem;
+        margin-top: -2px;
+      }
     }
   }
 }

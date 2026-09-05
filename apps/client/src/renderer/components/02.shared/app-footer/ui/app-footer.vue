@@ -68,7 +68,7 @@ import { AppRouteNames } from '~/shared/constants/routes'
   border-top: 1px solid rgba(var(--border-primary-color-rgb), 0.2);
   background-color: rgba(var(--bg-primary-color-rgb), 0.5);
   padding: 0.5rem 1rem;
-  padding-bottom: calc(0.5rem + env(safe-area-inset-bottom, 0px));
+  padding-bottom: calc(0.5rem + var(--safe-area-inset-bottom));
   margin-top: auto;
   z-index: 9;
 }

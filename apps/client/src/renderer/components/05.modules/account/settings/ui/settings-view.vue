@@ -39,6 +39,9 @@ const {
   vaultPath,
   selectVaultFolder,
   isNative,
+  isCheckingUpdate,
+  checkManualUpdate,
+  appVersion,
   // OAuth & Integrations
   isYandexLinked,
   isGoogleLinked,
@@ -108,6 +111,22 @@ function applyCrop() {
             />
             <KitBtn @click="selectVaultFolder">
               {{ vaultPath ? 'Изменить' : 'Выбрать папку' }}
+            </KitBtn>
+          </div>
+        </div>
+
+        <h2 class="section-title">
+          О приложении
+        </h2>
+        <div class="section-content">
+          <p>Версия приложения: v{{ appVersion }}</p>
+          <div class="app-update-control">
+            <KitBtn
+              :disabled="isCheckingUpdate"
+              icon="mdi:refresh"
+              @click="checkManualUpdate"
+            >
+              {{ isCheckingUpdate ? 'Проверка...' : 'Проверить обновления' }}
             </KitBtn>
           </div>
         </div>
@@ -443,7 +462,7 @@ function applyCrop() {
           :loading="isDeletingAccount"
           @click="deleteAccount"
         >
-          Удалить аккаунт
+          Удалить
         </KitBtn>
       </div>
     </section>

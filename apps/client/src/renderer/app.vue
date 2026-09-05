@@ -1,6 +1,7 @@
 <script setup>
 import { useHead, useSeoMeta } from '@vueuse/head'
 import { ConfigProvider } from 'reka-ui'
+import { AppUpdatePrompt } from '~/components/02.shared/app-update-prompt'
 import { ConfirmDialogManager } from '~/components/02.shared/confirm-dialog-manager'
 import { OfflineBanner } from '~/components/02.shared/offline-banner'
 import { ReloadPrompt } from '~/components/02.shared/reload-prompt'
@@ -111,6 +112,7 @@ useSeoMeta({
 
     <FloatingMap v-if="layoutStore.isFloatingMapOpen" />
     <ReloadPrompt />
+    <AppUpdatePrompt />
     <ToastManager />
 
     <ConfirmDialogManager />

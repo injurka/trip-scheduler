@@ -59,7 +59,7 @@ hr {
 }
 
 .drawer-content-wrapper {
-  top: env(safe-area-inset-top) !important;
+  top: var(--safe-area-inset-top) !important;
 }
 
 .milkdown {

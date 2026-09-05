@@ -57,7 +57,7 @@ const formattedDate = computed(() => {
   display: flex;
   justify-content: center;
   padding: 6px 16px;
-  padding-top: calc(6px + env(safe-area-inset-top));
+  padding-top: calc(6px + var(--safe-area-inset-top));
 }
 
 .banner-content {

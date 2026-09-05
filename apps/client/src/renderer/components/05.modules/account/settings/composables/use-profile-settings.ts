@@ -1,8 +1,9 @@
 import { useVaultMemoriesStore } from '~/components/04.features/trip-info/trip-memories/store/vault-memories.store'
 import { useRequestStatus } from '~/plugins/request'
 import { AppRouteNames } from '~/shared/constants/routes'
-import { SERVER_URL } from '~/shared/lib/env'
+import { isMobileApp, isTauri, SERVER_URL } from '~/shared/lib/env'
 import { trpc } from '~/shared/services/trpc/trpc.service'
+import { useAppUpdateStore } from '~/shared/store/app-update.store'
 import { EAuthRequestKeys, TOKEN_KEY, useAuthStore } from '~/shared/store/auth.store'
 
 export function useProfileSettings() {
@@ -12,6 +13,25 @@ export function useProfileSettings() {
   const router = useRouter()
   const route = useRoute()
   const vaultStore = useVaultMemoriesStore()
+  const appUpdateStore = useAppUpdateStore()
+
+  const isCheckingUpdate = ref(false)
+
+  async function checkManualUpdate() {
+    isCheckingUpdate.value = true
+    try {
+      await appUpdateStore.checkForUpdates(false)
+      if (!appUpdateStore.hasUpdate) {
+        toast.success('У вас установлена последняя версия')
+      }
+    }
+    catch {
+      toast.error('Не удалось проверить наличие обновлений')
+    }
+    finally {
+      isCheckingUpdate.value = false
+    }
+  }
 
   const user = computed(() => authStore.user)
 
@@ -353,6 +373,11 @@ export function useProfileSettings() {
     vaultPath: vaultStore.vaultPath,
     selectVaultFolder: vaultStore.selectFolder,
     isNative: vaultStore.isNative,
+    isMobileApp,
+    isTauri,
+    isCheckingUpdate,
+    checkManualUpdate,
+    appVersion: typeof __APP_VERSION__ !== 'undefined' ? __APP_VERSION__ : '1.0.0',
     user,
     profileForm,
     passwordForm,

@@ -8,6 +8,7 @@ import { isTauri } from '~/shared/lib/env'
 import router from '~/shared/lib/router'
 import { initializePwaUpdater } from '~/shared/services/pwa/pwa.service'
 import { startSyncWorker } from '~/shared/services/tracking/track-sync'
+import { useAppUpdateStore } from '~/shared/store/app-update.store'
 import { useTrackingStore } from '~/shared/store/tracking.store'
 // @ts-expect-error бред какой то
 import application from './app.vue'
@@ -43,6 +44,10 @@ async function initializeApp() {
 
   await restoreSession(pinia)
   initializePwaUpdater(pinia)
+
+  // Проверка обновлений APK для мобильного приложения (Tauri)
+  const appUpdateStore = useAppUpdateStore(pinia)
+  void appUpdateStore.checkForUpdates()
 
   // GPS-трекинг: инициализация опроса статуса и синк-воркера
   const trackingStore = useTrackingStore(pinia)

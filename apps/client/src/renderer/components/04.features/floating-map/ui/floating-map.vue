@@ -232,10 +232,10 @@ const windowStyle = computed(() => {
 <style scoped lang="scss">
 .floating-map-overlay {
   position: fixed;
-  top: env(safe-area-inset-top);
+  top: var(--safe-area-inset-top);
   left: 0;
   width: 100%;
-  height: calc(100% - env(safe-area-inset-top));
+  height: calc(100% - var(--safe-area-inset-top));
   background-color: rgba(0, 0, 0, 0.5);
   z-index: 1000;
   display: flex;

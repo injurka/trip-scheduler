@@ -131,22 +131,39 @@ const emit = defineEmits<{
     display: flex;
     align-items: center;
     gap: var(--p-s);
-    flex-wrap: wrap;
     width: 100%;
     justify-content: space-between;
+
+    @include media-down(sm) {
+      flex-direction: column;
+      align-items: stretch;
+      gap: 10px;
+    }
 
     .right-actions {
       display: flex;
       align-items: center;
       gap: var(--p-s);
+
+      @include media-down(sm) {
+        width: 100%;
+        gap: 8px;
+      }
     }
 
     .refresh-btn {
-      height: 32px;
-      width: 32px;
+      height: 34px;
+      width: 34px;
       padding: 0 !important;
       transform: none !important;
       box-shadow: none;
+      flex-shrink: 0;
+
+      @include media-down(sm) {
+        height: 38px;
+        width: 38px;
+        border-radius: var(--r-s);
+      }
 
       &:hover,
       &:active,
@@ -158,8 +175,15 @@ const emit = defineEmits<{
     }
 
     .memories-btn {
-      height: 32px;
+      height: 34px;
       transform: none !important;
+
+      @include media-down(sm) {
+        flex: 1;
+        height: 38px;
+        border-radius: var(--r-s);
+        font-size: 0.85rem;
+      }
 
       &:hover,
       &:active,
@@ -173,25 +197,39 @@ const emit = defineEmits<{
   .days-selector {
     display: inline-flex;
     align-items: center;
-    gap: 2px;
+    gap: 3px;
     background-color: var(--bg-secondary-color);
-    padding: 2px;
+    padding: 3px;
     border-radius: var(--r-s);
     border: 1px solid var(--border-secondary-color);
-    height: 32px;
+    height: 34px;
     box-sizing: border-box;
+
+    @include media-down(sm) {
+      width: 100%;
+      height: 38px;
+      display: flex;
+    }
 
     :deep(.kit-btn) {
       height: 100%;
-      padding: 0 10px;
+      padding: 0 12px;
       font-size: 0.8rem;
       border: none;
       box-shadow: none !important;
       transform: none !important;
+      white-space: nowrap;
       transition:
         background-color 0.15s ease,
         color 0.15s ease,
         opacity 0.15s ease;
+
+      @include media-down(sm) {
+        flex: 1;
+        padding: 0 4px;
+        font-size: 0.8125rem;
+        justify-content: center;
+      }
 
       &:hover,
       &:active,

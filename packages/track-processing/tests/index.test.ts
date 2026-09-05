@@ -87,11 +87,11 @@ function trainTrack(): TrackPoint[] {
 
 function stillTrack(): TrackPoint[] {
   const out: TrackPoint[] = []
-  let lat = 55.751
-  let lng = 37.618
+  const baseLat = 55.751
+  const baseLng = 37.618
   for (let i = 0; i < 100; i++) {
-    lng += (Math.random() - 0.5) * 0.00002 // дрожание ~1-2 м
-    lat += (Math.random() - 0.5) * 0.00002
+    const lng = baseLng + (Math.random() - 0.5) * 0.00002 // дрожание ~1-2 м
+    const lat = baseLat + (Math.random() - 0.5) * 0.00002
     out.push(pt(lat, lng, Math.random() * 0.3))
   }
   return out
@@ -278,5 +278,32 @@ describe('normalizeSplineVertices', () => {
     expect(splineAfter.length).toBeGreaterThan(ptsAfter.length)
     expect(splineAfter[0].lat).toBeCloseTo(55.70, 2)
     expect(splineAfter[splineAfter.length - 1].lat).toBeCloseTo(55.76, 2)
+  })
+})
+
+describe('robustness and edge cases in track processing', () => {
+  it('отсекает начальный выброс GPS (кэшированная точка в другом городе), когда далее идут согласованные точки', () => {
+    const badStart = pt(40.71, -74.00, 5) // Нью-Йорк (выброс)
+    const trueP1 = pt(55.750, 37.610, 1.4) // Москва
+    const trueP2 = pt(55.7501, 37.6101, 1.4)
+    const trueP3 = pt(55.7502, 37.6102, 1.4)
+
+    const filtered = filterGpsOutliers([badStart, trueP1, trueP2, trueP3])
+    expect(filtered.length).toBe(3)
+    expect(filtered.some(p => p.clientPointId === badStart.clientPointId)).toBe(false)
+    expect(filtered[0].lat).toBeCloseTo(55.75, 2)
+  })
+
+  it('processDayTrack корректно рассчитывает дистанцию длинного сегмента и не обрезает хвост', () => {
+    // 75 точек ходьбы
+    const walk = walkTrack().slice(0, 75)
+    const segments = processDayTrack(walk)
+    expect(segments.length).toBeGreaterThan(0)
+    const totalDist = segments.reduce((s, seg) => s + seg.features.distanceM, 0)
+    // 75 шагов по ~2.5м = ~180м
+    expect(totalDist).toBeGreaterThan(100)
+    // Проверяем, что временной охват сегментов доходит до конца трека
+    const lastSeg = segments[segments.length - 1]
+    expect(lastSeg.points[lastSeg.points.length - 1].tsUtc).toBe(walk[walk.length - 1].tsUtc)
   })
 })
