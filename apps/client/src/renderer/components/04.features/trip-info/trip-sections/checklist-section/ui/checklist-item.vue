@@ -531,6 +531,17 @@ const renderedDescription = computed(() => renderMarkdown(props.item.description
 
   &.badge-location {
     color: var(--fg-info-color);
+    white-space: normal;
+    word-break: break-word;
+    max-width: 100%;
+    line-height: 1.3;
+    padding-top: 2px;
+    padding-bottom: 2px;
+
+    .badge-icon {
+      align-self: flex-start;
+      margin-top: 1px;
+    }
   }
 
   &.badge-link {

@@ -162,6 +162,7 @@ pub fn run() {
         .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_http::init())
         .plugin(tauri_plugin_opener::init())
+        .plugin(tauri_plugin_geolocation::init())
         .invoke_handler(tauri::generate_handler![
             is_hyprland,
             vault_get_path,

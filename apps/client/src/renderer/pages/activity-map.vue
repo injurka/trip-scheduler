@@ -115,25 +115,25 @@ function handleModeChange(mode: 'list' | 'map') {
   z-index: 25;
 
   .tracking-hud-btn {
-    background: var(--surface-color, rgba(30, 30, 30, 0.88));
+    background-color: var(--bg-secondary-color);
     backdrop-filter: blur(12px);
-    border: 1px solid var(--border-color, rgba(255, 255, 255, 0.14));
-    box-shadow: 0 4px 14px rgba(0, 0, 0, 0.25);
-    border-radius: 20px;
+    border: 1px solid var(--border-secondary-color);
+    box-shadow: var(--s-m);
+    border-radius: var(--r-full);
 
     .hud-icon {
       font-size: 1.1rem;
     }
 
     &.is-live {
-      border-color: rgba(76, 175, 80, 0.5);
-      color: #81c784;
+      border-color: var(--border-success-color);
+      color: var(--fg-success-color);
 
       .live-dot {
         width: 6px;
         height: 6px;
-        border-radius: 50%;
-        background: #4caf50;
+        border-radius: var(--r-full);
+        background-color: var(--fg-success-color);
         margin-right: 2px;
         animation: pulse 1.5s infinite;
       }
@@ -155,11 +155,11 @@ function handleModeChange(mode: 'list' | 'map') {
   .tracking-sheet-card {
     width: 100%;
     max-width: 520px;
-    background: var(--surface-color, #1e1e1e);
-    border: 1px solid var(--border-color, rgba(255, 255, 255, 0.12));
-    border-radius: 16px;
-    padding: 16px;
-    box-shadow: 0 12px 32px rgba(0, 0, 0, 0.4);
+    background-color: var(--bg-secondary-color);
+    border: 1px solid var(--border-secondary-color);
+    border-radius: var(--r-l);
+    padding: var(--p-m);
+    box-shadow: var(--s-xl);
     display: flex;
     flex-direction: column;
     gap: 12px;
@@ -172,16 +172,16 @@ function handleModeChange(mode: 'list' | 'map') {
       .sheet-title {
         font-size: 1rem;
         font-weight: 600;
-        color: var(--fg-color, #fff);
+        color: var(--fg-primary-color);
       }
 
       .sheet-close-btn {
-        background: rgba(255, 255, 255, 0.08);
+        background-color: var(--bg-tertiary-color);
         border: none;
-        color: var(--fg-color, #fff);
+        color: var(--fg-primary-color);
         width: 28px;
         height: 28px;
-        border-radius: 50%;
+        border-radius: var(--r-full);
         display: flex;
         align-items: center;
         justify-content: center;
@@ -189,7 +189,7 @@ function handleModeChange(mode: 'list' | 'map') {
         transition: background 0.2s;
 
         &:hover {
-          background: rgba(255, 255, 255, 0.16);
+          background-color: var(--bg-hover-color);
         }
       }
     }

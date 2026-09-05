@@ -51,6 +51,7 @@
     "@milkdown/kit": "^7.20.0",
     "@milkdown/vue": "^7.20.0",
     "@tauri-apps/api": "^2.11.1",
+    "@tauri-apps/plugin-geolocation": "^2.3.3",
     "@trpc/client": "^11.16.0",
     "@types/d3-geo": "^3.1.1",
     "@types/geojson": "^7946.0.16",

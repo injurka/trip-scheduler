@@ -153,7 +153,7 @@ function handleBack() {
     router.back()
   }
   else {
-    router.push({ name: AppRouteNames.Activity })
+    router.push({ name: AppRouteNames.ActivityTracking })
   }
 }
 
@@ -509,7 +509,7 @@ function fmtRange(ms: number) {
           <KitBtn
             variant="outlined"
             size="sm"
-            @click="router.push({ name: AppRouteNames.Activity })"
+            @click="router.push({ name: AppRouteNames.ActivityTracking })"
           >
             К списку активности
           </KitBtn>
@@ -654,20 +654,20 @@ function fmtRange(ms: number) {
     display: flex;
     align-items: center;
     gap: 6px;
-    background: var(--surface-color, rgba(30, 30, 30, 0.85));
+    background-color: var(--bg-secondary-color);
     backdrop-filter: blur(12px);
-    border: 1px solid var(--border-color, rgba(255, 255, 255, 0.12));
-    border-radius: 30px;
+    border: 1px solid var(--border-secondary-color);
+    border-radius: var(--r-full);
     padding: 4px 10px;
-    box-shadow: 0 4px 14px rgba(0, 0, 0, 0.2);
+    box-shadow: var(--s-m);
 
     .day-arrow-btn {
       width: 28px;
       height: 28px;
-      border-radius: 50%;
+      border-radius: var(--r-full);
       border: none;
-      background: rgba(255, 255, 255, 0.08);
-      color: var(--fg-color, #fff);
+      background: var(--bg-tertiary-color);
+      color: var(--fg-primary-color);
       display: flex;
       align-items: center;
       justify-content: center;
@@ -731,15 +731,15 @@ function fmtRange(ms: number) {
   z-index: 15;
 
   .overlay-card {
-    background: var(--surface-color, #1e1e1e);
-    border: 1px solid var(--border-color, rgba(255, 255, 255, 0.12));
-    border-radius: 12px;
+    background-color: var(--bg-secondary-color);
+    border: 1px solid var(--border-secondary-color);
+    border-radius: var(--r-m);
     padding: 16px 24px;
     display: flex;
     align-items: center;
     gap: 12px;
-    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.25);
-    color: var(--fg-color, #fff);
+    box-shadow: var(--s-l);
+    color: var(--fg-primary-color);
 
     .overlay-icon {
       font-size: 1.5rem;
@@ -763,14 +763,14 @@ function fmtRange(ms: number) {
 
   .empty-card {
     pointer-events: auto;
-    background: var(--surface-color, rgba(30, 30, 30, 0.9));
+    background-color: var(--bg-secondary-color);
     backdrop-filter: blur(14px);
-    border: 1px solid var(--border-color, rgba(255, 255, 255, 0.12));
-    border-radius: 16px;
+    border: 1px solid var(--border-secondary-color);
+    border-radius: var(--r-l);
     padding: 24px;
     max-width: 380px;
     text-align: center;
-    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
+    box-shadow: var(--s-l);
     display: flex;
     flex-direction: column;
     align-items: center;
@@ -779,8 +779,8 @@ function fmtRange(ms: number) {
     .empty-icon-wrap {
       width: 52px;
       height: 52px;
-      border-radius: 50%;
-      background: rgba(255, 255, 255, 0.06);
+      border-radius: var(--r-full);
+      background-color: var(--bg-tertiary-color);
       display: flex;
       align-items: center;
       justify-content: center;
@@ -795,14 +795,14 @@ function fmtRange(ms: number) {
       font-size: 1.05rem;
       font-weight: 600;
       margin: 0;
-      color: var(--fg-color, #fff);
+      color: var(--fg-primary-color);
     }
 
     p {
       font-size: 0.82rem;
       line-height: 1.4;
       margin: 0;
-      color: var(--fg-secondary-color, rgba(255, 255, 255, 0.65));
+      color: var(--fg-secondary-color);
     }
 
     .empty-actions {
@@ -821,15 +821,15 @@ function fmtRange(ms: number) {
   left: 14px;
   right: 14px;
   z-index: 20;
-  background: var(--surface-color, rgba(30, 30, 30, 0.88));
+  background-color: var(--bg-secondary-color);
   backdrop-filter: blur(16px);
-  border: 1px solid var(--border-color, rgba(255, 255, 255, 0.12));
-  border-radius: 16px;
+  border: 1px solid var(--border-secondary-color);
+  border-radius: var(--r-l);
   padding: 12px 18px;
   display: flex;
   flex-direction: column;
   gap: 10px;
-  box-shadow: 0 8px 28px rgba(0, 0, 0, 0.3);
+  box-shadow: var(--s-l);
 
   .memories-readout {
     display: flex;

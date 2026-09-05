@@ -41,6 +41,7 @@ const BlogCreate = () => import('~/pages/blog/create.vue')
 const BlogEdit = () => import('~/pages/blog/edit/[id].vue')
 
 const ActivityMapPage = () => import('~/pages/activity-map.vue')
+const ActivityTrackingPage = () => import('~/pages/activity-tracking.vue')
 const ActivityPage = () => import('~/pages/activity.vue')
 
 async function requireOwner(to: any, _from: any, next: any) {
@@ -238,6 +239,13 @@ const routes: RouteRecordRaw[] = [
     name: AppRouteNames.ActivityMap,
     component: ActivityMapPage,
     meta: { layout: 'default' },
+  },
+
+  {
+    path: AppRoutePaths.ActivityTracking,
+    name: AppRouteNames.ActivityTracking,
+    component: ActivityTrackingPage,
+    meta: { layout: 'default', requiresAuth: true },
   },
 
   {

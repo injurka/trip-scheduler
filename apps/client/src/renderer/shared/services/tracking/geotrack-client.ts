@@ -1,6 +1,13 @@
 import type { TrackActivityType } from '@injurka/track-processing'
 import { bearingDeg, haversineM } from '@injurka/track-processing'
+import {
+  checkPermissions as tauriCheckPermissions,
+  clearWatch as tauriClearWatch,
+  requestPermissions as tauriRequestPermissions,
+  watchPosition as tauriWatchPosition,
+} from '@tauri-apps/plugin-geolocation'
 import { v4 as uuidv4 } from 'uuid'
+import { isMobileApp } from '~/shared/lib/env'
 
 export type ActivityType = TrackActivityType
 
@@ -151,6 +158,7 @@ function estimateActivity(speedMs: number): ActivityType {
 
 class WebGeolocationTracker {
   private watchId: number | null = null
+  private tauriWatchId: number | null = null
   private wakeLockSentinel: any = null
   private currentSessionId: string | null = null
   private sessionStartedAt = 0
@@ -170,6 +178,8 @@ class WebGeolocationTracker {
   }
 
   public isSupported(): boolean {
+    if (isMobileApp)
+      return true
     return typeof navigator !== 'undefined' && 'geolocation' in navigator
   }
 
@@ -234,6 +244,74 @@ class WebGeolocationTracker {
       // Игнорируем отказ в wake lock
     }
 
+    if (isMobileApp) {
+      return this.startTauriTracking()
+    }
+
+    return this.startWebTracking()
+  }
+
+  private async startTauriTracking(): Promise<TrackingStatus> {
+    try {
+      let status = await tauriCheckPermissions()
+      if (status.location === 'prompt' || status.location === 'prompt-with-rationale') {
+        status = await tauriRequestPermissions(['location'])
+      }
+      if (status.location === 'denied') {
+        this.lastError = 'Доступ к геолокации запрещён в настройках приложения или системы'
+        throw new Error(this.lastError)
+      }
+    }
+    catch (err: any) {
+      if (err instanceof Error && err.message === this.lastError) {
+        throw err
+      }
+      console.warn('[Tracking] Ошибка проверки прав геолокации в Tauri:', err)
+    }
+
+    return new Promise((resolve, reject) => {
+      let isFirstFix = true
+
+      tauriWatchPosition(
+        {
+          enableHighAccuracy: true,
+          timeout: 15000,
+          maximumAge: 3000,
+        },
+        (pos, err) => {
+          if (err) {
+            this.lastError = typeof err === 'string' ? err : 'Ошибка получения координат GPS'
+            if (isFirstFix) {
+              isFirstFix = false
+              this.isRunning = false
+              reject(new Error(this.lastError))
+            }
+            return
+          }
+
+          if (pos) {
+            this.handlePositionUpdate(pos)
+            if (isFirstFix) {
+              isFirstFix = false
+              this.isRunning = true
+              resolve(this.getStatus())
+            }
+          }
+        },
+      ).then((id) => {
+        this.tauriWatchId = id
+      }).catch((err) => {
+        this.lastError = err?.message || String(err)
+        if (isFirstFix) {
+          isFirstFix = false
+          this.isRunning = false
+          reject(new Error(this.lastError || 'Ошибка получения координат GPS'))
+        }
+      })
+    })
+  }
+
+  private startWebTracking(): Promise<TrackingStatus> {
     return new Promise((resolve, reject) => {
       let isFirstFix = true
 
@@ -269,6 +347,16 @@ class WebGeolocationTracker {
       this.watchId = null
     }
 
+    if (this.tauriWatchId !== null) {
+      try {
+        await tauriClearWatch(this.tauriWatchId)
+      }
+      catch (e) {
+        console.warn('[Tracking] Ошибка clearWatch в Tauri:', e)
+      }
+      this.tauriWatchId = null
+    }
+
     if (this.wakeLockSentinel) {
       try {
         await this.wakeLockSentinel.release()
@@ -284,9 +372,44 @@ class WebGeolocationTracker {
     return this.getStatus()
   }
 
-  private handlePositionUpdate(pos: GeolocationPosition): void {
+  public async requestPermission(): Promise<boolean> {
+    if (isMobileApp) {
+      try {
+        const status = await tauriRequestPermissions(['location'])
+        return status.location === 'granted' || status.coarseLocation === 'granted'
+      }
+      catch (e) {
+        console.warn('[Tracking] Ошибка запроса прав в Tauri:', e)
+        return false
+      }
+    }
+
+    if (typeof navigator !== 'undefined' && 'geolocation' in navigator) {
+      return new Promise((resolve) => {
+        navigator.geolocation.getCurrentPosition(
+          () => resolve(true),
+          () => resolve(false),
+          { timeout: 10000 },
+        )
+      })
+    }
+
+    return false
+  }
+
+  private handlePositionUpdate(pos: {
+    coords: {
+      latitude: number
+      longitude: number
+      accuracy?: number | null
+      altitude?: number | null
+      speed?: number | null
+      heading?: number | null
+    }
+    timestamp?: number
+  }): void {
     const coords = pos.coords
-    const ts = pos.timestamp > 0 ? pos.timestamp : Date.now()
+    const ts = pos.timestamp && pos.timestamp > 0 ? pos.timestamp : Date.now()
     const lat = coords.latitude
     const lng = coords.longitude
     const accuracy = typeof coords.accuracy === 'number' && Number.isFinite(coords.accuracy) ? coords.accuracy : null
@@ -392,6 +515,10 @@ const trackerInstance = new WebGeolocationTracker()
 export const geotrack = {
   async isAvailable(): Promise<boolean> {
     return trackerInstance.isSupported()
+  },
+
+  async requestPermission(): Promise<boolean> {
+    return trackerInstance.requestPermission()
   },
 
   async start(): Promise<TrackingStatus> {

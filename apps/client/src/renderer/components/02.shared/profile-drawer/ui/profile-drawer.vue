@@ -42,10 +42,10 @@ const mainMenuItems = computed(() => [
     },
   },
   {
-    label: 'Активность',
+    label: 'Трекинг активности',
     icon: 'mdi:map-marker-path',
     action: () => {
-      router.push({ name: AppRouteNames.Activity })
+      router.push({ name: AppRouteNames.ActivityTracking })
       open.value = false
     },
   },

@@ -125,6 +125,29 @@ export const useTrackingStore = defineStore('tracking', {
       }
     },
 
+    async requestPermission(): Promise<boolean> {
+      try {
+        const granted = await geotrack.requestPermission()
+        if (granted) {
+          this.hasPermissionDenied = false
+          this.lastError = null
+          await this.toggle(true)
+          return true
+        }
+        else {
+          this.hasPermissionDenied = true
+          this.lastError = 'Доступ к геолокации запрещён пользователем или системой'
+          return false
+        }
+      }
+      catch (e) {
+        const msg = e instanceof Error ? e.message : String(e)
+        this.lastError = msg
+        this.hasPermissionDenied = true
+        return false
+      }
+    },
+
     async toggle(enable: boolean) {
       this.isStarting = true
       this.lastError = null
