@@ -37,6 +37,40 @@ export const trackingService = {
       accepted.push(...chunk.map(r => r.clientPointId))
     }
 
+    // Автоматическая генерация сегментов для поступивших сессий
+    try {
+      const sessionIds = Array.from(new Set(rows.map(r => r.sessionId)))
+      for (const sId of sessionIds) {
+        const sessionPoints = await db
+          .select({
+            tsUtc: trackPoints.tsUtc,
+            lat: trackPoints.lat,
+            lng: trackPoints.lng,
+            speed: trackPoints.speed,
+            activity: trackPoints.activity,
+          })
+          .from(trackPoints)
+          .where(and(
+            eq(trackPoints.userId, userId),
+            eq(trackPoints.sessionId, sId),
+          ))
+          .orderBy(trackPoints.tsUtc)
+
+        if (sessionPoints.length >= 2) {
+          await trackingService.reprocessDay(userId, sId, sessionPoints.map(p => ({
+            tsUtc: p.tsUtc.getTime(),
+            lat: p.lat,
+            lng: p.lng,
+            speed: p.speed,
+            activity: p.activity,
+          })))
+        }
+      }
+    }
+    catch (e) {
+      console.warn('[Tracking] Ошибка авто-генерации сегментов при ингесте:', e)
+    }
+
     return { accepted, rejectedCount: rows.length - accepted.length }
   },
 
@@ -45,7 +79,7 @@ export const trackingService = {
     const from = new Date(`${input.dayUtc}T00:00:00Z`)
     const to = new Date(from.getTime() + 24 * 3600_000)
 
-    const [points, segments] = await Promise.all([
+    let [points, segments] = await Promise.all([
       db
         .select({
           clientPointId: trackPoints.clientPointId,
@@ -74,6 +108,37 @@ export const trackingService = {
         ))
         .orderBy(trackSegments.startedAt),
     ])
+
+    // Если сегменты еще не были рассчитаны, но точки есть — вычисляем их на лету
+    if (segments.length === 0 && points.length >= 2) {
+      try {
+        const sIds = Array.from(new Set(points.map(p => p.sessionId)))
+        for (const sId of sIds) {
+          const sPoints = points.filter(p => p.sessionId === sId)
+          if (sPoints.length >= 2) {
+            await trackingService.reprocessDay(userId, sId, sPoints.map(p => ({
+              tsUtc: p.tsUtc.getTime(),
+              lat: p.lat,
+              lng: p.lng,
+              speed: p.speed,
+              activity: p.activity,
+            })))
+          }
+        }
+        segments = await db
+          .select()
+          .from(trackSegments)
+          .where(and(
+            eq(trackSegments.userId, userId),
+            lte(trackSegments.startedAt, to),
+            gte(trackSegments.endedAt, from),
+          ))
+          .orderBy(trackSegments.startedAt)
+      }
+      catch (e) {
+        console.warn('[Tracking] Ошибка вычисления сегментов в getDay:', e)
+      }
+    }
 
     return {
       points: points.map(p => ({ ...p, tsUtc: p.tsUtc.getTime() })),
@@ -189,6 +254,92 @@ export const trackingService = {
         entry.firstPointTs = startTs
       if (entry.lastPointTs === null || endTs > entry.lastPointTs)
         entry.lastPointTs = endTs
+    }
+
+    // Fallback: проверяем сырые точки за период, чтобы дни с точками гарантированно отображались
+    const rawPoints = await db
+      .select({
+        sessionId: trackPoints.sessionId,
+        tsUtc: trackPoints.tsUtc,
+        lat: trackPoints.lat,
+        lng: trackPoints.lng,
+        speed: trackPoints.speed,
+        activity: trackPoints.activity,
+      })
+      .from(trackPoints)
+      .where(and(
+        eq(trackPoints.userId, userId),
+        gte(trackPoints.tsUtc, from),
+        lte(trackPoints.tsUtc, to),
+      ))
+      .orderBy(trackPoints.tsUtc)
+
+    if (rawPoints.length > 0) {
+      const rawPointsByDay = new Map<string, typeof rawPoints>()
+      for (const p of rawPoints) {
+        const dUtc = p.tsUtc.toISOString().slice(0, 10)
+        let list = rawPointsByDay.get(dUtc)
+        if (!list) {
+          list = []
+          rawPointsByDay.set(dUtc, list)
+        }
+        list.push(p)
+      }
+
+      const { haversineM } = await import('@injurka/track-processing')
+
+      for (const [dUtc, dayPoints] of rawPointsByDay.entries()) {
+        if (!byDay.has(dUtc)) {
+          // Если сегментов нет — пробуем рассчитать и записать в базу
+          try {
+            const sIds = Array.from(new Set(dayPoints.map(p => p.sessionId)))
+            for (const sId of sIds) {
+              const sPoints = dayPoints.filter(p => p.sessionId === sId)
+              if (sPoints.length >= 2) {
+                await trackingService.reprocessDay(userId, sId, sPoints.map(p => ({
+                  tsUtc: p.tsUtc.getTime(),
+                  lat: p.lat,
+                  lng: p.lng,
+                  speed: p.speed,
+                  activity: p.activity,
+                })))
+              }
+            }
+          }
+          catch (e) {
+            console.warn('[Tracking] Ошибка генерации сегментов в getSummaries:', e)
+          }
+
+          // Независимо от генерации сегментов строим fallback-сводку по сырым точкам
+          const actMap = new Map<string, { distanceM: number, durationMs: number, segmentCount: number }>()
+          for (let i = 0; i < dayPoints.length; i++) {
+            const p = dayPoints[i]
+            let d = 0
+            let dt = 0
+            if (i > 0) {
+              const prev = dayPoints[i - 1]
+              const stepDist = haversineM(prev.lat, prev.lng, p.lat, p.lng)
+              if (stepDist >= 1.5) {
+                d = stepDist
+              }
+              const timeDiff = p.tsUtc.getTime() - prev.tsUtc.getTime()
+              if (timeDiff > 0 && timeDiff <= 15 * 60_000) {
+                dt = timeDiff
+              }
+            }
+            const agg = actMap.get(p.activity) ?? { distanceM: 0, durationMs: 0, segmentCount: 1 }
+            agg.distanceM += d
+            agg.durationMs += dt
+            actMap.set(p.activity, agg)
+          }
+
+          byDay.set(dUtc, {
+            activityMap: actMap,
+            firstPointTs: dayPoints[0].tsUtc.getTime(),
+            lastPointTs: dayPoints[dayPoints.length - 1].tsUtc.getTime(),
+          })
+        }
+      }
     }
 
     return Array.from(byDay.entries())

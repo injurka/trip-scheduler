@@ -206,6 +206,17 @@ const renderSegments = computed<RenderSegment[]>(() => {
 
 const totalPointsCount = computed(() => dayData.value?.points.length ?? 0)
 
+type ViewMode = 'route' | 'points'
+const viewMode = ref<ViewMode>('route')
+
+interface SelectedPointInfo {
+  point: DayData['points'][0]
+  index: number
+  total: number
+}
+
+const selectedPoint = ref<SelectedPointInfo | null>(null)
+
 // ─── Карта ────────────────────────────────────────────────────────────────────
 const mapHost = ref<HTMLElement | null>(null)
 const popupHost = ref<HTMLElement | null>(null)
@@ -213,6 +224,20 @@ const { mapInstance, isMapReady, initMap } = useKitMap()
 const routeSource = shallowRef(new VectorSource())
 const markerFeature = shallowRef<Feature<PointGeom> | null>(null)
 const mapCenter: [number, number] = [37.6176, 55.7558]
+
+function closePointPopup() {
+  selectedPoint.value = null
+  mapInstance.value?.getOverlays().item(0)?.setPosition(undefined)
+}
+
+function formatPointTime(tsUtc: number): string {
+  return new Date(tsUtc).toLocaleTimeString('ru-RU', {
+    hour: '2-digit',
+    minute: '2-digit',
+    second: '2-digit',
+    timeZone: 'UTC',
+  })
+}
 
 onMounted(async () => {
   if (!mapHost.value || !popupHost.value)
@@ -230,6 +255,40 @@ onMounted(async () => {
   }))
   routeSource.value.addFeature(markerFeature.value)
 
+  mapInstance.value?.on('click', (evt) => {
+    let found = false
+    mapInstance.value?.forEachFeatureAtPixel(evt.pixel, (feat) => {
+      const pData = feat.get('pointData') as DayData['points'][0] | undefined
+      if (pData) {
+        selectedPoint.value = {
+          point: pData,
+          index: (feat.get('pointIndex') as number) || 1,
+          total: (feat.get('totalPoints') as number) || 1,
+        }
+        const overlay = mapInstance.value?.getOverlays().item(0)
+        overlay?.setPosition(evt.coordinate)
+        found = true
+        return true
+      }
+      return false
+    })
+    if (!found) {
+      closePointPopup()
+    }
+  })
+
+  mapInstance.value?.on('pointermove', (evt) => {
+    if (evt.dragging) {
+      return
+    }
+    const hit = mapInstance.value?.hasFeatureAtPixel(evt.pixel, {
+      layerFilter: l => l.getZIndex() === 5,
+    })
+    if (mapHost.value) {
+      mapHost.value.style.cursor = hit ? 'pointer' : ''
+    }
+  })
+
   watch(isMapReady, (ready) => {
     if (ready)
       rebuildFeatures()
@@ -237,7 +296,7 @@ onMounted(async () => {
 })
 
 function fitTrackBounds() {
-  if (renderSegments.value.length === 0)
+  if (renderSegments.value.length === 0 && totalPointsCount.value === 0)
     return
   const ext = routeSource.value.getExtent()
   if (ext && ext.some(v => v !== Number.POSITIVE_INFINITY && v !== Number.NEGATIVE_INFINITY)) {
@@ -247,34 +306,88 @@ function fitTrackBounds() {
 
 function rebuildFeatures() {
   routeSource.value.clear()
+  closePointPopup()
+
   if (markerFeature.value) {
     routeSource.value.addFeature(markerFeature.value)
   }
 
-  for (const seg of renderSegments.value) {
-    const smooth = catmullRomSpline(
-      seg.points.map(p => ({ lat: p.lat, lng: p.lng })),
-      6,
-    )
-    if (smooth.length < 2)
-      continue
-    const feature = new Feature(new LineString(smooth.map(p => fromLonLat([p.lng, p.lat]))))
-    feature.setStyle(new Style({
-      stroke: new Stroke({
-        color: ACTIVITY_COLORS[seg.activity],
-        width: seg.activity === 'rail' ? 6 : 4,
-        lineCap: 'round',
-      }),
-    }))
-    routeSource.value.addFeature(feature)
+  const rawPoints = dayData.value?.points || []
+
+  if (viewMode.value === 'route') {
+    for (const seg of renderSegments.value) {
+      const smooth = catmullRomSpline(
+        seg.points.map(p => ({ lat: p.lat, lng: p.lng })),
+        6,
+      )
+      if (smooth.length < 2)
+        continue
+      const feature = new Feature(new LineString(smooth.map(p => fromLonLat([p.lng, p.lat]))))
+      feature.setStyle(new Style({
+        stroke: new Stroke({
+          color: ACTIVITY_COLORS[seg.activity],
+          width: seg.activity === 'rail' ? 6 : 4,
+          lineCap: 'round',
+        }),
+      }))
+      routeSource.value.addFeature(feature)
+    }
+  }
+  else if (viewMode.value === 'points') {
+    const sorted = [...rawPoints].sort((a, b) => a.tsUtc - b.tsUtc)
+
+    // 1. Плавная кривая Безье (Catmull-Rom сплайн) через все точки активности
+    const uniquePoints: typeof sorted = []
+    for (const p of sorted) {
+      const prev = uniquePoints[uniquePoints.length - 1]
+      if (!prev || Math.abs(prev.lat - p.lat) > 1e-6 || Math.abs(prev.lng - p.lng) > 1e-6) {
+        uniquePoints.push(p)
+      }
+    }
+
+    if (uniquePoints.length >= 2) {
+      const smooth = catmullRomSpline(
+        uniquePoints.map(p => ({ lat: p.lat, lng: p.lng })),
+        8,
+      )
+      const curveFeature = new Feature(new LineString(smooth.map(p => fromLonLat([p.lng, p.lat]))))
+      curveFeature.setStyle(new Style({
+        stroke: new Stroke({
+          color: '#3b82f6',
+          width: 3.5,
+          lineCap: 'round',
+        }),
+      }))
+      routeSource.value.addFeature(curveFeature)
+    }
+
+    // 2. Интерактивные маркеры для каждой точки
+    for (let i = 0; i < sorted.length; i++) {
+      const p = sorted[i]
+      const ptFeature = new Feature({
+        geometry: new Point(fromLonLat([p.lng, p.lat])),
+      })
+      ptFeature.set('pointData', p)
+      ptFeature.set('pointIndex', i + 1)
+      ptFeature.set('totalPoints', sorted.length)
+      ptFeature.setStyle(new Style({
+        image: new CircleStyle({
+          radius: 5.5,
+          fill: new Fill({ color: ACTIVITY_COLORS[p.activity] || '#2196f3' }),
+          stroke: new Stroke({ color: '#ffffff', width: 1.5 }),
+        }),
+        zIndex: 20,
+      }))
+      routeSource.value.addFeature(ptFeature)
+    }
   }
 
-  if (renderSegments.value.length > 0) {
+  if (renderSegments.value.length > 0 || rawPoints.length > 0) {
     fitTrackBounds()
   }
 }
 
-watch(renderSegments, rebuildFeatures)
+watch([renderSegments, viewMode], () => rebuildFeatures())
 
 onBeforeUnmount(() => {
   mapInstance.value?.setTarget(undefined)
@@ -439,6 +552,29 @@ function fmtRange(ms: number) {
       </div>
 
       <div class="top-actions">
+        <!-- Переключатель режима: Маршрут / Точки Безье -->
+        <div class="view-mode-tabs">
+          <button
+            class="mode-tab-btn"
+            :class="{ 'is-active': viewMode === 'route' }"
+            title="Отображать сегменты маршрута с классификацией"
+            @click="viewMode = 'route'"
+          >
+            <Icon icon="mdi:map-marker-path" class="tab-icon" />
+            <span class="tab-label">Маршрут</span>
+          </button>
+          <button
+            class="mode-tab-btn"
+            :class="{ 'is-active': viewMode === 'points' }"
+            title="Отображать все точки активности, соединенные кривой Безье"
+            @click="viewMode = 'points'"
+          >
+            <Icon icon="mdi:vector-bezier" class="tab-icon" />
+            <span class="tab-label">Точки (Безье)</span>
+            <span v-if="totalPointsCount > 0" class="points-pill">{{ totalPointsCount }}</span>
+          </button>
+        </div>
+
         <KitBtn
           v-if="selectedDay !== todayUtc"
           variant="subtle"
@@ -452,7 +588,7 @@ function fmtRange(ms: number) {
           variant="tonal"
           size="sm"
           title="Центрировать трек на карте"
-          :disabled="renderSegments.length === 0"
+          :disabled="renderSegments.length === 0 && totalPointsCount === 0"
           @click="fitTrackBounds"
         >
           <template #prepend>
@@ -465,7 +601,47 @@ function fmtRange(ms: number) {
 
     <!-- Карта OpenLayers -->
     <div ref="mapHost" class="memories-map" />
-    <div ref="popupHost" class="memories-popup" />
+    <div ref="popupHost" class="memories-popup">
+      <div v-if="selectedPoint" class="point-popup-card">
+        <div class="popup-head">
+          <div class="popup-title-group">
+            <span class="popup-index">Точка #{{ selectedPoint.index }} из {{ selectedPoint.total }}</span>
+            <span
+              class="popup-act-badge"
+              :style="{
+                backgroundColor: `${ACTIVITY_COLORS[selectedPoint.point.activity]}20`,
+                color: ACTIVITY_COLORS[selectedPoint.point.activity],
+              }"
+            >
+              <Icon :icon="ACTIVITY_ICONS[selectedPoint.point.activity]" />
+              {{ ACTIVITY_LABELS[selectedPoint.point.activity] }}
+            </span>
+          </div>
+          <button class="popup-close-btn" aria-label="Закрыть" @click="closePointPopup">
+            <Icon icon="mdi:close" />
+          </button>
+        </div>
+
+        <div class="popup-grid">
+          <div class="popup-item">
+            <span class="item-lbl">Время</span>
+            <span class="item-val">{{ formatPointTime(selectedPoint.point.tsUtc) }}</span>
+          </div>
+          <div v-if="selectedPoint.point.speed !== null" class="popup-item">
+            <span class="item-lbl">Скорость</span>
+            <span class="item-val">{{ (selectedPoint.point.speed * 3.6).toFixed(1) }} км/ч</span>
+          </div>
+          <div v-if="selectedPoint.point.accuracy !== null" class="popup-item">
+            <span class="item-lbl">Точность GPS</span>
+            <span class="item-val">±{{ Math.round(selectedPoint.point.accuracy) }} м</span>
+          </div>
+          <div class="popup-item popup-coords">
+            <span class="item-lbl">Координаты</span>
+            <span class="item-val font-mono">{{ selectedPoint.point.lat.toFixed(5) }}, {{ selectedPoint.point.lng.toFixed(5) }}</span>
+          </div>
+        </div>
+      </div>
+    </div>
 
     <!-- Оверлей загрузки -->
     <div v-if="isLoading" class="memories-overlay">
@@ -488,7 +664,7 @@ function fmtRange(ms: number) {
 
     <!-- Пустое состояние для дня без треков -->
     <div
-      v-else-if="renderSegments.length === 0"
+      v-else-if="renderSegments.length === 0 && totalPointsCount === 0"
       class="empty-track-overlay"
     >
       <div class="empty-card">
@@ -518,7 +694,7 @@ function fmtRange(ms: number) {
     </div>
 
     <!-- Нижняя панель плеера -->
-    <div v-if="renderSegments.length > 0" class="memories-panel">
+    <div v-if="renderSegments.length > 0 || totalPointsCount > 0" class="memories-panel">
       <div class="memories-readout">
         <div class="readout-time-group">
           <span class="time">{{ timeLabel }}</span>
@@ -630,7 +806,119 @@ function fmtRange(ms: number) {
   }
 
   .memories-popup {
-    display: none;
+    position: relative;
+    pointer-events: auto;
+    z-index: 30;
+
+    .point-popup-card {
+      position: relative;
+      background-color: var(--bg-secondary-color);
+      backdrop-filter: blur(14px);
+      border: 1px solid var(--border-secondary-color);
+      border-radius: var(--r-m);
+      padding: 10px 14px;
+      min-width: 220px;
+      max-width: 280px;
+      box-shadow: var(--s-l);
+      color: var(--fg-primary-color);
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      transform: translate(-50%, -100%);
+      margin-top: -14px;
+
+      &::after {
+        content: '';
+        position: absolute;
+        bottom: -6px;
+        left: 50%;
+        transform: translateX(-50%);
+        border-width: 6px 6px 0 6px;
+        border-style: solid;
+        border-color: var(--bg-secondary-color) transparent transparent transparent;
+      }
+
+      .popup-head {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 8px;
+
+        .popup-title-group {
+          display: flex;
+          align-items: center;
+          gap: 6px;
+          flex-wrap: wrap;
+
+          .popup-index {
+            font-size: 0.76rem;
+            font-weight: 600;
+            color: var(--fg-secondary-color);
+          }
+
+          .popup-act-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 3px;
+            font-size: 0.72rem;
+            font-weight: 600;
+            padding: 1px 6px;
+            border-radius: 10px;
+          }
+        }
+
+        .popup-close-btn {
+          width: 20px;
+          height: 20px;
+          border-radius: 50%;
+          border: none;
+          background: transparent;
+          color: var(--fg-secondary-color);
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          cursor: pointer;
+          padding: 0;
+
+          &:hover {
+            color: var(--fg-primary-color);
+            background: rgba(255, 255, 255, 0.1);
+          }
+        }
+      }
+
+      .popup-grid {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 6px 10px;
+        font-size: 0.78rem;
+
+        .popup-item {
+          display: flex;
+          flex-direction: column;
+          gap: 2px;
+
+          .item-lbl {
+            font-size: 0.68rem;
+            color: var(--fg-secondary-color);
+          }
+
+          .item-val {
+            font-weight: 500;
+            color: var(--fg-primary-color);
+          }
+
+          &.popup-coords {
+            grid-column: 1 / -1;
+
+            .font-mono {
+              font-family: monospace;
+              font-size: 0.74rem;
+            }
+          }
+        }
+      }
+    }
   }
 }
 
@@ -717,6 +1005,72 @@ function fmtRange(ms: number) {
     display: flex;
     align-items: center;
     gap: 8px;
+
+    .view-mode-tabs {
+      display: inline-flex;
+      align-items: center;
+      background-color: var(--bg-secondary-color);
+      backdrop-filter: blur(12px);
+      border: 1px solid var(--border-secondary-color);
+      border-radius: var(--r-full);
+      padding: 3px;
+      box-shadow: var(--s-m);
+
+      .mode-tab-btn {
+        display: inline-flex;
+        align-items: center;
+        gap: 5px;
+        padding: 4px 10px;
+        border-radius: var(--r-full);
+        border: none;
+        background: transparent;
+        color: var(--fg-secondary-color);
+        font-size: 0.8rem;
+        font-weight: 600;
+        cursor: pointer;
+        transition: all 0.2s;
+
+        .tab-icon {
+          font-size: 1rem;
+        }
+
+        .points-pill {
+          padding: 0 5px;
+          border-radius: 10px;
+          background: rgba(59, 130, 246, 0.25);
+          color: #60a5fa;
+          font-size: 0.68rem;
+          font-weight: 700;
+        }
+
+        &:hover:not(.is-active) {
+          color: var(--fg-primary-color);
+          background: rgba(255, 255, 255, 0.08);
+        }
+
+        &.is-active {
+          background: var(--primary, #4caf50);
+          color: #fff;
+          box-shadow: 0 1px 4px rgba(0, 0, 0, 0.2);
+
+          .points-pill {
+            background: rgba(255, 255, 255, 0.25);
+            color: #fff;
+          }
+        }
+      }
+    }
+  }
+}
+
+@media (max-width: 640px) {
+  .top-nav-bar {
+    flex-wrap: wrap;
+    gap: 8px;
+
+    .top-actions .view-mode-tabs .mode-tab-btn .tab-label {
+      display: none;
+    }
   }
 }
 
