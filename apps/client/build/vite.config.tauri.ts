@@ -13,11 +13,11 @@ import { VitePWA } from 'vite-plugin-pwa'
 import packageJson from '../package.json' with { type: 'json' }
 import { autoImportOptionsCfg } from './cfg/auto-import'
 import { iconsCfg } from './cfg/icons'
-import { visualizerPlugin } from './lib/helpers'
+import { resolveAppVersion, visualizerPlugin } from './lib/helpers'
 
 const require = createRequire(import.meta.url)
 
-const appVersion = process.env.VITE_APP_VERSION || packageJson.version
+const appVersion = resolveAppVersion(packageJson.version)
 
 // Конфигурация для нативной сборки (Tauri: десктоп + мобилки).
 // Относительный base обязателен: ассеты грузятся из tauri://localhost и file://.

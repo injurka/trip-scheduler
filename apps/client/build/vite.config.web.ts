@@ -12,11 +12,10 @@ import packageJson from '../package.json' with { type: 'json' }
 import { autoImportOptionsCfg } from './cfg/auto-import'
 import { iconsCfg } from './cfg/icons'
 import { pwaCfg } from './cfg/pwa'
-import { visualizerPlugin } from './lib/helpers'
+import { resolveAppVersion, visualizerPlugin } from './lib/helpers'
 
 const require = createRequire(import.meta.url)
-// eslint-disable-next-line node/prefer-global/process
-const appVersion = process.env.VITE_APP_VERSION || packageJson.version
+const appVersion = resolveAppVersion(packageJson.version)
 
 export default defineConfig({
   base: '/',
