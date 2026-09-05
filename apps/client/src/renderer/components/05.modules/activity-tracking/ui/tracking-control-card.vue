@@ -98,30 +98,6 @@ function formatSyncTime(ts: number | null): string {
         <div class="title-group">
           <div class="title-row">
             <span class="card-title">GPS-трекинг маршрута</span>
-            <span
-              class="status-badge"
-              :class="{
-                'is-running': tracking.isRunning,
-                'is-starting': tracking.isStarting,
-                'is-error': tracking.hasPermissionDenied || (tracking.lastError && !tracking.isRunning),
-              }"
-            >
-              <template v-if="tracking.isStarting">
-                <Icon icon="mdi:loading" class="spin-icon" />
-                Подключение...
-              </template>
-              <template v-else-if="tracking.isRunning">
-                <span class="pulse-indicator" />
-                Запись активна
-              </template>
-              <template v-else-if="tracking.hasPermissionDenied">
-                <Icon icon="mdi:alert-circle-outline" />
-                Доступ ограничен
-              </template>
-              <template v-else>
-                Не активен
-              </template>
-            </span>
           </div>
           <span class="card-subtitle">
             <template v-if="tracking.isRunning">
@@ -371,45 +347,6 @@ function formatSyncTime(ts: number | null): string {
       color: var(--fg-secondary-color);
       line-height: 1.3;
     }
-  }
-}
-
-.status-badge {
-  display: inline-flex;
-  align-items: center;
-  gap: 5px;
-  padding: 2px 8px;
-  border-radius: var(--r-full);
-  font-size: 0.72rem;
-  font-weight: 600;
-  background-color: var(--bg-tertiary-color);
-  color: var(--fg-secondary-color);
-  border: 1px solid var(--border-secondary-color);
-
-  &.is-running {
-    background-color: var(--bg-success-color);
-    color: var(--fg-success-color);
-    border-color: var(--border-success-color);
-
-    .pulse-indicator {
-      width: 6px;
-      height: 6px;
-      border-radius: var(--r-full);
-      background-color: var(--fg-success-color);
-      animation: pulse-ring 1.5s infinite;
-    }
-  }
-
-  &.is-starting {
-    background-color: var(--bg-warning-color);
-    color: var(--fg-warning-color);
-    border-color: var(--border-warning-color);
-  }
-
-  &.is-error {
-    background-color: var(--bg-error-color);
-    color: var(--fg-error-color);
-    border-color: var(--border-error-color);
   }
 }
 

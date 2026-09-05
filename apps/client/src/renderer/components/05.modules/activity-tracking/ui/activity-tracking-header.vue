@@ -52,7 +52,7 @@ const emit = defineEmits<{
 
       <KitBtn
         variant="tonal"
-        size="sm"
+        size="xs"
         :disabled="props.isLoading || props.isRefreshing"
         @click="emit('refresh')"
       >
@@ -116,11 +116,8 @@ const emit = defineEmits<{
     align-items: center;
     gap: var(--p-s);
     flex-wrap: wrap;
-
-    @include media-down(sm) {
-      width: 100%;
-      justify-content: space-between;
-    }
+    width: 100%;
+    justify-content: space-between;
   }
 
   .days-selector {
