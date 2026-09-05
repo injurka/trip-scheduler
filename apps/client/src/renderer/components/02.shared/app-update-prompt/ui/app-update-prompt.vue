@@ -4,7 +4,7 @@ import { KitBtn } from '~/components/01.kit/kit-btn'
 import { useAppUpdateStore } from '~/shared/store/app-update.store'
 
 const appUpdateStore = useAppUpdateStore()
-const { hasUpdate, latestVersion } = storeToRefs(appUpdateStore)
+const { hasUpdate, latestVersion, isDownloading } = storeToRefs(appUpdateStore)
 </script>
 
 <template>
@@ -15,8 +15,8 @@ const { hasUpdate, latestVersion } = storeToRefs(appUpdateStore)
         class="app-update-prompt"
         role="alert"
       >
-        <div class="prompt-icon">
-          <Icon icon="solar:download-square-bold" />
+        <div class="prompt-icon" :class="{ 'is-downloading': isDownloading }">
+          <Icon :icon="isDownloading ? 'svg-spinners:180-ring-with-bg' : 'solar:download-square-bold'" />
         </div>
         <div class="prompt-content-wrapper">
           <div class="prompt-message">
@@ -24,18 +24,25 @@ const { hasUpdate, latestVersion } = storeToRefs(appUpdateStore)
               Доступно обновление v{{ latestVersion }}
             </h4>
             <p class="prompt-description">
-              Доступна новая версия приложения. Хотите скачать и установить обновление?
+              <span v-if="isDownloading">
+                Скачивание файла началось...
+              </span>
+              <span v-else>
+                Доступна новая версия приложения. Хотите скачать и установить обновление?
+              </span>
             </p>
           </div>
           <div class="prompt-actions">
             <KitBtn
-              icon="mdi:download"
+              :icon="isDownloading ? 'svg-spinners:180-ring-with-bg' : 'mdi:download'"
+              :disabled="isDownloading"
               color="primary"
               @click="appUpdateStore.startUpdate()"
             >
-              Скачать
+              {{ isDownloading ? 'Загрузка...' : 'Скачать' }}
             </KitBtn>
             <KitBtn
+              :disabled="isDownloading"
               variant="outlined"
               color="secondary"
               @click="appUpdateStore.closePrompt()"
@@ -81,6 +88,13 @@ const { hasUpdate, latestVersion } = storeToRefs(appUpdateStore)
   color: var(--fg-accent-color);
   flex-shrink: 0;
   margin-top: 2px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  &.is-downloading {
+    color: var(--fg-primary-color);
+  }
 }
 
 .prompt-content-wrapper {

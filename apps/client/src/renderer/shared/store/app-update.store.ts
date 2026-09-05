@@ -1,6 +1,7 @@
 import { compareVersions } from 'compare-versions'
 import { defineStore } from 'pinia'
 import { isMobileApp } from '~/shared/lib/env'
+import { useToastStore } from './toast.store'
 
 const GITHUB_REPO = 'injurka/trip-scheduler'
 export const API_GITHUB_RELEASES_LATEST = `https://api.github.com/repos/${GITHUB_REPO}/releases/latest`
@@ -11,6 +12,7 @@ export interface AppUpdateState {
   latestVersion: string | null
   apkUrl: string | null
   releaseUrl: string
+  isDownloading: boolean
 }
 
 export const useAppUpdateStore = defineStore('appUpdate', {
@@ -19,6 +21,7 @@ export const useAppUpdateStore = defineStore('appUpdate', {
     latestVersion: null,
     apkUrl: null,
     releaseUrl: GITHUB_RELEASES_PAGE,
+    isDownloading: false,
   }),
 
   actions: {
@@ -66,10 +69,22 @@ export const useAppUpdateStore = defineStore('appUpdate', {
 
     startUpdate() {
       const url = this.apkUrl || this.releaseUrl
-      if (url) {
-        window.open(url, '_blank')
+      if (!url) {
+        this.closePrompt()
+        return
       }
-      this.closePrompt()
+
+      this.isDownloading = true
+      const toastStore = useToastStore()
+      toastStore.info('Загрузка обновления началась...', { expire: 6000 })
+
+      // Открываем загрузку в системе/браузере
+      window.open(url, '_blank')
+
+      setTimeout(() => {
+        this.isDownloading = false
+        this.closePrompt()
+      }, 1500)
     },
 
     closePrompt() {
