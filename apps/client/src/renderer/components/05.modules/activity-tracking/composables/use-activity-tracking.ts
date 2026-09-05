@@ -34,32 +34,48 @@ export function useActivityTracking() {
     recordedDays.value.length > 0,
   )
 
-  async function loadSummaries() {
-    isLoading.value = true
+  let activeRequestId = 0
+
+  async function loadSummaries(options: { isSilent?: boolean } = {}) {
+    // Скелетон показываем только при первичном получении данных,
+    // чтобы переключение фильтра дней не ломало верстку и не дергало скролл
+    if (!options.isSilent && summaries.value.length === 0) {
+      isLoading.value = true
+    }
+    else {
+      isRefreshing.value = true
+    }
     loadError.value = null
+    const reqId = ++activeRequestId
+
     try {
       const res = await (trpc as any).tracking.getSummaries.query({ days: selectedDays.value })
+      if (reqId !== activeRequestId)
+        return
       summaries.value = res.summaries
     }
     catch (e) {
+      if (reqId !== activeRequestId)
+        return
       loadError.value = e instanceof Error ? e.message : String(e)
     }
     finally {
-      isLoading.value = false
-      isRefreshing.value = false
+      if (reqId === activeRequestId) {
+        isLoading.value = false
+        isRefreshing.value = false
+      }
     }
   }
 
   async function refresh() {
-    isRefreshing.value = true
-    await loadSummaries()
+    await loadSummaries({ isSilent: false })
   }
 
   async function setDaysRange(days: number) {
     if (selectedDays.value === days)
       return
     selectedDays.value = days
-    await loadSummaries()
+    await loadSummaries({ isSilent: summaries.value.length > 0 })
   }
 
   function isToday(dayUtc: string): boolean {
@@ -100,6 +116,14 @@ export function useActivityTracking() {
     })
   }
 
+  /** Вход в просмотрщик «Воспоминания дня» без привязки к конкретному дню */
+  function openMemories() {
+    router.push({
+      name: AppRouteNames.ActivityMap,
+      query: { view: 'memories' },
+    })
+  }
+
   onMounted(() => {
     void loadSummaries()
   })
@@ -125,5 +149,6 @@ export function useActivityTracking() {
     formatDuration,
     formatTime,
     openDayOnMap,
+    openMemories,
   }
 }

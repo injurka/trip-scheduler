@@ -28,6 +28,7 @@ export const ACTIVITY_COLORS: Record<ActivityType, string> = {
 }
 
 export const SUMMARY_DAYS_OPTIONS = [
+  { label: 'Сегодня', value: 1 },
   { label: '7 дней', value: 7 },
   { label: '14 дней', value: 14 },
   { label: '30 дней', value: 30 },

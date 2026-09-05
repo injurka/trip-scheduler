@@ -65,7 +65,7 @@ async function handleManualSync() {
     toast.warn('Не удалось синхронизировать точки. Попробуйте позже.')
   }
   else {
-    toast.info('Буфер пуст, все точки уже синхронизированы.')
+    toast.info('Буфер пуст — все точки уже на сервере.')
   }
 }
 
@@ -222,11 +222,17 @@ function formatSyncTime(ts: number | null): string {
         <div class="sync-status-main">
           <span class="sync-dot" :class="tracking.unsentCount > 0 ? 'unsent' : 'synced'" />
           <span class="sync-text">
-            <template v-if="tracking.unsentCount > 0">
-              В локальном буфере: <strong>{{ tracking.unsentCount }}</strong> {{ formatPointsCount(tracking.unsentCount) }}
+            <template v-if="tracking.isSyncing">
+              Отправка точек на сервер...
+            </template>
+            <template v-else-if="tracking.unsentCount > 0">
+              В буфере: <strong>{{ tracking.unsentCount }}</strong> {{ formatPointsCount(tracking.unsentCount) }} — ещё не на сервере
+            </template>
+            <template v-else-if="tracking.lastSyncAt">
+              Буфер отправки пуст (синхр. в {{ formatSyncTime(tracking.lastSyncAt) }})
             </template>
             <template v-else>
-              Все точки синхронизированы
+              Буфер отправки пуст
             </template>
           </span>
         </div>
@@ -246,7 +252,7 @@ function formatSyncTime(ts: number | null): string {
         <template #prepend>
           <Icon icon="mdi:sync" :class="{ 'spin-icon': tracking.isSyncing }" />
         </template>
-        {{ tracking.isSyncing ? 'Отправка...' : 'Синхронизировать' }}
+        {{ tracking.isSyncing ? 'Отправка...' : `Отправить ${tracking.unsentCount > 0 ? tracking.unsentCount : ''}`.trim() }}
       </KitBtn>
     </div>
   </div>

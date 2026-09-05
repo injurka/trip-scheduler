@@ -21,7 +21,7 @@ const props = withDefaults(defineProps<Props>(), {
       </div>
       <div class="metric-info">
         <span class="metric-value">{{ props.overallDistanceFormatted }}</span>
-        <span class="metric-label">Дистанция за {{ props.selectedDays }} дн.</span>
+        <span class="metric-label">{{ props.selectedDays === 1 ? 'Дистанция за сегодня' : `Дистанция за ${props.selectedDays} дн.` }}</span>
       </div>
     </div>
 
@@ -41,7 +41,7 @@ const props = withDefaults(defineProps<Props>(), {
       </div>
       <div class="metric-info">
         <span class="metric-value">{{ props.activeDaysCount }}</span>
-        <span class="metric-label">Дней с активностью</span>
+        <span class="metric-label">{{ props.selectedDays === 1 ? 'Активность сегодня' : 'Дней с активностью' }}</span>
       </div>
     </div>
   </div>

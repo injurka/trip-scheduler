@@ -30,7 +30,14 @@ const {
   formatDuration,
   formatTime,
   openDayOnMap,
+  openMemories,
 } = useActivityTracking()
+
+async function handleSync() {
+  await trackingStore.syncNow()
+  // После отправки точек статистика на сервере могла измениться — перезагружаем
+  await loadSummaries()
+}
 </script>
 
 <template>
@@ -41,6 +48,7 @@ const {
       :selected-days="selectedDays"
       @refresh="refresh"
       @select-days="setDaysRange"
+      @open-memories="openMemories"
     />
 
     <!-- Виджет управления GPS-трекингом -->
@@ -58,11 +66,18 @@ const {
       </template>
 
       <template #empty>
-        <ActivityTrackingEmpty />
+        <ActivityTrackingEmpty
+          :selected-days="selectedDays"
+          :unsent-count="trackingStore.unsentCount"
+          :is-tracking-running="trackingStore.isRunning"
+          :is-syncing="trackingStore.isSyncing"
+          @sync="handleSync"
+          @open-memories="openMemories"
+        />
       </template>
 
       <template #success="{ data }">
-        <div class="activity-tracking-results">
+        <div class="activity-tracking-results" :class="{ 'is-refreshing': isRefreshing }">
           <ActivityTrackingMetrics
             :overall-distance-formatted="formatDistance(overallDistanceM)"
             :overall-duration-formatted="formatDuration(overallDurationMs)"
@@ -100,5 +115,11 @@ const {
   display: flex;
   flex-direction: column;
   gap: var(--p-m);
+  transition: opacity 0.2s ease;
+
+  &.is-refreshing {
+    opacity: 0.65;
+    pointer-events: none;
+  }
 }
 </style>

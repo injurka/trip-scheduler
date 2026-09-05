@@ -10,7 +10,8 @@ import {
   DialogRoot,
   DialogTitle,
 } from 'reka-ui'
-import { computed } from 'vue'
+import { computed, useId } from 'vue'
+import { useDialogHistory } from '../composables/use-dialog-history'
 
 interface Props {
   maxWidth?: number
@@ -31,6 +32,9 @@ const {
 } = defineProps<Props>()
 
 const visible = defineModel<boolean>('visible', { required: true })
+const dialogId = useId()
+
+useDialogHistory(dialogId, visible)
 
 const maxWidthPx = computed(() => `${maxWidth}px`)
 

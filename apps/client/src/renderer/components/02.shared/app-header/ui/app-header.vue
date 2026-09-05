@@ -244,8 +244,10 @@ onMounted(() => {
 
 <style lang="scss" scoped>
 .header {
-  position: sticky;
+  position: absolute;
   top: 0;
+  left: 0;
+  right: 0;
   display: flex;
   flex-direction: row;
   width: 100%;

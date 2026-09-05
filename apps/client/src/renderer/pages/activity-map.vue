@@ -1,106 +1,145 @@
 <script setup lang="ts">
 import { Icon } from '@iconify/vue'
+import { useScrollLock } from '@vueuse/core'
+import { ref, watch } from 'vue'
+import { useRoute, useRouter } from 'vue-router'
+import { KitBtn } from '~/components/01.kit/kit-btn'
+import { KitDialogWithClose } from '~/components/01.kit/kit-dialog-with-close'
+import { useDialogHistory } from '~/components/01.kit/kit-dialog-with-close/composables/use-dialog-history'
 import { ActivityMap } from '~/components/05.modules/activity-map'
 import DayMemoriesPlayer from '~/components/05.modules/activity-map/ui/memories/day-memories-player.vue'
-import TrackingToggle from '~/components/05.modules/activity-map/ui/memories/tracking-toggle.vue'
+import { TrackingControlCard } from '~/components/05.modules/activity-tracking'
 import { useTrackingStore } from '~/shared/store/tracking.store'
 
 const route = useRoute()
+const router = useRouter()
 const trackingStore = useTrackingStore()
 
-const isMapMode = computed(() => route.query.view === 'map')
-const isMemoriesMode = computed(() => route.query.view === 'memories')
+const isMemoriesOpen = ref(route.query.view === 'memories')
 const isTrackingSheetOpen = ref(false)
 
+// Блокировка фонового скролла пока открыт просмотрщик воспоминаний
+const isScrollLocked = useScrollLock(typeof document !== 'undefined' ? document.body : null)
+
+watch(isMemoriesOpen, (open) => {
+  isScrollLocked.value = open
+  if (!open && route.query.view === 'memories') {
+    router.replace({
+      query: {
+        ...route.query,
+        view: undefined,
+        day: undefined,
+      },
+    })
+  }
+}, { immediate: true })
+
+watch(() => route.query.view, (view) => {
+  if (view === 'memories') {
+    isMemoriesOpen.value = true
+  }
+  else if (isMemoriesOpen.value) {
+    isMemoriesOpen.value = false
+  }
+})
+
+// Поддержка закрытия по свайпу "назад" и кнопке Back без смены роута
+useDialogHistory('activity-memories-player', isMemoriesOpen)
+
+function handleCloseMemories() {
+  isMemoriesOpen.value = false
+}
+
 function handleModeChange(mode: 'list' | 'map') {
-  // Синхронизация режима просмотра
   void mode
 }
 </script>
 
 <template>
   <section
-    class="content-wrapper"
-    :class="{ 'is-map-mode': isMapMode || isMemoriesMode }"
+    class="content-wrapper is-map-mode"
   >
-    <template v-if="isMemoriesMode">
-      <div class="memories-fullscreen-container">
+    <ActivityMap
+      @mode-change="handleModeChange"
+    />
+
+    <!-- Drawer полноэкранного просмотра воспоминаний -->
+    <Transition name="memories-drawer">
+      <div
+        v-if="isMemoriesOpen"
+        class="memories-fullscreen-container"
+      >
         <DayMemoriesPlayer
           class="memories-full"
           :day-utc="(route.query.day as string)"
-        />
-
-        <!-- Плавающий переключатель панели GPS-трекинга на карте -->
-        <div class="floating-tracking-pill">
-          <KitBtn
-            variant="tonal"
-            size="sm"
-            class="tracking-hud-btn"
-            :class="{ 'is-live': trackingStore.isRunning }"
-            @click="isTrackingSheetOpen = !isTrackingSheetOpen"
-          >
-            <template #prepend>
-              <Icon icon="mdi:crosshairs-gps" class="hud-icon" />
-            </template>
-            <span v-if="trackingStore.isRunning" class="live-dot" />
-            {{ trackingStore.isRunning ? 'GPS активен' : 'Трекинг' }}
-          </KitBtn>
-        </div>
-
-        <!-- Выдвижная карточка управления трекингом поверх карты -->
-        <div
-          v-if="isTrackingSheetOpen"
-          class="tracking-sheet-backdrop"
-          @click.self="isTrackingSheetOpen = false"
+          @close="handleCloseMemories"
+          @back="handleCloseMemories"
         >
-          <div class="tracking-sheet-card">
-            <div class="sheet-header">
-              <span class="sheet-title">Управление трекингом</span>
-              <button
-                class="sheet-close-btn"
-                aria-label="Закрыть панель"
-                @click="isTrackingSheetOpen = false"
-              >
-                <Icon icon="mdi:close" />
-              </button>
-            </div>
-            <TrackingToggle />
-          </div>
-        </div>
+          <template #top-actions>
+            <KitBtn
+              variant="tonal"
+              size="sm"
+              class="tracking-hud-btn"
+              :class="{ 'is-live': trackingStore.isRunning }"
+              title="Управление трекингом"
+              @click="isTrackingSheetOpen = true"
+            >
+              <template #prepend>
+                <Icon icon="mdi:crosshairs-gps" class="hud-icon" />
+              </template>
+              <span v-if="trackingStore.isRunning" class="live-dot" />
+              {{ trackingStore.isRunning ? 'GPS активен' : 'Трекинг' }}
+            </KitBtn>
+          </template>
+        </DayMemoriesPlayer>
       </div>
-    </template>
-    <ActivityMap
-      v-else
-      @mode-change="handleModeChange"
-    />
+    </Transition>
+
+    <!-- Диалог управления трекингом -->
+    <KitDialogWithClose
+      v-model:visible="isTrackingSheetOpen"
+      title="Управление трекингом"
+      icon="mdi:crosshairs-gps"
+      :max-width="500"
+    >
+      <TrackingControlCard />
+    </KitDialogWithClose>
   </section>
 </template>
 
 <style scoped lang="scss">
 .content-wrapper {
+  position: relative;
   width: 100%;
   margin: 0 auto;
   display: flex;
   flex-direction: column;
-  padding: 16px;
-  max-width: 1400px;
   height: 100%;
-  min-height: calc(100vh - 53px);
+  max-height: 100%;
+  overflow: hidden;
 
   &.is-map-mode {
     max-width: 100%;
     padding: 0;
     margin: 0;
-    height: calc(100vh - 53px);
+    flex: 1;
+    height: 100%;
+    max-height: 100%;
     overflow: hidden;
   }
 }
 
 .memories-fullscreen-container {
-  position: relative;
+  position: absolute;
+  inset: 0;
+  z-index: 20;
   width: 100%;
   height: 100%;
+  max-height: 100%;
+  background-color: var(--bg-primary-color);
   overflow: hidden;
+  display: flex;
+  flex-direction: column;
 }
 
 .memories-full {
@@ -108,92 +147,51 @@ function handleModeChange(mode: 'list' | 'map') {
   height: 100%;
 }
 
-.floating-tracking-pill {
-  position: absolute;
-  top: 14px;
-  right: 14px;
-  z-index: 25;
+.tracking-hud-btn {
+  background-color: var(--bg-secondary-color);
+  backdrop-filter: blur(12px);
+  border: 1px solid var(--border-secondary-color);
+  box-shadow: var(--s-m);
+  border-radius: var(--r-full);
+  transform: none !important;
 
-  .tracking-hud-btn {
-    background-color: var(--bg-secondary-color);
-    backdrop-filter: blur(12px);
-    border: 1px solid var(--border-secondary-color);
-    box-shadow: var(--s-m);
-    border-radius: var(--r-full);
+  &:hover,
+  &:active,
+  &:focus {
+    transform: none !important;
+  }
 
-    .hud-icon {
-      font-size: 1.1rem;
-    }
+  .hud-icon {
+    font-size: 1.1rem;
+  }
 
-    &.is-live {
-      border-color: var(--border-success-color);
-      color: var(--fg-success-color);
+  &.is-live {
+    border-color: var(--border-success-color);
+    color: var(--fg-success-color);
 
-      .live-dot {
-        width: 6px;
-        height: 6px;
-        border-radius: var(--r-full);
-        background-color: var(--fg-success-color);
-        margin-right: 2px;
-        animation: pulse 1.5s infinite;
-      }
+    .live-dot {
+      display: inline-block;
+      width: 6px;
+      height: 6px;
+      border-radius: var(--r-full);
+      background-color: var(--fg-success-color);
+      margin-right: 4px;
+      animation: pulse 1.5s infinite;
     }
   }
 }
 
-.tracking-sheet-backdrop {
-  position: absolute;
-  inset: 0;
-  z-index: 30;
-  background: rgba(0, 0, 0, 0.45);
-  backdrop-filter: blur(4px);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  padding: 16px;
+.memories-drawer-enter-active,
+.memories-drawer-leave-active {
+  transition:
+    transform 0.28s cubic-bezier(0.32, 0.72, 0, 1),
+    opacity 0.2s ease;
+}
 
-  .tracking-sheet-card {
-    width: 100%;
-    max-width: 520px;
-    background-color: var(--bg-secondary-color);
-    border: 1px solid var(--border-secondary-color);
-    border-radius: var(--r-l);
-    padding: var(--p-m);
-    box-shadow: var(--s-xl);
-    display: flex;
-    flex-direction: column;
-    gap: 12px;
-
-    .sheet-header {
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-
-      .sheet-title {
-        font-size: 1rem;
-        font-weight: 600;
-        color: var(--fg-primary-color);
-      }
-
-      .sheet-close-btn {
-        background-color: var(--bg-tertiary-color);
-        border: none;
-        color: var(--fg-primary-color);
-        width: 28px;
-        height: 28px;
-        border-radius: var(--r-full);
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        cursor: pointer;
-        transition: background 0.2s;
-
-        &:hover {
-          background-color: var(--bg-hover-color);
-        }
-      }
-    }
-  }
+.memories-drawer-enter-from,
+.memories-drawer-leave-to {
+  transform: translateY(100%);
+  opacity: 0;
 }
 
 @keyframes pulse {

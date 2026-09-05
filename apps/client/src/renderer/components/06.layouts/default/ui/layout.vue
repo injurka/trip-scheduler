@@ -29,12 +29,34 @@ import { ThemeManager } from '~/components/02.shared/theme-manager'
   flex: 1;
   position: relative;
   overflow: clip;
+
+  &:has(.is-map-mode) {
+    height: 100dvh;
+    max-height: 100dvh;
+    overflow: hidden;
+
+    :deep(.app-footer) {
+      display: none;
+    }
+  }
 }
 
 .main-content {
   height: 100%;
   display: flex;
   flex-grow: 1;
-  padding-top: var(--header-actual-height, var(--header-height));
+
+  // Хедер absolute (вне потока) — отступ от него лежит на корне страницы
+  // (.content-wrapper): фон страницы тянется до верха под хедером, контент
+  // начинается ниже. !important перебивает scoped padding страниц
+  // (специфичность ничья 0,2,0, порядок в бандле ненадёжен)
+  > :deep(.content-wrapper) {
+    padding-top: var(--header-actual-height, var(--header-height)) !important;
+
+    // Полноэкранный режим карты — отступ не нужен
+    &.is-map-mode {
+      padding-top: 0 !important;
+    }
+  }
 }
 </style>

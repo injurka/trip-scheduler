@@ -11,7 +11,7 @@ import VectorLayer from 'ol/layer/Vector'
 import { fromLonLat } from 'ol/proj'
 import VectorSource from 'ol/source/Vector'
 import { Circle as CircleStyle, Fill, Stroke, Style } from 'ol/style'
-import { computed, onBeforeUnmount, onMounted, ref, shallowRef, watch } from 'vue'
+import { computed, getCurrentInstance, onBeforeUnmount, onMounted, ref, shallowRef, watch } from 'vue'
 import { useKitMap } from '~/components/01.kit/kit-map/composables/use-kit-map'
 import { AppRouteNames } from '~/shared/constants/routes'
 import { catmullRomSpline } from '~/shared/services/tracking/track-processing'
@@ -23,6 +23,11 @@ const props = withDefaults(defineProps<{
 }>(), {
   showBackButton: true,
 })
+
+const emit = defineEmits<{
+  (e: 'back'): void
+  (e: 'close'): void
+}>()
 
 const route = useRoute()
 const router = useRouter()
@@ -148,12 +153,18 @@ function goToToday() {
   }
 }
 
+const instance = getCurrentInstance()
+
 function handleBack() {
-  if (window.history.length > 1) {
-    router.back()
-  }
-  else {
-    router.push({ name: AppRouteNames.ActivityTracking })
+  emit('back')
+  emit('close')
+  if (!instance?.vnode.props?.onBack && !instance?.vnode.props?.onClose) {
+    if (window.history.length > 1) {
+      router.back()
+    }
+    else {
+      router.push({ name: AppRouteNames.ActivityTracking })
+    }
   }
 }
 
@@ -596,6 +607,8 @@ function fmtRange(ms: number) {
           </template>
           Трек
         </KitBtn>
+
+        <slot name="top-actions" />
       </div>
     </div>
 

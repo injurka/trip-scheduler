@@ -20,6 +20,7 @@
     "Ref": true,
     "RouterInput": true,
     "RouterOutput": true,
+    "SERVER_URL": true,
     "ShallowRef": true,
     "Slot": true,
     "Slots": true,

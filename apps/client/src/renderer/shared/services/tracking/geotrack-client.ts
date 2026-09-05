@@ -164,6 +164,7 @@ class WebGeolocationTracker {
   private wakeLockSentinel: any = null
   private currentSessionId: string | null = null
   private sessionStartedAt = 0
+  private sessionEndedAt = 0
   private sessionDistanceM = 0
   private lastFixPoint: TrackPoint | null = null
   private lastError: string | null = null
@@ -192,11 +193,13 @@ class WebGeolocationTracker {
     let telemetry: TrackingTelemetry | undefined
     if (this.isRunning || this.lastFixPoint) {
       const speedKmh = this.lastFixPoint?.speed != null ? Math.round(this.lastFixPoint.speed * 3.6) : null
+      // После остановки длительность фиксируется на моменте stop(), а не «сейчас»
+      const endTs = this.isRunning ? now : (this.sessionEndedAt || now)
       telemetry = {
         speedKmh,
         accuracyM: this.lastFixPoint?.accuracy != null ? Math.round(this.lastFixPoint.accuracy) : null,
         distanceM: Math.round(this.sessionDistanceM),
-        durationMs: this.sessionStartedAt > 0 ? Math.max(0, now - this.sessionStartedAt) : 0,
+        durationMs: this.sessionStartedAt > 0 ? Math.max(0, endTs - this.sessionStartedAt) : 0,
         activity: this.lastFixPoint?.activity || 'still',
         lat: this.lastFixPoint?.lat ?? null,
         lng: this.lastFixPoint?.lng ?? null,
@@ -227,6 +230,7 @@ class WebGeolocationTracker {
     // Начинаем новую сессию
     this.currentSessionId = uuidv4()
     this.sessionStartedAt = Date.now()
+    this.sessionEndedAt = 0
     this.sessionDistanceM = 0
     this.lastFixPoint = null
     writeStoredSession({
@@ -370,6 +374,11 @@ class WebGeolocationTracker {
     }
 
     this.isRunning = false
+
+    if (this.sessionStartedAt > 0) {
+      this.sessionEndedAt = Date.now()
+    }
+
     writeStoredSession(null)
     return this.getStatus()
   }

@@ -18,6 +18,7 @@ const props = withDefaults(defineProps<Props>(), {
 const emit = defineEmits<{
   (e: 'refresh'): void
   (e: 'selectDays', days: number): void
+  (e: 'openMemories'): void
 }>()
 </script>
 
@@ -50,17 +51,32 @@ const emit = defineEmits<{
         </KitBtn>
       </div>
 
-      <KitBtn
-        variant="tonal"
-        size="xs"
-        :disabled="props.isLoading || props.isRefreshing"
-        @click="emit('refresh')"
-      >
-        <template #prepend>
+      <div class="right-actions">
+        <KitBtn
+          variant="tonal"
+          size="xs"
+          class="refresh-btn"
+          :disabled="props.isLoading || props.isRefreshing"
+          title="Обновить"
+          aria-label="Обновить"
+          @click="emit('refresh')"
+        >
           <Icon icon="mdi:refresh" :class="{ 'spin-icon': props.isLoading || props.isRefreshing }" />
-        </template>
-        Обновить
-      </KitBtn>
+        </KitBtn>
+
+        <KitBtn
+          variant="solid"
+          size="xs"
+          color="primary"
+          class="memories-btn"
+          @click="emit('openMemories')"
+        >
+          <template #prepend>
+            <Icon icon="mdi:movie-open-play-outline" />
+          </template>
+          Воспоминания
+        </KitBtn>
+      </div>
     </div>
   </header>
 </template>
@@ -118,16 +134,73 @@ const emit = defineEmits<{
     flex-wrap: wrap;
     width: 100%;
     justify-content: space-between;
+
+    .right-actions {
+      display: flex;
+      align-items: center;
+      gap: var(--p-s);
+    }
+
+    .refresh-btn {
+      height: 32px;
+      width: 32px;
+      padding: 0 !important;
+      transform: none !important;
+      box-shadow: none;
+
+      &:hover,
+      &:active,
+      &:focus,
+      &:focus-visible {
+        transform: none !important;
+        box-shadow: none;
+      }
+    }
+
+    .memories-btn {
+      height: 32px;
+      transform: none !important;
+
+      &:hover,
+      &:active,
+      &:focus,
+      &:focus-visible {
+        transform: none !important;
+      }
+    }
   }
 
   .days-selector {
-    display: flex;
+    display: inline-flex;
     align-items: center;
-    gap: 4px;
+    gap: 2px;
     background-color: var(--bg-secondary-color);
-    padding: 3px;
+    padding: 2px;
     border-radius: var(--r-s);
     border: 1px solid var(--border-secondary-color);
+    height: 32px;
+    box-sizing: border-box;
+
+    :deep(.kit-btn) {
+      height: 100%;
+      padding: 0 10px;
+      font-size: 0.8rem;
+      border: none;
+      box-shadow: none !important;
+      transform: none !important;
+      transition:
+        background-color 0.15s ease,
+        color 0.15s ease,
+        opacity 0.15s ease;
+
+      &:hover,
+      &:active,
+      &:focus,
+      &:focus-visible {
+        transform: none !important;
+        box-shadow: none !important;
+      }
+    }
   }
 }
 
