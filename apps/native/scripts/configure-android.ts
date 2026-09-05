@@ -14,6 +14,7 @@ const REQUIRED_PERMISSIONS = [
   'android.permission.FOREGROUND_SERVICE_LOCATION',
   'android.permission.POST_NOTIFICATIONS',
   'android.permission.WAKE_LOCK',
+  'android.permission.REQUEST_INSTALL_PACKAGES',
 ]
 
 export function configureAndroidManifest(): boolean {

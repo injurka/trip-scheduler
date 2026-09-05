@@ -230,6 +230,18 @@ const renderSegments = computed<RenderSegment[]>(() => {
 
 const totalPointsCount = computed(() => dayData.value?.points.length ?? 0)
 
+// ─── Репрезентативные объединенные точки (для синхронизации карты, счетчиков и попапов) ───
+const sortedPoints = computed(() => {
+  const pts = dayData.value?.points || []
+  return [...pts].sort((a, b) => a.tsUtc - b.tsUtc)
+})
+
+const displayPoints = computed(() => {
+  return mergeStationaryPoints(sortedPoints.value, { maxDistanceM: 5.0 })
+})
+
+const displayPointsCount = computed(() => displayPoints.value.length)
+
 type ViewMode = 'route' | 'points'
 const viewMode = ref<ViewMode>('route')
 
@@ -240,6 +252,13 @@ interface SelectedPointInfo {
 }
 
 const selectedPoint = ref<SelectedPointInfo | null>(null)
+
+// ─── Временная зона: Местное время устройства / UTC ───
+const isLocalTz = ref(true)
+
+function toggleTimezone() {
+  isLocalTz.value = !isLocalTz.value
+}
 
 // ─── Карта ────────────────────────────────────────────────────────────────────
 const mapHost = ref<HTMLElement | null>(null)
@@ -293,7 +312,7 @@ function formatPointTime(tsUtc: number): string {
     hour: '2-digit',
     minute: '2-digit',
     second: '2-digit',
-    timeZone: 'UTC',
+    ...(isLocalTz.value ? {} : { timeZone: 'UTC' }),
   })
 }
 
@@ -385,7 +404,7 @@ onMounted(async () => {
       stopEvent: true,
       autoPan: {
         animation: { duration: 250 },
-        margin: 20,
+        margin: 160,
       },
     })
     mapInstance.value?.addOverlay(pointOverlay)
@@ -544,19 +563,11 @@ function rebuildFeatures() {
   progressSource.value.clear()
   closePointPopup()
 
-  if (markerFeature.value) {
-    routeSource.value.addFeature(markerFeature.value)
-  }
-
   const rawPoints = dayData.value?.points || []
-  const sorted = [...rawPoints].sort((a, b) => a.tsUtc - b.tsUtc)
 
-  // Объединяем стояночные точки в радиусе 5м в одну репрезентативную точку,
-  // исключая паразитные нагромождения маркеров и петли в сплайнах.
-  const displayPoints = mergeStationaryPoints(sorted, { maxDistanceM: 5.0 })
-
-  const uniquePoints: typeof displayPoints = []
-  for (const p of displayPoints) {
+  // Используем объединенные стояночные точки (радиус 5м)
+  const uniquePoints: Array<DayData['points'][0]> = []
+  for (const p of displayPoints.value) {
     const prev = uniquePoints[uniquePoints.length - 1]
     if (!prev || Math.abs(prev.lat - p.lat) > 1e-6 || Math.abs(prev.lng - p.lng) > 1e-6) {
       uniquePoints.push(p)
@@ -610,16 +621,21 @@ function rebuildFeatures() {
     }
   }
 
+  if (markerFeature.value) {
+    routeSource.value.addFeature(markerFeature.value)
+  }
+
   // Интерактивные маркеры для каждой объединенной точки в обоих режимах
   const isPointsMode = viewMode.value === 'points'
-  for (let i = 0; i < displayPoints.length; i++) {
-    const p = displayPoints[i]
+  const pointsList = displayPoints.value
+  for (let i = 0; i < pointsList.length; i++) {
+    const p = pointsList[i]
     const ptFeature = new Feature({
       geometry: new Point(fromLonLat([p.lng, p.lat])),
     })
     ptFeature.set('pointData', p)
     ptFeature.set('pointIndex', i + 1)
-    ptFeature.set('totalPoints', displayPoints.length)
+    ptFeature.set('totalPoints', pointsList.length)
     ptFeature.setStyle(new Style({
       image: new CircleStyle({
         radius: isPointsMode ? 5.5 : 4,
@@ -757,9 +773,30 @@ watch(t, () => {
   updateProgressLine()
 })
 
+function skipToNextMovement() {
+  const pts = dayData.value?.points
+  if (!pts || pts.length === 0)
+    return
+
+  // Ищем следующую точку с движением (скорость > 0.5 м/с или активность не still)
+  const nextMoving = pts.find(p => p.tsUtc > t.value + 1000 && (p.activity !== 'still' || (p.speed != null && p.speed > 0.5)))
+  if (nextMoving) {
+    t.value = nextMoving.tsUtc
+  }
+  else {
+    // Если после текущего времени движения нет, переходим в конец дня
+    t.value = dayEnd.value
+  }
+}
+
 const timeLabel = computed(() =>
   t.value > 0
-    ? new Date(t.value).toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit', second: '2-digit', timeZone: 'UTC' })
+    ? new Date(t.value).toLocaleTimeString('ru-RU', {
+        hour: '2-digit',
+        minute: '2-digit',
+        second: '2-digit',
+        ...(isLocalTz.value ? {} : { timeZone: 'UTC' }),
+      })
     : '--:--',
 )
 
@@ -786,7 +823,11 @@ const speedKmhFromPoints = computed(() => {
 
 function fmtRange(ms: number) {
   return ms > 0
-    ? new Date(ms).toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit', timeZone: 'UTC' })
+    ? new Date(ms).toLocaleTimeString('ru-RU', {
+        hour: '2-digit',
+        minute: '2-digit',
+        ...(isLocalTz.value ? {} : { timeZone: 'UTC' }),
+      })
     : '--:--'
 }
 </script>
@@ -835,12 +876,12 @@ function fmtRange(ms: number) {
           <button
             class="mode-tab-btn"
             :class="{ 'is-active': viewMode === 'points' }"
-            title="Отображать все точки активности, соединенные кривой Безье"
+            :title="totalPointsCount !== displayPointsCount ? `Отображается ${displayPointsCount} точек на карте (из ${totalPointsCount} исходных)` : 'Отображать все точки активности, соединенные кривой Безье'"
             @click="viewMode = 'points'"
           >
             <Icon icon="mdi:vector-bezier" class="tab-icon" />
             <span class="tab-label">Точки (Безье)</span>
-            <span v-if="totalPointsCount > 0" class="points-pill">{{ totalPointsCount }}</span>
+            <span v-if="displayPointsCount > 0" class="points-pill">{{ displayPointsCount }}</span>
           </button>
         </div>
 
@@ -933,7 +974,7 @@ function fmtRange(ms: number) {
 
         <div class="popup-grid">
           <div class="popup-item">
-            <span class="item-lbl">Время</span>
+            <span class="item-lbl">Время ({{ isLocalTz ? 'Местное' : 'UTC' }})</span>
             <span class="item-val">{{ formatPointTime(selectedPoint.point.tsUtc) }}</span>
           </div>
           <div class="popup-item">
@@ -1029,7 +1070,13 @@ function fmtRange(ms: number) {
       <div class="memories-readout">
         <div class="readout-time-group">
           <span class="time">{{ timeLabel }}</span>
-          <span class="time-tz">UTC</span>
+          <button
+            class="tz-toggle-chip"
+            :title="isLocalTz ? 'Показывается местное время устройства. Нажмите для переключения на UTC' : 'Показывается время в UTC. Нажмите для переключения на местное время'"
+            @click="toggleTimezone"
+          >
+            {{ isLocalTz ? 'МСК/Местное' : 'UTC' }}
+          </button>
         </div>
 
         <div
@@ -1060,7 +1107,13 @@ function fmtRange(ms: number) {
             <Icon :icon="isFollowCamera ? 'mdi:crosshairs-gps' : 'mdi:crosshairs'" />
             <span class="camera-btn-text">{{ isFollowCamera ? 'Слежение' : 'Свободная' }}</span>
           </button>
-          <span class="points-count">{{ totalPointsCount }} точек</span>
+          <span
+            class="points-count"
+            :title="totalPointsCount !== displayPointsCount ? `Отображается ${displayPointsCount} объединенных точек из ${totalPointsCount} исходных` : ''"
+          >
+            {{ displayPointsCount }} точек
+            <span v-if="totalPointsCount !== displayPointsCount" class="raw-count-sub">({{ totalPointsCount }})</span>
+          </span>
         </div>
       </div>
 
@@ -1115,6 +1168,16 @@ function fmtRange(ms: number) {
             @click="stepSeconds(15)"
           >
             <Icon icon="mdi:fast-forward-15" />
+          </button>
+
+          <button
+            class="control-btn skip-still-btn"
+            :disabled="dayEnd === 0"
+            aria-label="Пропустить стоянку / к следующему движению"
+            title="Пропустить стоянку (к движению)"
+            @click="skipToNextMovement"
+          >
+            <Icon icon="mdi:motion-play-outline" />
           </button>
 
           <button
@@ -1406,6 +1469,23 @@ function fmtRange(ms: number) {
         &.valid {
           background: rgba(34, 197, 94, 0.15);
           color: #22c55e;
+        }
+      }
+
+      @media (max-width: 640px) {
+        min-width: 210px;
+        max-width: calc(100vw - 32px);
+        padding: 8px 12px;
+        gap: 6px;
+
+        .popup-grid {
+          gap: 4px 8px;
+
+          .popup-item {
+            .item-val {
+              font-size: 0.74rem;
+            }
+          }
         }
       }
     }
@@ -1757,7 +1837,7 @@ function fmtRange(ms: number) {
     .readout-time-group {
       display: flex;
       align-items: baseline;
-      gap: 4px;
+      gap: 6px;
 
       .time {
         font-size: 1.25rem;
@@ -1765,9 +1845,23 @@ function fmtRange(ms: number) {
         color: var(--fg-primary-color);
       }
 
-      .time-tz {
-        font-size: 0.7rem;
+      .tz-toggle-chip {
+        font-size: 0.68rem;
+        font-weight: 600;
+        padding: 2px 7px;
+        border-radius: var(--r-full);
+        border: 1px solid var(--border-secondary-color);
+        background: var(--bg-tertiary-color);
         color: var(--fg-secondary-color);
+        cursor: pointer;
+        transition: all 0.2s;
+        line-height: 1.2;
+
+        &:hover {
+          color: var(--fg-primary-color);
+          background: var(--bg-hover-color);
+          border-color: var(--border-primary-color);
+        }
       }
     }
 
@@ -1830,6 +1924,16 @@ function fmtRange(ms: number) {
           }
         }
       }
+
+      .points-count {
+        white-space: nowrap;
+
+        .raw-count-sub {
+          font-size: 0.68rem;
+          opacity: 0.65;
+          margin-left: 2px;
+        }
+      }
     }
   }
 
@@ -1885,6 +1989,15 @@ function fmtRange(ms: number) {
 
         &.step-btn {
           font-size: 1.15rem;
+        }
+
+        &.skip-still-btn {
+          font-size: 1.1rem;
+          color: var(--fg-secondary-color);
+
+          &:hover:not(:disabled) {
+            color: var(--fg-accent-color);
+          }
         }
 
         &.play-btn {
