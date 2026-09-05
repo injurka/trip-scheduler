@@ -294,7 +294,6 @@ function getSliderColor(value: number) {
 
   @include hover {
     &:not(.disabled) {
-      transform: translateY(-2px);
     }
   }
   &.disabled {

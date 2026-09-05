@@ -646,7 +646,6 @@ kbd {
 .thumb-item.is-broken:hover {
   border-color: rgba(239, 68, 68, 0.8);
   background: linear-gradient(135deg, #2a1818 0%, #3a1e1e 100%);
-  transform: translateY(-2px);
 }
 
 .broken-thumb-content {
@@ -691,7 +690,6 @@ kbd {
 .thumb-item.more-card:hover {
   background: #2c2c34;
   border-color: #3b82f6;
-  transform: translateY(-2px);
 }
 
 .more-card-content {

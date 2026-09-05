@@ -531,7 +531,7 @@ function formatSyncTime(ts: number | null): string {
   align-items: center;
   justify-content: space-between;
   gap: var(--p-s);
-  padding-top: var(--p-2xs);
+  padding-top: 12px;
   border-top: 1px solid var(--border-secondary-color);
 
   .sync-status {

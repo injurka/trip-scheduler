@@ -73,7 +73,6 @@ const emit = defineEmits<{
   @include hover {
     & {
       border-color: var(--border-focus-color);
-      transform: translateY(-2px);
     }
   }
 

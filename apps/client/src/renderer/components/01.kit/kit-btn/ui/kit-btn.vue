@@ -64,7 +64,6 @@ const componentClasses = computed(() => [
 
   @include hover {
     &:not(.kit-btn--text):not(:disabled) {
-      transform: translateY(-2px);
       box-shadow: var(--s-l);
     }
   }

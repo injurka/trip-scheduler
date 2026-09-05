@@ -1457,7 +1457,6 @@ onClickOutside(timeEditorRef, saveTimeChanges)
   50% {
     box-shadow: 0 0 20px 4px rgba(var(--fg-accent-color-rgb), 0.45);
     border-color: var(--fg-accent-color);
-    transform: translateY(-2px);
   }
   100% {
     box-shadow: 0 0 0 0 transparent;

@@ -3,7 +3,6 @@ import { useScrollLock } from '@vueuse/core'
 import { watch } from 'vue'
 import { AsyncStateWrapper } from '~/components/02.shared/async-state-wrapper'
 import DayMemoriesPlayer from '~/components/05.modules/activity-map/ui/memories/day-memories-player.vue'
-import { isMobile } from '~/shared/lib/env'
 import { useTrackingStore } from '~/shared/store/tracking.store'
 import { useActivityTracking } from '../composables/use-activity-tracking'
 import ActivityTrackingDays from './activity-tracking-days.vue'
@@ -124,10 +123,6 @@ async function handleSync() {
           @touchmove.self.prevent
         >
           <div class="tracking-drawer-sheet">
-            <div v-if="isMobile" class="drawer-handle-bar">
-              <span class="drawer-drag-handle" />
-            </div>
-
             <DayMemoriesPlayer
               class="tracking-player-embedded"
               :day-utc="playerDayUtc"
@@ -187,27 +182,6 @@ async function handleSync() {
   flex-direction: column;
   overflow: hidden;
   position: relative;
-
-  .drawer-handle-bar {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    padding: 8px 0 4px;
-    background-color: var(--bg-secondary-color);
-    border-bottom: 1px solid var(--border-secondary-color);
-    flex-shrink: 0;
-
-    @include media-up(md) {
-      display: none;
-    }
-
-    .drawer-drag-handle {
-      width: 44px;
-      height: 4px;
-      border-radius: var(--r-full);
-      background-color: var(--border-primary-color);
-    }
-  }
 
   .tracking-player-embedded {
     flex: 1;

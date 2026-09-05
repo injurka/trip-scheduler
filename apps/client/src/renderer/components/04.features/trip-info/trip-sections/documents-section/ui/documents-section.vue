@@ -395,7 +395,6 @@ function cancelEditing() {
     & {
       border-color: var(--fg-accent-color);
       box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
-      transform: translateY(-2px);
 
       .delete-folder-btn {
         opacity: 1;

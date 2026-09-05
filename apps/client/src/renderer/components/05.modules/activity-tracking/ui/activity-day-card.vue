@@ -117,7 +117,7 @@ function handleClick() {
   &:hover,
   &:focus-visible {
     border-color: var(--border-focus-color);
-    transform: translateY(-2px);
+
     box-shadow: var(--s-m);
   }
 

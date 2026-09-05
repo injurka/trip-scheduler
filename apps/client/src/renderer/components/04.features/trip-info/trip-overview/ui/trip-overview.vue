@@ -941,7 +941,6 @@ watch(() => props.trip?.id, (newId) => {
     @include hover {
       & {
         background-color: var(--bg-hover-color);
-        transform: scale(1.1);
         color: var(--fg-accent-color);
       }
     }

@@ -193,7 +193,6 @@ function handleNodeClick() {
 
   @include hover {
     & {
-      transform: translateY(-2px);
       border-color: var(--fg-accent-color);
       box-shadow: var(--s-m);
       background: var(--bg-hover-color);

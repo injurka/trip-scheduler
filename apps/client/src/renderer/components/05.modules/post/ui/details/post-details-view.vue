@@ -441,7 +441,6 @@ function handleFocusBlock(block: TimelineBlock) {
 
   @include hover {
     & {
-      transform: translateY(-2px);
       box-shadow: 0 6px 20px rgba(var(--fg-accent-color-rgb), 0.5);
     }
   }

@@ -179,7 +179,6 @@ import { AppRouteNames } from '~/shared/constants/routes'
     & {
       background-color: var(--bg-tertiary-color);
       color: var(--fg-primary-color);
-      transform: translateY(-2px);
     }
   }
 

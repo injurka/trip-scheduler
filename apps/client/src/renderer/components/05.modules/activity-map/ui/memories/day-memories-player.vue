@@ -354,9 +354,10 @@ async function handleDeletePoint(pt: DayData['points'][0]) {
 }
 
 onMounted(async () => {
-  if (!mapHost.value || !popupHost.value)
+  if (!mapHost.value)
     return
-  await initMap(mapHost.value!, popupHost.value!, { center: mapCenter, zoom: 11 })
+
+  await initMap(mapHost.value!, null, { center: mapCenter, zoom: 11 })
 
   // Слой базового маршрута (фон и интерактивные точки)
   mapInstance.value?.addLayer(new VectorLayer({ source: routeSource.value, zIndex: 5 }))
@@ -850,30 +851,28 @@ function fmtRange(ms: number) {
         <KitBtn
           variant="tonal"
           size="sm"
+          icon="mdi:crosshairs-gps"
           title="Центрировать трек на карте"
+          aria-label="Центрировать трек на карте"
           :disabled="renderSegments.length === 0 && totalPointsCount === 0"
           @click="fitTrackBounds"
-        >
-          <template #prepend>
-            <Icon icon="mdi:crosshairs-gps" />
-          </template>
-          Трек
-        </KitBtn>
+        />
 
         <slot name="top-actions" />
-
-        <KitBtn
-          variant="tonal"
-          size="sm"
-          class="nav-btn close-btn"
-          title="Закрыть"
-          aria-label="Закрыть"
-          @click="handleBack"
-        >
-          <Icon icon="mdi:close" />
-        </KitBtn>
       </div>
     </div>
+
+    <!-- Круглая плавающая кнопка закрытия над картой -->
+    <KitBtn
+      variant="tonal"
+      size="sm"
+      class="nav-btn close-btn floating-close-btn"
+      title="Закрыть"
+      aria-label="Закрыть"
+      @click="handleBack"
+    >
+      <Icon icon="mdi:close" />
+    </KitBtn>
 
     <!-- Карта OpenLayers -->
     <div ref="mapHost" class="memories-map" />
@@ -1236,8 +1235,6 @@ function fmtRange(ms: number) {
       display: flex;
       flex-direction: column;
       gap: 8px;
-      transform: translate(-50%, -100%);
-      margin-top: -14px;
 
       &::after {
         content: '';
@@ -1732,7 +1729,7 @@ function fmtRange(ms: number) {
 
 .memories-panel {
   position: absolute;
-  bottom: 14px;
+  bottom: calc(14px + var(--safe-area-inset-bottom, env(safe-area-inset-bottom, 0px)));
   left: 14px;
   right: 14px;
   z-index: 20;

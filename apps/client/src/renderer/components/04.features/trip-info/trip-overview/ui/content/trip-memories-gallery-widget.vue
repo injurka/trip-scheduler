@@ -86,7 +86,7 @@ onMounted(() => {
   @include hover {
     & {
       border-color: var(--border-primary-color);
-      transform: translateY(-2px);
+
       box-shadow: var(--s-m);
     }
   }

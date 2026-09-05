@@ -85,7 +85,6 @@ function isPresetActive(preset: ThemePreset): boolean {
 
   @include hover {
     & {
-      transform: translateY(-2px);
       border-color: var(--border-accent-color);
       box-shadow: 0 4px 12px var(--bg-overlay-primary-color);
     }

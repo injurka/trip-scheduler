@@ -56,7 +56,7 @@ const palette = defineModel<ColorPalette>({ required: true })
     & {
       border-color: var(--border-focus-color);
       background: var(--bg-primary-color);
-      transform: translateY(-2px);
+
       box-shadow: 0 4px 12px var(--bg-overlay-primary-color);
     }
   }

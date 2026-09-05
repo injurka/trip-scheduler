@@ -410,7 +410,6 @@ onBeforeUnmount(() => {
       background: var(--bg-primary-color);
       color: var(--fg-accent-color);
       border-color: var(--fg-accent-color);
-      transform: translateY(-2px);
     }
   }
 }

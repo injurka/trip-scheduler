@@ -133,7 +133,7 @@ const dateRange = defineModel<DateRange>('dateRange', { required: true })
   @include hover {
     & {
       border-color: var(--border-primary-color);
-      transform: translateY(-2px);
+
       box-shadow: var(--s-m);
     }
   }

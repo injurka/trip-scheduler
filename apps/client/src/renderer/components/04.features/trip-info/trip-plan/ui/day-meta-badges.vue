@@ -480,7 +480,6 @@ function createBlankBadge() {
 
   @include hover {
     & {
-      transform: translateY(-2px);
       box-shadow: var(--s-m);
     }
   }

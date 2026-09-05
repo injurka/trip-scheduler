@@ -183,7 +183,6 @@ function handleCardClick(e: MouseEvent) {
 
   @include hover {
     & {
-      transform: translateY(-2px);
       border-color: var(--accent-color);
       box-shadow:
         0 6px 20px rgba(0, 0, 0, 0.25),

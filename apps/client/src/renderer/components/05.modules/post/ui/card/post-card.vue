@@ -366,7 +366,6 @@ const cardStyle = computed(() => ({
 
   @include hover {
     & {
-      transform: translateY(-2px);
       box-shadow: var(--s-l);
     }
   }
