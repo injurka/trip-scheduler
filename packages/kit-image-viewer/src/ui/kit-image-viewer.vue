@@ -821,7 +821,6 @@ onUnmounted(() => {
 <style scoped lang="scss">
 .image-viewer-overlay {
   position: fixed;
-  top: env(safe-area-inset-top) !important;
   inset: 0;
   background: var(--viewer-overlay-bg, rgba(0, 0, 0, 0.95));
   z-index: var(--z-image-viewer, 1002);
@@ -875,18 +874,18 @@ onUnmounted(() => {
 .header-left {
   position: absolute;
   left: 20px;
-  top: calc(20px + env(safe-area-inset-top));
+  top: 20px;
 }
 .header-center {
   position: absolute;
   left: 50%;
-  top: calc(20px + env(safe-area-inset-top));
+  top: 20px;
   transform: translateX(-50%);
 }
 .header-right {
   position: absolute;
   right: 20px;
-  top: calc(20px + env(safe-area-inset-top));
+  top: 20px;
 }
 
 .viewer-counter,
@@ -1487,7 +1486,7 @@ onUnmounted(() => {
   .header-right {
     display: flex;
     justify-content: flex-end;
-    top: env(safe-area-inset-top);
+    top: 0;
     left: 0px;
     right: 8px;
     padding: 16px 0;
