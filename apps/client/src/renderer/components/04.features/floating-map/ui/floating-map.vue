@@ -3,6 +3,7 @@ import type { Map as OlMap } from 'ol'
 import { Icon } from '@iconify/vue'
 import { useDraggable, useWindowSize } from '@vueuse/core'
 import { fromLonLat } from 'ol/proj'
+import { computed, nextTick, onMounted, onUnmounted, ref, shallowRef, watch } from 'vue'
 import { KitBtn } from '~/components/01.kit/kit-btn'
 import { KitInput } from '~/components/01.kit/kit-input'
 import { KitMap } from '~/components/01.kit/kit-map'
@@ -64,13 +65,20 @@ watch([x, y, windowWidth, windowHeight, isSearchOpen], () => {
   clampedY.value = cy
 }, { immediate: true, flush: 'post' })
 
+let ro: ResizeObserver | null = null
+
 onMounted(() => {
   if (windowRef.value) {
-    const ro = new ResizeObserver(() => {
+    ro = new ResizeObserver(() => {
       mapInstance.value?.updateSize()
     })
     ro.observe(windowRef.value)
   }
+})
+
+onUnmounted(() => {
+  ro?.disconnect()
+  ro = null
 })
 
 function onMapReady(map: OlMap) {

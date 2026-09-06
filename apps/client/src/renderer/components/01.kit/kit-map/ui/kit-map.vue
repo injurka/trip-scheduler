@@ -1,12 +1,14 @@
 <script setup lang="ts">
 import type { Map as OlMap } from 'ol'
+import type { EventsKey } from 'ol/events'
 import type TileSource from 'ol/source/Tile'
 import type { MapLayerOption, MapMarker } from '../models/types'
 import type { TileSourceId } from '~/shared/lib/map-styles-sources'
-import { fromLonLat } from 'ol/proj'
+import { unByKey } from 'ol/Observable'
+import { fromLonLat, toLonLat } from 'ol/proj'
 import { nextTick, onMounted, onUnmounted, ref, shallowRef, watch } from 'vue'
 import { KitBtn } from '~/components/01.kit/kit-btn'
-import { checkMapTilerAvailability, TILE_SOURCES } from '~/shared/lib/map-styles-sources'
+import { checkMapTilerAvailability, createTileSource, TILE_SOURCES } from '~/shared/lib/map-styles-sources'
 import { useKitMap } from '../composables/use-kit-map'
 import KitMapControls from './kit-map-controls.vue'
 import KitMapSearchControl from './kit-map-search-control.vue'
@@ -41,6 +43,7 @@ const emit = defineEmits<{
 
 const mapWrapperRef = ref<HTMLElement | null>(null)
 const popupRef = ref<HTMLElement | null>(null)
+let clickListenerKey: EventsKey | null = null
 
 const {
   mapInstance,
@@ -54,6 +57,13 @@ const {
   setSearchResult,
   clearSearchResult,
 } = useKitMap()
+
+defineExpose({
+  flyTo: (lon: number, lat: number, zoom = 14) => {
+    mapInstance.value?.getView().animate({ center: fromLonLat([lon, lat]), zoom, duration: 600 })
+  },
+  updateSize: () => mapInstance.value?.updateSize(),
+})
 
 const isFullscreen = ref(false)
 
@@ -113,7 +123,7 @@ watch(
   activeLayerId,
   (newId) => {
     const layer = availableLayers.value.find(l => l.id === newId)
-    const source = layer?.source || (TILE_SOURCES[newId as TileSourceId]?.source as unknown as TileSource)
+    const source = layer?.source || createTileSource(newId as TileSourceId)
 
     if (source) {
       setTileSource(source as TileSource)
@@ -151,12 +161,12 @@ onMounted(async () => {
     const layers: MapLayerOption[] = []
 
     if (isMapTilerAvailable) {
-      layers.push({ id: 'maptilerOutdoor', ...TILE_SOURCES.maptilerOutdoor } as MapLayerOption)
-      layers.push({ id: 'maptilerStreets', ...TILE_SOURCES.maptilerStreets } as MapLayerOption)
-      layers.push({ id: 'satellite', ...TILE_SOURCES.satellite } as MapLayerOption)
+      layers.push({ id: 'maptilerOutdoor', label: TILE_SOURCES.maptilerOutdoor.label, icon: TILE_SOURCES.maptilerOutdoor.icon, source: createTileSource('maptilerOutdoor') })
+      layers.push({ id: 'maptilerStreets', label: TILE_SOURCES.maptilerStreets.label, icon: TILE_SOURCES.maptilerStreets.icon, source: createTileSource('maptilerStreets') })
+      layers.push({ id: 'satellite', label: TILE_SOURCES.satellite.label, icon: TILE_SOURCES.satellite.icon, source: createTileSource('satellite') })
     }
 
-    layers.push({ id: 'osm', ...TILE_SOURCES.osm } as MapLayerOption)
+    layers.push({ id: 'osm', label: TILE_SOURCES.osm.label, icon: TILE_SOURCES.osm.icon, source: createTileSource('osm') })
 
     availableLayers.value = layers
     activeLayerId.value = layers[0].id
@@ -176,9 +186,11 @@ onMounted(async () => {
   )
 
   if (mapInstance.value) {
-    mapInstance.value.on('click', (event) => {
-      emit('click', event.coordinate as [number, number])
+    const clickKey = mapInstance.value.on('click', (event) => {
+      const lonLat = toLonLat(event.coordinate) as [number, number]
+      emit('click', lonLat)
     })
+    clickListenerKey = clickKey
     emit('mapReady', mapInstance.value)
 
     if (props.markers.length > 0) {
@@ -192,6 +204,10 @@ onMounted(async () => {
 })
 
 onUnmounted(() => {
+  if (clickListenerKey) {
+    unByKey(clickListenerKey)
+    clickListenerKey = null
+  }
   document.removeEventListener('fullscreenchange', handleFsChange)
   window.removeEventListener('keydown', handleFsKeyDown)
 })

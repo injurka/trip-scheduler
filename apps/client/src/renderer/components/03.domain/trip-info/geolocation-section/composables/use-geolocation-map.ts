@@ -1,15 +1,17 @@
+import type { EventsKey } from 'ol/events'
 import type { Coordinate, GeolocationMapOptions, MapPoint, MapRoute, TransportMode } from '../models/types'
 import type { TileSourceId } from '~/shared/lib/map-styles-sources'
 import { Feature, Overlay } from 'ol'
 import { LineString, Point } from 'ol/geom'
 import { Modify } from 'ol/interaction'
 import { Vector as VectorLayer } from 'ol/layer'
+import { unByKey } from 'ol/Observable'
 import { Vector as VectorSource } from 'ol/source'
 import { Circle as CircleStyle, Fill, Stroke, Style } from 'ol/style'
 import { onUnmounted, readonly, ref } from 'vue'
 import { useBaseMap } from '~/components/01.kit/kit-map'
 import { useToast } from '~/shared/composables/use-toast'
-import { checkMapTilerAvailability, TILE_SOURCES } from '~/shared/lib/map-styles-sources'
+import { checkMapTilerAvailability, createTileSource } from '~/shared/lib/map-styles-sources'
 import {
   createMarkerStyle,
   createRouteStyles,
@@ -45,6 +47,7 @@ export function useGeolocationMap() {
 
   const modifyInteraction = new Modify({ source: pointSource })
 
+  const eventKeys: EventsKey[] = []
   let cleanUpRmbListeners: (() => void) | null = null
 
   const activePointId = ref<string | null>(null)
@@ -187,9 +190,7 @@ export function useGeolocationMap() {
     }
 
     const isMapTilerWorking = await checkMapTilerAvailability()
-    const initialSource = isMapTilerWorking
-      ? TILE_SOURCES.maptilerOutdoor.source
-      : TILE_SOURCES.osm.source
+    const initialSource = createTileSource(isMapTilerWorking ? 'maptilerOutdoor' : 'osm')
 
     await baseMap.initMap({
       container: containerEl,
@@ -206,11 +207,12 @@ export function useGeolocationMap() {
 
     const map = baseMap.mapInstance.value
     if (map) {
-      map.getView().on('change:resolution', () => {
+      const resKey = map.getView().on('change:resolution', () => {
         updateOverlayVisibilities()
       })
+      eventKeys.push(resKey)
 
-      map.on('pointermove', (evt) => {
+      const pointerKey = map.on('pointermove', (evt) => {
         if (evt.dragging || !baseMap.mapInstance.value)
           return
 
@@ -244,13 +246,12 @@ export function useGeolocationMap() {
           }
         }
       })
+      eventKeys.push(pointerKey)
     }
   }
 
   const setTileSource = (sourceId: TileSourceId) => {
-    if (TILE_SOURCES[sourceId]) {
-      baseMap.setTileSource(TILE_SOURCES[sourceId].source)
-    }
+    baseMap.setTileSource(createTileSource(sourceId))
   }
 
   function getPointStyle(point: MapPoint): Style {
@@ -290,12 +291,12 @@ export function useGeolocationMap() {
       if (currentOverlay) {
         currentOverlay.setPosition(coordinates)
         popupElement = currentOverlay.getElement()!
-        popupElement.innerHTML = point.comment
+        popupElement.textContent = point.comment
       }
       else {
         popupElement = document.createElement('div')
         popupElement.className = 'ol-popup-comment'
-        popupElement.innerHTML = point.comment
+        popupElement.textContent = point.comment
 
         popupElement.onclick = (e) => {
           e.stopPropagation()
@@ -452,7 +453,7 @@ export function useGeolocationMap() {
 
     const popupElement = document.createElement('div')
     popupElement.className = 'ol-popup-comment'
-    popupElement.innerHTML = displayName
+    popupElement.textContent = displayName
     const searchOverlay = new Overlay({
       element: popupElement,
       position: coordinates,
@@ -503,6 +504,8 @@ export function useGeolocationMap() {
   }
 
   onUnmounted(() => {
+    eventKeys.forEach(k => unByKey(k))
+    eventKeys.length = 0
     if (cleanUpRmbListeners) {
       cleanUpRmbListeners()
       cleanUpRmbListeners = null

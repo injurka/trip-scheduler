@@ -1,6 +1,5 @@
 <script setup lang="ts">
 import type { MapMarker } from '~/components/01.kit/kit-map'
-import { toLonLat } from 'ol/proj'
 import { computed, ref, watch } from 'vue'
 import { KitBtn } from '~/components/01.kit/kit-btn'
 import { KitDialogWithClose } from '~/components/01.kit/kit-dialog-with-close'
@@ -34,8 +33,8 @@ async function fetchAddress(lon: number, lat: number) {
   return res?.address || ''
 }
 
-async function handleMapClick(rawCoords: [number, number]) {
-  const [lon, lat] = toLonLat(rawCoords) as [number, number]
+async function handleMapClick(coords: [number, number]) {
+  const [lon, lat] = coords
   selectedCoords.value = { lat, lon }
   updateMarker()
 

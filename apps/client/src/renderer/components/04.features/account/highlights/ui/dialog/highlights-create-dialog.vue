@@ -7,7 +7,6 @@ import type { CreateHighlightInput } from '~/shared/types/models/user'
 import { Icon } from '@iconify/vue'
 import { CalendarDate, Time } from '@internationalized/date'
 import { onClickOutside } from '@vueuse/core'
-import { toLonLat } from 'ol/proj'
 import { computed, ref, shallowRef, watch } from 'vue'
 import { KitBtn } from '~/components/01.kit/kit-btn'
 import { KitCalendar } from '~/components/01.kit/kit-calendar'
@@ -170,7 +169,7 @@ const mapMarkers = computed(() => {
 })
 
 function handleMapClick(coords: [number, number]) {
-  const [lon, lat] = toLonLat(coords)
+  const [lon, lat] = coords
   props.form.longitude = Number(lon.toFixed(6))
   props.form.latitude = Number(lat.toFixed(6))
 }

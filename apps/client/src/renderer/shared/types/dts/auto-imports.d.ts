@@ -11,6 +11,7 @@ declare global {
   const EffectScope: typeof import('vue').EffectScope
   const SERVER_URL: typeof import('../../lib/env').SERVER_URL
   const TILE_SOURCES: typeof import('../../lib/map-styles-sources').TILE_SOURCES
+  const TILE_SOURCES_META: typeof import('../../lib/map-styles-sources').TILE_SOURCES_META
   const acceptHMRUpdate: typeof import('pinia').acceptHMRUpdate
   const asyncComputed: typeof import('@vueuse/core').asyncComputed
   const autoResetRef: typeof import('@vueuse/core').autoResetRef
@@ -34,6 +35,7 @@ declare global {
   const createSharedComposable: typeof import('@vueuse/core').createSharedComposable
   const createStoreHook: typeof import('../../lib/create-store-hook').createStoreHook
   const createTemplatePromise: typeof import('@vueuse/core').createTemplatePromise
+  const createTileSource: typeof import('../../lib/map-styles-sources').createTileSource
   const createUnrefFn: typeof import('@vueuse/core').createUnrefFn
   const customRef: typeof import('vue').customRef
   const debouncedRef: typeof import('@vueuse/core').debouncedRef
@@ -43,6 +45,7 @@ declare global {
   const defineStore: typeof import('pinia').defineStore
   const eagerComputed: typeof import('@vueuse/core').eagerComputed
   const effectScope: typeof import('vue').effectScope
+  const exportRouteToGpx: typeof import('../../lib/geo-export').exportRouteToGpx
   const extendRef: typeof import('@vueuse/core').extendRef
   const formatDate: typeof import('../../lib/date-time').formatDate
   const formatTime: typeof import('../../lib/date-time').formatTime
@@ -357,7 +360,7 @@ declare global {
   export type { Component, Slot, Slots, ComponentPublicInstance, ComputedRef, DirectiveBinding, ExtractDefaultPropTypes, ExtractPropTypes, ExtractPublicPropTypes, InjectionKey, PropType, Ref, ShallowRef, MaybeRef, MaybeRefOrGetter, VNode, WritableComputedRef } from 'vue'
   import('vue')
   // @ts-ignore
-  export type { TileSourceId, MapSourceConfig } from '../../lib/map-styles-sources'
+  export type { TileSourceId, MapSourceMeta, MapSourceConfig } from '../../lib/map-styles-sources'
   import('../../lib/map-styles-sources')
   // @ts-ignore
   export type { ImageOptions } from '../../lib/url'
@@ -386,6 +389,7 @@ declare module 'vue' {
     readonly EffectScope: UnwrapRef<typeof import('vue')['EffectScope']>
     readonly SERVER_URL: UnwrapRef<typeof import('../../lib/env')['SERVER_URL']>
     readonly TILE_SOURCES: UnwrapRef<typeof import('../../lib/map-styles-sources')['TILE_SOURCES']>
+    readonly TILE_SOURCES_META: UnwrapRef<typeof import('../../lib/map-styles-sources')['TILE_SOURCES_META']>
     readonly acceptHMRUpdate: UnwrapRef<typeof import('pinia')['acceptHMRUpdate']>
     readonly asyncComputed: UnwrapRef<typeof import('@vueuse/core')['asyncComputed']>
     readonly autoResetRef: UnwrapRef<typeof import('@vueuse/core')['autoResetRef']>
@@ -409,6 +413,7 @@ declare module 'vue' {
     readonly createSharedComposable: UnwrapRef<typeof import('@vueuse/core')['createSharedComposable']>
     readonly createStoreHook: UnwrapRef<typeof import('../../lib/create-store-hook')['createStoreHook']>
     readonly createTemplatePromise: UnwrapRef<typeof import('@vueuse/core')['createTemplatePromise']>
+    readonly createTileSource: UnwrapRef<typeof import('../../lib/map-styles-sources')['createTileSource']>
     readonly createUnrefFn: UnwrapRef<typeof import('@vueuse/core')['createUnrefFn']>
     readonly customRef: UnwrapRef<typeof import('vue')['customRef']>
     readonly debouncedRef: UnwrapRef<typeof import('@vueuse/core')['debouncedRef']>
@@ -418,6 +423,7 @@ declare module 'vue' {
     readonly defineStore: UnwrapRef<typeof import('pinia')['defineStore']>
     readonly eagerComputed: UnwrapRef<typeof import('@vueuse/core')['eagerComputed']>
     readonly effectScope: UnwrapRef<typeof import('vue')['effectScope']>
+    readonly exportRouteToGpx: UnwrapRef<typeof import('../../lib/geo-export')['exportRouteToGpx']>
     readonly extendRef: UnwrapRef<typeof import('@vueuse/core')['extendRef']>
     readonly formatDate: UnwrapRef<typeof import('../../lib/date-time')['formatDate']>
     readonly formatTime: UnwrapRef<typeof import('../../lib/date-time')['formatTime']>

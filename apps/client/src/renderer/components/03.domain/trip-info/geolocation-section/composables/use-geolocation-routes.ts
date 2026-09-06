@@ -174,15 +174,23 @@ export function useGeolocationRoutes(mapApiRef: Ref<GeolocationMapApi | undefine
     }
 
     route.isFetching = true
-    const routeData = await routingService.calculateRoute(route.points, route.transportMode || 'foot')
-    route.isFetching = false
-
-    if (routeData) {
-      route.geometry = routeData.geometry
-      route.distance = routeData.distance
-      route.duration = routeData.duration
-      route.isDirect = routeData.isDirect
-      mapApiRef.value?.addOrUpdateRoute(route)
+    try {
+      const routeData = await routingService.calculateRoute(route.points, route.transportMode || 'foot', route.id)
+      if (routeData) {
+        route.geometry = routeData.geometry
+        route.distance = routeData.distance
+        route.duration = routeData.duration
+        route.isDirect = routeData.isDirect
+        mapApiRef.value?.addOrUpdateRoute(route)
+      }
+    }
+    catch (error: any) {
+      if (error?.name !== 'AbortError') {
+        console.error('Ошибка обновления геометрии маршрута:', error)
+      }
+    }
+    finally {
+      route.isFetching = false
     }
   }
 

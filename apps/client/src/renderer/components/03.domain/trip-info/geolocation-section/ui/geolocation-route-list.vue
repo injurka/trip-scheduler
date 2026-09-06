@@ -5,6 +5,7 @@ import { ref } from 'vue'
 import { KitBtn } from '~/components/01.kit/kit-btn'
 import { KitInlineMdEditorWrapper } from '~/components/01.kit/kit-inline-md-editor'
 import { KitTooltip } from '~/components/01.kit/kit-tooltip'
+import { exportRouteToGpx } from '~/shared/lib/geo-export'
 import GeolocationPoiList from './geolocation-poi-list.vue'
 
 interface Props {
@@ -144,6 +145,17 @@ function handleTransportChange(route: MapRoute, mode: TransportMode) {
                   @click="emit('setActiveRoute', activeRouteId === route.id ? null : route.id)"
                 >
                   <Icon icon="mdi:map-marker-path" />
+                </button>
+              </KitTooltip>
+
+              <KitTooltip v-if="route.geometry && route.geometry.length > 1" text="Экспорт в GPX">
+                <button
+                  type="button"
+                  class="action-btn"
+                  title="Скачать GPX-трек"
+                  @click="exportRouteToGpx(route)"
+                >
+                  <Icon icon="mdi:download" />
                 </button>
               </KitTooltip>
 

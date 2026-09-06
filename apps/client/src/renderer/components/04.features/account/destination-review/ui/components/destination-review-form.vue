@@ -2,7 +2,6 @@
 import type { DestinationMetricKey } from '../../composables/use-destination-reviews'
 import type { Country } from '~/shared/types/models/destination-review'
 import { Icon } from '@iconify/vue'
-import { toLonLat } from 'ol/proj'
 import { computed, reactive, ref, watch } from 'vue'
 import { KitBtn } from '~/components/01.kit/kit-btn'
 import { KitDialogWithClose } from '~/components/01.kit/kit-dialog-with-close'
@@ -59,7 +58,7 @@ const mapMarkers = computed(() => {
 })
 
 function handleMapClick(coords: [number, number]) {
-  const [lon, lat] = toLonLat(coords)
+  const [lon, lat] = coords
   form.longitude = Number(lon.toFixed(6))
   form.latitude = Number(lat.toFixed(6))
 }

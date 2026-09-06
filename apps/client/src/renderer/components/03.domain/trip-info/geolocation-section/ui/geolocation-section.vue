@@ -1,10 +1,12 @@
 <script setup lang="ts">
+import type { EventsKey } from 'ol/events'
 import type { useGeolocationMap } from '../composables/use-geolocation-map'
 import type { ActivitySectionGeolocation, Coordinate, MapPoint, MapRoute } from '../models/types'
 import { Icon } from '@iconify/vue'
 import { useDebounceFn } from '@vueuse/core'
+import { unByKey } from 'ol/Observable'
 import { toLonLat } from 'ol/proj'
-import { computed, nextTick, onMounted, onUnmounted, ref, toRaw, watch } from 'vue'
+import { computed, nextTick, onMounted, onUnmounted, ref, shallowRef, toRaw, watch } from 'vue'
 import { useToast } from '~/shared/composables/use-toast'
 import { useGeolocationPoints } from '../composables/use-geolocation-points'
 import { useGeolocationRoutes } from '../composables/use-geolocation-routes'
@@ -30,7 +32,8 @@ const emit = defineEmits<{
 
 const isInitialized = ref(false)
 const sectionContainerRef = ref<HTMLElement | null>(null)
-const mapController = ref<ReturnType<typeof useGeolocationMap>>()
+const mapController = shallowRef<ReturnType<typeof useGeolocationMap>>()
+let modifyendKey: EventsKey | null = null
 
 const activeView = ref<'points' | 'routes'>(
   (!props.section?.points || props.section.points.length === 0) && (props.section?.routes && props.section.routes.length > 0)
@@ -314,7 +317,7 @@ async function onMapReady(controller: ReturnType<typeof useGeolocationMap>) {
   setInitialPoints(props.section.points)
   await setInitialRoutes(props.section.routes)
 
-  controller.modifyInteraction.on('modifyend', (event) => {
+  modifyendKey = controller.modifyInteraction.on('modifyend', (event) => {
     const feature = event.features.getArray()[0]
     if (!feature)
       return
@@ -356,6 +359,10 @@ onMounted(() => {
 })
 
 onUnmounted(() => {
+  if (modifyendKey) {
+    unByKey(modifyendKey)
+    modifyendKey = null
+  }
   document.removeEventListener('fullscreenchange', handleFullscreenChange)
   window.removeEventListener('keydown', handleKeyDown)
 })
