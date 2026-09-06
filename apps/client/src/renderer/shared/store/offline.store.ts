@@ -1,7 +1,10 @@
+import type { TripDocumentResponse, TripNote } from '~/shared/services/api/model/types'
 import type { TripWithDays } from '~/shared/types/models/trip'
 import { useStorage } from '@vueuse/core'
 import { defineStore } from 'pinia'
 import { useToast } from '~/shared/composables/use-toast'
+import { resolveApiUrl } from '~/shared/lib/url'
+import { trpc } from '~/shared/services/trpc/trpc.service'
 
 const OFFLINE_MEDIA_CACHE_NAME = 'trip-scheduler-offline-media'
 
@@ -11,6 +14,8 @@ export interface OfflineTripEntry {
   savedAt: number
   imageCount: number
   data: TripWithDays
+  notes?: TripNote[]
+  documents?: TripDocumentResponse[]
 }
 
 export interface IOfflineState {
@@ -29,6 +34,8 @@ export const useOfflineStore = defineStore('offline', {
   getters: {
     isTripCached: state => (tripId: string) => !!state.savedTrips[tripId],
     getSavedTrip: state => (tripId: string) => state.savedTrips[tripId]?.data,
+    getSavedTripNotes: state => (tripId: string) => state.savedTrips[tripId]?.notes ?? [],
+    getSavedTripDocuments: state => (tripId: string) => state.savedTrips[tripId]?.documents ?? [],
     sortedSavedTrips: (state) => {
       return Object.values(state.savedTrips).sort((a, b) => b.savedAt - a.savedAt)
     },
@@ -70,21 +77,60 @@ export const useOfflineStore = defineStore('offline', {
 
         addUrl(trip.imageUrl)
 
-        trip.sections.forEach((section: any) => {
-          if (section.type === 'gallery' && Array.isArray(section.content?.imageUrls)) {
-            section.content.imageUrls.forEach(addUrl)
+        // 1. Загрузка заметок (Notes)
+        let loadedNotes: TripNote[] = this.savedTrips[trip.id]?.notes || []
+        try {
+          const notesData = await trpc.note.getByTripId.query({ tripId: trip.id })
+          if (Array.isArray(notesData)) {
+            loadedNotes = notesData as TripNote[]
           }
-          if (section.type === 'documents' && Array.isArray(section.content?.documents)) {
-            section.content.documents.forEach((doc: any) => {
-              if (['jpg', 'jpeg', 'png', 'webp'].includes(doc.fileType?.toLowerCase())) {
-                addUrl(doc.url)
+        }
+        catch (err) {
+          console.warn('[Offline] Не удалось загрузить свежие заметки для оффлайн сохранения:', err)
+        }
+
+        // Кэширование изображений заметок (если имеются)
+        loadedNotes.forEach((note) => {
+          if (note.images && Array.isArray(note.images)) {
+            note.images.forEach((img) => {
+              if (img.sources) {
+                Object.values(img.sources).forEach(src => addUrl(src))
               }
             })
           }
         })
 
-        trip.days.forEach((day) => {
-          day.activities.forEach((activity) => {
+        // 2. Загрузка документов (Documents)
+        let loadedDocuments: TripDocumentResponse[] = this.savedTrips[trip.id]?.documents || []
+        try {
+          const docsData = await trpc.image.listDocuments.query({ tripId: trip.id })
+          if (Array.isArray(docsData)) {
+            loadedDocuments = docsData as unknown as TripDocumentResponse[]
+          }
+        }
+        catch (err) {
+          console.warn('[Offline] Не удалось загрузить свежие документы для оффлайн сохранения:', err)
+        }
+
+        loadedDocuments.forEach((doc) => {
+          if (doc.url) {
+            addUrl(doc.url)
+          }
+        })
+
+        trip.sections?.forEach((section: any) => {
+          if (section.type === 'gallery' && Array.isArray(section.content?.imageUrls)) {
+            section.content.imageUrls.forEach(addUrl)
+          }
+          if (section.type === 'documents' && Array.isArray(section.content?.documents)) {
+            section.content.documents.forEach((doc: any) => {
+              addUrl(doc.url)
+            })
+          }
+        })
+
+        trip.days?.forEach((day) => {
+          day.activities?.forEach((activity) => {
             activity.sections?.forEach((section: any) => {
               if (section.type === 'gallery' && Array.isArray(section.imageUrls)) {
                 section.imageUrls.forEach(addUrl)
@@ -114,9 +160,10 @@ export const useOfflineStore = defineStore('offline', {
             for (let i = 0; i < urlsArray.length; i += BATCH_SIZE) {
               const batch = urlsArray.slice(i, i + BATCH_SIZE)
 
-              await Promise.all(batch.map(async (url) => {
+              await Promise.all(batch.map(async (rawUrl) => {
+                const url = resolveApiUrl(rawUrl)
                 try {
-                  const match = await cache.match(url)
+                  const match = await cache.match(url) || await cache.match(rawUrl)
                   if (match) {
                     loadedCount++
                     this.downloadProgress[trip.id] = Math.round((loadedCount / urlsArray.length) * 100)
@@ -132,7 +179,10 @@ export const useOfflineStore = defineStore('offline', {
                   }
 
                   if (response && (response.ok || response.type === 'opaque')) {
-                    await cache.put(url, response)
+                    await cache.put(url, response.clone())
+                    if (url !== rawUrl) {
+                      await cache.put(rawUrl, response)
+                    }
                   }
                 }
                 catch (e) {
@@ -155,6 +205,8 @@ export const useOfflineStore = defineStore('offline', {
           savedAt: Date.now(),
           imageCount: urlsArray.length,
           data: JSON.parse(JSON.stringify(trip)),
+          notes: loadedNotes,
+          documents: loadedDocuments,
         }
 
         toast.success(`Путешествие "${trip.title}" сохранено!`)

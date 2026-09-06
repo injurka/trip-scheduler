@@ -3,6 +3,7 @@ import type { NoteImageUsage, NoteType, ReorderNoteUpdate, TripNote } from '~/sh
 import { useStorage } from '@vueuse/core'
 import { computed, ref, unref } from 'vue'
 import { useRequest, useRequestStatus, useRequestStatusByPrefix } from '~/plugins/request'
+import { useOfflineStore } from '~/shared/store/offline.store'
 
 export interface NoteTreeNode extends TripNote {
   children: NoteTreeNode[]
@@ -97,11 +98,29 @@ export function useNotesSection(tripIdRef: Ref<string> | string, readonlyRef: Re
   })
 
   async function fetchNotes(): Promise<void> {
+    const offlineStore = useOfflineStore()
     await useRequest({
       key: NOTES_KEYS.FETCH_NOTES,
       fn: db => db.notes.getByTripId(tripId.value),
-      onSuccess: (data) => { notes.value = data ?? [] },
-      onError: ({ error }) => { useToast().error(`Не удалось загрузить заметки: ${error.customMessage}`) },
+      onSuccess: (data) => {
+        if (!data || data.length === 0) {
+          const cachedNotes = offlineStore.getSavedTripNotes(tripId.value)
+          if (cachedNotes && cachedNotes.length > 0) {
+            notes.value = cachedNotes
+            return
+          }
+        }
+        notes.value = data ?? []
+      },
+      onError: ({ error }) => {
+        const cachedNotes = offlineStore.getSavedTripNotes(tripId.value)
+        if (cachedNotes && cachedNotes.length > 0) {
+          notes.value = cachedNotes
+          useToast().info('Нет подключения к сети. Загружены офлайн-заметки.')
+          return
+        }
+        useToast().error(`Не удалось загрузить заметки: ${error.customMessage}`)
+      },
     })
   }
 

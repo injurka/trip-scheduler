@@ -25,7 +25,7 @@ const runtimeImageStrategy = CacheStrategyFactory.createStaleWhileRevalidate(
 )
 
 registerRoute(
-  ({ request }) => request.destination === 'image',
+  ({ request, url }) => request.destination === 'image' || url.pathname.startsWith('/image/'),
   async ({ request, url, event }) => {
     if (url.pathname.includes('/memories/')) {
       // eslint-disable-next-line no-useless-catch
@@ -39,7 +39,7 @@ registerRoute(
 
     try {
       const offlineCache = await caches.open(OFFLINE_MEDIA_CACHE_NAME)
-      const offlineResponse = await offlineCache.match(request)
+      const offlineResponse = await offlineCache.match(request) || await offlineCache.match(url.href) || await offlineCache.match(url.pathname)
       if (offlineResponse) {
         if (import.meta.env.DEV)
           console.log(`[SW] Served from Offline Cache: ${url.pathname}`)

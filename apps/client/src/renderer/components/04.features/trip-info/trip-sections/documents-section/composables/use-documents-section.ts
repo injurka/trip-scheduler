@@ -3,6 +3,7 @@ import type { TripDocumentResponse } from '~/shared/services/api/model/types'
 import { useDebounceFn } from '@vueuse/core'
 import { v4 as uuidv4 } from 'uuid'
 import { useRequest } from '~/plugins/request'
+import { useOfflineStore } from '~/shared/store/offline.store'
 
 interface UseDocumentsSectionProps {
   section: {
@@ -20,6 +21,7 @@ export function useDocumentsSection(
 ) {
   const confirm = useConfirm()
   const toast = useToast()
+  const offlineStore = useOfflineStore()
 
   const documents = ref<DocumentFile[]>([])
   const folders = ref<DocumentFolder[]>(JSON.parse(JSON.stringify(props.section.content?.folders || [])))
@@ -34,6 +36,21 @@ export function useDocumentsSection(
       key: `documents:list:${props.section.tripId}`,
       fn: api => api.files.listDocuments(props.section.tripId),
       onSuccess: (res) => {
+        if ((!res || res.length === 0) && offlineStore.isTripCached(props.section.tripId)) {
+          const cachedDocs = offlineStore.getSavedTripDocuments(props.section.tripId)
+          if (cachedDocs && cachedDocs.length > 0) {
+            documents.value = cachedDocs.map(d => ({
+              id: d.id,
+              url: d.url,
+              originalName: d.originalName,
+              sizeBytes: d.sizeBytes,
+              createdAt: d.createdAt,
+              access: d.metadata.access,
+              folderId: d.metadata.folderId,
+            }))
+            return
+          }
+        }
         documents.value = res.map(d => ({
           id: d.id,
           url: d.url,
@@ -45,6 +62,20 @@ export function useDocumentsSection(
         }))
       },
       onError: () => {
+        const cachedDocs = offlineStore.getSavedTripDocuments(props.section.tripId)
+        if (cachedDocs && cachedDocs.length > 0) {
+          documents.value = cachedDocs.map(d => ({
+            id: d.id,
+            url: d.url,
+            originalName: d.originalName,
+            sizeBytes: d.sizeBytes,
+            createdAt: d.createdAt,
+            access: d.metadata.access,
+            folderId: d.metadata.folderId,
+          }))
+          toast.info('Нет подключения к сети. Загружены офлайн-документы.')
+          return
+        }
         toast.error('Не удалось загрузить документы')
       },
     })

@@ -82,6 +82,27 @@ function toggleAccess() {
   emit('update', { ...props.document, access: newAccess })
 }
 
+async function fetchFileBlob(absoluteUrl: string, rawUrl: string): Promise<Blob | null> {
+  if (typeof caches !== 'undefined') {
+    try {
+      const cache = await caches.open('trip-scheduler-offline-media')
+      const match = await cache.match(absoluteUrl) || await cache.match(rawUrl)
+      if (match) {
+        return await match.blob()
+      }
+    }
+    catch {
+      // ignore
+    }
+  }
+
+  const response = await fetch(absoluteUrl)
+  if (response.ok) {
+    return await response.blob()
+  }
+  return null
+}
+
 async function handleDownload() {
   if (isDownloading.value)
     return
@@ -90,29 +111,28 @@ async function handleDownload() {
   try {
     const absoluteUrl = resolveApiUrl(props.document.url)
 
-    // В среде Tauri / мобильном приложении открываем прямую ссылку для нативного DownloadManager / внешнего браузера
+    // Если нет сети или файл уже в кэше, скачиваем из Blob
+    const blob = await fetchFileBlob(absoluteUrl, props.document.url)
+
+    if (blob) {
+      const objectUrl = URL.createObjectURL(blob)
+      const link = document.createElement('a')
+      link.href = objectUrl
+      link.download = displayName.value
+      document.body.appendChild(link)
+      link.click()
+      document.body.removeChild(link)
+      URL.revokeObjectURL(objectUrl)
+      return
+    }
+
     if (isTauri) {
       await openExternalUrl(absoluteUrl)
       toast.info('Загрузка файла передана системе...')
       return
     }
 
-    const response = await fetch(absoluteUrl)
-
-    if (!response.ok) {
-      throw new Error('Не удалось скачать файл')
-    }
-
-    const blob = await response.blob()
-    const objectUrl = URL.createObjectURL(blob)
-
-    const link = document.createElement('a')
-    link.href = objectUrl
-    link.download = displayName.value
-    document.body.appendChild(link)
-    link.click()
-    document.body.removeChild(link)
-    URL.revokeObjectURL(objectUrl)
+    throw new Error('Не удалось скачать файл')
   }
   catch (error) {
     console.error('Ошибка при скачивании:', error)
@@ -125,6 +145,23 @@ async function handleDownload() {
 
 async function handleOpen() {
   const absoluteUrl = resolveApiUrl(props.document.url)
+
+  if (typeof caches !== 'undefined') {
+    try {
+      const cache = await caches.open('trip-scheduler-offline-media')
+      const match = await cache.match(absoluteUrl) || await cache.match(props.document.url)
+      if (match) {
+        const blob = await match.blob()
+        const objectUrl = URL.createObjectURL(blob)
+        window.open(objectUrl, '_blank')
+        return
+      }
+    }
+    catch {
+      // fallback to openExternalUrl
+    }
+  }
+
   await openExternalUrl(absoluteUrl)
 }
 </script>

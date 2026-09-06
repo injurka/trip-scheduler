@@ -117,6 +117,20 @@ const API_CACHE_RULES: ApiCacheRule[] = [
     maxAgeSeconds: 30 * 24 * 60 * 60,
     maxEntries: 50,
   },
+  {
+    path: 'note.getByTripId',
+    cacheName: 'trip-scheduler-api-notes',
+    strategy: 'NetworkFirst',
+    maxAgeSeconds: 30 * 24 * 60 * 60,
+    maxEntries: 50,
+  },
+  {
+    path: 'image.listDocuments',
+    cacheName: 'trip-scheduler-api-documents',
+    strategy: 'NetworkFirst',
+    maxAgeSeconds: 30 * 24 * 60 * 60,
+    maxEntries: 50,
+  },
 ]
 
 interface MessageHandlers {
