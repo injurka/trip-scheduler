@@ -3,6 +3,7 @@ import { bearingDeg, evaluatePointValidity, haversineM } from '@injurka/track-pr
 import {
   checkPermissions as tauriCheckPermissions,
   clearWatch as tauriClearWatch,
+  getCurrentPosition as tauriGetCurrentPosition,
   requestPermissions as tauriRequestPermissions,
   watchPosition as tauriWatchPosition,
 } from '@tauri-apps/plugin-geolocation'
@@ -176,23 +177,63 @@ function estimateActivity(speedMs: number): ActivityType {
 }
 
 /**
- * Фоновый кипалив через скрытый аудиопоток (бесшумный WAV loop).
- * На Android предотвращает засыпание WebView и троттлинг таймеров/геолокации при заблокированном экране.
+ * Фоновый кипалив через скрытый аудиопоток (Web Audio API + HTMLAudioElement loop + MediaSession).
+ * На Android (MIUI, HyperOS, EMUI, OneUI) удерживает аудио-сервисный тред ОС и WebView процесс активными,
+ * предотвращая засыпание, троттлинг таймеров/геолокации и выгрузку в Doze Mode при заблокированном экране.
  */
 class BackgroundAudioKeepalive {
   private audio: HTMLAudioElement | null = null
+  private audioContext: AudioContext | null = null
+  private gainNode: GainNode | null = null
+  private bufferSource: AudioBufferSourceNode | null = null
   private isPlaying = false
-  // 1-секундный закольцованный бесшумный WAV
+  private updateThrottleTimer: ReturnType<typeof setTimeout> | null = null
+  private lastTitle = 'Фоновый GPS-трекинг активен'
+  private lastSubtitle = 'TripScheduler • Запись маршрута'
+  private boundResumeHandler: (() => void) | null = null
+
+  // 1-секундный закольцованный бесшумный WAV в формате base64
   private readonly SILENT_WAV_URI
     = 'data:audio/wav;base64,UklGRjIAAABXQVZFZm10IBIAAAABAAEAQB8AAEAfAAABAAgAAABmYWN0BAAAAAAAAABkYXRhAAAAAA=='
 
   public start(): void {
-    if (typeof window === 'undefined' || typeof document === 'undefined')
+    if (typeof window === 'undefined')
       return
 
-    if (this.isPlaying && this.audio)
+    this.isPlaying = true
+    this.startAudioElement()
+    this.startWebAudio()
+    this.setupMediaSession()
+    this.attachAutoResumeHandlers()
+  }
+
+  /** Проверка и возобновление аудио-потока при фоновых прерываниях ОС */
+  public ensureActive(): void {
+    if (!this.isPlaying)
       return
 
+    // 1. Проверяем и возобновляем Web Audio Context
+    if (this.audioContext && this.audioContext.state === 'suspended') {
+      void this.audioContext.resume().catch(() => {})
+    }
+
+    // 2. Проверяем и возобновляем HTMLAudioElement
+    if (this.audio && this.audio.paused) {
+      void this.audio.play().catch(() => {})
+    }
+
+    // 3. Поддерживаем статус MediaSession
+    if (typeof navigator !== 'undefined' && 'mediaSession' in navigator) {
+      try {
+        if (navigator.mediaSession.playbackState !== 'playing') {
+          navigator.mediaSession.playbackState = 'playing'
+        }
+      }
+      catch {}
+    }
+  }
+
+  private startAudioElement(): void {
     try {
       if (!this.audio) {
         this.audio = new Audio()
@@ -202,57 +243,38 @@ class BackgroundAudioKeepalive {
         this.audio.volume = 0.01 // минимальная ненулевая громкость для предотвращения выгрузки потока ОС
         this.audio.setAttribute('playsinline', 'true')
         this.audio.setAttribute('webkit-playsinline', 'true')
-      }
 
-      // Настройка MediaSession для Android (создает статусное системное уведомление воспроизведения в шторке,
-      // защищающее фоновый процесс от выгрузки системой в Doze Mode)
-      if ('mediaSession' in navigator) {
-        try {
-          navigator.mediaSession.metadata = new MediaMetadata({
-            title: 'Фоновая запись маршрута GPS',
-            artist: 'TripScheduler',
-            album: 'Активная запись трека',
-          })
-
-          navigator.mediaSession.playbackState = 'playing'
-
-          // Перехват кнопок медиа-контрола в шторке уведомлений
-          navigator.mediaSession.setActionHandler('play', () => {
-            if (this.audio) {
-              void this.audio.play()
-              this.isPlaying = true
-              navigator.mediaSession.playbackState = 'playing'
-            }
-          })
-          navigator.mediaSession.setActionHandler('pause', () => {
-            // Игнорируем или держим активным
-            navigator.mediaSession.playbackState = 'playing'
-          })
-        }
-        catch (mediaErr) {
-          console.warn('[Tracking] Ошибка настройки MediaSession:', mediaErr)
-        }
+        // Авто-перезапуск при сбоях воспроизведения или паузах ОС
+        this.audio.addEventListener('ended', () => {
+          if (this.isPlaying && this.audio) {
+            void this.audio.play().catch(() => {})
+          }
+        })
+        this.audio.addEventListener('pause', () => {
+          if (this.isPlaying && this.audio) {
+            setTimeout(() => {
+              if (this.isPlaying && this.audio?.paused) {
+                void this.audio.play().catch(() => {})
+              }
+            }, 300)
+          }
+        })
       }
 
       const promise = this.audio.play()
       if (promise !== undefined) {
         promise
           .then(() => {
-            this.isPlaying = true
             if ('mediaSession' in navigator) {
               navigator.mediaSession.playbackState = 'playing'
             }
           })
           .catch(() => {
-            // Если autoplay заблокирован политикой браузера, возобновляем при первом жесте
+            // Возобновляем при первом пользовательском жесте
             const resumeOnGesture = () => {
-              if (this.audio && !this.isPlaying) {
-                this.audio.play().then(() => {
-                  this.isPlaying = true
-                  if ('mediaSession' in navigator) {
-                    navigator.mediaSession.playbackState = 'playing'
-                  }
-                }).catch(() => {})
+              if (this.audio && this.isPlaying) {
+                void this.audio.play().catch(() => {})
+                this.ensureActive()
               }
             }
             window.addEventListener('touchstart', resumeOnGesture, { once: true })
@@ -261,20 +283,159 @@ class BackgroundAudioKeepalive {
       }
     }
     catch (e) {
-      console.warn('[Tracking] Ошибка запуска аудио-кипалива:', e)
+      console.warn('[Tracking] Ошибка запуска HTMLAudio keepalive:', e)
+    }
+  }
+
+  private startWebAudio(): void {
+    try {
+      const AudioContextClass = window.AudioContext || (window as any).webkitAudioContext
+      if (!AudioContextClass)
+        return
+
+      if (!this.audioContext || this.audioContext.state === 'closed') {
+        this.audioContext = new AudioContextClass()
+      }
+
+      if (this.audioContext.state === 'suspended') {
+        void this.audioContext.resume().catch(() => {})
+      }
+
+      // Создаем непрерывный буфер тишины на 1 секунду и зацикливаем его
+      const sampleRate = this.audioContext.sampleRate || 44100
+      const buffer = this.audioContext.createBuffer(1, sampleRate, sampleRate)
+      const channelData = buffer.getChannelData(0)
+      for (let i = 0; i < channelData.length; i++) {
+        channelData[i] = 0
+      }
+
+      if (this.bufferSource) {
+        try {
+          this.bufferSource.stop()
+          this.bufferSource.disconnect()
+        }
+        catch {}
+      }
+
+      this.bufferSource = this.audioContext.createBufferSource()
+      this.bufferSource.buffer = buffer
+      this.bufferSource.loop = true
+
+      if (!this.gainNode) {
+        this.gainNode = this.audioContext.createGain()
+        this.gainNode.gain.value = 0.001
+        this.gainNode.connect(this.audioContext.destination)
+      }
+
+      this.bufferSource.connect(this.gainNode)
+      this.bufferSource.start(0)
+    }
+    catch (e) {
+      console.warn('[Tracking] Ошибка Web Audio keepalive:', e)
+    }
+  }
+
+  private setupMediaSession(): void {
+    if (typeof navigator === 'undefined' || !('mediaSession' in navigator))
+      return
+
+    try {
+      navigator.mediaSession.metadata = new MediaMetadata({
+        title: this.lastTitle,
+        artist: this.lastSubtitle,
+        album: 'TripScheduler GPS Tracker',
+      })
+
+      navigator.mediaSession.playbackState = 'playing'
+
+      navigator.mediaSession.setActionHandler('play', () => {
+        this.isPlaying = true
+        this.ensureActive()
+      })
+      navigator.mediaSession.setActionHandler('pause', () => {
+        // Удерживаем воспроизведение активным при попытке ОС приостановить его
+        this.ensureActive()
+      })
+      navigator.mediaSession.setActionHandler('stop', () => {
+        this.ensureActive()
+      })
+    }
+    catch (e) {
+      console.warn('[Tracking] Ошибка настройки MediaSession:', e)
+    }
+  }
+
+  public updateNotification(title: string, subtitle?: string): void {
+    this.lastTitle = title
+    if (subtitle)
+      this.lastSubtitle = subtitle
+
+    if (this.updateThrottleTimer)
+      return
+
+    this.updateThrottleTimer = setTimeout(() => {
+      this.updateThrottleTimer = null
+      if (typeof navigator !== 'undefined' && 'mediaSession' in navigator && this.isPlaying) {
+        try {
+          navigator.mediaSession.metadata = new MediaMetadata({
+            title: this.lastTitle,
+            artist: this.lastSubtitle,
+            album: 'TripScheduler GPS Tracker',
+          })
+          navigator.mediaSession.playbackState = 'playing'
+        }
+        catch {}
+      }
+    }, 2000)
+  }
+
+  private attachAutoResumeHandlers(): void {
+    if (this.boundResumeHandler)
+      return
+
+    this.boundResumeHandler = () => {
+      if (this.isPlaying) {
+        this.ensureActive()
+      }
+    }
+
+    if (typeof document !== 'undefined') {
+      document.addEventListener('visibilitychange', this.boundResumeHandler)
+      document.addEventListener('freeze', this.boundResumeHandler)
+      document.addEventListener('resume', this.boundResumeHandler)
+    }
+    if (typeof window !== 'undefined') {
+      window.addEventListener('pageshow', this.boundResumeHandler)
+      window.addEventListener('focus', this.boundResumeHandler)
+      window.addEventListener('online', this.boundResumeHandler)
     }
   }
 
   public stop(): void {
+    this.isPlaying = false
+
     if (this.audio) {
       try {
         this.audio.pause()
         this.audio.currentTime = 0
       }
-      catch {
-        // игнорируем
+      catch {}
+    }
+
+    if (this.bufferSource) {
+      try {
+        this.bufferSource.stop()
+        this.bufferSource.disconnect()
       }
-      this.isPlaying = false
+      catch {}
+      this.bufferSource = null
+    }
+
+    if (this.audioContext && this.audioContext.state !== 'closed') {
+      try {
+        void this.audioContext.suspend().catch(() => {})
+      }
+      catch {}
     }
 
     if (typeof navigator !== 'undefined' && 'mediaSession' in navigator) {
@@ -283,10 +444,9 @@ class BackgroundAudioKeepalive {
         navigator.mediaSession.metadata = null
         navigator.mediaSession.setActionHandler('play', null)
         navigator.mediaSession.setActionHandler('pause', null)
+        navigator.mediaSession.setActionHandler('stop', null)
       }
-      catch {
-        // игнорируем
-      }
+      catch {}
     }
   }
 }
@@ -507,10 +667,10 @@ class WebGeolocationTracker {
       try {
         let status = await tauriCheckPermissions()
         if (status.location === 'prompt' || status.location === 'prompt-with-rationale') {
-          status = await tauriRequestPermissions(['location'])
+          status = await tauriRequestPermissions(['location', 'coarseLocation'])
         }
-        if (status.location === 'denied') {
-          this.lastError = 'Доступ к геолокации запрещён в настройках приложения или системы'
+        if (status.location === 'denied' && status.coarseLocation === 'denied') {
+          this.lastError = 'Доступ к геолокации запрещён в настройках Android. Разрешите доступ в настройках приложения.'
         }
         else {
           this.tauriWatchId = await tauriWatchPosition(
@@ -525,7 +685,17 @@ class WebGeolocationTracker {
                 return
               }
               if (pos) {
-                this.handlePositionUpdate(pos)
+                this.handlePositionUpdate({
+                  coords: {
+                    latitude: pos.coords.latitude,
+                    longitude: pos.coords.longitude,
+                    accuracy: pos.coords.accuracy,
+                    altitude: pos.coords.altitude,
+                    speed: pos.coords.speed,
+                    heading: pos.coords.heading,
+                  },
+                  timestamp: pos.timestamp,
+                })
               }
             },
           )
@@ -567,10 +737,14 @@ class WebGeolocationTracker {
         return
       }
 
+      // Поддерживаем активность аудио-пайплайна и системного WakeLock
+      this.keepalive.ensureActive()
+      void this.acquireWakeLock()
+
       const now = Date.now()
       const timeSinceLastFix = this.lastFixPoint ? (now - this.lastFixPoint.tsUtc) : (now - this.sessionStartedAt)
 
-      // Если координаты не поступали более 20 секунд, принудительно запрашиваем фикс
+      // Если координаты не поступали более 20 секунд, принудительно запрашиваем фикс через оба канала
       if (timeSinceLastFix > 20000) {
         this.requestImmediateFix()
       }
@@ -585,12 +759,36 @@ class WebGeolocationTracker {
   }
 
   private requestImmediateFix(): void {
+    // 1. Web Geolocation fix
     if (typeof navigator !== 'undefined' && 'geolocation' in navigator) {
       navigator.geolocation.getCurrentPosition(
         pos => this.handlePositionUpdate(pos),
-        err => console.warn('[Tracking] Ошибка immediate fix:', err?.message || err),
-        { enableHighAccuracy: true, timeout: 6000, maximumAge: 0 },
+        err => console.warn('[Tracking] Ошибка web immediate fix:', err?.message || err),
+        { enableHighAccuracy: true, timeout: 8000, maximumAge: 0 },
       )
+    }
+
+    // 2. Tauri native FusedLocationProviderClient fix
+    if (isMobileApp) {
+      tauriGetCurrentPosition({ enableHighAccuracy: true, timeout: 8000, maximumAge: 0 })
+        .then((pos) => {
+          if (pos) {
+            this.handlePositionUpdate({
+              coords: {
+                latitude: pos.coords.latitude,
+                longitude: pos.coords.longitude,
+                accuracy: pos.coords.accuracy,
+                altitude: pos.coords.altitude,
+                speed: pos.coords.speed,
+                heading: pos.coords.heading,
+              },
+              timestamp: pos.timestamp,
+            })
+          }
+        })
+        .catch((err) => {
+          console.warn('[Tracking] Ошибка tauri immediate fix:', err)
+        })
     }
   }
 
@@ -612,10 +810,21 @@ class WebGeolocationTracker {
   public async requestPermission(): Promise<boolean> {
     if (isMobileApp) {
       try {
-        const status = await tauriRequestPermissions(['location'])
-        return status.location === 'granted' || status.coarseLocation === 'granted'
+        let status = await tauriCheckPermissions()
+        if (status.location !== 'granted' && status.coarseLocation !== 'granted') {
+          status = await tauriRequestPermissions(['location', 'coarseLocation'])
+        }
+
+        const isGranted = status.location === 'granted' || status.coarseLocation === 'granted'
+        if (!isGranted) {
+          this.lastError = 'Доступ к геолокации запрещён. Для непрерывной записи при выключенном экране выберите «Разрешить в любом режиме» (Allow all the time) в настройках приложения Android.'
+          return false
+        }
+        return true
       }
-      catch (e) {
+      catch (e: any) {
+        const msg = e?.message || String(e)
+        this.lastError = `Ошибка запроса прав геолокации: ${msg}`
         console.warn('[Tracking] Ошибка запроса прав в Tauri:', e)
         return false
       }
@@ -625,8 +834,11 @@ class WebGeolocationTracker {
       return new Promise((resolve) => {
         navigator.geolocation.getCurrentPosition(
           () => resolve(true),
-          () => resolve(false),
-          { timeout: 10000 },
+          (err) => {
+            this.handlePositionError(err)
+            resolve(false)
+          },
+          { timeout: 10000, enableHighAccuracy: true },
         )
       })
     }
@@ -802,6 +1014,16 @@ class WebGeolocationTracker {
       lastPoint: point,
       isRunning: this.isRunning,
     })
+
+    // Обновляем живую телеметрию в шторке уведомлений Android
+    const distFormatted = this.sessionDistanceM >= 1000
+      ? `${(this.sessionDistanceM / 1000).toFixed(2)} км`
+      : `${Math.round(this.sessionDistanceM)} м`
+    const speedFormatted = speed != null ? `${Math.round(speed * 3.6)} км/ч` : '0 км/ч'
+    this.keepalive.updateNotification(
+      `Запись GPS: ${distFormatted} • ${speedFormatted}`,
+      'TripScheduler • Фоновый трекинг активен',
+    )
   }
 
   private handlePositionError(err: GeolocationPositionError): void {

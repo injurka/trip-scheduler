@@ -2,6 +2,7 @@ import { useVaultMemoriesStore } from '~/components/04.features/trip-info/trip-m
 import { useRequestStatus } from '~/plugins/request'
 import { AppRouteNames } from '~/shared/constants/routes'
 import { isMobileApp, isTauri, SERVER_URL } from '~/shared/lib/env'
+import { openExternalUrl } from '~/shared/lib/opener'
 import { trpc } from '~/shared/services/trpc/trpc.service'
 import { useAppUpdateStore } from '~/shared/store/app-update.store'
 import { EAuthRequestKeys, TOKEN_KEY, useAuthStore } from '~/shared/store/auth.store'
@@ -153,10 +154,18 @@ export function useProfileSettings() {
     }
   }
 
-  function linkOAuth(provider: 'google' | 'github' | 'yandex') {
+  async function linkOAuth(provider: 'google' | 'github' | 'yandex') {
     const serverUrl = SERVER_URL
     const token = authStore.tokenPair?.accessToken || localStorage.getItem(TOKEN_KEY) || ''
-    window.location.href = `${serverUrl}/api/auth/${provider}/login?linkToken=${encodeURIComponent(token)}`
+    const redirectTypeParam = isTauri ? '&redirect_type=app' : ''
+    const linkUrl = `${serverUrl}/api/auth/${provider}/login?linkToken=${encodeURIComponent(token)}${redirectTypeParam}`
+
+    if (isTauri) {
+      await openExternalUrl(linkUrl)
+    }
+    else {
+      window.location.href = linkUrl
+    }
   }
 
   async function startTelegramLink() {
@@ -165,6 +174,10 @@ export function useProfileSettings() {
       const res = await authStore.initTelegramLink()
       telegramLinkUrl.value = res.url
       isTelegramModalVisible.value = true
+
+      if (isTauri) {
+        await openExternalUrl(res.url)
+      }
 
       if (telegramPollInterval) {
         clearInterval(telegramPollInterval)

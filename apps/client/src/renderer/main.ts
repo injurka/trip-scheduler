@@ -4,6 +4,7 @@ import { createHead } from '@vueuse/head'
 // файл генерируется скриптом
 import iconsBundle from '~/assets/icons-bundle.json'
 
+import { initializeDeepLinks } from '~/shared/lib/deep-link'
 import { isTauri } from '~/shared/lib/env'
 import router from '~/shared/lib/router'
 import { initializePwaUpdater } from '~/shared/services/pwa/pwa.service'
@@ -41,6 +42,9 @@ async function initializeApp() {
   app.use(requestPlugin, { databaseService })
   app.use(router)
   app.use(themePlugin)
+
+  // Инициализация Deep Link для внешних OAuth редиректов и ссылок приложения
+  initializeDeepLinks(pinia, router)
 
   await restoreSession(pinia)
   initializePwaUpdater(pinia)

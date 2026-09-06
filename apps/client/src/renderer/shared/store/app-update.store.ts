@@ -4,6 +4,7 @@ import { listen } from '@tauri-apps/api/event'
 import { compareVersions } from 'compare-versions'
 import { defineStore } from 'pinia'
 import { isTauri } from '~/shared/lib/env'
+import { openExternalUrl } from '~/shared/lib/opener'
 import { useToastStore } from './toast.store'
 
 const GITHUB_REPO = 'injurka/trip-scheduler'
@@ -106,7 +107,7 @@ export const useAppUpdateStore = defineStore('appUpdate', {
 
       const toastStore = useToastStore()
       toastStore.info('Переход к загрузке обновления...')
-      window.open(url, '_blank')
+      await openExternalUrl(url)
     },
 
     async downloadUpdateInApp() {
@@ -185,7 +186,7 @@ export const useAppUpdateStore = defineStore('appUpdate', {
         const fallbackUrl = this.apkUrl || this.releaseUrl
         if (fallbackUrl) {
           toastStore.info('Открываем загрузку через системный браузер...')
-          window.open(fallbackUrl, '_blank')
+          await openExternalUrl(fallbackUrl)
         }
         else {
           toastStore.error('Не удалось запустить установщик APK')
@@ -193,10 +194,10 @@ export const useAppUpdateStore = defineStore('appUpdate', {
       }
     },
 
-    openExternalRelease() {
+    async openExternalRelease() {
       const url = this.apkUrl || this.releaseUrl
       if (url) {
-        window.open(url, '_blank')
+        await openExternalUrl(url)
       }
     },
 

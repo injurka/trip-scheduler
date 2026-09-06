@@ -51,11 +51,7 @@ const progressDetails = computed(() => {
           }"
         >
           <Icon
-            v-if="isDownloading"
-            icon="svg-spinners:180-ring-with-bg"
-          />
-          <Icon
-            v-else-if="downloadedFilePath"
+            v-if="downloadedFilePath"
             icon="mdi:check-circle-outline"
           />
           <Icon
@@ -79,16 +75,16 @@ const progressDetails = computed(() => {
 
             <p class="prompt-description">
               <span v-if="downloadedFilePath">
-                Файл обновления успешно загружен. Нажмите «Установить», чтобы завершить процесс.
+                Файл обновления v{{ latestVersion }} успешно загружен.
               </span>
               <span v-else-if="downloadError">
-                {{ downloadError }}. Вы можете повторить попытку или перейти к странице релиза.
+                {{ downloadError }}. Вы можете повторить попытку или перейти к релизу.
               </span>
               <span v-else-if="isDownloading">
-                Скачивание файла новой версии. Пожалуйста, не закрывайте приложение.
+                Скачивание файла новой версии...
               </span>
               <span v-else>
-                Доступна новая версия приложения. Скачать и установить обновление прямо сейчас?
+                Доступна новая версия v{{ latestVersion }}. Скачать и установить прямо сейчас?
               </span>
             </p>
 
@@ -129,11 +125,11 @@ const progressDetails = computed(() => {
             <!-- Состояние 2: Идет загрузка -->
             <template v-else-if="isDownloading">
               <KitBtn
-                icon="svg-spinners:180-ring-with-bg"
-                :disabled="true"
-                color="primary"
+                variant="outlined"
+                color="secondary"
+                @click="appUpdateStore.closePrompt()"
               >
-                Загрузка {{ downloadProgress }}%
+                Скрыть
               </KitBtn>
             </template>
 

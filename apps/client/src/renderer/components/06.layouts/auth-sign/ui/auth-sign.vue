@@ -4,7 +4,8 @@ import { onBeforeUnmount, ref } from 'vue'
 import { KitBtn } from '~/components/01.kit/kit-btn'
 import { KitDivider } from '~/components/01.kit/kit-divider'
 import { AppRoutePaths } from '~/shared/constants/routes'
-import { SERVER_URL } from '~/shared/lib/env'
+import { isTauri, SERVER_URL } from '~/shared/lib/env'
+import { openExternalUrl } from '~/shared/lib/opener'
 import { useAuthStore } from '~/shared/store/auth.store'
 
 enum OAuthProviders {
@@ -30,9 +31,17 @@ onBeforeUnmount(() => {
   }
 })
 
-function handleOAuth(provider: OAuthProviders) {
+async function handleOAuth(provider: OAuthProviders) {
   const serverUrl = SERVER_URL
-  window.location.href = `${serverUrl}/api/auth/${provider}/login`
+  const redirectTypeParam = isTauri ? '?redirect_type=app' : ''
+  const loginUrl = `${serverUrl}/api/auth/${provider}/login${redirectTypeParam}`
+
+  if (isTauri) {
+    await openExternalUrl(loginUrl)
+  }
+  else {
+    window.location.href = loginUrl
+  }
 }
 
 async function handleTelegramAuth() {
@@ -43,7 +52,7 @@ async function handleTelegramAuth() {
   try {
     const { token, url } = await authStore.initTelegramAuth()
 
-    window.open(url, '_blank')
+    await openExternalUrl(url)
 
     statusInterval = setInterval(async () => {
       try {

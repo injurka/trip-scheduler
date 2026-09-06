@@ -5,6 +5,8 @@ import { computed, ref } from 'vue'
 import { KitDropdown } from '~/components/01.kit/kit-dropdown'
 import { KitTooltip } from '~/components/01.kit/kit-tooltip'
 import { useToast } from '~/shared/composables/use-toast'
+import { isTauri } from '~/shared/lib/env'
+import { openExternalUrl } from '~/shared/lib/opener'
 import { resolveApiUrl } from '~/shared/lib/url'
 
 const props = defineProps<{
@@ -87,6 +89,14 @@ async function handleDownload() {
 
   try {
     const absoluteUrl = resolveApiUrl(props.document.url)
+
+    // В среде Tauri / мобильном приложении открываем прямую ссылку для нативного DownloadManager / внешнего браузера
+    if (isTauri) {
+      await openExternalUrl(absoluteUrl)
+      toast.info('Загрузка файла передана системе...')
+      return
+    }
+
     const response = await fetch(absoluteUrl)
 
     if (!response.ok) {
@@ -113,9 +123,9 @@ async function handleDownload() {
   }
 }
 
-function handleOpen() {
+async function handleOpen() {
   const absoluteUrl = resolveApiUrl(props.document.url)
-  window.open(absoluteUrl, '_blank')
+  await openExternalUrl(absoluteUrl)
 }
 </script>
 

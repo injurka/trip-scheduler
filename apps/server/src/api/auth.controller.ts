@@ -12,6 +12,7 @@ const authController = new Hono()
 // --- GOOGLE ---
 authController.get('/google/login', async (c) => {
   const linkToken = c.req.query('linkToken')
+  const redirectType = c.req.query('redirect_type') // 'app' | 'deep_link'
   let linkUserId: string | null = null
   if (linkToken) {
     const payload = await authUtils.verifyToken(linkToken)
@@ -28,7 +29,7 @@ authController.get('/google/login', async (c) => {
   url.searchParams.set('scope', 'openid email profile')
   url.searchParams.set('state', state)
 
-  const cookiePayload = JSON.stringify({ state, linkUserId })
+  const cookiePayload = JSON.stringify({ state, linkUserId, redirectType })
   setCookie(c, 'oauth_state', cookiePayload, {
     httpOnly: true,
     secure: process.env.NODE_ENV === 'production',
@@ -48,11 +49,13 @@ authController.get('/google/callback', async (c) => {
 
   let savedState = savedStateCookie
   let linkUserId: string | null = null
+  let redirectType: string | null = null
 
   try {
     const parsed = JSON.parse(savedStateCookie)
     savedState = parsed.state
     linkUserId = parsed.linkUserId || null
+    redirectType = parsed.redirectType || null
   }
   catch {
     // fallback if state was plain string
@@ -66,12 +69,12 @@ authController.get('/google/callback', async (c) => {
   if (linkUserId) {
     try {
       await oAuthService.handleGoogle(code!, linkUserId)
-      const redirectUrl = new URL(`${process.env.FRONTEND_URL}/user/${linkUserId}/settings`)
+      const redirectUrl = new URL(redirectType === 'app' ? 'trip-scheduler://user/settings' : `${process.env.FRONTEND_URL}/user/${linkUserId}/settings`)
       redirectUrl.searchParams.set('oauth_success', 'google_linked')
       return c.redirect(redirectUrl.toString())
     }
     catch (error: any) {
-      const redirectUrl = new URL(`${process.env.FRONTEND_URL}/user/${linkUserId}/settings`)
+      const redirectUrl = new URL(redirectType === 'app' ? 'trip-scheduler://user/settings' : `${process.env.FRONTEND_URL}/user/${linkUserId}/settings`)
       redirectUrl.searchParams.set('oauth_error', error?.message || 'Не удалось привязать Google аккаунт')
       return c.redirect(redirectUrl.toString())
     }
@@ -79,7 +82,7 @@ authController.get('/google/callback', async (c) => {
 
   const result = await oAuthService.handleGoogle(code!)
   const { token } = result as { token: any, user: any }
-  const redirectUrl = new URL(`${process.env.FRONTEND_URL}/auth/callback`)
+  const redirectUrl = new URL(redirectType === 'app' ? 'trip-scheduler://auth/callback' : `${process.env.FRONTEND_URL}/auth/callback`)
   redirectUrl.searchParams.set('token', token.accessToken)
   redirectUrl.searchParams.set('refreshToken', token.refreshToken)
 
@@ -97,6 +100,7 @@ authController.get('/google/callback', async (c) => {
 // --- GITHUB ---
 authController.get('/github/login', async (c) => {
   const linkToken = c.req.query('linkToken')
+  const redirectType = c.req.query('redirect_type') // 'app' | 'deep_link'
   let linkUserId: string | null = null
   if (linkToken) {
     const payload = await authUtils.verifyToken(linkToken)
@@ -112,7 +116,7 @@ authController.get('/github/login', async (c) => {
   url.searchParams.set('scope', 'read:user user:email')
   url.searchParams.set('state', state)
 
-  const cookiePayload = JSON.stringify({ state, linkUserId })
+  const cookiePayload = JSON.stringify({ state, linkUserId, redirectType })
   setCookie(c, 'oauth_state', cookiePayload, {
     httpOnly: true,
     secure: process.env.NODE_ENV === 'production',
@@ -132,11 +136,13 @@ authController.get('/github/callback', async (c) => {
 
   let savedState = savedStateCookie
   let linkUserId: string | null = null
+  let redirectType: string | null = null
 
   try {
     const parsed = JSON.parse(savedStateCookie)
     savedState = parsed.state
     linkUserId = parsed.linkUserId || null
+    redirectType = parsed.redirectType || null
   }
   catch {
     // fallback if state was plain string
@@ -150,12 +156,12 @@ authController.get('/github/callback', async (c) => {
   if (linkUserId) {
     try {
       await oAuthService.handleGithub(code!, linkUserId)
-      const redirectUrl = new URL(`${process.env.FRONTEND_URL}/user/${linkUserId}/settings`)
+      const redirectUrl = new URL(redirectType === 'app' ? 'trip-scheduler://user/settings' : `${process.env.FRONTEND_URL}/user/${linkUserId}/settings`)
       redirectUrl.searchParams.set('oauth_success', 'github_linked')
       return c.redirect(redirectUrl.toString())
     }
     catch (error: any) {
-      const redirectUrl = new URL(`${process.env.FRONTEND_URL}/user/${linkUserId}/settings`)
+      const redirectUrl = new URL(redirectType === 'app' ? 'trip-scheduler://user/settings' : `${process.env.FRONTEND_URL}/user/${linkUserId}/settings`)
       redirectUrl.searchParams.set('oauth_error', error?.message || 'Не удалось привязать GitHub аккаунт')
       return c.redirect(redirectUrl.toString())
     }
@@ -163,7 +169,7 @@ authController.get('/github/callback', async (c) => {
 
   const result = await oAuthService.handleGithub(code!)
   const { token } = result as { token: any, user: any }
-  const redirectUrl = new URL(`${process.env.FRONTEND_URL}/auth/callback`)
+  const redirectUrl = new URL(redirectType === 'app' ? 'trip-scheduler://auth/callback' : `${process.env.FRONTEND_URL}/auth/callback`)
   redirectUrl.searchParams.set('token', token.accessToken)
   redirectUrl.searchParams.set('refreshToken', token.refreshToken)
 
@@ -183,6 +189,7 @@ authController.get('/yandex', c => c.redirect('/api/auth/yandex/login'))
 
 authController.get('/yandex/login', async (c) => {
   const linkToken = c.req.query('linkToken')
+  const redirectType = c.req.query('redirect_type') // 'app' | 'deep_link'
   let linkUserId: string | null = null
   if (linkToken) {
     const payload = await authUtils.verifyToken(linkToken)
@@ -201,7 +208,7 @@ authController.get('/yandex/login', async (c) => {
   url.searchParams.set('response_type', 'code')
   url.searchParams.set('state', state)
 
-  const cookiePayload = JSON.stringify({ state, linkUserId })
+  const cookiePayload = JSON.stringify({ state, linkUserId, redirectType })
   setCookie(c, 'oauth_state', cookiePayload, {
     httpOnly: true,
     secure: process.env.NODE_ENV === 'production',
@@ -221,11 +228,13 @@ authController.get('/yandex/callback', async (c) => {
 
   let savedState = savedStateCookie
   let linkUserId: string | null = null
+  let redirectType: string | null = null
 
   try {
     const parsed = JSON.parse(savedStateCookie)
     savedState = parsed.state
     linkUserId = parsed.linkUserId || null
+    redirectType = parsed.redirectType || null
   }
   catch {
     // fallback if state was plain string
@@ -239,12 +248,12 @@ authController.get('/yandex/callback', async (c) => {
   if (linkUserId) {
     try {
       await oAuthService.handleYandex(code!, linkUserId)
-      const redirectUrl = new URL(`${process.env.FRONTEND_URL}/user/${linkUserId}/settings`)
+      const redirectUrl = new URL(redirectType === 'app' ? 'trip-scheduler://user/settings' : `${process.env.FRONTEND_URL}/user/${linkUserId}/settings`)
       redirectUrl.searchParams.set('oauth_success', 'yandex_linked')
       return c.redirect(redirectUrl.toString())
     }
     catch (error: any) {
-      const redirectUrl = new URL(`${process.env.FRONTEND_URL}/user/${linkUserId}/settings`)
+      const redirectUrl = new URL(redirectType === 'app' ? 'trip-scheduler://user/settings' : `${process.env.FRONTEND_URL}/user/${linkUserId}/settings`)
       redirectUrl.searchParams.set('oauth_error', error?.message || 'Не удалось привязать Яндекс аккаунт')
       return c.redirect(redirectUrl.toString())
     }
@@ -252,7 +261,7 @@ authController.get('/yandex/callback', async (c) => {
 
   const result = await oAuthService.handleYandex(code!)
   const { token } = result as { token: any, user: any }
-  const redirectUrl = new URL(`${process.env.FRONTEND_URL}/auth/callback`)
+  const redirectUrl = new URL(redirectType === 'app' ? 'trip-scheduler://auth/callback' : `${process.env.FRONTEND_URL}/auth/callback`)
   redirectUrl.searchParams.set('token', token.accessToken)
   redirectUrl.searchParams.set('refreshToken', token.refreshToken)
 

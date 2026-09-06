@@ -12,8 +12,10 @@ const REQUIRED_PERMISSIONS = [
   'android.permission.ACCESS_BACKGROUND_LOCATION',
   'android.permission.FOREGROUND_SERVICE',
   'android.permission.FOREGROUND_SERVICE_LOCATION',
+  'android.permission.FOREGROUND_SERVICE_MEDIA_PLAYBACK',
   'android.permission.POST_NOTIFICATIONS',
   'android.permission.WAKE_LOCK',
+  'android.permission.REQUEST_IGNORE_BATTERY_OPTIMIZATIONS',
   'android.permission.REQUEST_INSTALL_PACKAGES',
 ]
 
@@ -44,6 +46,22 @@ export function configureAndroidManifest(): boolean {
     modified = true
   }
 
+  // 3. Add Deep Link intent-filter for scheme "trip-scheduler" inside MainActivity
+  const deepLinkFilter = `            <intent-filter>
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+                <data android:scheme="trip-scheduler" />
+            </intent-filter>`
+
+  if (!content.includes('android:scheme="trip-scheduler"')) {
+    if (content.includes('</activity>')) {
+      content = content.replace('</activity>', `${deepLinkFilter}\n        </activity>`)
+      console.log('[configure-android] Added deep-link intent-filter (trip-scheduler://)')
+      modified = true
+    }
+  }
+
   if (modified) {
     writeFileSync(MANIFEST_PATH, content, 'utf-8')
     console.log('[configure-android] Successfully updated AndroidManifest.xml')
@@ -58,3 +76,4 @@ export function configureAndroidManifest(): boolean {
 if (import.meta.main) {
   configureAndroidManifest()
 }
+
