@@ -2,7 +2,7 @@
 import { useScrollLock } from '@vueuse/core'
 import { watch } from 'vue'
 import { AsyncStateWrapper } from '~/components/02.shared/async-state-wrapper'
-import DayMemoriesPlayer from '~/components/05.modules/activity-map/ui/memories/day-memories-player.vue'
+import { DayMemoriesPlayer } from '~/components/05.modules/day-track-player'
 import { useTrackingStore } from '~/shared/store/tracking.store'
 import { useActivityTracking } from '../composables/use-activity-tracking'
 import ActivityTrackingDays from './activity-tracking-days.vue'

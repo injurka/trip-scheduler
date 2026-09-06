@@ -68,7 +68,12 @@ export const useTripPlanStore = defineStore('tripPlan', {
 
   getters: {
     isLoading: () => useRequestStatus(ETripPlanKeys.FETCH_TRIP_DETAILS).value,
-    fetchError: () => useRequestError(ETripPlanKeys.FETCH_TRIP_DETAILS).value,
+    fetchError: (state) => {
+      // If trip data was loaded (e.g., from offline store), don't block UI with error placeholder
+      if (state.trip && state.days.length > 0)
+        return null
+      return useRequestError(ETripPlanKeys.FETCH_TRIP_DETAILS).value
+    },
     isLoadingUpdateDay: () => useRequestStatusByPrefix(ETripPlanKeys.UPDATE_DAY).value,
     isLoadingNewDay: () => useRequestStatus(ETripPlanKeys.ADD_DAY).value,
     isLoadingUpdateActivity: () => useRequestStatusByPrefix(ETripPlanKeys.UPDATE_ACTIVITY).value,
@@ -320,6 +325,33 @@ export const useTripPlanStore = defineStore('tripPlan', {
 
     fetchTripDetails(tripId: string, initialDayIdFromQuery: string | undefined, onSectionsLoad?: (sections: TripSection[]) => void) {
       this.currentTripId = tripId
+      const offlineStore = useOfflineStore()
+
+      const applyTripData = (result: any) => {
+        const { days, sections, ...tripData } = result
+        this.trip = tripData as Trip
+
+        const sortedDays = sortDaysList(result.days || [])
+        this.days = sortedDays as IDay[]
+
+        this.dayNote.clear()
+        sortedDays.forEach((day: any) => {
+          if (day.note) {
+            this.dayNote.set(day.id, day.note)
+          }
+        })
+
+        onSectionsLoad?.(result.sections || [])
+
+        const dayFromQueryIsValid = initialDayIdFromQuery && sortedDays.some(d => d.id === initialDayIdFromQuery)
+
+        if (dayFromQueryIsValid) {
+          this.currentDayId = initialDayIdFromQuery
+        }
+        else {
+          this.currentDayId = null
+        }
+      }
 
       useRequest({
         key: ETripPlanKeys.FETCH_TRIP_DETAILS,
@@ -327,6 +359,13 @@ export const useTripPlanStore = defineStore('tripPlan', {
         fn: db => db.trips.getByIdWithDays(tripId),
         onSuccess: (result) => {
           if (!result) {
+            const savedTrip = offlineStore.getSavedTrip(tripId)
+            if (savedTrip) {
+              applyTripData(savedTrip)
+              useToast().info('Отображается сохраненная офлайн-версия путешествия.')
+              return
+            }
+
             this.trip = null
             this.days = []
             this.currentDayId = null
@@ -336,31 +375,16 @@ export const useTripPlanStore = defineStore('tripPlan', {
             return
           }
 
-          const { days, sections, ...tripData } = result
-          this.trip = tripData as Trip
-
-          const sortedDays = sortDaysList(result.days)
-          this.days = sortedDays as IDay[]
-
-          this.dayNote.clear()
-          sortedDays.forEach((day: any) => {
-            if (day.note) {
-              this.dayNote.set(day.id, day.note)
-            }
-          })
-
-          onSectionsLoad?.(result.sections || [])
-
-          const dayFromQueryIsValid = initialDayIdFromQuery && sortedDays.some(d => d.id === initialDayIdFromQuery)
-
-          if (dayFromQueryIsValid) {
-            this.currentDayId = initialDayIdFromQuery
-          }
-          else {
-            this.currentDayId = null
-          }
+          applyTripData(result)
         },
         onError: ({ error }) => {
+          const savedTrip = offlineStore.getSavedTrip(tripId)
+          if (savedTrip) {
+            applyTripData(savedTrip)
+            useToast().info('Нет подключения к сети. Загружена офлайн-версия.')
+            return
+          }
+
           this.trip = null
           this.days = []
           this.currentDayId = null

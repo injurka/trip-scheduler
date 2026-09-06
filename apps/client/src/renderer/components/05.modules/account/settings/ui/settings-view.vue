@@ -1,14 +1,20 @@
 <script setup lang="ts">
+import type { TabItem } from '~/components/01.kit/kit-tabs'
 import { Icon } from '@iconify/vue'
+import { computed, ref } from 'vue'
 import { Cropper } from 'vue-advanced-cropper'
 import { KitAvatar } from '~/components/01.kit/kit-avatar'
 import { KitBtn } from '~/components/01.kit/kit-btn'
 import { KitDialogWithClose } from '~/components/01.kit/kit-dialog-with-close'
 import { KitDivider } from '~/components/01.kit/kit-divider'
 import { KitInput } from '~/components/01.kit/kit-input'
+import { KitTabs } from '~/components/01.kit/kit-tabs'
 import { NavigationBack } from '~/components/02.shared/navigation-back/index'
 import { useProfileSettings } from '../composables/use-profile-settings'
 import 'vue-advanced-cropper/dist/style.css'
+
+const route = useRoute()
+const router = useRouter()
 
 const {
   user,
@@ -29,7 +35,6 @@ const {
   saveCroppedImage,
   coverFile,
   coverPreviewUrl,
-  isPreviewVisible,
   tempCoverUrl,
   isCropperVisible,
   isUpdatingProfile,
@@ -44,8 +49,6 @@ const {
   appVersion,
   // OAuth & Integrations
   isYandexLinked,
-  isGoogleLinked,
-  isGithubLinked,
   isTelegramLinked,
   hasPassword,
   unlinkingProvider,
@@ -62,18 +65,62 @@ const avatarInput = ref<HTMLInputElement | null>(null)
 const coverInput = ref<HTMLInputElement | null>(null)
 const cropperRef = ref<InstanceType<typeof Cropper> | null>(null)
 
-// Генерируем стиль для блочного превью обложки
+const activeTab = computed({
+  get: () => (route.query.tab as string) || 'profile',
+  set: (val: string) => {
+    router.replace({ query: { ...route.query, tab: val } })
+  },
+})
+
+const tabItems = computed<TabItem[]>(() => {
+  const items: TabItem[] = [
+    {
+      id: 'profile',
+      label: 'Профиль',
+      icon: 'mdi:account-outline',
+    },
+    {
+      id: 'integrations',
+      label: 'Интеграции',
+      icon: 'mdi:link-variant',
+    },
+    {
+      id: 'security',
+      label: 'Безопасность',
+      icon: 'mdi:shield-lock-outline',
+    },
+  ]
+
+  if (isNative) {
+    items.push({
+      id: 'system',
+      label: 'Система',
+      icon: 'mdi:cog-outline',
+    })
+  }
+
+  items.push({
+    id: 'danger',
+    label: 'Опасная зона',
+    icon: 'mdi:alert-circle-outline',
+  })
+
+  return items
+})
+
+// Генерируем стиль для интерактивного превью обложки
 const previewHeaderStyle = computed(() => {
   const targetCoverUrl = coverPreviewUrl.value || (user.value as any)?.coverUrl
   if (targetCoverUrl) {
     return {
-      backgroundImage: `linear-gradient(to top, var(--bg-secondary-color) 10%, transparent 80%), url(${targetCoverUrl})`,
+      backgroundImage: `linear-gradient(to top, rgba(0, 0, 0, 0.6) 0%, rgba(0, 0, 0, 0.2) 60%, rgba(0, 0, 0, 0.4) 100%), url(${targetCoverUrl})`,
       backgroundSize: 'cover',
       backgroundPosition: 'center',
-      backgroundRepeat: 'no-repeat',
     }
   }
-  return {}
+  return {
+    backgroundImage: `linear-gradient(135deg, var(--bg-tertiary-color) 0%, var(--bg-secondary-color) 100%)`,
+  }
 })
 
 function applyCrop() {
@@ -88,384 +135,482 @@ function applyCrop() {
 
 <template>
   <div v-if="user" class="profile-page">
-    <header class="profile-header">
+    <header class="settings-header">
       <NavigationBack />
-      <h1>Настройки аккаунта</h1>
-      <p>Здесь вы можете управлять информацией вашего аккаунта.</p>
+      <div class="header-titles">
+        <h1 class="page-title">
+          Настройки аккаунта
+        </h1>
+        <p class="page-subtitle">
+          Управление личными данными, безопасностью и подключенными сервисами
+        </p>
+      </div>
     </header>
 
-    <section class="profile-section">
-      <template v-if="isNative">
-        <h2 class="section-title">
-          Папка для медиафайлов
-        </h2>
-        <div class="section-content">
-          <p>Выберите папку на вашем устройстве, куда будут сохраняться фотографии для оффлайн-доступа. Это позволит просматривать их без интернета и быстрее загружать.</p>
-
-          <div class="vault-control">
-            <KitInput
-              :model-value="vaultPath || 'Не выбрано'"
-              readonly
-              label="Текущая папка"
-              icon="mdi:folder-outline"
-            />
-            <KitBtn @click="selectVaultFolder">
-              {{ vaultPath ? 'Изменить' : 'Выбрать папку' }}
-            </KitBtn>
-          </div>
-        </div>
-
-        <h2 class="section-title">
-          О приложении
-        </h2>
-        <div class="section-content">
-          <p>Версия приложения: v{{ appVersion }}</p>
-          <div class="app-update-control">
-            <KitBtn
-              :disabled="isCheckingUpdate"
-              icon="mdi:refresh"
-              @click="checkManualUpdate"
-            >
-              {{ isCheckingUpdate ? 'Проверка...' : 'Проверить обновления' }}
-            </KitBtn>
-          </div>
-        </div>
-      </template>
-
-      <h2 class="section-title">
-        Основная информация
-      </h2>
-      <div class="section-content">
-        <div class="info-grid">
-          <div class="avatar-uploader">
-            <KitAvatar :src="user.avatarUrl" :name="user.name" :size="120" />
-            <input ref="avatarInput" type="file" accept="image/*" hidden @change="handleAvatarUpload">
-            <KitBtn variant="outlined" color="secondary" class="upload-btn" @click="avatarInput?.click()">
-              <Icon icon="mdi:camera-outline" />
-              Сменить фото
-            </KitBtn>
-          </div>
-          <div class="info-fields">
-            <KitInput v-model="profileForm.name" label="Имя" icon="mdi:account-outline" />
-            <KitInput v-model="profileForm.email" label="Email" icon="mdi:email-outline" disabled />
-          </div>
-        </div>
-
-        <KitDivider class="divider-spaced" />
-
-        <!-- Настройки обложки -->
-        <div class="cover-uploader-section">
-          <div class="cover-info">
-            <h3>Обложка профиля</h3>
-            <p>Установите изображение, которое будет отображаться в шапке вашего профиля. Лучше использовать горизонтальные фото.</p>
-            <div class="cover-actions">
-              <input ref="coverInput" type="file" accept="image/*" hidden @change="handleCoverSelect">
-              <KitBtn variant="outlined" color="secondary" @click="coverInput?.click()">
-                <Icon icon="mdi:image-outline" />
-                {{ coverFile ? 'Выбрать другую обложку' : 'Загрузить обложку' }}
-              </KitBtn>
-              <KitBtn
-                v-if="coverPreviewUrl || (user as any).coverUrl"
-                variant="subtle"
-                color="secondary"
-                @click="isPreviewVisible = !isPreviewVisible"
-              >
-                <Icon :icon="isPreviewVisible ? 'mdi:eye-off-outline' : 'mdi:eye-outline'" />
-                {{ isPreviewVisible ? 'Скрыть превью' : 'Предпросмотр' }}
-              </KitBtn>
-            </div>
-          </div>
-        </div>
-
-        <!-- Блок Предпросмотра -->
-        <div v-if="isPreviewVisible" class="preview-wrapper">
-          <div class="profile-header-mock" :style="previewHeaderStyle">
-            <div class="avatar-section">
-              <KitAvatar :src="user.avatarUrl" :name="profileForm.name || user.name" :size="100" class="profile-avatar" />
-            </div>
-            <div class="info-section-mock">
-              <h1 class="user-name">
-                {{ profileForm.name || user.name }}
-              </h1>
-              <p class="user-bio">
-                Путешественник и исследователь. В поисках новых горизонтов и незабываемых впечатлений.
-              </p>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      <footer class="section-footer">
-        <KitBtn size="sm" :disabled="!isProfileChanged || isUpdatingProfile" :loading="isUpdatingProfile" @click="updateProfile()">
-          Сохранить изменения
-        </KitBtn>
-      </footer>
-    </section>
-
-    <KitDivider />
-
-    <!-- Секция: Связанные аккаунты -->
-    <section class="profile-section">
-      <h2 class="section-title">
-        Связанные аккаунты
-      </h2>
-      <div class="section-content">
-        <p class="section-description">
-          Привяжите сторонние сервисы для быстрого входа в аккаунт в один клик.
-        </p>
-
-        <div class="integrations-list">
-          <!-- Яндекс -->
-          <div class="integration-item">
-            <div class="integration-info">
-              <div class="integration-icon-wrap yandex">
-                <span class="yandex-badge">Я</span>
+    <div class="settings-tabs-wrapper">
+      <KitTabs v-model="activeTab" :items="tabItems">
+        <!-- Вкладка 1: Профиль -->
+        <template #profile>
+          <div class="settings-card">
+            <div class="card-header">
+              <div class="card-title-group">
+                <h2 class="card-title">
+                  Личные данные
+                </h2>
+                <p class="card-subtitle">
+                  Внешний вид вашей страницы и контактная информация
+                </p>
               </div>
-              <div class="integration-meta">
-                <h4>Яндекс</h4>
-                <div class="integration-status" :class="{ linked: isYandexLinked }">
-                  <span class="status-dot" />
-                  <span>{{ isYandexLinked ? 'Подключен' : 'Не привязан' }}</span>
+            </div>
+
+            <!-- Интерактивная витрина профиля (обложка + аватар) -->
+            <div class="profile-banner-showcase">
+              <div class="cover-canvas" :style="previewHeaderStyle">
+                <input ref="coverInput" type="file" accept="image/*" hidden @change="handleCoverSelect">
+                <button
+                  type="button"
+                  class="cover-action-badge"
+                  @click="coverInput?.click()"
+                >
+                  <Icon icon="mdi:camera" class="badge-icon" />
+                  <span>{{ coverFile ? 'Сменить обложку' : 'Загрузить обложку' }}</span>
+                </button>
+              </div>
+
+              <div class="avatar-overlap-wrapper">
+                <div class="avatar-interactive-container">
+                  <KitAvatar
+                    :src="user.avatarUrl"
+                    :name="profileForm.name || user.name"
+                    :size="96"
+                    class="banner-avatar"
+                  />
+                  <input ref="avatarInput" type="file" accept="image/*" hidden @change="handleAvatarUpload">
+                  <button
+                    type="button"
+                    class="avatar-action-btn"
+                    title="Изменить фото профиля"
+                    aria-label="Изменить фото профиля"
+                    @click="avatarInput?.click()"
+                  >
+                    <Icon icon="mdi:camera-outline" />
+                  </button>
+                </div>
+
+                <div class="user-quick-info">
+                  <h3 class="user-display-name">
+                    {{ profileForm.name || user.name }}
+                  </h3>
+                  <span class="user-display-email">{{ user.email }}</span>
                 </div>
               </div>
             </div>
-            <div class="integration-action">
-              <KitBtn
-                v-if="isYandexLinked"
-                variant="outlined"
-                color="secondary"
-                size="sm"
-                :disabled="unlinkingProvider === 'yandex'"
-                :loading="unlinkingProvider === 'yandex'"
-                @click="unlinkProvider('yandex')"
-              >
-                Отвязать
-              </KitBtn>
-              <KitBtn
-                v-else
-                variant="solid"
-                color="secondary"
-                size="sm"
-                @click="linkOAuth('yandex')"
-              >
-                Привязать
-              </KitBtn>
-            </div>
-          </div>
 
-          <!-- Telegram -->
-          <div class="integration-item">
-            <div class="integration-info">
-              <div class="integration-icon-wrap telegram">
-                <Icon icon="mdi:telegram" />
-              </div>
-              <div class="integration-meta">
-                <h4>Telegram</h4>
-                <div class="integration-status" :class="{ linked: isTelegramLinked }">
-                  <span class="status-dot" />
-                  <span>{{ isTelegramLinked ? 'Подключен' : 'Не привязан' }}</span>
+            <div class="card-body">
+              <div class="form-grid">
+                <div class="form-field">
+                  <KitInput
+                    v-model="profileForm.name"
+                    label="Отображаемое имя"
+                    placeholder="Как к вам обращаться"
+                    icon="mdi:account-outline"
+                  />
+                </div>
+
+                <div class="form-field">
+                  <KitInput
+                    v-model="profileForm.email"
+                    label="Электронная почта"
+                    icon="mdi:email-outline"
+                    disabled
+                  />
+                  <span class="field-hint">Email используется для входа и подтверждений</span>
                 </div>
               </div>
             </div>
-            <div class="integration-action">
+
+            <div class="card-footer">
+              <div class="save-status">
+                <span v-if="isProfileChanged" class="changed-indicator">
+                  <Icon icon="mdi:circle-medium" /> Есть несохраненные изменения
+                </span>
+              </div>
               <KitBtn
-                v-if="isTelegramLinked"
-                variant="outlined"
-                color="secondary"
-                size="sm"
-                :disabled="unlinkingProvider === 'telegram'"
-                :loading="unlinkingProvider === 'telegram'"
-                @click="unlinkProvider('telegram')"
+                size="md"
+                color="primary"
+                :disabled="!isProfileChanged || isUpdatingProfile"
+                :loading="isUpdatingProfile"
+                icon="mdi:content-save-outline"
+                @click="updateProfile()"
               >
-                Отвязать
-              </KitBtn>
-              <KitBtn
-                v-else
-                variant="solid"
-                color="secondary"
-                size="sm"
-                :loading="isTelegramLinking"
-                @click="startTelegramLink"
-              >
-                Привязать
+                Сохранить изменения
               </KitBtn>
             </div>
           </div>
+        </template>
 
-          <!-- Google -->
-          <div v-if="false" class="integration-item">
-            <div class="integration-info">
-              <div class="integration-icon-wrap google">
-                <Icon icon="mdi:google" />
+        <!-- Вкладка 2: Интеграции -->
+        <template #integrations>
+          <div class="settings-card">
+            <div class="card-header">
+              <div class="card-title-group">
+                <h2 class="card-title">
+                  Связанные аккаунты
+                </h2>
+                <p class="card-subtitle">
+                  Подключите сторонние сервисы для быстрого входа в один клик без ввода пароля
+                </p>
               </div>
-              <div class="integration-meta">
-                <h4>Google</h4>
-                <div class="integration-status" :class="{ linked: isGoogleLinked }">
-                  <span class="status-dot" />
-                  <span>{{ isGoogleLinked ? 'Подключен' : 'Не привязан' }}</span>
+            </div>
+
+            <div class="card-body">
+              <div class="integrations-grid">
+                <!-- Яндекс -->
+                <div class="integration-tile" :class="{ 'is-active': isYandexLinked }">
+                  <div class="tile-leading">
+                    <div class="provider-icon-wrapper yandex">
+                      <span class="yandex-glyph">Я</span>
+                    </div>
+                    <div class="tile-meta">
+                      <div class="provider-title">
+                        Яндекс ID
+                      </div>
+                      <div class="provider-status-badge" :class="{ linked: isYandexLinked }">
+                        <Icon :icon="isYandexLinked ? 'mdi:check-circle' : 'mdi:link-variant-off'" class="status-icon" />
+                        <span>{{ isYandexLinked ? 'Подключен' : 'Не привязан' }}</span>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div class="tile-trailing">
+                    <KitBtn
+                      v-if="isYandexLinked"
+                      variant="outlined"
+                      color="secondary"
+                      size="sm"
+                      :disabled="unlinkingProvider === 'yandex'"
+                      :loading="unlinkingProvider === 'yandex'"
+                      icon="mdi:link-variant-off"
+                      @click="unlinkProvider('yandex')"
+                    >
+                      Отвязать
+                    </KitBtn>
+                    <KitBtn
+                      v-else
+                      variant="solid"
+                      color="secondary"
+                      size="sm"
+                      icon="mdi:plus"
+                      @click="linkOAuth('yandex')"
+                    >
+                      Привязать
+                    </KitBtn>
+                  </div>
+                </div>
+
+                <!-- Telegram -->
+                <div class="integration-tile" :class="{ 'is-active': isTelegramLinked }">
+                  <div class="tile-leading">
+                    <div class="provider-icon-wrapper telegram">
+                      <Icon icon="mdi:telegram" />
+                    </div>
+                    <div class="tile-meta">
+                      <div class="provider-title">
+                        Telegram
+                      </div>
+                      <div class="provider-status-badge" :class="{ linked: isTelegramLinked }">
+                        <Icon :icon="isTelegramLinked ? 'mdi:check-circle' : 'mdi:link-variant-off'" class="status-icon" />
+                        <span>{{ isTelegramLinked ? 'Подключен' : 'Не привязан' }}</span>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div class="tile-trailing">
+                    <KitBtn
+                      v-if="isTelegramLinked"
+                      variant="outlined"
+                      color="secondary"
+                      size="sm"
+                      :disabled="unlinkingProvider === 'telegram'"
+                      :loading="unlinkingProvider === 'telegram'"
+                      icon="mdi:link-variant-off"
+                      @click="unlinkProvider('telegram')"
+                    >
+                      Отвязать
+                    </KitBtn>
+                    <KitBtn
+                      v-else
+                      variant="solid"
+                      color="secondary"
+                      size="sm"
+                      :loading="isTelegramLinking"
+                      icon="mdi:plus"
+                      @click="startTelegramLink"
+                    >
+                      Привязать
+                    </KitBtn>
+                  </div>
                 </div>
               </div>
             </div>
-            <div class="integration-action">
-              <KitBtn
-                v-if="isGoogleLinked"
-                variant="outlined"
-                color="secondary"
-                size="sm"
-                :disabled="unlinkingProvider === 'google'"
-                :loading="unlinkingProvider === 'google'"
-                @click="unlinkProvider('google')"
-              >
-                Отвязать
-              </KitBtn>
-              <KitBtn
-                v-else
-                variant="solid"
-                color="secondary"
-                size="sm"
-                @click="linkOAuth('google')"
-              >
-                Привязать
-              </KitBtn>
-            </div>
           </div>
+        </template>
 
-          <!-- GitHub -->
-          <div v-if="false" class="integration-item">
-            <div class="integration-info">
-              <div class="integration-icon-wrap github">
-                <Icon icon="mdi:github" />
+        <!-- Вкладка 3: Безопасность -->
+        <template #security>
+          <div class="settings-card">
+            <div class="card-header">
+              <div class="card-title-group">
+                <h2 class="card-title">
+                  Безопасность и пароль
+                </h2>
+                <p class="card-subtitle">
+                  Управление паролем для защиты вашего аккаунта
+                </p>
               </div>
-              <div class="integration-meta">
-                <h4>GitHub</h4>
-                <div class="integration-status" :class="{ linked: isGithubLinked }">
-                  <span class="status-dot" />
-                  <span>{{ isGithubLinked ? 'Подключен' : 'Не привязан' }}</span>
+              <div class="security-status-indicator" :class="{ secure: hasPassword }">
+                <Icon :icon="hasPassword ? 'mdi:shield-check' : 'mdi:shield-alert'" />
+                <span>{{ hasPassword ? 'Защищен паролем' : 'Пароль не установлен' }}</span>
+              </div>
+            </div>
+
+            <div class="card-body">
+              <!-- Смена пароля -->
+              <div v-if="hasPassword" class="password-form-section">
+                <div class="password-fields-grid">
+                  <div class="form-field full-row">
+                    <KitInput
+                      v-model="passwordForm.currentPassword"
+                      label="Текущий пароль"
+                      type="password"
+                      placeholder="Введите текущий пароль"
+                      icon="mdi:lock-outline"
+                    />
+                  </div>
+                  <div class="form-field">
+                    <KitInput
+                      v-model="passwordForm.newPassword"
+                      label="Новый пароль"
+                      type="password"
+                      placeholder="Не менее 6 символов"
+                      icon="mdi:lock-plus-outline"
+                    />
+                  </div>
+                  <div class="form-field">
+                    <KitInput
+                      v-model="passwordForm.confirmPassword"
+                      label="Подтверждение нового пароля"
+                      type="password"
+                      placeholder="Повторите новый пароль"
+                      icon="mdi:lock-check-outline"
+                    />
+                  </div>
+                </div>
+              </div>
+
+              <!-- Установка пароля для OAuth пользователей -->
+              <div v-else class="set-password-section">
+                <div class="security-callout">
+                  <Icon icon="mdi:information-outline" class="callout-icon" />
+                  <div class="callout-text">
+                    <strong>Вход через социальные сети</strong>
+                    <p>Вы вошли через сторонний сервис. Задайте пароль, чтобы иметь возможность авторизоваться по email и паролю.</p>
+                  </div>
+                </div>
+
+                <div class="password-fields-grid">
+                  <div class="form-field">
+                    <KitInput
+                      v-model="setPasswordForm.newPassword"
+                      label="Новый пароль"
+                      type="password"
+                      placeholder="Не менее 6 символов"
+                      icon="mdi:lock-plus-outline"
+                    />
+                  </div>
+                  <div class="form-field">
+                    <KitInput
+                      v-model="setPasswordForm.confirmPassword"
+                      label="Подтверждение пароля"
+                      type="password"
+                      placeholder="Повторите пароль"
+                      icon="mdi:lock-check-outline"
+                    />
+                  </div>
                 </div>
               </div>
             </div>
-            <div class="integration-action">
+
+            <div class="card-footer">
+              <div style="flex-grow: 1" />
               <KitBtn
-                v-if="isGithubLinked"
-                variant="outlined"
-                color="secondary"
-                size="sm"
-                :disabled="unlinkingProvider === 'github'"
-                :loading="unlinkingProvider === 'github'"
-                @click="unlinkProvider('github')"
+                v-if="hasPassword"
+                size="md"
+                color="primary"
+                :disabled="!isPasswordFormValid || isChangingPassword"
+                :loading="isChangingPassword"
+                icon="mdi:key-change"
+                @click="changePassword"
               >
-                Отвязать
+                Обновить пароль
               </KitBtn>
               <KitBtn
                 v-else
-                variant="solid"
-                color="secondary"
-                size="sm"
-                @click="linkOAuth('github')"
+                size="md"
+                color="primary"
+                :disabled="!isSetPasswordFormValid || isSettingPassword"
+                :loading="isSettingPassword"
+                icon="mdi:lock-plus"
+                @click="setPassword"
               >
-                Привязать
+                Установить пароль
               </KitBtn>
             </div>
           </div>
-        </div>
-      </div>
-    </section>
+        </template>
 
-    <KitDivider />
+        <!-- Вкладка 4: Система (только Native) -->
+        <template v-if="isNative" #system>
+          <div class="settings-card">
+            <div class="card-header">
+              <div class="card-title-group">
+                <h2 class="card-title">
+                  Системные настройки
+                </h2>
+                <p class="card-subtitle">
+                  Параметры локального приложения и оффлайн-хранилища
+                </p>
+              </div>
+            </div>
 
-    <section class="profile-section">
-      <h2 class="section-title">
-        Безопасность
-      </h2>
-      <div v-if="hasPassword" class="section-content password-grid">
-        <KitInput
-          v-model="passwordForm.currentPassword"
-          label="Текущий пароль"
-          type="password"
-          icon="mdi:lock-outline"
-        />
-        <KitInput
-          v-model="passwordForm.newPassword"
-          label="Новый пароль"
-          type="password"
-          icon="mdi:lock-plus-outline"
-        />
-        <KitInput
-          v-model="passwordForm.confirmPassword"
-          label="Подтвердите пароль"
-          type="password"
-          icon="mdi:lock-check-outline"
-        />
-      </div>
-      <div v-else class="section-content">
-        <p class="password-note">
-          Вы вошли через социальную сеть, и пароль для аккаунта еще не установлен. Задайте пароль, чтобы иметь возможность входить по email и паролю.
-        </p>
-        <div class="password-grid">
-          <KitInput
-            v-model="setPasswordForm.newPassword"
-            label="Новый пароль"
-            type="password"
-            icon="mdi:lock-plus-outline"
-          />
-          <KitInput
-            v-model="setPasswordForm.confirmPassword"
-            label="Подтвердите пароль"
-            type="password"
-            icon="mdi:lock-check-outline"
-          />
-        </div>
-      </div>
-      <footer class="section-footer">
-        <KitBtn
-          v-if="hasPassword"
-          size="sm"
-          :disabled="!isPasswordFormValid || isChangingPassword"
-          :loading="isChangingPassword"
-          @click="changePassword"
-        >
-          Сменить пароль
-        </KitBtn>
-        <KitBtn
-          v-else
-          size="sm"
-          :disabled="!isSetPasswordFormValid || isSettingPassword"
-          :loading="isSettingPassword"
-          @click="setPassword"
-        >
-          Установить пароль
-        </KitBtn>
-      </footer>
-    </section>
+            <div class="card-body system-settings-body">
+              <!-- Папка для медиафайлов -->
+              <div class="system-block">
+                <div class="system-block-info">
+                  <div class="block-icon">
+                    <Icon icon="mdi:folder-image" />
+                  </div>
+                  <div class="block-details">
+                    <div class="block-title">
+                      Оффлайн-хранилище медиафайлов
+                    </div>
+                    <div class="block-desc">
+                      Локальная папка для кэширования фотографий и маршрутов. Позволяет просматривать воспоминания без подключения к сети.
+                    </div>
+                  </div>
+                </div>
 
-    <KitDivider />
+                <div class="vault-picker-row">
+                  <div class="vault-path-box">
+                    <Icon icon="mdi:folder-outline" class="path-icon" />
+                    <span class="path-text">{{ vaultPath || 'Папка не выбрана' }}</span>
+                  </div>
+                  <KitBtn
+                    variant="outlined"
+                    color="secondary"
+                    size="md"
+                    icon="mdi:folder-open-outline"
+                    @click="selectVaultFolder"
+                  >
+                    {{ vaultPath ? 'Изменить папку' : 'Выбрать папку' }}
+                  </KitBtn>
+                </div>
+              </div>
 
-    <section class="profile-section danger-zone">
-      <h2 class="section-title">
-        Опасная зона
-      </h2>
-      <div class="section-content danger-content">
-        <div class="danger-info">
-          <h3>Удаление аккаунта</h3>
-          <p>После удаления все ваши данные, включая путешествия и фотографии, будут безвозвратно утеряны.</p>
-          <KitInput
-            v-model="deleteForm.password"
-            placeholder="Подтвердите пароль для удаления"
-            type="password"
-            class="danger-input"
-          />
-        </div>
-        <KitBtn
-          size="sm"
-          color="secondary"
-          :disabled="!deleteForm.password || isDeletingAccount"
-          :loading="isDeletingAccount"
-          @click="deleteAccount"
-        >
-          Удалить
-        </KitBtn>
-      </div>
-    </section>
+              <KitDivider />
+
+              <!-- О приложении -->
+              <div class="system-block">
+                <div class="system-block-info">
+                  <div class="block-icon">
+                    <Icon icon="mdi:information-outline" />
+                  </div>
+                  <div class="block-details">
+                    <div class="block-title">
+                      О приложении
+                    </div>
+                    <div class="block-desc">
+                      Установленная версия: <strong>v{{ appVersion }}</strong>
+                    </div>
+                  </div>
+                </div>
+
+                <div class="update-action-row">
+                  <KitBtn
+                    variant="outlined"
+                    color="secondary"
+                    size="md"
+                    :disabled="isCheckingUpdate"
+                    :loading="isCheckingUpdate"
+                    icon="mdi:refresh"
+                    @click="checkManualUpdate"
+                  >
+                    {{ isCheckingUpdate ? 'Проверка...' : 'Проверить обновления' }}
+                  </KitBtn>
+                </div>
+              </div>
+            </div>
+          </div>
+        </template>
+
+        <!-- Вкладка 5: Опасная зона -->
+        <template #danger>
+          <div class="settings-card danger-card">
+            <div class="card-header danger-header">
+              <div class="card-title-group">
+                <h2 class="card-title text-danger">
+                  Удаление аккаунта
+                </h2>
+                <p class="card-subtitle">
+                  Безвозвратное удаление вашего профиля и всех связанных данных
+                </p>
+              </div>
+              <div class="danger-badge">
+                <Icon icon="mdi:alert-octagon-outline" />
+                <span>Необратимо</span>
+              </div>
+            </div>
+
+            <div class="card-body">
+              <div class="danger-warning-box">
+                <Icon icon="mdi:alert" class="warning-icon" />
+                <div class="warning-text">
+                  <strong>Внимание!</strong> При удалении аккаунта все созданные путешествия, точки маршрутов, заметки, загруженные фото и отзывы будут безвозвратно удалены. Восстановить эти данные будет невозможно.
+                </div>
+              </div>
+
+              <div class="danger-form">
+                <div class="form-field">
+                  <KitInput
+                    v-model="deleteForm.password"
+                    label="Подтвердите пароль"
+                    placeholder="Введите ваш текущий пароль для подтверждения"
+                    type="password"
+                    icon="mdi:lock-alert-outline"
+                  />
+                </div>
+              </div>
+            </div>
+
+            <div class="card-footer danger-footer">
+              <div style="flex-grow: 1" />
+              <KitBtn
+                variant="solid"
+                color="secondary"
+                size="md"
+                class="delete-account-btn"
+                :disabled="!deleteForm.password || isDeletingAccount"
+                :loading="isDeletingAccount"
+                icon="mdi:delete-forever-outline"
+                @click="deleteAccount"
+              >
+                Удалить аккаунт навсегда
+              </KitBtn>
+            </div>
+          </div>
+        </template>
+      </KitTabs>
+    </div>
 
     <!-- Диалог привязки Telegram -->
     <KitDialogWithClose
@@ -511,7 +656,6 @@ function applyCrop() {
           </div>
 
           <div class="cropper-body">
-            <!-- Пропорция 3:1 для шапки (примерно соответствует пропорциям profile-header-mock) -->
             <Cropper
               ref="cropperRef"
               class="advanced-cropper"
@@ -540,181 +684,275 @@ function applyCrop() {
 <style scoped lang="scss">
 .profile-page {
   width: 100%;
+  max-width: 900px;
+  margin: 0 auto;
   display: flex;
   flex-direction: column;
-  gap: 2rem;
+  gap: 1.5rem;
   padding-bottom: 4rem;
 }
 
-.vault-control {
+.settings-header {
   display: flex;
-  align-items: flex-end;
-  gap: 16px;
-}
-.vault-control .kit-input-group {
-  flex-grow: 1;
-}
+  flex-direction: column;
+  gap: 0.75rem;
 
-.profile-header {
-  h1 {
-    font-size: 2.5rem;
-    font-weight: 700;
-    margin: 0 0 0.5rem;
-    color: var(--fg-primary-color);
-    line-height: 1.2;
+  .header-titles {
+    display: flex;
+    flex-direction: column;
+    gap: 0.25rem;
   }
-  p {
-    font-size: 1.1rem;
+
+  .page-title {
+    font-size: 2rem;
+    font-weight: 700;
+    margin: 0;
+    color: var(--fg-primary-color);
+    letter-spacing: -0.02em;
+  }
+
+  .page-subtitle {
+    font-size: 1rem;
     color: var(--fg-secondary-color);
-    max-width: 600px;
-    line-height: 1.5;
+    margin: 0;
+    line-height: 1.4;
   }
 
   @include media-down(sm) {
-    h1 {
-      font-size: 2rem;
+    .page-title {
+      font-size: 1.6rem;
     }
-    p {
-      font-size: 1rem;
+    .page-subtitle {
+      font-size: 0.9rem;
     }
   }
 }
-.profile-section {
+
+.settings-tabs-wrapper {
+  width: 100%;
+}
+
+/* Общий стиль карточек настроек */
+.settings-card {
   background-color: var(--bg-secondary-color);
   border: 1px solid var(--border-secondary-color);
   border-radius: var(--r-l);
   overflow: hidden;
+  box-shadow: var(--s-xs);
+  display: flex;
+  flex-direction: column;
 }
-.section-title {
-  font-size: 1.25rem;
-  padding: 1rem 1.5rem;
-  margin: 0;
+
+.card-header {
+  padding: 1.25rem 1.5rem;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
   border-bottom: 1px solid var(--border-secondary-color);
+
+  .card-title-group {
+    display: flex;
+    flex-direction: column;
+    gap: 0.25rem;
+  }
+
+  .card-title {
+    font-size: 1.2rem;
+    font-weight: 600;
+    margin: 0;
+    color: var(--fg-primary-color);
+  }
+
+  .card-subtitle {
+    font-size: 0.875rem;
+    color: var(--fg-secondary-color);
+    margin: 0;
+  }
 }
-.section-content {
+
+.card-body {
   padding: 1.5rem;
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem;
 }
-.section-footer {
+
+.card-footer {
   padding: 1rem 1.5rem;
   background-color: var(--bg-tertiary-color);
   border-top: 1px solid var(--border-secondary-color);
   display: flex;
-  justify-content: flex-end;
-}
-
-.info-grid {
-  display: grid;
-  grid-template-columns: auto 1fr;
-  gap: 2rem;
-  align-items: flex-start;
-}
-.avatar-uploader {
-  display: flex;
-  flex-direction: column;
   align-items: center;
+  justify-content: space-between;
   gap: 1rem;
 }
-.info-fields {
+
+.save-status {
   display: flex;
-  flex-direction: column;
-  gap: 1rem;
-}
+  align-items: center;
+  font-size: 0.875rem;
 
-.divider-spaced {
-  margin: 2rem 0;
-}
-
-.cover-uploader-section {
-  display: flex;
-  flex-direction: column;
-  gap: 1rem;
-
-  h3 {
-    margin: 0 0 0.5rem;
-    font-size: 1.1rem;
-    color: var(--fg-primary-color);
-  }
-  p {
-    margin: 0 0 1rem;
-    font-size: 0.95rem;
-    color: var(--fg-secondary-color);
-  }
-
-  .cover-actions {
+  .changed-indicator {
     display: flex;
-    gap: 1rem;
     align-items: center;
+    gap: 4px;
+    color: var(--fg-accent-color);
+    font-weight: 500;
   }
 }
 
-.preview-wrapper {
-  margin-top: 1.5rem;
-  padding: 1rem;
-  border: 1px dashed var(--border-secondary-color);
-  border-radius: var(--r-l);
-  background-color: var(--bg-tertiary-color);
-}
-
-.profile-header-mock {
+/* Витрина профиля (Showcase) */
+.profile-banner-showcase {
   position: relative;
+  background-color: var(--bg-tertiary-color);
+  border-bottom: 1px solid var(--border-secondary-color);
+  margin-bottom: 0.5rem;
+
+  .cover-canvas {
+    position: relative;
+    width: 100%;
+    height: 180px;
+    background-color: var(--bg-tertiary-color);
+    display: flex;
+    align-items: flex-start;
+    justify-content: flex-end;
+    padding: 1rem;
+    transition: all 0.3s ease;
+
+    .cover-action-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 6px 12px;
+      background: rgba(0, 0, 0, 0.6);
+      backdrop-filter: blur(8px);
+      -webkit-backdrop-filter: blur(8px);
+      color: #ffffff;
+      border: 1px solid rgba(255, 255, 255, 0.2);
+      border-radius: var(--r-full);
+      font-size: 0.8125rem;
+      font-weight: 500;
+      cursor: pointer;
+      transition: all 0.2s ease;
+
+      &:hover {
+        background: rgba(0, 0, 0, 0.8);
+        transform: translateY(-1px);
+        border-color: rgba(255, 255, 255, 0.4);
+      }
+
+      .badge-icon {
+        font-size: 1rem;
+      }
+    }
+  }
+
+  .avatar-overlap-wrapper {
+    display: flex;
+    align-items: flex-end;
+    gap: 1.25rem;
+    padding: 0 1.5rem 1.25rem;
+    margin-top: -48px;
+    position: relative;
+    z-index: 2;
+
+    .avatar-interactive-container {
+      position: relative;
+      flex-shrink: 0;
+
+      .banner-avatar {
+        border: 4px solid var(--bg-secondary-color);
+        box-shadow: var(--s-m);
+      }
+
+      .avatar-action-btn {
+        position: absolute;
+        bottom: 2px;
+        right: 2px;
+        width: 32px;
+        height: 32px;
+        border-radius: 50%;
+        background-color: var(--fg-accent-color);
+        color: #ffffff;
+        border: 2px solid var(--bg-secondary-color);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 1.1rem;
+        cursor: pointer;
+        box-shadow: var(--s-s);
+        transition: all 0.2s ease;
+
+        &:hover {
+          transform: scale(1.08);
+          filter: brightness(1.1);
+        }
+      }
+    }
+
+    .user-quick-info {
+      display: flex;
+      flex-direction: column;
+      gap: 0.15rem;
+      padding-bottom: 0.5rem;
+
+      .user-display-name {
+        margin: 0;
+        font-size: 1.35rem;
+        font-weight: 700;
+        color: var(--fg-primary-color);
+        line-height: 1.2;
+      }
+
+      .user-display-email {
+        font-size: 0.875rem;
+        color: var(--fg-secondary-color);
+      }
+    }
+  }
+}
+
+/* Формы */
+.form-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1.25rem;
+
+  @include media-down(sm) {
+    grid-template-columns: 1fr;
+  }
+}
+
+.form-field {
   display: flex;
-  align-items: flex-end;
-  gap: 1.5rem;
-  width: 100%;
-  min-height: 200px;
-  padding: 0 1.5rem 1.5rem;
-  border-radius: var(--r-m);
-  background-image: linear-gradient(to right, var(--bg-tertiary-color), var(--bg-secondary-color));
-  background-color: var(--bg-secondary-color);
-  border: 1px solid var(--border-secondary-color);
-  overflow: hidden;
+  flex-direction: column;
+  gap: 0.35rem;
 
-  .avatar-section {
-    z-index: 2;
-    .profile-avatar {
-      border: 4px solid var(--bg-primary-color);
-    }
+  &.full-row {
+    grid-column: 1 / -1;
   }
 
-  .info-section-mock {
-    flex-grow: 1;
-    z-index: 2;
-
-    .user-name {
-      margin: 0 0 0.25rem;
-      font-size: 1.5rem;
-      font-weight: 700;
-      color: var(--fg-primary-color);
-      text-shadow: 0 1px 4px rgba(0, 0, 0, 0.4);
-    }
-
-    .user-bio {
-      max-width: 400px;
-      font-size: 0.85rem;
-      color: var(--fg-tertiary-color);
-      text-shadow: 0 1px 3px rgba(0, 0, 0, 0.5);
-    }
+  .field-hint {
+    font-size: 0.8rem;
+    color: var(--fg-tertiary-color);
+    padding-left: 2px;
   }
 }
 
-.section-description {
-  margin: 0 0 1.25rem;
-  font-size: 0.95rem;
-  color: var(--fg-secondary-color);
-}
-
-.integrations-list {
+/* Сетка интеграций */
+.integrations-grid {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
   gap: 1rem;
 }
 
-.integration-item {
+.integration-tile {
   display: flex;
   align-items: center;
   justify-content: space-between;
   padding: 1rem 1.25rem;
-  background-color: var(--bg-tertiary-color);
+  background-color: var(--bg-primary-color);
   border: 1px solid var(--border-secondary-color);
   border-radius: var(--r-m);
   gap: 1rem;
@@ -722,19 +960,25 @@ function applyCrop() {
 
   &:hover {
     border-color: var(--border-primary-color);
+    box-shadow: var(--s-xs);
+  }
+
+  &.is-active {
+    border-color: var(--border-success-color);
+    background-color: var(--bg-primary-color);
   }
 }
 
-.integration-info {
+.tile-leading {
   display: flex;
   align-items: center;
-  gap: 1rem;
+  gap: 0.875rem;
 }
 
-.integration-icon-wrap {
-  width: 42px;
-  height: 42px;
-  border-radius: var(--r-m);
+.provider-icon-wrapper {
+  width: 44px;
+  height: 44px;
+  border-radius: var(--r-s);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -749,20 +993,14 @@ function applyCrop() {
   &.telegram {
     color: #229ed9;
   }
-  &.google {
-    color: #ea4335;
-  }
-  &.github {
-    color: var(--fg-primary-color);
-  }
 }
 
-.yandex-badge {
+.yandex-glyph {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 22px;
-  height: 22px;
+  width: 24px;
+  height: 24px;
   border-radius: 50%;
   background: #fc3f1d;
   color: #ffffff;
@@ -770,48 +1008,256 @@ function applyCrop() {
     Arial,
     -apple-system,
     sans-serif;
-  font-size: 0.875rem;
+  font-size: 0.95rem;
   font-weight: 700;
   line-height: 1;
 }
 
-.integration-meta {
+.tile-meta {
   display: flex;
   flex-direction: column;
-  gap: 0.25rem;
+  gap: 0.2rem;
 
-  h4 {
-    margin: 0;
+  .provider-title {
     font-size: 1rem;
     font-weight: 600;
     color: var(--fg-primary-color);
   }
 }
 
-.integration-status {
+.provider-status-badge {
   display: flex;
   align-items: center;
-  gap: 0.35rem;
+  gap: 4px;
   font-size: 0.8125rem;
-  white-space: nowrap;
-  color: var(--fg-secondary-color);
+  color: var(--fg-tertiary-color);
 
-  .status-dot {
-    width: 6px;
-    height: 6px;
-    border-radius: 50%;
-    background-color: var(--fg-tertiary-color);
-    flex-shrink: 0;
+  .status-icon {
+    font-size: 0.95rem;
   }
 
   &.linked {
-    color: #22c55e;
-    .status-dot {
-      background-color: #22c55e;
+    color: var(--fg-success-color);
+    font-weight: 500;
+  }
+}
+
+/* Безопасность */
+.security-status-indicator {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 10px;
+  border-radius: var(--r-full);
+  font-size: 0.8125rem;
+  background-color: var(--bg-tertiary-color);
+  color: var(--fg-secondary-color);
+
+  &.secure {
+    background-color: var(--bg-success-color);
+    color: var(--fg-success-color);
+    font-weight: 500;
+  }
+}
+
+.password-fields-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1.25rem;
+
+  @include media-down(sm) {
+    grid-template-columns: 1fr;
+  }
+}
+
+.security-callout {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.75rem;
+  padding: 1rem;
+  border-radius: var(--r-m);
+  background-color: var(--bg-primary-color);
+  border: 1px solid var(--border-secondary-color);
+  margin-bottom: 1.25rem;
+
+  .callout-icon {
+    font-size: 1.5rem;
+    color: var(--fg-accent-color);
+    flex-shrink: 0;
+    margin-top: 2px;
+  }
+
+  .callout-text {
+    font-size: 0.875rem;
+    color: var(--fg-secondary-color);
+    line-height: 1.4;
+
+    strong {
+      color: var(--fg-primary-color);
+      display: block;
+      margin-bottom: 2px;
+    }
+
+    p {
+      margin: 0;
     }
   }
 }
 
+/* Системные настройки */
+.system-settings-body {
+  gap: 1.5rem;
+}
+
+.system-block {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.system-block-info {
+  display: flex;
+  align-items: flex-start;
+  gap: 1rem;
+
+  .block-icon {
+    width: 40px;
+    height: 40px;
+    border-radius: var(--r-s);
+    background-color: var(--bg-primary-color);
+    border: 1px solid var(--border-secondary-color);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.25rem;
+    color: var(--fg-accent-color);
+    flex-shrink: 0;
+  }
+
+  .block-details {
+    display: flex;
+    flex-direction: column;
+    gap: 0.25rem;
+
+    .block-title {
+      font-size: 1rem;
+      font-weight: 600;
+      color: var(--fg-primary-color);
+    }
+
+    .block-desc {
+      font-size: 0.875rem;
+      color: var(--fg-secondary-color);
+      line-height: 1.4;
+    }
+  }
+}
+
+.vault-picker-row {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+
+  .vault-path-box {
+    flex: 1;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 8px 12px;
+    background-color: var(--bg-primary-color);
+    border: 1px solid var(--border-secondary-color);
+    border-radius: var(--r-s);
+    font-size: 0.875rem;
+    color: var(--fg-primary-color);
+    overflow: hidden;
+
+    .path-icon {
+      font-size: 1.1rem;
+      color: var(--fg-tertiary-color);
+      flex-shrink: 0;
+    }
+
+    .path-text {
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+  }
+
+  @include media-down(sm) {
+    flex-direction: column;
+    align-items: stretch;
+  }
+}
+
+.update-action-row {
+  display: flex;
+  justify-content: flex-start;
+}
+
+/* Опасная зона */
+.danger-card {
+  border-color: var(--border-error-color);
+
+  .danger-header {
+    background-color: var(--bg-error-color);
+  }
+
+  .text-danger {
+    color: var(--fg-error-color);
+  }
+
+  .danger-badge {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    padding: 4px 10px;
+    border-radius: var(--r-full);
+    font-size: 0.75rem;
+    font-weight: 600;
+    background-color: var(--fg-error-color);
+    color: #ffffff;
+  }
+
+  .danger-warning-box {
+    display: flex;
+    align-items: flex-start;
+    gap: 0.75rem;
+    padding: 1rem;
+    border-radius: var(--r-m);
+    background-color: var(--bg-error-color);
+    border: 1px solid var(--border-error-color);
+
+    .warning-icon {
+      font-size: 1.4rem;
+      color: var(--fg-error-color);
+      flex-shrink: 0;
+      margin-top: 2px;
+    }
+
+    .warning-text {
+      font-size: 0.875rem;
+      color: var(--fg-error-color);
+      line-height: 1.4;
+    }
+  }
+
+  .danger-form {
+    max-width: 450px;
+  }
+
+  .delete-account-btn {
+    background-color: var(--fg-error-color) !important;
+    color: #ffffff !important;
+    border: none !important;
+
+    &:hover:not(:disabled) {
+      filter: brightness(1.1);
+    }
+  }
+}
+
+/* Telegram Dialog */
 .telegram-link-body {
   display: flex;
   flex-direction: column;
@@ -867,54 +1313,16 @@ function applyCrop() {
   }
 }
 
-.password-note {
-  margin: 0 0 1rem;
-  font-size: 0.95rem;
-  color: var(--fg-secondary-color);
-  line-height: 1.5;
-}
-
-.password-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
-  gap: 1.5rem;
-}
-
-.danger-zone {
-  border-color: var(--border-error-color);
-  .section-title {
-    color: var(--fg-error-color);
-  }
-}
-.danger-content {
-  display: flex;
-  justify-content: space-between;
-  align-items: flex-start;
-  gap: 2rem;
-}
-.danger-info {
-  h3 {
-    margin: 0 0 0.5rem;
-    color: var(--fg-primary-color);
-  }
-  p {
-    margin: 0 0 1rem;
-    color: var(--fg-secondary-color);
-  }
-  .danger-input {
-    max-width: 300px;
-  }
-}
-
-/* Стили для кроппера */
+/* Cropper */
 .cropper-overlay {
   position: fixed;
   top: 0;
   left: 0;
   width: 100vw;
   height: 100vh;
-  background: rgba(0, 0, 0, 0.7);
-  backdrop-filter: blur(4px);
+  background: rgba(0, 0, 0, 0.75);
+  backdrop-filter: blur(6px);
+  -webkit-backdrop-filter: blur(6px);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -930,7 +1338,8 @@ function applyCrop() {
   overflow: hidden;
   display: flex;
   flex-direction: column;
-  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
+  box-shadow: 0 16px 40px rgba(0, 0, 0, 0.5);
+  border: 1px solid var(--border-secondary-color);
 
   .cropper-header {
     display: flex;
@@ -952,9 +1361,11 @@ function applyCrop() {
       cursor: pointer;
       display: flex;
       padding: 4px;
+      border-radius: var(--r-xs);
 
       &:hover {
         color: var(--fg-primary-color);
+        background-color: var(--bg-hover-color);
       }
     }
   }
@@ -978,20 +1389,27 @@ function applyCrop() {
   }
 }
 
-@media (max-width: 768px) {
-  .info-grid,
-  .danger-content {
-    grid-template-columns: 1fr;
-    flex-direction: column;
-    align-items: center;
-    text-align: center;
+@keyframes spin {
+  from {
+    transform: rotate(0deg);
   }
+  to {
+    transform: rotate(360deg);
+  }
+}
 
-  .profile-header-mock {
-    flex-direction: column;
-    align-items: center;
-    text-align: center;
-    padding-top: 2rem;
+@media (max-width: 768px) {
+  .profile-banner-showcase {
+    .cover-canvas {
+      height: 140px;
+    }
+
+    .avatar-overlap-wrapper {
+      flex-direction: column;
+      align-items: flex-start;
+      gap: 0.75rem;
+      margin-top: -40px;
+    }
   }
 
   .cropper-overlay {

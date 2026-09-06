@@ -2,7 +2,7 @@ import type { OSM, XYZ } from 'ol/source'
 import type { Coordinate, DrawnRoute, GeolocationMapOptions, MapPoint, MapRoute, OSRMResponse, TransportMode } from '../models/types'
 import type { TileSourceId } from '~/shared/lib/map-styles-sources'
 import Polyline from '@mapbox/polyline'
-import { Feature, Map, Overlay, View } from 'ol'
+import { Feature, Map as OlMap, Overlay, View } from 'ol'
 import { LineString, MultiLineString, Point } from 'ol/geom'
 import { Modify } from 'ol/interaction'
 import { Tile as TileLayer, Vector as VectorLayer } from 'ol/layer'
@@ -21,7 +21,7 @@ const OSRM_ENDPOINTS: Record<TransportMode, string> = {
 const SEARCH_RESULT_OVERLAY_ID = 'search-result-overlay'
 
 function useGeolocationMap() {
-  const mapInstance: Ref<Map | null> = ref(null)
+  const mapInstance: Ref<OlMap | null> = ref(null)
   const isMapLoaded = ref(false)
 
   const tileLayerRef = ref<TileLayer<OSM | XYZ> | null>(null)
@@ -41,6 +41,71 @@ function useGeolocationMap() {
 
   const popups: Ref<Overlay[]> = ref([])
   let resizeObserver: ResizeObserver | null = null
+
+  const activePointId = ref<string | null>(null)
+  const hoveredPointId = ref<string | null>(null)
+  const currentZoom = ref<number>(12)
+  const minZoomForComments = 13
+
+  interface PointOverlayItem {
+    overlay: Overlay
+    element: HTMLElement
+    baseOpacity?: number
+    baseZIndex?: number
+  }
+  const pointOverlays = new Map<string, PointOverlayItem>()
+
+  const updateOverlayVisibilities = () => {
+    const isZoomedIn = (currentZoom.value ?? 0) >= minZoomForComments
+
+    pointOverlays.forEach((item, id) => {
+      const el = item.element
+      if (!el)
+        return
+
+      const isHovered = hoveredPointId.value === id
+      const isActive = activePointId.value === id
+      const shouldShow = isZoomedIn || isHovered || isActive
+
+      if (shouldShow) {
+        el.classList.remove('is-hidden-zoom')
+        if (isActive) {
+          el.classList.add('is-active')
+          el.classList.remove('is-hovered')
+          if (el.parentElement) {
+            el.parentElement.style.zIndex = '100'
+          }
+        }
+        else if (isHovered) {
+          el.classList.add('is-hovered')
+          el.classList.remove('is-active')
+          if (el.parentElement) {
+            el.parentElement.style.zIndex = '99'
+          }
+        }
+        else {
+          el.classList.remove('is-active', 'is-hovered')
+          if (el.parentElement) {
+            el.parentElement.style.zIndex = item.baseZIndex !== undefined ? String(item.baseZIndex) : ''
+          }
+        }
+      }
+      else {
+        el.classList.add('is-hidden-zoom')
+        el.classList.remove('is-active', 'is-hovered')
+        if (el.parentElement) {
+          el.parentElement.style.zIndex = item.baseZIndex !== undefined ? String(item.baseZIndex) : ''
+        }
+      }
+    })
+  }
+
+  const setActivePointId = (id: string | null) => {
+    if (activePointId.value !== id) {
+      activePointId.value = id
+      updateOverlayVisibilities()
+    }
+  }
 
   const initMap = async (options: GeolocationMapOptions) => {
     if (!options.container) {
@@ -62,14 +127,59 @@ function useGeolocationMap() {
       })
       tileLayerRef.value = initialTileLayer
 
-      mapInstance.value = new Map({
+      const initialZoom = options.zoom || 12
+      currentZoom.value = initialZoom
+
+      const view = new View({
+        center: fromLonLat(options.center),
+        zoom: initialZoom,
+      })
+
+      mapInstance.value = new OlMap({
         target: options.container,
         layers: [initialTileLayer, routeLayer, drawLayer, pointLayer, searchResultLayer, currentLocationLayer],
-        view: new View({
-          center: fromLonLat(options.center),
-          zoom: options.zoom || 12,
-        }),
+        view,
         controls: [],
+      })
+
+      view.on('change:resolution', () => {
+        currentZoom.value = view.getZoom() ?? 12
+        updateOverlayVisibilities()
+      })
+
+      mapInstance.value.on('pointermove', (evt) => {
+        if (evt.dragging || !mapInstance.value)
+          return
+
+        const feature = mapInstance.value.forEachFeatureAtPixel(
+          evt.pixel,
+          f => f,
+          {
+            hitTolerance: 6,
+            layerFilter: layer => layer === pointLayer || layer === searchResultLayer,
+          },
+        )
+
+        const targetElement = mapInstance.value.getTargetElement()
+        if (feature) {
+          const id = feature.getId() as string | undefined
+          if (id && id !== hoveredPointId.value) {
+            hoveredPointId.value = id
+            updateOverlayVisibilities()
+          }
+          if (targetElement && !targetElement.classList.contains('cursor-crosshair') && !targetElement.classList.contains('cursor-move')) {
+            targetElement.style.cursor = 'pointer'
+          }
+        }
+        else {
+          if (hoveredPointId.value !== null) {
+            hoveredPointId.value = null
+            updateOverlayVisibilities()
+          }
+          if (targetElement && !targetElement.classList.contains('cursor-crosshair') && !targetElement.classList.contains('cursor-move')) {
+            targetElement.style.cursor = ''
+          }
+        }
       })
 
       mapInstance.value.addInteraction(modifyInteraction)
@@ -78,6 +188,7 @@ function useGeolocationMap() {
       mapInstance.value.once('postrender', () => {
         isMapLoaded.value = true
         mapInstance.value?.updateSize()
+        updateOverlayVisibilities()
       })
 
       const container
@@ -174,24 +285,37 @@ function useGeolocationMap() {
     const overlay = mapInstance.value.getOverlayById(point.id)
     if (point.comment && point.comment.trim() !== '') {
       let popupElement: HTMLElement
+      let currentOverlay = overlay
 
-      if (overlay) {
-        overlay.setPosition(coordinates)
-        popupElement = overlay.getElement()!
+      if (currentOverlay) {
+        currentOverlay.setPosition(coordinates)
+        popupElement = currentOverlay.getElement()!
         popupElement.innerHTML = point.comment
       }
       else {
         popupElement = document.createElement('div')
         popupElement.className = 'ol-popup-comment'
         popupElement.innerHTML = point.comment
-        const newOverlay = new Overlay({
+
+        popupElement.onclick = (e) => {
+          e.stopPropagation()
+          setActivePointId(point.id)
+          mapInstance.value?.dispatchEvent({
+            type: 'click',
+            coordinate: coordinates,
+            pixel: mapInstance.value?.getPixelFromCoordinate(coordinates),
+            originalEvent: e,
+          } as any)
+        }
+
+        currentOverlay = new Overlay({
           element: popupElement,
           position: coordinates,
           positioning: 'bottom-center',
           offset: [0, -42],
           id: point.id,
         })
-        mapInstance.value.addOverlay(newOverlay)
+        mapInstance.value.addOverlay(currentOverlay)
       }
 
       // Применяем opacity к HTML-элементу комментария
@@ -209,13 +333,23 @@ function useGeolocationMap() {
           parent.style.zIndex = String(point.style.zIndex)
         }
       }
+
+      pointOverlays.set(point.id, {
+        overlay: currentOverlay,
+        element: popupElement,
+        baseOpacity: point.style?.opacity,
+        baseZIndex: point.style?.zIndex,
+      })
+      updateOverlayVisibilities()
     }
     else if (overlay) {
+      pointOverlays.delete(point.id)
       mapInstance.value.removeOverlay(overlay)
     }
   }
 
   const removePoint = (pointId: string) => {
+    pointOverlays.delete(pointId)
     const feature = pointSource.getFeatureById(pointId)
     if (feature)
       pointSource.removeFeature(feature)
@@ -225,6 +359,7 @@ function useGeolocationMap() {
   }
 
   const clearPoints = () => {
+    pointOverlays.clear()
     pointSource.clear()
     mapInstance.value?.getOverlays().clear()
     popups.value = []
@@ -601,6 +736,10 @@ function useGeolocationMap() {
     addOrUpdateDrawnRoute,
     removeRoute,
     clearRoutes,
+    activePointId: readonly(activePointId),
+    hoveredPointId: readonly(hoveredPointId),
+    currentZoom: readonly(currentZoom),
+    setActivePointId,
     showCurrentLocation,
   }
 }

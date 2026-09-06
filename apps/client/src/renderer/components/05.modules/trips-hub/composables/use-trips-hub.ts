@@ -80,7 +80,12 @@ export function useTripsHub() {
 
   const isLoading = computed(() => useRequestStatus(ETripHubKeys.FETCH_ALL).value)
   const isCreating = computed(() => useRequestStatus(ETripHubKeys.CREATE).value)
-  const fetchError = computed(() => useRequestError(ETripHubKeys.FETCH_ALL).value)
+  const fetchError = computed(() => {
+    // If we have trips loaded (e.g. from offline cache), do not block UI with full error screen
+    if (trips.value.length > 0)
+      return null
+    return useRequestError(ETripHubKeys.FETCH_ALL).value
+  })
 
   const currentTrips = computed((): ITrip[] => {
     return trips.value
@@ -151,6 +156,8 @@ export function useTripsHub() {
       userIds: filters.value.users.length > 0 ? filters.value.users : undefined,
     }
 
+    const offlineStore = useOfflineStore()
+
     await useRequest({
       force,
       cache: !Object.values(apiFilters).some(v => v !== undefined),
@@ -164,6 +171,16 @@ export function useTripsHub() {
         setCount('trip-list', trips.value.length)
       },
       onError: ({ error }) => {
+        const savedOfflineTrips = offlineStore.sortedSavedTrips.map(entry => entry.data as unknown as ITrip)
+        if (savedOfflineTrips.length > 0) {
+          trips.value = sortTripsByDate(savedOfflineTrips)
+          isInitialized.value = true
+          hasLoadedOnce.value = true
+          setCount('trip-list', trips.value.length)
+          toast.info('Нет подключения к сети. Загружены сохраненные офлайн-путешествия.')
+          return
+        }
+
         trips.value = []
         toast.error(`Не удалось загрузить список путешествий: ${error.customMessage}`)
       },

@@ -114,7 +114,6 @@ function handlePointerDownOutside(event: PointerDownOutsideEvent) {
   position: fixed;
   inset: 0;
   z-index: 1000;
-  top: var(--safe-area-inset-top);
 
   &[data-state='open'] {
     animation: overlay-show 200ms cubic-bezier(0.16, 1, 0.3, 1) forwards;
@@ -126,7 +125,7 @@ function handlePointerDownOutside(event: PointerDownOutsideEvent) {
 
 .dialog-content-wrapper {
   position: fixed;
-  top: 50%;
+  top: calc(50% + var(--safe-area-inset-top));
   left: 50%;
   transform: translate(-50%, -50%);
   background-color: var(--bg-primary-color);

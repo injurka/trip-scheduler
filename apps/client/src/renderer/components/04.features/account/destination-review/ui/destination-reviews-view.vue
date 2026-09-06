@@ -131,50 +131,62 @@ onMounted(() => {
 
     <!-- Основные Фильтры -->
     <div class="filters-bar">
-      <KitSelectWithSearch
-        v-model="selectedCountry"
-        :items="countryOptions"
-        placeholder="Все страны"
-        clearable
-        size="sm"
-        class="filter-select"
-        icon="mdi:earth"
-      />
-      <KitSelectWithSearch
-        v-model="selectedCity"
-        :items="cityOptions"
-        placeholder="Все города"
-        clearable
-        size="sm"
-        class="filter-select"
-        icon="mdi:city"
-      />
+      <div class="filters-selects">
+        <KitSelectWithSearch
+          v-model="selectedCountry"
+          :items="countryOptions"
+          placeholder="Все страны"
+          clearable
+          size="sm"
+          class="filter-select"
+          icon="mdi:earth"
+        />
+        <KitSelectWithSearch
+          v-model="selectedCity"
+          :items="cityOptions"
+          placeholder="Все города"
+          clearable
+          size="sm"
+          class="filter-select"
+          icon="mdi:city"
+        />
+      </div>
 
-      <div style="flex-grow: 1" />
+      <div class="filters-spacer" />
 
-      <!-- Кнопка раскрытия настроек метрик -->
-      <KitBtn
-        :variant="showMetricsSetup || activePreset !== 'all' ? 'solid' : 'outlined'"
-        :color="showMetricsSetup || activePreset !== 'all' ? 'primary' : 'secondary'"
-        size="sm"
-        icon="mdi:tune-variant"
-        @click="showMetricsSetup = !showMetricsSetup"
-      >
-        <span class="desktop-only">Атрибуты</span>
-        <span v-if="activePreset !== 'all'" class="metrics-badge">{{ selectedMetrics.length }}</span>
-      </KitBtn>
+      <div class="filters-actions">
+        <!-- Кнопка раскрытия настроек метрик -->
+        <KitBtn
+          :variant="showMetricsSetup || activePreset !== 'all' ? 'solid' : 'outlined'"
+          :color="showMetricsSetup || activePreset !== 'all' ? 'primary' : 'secondary'"
+          size="sm"
+          icon="mdi:tune-variant"
+          class="filter-action-btn"
+          @click="showMetricsSetup = !showMetricsSetup"
+        >
+          <span>Атрибуты</span>
+          <span v-if="activePreset !== 'all'" class="metrics-badge">{{ selectedMetrics.length }}</span>
+        </KitBtn>
 
-      <KitDropdown
-        v-model="activeSortOption"
-        :items="sortOptions"
-        align="end"
-      >
-        <template #trigger>
-          <KitBtn variant="outlined" color="secondary" size="sm" icon="mdi:sort-variant">
-            <span class="desktop-only">Сортировка</span>
-          </KitBtn>
-        </template>
-      </KitDropdown>
+        <KitDropdown
+          v-model="activeSortOption"
+          :items="sortOptions"
+          align="end"
+          class="filter-dropdown"
+        >
+          <template #trigger>
+            <KitBtn
+              variant="outlined"
+              color="secondary"
+              size="sm"
+              icon="mdi:sort-variant"
+              class="filter-action-btn"
+            >
+              <span>Сортировка</span>
+            </KitBtn>
+          </template>
+        </KitDropdown>
+      </div>
     </div>
 
     <!-- Настройка оценки (кастомизация атрибутов) -->
@@ -304,9 +316,30 @@ onMounted(() => {
   align-items: center;
 }
 
+.filters-selects {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  flex-wrap: wrap;
+}
+
 .filter-select {
   width: 220px;
   max-width: 100%;
+}
+
+.filters-spacer {
+  flex-grow: 1;
+}
+
+.filters-actions {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+}
+
+.filter-dropdown {
+  display: inline-flex;
 }
 
 /* Бейдж для кнопки фильтра метрик */
@@ -445,9 +478,45 @@ onMounted(() => {
   .filters-bar {
     flex-direction: column;
     align-items: stretch;
+    gap: 10px;
   }
+
+  .filters-selects {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 8px;
+    width: 100%;
+  }
+
   .filter-select {
     width: 100%;
+  }
+
+  .filters-spacer {
+    display: none;
+  }
+
+  .filters-actions {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 8px;
+    width: 100%;
+  }
+
+  .filter-dropdown {
+    display: flex;
+    width: 100%;
+
+    :deep(.kit-btn),
+    .filter-action-btn {
+      width: 100%;
+      justify-content: center;
+    }
+  }
+
+  .filter-action-btn {
+    width: 100%;
+    justify-content: center;
   }
 }
 </style>

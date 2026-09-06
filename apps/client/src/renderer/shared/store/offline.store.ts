@@ -20,10 +20,10 @@ export interface IOfflineState {
 }
 
 export const useOfflineStore = defineStore('offline', {
-  state: (): IOfflineState => ({
-    savedTrips: useStorage<Record<string, OfflineTripEntry>>('offline-trips-data', {}).value,
-    isDownloading: {},
-    downloadProgress: {},
+  state: () => ({
+    savedTrips: useStorage<Record<string, OfflineTripEntry>>('offline-trips-data', {}),
+    isDownloading: {} as Record<string, boolean>,
+    downloadProgress: {} as Record<string, number>,
   }),
 
   getters: {
@@ -101,46 +101,53 @@ export const useOfflineStore = defineStore('offline', {
           })
         })
 
-        const cache = await caches.open(OFFLINE_MEDIA_CACHE_NAME)
         const urlsArray = Array.from(urlsToCache)
         let loadedCount = 0
 
         if (urlsArray.length === 0)
           this.downloadProgress[trip.id] = 100
 
-        const BATCH_SIZE = 5
-        for (let i = 0; i < urlsArray.length; i += BATCH_SIZE) {
-          const batch = urlsArray.slice(i, i + BATCH_SIZE)
+        if (typeof caches !== 'undefined') {
+          try {
+            const cache = await caches.open(OFFLINE_MEDIA_CACHE_NAME)
+            const BATCH_SIZE = 5
+            for (let i = 0; i < urlsArray.length; i += BATCH_SIZE) {
+              const batch = urlsArray.slice(i, i + BATCH_SIZE)
 
-          await Promise.all(batch.map(async (url) => {
-            try {
-              const match = await cache.match(url)
-              if (match) {
-                loadedCount++
-                this.downloadProgress[trip.id] = Math.round((loadedCount / urlsArray.length) * 100)
-                return
-              }
+              await Promise.all(batch.map(async (url) => {
+                try {
+                  const match = await cache.match(url)
+                  if (match) {
+                    loadedCount++
+                    this.downloadProgress[trip.id] = Math.round((loadedCount / urlsArray.length) * 100)
+                    return
+                  }
 
-              let response
-              try {
-                response = await fetch(url, { mode: 'cors', cache: 'reload' })
-              }
-              catch {
-                response = await fetch(url, { mode: 'no-cors', cache: 'reload' })
-              }
+                  let response
+                  try {
+                    response = await fetch(url, { mode: 'cors', cache: 'reload' })
+                  }
+                  catch {
+                    response = await fetch(url, { mode: 'no-cors', cache: 'reload' })
+                  }
 
-              if (response && (response.ok || response.type === 'opaque')) {
-                await cache.put(url, response)
-              }
+                  if (response && (response.ok || response.type === 'opaque')) {
+                    await cache.put(url, response)
+                  }
+                }
+                catch (e) {
+                  console.warn(`[Offline] Skip: ${url}`, e)
+                }
+                finally {
+                  loadedCount++
+                  this.downloadProgress[trip.id] = Math.round((loadedCount / urlsArray.length) * 100)
+                }
+              }))
             }
-            catch (e) {
-              console.warn(`[Offline] Skip: ${url}`, e)
-            }
-            finally {
-              loadedCount++
-              this.downloadProgress[trip.id] = Math.round((loadedCount / urlsArray.length) * 100)
-            }
-          }))
+          }
+          catch (e) {
+            console.warn('[Offline] caches API error:', e)
+          }
         }
 
         this.savedTrips[trip.id] = {

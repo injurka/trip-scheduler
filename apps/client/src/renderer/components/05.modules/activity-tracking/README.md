@@ -35,7 +35,7 @@ flowchart TD
 
     subgraph UI["Интерфейс и визуализация"]
         DBSegments --> GetDay["tRPC tracking.getDay"]
-        GetDay --> Memories["day-memories-player.vue (OpenLayers + Spline)"]
+        GetDay --> Memories["day-track-player (OpenLayers + Spline)"]
         DBSegments --> GetSummaries["tRPC tracking.getSummaries"]
         GetSummaries --> ActPage["activity-tracking.vue (Сводки по дням)"]
     end
@@ -88,7 +88,7 @@ flowchart TD
 - `getSummaries`: Агрегированные сводки активности за последние $N$ дней (дистанция, время, распределение по видам транспорта).
 - `deletePoint`: Удаление ошибочной точки из базы данных и динамическая ресегментация сессии.
 
-### 5. Визуализация и плеер ([`day-memories-player.vue`](file:///home/injurka/my/trip-scheduler/apps/client/src/renderer/components/05.modules/activity-map/ui/memories/day-memories-player.vue))
+### 5. Визуализация и плеер ([`day-track-player`](file:///home/injurka/my/trip-scheduler/apps/client/src/renderer/components/05.modules/day-track-player/index.ts))
 
 - Интерактивная карта OpenLayers с поддержкой переключения слоев (`route` с окраской по активностям и `points` со сглаженными кривыми Безье).
 - Таймлайн-плеер с регулировкой скорости ($1\times$ – $20\times$), слежением камеры за движением и синхронной отрисовкой пройденного пути.

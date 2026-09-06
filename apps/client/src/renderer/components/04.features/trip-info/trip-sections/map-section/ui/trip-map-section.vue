@@ -342,6 +342,7 @@ function focusOnItem(item: MapPoint | MapRoute | DrawnRoute) {
           mode="pan"
           :with-panel="false"
           :is-fullscreen="isFullscreen"
+          :active-item-id="selectedItemId"
           @map-ready="onMapReady"
           @map-click="handleMapClick"
           @toggle-fullscreen="toggleFullscreen"

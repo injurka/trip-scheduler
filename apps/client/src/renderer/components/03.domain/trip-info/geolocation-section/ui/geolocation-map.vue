@@ -25,6 +25,7 @@ interface Props {
   interactiveOnClick?: boolean
   withPanel?: boolean
   disableContextMenu?: boolean
+  activeItemId?: string | null
   withSearchControl?: boolean
 }
 
@@ -34,6 +35,7 @@ const props = withDefaults(defineProps<Props>(), {
   interactiveOnClick: false,
   withPanel: true,
   disableContextMenu: false,
+  activeItemId: null,
   withSearchControl: false,
 })
 
@@ -59,6 +61,7 @@ const {
   showCurrentLocation,
   searchLocation,
   clearSearchResult,
+  setActivePointId,
   ...restMapController
 } = useGeolocationMap()
 
@@ -173,6 +176,10 @@ watch(() => props.readonly, (isReadonly) => {
     modifyInteraction.setActive(!isReadonly)
 })
 
+watch(() => props.activeItemId, (newId) => {
+  setActivePointId(newId ?? null)
+}, { immediate: true })
+
 onClickOutside(contextMenuRef, () => {
   isContextMenuVisible.value = false
 })
@@ -219,7 +226,7 @@ onMounted(async () => {
     emit('mapClick', coords)
   })
 
-  emit('mapReady', { mapInstance, isMapLoaded, initMap, addOrUpdatePoint, removePoint, addOrUpdateRoute, addOrUpdateDrawnRoute, removeRoute, modifyInteraction, setTileSource, showCurrentLocation, searchLocation, clearSearchResult, ...restMapController })
+  emit('mapReady', { mapInstance, isMapLoaded, initMap, addOrUpdatePoint, removePoint, addOrUpdateRoute, addOrUpdateDrawnRoute, removeRoute, modifyInteraction, setTileSource, showCurrentLocation, searchLocation, clearSearchResult, setActivePointId, ...restMapController })
 })
 
 watch(isMapLoaded, (isReady) => {
@@ -329,16 +336,54 @@ watch(isMapLoaded, (isReady) => {
 .ol-popup-comment {
   background-color: var(--bg-secondary-color);
   color: var(--fg-primary-color);
-  padding: 6px 10px;
+  padding: 5px 10px;
   border-radius: var(--r-xs);
-  font-size: 0.8rem;
+  font-size: 0.78rem;
   font-weight: 500;
   white-space: nowrap;
-  backdrop-filter: blur(4px);
+  max-width: 220px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  backdrop-filter: blur(8px);
   border: 1px solid var(--border-secondary-color);
   box-shadow: var(--s-m);
-  transition: opacity 0.2s ease; /* Добавляем плавное затухание для тултипа */
+  transition:
+    opacity 0.2s ease,
+    transform 0.2s ease,
+    box-shadow 0.2s ease,
+    border-color 0.2s ease;
+  user-select: none;
+  cursor: pointer;
+  pointer-events: auto;
 }
+
+.ol-popup-comment.is-hidden-zoom {
+  opacity: 0 !important;
+  pointer-events: none !important;
+  transform: translateY(4px) scale(0.95);
+  visibility: hidden;
+}
+
+.ol-popup-comment.is-hovered {
+  opacity: 1 !important;
+  pointer-events: auto !important;
+  visibility: visible !important;
+  transform: translateY(0) scale(1.04);
+  box-shadow: var(--s-l);
+  border-color: var(--border-primary-color);
+  z-index: 99 !important;
+}
+
+.ol-popup-comment.is-active {
+  opacity: 1 !important;
+  pointer-events: auto !important;
+  visibility: visible !important;
+  transform: translateY(0) scale(1.05);
+  box-shadow: var(--s-l);
+  border-color: var(--primary-color);
+  z-index: 100 !important;
+}
+
 .cursor-move {
   cursor: move;
 }

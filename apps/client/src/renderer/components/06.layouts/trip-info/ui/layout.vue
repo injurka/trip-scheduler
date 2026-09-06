@@ -415,11 +415,6 @@ onBeforeUnmount(() => {
     // фон тянется до верха под хедером, контент начинается ниже
     .content-wrapper {
       padding-top: var(--header-height);
-
-      // Карта/заметки — полноэкранный режим, отступ не нужен
-      &.is-wide-mode {
-        padding-top: 0;
-      }
     }
   }
 }
@@ -439,6 +434,7 @@ onBeforeUnmount(() => {
     max-width: 100%;
     height: 100%;
     padding: 0;
+    padding-top: var(--header-height);
     align-items: center;
 
     :deep() {

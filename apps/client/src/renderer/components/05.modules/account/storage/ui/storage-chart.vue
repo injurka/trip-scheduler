@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { Icon } from '@iconify/vue'
 import { ArcElement, Chart as ChartJS, Legend, Title, Tooltip } from 'chart.js'
 import { Doughnut } from 'vue-chartjs'
 
@@ -40,8 +41,10 @@ const chartOptions = {
       position: 'right' as const,
       labels: {
         color: 'var(--fg-secondary-color)',
+        boxWidth: 14,
+        padding: 12,
         font: {
-          size: 14,
+          size: 13,
         },
       },
     },
@@ -65,9 +68,9 @@ const chartOptions = {
 
 <template>
   <div class="chart-wrapper">
-    <h2 class="chart-title">
+    <h3 class="chart-title">
       {{ title }}
-    </h2>
+    </h3>
     <div class="chart-container">
       <Doughnut
         v-if="chartData.datasets[0].data.length > 0"
@@ -75,7 +78,8 @@ const chartOptions = {
         :options="chartOptions"
       />
       <div v-else class="empty-chart">
-        <p>Нет данных для отображения диаграммы.</p>
+        <Icon icon="mdi:chart-donut" class="empty-icon" />
+        <p>Нет данных для отображения диаграммы</p>
       </div>
     </div>
   </div>
@@ -83,28 +87,40 @@ const chartOptions = {
 
 <style scoped lang="scss">
 .chart-wrapper {
-  background-color: var(--bg-secondary-color);
-  padding: 1.5rem;
-  border-radius: var(--r-l);
+  background-color: var(--bg-primary-color);
+  padding: 1.25rem 1.5rem;
+  border-radius: var(--r-m);
   border: 1px solid var(--border-secondary-color);
 }
+
 .chart-title {
-  font-size: 1.25rem;
+  font-size: 1.05rem;
   font-weight: 600;
   margin-top: 0;
-  margin-bottom: 2rem;
+  margin-bottom: 1rem;
+  color: var(--fg-primary-color);
   text-align: center;
 }
+
 .chart-container {
   position: relative;
-  height: 250px;
+  height: 240px;
   width: 100%;
 }
+
 .empty-chart {
   display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
   align-items: center;
   justify-content: center;
   height: 100%;
-  color: var(--fg-secondary-color);
+  color: var(--fg-tertiary-color);
+  font-size: 0.9rem;
+
+  .empty-icon {
+    font-size: 2.5rem;
+    opacity: 0.5;
+  }
 }
 </style>

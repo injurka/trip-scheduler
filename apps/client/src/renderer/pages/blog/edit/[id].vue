@@ -1,7 +1,11 @@
 <script setup lang="ts">
 import type { CreateBlogPostInput } from '~/shared/types/models/blog'
+import { Icon } from '@iconify/vue'
+import { onMounted, ref } from 'vue'
+import { useRoute, useRouter } from 'vue-router'
 import { BlogEditor } from '~/components/05.modules/blog'
 import { useBlogStore } from '~/components/05.modules/blog/store/blog.store'
+import { useToast } from '~/shared/composables/use-toast'
 import { AppRouteNames } from '~/shared/constants/routes'
 
 const route = useRoute()
@@ -13,8 +17,10 @@ const id = route.params.id as string
 const form = ref<CreateBlogPostInput>({} as CreateBlogPostInput)
 
 async function handleSave() {
-  if (!form.value)
+  if (!form.value?.title?.trim() || !form.value?.content?.trim()) {
+    toast.error('Заполните обязательные поля: заголовок и содержание')
     return
+  }
 
   try {
     await store.updatePost({
@@ -48,10 +54,10 @@ onMounted(async () => {
 </script>
 
 <template>
-  <div class="content-wrapper">
-    <h1>Редактирование записи</h1>
-    <div v-if="store.isLoadingDetail">
-      Загрузка...
+  <div class="content-wrapper is-editor-page">
+    <div v-if="store.isLoadingDetail" class="editor-loading-state">
+      <Icon icon="mdi:loading" class="spinner" />
+      <span>Загрузка статьи...</span>
     </div>
     <BlogEditor
       v-else
@@ -65,13 +71,38 @@ onMounted(async () => {
 </template>
 
 <style scoped lang="scss">
-.content-wrapper {
-  max-width: 1000px;
-  margin: 0 auto;
-  padding: 24px;
+.content-wrapper.is-editor-page {
+  max-width: 100%;
+  padding: 0;
+  margin: 0;
   width: 100%;
   display: flex;
   flex-direction: column;
-  gap: 24px;
+}
+
+.editor-loading-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  min-height: 50vh;
+  gap: 16px;
+  color: var(--fg-secondary-color);
+  font-size: 1rem;
+
+  .spinner {
+    font-size: 2.5rem;
+    color: var(--fg-accent-color);
+    animation: spin 1s linear infinite;
+  }
+}
+
+@keyframes spin {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
 }
 </style>
