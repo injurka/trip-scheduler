@@ -21,6 +21,8 @@ export interface BaseMapOptions {
   style?: string | StyleSpecification
   showAttribution?: boolean
   interactive?: boolean
+  rotateSensitivity?: number
+  pitchSensitivity?: number
 }
 
 export type StyleLoadCallback = (map: MapLibreMap) => void
@@ -218,6 +220,31 @@ export function useBaseMap() {
             pitchWithRotate: true,
             attributionControl: options.showAttribution === false ? false : undefined,
           })
+
+          // Настройка чувствительности вращения и наклона при зажатой ПКМ / Ctrl+ЛКМ
+          const rotateSensitivity = options.rotateSensitivity ?? 0.4
+          const pitchSensitivity = options.pitchSensitivity ?? 0.4
+          const dragRotateHandler = (map as any).dragRotate
+          if (dragRotateHandler?._mouseRotate?._moveFunction) {
+            const origRotateMove = dragRotateHandler._mouseRotate._moveFunction.bind(dragRotateHandler._mouseRotate)
+            dragRotateHandler._mouseRotate._moveFunction = (...args: any[]) => {
+              const res = origRotateMove(...args)
+              if (res?.bearingDelta) {
+                res.bearingDelta *= rotateSensitivity
+              }
+              return res
+            }
+          }
+          if (dragRotateHandler?._mousePitch?._moveFunction) {
+            const origPitchMove = dragRotateHandler._mousePitch._moveFunction.bind(dragRotateHandler._mousePitch)
+            dragRotateHandler._mousePitch._moveFunction = (...args: any[]) => {
+              const res = origPitchMove(...args)
+              if (res?.pitchDelta) {
+                res.pitchDelta *= pitchSensitivity
+              }
+              return res
+            }
+          }
 
           targetElement.addEventListener('contextmenu', (e) => {
             const el = e.target as HTMLElement | null
