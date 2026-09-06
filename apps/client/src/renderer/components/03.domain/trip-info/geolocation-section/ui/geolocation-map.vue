@@ -1,12 +1,12 @@
 <script setup lang="ts">
-import type { Coordinate, DrawnRoute, MapPoint, MapRoute } from '../models/types'
+import type { Coordinate, MapPoint, MapRoute } from '../models/types'
 import type { TileSourceId } from '~/shared/lib/map-styles-sources'
 import { onClickOutside } from '@vueuse/core'
 import { toLonLat } from 'ol/proj'
+import { onMounted, ref, watch } from 'vue'
 import { KitBtn } from '~/components/01.kit/kit-btn'
 import { KitInput } from '~/components/01.kit/kit-input'
 import { useGeolocationMap } from '../composables/use-geolocation-map'
-import GeolocationContextMenu from './geolocation-context-menu.vue'
 import GeolocationMapControls from './geolocation-map-controls.vue'
 
 import 'ol/ol.css'
@@ -14,8 +14,7 @@ import 'ol/ol.css'
 interface Props {
   points: MapPoint[]
   routes: MapRoute[]
-  drawnRoutes: DrawnRoute[]
-  mode: 'pan' | 'add_point' | 'add_route_point' | 'draw_route' | 'move_point'
+  mode: 'pan' | 'add_point' | 'add_route_point' | 'move_point'
   center: Coordinate
   height: string
   isLoading: boolean
@@ -24,9 +23,9 @@ interface Props {
   isFullscreen: boolean
   interactiveOnClick?: boolean
   withPanel?: boolean
-  disableContextMenu?: boolean
   activeItemId?: string | null
   withSearchControl?: boolean
+  selectedCoords?: Coordinate | null
 }
 
 const props = withDefaults(defineProps<Props>(), {
@@ -34,14 +33,13 @@ const props = withDefaults(defineProps<Props>(), {
   zoom: 14,
   interactiveOnClick: false,
   withPanel: true,
-  disableContextMenu: false,
   activeItemId: null,
   withSearchControl: false,
+  selectedCoords: null,
 })
 
 const emit = defineEmits<{
   (e: 'mapClick', coords: Coordinate): void
-  (e: 'contextMenuAction', actionId: string, coords: Coordinate): void
   (e: 'mapReady', controller: ReturnType<typeof useGeolocationMap>): void
   (e: 'togglePanel'): void
   (e: 'toggleFullscreen'): void
@@ -54,7 +52,6 @@ const {
   addOrUpdatePoint,
   removePoint,
   addOrUpdateRoute,
-  addOrUpdateDrawnRoute,
   removeRoute,
   modifyInteraction,
   setTileSource,
@@ -62,11 +59,11 @@ const {
   searchLocation,
   clearSearchResult,
   setActivePointId,
+  setSelectionMarker,
   ...restMapController
 } = useGeolocationMap()
 
 const mapContainerRef = ref<HTMLElement>()
-
 const isMapActive = ref(!props.interactiveOnClick)
 const showActivateMessage = ref(false)
 
@@ -81,51 +78,23 @@ function activateMap() {
   modifyInteraction.setActive(!props.readonly)
 }
 
-const contextMenuRef = ref<HTMLElement | null>(null)
-const isContextMenuVisible = ref(false)
-const contextMenuPosition = reactive({ top: 0, left: 0, coords: [0, 0] as Coordinate })
-
 function handleSetTileSource(sourceId: TileSourceId) {
   setTileSource(sourceId)
 }
 
-function openContextMenu(event: MouseEvent) {
-  if (props.disableContextMenu || props.readonly || !mapInstance.value || !isMapActive.value)
-    return
-  const mapContainer = mapInstance.value.getTargetElement() as HTMLElement
-  const mapRect = mapContainer.getBoundingClientRect()
-  contextMenuPosition.top = event.clientY - mapRect.top
-  contextMenuPosition.left = event.clientX - mapRect.left
-  const pixel = [event.clientX - mapRect.left, event.clientY - mapRect.top]
-  contextMenuPosition.coords = toLonLat(mapInstance.value.getCoordinateFromPixel(pixel)) as Coordinate
-  isContextMenuVisible.value = true
-}
-
-function handleContextMenuAction(actionId: string) {
-  isContextMenuVisible.value = false
-  emit('contextMenuAction', actionId, contextMenuPosition.coords)
-}
-
-// Надежные трекеры для отслеживания изменений и удаления старых маркеров/маршрутов
 let previousPointIds = new Set<string>()
 let previousRouteIds = new Set<string>()
-let previousDrawnRouteIds = new Set<string>()
 
 watch(() => props.points, (newPoints) => {
   if (!isMapLoaded.value)
     return
 
   const newPointIds = new Set(newPoints.map(p => p.id))
-
-  // Удаляем те, которых больше нет
   previousPointIds.forEach((id) => {
     if (!newPointIds.has(id))
       removePoint(id)
   })
-
-  // Добавляем/Обновляем новые
   newPoints.forEach(addOrUpdatePoint)
-
   previousPointIds = newPointIds
 }, { deep: true })
 
@@ -134,7 +103,6 @@ watch(() => props.routes, (newRoutes) => {
     return
 
   const newRouteIds = new Set(newRoutes.map(r => r.id))
-
   previousRouteIds.forEach((id) => {
     if (!newRouteIds.has(id))
       removeRoute(id)
@@ -146,29 +114,7 @@ watch(() => props.routes, (newRoutes) => {
     else
       removeRoute(route.id)
   })
-
   previousRouteIds = newRouteIds
-}, { deep: true })
-
-watch(() => props.drawnRoutes, (newRoutes) => {
-  if (!isMapLoaded.value)
-    return
-
-  const newRouteIds = new Set(newRoutes.map(r => r.id))
-
-  previousDrawnRouteIds.forEach((id) => {
-    if (!newRouteIds.has(id))
-      removeRoute(id)
-  })
-
-  newRoutes.forEach((route) => {
-    if (route.isVisible)
-      addOrUpdateDrawnRoute(route)
-    else
-      removeRoute(route.id)
-  })
-
-  previousDrawnRouteIds = newRouteIds
 }, { deep: true })
 
 watch(() => props.readonly, (isReadonly) => {
@@ -180,9 +126,9 @@ watch(() => props.activeItemId, (newId) => {
   setActivePointId(newId ?? null)
 }, { immediate: true })
 
-onClickOutside(contextMenuRef, () => {
-  isContextMenuVisible.value = false
-})
+watch(() => props.selectedCoords, (coords) => {
+  setSelectionMarker(coords || null)
+}, { immediate: true })
 
 const localSearchQuery = ref('')
 const isSearchExpanded = ref(false)
@@ -212,6 +158,7 @@ onClickOutside(inlineSearchRef, () => {
 onMounted(async () => {
   if (!mapContainerRef.value)
     return
+
   await initMap({
     container: mapContainerRef.value,
     center: props.center,
@@ -226,7 +173,23 @@ onMounted(async () => {
     emit('mapClick', coords)
   })
 
-  emit('mapReady', { mapInstance, isMapLoaded, initMap, addOrUpdatePoint, removePoint, addOrUpdateRoute, addOrUpdateDrawnRoute, removeRoute, modifyInteraction, setTileSource, showCurrentLocation, searchLocation, clearSearchResult, setActivePointId, ...restMapController })
+  emit('mapReady', {
+    mapInstance,
+    isMapLoaded,
+    initMap,
+    addOrUpdatePoint,
+    removePoint,
+    addOrUpdateRoute,
+    removeRoute,
+    modifyInteraction,
+    setTileSource,
+    showCurrentLocation,
+    searchLocation,
+    clearSearchResult,
+    setActivePointId,
+    setSelectionMarker,
+    ...restMapController,
+  })
 })
 
 watch(isMapLoaded, (isReady) => {
@@ -239,12 +202,6 @@ watch(isMapLoaded, (isReady) => {
         addOrUpdateRoute(route)
     })
     previousRouteIds = new Set(props.routes.map(r => r.id))
-
-    props.drawnRoutes.forEach((route) => {
-      if (route.isVisible)
-        addOrUpdateDrawnRoute(route)
-    })
-    previousDrawnRouteIds = new Set(props.drawnRoutes.map(r => r.id))
   }
 })
 </script>
@@ -254,8 +211,11 @@ watch(isMapLoaded, (isReady) => {
     ref="mapContainerRef"
     class="geolocation-map-container"
     :style="{ height: isFullscreen ? '100%' : height }"
-    :class="{ 'cursor-crosshair': mode === 'add_point' || mode === 'add_route_point' || mode === 'draw_route', 'cursor-grab': mode === 'pan' && isMapActive, 'cursor-move': mode === 'move_point' }"
-    @contextmenu.prevent="openContextMenu"
+    :class="{
+      'cursor-crosshair': mode === 'add_point' || mode === 'add_route_point',
+      'cursor-grab': mode === 'pan' && isMapActive,
+      'cursor-move': mode === 'move_point',
+    }"
   >
     <div
       v-if="interactiveOnClick && !isMapActive"
@@ -320,14 +280,7 @@ watch(isMapLoaded, (isReady) => {
         @center-on-my-location="showCurrentLocation"
       />
     </slot>
-    <div ref="contextMenuRef">
-      <GeolocationContextMenu
-        :visible="isContextMenuVisible"
-        :top="contextMenuPosition.top"
-        :left="contextMenuPosition.left"
-        @action="handleContextMenuAction"
-      />
-    </div>
+
     <slot name="fullscreen-panel" />
   </div>
 </template>
@@ -387,6 +340,47 @@ watch(isMapLoaded, (isReady) => {
 .cursor-move {
   cursor: move;
 }
+
+.ol-attribution {
+  bottom: 6px !important;
+  right: 6px !important;
+  background: rgba(var(--bg-secondary-color-rgb), 0.85) !important;
+  backdrop-filter: blur(6px) !important;
+  border-radius: var(--r-xs) !important;
+  border: 1px solid var(--border-secondary-color) !important;
+  font-size: 0.65rem !important;
+  line-height: 1.2 !important;
+  padding: 2px !important;
+  max-width: calc(100% - 100px);
+
+  ul {
+    margin: 0;
+    padding: 0;
+    list-style: none;
+    display: inline-flex;
+    flex-wrap: wrap;
+    gap: 4px;
+    color: var(--fg-secondary-color);
+  }
+
+  a {
+    color: var(--fg-primary-color) !important;
+    text-decoration: none;
+    font-weight: 500;
+
+    &:hover {
+      text-decoration: underline;
+    }
+  }
+
+  button {
+    background-color: transparent !important;
+    color: var(--fg-secondary-color) !important;
+    font-size: 0.75rem !important;
+    border: none !important;
+    cursor: pointer;
+  }
+}
 </style>
 
 <style scoped lang="scss">
@@ -395,6 +389,8 @@ watch(isMapLoaded, (isReady) => {
   width: 100%;
   border-radius: var(--r-xs);
   overflow: hidden;
+  user-select: none;
+
   &.cursor-crosshair {
     cursor: crosshair;
   }

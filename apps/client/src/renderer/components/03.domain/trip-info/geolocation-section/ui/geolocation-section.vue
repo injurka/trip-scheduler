@@ -1,10 +1,11 @@
 <script setup lang="ts">
 import type { useGeolocationMap } from '../composables/use-geolocation-map'
-import type { ActivitySectionGeolocation, Coordinate, DrawnRoute, MapPoint, MapRoute } from '../models/types'
+import type { ActivitySectionGeolocation, Coordinate, MapPoint, MapRoute } from '../models/types'
 import { Icon } from '@iconify/vue'
 import { useDebounceFn } from '@vueuse/core'
 import { toLonLat } from 'ol/proj'
-import { useGeolocationDrawing } from '../composables/use-geolocation-drawing'
+import { computed, nextTick, onMounted, onUnmounted, ref, toRaw, watch } from 'vue'
+import { useToast } from '~/shared/composables/use-toast'
 import { useGeolocationPoints } from '../composables/use-geolocation-points'
 import { useGeolocationRoutes } from '../composables/use-geolocation-routes'
 import { POI_COLORS } from '../constant'
@@ -28,21 +29,26 @@ const emit = defineEmits<{
 }>()
 
 const isInitialized = ref(false)
-
 const sectionContainerRef = ref<HTMLElement | null>(null)
 const mapController = ref<ReturnType<typeof useGeolocationMap>>()
+
 const activeView = ref<'points' | 'routes'>(
-  (!props.section?.points || props.section.points.length === 0)
-  && ((props.section?.routes && props.section.routes.length > 0) || (props.section?.drawnRoutes && props.section.drawnRoutes.length > 0))
+  (!props.section?.points || props.section.points.length === 0) && (props.section?.routes && props.section.routes.length > 0)
     ? 'routes'
     : 'points',
 )
 const activeRouteId = ref<string | null>(null)
 const isMapFullscreen = ref(false)
 const isPanelVisible = ref(false)
-const routeIdForNewSegment = ref<string | null>(null)
 const searchQuery = ref('')
 const routePointType = ref<'via' | 'connect'>('via')
+
+interface SelectedLocationState {
+  coords: Coordinate
+  address?: string
+  isFetchingAddress: boolean
+}
+const selectedLocation = ref<SelectedLocationState | null>(null)
 
 const {
   points,
@@ -61,7 +67,6 @@ const {
 
 const {
   routes,
-  drawnRoutes,
   isLoading: isRoutesLoading,
   createNewRoute,
   addPointToRoute,
@@ -71,13 +76,8 @@ const {
   handlePointDataUpdate: handleRoutePointUpdate,
   refreshRoutePointAddress,
   setInitialRoutes,
-  addDrawnRoute,
-  addSegmentToDrawnRoute,
-  deleteSegmentFromDrawnRoute,
   setRouteTransportMode,
 } = useGeolocationRoutes(mapController)
-
-const { startDrawing, stopDrawing } = useGeolocationDrawing(mapController)
 
 const debouncedUpdate = useDebounceFn(() => {
   if (!isInitialized.value)
@@ -90,7 +90,6 @@ const debouncedUpdate = useDebounceFn(() => {
     ...props.section,
     points: toRaw(points.value),
     routes: toRaw(routes.value),
-    drawnRoutes: toRaw(drawnRoutes.value),
     center: currentCenter ? (toLonLat(currentCenter) as Coordinate) : props.section.center,
     zoom: currentZoom ?? props.section.zoom,
   })
@@ -109,7 +108,6 @@ const poiPointsWithStyle = computed(() => points.value.map((point, index) => ({
 const allMapPoints = computed(() => {
   const routePoints = routes.value.flatMap(r => r.points.map((p, index) => {
     let type: MapPoint['type'] = p.type
-
     if (index === 0)
       type = 'start'
 
@@ -129,38 +127,18 @@ const allMapPoints = computed(() => {
 const mapCenter = computed<Coordinate>(() => {
   if (props.section?.center)
     return props.section.center
-
   if (props.section?.points?.length > 0)
     return props.section.points[0].coordinates
-
   if (props.section?.routes?.length > 0 && props.section.routes[0].points.length > 0)
     return props.section.routes[0].points[0].coordinates
-
-  return [37.6176, 55.7558] // Москва
+  return [37.6176, 55.7558]
 })
-
-function toggleMode(targetMode: typeof mode.value) {
-  if (mode.value === targetMode)
-    mode.value = 'pan'
-  else
-    mode.value = targetMode
-}
-
-function startNewRouteMode() {
-  activeView.value = 'routes'
-  activeRouteId.value = null
-  mode.value = 'add_route_point'
-}
 
 async function handleMapClick(coords: Coordinate) {
   if (props.readonly)
     return
 
-  if (mode.value === 'add_point') {
-    await addPoiPoint(coords)
-    mode.value = 'pan'
-  }
-  else if (mode.value === 'add_route_point') {
+  if (mode.value === 'add_route_point') {
     if (!activeRouteId.value) {
       const newRoute = await createNewRoute(coords)
       if (newRoute) {
@@ -178,35 +156,61 @@ async function handleMapClick(coords: Coordinate) {
 
     pointToMoveId.value = null
     mode.value = 'pan'
+    selectedLocation.value = null
+  }
+  else {
+    selectedLocation.value = {
+      coords,
+      isFetchingAddress: false,
+    }
   }
 }
 
-async function handleContextMenuAction(actionId: string, coords: Coordinate) {
-  if (actionId === 'route-from') {
-    const newRoute = await createNewRoute(coords)
-    if (newRoute) {
-      activeRouteId.value = newRoute.id
-      activeView.value = 'routes'
-      mode.value = 'add_route_point'
-    }
-  }
-  else if (actionId === 'draw-new-route') {
+async function handleCreatePoiFromSelection() {
+  if (!selectedLocation.value)
+    return
+  await addPoiPoint(selectedLocation.value.coords)
+  selectedLocation.value = null
+  activeView.value = 'points'
+}
+
+async function handleStartRouteFromSelection() {
+  if (!selectedLocation.value)
+    return
+  const newRoute = await createNewRoute(selectedLocation.value.coords)
+  if (newRoute) {
+    activeRouteId.value = newRoute.id
     activeView.value = 'routes'
-    mode.value = 'draw_route'
+    mode.value = 'add_route_point'
   }
-  else if (actionId === 'show-current-location') {
-    mapController.value?.showCurrentLocation()
+  selectedLocation.value = null
+}
+
+async function handleAddToActiveRouteFromSelection() {
+  if (!selectedLocation.value || !activeRouteId.value)
+    return
+  await addPointToRoute(activeRouteId.value, selectedLocation.value.coords, routePointType.value)
+  selectedLocation.value = null
+}
+
+async function handleFetchAddressForSelection() {
+  if (!selectedLocation.value || !mapController.value)
+    return
+  selectedLocation.value.isFetchingAddress = true
+  const info = await mapController.value.fetchAddress(selectedLocation.value.coords)
+  selectedLocation.value.isFetchingAddress = false
+  if (info?.address) {
+    selectedLocation.value.address = info.address
   }
-  else if (actionId === 'center-map') {
-    mapController.value?.flyToLocation(coords[0], coords[1])
+  else {
+    useToast().error('Адрес не найден.')
   }
-  else if (actionId === 'show-address') {
-    const addressInfo = await mapController.value?.fetchAddress(coords)
-    if (addressInfo?.address)
-      mapController.value?.showPopup(coords, addressInfo.address)
-    else
-      mapController.value?.showPopup(coords, 'Адрес не найден')
-  }
+}
+
+function handleCenterOnSelection() {
+  if (!selectedLocation.value)
+    return
+  mapController.value?.flyToLocation(selectedLocation.value.coords[0], selectedLocation.value.coords[1])
 }
 
 async function handleSearch() {
@@ -233,26 +237,18 @@ function handleFocusOnPoint(point: MapPoint) {
 function handleStartMovePoint(pointId: string) {
   startMovePoint(pointId)
   mode.value = 'move_point'
+  selectedLocation.value = null
 }
 
-function handleRouteUpdate(route: MapRoute | DrawnRoute) {
+function handleRouteUpdate(route: MapRoute) {
   const pointRouteIndex = routes.value.findIndex(r => r.id === route.id)
   if (pointRouteIndex !== -1) {
     const prevMode = routes.value[pointRouteIndex].transportMode
     routes.value[pointRouteIndex] = { ...routes.value[pointRouteIndex], ...route }
-    if ('transportMode' in route && route.transportMode !== prevMode) {
-      setRouteTransportMode(route.id, route.transportMode || 'foot')
+    if (route.transportMode && route.transportMode !== prevMode) {
+      setRouteTransportMode(route.id, route.transportMode)
     }
-    return
   }
-  const drawnRouteIndex = drawnRoutes.value.findIndex(r => r.id === route.id)
-  if (drawnRouteIndex !== -1)
-    drawnRoutes.value[drawnRouteIndex] = { ...drawnRoutes.value[drawnRouteIndex], ...route }
-}
-
-function handleAddSegment(routeId: string) {
-  routeIdForNewSegment.value = routeId
-  mode.value = 'draw_route'
 }
 
 function setActiveRoute(routeId: string | null) {
@@ -261,6 +257,7 @@ function setActiveRoute(routeId: string | null) {
     mode.value = 'add_route_point'
   else
     mode.value = 'pan'
+  selectedLocation.value = null
 }
 
 async function handleToggleFullscreen() {
@@ -315,7 +312,7 @@ function handleKeyDown(e: KeyboardEvent) {
 async function onMapReady(controller: ReturnType<typeof useGeolocationMap>) {
   mapController.value = controller
   setInitialPoints(props.section.points)
-  await setInitialRoutes({ routes: props.section.routes, drawnRoutes: props.section.drawnRoutes })
+  await setInitialRoutes(props.section.routes)
 
   controller.modifyInteraction.on('modifyend', (event) => {
     const feature = event.features.getArray()[0]
@@ -330,62 +327,27 @@ async function onMapReady(controller: ReturnType<typeof useGeolocationMap>) {
   })
 
   isInitialized.value = true
-  if (
-    (!points.value || points.value.length === 0)
-    && ((routes.value && routes.value.length > 0) || (drawnRoutes.value && drawnRoutes.value.length > 0))
-  ) {
+  if ((!points.value || points.value.length === 0) && routes.value && routes.value.length > 0) {
     activeView.value = 'routes'
   }
 
-  watch(
-    [points, routes, drawnRoutes],
-    debouncedUpdate,
-    { deep: true },
-  )
+  watch([points, routes], debouncedUpdate, { deep: true })
 }
 
 watch(
-  () => [props.readonly, points.value.length, routes.value.length, drawnRoutes.value.length],
+  () => [props.readonly, points.value.length, routes.value.length],
   () => {
-    if (
-      props.readonly
-      && points.value.length === 0
-      && (routes.value.length > 0 || drawnRoutes.value.length > 0)
-      && activeView.value === 'points'
-    ) {
+    if (props.readonly && points.value.length === 0 && routes.value.length > 0 && activeView.value === 'points') {
       activeView.value = 'routes'
     }
   },
   { immediate: true },
 )
 
-watch(
-  activeView,
-  () => {
-    mode.value = 'pan'
-    activeRouteId.value = null
-  },
-)
-
-watchEffect(() => {
-  if (!mapController.value)
-    return
-
-  if (mode.value === 'draw_route') {
-    startDrawing((coords) => {
-      if (routeIdForNewSegment.value) {
-        addSegmentToDrawnRoute(routeIdForNewSegment.value, coords)
-        routeIdForNewSegment.value = null
-      }
-      else {
-        addDrawnRoute(coords)
-      }
-      mode.value = 'pan'
-    })
-  }
-  else {
-    stopDrawing()
-  }
+watch(activeView, () => {
+  mode.value = 'pan'
+  activeRouteId.value = null
+  selectedLocation.value = null
 })
 
 onMounted(() => {
@@ -394,7 +356,6 @@ onMounted(() => {
 })
 
 onUnmounted(() => {
-  stopDrawing()
   document.removeEventListener('fullscreenchange', handleFullscreenChange)
   window.removeEventListener('keydown', handleKeyDown)
 })
@@ -407,12 +368,12 @@ onUnmounted(() => {
     :class="{ 'is-fullscreen': isMapFullscreen, 'is-editing': !readonly }"
   >
     <div
-      v-show="(!readonly || points.length > 0 || routes.length > 0 || drawnRoutes.length > 0) && (!isMapFullscreen || isPanelVisible)"
+      v-show="(!readonly || points.length > 0 || routes.length > 0) && (!isMapFullscreen || isPanelVisible)"
       class="main-panel"
       :class="{ 'fullscreen-panel': isMapFullscreen }"
     >
-      <!-- Верхний тулбар: Поиск и сегментные табы -->
-      <div v-if="!readonly || (points.length > 0 && (routes.length > 0 || drawnRoutes.length > 0))" class="geo-top-toolbar">
+      <!-- Верхний тулбар: Поиск и переключение табов -->
+      <div v-if="!readonly || (points.length > 0 && routes.length > 0)" class="geo-top-toolbar">
         <div v-if="!readonly" class="search-input-wrapper">
           <Icon icon="mdi:magnify" class="search-icon" />
           <input
@@ -450,115 +411,143 @@ onUnmounted(() => {
           >
             <Icon icon="mdi:directions" />
             <span>Маршруты</span>
-            <span class="tab-count">{{ routes.length + drawnRoutes.length }}</span>
+            <span class="tab-count">{{ routes.length }}</span>
           </button>
         </div>
       </div>
 
-      <!-- Панель быстрых действий и активных режимов -->
-      <div v-if="!readonly" class="geo-actions-toolbar">
-        <!-- Режим: ТОЧКИ -->
-        <template v-if="activeView === 'points'">
-          <div v-if="mode === 'add_point'" class="active-banner">
-            <span class="banner-text">
-              <span class="pulse-dot" />
-              Кликните на карту, чтобы поставить метку
-            </span>
-            <button type="button" class="banner-cancel-btn" @click="mode = 'pan'">
-              Отмена
-            </button>
+      <!-- ПОСТОЯННАЯ КАРТОЧКА ТОЧКИ: Фиксированная высота, без скачков контента -->
+      <div v-if="!readonly" class="selected-point-card" :class="{ 'is-active': !!selectedLocation }">
+        <!-- Верхняя строка: Координаты + адрес / текст-подсказка -->
+        <div class="point-info-row">
+          <div class="info-content">
+            <template v-if="selectedLocation">
+              <Icon icon="mdi:map-marker-radius" class="status-icon active" />
+              <span class="coord-badge">
+                {{ selectedLocation.coords[1].toFixed(5) }}, {{ selectedLocation.coords[0].toFixed(5) }}
+              </span>
+              <span v-if="selectedLocation.address" class="address-snippet" :title="selectedLocation.address">
+                {{ selectedLocation.address }}
+              </span>
+            </template>
+            <template v-else>
+              <Icon icon="mdi:cursor-default-click-outline" class="status-icon idle" />
+              <span class="idle-hint">Кликните по карте для выбора точки</span>
+            </template>
           </div>
 
-          <div v-else-if="mode === 'move_point'" class="active-banner move-banner">
-            <span class="banner-text">
-              <Icon icon="mdi:cursor-move" />
-              Кликните на карте новое место для точки
-            </span>
-            <button type="button" class="banner-cancel-btn" @click="mode = 'pan'; pointToMoveId = null">
-              Отмена
-            </button>
-          </div>
+          <button
+            v-if="selectedLocation"
+            type="button"
+            class="clear-selection-btn"
+            title="Снять выбор"
+            @click="selectedLocation = null"
+          >
+            <Icon icon="mdi:close" />
+          </button>
+        </div>
 
-          <div v-else class="quick-actions-row">
-            <button
-              type="button"
-              class="primary-action-pill"
-              @click="toggleMode('add_point')"
-            >
-              <Icon icon="mdi:map-marker-plus" />
-              <span>Добавить точку на карту</span>
-            </button>
-          </div>
-        </template>
+        <!-- Нижняя строка: Кнопки действий (всегда на месте, активируются по клику) -->
+        <div class="point-actions-row">
+          <button
+            type="button"
+            class="action-chip primary"
+            :disabled="!selectedLocation"
+            @click="handleCreatePoiFromSelection"
+          >
+            <Icon icon="mdi:map-marker-plus" />
+            <span>Метка</span>
+          </button>
 
-        <!-- Режим: МАРШРУТЫ -->
-        <template v-if="activeView === 'routes'">
-          <!-- Если активен режим редактирования маршрута -->
-          <div v-if="activeRouteId" class="active-banner route-edit-banner">
-            <div class="banner-left">
-              <span class="pulse-dot" />
-              <span class="banner-text">Добавление точек в маршрут</span>
-              <div class="point-type-pills">
-                <button
-                  type="button"
-                  class="type-pill"
-                  :class="{ 'is-active': routePointType === 'via' }"
-                  @click="routePointType = 'via'"
-                >
-                  Метка
-                </button>
-                <button
-                  type="button"
-                  class="type-pill"
-                  :class="{ 'is-active': routePointType === 'connect' }"
-                  @click="routePointType = 'connect'"
-                >
-                  Точка
-                </button>
-              </div>
-            </div>
-            <button type="button" class="banner-done-btn" @click="setActiveRoute(null)">
-              ✓ Готово
-            </button>
-          </div>
+          <button
+            type="button"
+            class="action-chip"
+            :disabled="!selectedLocation"
+            @click="handleStartRouteFromSelection"
+          >
+            <Icon icon="mdi:directions-fork" />
+            <span>Маршрут</span>
+          </button>
 
-          <!-- Если активен режим рисования -->
-          <div v-else-if="mode === 'draw_route'" class="active-banner draw-banner">
-            <span class="banner-text">
-              <Icon icon="mdi:draw" />
-              Зажмите и ведите по карте для рисования линии
-            </span>
-            <button type="button" class="banner-cancel-btn" @click="mode = 'pan'">
-              Завершить
-            </button>
-          </div>
+          <button
+            v-if="activeRouteId"
+            type="button"
+            class="action-chip"
+            :disabled="!selectedLocation"
+            @click="handleAddToActiveRouteFromSelection"
+          >
+            <Icon icon="mdi:plus-circle-outline" />
+            <span>В маршрут</span>
+          </button>
 
-          <!-- Обычный режим маршрутов -->
-          <div v-else class="quick-actions-row">
-            <button
-              type="button"
-              class="primary-action-pill"
-              @click="startNewRouteMode"
-            >
-              <Icon icon="mdi:plus" />
-              <span>Новый маршрут</span>
-            </button>
+          <button
+            type="button"
+            class="action-chip secondary"
+            :disabled="!selectedLocation || selectedLocation.isFetchingAddress || !!selectedLocation.address"
+            @click="handleFetchAddressForSelection"
+          >
+            <Icon
+              :icon="selectedLocation?.isFetchingAddress ? 'mdi:loading' : 'mdi:map-marker-question-outline'"
+              :class="{ spin: selectedLocation?.isFetchingAddress }"
+            />
+            <span>{{ selectedLocation?.address ? 'Адрес найден' : 'Адрес' }}</span>
+          </button>
 
-            <button
-              type="button"
-              class="secondary-action-pill"
-              @click="toggleMode('draw_route')"
-            >
-              <Icon icon="mdi:draw" />
-              <span>Нарисовать</span>
-            </button>
-          </div>
-        </template>
+          <button
+            type="button"
+            class="action-chip secondary icon-only"
+            title="Центрировать карту"
+            :disabled="!selectedLocation"
+            @click="handleCenterOnSelection"
+          >
+            <Icon icon="mdi:crosshairs" />
+          </button>
+        </div>
       </div>
 
-      <!-- Список точек / маршрутов -->
+      <!-- Активные баннеры системных режимов (перемещение точки / запись маршрута) -->
+      <div v-if="!readonly" class="geo-actions-toolbar">
+        <div v-if="mode === 'move_point'" class="active-banner move-banner">
+          <span class="banner-text">
+            <Icon icon="mdi:cursor-move" />
+            Кликните на карте новое место для точки
+          </span>
+          <button type="button" class="banner-cancel-btn" @click="mode = 'pan'; pointToMoveId = null">
+            Отмена
+          </button>
+        </div>
+
+        <div v-else-if="activeRouteId" class="active-banner route-edit-banner">
+          <div class="banner-left">
+            <span class="pulse-dot" />
+            <span class="banner-text">Добавление точек в маршрут</span>
+            <div class="point-type-pills">
+              <button
+                type="button"
+                class="type-pill"
+                :class="{ 'is-active': routePointType === 'via' }"
+                @click="routePointType = 'via'"
+              >
+                Метка
+              </button>
+              <button
+                type="button"
+                class="type-pill"
+                :class="{ 'is-active': routePointType === 'connect' }"
+                @click="routePointType = 'connect'"
+              >
+                Точка
+              </button>
+            </div>
+          </div>
+          <button type="button" class="banner-done-btn" @click="setActiveRoute(null)">
+            ✓ Готово
+          </button>
+        </div>
+      </div>
+
+      <!-- Списки точек / маршрутов -->
       <div class="lists-container">
-        <!-- Вкладка ТОЧКИ -->
         <template v-if="activeView === 'points'">
           <div v-if="points.length === 0" class="empty-state-card">
             <div class="empty-icon-wrap">
@@ -567,18 +556,9 @@ onUnmounted(() => {
             <div class="empty-title">
               Нет добавленных точек
             </div>
-            <div v-if="!readonly" class="empty-subtitle">
-              Поставьте метку кликом на карту или найдите адрес через поиск выше
+            <div class="empty-subtitle">
+              Кликните на карту в нужном месте, затем нажмите «Метка» в карточке выше
             </div>
-            <button
-              v-if="!readonly"
-              type="button"
-              class="empty-action-btn"
-              @click="toggleMode('add_point')"
-            >
-              <Icon icon="mdi:plus" />
-              <span>Поставить точку на карте</span>
-            </button>
           </div>
 
           <GeolocationPoiList
@@ -594,42 +574,22 @@ onUnmounted(() => {
           />
         </template>
 
-        <!-- Вкладка МАРШРУТЫ -->
         <template v-if="activeView === 'routes'">
-          <div v-if="routes.length === 0 && drawnRoutes.length === 0" class="empty-state-card">
+          <div v-if="routes.length === 0" class="empty-state-card">
             <div class="empty-icon-wrap">
               <Icon icon="mdi:routes" />
             </div>
             <div class="empty-title">
               Маршруты не созданы
             </div>
-            <div v-if="!readonly" class="empty-subtitle">
-              Стройте пешеходные, велосипедные или автомобильные маршруты между точками
-            </div>
-            <div v-if="!readonly" class="empty-actions-row">
-              <button
-                type="button"
-                class="empty-action-btn"
-                @click="startNewRouteMode"
-              >
-                <Icon icon="mdi:plus" />
-                <span>Создать маршрут</span>
-              </button>
-              <button
-                type="button"
-                class="empty-action-btn secondary"
-                @click="toggleMode('draw_route')"
-              >
-                <Icon icon="mdi:draw" />
-                <span>Нарисовать от руки</span>
-              </button>
+            <div class="empty-subtitle">
+              Кликните на карту и нажмите «Маршрут» для старта трека
             </div>
           </div>
 
           <GeolocationRouteList
             v-else
             :routes="routes"
-            :drawn-routes="drawnRoutes"
             :readonly="readonly"
             :active-route-id="activeRouteId"
             @focus-on-point="handleFocusOnPoint"
@@ -640,8 +600,6 @@ onUnmounted(() => {
             @delete-point="deletePointFromRoute"
             @delete-route="deleteRoute"
             @set-active-route="setActiveRoute"
-            @add-segment="handleAddSegment"
-            @delete-segment="deleteSegmentFromDrawnRoute"
             @refresh-address="refreshRoutePointAddress"
             @set-transport-mode="setRouteTransportMode"
           />
@@ -654,7 +612,6 @@ onUnmounted(() => {
       class="map-wrapper"
       :points="allMapPoints"
       :routes="routes"
-      :drawn-routes="drawnRoutes"
       :mode="mode"
       :center="mapCenter"
       :height="height"
@@ -663,9 +620,9 @@ onUnmounted(() => {
       :readonly="readonly"
       :is-fullscreen="isMapFullscreen"
       :interactive-on-click="true"
+      :selected-coords="selectedLocation?.coords || null"
       @map-ready="onMapReady"
       @map-click="handleMapClick"
-      @context-menu-action="handleContextMenuAction"
       @toggle-panel="isPanelVisible = !isPanelVisible"
       @toggle-fullscreen="handleToggleFullscreen"
     />
@@ -854,63 +811,188 @@ onUnmounted(() => {
   }
 }
 
+/* Карточка выбранной точки: фиксированная высота и стабильная структура */
+.selected-point-card {
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  height: 74px;
+  min-height: 74px;
+  max-height: 74px;
+  padding: 8px 10px;
+  background: var(--bg-tertiary-color);
+  border: 1px solid var(--border-secondary-color);
+  border-radius: var(--r-s);
+  transition:
+    border-color 0.2s ease,
+    box-shadow 0.2s ease;
+  box-sizing: border-box;
+
+  &.is-active {
+    border-color: var(--fg-accent-color);
+    box-shadow: var(--s-xs);
+  }
+
+  .point-info-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    height: 22px;
+
+    .info-content {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      min-width: 0;
+      flex: 1;
+    }
+
+    .status-icon {
+      font-size: 1.1rem;
+      flex-shrink: 0;
+
+      &.active {
+        color: var(--fg-accent-color);
+      }
+
+      &.idle {
+        color: var(--fg-tertiary-color);
+      }
+    }
+
+    .coord-badge {
+      font-family: var(--font-mono, monospace);
+      font-size: 0.78rem;
+      font-weight: 600;
+      color: var(--fg-primary-color);
+      background: var(--bg-secondary-color);
+      padding: 1px 6px;
+      border-radius: var(--r-2xs);
+      border: 1px solid var(--border-secondary-color);
+      flex-shrink: 0;
+    }
+
+    .address-snippet {
+      font-size: 0.75rem;
+      color: var(--fg-secondary-color);
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      flex: 1;
+    }
+
+    .idle-hint {
+      font-size: 0.75rem;
+      color: var(--fg-tertiary-color);
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .clear-selection-btn {
+      border: none;
+      background: transparent;
+      color: var(--fg-secondary-color);
+      cursor: pointer;
+      padding: 2px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 0.95rem;
+      flex-shrink: 0;
+
+      &:hover {
+        color: var(--fg-primary-color);
+      }
+    }
+  }
+
+  .point-actions-row {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    height: 28px;
+    overflow-x: auto;
+    overflow-y: hidden;
+    scrollbar-width: none;
+
+    &::-webkit-scrollbar {
+      display: none;
+    }
+
+    .action-chip {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      padding: 3px 8px;
+      height: 26px;
+      border-radius: var(--r-xs);
+      border: 1px solid var(--border-secondary-color);
+      background-color: var(--bg-secondary-color);
+      color: var(--fg-primary-color);
+      font-size: 0.75rem;
+      font-weight: 500;
+      cursor: pointer;
+      white-space: nowrap;
+      flex-shrink: 0;
+      transition: all 0.15s ease;
+
+      .iconify {
+        font-size: 0.9rem;
+        color: var(--fg-accent-color);
+      }
+
+      &:hover:not(:disabled) {
+        background-color: var(--bg-hover-color);
+        border-color: var(--fg-accent-color);
+      }
+
+      &.primary {
+        background-color: var(--fg-accent-color);
+        border-color: var(--fg-accent-color);
+        color: var(--fg-inverted-color);
+
+        .iconify {
+          color: var(--fg-inverted-color);
+        }
+
+        &:hover:not(:disabled) {
+          opacity: 0.9;
+        }
+      }
+
+      &.secondary {
+        color: var(--fg-secondary-color);
+        .iconify {
+          color: var(--fg-secondary-color);
+        }
+      }
+
+      &.icon-only {
+        padding: 0;
+        width: 26px;
+        justify-content: center;
+      }
+
+      &:disabled {
+        opacity: 0.35;
+        cursor: not-allowed;
+        border-color: var(--border-secondary-color) !important;
+        background-color: transparent !important;
+        color: var(--fg-tertiary-color) !important;
+
+        .iconify {
+          color: var(--fg-tertiary-color) !important;
+        }
+      }
+    }
+  }
+}
+
 .geo-actions-toolbar {
   display: flex;
   flex-direction: column;
-}
-
-.quick-actions-row {
-  display: flex;
-  gap: 6px;
-}
-
-.primary-action-pill {
-  flex: 1;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 6px;
-  padding: 8px 12px;
-  border-radius: var(--r-s);
-  border: 1px solid var(--border-secondary-color);
-  background-color: var(--bg-tertiary-color);
-  color: var(--fg-primary-color);
-  font-size: 0.82rem;
-  font-weight: 500;
-  cursor: pointer;
-  transition: all 0.15s ease;
-
-  .iconify {
-    font-size: 1rem;
-    color: var(--fg-accent-color);
-  }
-
-  &:hover {
-    background-color: var(--bg-hover-color);
-    border-color: var(--fg-accent-color);
-    color: var(--fg-accent-color);
-  }
-}
-
-.secondary-action-pill {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 6px;
-  padding: 8px 12px;
-  border-radius: var(--r-s);
-  border: 1px solid var(--border-secondary-color);
-  background-color: transparent;
-  color: var(--fg-secondary-color);
-  font-size: 0.82rem;
-  font-weight: 500;
-  cursor: pointer;
-  transition: all 0.15s ease;
-
-  &:hover {
-    background-color: var(--bg-hover-color);
-    color: var(--fg-primary-color);
-  }
 }
 
 .active-banner {
@@ -1015,6 +1097,16 @@ onUnmounted(() => {
   }
 }
 
+.spin {
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  100% {
+    transform: rotate(360deg);
+  }
+}
+
 .lists-container {
   overflow-y: auto;
   max-height: 280px;
@@ -1064,41 +1156,7 @@ onUnmounted(() => {
     color: var(--fg-secondary-color);
     max-width: 280px;
     line-height: 1.3;
-    margin-bottom: 12px;
-  }
-
-  .empty-actions-row {
-    display: flex;
-    gap: 6px;
-  }
-
-  .empty-action-btn {
-    display: inline-flex;
-    align-items: center;
-    gap: 6px;
-    padding: 6px 12px;
-    border-radius: var(--r-xs);
-    border: 1px solid var(--fg-accent-color);
-    background-color: var(--fg-accent-color);
-    color: var(--fg-inverted-color);
-    font-size: 0.78rem;
-    font-weight: 600;
-    cursor: pointer;
-    transition: all 0.15s ease;
-
-    &:hover {
-      opacity: 0.9;
-    }
-
-    &.secondary {
-      background-color: transparent;
-      border-color: var(--border-secondary-color);
-      color: var(--fg-primary-color);
-
-      &:hover {
-        background-color: var(--bg-hover-color);
-      }
-    }
+    margin-bottom: 8px;
   }
 }
 

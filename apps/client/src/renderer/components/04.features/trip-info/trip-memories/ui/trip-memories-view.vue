@@ -739,17 +739,16 @@ async function handleNotifyParticipants() {
 
 .track-route-sheet {
   position: relative;
-  width: min(900px, 100vw);
+  width: 100vw;
   height: 88vh;
   background: var(--bg-primary-color);
   border-radius: var(--r-l, 16px) var(--r-l, 16px) 0 0;
-  overflow: hidden;
   display: flex;
   flex-direction: column;
 
   .track-route-close {
     position: absolute;
-    top: 8px;
+    top: -46px;
     right: 8px;
     z-index: 10;
     width: 36px;

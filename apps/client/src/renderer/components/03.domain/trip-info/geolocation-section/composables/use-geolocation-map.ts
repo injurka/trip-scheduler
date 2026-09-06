@@ -1,14 +1,18 @@
 import type { OSM, XYZ } from 'ol/source'
-import type { Coordinate, DrawnRoute, GeolocationMapOptions, MapPoint, MapRoute, OSRMResponse, TransportMode } from '../models/types'
+import type { Ref } from 'vue'
+import type { Coordinate, GeolocationMapOptions, MapPoint, MapRoute, OSRMResponse, TransportMode } from '../models/types'
 import type { TileSourceId } from '~/shared/lib/map-styles-sources'
 import Polyline from '@mapbox/polyline'
 import { Feature, Map as OlMap, Overlay, View } from 'ol'
-import { LineString, MultiLineString, Point } from 'ol/geom'
+import { Attribution, defaults as defaultControls } from 'ol/control'
+import { LineString, Point } from 'ol/geom'
 import { Modify } from 'ol/interaction'
 import { Tile as TileLayer, Vector as VectorLayer } from 'ol/layer'
 import { fromLonLat } from 'ol/proj'
 import { Vector as VectorSource } from 'ol/source'
 import { Circle as CircleStyle, Fill, Icon as OlIcon, Stroke, Style } from 'ol/style'
+import { onUnmounted, readonly, ref } from 'vue'
+import { useToast } from '~/shared/composables/use-toast'
 import { checkMapTilerAvailability, TILE_SOURCES } from '~/shared/lib/map-styles-sources'
 
 const NOMINATIM_URL = 'https://nominatim.openstreetmap.org/reverse'
@@ -20,6 +24,43 @@ const OSRM_ENDPOINTS: Record<TransportMode, string> = {
 }
 const SEARCH_RESULT_OVERLAY_ID = 'search-result-overlay'
 
+// ==========================================
+// In-Memory Cache для маршрутов и адресов
+// ==========================================
+interface RouteCacheEntry {
+  geometry: Coordinate[]
+  distance: number
+  duration: number
+  isDirect: boolean
+}
+
+const MAX_ROUTE_CACHE_ENTRIES = 120
+const MAX_ADDRESS_CACHE_ENTRIES = 300
+
+const routeCache = new Map<string, RouteCacheEntry>()
+const addressCache = new Map<string, string>()
+
+function getRouteCacheKey(waypoints: MapPoint[], mode: TransportMode): string {
+  const coordsKey = waypoints
+    .map(p => `${p.coordinates[0].toFixed(5)},${p.coordinates[1].toFixed(5)}`)
+    .join(';')
+  return `${mode}::${coordsKey}`
+}
+
+function getAddressCacheKey(coords: Coordinate): string {
+  return `${coords[0].toFixed(5)},${coords[1].toFixed(5)}`
+}
+
+function setWithLimit<K, V>(map: Map<K, V>, key: K, value: V, limit: number) {
+  if (map.size >= limit) {
+    const oldestKey = map.keys().next().value
+    if (oldestKey !== undefined) {
+      map.delete(oldestKey)
+    }
+  }
+  map.set(key, value)
+}
+
 function useGeolocationMap() {
   const mapInstance: Ref<OlMap | null> = ref(null)
   const isMapLoaded = ref(false)
@@ -27,20 +68,21 @@ function useGeolocationMap() {
   const tileLayerRef = ref<TileLayer<OSM | XYZ> | null>(null)
   const pointSource = new VectorSource()
   const routeSource = new VectorSource()
-  const drawSource = new VectorSource()
   const searchResultSource = new VectorSource()
   const currentLocationSource = new VectorSource()
+  const selectionSource = new VectorSource()
 
   const pointLayer = new VectorLayer({ source: pointSource, zIndex: 10 })
   const routeLayer = new VectorLayer({ source: routeSource, zIndex: 5 })
-  const drawLayer = new VectorLayer({ source: drawSource, zIndex: 6 })
   const searchResultLayer = new VectorLayer({ source: searchResultSource, zIndex: 11 })
   const currentLocationLayer = new VectorLayer({ source: currentLocationSource, zIndex: 12 })
+  const selectionLayer = new VectorLayer({ source: selectionSource, zIndex: 9 })
 
   const modifyInteraction = new Modify({ source: pointSource })
 
   const popups: Ref<Overlay[]> = ref([])
   let resizeObserver: ResizeObserver | null = null
+  let cleanUpRmbListeners: (() => void) | null = null
 
   const activePointId = ref<string | null>(null)
   const hoveredPointId = ref<string | null>(null)
@@ -107,19 +149,77 @@ function useGeolocationMap() {
     }
   }
 
+  // Сдвиг карты строго по горизонтали при зажатой ПКМ
+  const setupRmbHorizontalPan = (containerEl: HTMLElement) => {
+    let isRmbDragging = false
+    let startClientX = 0
+    let initialCenterX = 0
+
+    const onContextMenu = (e: MouseEvent) => {
+      e.preventDefault()
+    }
+
+    const onMouseDown = (e: MouseEvent) => {
+      if (e.button === 2) {
+        e.preventDefault()
+        isRmbDragging = true
+        startClientX = e.clientX
+
+        const view = mapInstance.value?.getView()
+        const center = view?.getCenter()
+        if (center) {
+          initialCenterX = center[0]
+        }
+        containerEl.style.cursor = 'ew-resize'
+      }
+    }
+
+    const onMouseMove = (e: MouseEvent) => {
+      if (!isRmbDragging || !mapInstance.value)
+        return
+
+      const view = mapInstance.value.getView()
+      const center = view.getCenter()
+      const resolution = view.getResolution() || 1
+      if (!center)
+        return
+
+      const deltaX = e.clientX - startClientX
+      const targetX = initialCenterX - deltaX * resolution
+      view.setCenter([targetX, center[1]])
+    }
+
+    const onMouseUp = (e: MouseEvent) => {
+      if (e.button === 2 || isRmbDragging) {
+        isRmbDragging = false
+        containerEl.style.cursor = ''
+      }
+    }
+
+    containerEl.addEventListener('contextmenu', onContextMenu)
+    containerEl.addEventListener('mousedown', onMouseDown)
+    window.addEventListener('mousemove', onMouseMove)
+    window.addEventListener('mouseup', onMouseUp)
+
+    cleanUpRmbListeners = () => {
+      containerEl.removeEventListener('contextmenu', onContextMenu)
+      containerEl.removeEventListener('mousedown', onMouseDown)
+      window.removeEventListener('mousemove', onMouseMove)
+      window.removeEventListener('mouseup', onMouseUp)
+    }
+  }
+
   const initMap = async (options: GeolocationMapOptions) => {
     if (!options.container) {
       console.error('Map container is required')
       return
     }
 
-    await nextTick()
-
     try {
       const isMapTilerWorking = await checkMapTilerAvailability()
 
       const initialSource = isMapTilerWorking
-        ? TILE_SOURCES.maptilerStreets.source
+        ? TILE_SOURCES.maptilerOutdoor.source
         : TILE_SOURCES.osm.source
 
       const initialTileLayer = new TileLayer({
@@ -135,12 +235,30 @@ function useGeolocationMap() {
         zoom: initialZoom,
       })
 
+      const containerEl
+        = typeof options.container === 'string'
+          ? document.getElementById(options.container)!
+          : options.container
+
+      // Включаем легальную атрибуцию (копирайт) OSM & MapTiler
+      const controls = defaultControls({
+        zoom: false,
+        rotate: false,
+        attribution: false,
+      }).extend([
+        new Attribution({
+          collapsible: true,
+        }),
+      ])
+
       mapInstance.value = new OlMap({
-        target: options.container,
-        layers: [initialTileLayer, routeLayer, drawLayer, pointLayer, searchResultLayer, currentLocationLayer],
+        target: containerEl,
+        layers: [initialTileLayer, routeLayer, selectionLayer, pointLayer, searchResultLayer, currentLocationLayer],
         view,
-        controls: [],
+        controls,
       })
+
+      setupRmbHorizontalPan(containerEl)
 
       view.on('change:resolution', () => {
         currentZoom.value = view.getZoom() ?? 12
@@ -191,16 +309,10 @@ function useGeolocationMap() {
         updateOverlayVisibilities()
       })
 
-      const container
-        = typeof options.container === 'string'
-          ? document.getElementById(options.container)
-          : options.container
-      if (container) {
-        resizeObserver = new ResizeObserver(() => {
-          mapInstance.value?.updateSize()
-        })
-        resizeObserver.observe(container)
-      }
+      resizeObserver = new ResizeObserver(() => {
+        mapInstance.value?.updateSize()
+      })
+      resizeObserver.observe(containerEl)
     }
     catch (error) {
       console.error('Failed to initialize map:', error)
@@ -208,6 +320,10 @@ function useGeolocationMap() {
   }
 
   const destroyMap = () => {
+    if (cleanUpRmbListeners) {
+      cleanUpRmbListeners()
+      cleanUpRmbListeners = null
+    }
     if (resizeObserver) {
       resizeObserver.disconnect()
       resizeObserver = null
@@ -318,7 +434,6 @@ function useGeolocationMap() {
         mapInstance.value.addOverlay(currentOverlay)
       }
 
-      // Применяем opacity к HTML-элементу комментария
       if (point.style?.opacity !== undefined) {
         popupElement.style.opacity = String(point.style.opacity)
       }
@@ -326,7 +441,6 @@ function useGeolocationMap() {
         popupElement.style.opacity = '1'
       }
 
-      // Применяем z-index к родительскому слою (OpenLayers оборачивает Overlay в контейнер)
       if (point.style?.zIndex !== undefined) {
         const parent = popupElement.parentElement
         if (parent) {
@@ -382,13 +496,27 @@ function useGeolocationMap() {
       routeSource.addFeature(feature)
     }
 
+    const routeColor = route.color || '#4363D8'
+
     feature.setStyle([
       new Style({
         stroke: new Stroke({
-          color: route.color || '#4363D8',
-          width: 4,
-          lineDash: route.isDirect ? [10, 10] : undefined,
+          color: '#ffffff',
+          width: 7,
+          lineCap: 'round',
+          lineJoin: 'round',
         }),
+        zIndex: 1,
+      }),
+      new Style({
+        stroke: new Stroke({
+          color: routeColor,
+          width: 4,
+          lineDash: route.isDirect ? [8, 8] : undefined,
+          lineCap: 'round',
+          lineJoin: 'round',
+        }),
+        zIndex: 2,
       }),
       new Style({
         geometry: new Point(lineGeometry.getFirstCoordinate()),
@@ -396,86 +524,25 @@ function useGeolocationMap() {
           radius: 6,
           fill: new Fill({ color: '#ffffff' }),
           stroke: new Stroke({
-            color: route.color || '#4363D8',
+            color: routeColor,
             width: 3,
           }),
         }),
+        zIndex: 3,
       }),
       new Style({
         geometry: new Point(lineGeometry.getLastCoordinate()),
         image: new CircleStyle({
           radius: 6,
-          fill: new Fill({ color: route.color || '#4363D8' }),
+          fill: new Fill({ color: routeColor }),
           stroke: new Stroke({
             color: '#ffffff',
             width: 3,
           }),
         }),
+        zIndex: 3,
       }),
     ])
-  }
-
-  const addOrUpdateDrawnRoute = (route: DrawnRoute) => {
-    if (!mapInstance.value || !route.segments)
-      return
-    let feature = routeSource.getFeatureById(route.id)
-    const coordinates = route.segments.map(segment =>
-      segment.map(coord => fromLonLat(coord)),
-    )
-    const multiLineGeometry = new MultiLineString(coordinates)
-
-    if (feature) {
-      feature.setGeometry(multiLineGeometry)
-    }
-    else {
-      feature = new Feature({ geometry: multiLineGeometry })
-      feature.setId(route.id)
-      routeSource.addFeature(feature)
-    }
-
-    const lineStrings = multiLineGeometry.getLineStrings()
-    if (lineStrings.length > 0) {
-      feature.setStyle([
-        new Style({
-          stroke: new Stroke({
-            color: route.color || '#4363D8',
-            width: 4,
-          }),
-        }),
-        new Style({
-          geometry: new Point(lineStrings[0].getFirstCoordinate()),
-          image: new CircleStyle({
-            radius: 6,
-            fill: new Fill({ color: '#ffffff' }),
-            stroke: new Stroke({
-              color: route.color || '#4363D8',
-              width: 3,
-            }),
-          }),
-        }),
-        new Style({
-          geometry: new Point(lineStrings[lineStrings.length - 1].getLastCoordinate()),
-          image: new CircleStyle({
-            radius: 6,
-            fill: new Fill({ color: route.color || '#4363D8' }),
-            stroke: new Stroke({
-              color: '#ffffff',
-              width: 3,
-            }),
-          }),
-        }),
-      ])
-    }
-    else {
-      feature.setStyle(
-        new Style({
-          stroke: new Stroke({
-            color: route.color || '#4363D8',
-            width: 4,
-          }),
-        }),
-      )
-    }
   }
 
   const removeRoute = (routeId: string) => {
@@ -488,37 +555,77 @@ function useGeolocationMap() {
     routeSource.clear()
   }
 
+  const setSelectionMarker = (coords: Coordinate | null) => {
+    selectionSource.clear()
+    if (!coords)
+      return
+
+    const feature = new Feature({
+      geometry: new Point(fromLonLat(coords)),
+    })
+    feature.setStyle(new Style({
+      image: new CircleStyle({
+        radius: 8,
+        fill: new Fill({ color: 'rgba(230, 25, 75, 0.2)' }),
+        stroke: new Stroke({
+          color: '#E6194B',
+          width: 3,
+        }),
+      }),
+    }))
+    selectionSource.addFeature(feature)
+  }
+
   const fetchRoute = async (
     waypoints: MapPoint[],
     transportMode: TransportMode = 'foot',
   ): Promise<(Partial<MapRoute> & { isDirect?: boolean }) | null> => {
     if (waypoints.length < 2)
       return null
+
+    const cacheKey = getRouteCacheKey(waypoints, transportMode)
+    const cached = routeCache.get(cacheKey)
+    if (cached) {
+      return {
+        geometry: [...cached.geometry],
+        distance: cached.distance,
+        duration: cached.duration,
+        isDirect: cached.isDirect,
+      }
+    }
+
     const coordsString = waypoints.map(p => p.coordinates.join(',')).join(';')
     const endpoint = OSRM_ENDPOINTS[transportMode] || OSRM_ENDPOINTS.foot
     const url = `${endpoint}/${coordsString}?overview=full&geometries=polyline&steps=false`
+
     try {
       const response = await fetch(url)
       const data: OSRMResponse = await response.json()
       if (data.code !== 'Ok' || !data.routes || data.routes.length === 0) {
-        console.warn('OSRM не смог найти маршрут, будет построена прямая линия.', data)
-        return {
+        const fallbackResult: RouteCacheEntry = {
           geometry: waypoints.map(p => p.coordinates),
           distance: 0,
           duration: 0,
           isDirect: true,
         }
+        setWithLimit(routeCache, cacheKey, fallbackResult, MAX_ROUTE_CACHE_ENTRIES)
+        return fallbackResult
       }
+
       const route = data.routes[0]
       const decodedGeometry = Polyline.decode(route.geometry).map(
         ([lat, lon]: [number, number]) => [lon, lat],
       ) as Coordinate[]
-      return {
+
+      const successResult: RouteCacheEntry = {
         geometry: decodedGeometry,
         distance: route.distance,
         duration: route.duration,
         isDirect: false,
       }
+
+      setWithLimit(routeCache, cacheKey, successResult, MAX_ROUTE_CACHE_ENTRIES)
+      return successResult
     }
     catch (error) {
       console.error('Ошибка при запросе маршрута из OSRM:', error)
@@ -533,60 +640,45 @@ function useGeolocationMap() {
 
   const fetchAddress = async (coordinates: Coordinate) => {
     const [lon, lat] = coordinates
+    const cacheKey = getAddressCacheKey(coordinates)
+
+    if (addressCache.has(cacheKey)) {
+      return {
+        coordinates,
+        address: addressCache.get(cacheKey)!,
+      }
+    }
+
     const url = `${NOMINATIM_URL}?format=json&lon=${lon}&lat=${lat}&accept-language=ru`
     try {
       const response = await fetch(url)
       const data = await response.json()
       if (data.error) {
-        console.error('Ошибка Nominatim:', data.error)
         return null
       }
+
+      const address = data.display_name || 'Адрес не найден'
+      setWithLimit(addressCache, cacheKey, address, MAX_ADDRESS_CACHE_ENTRIES)
+
       return {
         coordinates,
-        address: data.display_name || 'Адрес не найден',
+        address,
       }
     }
     catch (error) {
-      console.error('Ошибка при запросе адреса из Nominatim:', error)
+      console.error('Ошибка запроса адреса:', error)
       return null
     }
   }
 
-  function showPopup(
-    coordinates: Coordinate,
-    content: string,
-    id: string = `popup-${Date.now()}`,
-  ) {
-    if (!mapInstance.value)
-      return
-    const popupElement = document.createElement('div')
-    popupElement.innerHTML = content
-    popupElement.className = 'ol-popup'
-    const popup = new Overlay({
-      element: popupElement,
-      position: fromLonLat(coordinates),
-      positioning: 'bottom-center',
-      offset: [0, -40],
-      id,
-    })
-    mapInstance.value.addOverlay(popup)
-    popups.value.push(popup)
-    return popup
-  }
-
-  function clearPopups() {
-    popups.value.forEach(p => mapInstance.value?.removeOverlay(p))
-    popups.value = []
-  }
-
-  function flyToLocation(longitude: number, latitude: number, zoom = 13) {
+  function flyToLocation(longitude: number, latitude: number, zoom = 14) {
     if (!mapInstance.value)
       return
 
     mapInstance.value.getView().animate({
       center: fromLonLat([longitude, latitude]),
       zoom,
-      duration: 1000,
+      duration: 700,
     })
   }
 
@@ -646,10 +738,7 @@ function useGeolocationMap() {
 
         return true
       }
-      else {
-        console.warn('Location not found for query:', query)
-        return false
-      }
+      return false
     }
     catch (error) {
       console.error('Error searching location:', error)
@@ -692,24 +781,10 @@ function useGeolocationMap() {
 
         currentLocationSource.addFeature(locationFeature)
       },
-      (error) => {
-        let message = 'Не удалось определить ваше местоположение.'
-        switch (error.code) {
-          case error.PERMISSION_DENIED:
-            message = 'Вы запретили доступ к своему местоположению.'
-            break
-          case error.POSITION_UNAVAILABLE:
-            message = 'Информация о местоположении недоступна.'
-            break
-          case error.TIMEOUT:
-            message = 'Время ожидания запроса местоположения истекло.'
-            break
-        }
-        useToast().error(message)
+      () => {
+        useToast().error('Не удалось определить местоположение.')
       },
-      {
-        enableHighAccuracy: true,
-      },
+      { enableHighAccuracy: true },
     )
   }
 
@@ -719,7 +794,6 @@ function useGeolocationMap() {
     mapInstance,
     isMapLoaded: readonly(isMapLoaded),
     modifyInteraction,
-    drawSource,
     initMap,
     setTileSource,
     addOrUpdatePoint,
@@ -729,11 +803,9 @@ function useGeolocationMap() {
     flyToLocation,
     searchLocation,
     clearSearchResult,
-    showPopup,
-    clearPopups,
+    setSelectionMarker,
     fetchRoute,
     addOrUpdateRoute,
-    addOrUpdateDrawnRoute,
     removeRoute,
     clearRoutes,
     activePointId: readonly(activePointId),

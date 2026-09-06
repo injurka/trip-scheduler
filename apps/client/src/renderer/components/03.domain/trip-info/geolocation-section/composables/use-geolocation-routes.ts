@@ -1,28 +1,30 @@
 import type { Ref } from 'vue'
-import type { Coordinate, DrawnRoute, MapPoint, MapRoute, TransportMode } from '../models/types'
+import type { Coordinate, MapPoint, MapRoute, TransportMode } from '../models/types'
 import type { useGeolocationMap } from './use-geolocation-map'
 import { v4 as uuidv4 } from 'uuid'
+import { ref } from 'vue'
+import { useToast } from '~/shared/composables/use-toast'
 import { POI_COLORS } from '../constant'
 
 type GeolocationMapApi = ReturnType<typeof useGeolocationMap>
 
+function formatCoordsLabel(coords: Coordinate, prefix: string): string {
+  return `${prefix} (${coords[1].toFixed(4)}, ${coords[0].toFixed(4)})`
+}
+
 export function useGeolocationRoutes(mapApiRef: Ref<GeolocationMapApi | undefined>) {
   const routes = ref<MapRoute[]>([])
-  const drawnRoutes = ref<DrawnRoute[]>([])
   const isLoading = ref(false)
 
   async function createNewRoute(startCoords: Coordinate, transportMode: TransportMode = 'foot') {
     if (!mapApiRef.value)
       return
-    isLoading.value = true
-    const addressInfo = await mapApiRef.value.fetchAddress(startCoords)
-    isLoading.value = false
 
     const startPoint: MapPoint = {
       id: uuidv4(),
       coordinates: startCoords,
       type: 'start',
-      address: addressInfo?.address || 'Начальная точка',
+      address: formatCoordsLabel(startCoords, 'Старт'),
     }
 
     const newRoute: MapRoute = {
@@ -45,14 +47,6 @@ export function useGeolocationRoutes(mapApiRef: Ref<GeolocationMapApi | undefine
     if (routeIndex === -1 || !mapApiRef.value)
       return
 
-    let address = ''
-    if (pointType === 'via') {
-      isLoading.value = true
-      const addressInfo = await mapApiRef.value.fetchAddress(coords)
-      isLoading.value = false
-      address = addressInfo?.address || 'Промежуточная точка'
-    }
-
     const route = routes.value[routeIndex]
     let updatedPoints = [...route.points]
 
@@ -66,12 +60,13 @@ export function useGeolocationRoutes(mapApiRef: Ref<GeolocationMapApi | undefine
     }
 
     const finalType = pointType === 'connect' ? 'connect' : 'end'
+    const label = pointType === 'connect' ? 'Соединительная точка' : formatCoordsLabel(coords, 'Точка')
 
     const newPoint: MapPoint = {
       id: uuidv4(),
       coordinates: coords,
       type: finalType,
-      address,
+      address: label,
     }
 
     updatedPoints.push(newPoint)
@@ -90,13 +85,6 @@ export function useGeolocationRoutes(mapApiRef: Ref<GeolocationMapApi | undefine
       routeToDelete.points.forEach(p => mapApiRef.value!.removePoint(p.id))
       mapApiRef.value!.removeRoute(routeId)
       routes.value = routes.value.filter(r => r.id !== routeId)
-      return
-    }
-
-    const drawnRouteIndex = drawnRoutes.value.findIndex(r => r.id === routeId)
-    if (drawnRouteIndex !== -1) {
-      mapApiRef.value!.removeRoute(routeId)
-      drawnRoutes.value = drawnRoutes.value.filter(r => r.id !== routeId)
     }
   }
 
@@ -126,7 +114,7 @@ export function useGeolocationRoutes(mapApiRef: Ref<GeolocationMapApi | undefine
     await updateRouteGeometry(routeId)
   }
 
-  async function updatePointInRoute(pointId: string, newCoords: Coordinate, shouldUpdateAddress: boolean = true) {
+  async function updatePointInRoute(pointId: string, newCoords: Coordinate, shouldUpdateAddress: boolean = false) {
     let routeOfPoint: MapRoute | undefined
     for (const route of routes.value) {
       const point = route.points.find(p => p.id === pointId)
@@ -138,7 +126,7 @@ export function useGeolocationRoutes(mapApiRef: Ref<GeolocationMapApi | undefine
           isLoading.value = true
           const addressInfo = await mapApiRef.value?.fetchAddress(newCoords)
           isLoading.value = false
-          point.address = addressInfo?.address || 'Адрес не найден'
+          point.address = addressInfo?.address || formatCoordsLabel(newCoords, 'Точка')
         }
 
         mapApiRef.value?.addOrUpdatePoint(point)
@@ -209,64 +197,21 @@ export function useGeolocationRoutes(mapApiRef: Ref<GeolocationMapApi | undefine
     await updateRouteGeometry(routeId)
   }
 
-  async function setInitialRoutes(initialData: { routes?: MapRoute[], drawnRoutes?: DrawnRoute[] }) {
+  async function setInitialRoutes(initialRoutes?: MapRoute[]) {
     if (!mapApiRef.value)
       return
 
-    routes.value = JSON.parse(JSON.stringify(initialData.routes || []))
-    drawnRoutes.value = JSON.parse(JSON.stringify(initialData.drawnRoutes || []))
+    routes.value = JSON.parse(JSON.stringify(initialRoutes || []))
 
     const routeUpdatePromises = routes.value.map((route) => {
       route.points.forEach(point => mapApiRef.value!.addOrUpdatePoint(point))
       return updateRouteGeometry(route.id)
     })
-    drawnRoutes.value.forEach((route) => {
-      mapApiRef.value!.addOrUpdateDrawnRoute(route)
-    })
     await Promise.all(routeUpdatePromises)
-  }
-
-  function addDrawnRoute(coords: Coordinate[]) {
-    const newDrawnRoute: DrawnRoute = {
-      id: uuidv4(),
-      title: `Рисованный маршрут ${drawnRoutes.value.length + 1}`,
-      segments: [coords],
-      isVisible: true,
-      color: POI_COLORS[(routes.value.length + drawnRoutes.value.length) % POI_COLORS.length],
-    }
-    drawnRoutes.value = [...drawnRoutes.value, newDrawnRoute]
-    mapApiRef.value?.addOrUpdateDrawnRoute(newDrawnRoute)
-  }
-
-  function addSegmentToDrawnRoute(routeId: string, segmentCoords: Coordinate[]) {
-    drawnRoutes.value = drawnRoutes.value.map((route) => {
-      if (route.id === routeId) {
-        const updatedRoute = { ...route, segments: [...route.segments, segmentCoords] }
-        mapApiRef.value?.addOrUpdateDrawnRoute(updatedRoute)
-        return updatedRoute
-      }
-      return route
-    })
-  }
-
-  function deleteSegmentFromDrawnRoute(routeId: string, segmentIndex: number) {
-    const route = drawnRoutes.value.find(r => r.id === routeId)
-    if (route && mapApiRef.value) {
-      const updatedSegments = route.segments.filter((_, index) => index !== segmentIndex)
-      if (updatedSegments.length === 0) {
-        deleteRoute(routeId)
-      }
-      else {
-        const updatedRoute = { ...route, segments: updatedSegments }
-        drawnRoutes.value = drawnRoutes.value.map(r => (r.id === routeId ? updatedRoute : r))
-        mapApiRef.value.addOrUpdateDrawnRoute(updatedRoute)
-      }
-    }
   }
 
   return {
     routes,
-    drawnRoutes,
     isLoading,
     createNewRoute,
     addPointToRoute,
@@ -276,9 +221,6 @@ export function useGeolocationRoutes(mapApiRef: Ref<GeolocationMapApi | undefine
     refreshRoutePointAddress,
     handlePointDataUpdate,
     setInitialRoutes,
-    addDrawnRoute,
-    addSegmentToDrawnRoute,
-    deleteSegmentFromDrawnRoute,
     setRouteTransportMode,
     updateRouteGeometry,
   }

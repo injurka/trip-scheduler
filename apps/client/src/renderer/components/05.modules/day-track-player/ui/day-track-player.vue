@@ -235,6 +235,11 @@ async function onDeletePoint(pt: DayPoint) {
     flex: 1;
     min-height: 0;
     width: 100%;
+    border-radius: var(--r-l, 16px) var(--r-l, 16px) 0 0;
+
+    :deep(.ol-viewport) {
+      border-radius: var(--r-l, 16px) var(--r-l, 16px) 0 0;
+    }
   }
 
   .floating-close-btn {

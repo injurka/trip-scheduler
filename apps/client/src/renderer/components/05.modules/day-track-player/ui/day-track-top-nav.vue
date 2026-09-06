@@ -86,8 +86,7 @@ const emit = defineEmits<{
       <KitBtn
         variant="tonal"
         size="sm"
-        icon="mdi:crosshairs-gps"
-        title="Центрировать трек на карте"
+        icon="mdi:crosshairs-gps" title="Центрировать трек на карте"
         aria-label="Центрировать трек на карте"
         :disabled="isFitDisabled"
         @click="emit('fitBounds')"

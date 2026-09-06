@@ -1,6 +1,7 @@
 <script setup lang="ts">
-import type { DrawnRoute, MapPoint, MapRoute, TransportMode } from '../models/types'
+import type { MapPoint, MapRoute, TransportMode } from '../models/types'
 import { Icon } from '@iconify/vue'
+import { ref } from 'vue'
 import { KitBtn } from '~/components/01.kit/kit-btn'
 import { KitInlineMdEditorWrapper } from '~/components/01.kit/kit-inline-md-editor'
 import { KitTooltip } from '~/components/01.kit/kit-tooltip'
@@ -8,7 +9,6 @@ import GeolocationPoiList from './geolocation-poi-list.vue'
 
 interface Props {
   routes: MapRoute[]
-  drawnRoutes: DrawnRoute[]
   readonly?: boolean
   activeRouteId: string | null
 }
@@ -18,20 +18,17 @@ const props = defineProps<Props>()
 const emit = defineEmits<{
   (e: 'focusOnPoint', point: MapPoint): void
   (e: 'updatePoint', routeId: string, point: MapPoint): void
-  (e: 'updateRoute', route: (MapRoute | DrawnRoute)): void
+  (e: 'updateRoute', route: MapRoute): void
   (e: 'updatePointCoords', point: MapPoint): void
   (e: 'deletePoint', routeId: string, pointId: string): void
   (e: 'deleteRoute', routeId: string): void
   (e: 'startMovePoint', pointId: string): void
   (e: 'setActiveRoute', routeId: string | null): void
-  (e: 'addSegment', routeId: string): void
-  (e: 'deleteSegment', routeId: string, segmentIndex: number): void
   (e: 'refreshAddress', routeId: string, pointId: string): void
   (e: 'setTransportMode', routeId: string, mode: TransportMode): void
 }>()
 
 const openRoutes = ref<Set<string>>(new Set())
-const collapsedGroups = ref<Set<string>>(new Set())
 
 const transportModes: Array<{ mode: TransportMode, icon: string, label: string }> = [
   { mode: 'foot', icon: 'mdi:walk', label: 'Пешком' },
@@ -44,13 +41,6 @@ function toggleRoute(routeId: string) {
     openRoutes.value.delete(routeId)
   else
     openRoutes.value.add(routeId)
-}
-
-function toggleGroup(groupId: string) {
-  if (collapsedGroups.value.has(groupId))
-    collapsedGroups.value.delete(groupId)
-  else
-    collapsedGroups.value.add(groupId)
 }
 
 function formatDistance(distance?: number): string {
@@ -90,242 +80,124 @@ function handleTransportChange(route: MapRoute, mode: TransportMode) {
 
 <template>
   <div class="route-list-wrapper">
-    <!-- Маршруты по точкам -->
-    <div v-if="routes.length > 0" class="route-group">
-      <div class="group-header" @click="toggleGroup('points')">
-        <span class="group-title">
-          <Icon icon="mdi:routes" class="group-icon" />
-          Маршруты по точкам ({{ routes.length }})
-        </span>
-        <Icon
-          :icon="collapsedGroups.has('points') ? 'mdi:chevron-down' : 'mdi:chevron-up'"
-          class="group-chevron"
-        />
-      </div>
+    <div class="routes-container">
+      <div
+        v-for="route in routes"
+        :key="route.id"
+        class="route-card"
+        :class="{ 'is-active': activeRouteId === route.id }"
+      >
+        <div class="route-color-stripe" :style="{ backgroundColor: route.color || 'var(--fg-accent-color)' }" />
 
-      <div v-if="!collapsedGroups.has('points')" class="routes-container">
-        <div
-          v-for="route in routes"
-          :key="route.id"
-          class="route-card"
-          :class="{ 'is-active': activeRouteId === route.id }"
-        >
-          <!-- Акцентная полоса цвета маршрута -->
-          <div class="route-color-stripe" :style="{ backgroundColor: route.color || 'var(--fg-accent-color)' }" />
-
-          <div class="route-main">
-            <!-- Верхняя строка карточки -->
-            <div class="route-header" @click="toggleRoute(route.id)">
-              <div class="route-title-block">
-                <Icon :icon="getTransportIcon(route.transportMode)" class="route-mode-icon" :style="{ color: route.color }" />
-                <KitInlineMdEditorWrapper
-                  v-if="!readonly"
-                  :model-value="route.title"
-                  class="route-title-editor"
-                  :features="{
-                    'block-edit': false, 'code-mirror': false, 'cursor': false, 'image-block': false, 'latex': false, 'link-tooltip': false, 'table': false, 'toolbar': false,
-                  }"
-                  @update:model-value="route.title = $event"
-                  @blur="emit('updateRoute', route)"
-                />
-                <span v-else class="route-title-static">{{ route.title }}</span>
-                <span v-if="route.isFetching" class="route-loader" />
-              </div>
-
-              <!-- Переключатель транспорта -->
-              <div v-if="!readonly" class="transport-switcher" @click.stop>
-                <KitTooltip
-                  v-for="tm in transportModes"
-                  :key="tm.mode"
-                  :text="tm.label"
-                >
-                  <button
-                    type="button"
-                    class="transport-btn"
-                    :class="{ 'is-active': (route.transportMode || 'foot') === tm.mode }"
-                    @click="handleTransportChange(route, tm.mode)"
-                  >
-                    <Icon :icon="tm.icon" />
-                  </button>
-                </KitTooltip>
-              </div>
-
-              <!-- Метрики маршрута (Дистанция и Время) -->
-              <div class="route-metrics">
-                <span v-if="route.distance" class="metric-badge">
-                  <Icon icon="mdi:map-marker-distance" class="metric-icon" />
-                  {{ formatDistance(route.distance) }}
-                </span>
-                <span v-if="route.duration" class="metric-badge time-badge">
-                  <Icon icon="mdi:clock-outline" class="metric-icon" />
-                  {{ formatDuration(route.duration) }}
-                </span>
-              </div>
-
-              <!-- Действия над маршрутом -->
-              <div class="route-actions" @click.stop>
-                <KitTooltip v-if="!readonly" :text="activeRouteId === route.id ? 'Завершить редактирование' : 'Добавить точки'">
-                  <button
-                    type="button"
-                    class="action-btn"
-                    :class="{ 'is-active': activeRouteId === route.id }"
-                    @click="emit('setActiveRoute', activeRouteId === route.id ? null : route.id)"
-                  >
-                    <Icon icon="mdi:map-marker-path" />
-                  </button>
-                </KitTooltip>
-
-                <KitTooltip v-if="!readonly" text="Удалить маршрут">
-                  <button
-                    type="button"
-                    class="action-btn delete-btn"
-                    @click="emit('deleteRoute', route.id)"
-                  >
-                    <Icon icon="mdi:trash-can-outline" />
-                  </button>
-                </KitTooltip>
-
-                <button type="button" class="action-btn chevron-btn" @click="toggleRoute(route.id)">
-                  <Icon :icon="openRoutes.has(route.id) ? 'mdi:chevron-up' : 'mdi:chevron-down'" />
-                </button>
-              </div>
+        <div class="route-main">
+          <div class="route-header" @click="toggleRoute(route.id)">
+            <div class="route-title-block">
+              <Icon :icon="getTransportIcon(route.transportMode)" class="route-mode-icon" :style="{ color: route.color }" />
+              <KitInlineMdEditorWrapper
+                v-if="!readonly"
+                :model-value="route.title"
+                class="route-title-editor"
+                :features="{
+                  'block-edit': false, 'code-mirror': false, 'cursor': false, 'image-block': false, 'latex': false, 'link-tooltip': false, 'table': false, 'toolbar': false,
+                }"
+                @update:model-value="route.title = $event"
+                @blur="emit('updateRoute', route)"
+              />
+              <span v-else class="route-title-static">{{ route.title }}</span>
+              <span v-if="route.isFetching" class="route-loader" />
             </div>
 
-            <!-- Список точек маршрута при раскрытии -->
-            <div v-if="openRoutes.has(route.id)" class="route-content">
-              <div v-if="route.points.length === 0" class="empty-route-points">
-                <p>В этом маршруте пока нет точек.</p>
-                <KitBtn
-                  v-if="!readonly"
-                  size="xs"
-                  variant="subtle"
-                  icon="mdi:map-marker-plus"
-                  @click="emit('setActiveRoute', route.id)"
+            <div v-if="!readonly" class="transport-switcher" @click.stop>
+              <KitTooltip
+                v-for="tm in transportModes"
+                :key="tm.mode"
+                :text="tm.label"
+              >
+                <button
+                  type="button"
+                  class="transport-btn"
+                  :class="{ 'is-active': (route.transportMode || 'foot') === tm.mode }"
+                  @click="handleTransportChange(route, tm.mode)"
                 >
-                  Кликните на карту для добавления точек
-                </KitBtn>
-              </div>
+                  <Icon :icon="tm.icon" />
+                </button>
+              </KitTooltip>
+            </div>
 
-              <GeolocationPoiList
-                v-else
-                :points="route.points.map(p => ({ ...p, style: { ...p.style, color: route.color } }))"
-                :readonly="!!readonly"
-                @focus-on-point="emit('focusOnPoint', $event)"
-                @update-point="emit('updatePoint', route.id, $event)"
-                @update-point-coords="emit('updatePointCoords', $event)"
-                @start-move-point="emit('startMovePoint', $event)"
-                @delete-point="emit('deletePoint', route.id, $event)"
-                @refresh-address="emit('refreshAddress', route.id, $event)"
-              />
+            <div class="route-metrics">
+              <span v-if="route.distance" class="metric-badge">
+                <Icon icon="mdi:map-marker-distance" class="metric-icon" />
+                {{ formatDistance(route.distance) }}
+              </span>
+              <span v-if="route.duration" class="metric-badge time-badge">
+                <Icon icon="mdi:clock-outline" class="metric-icon" />
+                {{ formatDuration(route.duration) }}
+              </span>
+            </div>
 
-              <div v-if="!readonly && activeRouteId !== route.id" class="add-point-to-route-bar">
-                <KitBtn
-                  size="xs"
-                  variant="text"
-                  icon="mdi:plus"
-                  @click="emit('setActiveRoute', route.id)"
+            <div class="route-actions" @click.stop>
+              <KitTooltip v-if="!readonly" :text="activeRouteId === route.id ? 'Завершить редактирование' : 'Добавить точки'">
+                <button
+                  type="button"
+                  class="action-btn"
+                  :class="{ 'is-active': activeRouteId === route.id }"
+                  @click="emit('setActiveRoute', activeRouteId === route.id ? null : route.id)"
                 >
-                  Добавить точку в маршрут
-                </KitBtn>
-              </div>
+                  <Icon icon="mdi:map-marker-path" />
+                </button>
+              </KitTooltip>
+
+              <KitTooltip v-if="!readonly" text="Удалить маршрут">
+                <button
+                  type="button"
+                  class="action-btn delete-btn"
+                  @click="emit('deleteRoute', route.id)"
+                >
+                  <Icon icon="mdi:trash-can-outline" />
+                </button>
+              </KitTooltip>
+
+              <button type="button" class="action-btn chevron-btn" @click="toggleRoute(route.id)">
+                <Icon :icon="openRoutes.has(route.id) ? 'mdi:chevron-up' : 'mdi:chevron-down'" />
+              </button>
             </div>
           </div>
-        </div>
-      </div>
-    </div>
 
-    <!-- Нарисованные от руки маршруты -->
-    <div v-if="drawnRoutes.length > 0" class="route-group">
-      <div class="group-header" @click="toggleGroup('drawn')">
-        <span class="group-title">
-          <Icon icon="mdi:draw" class="group-icon" />
-          Нарисованные линии ({{ drawnRoutes.length }})
-        </span>
-        <Icon
-          :icon="collapsedGroups.has('drawn') ? 'mdi:chevron-down' : 'mdi:chevron-up'"
-          class="group-chevron"
-        />
-      </div>
-
-      <div v-if="!collapsedGroups.has('drawn')" class="routes-container">
-        <div
-          v-for="route in drawnRoutes"
-          :key="route.id"
-          class="route-card is-drawn"
-        >
-          <div class="route-color-stripe" :style="{ backgroundColor: route.color || 'var(--fg-accent-color)' }" />
-
-          <div class="route-main">
-            <div class="route-header" @click="toggleRoute(route.id)">
-              <div class="route-title-block">
-                <Icon icon="mdi:draw-pen" class="route-mode-icon" :style="{ color: route.color }" />
-                <KitInlineMdEditorWrapper
-                  v-if="!readonly"
-                  :model-value="route.title"
-                  class="route-title-editor"
-                  :features="{
-                    'block-edit': false, 'code-mirror': false, 'cursor': false, 'image-block': false, 'latex': false, 'link-tooltip': false, 'table': false, 'toolbar': false,
-                  }"
-                  @update:model-value="route.title = $event"
-                  @blur="emit('updateRoute', route)"
-                />
-                <span v-else class="route-title-static">{{ route.title }}</span>
-              </div>
-
-              <div class="route-metrics">
-                <span class="metric-badge">
-                  {{ route.segments.length }} {{ route.segments.length === 1 ? 'сегмент' : 'сегментов' }}
-                </span>
-              </div>
-
-              <div class="route-actions" @click.stop>
-                <KitTooltip v-if="!readonly" text="Удалить нарисованный маршрут">
-                  <button
-                    type="button"
-                    class="action-btn delete-btn"
-                    @click="emit('deleteRoute', route.id)"
-                  >
-                    <Icon icon="mdi:trash-can-outline" />
-                  </button>
-                </KitTooltip>
-                <button type="button" class="action-btn chevron-btn" @click="toggleRoute(route.id)">
-                  <Icon :icon="openRoutes.has(route.id) ? 'mdi:chevron-up' : 'mdi:chevron-down'" />
-                </button>
-              </div>
+          <div v-if="openRoutes.has(route.id)" class="route-content">
+            <div v-if="route.points.length === 0" class="empty-route-points">
+              <p>В этом маршруте пока нет точек.</p>
+              <KitBtn
+                v-if="!readonly"
+                size="xs"
+                variant="subtle"
+                icon="mdi:map-marker-plus"
+                @click="emit('setActiveRoute', route.id)"
+              >
+                Кликните на карту для добавления точек
+              </KitBtn>
             </div>
 
-            <div v-if="openRoutes.has(route.id)" class="route-content">
-              <div class="drawn-segments-list">
-                <div
-                  v-for="(_, index) in route.segments"
-                  :key="index"
-                  class="drawn-segment-item"
-                >
-                  <span class="segment-label">
-                    <Icon icon="mdi:vector-polyline" />
-                    Линия {{ index + 1 }}
-                  </span>
-                  <button
-                    v-if="!readonly"
-                    type="button"
-                    class="action-btn delete-btn"
-                    @click="emit('deleteSegment', route.id, index)"
-                  >
-                    <Icon icon="mdi:trash-can-outline" />
-                  </button>
-                </div>
-              </div>
+            <GeolocationPoiList
+              v-else
+              :points="route.points.map(p => ({ ...p, style: { ...p.style, color: route.color } }))"
+              :readonly="!!readonly"
+              @focus-on-point="emit('focusOnPoint', $event)"
+              @update-point="emit('updatePoint', route.id, $event)"
+              @update-point-coords="emit('updatePointCoords', $event)"
+              @start-move-point="emit('startMovePoint', $event)"
+              @delete-point="emit('deletePoint', route.id, $event)"
+              @refresh-address="emit('refreshAddress', route.id, $event)"
+            />
 
-              <div v-if="!readonly" class="add-segment-bar">
-                <KitBtn
-                  icon="mdi:plus"
-                  size="xs"
-                  variant="subtle"
-                  @click="emit('addSegment', route.id)"
-                >
-                  Дорисовать сегмент
-                </KitBtn>
-              </div>
+            <div v-if="!readonly && activeRouteId !== route.id" class="add-point-to-route-bar">
+              <KitBtn
+                size="xs"
+                variant="text"
+                icon="mdi:plus"
+                @click="emit('setActiveRoute', route.id)"
+              >
+                Добавить точку в маршрут
+              </KitBtn>
             </div>
           </div>
         </div>
@@ -338,43 +210,7 @@ function handleTransportChange(route: MapRoute, mode: TransportMode) {
 .route-list-wrapper {
   display: flex;
   flex-direction: column;
-  gap: 10px;
-}
-
-.route-group {
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-}
-
-.group-header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: 4px 8px;
-  cursor: pointer;
-  user-select: none;
-
-  .group-title {
-    display: inline-flex;
-    align-items: center;
-    gap: 6px;
-    font-size: 0.75rem;
-    font-weight: 600;
-    color: var(--fg-secondary-color);
-    text-transform: uppercase;
-    letter-spacing: 0.5px;
-
-    .group-icon {
-      font-size: 0.95rem;
-      color: var(--fg-accent-color);
-    }
-  }
-
-  .group-chevron {
-    font-size: 1rem;
-    color: var(--fg-secondary-color);
-  }
+  gap: 8px;
 }
 
 .routes-container {
@@ -583,36 +419,6 @@ function handleTransportChange(route: MapRoute, mode: TransportMode) {
 .add-point-to-route-bar {
   display: flex;
   justify-content: center;
-  padding-top: 4px;
-}
-
-.drawn-segments-list {
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-}
-
-.drawn-segment-item {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: 4px 8px;
-  background-color: var(--bg-tertiary-color);
-  border-radius: var(--r-xs);
-  border: 1px solid var(--border-secondary-color);
-  font-size: 0.8rem;
-  color: var(--fg-secondary-color);
-
-  .segment-label {
-    display: inline-flex;
-    align-items: center;
-    gap: 6px;
-  }
-}
-
-.add-segment-bar {
-  display: flex;
-  justify-content: flex-start;
   padding-top: 4px;
 }
 

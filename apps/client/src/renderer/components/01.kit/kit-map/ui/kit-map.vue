@@ -106,7 +106,7 @@ function handleFsKeyDown(e: KeyboardEvent) {
   }
 }
 
-const activeLayerId = ref<string>('osm')
+const activeLayerId = ref<string>('maptilerOutdoor')
 const availableLayers = shallowRef<MapLayerOption[]>([])
 
 watch(
@@ -148,16 +148,15 @@ onMounted(async () => {
   }
   else {
     const isMapTilerAvailable = await checkMapTilerAvailability()
-
     const layers: MapLayerOption[] = []
 
     if (isMapTilerAvailable) {
-      layers.push({ id: 'maptilerStreets', ...TILE_SOURCES.maptilerStreets })
-      layers.push({ id: 'maptilerTopo', ...TILE_SOURCES.maptilerTopo })
+      layers.push({ id: 'maptilerOutdoor', ...TILE_SOURCES.maptilerOutdoor } as MapLayerOption)
+      layers.push({ id: 'maptilerStreets', ...TILE_SOURCES.maptilerStreets } as MapLayerOption)
+      layers.push({ id: 'satellite', ...TILE_SOURCES.satellite } as MapLayerOption)
     }
 
-    layers.push({ id: 'osm', ...TILE_SOURCES.osm })
-    layers.push({ id: 'satellite', ...TILE_SOURCES.satellite })
+    layers.push({ id: 'osm', ...TILE_SOURCES.osm } as MapLayerOption)
 
     availableLayers.value = layers
     activeLayerId.value = layers[0].id

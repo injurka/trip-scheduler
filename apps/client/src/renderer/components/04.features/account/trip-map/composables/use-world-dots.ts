@@ -15,6 +15,7 @@ export function useWorldDots() {
     const r = await fetch('/ne_110m_land.geojson')
     if (!r.ok)
       throw new Error(`[WorldDots] GeoJSON ${r.status}`)
+
     geoData = await r.json()
   }
 

@@ -14,6 +14,7 @@
     "IconCategory": true,
     "ImageOptions": true,
     "InjectionKey": true,
+    "MapSourceConfig": true,
     "MaybeRef": true,
     "MaybeRefOrGetter": true,
     "PropType": true,

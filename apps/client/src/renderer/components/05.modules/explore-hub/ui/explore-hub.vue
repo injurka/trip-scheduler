@@ -144,6 +144,7 @@ onMounted(() => {
   align-items: center;
   margin-bottom: 1rem;
   padding-bottom: 1rem;
+  padding-top: var(--safe-area-inset-top);
   border-bottom: 1px solid var(--border-secondary-color);
 }
 .panel-title {
