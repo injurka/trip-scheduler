@@ -849,7 +849,7 @@ onUnmounted(() => {
   display: flex;
   justify-content: space-between;
   align-items: flex-start;
-  padding: 20px;
+  padding: calc(20px + var(--safe-area-inset-top, env(safe-area-inset-top, 0px))) 20px 20px;
   z-index: 10;
   pointer-events: none;
   background: linear-gradient(to bottom, rgba(0, 0, 0, 0.6) 0%, rgba(0, 0, 0, 0) 100%);
@@ -873,19 +873,19 @@ onUnmounted(() => {
 
 .header-left {
   position: absolute;
-  left: 20px;
-  top: 20px;
+  left: calc(20px + var(--safe-area-inset-left, env(safe-area-inset-left, 0px)));
+  top: calc(20px + var(--safe-area-inset-top, env(safe-area-inset-top, 0px)));
 }
 .header-center {
   position: absolute;
   left: 50%;
-  top: 20px;
+  top: calc(20px + var(--safe-area-inset-top, env(safe-area-inset-top, 0px)));
   transform: translateX(-50%);
 }
 .header-right {
   position: absolute;
-  right: 20px;
-  top: 20px;
+  right: calc(20px + var(--safe-area-inset-right, env(safe-area-inset-right, 0px)));
+  top: calc(20px + var(--safe-area-inset-top, env(safe-area-inset-top, 0px)));
 }
 
 .viewer-counter,
@@ -1482,20 +1482,27 @@ onUnmounted(() => {
 }
 
 @media (max-width: 959px) {
-  .viewer-header,
-  .header-right {
+  .viewer-header {
     display: flex;
     justify-content: flex-end;
     top: 0;
-    left: 0px;
-    right: 8px;
-    padding: 16px 0;
+    left: 0;
+    right: 0;
+    padding: calc(16px + var(--safe-area-inset-top, env(safe-area-inset-top, 0px))) 0 16px;
+  }
+  .header-right {
+    display: flex;
+    justify-content: flex-end;
+    top: calc(16px + var(--safe-area-inset-top, env(safe-area-inset-top, 0px)));
+    right: calc(8px + var(--safe-area-inset-right, env(safe-area-inset-right, 0px)));
   }
   .header-left {
     justify-content: flex-start;
+    top: calc(16px + var(--safe-area-inset-top, env(safe-area-inset-top, 0px)));
+    left: calc(8px + var(--safe-area-inset-left, env(safe-area-inset-left, 0px)));
   }
   .header-center {
-    top: 60px;
+    top: calc(60px + var(--safe-area-inset-top, env(safe-area-inset-top, 0px)));
     left: 50%;
     transform: translateX(-50%);
     opacity: 0.5;
@@ -1516,7 +1523,7 @@ onUnmounted(() => {
     font-size: 11px;
   }
   .thumbnails-container {
-    bottom: 16px;
+    bottom: calc(16px + var(--safe-area-inset-bottom, env(safe-area-inset-bottom, 0px)));
   }
   .thumbnails-wrapper {
     --thumb-size: 44px;

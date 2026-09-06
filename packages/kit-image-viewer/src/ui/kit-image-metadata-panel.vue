@@ -394,7 +394,7 @@ const extendedInfo = computed(() => {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 16px 20px;
+  padding: calc(16px + var(--safe-area-inset-top, env(safe-area-inset-top, 0px))) 20px 16px;
   border-bottom: 1px solid var(--border-primary-color, rgba(255, 255, 255, 0.15));
   flex-shrink: 0;
 }
