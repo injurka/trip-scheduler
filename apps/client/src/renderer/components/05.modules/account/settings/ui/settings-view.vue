@@ -44,6 +44,7 @@ const {
   vaultPath,
   selectVaultFolder,
   isNative,
+  isMobileApp,
   isCheckingUpdate,
   checkManualUpdate,
   appVersion,
@@ -495,17 +496,21 @@ function applyCrop() {
                       Оффлайн-хранилище медиафайлов
                     </div>
                     <div class="block-desc">
-                      Локальная папка для кэширования фотографий и маршрутов. Позволяет просматривать воспоминания без подключения к сети.
+                      {{ isMobileApp
+                        ? 'Локальное хранилище для кэширования фотографий и маршрутов во внутренней памяти устройства. Позволяет просматривать воспоминания без подключения к сети.'
+                        : 'Локальная папка для кэширования фотографий и маршрутов. Позволяет просматривать воспоминания без подключения к сети.'
+                      }}
                     </div>
                   </div>
                 </div>
 
                 <div class="vault-picker-row">
                   <div class="vault-path-box">
-                    <Icon icon="mdi:folder-outline" class="path-icon" />
-                    <span class="path-text">{{ vaultPath || 'Папка не выбрана' }}</span>
+                    <Icon :icon="isMobileApp ? 'mdi:cellphone-check' : 'mdi:folder-outline'" class="path-icon" />
+                    <span class="path-text">{{ isMobileApp ? 'Внутренняя память приложения' : (vaultPath || 'Папка не выбрана') }}</span>
                   </div>
                   <KitBtn
+                    v-if="!isMobileApp"
                     variant="outlined"
                     color="secondary"
                     size="md"

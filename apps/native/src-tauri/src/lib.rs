@@ -40,7 +40,21 @@ fn write_vault_path(app: &tauri::AppHandle, vault_path: &str) {
 
 #[tauri::command]
 fn vault_get_path(app: tauri::AppHandle) -> Option<String> {
-    read_vault_path(&app)
+    #[cfg(mobile)]
+    {
+        if let Some(saved) = read_vault_path(&app) {
+            return Some(saved);
+        }
+        if let Some(path) = pick_vault_folder(&app) {
+            write_vault_path(&app, &path);
+            return Some(path);
+        }
+        None
+    }
+    #[cfg(desktop)]
+    {
+        read_vault_path(&app)
+    }
 }
 
 /// Диалог выбора папки существует только на десктопе: в tauri-plugin-dialog

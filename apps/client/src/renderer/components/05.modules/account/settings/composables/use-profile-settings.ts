@@ -370,7 +370,7 @@ export function useProfileSettings() {
   })
 
   return {
-    vaultPath: vaultStore.vaultPath,
+    vaultPath: computed(() => vaultStore.vaultPath),
     selectVaultFolder: vaultStore.selectFolder,
     isNative: vaultStore.isNative,
     isMobileApp,

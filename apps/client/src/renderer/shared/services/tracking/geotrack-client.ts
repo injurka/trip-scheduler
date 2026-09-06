@@ -204,11 +204,44 @@ class BackgroundAudioKeepalive {
         this.audio.setAttribute('webkit-playsinline', 'true')
       }
 
+      // Настройка MediaSession для Android (создает статусное системное уведомление воспроизведения в шторке,
+      // защищающее фоновый процесс от выгрузки системой в Doze Mode)
+      if ('mediaSession' in navigator) {
+        try {
+          navigator.mediaSession.metadata = new MediaMetadata({
+            title: 'Фоновая запись маршрута GPS',
+            artist: 'TripScheduler',
+            album: 'Активная запись трека',
+          })
+
+          navigator.mediaSession.playbackState = 'playing'
+
+          // Перехват кнопок медиа-контрола в шторке уведомлений
+          navigator.mediaSession.setActionHandler('play', () => {
+            if (this.audio) {
+              void this.audio.play()
+              this.isPlaying = true
+              navigator.mediaSession.playbackState = 'playing'
+            }
+          })
+          navigator.mediaSession.setActionHandler('pause', () => {
+            // Игнорируем или держим активным
+            navigator.mediaSession.playbackState = 'playing'
+          })
+        }
+        catch (mediaErr) {
+          console.warn('[Tracking] Ошибка настройки MediaSession:', mediaErr)
+        }
+      }
+
       const promise = this.audio.play()
       if (promise !== undefined) {
         promise
           .then(() => {
             this.isPlaying = true
+            if ('mediaSession' in navigator) {
+              navigator.mediaSession.playbackState = 'playing'
+            }
           })
           .catch(() => {
             // Если autoplay заблокирован политикой браузера, возобновляем при первом жесте
@@ -216,6 +249,9 @@ class BackgroundAudioKeepalive {
               if (this.audio && !this.isPlaying) {
                 this.audio.play().then(() => {
                   this.isPlaying = true
+                  if ('mediaSession' in navigator) {
+                    navigator.mediaSession.playbackState = 'playing'
+                  }
                 }).catch(() => {})
               }
             }
@@ -239,6 +275,18 @@ class BackgroundAudioKeepalive {
         // игнорируем
       }
       this.isPlaying = false
+    }
+
+    if (typeof navigator !== 'undefined' && 'mediaSession' in navigator) {
+      try {
+        navigator.mediaSession.playbackState = 'none'
+        navigator.mediaSession.metadata = null
+        navigator.mediaSession.setActionHandler('play', null)
+        navigator.mediaSession.setActionHandler('pause', null)
+      }
+      catch {
+        // игнорируем
+      }
     }
   }
 }

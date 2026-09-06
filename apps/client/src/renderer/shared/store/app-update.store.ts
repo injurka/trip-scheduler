@@ -179,8 +179,17 @@ export const useAppUpdateStore = defineStore('appUpdate', {
         await invoke('open_downloaded_apk', { path: this.downloadedFilePath })
       }
       catch (e: any) {
-        console.error('[AppUpdate] Ошибка открытия APK:', e)
-        toastStore.error('Не удалось открыть установщик APK')
+        console.error('[AppUpdate] Ошибка открытия локального установщика APK:', e)
+        // Если локальный интент заблокирован системой безопасности Android или не поддерживается,
+        // предоставляем бесшовный фолбэк — открываем прямую ссылку на APK в браузере устройства
+        const fallbackUrl = this.apkUrl || this.releaseUrl
+        if (fallbackUrl) {
+          toastStore.info('Открываем загрузку через системный браузер...')
+          window.open(fallbackUrl, '_blank')
+        }
+        else {
+          toastStore.error('Не удалось запустить установщик APK')
+        }
       }
     },
 

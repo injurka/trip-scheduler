@@ -2,6 +2,7 @@ import { useModuleStore } from '~/components/05.modules/trip-info/composables/us
 import { useConfirm } from '~/shared/composables/use-confirm'
 import { useToast } from '~/shared/composables/use-toast'
 import { AppRoutePaths } from '~/shared/constants/routes'
+import { isMobileApp } from '~/shared/lib/env'
 import { useAuthStore } from '~/shared/store/auth.store'
 import { useVaultMemoriesStore } from '../store/vault-memories.store'
 
@@ -40,6 +41,13 @@ export function useTripMemoriesVault() {
     if (vaultStore.isConfigured)
       return true
 
+    if (isMobileApp) {
+      await vaultStore.selectFolder()
+      if (vaultStore.isConfigured) {
+        return true
+      }
+    }
+
     const isConfirmed = await confirm({
       title: 'Папка не выбрана',
       description,
@@ -55,7 +63,9 @@ export function useTripMemoriesVault() {
 
   async function handleToggleLocalMode() {
     const isConfigured = await ensureVaultConfigured(
-      'Включить локальный режим невозможно, пока не выбрана папка хранилища.',
+      isMobileApp
+        ? 'Включить локальный режим невозможно: хранилище не инициализировано.'
+        : 'Включить локальный режим невозможно, пока не выбрана папка хранилища.',
     )
 
     if (isConfigured) {
@@ -68,7 +78,9 @@ export function useTripMemoriesVault() {
       return
 
     const isConfigured = await ensureVaultConfigured(
-      'Выберите папку на компьютере для сохранения медиа, чтобы просматривать их оффлайн.',
+      isMobileApp
+        ? 'Требуется инициализировать хранилище устройства для сохранения медиа.'
+        : 'Выберите папку на компьютере для сохранения медиа, чтобы просматривать их оффлайн.',
     )
 
     if (!isConfigured)
