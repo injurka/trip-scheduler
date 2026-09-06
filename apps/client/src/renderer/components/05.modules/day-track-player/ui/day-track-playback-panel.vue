@@ -47,55 +47,59 @@ const currentT = computed({
 <template>
   <div class="memories-panel">
     <div class="memories-readout">
-      <div class="readout-time-group">
-        <span class="time">{{ timeLabel }}</span>
-        <button
-          class="tz-toggle-chip"
-          :class="{ 'is-track': timezoneMode === 'track', 'is-device': timezoneMode === 'device' }"
-          :title="timezoneMode === 'track'
-            ? `Показывается местное время в месте записи${trackTimezone ? ` (${trackTimezone})` : ''}. Нажмите для переключения на локальное время устройства (${deviceTimezone})`
-            : `Показывается локальное время устройства (${deviceTimezone}). Нажмите для переключения на местное время записи${trackTimezone ? ` (${trackTimezone})` : ''}`"
-          @click="emit('toggleTimezone')"
-        >
-          {{ timezoneMode === 'track' ? 'Местное' : 'Локальное' }}
-        </button>
+      <div class="readout-header">
+        <div class="readout-time-group">
+          <span class="time">{{ timeLabel }}</span>
+          <button
+            class="tz-toggle-chip"
+            :class="{ 'is-track': timezoneMode === 'track', 'is-device': timezoneMode === 'device' }"
+            :title="timezoneMode === 'track'
+              ? `Показывается местное время в месте записи${trackTimezone ? ` (${trackTimezone})` : ''}. Нажмите для переключения на локальное время устройства (${deviceTimezone})`
+              : `Показывается локальное время устройства (${deviceTimezone}). Нажмите для переключения на местное время записи${trackTimezone ? ` (${trackTimezone})` : ''}`"
+            @click="emit('toggleTimezone')"
+          >
+            {{ timezoneMode === 'track' ? 'Местное' : 'Локальное' }}
+          </button>
+        </div>
+
+        <div class="track-stats-right">
+          <button
+            class="camera-follow-btn"
+            :class="{ 'is-active': isFollowCamera }"
+            title="Слежение камерой за движением"
+            @click="emit('update:isFollowCamera', !isFollowCamera)"
+          >
+            <Icon :icon="isFollowCamera ? 'mdi:crosshairs-gps' : 'mdi:crosshairs'" />
+            <span class="camera-btn-text">{{ isFollowCamera ? 'Слежение' : 'Свободная' }}</span>
+          </button>
+          <span
+            class="points-count"
+            :title="totalPointsCount !== displayPointsCount ? `Отображается ${displayPointsCount} объединенных точек из ${totalPointsCount} исходных` : ''"
+          >
+            {{ displayPointsCount }} точек
+            <span v-if="totalPointsCount !== displayPointsCount" class="raw-count-sub">({{ totalPointsCount }})</span>
+          </span>
+        </div>
       </div>
 
-      <div
-        v-if="currentSegment"
-        class="activity-badge"
-        :style="{
-          backgroundColor: `${ACTIVITY_COLORS[currentSegment.activity]}20`,
-          color: ACTIVITY_COLORS[currentSegment.activity],
-          borderColor: `${ACTIVITY_COLORS[currentSegment.activity]}40`,
-        }"
-      >
-        <Icon :icon="ACTIVITY_ICONS[currentSegment.activity]" />
-        <span>{{ ACTIVITY_LABELS[currentSegment.activity] }}</span>
-      </div>
-
-      <div v-if="speedKmh !== null" class="speed-badge">
-        <Icon icon="mdi:speedometer" />
-        <span>{{ speedKmh.toFixed(0) }} км/ч</span>
-      </div>
-
-      <div class="track-stats-right">
-        <button
-          class="camera-follow-btn"
-          :class="{ 'is-active': isFollowCamera }"
-          title="Слежение камерой за движением"
-          @click="emit('update:isFollowCamera', !isFollowCamera)"
+      <div v-if="currentSegment || speedKmh !== null" class="readout-badges">
+        <div
+          v-if="currentSegment"
+          class="activity-badge"
+          :style="{
+            backgroundColor: `${ACTIVITY_COLORS[currentSegment.activity]}20`,
+            color: ACTIVITY_COLORS[currentSegment.activity],
+            borderColor: `${ACTIVITY_COLORS[currentSegment.activity]}40`,
+          }"
         >
-          <Icon :icon="isFollowCamera ? 'mdi:crosshairs-gps' : 'mdi:crosshairs'" />
-          <span class="camera-btn-text">{{ isFollowCamera ? 'Слежение' : 'Свободная' }}</span>
-        </button>
-        <span
-          class="points-count"
-          :title="totalPointsCount !== displayPointsCount ? `Отображается ${displayPointsCount} объединенных точек из ${totalPointsCount} исходных` : ''"
-        >
-          {{ displayPointsCount }} точек
-          <span v-if="totalPointsCount !== displayPointsCount" class="raw-count-sub">({{ totalPointsCount }})</span>
-        </span>
+          <Icon :icon="ACTIVITY_ICONS[currentSegment.activity]" />
+          <span>{{ ACTIVITY_LABELS[currentSegment.activity] }}</span>
+        </div>
+
+        <div v-if="speedKmh !== null" class="speed-badge">
+          <Icon icon="mdi:speedometer" />
+          <span>{{ speedKmh.toFixed(0) }} км/ч</span>
+        </div>
       </div>
     </div>
 
@@ -215,7 +219,12 @@ const currentT = computed({
     gap: 12px;
     font-variant-numeric: tabular-nums;
 
+    .readout-header {
+      display: contents;
+    }
+
     .readout-time-group {
+      order: 1;
       display: flex;
       align-items: baseline;
       gap: 6px;
@@ -264,6 +273,13 @@ const currentT = computed({
       }
     }
 
+    .readout-badges {
+      order: 2;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
     .activity-badge {
       display: inline-flex;
       align-items: center;
@@ -284,6 +300,7 @@ const currentT = computed({
     }
 
     .track-stats-right {
+      order: 3;
       margin-left: auto;
       display: flex;
       align-items: center;
@@ -461,13 +478,38 @@ const currentT = computed({
     gap: 8px;
 
     .memories-readout {
-      flex-wrap: wrap;
-      gap: 6px 10px;
+      display: flex;
+      flex-direction: column;
+      align-items: stretch;
+      gap: 6px;
+
+      .readout-header {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        width: 100%;
+        gap: 8px;
+      }
 
       .readout-time-group {
+        order: 1;
+
         .time {
           font-size: 1.1rem;
         }
+
+        .tz-toggle-chip {
+          padding: 2px 6px;
+          font-size: 0.65rem;
+        }
+      }
+
+      .readout-badges {
+        order: 2;
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        flex-wrap: wrap;
       }
 
       .activity-badge {
@@ -480,8 +522,18 @@ const currentT = computed({
       }
 
       .track-stats-right {
+        order: 2;
+        margin-left: 0;
         gap: 6px;
         font-size: 0.72rem;
+
+        .camera-follow-btn {
+          padding: 3px 6px;
+
+          .camera-btn-text {
+            display: none;
+          }
+        }
 
         .points-count {
           font-size: 0.7rem;

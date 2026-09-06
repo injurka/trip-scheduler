@@ -3,9 +3,8 @@ import type { Map as OlMap } from 'ol'
 import type TileSource from 'ol/source/Tile'
 import type { MapLayerOption, MapMarker } from '../models/types'
 import type { TileSourceId } from '~/shared/lib/map-styles-sources'
-import { useFullscreen } from '@vueuse/core'
 import { fromLonLat } from 'ol/proj'
-import { onMounted, ref, shallowRef, watch } from 'vue'
+import { nextTick, onMounted, onUnmounted, ref, shallowRef, watch } from 'vue'
 import { KitBtn } from '~/components/01.kit/kit-btn'
 import { checkMapTilerAvailability, TILE_SOURCES } from '~/shared/lib/map-styles-sources'
 import { useKitMap } from '../composables/use-kit-map'
@@ -56,7 +55,56 @@ const {
   clearSearchResult,
 } = useKitMap()
 
-const { isFullscreen, toggle: toggleFullscreen } = useFullscreen(mapWrapperRef)
+const isFullscreen = ref(false)
+
+async function toggleFullscreen() {
+  if (!mapWrapperRef.value)
+    return
+
+  if (document.fullscreenElement) {
+    try {
+      await document.exitFullscreen()
+    }
+    catch {
+      isFullscreen.value = false
+    }
+  }
+  else if (isFullscreen.value) {
+    isFullscreen.value = false
+  }
+  else {
+    try {
+      if (document.fullscreenEnabled && mapWrapperRef.value.requestFullscreen) {
+        await mapWrapperRef.value.requestFullscreen()
+      }
+      else {
+        isFullscreen.value = true
+      }
+    }
+    catch {
+      isFullscreen.value = true
+    }
+  }
+  nextTick(() => {
+    mapInstance.value?.updateSize()
+  })
+}
+
+function handleFsChange() {
+  isFullscreen.value = document.fullscreenElement === mapWrapperRef.value
+  nextTick(() => {
+    mapInstance.value?.updateSize()
+  })
+}
+
+function handleFsKeyDown(e: KeyboardEvent) {
+  if (e.key === 'Escape' && isFullscreen.value && !document.fullscreenElement) {
+    isFullscreen.value = false
+    nextTick(() => {
+      mapInstance.value?.updateSize()
+    })
+  }
+}
 
 const activeLayerId = ref<string>('osm')
 const availableLayers = shallowRef<MapLayerOption[]>([])
@@ -139,11 +187,24 @@ onMounted(async () => {
       fitViewToMarkers()
     }
   }
+
+  document.addEventListener('fullscreenchange', handleFsChange)
+  window.addEventListener('keydown', handleFsKeyDown)
+})
+
+onUnmounted(() => {
+  document.removeEventListener('fullscreenchange', handleFsChange)
+  window.removeEventListener('keydown', handleFsKeyDown)
 })
 </script>
 
 <template>
-  <div ref="mapWrapperRef" class="kit-map-wrapper" :style="{ height, width }">
+  <div
+    ref="mapWrapperRef"
+    class="kit-map-wrapper"
+    :class="{ 'is-fullscreen': isFullscreen }"
+    :style="isFullscreen ? { height: '100vh', width: '100vw' } : { height, width }"
+  >
     <div v-if="!isMapReady" class="loading-overlay">
       <span>Инициализация карты...</span>
     </div>
@@ -225,7 +286,11 @@ onMounted(async () => {
   border-radius: var(--r-m);
   overflow: hidden;
 
-  &:fullscreen {
+  &:fullscreen,
+  &.is-fullscreen {
+    position: fixed;
+    inset: 0;
+    z-index: 2000;
     border-radius: 0;
     width: 100vw !important;
     height: 100vh !important;

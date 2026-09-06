@@ -263,22 +263,53 @@ function setActiveRoute(routeId: string | null) {
     mode.value = 'pan'
 }
 
-function handleToggleFullscreen() {
+async function handleToggleFullscreen() {
   if (!sectionContainerRef.value)
     return
 
-  if (!document.fullscreenElement) {
-    sectionContainerRef.value.requestFullscreen().catch((err) => {
-      console.error(`Ошибка при попытке включить полноэкранный режим: ${err.message} (${err.name})`)
-    })
+  if (document.fullscreenElement) {
+    try {
+      await document.exitFullscreen()
+    }
+    catch {
+      isMapFullscreen.value = false
+    }
+  }
+  else if (isMapFullscreen.value) {
+    isMapFullscreen.value = false
   }
   else {
-    document.exitFullscreen()
+    try {
+      if (document.fullscreenEnabled && sectionContainerRef.value.requestFullscreen) {
+        await sectionContainerRef.value.requestFullscreen()
+      }
+      else {
+        isMapFullscreen.value = true
+      }
+    }
+    catch {
+      isMapFullscreen.value = true
+    }
   }
+  nextTick(() => {
+    mapController.value?.mapInstance.value?.updateSize()
+  })
 }
 
 function handleFullscreenChange() {
   isMapFullscreen.value = document.fullscreenElement === sectionContainerRef.value
+  nextTick(() => {
+    mapController.value?.mapInstance.value?.updateSize()
+  })
+}
+
+function handleKeyDown(e: KeyboardEvent) {
+  if (e.key === 'Escape' && isMapFullscreen.value && !document.fullscreenElement) {
+    isMapFullscreen.value = false
+    nextTick(() => {
+      mapController.value?.mapInstance.value?.updateSize()
+    })
+  }
 }
 
 async function onMapReady(controller: ReturnType<typeof useGeolocationMap>) {
@@ -359,11 +390,13 @@ watchEffect(() => {
 
 onMounted(() => {
   document.addEventListener('fullscreenchange', handleFullscreenChange)
+  window.addEventListener('keydown', handleKeyDown)
 })
 
 onUnmounted(() => {
   stopDrawing()
   document.removeEventListener('fullscreenchange', handleFullscreenChange)
+  window.removeEventListener('keydown', handleKeyDown)
 })
 </script>
 
@@ -663,6 +696,10 @@ onUnmounted(() => {
     padding: 0;
     border-radius: 0;
     border: none;
+
+    .map-wrapper {
+      height: 100%;
+    }
   }
 }
 

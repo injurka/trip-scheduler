@@ -36,19 +36,40 @@ export function useMapFullscreen() {
     Object.assign(mapT, { scale: 1, tx: 0, ty: 0 })
   }
 
-  async function toggle(el: HTMLElement): Promise<void> {
+  async function toggle(el: HTMLElement, onResize?: () => void): Promise<void> {
     try {
-      document.fullscreenElement
-        ? await document.exitFullscreen()
-        : await el.requestFullscreen()
+      if (document.fullscreenElement) {
+        await document.exitFullscreen()
+      }
+      else if (isFullscreen.value && !document.fullscreenElement) {
+        isFullscreen.value = false
+        reset()
+        onResize?.()
+      }
+      else if (document.fullscreenEnabled && el?.requestFullscreen) {
+        await el.requestFullscreen()
+      }
+      else {
+        isFullscreen.value = true
+        onResize?.()
+      }
     }
-    catch { }
+    catch {
+      isFullscreen.value = !isFullscreen.value
+      if (!isFullscreen.value)
+        reset()
+      onResize?.()
+    }
   }
 
   function onFsChange(onResize: () => void): void {
-    isFullscreen.value = !!document.fullscreenElement
-    if (!isFullscreen.value)
+    if (document.fullscreenElement) {
+      isFullscreen.value = true
+    }
+    else {
+      isFullscreen.value = false
       reset()
+    }
     onResize()
   }
 

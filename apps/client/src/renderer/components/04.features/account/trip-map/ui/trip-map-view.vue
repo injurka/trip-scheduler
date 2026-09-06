@@ -166,7 +166,13 @@ function handleWindowResize(): void {
 }
 
 function handleToggleFullscreen(): void {
-  fsToggle(containerRef.value!)
+  fsToggle(containerRef.value!, () => nextTick(applySize))
+}
+
+function handleFsKeyDown(e: KeyboardEvent): void {
+  if (e.key === 'Escape' && isFullscreen.value && !document.fullscreenElement) {
+    fsToggle(containerRef.value!, () => nextTick(applySize))
+  }
 }
 
 function resetMap() {
@@ -322,6 +328,7 @@ onMounted(async () => {
   scrollRef.value?.addEventListener('touchcancel', handleTouchEnd, { passive: false })
 
   document.addEventListener('fullscreenchange', handleFsChange)
+  window.addEventListener('keydown', handleFsKeyDown)
   window.addEventListener('mousemove', handleGlobalMouseMove)
   window.addEventListener('mouseup', handleGlobalMouseUp)
 
@@ -341,6 +348,7 @@ onUnmounted(() => {
   scrollRef.value?.removeEventListener('touchcancel', handleTouchEnd)
 
   document.removeEventListener('fullscreenchange', handleFsChange)
+  window.removeEventListener('keydown', handleFsKeyDown)
   window.removeEventListener('mousemove', handleGlobalMouseMove)
   window.removeEventListener('mouseup', handleGlobalMouseUp)
 })

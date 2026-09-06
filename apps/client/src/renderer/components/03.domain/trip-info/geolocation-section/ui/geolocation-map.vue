@@ -253,7 +253,7 @@ watch(isMapLoaded, (isReady) => {
   <div
     ref="mapContainerRef"
     class="geolocation-map-container"
-    :style="{ height }"
+    :style="{ height: isFullscreen ? '100%' : height }"
     :class="{ 'cursor-crosshair': mode === 'add_point' || mode === 'add_route_point' || mode === 'draw_route', 'cursor-grab': mode === 'pan' && isMapActive, 'cursor-move': mode === 'move_point' }"
     @contextmenu.prevent="openContextMenu"
   >

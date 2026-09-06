@@ -55,8 +55,10 @@ declare global {
   const getLocalDate: typeof import('../../lib/date-time').getLocalDate
   const getTimeFromTimestamp: typeof import('../../lib/date-time').getTimeFromTimestamp
   const h: typeof import('vue').h
+  const handleDeepLinkUrl: typeof import('../../lib/deep-link').handleDeepLinkUrl
   const iconCategories: typeof import('../../constants/icon-list').iconCategories
   const ignorableWatch: typeof import('@vueuse/core').ignorableWatch
+  const initializeDeepLinks: typeof import('../../lib/deep-link').initializeDeepLinks
   const inject: typeof import('vue').inject
   const injectLocal: typeof import('@vueuse/core').injectLocal
   const isDefined: typeof import('@vueuse/core').isDefined
@@ -101,6 +103,7 @@ declare global {
   const onUnmounted: typeof import('vue').onUnmounted
   const onUpdated: typeof import('vue').onUpdated
   const onWatcherCleanup: typeof import('vue').onWatcherCleanup
+  const openExternalUrl: typeof import('../../lib/opener').openExternalUrl
   const pausableWatch: typeof import('@vueuse/core').pausableWatch
   const provide: typeof import('vue').provide
   const provideLocal: typeof import('@vueuse/core').provideLocal
@@ -129,6 +132,7 @@ declare global {
   const shallowReadonly: typeof import('vue').shallowReadonly
   const shallowRef: typeof import('vue').shallowRef
   const sharedIconList: typeof import('../../constants/icon-list').sharedIconList
+  const slugify: typeof import('../../lib/slug').slugify
   const storeToRefs: typeof import('pinia').storeToRefs
   const syncRef: typeof import('@vueuse/core').syncRef
   const syncRefs: typeof import('@vueuse/core').syncRefs
@@ -141,6 +145,7 @@ declare global {
   const toRef: typeof import('vue').toRef
   const toRefs: typeof import('vue').toRefs
   const toValue: typeof import('vue').toValue
+  const transliterate: typeof import('../../lib/slug').transliterate
   const triggerRef: typeof import('vue').triggerRef
   const tryOnBeforeMount: typeof import('@vueuse/core').tryOnBeforeMount
   const tryOnBeforeUnmount: typeof import('@vueuse/core').tryOnBeforeUnmount
@@ -425,8 +430,10 @@ declare module 'vue' {
     readonly getLocalDate: UnwrapRef<typeof import('../../lib/date-time')['getLocalDate']>
     readonly getTimeFromTimestamp: UnwrapRef<typeof import('../../lib/date-time')['getTimeFromTimestamp']>
     readonly h: UnwrapRef<typeof import('vue')['h']>
+    readonly handleDeepLinkUrl: UnwrapRef<typeof import('../../lib/deep-link')['handleDeepLinkUrl']>
     readonly iconCategories: UnwrapRef<typeof import('../../constants/icon-list')['iconCategories']>
     readonly ignorableWatch: UnwrapRef<typeof import('@vueuse/core')['ignorableWatch']>
+    readonly initializeDeepLinks: UnwrapRef<typeof import('../../lib/deep-link')['initializeDeepLinks']>
     readonly inject: UnwrapRef<typeof import('vue')['inject']>
     readonly injectLocal: UnwrapRef<typeof import('@vueuse/core')['injectLocal']>
     readonly isDefined: UnwrapRef<typeof import('@vueuse/core')['isDefined']>
@@ -470,6 +477,7 @@ declare module 'vue' {
     readonly onUnmounted: UnwrapRef<typeof import('vue')['onUnmounted']>
     readonly onUpdated: UnwrapRef<typeof import('vue')['onUpdated']>
     readonly onWatcherCleanup: UnwrapRef<typeof import('vue')['onWatcherCleanup']>
+    readonly openExternalUrl: UnwrapRef<typeof import('../../lib/opener')['openExternalUrl']>
     readonly pausableWatch: UnwrapRef<typeof import('@vueuse/core')['pausableWatch']>
     readonly provide: UnwrapRef<typeof import('vue')['provide']>
     readonly provideLocal: UnwrapRef<typeof import('@vueuse/core')['provideLocal']>
@@ -497,6 +505,7 @@ declare module 'vue' {
     readonly shallowReadonly: UnwrapRef<typeof import('vue')['shallowReadonly']>
     readonly shallowRef: UnwrapRef<typeof import('vue')['shallowRef']>
     readonly sharedIconList: UnwrapRef<typeof import('../../constants/icon-list')['sharedIconList']>
+    readonly slugify: UnwrapRef<typeof import('../../lib/slug')['slugify']>
     readonly storeToRefs: UnwrapRef<typeof import('pinia')['storeToRefs']>
     readonly syncRef: UnwrapRef<typeof import('@vueuse/core')['syncRef']>
     readonly syncRefs: UnwrapRef<typeof import('@vueuse/core')['syncRefs']>
@@ -509,6 +518,7 @@ declare module 'vue' {
     readonly toRef: UnwrapRef<typeof import('vue')['toRef']>
     readonly toRefs: UnwrapRef<typeof import('vue')['toRefs']>
     readonly toValue: UnwrapRef<typeof import('vue')['toValue']>
+    readonly transliterate: UnwrapRef<typeof import('../../lib/slug')['transliterate']>
     readonly triggerRef: UnwrapRef<typeof import('vue')['triggerRef']>
     readonly tryOnBeforeMount: UnwrapRef<typeof import('@vueuse/core')['tryOnBeforeMount']>
     readonly tryOnBeforeUnmount: UnwrapRef<typeof import('@vueuse/core')['tryOnBeforeUnmount']>
