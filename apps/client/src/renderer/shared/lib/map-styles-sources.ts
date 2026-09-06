@@ -1,9 +1,21 @@
 import type { Map as MapLibreMap, StyleSpecification } from 'maplibre-gl'
 import * as maplibregl from 'maplibre-gl'
-import maplibreWorkerUrl from 'maplibre-gl/dist/maplibre-gl-worker.mjs?url'
+import maplibreModuleWorkerUrl from 'maplibre-gl/dist/maplibre-gl-worker.mjs?url'
 
 if (typeof window !== 'undefined') {
-  maplibregl.setWorkerUrl(maplibreWorkerUrl)
+  // В мобильных webview (Android APK/Tauri) и старых webview загрузка worker ES-модулей с относительным
+  // путем или сторонними схемами (tauri://, http://tauri.localhost) часто блокируется Same-Origin политикой
+  // либо терпит крах при импорте не-бандленного ./maplibre-gl-shared.mjs.
+  // Мы используем предсобранный автономный IIFE воркер из public/maplibre-gl-worker.js с автоматическим fallback.
+  const isTauriOrMobile = '__TAURI_INTERNALS__' in window || window.location.protocol === 'tauri:'
+  const staticWorkerUrl = `${import.meta.env.BASE_URL.replace(/\/$/, '')}/maplibre-gl-worker.js`
+
+  try {
+    maplibregl.setWorkerUrl(isTauriOrMobile ? staticWorkerUrl : (maplibreModuleWorkerUrl || staticWorkerUrl))
+  }
+  catch (e) {
+    console.warn('[map-styles-sources] Не удалось установить workerUrl:', e)
+  }
 }
 
 export type TileSourceId = 'maptilerOutdoor' | 'maptilerStreets' | 'satellite' | 'osm'

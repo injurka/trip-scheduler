@@ -74,7 +74,7 @@ const visible = defineModel<boolean>('open', { required: true })
   box-shadow: var(--s-xl);
   display: flex;
   flex-direction: column;
-  max-height: calc(100vh - var(--safe-area-inset-top));
+  max-height: calc(100dvh - var(--safe-area-inset-top));
   top: var(--safe-area-inset-top);
 
   &:focus {
