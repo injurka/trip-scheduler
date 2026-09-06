@@ -1,6 +1,10 @@
-import type TileSource from 'ol/source/Tile'
-import OSM from 'ol/source/OSM'
-import XYZ from 'ol/source/XYZ'
+import type { Map as MapLibreMap, StyleSpecification } from 'maplibre-gl'
+import * as maplibregl from 'maplibre-gl'
+import maplibreWorkerUrl from 'maplibre-gl/dist/maplibre-gl-worker.mjs?url'
+
+if (typeof window !== 'undefined') {
+  maplibregl.setWorkerUrl(maplibreWorkerUrl)
+}
 
 export type TileSourceId = 'maptilerOutdoor' | 'maptilerStreets' | 'satellite' | 'osm'
 
@@ -11,23 +15,23 @@ export interface MapSourceMeta {
 }
 
 export interface MapSourceConfig extends MapSourceMeta {
-  source: TileSource
+  style: string | StyleSpecification
 }
 
-const MAPTILER_KEY = import.meta.env.VITE_MAPTILER_KEY as string
+export const MAPTILER_KEY = String(import.meta.env.VITE_MAPTILER_KEY || '').trim()
 
-const MAPTILER_ATTRIBUTION = '<a href="https://www.maptiler.com/copyright/" target="_blank">&copy; MapTiler</a> <a href="https://www.openstreetmap.org/copyright" target="_blank">&copy; OpenStreetMap contributors</a>'
+export const MAPTILER_TERRAIN_SOURCE_ID = 'maptiler-terrain'
 
 export const TILE_SOURCES_META: Record<TileSourceId, MapSourceMeta> = {
-  maptilerOutdoor: {
-    label: 'Outdoor & Приключения',
-    icon: 'mdi:hiking',
-    description: 'Туристические и горные тропы, отмывка рельефа, изолинии высот и родники',
-  },
   maptilerStreets: {
     label: 'Улицы и Город',
     icon: 'mdi:map-outline',
     description: 'Четкая городская навигация, здания и дорожная сеть',
+  },
+  maptilerOutdoor: {
+    label: 'Природа и Приключения',
+    icon: 'mdi:hiking',
+    description: 'Туристические и горные тропы, 3D-рельеф, изолинии высот и родники',
   },
   satellite: {
     label: 'Спутник',
@@ -42,62 +46,101 @@ export const TILE_SOURCES_META: Record<TileSourceId, MapSourceMeta> = {
 }
 
 /**
- * Фабрика источников тайлов. Создает изолированный инстанс источника
- * с поддержкой Retina (@2x) и tilePixelRatio для исключения конфликтов кэша.
+ * Базовый растровый стиль OpenStreetMap для оффлайн/фолбэк режима без API-ключа
  */
-export function createTileSource(id: TileSourceId): TileSource {
-  const isRetina = typeof window !== 'undefined' && window.devicePixelRatio > 1
-  const retinaSuffix = isRetina ? '@2x' : ''
-  const tilePixelRatio = isRetina ? 2 : 1
+export const OSM_STYLE: StyleSpecification = {
+  version: 8,
+  sources: {
+    'osm-tiles': {
+      type: 'raster',
+      tiles: [
+        'https://a.tile.openstreetmap.org/{z}/{x}/{y}.png',
+        'https://b.tile.openstreetmap.org/{z}/{x}/{y}.png',
+        'https://c.tile.openstreetmap.org/{z}/{x}/{y}.png',
+      ],
+      tileSize: 256,
+      attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
+    },
+  },
+  layers: [
+    {
+      id: 'osm-tiles-layer',
+      type: 'raster',
+      source: 'osm-tiles',
+      minzoom: 0,
+      maxzoom: 19,
+    },
+  ],
+}
+
+/**
+ * Получить векторный JSON-стиль MapTiler или фолбэк OSM
+ */
+export function getMapStyle(id: TileSourceId): string | StyleSpecification {
+  if (id === 'osm' || !MAPTILER_KEY) {
+    return OSM_STYLE
+  }
 
   switch (id) {
     case 'maptilerOutdoor':
-      return new XYZ({
-        url: `https://api.maptiler.com/maps/outdoor-v4/{z}/{x}/{y}${retinaSuffix}.png?key=${MAPTILER_KEY}`,
-        tileSize: 512,
-        tilePixelRatio,
-        crossOrigin: 'anonymous',
-        maxZoom: 20,
-        attributions: MAPTILER_ATTRIBUTION,
-      })
+      return `https://api.maptiler.com/maps/outdoor-v4/style.json?key=${MAPTILER_KEY}`
     case 'maptilerStreets':
-      return new XYZ({
-        url: `https://api.maptiler.com/maps/streets-v2/{z}/{x}/{y}${retinaSuffix}.png?key=${MAPTILER_KEY}`,
-        tileSize: 512,
-        tilePixelRatio,
-        crossOrigin: 'anonymous',
-        maxZoom: 20,
-        attributions: MAPTILER_ATTRIBUTION,
-      })
+      return `https://api.maptiler.com/maps/streets-v4/style.json?key=${MAPTILER_KEY}`
     case 'satellite':
-      return new XYZ({
-        url: `https://api.maptiler.com/maps/satellite/{z}/{x}/{y}${retinaSuffix}.jpg?key=${MAPTILER_KEY}`,
-        tileSize: 512,
-        tilePixelRatio,
-        crossOrigin: 'anonymous',
-        maxZoom: 20,
-        attributions: MAPTILER_ATTRIBUTION,
-      })
-    case 'osm':
+      return `https://api.maptiler.com/maps/satellite/style.json?key=${MAPTILER_KEY}`
+
     default:
-      return new OSM({
-        crossOrigin: 'anonymous',
-      })
+      return `https://api.maptiler.com/maps/streets-v4/style.json?key=${MAPTILER_KEY}`
   }
+}
+
+/**
+ * Подключение источника высот Terrain-RGB и активация 3D-рельефа местности
+ */
+export function applyTerrain(map: MapLibreMap, key = MAPTILER_KEY, exaggeration = 1.5): void {
+  if (!key)
+    return
+
+  try {
+    const terrainSourceId = map.getSource('terrain-rgb') ? 'terrain-rgb' : MAPTILER_TERRAIN_SOURCE_ID
+    if (!map.getSource(terrainSourceId)) {
+      map.addSource(MAPTILER_TERRAIN_SOURCE_ID, {
+        type: 'raster-dem',
+        url: `https://api.maptiler.com/tiles/terrain-rgb-v2/tiles.json?key=${key}`,
+        tileSize: 512,
+        maxzoom: 14,
+      })
+    }
+
+    map.setTerrain({
+      source: terrainSourceId,
+      exaggeration,
+    })
+  }
+  catch (err) {
+    console.warn('[map-styles-sources] Не удалось активировать 3D-рельеф:', err)
+  }
+}
+
+/**
+ * Совместимость с legacy-вызовами createTileSource
+ */
+export function createTileSource(id: TileSourceId): string | StyleSpecification {
+  return getMapStyle(id)
 }
 
 export const TILE_SOURCES: Record<TileSourceId, MapSourceConfig> = {
   get maptilerOutdoor() {
-    return { ...TILE_SOURCES_META.maptilerOutdoor, source: createTileSource('maptilerOutdoor') }
+    return { ...TILE_SOURCES_META.maptilerOutdoor, style: getMapStyle('maptilerOutdoor') }
   },
   get maptilerStreets() {
-    return { ...TILE_SOURCES_META.maptilerStreets, source: createTileSource('maptilerStreets') }
+    return { ...TILE_SOURCES_META.maptilerStreets, style: getMapStyle('maptilerStreets') }
   },
   get satellite() {
-    return { ...TILE_SOURCES_META.satellite, source: createTileSource('satellite') }
+    return { ...TILE_SOURCES_META.satellite, style: getMapStyle('satellite') }
   },
   get osm() {
-    return { ...TILE_SOURCES_META.osm, source: createTileSource('osm') }
+    return { ...TILE_SOURCES_META.osm, style: getMapStyle('osm') }
   },
 }
 

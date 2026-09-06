@@ -1,12 +1,7 @@
 <script setup lang="ts">
-import type Map from 'ol/Map'
 import type { LocationCoords } from '../../models/types'
-import { Feature } from 'ol'
-import { Point } from 'ol/geom'
-import VectorLayer from 'ol/layer/Vector'
-import { fromLonLat } from 'ol/proj'
-import VectorSource from 'ol/source/Vector'
-import { Icon as OlIcon, Style } from 'ol/style'
+import type { MapMarker } from '~/components/01.kit/kit-map'
+import { computed } from 'vue'
 import { KitDialogWithClose } from '~/components/01.kit/kit-dialog-with-close'
 import { KitMap } from '~/components/01.kit/kit-map'
 
@@ -21,10 +16,6 @@ const props = withDefaults(defineProps<Props>(), {
 })
 const emit = defineEmits(['update:visible'])
 
-const mapInstance = ref<Map | null>(null)
-const markerSource = new VectorSource()
-const markerLayer = new VectorLayer({ source: markerSource, zIndex: 10 })
-
 const center = computed((): [number, number] => {
   return [
     props.location?.lon ?? 37.61,
@@ -32,46 +23,15 @@ const center = computed((): [number, number] => {
   ]
 })
 
-function updateMarkerPosition() {
-  if (!mapInstance.value || !props.location)
-    return
-  markerSource.clear()
-  const marker = new Feature({
-    geometry: new Point(fromLonLat([props.location.lon, props.location.lat])),
-  })
-  const svg = `
-    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-      <path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7z" fill="#3498db"/>
-      <circle cx="12" cy="9" r="2.5" fill="white"/>
-    </svg>`
-  marker.setStyle(
-    new Style({
-      image: new OlIcon({
-        src: `data:image/svg+xml;base64,${btoa(svg)}`,
-        scale: 1.5,
-        anchor: [0.5, 1],
-      }),
-    }),
-  )
-  markerSource.addFeature(marker)
-}
-
-function onMapReady(map: Map) {
-  mapInstance.value = map
-  mapInstance.value.addLayer(markerLayer)
-  updateMarkerPosition()
-}
-
-watch(() => props.visible, (isOpen) => {
-  if (isOpen) {
-    nextTick(() => {
-      if (mapInstance.value) {
-        mapInstance.value.getView().setCenter(fromLonLat(center.value))
-        mapInstance.value.updateSize()
-        updateMarkerPosition()
-      }
-    })
-  }
+const markers = computed<MapMarker[]>(() => {
+  if (!props.location)
+    return []
+  return [
+    {
+      id: 'booking-location-marker',
+      coords: props.location,
+    },
+  ]
 })
 
 function closeModal() {
@@ -90,7 +50,7 @@ function closeModal() {
     @update:visible="closeModal"
   >
     <div class="location-viewer-content">
-      <KitMap :center="center" :zoom="14" @map-ready="onMapReady" />
+      <KitMap :center="center" :zoom="14" :markers="markers" />
     </div>
   </KitDialogWithClose>
 </template>
@@ -98,12 +58,8 @@ function closeModal() {
 <style scoped lang="scss">
 .location-viewer-content {
   height: 100%;
-  min-height: 400px;
+  min-height: 500px;
   display: flex;
   flex-direction: column;
-
-  :deep(.ol-viewport) {
-    min-height: 600px;
-  }
 }
 </style>

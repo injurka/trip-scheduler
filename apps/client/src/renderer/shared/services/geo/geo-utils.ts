@@ -1,8 +1,3 @@
-import type { LineString } from 'ol/geom'
-import { Point } from 'ol/geom'
-import { fromLonLat as olFromLonLat, toLonLat as olToLonLat } from 'ol/proj'
-import { Circle as CircleStyle, Fill, Icon as OlIcon, Stroke, Style } from 'ol/style'
-
 // Кеш SVG Data URL для пинов по цвету
 const pinIconDataUrlCache = new Map<string, string>()
 
@@ -23,93 +18,17 @@ export function getPinIconDataUrl(color: string = '#3498db', innerColor: string 
 }
 
 /**
- * Безопасное преобразование [lon, lat] (EPSG:4326) в OpenLayers [x, y] (EPSG:3857)
+ * Преобразование координат для карты. В MapLibre координаты нативно [lng, lat] (WGS84).
  */
 export function toMapCoord(coords: [number, number]): [number, number] {
-  return olFromLonLat(coords) as [number, number]
+  return [coords[0], coords[1]]
 }
 
 /**
- * Безопасное преобразование OpenLayers [x, y] (EPSG:3857) в [lon, lat] (EPSG:4326)
+ * Преобразование координат карты в [lon, lat] (WGS84).
  */
 export function toLonLatCoord(coords: [number, number]): [number, number] {
-  return olToLonLat(coords) as [number, number]
-}
-
-/**
- * Профессиональная многослойная стилизация линии маршрута:
- * 1. Нижний слой — обводка (Casing) белого цвета для контраста на любом типе подложки (лес, горы, спутник)
- * 2. Верхний слой — акцентная нить маршрута с поддержкой пунктира для прямых линий
- * 3. Маркер старта (белый с цветным ободком)
- * 4. Маркер финиша (цветной с белым ободком)
- */
-export function createRouteStyles(
-  lineGeometry: LineString,
-  color: string = '#4363D8',
-  isDirect: boolean = false,
-): Style[] {
-  const styles: Style[] = [
-    // 1. Нижний слой: контрастная подложка (Casing)
-    new Style({
-      stroke: new Stroke({
-        color: '#ffffff',
-        width: 7,
-        lineCap: 'round',
-        lineJoin: 'round',
-      }),
-      zIndex: 1,
-    }),
-    // 2. Верхний слой: основная нить маршрута
-    new Style({
-      stroke: new Stroke({
-        color,
-        width: 4,
-        lineDash: isDirect ? [8, 8] : undefined,
-        lineCap: 'round',
-        lineJoin: 'round',
-      }),
-      zIndex: 2,
-    }),
-  ]
-
-  const firstCoord = lineGeometry.getFirstCoordinate()
-  const lastCoord = lineGeometry.getLastCoordinate()
-
-  if (firstCoord) {
-    styles.push(
-      new Style({
-        geometry: new Point(firstCoord),
-        image: new CircleStyle({
-          radius: 6,
-          fill: new Fill({ color: '#ffffff' }),
-          stroke: new Stroke({
-            color,
-            width: 3,
-          }),
-        }),
-        zIndex: 3,
-      }),
-    )
-  }
-
-  if (lastCoord) {
-    styles.push(
-      new Style({
-        geometry: new Point(lastCoord),
-        image: new CircleStyle({
-          radius: 6,
-          fill: new Fill({ color }),
-          stroke: new Stroke({
-            color: '#ffffff',
-            width: 3,
-          }),
-        }),
-        zIndex: 3,
-      }),
-    )
-  }
-
-  return styles
+  return [coords[0], coords[1]]
 }
 
 export interface MarkerStyleOptions {
@@ -121,38 +40,53 @@ export interface MarkerStyleOptions {
 }
 
 /**
- * Создание стиля маркера с оптимизированным кешированием иконки
+ * Создает нативный DOM-элемент для HTML-маркера MapLibre
  */
-export function createMarkerStyle(options: MarkerStyleOptions = {}): Style {
+export function createMarkerElement(options: MarkerStyleOptions = {}): HTMLElement {
   const {
     color = '#3498db',
-    scale = 1.5,
+    scale = 1.0,
     opacity = 1.0,
     zIndex = 20,
     isConnect = false,
   } = options
 
+  const container = document.createElement('div')
+  container.className = isConnect ? 'maplibre-marker-connect' : 'maplibre-marker-pin'
+  container.style.cursor = 'pointer'
+  container.style.opacity = String(opacity)
+  container.style.zIndex = String(zIndex)
+
   if (isConnect) {
-    return new Style({
-      image: new CircleStyle({
-        radius: 5,
-        fill: new Fill({ color: '#ffffff' }),
-        stroke: new Stroke({
-          color,
-          width: 2,
-        }),
-      }),
-      zIndex,
-    })
+    container.innerHTML = `
+      <div style="
+        width: ${Math.round(12 * scale)}px;
+        height: ${Math.round(12 * scale)}px;
+        border-radius: 50%;
+        background-color: #ffffff;
+        border: ${Math.max(2, Math.round(2.5 * scale))}px solid ${color};
+        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.25);
+        transition: transform 0.15s ease;
+      "></div>
+    `
+  }
+  else {
+    const width = Math.round(26 * scale)
+    const height = Math.round(26 * scale)
+    container.innerHTML = `
+      <svg width="${width}" height="${height}" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" style="filter: drop-shadow(0 2px 5px rgba(0, 0, 0, 0.35)); transition: transform 0.15s ease;">
+        <path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7z" fill="${color}" stroke="#ffffff" stroke-width="1.2"/>
+        <circle cx="12" cy="9" r="2.8" fill="#ffffff"/>
+      </svg>
+    `
   }
 
-  return new Style({
-    image: new OlIcon({
-      src: getPinIconDataUrl(color),
-      scale,
-      anchor: [0.5, 1],
-      opacity,
-    }),
-    zIndex,
-  })
+  return container
+}
+
+/**
+ * Совместимость с компонентами, использующими старый вызов createMarkerStyle
+ */
+export function createMarkerStyle(options: MarkerStyleOptions = {}) {
+  return options
 }

@@ -1,11 +1,8 @@
 <script setup lang="ts">
-import type { EventsKey } from 'ol/events'
 import type { useGeolocationMap } from '../composables/use-geolocation-map'
 import type { ActivitySectionGeolocation, Coordinate, MapPoint, MapRoute } from '../models/types'
 import { Icon } from '@iconify/vue'
 import { useDebounceFn } from '@vueuse/core'
-import { unByKey } from 'ol/Observable'
-import { toLonLat } from 'ol/proj'
 import { computed, nextTick, onMounted, onUnmounted, ref, shallowRef, toRaw, watch } from 'vue'
 import { useToast } from '~/shared/composables/use-toast'
 import { useGeolocationPoints } from '../composables/use-geolocation-points'
@@ -33,7 +30,7 @@ const emit = defineEmits<{
 const isInitialized = ref(false)
 const sectionContainerRef = ref<HTMLElement | null>(null)
 const mapController = shallowRef<ReturnType<typeof useGeolocationMap>>()
-let modifyendKey: EventsKey | null = null
+let unsubDragEnd: (() => void) | null = null
 
 const activeView = ref<'points' | 'routes'>(
   (!props.section?.points || props.section.points.length === 0) && (props.section?.routes && props.section.routes.length > 0)
@@ -86,15 +83,16 @@ const debouncedUpdate = useDebounceFn(() => {
   if (!isInitialized.value)
     return
 
-  const currentCenter = mapController.value?.mapInstance.value?.getView().getCenter()
-  const currentZoom = mapController.value?.mapInstance.value?.getView().getZoom()
+  const map = mapController.value?.mapInstance.value
+  const currentCenter = map?.getCenter()
+  const currentZoom = map?.getZoom()
 
   emit('updateSection', {
     ...props.section,
     points: toRaw(points.value),
     routes: toRaw(routes.value),
-    center: currentCenter ? (toLonLat(currentCenter) as Coordinate) : props.section.center,
-    zoom: currentZoom ?? props.section.zoom,
+    center: currentCenter ? [currentCenter.lng, currentCenter.lat] : props.section.center,
+    zoom: currentZoom !== undefined ? Math.round(currentZoom) : props.section.zoom,
   })
 }, 1000)
 
@@ -292,14 +290,14 @@ async function handleToggleFullscreen() {
     }
   }
   nextTick(() => {
-    mapController.value?.mapInstance.value?.updateSize()
+    mapController.value?.mapInstance.value?.resize()
   })
 }
 
 function handleFullscreenChange() {
   isMapFullscreen.value = document.fullscreenElement === sectionContainerRef.value
   nextTick(() => {
-    mapController.value?.mapInstance.value?.updateSize()
+    mapController.value?.mapInstance.value?.resize()
   })
 }
 
@@ -307,7 +305,7 @@ function handleKeyDown(e: KeyboardEvent) {
   if (e.key === 'Escape' && isMapFullscreen.value && !document.fullscreenElement) {
     isMapFullscreen.value = false
     nextTick(() => {
-      mapController.value?.mapInstance.value?.updateSize()
+      mapController.value?.mapInstance.value?.resize()
     })
   }
 }
@@ -317,12 +315,7 @@ async function onMapReady(controller: ReturnType<typeof useGeolocationMap>) {
   setInitialPoints(props.section.points)
   await setInitialRoutes(props.section.routes)
 
-  modifyendKey = controller.modifyInteraction.on('modifyend', (event) => {
-    const feature = event.features.getArray()[0]
-    if (!feature)
-      return
-    const pointId = feature.getId() as string
-    const newCoords = toLonLat((feature.getGeometry() as any).getCoordinates()) as Coordinate
+  unsubDragEnd = controller.onPointDragEnd((pointId, newCoords) => {
     if (points.value.some(p => p.id === pointId))
       movePoiPoint(pointId, newCoords)
     else
@@ -359,9 +352,9 @@ onMounted(() => {
 })
 
 onUnmounted(() => {
-  if (modifyendKey) {
-    unByKey(modifyendKey)
-    modifyendKey = null
+  if (unsubDragEnd) {
+    unsubDragEnd()
+    unsubDragEnd = null
   }
   document.removeEventListener('fullscreenchange', handleFullscreenChange)
   window.removeEventListener('keydown', handleKeyDown)

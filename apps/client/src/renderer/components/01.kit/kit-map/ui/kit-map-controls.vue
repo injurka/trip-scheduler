@@ -1,11 +1,11 @@
 <script setup lang="ts">
-import type { Map } from 'ol'
+import type { Map as MapLibreMap } from 'maplibre-gl'
 import type { MapLayerOption } from '../models/types'
 import { KitBtn } from '~/components/01.kit/kit-btn'
 import { KitDropdown } from '~/components/01.kit/kit-dropdown'
 
 interface Props {
-  mapInstance: Map | null
+  mapInstance: MapLibreMap | null
   layers?: MapLayerOption[]
   activeLayerId?: string
 }

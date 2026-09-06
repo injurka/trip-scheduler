@@ -1,16 +1,13 @@
-import type { Overlay } from 'ol'
-import type { Control } from 'ol/control'
-import type { Extent } from 'ol/extent'
-import type { Interaction } from 'ol/interaction'
-import type BaseLayer from 'ol/layer/Base'
-import type TileSource from 'ol/source/Tile'
+import type {
+  FitBoundsOptions,
+  LngLatBoundsLike,
+  Map as MapLibreMap,
+  StyleSpecification,
+} from 'maplibre-gl'
 import type { Ref } from 'vue'
-import { Map as OlMap, View } from 'ol'
-import { Attribution, defaults as defaultControls } from 'ol/control'
-import TileLayer from 'ol/layer/Tile'
-import { fromLonLat } from 'ol/proj'
-import OSM from 'ol/source/OSM'
+import * as maplibregl from 'maplibre-gl'
 import { onUnmounted, readonly, ref, shallowRef } from 'vue'
+import { applyTerrain, getMapStyle, OSM_STYLE } from '~/shared/lib/map-styles-sources'
 
 export interface BaseMapOptions {
   container: HTMLElement | string
@@ -18,70 +15,155 @@ export interface BaseMapOptions {
   zoom?: number
   minZoom?: number
   maxZoom?: number
-  initialSource?: TileSource
-  extraLayers?: BaseLayer[]
-  extraOverlays?: Overlay[]
-  extraInteractions?: Interaction[]
-  controls?: Control[]
+  pitch?: number
+  maxPitch?: number
+  bearing?: number
+  style?: string | StyleSpecification
   showAttribution?: boolean
+  interactive?: boolean
 }
 
+export type StyleLoadCallback = (map: MapLibreMap) => void
+
 export function useBaseMap() {
-  const mapInstance: Ref<OlMap | null> = shallowRef(null)
+  const mapInstance: Ref<MapLibreMap | null> = shallowRef(null)
   const isMapReady = ref(false)
   const currentZoom = ref(12)
-  const tileLayerRef = shallowRef<TileLayer<TileSource> | null>(null)
 
   let resizeObserver: ResizeObserver | null = null
+  let loadTimeoutTimer: ReturnType<typeof setTimeout> | null = null
+  const styleLoadCallbacks = new Set<StyleLoadCallback>()
 
-  const setTileSource = (source: TileSource) => {
-    if (tileLayerRef.value) {
-      tileLayerRef.value.setSource(source)
+  const onStyleLoad = (cb: StyleLoadCallback) => {
+    styleLoadCallbacks.add(cb)
+    if (isMapReady.value && mapInstance.value) {
+      cb(mapInstance.value)
+    }
+    return () => {
+      styleLoadCallbacks.delete(cb)
+    }
+  }
+
+  const setStyle = (style: string | StyleSpecification) => {
+    if (mapInstance.value) {
+      mapInstance.value.setStyle(style)
+    }
+  }
+
+  const setInteractive = (interactive: boolean) => {
+    const map = mapInstance.value
+    if (!map)
+      return
+
+    if (interactive) {
+      map.dragPan?.enable()
+      map.dragRotate?.enable()
+      map.scrollZoom?.enable()
+      map.boxZoom?.enable()
+      map.keyboard?.enable()
+      map.doubleClickZoom?.enable()
+      map.touchZoomRotate?.enable()
+      map.touchPitch?.enable?.()
+    }
+    else {
+      map.dragPan?.disable()
+      map.dragRotate?.disable()
+      map.scrollZoom?.disable()
+      map.boxZoom?.disable()
+      map.keyboard?.disable()
+      map.doubleClickZoom?.disable()
+      map.touchZoomRotate?.disable()
+      map.touchPitch?.disable?.()
     }
   }
 
   const zoomIn = (delta = 1, duration = 250) => {
-    const view = mapInstance.value?.getView()
-    if (view) {
-      const z = view.getZoom() ?? 12
-      view.animate({ zoom: z + delta, duration })
+    if (mapInstance.value) {
+      mapInstance.value.zoomTo(mapInstance.value.getZoom() + delta, { duration })
     }
   }
 
   const zoomOut = (delta = 1, duration = 250) => {
-    const view = mapInstance.value?.getView()
-    if (view) {
-      const z = view.getZoom() ?? 12
-      view.animate({ zoom: z - delta, duration })
+    if (mapInstance.value) {
+      mapInstance.value.zoomTo(mapInstance.value.getZoom() - delta, { duration })
     }
   }
 
   const flyTo = (lon: number, lat: number, zoom = 14, duration = 700) => {
-    const view = mapInstance.value?.getView()
-    if (view) {
-      view.animate({
-        center: fromLonLat([lon, lat]),
+    if (mapInstance.value) {
+      mapInstance.value.flyTo({
+        center: [lon, lat],
         zoom,
         duration,
       })
     }
   }
 
-  const fitExtent = (extent?: Extent | null, options?: { padding?: number[], duration?: number, maxZoom?: number }) => {
+  const fitBounds = (
+    bounds: LngLatBoundsLike | [number, number, number, number],
+    options?: FitBoundsOptions,
+  ) => {
+    if (!mapInstance.value || !bounds)
+      return
+
+    let targetBounds: LngLatBoundsLike
+    if (
+      Array.isArray(bounds)
+      && bounds.length === 4
+      && typeof bounds[0] === 'number'
+      && typeof bounds[1] === 'number'
+      && typeof bounds[2] === 'number'
+      && typeof bounds[3] === 'number'
+    ) {
+      // Преобразование из [minLon, minLat, maxLon, maxLat] в [[minLon, minLat], [maxLon, maxLat]]
+      targetBounds = [
+        [bounds[0], bounds[1]],
+        [bounds[2], bounds[3]],
+      ]
+    }
+    else {
+      targetBounds = bounds as LngLatBoundsLike
+    }
+
+    mapInstance.value.fitBounds(targetBounds, {
+      padding: options?.padding ?? { top: 50, right: 50, bottom: 50, left: 50 },
+      duration: options?.duration ?? 500,
+      maxZoom: options?.maxZoom ?? 16,
+    })
+  }
+
+  const fitExtent = (
+    extent?: [number, number, number, number] | null,
+    options?: { padding?: number[] | number, duration?: number, maxZoom?: number },
+  ) => {
     if (!extent)
       return
-    const view = mapInstance.value?.getView()
-    if (view) {
-      view.fit(extent, {
-        padding: options?.padding || [50, 50, 50, 50],
-        duration: options?.duration || 500,
-        maxZoom: options?.maxZoom || 15,
-      })
-    }
+
+    const padding
+      = typeof options?.padding === 'number'
+        ? options.padding
+        : Array.isArray(options?.padding)
+          ? {
+              top: options.padding[0] ?? 50,
+              right: options.padding[1] ?? 50,
+              bottom: options.padding[2] ?? 50,
+              left: options.padding[3] ?? 50,
+            }
+          : 50
+
+    fitBounds(extent, {
+      padding,
+      duration: options?.duration ?? 500,
+      maxZoom: options?.maxZoom ?? 16,
+    })
+  }
+
+  const resize = () => {
+    mapInstance.value?.resize()
   }
 
   const updateSize = () => {
-    mapInstance.value?.updateSize()
+    resize()
   }
 
   const destroyMap = () => {
@@ -89,8 +171,14 @@ export function useBaseMap() {
       resizeObserver.disconnect()
       resizeObserver = null
     }
+    if (loadTimeoutTimer) {
+      clearTimeout(loadTimeoutTimer)
+      loadTimeoutTimer = null
+    }
+    styleLoadCallbacks.clear()
+
     if (mapInstance.value) {
-      mapInstance.value.setTarget(undefined)
+      mapInstance.value.remove()
       mapInstance.value = null
       isMapReady.value = false
     }
@@ -111,76 +199,118 @@ export function useBaseMap() {
 
       const createMap = () => {
         try {
-          const initialSource = options.initialSource || new OSM({ crossOrigin: 'anonymous' })
-          tileLayerRef.value = new TileLayer({ source: initialSource })
-
-          const layers: BaseLayer[] = [tileLayerRef.value, ...(options.extraLayers || [])]
-
-          const initialZoom = options.zoom || 12
+          const initialStyle = options.style || getMapStyle('maptilerStreets')
+          const initialZoom = options.zoom ?? 12
           currentZoom.value = initialZoom
 
-          const view = new View({
-            center: fromLonLat(options.center),
+          const map = new maplibregl.Map({
+            container: targetElement,
+            style: initialStyle,
+            center: options.center,
             zoom: initialZoom,
-            minZoom: options.minZoom || 2,
-            maxZoom: options.maxZoom || 20,
+            minZoom: options.minZoom ?? 2,
+            maxZoom: options.maxZoom ?? 22,
+            pitch: options.pitch ?? 0,
+            maxPitch: options.maxPitch ?? 85,
+            bearing: options.bearing ?? 0,
+            interactive: true,
+            dragRotate: true,
+            pitchWithRotate: true,
+            attributionControl: options.showAttribution === false ? false : undefined,
           })
 
-          view.on('change:resolution', () => {
-            currentZoom.value = view.getZoom() ?? 12
+          targetElement.addEventListener('contextmenu', (e) => {
+            const el = e.target as HTMLElement | null
+            if (el?.tagName === 'INPUT' || el?.tagName === 'TEXTAREA') {
+              return
+            }
+            e.preventDefault()
           })
 
-          const controls = options.controls
-            || (options.showAttribution !== false
-              ? defaultControls({ zoom: false, rotate: false, attribution: false }).extend([
-                  new Attribution({ collapsible: true }),
-                ])
-              : [])
-
-          const map = new OlMap({
-            target: targetElement,
-            layers,
-            view,
-            controls,
-            overlays: options.extraOverlays || [],
-          })
-
-          if (options.extraInteractions) {
-            options.extraInteractions.forEach(interaction => map.addInteraction(interaction))
+          let isResolved = false
+          const markReady = () => {
+            if (!isResolved) {
+              isResolved = true
+              if (loadTimeoutTimer) {
+                clearTimeout(loadTimeoutTimer)
+                loadTimeoutTimer = null
+              }
+              isMapReady.value = true
+              map.resize()
+              resolve()
+            }
           }
+
+          map.on('style.load', () => {
+            applyTerrain(map)
+            styleLoadCallbacks.forEach((cb) => {
+              try {
+                cb(map)
+              }
+              catch (e) {
+                console.error('[useBaseMap] Ошибка в style.load колбэке:', e)
+              }
+            })
+            markReady()
+          })
+
+          map.on('zoom', () => {
+            currentZoom.value = Math.round(map.getZoom())
+          })
+
+          map.once('load', markReady)
+
+          let hasRetriedWithOsm = false
+          map.on('error', (e: any) => {
+            console.warn('[useBaseMap] Ошибка MapLibre:', e?.error?.message || e)
+            const isStyleLoadError
+              = e?.dataType === 'style'
+                || (e?.error && (e.error.status === 401 || e.error.status === 403 || e.error.status === 404))
+            if (
+              isStyleLoadError
+              && !isMapReady.value
+              && !map.isStyleLoaded()
+              && !hasRetriedWithOsm
+              && initialStyle !== OSM_STYLE
+            ) {
+              hasRetriedWithOsm = true
+              console.warn('[useBaseMap] Ошибка загрузки базового стиля, переключаемся на OpenStreetMap fallback')
+              try {
+                map.setStyle(OSM_STYLE)
+              }
+              catch (err) {
+                console.error('[useBaseMap] Не удалось применить OSM fallback:', err)
+                markReady()
+              }
+            }
+          })
+
+          loadTimeoutTimer = setTimeout(() => {
+            if (!isMapReady.value) {
+              console.warn('[useBaseMap] Таймаут ожидания карты, принудительное завершение инициализации')
+              markReady()
+            }
+          }, 5000)
 
           mapInstance.value = map
 
-          map.once('postrender', () => {
-            isMapReady.value = true
-            map.updateSize()
-            resolve()
-          })
+          if (options.interactive === false) {
+            setInteractive(false)
+          }
         }
         catch (err) {
-          console.error('[useBaseMap] Ошибка инициализации карты:', err)
+          console.error('[useBaseMap] Ошибка инициализации MapLibre:', err)
+          if (loadTimeoutTimer) {
+            clearTimeout(loadTimeoutTimer)
+            loadTimeoutTimer = null
+          }
           resolve()
         }
       }
 
-      if (targetElement.clientWidth > 0 && targetElement.clientHeight > 0) {
-        createMap()
-        resizeObserver = new ResizeObserver(() => updateSize())
-        resizeObserver.observe(targetElement)
-      }
-      else {
-        resizeObserver = new ResizeObserver(() => {
-          if (targetElement.clientWidth > 0 && targetElement.clientHeight > 0) {
-            if (!mapInstance.value) {
-              createMap()
-            }
-            else {
-              updateSize()
-            }
-          }
-        })
-        resizeObserver.observe(targetElement)
-      }
+      createMap()
+      resizeObserver = new ResizeObserver(() => resize())
+      resizeObserver.observe(targetElement)
     })
   }
 
@@ -190,14 +320,17 @@ export function useBaseMap() {
     mapInstance,
     isMapReady: readonly(isMapReady),
     currentZoom: readonly(currentZoom),
-    tileLayerRef,
     initMap,
     destroyMap,
-    setTileSource,
+    setStyle,
+    onStyleLoad,
     zoomIn,
     zoomOut,
     flyTo,
+    fitBounds,
     fitExtent,
+    resize,
     updateSize,
+    setInteractive,
   }
 }

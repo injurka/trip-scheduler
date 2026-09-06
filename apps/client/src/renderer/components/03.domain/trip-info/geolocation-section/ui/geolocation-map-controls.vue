@@ -1,12 +1,12 @@
 <script setup lang="ts">
-import type { Map } from 'ol'
+import type { Map as MapLibreMap } from 'maplibre-gl'
 import type { TileSourceId } from '../../../../../shared/lib/map-styles-sources'
 import { KitBtn } from '~/components/01.kit/kit-btn'
 import { KitDropdown } from '~/components/01.kit/kit-dropdown'
 import { TILE_SOURCES } from '../../../../../shared/lib/map-styles-sources'
 
 interface Props {
-  mapInstance: Map | null
+  mapInstance: MapLibreMap | null
   isFullscreen: boolean
   portalTarget?: HTMLElement
   withPanel?: boolean
@@ -28,18 +28,14 @@ const tillerItems = computed(() => Object.entries(TILE_SOURCES).map(([id, { labe
 })))
 
 function zoomIn() {
-  const view = props.mapInstance?.getView()
-  const currentZoom = view?.getZoom()
-  if (view && currentZoom !== undefined) {
-    view.animate({ zoom: currentZoom + 1, duration: 250 })
+  if (props.mapInstance) {
+    props.mapInstance.zoomTo(props.mapInstance.getZoom() + 1, { duration: 250 })
   }
 }
 
 function zoomOut() {
-  const view = props.mapInstance?.getView()
-  const currentZoom = view?.getZoom()
-  if (view && currentZoom !== undefined) {
-    view.animate({ zoom: currentZoom - 1, duration: 250 })
+  if (props.mapInstance) {
+    props.mapInstance.zoomTo(props.mapInstance.getZoom() - 1, { duration: 250 })
   }
 }
 </script>

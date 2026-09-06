@@ -1,20 +1,13 @@
 <script setup lang="ts">
-import type Map from 'ol/Map'
 import type { LocationCoords } from '../../models/types'
-import { Feature } from 'ol'
-import { Point } from 'ol/geom'
-import VectorLayer from 'ol/layer/Vector'
-import VectorSource from 'ol/source/Vector'
+import type { MapMarker } from '~/components/01.kit/kit-map'
+import { computed, ref, watch } from 'vue'
 import { KitBtn } from '~/components/01.kit/kit-btn'
 import { KitDialogWithClose } from '~/components/01.kit/kit-dialog-with-close'
 import { KitInput } from '~/components/01.kit/kit-input'
 import { KitMap } from '~/components/01.kit/kit-map'
-
-import { createMarkerStyle, nominatimService, toMapCoord } from '~/shared/services/geo'
-
-const props = defineProps<Props>()
-
-const emit = defineEmits(['update:modelValue', 'update:visible'])
+import { useToast } from '~/shared/composables/use-toast'
+import { nominatimService } from '~/shared/services/geo'
 
 interface Props {
   modelValue: LocationCoords | undefined
@@ -22,10 +15,11 @@ interface Props {
   readonly: boolean
   visible: boolean
 }
-const tempCoords = ref<LocationCoords>({ lat: 0, lon: 0 })
-const mapInstance = ref<Map | null>(null)
-const markerSource = new VectorSource()
-const markerLayer = new VectorLayer({ source: markerSource, zIndex: 10 })
+
+const props = defineProps<Props>()
+const emit = defineEmits(['update:modelValue', 'update:visible'])
+
+const tempCoords = ref<LocationCoords>({ lat: 55.75, lon: 37.61 })
 const searchQuery = ref('')
 const isSearching = ref(false)
 
@@ -33,37 +27,32 @@ const center = computed((): [number, number] => {
   return [tempCoords.value.lon, tempCoords.value.lat]
 })
 
-function updateMarkerPosition() {
-  if (!mapInstance.value)
-    return
-  markerSource.clear()
-  const marker = new Feature({
-    geometry: new Point(toMapCoord([tempCoords.value.lon, tempCoords.value.lat])),
-  })
-  marker.setStyle(createMarkerStyle({ color: '#E74C3C' }))
-  markerSource.addFeature(marker)
-}
-
-function onMapReady(map: Map) {
-  mapInstance.value = map
-  mapInstance.value.addLayer(markerLayer)
-  updateMarkerPosition()
-}
+const markers = computed<MapMarker[]>(() => {
+  return [
+    {
+      id: 'picked-location',
+      coords: tempCoords.value,
+    },
+  ]
+})
 
 function onMapClick(coords: [number, number]) {
-  tempCoords.value.lon = coords[0]
-  tempCoords.value.lat = coords[1]
+  tempCoords.value.lon = Number(coords[0].toFixed(6))
+  tempCoords.value.lat = Number(coords[1].toFixed(6))
 }
 
 async function handleSearch() {
-  if (!searchQuery.value.trim() || !mapInstance.value)
+  if (!searchQuery.value.trim())
     return
 
   isSearching.value = true
   try {
     const result = await nominatimService.searchSingle(searchQuery.value)
     if (result) {
-      tempCoords.value = { lon: result.lon, lat: result.lat }
+      tempCoords.value = {
+        lon: Number(result.lon.toFixed(6)),
+        lat: Number(result.lat.toFixed(6)),
+      }
     }
     else {
       useToast().error('Местоположение не найдено.')
@@ -78,22 +67,16 @@ async function handleSearch() {
   }
 }
 
-watch(() => props.visible, (isOpen) => {
-  if (isOpen) {
-    tempCoords.value = { ...(props.modelValue || { lat: 55.75, lon: 37.61 }) }
-    searchQuery.value = ''
-    nextTick(() => {
-      if (mapInstance.value) {
-        mapInstance.value.getView().setCenter(toMapCoord([tempCoords.value.lon, tempCoords.value.lat]))
-        updateMarkerPosition()
-      }
-    })
-  }
-})
-
-watch(tempCoords, () => {
-  updateMarkerPosition()
-}, { deep: true })
+watch(
+  () => props.visible,
+  (isOpen) => {
+    if (isOpen) {
+      tempCoords.value = { ...(props.modelValue || { lat: 55.75, lon: 37.61 }) }
+      searchQuery.value = ''
+    }
+  },
+  { immediate: true },
+)
 
 function saveLocation() {
   const lat = Number(tempCoords.value.lat)
@@ -144,8 +127,8 @@ function closeModal() {
       <div class="map-wrapper">
         <KitMap
           :center="center"
-          :zoom="10"
-          @map-ready="onMapReady"
+          :zoom="12"
+          :markers="markers"
           @click="onMapClick"
         />
       </div>
@@ -199,10 +182,6 @@ function closeModal() {
   border-radius: var(--r-m);
   overflow: hidden;
   border: 1px solid var(--border-secondary-color);
-
-  :deep(.ol-viewport) {
-    min-height: 500px;
-  }
 }
 
 .dialog-actions {

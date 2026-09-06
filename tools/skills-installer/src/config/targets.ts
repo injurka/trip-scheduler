@@ -1,7 +1,7 @@
 import { existsSync } from 'node:fs'
 import { homedir } from 'node:os'
 import { join } from 'node:path'
-import { discoverVaultFolders, normalizeFsPath } from '@injurka/vault-locator'
+import { normalizeFsPath } from '../lib/path-utils'
 
 export interface TargetLocation {
   id: string
@@ -13,21 +13,6 @@ export interface TargetLocation {
   rulesDir: string
   exists: boolean
   isDefault?: boolean
-}
-
-/** Регистрирует цель установки навыков в директорию Obsidian-вольта (папка <agents>/skills|rules). */
-function pushVaultTarget(targets: TargetLocation[], location: { path: string, vaultRoot: string }, label: string): void {
-  const vaultAgents = join(location.path, '.agents')
-  targets.push({
-    id: 'obsidian-travel-vault',
-    title: `💎 Obsidian Travel Vault (${label})`,
-    description: `${vaultAgents}`,
-    path: location.path,
-    agentsDir: vaultAgents,
-    skillsDir: join(vaultAgents, 'skills'),
-    rulesDir: join(vaultAgents, 'rules'),
-    exists: true,
-  })
 }
 
 export function detectCandidateTargets(): TargetLocation[] {
@@ -49,14 +34,7 @@ export function detectCandidateTargets(): TargetLocation[] {
     isDefault: true,
   })
 
-  // 2. Obsidian Travel Vault — автоматическое обнаружение по реестру Obsidian и маркерам .obsidian
-  const vaultFolders = discoverVaultFolders('Travel')
-  for (const location of vaultFolders) {
-    const label = location.path.slice(location.vaultRoot.length + 1) || location.name
-    pushVaultTarget(targets, location, label)
-  }
-
-  // 3. Antigravity Agent Global directory
+  // 2. Antigravity Agent Global directory
   const antigravityGlobal = join(home, '.gemini/antigravity-cli')
   if (existsSync(antigravityGlobal)) {
     const globalAgents = join(home, '.gemini/config')
@@ -72,7 +50,7 @@ export function detectCandidateTargets(): TargetLocation[] {
     })
   }
 
-  // 4. Домашняя папка пользователя (~/.agents)
+  // 3. Домашняя папка пользователя (~/.agents)
   const userHomeAgents = join(home, '.agents')
   targets.push({
     id: 'user-home',

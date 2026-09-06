@@ -62,11 +62,10 @@ export async function promptSkillsSelection(
 ): Promise<{ selectedSkills: string[], installRules: boolean }> {
   const choices: prompts.Choice[] = availableSkills.map((s) => {
     const isInstalled = installedSkills.has(s.name)
-    const newBadge = s.isNew ? ` ${colors.green}[НОВЫЙ]${colors.reset}` : ''
     const status = isInstalled ? ` ${colors.dim}(уже установлен)${colors.reset}` : ''
 
     return {
-      title: `${s.name}${newBadge}${status}`,
+      title: `${s.name}${status}`,
       description: `${s.title} (${s.filesCount} файлов)`,
       value: s.name,
       selected: true, // По умолчанию выбираем все

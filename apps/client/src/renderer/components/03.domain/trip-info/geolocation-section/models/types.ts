@@ -54,6 +54,8 @@ export interface GeolocationMapOptions {
   container: string | HTMLElement
   center: [number, number]
   zoom?: number
+  pitch?: number
+  bearing?: number
   interactive?: boolean
 }
 

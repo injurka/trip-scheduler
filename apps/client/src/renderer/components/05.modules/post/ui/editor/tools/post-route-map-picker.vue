@@ -1,7 +1,6 @@
 <script setup lang="ts">
 import type { Coordinate, MapPoint, MapRoute, PointType } from '~/components/03.domain/trip-info/geolocation-section'
 import { Icon } from '@iconify/vue'
-import { toLonLat } from 'ol/proj'
 import { v4 as uuidv4 } from 'uuid'
 import { computed, ref, watch } from 'vue'
 import { KitBtn } from '~/components/01.kit/kit-btn'
@@ -44,13 +43,7 @@ const mapCenter = computed<Coordinate>(() => {
 })
 
 function onMapReady(ctrl: any) {
-  ctrl.modifyInteraction.on('modifyend', async (event: any) => {
-    const feature = event.features.getArray()[0]
-    if (!feature)
-      return
-    const pointId = feature.getId() as string
-    const newCoords = toLonLat(feature.getGeometry().getCoordinates()) as Coordinate
-
+  const handleDragEnd = async (pointId: string, newCoords: Coordinate) => {
     const targetPoint = mapPoints.value.find(p => p.id === pointId)
     if (targetPoint) {
       isLoading.value = true
@@ -62,7 +55,11 @@ function onMapReady(ctrl: any) {
       await buildRoute()
       isLoading.value = false
     }
-  })
+  }
+
+  if (ctrl.onPointDragEnd) {
+    ctrl.onPointDragEnd(handleDragEnd)
+  }
 }
 
 async function fetchAddress(lon: number, lat: number) {

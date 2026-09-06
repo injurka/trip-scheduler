@@ -2,14 +2,11 @@
 import type { Coordinate, MapPoint, MapRoute } from '../models/types'
 import type { TileSourceId } from '~/shared/lib/map-styles-sources'
 import { onClickOutside } from '@vueuse/core'
-import { toLonLat } from 'ol/proj'
 import { onMounted, ref, watch } from 'vue'
 import { KitBtn } from '~/components/01.kit/kit-btn'
 import { KitInput } from '~/components/01.kit/kit-input'
 import { useGeolocationMap } from '../composables/use-geolocation-map'
 import GeolocationMapControls from './geolocation-map-controls.vue'
-
-import 'ol/ol.css'
 
 interface Props {
   points: MapPoint[]
@@ -20,6 +17,8 @@ interface Props {
   isLoading: boolean
   readonly?: boolean
   zoom?: number
+  pitch?: number
+  bearing?: number
   isFullscreen: boolean
   interactiveOnClick?: boolean
   withPanel?: boolean
@@ -31,6 +30,8 @@ interface Props {
 const props = withDefaults(defineProps<Props>(), {
   readonly: true,
   zoom: 14,
+  pitch: 0,
+  bearing: 0,
   interactiveOnClick: false,
   withPanel: true,
   activeItemId: null,
@@ -49,6 +50,7 @@ const {
   mapInstance,
   isMapLoaded,
   initMap,
+  setInteractive,
   addOrUpdatePoint,
   removePoint,
   addOrUpdateRoute,
@@ -72,11 +74,19 @@ function activateMap() {
     return
 
   isMapActive.value = true
-  mapInstance.value.getInteractions().forEach((interaction) => {
-    interaction.setActive(true)
-  })
+  setInteractive(true)
   modifyInteraction.setActive(!props.readonly)
 }
+
+watch(isMapActive, (active) => {
+  setInteractive(active)
+  if (active) {
+    modifyInteraction.setActive(!props.readonly)
+  }
+  else {
+    modifyInteraction.setActive(false)
+  }
+})
 
 function handleSetTileSource(sourceId: TileSourceId) {
   setTileSource(sourceId)
@@ -163,13 +173,15 @@ onMounted(async () => {
     container: mapContainerRef.value,
     center: props.center,
     zoom: props.zoom,
+    pitch: props.pitch,
+    bearing: props.bearing,
     interactive: !props.interactiveOnClick,
   })
 
   mapInstance.value?.on('click', (event) => {
     if (!isMapActive.value)
       return
-    const coords = toLonLat(event.coordinate) as Coordinate
+    const coords: Coordinate = [event.lngLat.lng, event.lngLat.lat]
     emit('mapClick', coords)
   })
 
@@ -177,6 +189,7 @@ onMounted(async () => {
     mapInstance,
     isMapLoaded,
     initMap,
+    setInteractive,
     addOrUpdatePoint,
     removePoint,
     addOrUpdateRoute,
@@ -221,6 +234,7 @@ watch(isMapLoaded, (isReady) => {
       v-if="interactiveOnClick && !isMapActive"
       class="map-activation-overlay"
       @click="activateMap"
+      @contextmenu.prevent="activateMap"
       @mouseenter="showActivateMessage = true"
       @mouseleave="showActivateMessage = false"
     >
@@ -341,6 +355,19 @@ watch(isMapLoaded, (isReady) => {
   cursor: move;
 }
 
+.maplibre-point-comment-wrapper {
+  .maplibregl-popup-content {
+    background: transparent !important;
+    box-shadow: none !important;
+    padding: 0 !important;
+    border-radius: 0 !important;
+    border: none !important;
+  }
+  .maplibregl-popup-tip {
+    display: none !important;
+  }
+}
+
 .ol-attribution {
   bottom: 6px !important;
   right: 6px !important;
@@ -396,6 +423,9 @@ watch(isMapLoaded, (isReady) => {
   }
   &.cursor-grab {
     cursor: grab;
+    &:active {
+      cursor: grabbing;
+    }
   }
 }
 

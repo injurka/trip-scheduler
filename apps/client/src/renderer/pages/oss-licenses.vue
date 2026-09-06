@@ -26,7 +26,7 @@ const licenses = ref<License[]>([
   { package: 'chart.js', license: 'MIT', version: '4.5.1', author: 'Chart.js contributors', link: 'https://github.com/chartjs/Chart.js' },
   { package: 'maska', license: 'MIT', version: '3.2.0', author: 'be-hold', link: 'https://github.com/beholdr/maska' },
   { package: 'ofetch', license: 'MIT', version: '1.5.1', author: 'Pooya Parsa', link: 'https://github.com/unjs/ofetch' },
-  { package: 'ol', license: 'BSD-2-Clause', version: '10.7.0', author: 'OpenLayers Contributors', link: 'https://github.com/openlayers/openlayers' },
+  { package: 'maplibre-gl', license: 'BSD-3-Clause', version: '6.7.0', author: 'MapLibre contributors', link: 'https://github.com/maplibre/maplibre-gl-js' },
   { package: 'pinia', license: 'MIT', version: '3.0.4', author: 'Eduardo San Martin Morote', link: 'https://github.com/vuejs/pinia' },
   { package: 'reka-ui', license: 'MIT', version: '2.6.0', author: 'Reka contributors', link: 'https://github.com/reka-ui/reka-ui' },
   { package: 'uuid', license: 'MIT', version: '13.0.0', author: 'UUID contributors', link: 'https://github.com/uuidjs/uuid' },

@@ -1,9 +1,12 @@
 {
-  "name": "@injurka/trip-scheduler-obsidian-importer",
+  "name": "@limiteddissolve/obsidian-importer",
   "type": "module",
   "version": "1.0.1",
-  "private": true,
+  "private": false,
   "main": "src/index.ts",
+  "bin": {
+    "obsidian-importer": "src/run.ts"
+  },
   "engines": {
     "bun": ">=1.4.0"
   },
@@ -12,12 +15,9 @@
     "dev": "bun run --hot --watch src/run.ts",
     "lint": "eslint .",
     "lint:fix": "eslint . --fix",
-    "typecheck": "bunx tsc --noEmit",
-    "publish:jsr": "npx jsr publish",
-    "publish:jsr:dry": "npx jsr publish --dry-run"
+    "typecheck": "bunx tsc --noEmit"
   },
   "dependencies": {
-    "@injurka/vault-locator": "workspace:*",
     "prompts": "^2.4.2"
   },
   "devDependencies": {

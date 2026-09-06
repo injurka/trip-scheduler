@@ -1,129 +1,175 @@
-import type { FeatureLike } from 'ol/Feature'
+import type { StyleSpecification } from 'maplibre-gl'
 import type { KitMapOptions, MapMarker } from '../models/types'
-import { Feature, Overlay } from 'ol'
-import Point from 'ol/geom/Point'
-import VectorLayer from 'ol/layer/Vector'
-import VectorSource from 'ol/source/Vector'
+import * as maplibregl from 'maplibre-gl'
 import { resolveApiUrl } from '~/shared/lib/url'
-import { createMarkerStyle, toMapCoord } from '~/shared/services/geo'
+import { createMarkerElement } from '~/shared/services/geo'
 import { useBaseMap } from './use-base-map'
 
 export function useKitMap() {
   const baseMap = useBaseMap()
 
-  const vectorSource = new VectorSource()
-  const searchVectorSource = new VectorSource()
+  const markersMap = new Map<string, maplibregl.Marker>()
+  let searchMarker: maplibregl.Marker | null = null
 
-  const vectorLayer = new VectorLayer({
-    source: vectorSource,
-    style: createMarkerStyle({ color: '#3399CC' }),
-    zIndex: 10,
-  })
-
-  const searchVectorLayer = new VectorLayer({
-    source: searchVectorSource,
-    style: createMarkerStyle({ color: '#FF5252' }),
-    zIndex: 11,
-  })
-
-  const initMap = async (
-    container: HTMLElement,
-    popupEl?: HTMLElement | null,
-    options: KitMapOptions = { center: [0, 0] },
-  ): Promise<void> => {
-    const popup = popupEl
-      ? new Overlay({
-          element: popupEl,
-          positioning: 'bottom-center',
-          offset: [0, -45],
-          stopEvent: false,
-          autoPan: options.autoPan === false ? false : { animation: { duration: 250 } },
-        })
-      : null
-
-    await baseMap.initMap({
-      container,
-      center: options.center,
-      zoom: options.zoom || 12,
-      initialSource: options.initialSource,
-      extraLayers: [vectorLayer, searchVectorLayer],
-      extraOverlays: popup ? [popup] : [],
-      showAttribution: false,
-    })
-
-    if (popup && popupEl && baseMap.mapInstance.value) {
-      baseMap.mapInstance.value.on('pointermove', (evt) => {
-        if (evt.dragging) {
-          popup.setPosition(undefined)
-          return
-        }
-        const pixel = baseMap.mapInstance.value?.getEventPixel(evt.originalEvent)
-        if (!pixel)
-          return
-
-        const feature = baseMap.mapInstance.value?.forEachFeatureAtPixel(pixel, f => f)
-        if (!feature) {
-          popup.setPosition(undefined)
-          return
-        }
-
-        const imageUrl = (feature as FeatureLike).get('imageUrl')
-        const resolvedUrl = resolveApiUrl(imageUrl)
-
-        if (resolvedUrl && popupEl) {
-          popupEl.innerHTML = `<img src="${resolvedUrl}" style="width:200px; height:120px; object-fit: cover; border-radius:4px;" />`
-          const geometry = (feature as Feature).getGeometry()
-          if (geometry?.getType() === 'Point') {
-            popup.setPosition((geometry as Point).getCoordinates())
-          }
-        }
-      })
-    }
+  const removeAllMarkers = () => {
+    markersMap.forEach(marker => marker.remove())
+    markersMap.clear()
   }
 
   const updateMarkers = (markers: MapMarker[]) => {
-    vectorSource.clear()
+    const map = baseMap.mapInstance.value
+    if (!map)
+      return
+
+    const newMarkerIds = new Set(markers.map(m => m.id))
+
+    // Удаляем маркеры, которых больше нет в списке
+    markersMap.forEach((marker, id) => {
+      if (!newMarkerIds.has(id)) {
+        marker.remove()
+        markersMap.delete(id)
+      }
+    })
+
     if (!markers.length)
       return
 
-    const features = markers.map((marker) => {
-      const feature = new Feature({
-        geometry: new Point(toMapCoord([marker.coords.lon, marker.coords.lat])),
-      })
-      feature.set('imageUrl', marker.imageUrl)
-      feature.setProperties(marker.payload || {})
-      return feature
-    })
+    markers.forEach((marker) => {
+      let markerInstance = markersMap.get(marker.id)
 
-    vectorSource.addFeatures(features)
+      if (!markerInstance) {
+        const el = createMarkerElement({ color: '#3399CC', scale: 1.1 })
+
+        markerInstance = new maplibregl.Marker({
+          element: el,
+          anchor: 'bottom',
+        }).setLngLat([marker.coords.lon, marker.coords.lat])
+
+        if (marker.imageUrl) {
+          const resolvedUrl = resolveApiUrl(marker.imageUrl)
+          if (resolvedUrl) {
+            const popup = new maplibregl.Popup({
+              offset: 28,
+              closeButton: false,
+              className: 'kit-map-image-popup',
+            }).setHTML(
+              `<img src="${resolvedUrl}" style="width:200px; height:120px; object-fit: cover; border-radius:4px; display:block;" />`,
+            )
+            markerInstance.setPopup(popup)
+
+            el.addEventListener('mouseenter', () => markerInstance?.togglePopup())
+            el.addEventListener('mouseleave', () => markerInstance?.togglePopup())
+          }
+        }
+
+        markerInstance.addTo(map)
+        markersMap.set(marker.id, markerInstance)
+      }
+      else {
+        markerInstance.setLngLat([marker.coords.lon, marker.coords.lat])
+      }
+    })
   }
 
   const fitViewToMarkers = () => {
-    if (vectorSource.getFeatures().length === 0)
+    if (markersMap.size === 0)
       return
-    baseMap.fitExtent(vectorSource.getExtent())
+
+    let minLon = Number.POSITIVE_INFINITY
+    let minLat = Number.POSITIVE_INFINITY
+    let maxLon = Number.NEGATIVE_INFINITY
+    let maxLat = Number.NEGATIVE_INFINITY
+
+    markersMap.forEach((marker) => {
+      const lngLat = marker.getLngLat()
+      if (lngLat.lng < minLon)
+        minLon = lngLat.lng
+      if (lngLat.lng > maxLon)
+        maxLon = lngLat.lng
+      if (lngLat.lat < minLat)
+        minLat = lngLat.lat
+      if (lngLat.lat > maxLat)
+        maxLat = lngLat.lat
+    })
+
+    if (minLon !== Number.POSITIVE_INFINITY) {
+      baseMap.fitBounds(
+        [
+          [minLon, minLat],
+          [maxLon, maxLat],
+        ],
+        { padding: { top: 50, right: 50, bottom: 50, left: 50 }, maxZoom: 15 },
+      )
+    }
   }
 
   const setSearchResult = (coords: { lat: number, lon: number }) => {
-    searchVectorSource.clear()
-    const feature = new Feature({
-      geometry: new Point(toMapCoord([coords.lon, coords.lat])),
-    })
-    searchVectorSource.addFeature(feature)
+    const map = baseMap.mapInstance.value
+    if (!map)
+      return
+
+    if (!searchMarker) {
+      const el = createMarkerElement({ color: '#FF5252', scale: 1.2 })
+      searchMarker = new maplibregl.Marker({
+        element: el,
+        anchor: 'bottom',
+      })
+        .setLngLat([coords.lon, coords.lat])
+        .addTo(map)
+    }
+    else {
+      searchMarker.setLngLat([coords.lon, coords.lat])
+    }
+
     baseMap.flyTo(coords.lon, coords.lat, 14, 800)
   }
 
   const clearSearchResult = () => {
-    searchVectorSource.clear()
+    if (searchMarker) {
+      searchMarker.remove()
+      searchMarker = null
+    }
   }
+
+  const initMap = async (
+    container: HTMLElement,
+    _popupEl?: HTMLElement | null,
+    options: KitMapOptions = { center: [0, 0] },
+  ): Promise<void> => {
+    await baseMap.initMap({
+      container,
+      center: options.center,
+      zoom: options.zoom ?? 12,
+      pitch: options.pitch ?? 0,
+      bearing: options.bearing ?? 0,
+      style: options.initialStyle,
+      showAttribution: false,
+    })
+
+    // При смене стиля восстанавливаем маркеры на холсте
+    baseMap.onStyleLoad((map) => {
+      markersMap.forEach(marker => marker.addTo(map))
+      if (searchMarker) {
+        searchMarker.addTo(map)
+      }
+    })
+  }
+
+  baseMap.mapInstance.value?.on('remove', () => {
+    removeAllMarkers()
+    clearSearchResult()
+  })
 
   return {
     mapInstance: baseMap.mapInstance,
     isMapReady: baseMap.isMapReady,
     initMap,
-    setTileSource: baseMap.setTileSource,
+    setStyle: baseMap.setStyle,
+    setTileSource: (style: string | StyleSpecification) => baseMap.setStyle(style),
     zoomIn: baseMap.zoomIn,
     zoomOut: baseMap.zoomOut,
+    flyTo: baseMap.flyTo,
+    fitBounds: baseMap.fitBounds,
     updateMarkers,
     fitViewToMarkers,
     setSearchResult,

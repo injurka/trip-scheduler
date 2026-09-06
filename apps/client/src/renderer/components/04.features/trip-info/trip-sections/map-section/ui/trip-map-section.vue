@@ -1,13 +1,10 @@
 <script setup lang="ts">
-import type { FeatureLike } from 'ol/Feature'
-
 import type { useGeolocationMap } from '~/components/03.domain/trip-info/geolocation-section/composables/use-geolocation-map'
 import type { MapPoint, MapRoute } from '~/components/03.domain/trip-info/geolocation-section/models/types'
 import type { IDay } from '~/components/04.features/trip-info/trip-plan/models/types'
 
 import { Icon } from '@iconify/vue'
 import { useFullscreen, useMediaQuery } from '@vueuse/core'
-import { fromLonLat } from 'ol/proj'
 import { KitBtn } from '~/components/01.kit/kit-btn'
 import { KitSelectWithSearch } from '~/components/01.kit/kit-select-with-search'
 import GeolocationMap from '~/components/03.domain/trip-info/geolocation-section/ui/geolocation-map.vue'
@@ -201,12 +198,16 @@ function onMapReady(controller: ReturnType<typeof useGeolocationMap>) {
 
 function handleMapClick(coords: [number, number]) {
   if (mapController.value?.mapInstance.value) {
-    const feature = mapController.value.mapInstance.value.forEachFeatureAtPixel(
-      mapController.value.mapInstance.value.getPixelFromCoordinate(fromLonLat(coords)),
-      (f: FeatureLike) => f,
-      { hitTolerance: 5 },
-    )
-    selectedItemId.value = feature ? (feature.getId() as string) : null
+    const map = mapController.value.mapInstance.value
+    const point = map.project(coords)
+    const features = map.queryRenderedFeatures([point.x, point.y])
+    const routeFeature = features.find(f => f.properties?.id)
+    if (routeFeature?.properties?.id) {
+      selectedItemId.value = routeFeature.properties.id
+    }
+    else {
+      selectedItemId.value = mapController.value.activePointId.value ?? null
+    }
   }
 }
 

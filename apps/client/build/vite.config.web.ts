@@ -99,7 +99,7 @@ export default defineConfig({
             return 'vendor-milkdown'
           if (id.includes('mermaid') || id.includes('katex') || id.includes('elkjs'))
             return 'vendor-editor-addons'
-          if (id.includes('ol') || id.includes('d3-geo') || id.includes('@mapbox/polyline'))
+          if (id.includes('maplibre-gl') || id.includes('d3-geo') || id.includes('@mapbox/polyline'))
             return 'vendor-map'
           if (id.includes('reka-ui') || id.includes('@iconify'))
             return 'vendor-ui'

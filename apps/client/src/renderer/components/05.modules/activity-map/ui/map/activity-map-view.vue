@@ -1,11 +1,10 @@
 <script setup lang="ts">
-import type { Map as OlMap } from 'ol'
+import type { Map as MapLibreMap } from 'maplibre-gl'
 import type { DateRange, MapBounds } from '../../models/types'
 import type { ActivityItem } from '../activity-map.vue'
 import type { MapMarker } from '~/components/01.kit/kit-map'
 import { Icon } from '@iconify/vue'
 import { useMediaQuery } from '@vueuse/core'
-import { toLonLat } from 'ol/proj'
 import { KitBtn } from '~/components/01.kit/kit-btn'
 import { KitMap } from '~/components/01.kit/kit-map'
 import { useActivityMapInteractions } from '../../composables/use-activity-map-interactions'
@@ -76,50 +75,30 @@ const {
   markers: toRef(props, 'markers'),
 })
 
-function onMapReady(map: OlMap) {
+function onMapReady(map: MapLibreMap) {
   initializeInteractions(map)
 
   map.on('moveend', () => {
     updateBoundsAndFetch(map)
   })
 
-  // Добавляем слушатель контекстного меню для карты
-  const mapElement = map.getTargetElement()
-  if (mapElement) {
-    mapElement.addEventListener('contextmenu', (e) => {
-      e.preventDefault()
-      const rect = mapElement.getBoundingClientRect()
-      const x = e.clientX - rect.left
-      const y = e.clientY - rect.top
-      const coordinate = map.getCoordinateFromPixel([x, y])
-      emit('contextMenu', toLonLat(coordinate) as [number, number])
-    })
-  }
+  map.on('contextmenu', (e) => {
+    emit('contextMenu', [e.lngLat.lng, e.lngLat.lat])
+  })
 
   updateBoundsAndFetch(map)
 }
 
-function updateBoundsAndFetch(map: OlMap) {
-  const view = map.getView()
-  const size = map.getSize()
-  if (!size)
-    return
-
-  const centerCoordinates = view.getCenter()
-  if (!centerCoordinates)
-    return
-
-  const zoom = view.getZoom() || 0
-  const centerLonLat = toLonLat(centerCoordinates)
-  const extent = view.calculateExtent(size)
-  const topLeft = toLonLat([extent[0], extent[3]])
-  const rightBottom = toLonLat([extent[2], extent[1]])
+function updateBoundsAndFetch(map: MapLibreMap) {
+  const bounds = map.getBounds()
+  const center = map.getCenter()
+  const zoom = map.getZoom()
 
   const mapBounds: MapBounds = {
     screen: {
-      leftTop: { lat: topLeft[1], lon: topLeft[0] },
-      center: { lat: centerLonLat[1], lon: centerLonLat[0] },
-      rightBottom: { lat: rightBottom[1], lon: rightBottom[0] },
+      leftTop: { lat: bounds.getNorth(), lon: bounds.getWest() },
+      center: { lat: center.lat, lon: center.lng },
+      rightBottom: { lat: bounds.getSouth(), lon: bounds.getEast() },
     },
     zoomlevel: zoom,
   }
@@ -248,6 +227,21 @@ const controlsLeftPosition = computed(() => isMobileScreen.value ? '16px' : `${s
     </div>
   </div>
 </template>
+
+<style>
+.activity-hover-popup {
+  .maplibregl-popup-content {
+    background: transparent !important;
+    box-shadow: none !important;
+    padding: 0 !important;
+    border-radius: 0 !important;
+    border: none !important;
+  }
+  .maplibregl-popup-tip {
+    display: none !important;
+  }
+}
+</style>
 
 <style scoped lang="scss">
 .activity-map-view {

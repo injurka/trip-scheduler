@@ -1,26 +1,16 @@
-import type { EventsKey } from 'ol/events'
+import type { Map as MapLibreMap } from 'maplibre-gl'
 import type { Coordinate, GeolocationMapOptions, MapPoint, MapRoute, TransportMode } from '../models/types'
 import type { TileSourceId } from '~/shared/lib/map-styles-sources'
-import { Feature, Overlay } from 'ol'
-import { LineString, Point } from 'ol/geom'
-import { Modify } from 'ol/interaction'
-import { Vector as VectorLayer } from 'ol/layer'
-import { unByKey } from 'ol/Observable'
-import { Vector as VectorSource } from 'ol/source'
-import { Circle as CircleStyle, Fill, Stroke, Style } from 'ol/style'
+import * as maplibregl from 'maplibre-gl'
 import { onUnmounted, readonly, ref } from 'vue'
 import { useBaseMap } from '~/components/01.kit/kit-map'
 import { useToast } from '~/shared/composables/use-toast'
-import { checkMapTilerAvailability, createTileSource } from '~/shared/lib/map-styles-sources'
+import { getMapStyle } from '~/shared/lib/map-styles-sources'
 import {
-  createMarkerStyle,
-  createRouteStyles,
+  createMarkerElement,
   nominatimService,
   routingService,
-  toMapCoord,
 } from '~/shared/services/geo'
-
-const SEARCH_RESULT_OVERLAY_ID = 'search-result-overlay'
 
 const POINT_TYPE_COLORS: Record<string, string> = {
   poi: '#3498db',
@@ -30,44 +20,54 @@ const POINT_TYPE_COLORS: Record<string, string> = {
   connect: '#95a5a6',
 }
 
+interface PointItem {
+  marker: maplibregl.Marker
+  popup?: maplibregl.Popup
+  popupElement?: HTMLElement
+  point: MapPoint
+}
+
+export type PointDragEndCallback = (pointId: string, coords: Coordinate) => void
+
 export function useGeolocationMap() {
   const baseMap = useBaseMap()
 
-  const pointSource = new VectorSource()
-  const routeSource = new VectorSource()
-  const searchResultSource = new VectorSource()
-  const currentLocationSource = new VectorSource()
-  const selectionSource = new VectorSource()
+  const pointsMap = new Map<string, PointItem>()
+  const routesMap = new Map<string, MapRoute>()
 
-  const pointLayer = new VectorLayer({ source: pointSource, zIndex: 10 })
-  const routeLayer = new VectorLayer({ source: routeSource, zIndex: 5 })
-  const searchResultLayer = new VectorLayer({ source: searchResultSource, zIndex: 11 })
-  const currentLocationLayer = new VectorLayer({ source: currentLocationSource, zIndex: 12 })
-  const selectionLayer = new VectorLayer({ source: selectionSource, zIndex: 9 })
-
-  const modifyInteraction = new Modify({ source: pointSource })
-
-  const eventKeys: EventsKey[] = []
-  let cleanUpRmbListeners: (() => void) | null = null
+  let searchResultMarker: maplibregl.Marker | null = null
+  let currentLocationMarker: maplibregl.Marker | null = null
+  let selectionMarker: maplibregl.Marker | null = null
 
   const activePointId = ref<string | null>(null)
   const hoveredPointId = ref<string | null>(null)
+  const isDraggableAllowed = ref(true)
   const minZoomForComments = 13
 
-  interface PointOverlayItem {
-    overlay: Overlay
-    element: HTMLElement
-    baseOpacity?: number
-    baseZIndex?: number
+  const dragEndListeners = new Set<PointDragEndCallback>()
+
+  const onPointDragEnd = (cb: PointDragEndCallback) => {
+    dragEndListeners.add(cb)
+    return () => {
+      dragEndListeners.delete(cb)
+    }
   }
-  const pointOverlays = new Map<string, PointOverlayItem>()
+
+  const notifyPointDragEnd = (pointId: string, coords: Coordinate) => {
+    dragEndListeners.forEach(cb => cb(pointId, coords))
+  }
 
   const updateOverlayVisibilities = () => {
-    const isZoomedIn = (baseMap.currentZoom.value ?? 0) >= minZoomForComments
+    const map = baseMap.mapInstance.value
+    if (!map)
+      return
 
-    pointOverlays.forEach((item, id) => {
-      const el = item.element
-      if (!el)
+    const zoom = map.getZoom()
+    const isZoomedIn = zoom >= minZoomForComments
+
+    pointsMap.forEach((item, id) => {
+      const { popup, popupElement } = item
+      if (!popup || !popupElement)
         return
 
       const isHovered = hoveredPointId.value === id
@@ -75,33 +75,25 @@ export function useGeolocationMap() {
       const shouldShow = isZoomedIn || isHovered || isActive
 
       if (shouldShow) {
-        el.classList.remove('is-hidden-zoom')
+        if (!popup.isOpen()) {
+          popup.addTo(map)
+        }
+        popupElement.classList.remove('is-hidden-zoom')
         if (isActive) {
-          el.classList.add('is-active')
-          el.classList.remove('is-hovered')
-          if (el.parentElement) {
-            el.parentElement.style.zIndex = '100'
-          }
+          popupElement.classList.add('is-active')
+          popupElement.classList.remove('is-hovered')
         }
         else if (isHovered) {
-          el.classList.add('is-hovered')
-          el.classList.remove('is-active')
-          if (el.parentElement) {
-            el.parentElement.style.zIndex = '99'
-          }
+          popupElement.classList.add('is-hovered')
+          popupElement.classList.remove('is-active')
         }
         else {
-          el.classList.remove('is-active', 'is-hovered')
-          if (el.parentElement) {
-            el.parentElement.style.zIndex = item.baseZIndex !== undefined ? String(item.baseZIndex) : ''
-          }
+          popupElement.classList.remove('is-active', 'is-hovered')
         }
       }
       else {
-        el.classList.add('is-hidden-zoom')
-        el.classList.remove('is-active', 'is-hovered')
-        if (el.parentElement) {
-          el.parentElement.style.zIndex = item.baseZIndex !== undefined ? String(item.baseZIndex) : ''
+        if (popup.isOpen()) {
+          popup.remove()
         }
       }
     })
@@ -114,64 +106,392 @@ export function useGeolocationMap() {
     }
   }
 
-  // Сдвиг карты строго по горизонтали при зажатой ПКМ
-  const setupRmbHorizontalPan = (containerEl: HTMLElement) => {
-    let isRmbDragging = false
-    let startClientX = 0
-    let initialCenterX = 0
+  const setTileSource = (sourceId: TileSourceId) => {
+    baseMap.setStyle(getMapStyle(sourceId))
+  }
 
-    const onContextMenu = (e: MouseEvent) => {
-      e.preventDefault()
+  const renderRoute = (map: MapLibreMap, route: MapRoute) => {
+    if (!route.geometry || route.geometry.length < 2)
+      return
+
+    const sourceId = `route-source-${route.id}`
+    const casingLayerId = `route-casing-${route.id}`
+    const lineLayerId = `route-line-${route.id}`
+
+    const geojson: GeoJSON.Feature<GeoJSON.LineString> = {
+      type: 'Feature',
+      properties: {
+        id: route.id,
+        color: route.color || '#4363D8',
+        isDirect: Boolean(route.isDirect),
+      },
+      geometry: {
+        type: 'LineString',
+        coordinates: route.geometry,
+      },
     }
 
-    const onMouseDown = (e: MouseEvent) => {
-      if (e.button === 2) {
-        e.preventDefault()
-        isRmbDragging = true
-        startClientX = e.clientX
+    const existingSource = map.getSource(sourceId) as maplibregl.GeoJSONSource | undefined
+    if (existingSource) {
+      existingSource.setData(geojson)
+      if (map.getLayer(lineLayerId)) {
+        map.setPaintProperty(lineLayerId, 'line-color', route.color || '#4363D8')
+        map.setPaintProperty(
+          lineLayerId,
+          'line-dasharray',
+          route.isDirect ? [2, 2] : undefined,
+        )
+      }
+      return
+    }
 
-        const view = baseMap.mapInstance.value?.getView()
-        const center = view?.getCenter()
-        if (center) {
-          initialCenterX = center[0]
+    map.addSource(sourceId, {
+      type: 'geojson',
+      data: geojson,
+    })
+
+    // Нижний слой-подложка (casing) для четкого контраста
+    map.addLayer({
+      id: casingLayerId,
+      type: 'line',
+      source: sourceId,
+      layout: {
+        'line-cap': 'round',
+        'line-join': 'round',
+      },
+      paint: {
+        'line-color': '#ffffff',
+        'line-width': 8,
+        'line-opacity': 0.9,
+      },
+    })
+
+    // Верхний цветной слой маршрута
+    map.addLayer({
+      id: lineLayerId,
+      type: 'line',
+      source: sourceId,
+      layout: {
+        'line-cap': 'round',
+        'line-join': 'round',
+      },
+      paint: {
+        'line-color': route.color || '#4363D8',
+        'line-width': 4.5,
+        ...(route.isDirect ? { 'line-dasharray': [2, 2] } : {}),
+      },
+    })
+  }
+
+  const addOrUpdateRoute = (route: MapRoute) => {
+    routesMap.set(route.id, route)
+    const map = baseMap.mapInstance.value
+    if (!map || !baseMap.isMapReady.value)
+      return
+    renderRoute(map, route)
+  }
+
+  const removeRoute = (routeId: string) => {
+    routesMap.delete(routeId)
+    const map = baseMap.mapInstance.value
+    if (!map)
+      return
+
+    const casingLayerId = `route-casing-${routeId}`
+    const lineLayerId = `route-line-${routeId}`
+    const sourceId = `route-source-${routeId}`
+
+    if (map.getLayer(lineLayerId))
+      map.removeLayer(lineLayerId)
+    if (map.getLayer(casingLayerId))
+      map.removeLayer(casingLayerId)
+    if (map.getSource(sourceId))
+      map.removeSource(sourceId)
+  }
+
+  const clearRoutes = () => {
+    const ids = Array.from(routesMap.keys())
+    ids.forEach(removeRoute)
+  }
+
+  const addOrUpdatePoint = (point: MapPoint) => {
+    const map = baseMap.mapInstance.value
+    if (!map)
+      return
+
+    const color = point.style?.color || POINT_TYPE_COLORS[point.type] || '#3498db'
+    const isConnect = point.type === 'connect'
+    const existing = pointsMap.get(point.id)
+
+    if (existing) {
+      existing.marker.setLngLat(point.coordinates)
+      existing.marker.setDraggable(isDraggableAllowed.value)
+      existing.point = point
+
+      if (point.comment && point.comment.trim() !== '') {
+        if (!existing.popup) {
+          const popupElement = document.createElement('div')
+          popupElement.className = 'ol-popup-comment'
+          popupElement.textContent = point.comment
+
+          popupElement.onclick = (e) => {
+            e.stopPropagation()
+            setActivePointId(point.id)
+          }
+
+          const popup = new maplibregl.Popup({
+            offset: isConnect ? 10 : 32,
+            closeButton: false,
+            closeOnClick: false,
+            closeOnMove: false,
+            className: 'maplibre-point-comment-wrapper',
+          }).setDOMContent(popupElement)
+
+          existing.marker.setPopup(popup)
+          existing.popup = popup
+          existing.popupElement = popupElement
         }
-        containerEl.style.cursor = 'ew-resize'
+        else if (existing.popupElement) {
+          existing.popupElement.textContent = point.comment
+        }
       }
-    }
-
-    const onMouseMove = (e: MouseEvent) => {
-      if (!isRmbDragging || !baseMap.mapInstance.value)
-        return
-
-      const view = baseMap.mapInstance.value.getView()
-      const center = view.getCenter()
-      const resolution = view.getResolution() || 1
-      if (!center)
-        return
-
-      const deltaX = e.clientX - startClientX
-      const targetX = initialCenterX - deltaX * resolution
-      view.setCenter([targetX, center[1]])
-    }
-
-    const onMouseUp = (e: MouseEvent) => {
-      if (e.button === 2 || isRmbDragging) {
-        isRmbDragging = false
-        containerEl.style.cursor = ''
+      else if (existing.popup) {
+        existing.popup.remove()
+        existing.popup = undefined
+        existing.popupElement = undefined
       }
+
+      updateOverlayVisibilities()
+      return
     }
 
-    containerEl.addEventListener('contextmenu', onContextMenu)
-    containerEl.addEventListener('mousedown', onMouseDown)
-    window.addEventListener('mousemove', onMouseMove)
-    window.addEventListener('mouseup', onMouseUp)
+    const el = createMarkerElement({
+      color,
+      scale: point.style?.scale || 1.1,
+      opacity: point.style?.opacity ?? 1.0,
+      zIndex: point.style?.zIndex ?? (isConnect ? 15 : 20),
+      isConnect,
+    })
 
-    cleanUpRmbListeners = () => {
-      containerEl.removeEventListener('contextmenu', onContextMenu)
-      containerEl.removeEventListener('mousedown', onMouseDown)
-      window.removeEventListener('mousemove', onMouseMove)
-      window.removeEventListener('mouseup', onMouseUp)
+    const marker = new maplibregl.Marker({
+      element: el,
+      anchor: isConnect ? 'center' : 'bottom',
+      draggable: isDraggableAllowed.value,
+    })
+      .setLngLat(point.coordinates)
+      .addTo(map)
+
+    marker.on('dragend', () => {
+      const lngLat = marker.getLngLat()
+      const newCoords: Coordinate = [lngLat.lng, lngLat.lat]
+      point.coordinates = newCoords
+      notifyPointDragEnd(point.id, newCoords)
+    })
+
+    el.addEventListener('mouseenter', () => {
+      hoveredPointId.value = point.id
+      updateOverlayVisibilities()
+    })
+
+    el.addEventListener('mouseleave', () => {
+      if (hoveredPointId.value === point.id) {
+        hoveredPointId.value = null
+        updateOverlayVisibilities()
+      }
+    })
+
+    el.addEventListener('click', (e) => {
+      e.stopPropagation()
+      setActivePointId(point.id)
+    })
+
+    let popup: maplibregl.Popup | undefined
+    let popupElement: HTMLElement | undefined
+
+    if (point.comment && point.comment.trim() !== '') {
+      popupElement = document.createElement('div')
+      popupElement.className = 'ol-popup-comment'
+      popupElement.textContent = point.comment
+
+      popupElement.onclick = (e) => {
+        e.stopPropagation()
+        setActivePointId(point.id)
+      }
+
+      popup = new maplibregl.Popup({
+        offset: isConnect ? 10 : 32,
+        closeButton: false,
+        closeOnClick: false,
+        closeOnMove: false,
+        className: 'maplibre-point-comment-wrapper',
+      }).setDOMContent(popupElement)
+
+      marker.setPopup(popup)
     }
+
+    pointsMap.set(point.id, {
+      marker,
+      popup,
+      popupElement,
+      point,
+    })
+
+    updateOverlayVisibilities()
+  }
+
+  const removePoint = (pointId: string) => {
+    const item = pointsMap.get(pointId)
+    if (item) {
+      if (item.popup?.isOpen()) {
+        item.popup.remove()
+      }
+      item.marker.remove()
+      pointsMap.delete(pointId)
+    }
+  }
+
+  const clearPoints = () => {
+    pointsMap.forEach((item) => {
+      if (item.popup?.isOpen()) {
+        item.popup.remove()
+      }
+      item.marker.remove()
+    })
+    pointsMap.clear()
+  }
+
+  const setSelectionMarker = (coords: Coordinate | null) => {
+    const map = baseMap.mapInstance.value
+    if (!coords || !map) {
+      if (selectionMarker) {
+        selectionMarker.remove()
+        selectionMarker = null
+      }
+      return
+    }
+
+    if (!selectionMarker) {
+      const el = document.createElement('div')
+      el.className = 'maplibre-selection-marker'
+      el.style.width = '18px'
+      el.style.height = '18px'
+      el.style.borderRadius = '50%'
+      el.style.border = '3px solid #E6194B'
+      el.style.backgroundColor = 'rgba(230, 25, 75, 0.25)'
+      el.style.pointerEvents = 'none'
+
+      selectionMarker = new maplibregl.Marker({
+        element: el,
+        anchor: 'center',
+      })
+        .setLngLat(coords)
+        .addTo(map)
+    }
+    else {
+      selectionMarker.setLngLat(coords)
+    }
+  }
+
+  const clearSearchResult = () => {
+    if (searchResultMarker) {
+      searchResultMarker.remove()
+      searchResultMarker = null
+    }
+  }
+
+  const flyToLocation = (longitude: number, latitude: number, zoom = 14) => {
+    baseMap.flyTo(longitude, latitude, zoom)
+  }
+
+  async function searchLocation(query: string): Promise<boolean> {
+    clearSearchResult()
+    if (!query.trim())
+      return false
+
+    const result = await nominatimService.searchSingle(query)
+    if (!result)
+      return false
+
+    const { lon, lat, displayName } = result
+    flyToLocation(lon, lat, 15)
+
+    const map = baseMap.mapInstance.value
+    if (map) {
+      const el = createMarkerElement({ color: '#E74C3C', scale: 1.3 })
+      const popup = new maplibregl.Popup({
+        offset: 32,
+        closeButton: true,
+        closeOnClick: false,
+      }).setText(displayName)
+
+      searchResultMarker = new maplibregl.Marker({
+        element: el,
+        anchor: 'bottom',
+      })
+        .setLngLat([lon, lat])
+        .setPopup(popup)
+        .addTo(map)
+
+      popup.addTo(map)
+    }
+
+    return true
+  }
+
+  const showCurrentLocation = () => {
+    if (!navigator.geolocation) {
+      useToast().error('Геолокация не поддерживается вашим браузером.')
+      return
+    }
+
+    navigator.geolocation.getCurrentPosition(
+      (position) => {
+        const map = baseMap.mapInstance.value
+        if (!map)
+          return
+
+        const { longitude, latitude } = position.coords
+        flyToLocation(longitude, latitude, 16)
+
+        if (!currentLocationMarker) {
+          const el = document.createElement('div')
+          el.className = 'maplibre-current-location-marker'
+          el.style.width = '16px'
+          el.style.height = '16px'
+          el.style.borderRadius = '50%'
+          el.style.backgroundColor = '#3498db'
+          el.style.border = '2.5px solid #ffffff'
+          el.style.boxShadow = '0 0 0 4px rgba(52, 152, 219, 0.35)'
+
+          currentLocationMarker = new maplibregl.Marker({
+            element: el,
+            anchor: 'center',
+          })
+            .setLngLat([longitude, latitude])
+            .addTo(map)
+        }
+        else {
+          currentLocationMarker.setLngLat([longitude, latitude])
+        }
+      },
+      () => {
+        useToast().error('Не удалось определить местоположение.')
+      },
+      { enableHighAccuracy: true },
+    )
+  }
+
+  const fetchRoute = async (
+    waypoints: MapPoint[],
+    transportMode: TransportMode = 'foot',
+  ): Promise<(Partial<MapRoute> & { isDirect?: boolean }) | null> => {
+    if (waypoints.length < 2)
+      return null
+    return routingService.calculateRoute(waypoints, transportMode)
+  }
+
+  const fetchAddress = async (coordinates: Coordinate) => {
+    return nominatimService.reverse(coordinates)
   }
 
   const initMap = async (options: GeolocationMapOptions) => {
@@ -185,338 +505,101 @@ export function useGeolocationMap() {
         ? document.getElementById(options.container)!
         : options.container
 
-    if (!containerEl) {
+    if (!containerEl)
       return
-    }
 
-    const isMapTilerWorking = await checkMapTilerAvailability()
-    const initialSource = createTileSource(isMapTilerWorking ? 'maptilerOutdoor' : 'osm')
+    isDraggableAllowed.value = options.interactive ?? true
 
     await baseMap.initMap({
       container: containerEl,
       center: options.center,
-      zoom: options.zoom || 12,
-      initialSource,
-      extraLayers: [routeLayer, selectionLayer, pointLayer, searchResultLayer, currentLocationLayer],
-      extraInteractions: [modifyInteraction],
+      zoom: options.zoom ?? 12,
+      pitch: options.pitch ?? 0,
+      maxPitch: 85,
+      bearing: options.bearing ?? 0,
+      interactive: options.interactive ?? true,
       showAttribution: true,
     })
 
-    modifyInteraction.setActive(options.interactive ?? true)
-    setupRmbHorizontalPan(containerEl)
-
     const map = baseMap.mapInstance.value
     if (map) {
-      const resKey = map.getView().on('change:resolution', () => {
+      map.on('zoom', updateOverlayVisibilities)
+
+      // При смене стиля восстанавливаем 3D рельеф, маршруты и маркеры
+      baseMap.onStyleLoad((m) => {
+        routesMap.forEach((route) => {
+          renderRoute(m, route)
+        })
+        pointsMap.forEach(({ marker }) => {
+          marker.addTo(m)
+        })
+        if (selectionMarker)
+          selectionMarker.addTo(m)
+        if (searchResultMarker)
+          searchResultMarker.addTo(m)
+        if (currentLocationMarker)
+          currentLocationMarker.addTo(m)
         updateOverlayVisibilities()
       })
-      eventKeys.push(resKey)
+    }
+  }
 
-      const pointerKey = map.on('pointermove', (evt) => {
-        if (evt.dragging || !baseMap.mapInstance.value)
-          return
-
-        const feature = baseMap.mapInstance.value.forEachFeatureAtPixel(
-          evt.pixel,
-          f => f,
-          {
-            hitTolerance: 6,
-            layerFilter: layer => layer === pointLayer || layer === searchResultLayer,
-          },
-        )
-
-        const targetElement = baseMap.mapInstance.value.getTargetElement()
-        if (feature) {
-          const id = feature.getId() as string | undefined
-          if (id && id !== hoveredPointId.value) {
-            hoveredPointId.value = id
-            updateOverlayVisibilities()
-          }
-          if (targetElement && !targetElement.classList.contains('cursor-crosshair') && !targetElement.classList.contains('cursor-move')) {
-            targetElement.style.cursor = 'pointer'
-          }
-        }
-        else {
-          if (hoveredPointId.value !== null) {
-            hoveredPointId.value = null
-            updateOverlayVisibilities()
-          }
-          if (targetElement && !targetElement.classList.contains('cursor-crosshair') && !targetElement.classList.contains('cursor-move')) {
-            targetElement.style.cursor = ''
-          }
-        }
+  // Эмуляция modifyInteraction для полной обратной совместимости API
+  const modifyInteraction = {
+    setActive: (active: boolean) => {
+      isDraggableAllowed.value = active
+      pointsMap.forEach(({ marker }) => {
+        marker.setDraggable(active)
       })
-      eventKeys.push(pointerKey)
-    }
-  }
-
-  const setTileSource = (sourceId: TileSourceId) => {
-    baseMap.setTileSource(createTileSource(sourceId))
-  }
-
-  function getPointStyle(point: MapPoint): Style {
-    const color = point.style?.color || POINT_TYPE_COLORS[point.type] || '#3498db'
-    return createMarkerStyle({
-      color,
-      scale: point.style?.scale || 1.5,
-      opacity: point.style?.opacity !== undefined ? point.style.opacity : 1.0,
-      zIndex: point.style?.zIndex !== undefined ? point.style.zIndex : (point.type === 'connect' ? 15 : 20),
-      isConnect: point.type === 'connect',
-    })
-  }
-
-  const addOrUpdatePoint = (point: MapPoint) => {
-    const map = baseMap.mapInstance.value
-    if (!map)
-      return
-
-    let feature = pointSource.getFeatureById(point.id)
-    const coordinates = toMapCoord(point.coordinates)
-
-    if (feature) {
-      feature.setGeometry(new Point(coordinates))
-    }
-    else {
-      feature = new Feature({ geometry: new Point(coordinates) })
-      feature.setId(point.id)
-      pointSource.addFeature(feature)
-    }
-    feature.setStyle(getPointStyle(point))
-
-    const overlay = map.getOverlayById(point.id)
-    if (point.comment && point.comment.trim() !== '') {
-      let popupElement: HTMLElement
-      let currentOverlay = overlay
-
-      if (currentOverlay) {
-        currentOverlay.setPosition(coordinates)
-        popupElement = currentOverlay.getElement()!
-        popupElement.textContent = point.comment
-      }
-      else {
-        popupElement = document.createElement('div')
-        popupElement.className = 'ol-popup-comment'
-        popupElement.textContent = point.comment
-
-        popupElement.onclick = (e) => {
-          e.stopPropagation()
-          setActivePointId(point.id)
-          map.dispatchEvent({
-            type: 'click',
-            coordinate: coordinates,
-            pixel: map.getPixelFromCoordinate(coordinates),
-            originalEvent: e,
-          } as any)
-        }
-
-        currentOverlay = new Overlay({
-          element: popupElement,
-          position: coordinates,
-          positioning: 'bottom-center',
-          offset: [0, -42],
-          id: point.id,
+    },
+    on: (eventName: string, cb: any) => {
+      if (eventName === 'modifyend') {
+        return onPointDragEnd((pointId, coords) => {
+          // Вызываем коллбэк в формате события
+          cb({
+            features: {
+              getArray: () => [
+                {
+                  getId: () => pointId,
+                  getGeometry: () => ({
+                    getCoordinates: () => coords,
+                  }),
+                },
+              ],
+            },
+          })
         })
-        map.addOverlay(currentOverlay)
       }
-
-      popupElement.style.opacity = point.style?.opacity !== undefined ? String(point.style.opacity) : '1'
-
-      if (point.style?.zIndex !== undefined && popupElement.parentElement) {
-        popupElement.parentElement.style.zIndex = String(point.style.zIndex)
-      }
-
-      pointOverlays.set(point.id, {
-        overlay: currentOverlay,
-        element: popupElement,
-        baseOpacity: point.style?.opacity,
-        baseZIndex: point.style?.zIndex,
-      })
-      updateOverlayVisibilities()
-    }
-    else if (overlay) {
-      pointOverlays.delete(point.id)
-      map.removeOverlay(overlay)
-    }
-  }
-
-  const removePoint = (pointId: string) => {
-    pointOverlays.delete(pointId)
-    const feature = pointSource.getFeatureById(pointId)
-    if (feature)
-      pointSource.removeFeature(feature)
-    const overlay = baseMap.mapInstance.value?.getOverlayById(pointId)
-    if (overlay)
-      baseMap.mapInstance.value?.removeOverlay(overlay)
-  }
-
-  const clearPoints = () => {
-    pointOverlays.clear()
-    pointSource.clear()
-    baseMap.mapInstance.value?.getOverlays().clear()
-  }
-
-  const addOrUpdateRoute = (route: MapRoute) => {
-    const map = baseMap.mapInstance.value
-    if (!map || !route.geometry || route.geometry.length < 2)
-      return
-
-    let feature = routeSource.getFeatureById(route.id)
-    const coordinates = route.geometry.map(coord => toMapCoord(coord))
-    const lineGeometry = new LineString(coordinates)
-
-    if (feature) {
-      feature.setGeometry(lineGeometry)
-    }
-    else {
-      feature = new Feature({ geometry: lineGeometry })
-      feature.setId(route.id)
-      routeSource.addFeature(feature)
-    }
-
-    const routeColor = route.color || '#4363D8'
-    feature.setStyle(createRouteStyles(lineGeometry, routeColor, route.isDirect))
-  }
-
-  const removeRoute = (routeId: string) => {
-    const feature = routeSource.getFeatureById(routeId)
-    if (feature)
-      routeSource.removeFeature(feature)
-  }
-
-  const clearRoutes = () => {
-    routeSource.clear()
-  }
-
-  const setSelectionMarker = (coords: Coordinate | null) => {
-    selectionSource.clear()
-    if (!coords)
-      return
-
-    const feature = new Feature({
-      geometry: new Point(toMapCoord(coords)),
-    })
-    feature.setStyle(new Style({
-      image: new CircleStyle({
-        radius: 8,
-        fill: new Fill({ color: 'rgba(230, 25, 75, 0.2)' }),
-        stroke: new Stroke({
-          color: '#E6194B',
-          width: 3,
-        }),
-      }),
-    }))
-    selectionSource.addFeature(feature)
-  }
-
-  // Расчет маршрута делегируется в routingService
-  const fetchRoute = async (
-    waypoints: MapPoint[],
-    transportMode: TransportMode = 'foot',
-  ): Promise<(Partial<MapRoute> & { isDirect?: boolean }) | null> => {
-    if (waypoints.length < 2)
-      return null
-    return routingService.calculateRoute(waypoints, transportMode)
-  }
-
-  // Получение адреса делегируется в nominatimService
-  const fetchAddress = async (coordinates: Coordinate) => {
-    return nominatimService.reverse(coordinates)
-  }
-
-  const flyToLocation = (longitude: number, latitude: number, zoom = 14) => {
-    baseMap.flyTo(longitude, latitude, zoom)
-  }
-
-  const clearSearchResult = () => {
-    searchResultSource.clear()
-    const overlay = baseMap.mapInstance.value?.getOverlayById(SEARCH_RESULT_OVERLAY_ID)
-    if (overlay)
-      baseMap.mapInstance.value?.removeOverlay(overlay)
-  }
-
-  async function searchLocation(query: string): Promise<boolean> {
-    clearSearchResult()
-    if (!query.trim())
-      return false
-
-    const result = await nominatimService.searchSingle(query)
-    if (!result)
-      return false
-
-    const { lon, lat, displayName } = result
-    const coordinates = toMapCoord([lon, lat])
-    flyToLocation(lon, lat, 15)
-
-    const feature = new Feature({ geometry: new Point(coordinates) })
-    feature.setStyle(createMarkerStyle({ color: '#E74C3C', scale: 1.5 }))
-    searchResultSource.addFeature(feature)
-
-    const popupElement = document.createElement('div')
-    popupElement.className = 'ol-popup-comment'
-    popupElement.textContent = displayName
-    const searchOverlay = new Overlay({
-      element: popupElement,
-      position: coordinates,
-      positioning: 'bottom-center',
-      offset: [0, -42],
-      id: SEARCH_RESULT_OVERLAY_ID,
-    })
-    baseMap.mapInstance.value?.addOverlay(searchOverlay)
-
-    return true
-  }
-
-  const showCurrentLocation = () => {
-    if (!navigator.geolocation) {
-      useToast().error('Геолокация не поддерживается вашим браузером.')
-      return
-    }
-
-    navigator.geolocation.getCurrentPosition(
-      (position) => {
-        if (!baseMap.mapInstance.value)
-          return
-
-        const { longitude, latitude } = position.coords
-        flyToLocation(longitude, latitude, 16)
-
-        currentLocationSource.clear()
-
-        const locationFeature = new Feature({
-          geometry: new Point(toMapCoord([longitude, latitude])),
-        })
-
-        locationFeature.setStyle(new Style({
-          image: new CircleStyle({
-            radius: 8,
-            fill: new Fill({ color: '#3498db' }),
-            stroke: new Stroke({ color: '#ffffff', width: 2 }),
-          }),
-        }))
-
-        currentLocationSource.addFeature(locationFeature)
-      },
-      () => {
-        useToast().error('Не удалось определить местоположение.')
-      },
-      { enableHighAccuracy: true },
-    )
+      return () => {}
+    },
   }
 
   onUnmounted(() => {
-    eventKeys.forEach(k => unByKey(k))
-    eventKeys.length = 0
-    if (cleanUpRmbListeners) {
-      cleanUpRmbListeners()
-      cleanUpRmbListeners = null
+    dragEndListeners.clear()
+    clearPoints()
+    clearRoutes()
+    clearSearchResult()
+    if (currentLocationMarker) {
+      currentLocationMarker.remove()
+      currentLocationMarker = null
+    }
+    if (selectionMarker) {
+      selectionMarker.remove()
+      selectionMarker = null
     }
   })
+
+  const setInteractive = (interactive: boolean) => {
+    baseMap.setInteractive(interactive)
+    isDraggableAllowed.value = interactive
+  }
 
   return {
     mapInstance: baseMap.mapInstance,
     isMapLoaded: baseMap.isMapReady,
     modifyInteraction,
     initMap,
+    setInteractive,
     setTileSource,
     addOrUpdatePoint,
     removePoint,
@@ -535,5 +618,6 @@ export function useGeolocationMap() {
     currentZoom: baseMap.currentZoom,
     setActivePointId,
     showCurrentLocation,
+    onPointDragEnd,
   }
 }

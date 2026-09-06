@@ -1,15 +1,10 @@
 <script setup lang="ts">
-import type Map from 'ol/Map'
+import type { MapMarker } from '~/components/01.kit/kit-map'
 import { Icon } from '@iconify/vue'
-import { Feature } from 'ol'
-import { Point } from 'ol/geom'
-import VectorLayer from 'ol/layer/Vector'
-import { fromLonLat } from 'ol/proj'
-import VectorSource from 'ol/source/Vector'
+import { computed, ref } from 'vue'
 import { KitDialogWithClose } from '~/components/01.kit/kit-dialog-with-close'
 import { KitMap } from '~/components/01.kit/kit-map'
-
-import { createMarkerStyle, nominatimService, toMapCoord } from '~/shared/services/geo'
+import { nominatimService } from '~/shared/services/geo'
 
 interface Props {
   visible: boolean
@@ -23,45 +18,21 @@ const selectedCityCoords = ref<{ lat: number, lon: number } | null>(null)
 const isMapViewerVisible = ref(false)
 const isLoadingCoords = ref(false)
 
-const mapInstance = ref<Map | null>(null)
-const markerSource = new VectorSource()
-const markerLayer = new VectorLayer({ source: markerSource, zIndex: 10 })
-
-const centerForMapProjected = computed((): [number, number] => {
-  const lon = selectedCityCoords.value?.lon ?? 37.61 // Moscow lon
-  const lat = selectedCityCoords.value?.lat ?? 55.75 // Moscow lat
-
-  return fromLonLat([lon, lat]) as [number, number]
+const center = computed((): [number, number] => {
+  const lon = selectedCityCoords.value?.lon ?? 37.61
+  const lat = selectedCityCoords.value?.lat ?? 55.75
+  return [lon, lat]
 })
 
-function updateMarkerPosition() {
-  if (!mapInstance.value || !selectedCityCoords.value)
-    return
-
-  markerSource.clear()
-  const marker = new Feature({
-    geometry: new Point(toMapCoord([selectedCityCoords.value.lon, selectedCityCoords.value.lat])),
-  })
-  marker.setStyle(createMarkerStyle({ color: '#3498db' }))
-  markerSource.addFeature(marker)
-}
-
-function onMapReady(map: Map) {
-  mapInstance.value = map
-  mapInstance.value.addLayer(markerLayer)
-  updateMarkerPosition()
-}
-
-watch(isMapViewerVisible, (isOpen) => {
-  if (isOpen) {
-    nextTick(() => {
-      if (mapInstance.value) {
-        mapInstance.value.updateSize()
-        updateMarkerPosition()
-        mapInstance.value.getView().setCenter(centerForMapProjected.value)
-      }
-    })
-  }
+const markers = computed<MapMarker[]>(() => {
+  if (!selectedCityCoords.value)
+    return []
+  return [
+    {
+      id: 'selected-city',
+      coords: selectedCityCoords.value,
+    },
+  ]
 })
 
 async function showMapForCity(city: string) {
@@ -123,10 +94,10 @@ async function showMapForCity(city: string) {
     >
       <div class="location-viewer-content">
         <KitMap
-          :center="centerForMapProjected"
+          :center="center"
           :zoom="11"
+          :markers="markers"
           height="60vh"
-          @map-ready="onMapReady"
         />
       </div>
     </KitDialogWithClose>

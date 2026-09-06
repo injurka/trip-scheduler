@@ -1,4 +1,4 @@
-import type TileSource from 'ol/source/Tile'
+import type { StyleSpecification } from 'maplibre-gl'
 
 export interface LocationCoords {
   lat: number
@@ -19,14 +19,14 @@ export interface MapLayerOption {
   id: string
   label: string
   icon: string
-  source: TileSource
+  style?: string | StyleSpecification
 }
 
 export interface KitMapOptions {
   center: [number, number]
   zoom?: number
+  pitch?: number
+  bearing?: number
   autoPan?: boolean
-  initialSource?: TileSource
+  initialStyle?: string | StyleSpecification
 }
-
-export { TileSource }

@@ -1,23 +1,21 @@
 <script setup lang="ts">
-import type { Map as OlMap } from 'ol'
-import type { EventsKey } from 'ol/events'
-import type TileSource from 'ol/source/Tile'
+import type { Map as MapLibreMap } from 'maplibre-gl'
 import type { MapLayerOption, MapMarker } from '../models/types'
 import type { TileSourceId } from '~/shared/lib/map-styles-sources'
-import { unByKey } from 'ol/Observable'
-import { fromLonLat, toLonLat } from 'ol/proj'
 import { nextTick, onMounted, onUnmounted, ref, shallowRef, watch } from 'vue'
 import { KitBtn } from '~/components/01.kit/kit-btn'
-import { checkMapTilerAvailability, createTileSource, TILE_SOURCES } from '~/shared/lib/map-styles-sources'
+import { checkMapTilerAvailability, getMapStyle, TILE_SOURCES } from '~/shared/lib/map-styles-sources'
 import { useKitMap } from '../composables/use-kit-map'
 import KitMapControls from './kit-map-controls.vue'
 import KitMapSearchControl from './kit-map-search-control.vue'
 
-import 'ol/ol.css'
+import 'maplibre-gl/dist/maplibre-gl.css'
 
 interface Props {
   center: [number, number]
   zoom?: number
+  pitch?: number
+  bearing?: number
   height?: string
   width?: string
   markers?: MapMarker[]
@@ -28,6 +26,8 @@ interface Props {
 
 const props = withDefaults(defineProps<Props>(), {
   zoom: 12,
+  pitch: 0,
+  bearing: 0,
   height: '100%',
   width: '100%',
   markers: () => [],
@@ -37,19 +37,18 @@ const props = withDefaults(defineProps<Props>(), {
 })
 
 const emit = defineEmits<{
-  (e: 'mapReady', map: OlMap): void
+  (e: 'mapReady', map: MapLibreMap): void
   (e: 'click', coords: [number, number]): void
 }>()
 
 const mapWrapperRef = ref<HTMLElement | null>(null)
 const popupRef = ref<HTMLElement | null>(null)
-let clickListenerKey: EventsKey | null = null
 
 const {
   mapInstance,
   isMapReady,
   initMap,
-  setTileSource,
+  setStyle,
   zoomIn,
   zoomOut,
   updateMarkers,
@@ -60,9 +59,10 @@ const {
 
 defineExpose({
   flyTo: (lon: number, lat: number, zoom = 14) => {
-    mapInstance.value?.getView().animate({ center: fromLonLat([lon, lat]), zoom, duration: 600 })
+    mapInstance.value?.flyTo({ center: [lon, lat], zoom, duration: 600 })
   },
-  updateSize: () => mapInstance.value?.updateSize(),
+  resize: () => mapInstance.value?.resize(),
+  updateSize: () => mapInstance.value?.resize(),
 })
 
 const isFullscreen = ref(false)
@@ -96,14 +96,14 @@ async function toggleFullscreen() {
     }
   }
   nextTick(() => {
-    mapInstance.value?.updateSize()
+    mapInstance.value?.resize()
   })
 }
 
 function handleFsChange() {
   isFullscreen.value = document.fullscreenElement === mapWrapperRef.value
   nextTick(() => {
-    mapInstance.value?.updateSize()
+    mapInstance.value?.resize()
   })
 }
 
@@ -111,22 +111,22 @@ function handleFsKeyDown(e: KeyboardEvent) {
   if (e.key === 'Escape' && isFullscreen.value && !document.fullscreenElement) {
     isFullscreen.value = false
     nextTick(() => {
-      mapInstance.value?.updateSize()
+      mapInstance.value?.resize()
     })
   }
 }
 
-const activeLayerId = ref<string>('maptilerOutdoor')
+const activeLayerId = ref<string>('maptilerStreets')
 const availableLayers = shallowRef<MapLayerOption[]>([])
 
 watch(
   activeLayerId,
   (newId) => {
     const layer = availableLayers.value.find(l => l.id === newId)
-    const source = layer?.source || createTileSource(newId as TileSourceId)
+    const style = layer?.style || getMapStyle(newId as TileSourceId)
 
-    if (source) {
-      setTileSource(source as TileSource)
+    if (style) {
+      setStyle(style)
     }
   },
 )
@@ -134,7 +134,7 @@ watch(
 watch(
   () => props.center,
   (newCenter) => {
-    mapInstance.value?.getView().animate({ center: fromLonLat(newCenter), duration: 500 })
+    mapInstance.value?.flyTo({ center: newCenter, duration: 500 })
   },
 )
 
@@ -149,7 +149,7 @@ watch(
 )
 
 onMounted(async () => {
-  if (!mapWrapperRef.value || !popupRef.value)
+  if (!mapWrapperRef.value)
     return
 
   if (props.customLayers) {
@@ -161,18 +161,18 @@ onMounted(async () => {
     const layers: MapLayerOption[] = []
 
     if (isMapTilerAvailable) {
-      layers.push({ id: 'maptilerOutdoor', label: TILE_SOURCES.maptilerOutdoor.label, icon: TILE_SOURCES.maptilerOutdoor.icon, source: createTileSource('maptilerOutdoor') })
-      layers.push({ id: 'maptilerStreets', label: TILE_SOURCES.maptilerStreets.label, icon: TILE_SOURCES.maptilerStreets.icon, source: createTileSource('maptilerStreets') })
-      layers.push({ id: 'satellite', label: TILE_SOURCES.satellite.label, icon: TILE_SOURCES.satellite.icon, source: createTileSource('satellite') })
+      layers.push({ id: 'maptilerStreets', label: TILE_SOURCES.maptilerStreets.label, icon: TILE_SOURCES.maptilerStreets.icon, style: getMapStyle('maptilerStreets') })
+      layers.push({ id: 'maptilerOutdoor', label: TILE_SOURCES.maptilerOutdoor.label, icon: TILE_SOURCES.maptilerOutdoor.icon, style: getMapStyle('maptilerOutdoor') })
+      layers.push({ id: 'satellite', label: TILE_SOURCES.satellite.label, icon: TILE_SOURCES.satellite.icon, style: getMapStyle('satellite') })
     }
 
-    layers.push({ id: 'osm', label: TILE_SOURCES.osm.label, icon: TILE_SOURCES.osm.icon, source: createTileSource('osm') })
+    layers.push({ id: 'osm', label: TILE_SOURCES.osm.label, icon: TILE_SOURCES.osm.icon, style: getMapStyle('osm') })
 
     availableLayers.value = layers
     activeLayerId.value = layers[0].id
   }
 
-  const initialSource = availableLayers.value.find(l => l.id === activeLayerId.value)?.source as TileSource
+  const initialStyle = availableLayers.value.find(l => l.id === activeLayerId.value)?.style || getMapStyle('maptilerStreets')
 
   await initMap(
     mapWrapperRef.value,
@@ -180,17 +180,17 @@ onMounted(async () => {
     {
       center: props.center,
       zoom: props.zoom,
+      pitch: props.pitch,
+      bearing: props.bearing,
       autoPan: props.autoPan,
-      initialSource,
+      initialStyle,
     },
   )
 
   if (mapInstance.value) {
-    const clickKey = mapInstance.value.on('click', (event) => {
-      const lonLat = toLonLat(event.coordinate) as [number, number]
-      emit('click', lonLat)
+    mapInstance.value.on('click', (event) => {
+      emit('click', [event.lngLat.lng, event.lngLat.lat])
     })
-    clickListenerKey = clickKey
     emit('mapReady', mapInstance.value)
 
     if (props.markers.length > 0) {
@@ -204,10 +204,6 @@ onMounted(async () => {
 })
 
 onUnmounted(() => {
-  if (clickListenerKey) {
-    unByKey(clickListenerKey)
-    clickListenerKey = null
-  }
   document.removeEventListener('fullscreenchange', handleFsChange)
   window.removeEventListener('keydown', handleFsKeyDown)
 })
@@ -225,8 +221,6 @@ onUnmounted(() => {
     </div>
 
     <slot />
-
-    <div ref="popupRef" class="ol-popup-placeholder" />
 
     <KitMapSearchControl
       v-if="enableSearch"
@@ -255,44 +249,6 @@ onUnmounted(() => {
     </div>
   </div>
 </template>
-
-<style lang="scss">
-.ol-popup-placeholder {
-  position: relative;
-  background-color: white;
-  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.2);
-  padding: 2px;
-  border-radius: var(--r-s);
-  border: 1px solid #cccccc;
-  min-width: 120px;
-  pointer-events: none;
-
-  &::after,
-  &::before {
-    top: 100%;
-    left: 50%;
-    border: solid transparent;
-    content: ' ';
-    height: 0;
-    width: 0;
-    position: absolute;
-    pointer-events: none;
-    transform: translateX(-50%);
-  }
-
-  &::after {
-    border-top-color: white;
-    border-width: 10px;
-    margin-left: 0;
-  }
-
-  &::before {
-    border-top-color: #cccccc;
-    border-width: 11px;
-    margin-left: 0;
-  }
-}
-</style>
 
 <style scoped lang="scss">
 .kit-map-wrapper {

@@ -1,85 +1,65 @@
 <script setup lang="ts">
-import type { Map as OlMap } from 'ol'
+import type { Map as MapLibreMap } from 'maplibre-gl'
 import type { Place } from '~/shared/types/models/place'
-import { Feature, Overlay } from 'ol'
-import { Point } from 'ol/geom'
-import VectorLayer from 'ol/layer/Vector'
-import { fromLonLat } from 'ol/proj'
-import VectorSource from 'ol/source/Vector'
-import { Icon as OlIcon, Style } from 'ol/style'
+import * as maplibregl from 'maplibre-gl'
+import { nextTick, onMounted, onUnmounted, ref, shallowRef, watch } from 'vue'
 import { KitMap } from '~/components/01.kit/kit-map'
+import { createMarkerElement } from '~/shared/services/geo'
 
 const props = defineProps<{
   places: Place[]
   center: [number, number]
 }>()
 
-const mapInstance = shallowRef<OlMap | null>(null)
-const popupOverlay = shallowRef<Overlay | null>(null)
-
-const markerSource = new VectorSource()
-const popupRef = ref<HTMLElement | null>(null)
+const mapInstance = shallowRef<MapLibreMap | null>(null)
+const markersMap = new Map<string, maplibregl.Marker>()
 const selectedPlace = ref<Place | null>(null)
 
-const markerLayer = new VectorLayer({
-  source: markerSource,
-  zIndex: 10,
-})
-
-function createMarkerStyle() {
-  const svg = `<svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7z" fill="#344079"/><circle cx="12" cy="9" r="2.5" fill="white"/></svg>`
-  return new Style({
-    image: new OlIcon({
-      src: `data:image/svg+xml;base64,${btoa(svg)}`,
-      scale: 1.5,
-      anchor: [0.5, 1],
-    }),
-  })
+function clearMarkers() {
+  markersMap.forEach(m => m.remove())
+  markersMap.clear()
 }
 
 function updateMarkers(places: Place[]) {
-  markerSource.clear()
-  if (!places || places.length === 0)
+  clearMarkers()
+  const map = mapInstance.value
+  if (!map || !places || places.length === 0)
     return
 
-  const style = createMarkerStyle()
   places.forEach((place) => {
-    const feature = new Feature({
-      geometry: new Point(fromLonLat([place.coordinates.lon, place.coordinates.lat])),
+    const el = createMarkerElement({ color: '#344079', scale: 1.2 })
+
+    const popupContent = `
+      <div style="font-family: inherit; padding: 2px;">
+        <h4 style="margin: 0 0 4px; font-size: 0.95rem; font-weight: 600;">${place.name}</h4>
+        ${place.description ? `<p style="margin: 0; font-size: 0.85rem; color: #666;">${place.description}</p>` : ''}
+      </div>
+    `
+    const popup = new maplibregl.Popup({ offset: 28, closeButton: true })
+      .setHTML(popupContent)
+
+    const marker = new maplibregl.Marker({
+      element: el,
+      anchor: 'bottom',
     })
-    feature.set('placeData', place)
-    feature.setStyle(style)
-    markerSource.addFeature(feature)
+      .setLngLat([place.coordinates.lon, place.coordinates.lat])
+      .setPopup(popup)
+      .addTo(map)
+
+    el.addEventListener('click', () => {
+      selectedPlace.value = place
+    })
+
+    const key = place.id || `${place.coordinates.lon}_${place.coordinates.lat}`
+    markersMap.set(key, marker)
   })
 }
 
-function onMapReady(map: OlMap) {
+function onMapReady(map: MapLibreMap) {
   mapInstance.value = map
-  mapInstance.value.addLayer(markerLayer)
 
-  popupOverlay.value = new Overlay({
-    element: popupRef.value!,
-    autoPan: {
-      animation: { duration: 250 },
-    },
-  })
-
-  if (popupOverlay.value) {
-    mapInstance.value.addOverlay(popupOverlay.value)
-  }
-
-  mapInstance.value.on('click', (event) => {
-    const feature = map.forEachFeatureAtPixel(event.pixel, f => f)
-    if (feature) {
-      const placeData = feature.get('placeData') as Place
-      selectedPlace.value = placeData
-      const coordinates = (feature.getGeometry() as Point).getCoordinates()
-      popupOverlay.value?.setPosition(coordinates)
-    }
-    else {
-      selectedPlace.value = null
-      popupOverlay.value?.setPosition(undefined)
-    }
+  map.on('click', () => {
+    selectedPlace.value = null
   })
 
   updateMarkers(props.places)
@@ -94,16 +74,20 @@ watch(() => props.places, (newPlaces) => {
 onMounted(() => {
   watch(() => props.places, async () => {
     await nextTick()
-    mapInstance.value?.updateSize()
+    mapInstance.value?.resize()
   })
+})
+
+onUnmounted(() => {
+  clearMarkers()
 })
 </script>
 
 <template>
   <div class="places-map-container">
     <KitMap :center="center" :zoom="10" @map-ready="onMapReady" />
-    <div ref="popupRef" class="place-popup">
-      <div v-if="selectedPlace" class="popup-content">
+    <div v-if="selectedPlace" class="place-popup-bottom">
+      <div class="popup-content">
         <h4>{{ selectedPlace.name }}</h4>
         <p>{{ selectedPlace.description }}</p>
       </div>
@@ -118,48 +102,25 @@ onMounted(() => {
   min-height: 600px;
   border-radius: var(--r-l);
   overflow: hidden;
+  position: relative;
 
   :deep(.kit-map-wrapper) {
     height: 600px !important;
   }
 }
 
-.place-popup {
+.place-popup-bottom {
   background-color: var(--bg-secondary-color);
   padding: 1rem;
   border-radius: var(--r-m);
   border: 1px solid var(--border-primary-color);
   box-shadow: var(--s-l);
   width: 280px;
-  bottom: 12px;
-  left: -140px;
+  bottom: 16px;
+  left: 16px;
   position: absolute;
-  transform: translateX(50%);
+  z-index: 10;
   transition: opacity 0.2s;
-
-  &:after,
-  &:before {
-    top: 100%;
-    left: 50%;
-    border: solid transparent;
-    content: ' ';
-    height: 0;
-    width: 0;
-    position: absolute;
-    pointer-events: none;
-  }
-  &:after {
-    border-color: rgba(255, 255, 255, 0);
-    border-top-color: var(--bg-secondary-color);
-    border-width: 10px;
-    margin-left: -10px;
-  }
-  &:before {
-    border-color: rgba(0, 0, 0, 0);
-    border-top-color: var(--border-primary-color);
-    border-width: 11px;
-    margin-left: -11px;
-  }
 }
 
 .popup-content {

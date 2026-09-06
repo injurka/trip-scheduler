@@ -1,8 +1,8 @@
 {
-  "name": "@injurka/trip-scheduler-skills-installer",
+  "name": "@limiteddissolve/skills-installer",
   "type": "module",
-  "version": "1.0.0",
-  "private": true,
+  "version": "1.0.2",
+  "private": false,
   "main": "src/index.ts",
   "bin": {
     "skills-installer": "src/run.ts"
@@ -15,12 +15,9 @@
     "dev": "bun run --hot --watch src/run.ts",
     "lint": "eslint .",
     "lint:fix": "eslint . --fix",
-    "typecheck": "bunx tsc --noEmit",
-    "publish:jsr": "npx jsr publish",
-    "publish:jsr:dry": "npx jsr publish --dry-run"
+    "typecheck": "bunx tsc --noEmit"
   },
   "dependencies": {
-    "@injurka/vault-locator": "workspace:*",
     "prompts": "^2.4.2"
   },
   "devDependencies": {

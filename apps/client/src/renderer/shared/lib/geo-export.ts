@@ -1,7 +1,4 @@
 import type { MapRoute } from '~/components/03.domain/trip-info/geolocation-section/models/types'
-import Feature from 'ol/Feature'
-import GPX from 'ol/format/GPX'
-import LineString from 'ol/geom/LineString'
 
 /**
  * Экспорт маршрута путешествия в стандартный файл формата GPX
@@ -11,19 +8,32 @@ export function exportRouteToGpx(route: MapRoute): void {
   if (!route.geometry || route.geometry.length === 0)
     return
 
-  const gpxFormat = new GPX()
-  // Геометрия маршрута уже хранится в WGS84 [lon, lat]
-  const lineString = new LineString(route.geometry)
-  const feature = new Feature({
-    geometry: lineString,
-    name: route.title || 'Маршрут',
-  })
-  feature.set('name', route.title || 'Маршрут')
+  const escapeXml = (str: string) =>
+    str.replace(/[<>&'"]/g, (c) => {
+      switch (c) {
+        case '<': return '&lt;'
+        case '>': return '&gt;'
+        case '&': return '&amp;'
+        case '\'': return '&apos;'
+        case '"': return '&quot;'
+        default: return c
+      }
+    })
 
-  const gpxData = gpxFormat.writeFeatures([feature], {
-    dataProjection: 'EPSG:4326',
-    featureProjection: 'EPSG:4326',
-  })
+  const title = escapeXml(route.title || 'Маршрут')
+  const trkpts = route.geometry
+    .map(([lon, lat]) => `      <trkpt lat="${lat}" lon="${lon}"></trkpt>`)
+    .join('\n')
+
+  const gpxData = `<?xml version="1.0" encoding="UTF-8"?>
+<gpx version="1.1" creator="Trip Scheduler" xmlns="http://www.topografix.com/GPX/1/1">
+  <trk>
+    <name>${title}</name>
+    <trkseg>
+${trkpts}
+    </trkseg>
+  </trk>
+</gpx>`
 
   const blob = new Blob([gpxData], { type: 'application/gpx+xml;charset=utf-8' })
   const url = URL.createObjectURL(blob)

@@ -2,7 +2,7 @@ import { existsSync, mkdirSync } from 'node:fs'
 import { join } from 'node:path'
 import process from 'node:process'
 import { colors } from '../config/colors'
-import { detectCandidateTargets, resolveTargetDir } from '../config/targets'
+import { resolveTargetDir } from '../config/targets'
 import { installRule, installSkill, syncSkillsSource } from '../lib/copy'
 import { normalizeFsPath } from '../lib/path-utils'
 import {
@@ -64,8 +64,7 @@ export async function runInstaller(): Promise<void> {
   if (cliOptions.list) {
     console.log(`${colors.bright}Доступные навыки в каталоге:${colors.reset}\n`)
     for (const s of availableSkills) {
-      const badge = s.isNew ? ` ${colors.bgGreen}${colors.black} НОВЫЙ ${colors.reset}` : ''
-      console.log(`  ${colors.bright}${colors.cyan}• ${s.name}${badge}${colors.reset}`)
+      console.log(`  ${colors.bright}${colors.cyan}• ${s.name}${colors.reset}`)
       console.log(`    ${colors.dim}${s.description}${colors.reset}`)
       console.log(`    ${colors.dim}Файлов: ${s.filesCount} (Примеры: ${s.hasExamples ? 'да' : 'нет'}, Справочники: ${s.hasReferences ? 'да' : 'нет'})${colors.reset}\n`)
     }
@@ -82,9 +81,7 @@ export async function runInstaller(): Promise<void> {
 
   // 3. Режим синхронизации исходных шаблонов (--sync-source)
   if (cliOptions.syncSource) {
-    const vaultCandidates = detectCandidateTargets()
-      .filter(t => t.id === 'obsidian-travel-vault')
-    const defaultSyncPath = vaultCandidates[0]?.agentsDir ?? join(process.cwd(), '.agents')
+    const defaultSyncPath = join(process.cwd(), '.agents')
     const syncFrom = normalizeFsPath(cliOptions.syncSourcePath || defaultSyncPath)
 
     console.log(`${colors.dim}🔄 Синхронизация шаблонов навыков из:${colors.reset}`)

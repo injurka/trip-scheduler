@@ -1,8 +1,7 @@
 <script setup lang="ts">
-import type { Map as OlMap } from 'ol'
+import type { Map as MapLibreMap } from 'maplibre-gl'
 import { Icon } from '@iconify/vue'
 import { useDraggable, useWindowSize } from '@vueuse/core'
-import { fromLonLat } from 'ol/proj'
 import { computed, nextTick, onMounted, onUnmounted, ref, shallowRef, watch } from 'vue'
 import { KitBtn } from '~/components/01.kit/kit-btn'
 import { KitInput } from '~/components/01.kit/kit-input'
@@ -13,7 +12,7 @@ import { nominatimService } from '~/shared/services/geo'
 import { useLayoutStore } from '~/shared/store/layout.store'
 
 const layoutStore = useLayoutStore()
-const mapInstance = shallowRef<OlMap | null>(null)
+const mapInstance = shallowRef<MapLibreMap | null>(null)
 const windowRef = ref<HTMLElement | null>(null)
 const headerRef = ref<HTMLElement | null>(null)
 
@@ -70,7 +69,7 @@ let ro: ResizeObserver | null = null
 onMounted(() => {
   if (windowRef.value) {
     ro = new ResizeObserver(() => {
-      mapInstance.value?.updateSize()
+      mapInstance.value?.resize()
     })
     ro.observe(windowRef.value)
   }
@@ -81,7 +80,7 @@ onUnmounted(() => {
   ro = null
 })
 
-function onMapReady(map: OlMap) {
+function onMapReady(map: MapLibreMap) {
   mapInstance.value = map
 }
 
@@ -93,8 +92,8 @@ async function handleSearch() {
   try {
     const result = await nominatimService.searchSingle(searchQuery.value)
     if (result) {
-      mapInstance.value.getView().animate({
-        center: fromLonLat([result.lon, result.lat]),
+      mapInstance.value.flyTo({
+        center: [result.lon, result.lat],
         zoom: 14,
         duration: 800,
       })
@@ -114,7 +113,7 @@ function closeWindow() {
 
 watch(() => layoutStore.isFloatingMapOpen, (isOpen) => {
   if (isOpen)
-    nextTick(() => mapInstance.value?.updateSize())
+    nextTick(() => mapInstance.value?.resize())
 })
 
 const windowStyle = computed(() => {

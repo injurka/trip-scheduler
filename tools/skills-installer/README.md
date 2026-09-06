@@ -1,4 +1,4 @@
-# 🤖 @injurka/skills-installer
+# @limiteddissolve/skills-installer
 
 CLI для установки AI-навыков (skills) и правил (rules) для работы с тревел-базой знаний в Obsidian и последующего импорта туров в Trip Scheduler. Навыки совместимы с Antigravity / Cursor / Claude Code / Cline (`.agents/skills`, `.cursor/rules`, `.claude/skills`).
 
@@ -12,21 +12,21 @@ CLI для установки AI-навыков (skills) и правил (rules)
 ## Install
 
 ```bash
-bun add @injurka/skills-installer
+bun add @limiteddissolve/skills-installer
 ```
 
 ## Usage
 
 ```bash
-bunx --bun @injurka/skills-installer/bin --list
+bunx --bun @limiteddissolve/skills-installer --list
 ```
 
 ### Programmatic API
 
 ```typescript
-import { detectCandidateTargets, installSkill, resolveTargetDir, validateTripFolder } from '@injurka/skills-installer'
+import { detectCandidateTargets, installSkill, resolveTargetDir, validateTripFolder } from '@limiteddissolve/skills-installer'
 
-// Куда можно ставить: проект / вольт / глобал (вольты ищутся через @injurka/vault-locator)
+// Куда можно ставить: проект / вольт / глобал
 const targets = detectCandidateTargets()
 
 // Разрешить целевую директорию (создаёт agents/skills/rules структуру)

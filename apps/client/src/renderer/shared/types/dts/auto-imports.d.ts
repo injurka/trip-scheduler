@@ -9,10 +9,14 @@ declare global {
   const AppRouteNames: typeof import('../../constants/routes').AppRouteNames
   const AppRoutePaths: typeof import('../../constants/routes').AppRoutePaths
   const EffectScope: typeof import('vue').EffectScope
+  const MAPTILER_KEY: typeof import('../../lib/map-styles-sources').MAPTILER_KEY
+  const MAPTILER_TERRAIN_SOURCE_ID: typeof import('../../lib/map-styles-sources').MAPTILER_TERRAIN_SOURCE_ID
+  const OSM_STYLE: typeof import('../../lib/map-styles-sources').OSM_STYLE
   const SERVER_URL: typeof import('../../lib/env').SERVER_URL
   const TILE_SOURCES: typeof import('../../lib/map-styles-sources').TILE_SOURCES
   const TILE_SOURCES_META: typeof import('../../lib/map-styles-sources').TILE_SOURCES_META
   const acceptHMRUpdate: typeof import('pinia').acceptHMRUpdate
+  const applyTerrain: typeof import('../../lib/map-styles-sources').applyTerrain
   const asyncComputed: typeof import('@vueuse/core').asyncComputed
   const autoResetRef: typeof import('@vueuse/core').autoResetRef
   const breakpoints: typeof import('../../composables/use-display').breakpoints
@@ -56,6 +60,7 @@ declare global {
   const getCurrentWatcher: typeof import('vue').getCurrentWatcher
   const getImageUrl: typeof import('../../lib/url').getImageUrl
   const getLocalDate: typeof import('../../lib/date-time').getLocalDate
+  const getMapStyle: typeof import('../../lib/map-styles-sources').getMapStyle
   const getTimeFromTimestamp: typeof import('../../lib/date-time').getTimeFromTimestamp
   const h: typeof import('vue').h
   const handleDeepLinkUrl: typeof import('../../lib/deep-link').handleDeepLinkUrl
@@ -387,10 +392,14 @@ declare module 'vue' {
     readonly AppRouteNames: UnwrapRef<typeof import('../../constants/routes')['AppRouteNames']>
     readonly AppRoutePaths: UnwrapRef<typeof import('../../constants/routes')['AppRoutePaths']>
     readonly EffectScope: UnwrapRef<typeof import('vue')['EffectScope']>
+    readonly MAPTILER_KEY: UnwrapRef<typeof import('../../lib/map-styles-sources')['MAPTILER_KEY']>
+    readonly MAPTILER_TERRAIN_SOURCE_ID: UnwrapRef<typeof import('../../lib/map-styles-sources')['MAPTILER_TERRAIN_SOURCE_ID']>
+    readonly OSM_STYLE: UnwrapRef<typeof import('../../lib/map-styles-sources')['OSM_STYLE']>
     readonly SERVER_URL: UnwrapRef<typeof import('../../lib/env')['SERVER_URL']>
     readonly TILE_SOURCES: UnwrapRef<typeof import('../../lib/map-styles-sources')['TILE_SOURCES']>
     readonly TILE_SOURCES_META: UnwrapRef<typeof import('../../lib/map-styles-sources')['TILE_SOURCES_META']>
     readonly acceptHMRUpdate: UnwrapRef<typeof import('pinia')['acceptHMRUpdate']>
+    readonly applyTerrain: UnwrapRef<typeof import('../../lib/map-styles-sources')['applyTerrain']>
     readonly asyncComputed: UnwrapRef<typeof import('@vueuse/core')['asyncComputed']>
     readonly autoResetRef: UnwrapRef<typeof import('@vueuse/core')['autoResetRef']>
     readonly breakpoints: UnwrapRef<typeof import('../../composables/use-display')['breakpoints']>
@@ -434,6 +443,7 @@ declare module 'vue' {
     readonly getCurrentWatcher: UnwrapRef<typeof import('vue')['getCurrentWatcher']>
     readonly getImageUrl: UnwrapRef<typeof import('../../lib/url')['getImageUrl']>
     readonly getLocalDate: UnwrapRef<typeof import('../../lib/date-time')['getLocalDate']>
+    readonly getMapStyle: UnwrapRef<typeof import('../../lib/map-styles-sources')['getMapStyle']>
     readonly getTimeFromTimestamp: UnwrapRef<typeof import('../../lib/date-time')['getTimeFromTimestamp']>
     readonly h: UnwrapRef<typeof import('vue')['h']>
     readonly handleDeepLinkUrl: UnwrapRef<typeof import('../../lib/deep-link')['handleDeepLinkUrl']>
