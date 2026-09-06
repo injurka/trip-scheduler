@@ -1057,6 +1057,8 @@ function applyCrop() {
   font-size: 0.8125rem;
   background-color: var(--bg-tertiary-color);
   color: var(--fg-secondary-color);
+  white-space: nowrap;
+  flex-shrink: 0;
 
   &.secure {
     background-color: var(--bg-success-color);
@@ -1222,6 +1224,8 @@ function applyCrop() {
     font-weight: 600;
     background-color: var(--fg-error-color);
     color: #ffffff;
+    white-space: nowrap;
+    flex-shrink: 0;
   }
 
   .danger-warning-box {
@@ -1422,13 +1426,26 @@ function applyCrop() {
   }
 
   .cropper-modal {
+    height: 100dvh;
     height: 100vh;
     border-radius: 0;
     justify-content: space-between;
 
+    .cropper-header {
+      padding-top: calc(1rem + var(--safe-area-inset-top));
+      padding-left: calc(1.5rem + var(--safe-area-inset-left));
+      padding-right: calc(1.5rem + var(--safe-area-inset-right));
+    }
+
     .cropper-body {
       flex-grow: 1;
       height: auto;
+    }
+
+    .cropper-footer {
+      padding-bottom: calc(1rem + var(--safe-area-inset-bottom));
+      padding-left: calc(1.5rem + var(--safe-area-inset-left));
+      padding-right: calc(1.5rem + var(--safe-area-inset-right));
     }
   }
 }

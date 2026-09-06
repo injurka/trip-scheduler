@@ -1,6 +1,8 @@
 <script setup lang="ts">
 import { Icon } from '@iconify/vue'
+import { useWindowSize } from '@vueuse/core'
 import { ArcElement, Chart as ChartJS, Legend, Title, Tooltip } from 'chart.js'
+import { computed } from 'vue'
 import { Doughnut } from 'vue-chartjs'
 
 defineProps<Props>()
@@ -21,6 +23,9 @@ interface Props {
 
 ChartJS.register(Title, Tooltip, Legend, ArcElement)
 
+const { width } = useWindowSize()
+const isMobile = computed(() => width.value < 640)
+
 function formatBytes(bytes: number, decimals = 2) {
   if (bytes === 0)
     return '0 Байт'
@@ -33,18 +38,18 @@ function formatBytes(bytes: number, decimals = 2) {
   return `${Number.parseFloat((bytes / k ** i).toFixed(dm))} ${sizes[i]}`
 }
 
-const chartOptions = {
+const chartOptions = computed(() => ({
   responsive: true,
   maintainAspectRatio: false,
   plugins: {
     legend: {
-      position: 'right' as const,
+      position: (isMobile.value ? 'bottom' : 'right') as 'bottom' | 'right',
       labels: {
         color: 'var(--fg-secondary-color)',
-        boxWidth: 14,
-        padding: 12,
+        boxWidth: 12,
+        padding: isMobile.value ? 8 : 12,
         font: {
-          size: 13,
+          size: isMobile.value ? 11 : 13,
         },
       },
     },
@@ -63,7 +68,7 @@ const chartOptions = {
       },
     },
   },
-}
+}))
 </script>
 
 <template>
@@ -91,6 +96,10 @@ const chartOptions = {
   padding: 1.25rem 1.5rem;
   border-radius: var(--r-m);
   border: 1px solid var(--border-secondary-color);
+
+  @include media-down(sm) {
+    padding: 1rem 0.75rem;
+  }
 }
 
 .chart-title {
@@ -106,6 +115,10 @@ const chartOptions = {
   position: relative;
   height: 240px;
   width: 100%;
+
+  @include media-down(sm) {
+    height: 300px;
+  }
 }
 
 .empty-chart {

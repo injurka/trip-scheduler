@@ -286,8 +286,8 @@ onMounted(() => {
     justify-content: flex-start;
 
     .kit-view-switcher-button {
-      flex: 1 0 80px;
-      min-width: 80px;
+      flex: 1 0 70px;
+      min-width: 70px;
       justify-content: center;
       padding: 8px 10px;
 

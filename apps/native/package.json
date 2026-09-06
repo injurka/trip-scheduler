@@ -19,7 +19,7 @@
     "tauri:build:win:x64": "tauri build --target x86_64-pc-windows-msvc",
     "configure:android": "bun run ./scripts/configure-android.ts",
     "tauri:android:init": "tauri android init && bun run ./scripts/configure-android.ts",
-    "tauri:android:build": "bun run ./scripts/configure-android.ts && tauri android build --apk --target aarch64-linux-android"
+    "tauri:android:build": "bun run ./scripts/configure-android.ts && tauri android build --apk --target aarch64"
   },
   "devDependencies": {
     "@tauri-apps/cli": "^2.11.4"

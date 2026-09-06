@@ -843,6 +843,10 @@ onMounted(() => {
   flex-direction: column;
   gap: 1.25rem;
 
+  @include media-down(sm) {
+    padding: 1rem 0.75rem;
+  }
+
   .analytics-header {
     display: flex;
     justify-content: space-between;
@@ -1417,7 +1421,7 @@ onMounted(() => {
 .expand-enter-active,
 .expand-leave-active {
   transition: all 0.25s ease-out;
-  max-height: 500px;
+  max-height: 700px;
   overflow: hidden;
 }
 
