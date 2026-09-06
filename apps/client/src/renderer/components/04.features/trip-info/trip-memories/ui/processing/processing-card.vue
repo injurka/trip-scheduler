@@ -254,8 +254,10 @@ function saveComment() {
   flex-direction: column;
   transition: box-shadow 0.2s ease;
 
-  &:hover {
-    box-shadow: var(--s-m);
+  @include hover {
+    & {
+      box-shadow: var(--s-m);
+    }
   }
 }
 

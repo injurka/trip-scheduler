@@ -145,10 +145,12 @@ const formattedBudget = computed(() => {
     box-shadow 0.3s ease;
   border: 1px solid transparent;
 
-  &:hover {
-    box-shadow: var(--s-xl);
-    border-color: var(--border-primary-color);
-    transform: translateY(-4px);
+  @include hover {
+    & {
+      box-shadow: var(--s-xl);
+      border-color: var(--border-primary-color);
+      transform: translateY(-4px);
+    }
   }
 }
 
@@ -281,18 +283,22 @@ const formattedBudget = computed(() => {
   .participant-wrapper {
     margin-left: -8px;
     transition: transform 0.2s ease;
-    &:hover {
-      transform: translateY(-4px);
-      z-index: 10;
+    @include hover {
+      & {
+        transform: translateY(-4px);
+        z-index: 10;
+      }
     }
   }
 
   .clickable-avatar {
     cursor: pointer;
     transition: transform 0.2s ease;
-    &:hover {
-      transform: scale(1.1);
-      z-index: 20;
+    @include hover {
+      & {
+        transform: scale(1.1);
+        z-index: 20;
+      }
     }
   }
 

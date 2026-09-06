@@ -373,10 +373,12 @@ const componentClasses = computed(() => ({
   transition: all 0.2s ease;
   cursor: pointer;
 
-  &:hover:not(:disabled) {
-    border-color: var(--border-focus-color);
-    color: var(--fg-accent-color);
-    transform: translateY(-1px);
+  @include hover {
+    &:not(:disabled) {
+      border-color: var(--border-focus-color);
+      color: var(--fg-accent-color);
+      transform: translateY(-1px);
+    }
   }
 
   &:disabled {

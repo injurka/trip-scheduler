@@ -261,9 +261,11 @@ onClickOutside(mapIframeContainerRef, () => {
     box-shadow 0.18s ease,
     background-color 0.18s ease;
 
-  &:hover {
-    border-color: var(--border-primary-color);
-    box-shadow: var(--s-s);
+  @include hover {
+    & {
+      border-color: var(--border-primary-color);
+      box-shadow: var(--s-s);
+    }
   }
 
   &.is-readonly {
@@ -590,10 +592,12 @@ onClickOutside(mapIframeContainerRef, () => {
   cursor: pointer;
   transition: all 0.15s ease;
 
-  &:hover {
-    background-color: var(--bg-hover-color);
-    border-color: var(--fg-accent-color);
-    transform: translateY(-1px);
+  @include hover {
+    & {
+      background-color: var(--bg-hover-color);
+      border-color: var(--fg-accent-color);
+      transform: translateY(-1px);
+    }
   }
 
   .provider-icon {
@@ -644,9 +648,11 @@ onClickOutside(mapIframeContainerRef, () => {
   transition: all 0.2s ease;
   cursor: pointer;
 
-  &:hover {
-    background: rgba(220, 38, 38, 1);
-    transform: scale(1.1);
+  @include hover {
+    & {
+      background: rgba(220, 38, 38, 1);
+      transform: scale(1.1);
+    }
   }
 }
 

@@ -1,37 +1,36 @@
 import type { ParsedDay, ParsedNoteFile, ParsedNoteFolder, ParsedTripData } from '../types'
 import { existsSync, readdirSync, readFileSync, statSync } from 'node:fs'
-import { homedir } from 'node:os'
 import { basename, join, resolve } from 'node:path'
+import { discoverVaultFolders, normalizeFsPath } from '@injurka/vault-locator'
 import { normalizeIframeLineBreaks } from './activity'
 import { parseObsidianBookings } from './booking'
 import { parseObsidianChecklists } from './checklist'
 import { parseDayMetaFromMarkdown } from './day-meta'
 import { parseObsidianFinances } from './finances'
 
-export function discoverObsidianTravelFolders(): string[] {
-  const home = homedir()
-  const candidateDirs = [
-    join(home, 'Documents/obsidian-mark/Personal Note/Travel'),
-    join(home, 'Documents/Obsidian/Travel'),
-    join(home, 'Obsidian/Travel'),
-    join(home, 'Documents/Travel'),
-  ]
+export function normalizeVaultPath(rawPath: string): string {
+  return normalizeFsPath(rawPath)
+}
 
+/**
+ * Обнаруживает папки путешествий в известных Obsidian-вольтах через общий
+ * vault-locator (реестр obsidian.json + маркеры .obsidian, без хардкода путей).
+ * Возвращает пути к подпапкам-путешествиям внутри Travel-директорий.
+ */
+export function discoverObsidianTravelFolders(): string[] {
   const discovered: string[] = []
 
-  for (const base of candidateDirs) {
-    if (existsSync(base) && statSync(base).isDirectory()) {
-      try {
-        const entries = readdirSync(base, { withFileTypes: true })
-        for (const entry of entries) {
-          if (entry.isDirectory() && !entry.name.startsWith('.')) {
-            discovered.push(join(base, entry.name))
-          }
+  for (const location of discoverVaultFolders('Travel')) {
+    try {
+      const entries = readdirSync(location.path, { withFileTypes: true })
+      for (const entry of entries) {
+        if (entry.isDirectory() && !entry.name.startsWith('.')) {
+          discovered.push(join(location.path, entry.name))
         }
       }
-      catch {
-        // ignore errors
-      }
+    }
+    catch {
+      // ignore unreadable travel dir
     }
   }
 
@@ -40,7 +39,7 @@ export function discoverObsidianTravelFolders(): string[] {
 
 export function cleanMarkdownFormatting(text: string): string {
   return text
-    .replace(/^[\s\uFE00-\uFE0F\u1F300-\u1F9FF\u2600-\u26FF\u2700-\u27BF]+/u, '')
+    .replace(/^[\s\uFE00-\uFE0F\u{1F300}-\u{1F9FF}\u2600-\u26FF\u2700-\u27BF]+/u, '')
     .replace(/!\[\[[^\]]+\]\]/g, '')
     .replace(/\[\[(?:[^|\]]*\|)?([^\]]+)\]\]/g, '$1')
     .replace(/\\([*_[\]()])/g, '$1')
@@ -52,6 +51,24 @@ export function cleanMarkdownFormatting(text: string): string {
     .replace(/[*_`~]/g, '')
     .replace(/\s+/g, ' ')
     .trim()
+}
+
+export function extractDayTitle(fileNameWithoutExt: string, dayNumber: number): string {
+  // Ищем первое вхождение эмодзи / пиктограммы
+  const emojiMatch = fileNameWithoutExt.match(/\p{Extended_Pictographic}/u)
+  if (emojiMatch && emojiMatch.index !== undefined) {
+    const fromEmoji = fileNameWithoutExt.slice(emojiMatch.index).trim()
+    if (fromEmoji) {
+      return fromEmoji
+    }
+  }
+
+  // Fallback, если эмодзи в названии файла нет: убираем префиксы вроде "01 ", "День 1 - " и т.д.
+  const fallbackTitle = fileNameWithoutExt
+    .replace(/^(?:\d{1,2}|day\s*\d{1,2}|день\s*\d{1,2})\s*[-–—:]?\s*/i, '')
+    .trim()
+
+  return fallbackTitle || `День ${dayNumber}`
 }
 
 export function extractDayDescription(content: string): string {
@@ -107,7 +124,8 @@ export function extractDayDescription(content: string): string {
 }
 
 export function parseObsidianTripFolder(tripPath: string, startDateStr?: string): ParsedTripData {
-  const resolvedPath = resolve(tripPath)
+  const normalized = normalizeVaultPath(tripPath)
+  const resolvedPath = resolve(normalized)
   if (!existsSync(resolvedPath)) {
     throw new Error(`Папка путешествия не найдена: ${resolvedPath}`)
   }
@@ -189,11 +207,7 @@ export function parseObsidianTripFolder(tripPath: string, startDateStr?: string)
         ? Number.parseInt(dayNumberMatch[1] || dayNumberMatch[2] || dayNumberMatch[3], 10)
         : (parsedDays.length + 1)
 
-      let title = fileNameWithoutExt.replace(/^\d{1,2}\s*/, '').trim()
-      if (!title) {
-        title = `День ${dayNumber}`
-      }
-
+      const title = extractDayTitle(fileNameWithoutExt, dayNumber)
       const dayDescription = extractDayDescription(content)
 
       const dayDate = new Date(startDate)
@@ -278,6 +292,7 @@ export function parseObsidianTripFolder(tripPath: string, startDateStr?: string)
   const cities = extractCities(mainText, parsedDays)
   const tags = extractTags(mainText)
   const descriptionShort = extractShortDescription(mainText, parsedDays, cities)
+  const description = extractDetailedDescription(mainText, extractedTitle)
 
   const lastDayDate = new Date(startDate)
   lastDayDate.setDate(lastDayDate.getDate() + Math.max(0, parsedDays.length - 1))
@@ -287,7 +302,7 @@ export function parseObsidianTripFolder(tripPath: string, startDateStr?: string)
 
   return {
     title: extractedTitle,
-    description: mainText || `# ${extractedTitle}`,
+    description,
     descriptionShort,
     cities,
     tags,
@@ -444,7 +459,26 @@ export function extractTags(mainText: string): string[] {
 }
 
 export function extractShortDescription(mainText: string, parsedDays: ParsedDay[] = [], cities: string[] = []): string {
-  // 1. Search for markdown blockquote containing concept / description / idea
+  if (!mainText)
+    return ''
+
+  // 1. Explicit "## Краткое описание" / "## 📝 Краткое описание" section
+  const shortSectionMatch = mainText.match(
+    /(?:^|\n)##\s*(?:[\p{Emoji}\p{Symbol}\p{Punctuation}\s]*)(?:Краткое\s+описание(?: путешествия| маршрута| тура| экспедиции)?|Короткое\s+описание|Обзор(?: путешествия| маршрута| тура)?|Summary|Short\s+Description)[^\n]*\n([\s\S]*?)(?=\n\s*(?:##|---|```|$))/iu,
+  )
+
+  if (shortSectionMatch && shortSectionMatch[1].trim()) {
+    const rawSection = shortSectionMatch[1].trim()
+    const cleaned = cleanMarkdownFormatting(rawSection)
+      .replace(/^[-\*]\s+/gm, '')
+      .replace(/\n+/g, ' ')
+      .trim()
+    if (cleaned.length > 5) {
+      return cleaned
+    }
+  }
+
+  // 2. Search for markdown blockquote containing concept / description / idea
   const quoteBlockMatch = mainText.match(/(?:^|\n)(>\s*\*\*(?:Концепция(?:\s+(?:путешествия|маршрута|тура|экспедиции))?|Описание(?:\s+(?:маршрута|путешествия))?|Идея(?:\s+(?:маршрута|путешествия))?|О\s+(?:маршруте|путешествии)|Главное|Маршрут):\*\*[\s\S]*?)(?=\n\s*(?:```|---|##|\n(?![>]))|$)/i)
 
   if (quoteBlockMatch) {
@@ -517,7 +551,7 @@ export function extractShortDescription(mainText: string, parsedDays: ParsedDay[
     }
   }
 
-  // 2. First meaningful paragraph if no quote block
+  // 3. First meaningful paragraph if no quote block
   const paragraphs = mainText
     .split(/\n\s*\n/)
     .map(p => p.trim())
@@ -535,7 +569,7 @@ export function extractShortDescription(mainText: string, parsedDays: ParsedDay[
     }
   }
 
-  // 3. Fallback (15-30 words)
+  // 4. Fallback (15-30 words)
   const durationStr = parsedDays.length > 0 ? `${parsedDays.length}-дневное` : 'Увлекательное'
   const citiesStr = cities.length > 0 ? cities.slice(0, 4).join(', ') : 'региону'
   const highlights = parsedDays
@@ -548,4 +582,43 @@ export function extractShortDescription(mainText: string, parsedDays: ParsedDay[
   }
 
   return `Насыщенное ${durationStr} путешествие по направлению ${citiesStr} с детально спланированным маршрутом, активностями и рекомендациями.`
+}
+
+export function extractDetailedDescription(mainText: string, defaultTitle: string = ''): string {
+  if (!mainText)
+    return defaultTitle ? `# ${defaultTitle}` : ''
+
+  // 1. Explicit "## Подробная концепция путешествия" / "## 📖 Подробная концепция путешествия" / "## Подробная концепция" / "## Подробное описание" section
+  const detailedMatch = mainText.match(
+    /(?:^|\n)##\s*(?:[\p{Emoji}\p{Symbol}\p{Punctuation}\s]*)(?:Подробная\s+концепция(?: путешествия| маршрута| тура| экспедиции)?|Детальная\s+концепция(?: путешествия| маршрута| тура| экспедиции)?|Подробное\s+описание(?: путешествия| маршрута| тура| экспедиции)?|Детальное\s+описание(?: путешествия| маршрута| тура| экспедиции)?|Концепция\s+путешествия|Концепция\s+маршрута|Концепция\s+тура|Detailed\s+Concept|Detailed\s+Description)[^\n]*\n([\s\S]*?)(?=(?:\n\s*---|\n\s*##\s*(?:[\p{Emoji}\p{Symbol}\p{Punctuation}\s]*)(?:Ключевые|Разделы|Параметры|Бронирования|Финансы)|$))/iu,
+  )
+
+  if (detailedMatch && detailedMatch[1].trim()) {
+    const raw = detailedMatch[1].trim()
+    return raw
+      .replace(/!\[\[[^\]]+\]\]/g, '')
+      .replace(/\[\[(?:[^|\]]*\|)?([^\]]+)\]\]/g, '$1')
+  }
+
+  // 2. Legacy blockquote format: > **Концепция путешествия:** ...
+  const quoteBlockMatch = mainText.match(
+    /(?:^|\n)(>\s*\*\*(?:Концепция(?:\s+(?:путешествия|маршрута|тура|экспедиции))?|Описание(?:\s+(?:маршрута|путешествия))?|Идея(?:\s+(?:маршрута|путешествия))?|О\s+(?:маршруте|путешествии)|Главное|Маршрут):\*\*[\s\S]*?)(?=\n\s*(?:```|---|##|\n(?![>]))|$)/i,
+  )
+
+  if (quoteBlockMatch && quoteBlockMatch[1].trim()) {
+    const unquoted = quoteBlockMatch[1]
+      .split('\n')
+      .map(l => l.replace(/^>\s?/, ''))
+      .join('\n')
+      .trim()
+    if (unquoted.length > 0) {
+      return unquoted
+        .replace(/!\[\[[^\]]+\]\]/g, '')
+        .replace(/\[\[(?:[^|\]]*\|)?([^\]]+)\]\]/g, '$1')
+    }
+  }
+
+  return mainText
+    .replace(/!\[\[[^\]]+\]\]/g, '')
+    .replace(/\[\[(?:[^|\]]*\|)?([^\]]+)\]\]/g, '$1')
 }

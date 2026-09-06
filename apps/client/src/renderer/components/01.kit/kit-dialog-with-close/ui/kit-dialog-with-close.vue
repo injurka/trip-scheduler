@@ -10,7 +10,8 @@ import {
   DialogRoot,
   DialogTitle,
 } from 'reka-ui'
-import { computed } from 'vue'
+import { computed, useId } from 'vue'
+import { useDialogHistory } from '../composables/use-dialog-history'
 
 interface Props {
   maxWidth?: number
@@ -31,6 +32,9 @@ const {
 } = defineProps<Props>()
 
 const visible = defineModel<boolean>('visible', { required: true })
+const dialogId = useId()
+
+useDialogHistory(dialogId, visible)
 
 const maxWidthPx = computed(() => `${maxWidth}px`)
 
@@ -110,7 +114,7 @@ function handlePointerDownOutside(event: PointerDownOutsideEvent) {
   position: fixed;
   inset: 0;
   z-index: 1000;
-  top: env(safe-area-inset-top);
+  top: var(--safe-area-inset-top);
 
   &[data-state='open'] {
     animation: overlay-show 200ms cubic-bezier(0.16, 1, 0.3, 1) forwards;

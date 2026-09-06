@@ -1,3 +1,4 @@
+/* eslint-disable no-misleading-character-class */
 import type { Booking, BookingSectionContent, FlightSegment } from '../types'
 import { existsSync, readdirSync, readFileSync, statSync } from 'node:fs'
 import { join } from 'node:path'
@@ -55,6 +56,75 @@ function inferTimezone(airportOrCity?: string): string {
 }
 
 /**
+ * Удаляет эмодзи и пиктограммы из строки, оставляя только текст.
+ */
+function removeEmoji(str: string): string {
+  if (!str)
+    return ''
+  return str
+    .replace(/\p{Extended_Pictographic}/gu, '')
+    .replace(/[\u{1F300}-\u{1F9FF}\u{2600}-\u{26FF}\u{2700}-\u{27BF}\u{FE00}-\u{FE0F}]/gu, '')
+    .replace(/\u200D/gu, '')
+    .replace(/\s+/g, ' ')
+    .trim()
+}
+
+/**
+ * Формирует короткий заголовок для записи об отеле.
+ * Если локация содержит суб-район в скобках «Город (Район)» → возвращает «Район».
+ * Иначе возвращает чистое название локации или название отеля.
+ */
+function makeHotelTitle(cleanLocation: string, hotelName: string): string {
+  if (cleanLocation) {
+    const subAreaMatch = cleanLocation.match(/\(([^)]+)\)/)
+    if (subAreaMatch && subAreaMatch[1].trim()) {
+      const subArea = subAreaMatch[1].trim()
+      // Пропускаем числовые значения (высота, км и т.п.) — берём имя отеля или сам город
+      if (/^\d/.test(subArea)) {
+        // sub-area is numeric (e.g. "1400 м") — use hotelName or city without parens
+        return hotelName || cleanLocation.replace(/\s*\([^)]*\)/, '').trim()
+      }
+      return subArea
+    }
+    return cleanLocation
+  }
+  return hotelName
+}
+
+/**
+ * Формирует чистый заголовок перелёта вида «Город1 - Город2»
+ * из заголовка секции или массива сегментов.
+ */
+function makeFlightTitle(raw: string, isOutbound: boolean, isInbound: boolean, segments?: FlightSegment[]): string {
+  // Приоритет — использовать города из распарсенных сегментов
+  if (segments && segments.length > 0) {
+    const first = segments[0]
+    const last = segments[segments.length - 1]
+    if (first.departureCity && last.arrivalCity) {
+      return `${first.departureCity} - ${last.arrivalCity}`
+    }
+  }
+
+  if (!raw)
+    return isOutbound ? 'Рейс ТУДА' : (isInbound ? 'Рейс ОБРАТНО' : 'Авиаперелет')
+
+  // Заменяем стрелки на " - " до удаления символов
+  let clean = raw.replace(/\s*(?:➔|->|—|–)\s*/g, ' - ')
+
+  // Убираем коды аэропортов в скобках: (SVO), (MMK), (SVO-B)
+  clean = clean.replace(/\s*\([A-Z0-9]{3}(?:-[A-Z0-9]+)?\)/gi, '')
+
+  // Убираем emoji и markdown
+  clean = removeEmoji(clean)
+  clean = clean.replace(/[*_`#\\]/g, '')
+
+  // Нормализуем разделитель
+  clean = clean.replace(/\s*-\s*/g, ' - ').replace(/\s+/g, ' ').trim()
+
+  return clean || (isOutbound ? 'Рейс ТУДА' : (isInbound ? 'Рейс ОБРАТНО' : 'Авиаперелет'))
+}
+
+/**
  * Парсер отелей из файла Отели.md
  */
 export function parseHotelsMarkdown(content: string, startDateStr: string): Booking[] {
@@ -82,84 +152,136 @@ export function parseHotelsMarkdown(content: string, startDateStr: string): Book
 
   // 2. Парсим таблицу отелей
   const lines = content.split('\n')
+
+  // Динамические индексы столбцов — определяем по строке заголовка таблицы
+  let colNights = 0
+  let colLocation = 1
+  let colHotel = 2
+  let colFeatures = 3
+  let colPriceNight = 4
+  let colTotal = 5
+  let headerDetected = false
+
   for (const line of lines) {
     const trimmed = line.trim()
-    if (trimmed.startsWith('|') && trimmed.endsWith('|') && !trimmed.includes('---') && !/ночи|локация|отель|итого|стоимость \/ ночь/i.test(trimmed)) {
-      const cols = trimmed.slice(1, -1).split('|').map(c => c.trim())
-      if (cols.length >= 4) {
-        const nightsCol = cols[0].replace(/[*_`]/g, '').trim() // "01–04" или "09" или "01–03"
-        const locationCol = cols[1].replace(/[*_`]/g, '').replace(/[\u{1F300}-\u{1F9FF}]/gu, '').trim() // "Тайбэй"
-        const hotelCol = cols[2] // "[Morwing Hotel Fairy Tale](https://www.trip.com/w/VfPGsYCo6W2)"
-        const featuresCol = cols.length >= 5 ? cols[3].replace(/[*_`]/g, '').trim() : ''
-        const priceNightCol = cols.length >= 6 ? cols[4].replace(/[*_`]/g, '').trim() : ''
-        const totalCol = cols.length >= 6 ? cols[5].replace(/[*_`]/g, '').trim() : ''
+    if (!trimmed.startsWith('|') || !trimmed.endsWith('|'))
+      continue
 
-        let hotelName = hotelCol.replace(/[*_`]/g, '').replace(/\[([^\]]+)\]\([^)]+\)/g, '$1').trim()
-        let sourceUrl: string | undefined
-        const linkMatch = hotelCol.match(/\[([^\]]+)\]\(([^)]+)\)/)
-        if (linkMatch) {
-          hotelName = linkMatch[1].replace(/[*_`\\]/g, '').trim()
-          sourceUrl = linkMatch[2].trim()
+    // Строка разделителя
+    if (trimmed.includes('---'))
+      continue
+
+    const cols = trimmed.slice(1, -1).split('|').map(c => c.trim())
+
+    // Пытаемся распознать строку заголовка таблицы
+    if (!headerDetected && /ночи|локаци|отел|итого|цена/i.test(trimmed)) {
+      // Определяем индексы по ключевым словам в заголовках
+      const lc = cols.map(c => c.toLowerCase())
+      const findIdx = (patterns: RegExp[]): number => {
+        for (const p of patterns) {
+          const idx = lc.findIndex(c => p.test(c))
+          if (idx !== -1)
+            return idx
+        }
+        return -1
+      }
+
+      const iNights = findIdx([/ночи|ночь|дни/])
+      const iLocation = findIdx([/локаци|город/])
+      const iHotel = findIdx([/отел/])
+      const iFeatures = findIdx([/особен|инфра|удобства|оценка/])
+      const iPriceNight = findIdx([/цена|стоимост.*ночь/])
+      const iTotal = findIdx([/итого/])
+
+      if (iNights !== -1)
+        colNights = iNights
+      if (iLocation !== -1)
+        colLocation = iLocation
+      if (iHotel !== -1)
+        colHotel = iHotel
+      if (iFeatures !== -1)
+        colFeatures = iFeatures
+      if (iPriceNight !== -1)
+        colPriceNight = iPriceNight
+      if (iTotal !== -1)
+        colTotal = iTotal
+
+      headerDetected = true
+      continue
+    }
+
+    // Пропускаем строки заголовков и прочие нежелательные строки
+    if (/ночи|локация|отель|итого|стоимость \/ ночь/i.test(trimmed))
+      continue
+
+    if (cols.length >= 4) {
+      const nightsCol = cols[colNights]?.replace(/[*_`]/g, '').trim() ?? ''
+      const rawLocationCol = cols[colLocation] ?? ''
+      const hotelCol = cols[colHotel] ?? ''
+      const featuresCol = cols[colFeatures]?.replace(/[*_`]/g, '').trim() ?? ''
+      const priceNightCol = cols[colPriceNight]?.replace(/[*_`]/g, '').trim() ?? ''
+      const totalCol = cols[colTotal]?.replace(/[*_`]/g, '').trim() ?? ''
+
+      let hotelName = hotelCol.replace(/[_`]/g, '').replace(/\[([^\]]+)\]\([^)]+\)/g, '$1').trim()
+      let sourceUrl: string | undefined
+      const linkMatch = hotelCol.match(/\[([^\]]+)\]\(([^)]+)\)/)
+      if (linkMatch) {
+        hotelName = linkMatch[1].replace(/[_`\\]/g, '').trim()
+        sourceUrl = linkMatch[2].trim()
+      }
+
+      // Убираем эмодзи из имени отеля
+      hotelName = removeEmoji(hotelName)
+
+      // Если отель основной или единственный в строке
+      if (hotelName && !/опция|альтернатива/i.test(nightsCol)) {
+        let startDayNum = 1
+        let endDayNum = 1
+        const rangeMatch = nightsCol.match(/(\d{1,2})\s*[-–—]\s*(\d{1,2})/)
+        if (rangeMatch) {
+          startDayNum = Number.parseInt(rangeMatch[1], 10)
+          endDayNum = Number.parseInt(rangeMatch[2], 10)
+        }
+        else {
+          const singleMatch = nightsCol.match(/(\d{1,2})/)
+          if (singleMatch) {
+            startDayNum = Number.parseInt(singleMatch[1], 10)
+            endDayNum = startDayNum
+          }
         }
 
-        // Если отель основной или единственный в строке
-        if (hotelName && !/опция|альтернатива/i.test(nightsCol)) {
-          let startDayNum = 1
-          let endDayNum = 1
-          const rangeMatch = nightsCol.match(/(\d{1,2})\s*[-–—]\s*(\d{1,2})/)
-          if (rangeMatch) {
-            startDayNum = Number.parseInt(rangeMatch[1], 10)
-            endDayNum = Number.parseInt(rangeMatch[2], 10)
-          }
-          else {
-            const singleMatch = nightsCol.match(/(\d{1,2})/)
-            if (singleMatch) {
-              startDayNum = Number.parseInt(singleMatch[1], 10)
-              endDayNum = startDayNum
-            }
-          }
+        const inDate = new Date(startDate)
+        inDate.setDate(inDate.getDate() + (startDayNum - 1))
+        const checkInDate = inDate.toISOString().split('T')[0]
 
-          const inDate = new Date(startDate)
-          inDate.setDate(inDate.getDate() + (startDayNum - 1))
-          const checkInDate = inDate.toISOString().split('T')[0]
+        const outDate = new Date(startDate)
+        outDate.setDate(outDate.getDate() + endDayNum)
+        const checkOutDate = outDate.toISOString().split('T')[0]
 
-          const outDate = new Date(startDate)
-          outDate.setDate(outDate.getDate() + endDayNum)
-          const checkOutDate = outDate.toISOString().split('T')[0]
+        const features = featuresMap.get(hotelName.toLowerCase()) || featuresCol || ''
+        const priceInfo = priceNightCol ? `${priceNightCol} / ночь${totalCol ? ` (Итого: ${totalCol})` : ''}` : ''
+        const notesParts = [priceInfo, features].filter(Boolean)
+        const notes = notesParts.join('. ')
 
-          const features = featuresMap.get(hotelName.toLowerCase()) || featuresCol || ''
-          const priceInfo = priceNightCol ? `${priceNightCol} / ночь${totalCol ? ` (Итого: ${totalCol})` : ''}` : ''
-          const notesParts = [priceInfo, features].filter(Boolean)
-          const notes = notesParts.join('. ')
+        // Чистим локацию от эмодзи и скобочных префиксов
+        const cleanLocation = removeEmoji(rawLocationCol)
+          .replace(/[*_`]/g, '')
+          .trim()
 
-          const cleanLocation = locationCol
-            .replace(/[\u{1F300}-\u{1F9FF}]/gu, '')
-            .replace(/[\u{2600}-\u{26FF}]/gu, '')
-            .replace(/[\u{2700}-\u{27BF}]/gu, '')
-            .replace(/[\u{FE00}-\u{FE0F}]/gu, '')
-            .replace(/^\s*[\(（][^)]*[\)）]\s*/, '')
-            .replace(/[*_`]/g, '')
-            .trim()
-
-          const hotelTitle = cleanLocation
-            ? (cleanLocation.toLowerCase().includes(hotelName.toLowerCase()) ? `Отель в ${cleanLocation}` : `Отель в ${cleanLocation} (${hotelName})`)
-            : `Отель: ${hotelName}`
-
-          bookings.push({
-            id: crypto.randomUUID(),
-            type: 'hotel',
-            icon: 'mdi:hotel',
-            title: hotelTitle,
-            data: {
-              hotelName,
-              address: cleanLocation || undefined,
-              checkInDate,
-              checkOutDate,
-              notes: notes || undefined,
-              sourceUrl,
-            },
-          })
-        }
+        bookings.push({
+          id: crypto.randomUUID(),
+          type: 'hotel',
+          icon: 'mdi:hotel',
+          title: makeHotelTitle(cleanLocation, hotelName),
+          data: {
+            hotelName,
+            address: cleanLocation || undefined,
+            checkInDate,
+            checkOutDate,
+            notes: notes || undefined,
+            sourceUrl,
+          },
+        })
       }
     }
   }
@@ -229,10 +351,9 @@ export function parseFlightsMarkdown(content: string, startDateStr: string, endD
     const isOutbound = /ТУДА|Москва\s*➔|вылет|отправлен/i.test(fSec) && !/ОБРАТНО/i.test(fSec)
     const isInbound = /ОБРАТНО|➔\s*Москва|возвращен/i.test(fSec)
 
-    const titleMatch = fSec.match(/##\s*[^\n]*(Перелет[^\n:]+:[^\n]+)/i)
-    const blockTitle = titleMatch
-      ? titleMatch[1].replace(/[*_#]/g, '').trim()
-      : (isOutbound ? 'Рейс ТУДА' : (isInbound ? 'Рейс ОБРАТНО' : 'Авиаперелет'))
+    // Извлекаем сырой заголовок маршрута из заголовка секции (после «Перелет ...:»)
+    const titleMatch = fSec.match(/##\s*[^\n]*(?:Перелет|Рейс)[^\n:]*:\s*([^\n]+)/i)
+    const rawRouteTitle = titleMatch ? titleMatch[1].trim() : ''
 
     const segments: FlightSegment[] = []
     const lines = fSec.split('\n')
@@ -247,7 +368,7 @@ export function parseFlightsMarkdown(content: string, startDateStr: string, endD
           const depCol = cols[2]
           const arrCol = cols[3]
 
-          const citiesMatch = routeCol.match(/\*\*?([^(➔\n]+)(?:\(([^)\-]+)(?:-([^\)]+))?\))?\s*➔\s*([^(➔\n]+)(?:\(([^)\-]+)(?:-([^\)]+))?\)?)\*\*?/)
+          const citiesMatch = routeCol.match(/\*\*?([^(➔\n]+)(?:\(([^)\-]+)(?:-([^\)]+))?\))?\s*➔\s*([^(➔\n]+)(?:\(([^)\-]+)(?:-([^\)]+))?\)?)?\*\*?/)
           if (citiesMatch) {
             const departureCity = citiesMatch[1].trim()
             const departureAirport = citiesMatch[2]?.trim() || 'SVO'
@@ -298,7 +419,7 @@ export function parseFlightsMarkdown(content: string, startDateStr: string, endD
         id: crypto.randomUUID(),
         type: 'flight',
         icon: 'mdi:airplane',
-        title: blockTitle,
+        title: makeFlightTitle(rawRouteTitle, isOutbound, isInbound, segments),
         data: {
           bookingReference: '',
           sourceUrl: sourceUrl || undefined,
@@ -314,8 +435,8 @@ export function parseFlightsMarkdown(content: string, startDateStr: string, endD
     const routeMatch = content.match(/Маршрут:[^\n`*]+`?([A-Z\s/]+➔[A-Z\s/]+)`?/i)
       || content.match(/Москва\s*➔\s*([^\n(\]]+)/i)
 
-    const routeText = routeMatch ? routeMatch[0] : 'Перелет Москва ➔ Регион'
-    const cleanTitle = `Авиаперелет: ${routeText.replace(/[*_`]/g, '').trim()}`
+    const routeText = routeMatch ? routeMatch[0].replace(/[*_`]/g, '').trim() : 'Москва ➔ Регион'
+    const cleanTitle = makeFlightTitle(routeText, true, false)
 
     bookings.push({
       id: crypto.randomUUID(),

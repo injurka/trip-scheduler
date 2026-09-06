@@ -1,4 +1,5 @@
 import type { GeneratedBooking, GeneratedTransaction, ILLMRepository } from '../model/types'
+import { SERVER_URL } from '~/shared/lib/env'
 import { refreshTokensIfNeeded } from '~/shared/services/trpc/auth-token.service'
 import { TOKEN_KEY, useAuthStore } from '~/shared/store/auth.store'
 
@@ -7,7 +8,7 @@ export class LLMRepository implements ILLMRepository {
     const authStore = useAuthStore()
     let accessToken = authStore.tokenPair?.accessToken || localStorage.getItem(TOKEN_KEY)
 
-    let response = await fetch(`${import.meta.env.VITE_APP_SERVER_URL}/api/llm/booking/generate`, {
+    let response = await fetch(`${SERVER_URL}/api/llm/booking/generate`, {
       method: 'POST',
       body: formData,
       headers: {
@@ -19,7 +20,7 @@ export class LLMRepository implements ILLMRepository {
       const refreshed = await refreshTokensIfNeeded()
       if (refreshed) {
         accessToken = authStore.tokenPair?.accessToken || localStorage.getItem(TOKEN_KEY)
-        response = await fetch(`${import.meta.env.VITE_APP_SERVER_URL}/api/llm/booking/generate`, {
+        response = await fetch(`${SERVER_URL}/api/llm/booking/generate`, {
           method: 'POST',
           body: formData,
           headers: {
@@ -41,7 +42,7 @@ export class LLMRepository implements ILLMRepository {
     const authStore = useAuthStore()
     let accessToken = authStore.tokenPair?.accessToken || localStorage.getItem(TOKEN_KEY)
 
-    let response = await fetch(`${import.meta.env.VITE_APP_SERVER_URL}/api/llm/finances/generate`, {
+    let response = await fetch(`${SERVER_URL}/api/llm/finances/generate`, {
       method: 'POST',
       body: formData,
       headers: {
@@ -53,7 +54,7 @@ export class LLMRepository implements ILLMRepository {
       const refreshed = await refreshTokensIfNeeded()
       if (refreshed) {
         accessToken = authStore.tokenPair?.accessToken || localStorage.getItem(TOKEN_KEY)
-        response = await fetch(`${import.meta.env.VITE_APP_SERVER_URL}/api/llm/finances/generate`, {
+        response = await fetch(`${SERVER_URL}/api/llm/finances/generate`, {
           method: 'POST',
           body: formData,
           headers: {

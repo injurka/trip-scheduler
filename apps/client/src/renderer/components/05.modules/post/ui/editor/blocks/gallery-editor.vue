@@ -253,8 +253,10 @@ function getEditorThumbUrl(img: PostMedia) {
   z-index: 2;
   transition: opacity 0.2s;
 
-  &:hover {
-    transform: scale(1.1);
+  @include hover {
+    & {
+      transform: scale(1.1);
+    }
   }
 }
 

@@ -336,15 +336,17 @@ function openExpanded() {
   flex-direction: column;
   justify-content: flex-end;
 
-  &:hover {
-    transform: translateY(-4px);
-    box-shadow: var(--s-l);
-    .card-actions {
-      opacity: 1;
-      transform: translateY(0);
-    }
-    .bg-image {
-      transform: scale(1.05);
+  @include hover {
+    & {
+      transform: translateY(-4px);
+      box-shadow: var(--s-l);
+      .card-actions {
+        opacity: 1;
+        transform: translateY(0);
+      }
+      .bg-image {
+        transform: scale(1.05);
+      }
     }
   }
 }
@@ -456,12 +458,14 @@ function openExpanded() {
     filter: grayscale(100%);
   }
 
-  &:hover {
-    transform: scale(1.15);
-    background: rgba(0, 0, 0, 0.7);
-    opacity: 1;
-    filter: grayscale(0%);
-    z-index: 100;
+  @include hover {
+    & {
+      transform: scale(1.15);
+      background: rgba(0, 0, 0, 0.7);
+      opacity: 1;
+      filter: grayscale(0%);
+      z-index: 100;
+    }
   }
 }
 
@@ -651,15 +655,17 @@ function openExpanded() {
     transition: color 0.2s ease;
   }
 
-  &:hover,
-  &:active {
-    .info-icon {
-      color: var(--fg-primary-color);
-    }
-    .info-tooltip-content {
-      opacity: 1;
-      transform: translateY(0);
-      pointer-events: auto;
+  @media (hover: hover) and (pointer: fine) {
+    &:hover,
+    &:active {
+      .info-icon {
+        color: var(--fg-primary-color);
+      }
+      .info-tooltip-content {
+        opacity: 1;
+        transform: translateY(0);
+        pointer-events: auto;
+      }
     }
   }
 }

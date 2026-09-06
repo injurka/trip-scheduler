@@ -146,10 +146,12 @@ const router = useRouter()
         text-decoration: none;
       }
 
-      &:hover {
-        color: var(--fg-accent-color);
-        border-color: var(--border-accent-color);
-        box-shadow: 0 0 0 1px var(--border-accent-color);
+      @include hover {
+        & {
+          color: var(--fg-accent-color);
+          border-color: var(--border-accent-color);
+          box-shadow: 0 0 0 1px var(--border-accent-color);
+        }
 
         a {
           color: var(--fg-accent-color);

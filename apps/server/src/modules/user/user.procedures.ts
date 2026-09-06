@@ -92,7 +92,7 @@ export const userProcedures = {
     .meta({
       openapi: { method: 'GET', path: '/users/me', tags: ['Users'], summary: 'Получить текущего пользователя' },
     })
-    .output(UserSchema.nullable())
+    .output(UserSchema)
     .query(async ({ ctx }) => {
       return userService.getById(ctx.user.id)
     }),

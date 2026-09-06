@@ -1,7 +1,7 @@
 <script setup lang="ts">
-import type { IImageViewerImageMeta, ImageQuality, ImageViewerImage } from '@injurkx/kit-image-viewer'
+import type { IImageViewerImageMeta, ImageQuality, ImageViewerImage } from '@injurka/kit-image-viewer'
 import type { Component } from 'vue'
-import { KitImageViewer as BaseKitImageViewer } from '@injurkx/kit-image-viewer'
+import { KitImageViewer as BaseKitImageViewer } from '@injurka/kit-image-viewer'
 import { KitMap } from '~/components/01.kit/kit-map'
 import { resolveApiUrl } from '~/shared/lib/url'
 import { trpc } from '~/shared/services/trpc/trpc.service'

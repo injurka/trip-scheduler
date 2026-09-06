@@ -288,7 +288,7 @@ onKeyStroke('Escape', (e) => {
 
   &.is-fullscreen {
     position: fixed;
-    top: env(safe-area-inset-top);
+    top: var(--safe-area-inset-top);
     left: 0;
     width: 100vw;
     height: 100vh;

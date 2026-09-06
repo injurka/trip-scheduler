@@ -30,6 +30,9 @@ class Server {
     'http://localhost:4173', // Vite preview
     'http://trip-scheduler.ru', // Production-домен
     'https://trip-scheduler.ru', // Production-домен с https
+    'http://tauri.localhost', // Tauri Android
+    'https://tauri.localhost', // Tauri iOS/macOS
+    'tauri://localhost', // Tauri Windows/Linux
     ...(process.env.FRONTEND_URL ? [process.env.FRONTEND_URL] : []),
   ]
 
@@ -82,7 +85,7 @@ class Server {
           return null
         },
         credentials: true,
-        allowMethods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+        allowMethods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
       }),
     )
 

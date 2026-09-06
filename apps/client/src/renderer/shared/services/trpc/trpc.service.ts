@@ -1,5 +1,6 @@
 import type { AppRouter } from '~/shared/types/trpc'
 import { createTRPCProxyClient, httpBatchLink, loggerLink } from '@trpc/client'
+import { SERVER_URL } from '~/shared/lib/env'
 import { useAuthStore } from '~/shared/store/auth.store'
 import { authRefreshLink } from './auth-refresh.link'
 
@@ -12,7 +13,7 @@ export const trpc = createTRPCProxyClient<AppRouter>({
         || (op.direction === 'down' && op.result instanceof Error),
     }),
     httpBatchLink({
-      url: `${import.meta.env.VITE_APP_SERVER_URL}/trpc`,
+      url: `${SERVER_URL}/trpc`,
       async headers() {
         const authStore = useAuthStore()
         const token = authStore.tokenPair?.accessToken

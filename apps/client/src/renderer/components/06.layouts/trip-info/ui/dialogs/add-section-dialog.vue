@@ -125,10 +125,12 @@ function handleAddSection(payload: TripSectionType | { type: TripSectionType, ti
   cursor: pointer;
   transition: all 0.2s ease-in-out;
 
-  &:hover {
-    transform: translateY(-4px);
-    border-color: var(--border-accent-color);
-    box-shadow: var(--s-l);
+  @include hover {
+    & {
+      transform: translateY(-4px);
+      border-color: var(--border-accent-color);
+      box-shadow: var(--s-l);
+    }
   }
 }
 

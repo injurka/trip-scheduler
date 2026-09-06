@@ -1,5 +1,5 @@
 export const useLayoutStore = defineStore('layout', () => {
-  const headerHeight = ref(0)
+  const headerHeight = ref(56)
   const isHeaderVisible = ref(true)
   const isFloatingMapOpen = ref(false)
 

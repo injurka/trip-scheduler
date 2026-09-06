@@ -41,6 +41,14 @@ const mainMenuItems = computed(() => [
       open.value = false
     },
   },
+  {
+    label: 'Трекинг активности',
+    icon: 'mdi:map-marker-path',
+    action: () => {
+      router.push({ name: AppRouteNames.ActivityTracking })
+      open.value = false
+    },
+  },
 ])
 
 const secondaryMenuItems = computed(() => [

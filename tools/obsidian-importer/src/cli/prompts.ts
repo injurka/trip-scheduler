@@ -4,7 +4,7 @@ import process from 'node:process'
 import prompts from 'prompts'
 import { colors } from '../config/colors'
 import { AIHUBMIX_MODELS, DEFAULT_AIHUBMIX_MODEL } from '../config/constants'
-import { discoverObsidianTravelFolders } from '../parsers/vault'
+import { discoverObsidianTravelFolders, normalizeVaultPath } from '../parsers/vault'
 
 export async function promptForTargetDirectory(initialDir?: string): Promise<string> {
   let targetDir = initialDir
@@ -54,7 +54,7 @@ export async function promptForTargetDirectory(initialDir?: string): Promise<str
     process.exit(1)
   }
 
-  return targetDir
+  return normalizeVaultPath(targetDir)
 }
 
 export async function promptForInteractiveOptions(
@@ -147,7 +147,7 @@ export async function promptForInteractiveOptions(
           const customModelResp = await prompts({
             type: 'text',
             name: 'customModel',
-            message: 'Введите идентификатор модели (например, gpt-4o, claude-3-7-sonnet-20250219, deepseek-ai/DeepSeek-V3):',
+            message: 'Введите идентификатор модели (например, gemini-3.8-flash, claude-sonnet-5, gpt-5.6-terra):',
             initial: DEFAULT_AIHUBMIX_MODEL,
           })
           selectedModel = customModelResp.customModel?.trim() || DEFAULT_AIHUBMIX_MODEL

@@ -113,9 +113,6 @@ function onAddItem() {
           <span class="group-progress-text">
             {{ groupProgress.completed }} / {{ groupProgress.total }}
           </span>
-          <div class="progress-bar-bg">
-            <div class="progress-bar" :style="{ width: `${groupProgress.percentage}%` }" />
-          </div>
         </div>
         <button v-if="!readonly" class="delete-group-btn" title="Удалить группу" @click.stop="$emit('delete')">
           <Icon icon="mdi:trash-can-outline" />
@@ -243,19 +240,6 @@ function onAddItem() {
   font-size: 0.75rem;
   font-weight: 600;
   color: var(--fg-secondary-color);
-}
-.progress-bar-bg {
-  width: 50px;
-  height: 6px;
-  background-color: var(--bg-tertiary-color);
-  border-radius: var(--r-full);
-  overflow: hidden;
-}
-.progress-bar {
-  height: 100%;
-  background-color: var(--fg-success-color);
-  border-radius: var(--r-full);
-  transition: width 0.3s ease;
 }
 
 .delete-group-btn,

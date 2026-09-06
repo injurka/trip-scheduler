@@ -186,9 +186,11 @@ const starColor = computed(() => filterRating.value > 0 ? 'var(--c-orange-500)' 
     cursor: pointer;
   }
 
-  &:hover::-webkit-slider-thumb {
-    background: var(--primary-color);
-    transform: scale(1.1);
+  @include hover {
+    &::-webkit-slider-thumb {
+      background: var(--primary-color);
+      transform: scale(1.1);
+    }
   }
 
   &:hover::-moz-range-thumb {

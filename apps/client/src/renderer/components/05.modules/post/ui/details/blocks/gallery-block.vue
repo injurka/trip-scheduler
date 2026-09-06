@@ -461,9 +461,11 @@ function handleItemClick(img: PostMedia, e: Event) {
   pointer-events: none;
 }
 
-.img-wrapper:hover .video-play-badge {
-  transform: translate(-50%, -50%) scale(1.1);
-  background: rgba(var(--bg-accent-color-rgb), 0.9);
+@media (hover: hover) and (pointer: fine) {
+  .img-wrapper:hover .video-play-badge {
+    transform: translate(-50%, -50%) scale(1.1);
+    background: rgba(var(--bg-accent-color-rgb), 0.9);
+  }
 }
 
 .private-badge {

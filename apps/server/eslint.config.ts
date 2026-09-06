@@ -1,7 +1,7 @@
 import antfu from '@antfu/eslint-config'
 
 export default antfu({
-  formatters: true,
+  markdown: false,
   rules: {
     'node/prefer-global/process': 'off',
     'node/prefer-global/buffer': 'off',

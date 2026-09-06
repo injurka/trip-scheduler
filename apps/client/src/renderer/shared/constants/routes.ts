@@ -33,6 +33,8 @@ export enum AppRouteNames {
   Explore = 'explore',
 
   ActivityMap = 'activity-map',
+  ActivityTracking = 'activity-tracking',
+  Activity = 'activity',
 }
 
 export const AppRoutePaths = {
@@ -81,4 +83,6 @@ export const AppRoutePaths = {
   Explore: '/explore',
 
   ActivityMap: '/activity-map',
+  ActivityTracking: '/activity-tracking',
+  Activity: '/activity',
 }

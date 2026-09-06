@@ -1,6 +1,8 @@
+import type { RenderOptions as BeautifulMermaidOptions } from 'beautiful-mermaid'
+import { renderMermaidSVG } from 'beautiful-mermaid'
 import mermaid from 'mermaid'
 
-let isInitialized = false
+let isMermaidInitialized = false
 
 /**
  * Read a CSS custom property from :root or the document body.
@@ -13,7 +15,29 @@ function cssProp(name: string, fallback: string): string {
   return val || fallback
 }
 
-function getThemeVariables() {
+export function getBeautifulMermaidOptions(): BeautifulMermaidOptions {
+  const bg = cssProp('--bg-secondary-color', '#121314')
+  const fg = cssProp('--fg-primary-color', '#e4e4e4')
+  const muted = cssProp('--fg-secondary-color', '#e4e4e4cc')
+  const accent = cssProp('--fg-accent-color', '#ff8856')
+  const border = cssProp('--border-primary-color', '#353535')
+  const surface = cssProp('--bg-tertiary-color', '#151617')
+  const line = cssProp('--border-primary-color', '#555555')
+
+  return {
+    bg,
+    fg,
+    line,
+    accent,
+    muted,
+    surface,
+    border,
+    font: 'Rubik, sans-serif',
+    transparent: true,
+  }
+}
+
+function getMermaidThemeVariables() {
   const bg = cssProp('--bg-primary-color', '#1e1f20')
   const fg = cssProp('--fg-primary-color', '#e4e4e4')
   const fgSecondary = cssProp('--fg-secondary-color', '#e4e4e4cc')
@@ -51,7 +75,7 @@ function getMermaidConfig() {
   return {
     startOnLoad: false,
     theme: 'base' as const,
-    themeVariables: getThemeVariables(),
+    themeVariables: getMermaidThemeVariables(),
     securityLevel: 'loose' as const,
     fontFamily: 'Rubik, sans-serif',
     flowchart: { useMaxWidth: false, htmlLabels: true },
@@ -73,10 +97,10 @@ function getMermaidConfig() {
   }
 }
 
-function initMermaid() {
-  if (isInitialized)
+function initMermaidFallback() {
+  if (isMermaidInitialized)
     return
-  isInitialized = true
+  isMermaidInitialized = true
   mermaid.initialize(getMermaidConfig())
 }
 
@@ -85,27 +109,32 @@ function initMermaid() {
  * Call this when the app theme (light ⇄ dark) switches.
  */
 export function updateMermaidTheme() {
-  if (!isInitialized)
-    return
-  mermaid.initialize(getMermaidConfig())
+  if (isMermaidInitialized) {
+    mermaid.initialize(getMermaidConfig())
+  }
 }
 
 export async function renderMermaidDiagram(code: string, id: string): Promise<string> {
-  initMermaid()
-  try {
-    const cleanCode = code.trim()
-    if (!cleanCode)
-      return ''
-
-    // Re-apply theme variables on each render so theme changes take effect
-    mermaid.initialize(getMermaidConfig())
-
-    const { svg } = await mermaid.render(id, cleanCode)
-    return svg
-  }
-  catch (err) {
-    console.warn('Mermaid render error:', err)
+  const cleanCode = code.trim()
+  if (!cleanCode)
     return ''
+
+  try {
+    const options = getBeautifulMermaidOptions()
+    return renderMermaidSVG(cleanCode, options)
+  }
+  catch {
+    // Fallback to standard mermaid for diagrams/syntax not supported by beautiful-mermaid
+    try {
+      initMermaidFallback()
+      mermaid.initialize(getMermaidConfig())
+      const { svg } = await mermaid.render(id, cleanCode)
+      return svg
+    }
+    catch (err) {
+      console.warn('Mermaid render error:', err)
+      return ''
+    }
   }
 }
 

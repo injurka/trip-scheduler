@@ -1200,7 +1200,6 @@ onUnmounted(() => {
         color: #000;
 
         &:hover {
-          transform: translateY(-2px);
           box-shadow: 0 4px 12px rgba(255, 255, 255, 0.2);
         }
       }
@@ -1324,7 +1323,6 @@ onUnmounted(() => {
 
   &:hover {
     opacity: 0.95;
-    transform: translateY(-2px);
   }
 
   &.active {

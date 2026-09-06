@@ -427,13 +427,15 @@ function handleAddLink() {
   border: 1px solid var(--border-primary-color);
   max-width: 500px;
 
-  &:hover {
-    transform: scale(1.02);
-    box-shadow: var(--s-m);
-    border-color: var(--fg-accent-color);
+  @include hover {
+    & {
+      transform: scale(1.02);
+      box-shadow: var(--s-m);
+      border-color: var(--fg-accent-color);
 
-    .image-overlay {
-      opacity: 1;
+      .image-overlay {
+        opacity: 1;
+      }
     }
   }
 
@@ -470,9 +472,11 @@ function handleAddLink() {
     transition: all 0.2s;
     backdrop-filter: blur(4px);
 
-    &:hover {
-      background: rgba(220, 38, 38, 1);
-      transform: scale(1.1);
+    @include hover {
+      & {
+        background: rgba(220, 38, 38, 1);
+        transform: scale(1.1);
+      }
     }
   }
 }

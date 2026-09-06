@@ -399,7 +399,7 @@ watch(isMapLoaded, (isReady) => {
 
 .map-inline-search {
   position: absolute;
-  top: calc(12px + env(safe-area-inset-top));
+  top: calc(12px + var(--safe-area-inset-top));
   left: 12px;
   z-index: 8;
 

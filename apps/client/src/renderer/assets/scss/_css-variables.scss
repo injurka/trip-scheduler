@@ -5,6 +5,8 @@
 @use 'sass:meta';
 
 @include mixins-theme.connectThemes(themes-theme.$themes, 'theme') using ($theme, $themeName) {
+  color-scheme: if($themeName == 'dark', dark, light);
+
   @each $colorType, $colorValue in map.get($theme, 'colors') {
     --#{$colorType}-color: #{$colorValue};
 

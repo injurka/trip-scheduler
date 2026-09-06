@@ -178,14 +178,16 @@ function openCustomThemeModal() {
     z-index: -1;
   }
 
-  &:hover,
-  &.is-active {
-    color: var(--fg-accent-color);
-    transform: scale(1.1);
+  @media (hover: hover) and (pointer: fine) {
+    &:hover,
+    &.is-active {
+      color: var(--fg-accent-color);
+      transform: scale(1.1);
 
-    &::before {
-      width: 100%;
-      height: 100%;
+      &::before {
+        width: 100%;
+        height: 100%;
+      }
     }
   }
 
@@ -267,12 +269,14 @@ function openCustomThemeModal() {
   outline: none;
   font-family: inherit;
 
-  &:hover {
-    background-color: var(--bg-hover-color);
-    border-color: var(--border-secondary-color);
+  @include hover {
+    & {
+      background-color: var(--bg-hover-color);
+      border-color: var(--border-secondary-color);
 
-    .theme-preview {
-      transform: scale(1.04);
+      .theme-preview {
+        transform: scale(1.04);
+      }
     }
   }
 
@@ -422,14 +426,16 @@ function openCustomThemeModal() {
   transition: all 0.2s ease;
   padding: 0;
 
-  &:hover {
-    background-color: var(--fg-accent-color);
-    color: var(--fg-inverted-color);
-    border-color: var(--fg-accent-color);
-    transform: scale(1.08);
+  @include hover {
+    & {
+      background-color: var(--fg-accent-color);
+      color: var(--fg-inverted-color);
+      border-color: var(--fg-accent-color);
+      transform: scale(1.08);
 
-    .gear-icon {
-      transform: rotate(60deg);
+      .gear-icon {
+        transform: rotate(60deg);
+      }
     }
   }
 

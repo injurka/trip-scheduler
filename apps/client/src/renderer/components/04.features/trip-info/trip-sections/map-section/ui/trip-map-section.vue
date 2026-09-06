@@ -381,10 +381,10 @@ function focusOnItem(item: MapPoint | MapRoute | DrawnRoute) {
 
 .is-fullscreen {
   position: fixed;
-  top: env(safe-area-inset-top) !important;
+  top: var(--safe-area-inset-top) !important;
   left: 0;
   width: 100vw;
-  height: calc(100vh - env(safe-area-inset-top)) !important;
+  height: calc(100vh - var(--safe-area-inset-top)) !important;
   z-index: 100;
   padding: 0;
   background-color: var(--bg-primary-color);

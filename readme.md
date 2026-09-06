@@ -1,10 +1,9 @@
 # 📅 Trip Scheduler: Планировщик Путешествий
 
-**Trip Scheduler** — это комплексное решение для создания идеальных маршрутов путешествий и сохранения воспоминаний. Это кросс-платформенное приложение, состоящее из десктопного клиента на базе **Electron**, мобильных приложений на **Capacitor** и веб-версии (PWA), с акцентом на офлайн-работу и синхронизацию данных.
+**Trip Scheduler** — это комплексное решение для создания идеальных маршрутов путешествий и сохранения воспоминаний.
 
 [![Vue.js](https://img.shields.io/badge/Vue.js-3-4FC08D?logo=vue.js)](https://vuejs.org/)
-[![Electron](https://img.shields.io/badge/Electron-2B2E3A?logo=electron)](https://www.electronjs.org/)
-[![Capacitor](https://img.shields.io/badge/Capacitor-5968FF?logo=capacitor)](https://capacitorjs.com/)
+[![Tauri](https://img.shields.io/badge/Tauri-24C8DB?logo=tauri)](https://v2.tauri.app/)
 [![Hono](https://img.shields.io/badge/Hono-E36002?logo=hono)](https://hono.dev/)
 [![tRPC](https://img.shields.io/badge/tRPC-2B81C8?logo=trpc)](https://trpc.io/)
 [![PostgreSQL](https://img.shields.io/badge/PostgreSQL-4169E1?logo=postgresql)](https://www.postgresql.org/)
@@ -13,29 +12,20 @@
 
 ![250812_02h26m13s_screenshot](assets/250812_02h26m13s_screenshot.png)
 
-## 🌟 Ключевые возможности
-
--   **🗺️ Детальное планирование:** Создавайте поездки, разбивайте их по дням и добавляйте активности с привязкой ко времени и местам на карте (`OpenLayers`).
--   **✈️ Кросс-платформенность:** Полноценная работа на **десктопе** (Linux, Windows, macOS через Electron), в **веб-браузере** (PWA) и на **мобильных устройствах** (Android, iOS через Capacitor).
--   **✍️ Богатый контент:** Используйте встроенный Markdown-редактор (`Milkdown`) для заметок и добавляйте галереи изображений к активностям.
--   **✈️ Умные бронирования:** Добавляйте информацию о перелетах, отелях и поездах. Используйте **AI-парсер** для автоматического распознавания данных из билетов.
--   **✅ Чек-листы и финансы:** Создавайте списки вещей и ведите учет расходов с привязкой к категориям и валютам.
--   **📸 Лента воспоминаний:** Автоматически создавайте хронологию путешествия из фотографий с геолокацией и EXIF-данными.
--   **🌍 Социальные функции:** Создавайте **сообщества**, делитесь маршрутами и исследуйте **интересные места** в разных городах.
--   **📡 Офлайн-режим:** Веб-версия использует Service Worker для кэширования, обеспечивая доступ к данным без сети.
--   **✨ Современный интерфейс:** Интуитивно понятный и адаптивный интерфейс с кастомизацией тем и перетаскиванием (drag-and-drop) активностей.
--   **🛠️ Гибкая архитектура:** Фронтенд построен на принципах **Vertical Slice Architecture**, а бэкенд предоставляет типобезопасный API благодаря tRPC.
-
 ## 🏗️ Архитектура проекта
 
 Проект организован как монорепозиторий, управляемый с помощью `Bun Workspaces`.
 
 -   **`apps/client` (Клиентское приложение)**
     -   **Фреймворк:** Vue 3 (Composition API), Vite.
-    -   **Десктопная версия:** Собрана с помощью Electron, обеспечивая нативную интеграцию с ОС.
-    -   **Мобильная версия:** Использует Capacitor для сборки под Android и iOS.
+    -   **Нативная версия (десктоп + мобильная):** Tauri 2 — отдельная обёртка в `apps/native`.
     -   **Управление состоянием:** Pinia для централизованного и модульного управления состоянием.
     -   **Архитектура:** Код организован по слоям (`01.kit`, `02.shared`, `03.domain`, `04.features`, `05.modules`, `06.layouts`) для обеспечения низкой связанности и высокой переиспользуемости.
+
+-   **`apps/native` (Нативная обёртка Tauri)**
+    -   **Десктоп:** Linux (deb/AppImage/rpm), Windows (MSI/NSIS), macOS (dmg).
+    -   **Мобильные:** Android (APK/AAB) и iOS через `tauri android` / `tauri ios`.
+    -   Команды vault-хранилища (выбор папки, скачивание и удаление файлов) реализованы на Rust.
 
 -   **`apps/server` (Серверная часть)**
     -   **Среда выполнения и фреймворк:** Bun и Hono для создания высокопроизводительного API.
@@ -52,22 +42,13 @@
 -   **`docker` (Инфраструктура)**
     -   Конфигурации для запуска окружения, включая **Grafana** для мониторинга производительности.
 
-## 🚀 Технологический стек
-
--   **Фронтенд:** Vue 3, Vite, TypeScript, Pinia, Vue Router, Sass (SCSS), OpenLayers, Milkdown, Storybook.
--   **Бэкенд:** Hono, tRPC, Drizzle ORM, TypeScript, Resend (для email), Sharp (для изображений).
--   **Десктоп:** Electron.
--   **Мобильные:** Capacitor.
--   **База данных:** PostgreSQL (сервер).
--   **Среда выполнения и инструменты:** Bun, Docker, ESLint, Prometheus, Grafana.
 
 ## 🛠️ Установка и запуск
 
 ### Предварительные требования
 
--   [Bun](https://bun.sh/) (v1.1.0 или выше).
+-   [Bun](https://bun.sh/) (v1.4.0 или выше).
 -   [Docker](https://www.docker.com/get-started/) и Docker Compose.
--   [Зависимости для Electron](https://www.electronjs.org/docs/latest/development/build-instructions-linux) (для вашей ОС).
 
 ### Пошаговая инструкция
 
@@ -118,15 +99,15 @@
     ```
     Сервер tRPC будет доступен по адресу `http://localhost:8080`.
 
-2.  **Запустите клиент (Electron или Веб):**
+2.  **Запустите клиент (Tauri или Веб):**
 
-    *   Для **десктопного приложения Electron**:
+    *   Для **нативного приложения (Tauri)** — сам поднимет dev-сервер клиента:
         ```bash
-        bun --cwd ./apps/client electron:dev
+        bun run dev:native
         ```
     *   Для **веб-версии**:
         ```bash
-        bun --cwd ./apps/client dev
+        bun run dev:client
         ```
     *   Для **просмотра UI-компонентов в Storybook**:
         ```bash
@@ -140,13 +121,15 @@
 | **Разработка**                         |                                                                        |                |
 | `bun dev:client`                       | Запуск веб-клиента в режиме разработки.                                | `root`         |
 | `bun dev:server`                       | Запуск сервера API в режиме разработки.                                | `root`         |
-| `bun electron:dev`                     | Запуск десктопного приложения Electron в режиме разработки.            | `client`       |
+| `bun dev:native`                       | Запуск нативного приложения (Tauri) в режиме разработки.               | `root`         |
 | `bun storybook:dev`                    | Запуск Storybook для просмотра UI-компонентов.                         | `client`       |
 | **Сборка**                             |                                                                        |                |
 | `bun build`                            | Сборка production-версии сервера и клиента.                            | `root`         |
-| `bun build`                            | Сборка production-версии сервера.                                      | `server`       |
-| `bun build`                            | Сборка production-версии веб-клиента.                                  | `client`       |
-| `bun electron:build`                   | Сборка исполняемого файла десктопного приложения.                      | `client`       |
+| `bun build:web`                        | Сборка production-версии веб-клиента.                                  | `root`         |
+| `bun build:native`                     | Сборка нативного приложения (Tauri, текущая ОС).                       | `root`         |
+| `bun build:native:linux:x64`           | Сборка нативного приложения под Linux x64.                             | `root`         |
+| `bun build:native:win:x64`             | Сборка нативного приложения под Windows x64.                           | `root`         |
+| `bun build:native:android`             | Сборка APK (требуется `tauri android init` и Android SDK).             | `root`         |
 | **База данных (Сервер)**               |                                                                        |                |
 | `bun db:migrate`                       | Применение миграций к БД сервера (PostgreSQL).                         | `server`       |
 | `bun db:generate`                      | Генерация новых миграций на основе схемы Drizzle.                      | `server`       |
@@ -158,9 +141,9 @@
 | **Линтинг и типизация**                |                                                                        |                |
 | `bun lint`                             | Проверка кода всего проекта с помощью ESLint.                          | `root`         |
 | `bun typecheck`                        | Проверка типов TypeScript во всем проекте.                             | `root`         |
-| **Мобильная сборка (Capacitor)**       |                                                                        |                |
-| `bun cap:sync`                         | Синхронизация веб-сборки с нативными проектами (Android/iOS).           | `client`       |
-| `bun cap:open:android`                 | Открытие проекта в Android Studio.                                     | `client`       |
+| **Мобильная сборка (Tauri)**           |                                                                        |                |
+| `bun run --filter '@injurka/trip-scheduler-native' tauri:android:init` | Инициализация Android-проекта (генерирует `gen/android`). | `native`       |
+| `bun build:native:android`             | Сборка Android APK.                                                    | `root`         |
 
 ## 📜 Пример приложения
 

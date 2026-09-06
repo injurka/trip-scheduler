@@ -479,9 +479,11 @@ onClickOutside(ratingMenuRef, () => isRatingMenuOpen.value = false)
     transition: transform 0.3s ease;
   }
 
-  &:hover:not(.morphed) :deep(img),
-  &:hover:not(.morphed) .timeline-video {
-    transform: scale(1.05);
+  @include hover {
+    &:not(.morphed) :deep(img),
+    &:not(.morphed) .timeline-video {
+      transform: scale(1.05);
+    }
   }
 }
 
@@ -513,9 +515,11 @@ onClickOutside(ratingMenuRef, () => isRatingMenuOpen.value = false)
   align-items: center;
   justify-content: center;
 
-  .photo-wrapper:hover & {
-    transform: translate(-50%, -50%) scale(1.15);
-    color: var(--fg-accent-color);
+  @media (hover: hover) and (pointer: fine) {
+    .photo-wrapper:hover & {
+      transform: translate(-50%, -50%) scale(1.15);
+      color: var(--fg-accent-color);
+    }
   }
 }
 
@@ -542,9 +546,11 @@ onClickOutside(ratingMenuRef, () => isRatingMenuOpen.value = false)
   transform: translateY(-5px);
   transition: all 0.2s ease;
 
-  .photo-wrapper:hover:not(.morphed) & {
-    opacity: 1;
-    transform: translateY(0);
+  @media (hover: hover) and (pointer: fine) {
+    .photo-wrapper:hover:not(.morphed) & {
+      opacity: 1;
+      transform: translateY(0);
+    }
   }
 
   &:has(.rating-popup) {
@@ -622,8 +628,10 @@ onClickOutside(ratingMenuRef, () => isRatingMenuOpen.value = false)
     display: flex;
     align-items: center;
 
-    &:hover {
-      transform: scale(1.2);
+    @include hover {
+      & {
+        transform: scale(1.2);
+      }
     }
   }
 }
@@ -843,10 +851,12 @@ onClickOutside(ratingMenuRef, () => isRatingMenuOpen.value = false)
     transform 0.3s ease;
   z-index: 2;
 
-  .photo-wrapper:hover:not(.morphed) &,
-  .photo-wrapper.morphed & {
-    opacity: 1;
-    transform: translateY(0);
+  @media (hover: hover) and (pointer: fine) {
+    .photo-wrapper:hover:not(.morphed) &,
+    .photo-wrapper.morphed & {
+      opacity: 1;
+      transform: translateY(0);
+    }
   }
 
   p {

@@ -17,13 +17,13 @@
       "~/*": [
         "./src/renderer/*"
       ],
-      "@injurkx/trip-scheduler-server/*": [
+      "@injurka/trip-scheduler-server/*": [
         "../server/src/*"
       ],
-      "@injurkx/kit-image-viewer": [
+      "@injurka/kit-image-viewer": [
         "../../packages/kit-image-viewer/src/index.ts"
       ],
-      "@injurkx/kit-image-viewer/*": [
+      "@injurka/kit-image-viewer/*": [
         "../../packages/kit-image-viewer/src/*"
       ]
     },

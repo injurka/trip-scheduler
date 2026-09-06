@@ -1,0 +1,16 @@
+pre-commit:
+  commands:
+    lint:
+      run: bun run lint
+    typecheck:
+      run: bun run typecheck
+
+post-commit:
+  commands:
+    status:
+      run: git status
+
+post-merge:
+  commands:
+    install:
+      run: bun i

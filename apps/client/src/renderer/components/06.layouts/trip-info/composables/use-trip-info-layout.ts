@@ -148,10 +148,11 @@ export function useTripInfoLayout() {
       isHeaderDropdownOpen.value = !isHeaderDropdownOpen.value
   }
 
-  function openEditDialog() {
-    if (!activeTab.value || ['daily-route', 'overview', 'trip-map'].includes(activeTab.value.id))
+  function openEditDialog(targetSectionId?: string) {
+    const id = targetSectionId || activeTab.value?.id
+    if (!id || ['daily-route', 'overview', 'trip-map'].includes(id))
       return
-    const section = sortedSections.value.find((s: TripSection) => s.id === activeTab.value!.id)
+    const section = sortedSections.value.find((s: TripSection) => s.id === id)
     if (!section)
       return
     sectionToEdit.value = {

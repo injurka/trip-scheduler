@@ -7,7 +7,7 @@ import type { CreateMarkInput, GetMarksParams, Mark } from '~/shared/types/model
 import type { CreateMemoryInput, Memory, UpdateMemoryInput } from '~/shared/types/models/memory'
 import type { Place, PlaceTag } from '~/shared/types/models/place'
 import type { CreatePostInput, ListPostsFilters, PostDetail, UpdatePostInput, WhitelistUser } from '~/shared/types/models/post'
-import type { CreateTripInput, ImageMetadata, Plan, Trip, TripMedia, TripMediaPlacement, TripSection, TripSectionType, TripStatus, TripWithDays, UpdateTripInput } from '~/shared/types/models/trip'
+import type { CreateTripInput, ImageMetadata, Plan, Trip, TripMedia, TripMediaPlacement, TripSection, TripSectionType, TripStatus, TripWeatherData, TripWithDays, UpdateTripInput } from '~/shared/types/models/trip'
 import type { CreateHighlightInput, Highlight } from '~/shared/types/models/user'
 
 export type NoteType = 'folder' | 'markdown' | 'excalidraw'
@@ -159,6 +159,7 @@ export interface ITripRepository {
   getUniqueTags: (params: { query?: string }) => Promise<string[]>
   listByUser: (params: { userId: string, limit: number }) => Promise<Trip[]>
   addParticipant: (tripId: string, userId: string) => Promise<void>
+  generateWeather: (params: { tripId: string, city?: string, forceRefresh?: boolean }) => Promise<{ weatherData: TripWeatherData, fromCache: boolean }>
 }
 
 export interface IDayRepository {

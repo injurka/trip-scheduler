@@ -361,9 +361,11 @@ defineExpose({
       color: var(--fg-inverted-color);
       box-shadow: 0 2px 8px rgba(var(--fg-accent-color-rgb), 0.35);
 
-      &:hover {
-        transform: translateY(-1px);
-        box-shadow: 0 4px 12px rgba(var(--fg-accent-color-rgb), 0.45);
+      @include hover {
+        & {
+          transform: translateY(-1px);
+          box-shadow: 0 4px 12px rgba(var(--fg-accent-color-rgb), 0.45);
+        }
       }
 
       &:active {

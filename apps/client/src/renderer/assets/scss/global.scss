@@ -13,8 +13,10 @@ body {
   box-sizing: border-box;
   margin: 0;
   padding: 0;
+  padding-right: 0 !important;
   border: none;
   background-color: var(--bg-primary-color);
+  transition: background-color 0.3s ease;
   color: var(--fg-primary-color);
   font-size: map.get($font-sizes, 'base');
 
@@ -43,6 +45,7 @@ img,
   -webkit-user-select: none;
 }
 
+
 // -----------------------------------------------------------------------------
 // Travel Note Rating & Score Badges (.tp-rate, .r-top, .r-high, etc.)
 // -----------------------------------------------------------------------------
@@ -58,6 +61,8 @@ img,
   margin-right: 6px;
   user-select: none;
   font-family: inherit;
+  white-space: nowrap;
+  flex-shrink: 0;
 
   .tp-score {
     font-weight: 700;

@@ -1275,8 +1275,10 @@ defineExpose({
     cursor: pointer;
     transition: transform 0.15s ease;
 
-    &:hover {
-      transform: scale(1.05);
+    @include hover {
+      & {
+        transform: scale(1.05);
+      }
     }
   }
 }

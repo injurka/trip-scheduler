@@ -100,7 +100,7 @@ function zoomOut() {
 <style scoped lang="scss">
 .custom-map-controls {
   position: absolute;
-  top: calc(12px + env(safe-area-inset-top));
+  top: calc(12px + var(--safe-area-inset-top));
   right: 12px;
   display: flex;
   flex-direction: column;

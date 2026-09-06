@@ -329,9 +329,11 @@ function getBlockTitle(type: TimelineBlockType) {
     border-color 0.2s,
     box-shadow 0.2s;
 
-  &:hover {
-    border-color: var(--border-primary-color);
-    box-shadow: var(--s-s);
+  @include hover {
+    & {
+      border-color: var(--border-primary-color);
+      box-shadow: var(--s-s);
+    }
   }
 }
 

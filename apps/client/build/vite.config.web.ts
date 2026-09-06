@@ -12,11 +12,10 @@ import packageJson from '../package.json' with { type: 'json' }
 import { autoImportOptionsCfg } from './cfg/auto-import'
 import { iconsCfg } from './cfg/icons'
 import { pwaCfg } from './cfg/pwa'
-import { visualizerPlugin } from './lib/helpers'
+import { resolveAppVersion, visualizerPlugin } from './lib/helpers'
 
 const require = createRequire(import.meta.url)
-// eslint-disable-next-line node/prefer-global/process
-const appVersion = process.env.VITE_APP_VERSION || packageJson.version
+const appVersion = resolveAppVersion(packageJson.version)
 
 export default defineConfig({
   base: '/',
@@ -54,13 +53,9 @@ export default defineConfig({
     },
   },
   server: {
+    host: true,
     port: 1420,
     proxy: {
-      '/api/rm': {
-        target: 'https://realtimemap.ru',
-        changeOrigin: true,
-        rewrite: path => path.replace(/^\/api\/rm/, ''),
-      },
       '/api': {
         target: 'http://localhost:8080',
         changeOrigin: true,
@@ -75,7 +70,7 @@ export default defineConfig({
     dedupe: ['vue', 'vue-router', 'pinia', 'react', 'react-dom', 'react/jsx-runtime', 'react/jsx-dev-runtime'],
     alias: {
       '~': fileURLToPath(new URL('../src/renderer', import.meta.url)),
-      '@injurkx/kit-image-viewer': resolve(__dirname, '../../../packages/kit-image-viewer/src/index.ts'),
+      '@injurka/kit-image-viewer': resolve(__dirname, '../../../packages/kit-image-viewer/src/index.ts'),
       'react': path.dirname(require.resolve('react/package.json')),
       'react-dom': path.dirname(require.resolve('react-dom/package.json')),
     },

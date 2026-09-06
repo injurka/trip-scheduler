@@ -2,7 +2,7 @@
 import type { KitDropdownItem } from '~/components/01.kit/kit-dropdown'
 import type { MapRoute } from '~/components/03.domain/trip-info/geolocation-section'
 import type { IDay } from '~/components/04.features/trip-info/trip-plan/models/types'
-import type { Trip, TripSection } from '~/shared/types/models/trip'
+import type { Trip, TripSection, TripWeatherData } from '~/shared/types/models/trip'
 import { Icon } from '@iconify/vue'
 import { useClipboard, useShare } from '@vueuse/core'
 import { DropdownMenuItem } from 'reka-ui'
@@ -55,7 +55,9 @@ const { canEdit } = useTripPermissions()
 const { share, isSupported: isShareSupported } = useShare()
 const { copy } = useClipboard()
 const offlineStore = useOfflineStore()
-const moduleStore = useModuleStore(['plan'])
+const moduleStore = useModuleStore(['plan', 'ui'])
+const { isViewMode } = storeToRefs(moduleStore.ui)
+const isEditable = computed(() => canEdit.value && !isViewMode.value)
 
 const isMoreMenuOpen = ref(false)
 
@@ -238,6 +240,12 @@ async function handleDeleteTrip() {
   })
   if (isConfirmed)
     await emit('delete')
+}
+
+function handleWeatherUpdated(data: TripWeatherData) {
+  if (moduleStore.plan.trip) {
+    moduleStore.plan.trip.weatherData = data
+  }
 }
 
 const isCached = computed(() => props.trip && offlineStore.isTripCached(props.trip.id))
@@ -522,6 +530,10 @@ watch(() => props.trip?.id, (newId) => {
         v-if="trip.cities.length > 0"
         :cities="trip.cities"
         :start-date="trip.startDate"
+        :trip-id="trip.id"
+        :weather-data="trip.weatherData"
+        :is-editable="isEditable"
+        @weather-updated="handleWeatherUpdated"
       />
     </div>
 
@@ -709,8 +721,10 @@ watch(() => props.trip?.id, (newId) => {
     transition: transform 0.4s cubic-bezier(0.22, 1, 0.36, 1);
   }
 
-  &:hover .banner-image :deep(.image) {
-    transform: scale(1.05);
+  @include hover {
+    & .banner-image :deep(.image) {
+      transform: scale(1.05);
+    }
   }
 
   .cover-placeholder {
@@ -869,9 +883,11 @@ watch(() => props.trip?.id, (newId) => {
       margin-left: 0;
     }
 
-    &:hover {
-      transform: translateY(-4px);
-      z-index: 10;
+    @include hover {
+      & {
+        transform: translateY(-4px);
+        z-index: 10;
+      }
     }
   }
 }
@@ -922,10 +938,11 @@ watch(() => props.trip?.id, (newId) => {
     backdrop-filter: blur(4px);
     transition: all 0.2s ease;
 
-    &:hover {
-      background-color: var(--bg-hover-color);
-      transform: scale(1.1);
-      color: var(--fg-accent-color);
+    @include hover {
+      & {
+        background-color: var(--bg-hover-color);
+        color: var(--fg-accent-color);
+      }
     }
   }
 }
@@ -1103,8 +1120,8 @@ watch(() => props.trip?.id, (newId) => {
 }
 
 .info-widgets {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  display: flex;
+  flex-direction: column;
   gap: 1.5rem;
 }
 
@@ -1159,10 +1176,12 @@ watch(() => props.trip?.id, (newId) => {
   animation: fadeInUp 0.4s ease-out forwards;
   opacity: 0;
 
-  &:hover {
-    background-color: var(--bg-hover-color);
-    border-color: var(--border-primary-color);
-    transform: translateX(4px);
+  @include hover {
+    & {
+      background-color: var(--bg-hover-color);
+      border-color: var(--border-primary-color);
+      transform: translateX(4px);
+    }
   }
 }
 

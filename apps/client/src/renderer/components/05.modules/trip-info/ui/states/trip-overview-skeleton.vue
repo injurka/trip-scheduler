@@ -203,12 +203,11 @@ import { KitSkeleton } from '~/components/01.kit/kit-skeleton'
 }
 
 .info-widgets-skeleton {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  display: flex;
+  flex-direction: column;
   gap: 1.5rem;
 
   @include media-down(md) {
-    grid-template-columns: 1fr;
     gap: 1rem;
   }
 }

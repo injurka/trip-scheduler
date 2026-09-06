@@ -160,8 +160,10 @@ function clearStatus() {
   cursor: pointer;
   transition: all 0.2s;
 
-  &:hover {
-    transform: scale(1.1);
+  @include hover {
+    & {
+      transform: scale(1.1);
+    }
   }
   &.is-active {
     border-color: var(--fg-accent-color);

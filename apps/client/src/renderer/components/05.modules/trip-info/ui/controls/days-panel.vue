@@ -196,8 +196,8 @@ function getDayActivitiesCount(day: Day): number {
   &.pinned {
     position: fixed;
     transform: none;
-    top: 56px;
-    height: calc(100% - 56px - 47px);
+    top: var(--header-height);
+    height: calc(100% - var(--header-height) - 47px);
     opacity: 1;
     box-shadow: none;
     border-right: 1px solid var(--border-secondary-color);

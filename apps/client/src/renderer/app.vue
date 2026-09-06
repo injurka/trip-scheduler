@@ -1,5 +1,7 @@
 <script setup>
 import { useHead, useSeoMeta } from '@vueuse/head'
+import { ConfigProvider } from 'reka-ui'
+import { AppUpdatePrompt } from '~/components/02.shared/app-update-prompt'
 import { ConfirmDialogManager } from '~/components/02.shared/confirm-dialog-manager'
 import { OfflineBanner } from '~/components/02.shared/offline-banner'
 import { ReloadPrompt } from '~/components/02.shared/reload-prompt'
@@ -95,22 +97,25 @@ useSeoMeta({
 </script>
 
 <template>
-  <OfflineBanner />
+  <ConfigProvider :scroll-body="false">
+    <OfflineBanner />
 
-  <component :is="layouts[layout]">
-    <router-view v-slot="{ Component }">
-      <transition v-if="transition" :name="transition" mode="out-in">
-        <component :is="Component" />
-      </transition>
+    <component :is="layouts[layout]">
+      <router-view v-slot="{ Component }">
+        <transition v-if="transition" :name="transition" mode="out-in">
+          <component :is="Component" />
+        </transition>
 
-      <component :is="Component" v-else />
-    </router-view>
-  </component>
+        <component :is="Component" v-else />
+      </router-view>
+    </component>
 
-  <FloatingMap v-if="layoutStore.isFloatingMapOpen" />
-  <ReloadPrompt />
-  <ToastManager />
+    <FloatingMap v-if="layoutStore.isFloatingMapOpen" />
+    <ReloadPrompt />
+    <AppUpdatePrompt />
+    <ToastManager />
 
-  <ConfirmDialogManager />
-  <OfflineProgressDialog />
+    <ConfirmDialogManager />
+    <OfflineProgressDialog />
+  </ConfigProvider>
 </template>

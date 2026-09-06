@@ -27,3 +27,5 @@ dist-ssr
 src_prompt.md
 project_prompt.md
 ./docker/letsencrypt/acme.json
+docs
+.hermes-workspace

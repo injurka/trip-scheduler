@@ -22,6 +22,7 @@ export enum ETripPlanKeys {
   UPDATE_TRIP = 'trip-plan:update-trip',
   DELETE_TRIP = 'trip-plan:delete-trip',
   ADD_PARTICIPANT = 'trip-plan:add-participant',
+  GENERATE_WEATHER = 'trip-plan:generate-weather',
 }
 
 export interface ITripPlanState {
@@ -74,6 +75,7 @@ export const useTripPlanStore = defineStore('tripPlan', {
     isLoadingNote: () => useRequestStatus(ETripPlanKeys.FETCH_DAY_NOTE).value,
     isLoadingUpdateNote: () => useRequestStatus(ETripPlanKeys.UPDATE_DAY_NOTE).value,
     isAddingParticipant: () => useRequestStatus(ETripPlanKeys.ADD_PARTICIPANT).value,
+    isGeneratingWeather: () => useRequestStatus(ETripPlanKeys.GENERATE_WEATHER).value,
 
     getAllDays(state): IDay[] {
       return state.days
@@ -405,6 +407,34 @@ export const useTripPlanStore = defineStore('tripPlan', {
         onSuccess: () => {
           useToast().success(`Участник успешно добавлен в путешествие`)
           this.fetchTripDetails(this.trip!.id, this.currentDayId!, () => { })
+        },
+      })
+    },
+
+    async generateWeather(city?: string, forceRefresh = false) {
+      if (!this.trip)
+        return null
+
+      return await useRequest({
+        key: ETripPlanKeys.GENERATE_WEATHER,
+        fn: db => db.trips.generateWeather({
+          tripId: this.trip!.id,
+          city,
+          forceRefresh,
+        }),
+        onSuccess: (result) => {
+          if (this.trip) {
+            this.trip.weatherData = result.weatherData
+          }
+          if (result.fromCache) {
+            useToast().success('Климатический контекст получен из базы данных!')
+          }
+          else {
+            useToast().success('Климатический контекст успешно сгенерирован через AI!')
+          }
+        },
+        onError: () => {
+          useToast().error('Не удалось сгенерировать контекст погоды.')
         },
       })
     },

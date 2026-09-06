@@ -276,9 +276,12 @@ const tripData = computed<Trip>(() => ({
 .clickable-avatar {
   cursor: pointer;
   transition: transform 0.2s ease;
-  &:hover {
-    transform: scale(1.1);
-    z-index: 20;
+
+  @include hover {
+    & {
+      transform: scale(1.1);
+      z-index: 20;
+    }
   }
 }
 
@@ -355,9 +358,11 @@ const tripData = computed<Trip>(() => ({
     box-shadow 0.3s ease;
   border: 1px solid transparent;
 
-  .travel-card-wrapper:hover & {
-    box-shadow: var(--s-xl);
-    border-color: var(--border-primary-color);
+  @media (hover: hover) and (pointer: fine) {
+    .travel-card-wrapper:hover & {
+      box-shadow: var(--s-xl);
+      border-color: var(--border-primary-color);
+    }
   }
 }
 
@@ -385,8 +390,10 @@ const tripData = computed<Trip>(() => ({
   }
 }
 
-.travel-card-wrapper:hover .card-image :deep(.image) {
-  transform: scale(1.05);
+@media (hover: hover) and (pointer: fine) {
+  .travel-card-wrapper:hover .card-image :deep(.image) {
+    transform: scale(1.05);
+  }
 }
 
 .card-no-image {
@@ -460,10 +467,12 @@ const tripData = computed<Trip>(() => ({
   transform: translateX(10px);
   transition: all 0.3s ease;
 
-  .travel-card-wrapper:hover &,
-  .travel-card-wrapper.more-menu-open & {
-    opacity: 1;
-    transform: translateX(0);
+  @media (hover: hover) and (pointer: fine) {
+    .travel-card-wrapper:hover &,
+    .travel-card-wrapper.more-menu-open & {
+      opacity: 1;
+      transform: translateX(0);
+    }
   }
 
   .action-btn {
@@ -480,10 +489,12 @@ const tripData = computed<Trip>(() => ({
     backdrop-filter: blur(4px);
     transition: all 0.2s ease;
 
-    &:hover {
-      background-color: var(--bg-hover-color);
-      transform: scale(1.1);
-      color: var(--fg-accent-color);
+    @include hover {
+      & {
+        background-color: var(--bg-hover-color);
+        transform: scale(1.1);
+        color: var(--fg-accent-color);
+      }
     }
   }
 }
@@ -569,9 +580,11 @@ const tripData = computed<Trip>(() => ({
     margin-left: -8px;
     transition: transform 0.2s ease;
 
-    &:hover {
-      transform: translateY(-4px);
-      z-index: 10;
+    @include hover {
+      & {
+        transform: translateY(-4px);
+        z-index: 10;
+      }
     }
   }
 

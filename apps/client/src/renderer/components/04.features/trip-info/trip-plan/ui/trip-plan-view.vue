@@ -163,7 +163,7 @@ const collapseRouteIcon = computed(() => allRouteBlocksCollapsed.value ? 'mdi:ch
 
   &.is-full-screen {
     position: fixed;
-    top: env(safe-area-inset-top);
+    top: var(--safe-area-inset-top);
     left: 0;
     width: 100vw;
     height: 100vh;

@@ -245,6 +245,7 @@ onMounted(() => {
   min-height: 36px;
   flex-shrink: 0;
 
+  // full-width: buttons share space evenly, but still no text wrap
   .is-full-width & {
     flex: 1 0 0;
     min-width: 0;
@@ -275,32 +276,23 @@ onMounted(() => {
   white-space: nowrap;
 }
 
+// ── Mobile: icon-only mode ─────────────────────────────────────
 @include media-down(sm) {
-  .kit-view-switcher.is-full-width {
+  .kit-view-switcher {
+    width: 100%;
+    display: flex;
     overflow-x: auto;
     overflow-y: hidden;
     justify-content: flex-start;
 
     .kit-view-switcher-button {
-      flex: 1 0 auto;
+      flex: 1 0 80px;
+      min-width: 80px;
+      justify-content: center;
       padding: 8px 10px;
 
       .kit-view-switcher-label {
-        display: none;
-      }
-    }
-  }
-
-  .kit-view-switcher:not(.is-full-width) {
-    width: 100%;
-    justify-content: flex-start;
-
-    .kit-view-switcher-button {
-      padding: 8px 12px;
-      font-size: 0.85rem;
-
-      .kit-view-switcher-label {
-        display: none;
+        display: none; // icons only on mobile
       }
     }
   }

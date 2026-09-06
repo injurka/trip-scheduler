@@ -60,7 +60,7 @@ export function useKitMap() {
     zIndex: 11,
   })
 
-  const initMap = (container: HTMLElement, popupEl: HTMLElement, options: KitMapOptions): Promise<void> => {
+  const initMap = (container: HTMLElement, popupEl?: HTMLElement | null, options: KitMapOptions = { center: [0, 0] }): Promise<void> => {
     return new Promise((resolve) => {
       if (!container) {
         resolve()
@@ -69,13 +69,15 @@ export function useKitMap() {
 
       const createMap = async () => {
         try {
-          const popup = new Overlay({
-            element: popupEl,
-            positioning: 'bottom-center',
-            offset: [0, -45],
-            stopEvent: false,
-            autoPan: options.autoPan === false ? false : { animation: { duration: 250 } },
-          })
+          const popup = popupEl
+            ? new Overlay({
+                element: popupEl,
+                positioning: 'bottom-center',
+                offset: [0, -45],
+                stopEvent: false,
+                autoPan: options.autoPan === false ? false : { animation: { duration: 250 } },
+              })
+            : null
 
           const initialSource = options.initialSource || new OSM()
 
@@ -91,36 +93,38 @@ export function useKitMap() {
               zoom: options.zoom || 12,
             }),
             controls: [],
-            overlays: [popup],
+            overlays: popup ? [popup] : [],
           })
 
-          mapInstance.value.on('pointermove', (evt) => {
-            if (evt.dragging) {
-              popup.setPosition(undefined)
-              return
-            }
-            const pixel = mapInstance.value?.getEventPixel(evt.originalEvent)
-            if (!pixel)
-              return
-
-            const feature = mapInstance.value?.forEachFeatureAtPixel(pixel, f => f)
-
-            if (!feature) {
-              popup.setPosition(undefined)
-              return
-            }
-
-            const imageUrl = (feature as FeatureLike).get('imageUrl')
-            const resolvedUrl = resolveApiUrl(imageUrl)
-
-            if (resolvedUrl && popupEl) {
-              popupEl.innerHTML = `<img src="${resolvedUrl}" style="width:200px; height:120px; object-fit: cover; border-radius:4px;" />`
-              const geometry = (feature as Feature).getGeometry()
-              if (geometry?.getType() === 'Point') {
-                popup.setPosition((geometry as Point).getCoordinates())
+          if (popup && popupEl) {
+            mapInstance.value.on('pointermove', (evt) => {
+              if (evt.dragging) {
+                popup.setPosition(undefined)
+                return
               }
-            }
-          })
+              const pixel = mapInstance.value?.getEventPixel(evt.originalEvent)
+              if (!pixel)
+                return
+
+              const feature = mapInstance.value?.forEachFeatureAtPixel(pixel, f => f)
+
+              if (!feature) {
+                popup.setPosition(undefined)
+                return
+              }
+
+              const imageUrl = (feature as FeatureLike).get('imageUrl')
+              const resolvedUrl = resolveApiUrl(imageUrl)
+
+              if (resolvedUrl && popupEl) {
+                popupEl.innerHTML = `<img src="${resolvedUrl}" style="width:200px; height:120px; object-fit: cover; border-radius:4px;" />`
+                const geometry = (feature as Feature).getGeometry()
+                if (geometry?.getType() === 'Point') {
+                  popup.setPosition((geometry as Point).getCoordinates())
+                }
+              }
+            })
+          }
 
           isMapReady.value = true
           resolve()

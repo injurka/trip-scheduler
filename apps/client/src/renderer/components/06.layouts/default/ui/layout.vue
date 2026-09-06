@@ -29,13 +29,38 @@ import { ThemeManager } from '~/components/02.shared/theme-manager'
   flex: 1;
   position: relative;
   overflow: clip;
-  margin-top: -56px;
-  padding-top: 56px;
+
+  &:has(.is-map-mode) {
+    height: 100dvh;
+    max-height: 100dvh;
+    overflow: hidden;
+
+    :deep(.app-footer) {
+      display: none;
+    }
+  }
 }
 
 .main-content {
   height: 100%;
   display: flex;
   flex-grow: 1;
+
+  // Хедер absolute (вне потока) — отступ от него лежит на корне страницы
+  // (.content-wrapper): фон страницы тянется до верха под хедером, контент
+  // начинается ниже. !important перебивает scoped padding страниц
+  // (специфичность ничья 0,2,0, порядок в бандле ненадёжен)
+  > :deep(.content-wrapper) {
+    padding-top: var(--header-height) !important;
+
+    // Полноэкранный режим карты — в вебе отступ не нужен, но в Tauri он обязателен
+    &.is-map-mode {
+      padding-top: 0 !important;
+
+      :global(html.is-tauri) & {
+        padding-top: var(--header-height) !important;
+      }
+    }
+  }
 }
 </style>

@@ -3,6 +3,8 @@ import { protectedProcedure, publicProcedure } from '~/lib/trpc'
 import {
   AddParticipantInputSchema,
   CreateTripInputSchema,
+  GenerateWeatherInputSchema,
+  GenerateWeatherOutputSchema,
   GetTripByIdInputSchema,
   ListTripsByUserInputSchema,
   ListTripsInputSchema,
@@ -132,6 +134,28 @@ export const tripProcedures = {
     .output(TripSchema)
     .mutation(async ({ input, ctx }) => {
       return tripService.update(input.id, input.details, ctx.user.id, ctx.user.role)
+    }),
+
+  generateWeather: protectedProcedure
+    .meta({
+      openapi: {
+        method: 'POST',
+        path: '/trips/{tripId}/weather/generate',
+        tags: ['Trips'],
+        summary: 'Сгенерировать или загрузить из кэша БД сводку погоды и климата',
+        protect: true,
+      },
+    })
+    .input(GenerateWeatherInputSchema)
+    .output(GenerateWeatherOutputSchema)
+    .mutation(async ({ input, ctx }) => {
+      return tripService.generateWeather(
+        input.tripId,
+        input.city,
+        input.forceRefresh ?? false,
+        ctx.user.id,
+        ctx.user.role,
+      )
     }),
 
   addParticipant: protectedProcedure

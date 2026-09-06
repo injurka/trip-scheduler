@@ -104,10 +104,12 @@ const emit = defineEmits<{
     grid-row: span 2;
   }
 
-  &:hover {
-    transform: scale(0.98);
-    .photo-overlay {
-      opacity: 1;
+  @include hover {
+    & {
+      transform: scale(0.98);
+      .photo-overlay {
+        opacity: 1;
+      }
     }
   }
 }

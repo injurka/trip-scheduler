@@ -1,6 +1,7 @@
 import { createStoreHook } from '~/shared/lib/create-store-hook'
 
 import { useThemeStore } from '~/shared/store/theme.store'
+import { useAppUpdateStore } from '../store/app-update.store'
 import { useAuthStore } from '../store/auth.store'
 import { useConfirmDialogStore } from '../store/confirm-dialog.store'
 import { useLayoutStore } from '../store/layout.store'
@@ -14,6 +15,7 @@ const appStores = {
   confirm: useConfirmDialogStore,
   layout: useLayoutStore,
   notif: useNotificationStore,
+  appUpdate: useAppUpdateStore,
 }
 
 export const useAppStore = createStoreHook(appStores)
