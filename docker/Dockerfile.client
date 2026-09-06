@@ -11,7 +11,7 @@ ARG VITE_MAPTILER_KEY
 
 COPY . .
 
-RUN bun install --ignore-scripts
+RUN bun install
 RUN bun --cwd=apps/client run build
 
 # =================================================================
