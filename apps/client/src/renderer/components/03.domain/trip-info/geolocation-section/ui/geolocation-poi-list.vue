@@ -5,6 +5,8 @@ import { onClickOutside } from '@vueuse/core'
 import { KitInlineMdEditorWrapper } from '~/components/01.kit/kit-inline-md-editor'
 import { KitInput } from '~/components/01.kit/kit-input'
 import { KitTooltip } from '~/components/01.kit/kit-tooltip'
+import { isMobileApp } from '~/shared/lib/env'
+import { openExternalUrl } from '~/shared/lib/opener'
 
 interface Props {
   points: MapPoint[]
@@ -22,6 +24,13 @@ const emit = defineEmits<{
   (e: 'refreshAddress', pointId: string): void
 }>()
 
+interface MapProvider {
+  name: string
+  icon: string
+  getExternalUrl: (lat: number, lon: number) => string
+  getEmbedUrl: (lat: number, lon: number) => string
+}
+
 const mapChoicePanelRef = ref<HTMLElement | null>(null)
 const mapIframeContainerRef = ref<HTMLElement | null>(null)
 const isMapChoiceVisible = ref(false)
@@ -29,11 +38,41 @@ const isMapVisible = ref(false)
 const selectedMapUrl = ref<string | null>(null)
 const selectedPointForMap = ref<MapPoint | null>(null)
 
-const mapProviders = [
-  { name: 'Google Maps', icon: 'mdi:google-maps', urlTemplate: 'https://www.google.com/maps?q={lat},{lon}&output=embed' },
-  { name: 'Yandex Maps', icon: 'mdi:map-marker', urlTemplate: 'https://yandex.ru/map-widget/v1/?ll={lon}%2C{lat}&z=15&pt={lon},{lat}' },
-  { name: 'OpenStreetMap', icon: 'mdi:map', urlTemplate: 'https://www.openstreetmap.org/export/embed.html?bbox={bbox}&layer=mapnik&marker={lat},{lon}' },
-  { name: 'Baidu Maps', icon: 'mdi:map-legend', urlTemplate: 'http://api.map.baidu.com/marker?location={lat},{lon}&output=html' },
+const mapProviders: MapProvider[] = [
+  {
+    name: 'Google Maps',
+    icon: 'mdi:google-maps',
+    getExternalUrl: (lat, lon) => `https://www.google.com/maps/search/?api=1&query=${lat},${lon}`,
+    getEmbedUrl: (lat, lon) => `https://www.google.com/maps?q=${lat},${lon}&output=embed`,
+  },
+  {
+    name: 'Yandex Maps',
+    icon: 'mdi:map-marker',
+    getExternalUrl: (lat, lon) => `https://yandex.ru/maps/?pt=${lon},${lat}&z=16&l=map`,
+    getEmbedUrl: (lat, lon) => `https://yandex.ru/map-widget/v1/?ll=${lon}%2C${lat}&z=15&pt=${lon},${lat}`,
+  },
+  {
+    name: '2GIS',
+    icon: 'mdi:map-marker-radius',
+    getExternalUrl: (lat, lon) => `https://2gis.ru/geo/${lon},${lat}`,
+    getEmbedUrl: (lat, lon) => `https://2gis.ru/geo/${lon},${lat}`,
+  },
+  {
+    name: 'OpenStreetMap',
+    icon: 'mdi:map',
+    getExternalUrl: (lat, lon) => `https://www.openstreetmap.org/?mlat=${lat}&mlon=${lon}#map=16/${lat}/${lon}`,
+    getEmbedUrl: (lat, lon) => {
+      const delta = 0.008
+      const bbox = [lon - delta, lat - delta, lon + delta, lat + delta].join(',')
+      return `https://www.openstreetmap.org/export/embed.html?bbox=${bbox}&layer=mapnik&marker=${lat},${lon}`
+    },
+  },
+  {
+    name: 'Baidu Maps',
+    icon: 'mdi:map-legend',
+    getExternalUrl: (lat, lon) => `https://api.map.baidu.com/marker?location=${lat},${lon}&output=html`,
+    getEmbedUrl: (lat, lon) => `http://api.map.baidu.com/marker?location=${lat},${lon}&output=html`,
+  },
 ]
 
 function openMapChoice(point: MapPoint) {
@@ -41,24 +80,22 @@ function openMapChoice(point: MapPoint) {
   isMapChoiceVisible.value = true
 }
 
-function selectMapProvider(provider: typeof mapProviders[0]) {
+async function selectMapProvider(provider: MapProvider) {
   if (!selectedPointForMap.value)
     return
 
   const [lon, lat] = selectedPointForMap.value.coordinates
-  let url = ''
-
-  if (provider.name === 'OpenStreetMap') {
-    const delta = 0.008
-    const bbox = [lon - delta, lat - delta, lon + delta, lat + delta].join(',')
-    url = provider.urlTemplate.replace('{bbox}', bbox).replace('{lat}', String(lat)).replace('{lon}', String(lon))
-  }
-  else {
-    url = provider.urlTemplate.replace('{lat}', String(lat)).replace('{lon}', String(lon))
-  }
-
-  selectedMapUrl.value = url
   isMapChoiceVisible.value = false
+
+  if (isMobileApp) {
+    const url = provider.getExternalUrl(lat, lon)
+    await openExternalUrl(url)
+    selectedPointForMap.value = null
+    return
+  }
+
+  const url = provider.getEmbedUrl(lat, lon)
+  selectedMapUrl.value = url
   isMapVisible.value = true
 }
 

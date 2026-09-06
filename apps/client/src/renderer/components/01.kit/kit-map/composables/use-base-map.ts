@@ -8,6 +8,7 @@ import type { Ref } from 'vue'
 import * as maplibregl from 'maplibre-gl'
 import { onUnmounted, readonly, ref, shallowRef } from 'vue'
 import { applyTerrain, getMapStyle, OSM_STYLE } from '~/shared/lib/map-styles-sources'
+import { isValidCoordinate } from '~/shared/services/geo'
 
 export interface BaseMapOptions {
   container: HTMLElement | string
@@ -93,6 +94,14 @@ export function useBaseMap() {
 
   const flyTo = (lon: number, lat: number, zoom = 14, duration = 700) => {
     if (mapInstance.value) {
+      if (Math.abs(lat) > 90 && Math.abs(lon) <= 90) {
+        const temp = lat
+        lat = lon
+        lon = temp
+      }
+      if (!isValidCoordinate([lon, lat]))
+        return
+
       mapInstance.value.flyTo({
         center: [lon, lat],
         zoom,
@@ -205,10 +214,29 @@ export function useBaseMap() {
           const initialZoom = options.zoom ?? 12
           currentZoom.value = initialZoom
 
+          let safeCenter = options.center
+          if (Array.isArray(safeCenter) && safeCenter.length >= 2) {
+            let [lng, lat] = safeCenter
+            if (Math.abs(lat) > 90 && Math.abs(lng) <= 90) {
+              const temp = lat
+              lat = lng
+              lng = temp
+            }
+            if (isValidCoordinate([lng, lat])) {
+              safeCenter = [lng, lat]
+            }
+            else {
+              safeCenter = [37.6173, 55.7558]
+            }
+          }
+          else {
+            safeCenter = [37.6173, 55.7558]
+          }
+
           const map = new maplibregl.Map({
             container: targetElement,
             style: initialStyle,
-            center: options.center,
+            center: safeCenter,
             zoom: initialZoom,
             minZoom: options.minZoom ?? 2,
             maxZoom: options.maxZoom ?? 22,

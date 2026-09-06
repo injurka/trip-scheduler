@@ -13,7 +13,6 @@ echo "--- Сборка образа клиента с тегом: trip-scheduler
 
 docker build -f ./docker/Dockerfile.client -t trip-scheduler-client:$VERSION . \
   --build-arg VITE_APP_SERVER_URL=__VITE_APP_SERVER_URL__ \
-  --build-arg VITE_APP_MOCK_MODE=false \
-  --build-arg VITE_MAPTILER_KEY=kOcWHJKOfFqZI78YXBfH
+  --build-arg VITE_MAPTILER_KEY=__VITE_MAPTILER_KEY__
 
 echo "--- Сборка образа клиента trip-scheduler-client:$VERSION завершена успешно! ---"

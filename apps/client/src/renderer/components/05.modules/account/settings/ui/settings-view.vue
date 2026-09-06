@@ -5,6 +5,7 @@ import { computed, ref } from 'vue'
 import { Cropper } from 'vue-advanced-cropper'
 import { KitAvatar } from '~/components/01.kit/kit-avatar'
 import { KitBtn } from '~/components/01.kit/kit-btn'
+import { KitCheckbox } from '~/components/01.kit/kit-checkbox'
 import { KitDialogWithClose } from '~/components/01.kit/kit-dialog-with-close'
 import { KitDivider } from '~/components/01.kit/kit-divider'
 import { KitInput } from '~/components/01.kit/kit-input'
@@ -45,6 +46,7 @@ const {
   selectVaultFolder,
   isNative,
   isMobileApp,
+  enableEruda,
   isCheckingUpdate,
   checkManualUpdate,
   appVersion,
@@ -523,6 +525,31 @@ function applyCrop() {
               </div>
 
               <KitDivider />
+
+              <!-- Консоль разработчика (Eruda для мобильного приложения) -->
+              <div v-if="isMobileApp" class="system-block">
+                <div class="system-block-info">
+                  <div class="block-icon">
+                    <Icon icon="mdi:console" />
+                  </div>
+                  <div class="block-details">
+                    <div class="block-title">
+                      Консоль разработчика
+                    </div>
+                    <div class="block-desc">
+                      Включение мобильной панели отладки Eruda для просмотра сетевых запросов и логов.
+                    </div>
+                  </div>
+                </div>
+
+                <div class="developer-tools-row">
+                  <KitCheckbox v-model="enableEruda">
+                    Включить Eruda DevTools
+                  </KitCheckbox>
+                </div>
+              </div>
+
+              <KitDivider v-if="isMobileApp" />
 
               <!-- О приложении -->
               <div class="system-block">

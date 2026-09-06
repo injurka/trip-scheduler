@@ -8,6 +8,7 @@ import { useToast } from '~/shared/composables/use-toast'
 import { getMapStyle } from '~/shared/lib/map-styles-sources'
 import {
   createMarkerElement,
+  isValidCoordinate,
   nominatimService,
   routingService,
 } from '~/shared/services/geo'
@@ -219,6 +220,22 @@ export function useGeolocationMap() {
     if (!map)
       return
 
+    if (!point || !point.coordinates)
+      return
+
+    let [lng, lat] = point.coordinates
+    if (Math.abs(lat) > 90 && Math.abs(lng) <= 90) {
+      const temp = lat
+      lat = lng
+      lng = temp
+      point.coordinates = [lng, lat]
+    }
+
+    if (!isValidCoordinate(point.coordinates)) {
+      console.warn(`[useGeolocationMap] Пропущена точка с невалидными координатами:`, point)
+      return
+    }
+
     const color = point.style?.color || POINT_TYPE_COLORS[point.type] || '#3498db'
     const isConnect = point.type === 'connect'
     const existing = pointsMap.get(point.id)
@@ -370,6 +387,16 @@ export function useGeolocationMap() {
       return
     }
 
+    let [lng, lat] = coords
+    if (Math.abs(lat) > 90 && Math.abs(lng) <= 90) {
+      const temp = lat
+      lat = lng
+      lng = temp
+    }
+    const safeCoords: [number, number] = [lng, lat]
+    if (!isValidCoordinate(safeCoords))
+      return
+
     if (!selectionMarker) {
       const el = document.createElement('div')
       el.className = 'maplibre-selection-marker'
@@ -384,11 +411,11 @@ export function useGeolocationMap() {
         element: el,
         anchor: 'center',
       })
-        .setLngLat(coords)
+        .setLngLat(safeCoords)
         .addTo(map)
     }
     else {
-      selectionMarker.setLngLat(coords)
+      selectionMarker.setLngLat(safeCoords)
     }
   }
 

@@ -7,6 +7,8 @@ import { KitTooltip } from '~/components/01.kit/kit-tooltip'
 import GeolocationMap from '~/components/03.domain/trip-info/geolocation-section/ui/geolocation-map.vue'
 import { vRipple } from '~/shared/directives/ripple'
 
+import { isValidCoordinate } from '~/shared/services/geo'
+
 const props = withDefaults(defineProps<{
   block: LocationBlock | RouteBlock
   color?: string
@@ -40,10 +42,21 @@ const icon = computed(() => {
 
 const mapPoints = computed<MapPoint[]>(() => {
   if (props.block.type === 'location' && props.block.coords) {
+    let lat = Number(props.block.coords.lat)
+    let lng = Number(props.block.coords.lng)
+    if (Math.abs(lat) > 90 && Math.abs(lng) <= 90) {
+      const temp = lat
+      lat = lng
+      lng = temp
+    }
+    const coords: [number, number] = [lng, lat]
+    if (!isValidCoordinate(coords))
+      return []
+
     return [{
       id: props.block.id,
       type: 'poi',
-      coordinates: [props.block.coords.lng, props.block.coords.lat],
+      coordinates: coords,
       address: props.block.address,
       comment: props.block.name,
       style: { color: props.color },
@@ -54,35 +67,58 @@ const mapPoints = computed<MapPoint[]>(() => {
 
 const mapRoutes = computed<MapRoute[]>(() => {
   if (props.block.type === 'route' && (props.block as any).geometry && (props.block as any).geometry.length > 0) {
-    const pts = ((props.block as any).points || []).map((p: any, idx: number, arr: any[]) => ({
-      id: `${props.block.id}-pt-${idx}`,
-      coordinates: [p.lng, p.lat],
-      type: idx === 0 ? 'start' : idx === arr.length - 1 ? 'end' : 'via',
-      address: p.label,
-      comment: p.label,
-      style: { color: props.color },
-    }))
-    return [{
-      id: props.block.id,
-      title: title.value,
-      points: pts,
-      geometry: (props.block as any).geometry,
-      color: props.color,
-      isVisible: true,
-      isDirect: false,
-    } as any]
+    const rawPoints = (props.block as any).points || []
+    const validPts: any[] = []
+
+    rawPoints.forEach((p: any, idx: number, arr: any[]) => {
+      let lat = Number(p.lat)
+      let lng = Number(p.lng)
+      if (Math.abs(lat) > 90 && Math.abs(lng) <= 90) {
+        const temp = lat
+        lat = lng
+        lng = temp
+      }
+      const coords: [number, number] = [lng, lat]
+      if (!isValidCoordinate(coords))
+        return
+
+      validPts.push({
+        id: `${props.block.id}-pt-${idx}`,
+        coordinates: coords,
+        type: idx === 0 ? 'start' : idx === arr.length - 1 ? 'end' : 'via',
+        address: p.label,
+        comment: p.label,
+        style: { color: props.color },
+      })
+    })
+
+    const validGeometry: [number, number][] = ((props.block as any).geometry as [number, number][]).filter(
+      coord => isValidCoordinate(coord),
+    )
+
+    if (validGeometry.length >= 2) {
+      return [{
+        id: props.block.id,
+        title: title.value,
+        points: validPts,
+        geometry: validGeometry,
+        color: props.color,
+        isVisible: true,
+        isDirect: false,
+      } as any]
+    }
   }
   return []
 })
 
 const mapCenter = computed<[number, number]>(() => {
-  if (props.block.type === 'location' && props.block.coords) {
-    return [props.block.coords.lng, props.block.coords.lat]
+  if (mapPoints.value.length > 0) {
+    return mapPoints.value[0].coordinates
   }
-  if (props.block.type === 'route' && (props.block as any).geometry && (props.block as any).geometry.length > 0) {
-    return (props.block as any).geometry[0]
+  if (mapRoutes.value.length > 0 && mapRoutes.value[0].geometry && mapRoutes.value[0].geometry.length > 0) {
+    return mapRoutes.value[0].geometry[0]
   }
-  return [37.6176, 55.7558]
+  return [48.4031, 54.3142]
 })
 </script>
 

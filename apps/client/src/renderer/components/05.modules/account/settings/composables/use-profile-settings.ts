@@ -4,6 +4,7 @@ import { AppRouteNames } from '~/shared/constants/routes'
 import { isMobileApp, isTauri, SERVER_URL } from '~/shared/lib/env'
 import { openExternalUrl } from '~/shared/lib/opener'
 import { trpc } from '~/shared/services/trpc/trpc.service'
+import { useAppSettingsStore } from '~/shared/store/app-settings.store'
 import { useAppUpdateStore } from '~/shared/store/app-update.store'
 import { EAuthRequestKeys, TOKEN_KEY, useAuthStore } from '~/shared/store/auth.store'
 
@@ -15,6 +16,7 @@ export function useProfileSettings() {
   const route = useRoute()
   const vaultStore = useVaultMemoriesStore()
   const appUpdateStore = useAppUpdateStore()
+  const appSettingsStore = useAppSettingsStore()
 
   const isCheckingUpdate = ref(false)
 
@@ -388,7 +390,14 @@ export function useProfileSettings() {
     isNative: vaultStore.isNative,
     isMobileApp,
     isTauri,
+    enableEruda: computed({
+      get: () => appSettingsStore.enableEruda,
+      set: (val: boolean) => {
+        appSettingsStore.enableEruda = val
+      },
+    }),
     isCheckingUpdate,
+
     checkManualUpdate,
     appVersion: typeof __APP_VERSION__ !== 'undefined' ? __APP_VERSION__ : '1.0.0',
     user,

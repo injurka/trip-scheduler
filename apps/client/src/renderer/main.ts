@@ -5,10 +5,11 @@ import { createHead } from '@vueuse/head'
 import iconsBundle from '~/assets/icons-bundle.json'
 
 import { initializeDeepLinks } from '~/shared/lib/deep-link'
-import { isTauri } from '~/shared/lib/env'
+import { isMobileApp, isTauri } from '~/shared/lib/env'
 import router from '~/shared/lib/router'
 import { initializePwaUpdater } from '~/shared/services/pwa/pwa.service'
 import { startSyncWorker } from '~/shared/services/tracking/track-sync'
+import { useAppSettingsStore } from '~/shared/store/app-settings.store'
 import { useAppUpdateStore } from '~/shared/store/app-update.store'
 import { useTrackingStore } from '~/shared/store/tracking.store'
 // @ts-expect-error бред какой то
@@ -18,6 +19,19 @@ import { restoreSession } from './plugins/session-restore'
 import { themePlugin } from './plugins/theme'
 import { vImage, vResolveSrc } from './shared/directives/image'
 import { TRPCDatabaseClient } from './shared/services/api'
+
+/** Настройка Eruda (девтулы для мобильного приложения) */
+function setupMobileDevtools(settingsStore: ReturnType<typeof useAppSettingsStore>) {
+  if (!isMobileApp) {
+    return
+  }
+
+  void import('~/shared/services/dev/eruda.service').then(({ setErudaEnabled }) => {
+    watch(() => settingsStore.enableEruda, (enabled) => {
+      void setErudaEnabled(enabled)
+    }, { immediate: true })
+  })
+}
 
 /**
  * Асинхронная функция для инициализации приложения.
@@ -42,6 +56,10 @@ async function initializeApp() {
   app.use(requestPlugin, { databaseService })
   app.use(router)
   app.use(themePlugin)
+
+  // Настройки приложения и мобильные devtools
+  const appSettingsStore = useAppSettingsStore(pinia)
+  setupMobileDevtools(appSettingsStore)
 
   // Инициализация Deep Link для внешних OAuth редиректов и ссылок приложения
   initializeDeepLinks(pinia, router)

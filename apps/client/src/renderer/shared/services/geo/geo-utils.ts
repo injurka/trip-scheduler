@@ -31,6 +31,27 @@ export function toLonLatCoord(coords: [number, number]): [number, number] {
   return [coords[0], coords[1]]
 }
 
+/**
+ * Проверка валидности географических координат [lng, lat] (WGS84)
+ */
+export function isValidCoordinate(coords: any): coords is [number, number] {
+  if (!Array.isArray(coords) || coords.length < 2)
+    return false
+  const [lng, lat] = coords
+  return (
+    typeof lng === 'number'
+    && typeof lat === 'number'
+    && !Number.isNaN(lng)
+    && !Number.isNaN(lat)
+    && Number.isFinite(lng)
+    && Number.isFinite(lat)
+    && lat >= -90
+    && lat <= 90
+    && lng >= -180
+    && lng <= 180
+  )
+}
+
 export interface MarkerStyleOptions {
   color?: string
   scale?: number

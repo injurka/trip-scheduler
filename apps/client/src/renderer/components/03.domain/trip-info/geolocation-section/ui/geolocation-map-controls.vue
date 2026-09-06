@@ -41,7 +41,7 @@ function zoomOut() {
 </script>
 
 <template>
-  <div class="custom-map-controls">
+  <div class="custom-map-controls" :class="{ 'is-fullscreen': isFullscreen }">
     <KitBtn
       variant="outlined"
       color="secondary"
@@ -96,12 +96,16 @@ function zoomOut() {
 <style scoped lang="scss">
 .custom-map-controls {
   position: absolute;
-  top: calc(12px + var(--safe-area-inset-top));
+  top: 12px;
   right: 12px;
   display: flex;
   flex-direction: column;
   gap: 8px;
   z-index: 8;
+
+  &.is-fullscreen {
+    top: calc(12px + var(--safe-area-inset-top));
+  }
 
   .kit-btn,
   :deep(.kit-btn) {

@@ -6,6 +6,8 @@ import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { KitTooltip } from '~/components/01.kit/kit-tooltip'
 import GeolocationMap from '~/components/03.domain/trip-info/geolocation-section/ui/geolocation-map.vue'
 
+import { isValidCoordinate } from '~/shared/services/geo'
+
 interface Props {
   visible: boolean
   pinned?: boolean
@@ -71,12 +73,24 @@ const mapPoints = computed<MapPoint[]>(() => {
   const points: MapPoint[] = []
   props.post.elements?.forEach((element, sIndex) => {
     element.content.forEach((block: any) => {
-      if (block.type === 'location' && block.location && block.location.lat) {
+      if (block.type === 'location' && block.location && (block.location.lat != null || block.location.lng != null)) {
+        let lat = Number(block.location.lat)
+        let lng = Number(block.location.lng)
+        // Защита от перепутанных lat/lng
+        if (Math.abs(lat) > 90 && Math.abs(lng) <= 90) {
+          const temp = lat
+          lat = lng
+          lng = temp
+        }
+        const coords: [number, number] = [lng, lat]
+        if (!isValidCoordinate(coords))
+          return
+
         const styleConfig = getPointStyleConfig(sIndex, block.id)
         points.push({
           id: block.id,
           type: 'poi',
-          coordinates: [block.location.lng, block.location.lat],
+          coordinates: coords,
           address: block.location.address,
           comment: block.location.label,
           isDraggable: false,
@@ -96,35 +110,57 @@ const mapPoints = computed<MapPoint[]>(() => {
 
 const mapRoutes = computed<MapRoute[]>(() => {
   const routes: MapRoute[] = []
-  props.post.elements.forEach((element, sIndex) => {
+  props.post.elements?.forEach((element, sIndex) => {
     element.content.forEach((block: any) => {
       if (block.type === 'route' && block.route && block.route.geometry && block.route.geometry.length > 0) {
         const styleConfig = getPointStyleConfig(sIndex, block.id)
         const routeColor = getRouteColor(sIndex, block.id)
 
-        const blockPoints = (block.route.points || []).map((p: any, idx: number) => ({
-          id: `${block.id}-pt-${idx}`,
-          coordinates: [p.lng, p.lat],
-          type: idx === 0 ? 'start' : idx === block.route.points.length - 1 ? 'end' : 'via',
-          address: p.label,
-          comment: p.label,
-          style: {
-            color: styleConfig.color,
-            scale: styleConfig.scale,
-            opacity: styleConfig.opacity,
-            zIndex: props.focusBlockId === block.id ? 150 : 20,
-          },
-        }))
+        const rawPoints = block.route.points || []
+        const validBlockPoints: any[] = []
 
-        routes.push({
-          id: block.id,
-          title: block.route.title || `${block.route.from || 'Начало'} - ${block.route.to || 'Конец'}`,
-          points: blockPoints,
-          geometry: block.route.geometry,
-          color: routeColor,
-          isVisible: true,
-          isDirect: false,
-        } as MapRoute)
+        rawPoints.forEach((p: any, idx: number) => {
+          let lat = Number(p.lat)
+          let lng = Number(p.lng)
+          if (Math.abs(lat) > 90 && Math.abs(lng) <= 90) {
+            const temp = lat
+            lat = lng
+            lng = temp
+          }
+          const coords: [number, number] = [lng, lat]
+          if (!isValidCoordinate(coords))
+            return
+
+          validBlockPoints.push({
+            id: `${block.id}-pt-${idx}`,
+            coordinates: coords,
+            type: idx === 0 ? 'start' : idx === rawPoints.length - 1 ? 'end' : 'via',
+            address: p.label,
+            comment: p.label,
+            style: {
+              color: styleConfig.color,
+              scale: styleConfig.scale,
+              opacity: styleConfig.opacity,
+              zIndex: props.focusBlockId === block.id ? 150 : 20,
+            },
+          })
+        })
+
+        const validGeometry: [number, number][] = (block.route.geometry as [number, number][]).filter(
+          coord => isValidCoordinate(coord),
+        )
+
+        if (validGeometry.length >= 2) {
+          routes.push({
+            id: block.id,
+            title: block.route.title || `${block.route.from || 'Начало'} - ${block.route.to || 'Конец'}`,
+            points: validBlockPoints,
+            geometry: validGeometry,
+            color: routeColor,
+            isVisible: true,
+            isDirect: false,
+          } as MapRoute)
+        }
       }
     })
   })
@@ -132,7 +168,7 @@ const mapRoutes = computed<MapRoute[]>(() => {
 })
 
 const mapCenter = computed((): [number, number] => {
-  if (dynamicCenter.value) {
+  if (dynamicCenter.value && isValidCoordinate(dynamicCenter.value)) {
     return dynamicCenter.value
   }
   if (mapPoints.value.length > 0) {
@@ -141,7 +177,11 @@ const mapCenter = computed((): [number, number] => {
   if (mapRoutes.value.length > 0 && mapRoutes.value[0].geometry && mapRoutes.value[0].geometry.length > 0) {
     return mapRoutes.value[0].geometry[0]
   }
-  return [props.post.longitude, props.post.latitude]
+  if (isValidCoordinate([props.post.longitude, props.post.latitude])) {
+    return [props.post.longitude, props.post.latitude]
+  }
+  // Фолбэк на дефолтные валидные координаты (Ульяновск / Москва)
+  return [48.4031, 54.3142]
 })
 
 watch(() => props.focusCoords, (coords) => {

@@ -14,6 +14,7 @@ import { NavigationBack } from '~/components/02.shared/navigation-back'
 import { TripComments } from '~/components/04.features/trip-info/trip-comments'
 import { useToast } from '~/shared/composables/use-toast'
 import { AppRoutePaths } from '~/shared/constants/routes'
+import { isValidCoordinate } from '~/shared/services/geo'
 import { CommentParentType } from '~/shared/types/models/comment'
 import { usePostStore } from '../../store/post.store'
 import PostHero from './post-hero.vue'
@@ -119,10 +120,19 @@ function handleFocusBlock(block: TimelineBlock) {
     mapFocusBlockId.value = block.id
 
     if (block.type === 'location' && block.coords) {
-      mapFocusCoords.value = [block.coords.lng, block.coords.lat]
+      let lat = Number(block.coords.lat)
+      let lng = Number(block.coords.lng)
+      if (Math.abs(lat) > 90 && Math.abs(lng) <= 90) {
+        const temp = lat
+        lat = lng
+        lng = temp
+      }
+      const coords: [number, number] = [lng, lat]
+      mapFocusCoords.value = isValidCoordinate(coords) ? coords : null
     }
     else if (block.type === 'route' && (block as any).geometry && (block as any).geometry.length > 0) {
-      mapFocusCoords.value = (block as any).geometry[0]
+      const firstCoord = (block as any).geometry[0]
+      mapFocusCoords.value = isValidCoordinate(firstCoord) ? firstCoord : null
     }
   }
 }
