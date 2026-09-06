@@ -258,11 +258,22 @@ jobs:
           VITE_APP_VERSION: ${{ github.ref_name }}
           VITE_APP_SERVER_URL: ${{ secrets.VITE_APP_SERVER_URL || 'https://trip-scheduler-api.limited-dissolve.ru' }}
 
+      - name: Prepare and Sign APK
+        run: |
+          echo "Listing APK outputs:"
+          find apps/native/src-tauri/gen/android/app/build/outputs/apk -type f -name "*.apk" || true
+          # Find directory containing release apk (universal/release or arm64/release)
+          APK_DIR=$(dirname $(find apps/native/src-tauri/gen/android/app/build/outputs/apk -type f -name "*release*.apk" | head -n 1))
+          if [ -z "$APK_DIR" ]; then
+            APK_DIR="apps/native/src-tauri/gen/android/app/build/outputs/apk/universal/release"
+          fi
+          echo "APK_DIR=$APK_DIR" >> $GITHUB_ENV
+
       - name: Sign APK
         uses: r0adkll/sign-android-release@v1.0.4
         id: sign_app
         with:
-          releaseDirectory: apps/native/src-tauri/gen/android/app/build/outputs/apk/arm64/release
+          releaseDirectory: ${{ env.APK_DIR }}
           signingKeyBase64: ${{ secrets.ANDROID_KEY_BASE64 }}
           alias: ${{ secrets.ANDROID_KEY_ALIAS }}
           keyStorePassword: ${{ secrets.ANDROID_KEY_PASSWORD }}
