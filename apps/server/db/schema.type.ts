@@ -53,7 +53,6 @@ interface ActivitySectionGeolocation extends ActivitySectionBase {
   type: 'geolocation'
   points: any[]
   routes: any[]
-  drawnRoutes: any[]
 }
 
 interface MetroRide {

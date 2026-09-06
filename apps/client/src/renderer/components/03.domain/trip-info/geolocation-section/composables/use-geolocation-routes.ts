@@ -4,6 +4,7 @@ import type { useGeolocationMap } from './use-geolocation-map'
 import { v4 as uuidv4 } from 'uuid'
 import { ref } from 'vue'
 import { useToast } from '~/shared/composables/use-toast'
+import { nominatimService, routingService } from '~/shared/services/geo'
 import { POI_COLORS } from '../constant'
 
 type GeolocationMapApi = ReturnType<typeof useGeolocationMap>
@@ -17,9 +18,6 @@ export function useGeolocationRoutes(mapApiRef: Ref<GeolocationMapApi | undefine
   const isLoading = ref(false)
 
   async function createNewRoute(startCoords: Coordinate, transportMode: TransportMode = 'foot') {
-    if (!mapApiRef.value)
-      return
-
     const startPoint: MapPoint = {
       id: uuidv4(),
       coordinates: startCoords,
@@ -38,13 +36,13 @@ export function useGeolocationRoutes(mapApiRef: Ref<GeolocationMapApi | undefine
     }
 
     routes.value = [...routes.value, newRoute]
-    mapApiRef.value.addOrUpdatePoint(startPoint)
+    mapApiRef.value?.addOrUpdatePoint(startPoint)
     return newRoute
   }
 
   async function addPointToRoute(routeId: string, coords: Coordinate, pointType: 'via' | 'connect' = 'via') {
     const routeIndex = routes.value.findIndex(r => r.id === routeId)
-    if (routeIndex === -1 || !mapApiRef.value)
+    if (routeIndex === -1)
       return
 
     const route = routes.value[routeIndex]
@@ -74,7 +72,7 @@ export function useGeolocationRoutes(mapApiRef: Ref<GeolocationMapApi | undefine
     const updatedRoute = { ...route, points: updatedPoints }
     routes.value = routes.value.map(r => (r.id === routeId ? updatedRoute : r))
 
-    mapApiRef.value.addOrUpdatePoint(newPoint)
+    mapApiRef.value?.addOrUpdatePoint(newPoint)
     await updateRouteGeometry(routeId)
   }
 
@@ -82,19 +80,19 @@ export function useGeolocationRoutes(mapApiRef: Ref<GeolocationMapApi | undefine
     const routeIndex = routes.value.findIndex(r => r.id === routeId)
     if (routeIndex !== -1) {
       const routeToDelete = routes.value[routeIndex]
-      routeToDelete.points.forEach(p => mapApiRef.value!.removePoint(p.id))
-      mapApiRef.value!.removeRoute(routeId)
+      routeToDelete.points.forEach(p => mapApiRef.value?.removePoint(p.id))
+      mapApiRef.value?.removeRoute(routeId)
       routes.value = routes.value.filter(r => r.id !== routeId)
     }
   }
 
   async function deletePointFromRoute(routeId: string, pointId: string) {
     const routeIndex = routes.value.findIndex(r => r.id === routeId)
-    if (routeIndex === -1 || !mapApiRef.value)
+    if (routeIndex === -1)
       return
 
     const route = routes.value[routeIndex]
-    mapApiRef.value.removePoint(pointId)
+    mapApiRef.value?.removePoint(pointId)
 
     let updatedPoints = route.points.filter(p => p.id !== pointId)
 
@@ -124,7 +122,7 @@ export function useGeolocationRoutes(mapApiRef: Ref<GeolocationMapApi | undefine
 
         if (shouldUpdateAddress && point.type !== 'connect') {
           isLoading.value = true
-          const addressInfo = await mapApiRef.value?.fetchAddress(newCoords)
+          const addressInfo = await nominatimService.reverse(newCoords)
           isLoading.value = false
           point.address = addressInfo?.address || formatCoordsLabel(newCoords, 'Точка')
         }
@@ -150,8 +148,6 @@ export function useGeolocationRoutes(mapApiRef: Ref<GeolocationMapApi | undefine
   }
 
   function handlePointDataUpdate(routeId: string, point: MapPoint) {
-    if (!mapApiRef.value)
-      return
     const routeIndex = routes.value.findIndex(r => r.id === routeId)
     if (routeIndex === -1)
       return
@@ -161,23 +157,24 @@ export function useGeolocationRoutes(mapApiRef: Ref<GeolocationMapApi | undefine
     const updatedRoute = { ...route, points: updatedPoints }
     routes.value = routes.value.map(r => (r.id === routeId ? updatedRoute : r))
 
-    mapApiRef.value.addOrUpdatePoint(point)
+    mapApiRef.value?.addOrUpdatePoint(point)
   }
 
   async function updateRouteGeometry(routeId: string) {
     const route = routes.value.find(r => r.id === routeId)
-    if (!route || !mapApiRef.value)
+    if (!route)
       return
+
     if (route.points.length < 2) {
       route.geometry = []
       route.distance = 0
       route.duration = 0
-      mapApiRef.value.removeRoute(routeId)
+      mapApiRef.value?.removeRoute(routeId)
       return
     }
 
     route.isFetching = true
-    const routeData = await mapApiRef.value.fetchRoute(route.points, route.transportMode || 'foot')
+    const routeData = await routingService.calculateRoute(route.points, route.transportMode || 'foot')
     route.isFetching = false
 
     if (routeData) {
@@ -185,7 +182,7 @@ export function useGeolocationRoutes(mapApiRef: Ref<GeolocationMapApi | undefine
       route.distance = routeData.distance
       route.duration = routeData.duration
       route.isDirect = routeData.isDirect
-      mapApiRef.value.addOrUpdateRoute(route)
+      mapApiRef.value?.addOrUpdateRoute(route)
     }
   }
 
@@ -198,13 +195,10 @@ export function useGeolocationRoutes(mapApiRef: Ref<GeolocationMapApi | undefine
   }
 
   async function setInitialRoutes(initialRoutes?: MapRoute[]) {
-    if (!mapApiRef.value)
-      return
-
     routes.value = JSON.parse(JSON.stringify(initialRoutes || []))
 
     const routeUpdatePromises = routes.value.map((route) => {
-      route.points.forEach(point => mapApiRef.value!.addOrUpdatePoint(point))
+      route.points.forEach(point => mapApiRef.value?.addOrUpdatePoint(point))
       return updateRouteGeometry(route.id)
     })
     await Promise.all(routeUpdatePromises)

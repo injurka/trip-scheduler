@@ -4,6 +4,8 @@
 interface ImportMetaEnv {
   readonly VITE_APP_SERVER_URL: string
   readonly VITE_APP_REQUEST_THROTTLE: boolean
+  readonly VITE_MAPTILER_API_KEY?: string
+  readonly VITE_MAPTILER_KEY?: string
 }
 
 interface ImportMeta {

@@ -1,4 +1,5 @@
 import { ref } from 'vue'
+import { nominatimService } from '~/shared/services/geo'
 
 export interface MapSearchResult {
   lat: number
@@ -11,7 +12,7 @@ export function useKitMapSearch() {
   const isSearching = ref(false)
 
   /**
-   * Ищет локацию через API Nominatim (OpenStreetMap)
+   * Ищет локацию через единый сервис Nominatim
    * @param query Строка поиска (адрес, название места)
    * @returns Координаты и название, либо null, если ничего не найдено
    */
@@ -21,30 +22,20 @@ export function useKitMapSearch() {
 
     isSearching.value = true
     try {
-      const url = `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(query)}&limit=1&accept-language=ru`
-
-      const res = await fetch(url)
-
-      if (!res.ok) {
-        throw new Error(`Ошибка HTTP: ${res.status}`)
-      }
-
-      const data = await res.json()
-
-      if (Array.isArray(data) && data.length > 0 && data[0].lat && data[0].lon) {
+      const result = await nominatimService.searchSingle(query)
+      if (result) {
         return {
-          lat: Number.parseFloat(data[0].lat),
-          lon: Number.parseFloat(data[0].lon),
-          displayName: data[0].display_name,
-          boundingbox: data[0].boundingbox,
+          lat: result.lat,
+          lon: result.lon,
+          displayName: result.displayName,
+          boundingbox: result.boundingbox,
         }
       }
-
       return null
     }
     catch (e) {
-      console.error('[useMapSearch] Ошибка запроса к Nominatim:', e)
-      throw e
+      console.error('[useKitMapSearch] Ошибка поиска:', e)
+      return null
     }
     finally {
       isSearching.value = false

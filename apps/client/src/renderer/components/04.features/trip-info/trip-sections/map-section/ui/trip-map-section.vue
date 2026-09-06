@@ -2,7 +2,7 @@
 import type { FeatureLike } from 'ol/Feature'
 
 import type { useGeolocationMap } from '~/components/03.domain/trip-info/geolocation-section/composables/use-geolocation-map'
-import type { DrawnRoute, MapPoint, MapRoute } from '~/components/03.domain/trip-info/geolocation-section/models/types'
+import type { MapPoint, MapRoute } from '~/components/03.domain/trip-info/geolocation-section/models/types'
 import type { IDay } from '~/components/04.features/trip-info/trip-plan/models/types'
 
 import { Icon } from '@iconify/vue'
@@ -109,7 +109,6 @@ function startDetailsResize(e: MouseEvent) {
 const collapsedGroups = reactive({
   points: false,
   routes: false,
-  drawnRoutes: false,
 })
 
 function toggleGroup(group: keyof typeof collapsedGroups) {
@@ -140,11 +139,9 @@ const allGeoSections = computed(() => {
 
 const allPoints = computed(() => allGeoSections.value.flatMap(s => s.section.points.map((p: any) => ({ ...p, dayId: s.dayId }))))
 const allRoutes = computed(() => allGeoSections.value.flatMap(s => s.section.routes.map((r: any) => ({ ...r, dayId: s.dayId }))))
-const allDrawnRoutes = computed(() => allGeoSections.value.flatMap(s => s.section.drawnRoutes.map((dr: any) => ({ ...dr, dayId: s.dayId }))))
 
 const filteredPoints = computed(() => selectedDayId.value === 'all' ? allPoints.value : allPoints.value.filter(p => p.dayId === selectedDayId.value))
 const filteredRoutes = computed(() => selectedDayId.value === 'all' ? allRoutes.value : allRoutes.value.filter(r => r.dayId === selectedDayId.value))
-const filteredDrawnRoutes = computed(() => selectedDayId.value === 'all' ? allDrawnRoutes.value : allDrawnRoutes.value.filter(dr => dr.dayId === selectedDayId.value))
 
 const selectedActivity = computed(() => {
   if (!selectedItemId.value)
@@ -152,8 +149,7 @@ const selectedActivity = computed(() => {
 
   const geoSection = allGeoSections.value.find(s =>
     s.section.points.some((p: any) => p.id === selectedItemId.value)
-    || s.section.routes.some((r: any) => r.id === selectedItemId.value)
-    || s.section.drawnRoutes.some((dr: any) => dr.id === selectedItemId.value),
+    || s.section.routes.some((r: any) => r.id === selectedItemId.value),
   )
 
   if (!geoSection)
@@ -198,7 +194,6 @@ const geolocationMapPoints = computed<MapPoint[]>(() => {
   return [...filteredPoints.value, ...routePoints]
 })
 const geolocationMapRoutes = computed<MapRoute[]>(() => filteredRoutes.value)
-const geolocationMapDrawnRoutes = computed<DrawnRoute[]>(() => filteredDrawnRoutes.value)
 
 function onMapReady(controller: ReturnType<typeof useGeolocationMap>) {
   mapController.value = controller
@@ -215,16 +210,13 @@ function handleMapClick(coords: [number, number]) {
   }
 }
 
-function focusOnItem(item: MapPoint | MapRoute | DrawnRoute) {
+function focusOnItem(item: MapPoint | MapRoute) {
   selectedItemId.value = item.id
   if ('coordinates' in item) { // MapPoint
     mapController.value?.flyToLocation(item.coordinates[0], item.coordinates[1], 16)
   }
   else if ('geometry' in item && item.geometry && item.geometry.length > 0) { // MapRoute
     mapController.value?.flyToLocation(item.geometry[0][0], item.geometry[0][1], 14)
-  }
-  else if ('segments' in item && item.segments.length > 0 && item.segments[0].length > 0) { // DrawnRoute
-    mapController.value?.flyToLocation(item.segments[0][0][0], item.segments[0][0][1], 14)
   }
 
   if (isSmallScreen.value) {
@@ -270,7 +262,7 @@ function focusOnItem(item: MapPoint | MapRoute | DrawnRoute) {
               />
             </div>
             <div class="sidebar-content">
-              <div v-if="filteredPoints.length > 0 || filteredRoutes.length > 0 || filteredDrawnRoutes.length > 0">
+              <div v-if="filteredPoints.length > 0 || filteredRoutes.length > 0">
                 <div v-if="filteredPoints.length > 0" class="items-group">
                   <div class="group-header" @click="toggleGroup('points')">
                     <h4 class="group-title">
@@ -299,18 +291,6 @@ function focusOnItem(item: MapPoint | MapRoute | DrawnRoute) {
                     </div>
                   </div>
                 </div>
-
-                <div v-if="filteredDrawnRoutes.length > 0" class="items-group">
-                  <div class="group-header" @click="toggleGroup('drawnRoutes')">
-                    <h4 class="group-title">
-                      Нарисованные маршруты
-                    </h4>
-                    <Icon :icon="collapsedGroups.drawnRoutes ? 'mdi:chevron-down' : 'mdi:chevron-up'" class="group-toggle-icon" />
-                  </div>
-                  <div v-show="!collapsedGroups.drawnRoutes" class="group-content">
-                    <TripMapSidebarItem v-for="route in filteredDrawnRoutes" :key="route.id" :item="route" type="route" @click="focusOnItem(route)" />
-                  </div>
-                </div>
               </div>
               <div v-else class="empty-state">
                 <Icon icon="mdi:map-marker-off-outline" />
@@ -334,7 +314,6 @@ function focusOnItem(item: MapPoint | MapRoute | DrawnRoute) {
           :is-loading="false"
           :points="geolocationMapPoints"
           :routes="geolocationMapRoutes"
-          :drawn-routes="geolocationMapDrawnRoutes"
           :readonly="true"
           :interactive-on-click="true"
           :center="mapCenter"

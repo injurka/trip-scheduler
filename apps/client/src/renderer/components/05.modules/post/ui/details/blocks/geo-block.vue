@@ -111,7 +111,6 @@ const mapCenter = computed<[number, number]>(() => {
       <GeolocationMap
         :points="mapPoints"
         :routes="mapRoutes"
-        :drawn-routes="[]"
         mode="pan"
         :center="mapCenter"
         height="300px"

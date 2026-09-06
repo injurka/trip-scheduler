@@ -4,6 +4,7 @@ import type { useGeolocationMap } from './use-geolocation-map'
 import { v4 as uuidv4 } from 'uuid'
 import { ref, watch } from 'vue'
 import { useToast } from '~/shared/composables/use-toast'
+import { nominatimService } from '~/shared/services/geo'
 import { POI_COLORS } from '../constant'
 
 type GeolocationMapApi = ReturnType<typeof useGeolocationMap>
@@ -16,13 +17,10 @@ export function useGeolocationPoints(mapApiRef: Ref<GeolocationMapApi | undefine
   const isLoading = ref(false)
   const points = ref<MapPoint[]>([])
   const pointToMoveId = ref<string | null>(null)
-  const mode = ref<'pan' | 'add_point' | 'add_route_point' | 'draw_route' | 'move_point'>('pan')
+  const mode = ref<'pan' | 'add_point' | 'add_route_point' | 'move_point'>('pan')
 
   // Мгновенное добавление метки на карту без вызова геокодера
   async function addPoiPoint(coords: Coordinate) {
-    if (!mapApiRef.value)
-      return
-
     const newPoint: MapPoint = {
       id: uuidv4(),
       coordinates: coords,
@@ -31,13 +29,11 @@ export function useGeolocationPoints(mapApiRef: Ref<GeolocationMapApi | undefine
       comment: '',
     }
     points.value = [...points.value, newPoint]
-    mapApiRef.value.addOrUpdatePoint(newPoint)
+    mapApiRef.value?.addOrUpdatePoint(newPoint)
   }
 
   async function deletePoiPoint(pointId: string) {
-    if (!mapApiRef.value)
-      return
-    mapApiRef.value.removePoint(pointId)
+    mapApiRef.value?.removePoint(pointId)
     points.value = points.value.filter(p => p.id !== pointId)
   }
 
@@ -48,8 +44,6 @@ export function useGeolocationPoints(mapApiRef: Ref<GeolocationMapApi | undefine
 
   // Перемещение метки без автоматического обращения к Nominatim
   async function movePoint(pointId: string, newCoords: Coordinate) {
-    if (!mapApiRef.value)
-      return
     const point = points.value.find(p => p.id === pointId)
     if (!point)
       return
@@ -59,15 +53,13 @@ export function useGeolocationPoints(mapApiRef: Ref<GeolocationMapApi | undefine
     if (!point.address || point.address.startsWith('Метка (')) {
       point.address = formatCoordsLabel(newCoords)
     }
-    mapApiRef.value.addOrUpdatePoint(point)
+    mapApiRef.value?.addOrUpdatePoint(point)
 
     pointToMoveId.value = null
     mode.value = 'pan'
   }
 
   async function updatePointCoords(point: MapPoint) {
-    if (!mapApiRef.value)
-      return
     const lon = Number(point.coordinates[0])
     const lat = Number(point.coordinates[1])
 
@@ -78,25 +70,23 @@ export function useGeolocationPoints(mapApiRef: Ref<GeolocationMapApi | undefine
     point.coordinates = [lon, lat]
 
     await movePoint(point.id, point.coordinates)
-    mapApiRef.value.flyToLocation(lon, lat, 16)
+    mapApiRef.value?.flyToLocation(lon, lat, 16)
   }
 
   function handlePointUpdate(point: MapPoint) {
-    if (!mapApiRef.value)
-      return
-    mapApiRef.value.addOrUpdatePoint(point)
+    mapApiRef.value?.addOrUpdatePoint(point)
     points.value = points.value.map(p => (p.id === point.id ? { ...point } : p))
   }
 
   // Явный запрос адреса по кнопке 🔄
   async function refreshPointAddress(pointId: string) {
     const pointIndex = points.value.findIndex(p => p.id === pointId)
-    if (pointIndex === -1 || !mapApiRef.value)
+    if (pointIndex === -1)
       return
 
     const point = points.value[pointIndex]
     isLoading.value = true
-    const addressInfo = await mapApiRef.value.fetchAddress(point.coordinates)
+    const addressInfo = await nominatimService.reverse(point.coordinates)
     isLoading.value = false
 
     const updatedPoint = {
@@ -110,15 +100,15 @@ export function useGeolocationPoints(mapApiRef: Ref<GeolocationMapApi | undefine
       ...points.value.slice(pointIndex + 1),
     ]
 
-    mapApiRef.value.addOrUpdatePoint(updatedPoint)
+    mapApiRef.value?.addOrUpdatePoint(updatedPoint)
     useToast().success('Адрес точки обновлен.')
   }
 
   function setInitialPoints(initialPoints: MapPoint[]) {
-    if (!mapApiRef.value || !initialPoints)
+    if (!initialPoints)
       return
     points.value = JSON.parse(JSON.stringify(initialPoints))
-    points.value.forEach(p => mapApiRef.value!.addOrUpdatePoint(p))
+    points.value.forEach(p => mapApiRef.value?.addOrUpdatePoint(p))
   }
 
   watch(points, (currentPoints) => {

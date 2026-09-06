@@ -208,7 +208,6 @@ export async function enrichActivityWithMediaAndLocation(
         title: sectionTitle,
         points: mapPoints,
         routes: [],
-        drawnRoutes: [],
         center: mapPoints[0].coordinates,
         zoom: mapPoints.length > 1 ? 13 : 14,
       })

@@ -6,9 +6,10 @@ import { Point } from 'ol/geom'
 import VectorLayer from 'ol/layer/Vector'
 import { fromLonLat } from 'ol/proj'
 import VectorSource from 'ol/source/Vector'
-import { Icon as OlIcon, Style } from 'ol/style'
 import { KitDialogWithClose } from '~/components/01.kit/kit-dialog-with-close'
 import { KitMap } from '~/components/01.kit/kit-map'
+
+import { createMarkerStyle, nominatimService, toMapCoord } from '~/shared/services/geo'
 
 interface Props {
   visible: boolean
@@ -21,8 +22,6 @@ const selectedCity = ref<string | null>(null)
 const selectedCityCoords = ref<{ lat: number, lon: number } | null>(null)
 const isMapViewerVisible = ref(false)
 const isLoadingCoords = ref(false)
-
-const NOMINATIM_SEARCH_URL = 'https://nominatim.openstreetmap.org/search'
 
 const mapInstance = ref<Map | null>(null)
 const markerSource = new VectorSource()
@@ -41,22 +40,9 @@ function updateMarkerPosition() {
 
   markerSource.clear()
   const marker = new Feature({
-    geometry: new Point(fromLonLat([selectedCityCoords.value.lon, selectedCityCoords.value.lat])),
+    geometry: new Point(toMapCoord([selectedCityCoords.value.lon, selectedCityCoords.value.lat])),
   })
-  const svg = `
-    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-      <path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7z" fill="#3498db"/>
-      <circle cx="12" cy="9" r="2.5" fill="white"/>
-    </svg>`
-  marker.setStyle(
-    new Style({
-      image: new OlIcon({
-        src: `data:image/svg+xml;base64,${btoa(svg)}`,
-        scale: 1.5,
-        anchor: [0.5, 1],
-      }),
-    }),
-  )
+  marker.setStyle(createMarkerStyle({ color: '#3498db' }))
   markerSource.addFeature(marker)
 }
 
@@ -86,20 +72,12 @@ async function showMapForCity(city: string) {
   selectedCity.value = city
   selectedCityCoords.value = null
 
-  const url = `${NOMINATIM_SEARCH_URL}?q=${encodeURIComponent(city)}&format=json&limit=1&accept-language=ru`
-
   try {
-    const response = await fetch(url)
-    if (!response.ok)
-      throw new Error('Ошибка сети при получении координат.')
-
-    const data = await response.json()
-
-    if (data && data.length > 0) {
-      const result = data[0]
+    const result = await nominatimService.searchSingle(city)
+    if (result) {
       selectedCityCoords.value = {
-        lat: Number.parseFloat(result.lat),
-        lon: Number.parseFloat(result.lon),
+        lat: result.lat,
+        lon: result.lon,
       }
       isMapViewerVisible.value = true
     }

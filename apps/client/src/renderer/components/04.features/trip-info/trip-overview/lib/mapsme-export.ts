@@ -74,10 +74,9 @@ function getPlacemarkColor(point: any): MapsMeColor {
 /**
  * Генерирует содержимое файла .kml
  */
-function generateKml(trip: Trip, points: any[], routes: any[], drawnRoutes: any[]): string {
+function generateKml(trip: Trip, points: any[], routes: any[]): string {
   const routeColors = new Set<string>()
   routes.forEach(r => routeColors.add(hexToKmlColor(r.color)))
-  drawnRoutes.forEach(dr => routeColors.add(hexToKmlColor(dr.color)))
 
   // Генерируем стили для всех цветов булавок
   let styles = MAPSME_COLORS.map(color => `
@@ -155,40 +154,6 @@ function generateKml(trip: Trip, points: any[], routes: any[], drawnRoutes: any[
     </Placemark>`
   })
 
-  // 3. Нарисованные вручную маршруты
-  drawnRoutes.forEach((dr) => {
-    if (!dr.segments || !Array.isArray(dr.segments) || dr.segments.length === 0)
-      return
-
-    const color = hexToKmlColor(dr.color)
-    const name = dr.title || 'Нарисованный маршрут'
-
-    dr.segments.forEach((segment: any[], index: number) => {
-      if (!segment || segment.length < 2)
-        return
-
-      const validCoords = segment.filter(pt => pt && pt.length >= 2 && !Number.isNaN(Number(pt[0])) && !Number.isNaN(Number(pt[1])))
-      if (validCoords.length < 2)
-        return
-
-      const coordsString = validCoords.map(pt => `${Number(pt[0])},${Number(pt[1])}`).join(' ')
-      const partSuffix = dr.segments.length > 1 ? ` (часть ${index + 1})` : ''
-
-      placemarks += `
-      <Placemark>
-        <name><![CDATA[${sanitizeCdata(name)}${partSuffix}]]></name>
-        <styleUrl>#route-style-${color}</styleUrl>
-        <LineString>
-          <tessellate>1</tessellate>
-          <coordinates>${coordsString}</coordinates>
-        </LineString>
-        <ExtendedData xmlns:mwm="https://maps.me">
-          <mwm:visibility>1</mwm:visibility>
-        </ExtendedData>
-      </Placemark>`
-    })
-  })
-
   return `<?xml version="1.0" encoding="UTF-8"?>
 <kml xmlns="http://earth.google.com/kml/2.2">
 <Document>
@@ -203,12 +168,12 @@ function generateKml(trip: Trip, points: any[], routes: any[], drawnRoutes: any[
 /**
  * Основная функция: генерирует KML, пакует в KMZ и скачивает.
  */
-export function exportToMapsMe(trip: Trip | null, points: any[], routes: any[], drawnRoutes: any[]) {
+export function exportToMapsMe(trip: Trip | null, points: any[], routes: any[]) {
   if (!trip)
     return
 
   try {
-    const kmlString = generateKml(trip, points, routes, drawnRoutes)
+    const kmlString = generateKml(trip, points, routes)
     const safeId = trip.id
 
     const zippedData = zipSync({

@@ -6,17 +6,19 @@ export type TileSourceId = 'maptilerOutdoor' | 'maptilerStreets' | 'satellite' |
 export interface MapSourceConfig {
   label: string
   icon: string
+  description?: string
   source: XYZ | OSM
 }
 
-const MAPTILER_KEY = (import.meta.env.VITE_MAPTILER_API_KEY as string) || ''
+const MAPTILER_KEY = import.meta.env.VITE_MAPTILER_API_KEY as string
 
 const MAPTILER_ATTRIBUTION = '<a href="https://www.maptiler.com/copyright/" target="_blank">&copy; MapTiler</a> <a href="https://www.openstreetmap.org/copyright" target="_blank">&copy; OpenStreetMap contributors</a>'
 
 export const TILE_SOURCES: Record<TileSourceId, MapSourceConfig> = {
   maptilerOutdoor: {
-    label: 'Outdoor & Hiking',
+    label: 'Outdoor & Приключения',
     icon: 'mdi:hiking',
+    description: 'Туристические и горные тропы, отмывка рельефа, изолинии высот и родники',
     source: new XYZ({
       url: `https://api.maptiler.com/maps/outdoor-v2/512/{z}/{x}/{y}@2x.png?key=${MAPTILER_KEY}`,
       tileSize: 512,
@@ -26,8 +28,9 @@ export const TILE_SOURCES: Record<TileSourceId, MapSourceConfig> = {
     }),
   },
   maptilerStreets: {
-    label: 'Улицы',
+    label: 'Улицы и Город',
     icon: 'mdi:map-outline',
+    description: 'Четкая городская навигация, здания и дорожная сеть',
     source: new XYZ({
       url: `https://api.maptiler.com/maps/streets-v2/512/{z}/{x}/{y}@2x.png?key=${MAPTILER_KEY}`,
       tileSize: 512,
@@ -39,6 +42,7 @@ export const TILE_SOURCES: Record<TileSourceId, MapSourceConfig> = {
   satellite: {
     label: 'Спутник',
     icon: 'mdi:satellite-variant',
+    description: 'Детальные спутниковые снимки местности',
     source: new XYZ({
       url: `https://api.maptiler.com/maps/satellite/512/{z}/{x}/{y}@2x.jpg?key=${MAPTILER_KEY}`,
       tileSize: 512,
@@ -50,6 +54,7 @@ export const TILE_SOURCES: Record<TileSourceId, MapSourceConfig> = {
   osm: {
     label: 'OpenStreetMap',
     icon: 'mdi:map',
+    description: 'Базовая карта сообщества OpenStreetMap',
     source: new OSM({
       crossOrigin: 'anonymous',
     }),
@@ -66,7 +71,12 @@ export async function checkMapTilerAvailability(): Promise<boolean> {
     return isAvailabilityChecked
 
   try {
-    const res = await fetch(`https://api.maptiler.com/maps/outdoor-v2/tiles.json?key=${MAPTILER_KEY}`)
+    const controller = new AbortController()
+    const timeoutId = setTimeout(() => controller.abort(), 3500)
+    const res = await fetch(`https://api.maptiler.com/maps/outdoor-v2/tiles.json?key=${MAPTILER_KEY}`, {
+      signal: controller.signal,
+    })
+    clearTimeout(timeoutId)
     isAvailabilityChecked = res.ok
     return res.ok
   }

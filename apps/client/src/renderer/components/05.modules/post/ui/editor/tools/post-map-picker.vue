@@ -8,6 +8,8 @@ import { KitInput } from '~/components/01.kit/kit-input'
 import { KitMap, useKitMapSearch } from '~/components/01.kit/kit-map'
 import { useToast } from '~/shared/composables/use-toast'
 
+import { nominatimService } from '~/shared/services/geo'
+
 interface Props {
   visible: boolean
   initialCoords?: { lat: number, lng: number }
@@ -28,16 +30,8 @@ const searchQuery = ref('')
 const { searchLocation, isSearching } = useKitMapSearch()
 
 async function fetchAddress(lon: number, lat: number) {
-  try {
-    const res = await fetch(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lon}&accept-language=ru`)
-    const data = await res.json()
-    return data.address?.road
-      ? `${data.address.road}${data.address.house_number ? `, ${data.address.house_number}` : ''}`
-      : data.name || data.display_name?.split(',')[0] || ''
-  }
-  catch {
-    return ''
-  }
+  const res = await nominatimService.reverse([lon, lat])
+  return res?.address || ''
 }
 
 async function handleMapClick(rawCoords: [number, number]) {

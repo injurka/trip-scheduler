@@ -36,7 +36,6 @@ export interface ActivitySectionGeolocation {
   type: 'geolocation'
   points: GeolocationPoint[]
   routes: any[]
-  drawnRoutes: any[]
   center?: [number, number] | null
   zoom?: number | null
   title?: string

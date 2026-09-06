@@ -1,7 +1,6 @@
 <script setup lang="ts">
 import type { Coordinate, MapPoint, MapRoute, PointType } from '~/components/03.domain/trip-info/geolocation-section'
 import { Icon } from '@iconify/vue'
-import Polyline from '@mapbox/polyline'
 import { toLonLat } from 'ol/proj'
 import { v4 as uuidv4 } from 'uuid'
 import { computed, ref, watch } from 'vue'
@@ -9,6 +8,8 @@ import { KitBtn } from '~/components/01.kit/kit-btn'
 import { KitDialogWithClose } from '~/components/01.kit/kit-dialog-with-close'
 import { KitTooltip } from '~/components/01.kit/kit-tooltip'
 import GeolocationMap from '~/components/03.domain/trip-info/geolocation-section/ui/geolocation-map.vue'
+
+import { nominatimService, routingService } from '~/shared/services/geo'
 
 export interface EditorRoutePoint {
   lat: number
@@ -28,12 +29,6 @@ const emit = defineEmits<{
   (e: 'update:visible', value: boolean): void
   (e: 'confirm', data: { points: EditorRoutePoint[], geometry: Coordinate[], distanceMeters: number }): void
 }>()
-
-const OSRM_PROFILES = {
-  walk: 'routed-foot/route/v1/foot',
-  transit: 'routed-bike/route/v1/bicycle',
-  car: 'routed-car/route/v1/driving',
-}
 
 const isLoading = ref(false)
 const mapPoints = ref<MapPoint[]>([])
@@ -71,14 +66,8 @@ function onMapReady(ctrl: any) {
 }
 
 async function fetchAddress(lon: number, lat: number) {
-  try {
-    const res = await fetch(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lon}&accept-language=ru`)
-    const data = await res.json()
-    return data.address?.road ? `${data.address.road}${data.address.house_number ? `, ${data.address.house_number}` : ''}` : data.name || 'Точка на карте'
-  }
-  catch {
-    return 'Точка'
-  }
+  const res = await nominatimService.reverse([lon, lat])
+  return res?.address || 'Точка на карте'
 }
 
 function updatePointTypes() {
@@ -105,43 +94,20 @@ async function buildRoute() {
   }
 
   isLoading.value = true
-  const coords = mapPoints.value.map(p => `${p.coordinates[0]},${p.coordinates[1]}`).join(';')
-  const profile = OSRM_PROFILES[props.transport] || OSRM_PROFILES.walk
-
   try {
-    const res = await fetch(`https://routing.openstreetmap.de/${profile}/${coords}?overview=full&geometries=polyline`)
-    const data = await res.json()
+    const route = await routingService.calculateRoute(mapPoints.value, props.transport)
+    routeGeometry.value = route.geometry
+    distanceMeters.value = route.distance
 
-    if (data.code === 'Ok' && data.routes?.length > 0) {
-      const route = data.routes[0]
-      const decoded = Polyline.decode(route.geometry).map(([lat, lon]: [number, number]) => [lon, lat]) as Coordinate[]
-
-      routeGeometry.value = decoded
-      distanceMeters.value = route.distance
-
-      mapRoutes.value = [{
-        id: 'temp-route',
-        title: 'Маршрут',
-        points: mapPoints.value,
-        geometry: decoded,
-        color: '#4363D8',
-        isVisible: true,
-        isDirect: false,
-      }]
-    }
-    else {
-      routeGeometry.value = mapPoints.value.map(p => p.coordinates)
-      distanceMeters.value = 0
-      mapRoutes.value = [{
-        id: 'temp-route',
-        title: 'Прямая',
-        points: mapPoints.value,
-        geometry: routeGeometry.value,
-        color: '#E6194B',
-        isVisible: true,
-        isDirect: true,
-      }]
-    }
+    mapRoutes.value = [{
+      id: 'temp-route',
+      title: route.isDirect ? 'Прямая' : 'Маршрут',
+      points: mapPoints.value,
+      geometry: route.geometry,
+      color: route.isDirect ? '#E6194B' : '#4363D8',
+      isVisible: true,
+      isDirect: route.isDirect,
+    }]
   }
   catch (e) {
     console.error('Routing failed', e)
@@ -289,7 +255,6 @@ watch(() => props.visible, (isOpen) => {
         <GeolocationMap
           :points="mapPoints"
           :routes="mapRoutes"
-          :drawn-routes="[]"
           mode="add_route_point"
           :center="mapCenter"
           height="100%"

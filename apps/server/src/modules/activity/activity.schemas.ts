@@ -51,20 +51,10 @@ const MapRouteSchema = z.object({
   isDirect: z.boolean().optional(),
 })
 
-const DrawnRouteSchema = z.object({
-  id: z.string(),
-  title: z.string(),
-  segments: z.array(z.array(CoordinateSchema)),
-  color: z.string().optional(),
-  distance: z.number().optional(),
-  isVisible: z.boolean(),
-})
-
 const ActivitySectionGeolocationSchema = ActivitySectionBaseSchema.extend({
   type: z.literal('geolocation'),
   points: z.array(MapPointSchema),
   routes: z.array(MapRouteSchema),
-  drawnRoutes: z.array(DrawnRouteSchema),
   center: CoordinateSchema.optional().nullable(),
   zoom: z.number().optional().nullable(),
 })

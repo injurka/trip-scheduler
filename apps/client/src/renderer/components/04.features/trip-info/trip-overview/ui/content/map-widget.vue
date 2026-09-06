@@ -3,7 +3,9 @@ import type { MapMarker } from '~/components/01.kit/kit-map'
 import { Icon } from '@iconify/vue'
 import { useRouter } from 'vue-router'
 import { KitBtn } from '~/components/01.kit/kit-btn'
-import { KitMap } from '~/components/01.kit/kit-map'
+import { KitMap } from '~/components/01.kit/kit-map' // Moscow
+
+import { nominatimService } from '~/shared/services/geo'
 
 interface Props {
   cities?: string[]
@@ -22,17 +24,13 @@ const { smAndDown } = useDisplay()
 
 const isLoading = ref(true)
 const mapMarkers = ref<MapMarker[]>([])
-const mapCenter = ref<[number, number]>([37.6176, 55.7558]) // Moscow
-
-const NOMINATIM_SEARCH_URL = 'https://nominatim.openstreetmap.org/search'
+const mapCenter = ref<[number, number]>([37.6176, 55.7558])
 
 async function fetchCoordinates(city: string): Promise<[number, number] | null> {
   try {
-    const url = `${NOMINATIM_SEARCH_URL}?q=${encodeURIComponent(city)}&format=json&limit=1&accept-language=ru`
-    const response = await fetch(url)
-    const data = await response.json()
-    if (data && data.length > 0) {
-      return [Number.parseFloat(data[0].lon), Number.parseFloat(data[0].lat)]
+    const result = await nominatimService.searchSingle(city)
+    if (result) {
+      return [result.lon, result.lat]
     }
     return null
   }

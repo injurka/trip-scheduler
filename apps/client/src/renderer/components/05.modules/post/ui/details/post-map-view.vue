@@ -266,7 +266,6 @@ onBeforeUnmount(() => {
             v-else
             :points="mapPoints"
             :routes="mapRoutes"
-            :drawn-routes="[]"
             mode="pan"
             :center="mapCenter"
             height="100%"

@@ -305,7 +305,6 @@ function addSection(type: EActivitySectionType) {
         type: EActivitySectionType.GEOLOCATION,
         points: [],
         routes: [],
-        drawnRoutes: [],
       } as ActivitySectionGeolocation
       break
     case EActivitySectionType.METRO:

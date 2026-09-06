@@ -7,6 +7,8 @@ import { KitBtn } from '~/components/01.kit/kit-btn'
 import { KitInput } from '~/components/01.kit/kit-input'
 import { KitMap } from '~/components/01.kit/kit-map'
 import { KitTooltip } from '~/components/01.kit/kit-tooltip'
+import { nominatimService } from '~/shared/services/geo'
+
 import { useLayoutStore } from '~/shared/store/layout.store'
 
 const layoutStore = useLayoutStore()
@@ -22,7 +24,6 @@ const mapCenter = ref<[number, number]>([37.6176, 55.7558])
 const isSearchOpen = ref(false)
 const searchQuery = ref('')
 const isSearching = ref(false)
-const NOMINATIM_SEARCH_URL = 'https://nominatim.openstreetmap.org/search'
 
 const initialX = computed(() => windowWidth.value - 450)
 const initialY = 100
@@ -81,18 +82,11 @@ async function handleSearch() {
     return
 
   isSearching.value = true
-  const url = `${NOMINATIM_SEARCH_URL}?q=${encodeURIComponent(searchQuery.value)}&format=json&limit=1&accept-language=ru`
-
   try {
-    const response = await fetch(url)
-    const data = await response.json()
-    if (data && data.length > 0) {
-      const result = data[0]
-      const lon = Number.parseFloat(result.lon)
-      const lat = Number.parseFloat(result.lat)
-
+    const result = await nominatimService.searchSingle(searchQuery.value)
+    if (result) {
       mapInstance.value.getView().animate({
-        center: fromLonLat([lon, lat]),
+        center: fromLonLat([result.lon, result.lat]),
         zoom: 14,
         duration: 800,
       })

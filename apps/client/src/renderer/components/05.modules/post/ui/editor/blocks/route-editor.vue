@@ -1,10 +1,10 @@
 <script setup lang="ts">
 import type { RouteBlock } from '~/shared/types/models/post'
 import { Icon } from '@iconify/vue'
-import Polyline from '@mapbox/polyline'
 import { computed, ref } from 'vue'
 import { KitInput } from '~/components/01.kit/kit-input'
 import { KitTooltip } from '~/components/01.kit/kit-tooltip'
+import { routingService } from '~/shared/services/geo'
 import PostRouteMapPicker from '../tools/post-route-map-picker.vue'
 
 export interface EditorRoutePoint {
@@ -61,40 +61,18 @@ async function fetchOSRMRoute(points: EditorRoutePoint[], transport: string) {
   if (points.length < 2)
     return
 
-  const OSRM_PROFILES = {
-    walk: 'routed-foot/route/v1/foot',
-    transit: 'routed-bike/route/v1/bicycle',
-    car: 'routed-car/route/v1/driving',
-  }
-
-  const profile = OSRM_PROFILES[transport as keyof typeof OSRM_PROFILES] || OSRM_PROFILES.walk
-  const coords = points.map(p => `${p.lng},${p.lat}`).join(';')
-
   try {
-    const res = await fetch(`https://routing.openstreetmap.de/${profile}/${coords}?overview=full&geometries=polyline`)
-    const data = await res.json()
+    const waypoints = points.map(p => [p.lng, p.lat] as [number, number])
+    const route = await routingService.calculateRoute(waypoints, transport as any)
+    const distMeters = route.distance
+    const { distance, duration } = calculateTimeAndDist(distMeters, transport)
 
-    if (data.code === 'Ok' && data.routes?.length > 0) {
-      const route = data.routes[0]
-      const decoded = Polyline.decode(route.geometry).map(([lat, lng]) => [lng, lat]) as [number, number][]
-      const distMeters = route.distance
-      const { distance, duration } = calculateTimeAndDist(distMeters, transport)
-
-      emit('update', {
-        geometry: decoded,
-        distanceMeters: distMeters,
-        distance,
-        duration,
-      })
-    }
-    else {
-      emit('update', {
-        geometry: points.map(p => [p.lng, p.lat]),
-        distanceMeters: 0,
-        distance: '',
-        duration: '',
-      })
-    }
+    emit('update', {
+      geometry: route.geometry,
+      distanceMeters: distMeters,
+      distance,
+      duration,
+    })
   }
   catch (e) {
     console.error('Failed to refetch route', e)

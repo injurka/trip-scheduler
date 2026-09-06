@@ -1,10 +1,10 @@
 <script setup lang="ts">
-import type { DrawnRoute, MapPoint, MapRoute } from '~/components/03.domain/trip-info/geolocation-section'
+import type { MapPoint, MapRoute } from '~/components/03.domain/trip-info/geolocation-section'
 import { Icon } from '@iconify/vue'
 import { KitTooltip } from '~/components/01.kit/kit-tooltip'
 
 interface Props {
-  item: (MapPoint | MapRoute | DrawnRoute) & { dayId?: string }
+  item: (MapPoint | MapRoute) & { dayId?: string }
   type: 'point' | 'route'
 }
 const props = defineProps<Props>()
@@ -27,9 +27,6 @@ const itemIcon = computed(() => {
   if ('isDirect' in props.item && props.item.isDirect)
     return 'mdi:vector-line'
 
-  if ('segments' in props.item)
-    return 'mdi:draw'
-
   return 'mdi:directions'
 })
 
@@ -38,7 +35,7 @@ const itemText = computed(() => {
     const point = props.item as MapPoint
     return point.comment || point.address || 'Точка на карте'
   }
-  return (props.item as MapRoute | DrawnRoute).title || 'Маршрут'
+  return (props.item as MapRoute).title || 'Маршрут'
 })
 
 const itemSubtitle = computed(() => {
@@ -52,9 +49,6 @@ const itemSubtitle = computed(() => {
   if ('points' in props.item && props.item.points)
     return `${props.item.points.length} тчк.`
 
-  if ('segments' in props.item && props.item.segments)
-    return `${props.item.segments.length} сег.`
-
   return 'Маршрут'
 })
 
@@ -62,7 +56,7 @@ const itemColor = computed(() => {
   if (props.type === 'point')
     return (props.item as MapPoint).style?.color
 
-  return (props.item as MapRoute | DrawnRoute).color
+  return (props.item as MapRoute).color
 })
 </script>
 

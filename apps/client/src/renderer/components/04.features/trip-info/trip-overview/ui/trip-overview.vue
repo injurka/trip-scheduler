@@ -170,9 +170,6 @@ const allPoints = computed<any[]>(() =>
 const allRoutes = computed<MapRoute[]>(() =>
   allGeoSections.value.flatMap(s => s.section.routes || []),
 )
-const allDrawnRoutes = computed<any[]>(() =>
-  allGeoSections.value.flatMap(s => s.section.drawnRoutes || []),
-)
 
 const visibleParticipants = computed(() => props.trip?.participants.slice(0, 5) || [])
 const hiddenParticipantsCount = computed(() => Math.max(0, (props.trip?.participants.length || 0) - 5))
@@ -332,7 +329,7 @@ async function handleMenuAction(action: string) {
   }
   else if (action === 'export_mapsme') {
     try {
-      exportToMapsMe(props.trip, allPoints.value, allRoutes.value, allDrawnRoutes.value)
+      exportToMapsMe(props.trip, allPoints.value, allRoutes.value)
       toast.success('Файл успешно подготовлен и скачан')
     }
     catch {
