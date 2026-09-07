@@ -24,8 +24,6 @@ const {
   errorMessage,
   createdTripId,
   progress,
-  attempt,
-  attemptsTotal,
   stopPolling,
 } = useAiTripGeneration()
 
@@ -275,13 +273,6 @@ watch(visible, (value) => {
             class="stage-label"
           >
             {{ stage }}
-          </p>
-
-          <p
-            v-if="attemptsTotal > 1 && phase !== 'done'"
-            class="attempt-label"
-          >
-            Попытка {{ attempt }} из {{ attemptsTotal }}
           </p>
 
           <div

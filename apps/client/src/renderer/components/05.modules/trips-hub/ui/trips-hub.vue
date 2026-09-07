@@ -83,6 +83,11 @@ const selectedTag = computed({
 })
 
 function onAiTripCreated(tripId: string) {
+  // Трип создаётся приватным — открываем вкладку «Мои путешествия», чтобы он был виден,
+  // и сразу открываем его страницу. Явный форс-fetch покрывает случай, когда вкладка уже «my».
+  if (tripsHub.activeTab.value !== 'my')
+    tripsHub.setActiveTab('my')
+
   tripsHub.fetchTrips(true)
   router.push(AppRoutePaths.Trip.Info(tripId))
 }
