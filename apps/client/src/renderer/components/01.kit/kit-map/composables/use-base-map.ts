@@ -157,11 +157,11 @@ export function useBaseMap() {
         ? options.padding
         : Array.isArray(options?.padding)
           ? {
-            top: options.padding[0] ?? 50,
-            right: options.padding[1] ?? 50,
-            bottom: options.padding[2] ?? 50,
-            left: options.padding[3] ?? 50,
-          }
+              top: options.padding[0] ?? 50,
+              right: options.padding[1] ?? 50,
+              bottom: options.padding[2] ?? 50,
+              left: options.padding[3] ?? 50,
+            }
           : 50
 
     fitBounds(extent, {
@@ -348,7 +348,7 @@ export function useBaseMap() {
             console.warn('[useBaseMap] Ошибка MapLibre:', e?.error?.message || e)
             const isStyleLoadError
               = e?.dataType === 'style'
-              || (e?.error && (e.error.status === 401 || e.error.status === 403 || e.error.status === 404))
+                || (e?.error && (e.error.status === 401 || e.error.status === 403 || e.error.status === 404))
             if (
               isStyleLoadError
               && !isMapReady.value

@@ -12,6 +12,7 @@ export default antfu({
     '**/public/**',
     'auto-imports.d.ts',
     'bun.lock',
+    'maplibre-gl-worker.js',
   ],
   rules: {
     'e18e/prefer-static-regex': 'off',

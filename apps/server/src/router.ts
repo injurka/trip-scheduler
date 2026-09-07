@@ -1,5 +1,6 @@
 import { router } from './lib/trpc'
 import { activityRouter } from './modules/activity/activity.router'
+import { aiTripRouter } from './modules/ai-trip/ai-trip.router'
 import { blogRouter } from './modules/blog/blog.router'
 import { commentRouter } from './modules/comment/comment.router'
 import { dayRouter } from './modules/day/day.router'
@@ -18,6 +19,7 @@ import { tripRouter } from './modules/trip/trip.router'
 import { userRouter } from './modules/user/user.router'
 
 export const appRouter = router({
+  aiTrip: aiTripRouter,
   destinationReview: destinationReviewRouter,
   trip: tripRouter,
   day: dayRouter,

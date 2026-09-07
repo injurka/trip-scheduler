@@ -1,5 +1,6 @@
 import type {
   IActivityRepository,
+  IAiTripRepository,
   IAuthRepository,
   IBlogRepository,
   ICommentRepository,
@@ -19,6 +20,7 @@ import type {
   IUserRepository,
 } from './model/types'
 import { ActivityRepository } from './repositories/activity.repository'
+import { AiTripRepository } from './repositories/ai-trip.repository'
 import { AuthRepository } from './repositories/auth.repository'
 import { BlogRepository } from './repositories/blog.repository'
 import { CommentRepository } from './repositories/comment.repository'
@@ -41,6 +43,7 @@ import { UserRepository } from './repositories/user.repository'
  */
 class TRPCDatabaseClient implements IDatabaseClient {
   trips: ITripRepository = new TripRepository()
+  aiTrips: IAiTripRepository = new AiTripRepository()
   days: IDayRepository = new DayRepository()
   files: IFileRepository = new FileRepository()
   activities: IActivityRepository = new ActivityRepository()

@@ -307,9 +307,9 @@ router.onError((error, to) => {
   const errorMessage = error?.message?.toLowerCase() || ''
   const isChunkLoadError
     = errorMessage.includes('fetch dynamically imported module')
-    || errorMessage.includes('importing a module script failed')
-    || errorMessage.includes('failed to fetch')
-    || errorMessage.includes('loading chunk')
+      || errorMessage.includes('importing a module script failed')
+      || errorMessage.includes('failed to fetch')
+      || errorMessage.includes('loading chunk')
 
   if (isChunkLoadError && typeof window !== 'undefined') {
     const reloadCount = Number(sessionStorage.getItem('chunk_reload_count') || '0')

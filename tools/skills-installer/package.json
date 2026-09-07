@@ -1,7 +1,7 @@
 {
   "name": "@limiteddissolve/skills-installer",
   "type": "module",
-  "version": "1.0.2",
+  "version": "1.0.3",
   "private": false,
   "main": "src/index.ts",
   "bin": {

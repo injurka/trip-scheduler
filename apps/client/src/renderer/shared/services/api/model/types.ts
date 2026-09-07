@@ -148,6 +148,19 @@ export interface ILLMRepository {
   generateFinancesFromData: (formData: FormData) => Promise<GeneratedTransaction[]>
 }
 
+export interface IAiTripJobStatus {
+  status: 'pending' | 'generating' | 'importing' | 'done' | 'error'
+  stage: string
+  logs: string[]
+  tripId: string | null
+  error: string | null
+}
+
+export interface IAiTripRepository {
+  generate: (input: { country: string, startDate: string, days: number, wishes?: string }) => Promise<{ jobId: string }>
+  getStatus: (jobId: string) => Promise<IAiTripJobStatus>
+}
+
 export interface ITripRepository {
   getAll: (filters?: TripListFilters) => Promise<Trip[]>
   getById: (id: string) => Promise<Trip | null>
@@ -331,6 +344,7 @@ export interface IDatabaseClient {
   tripSections: ITripSectionRepository
   comments: ICommentRepository
   llm: ILLMRepository
+  aiTrips: IAiTripRepository
   places: IPlacesRepository
   blog: IBlogRepository
   marks: IMarksRepository

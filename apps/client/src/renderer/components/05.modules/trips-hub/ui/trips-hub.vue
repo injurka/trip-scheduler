@@ -3,8 +3,10 @@ import type { TDisplayMode, TripsHubTab } from '../composables/use-trips-hub'
 import type { ViewSwitcherItem } from '~/components/01.kit/kit-view-switcher'
 import { KitBtn } from '~/components/01.kit/kit-btn'
 import { KitDivider } from '~/components/01.kit/kit-divider'
+import { KitDropdown } from '~/components/01.kit/kit-dropdown'
 import { KitSelectWithSearch } from '~/components/01.kit/kit-select-with-search'
 import { KitViewSwitcher } from '~/components/01.kit/kit-view-switcher'
+import { AppRoutePaths } from '~/shared/constants/routes'
 import { useAuthStore } from '~/shared/store/auth.store'
 import { TripsHubKey, useTripsHub } from '../composables/use-trips-hub'
 import TripsFilters from './controls/trips-filters.vue'
@@ -12,11 +14,23 @@ import TripList from './list-trip/list.vue'
 import UnauthorizedPlaceholder from './list-trip/states/unauthorized-placeholder.vue'
 import TripCard from './list-trip/trip-card/card-item.vue'
 
+import CreateAiTripFlow from './new-trip/create-ai-trip-flow.vue'
 import CreateTripFlow from './new-trip/create-trip-flow.vue'
 
 const emit = defineEmits<{
   (e: 'update:hasError', value: boolean): void
 }>()
+
+const router = useRouter()
+
+const isAiModalOpen = ref(false)
+
+type CreateOption = 'manual' | 'ai'
+
+const createOptions: Array<{ value: CreateOption, label: string, icon: string }> = [
+  { value: 'manual', label: 'Вручную', icon: 'mdi:pencil-outline' },
+  { value: 'ai', label: 'Сгенерировать', icon: 'mdi:auto-fix' },
+]
 
 const tripsHub = useTripsHub()
 const authStore = useAuthStore()
@@ -68,6 +82,11 @@ const selectedTag = computed({
 
 })
 
+function onAiTripCreated(tripId: string) {
+  tripsHub.fetchTrips(true)
+  router.push(AppRoutePaths.Trip.Info(tripId))
+}
+
 watch(
   () => tripsHub.isFiltersOpen.value,
   (isOpen) => {
@@ -77,6 +96,13 @@ watch(
     }
   },
 )
+
+function onCreateOptionSelected(option: CreateOption) {
+  if (option === 'ai')
+    isAiModalOpen.value = true
+  else
+    tripsHub.openCreateModal()
+}
 
 watch(
   () => tripsHub.fetchError.value,
@@ -102,16 +128,23 @@ provide(TripsHubKey, tripsHub)
         <h1>Путешествия</h1>
         <p>Ваши планы и приключения в одном месте.</p>
       </div>
-      <KitBtn
-        icon="mdi:plus"
-        variant="tonal"
-        size="sm"
-        @click="tripsHub.openCreateModal"
+      <KitDropdown
+        :items="createOptions"
+        align="end"
+        @update:model-value="onCreateOptionSelected"
       >
-        <template v-if="mdAndUp">
-          Создать
+        <template #trigger>
+          <KitBtn
+            icon="mdi:plus"
+            variant="tonal"
+            size="sm"
+          >
+            <template v-if="mdAndUp">
+              Создать
+            </template>
+          </KitBtn>
         </template>
-      </KitBtn>
+      </KitDropdown>
     </div>
 
     <Transition name="slide-fade">
@@ -206,6 +239,10 @@ provide(TripsHubKey, tripsHub)
     </div>
 
     <CreateTripFlow />
+    <CreateAiTripFlow
+      v-model:visible="isAiModalOpen"
+      @created="onAiTripCreated"
+    />
   </div>
 </template>
 
