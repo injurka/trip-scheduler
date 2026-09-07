@@ -11,6 +11,7 @@ import { KitDivider } from '~/components/01.kit/kit-divider'
 import { KitInput } from '~/components/01.kit/kit-input'
 import { KitTabs } from '~/components/01.kit/kit-tabs'
 import { NavigationBack } from '~/components/02.shared/navigation-back/index'
+import { resolveApiUrl } from '~/shared/lib/url'
 import { useProfileSettings } from '../composables/use-profile-settings'
 import 'vue-advanced-cropper/dist/style.css'
 
@@ -34,8 +35,8 @@ const {
   handleCoverSelect,
   cancelCrop,
   saveCroppedImage,
-  coverFile,
   coverPreviewUrl,
+  hasCover,
   tempCoverUrl,
   isCropperVisible,
   isUpdatingProfile,
@@ -113,7 +114,7 @@ const tabItems = computed<TabItem[]>(() => {
 
 // Генерируем стиль для интерактивного превью обложки
 const previewHeaderStyle = computed(() => {
-  const targetCoverUrl = coverPreviewUrl.value || (user.value as any)?.coverUrl
+  const targetCoverUrl = coverPreviewUrl.value || resolveApiUrl((user.value as any)?.coverUrl)
   if (targetCoverUrl) {
     return {
       backgroundImage: `linear-gradient(to top, rgba(0, 0, 0, 0.6) 0%, rgba(0, 0, 0, 0.2) 60%, rgba(0, 0, 0, 0.4) 100%), url(${targetCoverUrl})`,
@@ -176,7 +177,7 @@ function applyCrop() {
                   @click="coverInput?.click()"
                 >
                   <Icon icon="mdi:camera" class="badge-icon" />
-                  <span>{{ coverFile ? 'Сменить обложку' : 'Загрузить обложку' }}</span>
+                  <span>{{ hasCover ? 'Сменить обложку' : 'Загрузить обложку' }}</span>
                 </button>
               </div>
 

@@ -23,6 +23,7 @@ export enum EAuthRequestKeys {
   UPDATE_STATUS = 'auth:update-status',
   UPDATE_USER = 'auth:update-user',
   UPLOAD_AVATAR = 'auth:upload-avatar',
+  UPLOAD_COVER = 'auth:upload-cover',
 }
 
 export interface IAuthState {
@@ -252,6 +253,19 @@ export const useAuthStore = defineStore('auth', {
       await useRequest<User>({
         key: EAuthRequestKeys.UPLOAD_AVATAR,
         fn: db => db.auth.uploadAvatar(file),
+        onSuccess: (updatedUser) => {
+          if (this.user && updatedUser) {
+            this.saveUser({ ...this.user, ...updatedUser })
+          }
+        },
+        onError: ({ error }) => { throw error },
+      })
+    },
+
+    async uploadCover(file: File) {
+      await useRequest<User>({
+        key: EAuthRequestKeys.UPLOAD_COVER,
+        fn: db => db.auth.uploadCover(file),
         onSuccess: (updatedUser) => {
           if (this.user && updatedUser) {
             this.saveUser({ ...this.user, ...updatedUser })

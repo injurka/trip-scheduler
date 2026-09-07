@@ -43,6 +43,10 @@ export async function uploadFileController(c: Context) {
     entityId = userId
   }
 
+  if (entityType === 'user-cover' && !entityId) {
+    entityId = userId
+  }
+
   if (!entityType || !entityId) {
     throw new HTTPException(400, { message: 'Необходимо указать entityType и entityId.' })
   }

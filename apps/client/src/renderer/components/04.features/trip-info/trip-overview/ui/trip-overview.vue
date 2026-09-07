@@ -435,6 +435,12 @@ watch(() => props.trip?.id, (newId) => {
               <Icon v-if="statusInfo.icon" :icon="statusInfo.icon" />
               <span>{{ statusInfo.text }}</span>
             </div>
+            <KitTooltip v-if="isCached" text="Путешествие сохранено для оффлайн доступа">
+              <div class="meta-item meta-item--offline">
+                <Icon icon="mdi:cloud-check" />
+                <span>Оффлайн</span>
+              </div>
+            </KitTooltip>
             <div v-if="formattedBudget" class="meta-item">
               <Icon icon="mdi:wallet-outline" />
               <span>{{ formattedBudget }}</span>
@@ -850,6 +856,17 @@ watch(() => props.trip?.id, (newId) => {
       color: #505458;
       background-color: rgba(128, 127, 125, 0.15);
     }
+  }
+
+  .meta-item--offline {
+    font-weight: 600;
+    padding: 4px 10px;
+    border-radius: var(--r-s);
+    color: var(--fg-success-color);
+    background-color: rgba(var(--fg-success-color-rgb), 0.15);
+    display: flex;
+    align-items: center;
+    gap: 4px;
   }
 }
 

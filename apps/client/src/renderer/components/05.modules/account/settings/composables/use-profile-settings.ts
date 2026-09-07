@@ -70,6 +70,9 @@ export function useProfileSettings() {
   // Кнопка сохранения активна, если изменено имя ИЛИ выбрана новая обложка
   const isProfileChanged = computed(() => profileForm.name !== user.value?.name || !!coverFile.value)
 
+  // Обложка уже есть: сохраненная на сервере или только что выбранная (еще не загруженная)
+  const hasCover = computed(() => !!coverPreviewUrl.value || Boolean((user.value as any)?.coverUrl))
+
   const isPasswordFormValid = computed(() =>
     passwordForm.currentPassword
     && passwordForm.newPassword.length >= 6
@@ -105,8 +108,8 @@ export function useProfileSettings() {
     try {
       await authStore.updateUser({ name: profileForm.name })
 
-      if (coverFile.value && (authStore as any).uploadCover) {
-        await (authStore as any).uploadCover(coverFile.value)
+      if (coverFile.value) {
+        await authStore.uploadCover(coverFile.value)
       }
 
       toast.success('Профиль успешно обновлен')
@@ -407,6 +410,7 @@ export function useProfileSettings() {
     deleteForm,
     coverFile,
     coverPreviewUrl,
+    hasCover,
     isPreviewVisible,
     tempCoverUrl,
     isCropperVisible,

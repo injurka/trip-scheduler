@@ -75,6 +75,28 @@ const avatarHandler: IUploadHandler = {
   },
 }
 
+const userCoverHandler: IUploadHandler = {
+  async validate({ userId, entityId, buffer }) {
+    if (userId !== entityId)
+      throw new HTTPException(403, { message: 'Нельзя менять чужую обложку.' })
+    await quotaService.checkStorageQuota(userId, buffer.length)
+  },
+  getFolderPath: ({ userId }) => `covers/${userId}`,
+  async afterSave({ userId }, { url }) {
+    const currentUser = await userRepository.getById(userId)
+    const oldCoverUrl = currentUser?.coverUrl
+    if (oldCoverUrl && !oldCoverUrl.startsWith('http://') && !oldCoverUrl.startsWith('https://')) {
+      try {
+        await s3Service.deleteFiles([oldCoverUrl])
+      }
+      catch (e) {
+        console.error('[Upload] Failed to delete old user cover:', e)
+      }
+    }
+    return await userRepository.update(userId, { coverUrl: url })
+  },
+}
+
 const reviewHandler: IUploadHandler = {
   async validate({ userId }) {
     await quotaService.checkStorageQuota(userId, 5 * 1024 * 1024)
@@ -97,12 +119,13 @@ const highlightHandler: IUploadHandler = {
 }
 
 const handlers: Record<EntityType, IUploadHandler> = {
-  trip: tripHandler,
-  post: postHandler,
-  blog: blogHandler,
-  avatar: avatarHandler,
-  review: reviewHandler,
-  highlight: highlightHandler,
+  'trip': tripHandler,
+  'post': postHandler,
+  'blog': blogHandler,
+  'avatar': avatarHandler,
+  'user-cover': userCoverHandler,
+  'review': reviewHandler,
+  'highlight': highlightHandler,
 }
 
 export class ImageUploadService {

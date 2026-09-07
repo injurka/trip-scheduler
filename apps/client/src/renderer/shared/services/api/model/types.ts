@@ -231,6 +231,7 @@ export interface IAuthRepository {
   updateStatus: (data: { statusText?: string | null, statusEmoji?: string | null }) => Promise<User>
   updateUser: (data: { name?: string, avatarUrl?: string }) => Promise<User>
   uploadAvatar: (file: File) => Promise<User>
+  uploadCover: (file: File) => Promise<User>
 }
 
 export interface GetHighlightsFilters {

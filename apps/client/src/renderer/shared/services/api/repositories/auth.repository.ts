@@ -85,4 +85,38 @@ export class AuthRepository implements IAuthRepository {
 
     return response.json()
   }
+
+  async uploadCover(file: File): Promise<User> {
+    const formData = new FormData()
+    formData.append('file', file)
+    formData.append('entityType', 'user-cover')
+
+    const authStore = useAuthStore()
+    let accessToken = authStore.tokenPair?.accessToken || localStorage.getItem(TOKEN_KEY)
+
+    let response = await fetch(`${SERVER_URL}/api/upload`, {
+      method: 'POST',
+      body: formData,
+      headers: { Authorization: `Bearer ${accessToken}` },
+    })
+
+    if (response.status === 401) {
+      const refreshed = await refreshTokensIfNeeded()
+      if (refreshed) {
+        accessToken = authStore.tokenPair?.accessToken || localStorage.getItem(TOKEN_KEY)
+        response = await fetch(`${SERVER_URL}/api/upload`, {
+          method: 'POST',
+          body: formData,
+          headers: { Authorization: `Bearer ${accessToken}` },
+        })
+      }
+    }
+
+    if (!response.ok) {
+      const errorData = await response.json()
+      throw new Error(errorData.message || 'Ошибка при загрузке обложки.')
+    }
+
+    return response.json()
+  }
 }

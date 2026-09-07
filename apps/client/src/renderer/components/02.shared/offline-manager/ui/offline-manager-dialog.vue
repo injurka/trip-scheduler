@@ -19,30 +19,39 @@ const emit = defineEmits<{
 
 const offlineStore = useOfflineStore()
 const router = useRouter()
-const moduleStore = useModuleStore(['plan'])
+const confirm = useConfirm()
+const moduleStore = useModuleStore(['plan', 'sections'])
 
 function goToTrip(id: string) {
   emit('update:visible', false)
   router.push(AppRoutePaths.Trip.Info(id))
 }
 
-function handleDelete(id: string) {
-  offlineStore.removeOfflineTrip(id)
+async function handleDelete(id: string, title: string) {
+  const isConfirmed = await confirm({
+    title: 'Удалить из памяти устройства?',
+    description: `Офлайн-копия путешествия "${title}" будет удалена. Без интернета доступ к нему будет ограничен.`,
+    type: 'danger',
+    confirmText: 'Удалить',
+  })
+  if (isConfirmed) {
+    await offlineStore.removeOfflineTrip(id)
+  }
 }
 
 async function handleUpdate(id: string) {
+  if (offlineStore.isTripDownloading(id))
+    return
+
   if (moduleStore.plan.currentTripId === id && moduleStore.plan.trip) {
     await offlineStore.saveTripForOffline({
       ...moduleStore.plan.trip,
       days: moduleStore.plan.days,
-      // @ts-expect-error sections access
       sections: moduleStore.sections.sections,
     })
   }
   else {
-    const toast = useToast()
-    toast.info('Откройте путешествие, чтобы обновить его кэш.')
-    goToTrip(id)
+    await offlineStore.saveTripByIdForOffline(id)
   }
 }
 </script>
@@ -57,13 +66,16 @@ async function handleUpdate(id: string) {
   >
     <div class="offline-manager">
       <div class="manager-description">
-        <p>Сохраненные путешествия доступны для просмотра без интернета. Карты и изображения также будут работать.</p>
+        <Icon icon="mdi:information-outline" class="desc-icon" />
+        <p>Сохраненные путешествия доступны для просмотра и навигации без интернета. Карты, фото, заметки и документы работают автономно.</p>
       </div>
 
       <div v-if="offlineStore.sortedSavedTrips.length === 0" class="empty-state">
         <Icon icon="mdi:cloud-off-outline" class="empty-icon" />
-        <p>У вас нет сохраненных путешествий.</p>
-        <span>Откройте любое путешествие, нажмите меню "Еще" (три точки) и выберите "Сохранить оффлайн".</span>
+        <p class="empty-title">
+          У вас нет сохраненных путешествий
+        </p>
+        <span class="empty-subtitle">Откройте нужное путешествие, нажмите меню действий (три точки) в шапке и выберите «Сохранить оффлайн».</span>
       </div>
 
       <div v-else class="trips-list">
@@ -87,18 +99,29 @@ async function handleUpdate(id: string) {
               </span>
             </div>
             <div v-if="offlineStore.isDownloading[item.id]" class="download-progress">
-              <div class="progress-bar" :style="{ width: `${offlineStore.downloadProgress[item.id]}%` }" />
+              <div class="progress-bar" :style="{ width: `${offlineStore.getDownloadProgress(item.id)}%` }" />
+            </div>
+            <div v-if="offlineStore.isDownloading[item.id] && offlineStore.getDownloadStatus(item.id)?.statusText" class="download-status-text">
+              {{ offlineStore.getDownloadStatus(item.id)?.statusText }}
             </div>
           </div>
 
           <div class="item-actions">
             <KitTooltip text="Обновить данные">
-              <button class="action-btn update" @click="handleUpdate(item.id)">
+              <button
+                class="action-btn update"
+                :disabled="offlineStore.isDownloading[item.id]"
+                @click="handleUpdate(item.id)"
+              >
                 <Icon icon="mdi:refresh" :class="{ spin: offlineStore.isDownloading[item.id] }" />
               </button>
             </KitTooltip>
             <KitTooltip text="Удалить из памяти">
-              <button class="action-btn delete" @click="handleDelete(item.id)">
+              <button
+                class="action-btn delete"
+                :disabled="offlineStore.isDownloading[item.id]"
+                @click="handleDelete(item.id, item.title)"
+              >
                 <Icon icon="mdi:trash-can-outline" />
               </button>
             </KitTooltip>
@@ -118,13 +141,25 @@ async function handleUpdate(id: string) {
 }
 
 .manager-description {
-  font-size: 0.9rem;
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  font-size: 0.88rem;
   color: var(--fg-secondary-color);
   background-color: var(--bg-tertiary-color);
   padding: 12px;
   border-radius: var(--r-s);
+
+  .desc-icon {
+    font-size: 1.2rem;
+    flex-shrink: 0;
+    margin-top: 1px;
+    color: var(--fg-accent-color);
+  }
+
   p {
     margin: 0;
+    line-height: 1.4;
   }
 }
 
@@ -133,7 +168,7 @@ async function handleUpdate(id: string) {
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  padding: 40px;
+  padding: 40px 20px;
   text-align: center;
   color: var(--fg-secondary-color);
   border: 2px dashed var(--border-secondary-color);
@@ -141,8 +176,21 @@ async function handleUpdate(id: string) {
 
   .empty-icon {
     font-size: 3rem;
-    margin-bottom: 16px;
+    margin-bottom: 12px;
     opacity: 0.5;
+  }
+
+  .empty-title {
+    font-size: 1rem;
+    font-weight: 600;
+    color: var(--fg-primary-color);
+    margin: 0 0 6px;
+  }
+
+  .empty-subtitle {
+    font-size: 0.85rem;
+    line-height: 1.4;
+    max-width: 400px;
   }
 }
 
@@ -190,6 +238,7 @@ async function handleUpdate(id: string) {
   display: flex;
   flex-direction: column;
   gap: 4px;
+  min-width: 0;
 }
 
 .item-title {
@@ -197,6 +246,9 @@ async function handleUpdate(id: string) {
   font-size: 1rem;
   font-weight: 600;
   color: var(--fg-primary-color);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .item-meta {
@@ -219,6 +271,7 @@ async function handleUpdate(id: string) {
 .item-actions {
   display: flex;
   gap: 8px;
+  flex-shrink: 0;
 }
 
 .action-btn {
@@ -234,12 +287,17 @@ async function handleUpdate(id: string) {
   cursor: pointer;
   transition: all 0.2s;
 
-  &:hover {
+  &:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+  }
+
+  &:not(:disabled):hover {
     color: var(--fg-primary-color);
     background-color: var(--bg-tertiary-color);
   }
 
-  &.delete:hover {
+  &.delete:not(:disabled):hover {
     color: var(--fg-error-color);
     border-color: var(--fg-error-color);
     background-color: var(--bg-error-color-dim);
@@ -247,7 +305,7 @@ async function handleUpdate(id: string) {
 }
 
 .download-progress {
-  height: 3px;
+  height: 4px;
   width: 100%;
   background-color: var(--bg-tertiary-color);
   border-radius: 2px;
@@ -259,6 +317,12 @@ async function handleUpdate(id: string) {
     background-color: var(--fg-success-color);
     transition: width 0.3s ease;
   }
+}
+
+.download-status-text {
+  font-size: 0.75rem;
+  color: var(--fg-accent-color);
+  margin-top: 2px;
 }
 
 .spin {

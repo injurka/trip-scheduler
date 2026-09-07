@@ -35,6 +35,7 @@ export const GetUserByIdInputSchema = z.object({
 export const UpdateUserInputSchema = z.object({
   name: z.string().min(1).optional(),
   avatarUrl: z.string().optional(),
+  coverUrl: z.string().optional(),
 }).strict()
 
 export const UpdateUserStatusInputSchema = z.object({
