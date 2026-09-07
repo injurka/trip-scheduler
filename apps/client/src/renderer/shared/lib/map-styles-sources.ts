@@ -2,6 +2,8 @@ import type { Map as MapLibreMap, StyleSpecification } from 'maplibre-gl'
 import * as maplibregl from 'maplibre-gl'
 import maplibreModuleWorkerUrl from 'maplibre-gl/dist/maplibre-gl-worker.mjs?url'
 
+let workerUrlReady: Promise<void> = Promise.resolve()
+
 if (typeof window !== 'undefined') {
   // В мобильных webview (Android APK/Tauri) и старых webview загрузка worker ES-модулей с относительным
   // путем или сторонними схемами (tauri://, http://tauri.localhost) часто блокируется Same-Origin политикой
@@ -10,12 +12,46 @@ if (typeof window !== 'undefined') {
   const isTauriOrMobile = '__TAURI_INTERNALS__' in window || window.location.protocol === 'tauri:'
   const staticWorkerUrl = `${import.meta.env.BASE_URL.replace(/\/$/, '')}/maplibre-gl-worker.js`
 
-  try {
-    maplibregl.setWorkerUrl(isTauriOrMobile ? staticWorkerUrl : (maplibreModuleWorkerUrl || staticWorkerUrl))
+  if (isTauriOrMobile) {
+    // В Tauri Android ассеты раздаются через перехват запросов на http://tauri.localhost — это
+    // не secure context, и new Worker(url) оттуда не стартует (воркер не запускается, тайлы не
+    // грузятся, карта остаётся с фоном). При этом сам файл воркера в основном треде доступен как
+    // обычный ресурс — скачиваем его и создаём blob-URL, воркеры из blob в Android WebView работают.
+    workerUrlReady = (async () => {
+      try {
+        const res = await fetch(staticWorkerUrl)
+        if (!res.ok)
+          throw new Error(`HTTP ${res.status}`)
+        const blob = new Blob([await res.text()], { type: 'text/javascript' })
+        maplibregl.setWorkerUrl(URL.createObjectURL(blob))
+      }
+      catch (e) {
+        console.warn('[map-styles-sources] Не удалось создать blob-воркер, откат на статический URL:', e)
+        try {
+          maplibregl.setWorkerUrl(staticWorkerUrl)
+        }
+        catch (fallbackError) {
+          console.warn('[map-styles-sources] Не удалось установить workerUrl:', fallbackError)
+        }
+      }
+    })()
   }
-  catch (e) {
-    console.warn('[map-styles-sources] Не удалось установить workerUrl:', e)
+  else {
+    try {
+      maplibregl.setWorkerUrl(maplibreModuleWorkerUrl || staticWorkerUrl)
+    }
+    catch (e) {
+      console.warn('[map-styles-sources] Не удалось установить workerUrl:', e)
+    }
   }
+}
+
+/**
+ * Гарантия, что workerUrl установлен до создания первой карты.
+ * В Tauri Android установка асинхронная (fetch → blob), поэтому ожидаем явно.
+ */
+export function ensureMaplibreWorkerReady(): Promise<void> {
+  return workerUrlReady
 }
 
 export type TileSourceId = 'maptilerOutdoor' | 'maptilerStreets' | 'satellite' | 'osm'

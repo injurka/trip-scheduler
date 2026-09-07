@@ -7,7 +7,7 @@ import type {
 import type { Ref } from 'vue'
 import * as maplibregl from 'maplibre-gl'
 import { onUnmounted, readonly, ref, shallowRef } from 'vue'
-import { applyTerrain, getMapStyle, OSM_STYLE } from '~/shared/lib/map-styles-sources'
+import { applyTerrain, ensureMaplibreWorkerReady, getMapStyle, OSM_STYLE } from '~/shared/lib/map-styles-sources'
 import { isValidCoordinate } from '~/shared/services/geo'
 
 export interface BaseMapOptions {
@@ -208,7 +208,7 @@ export function useBaseMap() {
         return
       }
 
-      const createMap = () => {
+      const createMapInner = () => {
         try {
           const initialStyle = options.style || getMapStyle('maptilerStreets')
           const initialZoom = options.zoom ?? 12
@@ -361,6 +361,16 @@ export function useBaseMap() {
           }
           resolve()
         }
+      }
+
+      // В Tauri Android workerUrl ставится асинхронно (fetch → blob) — ждём до создания карты
+      const createMap = () => {
+        ensureMaplibreWorkerReady()
+          .then(createMapInner)
+          .catch((err) => {
+            console.error('[useBaseMap] Ошибка ожидания maplibre worker:', err)
+            resolve()
+          })
       }
 
       createMap()

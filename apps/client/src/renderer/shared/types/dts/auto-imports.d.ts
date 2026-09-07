@@ -49,6 +49,7 @@ declare global {
   const defineStore: typeof import('pinia').defineStore
   const eagerComputed: typeof import('@vueuse/core').eagerComputed
   const effectScope: typeof import('vue').effectScope
+  const ensureMaplibreWorkerReady: typeof import('../../lib/map-styles-sources').ensureMaplibreWorkerReady
   const exportRouteToGpx: typeof import('../../lib/geo-export').exportRouteToGpx
   const extendRef: typeof import('@vueuse/core').extendRef
   const formatDate: typeof import('../../lib/date-time').formatDate
@@ -432,6 +433,7 @@ declare module 'vue' {
     readonly defineStore: UnwrapRef<typeof import('pinia')['defineStore']>
     readonly eagerComputed: UnwrapRef<typeof import('@vueuse/core')['eagerComputed']>
     readonly effectScope: UnwrapRef<typeof import('vue')['effectScope']>
+    readonly ensureMaplibreWorkerReady: UnwrapRef<typeof import('../../lib/map-styles-sources')['ensureMaplibreWorkerReady']>
     readonly exportRouteToGpx: UnwrapRef<typeof import('../../lib/geo-export')['exportRouteToGpx']>
     readonly extendRef: UnwrapRef<typeof import('@vueuse/core')['extendRef']>
     readonly formatDate: UnwrapRef<typeof import('../../lib/date-time')['formatDate']>

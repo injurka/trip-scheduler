@@ -69,6 +69,7 @@
     "defineStore": true,
     "eagerComputed": true,
     "effectScope": true,
+    "ensureMaplibreWorkerReady": true,
     "exportRouteToGpx": true,
     "extendRef": true,
     "formatDate": true,
