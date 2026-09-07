@@ -239,8 +239,8 @@ function computeTrailLayout(items: IActivity[]): LayoutResult {
 function computePhasesLayout(items: IActivity[]): LayoutResult {
   const PHASE_COL_WIDTH = NODE_WIDTH + 32
   const GAP_PHASE = 56
-  const HEADER_OFFSET = 55
-  const NODE_GAP_Y = 30
+  const HEADER_OFFSET = 64
+  const NODE_GAP_Y = 50
 
   const morningItems: { activity: IActivity, index: number }[] = []
   const afternoonItems: { activity: IActivity, index: number }[] = []
