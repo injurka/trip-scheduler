@@ -116,6 +116,7 @@
         "@hono/swagger-ui": "^0.5.2",
         "@hono/trpc-server": "^0.4.1",
         "@injurka/track-processing": "workspace:*",
+        "@limiteddissolve/obsidian-importer": "workspace:*",
         "@trpc/server": "^11.12.0",
         "drizzle-orm": "^0.44.7",
         "drizzle-zod": "^0.8.3",
@@ -218,7 +219,7 @@
     },
     "tools/obsidian-importer": {
       "name": "@limiteddissolve/obsidian-importer",
-      "version": "1.0.1",
+      "version": "1.0.2",
       "bin": {
         "obsidian-importer": "src/run.ts",
       },
@@ -269,7 +270,7 @@
     },
     "tools/skills-installer": {
       "name": "@limiteddissolve/skills-installer",
-      "version": "1.0.2",
+      "version": "1.0.3",
       "bin": {
         "skills-installer": "src/run.ts",
       },

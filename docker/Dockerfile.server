@@ -15,10 +15,13 @@ COPY package.json bun.lock ./
 COPY apps/server/package.json ./apps/server/package.json
 COPY packages/track-processing/package.json ./packages/track-processing/package.json
 COPY packages/track-processing/src ./packages/track-processing/src
+COPY tools/obsidian-importer/package.json ./tools/obsidian-importer/package.json
+COPY tools/obsidian-importer/src ./tools/obsidian-importer/src
 
 RUN bun install --frozen-lockfile --production --ignore-scripts --filter './apps/server'
 
 COPY apps/server ./apps/server
+COPY tools/skills-installer/source/skills ./tools/skills-installer/source/skills
 
 COPY apps/server/drizzle ./drizzle
 
