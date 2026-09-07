@@ -1,6 +1,6 @@
-import { existsSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
-import { join } from 'node:path'
+import { basename, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { importTripFolderCore } from '@limiteddissolve/obsidian-importer'
 import { TRPCError } from '@trpc/server'
@@ -30,6 +30,9 @@ export interface AiTripJob {
   tripId: string | null
   error: string | null
   createdAt: number
+  progress: number | null
+  attempt: number
+  attemptsTotal: number
 }
 
 // In-memory реестр задач: генерация одноразовая и недолговечная,
@@ -61,7 +64,9 @@ function readSkillFile(...segments: string[]): string {
   return existsSync(path) ? readFileSync(path, 'utf-8') : ''
 }
 
-function buildSystemPrompt(input: GenerateAiTripInput): string {
+const MAX_GENERATION_ATTEMPTS = 3
+
+function buildSystemPrompt(input: GenerateAiTripInput, feedback?: string): string {
   const vaultArchitect = readSkillFile('travel-vault-architect', 'SKILL.md')
   const vaultTemplates = readSkillFile('travel-vault-architect', 'references', 'hub-and-master-plan-templates.md')
   const vaultStructure = readSkillFile('travel-vault-architect', 'references', 'structure-and-naming.md')
@@ -89,6 +94,13 @@ function buildSystemPrompt(input: GenerateAiTripInput): string {
     `Дата начала: ${startDate.toISOString().split('T')[0]} (${weekday})`,
     `Длительность: ${input.days} дней`,
     input.wishes ? `Пожелания путешественника (учти их в первую очередь): ${input.wishes}` : 'Пожелания: не указаны — предложи классический насыщенный маршрут.',
+    '',
+    '## ⚠️ ГЛАВНОЕ О ПУТЯХ ФАЙЛОВ — НАРУШЕНИЕ ЛОМАЕТ ИМПОРТ',
+    'В поле "path" укажи ОТНОСИТЕЛЬНЫЙ путь БЕЗ какой-либо внешней папки-обёртки.',
+    '- ЗАПРЕЩЕНО оборачивать всё в дополнительную папку вроде `-- Китай (Море и Пляжи)/`.',
+    '- Хаб `<Название>.md` должен лежать В КОРНЕ (path без слэша).',
+    '- Подпапки указываются как `02 - Маршрутный план/<файл>.md` и т.п. (без префикса `-- `).',
+    `- Дневных файлов в папке «02 - Маршрутный план» должно быть РОВНО ${input.days}.`,
     '',
     '## ПРАВИЛА АРХИТЕКТУРЫ ПРОЕКТА (travel-vault-architect)',
     vaultArchitect,
@@ -136,9 +148,9 @@ function buildSystemPrompt(input: GenerateAiTripInput): string {
     '',
     '## ФОРМАТ ОТВЕТА — СТРОГО СОБЛЮДАЙ',
     'Верни JSON-объект (без markdown-ограждений) вида:',
-    '{"files": [{"path": "<относительный путь внутри папки путешествия>", "content": "<полное содержимое .md файла>"}]}',
+    '{"files": [{"path": "<относительный путь>", "content": "<полное содержимое .md файла>"}]}',
     'Обязательные файлы:',
-    `- "<Страна>.md" — главный хаб (в корне папки)`,
+    `- "<Название>.md" — главный хаб, В КОРНЕ (путь без слэша)`,
     `- "02 - Маршрутный план/Маршрутный план.md" — сводный план`,
     `- "02 - Маршрутный план/<NN> <Локация> (<день недели>) <эмодзи> <хайлайты>.md" — РОВНО ${input.days} дневных файлов, имена с 01 по ${String(input.days).padStart(2, '0')}`,
     `- "03 - Бронирования/Отели.md", "03 - Бронирования/Транспорт.md", "03 - Бронирования/Авиаперелеты.md"`,
@@ -146,34 +158,131 @@ function buildSystemPrompt(input: GenerateAiTripInput): string {
     `- "05 - Полезная информация/05 - Полезная информация.md"`,
     `- "06 - Чек лист/06 - Чек лист.md", "06 - Чек лист/Чек-лист подготовки и сборов.md", "06 - Чек лист/Что попробовать и купить (Must-Try & Must-Buy).md"`,
     'Каждый дневной файл обязан содержать таймлайн активностей в формате `* **HH:MM - HH:MM** — Название` (парсер активностей), коллауты `> [!TYPE]` до первой активности (парсятся в бейджи дня), таблицы бронирований с колонками `| Ночи | Локация | [Отель](URL) | Ночей | Цена / ночь | Итого |`, секции финансов с суммами в ₽ в формате таблиц `| Статья | N ₽ | Примечание |`, чек-листы `- [ ] пункт (💰 ~N ₽)`.',
+    feedback ? ['', '## ⚠️ ПРЕДЫДУЩАЯ ПОПЫТКА НЕ ПРОШЛА ВАЛИДАЦИЮ', 'Исправь следующие ошибки и верни ПОЛНЫЙ комплект файлов:', feedback].join('\n') : '',
   ].join('\n')
 }
 
 // ─── Генерация и импорт ──────────────────────────────────────────────────────
 
-async function generateTripFiles(userId: string, input: GenerateAiTripInput): Promise<Array<{ path: string, content: string }>> {
+interface GeneratedFile {
+  path: string
+  content: string
+}
+
+/** Структурные папки верхнего уровня вольта — их обёрткой считаться не должны. */
+const KNOWN_TOP_LEVEL_DIRS = new Set([
+  '02 - Маршрутный план',
+  '03 - Бронирования',
+  '04 - Финансы',
+  '05 - Полезная информация',
+  '06 - Чек лист',
+  '_',
+  'attachments',
+])
+
+/** Название папки путешествия, которое ожидает парсер (без ведущего `-- `). */
+function sanitizeFolderName(name: string): string {
+  return name
+    .replace(/[\\/:*?"<>|]/g, '')
+    .replace(/\s+/g, ' ')
+    .replace(/^--\s*/, '')
+    .trim()
+    .slice(0, 60)
+}
+
+function normalizeFilePath(raw: string): string {
+  let path = raw.replace(/\\/g, '/').replace(/^\.\//, '').replace(/^\/+/, '')
+  path = path
+    .split('/')
+    .map(seg => seg.trim())
+    .filter(seg => seg && seg !== '.' && seg !== '..')
+    .join('/')
+  return path
+}
+
+/**
+ * Срезает возможную папку-обёртку путешествия (например `-- Китай (Море и Пляжи)/…`).
+ * Если все файлы имеют ОДИН общий первый сегмент, не являющийся структурной папкой —
+ * этот сегмент считается обёрткой и убирается. Также убирает ведущий `-- ` из имён.
+ */
+function stripTripWrapper(files: GeneratedFile[]): GeneratedFile[] {
+  const firstSegments = new Set<string>()
+  for (const file of files) {
+    const idx = file.path.indexOf('/')
+    if (idx > 0) {
+      firstSegments.add(file.path.slice(0, idx))
+    }
+  }
+
+  const candidates = [...firstSegments].filter(seg => !KNOWN_TOP_LEVEL_DIRS.has(seg))
+  const wrapper = candidates.length === 1 && candidates[0].startsWith('--')
+    ? candidates[0]
+    : null
+
+  return files.map((file) => {
+    let path = file.path
+    if (wrapper && (path === wrapper || path.startsWith(`${wrapper}/`))) {
+      path = path.slice(wrapper.length).replace(/^\/+/, '')
+    }
+    // Убираем ведущий `-- ` из относительных частей (хаб «-- Китай….md» → «Китай….md»)
+    path = path.split('/').map(seg => seg.replace(/^--\s+/, '')).join('/')
+    return { path, content: file.content }
+  })
+}
+
+/**
+ * Валидирует сгенерированный набор файлов по тем же правилам, что использует
+ * парсер vault'а (чтобы не создавать импортом пустое путешествие).
+ * Возвращает список проблем; пустой список = структура валидна.
+ */
+function validateGeneratedFiles(files: GeneratedFile[], input: GenerateAiTripInput): string[] {
+  const problems: string[] = []
+  const rootFiles = files.filter(f => !f.path.includes('/'))
+  const hub = rootFiles[0]
+
+  if (!hub) {
+    problems.push('Нет главного хаба (`.md`-файла в корне).')
+  }
+  else {
+    // хаб не может быть «Маршрутный план» или дневным файлом
+    const hubBase = hub.path.replace(/\.md$/i, '').toLowerCase()
+    if (hubBase === 'маршрутный план' || hubBase === 'plan' || /^\d{1,2}[.\s]/.test(hubBase)) {
+      problems.push(`Корневой файл «${hub.path}» не похож на хаб путешествия.`)
+    }
+  }
+
+  const dayFiles = files.filter(f => f.path.startsWith('02 - Маршрутный план/') && f.path.endsWith('.md'))
+  const actualDayNotes = dayFiles.filter((f) => {
+    const base = f.path.split('/').pop()!.replace(/\.md$/i, '')
+    return base !== 'Маршрутный план' && base.toLowerCase() !== 'plan'
+  })
+
+  if (dayFiles.length === 0) {
+    problems.push('Нет папки «02 - Маршрутный план/» с дневными файлами.')
+  }
+  else if (actualDayNotes.length !== input.days) {
+    problems.push(`Ожидалось ${input.days} дневных файлов в «02 - Маршрутный план/», получено ${actualDayNotes.length}.`)
+  }
+
+  return problems
+}
+
+async function generateTripFiles(input: GenerateAiTripInput, feedback?: string): Promise<{
+  files: GeneratedFile[]
+  usage: { promptTokens: number, completionTokens: number, model: string } | null
+}> {
   const completion = await createAiChatRequest(
-    { system: buildSystemPrompt(input), user: 'Сгенерируй полный комплект заметок путешествия по правилам выше. Верни только JSON.' },
-    { model: DEFAULT_AI_MODEL, response_format: { type: 'json_object' }, temperature: 0.6 },
+    { system: buildSystemPrompt(input, feedback), user: 'Сгенерируй полный комплект заметок путешествия по правилам выше. Верни только JSON.' },
+    { model: DEFAULT_AI_MODEL, response_format: { type: 'json_object' }, temperature: 0.6, max_tokens: 60000 },
   )
 
-  if (completion.usage) {
-    const actualModelId = (AI_MODELS as readonly string[]).find(m => completion.model?.includes(m) || m.includes(completion.model)) || DEFAULT_AI_MODEL
-    await quotaService.deductLlmCredits(
-      userId,
-      actualModelId,
-      completion.usage.prompt_tokens,
-      completion.usage.completion_tokens,
-    )
-
-    await llmUsageRepository.create({
-      userId,
-      model: actualModelId,
-      operation: 'aiTripGeneration',
-      inputTokens: completion.usage.prompt_tokens,
-      outputTokens: completion.usage.completion_tokens,
-    })
-  }
+  const usage = completion.usage
+    ? {
+        promptTokens: completion.usage.prompt_tokens,
+        completionTokens: completion.usage.completion_tokens,
+        model: (AI_MODELS as readonly string[]).find(m => completion.model?.includes(m) || m.includes(completion.model)) || DEFAULT_AI_MODEL,
+      }
+    : null
 
   const raw = completion.choices[0]?.message?.content
   if (!raw)
@@ -183,18 +292,42 @@ async function generateTripFiles(userId: string, input: GenerateAiTripInput): Pr
   if (clean.startsWith('```'))
     clean = clean.replace(/^```(?:json)?\n?/, '').replace(/\n?```$/, '')
 
-  const parsed = JSON.parse(clean) as { files?: Array<{ path?: string, content?: string }> }
-  if (!Array.isArray(parsed.files) || parsed.files.length === 0)
-    throw new TRPCError({ code: 'INTERNAL_SERVER_ERROR', message: 'ИИ вернул некорректную структуру файлов.' })
+  let parsed: { files?: Array<{ path?: string, content?: string }> }
+  try {
+    parsed = JSON.parse(clean) as { files?: Array<{ path?: string, content?: string }> }
+  }
+  catch {
+    throw new TRPCError({ code: 'INTERNAL_SERVER_ERROR', message: 'ИИ вернул невалидный JSON.' })
+  }
 
-  const files = parsed.files
+  const files = (parsed.files || [])
     .filter(f => typeof f.path === 'string' && typeof f.content === 'string' && f.path.endsWith('.md'))
-    .map(f => ({ path: f.path!.replace(/\\/g, '/').replace(/^\.\//, '').replace(/\.\./g, ''), content: f.content! }))
+    .map(f => ({ path: normalizeFilePath(f.path!), content: f.content! }))
 
   if (files.length === 0)
     throw new TRPCError({ code: 'INTERNAL_SERVER_ERROR', message: 'ИИ не вернул ни одного markdown-файла.' })
 
-  return files
+  const result = stripTripWrapper(files)
+  return { files: result, usage }
+}
+
+interface ImportProgressStage {
+  stage: string
+  progress: number
+}
+
+// Стадии импортёра и их прогресс (0–100), в порядке вызова importTripFolderCore
+const IMPORT_PROGRESS: ImportProgressStage[] = [
+  { stage: 'parsing', progress: 5 },
+  { stage: 'trip', progress: 15 },
+  { stage: 'sections', progress: 35 },
+  { stage: 'days', progress: 55 },
+  { stage: 'notes', progress: 75 },
+  { stage: 'activities', progress: 95 },
+]
+
+function progressForStage(stage: string): number | null {
+  return IMPORT_PROGRESS.find(s => s.stage === (stage || '').split(':')[0])?.progress ?? null
 }
 
 async function runJob(jobId: string, userId: string, input: GenerateAiTripInput): Promise<void> {
@@ -210,23 +343,84 @@ async function runJob(jobId: string, userId: string, input: GenerateAiTripInput)
 
   let tempDir: string | null = null
   try {
-    setJob(jobId, { status: 'generating', stage: 'Генерация заметок через ИИ' })
-    const files = await generateTripFiles(userId, input)
-    log(`Сгенерировано файлов: ${files.length}`)
+    const folderName = sanitizeFolderName(`${input.country} ${input.days}д`)
+    const attemptsTotal = MAX_GENERATION_ATTEMPTS
 
-    setJob(jobId, { status: 'importing', stage: 'Импорт в путешествие' })
+    let files: GeneratedFile[] = []
+    let lastUsage: { promptTokens: number, completionTokens: number, model: string } | null = null
+    let validationProblems: string[] = []
+    let previousProblems: string[] = []
 
-    // Раскладываем файлы во временную папку, которую ожидает парсер
-    tempDir = mkdtempSync(join(tmpdir(), 'ai-trip-'))
-    for (const file of files) {
-      const dest = join(tempDir, file.path)
-      const normalized = dest.replace(/[\\/]$/, '')
-      if (!normalized.startsWith(tempDir))
-        continue
-      const { mkdirSync } = await import('node:fs')
-      mkdirSync(join(normalized, '..'), { recursive: true })
-      writeFileSync(normalized, file.content, 'utf-8')
+    for (let attempt = 0; attempt < MAX_GENERATION_ATTEMPTS; attempt++) {
+      setJob(jobId, {
+        status: 'generating',
+        stage: `Генерация заметок через ИИ — попытка ${attempt + 1} из ${MAX_GENERATION_ATTEMPTS}`,
+        progress: null,
+        attempt: attempt + 1,
+        attemptsTotal,
+      })
+
+      const generated = await generateTripFiles(input, attempt > 0 ? previousProblems.join('; ') : undefined)
+      files = generated.files
+      if (generated.usage)
+        lastUsage = generated.usage
+      log(`Попытка ${attempt + 1}: сгенерировано файлов: ${files.length}`)
+
+      validationProblems = validateGeneratedFiles(files, input)
+      if (validationProblems.length === 0) {
+        log('Структура файлов прошла валидацию.')
+        break
+      }
+      log(`⚠ Валидация не прошла: ${validationProblems.join('; ')}`)
+      previousProblems = validationProblems
     }
+
+    if (validationProblems.length > 0) {
+      const msg = `Не удалось сгенерировать корректную структуру путешествия: ${validationProblems.join('; ')}`
+      log(msg)
+      setJob(jobId, { status: 'error', error: msg, stage: 'Ошибка' })
+      return
+    }
+
+    // Списываем кредиты и логируем usage только за успешную генерацию
+    if (lastUsage) {
+      await quotaService.deductLlmCredits(
+        userId,
+        lastUsage.model,
+        lastUsage.promptTokens,
+        lastUsage.completionTokens,
+      )
+      await llmUsageRepository.create({
+        userId,
+        model: lastUsage.model,
+        operation: 'aiTripGeneration',
+        inputTokens: lastUsage.promptTokens,
+        outputTokens: lastUsage.completionTokens,
+      })
+    }
+
+    // Раскладываем файлы во временную папку, которую ожидает парсер.
+    // Папку создаём как `-- <name>-<suffix>` (соглашение вольта), а хаб кладём
+    // под именем папки без `-- ` — так парсер гарантированно распознает его.
+    const tripName = sanitizeFolderName(folderName)
+    tempDir = mkdtempSync(join(tmpdir(), `-- ${tripName}-`))
+    const parserFolderName = basename(tempDir).replace(/^--\s*/, '')
+
+    const rootHub = files.find(f => !f.path.includes('/'))
+    for (const file of files) {
+      let relPath = file.path
+      // Хаб кладём под именем папки (парсер матчит по folderName)
+      if (rootHub && file === rootHub)
+        relPath = `${parserFolderName}.md`
+
+      const dest = join(tempDir, relPath)
+      if (!dest.startsWith(tempDir))
+        continue
+      mkdirSync(join(dest, '..'), { recursive: true })
+      writeFileSync(dest, file.content, 'utf-8')
+    }
+
+    setJob(jobId, { status: 'importing', stage: 'Импорт в путешествие', progress: 5 })
 
     const transport = createInProcessTransport(userId)
     const result = await importTripFolderCore(tempDir, transport, {
@@ -237,11 +431,16 @@ async function runJob(jobId: string, userId: string, input: GenerateAiTripInput)
       status: 'planned',
       visibility: 'private',
       onLog: log,
-      onProgress: (stage, detail) => setJob(jobId, { stage: detail ? `${stage}: ${detail}` : stage }),
+      onProgress: (stage, detail) => {
+        setJob(jobId, {
+          stage: detail ? `${stage}: ${detail}` : stage,
+          progress: progressForStage(stage),
+        })
+      },
     })
 
     log(`Импорт завершен: tripId=${result.tripId}, дней=${result.daysCreated}, активностей=${result.activitiesCreated}, заметок=${result.notesCreated}`)
-    setJob(jobId, { status: 'done', stage: 'Готово', tripId: result.tripId })
+    setJob(jobId, { status: 'done', stage: 'Готово', progress: 100, tripId: result.tripId })
   }
   catch (error: any) {
     console.error('[AI Trip] Ошибка генерации:', error)
@@ -275,6 +474,9 @@ export const aiTripService = {
       tripId: null,
       error: null,
       createdAt: Date.now(),
+      progress: null,
+      attempt: 0,
+      attemptsTotal: MAX_GENERATION_ATTEMPTS,
     })
 
     // Запускаем в фоне, не блокируя ответ tRPC

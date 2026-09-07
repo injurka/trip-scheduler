@@ -22,6 +22,7 @@ export interface AiRequestOptions {
   model?: AiModel
   temperature?: number
   response_format?: { type: 'text' | 'json_object' }
+  max_tokens?: number
 }
 
 export interface AiRequestPrompts {
@@ -135,6 +136,7 @@ export async function createAiChatRequest(
           model: currentModel,
           response_format: mergedOptions.response_format,
           temperature: mergedOptions.temperature,
+          max_tokens: mergedOptions.max_tokens,
           stream: false,
         }))
     }

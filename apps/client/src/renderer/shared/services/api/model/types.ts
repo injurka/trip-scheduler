@@ -154,6 +154,9 @@ export interface IAiTripJobStatus {
   logs: string[]
   tripId: string | null
   error: string | null
+  progress: number | null
+  attempt: number
+  attemptsTotal: number
 }
 
 export interface IAiTripRepository {

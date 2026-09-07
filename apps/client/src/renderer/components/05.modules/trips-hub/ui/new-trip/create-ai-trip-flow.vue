@@ -23,6 +23,9 @@ const {
   logs,
   errorMessage,
   createdTripId,
+  progress,
+  attempt,
+  attemptsTotal,
   stopPolling,
 } = useAiTripGeneration()
 
@@ -30,6 +33,9 @@ const country = ref('')
 const startDateIso = ref(new Date().toISOString())
 const days = ref(7)
 const wishes = ref('')
+
+const showCloseConfirm = ref(false)
+const logsBoxEl = ref<HTMLElement | null>(null)
 
 const toYyyyMmDd = (date: string | Date) => new Date(date).toISOString().split('T')[0]
 
@@ -84,12 +90,22 @@ const phaseLabel = computed(() => {
   return 'ИИ генерирует заметки путешествия…'
 })
 
+const progressPercent = computed(() => {
+  if (progress.value === null)
+    return null
+  return Math.min(100, Math.max(0, progress.value))
+})
+
+// 1xx progress → indeterminate; иначе точный процент
+const isProgressIndeterminate = computed(() => progress.value === null)
+
 function toStartDateString(): string {
   const selected = startDate.value ?? today(getLocalTimeZone())
   return selected.toDate('UTC').toISOString()
 }
 
 async function generate() {
+  showCloseConfirm.value = false
   await start({
     country: country.value.trim(),
     startDate: toStartDateString(),
@@ -98,9 +114,40 @@ async function generate() {
   })
 }
 
+/**
+ * Перехват попытки закрыть модалку. Во время генерации клик вне, Esc или крестик
+ * не закрывают диалог — вместо этого показываем подтверждение.
+ * Приходится «откатывать» visible обратно в true: DialogClose в KitDialogWithClose
+ * пишет в v-model напрямую, и без этого диалог закрылся бы до нашего обработчика.
+ */
+function onVisibleChange(value: boolean) {
+  if (value) {
+    showCloseConfirm.value = false
+    return
+  }
+
+  if (isRunning.value || showCloseConfirm.value) {
+    showCloseConfirm.value = true
+    visible.value = true
+    return
+  }
+
+  close()
+}
+
+function confirmAbort() {
+  stopPolling()
+  showCloseConfirm.value = false
+  visible.value = false
+  setTimeout(reset, 300)
+}
+
 function close() {
-  if (isRunning.value)
-    stopPolling()
+  if (isRunning.value) {
+    showCloseConfirm.value = true
+    return
+  }
+  showCloseConfirm.value = false
   visible.value = false
   setTimeout(reset, 300)
 }
@@ -111,6 +158,19 @@ function openTrip() {
     close()
   }
 }
+
+// Автопрокрутка лога вниз по мере поступления записей
+watch(logs, async () => {
+  await nextTick()
+  if (logsBoxEl.value)
+    logsBoxEl.value.scrollTop = logsBoxEl.value.scrollHeight
+})
+
+// Сброс подтверждения при повторном открытии родителем
+watch(visible, (value) => {
+  if (value)
+    showCloseConfirm.value = false
+})
 </script>
 
 <template>
@@ -119,7 +179,8 @@ function openTrip() {
     title="Путешествие через ИИ"
     icon="mdi:auto-fix"
     :max-width="500"
-    @update:visible="val => !val && close()"
+    :persistent="isRunning || showCloseConfirm"
+    @update:visible="onVisibleChange"
   >
     <div class="ai-trip-flow">
       <template v-if="phase === 'idle' || phase === 'error'">
@@ -184,10 +245,9 @@ function openTrip() {
             Отмена
           </KitBtn>
           <KitBtn
-            :disabled="!isFormValid"
-            :loading="isRunning"
+            :disabled="!isFormValid || isRunning"
             variant="tonal"
-            prepend-icon="mdi:auto-fix"
+            icon="mdi:auto-fix"
             @click="generate"
           >
             Сгенерировать
@@ -217,12 +277,36 @@ function openTrip() {
             {{ stage }}
           </p>
 
+          <p
+            v-if="attemptsTotal > 1 && phase !== 'done'"
+            class="attempt-label"
+          >
+            Попытка {{ attempt }} из {{ attemptsTotal }}
+          </p>
+
+          <div
+            v-if="phase === 'generating' || phase === 'importing'"
+            class="progress-track"
+            :class="{ indeterminate: isProgressIndeterminate }"
+          >
+            <div
+              v-if="!isProgressIndeterminate"
+              class="progress-bar"
+              :style="{ width: `${progressPercent}%` }"
+            />
+            <div
+              v-else
+              class="progress-bar indeterminate-bar"
+            />
+          </div>
+
           <div
             v-if="logs.length > 0"
+            ref="logsBoxEl"
             class="logs-box"
           >
             <div
-              v-for="(log, i) in logs.slice(-8)"
+              v-for="(log, i) in logs"
               :key="i"
               class="log-line"
             >
@@ -243,11 +327,37 @@ function openTrip() {
             </KitBtn>
             <KitBtn
               variant="tonal"
-              prepend-icon="mdi:compass-outline"
+              icon="mdi:compass-outline"
               @click="openTrip"
             >
               Открыть путешествие
             </KitBtn>
+          </div>
+
+          <div
+            v-if="showCloseConfirm"
+            class="close-confirm"
+          >
+            <p class="close-confirm-text">
+              Генерация всё ещё идёт. Прервать и закрыть?
+            </p>
+            <div class="flow-actions">
+              <KitBtn
+                variant="outlined"
+                color="secondary"
+                @click="showCloseConfirm = false"
+              >
+                Продолжить
+              </KitBtn>
+              <KitBtn
+                variant="tonal"
+                color="secondary"
+                icon="mdi:stop"
+                @click="confirmAbort"
+              >
+                Прервать
+              </KitBtn>
+            </div>
           </div>
         </div>
       </template>
@@ -369,6 +479,36 @@ function openTrip() {
     color: var(--fg-secondary-color);
     text-align: center;
   }
+
+  .attempt-label {
+    font-size: 0.8125rem;
+    color: var(--fg-secondary-color);
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+  }
+}
+
+.progress-track {
+  width: 100%;
+  height: 8px;
+  border-radius: 999px;
+  background-color: var(--bg-secondary-color);
+  overflow: hidden;
+  position: relative;
+
+  .progress-bar {
+    height: 100%;
+    border-radius: 999px;
+    background-color: var(--fg-accent-color, var(--fg-primary-color));
+    transition: width 0.3s ease;
+  }
+
+  &.indeterminate .indeterminate-bar {
+    width: 35%;
+    background-color: var(--fg-accent-color, var(--fg-primary-color));
+    animation: ai-trip-load 1.4s ease-in-out infinite;
+  }
 }
 
 .logs-box {
@@ -377,15 +517,42 @@ function openTrip() {
   overflow-y: auto;
   padding: 10px 12px;
   background-color: var(--bg-secondary-color);
+  border: 1px solid var(--border-secondary-color);
   border-radius: var(--r-s);
   font-size: 0.75rem;
   font-family: monospace;
   color: var(--fg-secondary-color);
+  text-align: left;
 
   .log-line {
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
+    padding: 2px 0;
+    line-height: 1.5;
+
+    &:not(:last-child) {
+      border-bottom: 1px dashed var(--border-secondary-color);
+    }
+  }
+}
+
+.close-confirm {
+  width: 100%;
+  padding: 14px 16px;
+  border-radius: var(--r-s);
+  background-color: var(--bg-error-color, var(--bg-secondary-color));
+  border: 1px solid var(--border-error-color, var(--border-secondary-color));
+
+  .close-confirm-text {
+    font-size: 0.875rem;
+    text-align: center;
+    margin-bottom: 8px;
+  }
+
+  .flow-actions {
+    border-top: none;
+    padding-top: 4px;
   }
 }
 
@@ -403,6 +570,15 @@ function openTrip() {
   }
   to {
     transform: rotate(360deg);
+  }
+}
+
+@keyframes ai-trip-load {
+  0% {
+    transform: translateX(-100%);
+  }
+  100% {
+    transform: translateX(300%);
   }
 }
 </style>

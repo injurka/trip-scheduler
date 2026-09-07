@@ -26,6 +26,9 @@ export const aiTripProcedures = {
       logs: z.array(z.string()),
       tripId: z.string().nullable(),
       error: z.string().nullable(),
+      progress: z.number().nullable(),
+      attempt: z.number(),
+      attemptsTotal: z.number(),
     }))
     .query(async ({ input, ctx }) => {
       return aiTripService.getStatus(input.jobId, ctx.user.id)

@@ -23,6 +23,9 @@ export function useAiTripGeneration() {
   const logs = ref<string[]>([])
   const createdTripId = ref<string | null>(null)
   const errorMessage = ref<string | null>(null)
+  const progress = ref<number | null>(null)
+  const attempt = ref(0)
+  const attemptsTotal = ref(1)
 
   let pollTimer: ReturnType<typeof setTimeout> | null = null
 
@@ -39,6 +42,9 @@ export function useAiTripGeneration() {
     logs.value = status.logs
     errorMessage.value = status.error
     createdTripId.value = status.tripId
+    progress.value = status.progress ?? null
+    attempt.value = status.attempt
+    attemptsTotal.value = status.attemptsTotal || 1
   }
 
   async function poll(jobId: string) {
@@ -73,6 +79,9 @@ export function useAiTripGeneration() {
     logs.value = []
     createdTripId.value = null
     errorMessage.value = null
+    progress.value = null
+    attempt.value = 1
+    attemptsTotal.value = 1
 
     const result = await useRequest<{ jobId: string }>({
       key: AI_TRIP_REQUEST_KEYS.GENERATE,
@@ -96,6 +105,9 @@ export function useAiTripGeneration() {
     logs.value = []
     createdTripId.value = null
     errorMessage.value = null
+    progress.value = null
+    attempt.value = 0
+    attemptsTotal.value = 1
   }
 
   return {
@@ -104,6 +116,9 @@ export function useAiTripGeneration() {
     logs,
     createdTripId,
     errorMessage,
+    progress,
+    attempt,
+    attemptsTotal,
     start,
     reset,
     stopPolling,
