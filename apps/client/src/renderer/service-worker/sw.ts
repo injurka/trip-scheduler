@@ -223,7 +223,7 @@ if (import.meta.env.PROD) {
 }
 
 registerRoute(new NavigationRoute(
-  createHandlerBoundToURL('/'),
+  createHandlerBoundToURL(import.meta.env.DEV ? 'index.html' : '/'),
   {
     allowlist,
     denylist,

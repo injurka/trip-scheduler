@@ -5,18 +5,10 @@ import maplibreModuleWorkerUrl from 'maplibre-gl/dist/maplibre-gl-worker.mjs?url
 let workerUrlReady: Promise<void> = Promise.resolve()
 
 if (typeof window !== 'undefined') {
-  // В мобильных webview (Android APK/Tauri) и старых webview загрузка worker ES-модулей с относительным
-  // путем или сторонними схемами (tauri://, http://tauri.localhost) часто блокируется Same-Origin политикой
-  // либо терпит крах при импорте не-бандленного ./maplibre-gl-shared.mjs.
-  // Мы используем предсобранный автономный IIFE воркер из public/maplibre-gl-worker.js с автоматическим fallback.
   const isTauriOrMobile = '__TAURI_INTERNALS__' in window || window.location.protocol === 'tauri:'
   const staticWorkerUrl = `${import.meta.env.BASE_URL.replace(/\/$/, '')}/maplibre-gl-worker.js`
 
   if (isTauriOrMobile) {
-    // В Tauri Android ассеты раздаются через перехват запросов на http://tauri.localhost — это
-    // не secure context, и new Worker(url) оттуда не стартует (воркер не запускается, тайлы не
-    // грузятся, карта остаётся с фоном). При этом сам файл воркера в основном треде доступен как
-    // обычный ресурс — скачиваем его и создаём blob-URL, воркеры из blob в Android WebView работают.
     workerUrlReady = (async () => {
       try {
         const res = await fetch(staticWorkerUrl)
@@ -46,10 +38,6 @@ if (typeof window !== 'undefined') {
   }
 }
 
-/**
- * Гарантия, что workerUrl установлен до создания первой карты.
- * В Tauri Android установка асинхронная (fetch → blob), поэтому ожидаем явно.
- */
 export function ensureMaplibreWorkerReady(): Promise<void> {
   return workerUrlReady
 }
@@ -93,9 +81,6 @@ export const TILE_SOURCES_META: Record<TileSourceId, MapSourceMeta> = {
   },
 }
 
-/**
- * Базовый растровый стиль OpenStreetMap для оффлайн/фолбэк режима без API-ключа
- */
 export const OSM_STYLE: StyleSpecification = {
   version: 8,
   sources: {
@@ -121,9 +106,6 @@ export const OSM_STYLE: StyleSpecification = {
   ],
 }
 
-/**
- * Получить векторный JSON-стиль MapTiler или фолбэк OSM
- */
 export function getMapStyle(id: TileSourceId): string | StyleSpecification {
   if (id === 'osm' || !MAPTILER_KEY) {
     return OSM_STYLE
@@ -136,23 +118,30 @@ export function getMapStyle(id: TileSourceId): string | StyleSpecification {
       return `https://api.maptiler.com/maps/streets-v4/style.json?key=${MAPTILER_KEY}`
     case 'satellite':
       return `https://api.maptiler.com/maps/satellite/style.json?key=${MAPTILER_KEY}`
-
     default:
       return `https://api.maptiler.com/maps/streets-v4/style.json?key=${MAPTILER_KEY}`
   }
 }
 
 /**
- * Подключение источника высот Terrain-RGB и активация 3D-рельефа местности
+ * Подключение 3D-рельефа местности
  */
 export function applyTerrain(map: MapLibreMap, key = MAPTILER_KEY, exaggeration = 1.5): void {
   if (!key)
     return
 
   try {
+    // Если стиль не растровый OSM, и в нём есть или поддерживается DEM
+    const hasExistingTerrain = Boolean(
+      map.getSource('maptiler-terrain')
+      || map.getSource('terrain-rgb')
+      || map.getSource('terrain'),
+    )
+
     const terrainSourceId = map.getSource('terrain-rgb') ? 'terrain-rgb' : MAPTILER_TERRAIN_SOURCE_ID
-    if (!map.getSource(terrainSourceId)) {
-      map.addSource(MAPTILER_TERRAIN_SOURCE_ID, {
+
+    if (!hasExistingTerrain && !map.getSource(terrainSourceId)) {
+      map.addSource(terrainSourceId, {
         type: 'raster-dem',
         url: `https://api.maptiler.com/tiles/terrain-rgb-v2/tiles.json?key=${key}`,
         tileSize: 512,
@@ -160,19 +149,18 @@ export function applyTerrain(map: MapLibreMap, key = MAPTILER_KEY, exaggeration 
       })
     }
 
-    map.setTerrain({
-      source: terrainSourceId,
-      exaggeration,
-    })
+    if (map.getSource(terrainSourceId)) {
+      map.setTerrain({
+        source: terrainSourceId,
+        exaggeration,
+      })
+    }
   }
   catch (err) {
     console.warn('[map-styles-sources] Не удалось активировать 3D-рельеф:', err)
   }
 }
 
-/**
- * Совместимость с legacy-вызовами createTileSource
- */
 export function createTileSource(id: TileSourceId): string | StyleSpecification {
   return getMapStyle(id)
 }

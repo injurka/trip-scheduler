@@ -1,4 +1,4 @@
-import type { Router, RouteRecordRaw, RouterScrollBehavior } from 'vue-router'
+import type { RouteLocationNormalized, Router, RouteRecordRaw, RouterScrollBehavior } from 'vue-router'
 import { createRouter, createWebHashHistory, createWebHistory } from 'vue-router'
 import { AppRouteNames, AppRoutePaths } from '~/shared/constants/routes'
 import { isTauri } from '~/shared/lib/env'
@@ -44,7 +44,7 @@ const ActivityMapPage = () => import('~/pages/activity-map.vue')
 const ActivityTrackingPage = () => import('~/pages/activity-tracking.vue')
 const ActivityPage = () => import('~/pages/activity.vue')
 
-async function requireOwner(to: any, _from: any, next: any) {
+async function requireOwner(to: RouteLocationNormalized) {
   const authStore = useAuthStore()
   if (!authStore.isInitialized) {
     await new Promise<void>((resolve) => {
@@ -58,11 +58,10 @@ async function requireOwner(to: any, _from: any, next: any) {
   }
 
   if (authStore.user?.id === to.params.id) {
-    next()
+    return true
   }
-  else {
-    next({ name: AppRouteNames.UserProfile, params: { id: to.params.id } })
-  }
+
+  return { name: AppRouteNames.UserProfile, params: { id: to.params.id } }
 }
 
 const routes: RouteRecordRaw[] = [
@@ -274,7 +273,7 @@ const router: Router = createRouter({
   scrollBehavior,
 })
 
-router.beforeEach(async (to, _, next) => {
+router.beforeEach(async (to) => {
   const authStore = useAuthStore()
 
   if (!authStore.isInitialized) {
@@ -291,26 +290,26 @@ router.beforeEach(async (to, _, next) => {
   const requiresAuth = to.meta.requiresAuth
 
   if (requiresAuth && !authStore.isAuthenticated) {
-    return next({
+    return {
       name: AppRouteNames.SignIn,
       query: { returnUrl: to.fullPath },
-    })
+    }
   }
 
   if (authStore.isAuthenticated && (to.name === AppRouteNames.SignIn || to.name === AppRouteNames.SignUp)) {
-    return next({ name: AppRouteNames.TripList })
+    return { name: AppRouteNames.TripList }
   }
 
-  next()
+  return true
 })
 
 router.onError((error, to) => {
   const errorMessage = error?.message?.toLowerCase() || ''
   const isChunkLoadError
     = errorMessage.includes('fetch dynamically imported module')
-      || errorMessage.includes('importing a module script failed')
-      || errorMessage.includes('failed to fetch')
-      || errorMessage.includes('loading chunk')
+    || errorMessage.includes('importing a module script failed')
+    || errorMessage.includes('failed to fetch')
+    || errorMessage.includes('loading chunk')
 
   if (isChunkLoadError && typeof window !== 'undefined') {
     const reloadCount = Number(sessionStorage.getItem('chunk_reload_count') || '0')

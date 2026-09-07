@@ -10,6 +10,7 @@ declare global {
   const AppRoutePaths: typeof import('../../constants/routes').AppRoutePaths
   const EffectScope: typeof import('vue').EffectScope
   const MAPTILER_KEY: typeof import('../../lib/map-styles-sources').MAPTILER_KEY
+  const MAPTILER_TERRAIN_3D_SOURCE_ID: typeof import('../../lib/map-styles-sources').MAPTILER_TERRAIN_3D_SOURCE_ID
   const MAPTILER_TERRAIN_SOURCE_ID: typeof import('../../lib/map-styles-sources').MAPTILER_TERRAIN_SOURCE_ID
   const OSM_STYLE: typeof import('../../lib/map-styles-sources').OSM_STYLE
   const SERVER_URL: typeof import('../../lib/env').SERVER_URL

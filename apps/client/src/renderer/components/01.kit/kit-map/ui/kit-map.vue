@@ -122,6 +122,9 @@ const availableLayers = shallowRef<MapLayerOption[]>([])
 watch(
   activeLayerId,
   (newId) => {
+    if (!isMapReady.value)
+      return
+
     const layer = availableLayers.value.find(l => l.id === newId)
     const style = layer?.style || getMapStyle(newId as TileSourceId)
 

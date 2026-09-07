@@ -47,9 +47,12 @@ export function useBaseMap() {
     }
   }
 
-  const setStyle = (style: string | StyleSpecification) => {
+  const setStyle = (style: string | StyleSpecification, options?: { diff?: boolean }) => {
     if (mapInstance.value) {
-      mapInstance.value.setStyle(style)
+      mapInstance.value.setStyle(style, {
+        diff: false,
+        ...options,
+      })
     }
   }
 
@@ -126,7 +129,6 @@ export function useBaseMap() {
       && typeof bounds[2] === 'number'
       && typeof bounds[3] === 'number'
     ) {
-      // Преобразование из [minLon, minLat, maxLon, maxLat] в [[minLon, minLat], [maxLon, maxLat]]
       targetBounds = [
         [bounds[0], bounds[1]],
         [bounds[2], bounds[3]],
@@ -155,11 +157,11 @@ export function useBaseMap() {
         ? options.padding
         : Array.isArray(options?.padding)
           ? {
-              top: options.padding[0] ?? 50,
-              right: options.padding[1] ?? 50,
-              bottom: options.padding[2] ?? 50,
-              left: options.padding[3] ?? 50,
-            }
+            top: options.padding[0] ?? 50,
+            right: options.padding[1] ?? 50,
+            bottom: options.padding[2] ?? 50,
+            left: options.padding[3] ?? 50,
+          }
           : 50
 
     fitBounds(extent, {
@@ -249,7 +251,33 @@ export function useBaseMap() {
             attributionControl: options.showAttribution === false ? false : undefined,
           })
 
-          // Настройка чувствительности вращения и наклона при зажатой ПКМ / Ctrl+ЛКМ
+          // Регистрация прозрачной SDF-заглушки для предотвращения ошибок спрайтов
+          const emptyImage = { width: 1, height: 1, data: new Uint8Array(4) }
+          const resolveMissingImage = (id: string) => {
+            if (!id || map.hasImage(id))
+              return
+            try {
+              // { sdf: true } предотвращает ошибку "Cannot mix SDF and non-SDF icons in one buffer"
+              map.addImage(id, emptyImage, { sdf: true })
+            }
+            catch {
+              // Игнорируем гонку параллельных запросов на одну и ту же иконку
+            }
+          }
+
+          if (typeof (map as any).setMissingStyleImageResolver === 'function') {
+            ; (map as any).setMissingStyleImageResolver((id: string) => {
+              resolveMissingImage(id)
+            })
+          }
+
+          map.on('styleimagemissing', (e: any) => {
+            if (e?.id) {
+              resolveMissingImage(e.id)
+            }
+          })
+
+          // Настройка чувствительности вращения и наклона
           const rotateSensitivity = options.rotateSensitivity ?? 0.4
           const pitchSensitivity = options.pitchSensitivity ?? 0.4
           const dragRotateHandler = (map as any).dragRotate
@@ -320,7 +348,7 @@ export function useBaseMap() {
             console.warn('[useBaseMap] Ошибка MapLibre:', e?.error?.message || e)
             const isStyleLoadError
               = e?.dataType === 'style'
-                || (e?.error && (e.error.status === 401 || e.error.status === 403 || e.error.status === 404))
+              || (e?.error && (e.error.status === 401 || e.error.status === 403 || e.error.status === 404))
             if (
               isStyleLoadError
               && !isMapReady.value
@@ -331,7 +359,7 @@ export function useBaseMap() {
               hasRetriedWithOsm = true
               console.warn('[useBaseMap] Ошибка загрузки базового стиля, переключаемся на OpenStreetMap fallback')
               try {
-                map.setStyle(OSM_STYLE)
+                map.setStyle(OSM_STYLE, { diff: false })
               }
               catch (err) {
                 console.error('[useBaseMap] Не удалось применить OSM fallback:', err)
@@ -363,7 +391,6 @@ export function useBaseMap() {
         }
       }
 
-      // В Tauri Android workerUrl ставится асинхронно (fetch → blob) — ждём до создания карты
       const createMap = () => {
         ensureMaplibreWorkerReady()
           .then(createMapInner)
