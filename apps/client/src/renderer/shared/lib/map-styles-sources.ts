@@ -1,6 +1,10 @@
 import type { Map as MapLibreMap, StyleSpecification } from 'maplibre-gl'
 import * as maplibregl from 'maplibre-gl'
-import maplibreModuleWorkerUrl from 'maplibre-gl/dist/maplibre-gl-worker.mjs?url'
+// ?worker&url — Vite соберёт воркер вместе с maplibre-gl-shared.mjs в один
+// самодостаточный чанк. Обычный ?url копирует dist/maplibre-gl-worker.mjs как есть,
+// а у него наверху `import ... from "./maplibre-gl-shared.mjs"` — этого файла в dist нет,
+// воркер падает с 404 (карта не рендерится).
+import maplibreModuleWorkerUrl from 'maplibre-gl/dist/maplibre-gl-worker.mjs?worker&url'
 
 let workerUrlReady: Promise<void> = Promise.resolve()
 
