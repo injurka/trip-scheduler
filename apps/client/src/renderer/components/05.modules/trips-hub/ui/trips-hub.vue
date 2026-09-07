@@ -300,7 +300,7 @@ provide(TripsHubKey, tripsHub)
   display: flex;
   align-items: center;
   width: 100%;
-  gap: 16px;
+  gap: 8px;
   padding: 0 8px;
 }
 
