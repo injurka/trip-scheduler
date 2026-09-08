@@ -49,6 +49,7 @@ export async function enrichActivityWithMediaAndLocation(
     geocode?: boolean
     locationContext?: string
     bookings?: Booking[]
+    dayDate?: string
     onProgress?: (message: string) => void
   } = {},
 ): Promise<ActivityPayload> {
@@ -151,7 +152,7 @@ export async function enrichActivityWithMediaAndLocation(
 
   // 4. Clean description: remove location lines, iframes, image callouts, wikilinks, and note callouts
   text = text
-    .replace(/^[ \t]*(?:[*-][ \t]*)?_[Сс]сылка на локацию_:[^\n]*\n?/gm, '')
+    .replace(/^[ \t]*(?:[*-][ \t]*)?(?:_[^_\n]*(?:локаци|карт|маршрут|maps?|ориентир|ссылка)[^_\n]*_|\*\*[^*\n]*(?:локаци|карт|маршрут|maps?|ориентир|ссылка)[^*\n]*\*\*):[^\n]*\n?/gmi, '')
     .replace(/<iframe[^>]*src=["'](?:https?:)?\/\/[^"']*["'][^>]*>\s*<\/iframe>/gi, '')
     .replace(/<iframe[^>]*>[\s\S]*?<\/iframe>/gi, '')
     .replace(/\[(?:Yandex Maps|Google Maps|2GIS|OpenStreetMap|Карты Yandex|Карты Google|Карты|Maps):[^\]]+\]\([^)]+\)/gi, '')
@@ -262,23 +263,37 @@ export async function enrichActivityWithMediaAndLocation(
   if (options.bookings && options.bookings.length > 0) {
     const actText = `${act.title} ${accumulatedDescription}`.toLowerCase()
     const hasBookingSection = newSections.some(s => s.type === 'booking') || customOtherSections.some(s => s.type === 'booking')
+    const currentDayDate = options.dayDate // YYYY-MM-DD
 
     if (!hasBookingSection) {
       for (const booking of options.bookings) {
         let isMatched = false
         if (booking.type === 'hotel') {
-          const hotelName = booking.data.hotelName?.toLowerCase() || ''
-          const shortName = hotelName.replace(/hotel|hostel|villa|inn|b&b|boutique|resort|гостиница|отель/gi, '').trim()
-          if (shortName.length >= 3 && actText.includes(shortName)) {
-            isMatched = true
-          }
-          else if (hotelName && actText.includes(hotelName)) {
-            isMatched = true
+          // Check date window if dayDate is available
+          const inDate = booking.data.checkInDate
+          const outDate = booking.data.checkOutDate
+          const isInDateWindow = !currentDayDate || !inDate || (currentDayDate >= inDate && (!outDate || currentDayDate <= outDate))
+
+          if (isInDateWindow) {
+            const hotelName = booking.data.hotelName?.toLowerCase() || ''
+            const shortName = hotelName.replace(/hotel|hostel|villa|inn|b&b|boutique|resort|гостиница|отель/gi, '').trim()
+            if (shortName.length >= 4 && actText.includes(shortName)) {
+              isMatched = true
+            }
+            else if (hotelName && hotelName.length >= 4 && actText.includes(hotelName)) {
+              isMatched = true
+            }
+            else if (booking.title && booking.title.length >= 4 && actText.includes(booking.title.toLowerCase()) && /отел|заселен|check-in|checkout|гостиниц/i.test(actText)) {
+              isMatched = true
+            }
           }
         }
         else if (booking.type === 'flight') {
           for (const seg of booking.data.segments || []) {
-            if (seg.flightNumber && actText.includes(seg.flightNumber.toLowerCase())) {
+            const segDate = seg.departureDateTime?.split('T')[0]
+            const isDateMatch = !currentDayDate || !segDate || currentDayDate === segDate
+
+            if (seg.flightNumber && actText.includes(seg.flightNumber.toLowerCase()) && isDateMatch) {
               isMatched = true
               break
             }
@@ -286,22 +301,28 @@ export async function enrichActivityWithMediaAndLocation(
           if (!isMatched && /авиаперелет|перелет|вылет|аэропорт/i.test(act.title)) {
             const depCity = booking.data.segments?.[0]?.departureCity?.toLowerCase()
             const arrCity = booking.data.segments?.[booking.data.segments.length - 1]?.arrivalCity?.toLowerCase()
-            if (depCity && arrCity && actText.includes(depCity) && actText.includes(arrCity)) {
+            const segDate = booking.data.segments?.[0]?.departureDateTime?.split('T')[0]
+            const isDateMatch = !currentDayDate || !segDate || currentDayDate === segDate
+
+            if (depCity && arrCity && actText.includes(depCity) && actText.includes(arrCity) && isDateMatch) {
               isMatched = true
             }
           }
         }
         else if (booking.type === 'train') {
           const trainNum = booking.data.trainNumber?.toLowerCase()
-          if (trainNum && actText.includes(trainNum)) {
+          const trainDate = booking.data.departureDateTime?.split('T')[0]
+          const isDateMatch = !currentDayDate || !trainDate || currentDayDate === trainDate
+
+          if (trainNum && actText.includes(trainNum) && isDateMatch) {
             isMatched = true
           }
         }
         else if (booking.type === 'car') {
           const company = booking.data.company?.toLowerCase()
           const model = booking.data.carModel?.toLowerCase()
-          if ((company && company.length >= 3 && actText.includes(company))
-            || (model && model.length >= 3 && actText.includes(model))
+          if ((company && company.length >= 4 && actText.includes(company))
+            || (model && model.length >= 4 && actText.includes(model))
             || (booking.title && booking.title.length >= 5 && actText.includes(booking.title.toLowerCase()))) {
             isMatched = true
           }

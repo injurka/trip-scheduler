@@ -235,53 +235,70 @@ export function parseHotelsMarkdown(content: string, startDateStr: string): Book
 
       // Если отель основной или единственный в строке
       if (hotelName && !/опция|альтернатива/i.test(nightsCol)) {
-        let startDayNum = 1
-        let endDayNum = 1
-        const rangeMatch = nightsCol.match(/(\d{1,2})\s*[-–—]\s*(\d{1,2})/)
-        if (rangeMatch) {
-          startDayNum = Number.parseInt(rangeMatch[1], 10)
-          endDayNum = Number.parseInt(rangeMatch[2], 10)
-        }
-        else {
-          const singleMatch = nightsCol.match(/(\d{1,2})/)
-          if (singleMatch) {
-            startDayNum = Number.parseInt(singleMatch[1], 10)
-            endDayNum = startDayNum
+        // Поддержка нескольких периодов проживания в одной строке (например, "14–15, 17–18")
+        const subRanges = nightsCol.split(',').map(s => s.trim()).filter(Boolean)
+        const parsedRanges: Array<{ start: number, end: number }> = []
+
+        for (const sub of subRanges) {
+          const rangeMatch = sub.match(/(\d{1,2})\s*[-–—]\s*(\d{1,2})/)
+          if (rangeMatch) {
+            parsedRanges.push({
+              start: Number.parseInt(rangeMatch[1], 10),
+              end: Number.parseInt(rangeMatch[2], 10),
+            })
+          }
+          else {
+            const singleMatch = sub.match(/(\d{1,2})/)
+            if (singleMatch) {
+              const num = Number.parseInt(singleMatch[1], 10)
+              parsedRanges.push({ start: num, end: num })
+            }
           }
         }
 
-        const inDate = new Date(startDate)
-        inDate.setDate(inDate.getDate() + (startDayNum - 1))
-        const checkInDate = inDate.toISOString().split('T')[0]
+        if (parsedRanges.length === 0) {
+          parsedRanges.push({ start: 1, end: 1 })
+        }
 
-        const outDate = new Date(startDate)
-        outDate.setDate(outDate.getDate() + endDayNum)
-        const checkOutDate = outDate.toISOString().split('T')[0]
+        for (let rIdx = 0; rIdx < parsedRanges.length; rIdx++) {
+          const { start: startDayNum, end: endDayNum } = parsedRanges[rIdx]
 
-        const features = featuresMap.get(hotelName.toLowerCase()) || featuresCol || ''
-        const priceInfo = priceNightCol ? `${priceNightCol} / ночь${totalCol ? ` (Итого: ${totalCol})` : ''}` : ''
-        const notesParts = [priceInfo, features].filter(Boolean)
-        const notes = notesParts.join('. ')
+          const inDate = new Date(startDate)
+          inDate.setDate(inDate.getDate() + (startDayNum - 1))
+          const checkInDate = inDate.toISOString().split('T')[0]
 
-        // Чистим локацию от эмодзи и скобочных префиксов
-        const cleanLocation = removeEmoji(rawLocationCol)
-          .replace(/[*_`]/g, '')
-          .trim()
+          const outDate = new Date(startDate)
+          outDate.setDate(outDate.getDate() + endDayNum)
+          const checkOutDate = outDate.toISOString().split('T')[0]
 
-        bookings.push({
-          id: crypto.randomUUID(),
-          type: 'hotel',
-          icon: 'mdi:hotel',
-          title: makeHotelTitle(cleanLocation, hotelName),
-          data: {
-            hotelName,
-            address: cleanLocation || undefined,
-            checkInDate,
-            checkOutDate,
-            notes: notes || undefined,
-            sourceUrl,
-          },
-        })
+          const features = featuresMap.get(hotelName.toLowerCase()) || featuresCol || ''
+          const priceInfo = priceNightCol ? `${priceNightCol} / ночь${totalCol ? ` (Итого: ${totalCol})` : ''}` : ''
+          const notesParts = [priceInfo, features].filter(Boolean)
+          const notes = notesParts.join('. ')
+
+          // Чистим локацию от эмодзи и скобочных префиксов
+          const cleanLocation = removeEmoji(rawLocationCol)
+            .replace(/[*_`]/g, '')
+            .trim()
+
+          const baseTitle = makeHotelTitle(cleanLocation, hotelName)
+          const stayTitle = parsedRanges.length > 1 ? `${baseTitle} (Заезд ${rIdx + 1})` : baseTitle
+
+          bookings.push({
+            id: crypto.randomUUID(),
+            type: 'hotel',
+            icon: 'mdi:hotel',
+            title: stayTitle,
+            data: {
+              hotelName,
+              address: cleanLocation || undefined,
+              checkInDate,
+              checkOutDate,
+              notes: notes || undefined,
+              sourceUrl,
+            },
+          })
+        }
       }
     }
   }

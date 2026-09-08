@@ -38,7 +38,7 @@ export function buildImageIndex(tripDir: string): Map<string, string> {
   // Also check parent attachments / assets folders
   const parentDir = dirname(tripDir)
   if (parentDir && existsSync(parentDir)) {
-    const candidateFolders = ['_attachments', 'attachments', 'assets', 'images', 'media', 'files']
+    const candidateFolders = ['_', 'attachments', 'assets', 'images', 'media', 'files']
     for (const folder of candidateFolders) {
       const p = join(parentDir, folder)
       if (existsSync(p) && statSync(p).isDirectory()) {

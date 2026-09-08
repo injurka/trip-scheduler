@@ -1,17 +1,24 @@
 import type { ActivityPayload, Booking } from '../types'
 import process from 'node:process'
 import { colors } from '../config/colors'
-import { DEFAULT_TRIP_SECTIONS } from '../config/constants'
 import { loadEnvIfAvailable } from '../config/env'
+import { loadImporterConfig } from '../config/loader'
 import { ApiClient } from '../lib/api-client'
 import { enrichActivityWithMediaAndLocation } from '../lib/enricher'
 import { buildImageIndex } from '../lib/image-indexer'
 import { generateActivitiesViaDirectLlm, mergeLlmActivitiesWithRawMarkdown } from '../lib/llm'
 import { parseActivitiesFromMarkdown } from '../parsers/activity'
 import { parseObsidianTripFolder } from '../parsers/vault'
+import {
+  printValidationReport,
+  resolveValidationScopeContext,
+  validateObsidianVault,
+} from '../validator'
 import { parseCliArgs } from './args'
 import {
+  promptForContinueToImport,
   promptForCredentials,
+  promptForExecutionMode,
   promptForInteractiveOptions,
   promptForTargetDirectory,
   promptForTargetTrip,
@@ -20,12 +27,41 @@ import {
 export async function runImport(): Promise<void> {
   loadEnvIfAvailable()
   const cliOptions = parseCliArgs()
+  const appConfig = loadImporterConfig(cliOptions.configPath)
 
   console.log(`\n${colors.bright}${colors.cyan}════════════════════════════════════════════════════════════════════${colors.reset}`)
   console.log(`${colors.bright}${colors.cyan}    🛫 Obsidian ➔ Trip Scheduler Import Tool (Advanced)${colors.reset}`)
   console.log(`${colors.bright}${colors.cyan}════════════════════════════════════════════════════════════════════${colors.reset}\n`)
 
   const targetDir = await promptForTargetDirectory(cliOptions.dir)
+
+  let runValidation = cliOptions.validate
+
+  if (!cliOptions.validate && !cliOptions.dryRun && !cliOptions.nonInteractive) {
+    const chosenMode = await promptForExecutionMode()
+    if (chosenMode === 'validate') {
+      runValidation = true
+    }
+    else if (chosenMode === 'dry-run') {
+      cliOptions.dryRun = true
+    }
+  }
+
+  if (runValidation) {
+    const scopeContext = resolveValidationScopeContext(targetDir)
+    const report = validateObsidianVault(scopeContext, cliOptions.startDate)
+    printValidationReport(report)
+
+    if (cliOptions.nonInteractive && cliOptions.validate) {
+      process.exit(report.readinessSummary.canImport ? 0 : 1)
+    }
+
+    const shouldProceed = await promptForContinueToImport()
+    if (!shouldProceed) {
+      console.log(`\n${colors.cyan}ℹ️  Валидация завершена. Вы можете исправить предупреждения в Obsidian и повторить запуск.${colors.reset}\n`)
+      process.exit(0)
+    }
+  }
 
   console.log(`\n${colors.dim}📖 Чтение и парсинг структуры Obsidian...${colors.reset}`)
   let tripData
@@ -192,7 +228,7 @@ export async function runImport(): Promise<void> {
       existingSections = []
     }
 
-    for (const sec of DEFAULT_TRIP_SECTIONS) {
+    for (const sec of appConfig.defaultSections) {
       try {
         let sectionContent: any = null
 
@@ -203,8 +239,16 @@ export async function runImport(): Promise<void> {
           sectionContent = tripData.checklistContent && tripData.checklistContent.items && tripData.checklistContent.items.length > 0 ? tripData.checklistContent : null
         }
         else if (sec.type === 'finances') {
-          // Раздел «Финансы» создается чистым для логирования реальных трат во время поездки
-          sectionContent = null
+          // Раздел «Финансы» создается чистым для логирования реальных трат во время поездки,
+          // но с преднастроенными курсами валют из конфигурации/Obsidian
+          sectionContent = {
+            settings: tripData.financesContent?.settings || {
+              mainCurrency: appConfig.mainCurrency,
+              exchangeRates: appConfig.exchangeRates,
+            },
+            categories: tripData.financesContent?.categories || [],
+            transactions: [],
+          }
         }
 
         const existingSec = existingSections.find(s => s.type === sec.type)
@@ -254,36 +298,40 @@ export async function runImport(): Promise<void> {
 
   // 3. Create Days
   const dayIdMap = new Map<number, string>()
+  let existingDays: Array<{ id: string, date: string, title: string, activities?: Array<{ id: string, title?: string, startTime?: string }> }> = []
 
   if (importDays) {
     console.log(`\n${colors.dim}📅 Создание дней маршрута (${tripData.days.length} дн.)...${colors.reset}`)
 
     // Clean up days if overwriteDays is enabled or for clean initial trip setup
-    let existingDays: Array<{ id: string, date: string, title: string, activities?: Array<{ id: string }> }> = []
     try {
       existingDays = await api.getDaysByTripId(createdTrip.id)
       if (Array.isArray(existingDays) && existingDays.length > 0) {
         if (overwriteDays || !targetTripId) {
           process.stdout.write(`  ${colors.dim}🧹 Очистка старых дней и активностей...${colors.reset} `)
+          // Batch delete activities in chunks of 10
+          const allActivitiesToDelete: string[] = []
           for (const exDay of existingDays) {
-            try {
-              // Delete activities of this day first to avoid any foreign key conflicts
-              if (Array.isArray(exDay.activities)) {
-                for (const act of exDay.activities) {
-                  try {
-                    await api.deleteActivity(act.id)
-                  }
-                  catch {
-                    // ignore
-                  }
-                }
+            if (Array.isArray(exDay.activities)) {
+              for (const act of exDay.activities) {
+                if (act.id)
+                  allActivitiesToDelete.push(act.id)
               }
-              await api.deleteDay(exDay.id)
-            }
-            catch {
-              // ignore if individual delete fails
             }
           }
+
+          const BATCH_SIZE = appConfig.batchSize || 8
+          for (let b = 0; b < allActivitiesToDelete.length; b += BATCH_SIZE) {
+            const chunk = allActivitiesToDelete.slice(b, b + BATCH_SIZE)
+            await Promise.allSettled(chunk.map(id => api.deleteActivity(id)))
+          }
+
+          // Batch delete days in chunks of 5
+          for (let b = 0; b < existingDays.length; b += BATCH_SIZE) {
+            const chunk = existingDays.slice(b, b + BATCH_SIZE)
+            await Promise.allSettled(chunk.map(d => api.deleteDay(d.id)))
+          }
+
           existingDays = await api.getDaysByTripId(createdTrip.id)
           process.stdout.write(`${colors.green}Готово!${colors.reset}\n`)
         }
@@ -298,9 +346,11 @@ export async function runImport(): Promise<void> {
       try {
         let createdDay: { id: string, title: string }
 
-        if (existingDays && existingDays.length > i && existingDays[i]?.id) {
-          // Reuse remaining placeholder day if it couldn't be deleted
-          const targetId = existingDays[i].id
+        const existingDay = existingDays.find(d => d.date === day.date)
+
+        if (existingDay) {
+          // Обновляем существующий день с совпадающей датой
+          const targetId = existingDay.id
           await api.updateDay(targetId, {
             title: day.title,
             description: day.description,
@@ -399,6 +449,10 @@ export async function runImport(): Promise<void> {
   }
 
   // 5. Generate & Create Activities (Blocks) for each day
+  let totalActivitiesCreated = 0
+  let totalImagesUploaded = 0
+  let totalLocationsGeocoded = 0
+
   if (importActivities && importDays) {
     console.log(`\n${colors.dim}🧩 Генерация и добавление блоков активностей...${colors.reset}`)
 
@@ -499,7 +553,16 @@ export async function runImport(): Promise<void> {
 
       // Enrich activities with geolocations, uploaded image galleries, note callouts, and matched bookings
       const enrichedActivities: ActivityPayload[] = []
-      const locationContext = tripData.cities.length > 0 ? tripData.cities[0] : undefined
+      // Extract location context for the day to ensure accurate geocoding across multi-city trips
+      let locationContext = tripData.cities.length > 0 ? tripData.cities[0] : undefined
+      const locMatch = day.rawContent.match(/>[ \t]*\*\*(?:Локация|Location):\*\*[ \t]*([^\n]+)/i)
+      const dayContextText = `${locMatch ? locMatch[1] : ''} ${day.title} ${day.fileName}`
+      for (const city of tripData.cities) {
+        if (new RegExp(`(^|[^\\wа-яёА-ЯЁ])${city}(?![\\wа-яёА-ЯЁ])`, 'iu').test(dayContextText)) {
+          locationContext = city
+          break
+        }
+      }
 
       for (let actIdx = 0; actIdx < activitiesToCreate.length; actIdx++) {
         const act = activitiesToCreate[actIdx]
@@ -516,6 +579,7 @@ export async function runImport(): Promise<void> {
               geocode: cliOptions.geocode,
               locationContext,
               bookings: createdBookings,
+              dayDate: day.date,
               onProgress: (msg) => {
                 console.log(`      ${colors.dim}[${actIdx + 1}/${activitiesToCreate.length}] ${msg}${colors.reset}`)
               },
@@ -528,7 +592,21 @@ export async function runImport(): Promise<void> {
         }
       }
 
+      const existingDayRecord = existingDays.find(d => d.id === dayId)
+      const existingActs = existingDayRecord?.activities || []
+
       for (const act of enrichedActivities) {
+        // In sync mode, skip creating exact duplicate activity if already present
+        if (!overwriteDays && existingActs.length > 0) {
+          const isDuplicate = existingActs.some(
+            (ex: any) => ex.startTime === act.startTime && (ex.title === act.title || ex.title?.toLowerCase().includes(act.title.toLowerCase())),
+          )
+          if (isDuplicate) {
+            console.log(`    ${colors.dim}⏩ [Пропущено: уже существует] [${act.startTime}–${act.endTime}] ${act.title}${colors.reset}`)
+            continue
+          }
+        }
+
         try {
           await api.createActivity({
             dayId,
@@ -558,6 +636,14 @@ export async function runImport(): Promise<void> {
             }
           }
 
+          totalActivitiesCreated++
+          if (gallerySection?.imageUrls?.length) {
+            totalImagesUploaded += gallerySection.imageUrls.length
+          }
+          if (geoSection?.points?.length) {
+            totalLocationsGeocoded += geoSection.points.length
+          }
+
           console.log(`    ${colors.green}✔ [${act.startTime}–${act.endTime}]${colors.reset} [${act.tag}] ${act.title}${noteBadge}${bookingBadge}${geoBadge}${galleryBadge}`)
         }
         catch (actErr: any) {
@@ -570,5 +656,16 @@ export async function runImport(): Promise<void> {
   console.log(`\n${colors.bright}${colors.green}════════════════════════════════════════════════════════════════════${colors.reset}`)
   console.log(`${colors.bright}${colors.green}  ✨ Импорт путешествия успешно завершен!${colors.reset}`)
   console.log(`${colors.bright}${colors.green}════════════════════════════════════════════════════════════════════${colors.reset}`)
-  console.log(`  🌐 Откройте путешествие: ${colors.cyan}${cliOptions.apiUrl.replace('-api.', '.')}/trips/${createdTrip.id}${colors.reset}\n`)
+  if (importActivities) {
+    console.log(`  📊 Создано активностей: ${colors.bright}${totalActivitiesCreated}${colors.reset}`)
+    if (totalImagesUploaded > 0)
+      console.log(`  📸 Загружено фото:       ${colors.cyan}${totalImagesUploaded}${colors.reset}`)
+    if (totalLocationsGeocoded > 0)
+      console.log(`  📍 Локаций на карте:     ${colors.green}${totalLocationsGeocoded}${colors.reset}`)
+  }
+  const clientUrl = cliOptions.apiUrl.includes('localhost')
+    ? cliOptions.apiUrl.replace(/:\d+$/, ':5173')
+    : cliOptions.apiUrl.replace('-api.', '.')
+
+  console.log(`  🌐 Откройте путешествие:  ${colors.bright}${colors.cyan}${clientUrl}/trips/${createdTrip.id}${colors.reset}\n`)
 }

@@ -1,3 +1,5 @@
+import { getConfig } from '../config/loader'
+
 export async function geocodeLocation(
   locationQuery: string,
   geoCache: Map<string, [number, number]>,
@@ -6,7 +8,7 @@ export async function geocodeLocation(
   const cleanQuery = locationQuery
     .replace(/^https?:\/\/\S+/, '')
     .replace(/<[^>]+>/g, '')
-    .replace(/^(?:Yandex Maps|Google Maps|2GIS|OpenStreetMap|Карты Yandex|Карты Google|Карты|Maps|Map):\s*/i, '')
+    .replace(/^(?:Yandex Maps|Google Maps|2GIS|OpenStreetMap|Карты Yandex|Карты Google|Карты|Maps|Map|точка старта|точка сбора|локация|место|адрес):\s*/i, '')
     .replace(/[[\]()*_]/g, '')
     .trim()
 
@@ -19,6 +21,10 @@ export async function geocodeLocation(
     return geoCache.get(cacheKey)!
   }
 
+  const cfg = getConfig()
+  const photonTimeout = cfg.geocoding?.photonTimeoutMs ?? 2500
+  const nominatimTimeout = cfg.geocoding?.nominatimTimeoutMs ?? 3000
+
   // 1. Try Photon Komoot API
   try {
     const fullQuery = locationContext && !cleanQuery.includes(locationContext)
@@ -28,7 +34,7 @@ export async function geocodeLocation(
     const url = `https://photon.komoot.io/api/?q=${encodeURIComponent(fullQuery)}&limit=1`
     const res = await fetch(url, {
       headers: { 'User-Agent': 'TripScheduler-Importer/1.0' },
-      signal: AbortSignal.timeout(2500),
+      signal: AbortSignal.timeout(photonTimeout),
     })
     if (res.ok) {
       const data = (await res.json()) as any
@@ -52,7 +58,7 @@ export async function geocodeLocation(
     const url = `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(fullQuery)}&limit=1`
     const res = await fetch(url, {
       headers: { 'User-Agent': 'TripScheduler-Importer/1.0' },
-      signal: AbortSignal.timeout(3000),
+      signal: AbortSignal.timeout(nominatimTimeout),
     })
     if (res.ok) {
       const data = (await res.json()) as any

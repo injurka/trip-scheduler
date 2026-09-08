@@ -6,8 +6,8 @@ export function cleanEmoji(str: string): string {
   return str
     .replace(/\p{Extended_Pictographic}/gu, '')
     .replace(/[\uFE00-\uFE0F\u200D]/gu, '')
-    .replace(/^[—–\-:\s]+/, '')
-    .replace(/[—–\-:\s]+$/, '')
+    .replace(/^[—–\-:#\s]+/, '')
+    .replace(/[—–\-:#\s]+$/, '')
     .replace(/\s+/g, ' ')
     .trim()
 }
@@ -162,7 +162,7 @@ export function parseDayMetaFromMarkdown(dayContent: string): DayMetaInfo[] {
   const preSectionRegex = /###\s*(🗺️|📍|[^\n]*ориентир|[^\n]*останов)[^\n]*\n([\s\S]*?)(?=\n###|\n##|$)/gi
   let preSecMatch: RegExpExecArray | null
   while ((preSecMatch = preSectionRegex.exec(bodyPreText)) !== null) {
-    const rawSectionHeader = preSecMatch[0].split('\n')[0].replace(/^###\s*/, '').trim()
+    const rawSectionHeader = preSecMatch[0].split('\n')[0].replace(/^#{1,6}\s*/, '').trim()
     if (/подготовк/i.test(rawSectionHeader))
       continue
 

@@ -1,7 +1,8 @@
 import type { ParsedDay, ParsedNoteFile, ParsedNoteFolder, ParsedTripData } from '../types'
 import { existsSync, readdirSync, readFileSync, statSync } from 'node:fs'
-import { basename, join, resolve } from 'node:path'
+import { basename, join } from 'node:path'
 import { discoverVaultFolders, normalizeFsPath } from '../lib/vault-locator'
+import { resolveValidationScopeContext } from '../validator/path-resolver'
 import { normalizeIframeLineBreaks } from './activity'
 import { parseObsidianBookings } from './booking'
 import { parseObsidianChecklists } from './checklist'
@@ -124,8 +125,8 @@ export function extractDayDescription(content: string): string {
 }
 
 export function parseObsidianTripFolder(tripPath: string, startDateStr?: string): ParsedTripData {
-  const normalized = normalizeVaultPath(tripPath)
-  const resolvedPath = resolve(normalized)
+  const context = resolveValidationScopeContext(tripPath)
+  const resolvedPath = context.tripRootPath
   if (!existsSync(resolvedPath)) {
     throw new Error(`Папка путешествия не найдена: ${resolvedPath}`)
   }
@@ -170,6 +171,19 @@ export function parseObsidianTripFolder(tripPath: string, startDateStr?: string)
     if (existsSync(checkPath) && statSync(checkPath).isDirectory()) {
       daysDirPath = checkPath
       break
+    }
+  }
+
+  if (!daysDirPath) {
+    if (entries.some(e => e.isFile() && /^(?:\d{1,2}|day|день)/i.test(e.name) && e.name.endsWith('.md'))) {
+      daysDirPath = resolvedPath
+    }
+  }
+
+  if (!daysDirPath && context.resolvedPath !== resolvedPath && existsSync(context.resolvedPath) && statSync(context.resolvedPath).isDirectory()) {
+    const subEntries = readdirSync(context.resolvedPath, { withFileTypes: true })
+    if (subEntries.some(e => e.isFile() && /^(?:\d{1,2}|day|день)/i.test(e.name) && e.name.endsWith('.md'))) {
+      daysDirPath = context.resolvedPath
     }
   }
 

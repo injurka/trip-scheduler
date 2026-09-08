@@ -1,5 +1,6 @@
 import type { FinanceCategory, FinancesSectionContent, FinanceTransaction } from '../types'
 import { existsSync, readFileSync } from 'node:fs'
+import { getConfig } from '../config/loader'
 
 export function parseObsidianFinances(financesFilePath?: string): FinancesSectionContent {
   const defaultCategories: FinanceCategory[] = [
@@ -12,9 +13,10 @@ export function parseObsidianFinances(financesFilePath?: string): FinancesSectio
     { id: 'cat-other', name: 'Прочее', icon: 'mdi:dots-horizontal-circle-outline', isDefault: true },
   ]
 
+  const activeConfig = getConfig()
   const settings = {
-    mainCurrency: 'RUB',
-    exchangeRates: { TWD: 2.8, USD: 90, EUR: 100, CNY: 12.5 },
+    mainCurrency: activeConfig.mainCurrency,
+    exchangeRates: activeConfig.exchangeRates,
   }
 
   if (!financesFilePath || !existsSync(financesFilePath)) {
@@ -58,7 +60,7 @@ export function parseObsidianFinances(financesFilePath?: string): FinancesSectio
       const cols = trimmed.slice(1, -1).split('|').map(c => c.trim())
       if (cols.length >= 2) {
         const titleCol = cols[0]
-        const amountCol = cols.find(c => /`?[\d\s]+(?:[–—\-][\d\s]*)?(?:₽|RUB|TWD|\$|EUR)/i.test(c))
+        const amountCol = cols.find(c => /`?[\d\s]+(?:[–—\-][\d\s]*)?(?:₽|RUB|TWD|NT\$|\$|USD|EUR|CNY|JPY|¥|KRW|₩|SGD)/i.test(c))
         const notesCol = cols.length >= 3 ? cols.slice(2).join('; ') : undefined
 
         if (amountCol && titleCol && !/статья|маршрут|тип поезда|сегмент|направление/i.test(titleCol)) {

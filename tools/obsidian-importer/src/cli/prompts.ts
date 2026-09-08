@@ -4,6 +4,7 @@ import process from 'node:process'
 import prompts from 'prompts'
 import { colors } from '../config/colors'
 import { AIHUBMIX_MODELS, DEFAULT_AIHUBMIX_MODEL } from '../config/constants'
+import { getConfig } from '../config/loader'
 import { discoverObsidianTravelFolders, normalizeVaultPath } from '../parsers/vault'
 
 export async function promptForTargetDirectory(initialDir?: string): Promise<string> {
@@ -21,11 +22,16 @@ export async function promptForTargetDirectory(initialDir?: string): Promise<str
       choices.push({ title: '📁 Ввести путь вручную...', description: 'Указать абсолютный путь', value: 'custom' })
 
       const resp = await prompts({
-        type: 'select',
+        type: 'autocomplete',
         name: 'folder',
-        message: 'Выберите папку путешествия из найденных в Obsidian Vault:',
+        message: 'Выберите папку путешествия из найденных в Obsidian Vault (начните вводить для поиска):',
         choices,
       })
+
+      if (!resp.folder) {
+        console.log(`\n${colors.yellow}Импорт отменен.${colors.reset}\n`)
+        process.exit(0)
+      }
 
       if (resp.folder === 'custom') {
         const customResp = await prompts({
@@ -33,6 +39,10 @@ export async function promptForTargetDirectory(initialDir?: string): Promise<str
           name: 'folder',
           message: 'Введите полный путь к папке путешествия:',
         })
+        if (!customResp.folder) {
+          console.log(`\n${colors.yellow}Импорт отменен.${colors.reset}\n`)
+          process.exit(0)
+        }
         targetDir = customResp.folder
       }
       else {
@@ -45,16 +55,64 @@ export async function promptForTargetDirectory(initialDir?: string): Promise<str
         name: 'folder',
         message: 'Введите полный путь к папке путешествия в Obsidian:',
       })
+      if (!resp.folder) {
+        console.log(`\n${colors.yellow}Импорт отменен.${colors.reset}\n`)
+        process.exit(0)
+      }
       targetDir = resp.folder
     }
   }
 
   if (!targetDir) {
-    console.error(`${colors.red}❌ Не указана папка путешествия.${colors.reset}`)
-    process.exit(1)
+    console.log(`\n${colors.yellow}Импорт отменен.${colors.reset}\n`)
+    process.exit(0)
   }
 
   return normalizeVaultPath(targetDir)
+}
+
+export async function promptForExecutionMode(): Promise<'validate' | 'import' | 'dry-run'> {
+  const resp = await prompts({
+    type: 'select',
+    name: 'mode',
+    message: 'Выберите режим работы с хранилищем Obsidian:',
+    choices: [
+      {
+        title: '🔍 Валидация и диагностика хранилища (проверка структуры, предупреждения и упущенные данные)',
+        description: 'Глубокий аудит без записи в базу: проверка таймлайна, битых фото, метаданных и карт',
+        value: 'validate',
+      },
+      {
+        title: '🚀 Полный импорт в Trip Scheduler',
+        description: 'Создание/синхронизация поездки, дней, активностей, бронирований и чек-листов в веб-платформу',
+        value: 'import',
+      },
+      {
+        title: '📄 Быстрый предпросмотр структуры (Dry-run)',
+        description: 'Краткая сводка распознанных модулей без глубокого аудита',
+        value: 'dry-run',
+      },
+    ],
+    initial: 0,
+  })
+
+  if (!resp.mode) {
+    console.log(`\n${colors.yellow}Действие отменено.${colors.reset}\n`)
+    process.exit(0)
+  }
+
+  return resp.mode
+}
+
+export async function promptForContinueToImport(): Promise<boolean> {
+  const resp = await prompts({
+    type: 'confirm',
+    name: 'proceed',
+    message: 'Хотите сразу перейти к импорту этих данных в Trip Scheduler?',
+    initial: true,
+  })
+
+  return !!resp.proceed
 }
 
 export async function promptForInteractiveOptions(
@@ -132,25 +190,40 @@ export async function promptForInteractiveOptions(
         initial: 0,
       })
 
+      if (!modeResp.mode) {
+        console.log(`\n${colors.yellow}Импорт отменен.${colors.reset}\n`)
+        process.exit(0)
+      }
+
       useLlm = modeResp.mode === 'llm'
 
       if (useLlm && !cliOptions.llmModel) {
+        const availableModels = getConfig().models || AIHUBMIX_MODELS
         const modelResp = await prompts({
           type: 'select',
           name: 'model',
           message: 'Выберите модель AIHubMix / OpenAI для обработки:',
-          choices: AIHUBMIX_MODELS.map(m => ({ title: m.title, value: m.value })),
+          choices: availableModels.map(m => ({ title: m.title, value: m.value })),
           initial: 0,
         })
+
+        if (!modelResp.model) {
+          console.log(`\n${colors.yellow}Импорт отменен.${colors.reset}\n`)
+          process.exit(0)
+        }
 
         if (modelResp.model === 'custom') {
           const customModelResp = await prompts({
             type: 'text',
             name: 'customModel',
             message: 'Введите идентификатор модели (например, gemini-3.8-flash, claude-sonnet-5, gpt-5.6-terra):',
-            initial: DEFAULT_AIHUBMIX_MODEL,
+            initial: getConfig().defaultModel || DEFAULT_AIHUBMIX_MODEL,
           })
-          selectedModel = customModelResp.customModel?.trim() || DEFAULT_AIHUBMIX_MODEL
+          if (!customModelResp.customModel) {
+            console.log(`\n${colors.yellow}Импорт отменен.${colors.reset}\n`)
+            process.exit(0)
+          }
+          selectedModel = customModelResp.customModel?.trim() || getConfig().defaultModel || DEFAULT_AIHUBMIX_MODEL
         }
         else if (modelResp.model) {
           selectedModel = modelResp.model
@@ -187,7 +260,7 @@ export async function promptForInteractiveOptions(
 }
 
 export async function promptForTargetTrip(
-  api: { getTrips: (tab?: 'my' | 'public') => Promise<Array<{ id: string, title: string, startDate?: string, endDate?: string }>> },
+  api: { getTrips: (tab?: 'my' | 'public') => Promise<Array<{ id: string, title: string, startDate?: string, endDate?: string, status?: string, cities?: string[], days?: any[] }>> },
   cliTripId?: string,
   vaultTripTitle?: string,
 ): Promise<{ tripId?: string, isNew: boolean, overwriteDays: boolean }> {
@@ -195,7 +268,7 @@ export async function promptForTargetTrip(
     return { tripId: cliTripId, isNew: false, overwriteDays: false }
   }
 
-  let userTrips: Array<{ id: string, title: string, startDate?: string, endDate?: string }> = []
+  let userTrips: Array<{ id: string, title: string, startDate?: string, endDate?: string, status?: string, cities?: string[], days?: any[] }> = []
   try {
     userTrips = await api.getTrips('my')
   }
@@ -218,10 +291,20 @@ export async function promptForTargetTrip(
   // If there's an existing trip with a matching or similar name, recommend it
   for (const t of userTrips) {
     const isMatching = vaultTripTitle && (t.title.toLowerCase().includes(vaultTripTitle.toLowerCase()) || vaultTripTitle.toLowerCase().includes(t.title.toLowerCase()))
+    const descParts: string[] = []
+    if (t.startDate)
+      descParts.push(`с ${t.startDate}`)
+    if (t.status)
+      descParts.push(`статус: ${t.status}`)
+    if (t.cities && t.cities.length > 0)
+      descParts.push(t.cities.slice(0, 3).join(', '))
+    if (Array.isArray(t.days) && t.days.length > 0)
+      descParts.push(`${t.days.length} дн.`)
+
     choices.push({
       title: `${isMatching ? '🎯 (Совпадение) ' : '📌 '}${t.title}`,
       value: t.id,
-      description: `ID: ${t.id}${t.startDate ? ` • с ${t.startDate}` : ''}`,
+      description: descParts.length > 0 ? descParts.join(' • ') : `ID: ${t.id}`,
     })
   }
 
@@ -283,10 +366,36 @@ export async function promptForTargetTrip(
     initial: 0,
   })
 
+  if (!daysResp.strategy) {
+    console.log(`\n${colors.yellow}Импорт отменен.${colors.reset}\n`)
+    process.exit(0)
+  }
+
+  let overwriteDays = daysResp.strategy === 'overwrite'
+
+  if (overwriteDays) {
+    const confirmOverwrite = await prompts({
+      type: 'confirm',
+      name: 'confirmed',
+      message: '⚠️  Внимание! Старые дни и активности в этом путешествии будут безвозвратно удалены. Продолжить?',
+      initial: true,
+    })
+
+    if (confirmOverwrite.confirmed === undefined) {
+      console.log(`\n${colors.yellow}Импорт отменен.${colors.reset}\n`)
+      process.exit(0)
+    }
+
+    if (!confirmOverwrite.confirmed) {
+      overwriteDays = false
+      console.log(`  ${colors.cyan}ℹ️ Переключено в режим дополнения (sync) без удаления старых дней.${colors.reset}`)
+    }
+  }
+
   return {
     tripId: chosenTripId,
     isNew: false,
-    overwriteDays: daysResp.strategy === 'overwrite',
+    overwriteDays,
   }
 }
 
@@ -315,8 +424,8 @@ export async function promptForCredentials(options: CliOptions): Promise<{ email
   }
 
   if (!email || !password) {
-    console.error(`${colors.red}❌ Не указаны данные для входа.${colors.reset}`)
-    process.exit(1)
+    console.log(`\n${colors.yellow}Импорт отменен.${colors.reset}\n`)
+    process.exit(0)
   }
 
   return { email, password }

@@ -1,0 +1,37 @@
+{
+  "defaultModel": "gemini-3.1-flash-lite",
+  "models": [
+    { "title": "🪶 Google Gemini 3.1 Flash Lite (Супер-быстрая и экономная)", "value": "gemini-3.1-flash-lite" },
+    { "title": "⚡ Google Gemini 3.5 Flash (Рекомендуется: быстрая, умная)", "value": "gemini-3.5-flash" },
+    { "title": "🤖 OpenAI GPT-5.6 Terra (Баланс цены и качества)", "value": "gpt-5.6-terra" },
+    { "title": "🚀 OpenAI GPT-5.6 Sol (Флагман OpenAI)", "value": "gpt-5.6-sol" },
+    { "title": "🛸 DeepSeek V4 Flash (Быстрая и дешёвая MoE)", "value": "deepseek-v4-flash-0731" },
+    { "title": "🐋 DeepSeek V4 Pro (Сильные рассуждения и агентные задачи)", "value": "deepseek-v4-pro-0813" },
+    { "title": "🔀 AIHubMix Auto Router (Авто-выбор модели под запрос, бета)", "value": "auto" },
+    { "title": "✍️  Ввести другое название модели вручную...", "value": "custom" }
+  ],
+  "mainCurrency": "RUB",
+  "exchangeRates": {
+    "TWD": 2.8,
+    "USD": 90.0,
+    "EUR": 100.0,
+    "CNY": 12.5,
+    "JPY": 0.65,
+    "KRW": 0.07,
+    "SGD": 70.0
+  },
+  "defaultSections": [
+    { "type": "bookings", "title": "Бронирования", "icon": "mdi:book-multiple-outline" },
+    { "type": "checklist", "title": "Чек-листы", "icon": "mdi:format-list-checks" },
+    { "type": "finances", "title": "Финансы", "icon": "mdi:cash-multiple" },
+    { "type": "memories", "title": "Галерея воспоминаний", "icon": "mdi:image-filter-hdr" },
+    { "type": "notes", "title": "Заметки", "icon": "mdi:note-edit-outline" },
+    { "type": "documents", "title": "Документы", "icon": "mdi:file-document-multiple-outline" }
+  ],
+  "batchSize": 8,
+  "llmTimeoutMs": 45000,
+  "geocoding": {
+    "photonTimeoutMs": 2500,
+    "nominatimTimeoutMs": 3000
+  }
+}

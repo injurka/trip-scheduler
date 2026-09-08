@@ -113,7 +113,7 @@ export class ApiClient {
     })
   }
 
-  async getTrips(tab: 'my' | 'public' = 'my'): Promise<Array<{ id: string, title: string, startDate?: string, endDate?: string }>> {
+  async getTrips(tab: 'my' | 'public' = 'my'): Promise<Array<{ id: string, title: string, startDate?: string, endDate?: string, status?: string, cities?: string[], days?: any[] }>> {
     return await this.request<any>(`/trips?tab=${tab}`, {
       method: 'GET',
     })
@@ -245,6 +245,21 @@ export class ApiClient {
   }): Promise<any> {
     return await this.request<any>('/activities', {
       method: 'POST',
+      body: JSON.stringify(payload),
+    })
+  }
+
+  async updateActivity(payload: {
+    id: string
+    dayId: string
+    title: string
+    startTime: string
+    endTime: string
+    tag?: string
+    sections?: any[]
+  }): Promise<any> {
+    return await this.request<any>(`/activities/${payload.id}`, {
+      method: 'PATCH',
       body: JSON.stringify(payload),
     })
   }

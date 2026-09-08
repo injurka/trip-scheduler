@@ -1,6 +1,6 @@
 import type { ActivityPayload } from '../types'
 import process from 'node:process'
-import { DEFAULT_AIHUBMIX_MODEL } from '../config/constants'
+import { getConfig } from '../config/loader'
 import { dedentText } from '../parsers/activity'
 
 export function mergeLlmActivitiesWithRawMarkdown(
@@ -43,18 +43,20 @@ export function mergeLlmActivitiesWithRawMarkdown(
 
 export async function generateActivitiesViaDirectLlm(
   canvasNote: string,
-  modelName: string = DEFAULT_AIHUBMIX_MODEL,
+  modelName?: string,
 ): Promise<ActivityPayload[] | null> {
   const apiKey = process.env.AI_HUBMIX_KEY || process.env.OPENAI_API_KEY
   if (!apiKey)
     return null
 
+  const cfg = getConfig()
   const isHubMix = !!process.env.AI_HUBMIX_KEY
   const baseUrl = isHubMix
     ? 'https://aihubmix.com/v1/chat/completions'
     : (process.env.OPENAI_BASE_URL || 'https://api.openai.com/v1/chat/completions')
 
-  const targetModel = modelName || DEFAULT_AIHUBMIX_MODEL
+  const targetModel = modelName || cfg.defaultModel
+  const timeoutMs = cfg.llmTimeoutMs ?? 45000
 
   const systemPrompt = `You are an expert travel planner assistant.
 Your task is to parse a detailed day markdown schedule for a trip into a structured JSON array of activity objects.
@@ -94,6 +96,7 @@ IMPORTANT Guidelines:
       'Content-Type': 'application/json',
       'Authorization': `Bearer ${apiKey}`,
     },
+    signal: AbortSignal.timeout(timeoutMs),
     body: JSON.stringify({
       model: targetModel,
       messages: [

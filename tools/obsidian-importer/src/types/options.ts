@@ -20,4 +20,6 @@ export interface CliOptions {
   nonInteractive?: boolean
   tripId?: string
   daysOverwrite?: boolean
+  configPath?: string
+  validate?: boolean
 }

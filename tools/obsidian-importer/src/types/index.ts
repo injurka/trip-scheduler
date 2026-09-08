@@ -1,6 +1,7 @@
 export * from './activity'
 export * from './booking'
 export * from './checklist'
+export * from './config'
 export * from './finances'
 export * from './notes'
 export * from './options'

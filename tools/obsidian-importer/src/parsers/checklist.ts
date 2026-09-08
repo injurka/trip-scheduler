@@ -56,11 +56,11 @@ export function detectIconForGroup(groupName: string): string {
 }
 
 export function extractCostFromText(text: string): string | undefined {
-  const match = text.match(/\((?:💰|~)?\s*([~≈]?\s*(?:\d[\s\d]*[–—\-]\s*\d+|\d[\s\d]*)\s*(?:TWD|NT\$|[₽$€¥₩]|USD|EUR|CNY|KRW)(?:\s*\/[^)]+)?)\)/i)
+  const match = text.match(/\((?:💰|~)?\s*([~≈]?\s*(?:\d[\s\d]*[–—\-]\s*\d+|\d[\s\d]*)\s*(?:TWD|NT\$|[₽$€¥₩]|USD|EUR|CNY|JPY|KRW|SGD)(?:\s*\/[^)]+)?)\)/i)
   if (match)
     return match[1].trim()
 
-  const plainMatch = text.match(/`(~?\s*\d[\s\d]*(?:[–—\-]\d[\s\d]*)?(?:TWD|₽|\$|USD|EUR))`/)
+  const plainMatch = text.match(/`(~?\s*\d[\s\d]*(?:[–—\-]\d[\s\d]*)?(?:TWD|NT\$|₽|\$|USD|EUR|CNY|JPY|¥|KRW|₩|SGD))`/)
   if (plainMatch)
     return plainMatch[1].trim()
 

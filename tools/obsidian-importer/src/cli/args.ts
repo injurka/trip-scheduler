@@ -17,10 +17,12 @@ ${colors.bright}ОПЦИИ:${colors.reset}
   -e, --email <email>       Email для авторизации (или задайте в .env / server .env)
   -p, --password <pass>     Пароль для авторизации
   -s, --start-date <YYYY-MM-DD> Дата начала путешествия (по умолч.: текущая дата)
+  -c, --config <path>       Путь к кастомному файлу конфигурации (по умолч.: importer.config.json)
   --llm                     Использовать LLM для умной генерации активностей
   --no-llm                  Использовать встроенный парсер таймлайна без LLM
-  -m, --model <name>        Модель для AIHubMix/OpenAI (по умолч.: ${DEFAULT_AIHUBMIX_MODEL})
+  -m, --model <name>        Модель для AIHubMix/OpenAI (по умолч.: из config / ${DEFAULT_AIHUBMIX_MODEL})
   --dry-run                 Режим предпросмотра без отправки запросов в базу
+  -v, --validate            Режим валидации хранилища (диагностика структуры, предупреждения, упущенные данные)
   --status <status>         Статус поездки: planned | draft | completed (по умолч.: draft)
   --visibility <vis>        Видимость: private | public (по умолч.: private)
   --trip-id <id>            UUID существующего путешествия для синхронизации/дополнения
@@ -102,8 +104,14 @@ export function parseCliArgs(): CliOptions {
     else if (arg === '--no-geo') {
       options.geocode = false
     }
+    else if (arg === '-c' || arg === '--config') {
+      options.configPath = args[++i]
+    }
     else if (arg === '-y' || arg === '--yes') {
       options.nonInteractive = true
+    }
+    else if (arg === '-v' || arg === '--validate') {
+      options.validate = true
     }
   }
 

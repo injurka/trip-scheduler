@@ -12,6 +12,7 @@
   },
   "scripts": {
     "start": "bun run src/run.ts",
+    "validate": "bun run src/run.ts --validate",
     "dev": "bun run --hot --watch src/run.ts",
     "lint": "eslint .",
     "lint:fix": "eslint . --fix",
