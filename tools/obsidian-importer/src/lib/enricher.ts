@@ -49,10 +49,12 @@ export async function enrichActivityWithMediaAndLocation(
     geocode?: boolean
     locationContext?: string
     bookings?: Booking[]
+    onProgress?: (message: string) => void
   } = {},
 ): Promise<ActivityPayload> {
   const shouldUpload = options.uploadImages !== false && api !== null && tripId !== null
   const shouldGeocode = options.geocode !== false
+  const notify = options.onProgress || (() => {})
 
   const newSections: ActivitySection[] = []
 
@@ -183,6 +185,7 @@ export async function enrichActivityWithMediaAndLocation(
       let coordinates: [number, number] | null = loc.coordinates || null
 
       if (!coordinates && shouldGeocode) {
+        notify(`📍 Геокодирование: ${loc.name || loc.query}`)
         coordinates = await geocodeLocation(loc.query, geoCache, options.locationContext)
         if (!coordinates && loc.name && loc.name !== loc.query) {
           coordinates = await geocodeLocation(loc.name, geoCache, options.locationContext)
@@ -218,7 +221,8 @@ export async function enrichActivityWithMediaAndLocation(
   if (foundImageNames.length > 0) {
     const uploadedImageUrls: string[] = []
 
-    for (const imgName of foundImageNames) {
+    for (let imgIdx = 0; imgIdx < foundImageNames.length; imgIdx++) {
+      const imgName = foundImageNames[imgIdx]
       const localPath = imageIndex.get(imgName) || imageIndex.get(imgName.toLowerCase())
       if (localPath && existsSync(localPath)) {
         if (shouldUpload && api && tripId) {
@@ -227,6 +231,7 @@ export async function enrichActivityWithMediaAndLocation(
               uploadedImageUrls.push(uploadCache.get(localPath)!)
             }
             else {
+              notify(`📸 Загрузка фото [${imgIdx + 1}/${foundImageNames.length}]: ${imgName}`)
               const uploadedUrl = await api.uploadImage(tripId, localPath, 'route')
               if (uploadedUrl) {
                 uploadCache.set(localPath, uploadedUrl)

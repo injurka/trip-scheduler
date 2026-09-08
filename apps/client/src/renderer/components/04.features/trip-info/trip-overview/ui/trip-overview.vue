@@ -486,7 +486,6 @@ watch(() => props.trip?.id, (newId) => {
         :key="`desc-short-${trip.id}`"
         v-model="descriptionShortText"
         :readonly="true"
-        :disabled="true"
         class="description-md-view description-md-view--short"
       />
 
@@ -498,7 +497,6 @@ watch(() => props.trip?.id, (newId) => {
               :key="`desc-full-${trip.id}`"
               v-model="descriptionFullText"
               :readonly="true"
-              :disabled="true"
               class="description-md-view description-md-view--full"
             />
           </div>

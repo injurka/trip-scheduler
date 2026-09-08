@@ -55,6 +55,13 @@ const store = useModuleStore(['ui'])
 const { isViewMode } = storeToRefs(store.ui)
 const isReadOnly = computed(() => isViewMode.value || !!props.isPreviewMode)
 
+const hasRenderedSections = ref(!props.isCollapsed || !isReadOnly.value)
+watchEffect(() => {
+  if (!props.isCollapsed || !isReadOnly.value) {
+    hasRenderedSections.value = true
+  }
+})
+
 const isTimeEditing = ref(false)
 const isAiEditing = ref(false)
 const isSelectBookingOpen = ref(false)
@@ -606,17 +613,25 @@ onClickOutside(timeEditorRef, saveTimeChanges)
 
     <div class="activity-title" :class="{ 'field-changed': activityDiff?.changedFields.some(f => f.field === 'title') }">
       <Icon icon="mdi:chevron-right" />
+      <div v-if="isReadOnly" class="activity-title-view">
+        {{ activityTitle }}
+      </div>
       <KitInlineMdEditorWrapper
+        v-else
         v-model="activityTitle"
         placeholder="Описание активности"
-        :readonly="isReadOnly"
+        :readonly="false"
         class="activity-title-editor"
         :features="{ 'block-edit': false }"
         @blur="handleInlineEditorBlur"
       />
     </div>
 
-    <div v-show="!isCollapsed || !isReadOnly" class="collapsible-content">
+    <div
+      v-if="hasRenderedSections"
+      v-show="!isCollapsed || !isReadOnly"
+      class="collapsible-content"
+    >
       <div class="activity-sections">
         <div v-if="sectionGroups.length > 0" class="sections-list">
           <div
@@ -1019,7 +1034,6 @@ onClickOutside(timeEditorRef, saveTimeChanges)
       gap: 16px;
       flex: 1;
       min-width: 0;
-      overflow: hidden;
     }
 
     .collapse-toggle-btn {
@@ -1164,6 +1178,17 @@ onClickOutside(timeEditorRef, saveTimeChanges)
       flex-shrink: 0;
       margin-top: 6px;
       transition: display 0.3s ease;
+    }
+
+    &-view {
+      width: 100%;
+      font-weight: 500;
+      font-size: 1.05rem;
+      line-height: 1.45;
+      color: var(--fg-primary-color);
+      overflow-wrap: break-word;
+      word-break: break-word;
+      padding-top: 2px;
     }
 
     &-editor {

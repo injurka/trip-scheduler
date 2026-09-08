@@ -18,4 +18,6 @@ export interface CliOptions {
   uploadImages: boolean
   geocode: boolean
   nonInteractive?: boolean
+  tripId?: string
+  daysOverwrite?: boolean
 }

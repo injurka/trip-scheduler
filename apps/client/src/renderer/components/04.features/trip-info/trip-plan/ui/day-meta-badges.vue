@@ -44,6 +44,7 @@ const { getSelectedDay } = storeToRefs(store.plan)
 const isEditorOpen = ref(false)
 const isViewerOpen = ref(false)
 const currentItem = ref<DayMetaInfo | null>(null)
+const hoveredTooltipBadgeId = ref<string | null>(null)
 const iconSearchQuery = ref('')
 const isAddMenuOpen = ref(false)
 const isBookingsModalOpen = ref(false)
@@ -231,7 +232,11 @@ function createBlankBadge() {
 
       <TooltipProvider :delay-duration="200">
         <template v-for="item in meta" :key="item.id">
-          <TooltipRoot v-if="item.content">
+          <TooltipRoot
+            v-if="item.content"
+            :open="hoveredTooltipBadgeId === item.id"
+            @update:open="isOpen => hoveredTooltipBadgeId = isOpen ? item.id : null"
+          >
             <TooltipTrigger as-child>
               <div class="badge-wrapper">
                 <button
@@ -269,7 +274,11 @@ function createBlankBadge() {
                 :side-offset="8"
                 side="top"
               >
-                <KitInlineMdEditorWrapper :model-value="item.content || ''" :readonly="true" />
+                <KitInlineMdEditorWrapper
+                  v-if="hoveredTooltipBadgeId === item.id"
+                  :model-value="item.content || ''"
+                  :readonly="true"
+                />
                 <TooltipArrow class="badge-tooltip-arrow" />
               </TooltipContent>
             </TooltipPortal>

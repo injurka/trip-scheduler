@@ -10,7 +10,12 @@ import { generateActivitiesViaDirectLlm, mergeLlmActivitiesWithRawMarkdown } fro
 import { parseActivitiesFromMarkdown } from '../parsers/activity'
 import { parseObsidianTripFolder } from '../parsers/vault'
 import { parseCliArgs } from './args'
-import { promptForCredentials, promptForInteractiveOptions, promptForTargetDirectory } from './prompts'
+import {
+  promptForCredentials,
+  promptForInteractiveOptions,
+  promptForTargetDirectory,
+  promptForTargetTrip,
+} from './prompts'
 
 export async function runImport(): Promise<void> {
   loadEnvIfAvailable()
@@ -103,21 +108,50 @@ export async function runImport(): Promise<void> {
     process.exit(1)
   }
 
-  // 1. Create or Initialize Trip
-  console.log(`\n${colors.dim}🚀 Создание путешествия в Trip Scheduler...${colors.reset}`)
-  let createdTrip
-  try {
-    createdTrip = await api.createTrip({
-      title: tripData.title,
-      description: tripData.description,
-      startDate: tripData.startDate,
-      endDate: tripData.endDate,
-    })
-    console.log(`  ${colors.green}✔ Путешествие создано:${colors.reset} ${colors.bright}${createdTrip.title}${colors.reset} (ID: ${createdTrip.id})`)
+  // 1. Connect to existing trip or create a new trip
+  let targetTripId = cliOptions.tripId
+  let overwriteDays = cliOptions.daysOverwrite ?? false
+
+  if (!targetTripId && !cliOptions.nonInteractive) {
+    const targetSelection = await promptForTargetTrip(api, cliOptions.tripId, tripData.title)
+    targetTripId = targetSelection.tripId
+    overwriteDays = targetSelection.overwriteDays
   }
-  catch (err: any) {
-    console.error(`  ${colors.red}❌ Ошибка создания поездки: ${err.message}${colors.reset}`)
-    process.exit(1)
+
+  let createdTrip: { id: string, title: string, startDate?: string, endDate?: string }
+
+  if (targetTripId) {
+    console.log(`\n${colors.dim}🔗 Подключение к существующему путешествию...${colors.reset}`)
+    try {
+      const existingTrip = await api.getTripById(targetTripId)
+      createdTrip = {
+        id: existingTrip.id,
+        title: existingTrip.title,
+        startDate: existingTrip.startDate,
+        endDate: existingTrip.endDate,
+      }
+      console.log(`  ${colors.green}✔ Найдено путешествие:${colors.reset} ${colors.bright}${createdTrip.title}${colors.reset} (ID: ${createdTrip.id})`)
+    }
+    catch (err: any) {
+      console.error(`  ${colors.red}❌ Путешествие с ID ${targetTripId} не найдено: ${err.message}${colors.reset}`)
+      process.exit(1)
+    }
+  }
+  else {
+    console.log(`\n${colors.dim}🚀 Создание путешествия в Trip Scheduler...${colors.reset}`)
+    try {
+      createdTrip = await api.createTrip({
+        title: tripData.title,
+        description: tripData.description,
+        startDate: tripData.startDate,
+        endDate: tripData.endDate,
+      })
+      console.log(`  ${colors.green}✔ Путешествие создано:${colors.reset} ${colors.bright}${createdTrip.title}${colors.reset} (ID: ${createdTrip.id})`)
+    }
+    catch (err: any) {
+      console.error(`  ${colors.red}❌ Ошибка создания поездки: ${err.message}${colors.reset}`)
+      process.exit(1)
+    }
   }
 
   // Update Trip Metadata & Cities
@@ -224,21 +258,35 @@ export async function runImport(): Promise<void> {
   if (importDays) {
     console.log(`\n${colors.dim}📅 Создание дней маршрута (${tripData.days.length} дн.)...${colors.reset}`)
 
-    // Clean up initial placeholder days created automatically by server upon trip creation
-    let existingDays: Array<{ id: string, date: string, title: string }> = []
+    // Clean up days if overwriteDays is enabled or for clean initial trip setup
+    let existingDays: Array<{ id: string, date: string, title: string, activities?: Array<{ id: string }> }> = []
     try {
       existingDays = await api.getDaysByTripId(createdTrip.id)
       if (Array.isArray(existingDays) && existingDays.length > 0) {
-        for (const exDay of existingDays) {
-          try {
-            await api.deleteDay(exDay.id)
+        if (overwriteDays || !targetTripId) {
+          process.stdout.write(`  ${colors.dim}🧹 Очистка старых дней и активностей...${colors.reset} `)
+          for (const exDay of existingDays) {
+            try {
+              // Delete activities of this day first to avoid any foreign key conflicts
+              if (Array.isArray(exDay.activities)) {
+                for (const act of exDay.activities) {
+                  try {
+                    await api.deleteActivity(act.id)
+                  }
+                  catch {
+                    // ignore
+                  }
+                }
+              }
+              await api.deleteDay(exDay.id)
+            }
+            catch {
+              // ignore if individual delete fails
+            }
           }
-          catch {
-            // ignore if individual delete fails
-          }
+          existingDays = await api.getDaysByTripId(createdTrip.id)
+          process.stdout.write(`${colors.green}Готово!${colors.reset}\n`)
         }
-        // Refresh remaining days in case delete failed
-        existingDays = await api.getDaysByTripId(createdTrip.id)
       }
     }
     catch {
@@ -453,7 +501,8 @@ export async function runImport(): Promise<void> {
       const enrichedActivities: ActivityPayload[] = []
       const locationContext = tripData.cities.length > 0 ? tripData.cities[0] : undefined
 
-      for (const act of activitiesToCreate) {
+      for (let actIdx = 0; actIdx < activitiesToCreate.length; actIdx++) {
+        const act = activitiesToCreate[actIdx]
         try {
           const enriched = await enrichActivityWithMediaAndLocation(
             act,
@@ -467,6 +516,9 @@ export async function runImport(): Promise<void> {
               geocode: cliOptions.geocode,
               locationContext,
               bookings: createdBookings,
+              onProgress: (msg) => {
+                console.log(`      ${colors.dim}[${actIdx + 1}/${activitiesToCreate.length}] ${msg}${colors.reset}`)
+              },
             },
           )
           enrichedActivities.push(enriched)

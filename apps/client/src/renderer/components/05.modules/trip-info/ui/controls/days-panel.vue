@@ -227,9 +227,9 @@ function getDayActivitiesCount(day: Day): number {
   justify-content: space-between;
   align-items: center;
   padding: 16px 20px;
+  padding-top: calc(16px + var(--safe-area-inset-top));
   border-bottom: 1px solid var(--border-secondary-color);
   flex-shrink: 0;
-  padding-top: var(--safe-area-inset-top);
 }
 
 .header-title {

@@ -18,6 +18,15 @@ const { isViewMode, areAllActivitiesCollapsed, isParallelPlanView } = storeToRef
 const viewMode = ref<'template' | 'canvas'>('template')
 const isFullScreen = ref(false)
 
+const hasRenderedPlan = computed(() => isParallelPlanView.value || viewMode.value === 'template')
+const hasRenderedCanvas = ref(false)
+
+watchEffect(() => {
+  if (isParallelPlanView.value || viewMode.value === 'canvas') {
+    hasRenderedCanvas.value = true
+  }
+})
+
 function setViewMode(mode: 'template' | 'canvas') {
   viewMode.value = mode
 
@@ -138,6 +147,7 @@ const collapseRouteIcon = computed(() => allRouteBlocksCollapsed.value ? 'mdi:ch
 
     <div class="plan-content" :class="{ 'is-parallel': isParallelPlanView }">
       <div
+        v-if="hasRenderedPlan"
         v-show="isParallelPlanView || viewMode === 'template'"
         class="plan-column"
       >
@@ -145,6 +155,7 @@ const collapseRouteIcon = computed(() => allRouteBlocksCollapsed.value ? 'mdi:ch
       </div>
 
       <div
+        v-if="hasRenderedCanvas"
         v-show="isParallelPlanView || viewMode === 'canvas'"
         class="canvas-column"
       >

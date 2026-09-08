@@ -26,7 +26,10 @@ export async function geocodeLocation(
       : cleanQuery
 
     const url = `https://photon.komoot.io/api/?q=${encodeURIComponent(fullQuery)}&limit=1`
-    const res = await fetch(url, { headers: { 'User-Agent': 'TripScheduler-Importer/1.0' } })
+    const res = await fetch(url, {
+      headers: { 'User-Agent': 'TripScheduler-Importer/1.0' },
+      signal: AbortSignal.timeout(2500),
+    })
     if (res.ok) {
       const data = (await res.json()) as any
       if (data.features && data.features.length > 0) {
@@ -47,7 +50,10 @@ export async function geocodeLocation(
       : cleanQuery
 
     const url = `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(fullQuery)}&limit=1`
-    const res = await fetch(url, { headers: { 'User-Agent': 'TripScheduler-Importer/1.0' } })
+    const res = await fetch(url, {
+      headers: { 'User-Agent': 'TripScheduler-Importer/1.0' },
+      signal: AbortSignal.timeout(3000),
+    })
     if (res.ok) {
       const data = (await res.json()) as any
       if (Array.isArray(data) && data.length > 0) {

@@ -186,6 +186,110 @@ export async function promptForInteractiveOptions(
   }
 }
 
+export async function promptForTargetTrip(
+  api: { getTrips: (tab?: 'my' | 'public') => Promise<Array<{ id: string, title: string, startDate?: string, endDate?: string }>> },
+  cliTripId?: string,
+  vaultTripTitle?: string,
+): Promise<{ tripId?: string, isNew: boolean, overwriteDays: boolean }> {
+  if (cliTripId) {
+    return { tripId: cliTripId, isNew: false, overwriteDays: false }
+  }
+
+  let userTrips: Array<{ id: string, title: string, startDate?: string, endDate?: string }> = []
+  try {
+    userTrips = await api.getTrips('my')
+  }
+  catch {
+    userTrips = []
+  }
+
+  if (!userTrips || userTrips.length === 0) {
+    return { isNew: true, overwriteDays: false }
+  }
+
+  const choices: Array<{ title: string, value: string, description?: string }> = [
+    {
+      title: `✨ Создать новое путешествие («${vaultTripTitle || 'Новое'}»)`,
+      value: 'new',
+      description: 'Создать новую поездку в базе Trip Scheduler с нуля',
+    },
+  ]
+
+  // If there's an existing trip with a matching or similar name, recommend it
+  for (const t of userTrips) {
+    const isMatching = vaultTripTitle && (t.title.toLowerCase().includes(vaultTripTitle.toLowerCase()) || vaultTripTitle.toLowerCase().includes(t.title.toLowerCase()))
+    choices.push({
+      title: `${isMatching ? '🎯 (Совпадение) ' : '📌 '}${t.title}`,
+      value: t.id,
+      description: `ID: ${t.id}${t.startDate ? ` • с ${t.startDate}` : ''}`,
+    })
+  }
+
+  choices.push({
+    title: '🔑 Ввести Trip ID вручную...',
+    value: 'custom',
+    description: 'Указать UUID существующего путешествия',
+  })
+
+  const selection = await prompts({
+    type: 'select',
+    name: 'action',
+    message: 'Куда импортировать данные?',
+    choices,
+    initial: 0,
+  })
+
+  if (!selection.action) {
+    console.log(`${colors.yellow}Импорт отменен.${colors.reset}`)
+    process.exit(0)
+  }
+
+  if (selection.action === 'new') {
+    return { isNew: true, overwriteDays: false }
+  }
+
+  let chosenTripId = selection.action
+  if (chosenTripId === 'custom') {
+    const customResp = await prompts({
+      type: 'text',
+      name: 'id',
+      message: 'Введите UUID существующего путешествия (Trip ID):',
+      validate: (val: string) => /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(val.trim()) ? true : 'Некорректный UUID формат',
+    })
+    if (!customResp.id) {
+      console.log(`${colors.yellow}Импорт отменен.${colors.reset}`)
+      process.exit(0)
+    }
+    chosenTripId = customResp.id.trim()
+  }
+
+  // Ask about days strategy
+  const daysResp = await prompts({
+    type: 'select',
+    name: 'strategy',
+    message: 'Как поступить с днями маршрута в существующем путешествии?',
+    choices: [
+      {
+        title: '🧹 Заменить дни полностью (удалить старые дни/активности и загрузить заново)',
+        value: 'overwrite',
+        description: 'Рекомендуется: гарантирует актуальность таймлайна без дубликатов',
+      },
+      {
+        title: '🔄 Обновить/дополнить существующие дни по датам',
+        value: 'sync',
+        description: 'Сохранить существующие дни и накатить обновления',
+      },
+    ],
+    initial: 0,
+  })
+
+  return {
+    tripId: chosenTripId,
+    isNew: false,
+    overwriteDays: daysResp.strategy === 'overwrite',
+  }
+}
+
 export async function promptForCredentials(options: CliOptions): Promise<{ email: string, password: string }> {
   let email = options.email
   let password = options.password

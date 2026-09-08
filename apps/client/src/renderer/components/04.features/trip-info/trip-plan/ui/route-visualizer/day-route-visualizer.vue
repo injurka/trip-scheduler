@@ -293,7 +293,6 @@ onKeyStroke('Escape', (e) => {
     width: 100vw;
     height: 100vh;
     z-index: 1000;
-    padding: 16px 24px;
     border-radius: 0;
     border: none;
     background: var(--bg-primary-color);

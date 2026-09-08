@@ -461,7 +461,6 @@ onBeforeUnmount(() => {
     ul,
     ol {
       margin: 0.4rem 0 !important;
-      padding-left: 0.25rem !important;
       list-style: none !important;
 
       .list-item,
@@ -477,13 +476,9 @@ onBeforeUnmount(() => {
           display: inline-flex !important;
           align-items: center !important;
           justify-content: center !important;
-          // Match one cap-height of the text: approx 0.7 * font-size * line-height ≈ 1.12em
-          // Using translate we shift the icon back onto the baseline center
           flex-shrink: 0 !important;
-          width: 1.25rem !important;
+          width: 0.7rem !important;
           height: 1em !important;
-          // baseline aligns the bottom of .label-wrapper with text baseline
-          // shift up by half the icon height (0.5em) to visually center on first line
           transform: translateY(0.1em) !important;
           user-select: none !important;
 

@@ -23,6 +23,8 @@ ${colors.bright}ОПЦИИ:${colors.reset}
   --dry-run                 Режим предпросмотра без отправки запросов в базу
   --status <status>         Статус поездки: planned | draft | completed (по умолч.: draft)
   --visibility <vis>        Видимость: private | public (по умолч.: private)
+  --trip-id <id>            UUID существующего путешествия для синхронизации/дополнения
+  --overwrite-days          Полностью удалить старые дни и активности существующей поездки перед импортом
   --no-images               Не загружать медиа-файлы и фото на сервер
   --no-geo                  Отключить геокодирование адресов в OpenLayers координаты
   -y, --yes                 Не задавать интерактивных вопросов (non-interactive mode)
@@ -87,6 +89,12 @@ export function parseCliArgs(): CliOptions {
       const v = args[++i] as any
       if (['private', 'public'].includes(v))
         options.visibility = v
+    }
+    else if (arg === '--trip-id') {
+      options.tripId = args[++i]
+    }
+    else if (arg === '--overwrite-days') {
+      options.daysOverwrite = true
     }
     else if (arg === '--no-images') {
       options.uploadImages = false

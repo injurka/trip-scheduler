@@ -113,6 +113,18 @@ export class ApiClient {
     })
   }
 
+  async getTrips(tab: 'my' | 'public' = 'my'): Promise<Array<{ id: string, title: string, startDate?: string, endDate?: string }>> {
+    return await this.request<any>(`/trips?tab=${tab}`, {
+      method: 'GET',
+    })
+  }
+
+  async getTripById(tripId: string): Promise<any> {
+    return await this.request<any>(`/trips/${tripId}`, {
+      method: 'GET',
+    })
+  }
+
   async getTripDetails(tripId: string): Promise<any> {
     try {
       return await this.request<any>(`/trips/${tripId}/details`, {
@@ -223,7 +235,6 @@ export class ApiClient {
     })
   }
 
-  // 5. Activity Endpoints
   async createActivity(payload: {
     dayId: string
     title: string
@@ -235,6 +246,12 @@ export class ApiClient {
     return await this.request<any>('/activities', {
       method: 'POST',
       body: JSON.stringify(payload),
+    })
+  }
+
+  async deleteActivity(id: string): Promise<any> {
+    return await this.request<any>(`/activities/${id}`, {
+      method: 'DELETE',
     })
   }
 

@@ -19,6 +19,7 @@ bun add @limiteddissolve/obsidian-importer
 
 ```bash
 bunx --bun @limiteddissolve/obsidian-importer \
+  --api-url "https://trip-scheduler-api.limited-dissolve.ru" \
   --dir "~/Documents/obsidian-mark/Personal Note/Travel/-- Taiwan" \
   --start-date "2026-10-29" \
   --status draft
