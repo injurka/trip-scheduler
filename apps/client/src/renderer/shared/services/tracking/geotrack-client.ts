@@ -1,5 +1,7 @@
 import type { TrackActivityType } from '@injurka/track-processing'
+import type { PluginListener } from '@tauri-apps/api/core'
 import { bearingDeg, evaluatePointValidity, haversineM } from '@injurka/track-processing'
+import { addPluginListener, invoke } from '@tauri-apps/api/core'
 import {
   checkPermissions as tauriCheckPermissions,
   clearWatch as tauriClearWatch,
@@ -456,6 +458,7 @@ class BackgroundAudioKeepalive {
 class WebGeolocationTracker {
   private watchId: number | null = null
   private tauriWatchId: number | null = null
+  private trackingPluginListener: PluginListener | null = null
   private wakeLockSentinel: any = null
   private watchdogTimer: ReturnType<typeof setInterval> | null = null
   private keepalive = new BackgroundAudioKeepalive()
@@ -637,8 +640,45 @@ class WebGeolocationTracker {
 
     void this.acquireWakeLock()
     this.keepalive.start()
+    void this.drainNativeBufferedPoints()
     this.requestImmediateFix()
     void import('./track-sync').then(m => m.runSync()).catch(() => {})
+  }
+
+  private async drainNativeBufferedPoints(): Promise<void> {
+    if (!isMobileApp || !this.isRunning)
+      return
+
+    try {
+      const buffered = await invoke<Array<{
+        latitude: number
+        longitude: number
+        accuracy?: number | null
+        altitude?: number | null
+        speed?: number | null
+        heading?: number | null
+        timestamp: number
+      }>>('tracking_get_buffered')
+
+      if (Array.isArray(buffered) && buffered.length > 0) {
+        for (const pos of buffered) {
+          this.handlePositionUpdate({
+            coords: {
+              latitude: pos.latitude,
+              longitude: pos.longitude,
+              accuracy: pos.accuracy,
+              altitude: pos.altitude,
+              speed: pos.speed,
+              heading: pos.heading,
+            },
+            timestamp: pos.timestamp,
+          })
+        }
+      }
+    }
+    catch (e) {
+      console.warn('[Tracking] Ошибка выгрузки буфера точек:', e)
+    }
   }
 
   private async startWatchers(): Promise<void> {
@@ -662,7 +702,7 @@ class WebGeolocationTracker {
       }
     }
 
-    // 2. Tauri Geolocation Watcher (FusedLocationProviderClient на Android для высокой точности)
+    // 2. Нативный Android Foreground Service + Tauri Geolocation Watcher
     if (isMobileApp) {
       try {
         let status = await tauriCheckPermissions()
@@ -673,6 +713,45 @@ class WebGeolocationTracker {
           this.lastError = 'Доступ к геолокации запрещён в настройках Android. Разрешите доступ в настройках приложения.'
         }
         else {
+          // Запускаем системный Android Foreground Service с CPU PARTIAL_WAKE_LOCK и постоянным уведомлением
+          await invoke('tracking_start').catch((e) => {
+            console.warn('[Tracking] Ошибка запуска нативного сервиса трекинга:', e)
+          })
+
+          // Подписываемся на непрерывный поток координат из Android сервиса
+          try {
+            this.trackingPluginListener = await addPluginListener<{
+              latitude: number
+              longitude: number
+              accuracy?: number | null
+              altitude?: number | null
+              speed?: number | null
+              heading?: number | null
+              timestamp?: number
+            }>('tracking', 'locationUpdate', (pos) => {
+              if (pos && typeof pos.latitude === 'number' && typeof pos.longitude === 'number') {
+                this.handlePositionUpdate({
+                  coords: {
+                    latitude: pos.latitude,
+                    longitude: pos.longitude,
+                    accuracy: pos.accuracy,
+                    altitude: pos.altitude,
+                    speed: pos.speed,
+                    heading: pos.heading,
+                  },
+                  timestamp: pos.timestamp || Date.now(),
+                })
+              }
+            })
+          }
+          catch (e) {
+            console.warn('[Tracking] Ошибка подписки на события сервиса трекинга:', e)
+          }
+
+          // Выгружаем накопленные точки
+          void this.drainNativeBufferedPoints()
+
+          // Дополнительно запускаем плагинный watchPosition пока экран включен
           this.tauriWatchId = await tauriWatchPosition(
             {
               enableHighAccuracy: true,
@@ -727,6 +806,17 @@ class WebGeolocationTracker {
       }
       this.tauriWatchId = null
     }
+
+    if (isMobileApp) {
+      void invoke('tracking_stop').catch((e) => {
+        console.warn('[Tracking] Ошибка остановки нативного сервиса трекинга:', e)
+      })
+
+      if (this.trackingPluginListener) {
+        void this.trackingPluginListener.unregister().catch(() => {})
+        this.trackingPluginListener = null
+      }
+    }
   }
 
   private startWatchdog(): void {
@@ -740,6 +830,7 @@ class WebGeolocationTracker {
       // Поддерживаем активность аудио-пайплайна и системного WakeLock
       this.keepalive.ensureActive()
       void this.acquireWakeLock()
+      void this.drainNativeBufferedPoints()
 
       const now = Date.now()
       const timeSinceLastFix = this.lastFixPoint ? (now - this.lastFixPoint.tsUtc) : (now - this.sessionStartedAt)

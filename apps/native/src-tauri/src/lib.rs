@@ -277,6 +277,32 @@ async fn open_downloaded_apk(app: tauri::AppHandle, path: String) -> Result<(), 
         .map_err(|e| e.to_string())
 }
 
+#[tauri::command]
+async fn tracking_start(app: tauri::AppHandle) -> Result<bool, String> {
+    use tauri_plugin_tracking::TrackingExt;
+    app.tracking().start_tracking().map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+async fn tracking_stop(app: tauri::AppHandle) -> Result<bool, String> {
+    use tauri_plugin_tracking::TrackingExt;
+    app.tracking().stop_tracking().map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+async fn tracking_is_running(app: tauri::AppHandle) -> Result<bool, String> {
+    use tauri_plugin_tracking::TrackingExt;
+    app.tracking().is_tracking_running().map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+async fn tracking_get_buffered(
+    app: tauri::AppHandle,
+) -> Result<Vec<tauri_plugin_tracking::LocationRecord>, String> {
+    use tauri_plugin_tracking::TrackingExt;
+    app.tracking().get_buffered_locations().map_err(|e| e.to_string())
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
@@ -285,6 +311,7 @@ pub fn run() {
         .plugin(tauri_plugin_http::init())
         .plugin(tauri_plugin_opener::init())
         .plugin(tauri_plugin_geolocation::init())
+        .plugin(tauri_plugin_tracking::init())
         .invoke_handler(tauri::generate_handler![
             is_hyprland,
             vault_get_path,
@@ -293,7 +320,11 @@ pub fn run() {
             vault_download_file,
             vault_delete_file,
             download_app_update,
-            open_downloaded_apk
+            open_downloaded_apk,
+            tracking_start,
+            tracking_stop,
+            tracking_is_running,
+            tracking_get_buffered
         ])
         .setup(|app| {
             if cfg!(debug_assertions) {

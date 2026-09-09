@@ -54,10 +54,16 @@ export function configureAndroidManifest(): boolean {
                 <data android:scheme="trip-scheduler" />
             </intent-filter>`
 
-  if (!content.includes('android:scheme="trip-scheduler"')) {
-    if (content.includes('</activity>')) {
-      content = content.replace('</activity>', `${deepLinkFilter}\n        </activity>`)
-      console.log('[configure-android] Added deep-link intent-filter (trip-scheduler://)')
+  // 4. Add Tracking Foreground Service inside <application> if missing
+  const serviceTag = `        <service
+            android:name="ru.tripscheduler.tracking.TrackingService"
+            android:foregroundServiceType="location"
+            android:exported="false" />`
+
+  if (!content.includes('ru.tripscheduler.tracking.TrackingService')) {
+    if (content.includes('</application>')) {
+      content = content.replace('</application>', `${serviceTag}\n    </application>`)
+      console.log('[configure-android] Added TrackingService with foregroundServiceType="location"')
       modified = true
     }
   }

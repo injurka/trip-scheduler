@@ -1,0 +1,13 @@
+# Automatically generated - DO NOT EDIT!
+
+"$schema" = "../../schemas/schema.json"
+
+[[permission]]
+identifier = "allow-get-buffered-locations"
+description = "Enables the get_buffered_locations command without any pre-configured scope."
+commands.allow = ["get_buffered_locations"]
+
+[[permission]]
+identifier = "deny-get-buffered-locations"
+description = "Denies the get_buffered_locations command without any pre-configured scope."
+commands.deny = ["get_buffered_locations"]
