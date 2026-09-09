@@ -19,8 +19,10 @@ import DayTrackTopNav from './day-track-top-nav.vue'
 const props = withDefaults(defineProps<{
   dayUtc?: string
   showBackButton?: boolean
+  showTodayButton?: boolean
 }>(), {
   showBackButton: true,
+  showTodayButton: true,
 })
 
 const emit = defineEmits<{
@@ -123,6 +125,7 @@ async function onDeletePoint(pt: DayPoint) {
       :total-points-count="totalPointsCount"
       :display-points-count="displayPointsCount"
       :is-fit-disabled="renderSegments.length === 0 && totalPointsCount === 0"
+      :show-today-button="showTodayButton"
       @change-day="changeDay"
       @go-to-today="goToToday"
       @update:view-mode="viewMode = $event"
@@ -187,6 +190,7 @@ async function onDeletePoint(pt: DayPoint) {
       v-if="!isLoading && !loadError && renderSegments.length === 0 && totalPointsCount === 0"
       :selected-day="selectedDay"
       :today-utc="todayUtc"
+      :show-today-button="showTodayButton"
       @go-to-today="goToToday"
       @go-to-list="router.push({ name: AppRouteNames.ActivityTracking })"
     />

@@ -5,11 +5,28 @@ export interface LocationCoords {
   lon: number
 }
 
+export interface KitMapRoute {
+  id: string
+  title?: string
+  geometry?: [number, number][]
+  color?: string
+  isDirect?: boolean
+  points?: any[]
+  isVisible?: boolean
+}
+
 export interface MapMarker {
   id: string
+  title?: string
   coords: LocationCoords
   imageUrl?: string
   payload?: any
+  color?: string
+  pointType?: 'start' | 'via' | 'end' | 'connect' | 'poi'
+  scale?: number
+  label?: string
+  comment?: string
+  address?: string
 }
 
 /**

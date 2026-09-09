@@ -10,13 +10,17 @@ import { KitDialogWithClose } from '~/components/01.kit/kit-dialog-with-close'
 import { KitDivider } from '~/components/01.kit/kit-divider'
 import { KitInput } from '~/components/01.kit/kit-input'
 import { KitTabs } from '~/components/01.kit/kit-tabs'
+import { CustomTileSettingsDialog } from '~/components/02.shared/custom-tile-settings-dialog'
 import { NavigationBack } from '~/components/02.shared/navigation-back/index'
 import { resolveApiUrl } from '~/shared/lib/url'
+import { useAppSettingsStore } from '~/shared/store/app-settings.store'
 import { useProfileSettings } from '../composables/use-profile-settings'
 import 'vue-advanced-cropper/dist/style.css'
 
 const route = useRoute()
 const router = useRouter()
+const appSettingsStore = useAppSettingsStore()
+const isCustomTileModalOpen = ref(false)
 
 const {
   user,
@@ -358,6 +362,95 @@ function applyCrop() {
               </div>
             </div>
           </div>
+
+          <!-- Картография и источники тайлов -->
+          <div class="settings-card" style="margin-top: 24px;">
+            <div class="card-header">
+              <div class="card-title-group">
+                <h2 class="card-title">
+                  Картография и источники тайлов
+                </h2>
+                <p class="card-subtitle">
+                  Персональный API-ключ MapTiler и собственные растровые / векторные тайлы
+                </p>
+              </div>
+              <KitBtn
+                variant="outlined"
+                color="primary"
+                size="sm"
+                icon="mdi:cog-outline"
+                @click="isCustomTileModalOpen = true"
+              >
+                Настроить тайлы
+              </KitBtn>
+            </div>
+
+            <div class="card-body">
+              <div class="integrations-grid">
+                <!-- MapTiler Key -->
+                <div class="integration-tile" :class="{ 'is-active': !!appSettingsStore.customMapTilerKey }">
+                  <div class="tile-leading">
+                    <div class="provider-icon-wrapper" style="background: rgba(var(--fg-accent-color-rgb), 0.1); color: var(--fg-accent-color); display: flex; align-items: center; justify-content: center;">
+                      <Icon icon="mdi:key-outline" />
+                    </div>
+                    <div class="tile-meta">
+                      <div class="provider-title">
+                        MapTiler API Key
+                      </div>
+                      <div class="provider-status-badge" :class="{ linked: !!appSettingsStore.customMapTilerKey }">
+                        <Icon :icon="appSettingsStore.customMapTilerKey ? 'mdi:check-circle' : 'mdi:information-outline'" class="status-icon" />
+                        <span>{{ appSettingsStore.customMapTilerKey ? 'Персональный ключ активен' : 'Используется системный ключ' }}</span>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div class="tile-trailing">
+                    <KitBtn
+                      variant="outlined"
+                      color="secondary"
+                      size="sm"
+                      icon="mdi:pencil-outline"
+                      @click="isCustomTileModalOpen = true"
+                    >
+                      {{ appSettingsStore.customMapTilerKey ? 'Изменить' : 'Добавить' }}
+                    </KitBtn>
+                  </div>
+                </div>
+
+                <!-- Custom Tile Source -->
+                <div class="integration-tile" :class="{ 'is-active': !!appSettingsStore.customTileUrl }">
+                  <div class="tile-leading">
+                    <div class="provider-icon-wrapper" style="background: rgba(var(--fg-accent-color-rgb), 0.1); color: var(--fg-accent-color); display: flex; align-items: center; justify-content: center;">
+                      <Icon icon="mdi:map-plus" />
+                    </div>
+                    <div class="tile-meta">
+                      <div class="provider-title">
+                        {{ appSettingsStore.customTileName || 'Свои тайлы' }}
+                      </div>
+                      <div class="provider-status-badge" :class="{ linked: !!appSettingsStore.customTileUrl }">
+                        <Icon :icon="appSettingsStore.customTileUrl ? 'mdi:check-circle' : 'mdi:link-variant-off'" class="status-icon" />
+                        <span>{{ appSettingsStore.customTileUrl ? 'Источник подключен' : 'Не настроен' }}</span>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div class="tile-trailing">
+                    <KitBtn
+                      variant="outlined"
+                      color="secondary"
+                      size="sm"
+                      icon="mdi:pencil-outline"
+                      @click="isCustomTileModalOpen = true"
+                    >
+                      {{ appSettingsStore.customTileUrl ? 'Изменить' : 'Подключить' }}
+                    </KitBtn>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <CustomTileSettingsDialog v-model="isCustomTileModalOpen" />
         </template>
 
         <!-- Вкладка 3: Безопасность -->

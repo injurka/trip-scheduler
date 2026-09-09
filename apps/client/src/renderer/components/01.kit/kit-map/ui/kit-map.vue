@@ -1,14 +1,15 @@
 <script setup lang="ts">
 import type { Map as MapLibreMap } from 'maplibre-gl'
-import type { MapLayerOption, MapMarker } from '../models/types'
+import type { KitMapRoute, MapLayerOption, MapMarker } from '../models/types'
 import type { TileSourceId } from '~/shared/lib/map-styles-sources'
 import { nextTick, onMounted, onUnmounted, ref, shallowRef, watch } from 'vue'
 import { KitBtn } from '~/components/01.kit/kit-btn'
 import { checkMapTilerAvailability, getMapStyle, TILE_SOURCES } from '~/shared/lib/map-styles-sources'
+import { useAppSettingsStore } from '~/shared/store/app-settings.store'
 import { useKitMap } from '../composables/use-kit-map'
 import KitMapControls from './kit-map-controls.vue'
-import KitMapSearchControl from './kit-map-search-control.vue'
 
+import KitMapSearchControl from './kit-map-search-control.vue'
 import 'maplibre-gl/dist/maplibre-gl.css'
 
 interface Props {
@@ -19,6 +20,7 @@ interface Props {
   height?: string
   width?: string
   markers?: MapMarker[]
+  routes?: KitMapRoute[]
   autoPan?: boolean
   customLayers?: MapLayerOption[]
   enableSearch?: boolean
@@ -31,6 +33,7 @@ const props = withDefaults(defineProps<Props>(), {
   height: '100%',
   width: '100%',
   markers: () => [],
+  routes: () => [],
   autoPan: true,
   customLayers: undefined,
   enableSearch: false,
@@ -52,6 +55,7 @@ const {
   zoomIn,
   zoomOut,
   updateMarkers,
+  updateRoutes,
   fitViewToMarkers,
   setSearchResult,
   clearSearchResult,
@@ -116,21 +120,39 @@ function handleFsKeyDown(e: KeyboardEvent) {
   }
 }
 
+const appSettingsStore = useAppSettingsStore()
 const activeLayerId = ref<string>('maptilerStreets')
 const availableLayers = shallowRef<MapLayerOption[]>([])
+
+function applyTileLayer(newId: string) {
+  if (!isMapReady.value)
+    return
+
+  const customIndex = availableLayers.value.findIndex(l => l.id === 'custom')
+  if (customIndex !== -1) {
+    const updatedCustomStyle = getMapStyle('custom')
+    const updatedLayers = [...availableLayers.value]
+    updatedLayers[customIndex] = {
+      ...updatedLayers[customIndex],
+      label: appSettingsStore.customTileName || TILE_SOURCES.custom.label,
+      style: updatedCustomStyle,
+    }
+    availableLayers.value = updatedLayers
+  }
+
+  const style = newId === 'custom'
+    ? getMapStyle('custom')
+    : (availableLayers.value.find(l => l.id === newId)?.style || getMapStyle(newId as TileSourceId))
+
+  if (style) {
+    setStyle(style, { diff: false })
+  }
+}
 
 watch(
   activeLayerId,
   (newId) => {
-    if (!isMapReady.value)
-      return
-
-    const layer = availableLayers.value.find(l => l.id === newId)
-    const style = layer?.style || getMapStyle(newId as TileSourceId)
-
-    if (style) {
-      setStyle(style)
-    }
+    applyTileLayer(newId)
   },
 )
 
@@ -146,6 +168,19 @@ watch(
   (newMarkers) => {
     if (isMapReady.value) {
       updateMarkers(newMarkers)
+    }
+  },
+  { deep: true },
+)
+
+watch(
+  () => props.routes,
+  (newRoutes) => {
+    if (isMapReady.value) {
+      updateRoutes(newRoutes || [])
+      if (props.autoPan && ((newRoutes && newRoutes.length > 0) || props.markers.length > 0)) {
+        fitViewToMarkers()
+      }
     }
   },
   { deep: true },
@@ -169,10 +204,21 @@ onMounted(async () => {
       layers.push({ id: 'satellite', label: TILE_SOURCES.satellite.label, icon: TILE_SOURCES.satellite.icon, style: getMapStyle('satellite') })
     }
 
-    layers.push({ id: 'osm', label: TILE_SOURCES.osm.label, icon: TILE_SOURCES.osm.icon, style: getMapStyle('osm') })
+    layers.push({
+      id: 'custom',
+      label: appSettingsStore.customTileName || TILE_SOURCES.custom.label,
+      icon: TILE_SOURCES.custom.icon,
+      style: getMapStyle('custom'),
+    })
 
     availableLayers.value = layers
-    activeLayerId.value = layers[0].id
+    const preferredSource = appSettingsStore.activeTileSource
+    if (preferredSource && layers.some(l => l.id === preferredSource)) {
+      activeLayerId.value = preferredSource
+    }
+    else {
+      activeLayerId.value = layers[0].id
+    }
   }
 
   const initialStyle = availableLayers.value.find(l => l.id === activeLayerId.value)?.style || getMapStyle('maptilerStreets')
@@ -198,6 +244,11 @@ onMounted(async () => {
 
     if (props.markers.length > 0) {
       updateMarkers(props.markers)
+    }
+    if (props.routes && props.routes.length > 0) {
+      updateRoutes(props.routes)
+    }
+    if (props.autoPan && (props.markers.length > 0 || (props.routes && props.routes.length > 0))) {
       fitViewToMarkers()
     }
   }
@@ -237,6 +288,7 @@ onUnmounted(() => {
       :layers="availableLayers"
       @zoom-in="zoomIn"
       @zoom-out="zoomOut"
+      @tile-settings-applied="applyTileLayer($event)"
     />
 
     <div class="fullscreen-control">

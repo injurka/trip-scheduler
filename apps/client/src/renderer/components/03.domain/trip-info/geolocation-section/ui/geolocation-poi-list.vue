@@ -11,9 +11,13 @@ import { openExternalUrl } from '~/shared/lib/opener'
 interface Props {
   points: MapPoint[]
   readonly?: boolean
+  isRoutePoints?: boolean
 }
 
-defineProps<Props>()
+withDefaults(defineProps<Props>(), {
+  readonly: false,
+  isRoutePoints: false,
+})
 
 const emit = defineEmits<{
   (e: 'focusOnPoint', point: MapPoint): void
@@ -23,6 +27,25 @@ const emit = defineEmits<{
   (e: 'startMovePoint', pointId: string): void
   (e: 'refreshAddress', pointId: string): void
 }>()
+
+function togglePointConnect(point: MapPoint) {
+  if (point.type === 'connect') {
+    emit('updatePoint', {
+      ...point,
+      type: 'via',
+      address: point.address || 'Промежуточная остановка',
+      comment: undefined,
+    })
+  }
+  else {
+    emit('updatePoint', {
+      ...point,
+      type: 'connect',
+      address: undefined,
+      comment: undefined,
+    })
+  }
+}
 
 interface MapProvider {
   name: string
@@ -125,8 +148,18 @@ onClickOutside(mapIframeContainerRef, () => {
       @click="emit('focusOnPoint', point)"
     >
       <div class="poi-marker-visual">
-        <span class="poi-number" :style="{ backgroundColor: point.style?.color || 'var(--fg-accent-color)' }">
+        <span
+          class="poi-number"
+          :class="[
+            point.type === 'start' ? 'is-start' : '',
+            point.type === 'end' ? 'is-end' : '',
+            point.type === 'connect' ? 'is-connect' : '',
+          ]"
+          :style="{ backgroundColor: point.style?.color || 'var(--fg-accent-color)' }"
+        >
           <span v-if="point.type === 'connect'" class="connect-dot" />
+          <span v-else-if="isRoutePoints && point.type === 'start'">A</span>
+          <span v-else-if="isRoutePoints && point.type === 'end'">B</span>
           <span v-else>{{ index + 1 }}</span>
         </span>
       </div>
@@ -134,22 +167,58 @@ onClickOutside(mapIframeContainerRef, () => {
       <div class="poi-divider" />
 
       <div class="poi-info">
-        <template v-if="point.type !== 'connect'">
+        <template v-if="point.type === 'connect'">
+          <div class="connect-row">
+            <div class="connect-label-group">
+              <Icon icon="mdi:vector-polyline" class="connect-icon" />
+              <span class="connect-text">Точка коррекции маршрута</span>
+            </div>
+
+            <div v-if="!readonly" class="connect-actions">
+              <KitTooltip text="Превратить в именованную метку">
+                <button type="button" class="mini-btn" @click.stop="togglePointConnect(point)">
+                  <Icon icon="mdi:rename-box" />
+                </button>
+              </KitTooltip>
+              <KitTooltip text="Переместить точку по карте">
+                <button type="button" class="mini-btn" @click.stop="emit('startMovePoint', point.id)">
+                  <Icon icon="mdi:cursor-move" />
+                </button>
+              </KitTooltip>
+              <KitTooltip text="Удалить точку">
+                <button type="button" class="mini-btn delete-btn" @click.stop="emit('deletePoint', point.id)">
+                  <Icon icon="mdi:trash-can-outline" />
+                </button>
+              </KitTooltip>
+            </div>
+          </div>
+        </template>
+
+        <template v-else>
           <div class="poi-field">
-            <Icon icon="mdi:map-marker-outline" class="field-icon" />
+            <span v-if="isRoutePoints && point.type === 'start'" class="role-badge start">Старт</span>
+            <span v-else-if="isRoutePoints && point.type === 'end'" class="role-badge end">Финиш</span>
+            <Icon v-else icon="mdi:map-marker-outline" class="field-icon" />
+
             <KitInlineMdEditorWrapper
               v-if="!readonly"
-              :model-value="point.address!"
+              :model-value="point.address || ''"
               class="poi-editor poi-address"
               :features="{
                 'block-edit': false, 'code-mirror': false, 'cursor': false, 'image-block': false, 'latex': false, 'link-tooltip': false, 'table': false, 'toolbar': false,
               }"
-              placeholder="Адрес не найден"
+              :placeholder="isRoutePoints ? 'Название точки маршрута...' : 'Адрес не найден'"
               @update:model-value="point.address = $event"
               @blur="emit('updatePoint', point)"
             />
-            <span v-else class="poi-text">{{ point.address || 'Адрес не найден' }}</span>
+            <span v-else class="poi-text">{{ point.address || 'Без названия' }}</span>
+
             <div class="poi-inline-actions">
+              <KitTooltip v-if="isRoutePoints && !readonly && point.type !== 'start' && point.type !== 'end'" text="Превратить в точку коррекции (убрать текст)">
+                <button type="button" class="mini-btn" @click.stop="togglePointConnect(point)">
+                  <Icon icon="mdi:vector-polyline" />
+                </button>
+              </KitTooltip>
               <KitTooltip v-if="!readonly" text="Обновить адрес">
                 <button type="button" class="mini-btn" @click.stop="emit('refreshAddress', point.id)">
                   <Icon icon="mdi:refresh" />
@@ -163,7 +232,10 @@ onClickOutside(mapIframeContainerRef, () => {
             </div>
           </div>
 
-          <div v-if="point.comment || !readonly" class="poi-field comment-field">
+          <div
+            v-if="(!readonly && point.comment) || (readonly && point.comment && point.comment.trim() !== point.address?.trim())"
+            class="poi-field comment-field"
+          >
             <Icon icon="mdi:comment-text-outline" class="field-icon" />
             <KitInlineMdEditorWrapper
               v-if="!readonly"
@@ -176,60 +248,54 @@ onClickOutside(mapIframeContainerRef, () => {
               @update:model-value="point.comment = $event"
               @blur="emit('updatePoint', point)"
             />
-            <span v-else-if="point.comment" class="poi-text poi-text-comment">{{ point.comment }}</span>
+            <span v-else class="poi-text poi-text-comment">{{ point.comment }}</span>
+          </div>
+
+          <div v-if="!readonly" class="poi-controls">
+            <div class="poi-coords">
+              <span class="coord-label">LAT</span>
+              <KitInput
+                :model-value="point.coordinates[1]"
+                type="text"
+                class="coord-input"
+                @update:model-value="point.coordinates[1] = Number($event)"
+                @keydown.enter="emit('updatePointCoords', point)"
+                @blur="emit('updatePointCoords', point)"
+              />
+              <span class="coord-label">LON</span>
+              <KitInput
+                :model-value="point.coordinates[0]"
+                type="text"
+                class="coord-input"
+                @update:model-value="point.coordinates[0] = Number($event)"
+                @keydown.enter="emit('updatePointCoords', point)"
+                @blur="emit('updatePointCoords', point)"
+              />
+            </div>
+
+            <div class="poi-actions">
+              <KitTooltip text="Переместить точку по карте">
+                <button
+                  type="button"
+                  class="action-btn"
+                  @click.stop="emit('startMovePoint', point.id)"
+                >
+                  <Icon icon="mdi:cursor-move" />
+                </button>
+              </KitTooltip>
+
+              <KitTooltip text="Удалить точку">
+                <button
+                  type="button"
+                  class="action-btn delete-btn"
+                  @click.stop="emit('deletePoint', point.id)"
+                >
+                  <Icon icon="mdi:trash-can-outline" />
+                </button>
+              </KitTooltip>
+            </div>
           </div>
         </template>
-
-        <template v-else>
-          <div class="poi-field connect-field">
-            <span class="poi-text connect-text">Соединительная точка</span>
-          </div>
-        </template>
-
-        <div v-if="!readonly" class="poi-controls" :class="{ 'connect-controls': point.type === 'connect' }">
-          <div v-if="point.type !== 'connect'" class="poi-coords">
-            <span class="coord-label">LAT</span>
-            <KitInput
-              :model-value="point.coordinates[1]"
-              type="text"
-              class="coord-input"
-              @update:model-value="point.coordinates[1] = Number($event)"
-              @keydown.enter="emit('updatePointCoords', point)"
-              @blur="emit('updatePointCoords', point)"
-            />
-            <span class="coord-label">LON</span>
-            <KitInput
-              :model-value="point.coordinates[0]"
-              type="text"
-              class="coord-input"
-              @update:model-value="point.coordinates[0] = Number($event)"
-              @keydown.enter="emit('updatePointCoords', point)"
-              @blur="emit('updatePointCoords', point)"
-            />
-          </div>
-
-          <div class="poi-actions">
-            <KitTooltip text="Переместить точку по карте">
-              <button
-                type="button"
-                class="action-btn"
-                @click.stop="emit('startMovePoint', point.id)"
-              >
-                <Icon icon="mdi:cursor-move" />
-              </button>
-            </KitTooltip>
-
-            <KitTooltip text="Удалить точку">
-              <button
-                type="button"
-                class="action-btn delete-btn"
-                @click.stop="emit('deletePoint', point.id)"
-              >
-                <Icon icon="mdi:trash-can-outline" />
-              </button>
-            </KitTooltip>
-          </div>
-        </div>
       </div>
     </div>
   </div>
@@ -414,6 +480,63 @@ onClickOutside(mapIframeContainerRef, () => {
   &.connect-field {
     opacity: 0.6;
   }
+}
+
+.role-badge {
+  display: inline-flex;
+  align-items: center;
+  font-size: 0.68rem;
+  font-weight: 700;
+  padding: 1px 6px;
+  border-radius: var(--r-2xs);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  flex-shrink: 0;
+
+  &.start {
+    background-color: rgba(46, 204, 113, 0.15);
+    color: #2ecc71;
+    border: 1px solid rgba(46, 204, 113, 0.35);
+  }
+
+  &.end {
+    background-color: rgba(231, 76, 60, 0.15);
+    color: #e74c3c;
+    border: 1px solid rgba(231, 76, 60, 0.35);
+  }
+}
+
+.connect-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  gap: 8px;
+}
+
+.connect-label-group {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--fg-secondary-color);
+  font-size: 0.78rem;
+
+  .connect-icon {
+    font-size: 0.95rem;
+    color: var(--fg-accent-color);
+  }
+
+  .connect-text {
+    font-size: 0.78rem;
+    font-weight: 500;
+    color: var(--fg-secondary-color);
+  }
+}
+
+.connect-actions {
+  display: flex;
+  align-items: center;
+  gap: 2px;
 }
 
 .poi-text {

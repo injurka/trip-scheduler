@@ -206,7 +206,6 @@ export function useGeolocationRoutes(mapApiRef: Ref<GeolocationMapApi | undefine
     routes.value = JSON.parse(JSON.stringify(initialRoutes || []))
 
     const routeUpdatePromises = routes.value.map((route) => {
-      route.points.forEach(point => mapApiRef.value?.addOrUpdatePoint(point))
       return updateRouteGeometry(route.id)
     })
     await Promise.all(routeUpdatePromises)

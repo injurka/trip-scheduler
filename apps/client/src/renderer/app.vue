@@ -15,6 +15,7 @@ import '~/assets/scss/normalize.scss'
 import '~/assets/scss/animation.scss'
 import '~/assets/scss/fonts.scss'
 import 'maplibre-gl/dist/maplibre-gl.css'
+import '~/assets/scss/maplibre-markers.scss'
 
 const OfflineProgressDialog = lazyComponent(() => import('~/components/02.shared/offline-manager/ui/offline-progress-dialog.vue'))
 const FloatingMap = lazyComponent(() => import('~/components/04.features/floating-map/ui/floating-map.vue'))

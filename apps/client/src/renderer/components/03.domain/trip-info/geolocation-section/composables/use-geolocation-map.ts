@@ -66,14 +66,32 @@ export function useGeolocationMap() {
     const zoom = map.getZoom()
     const isZoomedIn = zoom >= minZoomForComments
 
+    const container = map.getContainer()
+    if (container) {
+      container.classList.toggle('map-zoom-micro', zoom < 9)
+      container.classList.toggle('map-zoom-far', zoom >= 9 && zoom < 11.5)
+      container.classList.toggle('map-zoom-mid', zoom >= 11.5 && zoom < 14)
+      container.classList.toggle('map-zoom-close', zoom >= 14)
+    }
+
     pointsMap.forEach((item, id) => {
-      const { popup, popupElement } = item
+      const { popup, popupElement, point } = item
       if (!popup || !popupElement)
         return
 
+      // Connect waypoints never show popups
+      if (point.type === 'connect') {
+        if (popup.isOpen())
+          popup.remove()
+        return
+      }
+
       const isHovered = hoveredPointId.value === id
       const isActive = activePointId.value === id
-      const shouldShow = isZoomedIn || isHovered || isActive
+      // Only standalone POIs with distinct comments are shown automatically at high zoom
+      // Route points only show on hover or when active
+      const isPoiWithComment = point.type === 'poi' && Boolean(point.comment && point.comment.trim() !== '' && point.comment.trim() !== point.address?.trim())
+      const shouldShow = (isPoiWithComment && isZoomedIn) || isHovered || isActive
 
       if (shouldShow) {
         if (!popup.isOpen()) {
@@ -116,8 +134,10 @@ export function useGeolocationMap() {
       return
 
     const sourceId = `route-source-${route.id}`
+    const shadowLayerId = `route-shadow-${route.id}`
     const casingLayerId = `route-casing-${route.id}`
     const lineLayerId = `route-line-${route.id}`
+    const hitTargetLayerId = `route-hit-${route.id}`
 
     const geojson: GeoJSON.Feature<GeoJSON.LineString> = {
       type: 'Feature',
@@ -151,7 +171,35 @@ export function useGeolocationMap() {
       data: geojson,
     })
 
-    // Нижний слой-подложка (casing) для четкого контраста
+    // 1. Нижний размытый слой тени для эффекта объёма над картой
+    map.addLayer({
+      id: shadowLayerId,
+      type: 'line',
+      source: sourceId,
+      layout: {
+        'line-cap': 'round',
+        'line-join': 'round',
+      },
+      paint: {
+        'line-color': '#000000',
+        'line-width': [
+          'interpolate',
+          ['linear'],
+          ['zoom'],
+          8,
+          4,
+          12,
+          7.5,
+          16,
+          11,
+        ],
+        'line-opacity': 0.16,
+        'line-blur': 3,
+        'line-offset': 1,
+      },
+    })
+
+    // 2. Контрастная белая подложка (casing)
     map.addLayer({
       id: casingLayerId,
       type: 'line',
@@ -162,12 +210,22 @@ export function useGeolocationMap() {
       },
       paint: {
         'line-color': '#ffffff',
-        'line-width': 8,
-        'line-opacity': 0.9,
+        'line-width': [
+          'interpolate',
+          ['linear'],
+          ['zoom'],
+          8,
+          3.5,
+          12,
+          6,
+          16,
+          8.5,
+        ],
+        'line-opacity': 0.95,
       },
     })
 
-    // Верхний цветной слой маршрута
+    // 3. Основная цветная линия маршрута
     map.addLayer({
       id: lineLayerId,
       type: 'line',
@@ -178,9 +236,72 @@ export function useGeolocationMap() {
       },
       paint: {
         'line-color': route.color || '#4363D8',
-        'line-width': 4.5,
+        'line-width': [
+          'interpolate',
+          ['linear'],
+          ['zoom'],
+          8,
+          2,
+          12,
+          3.8,
+          16,
+          5.5,
+        ],
         ...(route.isDirect ? { 'line-dasharray': [2, 2] } : {}),
       },
+    })
+
+    // 4. Прозрачный расширенный интерактивный слой для плавного ховера
+    map.addLayer({
+      id: hitTargetLayerId,
+      type: 'line',
+      source: sourceId,
+      layout: {
+        'line-cap': 'round',
+        'line-join': 'round',
+      },
+      paint: {
+        'line-color': '#000000',
+        'line-width': 16,
+        'line-opacity': 0,
+      },
+    })
+
+    const normalLineWidth: any = [
+      'interpolate',
+      ['linear'],
+      ['zoom'],
+      8,
+      2,
+      12,
+      3.8,
+      16,
+      5.5,
+    ]
+    const hoverLineWidth: any = [
+      'interpolate',
+      ['linear'],
+      ['zoom'],
+      8,
+      3,
+      12,
+      5.2,
+      16,
+      7.5,
+    ]
+
+    map.on('mouseenter', hitTargetLayerId, () => {
+      map.getCanvas().style.cursor = 'pointer'
+      if (map.getLayer(lineLayerId)) {
+        map.setPaintProperty(lineLayerId, 'line-width', hoverLineWidth)
+      }
+    })
+
+    map.on('mouseleave', hitTargetLayerId, () => {
+      map.getCanvas().style.cursor = ''
+      if (map.getLayer(lineLayerId)) {
+        map.setPaintProperty(lineLayerId, 'line-width', normalLineWidth)
+      }
     })
   }
 
@@ -198,14 +319,20 @@ export function useGeolocationMap() {
     if (!map)
       return
 
+    const shadowLayerId = `route-shadow-${routeId}`
     const casingLayerId = `route-casing-${routeId}`
     const lineLayerId = `route-line-${routeId}`
+    const hitTargetLayerId = `route-hit-${routeId}`
     const sourceId = `route-source-${routeId}`
 
+    if (map.getLayer(hitTargetLayerId))
+      map.removeLayer(hitTargetLayerId)
     if (map.getLayer(lineLayerId))
       map.removeLayer(lineLayerId)
     if (map.getLayer(casingLayerId))
       map.removeLayer(casingLayerId)
+    if (map.getLayer(shadowLayerId))
+      map.removeLayer(shadowLayerId)
     if (map.getSource(sourceId))
       map.removeSource(sourceId)
   }
@@ -238,48 +365,62 @@ export function useGeolocationMap() {
 
     const color = point.style?.color || POINT_TYPE_COLORS[point.type] || '#3498db'
     const isConnect = point.type === 'connect'
+    const hasDistinctComment = Boolean(point.comment && point.comment.trim() !== '' && point.comment.trim() !== point.address?.trim())
+    const labelText = hasDistinctComment
+      ? point.comment!
+      : (point.type !== 'connect' && point.address && point.address.trim() !== '' ? point.address : '')
+
     const existing = pointsMap.get(point.id)
 
     if (existing) {
-      existing.marker.setLngLat(point.coordinates)
-      existing.marker.setDraggable(isDraggableAllowed.value)
-      existing.point = point
+      if (existing.point.type !== point.type || existing.point.style?.color !== point.style?.color) {
+        if (existing.popup?.isOpen()) {
+          existing.popup.remove()
+        }
+        existing.marker.remove()
+        pointsMap.delete(point.id)
+      }
+      else {
+        existing.marker.setLngLat(point.coordinates)
+        existing.marker.setDraggable(isDraggableAllowed.value)
+        existing.point = point
 
-      if (point.comment && point.comment.trim() !== '') {
-        if (!existing.popup) {
-          const popupElement = document.createElement('div')
-          popupElement.className = 'ol-popup-comment'
-          popupElement.textContent = point.comment
+        if (labelText && !isConnect) {
+          if (!existing.popup) {
+            const popupElement = document.createElement('div')
+            popupElement.className = 'ol-popup-comment'
+            popupElement.textContent = labelText
 
-          popupElement.onclick = (e) => {
-            e.stopPropagation()
-            setActivePointId(point.id)
+            popupElement.onclick = (e) => {
+              e.stopPropagation()
+              setActivePointId(point.id)
+            }
+
+            const popup = new maplibregl.Popup({
+              offset: 32,
+              closeButton: false,
+              closeOnClick: false,
+              closeOnMove: false,
+              className: 'maplibre-point-comment-wrapper',
+            }).setDOMContent(popupElement)
+
+            existing.marker.setPopup(popup)
+            existing.popup = popup
+            existing.popupElement = popupElement
           }
-
-          const popup = new maplibregl.Popup({
-            offset: isConnect ? 10 : 32,
-            closeButton: false,
-            closeOnClick: false,
-            closeOnMove: false,
-            className: 'maplibre-point-comment-wrapper',
-          }).setDOMContent(popupElement)
-
-          existing.marker.setPopup(popup)
-          existing.popup = popup
-          existing.popupElement = popupElement
+          else if (existing.popupElement) {
+            existing.popupElement.textContent = labelText
+          }
         }
-        else if (existing.popupElement) {
-          existing.popupElement.textContent = point.comment
+        else if (existing.popup) {
+          existing.popup.remove()
+          existing.popup = undefined
+          existing.popupElement = undefined
         }
-      }
-      else if (existing.popup) {
-        existing.popup.remove()
-        existing.popup = undefined
-        existing.popupElement = undefined
-      }
 
-      updateOverlayVisibilities()
-      return
+        updateOverlayVisibilities()
+        return
+      }
     }
 
     const el = createMarkerElement({
@@ -288,6 +429,7 @@ export function useGeolocationMap() {
       opacity: point.style?.opacity ?? 1.0,
       zIndex: point.style?.zIndex ?? (isConnect ? 15 : 20),
       isConnect,
+      pointType: point.type,
     })
 
     const marker = new maplibregl.Marker({
@@ -325,10 +467,10 @@ export function useGeolocationMap() {
     let popup: maplibregl.Popup | undefined
     let popupElement: HTMLElement | undefined
 
-    if (point.comment && point.comment.trim() !== '') {
+    if (labelText && !isConnect) {
       popupElement = document.createElement('div')
       popupElement.className = 'ol-popup-comment'
-      popupElement.textContent = point.comment
+      popupElement.textContent = labelText
 
       popupElement.onclick = (e) => {
         e.stopPropagation()
@@ -336,7 +478,7 @@ export function useGeolocationMap() {
       }
 
       popup = new maplibregl.Popup({
-        offset: isConnect ? 10 : 32,
+        offset: 32,
         closeButton: false,
         closeOnClick: false,
         closeOnMove: false,

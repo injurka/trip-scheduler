@@ -109,8 +109,17 @@ const poiPointsWithStyle = computed(() => points.value.map((point, index) => ({
 const allMapPoints = computed(() => {
   const routePoints = routes.value.flatMap(r => r.points.map((p, index) => {
     let type: MapPoint['type'] = p.type
-    if (index === 0)
+    if (r.points.length > 1) {
+      if (index === 0)
+        type = 'start'
+      else if (index === r.points.length - 1 && p.type !== 'connect')
+        type = 'end'
+      else if (p.type !== 'connect')
+        type = 'via'
+    }
+    else {
       type = 'start'
+    }
 
     return {
       ...p,

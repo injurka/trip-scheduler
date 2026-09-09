@@ -4,6 +4,9 @@ import type { MapLayerOption } from '../models/types'
 import { KitBtn } from '~/components/01.kit/kit-btn'
 import { KitDropdown } from '~/components/01.kit/kit-dropdown'
 
+import { CustomTileSettingsDialog } from '~/components/02.shared/custom-tile-settings-dialog'
+import { useAppSettingsStore } from '~/shared/store/app-settings.store'
+
 interface Props {
   mapInstance: MapLibreMap | null
   layers?: MapLayerOption[]
@@ -18,15 +21,43 @@ const emit = defineEmits<{
   (e: 'zoomIn'): void
   (e: 'zoomOut'): void
   (e: 'update:activeLayerId', id: string): void
+  (e: 'tileSettingsApplied', sourceId: 'custom' | 'maptilerStreets'): void
 }>()
 
+const appSettingsStore = useAppSettingsStore()
+const isTileSettingsOpen = ref(false)
+
+function handleTileApplied(sourceId: 'custom' | 'maptilerStreets') {
+  emit('update:activeLayerId', sourceId)
+  emit('tileSettingsApplied', sourceId)
+}
+
 const dropDownLayers = computed(() => {
-  return props.layers.map(l => ({
-    value: l.id,
-    label: l.label,
-    icon: l.icon,
-  }))
+  return [
+    ...props.layers.map(l => ({
+      value: l.id,
+      label: l.id === 'custom' && appSettingsStore.customTileName ? appSettingsStore.customTileName : l.label,
+      icon: l.icon,
+    })),
+    {
+      value: 'configure_custom',
+      label: 'Настроить свои тайлы...',
+      icon: 'mdi:cog-outline',
+    },
+  ]
 })
+
+function handleLayerSelect(val: any) {
+  if (val === 'configure_custom') {
+    isTileSettingsOpen.value = true
+    return
+  }
+  if (val === 'custom' && !appSettingsStore.customTileUrl) {
+    isTileSettingsOpen.value = true
+    return
+  }
+  emit('update:activeLayerId', val as string)
+}
 </script>
 
 <template>
@@ -58,7 +89,7 @@ const dropDownLayers = computed(() => {
         :items="dropDownLayers"
         :model-value="activeLayerId"
         align="end"
-        @update:model-value="emit('update:activeLayerId', $event as string)"
+        @update:model-value="handleLayerSelect"
       >
         <template #trigger>
           <KitBtn
@@ -72,6 +103,11 @@ const dropDownLayers = computed(() => {
         </template>
       </KitDropdown>
     </div>
+
+    <CustomTileSettingsDialog
+      v-model="isTileSettingsOpen"
+      @applied="handleTileApplied"
+    />
   </div>
 </template>
 

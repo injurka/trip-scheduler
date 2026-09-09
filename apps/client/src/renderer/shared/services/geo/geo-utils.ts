@@ -58,6 +58,8 @@ export interface MarkerStyleOptions {
   opacity?: number
   zIndex?: number
   isConnect?: boolean
+  pointType?: 'start' | 'via' | 'end' | 'connect' | 'poi'
+  label?: string
 }
 
 /**
@@ -70,36 +72,75 @@ export function createMarkerElement(options: MarkerStyleOptions = {}): HTMLEleme
     opacity = 1.0,
     zIndex = 20,
     isConnect = false,
+    pointType,
   } = options
 
+  const isConnectPoint = isConnect || pointType === 'connect'
   const container = document.createElement('div')
-  container.className = isConnect ? 'maplibre-marker-connect' : 'maplibre-marker-pin'
+  container.className = isConnectPoint ? 'maplibre-marker-connect' : 'maplibre-marker-pin'
+  container.classList.add(`is-${pointType || (isConnectPoint ? 'connect' : 'poi')}`)
   container.style.cursor = 'pointer'
   container.style.opacity = String(opacity)
   container.style.zIndex = String(zIndex)
+  container.style.transition = 'none'
 
-  if (isConnect) {
+  if (isConnectPoint) {
     container.innerHTML = `
-      <div style="
-        width: ${Math.round(12 * scale)}px;
-        height: ${Math.round(12 * scale)}px;
+      <div class="connect-marker-inner" style="
+        width: ${Math.round(13 * scale)}px;
+        height: ${Math.round(13 * scale)}px;
         border-radius: 50%;
         background-color: #ffffff;
         border: ${Math.max(2, Math.round(2.5 * scale))}px solid ${color};
-        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.25);
-        transition: transform 0.15s ease;
+        box-shadow: 0 2px 5px rgba(0, 0, 0, 0.3);
       "></div>
     `
   }
   else {
-    const width = Math.round(26 * scale)
-    const height = Math.round(26 * scale)
-    container.innerHTML = `
-      <svg width="${width}" height="${height}" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" style="filter: drop-shadow(0 2px 5px rgba(0, 0, 0, 0.35)); transition: transform 0.15s ease;">
-        <path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7z" fill="${color}" stroke="#ffffff" stroke-width="1.2"/>
-        <circle cx="12" cy="9" r="2.8" fill="#ffffff"/>
-      </svg>
-    `
+    let svgHtml = ''
+    if (pointType === 'start') {
+      const width = Math.round(28 * scale)
+      const height = Math.round(28 * scale)
+      svgHtml = `
+        <svg width="${width}" height="${height}" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" style="filter: drop-shadow(0 2px 6px rgba(0, 0, 0, 0.4));">
+          <path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7z" fill="#2ECC71" stroke="#ffffff" stroke-width="1.3"/>
+          <circle cx="12" cy="9" r="4.2" fill="#ffffff"/>
+          <text x="12" y="11.8" font-size="7.5" font-weight="900" fill="#2ECC71" text-anchor="middle" font-family="system-ui, -apple-system, sans-serif">A</text>
+        </svg>
+      `
+    }
+    else if (pointType === 'end') {
+      const width = Math.round(28 * scale)
+      const height = Math.round(28 * scale)
+      svgHtml = `
+        <svg width="${width}" height="${height}" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" style="filter: drop-shadow(0 2px 6px rgba(0, 0, 0, 0.4));">
+          <path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7z" fill="#E74C3C" stroke="#ffffff" stroke-width="1.3"/>
+          <circle cx="12" cy="9" r="4.2" fill="#ffffff"/>
+          <text x="12" y="11.8" font-size="7.5" font-weight="900" fill="#E74C3C" text-anchor="middle" font-family="system-ui, -apple-system, sans-serif">B</text>
+        </svg>
+      `
+    }
+    else if (pointType === 'via') {
+      const width = Math.round(24 * scale)
+      const height = Math.round(24 * scale)
+      svgHtml = `
+        <svg width="${width}" height="${height}" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" style="filter: drop-shadow(0 2px 5px rgba(0, 0, 0, 0.35));">
+          <path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7z" fill="${color}" stroke="#ffffff" stroke-width="1.2"/>
+          <circle cx="12" cy="9" r="3.2" fill="#ffffff"/>
+        </svg>
+      `
+    }
+    else {
+      const width = Math.round(26 * scale)
+      const height = Math.round(26 * scale)
+      svgHtml = `
+        <svg width="${width}" height="${height}" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" style="filter: drop-shadow(0 2px 5px rgba(0, 0, 0, 0.35));">
+          <path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7z" fill="${color}" stroke="#ffffff" stroke-width="1.2"/>
+          <circle cx="12" cy="9" r="2.8" fill="#ffffff"/>
+        </svg>
+      `
+    }
+    container.innerHTML = `<div class="marker-pin-inner">${svgHtml}</div>`
   }
 
   return container

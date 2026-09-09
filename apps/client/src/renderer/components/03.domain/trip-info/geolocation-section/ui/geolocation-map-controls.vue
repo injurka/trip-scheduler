@@ -3,6 +3,9 @@ import type { Map as MapLibreMap } from 'maplibre-gl'
 import type { TileSourceId } from '../../../../../shared/lib/map-styles-sources'
 import { KitBtn } from '~/components/01.kit/kit-btn'
 import { KitDropdown } from '~/components/01.kit/kit-dropdown'
+import { CustomTileSettingsDialog } from '~/components/02.shared/custom-tile-settings-dialog'
+
+import { useAppSettingsStore } from '~/shared/store/app-settings.store'
 import { TILE_SOURCES } from '../../../../../shared/lib/map-styles-sources'
 
 interface Props {
@@ -21,11 +24,37 @@ const emit = defineEmits<{
   (e: 'centerOnMyLocation'): void
 }>()
 
-const tillerItems = computed(() => Object.entries(TILE_SOURCES).map(([id, { label, icon }]) => ({
-  value: id as TileSourceId,
-  label,
-  icon,
-})))
+const appSettingsStore = useAppSettingsStore()
+const isTileSettingsOpen = ref(false)
+
+const tillerItems = computed(() => [
+  ...Object.entries(TILE_SOURCES).map(([id, { label, icon }]) => ({
+    value: id,
+    label: id === 'custom' && appSettingsStore.customTileName ? appSettingsStore.customTileName : label,
+    icon,
+  })),
+  {
+    value: 'configure_custom',
+    label: 'Настроить свои тайлы...',
+    icon: 'mdi:cog-outline',
+  },
+])
+
+function handleTileSourceSelect(selected: any) {
+  if (selected === 'configure_custom') {
+    isTileSettingsOpen.value = true
+    return
+  }
+  if (selected === 'custom' && !appSettingsStore.customTileUrl) {
+    isTileSettingsOpen.value = true
+    return
+  }
+  emit('setTileSource', selected as TileSourceId)
+}
+
+function handleTileSettingsApplied(sourceId: any) {
+  emit('setTileSource', sourceId as TileSourceId)
+}
 
 function zoomIn() {
   if (props.mapInstance) {
@@ -65,7 +94,7 @@ function zoomOut() {
         @click="zoomOut"
       />
     </div>
-    <KitDropdown :items="tillerItems" :portal-target="portalTarget" @update:model-value="emit('setTileSource', $event as TileSourceId)">
+    <KitDropdown :items="tillerItems" :portal-target="portalTarget" @update:model-value="handleTileSourceSelect">
       <template #trigger>
         <KitBtn
           variant="outlined"
@@ -75,6 +104,11 @@ function zoomOut() {
         />
       </template>
     </KitDropdown>
+
+    <CustomTileSettingsDialog
+      v-model="isTileSettingsOpen"
+      @applied="handleTileSettingsApplied"
+    />
     <KitBtn
       variant="outlined"
       color="secondary"

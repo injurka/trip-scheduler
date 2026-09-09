@@ -1,11 +1,10 @@
 <script setup lang="ts">
-import type { MapMarker } from '~/components/01.kit/kit-map'
+import type { KitMapRoute, MapMarker } from '~/components/01.kit/kit-map'
 import { Icon } from '@iconify/vue'
 import { useRouter } from 'vue-router'
 import { KitBtn } from '~/components/01.kit/kit-btn'
-import { KitMap } from '~/components/01.kit/kit-map' // Moscow
-
-import { nominatimService } from '~/shared/services/geo'
+import { KitMap } from '~/components/01.kit/kit-map'
+import { isValidCoordinate, nominatimService } from '~/shared/services/geo'
 
 interface Props {
   cities?: string[]
@@ -24,6 +23,7 @@ const { smAndDown } = useDisplay()
 
 const isLoading = ref(true)
 const mapMarkers = ref<MapMarker[]>([])
+const mapRoutes = ref<KitMapRoute[]>([])
 const mapCenter = ref<[number, number]>([37.6176, 55.7558])
 
 async function fetchCoordinates(city: string): Promise<[number, number] | null> {
@@ -41,14 +41,75 @@ async function fetchCoordinates(city: string): Promise<[number, number] | null> 
 }
 
 async function initMapData() {
-  if (props.points.length > 0) {
-    mapMarkers.value = props.points.map(p => ({
-      id: p.id,
-      coords: { lat: p.coordinates[1], lon: p.coordinates[0] },
-      payload: p,
-    }))
-    const p = props.points[0]
-    mapCenter.value = [p.coordinates[0], p.coordinates[1]]
+  if (props.points.length > 0 || props.routes.length > 0) {
+    const markers: MapMarker[] = []
+    const routes: KitMapRoute[] = []
+
+    props.points.forEach((p) => {
+      if (p && p.coordinates && isValidCoordinate(p.coordinates)) {
+        let [lon, lat] = p.coordinates
+        if (Math.abs(lat) > 90 && Math.abs(lon) <= 90) {
+          const temp = lat
+          lat = lon
+          lon = temp
+        }
+        markers.push({
+          id: p.id,
+          coords: { lon, lat },
+          color: p.style?.color,
+          pointType: p.type || 'poi',
+          comment: p.comment,
+          address: p.address,
+          payload: p,
+        })
+      }
+    })
+
+    props.routes.forEach((r) => {
+      if (r.isVisible !== false && r.geometry && r.geometry.length >= 2) {
+        routes.push({
+          id: r.id,
+          title: r.title,
+          color: r.color || '#4A90E2',
+          geometry: r.geometry,
+        })
+      }
+
+      if (r.points && Array.isArray(r.points)) {
+        r.points.forEach((rp: any) => {
+          if (rp && rp.coordinates && isValidCoordinate(rp.coordinates)) {
+            let [lon, lat] = rp.coordinates
+            if (Math.abs(lat) > 90 && Math.abs(lon) <= 90) {
+              const temp = lat
+              lat = lon
+              lon = temp
+            }
+            if (!markers.some(m => m.id === rp.id)) {
+              markers.push({
+                id: rp.id,
+                coords: { lon, lat },
+                color: rp.style?.color || r.color,
+                pointType: rp.type,
+                comment: rp.comment,
+                address: rp.address,
+                payload: rp,
+              })
+            }
+          }
+        })
+      }
+    })
+
+    mapMarkers.value = markers
+    mapRoutes.value = routes
+
+    if (markers.length > 0) {
+      mapCenter.value = [markers[0].coords.lon, markers[0].coords.lat]
+    }
+    else if (routes.length > 0 && routes[0].geometry && routes[0].geometry.length > 0) {
+      mapCenter.value = routes[0].geometry[0]
+    }
+
     isLoading.value = false
     return
   }
@@ -80,10 +141,13 @@ async function initMapData() {
       mapCenter.value = [centerSum[0] / validCount, centerSum[1] / validCount]
       mapMarkers.value = markers
     }
+    mapRoutes.value = []
     isLoading.value = false
     return
   }
 
+  mapMarkers.value = []
+  mapRoutes.value = []
   isLoading.value = false
 }
 
@@ -95,7 +159,7 @@ onMounted(() => {
   initMapData()
 })
 
-watch(() => [props.cities, props.points], () => {
+watch(() => [props.cities, props.points, props.routes], () => {
   initMapData()
 }, { deep: true })
 </script>
@@ -122,7 +186,7 @@ watch(() => [props.cities, props.points], () => {
         <span>Загрузка карты...</span>
       </div>
 
-      <div v-else-if="mapMarkers.length === 0 && cities.length === 0" class="empty-state">
+      <div v-else-if="mapMarkers.length === 0 && mapRoutes.length === 0 && cities.length === 0" class="empty-state">
         <Icon icon="mdi:map-marker-off-outline" />
         <span>Нет отмеченных локаций</span>
       </div>
@@ -133,6 +197,7 @@ watch(() => [props.cities, props.points], () => {
         :zoom="10"
         height="100%"
         :markers="mapMarkers"
+        :routes="mapRoutes"
         :auto-pan="true"
         class="interactive-map"
       />

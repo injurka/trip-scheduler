@@ -31,6 +31,7 @@ declare global {
   const controlledComputed: typeof import('@vueuse/core').controlledComputed
   const controlledRef: typeof import('@vueuse/core').controlledRef
   const createApp: typeof import('vue').createApp
+  const createCustomRasterStyle: typeof import('../../lib/map-styles-sources').createCustomRasterStyle
   const createEventHook: typeof import('@vueuse/core').createEventHook
   const createGlobalState: typeof import('@vueuse/core').createGlobalState
   const createInjectionState: typeof import('@vueuse/core').createInjectionState
@@ -61,6 +62,9 @@ declare global {
   const getCurrentInstance: typeof import('vue').getCurrentInstance
   const getCurrentScope: typeof import('vue').getCurrentScope
   const getCurrentWatcher: typeof import('vue').getCurrentWatcher
+  const getCustomTileName: typeof import('../../lib/map-styles-sources').getCustomTileName
+  const getCustomTileUrl: typeof import('../../lib/map-styles-sources').getCustomTileUrl
+  const getEffectiveMapTilerKey: typeof import('../../lib/map-styles-sources').getEffectiveMapTilerKey
   const getImageUrl: typeof import('../../lib/url').getImageUrl
   const getLocalDate: typeof import('../../lib/date-time').getLocalDate
   const getMapStyle: typeof import('../../lib/map-styles-sources').getMapStyle
@@ -423,6 +427,7 @@ declare module 'vue' {
     readonly controlledComputed: UnwrapRef<typeof import('@vueuse/core')['controlledComputed']>
     readonly controlledRef: UnwrapRef<typeof import('@vueuse/core')['controlledRef']>
     readonly createApp: UnwrapRef<typeof import('vue')['createApp']>
+    readonly createCustomRasterStyle: UnwrapRef<typeof import('../../lib/map-styles-sources')['createCustomRasterStyle']>
     readonly createEventHook: UnwrapRef<typeof import('@vueuse/core')['createEventHook']>
     readonly createGlobalState: UnwrapRef<typeof import('@vueuse/core')['createGlobalState']>
     readonly createInjectionState: UnwrapRef<typeof import('@vueuse/core')['createInjectionState']>
@@ -453,6 +458,9 @@ declare module 'vue' {
     readonly getCurrentInstance: UnwrapRef<typeof import('vue')['getCurrentInstance']>
     readonly getCurrentScope: UnwrapRef<typeof import('vue')['getCurrentScope']>
     readonly getCurrentWatcher: UnwrapRef<typeof import('vue')['getCurrentWatcher']>
+    readonly getCustomTileName: UnwrapRef<typeof import('../../lib/map-styles-sources')['getCustomTileName']>
+    readonly getCustomTileUrl: UnwrapRef<typeof import('../../lib/map-styles-sources')['getCustomTileUrl']>
+    readonly getEffectiveMapTilerKey: UnwrapRef<typeof import('../../lib/map-styles-sources')['getEffectiveMapTilerKey']>
     readonly getImageUrl: UnwrapRef<typeof import('../../lib/url')['getImageUrl']>
     readonly getLocalDate: UnwrapRef<typeof import('../../lib/date-time')['getLocalDate']>
     readonly getMapStyle: UnwrapRef<typeof import('../../lib/map-styles-sources')['getMapStyle']>

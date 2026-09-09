@@ -331,6 +331,33 @@ export function useBaseMap() {
 
           map.on('style.load', () => {
             applyTerrain(map)
+
+            // Санитизация выражений MapTiler для слоя "Road shields" во избежание предупреждений slice(null)
+            try {
+              if (map.getLayer('Road shields')) {
+                const sanitizeSliceExpr = (expr: any): any => {
+                  if (!Array.isArray(expr))
+                    return expr
+                  if (expr[0] === 'slice' && Array.isArray(expr[1]) && expr[1][0] === 'get') {
+                    return ['slice', ['coalesce', expr[1], ''], ...expr.slice(2).map(sanitizeSliceExpr)]
+                  }
+                  return expr.map(sanitizeSliceExpr)
+                }
+
+                const iconColor = map.getPaintProperty('Road shields', 'icon-color')
+                if (iconColor) {
+                  map.setPaintProperty('Road shields', 'icon-color', sanitizeSliceExpr(iconColor))
+                }
+                const haloColor = map.getPaintProperty('Road shields', 'icon-halo-color')
+                if (haloColor) {
+                  map.setPaintProperty('Road shields', 'icon-halo-color', sanitizeSliceExpr(haloColor))
+                }
+              }
+            }
+            catch {
+              // Игнорируем ошибки при отсутствии слоя в кастомных стилях
+            }
+
             styleLoadCallbacks.forEach((cb) => {
               try {
                 cb(map)
@@ -342,8 +369,22 @@ export function useBaseMap() {
             markReady()
           })
 
+          const updateContainerZoomClasses = (z: number) => {
+            const container = map.getContainer() || targetElement
+            if (container && container.classList) {
+              container.classList.toggle('map-zoom-micro', z < 9.5)
+              container.classList.toggle('map-zoom-far', z >= 9.5 && z < 11.5)
+              container.classList.toggle('map-zoom-mid', z >= 11.5 && z < 14)
+              container.classList.toggle('map-zoom-close', z >= 14)
+            }
+          }
+
+          updateContainerZoomClasses(initialZoom)
+
           map.on('zoom', () => {
-            currentZoom.value = Math.round(map.getZoom())
+            const z = map.getZoom()
+            currentZoom.value = Math.round(z)
+            updateContainerZoomClasses(z)
           })
 
           map.once('load', markReady)

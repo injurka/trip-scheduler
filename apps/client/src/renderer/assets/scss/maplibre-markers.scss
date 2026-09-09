@@ -1,0 +1,236 @@
+/* ==========================================================================
+   Shared MapLibre Marker & Popup Styles
+   Используется всеми картами в приложении (KitMap, GeolocationMap, MapWidget)
+   ========================================================================== */
+
+/* 1. Корневые контейнеры маркеров MapLibre */
+.maplibre-marker-pin {
+  user-select: none;
+  pointer-events: auto;
+  transition: none !important; /* ВАЖНО: Никаких CSS transition на transform у контейнера MapLibre! */
+
+  .marker-pin-inner {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transform-origin: bottom center;
+    transition: transform 0.15s cubic-bezier(0.34, 1.56, 0.64, 1);
+    will-change: transform;
+  }
+
+  &:hover {
+    z-index: 50 !important;
+
+    .marker-pin-inner {
+      transform: translateY(-4px) scale(1.12);
+    }
+  }
+}
+
+.maplibre-marker-connect {
+  user-select: none;
+  pointer-events: auto;
+  transition: none !important;
+
+  .connect-marker-inner {
+    transform-origin: center center;
+    transition:
+      transform 0.15s cubic-bezier(0.34, 1.56, 0.64, 1),
+      box-shadow 0.15s ease;
+    will-change: transform;
+  }
+
+  &:hover {
+    z-index: 45 !important;
+
+    .connect-marker-inner {
+      transform: scale(1.35);
+      box-shadow:
+        0 0 0 4px rgba(255, 255, 255, 0.6),
+        0 3px 10px rgba(0, 0, 0, 0.35) !important;
+    }
+  }
+}
+
+/* 2. Всплывающие подсказки и комментарии (Popups) */
+.maplibregl-popup.maplibre-point-comment-wrapper {
+  /* ВАЖНО: z-index выше любых меток (у меток 20..50), чтобы метки не перекрывали текст */
+  z-index: 90 !important;
+  pointer-events: auto;
+
+  &:hover,
+  &:has(.is-hovered),
+  &:has(.is-active) {
+    z-index: 120 !important;
+  }
+
+  .maplibregl-popup-content {
+    background: transparent !important;
+    box-shadow: none !important;
+    padding: 0 !important;
+    border-radius: 0 !important;
+    border: none !important;
+  }
+
+  .maplibregl-popup-tip {
+    display: none !important;
+  }
+}
+
+.ol-popup-comment {
+  background-color: var(--bg-secondary-color);
+  color: var(--fg-primary-color);
+  padding: 6px 12px;
+  border-radius: var(--r-s);
+  font-size: 0.8rem;
+  font-weight: 600;
+  white-space: nowrap;
+  max-width: 280px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  backdrop-filter: blur(12px);
+  border: 1px solid var(--border-primary-color);
+  box-shadow:
+    0 4px 14px rgba(0, 0, 0, 0.22),
+    0 1px 3px rgba(0, 0, 0, 0.1);
+  transition:
+    opacity 0.2s ease,
+    transform 0.2s cubic-bezier(0.34, 1.56, 0.64, 1),
+    box-shadow 0.2s ease,
+    border-color 0.2s ease;
+  user-select: none;
+  cursor: pointer;
+  pointer-events: auto;
+
+  &::after {
+    content: '';
+    position: absolute;
+    bottom: -5px;
+    left: 50%;
+    transform: translateX(-50%) rotate(45deg);
+    width: 9px;
+    height: 9px;
+    background-color: var(--bg-secondary-color);
+    border-right: 1px solid var(--border-primary-color);
+    border-bottom: 1px solid var(--border-primary-color);
+  }
+
+  &.is-hidden-zoom {
+    opacity: 0 !important;
+    pointer-events: none !important;
+    transform: translateY(4px) scale(0.95);
+    visibility: hidden;
+  }
+
+  &.is-hovered {
+    opacity: 1 !important;
+    pointer-events: auto !important;
+    visibility: visible !important;
+    transform: translateY(0) scale(1.04);
+    box-shadow: 0 6px 20px rgba(0, 0, 0, 0.28);
+    border-color: var(--fg-accent-color);
+  }
+
+  &.is-active {
+    opacity: 1 !important;
+    pointer-events: auto !important;
+    visibility: visible !important;
+    transform: translateY(0) scale(1.05);
+    box-shadow: 0 6px 22px rgba(0, 0, 0, 0.3);
+    border-color: var(--fg-accent-color);
+  }
+}
+
+/* ==========================================================================
+   Zoom LOD: Адаптивное масштабирование меток при удалении карты
+   ========================================================================== */
+
+/* 1. Микро-масштаб (zoom < 9.5): обзор всей страны/острова */
+.map-zoom-micro {
+  .maplibre-marker-connect {
+    opacity: 0 !important;
+    pointer-events: none !important;
+  }
+
+  .maplibre-marker-pin.is-via {
+    opacity: 0.35;
+    .marker-pin-inner {
+      transform: scale(0.35);
+    }
+    &:hover {
+      opacity: 1;
+      .marker-pin-inner {
+        transform: scale(1.1);
+      }
+    }
+  }
+
+  .maplibre-marker-pin.is-start,
+  .maplibre-marker-pin.is-end,
+  .maplibre-marker-pin.is-poi {
+    .marker-pin-inner {
+      transform: scale(0.55);
+    }
+    &:hover .marker-pin-inner {
+      transform: scale(1.1);
+    }
+  }
+}
+
+/* 2. Далекий масштаб (9.5 <= zoom < 11.5): региональный обзор */
+.map-zoom-far {
+  .maplibre-marker-connect {
+    opacity: 0.5;
+    .connect-marker-inner {
+      transform: scale(0.65);
+    }
+  }
+
+  .maplibre-marker-pin.is-via {
+    opacity: 0.7;
+    .marker-pin-inner {
+      transform: scale(0.6);
+    }
+    &:hover {
+      opacity: 1;
+      .marker-pin-inner {
+        transform: scale(1.05);
+      }
+    }
+  }
+
+  .maplibre-marker-pin.is-start,
+  .maplibre-marker-pin.is-end,
+  .maplibre-marker-pin.is-poi {
+    .marker-pin-inner {
+      transform: scale(0.72);
+    }
+    &:hover .marker-pin-inner {
+      transform: scale(1.1);
+    }
+  }
+}
+
+/* 3. Средний масштаб (11.5 <= zoom < 14): районный уровень */
+.map-zoom-mid {
+  .maplibre-marker-connect {
+    opacity: 0.85;
+    .connect-marker-inner {
+      transform: scale(0.85);
+    }
+  }
+
+  .maplibre-marker-pin.is-via {
+    .marker-pin-inner {
+      transform: scale(0.82);
+    }
+  }
+
+  .maplibre-marker-pin.is-start,
+  .maplibre-marker-pin.is-end,
+  .maplibre-marker-pin.is-poi {
+    .marker-pin-inner {
+      transform: scale(0.88);
+    }
+  }
+}

@@ -2,10 +2,13 @@
 import { Icon } from '@iconify/vue'
 import { KitBtn } from '~/components/01.kit/kit-btn'
 
-defineProps<{
+withDefaults(defineProps<{
   selectedDay: string
   todayUtc: string
-}>()
+  showTodayButton?: boolean
+}>(), {
+  showTodayButton: true,
+})
 
 const emit = defineEmits<{
   (e: 'goToToday'): void
@@ -23,7 +26,7 @@ const emit = defineEmits<{
       <p>В этот день координаты не сохранялись или устройство находилось в покое.</p>
       <div class="empty-actions">
         <KitBtn
-          v-if="selectedDay !== todayUtc"
+          v-if="showTodayButton && selectedDay !== todayUtc"
           variant="tonal"
           size="sm"
           @click="emit('goToToday')"

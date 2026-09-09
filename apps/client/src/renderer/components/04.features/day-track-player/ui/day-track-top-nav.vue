@@ -3,7 +3,7 @@ import type { ViewMode } from '../models/types'
 import { Icon } from '@iconify/vue'
 import { KitBtn } from '~/components/01.kit/kit-btn'
 
-defineProps<{
+withDefaults(defineProps<{
   selectedDay: string
   todayUtc: string
   headerDayTitle: string
@@ -11,7 +11,10 @@ defineProps<{
   totalPointsCount: number
   displayPointsCount: number
   isFitDisabled: boolean
-}>()
+  showTodayButton?: boolean
+}>(), {
+  showTodayButton: true,
+})
 
 const emit = defineEmits<{
   (e: 'changeDay', offset: number): void
@@ -75,7 +78,7 @@ const emit = defineEmits<{
       </div>
 
       <KitBtn
-        v-if="selectedDay !== todayUtc"
+        v-if="showTodayButton && selectedDay !== todayUtc"
         variant="subtle"
         size="xs"
         @click="emit('goToToday')"

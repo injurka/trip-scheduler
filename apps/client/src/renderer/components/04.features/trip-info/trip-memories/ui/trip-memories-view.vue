@@ -9,8 +9,8 @@ import { KitDivider } from '~/components/01.kit/kit-divider'
 import { KitDropdown } from '~/components/01.kit/kit-dropdown'
 import { KitTooltip } from '~/components/01.kit/kit-tooltip'
 import { AsyncStateWrapper } from '~/components/02.shared/async-state-wrapper'
+import { DayTrackDrawer } from '~/components/04.features/day-track-player'
 import { ETripMemoriesKeys } from '~/components/04.features/trip-info/trip-memories/store/trip-memories.store'
-import { DayMemoriesPlayer } from '~/components/05.modules/day-track-player'
 import { useModuleStore } from '~/components/05.modules/trip-info/composables/use-trip-info-module'
 import { getTagInfo } from '~/components/05.modules/trip-info/lib/helpers'
 import { useRequestError } from '~/plugins/request'
@@ -496,19 +496,12 @@ async function handleNotifyParticipants() {
       @save="handleSaveActivity"
     />
 
-    <Teleport to="body">
-      <div v-if="isTrackPlayerOpen" class="track-route-overlay">
-        <div class="track-route-sheet">
-          <button class="track-route-close" aria-label="Закрыть маршрут" @click="isTrackPlayerOpen = false">
-            <Icon icon="mdi:close" />
-          </button>
-          <DayMemoriesPlayer
-            :day-utc="getSelectedDay?.date ? getSelectedDay.date.split('T')[0] : undefined"
-            :show-back-button="false"
-          />
-        </div>
-      </div>
-    </Teleport>
+    <DayTrackDrawer
+      :open="isTrackPlayerOpen"
+      :day-utc="getSelectedDay?.date ? getSelectedDay.date.split('T')[0] : undefined"
+      :show-today-button="false"
+      @close="isTrackPlayerOpen = false"
+    />
   </div>
 </template>
 
@@ -724,44 +717,6 @@ async function handleNotifyParticipants() {
 
   &:hover {
     filter: brightness(1.1);
-  }
-}
-
-.track-route-overlay {
-  position: fixed;
-  inset: 0;
-  z-index: 200;
-  background: rgba(0, 0, 0, 0.6);
-  display: flex;
-  align-items: flex-end;
-  justify-content: center;
-}
-
-.track-route-sheet {
-  position: relative;
-  width: 100vw;
-  height: 88vh;
-  background: var(--bg-primary-color);
-  border-radius: var(--r-l, 16px) var(--r-l, 16px) 0 0;
-  display: flex;
-  flex-direction: column;
-
-  .track-route-close {
-    position: absolute;
-    top: -46px;
-    right: 8px;
-    z-index: 10;
-    width: 36px;
-    height: 36px;
-    border-radius: 50%;
-    border: none;
-    background: var(--bg-primary-color);
-    color: var(--fg-primary-color);
-    cursor: pointer;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
   }
 }
 </style>

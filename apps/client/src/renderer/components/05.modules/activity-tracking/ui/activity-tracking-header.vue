@@ -61,13 +61,13 @@ const emit = defineEmits<{
           aria-label="Обновить"
           @click="emit('refresh')"
         >
-          <Icon icon="mdi:refresh" :class="{ 'spin-icon': props.isLoading || props.isRefreshing }" />
+          <Icon icon="mdi:refresh" width="18" :class="{ 'spin-icon': props.isLoading || props.isRefreshing }" />
         </KitBtn>
 
         <KitBtn
           variant="solid"
           size="xs"
-          color="primary"
+          color="secondary"
           class="memories-btn"
           @click="emit('openMemories')"
         >

@@ -164,7 +164,7 @@ export function extractNamedWaypointsFromUrl(url: string): string[] {
       const results: string[] = []
       for (const part of parts) {
         const trimmed = part.trim()
-        if (!trimmed || trimmed.startsWith('data=') || /^!/i.test(trimmed) || /^@/i.test(trimmed))
+        if (!trimmed || trimmed.startsWith('data=') || /^!/i.test(trimmed) || /^@/i.test(trimmed) || /^[-\d.,\s]+$/.test(trimmed))
           continue
         const cleaned = trimmed.replace(/\+/g, ' ').trim()
         if (cleaned)
@@ -239,6 +239,8 @@ export interface ExtractedLocation {
   query: string
   coordinates?: [number, number]
   isBike?: boolean
+  routeName?: string
+  pointType?: 'start' | 'via' | 'end' | 'connect' | 'poi'
 }
 
 export function extractLocationsFromText(text: string): ExtractedLocation[] {
@@ -246,7 +248,14 @@ export function extractLocationsFromText(text: string): ExtractedLocation[] {
 
   const PREFIX_CLEAN_REGEX = /^(?:Yandex Maps|Google Maps|2GIS|OpenStreetMap|AllTrails|Hikingbook|Карты Yandex|Карты Google|Карты|Maps|Map|Трек|Маршрут|Велотрек|Веломаршрут):\s*/i
 
-  function addLocation(name: string, query?: string, coords?: [number, number], isBike?: boolean) {
+  function addLocation(
+    name: string,
+    query?: string,
+    coords?: [number, number],
+    isBike?: boolean,
+    routeName?: string,
+    pointType?: 'start' | 'via' | 'end' | 'connect' | 'poi',
+  ) {
     const cleanName = name
       .replace(PREFIX_CLEAN_REGEX, '')
       .replace(/[[\]]/g, '')
@@ -256,10 +265,22 @@ export function extractLocationsFromText(text: string): ExtractedLocation[] {
       .replace(/[[\]]/g, '')
       .trim()
 
-    if (!cleanName && !cleanQuery)
+    if (!cleanName && !cleanQuery && !routeName)
       return
 
-    const existing = locations.find(l => (cleanName && l.name.toLowerCase() === cleanName.toLowerCase()))
+    if (routeName) {
+      locations.push({
+        name: cleanName,
+        query: cleanQuery || cleanName,
+        coordinates: coords,
+        isBike,
+        routeName,
+        pointType: pointType || (coords ? 'via' : 'poi'),
+      })
+      return
+    }
+
+    const existing = locations.find(l => !l.routeName && (cleanName && l.name.toLowerCase() === cleanName.toLowerCase()))
     if (existing) {
       if (!existing.coordinates && coords)
         existing.coordinates = coords
@@ -272,6 +293,84 @@ export function extractLocationsFromText(text: string): ExtractedLocation[] {
         query: cleanQuery || cleanName,
         coordinates: coords,
         isBike,
+        pointType: 'poi',
+      })
+    }
+  }
+
+  function addRouteLocations(
+    routeName: string,
+    coordsList: Array<[number, number]>,
+    namedList: string[],
+    isBike?: boolean,
+  ) {
+    const rawSegments = routeName.split(/\s*(?:→|->|➔|—|–)\s*/).map(s => s.trim()).filter(Boolean)
+    const count = Math.max(coordsList.length, namedList.length)
+    if (count < 2)
+      return
+
+    for (let i = 0; i < count; i++) {
+      const coords = coordsList[i]
+      const named = namedList[i]
+      const isStart = i === 0
+      const isEnd = i === count - 1
+
+      let pointType: 'start' | 'via' | 'end' | 'connect' = isStart ? 'start' : isEnd ? 'end' : 'via'
+      let ptName = ''
+
+      if (namedList.length === count && named) {
+        ptName = named
+      }
+      else if (rawSegments.length === count) {
+        ptName = rawSegments[i]
+      }
+      else if (rawSegments.length === 2 && count > 2) {
+        if (isStart) {
+          ptName = rawSegments[0]
+        }
+        else if (isEnd) {
+          ptName = rawSegments[1]
+        }
+        else {
+          pointType = 'connect'
+          ptName = ''
+        }
+      }
+      else if (rawSegments.length > 2) {
+        if (isStart) {
+          ptName = rawSegments[0]
+        }
+        else if (isEnd) {
+          ptName = rawSegments[rawSegments.length - 1]
+        }
+        else if (i < rawSegments.length - 1) {
+          ptName = rawSegments[i]
+        }
+        else {
+          pointType = 'connect'
+          ptName = ''
+        }
+      }
+      else {
+        if (isStart) {
+          ptName = routeName
+        }
+        else if (isEnd) {
+          ptName = 'Финиш'
+        }
+        else {
+          pointType = 'connect'
+          ptName = ''
+        }
+      }
+
+      locations.push({
+        name: ptName,
+        query: ptName || named || routeName,
+        coordinates: coords,
+        isBike,
+        routeName,
+        pointType,
       })
     }
   }
@@ -323,27 +422,14 @@ export function extractLocationsFromText(text: string): ExtractedLocation[] {
         locationName = locationQuery || linkTitle
       }
 
-      // 1. Check for coordinate-based route points in URL
       const allCoords = extractAllCoordinatesFromUrl(linkUrl)
-      if (allCoords.length > 1) {
-        allCoords.forEach((coords, idx) => {
-          const ptName = `${locationName} (Точка ${idx + 1})`
-          addLocation(ptName, ptName, coords, isBike)
-        })
+      const namedWaypoints = extractNamedWaypointsFromUrl(linkUrl)
+      if (allCoords.length > 1 || namedWaypoints.length > 1) {
+        addRouteLocations(locationName, allCoords, namedWaypoints, isBike)
       }
       else {
-        // 2. Check for named-place route (e.g. Google Maps /dir/Place1/Place2)
-        const namedWaypoints = extractNamedWaypointsFromUrl(linkUrl)
-        if (namedWaypoints.length > 1) {
-          namedWaypoints.forEach((placeName, idx) => {
-            const ptName = `${locationName} (Точка ${idx + 1})`
-            addLocation(ptName, placeName, undefined, isBike)
-          })
-        }
-        else {
-          const coords = allCoords.length === 1 ? allCoords[0] : extractCoordinatesFromUrl(linkUrl)
-          addLocation(locationName, locationQuery, coords, isBike)
-        }
+        const coords = allCoords.length === 1 ? allCoords[0] : extractCoordinatesFromUrl(linkUrl)
+        addLocation(locationName, locationQuery, coords, isBike)
       }
     }
 
@@ -408,25 +494,15 @@ export function extractLocationsFromText(text: string): ExtractedLocation[] {
     const title = stdMapLinkMatch[1]
     const url = stdMapLinkMatch[2]
     const isBike = /вело|bike/i.test(title) || /travelmode=bicycl|travelmode=bike|!3e1/i.test(url)
+    const cleanTitle = title.replace(PREFIX_CLEAN_REGEX, '').trim() || title
     const allCoords = extractAllCoordinatesFromUrl(url)
-    if (allCoords.length > 1) {
-      allCoords.forEach((coords, idx) => {
-        const ptName = `${title} (Точка ${idx + 1})`
-        addLocation(ptName, ptName, coords, isBike)
-      })
+    const namedWaypoints = extractNamedWaypointsFromUrl(url)
+    if (allCoords.length > 1 || namedWaypoints.length > 1) {
+      addRouteLocations(cleanTitle, allCoords, namedWaypoints, isBike)
     }
     else {
-      const namedWaypoints = extractNamedWaypointsFromUrl(url)
-      if (namedWaypoints.length > 1) {
-        namedWaypoints.forEach((placeName, idx) => {
-          const ptName = `${title} (Точка ${idx + 1})`
-          addLocation(ptName, placeName, undefined, isBike)
-        })
-      }
-      else {
-        const coords = allCoords.length === 1 ? allCoords[0] : extractCoordinatesFromUrl(url)
-        addLocation(title, title, coords, isBike)
-      }
+      const coords = allCoords.length === 1 ? allCoords[0] : extractCoordinatesFromUrl(url)
+      addLocation(cleanTitle, cleanTitle, coords, isBike)
     }
   }
 

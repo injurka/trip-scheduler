@@ -77,6 +77,32 @@ function handleTransportChange(route: MapRoute, mode: TransportMode) {
     return
   emit('setTransportMode', route.id, mode)
 }
+
+function getDecoratedRoutePoints(route: MapRoute): MapPoint[] {
+  return route.points.map((p, index) => {
+    let type: MapPoint['type'] = p.type
+    if (route.points.length > 1) {
+      if (index === 0)
+        type = 'start'
+      else if (index === route.points.length - 1 && p.type !== 'connect')
+        type = 'end'
+      else if (p.type !== 'connect')
+        type = 'via'
+    }
+    else {
+      type = 'start'
+    }
+
+    return {
+      ...p,
+      type,
+      style: {
+        ...p.style,
+        color: route.color,
+      },
+    }
+  })
+}
 </script>
 
 <template>
@@ -191,8 +217,9 @@ function handleTransportChange(route: MapRoute, mode: TransportMode) {
 
             <GeolocationPoiList
               v-else
-              :points="route.points.map(p => ({ ...p, style: { ...p.style, color: route.color } }))"
+              :points="getDecoratedRoutePoints(route)"
               :readonly="!!readonly"
+              :is-route-points="true"
               @focus-on-point="emit('focusOnPoint', $event)"
               @update-point="emit('updatePoint', route.id, $event)"
               @update-point-coords="emit('updatePointCoords', $event)"

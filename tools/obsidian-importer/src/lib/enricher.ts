@@ -207,13 +207,13 @@ export async function enrichActivityWithMediaAndLocation(
   // 5. Process Locations -> Geolocation Section ("Локация")
   if (extractedLocations.length > 0) {
     const mapPoints: GeolocationPoint[] = []
-    // Group trail waypoints (name ends with " (Точка N)") into routes
+    // Group trail waypoints into routes
     const routeGroups = new Map<string, Array<GeolocationPoint & { isBike?: boolean }>>()
 
     for (const loc of extractedLocations) {
       let coordinates: [number, number] | null = loc.coordinates || null
 
-      if (!coordinates && shouldGeocode) {
+      if (!coordinates && shouldGeocode && loc.pointType !== 'connect') {
         notify(`📍 Геокодирование: ${loc.name || loc.query}`)
         coordinates = await geocodeLocation(loc.query, geoCache, options.locationContext)
         if (!coordinates && loc.name && loc.name !== loc.query) {
@@ -224,33 +224,50 @@ export async function enrichActivityWithMediaAndLocation(
       if (!coordinates)
         continue
 
-      // Detect waypoint pattern: "Route Name (Точка N)"
-      const waypointMatch = loc.name.match(/^(.+)\s+\(Точка\s+(\d+)\)$/)
-      if (waypointMatch) {
-        const routeName = waypointMatch[1].trim()
-        const ptIndex = Number.parseInt(waypointMatch[2], 10)
+      if (loc.routeName) {
+        const routeName = loc.routeName
         if (!routeGroups.has(routeName)) {
           routeGroups.set(routeName, [])
         }
         const pts = routeGroups.get(routeName)!
-        const pointType: GeolocationPoint['type'] = ptIndex === 1 ? 'start' : 'end'
         pts.push({
           id: crypto.randomUUID(),
           coordinates,
-          type: pointType,
-          address: loc.name,
-          comment: loc.name,
+          type: loc.pointType || 'via',
+          address: loc.pointType === 'connect' ? undefined : (loc.name || undefined),
+          comment: undefined,
           isBike: loc.isBike,
         })
       }
       else {
-        mapPoints.push({
-          id: crypto.randomUUID(),
-          coordinates,
-          type: 'poi',
-          address: loc.name,
-          comment: loc.name,
-        })
+        // Detect waypoint pattern: "Route Name (Точка N)"
+        const waypointMatch = loc.name.match(/^(.+)\s+\(Точка\s+(\d+)\)$/)
+        if (waypointMatch) {
+          const routeName = waypointMatch[1].trim()
+          const ptIndex = Number.parseInt(waypointMatch[2], 10)
+          if (!routeGroups.has(routeName)) {
+            routeGroups.set(routeName, [])
+          }
+          const pts = routeGroups.get(routeName)!
+          const pointType: GeolocationPoint['type'] = ptIndex === 1 ? 'start' : 'via'
+          pts.push({
+            id: crypto.randomUUID(),
+            coordinates,
+            type: pointType,
+            address: routeName,
+            comment: undefined,
+            isBike: loc.isBike,
+          })
+        }
+        else {
+          mapPoints.push({
+            id: crypto.randomUUID(),
+            coordinates,
+            type: 'poi',
+            address: loc.name,
+            comment: undefined,
+          })
+        }
       }
     }
 
@@ -258,14 +275,23 @@ export async function enrichActivityWithMediaAndLocation(
     const routes: any[] = []
     for (const [routeName, pts] of routeGroups) {
       if (pts.length > 1) {
-        // Mark intermediate points as 'via'
-        const orderedPts = pts.map((p, i) => ({
-          id: p.id,
-          coordinates: p.coordinates,
-          type: (i === 0 ? 'start' : i === pts.length - 1 ? 'end' : 'via') as GeolocationPoint['type'],
-          address: p.address,
-          comment: p.comment,
-        }))
+        const orderedPts = pts.map((p, i) => {
+          let type: GeolocationPoint['type'] = p.type
+          if (i === 0)
+            type = 'start'
+          else if (i === pts.length - 1)
+            type = 'end'
+          else if (type !== 'connect')
+            type = 'via'
+
+          return {
+            id: p.id,
+            coordinates: p.coordinates,
+            type,
+            address: type === 'connect' ? undefined : p.address,
+            comment: undefined,
+          }
+        })
         const isBike = /вело|bike/i.test(routeName) || pts.some(p => p.isBike)
         routes.push({
           id: crypto.randomUUID(),
@@ -283,15 +309,19 @@ export async function enrichActivityWithMediaAndLocation(
           coordinates: p.coordinates,
           type: 'poi',
           address: p.address,
-          comment: p.comment,
+          comment: undefined,
         }))
       }
     }
 
     if (mapPoints.length > 0 || routes.length > 0) {
-      const poiLabels = mapPoints.map(p => p.address).filter(Boolean)
       const routeLabels = routes.map(r => r.title)
-      const sectionTitle = [...poiLabels, ...routeLabels].join(' • ')
+      // Filter out POI labels that are already part of route titles to prevent "Jiufen Old Street • Jiufen Old Street Entrance → ..."
+      const poiLabels = mapPoints
+        .map(p => p.address)
+        .filter((addr): addr is string => addr != null && addr.trim() !== '' && !routeLabels.some(r => r.toLowerCase().includes(addr.toLowerCase())))
+
+      const sectionTitle = [...poiLabels, ...routeLabels].join(' • ') || routes[0]?.title || mapPoints[0]?.address || 'Локация'
       const center = mapPoints[0]?.coordinates || routes[0]?.points[0]?.coordinates
       const totalPoints = mapPoints.length + routes.reduce((s: number, r: any) => s + r.points.length, 0)
       newSections.push({

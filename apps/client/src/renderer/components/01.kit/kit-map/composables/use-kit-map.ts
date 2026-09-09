@@ -1,5 +1,5 @@
 import type { StyleSpecification } from 'maplibre-gl'
-import type { KitMapOptions, MapMarker } from '../models/types'
+import type { KitMapOptions, KitMapRoute, MapMarker } from '../models/types'
 import * as maplibregl from 'maplibre-gl'
 import { resolveApiUrl } from '~/shared/lib/url'
 import { createMarkerElement } from '~/shared/services/geo'
@@ -9,6 +9,7 @@ export function useKitMap() {
   const baseMap = useBaseMap()
 
   const markersMap = new Map<string, maplibregl.Marker>()
+  const routesMap = new Map<string, KitMapRoute>()
   let searchMarker: maplibregl.Marker | null = null
 
   const removeAllMarkers = () => {
@@ -38,11 +39,18 @@ export function useKitMap() {
       let markerInstance = markersMap.get(marker.id)
 
       if (!markerInstance) {
-        const el = createMarkerElement({ color: '#3399CC', scale: 1.1 })
+        const isConnect = marker.pointType === 'connect'
+        const el = createMarkerElement({
+          color: marker.color || '#3399CC',
+          scale: marker.scale || 1.1,
+          pointType: marker.pointType || 'poi',
+          isConnect,
+          label: marker.label,
+        })
 
         markerInstance = new maplibregl.Marker({
           element: el,
-          anchor: 'bottom',
+          anchor: isConnect ? 'center' : 'bottom',
         }).setLngLat([marker.coords.lon, marker.coords.lat])
 
         if (marker.imageUrl) {
@@ -61,6 +69,41 @@ export function useKitMap() {
             el.addEventListener('mouseleave', () => markerInstance?.togglePopup())
           }
         }
+        else {
+          const hasDistinctComment = Boolean(marker.comment && marker.comment.trim() !== '' && marker.comment.trim() !== marker.address?.trim())
+          const popupText = hasDistinctComment
+            ? marker.comment!
+            : (marker.pointType !== 'connect' && marker.address && marker.address.trim() !== '' ? marker.address : (marker.title || ''))
+
+          if (popupText && marker.pointType !== 'connect') {
+            const popupElement = document.createElement('div')
+            popupElement.className = 'ol-popup-comment'
+            popupElement.textContent = popupText
+
+            const popup = new maplibregl.Popup({
+              offset: 32,
+              closeButton: false,
+              closeOnClick: false,
+              closeOnMove: false,
+              className: 'maplibre-point-comment-wrapper',
+            }).setDOMContent(popupElement)
+
+            markerInstance.setPopup(popup)
+            if (hasDistinctComment) {
+              popup.addTo(map)
+            }
+            else {
+              el.addEventListener('mouseenter', () => {
+                if (!popup.isOpen())
+                  popup.addTo(map)
+              })
+              el.addEventListener('mouseleave', () => {
+                if (popup.isOpen())
+                  popup.remove()
+              })
+            }
+          }
+        }
 
         markerInstance.addTo(map)
         markersMap.set(marker.id, markerInstance)
@@ -71,8 +114,134 @@ export function useKitMap() {
     })
   }
 
+  const renderRoute = (map: maplibregl.Map, route: KitMapRoute) => {
+    if (!route.geometry || route.geometry.length < 2)
+      return
+
+    const sourceId = `kit-route-src-${route.id}`
+    const shadowLayerId = `kit-route-shadow-${route.id}`
+    const casingLayerId = `kit-route-casing-${route.id}`
+    const lineLayerId = `kit-route-line-${route.id}`
+
+    const geojson: GeoJSON.Feature<GeoJSON.LineString> = {
+      type: 'Feature',
+      properties: {
+        id: route.id,
+        color: route.color || '#4363D8',
+      },
+      geometry: {
+        type: 'LineString',
+        coordinates: route.geometry,
+      },
+    }
+
+    const existingSource = map.getSource(sourceId) as maplibregl.GeoJSONSource | undefined
+    if (existingSource) {
+      existingSource.setData(geojson)
+      if (map.getLayer(lineLayerId)) {
+        map.setPaintProperty(lineLayerId, 'line-color', route.color || '#4363D8')
+        map.setPaintProperty(
+          lineLayerId,
+          'line-dasharray',
+          route.isDirect ? [2, 2] : undefined,
+        )
+      }
+      return
+    }
+
+    map.addSource(sourceId, {
+      type: 'geojson',
+      data: geojson,
+    })
+
+    // 1. Слой тени (shadow)
+    map.addLayer({
+      id: shadowLayerId,
+      type: 'line',
+      source: sourceId,
+      layout: { 'line-cap': 'round', 'line-join': 'round' },
+      paint: {
+        'line-color': '#000000',
+        'line-width': ['interpolate', ['linear'], ['zoom'], 8, 4, 12, 7.5, 16, 11],
+        'line-opacity': 0.16,
+        'line-blur': 3,
+        'line-offset': 1,
+      },
+    })
+
+    // 2. Белая подложка (casing)
+    map.addLayer({
+      id: casingLayerId,
+      type: 'line',
+      source: sourceId,
+      layout: { 'line-cap': 'round', 'line-join': 'round' },
+      paint: {
+        'line-color': '#ffffff',
+        'line-width': ['interpolate', ['linear'], ['zoom'], 8, 3.5, 12, 6, 16, 8.5],
+        'line-opacity': 0.95,
+      },
+    })
+
+    // 3. Основная линия
+    map.addLayer({
+      id: lineLayerId,
+      type: 'line',
+      source: sourceId,
+      layout: { 'line-cap': 'round', 'line-join': 'round' },
+      paint: {
+        'line-color': route.color || '#4363D8',
+        'line-width': ['interpolate', ['linear'], ['zoom'], 8, 2, 12, 3.8, 16, 5.5],
+        ...(route.isDirect ? { 'line-dasharray': [2, 2] } : {}),
+      },
+    })
+  }
+
+  const removeRoute = (routeId: string) => {
+    routesMap.delete(routeId)
+    const map = baseMap.mapInstance.value
+    if (!map)
+      return
+
+    const sourceId = `kit-route-src-${routeId}`
+    if (map.getLayer(`kit-route-line-${routeId}`))
+      map.removeLayer(`kit-route-line-${routeId}`)
+    if (map.getLayer(`kit-route-casing-${routeId}`))
+      map.removeLayer(`kit-route-casing-${routeId}`)
+    if (map.getLayer(`kit-route-shadow-${routeId}`))
+      map.removeLayer(`kit-route-shadow-${routeId}`)
+    if (map.getSource(sourceId))
+      map.removeSource(sourceId)
+  }
+
+  const clearRoutes = () => {
+    Array.from(routesMap.keys()).forEach(removeRoute)
+  }
+
+  const updateRoutes = (routes: KitMapRoute[]) => {
+    const map = baseMap.mapInstance.value
+    if (!map)
+      return
+
+    const newIds = new Set(routes.map(r => r.id))
+    routesMap.forEach((_, id) => {
+      if (!newIds.has(id))
+        removeRoute(id)
+    })
+
+    routes.forEach((route) => {
+      routesMap.set(route.id, route)
+      if (route.isVisible !== false) {
+        renderRoute(map, route)
+      }
+      else {
+        removeRoute(route.id)
+      }
+    })
+  }
+
   const fitViewToMarkers = () => {
-    if (markersMap.size === 0)
+    const map = baseMap.mapInstance.value
+    if (!map)
       return
 
     let minLon = Number.POSITIVE_INFINITY
@@ -92,7 +261,22 @@ export function useKitMap() {
         maxLat = lngLat.lat
     })
 
-    if (minLon !== Number.POSITIVE_INFINITY) {
+    routesMap.forEach((route) => {
+      if (route.geometry) {
+        route.geometry.forEach(([lon, lat]) => {
+          if (lon < minLon)
+            minLon = lon
+          if (lon > maxLon)
+            maxLon = lon
+          if (lat < minLat)
+            minLat = lat
+          if (lat > maxLat)
+            maxLat = lat
+        })
+      }
+    })
+
+    if (minLon !== Number.POSITIVE_INFINITY && maxLon !== Number.NEGATIVE_INFINITY) {
       baseMap.fitBounds(
         [
           [minLon, minLat],
@@ -146,8 +330,9 @@ export function useKitMap() {
       showAttribution: false,
     })
 
-    // При смене стиля восстанавливаем маркеры на холсте
+    // При смене стиля восстанавливаем маркеры и маршруты на холсте
     baseMap.onStyleLoad((map) => {
+      routesMap.forEach(route => renderRoute(map, route))
       markersMap.forEach(marker => marker.addTo(map))
       if (searchMarker) {
         searchMarker.addTo(map)
@@ -157,6 +342,7 @@ export function useKitMap() {
 
   baseMap.mapInstance.value?.on('remove', () => {
     removeAllMarkers()
+    clearRoutes()
     clearSearchResult()
   })
 
@@ -171,6 +357,7 @@ export function useKitMap() {
     flyTo: baseMap.flyTo,
     fitBounds: baseMap.fitBounds,
     updateMarkers,
+    updateRoutes,
     fitViewToMarkers,
     setSearchResult,
     clearSearchResult,

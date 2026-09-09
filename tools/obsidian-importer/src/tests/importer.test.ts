@@ -67,6 +67,31 @@ describe('Location Parser', () => {
     expect(locations[0].name).toBe('Chifeng Street Zhongshan')
     expect(locations[0].query).toBe('Chifeng Street Taipei')
   })
+
+  it('segments route titles with arrows into clean waypoints without duplicate noise', () => {
+    const text = '* _Хайкинг-трек_: [Google Maps: Jiufen Old Street Entrance → Shuqi Road → A-Mei Tea House](https://www.google.com/maps/dir/25.109860,121.845190/25.109200,121.844300/25.108800,121.843900/?travelmode=walking)'
+    const locations = extractLocationsFromText(text)
+    expect(locations).toHaveLength(3)
+    expect(locations[0].name).toBe('Jiufen Old Street Entrance')
+    expect(locations[0].pointType).toBe('start')
+    expect(locations[1].name).toBe('Shuqi Road')
+    expect(locations[1].pointType).toBe('via')
+    expect(locations[2].name).toBe('A-Mei Tea House')
+    expect(locations[2].pointType).toBe('end')
+    expect(locations[0].routeName).toBe('Jiufen Old Street Entrance → Shuqi Road → A-Mei Tea House')
+  })
+
+  it('creates connect waypoints without text for intermediate curve coordinates', () => {
+    const text = '* _Хайкинг-трек_: [Google Maps: Yehliu Visitor Center → Yehliu Cape Tip](https://www.google.com/maps/dir/25.206380,121.690460/25.207800,121.693400/25.212700,121.696100/?travelmode=walking)'
+    const locations = extractLocationsFromText(text)
+    expect(locations).toHaveLength(3)
+    expect(locations[0].name).toBe('Yehliu Visitor Center')
+    expect(locations[0].pointType).toBe('start')
+    expect(locations[1].name).toBe('')
+    expect(locations[1].pointType).toBe('connect')
+    expect(locations[2].name).toBe('Yehliu Cape Tip')
+    expect(locations[2].pointType).toBe('end')
+  })
 })
 
 describe('Checklist Parser', () => {
@@ -96,5 +121,52 @@ describe('Activity & Day Title Parser', () => {
 
     const title2 = extractDayTitle('02 Токио', 2)
     expect(title2).toBe('Токио')
+  })
+})
+
+describe('Activity Enrichment', () => {
+  it('enriches activity with clean route without noisy duplicate comments', async () => {
+    const { enrichActivityWithMediaAndLocation } = await import('../lib/enricher')
+    const rawAct = {
+      startTime: '10:00',
+      endTime: '12:00',
+      title: 'Геопарк Елю',
+      tag: 'walk' as const,
+      sections: [
+        {
+          id: 'desc-1',
+          type: 'description' as const,
+          text: `
+_Ссылка на локацию_: [Google Maps: Yehliu Geopark](https://maps.google.com/?q=25.206380,121.690460)
+_Хайкинг-трек_: [Google Maps: Yehliu Visitor Center → Yehliu Cape Tip](https://www.google.com/maps/dir/25.206380,121.690460/25.207800,121.693400/25.212700,121.696100/?travelmode=walking)
+          `.trim(),
+        },
+      ],
+    }
+
+    const res = await enrichActivityWithMediaAndLocation(
+      rawAct,
+      new Map(),
+      null,
+      null,
+      new Map(),
+      new Map(),
+      { geocode: false },
+    )
+
+    const geoSec = res.sections?.find(s => s.type === 'geolocation') as any
+    expect(geoSec).toBeDefined()
+    expect(geoSec.routes).toHaveLength(1)
+    expect(geoSec.routes[0].title).toBe('Yehliu Visitor Center → Yehliu Cape Tip')
+    expect(geoSec.routes[0].points).toHaveLength(3)
+    expect(geoSec.routes[0].points[0].type).toBe('start')
+    expect(geoSec.routes[0].points[0].address).toBe('Yehliu Visitor Center')
+    expect(geoSec.routes[0].points[0].comment).toBeUndefined()
+    expect(geoSec.routes[0].points[1].type).toBe('connect')
+    expect(geoSec.routes[0].points[1].address).toBeUndefined()
+    expect(geoSec.routes[0].points[1].comment).toBeUndefined()
+    expect(geoSec.routes[0].points[2].type).toBe('end')
+    expect(geoSec.routes[0].points[2].address).toBe('Yehliu Cape Tip')
+    expect(geoSec.routes[0].points[2].comment).toBeUndefined()
   })
 })
