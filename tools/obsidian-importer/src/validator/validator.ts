@@ -161,7 +161,7 @@ export function validateObsidianVault(context: ValidationScopeContext, startDate
         continue
       }
 
-      const dayNumberMatch = fileName.match(/^0*(\d{1,2})|[дd](\d{1,2})|day\s*(\d{1,2})/i)
+      const dayNumberMatch = fileName.match(/^(?:0*(\d{1,2})|[дd](\d{1,2})|day\s*(\d{1,2}))/i)
       const dayNumber = dayNumberMatch
         ? Number.parseInt(dayNumberMatch[1] || dayNumberMatch[2] || dayNumberMatch[3], 10)
         : (daySummaries.length + 1)
@@ -195,13 +195,24 @@ export function validateObsidianVault(context: ValidationScopeContext, startDate
       const hasHighlight = />[ \t]*\*\*(?:Ключевой хайлайт|Хайлайт дня|Хайлайты|Хайлайт|Highlight):\*\*/i.test(content)
 
       if (!hasPhase && !hasHighlight) {
-        dayIssues.push({
-          severity: 'warning',
-          category: 'days',
-          file: fileName,
-          message: 'В шапке дня отсутствуют параметры `> **Фаза тура:**` и `> **Ключевой хайлайт:**`.',
-          recommendation: 'Добавьте в цитату шапки строки `> **Фаза тура:** ...` и `> **Ключевой хайлайт:** ...` для заполнения описания дня в расписании.',
-        })
+        if (!dayDescription) {
+          dayIssues.push({
+            severity: 'warning',
+            category: 'days',
+            file: fileName,
+            message: 'В шапке дня отсутствуют параметры `> **Фаза тура:**` и `> **Ключевой хайлайт:**`, описание дня не сформировано.',
+            recommendation: 'Добавьте в цитату шапки строки `> **Фаза тура:** ...` и `> **Ключевой хайлайт:** ...` для заполнения описания дня в расписании.',
+          })
+        }
+        else {
+          dayIssues.push({
+            severity: 'info',
+            category: 'days',
+            file: fileName,
+            message: 'В шапке дня не используются стандартные теги `> **Фаза тура:**` и `> **Ключевой хайлайт:**` (использован резервный источник описания).',
+            recommendation: 'Для соответствия Золотому стандарту оформите шапку дня через `> **Фаза тура:** ...` и `> **Ключевой хайлайт:** ...`.',
+          })
+        }
       }
 
       // Проверка структуры активностей и поиск нераспознанных кандидатов

@@ -6,10 +6,13 @@ export async function geocodeLocation(
   locationContext?: string,
 ): Promise<[number, number] | null> {
   const cleanQuery = locationQuery
+    .replace(/\p{Extended_Pictographic}/gu, '')
+    .replace(/[\uFE00-\uFE0F\u200D]/gu, '')
     .replace(/^https?:\/\/\S+/, '')
     .replace(/<[^>]+>/g, '')
     .replace(/^(?:Yandex Maps|Google Maps|2GIS|OpenStreetMap|Карты Yandex|Карты Google|Карты|Maps|Map|точка старта|точка сбора|локация|место|адрес):\s*/i, '')
     .replace(/[[\]()*_]/g, '')
+    .replace(/\s+/g, ' ')
     .trim()
 
   if (!cleanQuery || cleanQuery.length < 2) {

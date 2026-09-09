@@ -14,6 +14,7 @@
     "start": "bun run src/run.ts",
     "validate": "bun run src/run.ts --validate",
     "dev": "bun run --hot --watch src/run.ts",
+    "test": "bun test",
     "lint": "eslint .",
     "lint:fix": "eslint . --fix",
     "typecheck": "bunx tsc --noEmit"

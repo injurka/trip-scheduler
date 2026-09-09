@@ -223,6 +223,9 @@ const attractionLabel = computed(() => getRussianPlural(props.attractionCount, [
     gap: 0.5rem;
     padding: 0.5rem;
   }
+  .secondary-stats {
+    gap: 0.5rem;
+  }
   .stat-item-horizontal {
     gap: 8px;
 

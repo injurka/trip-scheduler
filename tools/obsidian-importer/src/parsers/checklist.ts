@@ -70,7 +70,7 @@ export function extractCostFromText(text: string): string | undefined {
 export function extractLocationFromText(text: string): string | undefined {
   const match = text.match(/\*(?:Где пробовать|Локация|Место|Где искать|Где купить):\*\s*([^;\n)]+)/i)
   if (match) {
-    return match[1].split('(`')[0].split('(`')[0].trim().replace(/\s*\(~.*$/, '')
+    return match[1].split('(`')[0].trim().replace(/\s*\(~.*$/, '')
   }
   return undefined
 }
@@ -320,7 +320,7 @@ export function parseObsidianChecklists(checklistDirOrFiles: string[] | string):
         const colonMatch = cleanText.match(/^(\*\*[^*]+\*\*:?)\s*(\S.*)$/)
         if (colonMatch && colonMatch[2].trim()) {
           cleanText = colonMatch[1]
-          description = colonMatch[2].trim()
+          description = colonMatch[2].trim().replace(/^[—–-]\s*/, '')
         }
 
         const newItem: ChecklistItem = {

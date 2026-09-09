@@ -28,6 +28,14 @@ export function normalizeFsPath(rawPath: string): string {
     p = p.slice(1, -1).trim()
   }
 
+  // Срезаем префикс '@', если путь был скопирован из чата/IDE вида @/path/...
+  if (p.startsWith('@')) {
+    p = p.slice(1).trim()
+    if ((p.startsWith('"') && p.endsWith('"')) || (p.startsWith('\'') && p.endsWith('\''))) {
+      p = p.slice(1, -1).trim()
+    }
+  }
+
   // Конвертируем Windows обратные слэши
   p = p.replace(/\\/g, '/')
 

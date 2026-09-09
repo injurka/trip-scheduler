@@ -104,12 +104,14 @@ export async function promptForExecutionMode(): Promise<'validate' | 'import' | 
   return resp.mode
 }
 
-export async function promptForContinueToImport(): Promise<boolean> {
+export async function promptForContinueToImport(defaultInitial: boolean = true): Promise<boolean> {
   const resp = await prompts({
     type: 'confirm',
     name: 'proceed',
-    message: 'Хотите сразу перейти к импорту этих данных в Trip Scheduler?',
-    initial: true,
+    message: defaultInitial
+      ? 'Хотите сразу перейти к импорту этих данных в Trip Scheduler?'
+      : 'Обнаружены критические ошибки. Всё равно продолжить импорт?',
+    initial: defaultInitial,
   })
 
   return !!resp.proceed

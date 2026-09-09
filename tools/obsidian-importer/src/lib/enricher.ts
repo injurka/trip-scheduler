@@ -90,7 +90,7 @@ export async function enrichActivityWithMediaAndLocation(
   const callouts = text.match(imageCalloutRegex) || []
 
   for (const callout of callouts) {
-    const wikilinkRegex = /!\[\[([^\]]+)\]\]/g
+    const wikilinkRegex = /!\[\[([^\]|]+)(?:\|[^\]]+)?\]\]/g
     let m: RegExpExecArray | null
     while ((m = wikilinkRegex.exec(callout)) !== null) {
       const fileName = basename(m[1].trim())
@@ -101,7 +101,7 @@ export async function enrichActivityWithMediaAndLocation(
   }
 
   // Also check non-callout wikilinks in text
-  const nonCalloutWikilinkRegex = /!\[\[([^\]]+)\]\]/g
+  const nonCalloutWikilinkRegex = /!\[\[([^\]|]+)(?:\|[^\]]+)?\]\]/g
   let mWikilink: RegExpExecArray | null
   while ((mWikilink = nonCalloutWikilinkRegex.exec(text)) !== null) {
     const fileName = basename(mWikilink[1].trim())
@@ -152,10 +152,10 @@ export async function enrichActivityWithMediaAndLocation(
 
   // 4. Clean description: remove location lines, iframes, image callouts, wikilinks, and note callouts
   text = text
-    .replace(/^[ \t]*(?:[*-][ \t]*)?(?:_[^_\n]*(?:локаци|карт|маршрут|maps?|ориентир|ссылка)[^_\n]*_|\*\*[^*\n]*(?:локаци|карт|маршрут|maps?|ориентир|ссылка)[^*\n]*\*\*):[^\n]*\n?/gmi, '')
+    .replace(/^[ \t]*(?:[*-][ \t]*)?(?:_[^_\n]*(?:локаци|карт|маршрут|maps?|ориентир|ссылка|хайкинг|трек|trail|точк|старт|финиш)[^_\n]*_|\*\*[^*\n]*(?:локаци|карт|маршрут|maps?|ориентир|ссылка|хайкинг|трек|trail|точк|старт|финиш)[^*\n]*\*\*):[^\n]*\n?/gmi, '')
     .replace(/<iframe[^>]*src=["'](?:https?:)?\/\/[^"']*["'][^>]*>\s*<\/iframe>/gi, '')
     .replace(/<iframe[^>]*>[\s\S]*?<\/iframe>/gi, '')
-    .replace(/\[(?:Yandex Maps|Google Maps|2GIS|OpenStreetMap|Карты Yandex|Карты Google|Карты|Maps):[^\]]+\]\([^)]+\)/gi, '')
+    .replace(/\[(?:Yandex Maps|Google Maps|2GIS|OpenStreetMap|AllTrails|Hikingbook|Карты Yandex|Карты Google|Карты|Maps|Трек|Маршрут)[^\]]+\]\([^)]+\)/gi, '')
     .replace(imageCalloutRegex, '')
     .replace(/!\[\[[^\]]+\]\]/g, '')
     .replace(/!\[[^\]]*\]\([^)]+\)/g, '')
@@ -181,6 +181,8 @@ export async function enrichActivityWithMediaAndLocation(
   // 5. Process Locations -> Geolocation Section ("Локация")
   if (extractedLocations.length > 0) {
     const mapPoints: GeolocationPoint[] = []
+    // Group trail waypoints (name ends with " (Точка N)") into routes
+    const routeGroups = new Map<string, GeolocationPoint[]>()
 
     for (const loc of extractedLocations) {
       let coordinates: [number, number] | null = loc.coordinates || null
@@ -193,7 +195,28 @@ export async function enrichActivityWithMediaAndLocation(
         }
       }
 
-      if (coordinates) {
+      if (!coordinates)
+        continue
+
+      // Detect waypoint pattern: "Route Name (Точка N)"
+      const waypointMatch = loc.name.match(/^(.+)\s+\(Точка\s+(\d+)\)$/)
+      if (waypointMatch) {
+        const routeName = waypointMatch[1].trim()
+        const ptIndex = Number.parseInt(waypointMatch[2], 10)
+        if (!routeGroups.has(routeName)) {
+          routeGroups.set(routeName, [])
+        }
+        const pts = routeGroups.get(routeName)!
+        const pointType: GeolocationPoint['type'] = ptIndex === 1 ? 'start' : 'end'
+        pts.push({
+          id: crypto.randomUUID(),
+          coordinates,
+          type: pointType,
+          address: loc.name,
+          comment: loc.name,
+        })
+      }
+      else {
         mapPoints.push({
           id: crypto.randomUUID(),
           coordinates,
@@ -204,16 +227,44 @@ export async function enrichActivityWithMediaAndLocation(
       }
     }
 
-    if (mapPoints.length > 0) {
-      const sectionTitle = mapPoints.map(p => p.address).filter(Boolean).join(' • ')
+    // Build route objects for trail groups
+    const routes: any[] = []
+    for (const [routeName, pts] of routeGroups) {
+      if (pts.length > 1) {
+        // Mark intermediate points as 'via'
+        const orderedPts = pts.map((p, i) => ({
+          ...p,
+          type: (i === 0 ? 'start' : i === pts.length - 1 ? 'end' : 'via') as GeolocationPoint['type'],
+        }))
+        routes.push({
+          id: crypto.randomUUID(),
+          title: routeName,
+          points: orderedPts,
+          transportMode: 'foot',
+          isVisible: true,
+          isFetching: false,
+        })
+      }
+      else {
+        // Only one point resolved — add as POI
+        pts.forEach(p => mapPoints.push({ ...p, type: 'poi' }))
+      }
+    }
+
+    if (mapPoints.length > 0 || routes.length > 0) {
+      const poiLabels = mapPoints.map(p => p.address).filter(Boolean)
+      const routeLabels = routes.map(r => r.title)
+      const sectionTitle = [...poiLabels, ...routeLabels].join(' • ')
+      const center = mapPoints[0]?.coordinates || routes[0]?.points[0]?.coordinates
+      const totalPoints = mapPoints.length + routes.reduce((s: number, r: any) => s + r.points.length, 0)
       newSections.push({
         id: crypto.randomUUID(),
         type: 'geolocation',
         title: sectionTitle,
         points: mapPoints,
-        routes: [],
-        center: mapPoints[0].coordinates,
-        zoom: mapPoints.length > 1 ? 13 : 14,
+        routes,
+        center,
+        zoom: totalPoints > 2 ? 12 : totalPoints > 1 ? 13 : 14,
       })
     }
   }

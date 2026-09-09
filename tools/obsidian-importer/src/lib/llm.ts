@@ -17,7 +17,7 @@ export function mergeLlmActivitiesWithRawMarkdown(
       const rawNorm = raw.title.toLowerCase()
       const llmNorm = llm.title.toLowerCase()
       return rawNorm.includes(llmNorm.slice(0, 10)) || llmNorm.includes(rawNorm.slice(0, 10))
-    }) || llmActs[i]
+    })
 
     if (matchedLlm) {
       merged.push({

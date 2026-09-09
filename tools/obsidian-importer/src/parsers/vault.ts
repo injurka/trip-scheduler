@@ -216,7 +216,7 @@ export function parseObsidianTripFolder(tripPath: string, startDateStr?: string)
         continue
       }
 
-      const dayNumberMatch = fileName.match(/^0*(\d{1,2})|[дd](\d{1,2})|day\s*(\d{1,2})/i)
+      const dayNumberMatch = fileName.match(/^(?:0*(\d{1,2})|[дd](\d{1,2})|day\s*(\d{1,2}))/i)
       const dayNumber = dayNumberMatch
         ? Number.parseInt(dayNumberMatch[1] || dayNumberMatch[2] || dayNumberMatch[3], 10)
         : (parsedDays.length + 1)

@@ -439,7 +439,7 @@ onBeforeUnmount(() => {
       font-size: 0.88rem !important;
       font-weight: 600 !important;
       line-height: 1.4 !important;
-      margin-top: 0.7rem !important;
+      margin-top: 0.75rem !important;
       margin-bottom: 0.25rem !important;
       color: var(--fg-secondary-color);
     }

@@ -70,25 +70,11 @@ function removeEmoji(str: string): string {
 }
 
 /**
- * Формирует короткий заголовок для записи об отеле.
- * Если локация содержит суб-район в скобках «Город (Район)» → возвращает «Район».
- * Иначе возвращает чистое название локации или название отеля.
+ * Формирует заголовок для записи об отеле.
+ * Возвращает только название отеля без локации и дат.
  */
-function makeHotelTitle(cleanLocation: string, hotelName: string): string {
-  if (cleanLocation) {
-    const subAreaMatch = cleanLocation.match(/\(([^)]+)\)/)
-    if (subAreaMatch && subAreaMatch[1].trim()) {
-      const subArea = subAreaMatch[1].trim()
-      // Пропускаем числовые значения (высота, км и т.п.) — берём имя отеля или сам город
-      if (/^\d/.test(subArea)) {
-        // sub-area is numeric (e.g. "1400 м") — use hotelName or city without parens
-        return hotelName || cleanLocation.replace(/\s*\([^)]*\)/, '').trim()
-      }
-      return subArea
-    }
-    return cleanLocation
-  }
-  return hotelName
+function makeHotelTitle(hotelName: string): string {
+  return hotelName || 'Отель'
 }
 
 /**
@@ -276,13 +262,16 @@ export function parseHotelsMarkdown(content: string, startDateStr: string): Book
           const notesParts = [priceInfo, features].filter(Boolean)
           const notes = notesParts.join('. ')
 
-          // Чистим локацию от эмодзи и скобочных префиксов
+          // Чистим локацию: убираем эмодзи, разметку, даты в скобках типа "(30 окт – 03 ноя)"
           const cleanLocation = removeEmoji(rawLocationCol)
             .replace(/[*_`]/g, '')
+            .replace(/\(\s*\d{1,2}\s*[а-яё]+[^)]*–[^)]*\)/gi, '') // убираем диапазоны дат
+            .replace(/\(\s*\d{1,2}\s*[а-яё]+[^)]*\)/gi, '') // убираем одиночные даты
+            .replace(/\s+/g, ' ')
             .trim()
 
-          const baseTitle = makeHotelTitle(cleanLocation, hotelName)
-          const stayTitle = parsedRanges.length > 1 ? `${baseTitle} (Заезд ${rIdx + 1})` : baseTitle
+          const baseTitle = makeHotelTitle(hotelName)
+          const stayTitle = parsedRanges.length > 1 ? `${baseTitle} (${rIdx + 1}-й заезд)` : baseTitle
 
           bookings.push({
             id: crypto.randomUUID(),
@@ -505,28 +494,135 @@ export function parseTransportMarkdown(content: string, startDateStr: string): B
       urlMap.set('саам', url)
   }
 
+  /**
+   * Определяет иконку и тип транспорта по тексту в колонке «Транспорт».
+   * Возвращает { type, icon } для Booking.
+   */
+  function classifyTransport(transportText: string, segmentText: string): { type: 'train' | 'car', icon: string } {
+    const t = transportText.toLowerCase()
+    const s = segmentText.toLowerCase()
+
+    // Паром / корабль
+    if (/паром|ferry|⛴|корабл|судно/i.test(t) || /паром|ferry|⛴/i.test(s))
+      return { type: 'train', icon: 'mdi:ferry' }
+
+    // Автобус (включая горные, шаттлы и городские)
+    if (/автобус|bus|🚌|шаттл|shuttle/i.test(t))
+      return { type: 'train', icon: 'mdi:bus' }
+
+    // Метро / MRT / подземка
+    if (/метро|mrt|🚇|subway|underground/i.test(t))
+      return { type: 'train', icon: 'mdi:subway-variant' }
+
+    // Скоростной поезд THSR
+    if (/thsr|高鐵|скоростн|🚄|high.speed/i.test(t))
+      return { type: 'train', icon: 'mdi:train-variant' }
+
+    // Обычный поезд TRA / EMU / узкоколейка
+    if (/tra|поезд|train|🚆|🚂|emu|узкоколейн|tze-chiang/i.test(t))
+      return { type: 'train', icon: 'mdi:train' }
+
+    // Мотоцикл / электробайк / скутер
+    if (/мотоцикл|скутер|байк|мопед|e-bike|ebike|🛵/i.test(t))
+      return { type: 'car', icon: 'mdi:moped' }
+
+    // Такси / машина / авто / аренда
+    if (/такси|taxi|авто|машина|car|джип|трансфер|аренда|🚗|🚖|grab|uber/i.test(t)
+      || /такси|авто|прокат|трансфер/i.test(s)) {
+      return { type: 'car', icon: 'mdi:car' }
+    }
+
+    // Fallback
+    return { type: 'train', icon: 'mdi:transit-transfer' }
+  }
+
+  /**
+   * Извлекает маршрут «A ➔ B» из сегмента или генерирует осмысленное название.
+   * Никогда не возвращает дату или пустую строку.
+   */
+  function extractRouteTitle(segmentCol: string, transportCol: string): { title: string, from: string, to: string } {
+    // Ищем стрелочный маршрут A ➔ B (может быть несколько точек через ➔)
+    const arrowMatch = segmentCol.match(/(.+?)\s*➔\s*(.+)/)
+    if (arrowMatch) {
+      // Берём первую и последнюю точки если несколько ➔
+      const parts = segmentCol.split(/\s*➔\s*/)
+      const to = parts[parts.length - 1].trim()
+      const fromClean = parts[0].trim()
+      return { title: `${fromClean} ➔ ${to}`, from: fromClean, to }
+    }
+
+    // Ищем паттерн «Аэропорт / Вокзал / Порт» в тексте сегмента
+    const locationParts = segmentCol.split(/[(),;]+/).map(s => s.trim()).filter(s => s.length > 3)
+    if (locationParts.length >= 2) {
+      const from = locationParts[0]
+      const to = locationParts[1]
+      return { title: `${from} ➔ ${to}`, from, to }
+    }
+
+    // Попытка извлечь имя из колонки транспорта
+    const transportClean = removeEmoji(transportCol).replace(/[*_`]/g, '').replace(/\([^)]*\)/g, '').trim()
+    if (transportClean && transportClean.length > 4)
+      return { title: transportClean, from: '', to: '' }
+
+    // Финальный fallback — хоть что-то осмысленное
+    const segClean = removeEmoji(segmentCol).replace(/[*_`]/g, '').replace(/\d{1,2}\s*[а-яё]+\s*(?:\([^)]*\))?/gi, '').trim()
+    return { title: segClean || 'Трансфер', from: '', to: '' }
+  }
+
   for (const line of lines) {
     const trimmed = line.trim()
     if (trimmed.startsWith('|') && trimmed.endsWith('|') && !trimmed.includes('---') && !/сегмент|маршрут|время в пути|отправление/i.test(trimmed)) {
       const cols = trimmed.slice(1, -1).split('|').map(c => c.trim())
 
-      // Формат графика: | День | Сегмент | Транспорт | Время в пути | Способ бронирования / Оплата |
+      // Формат графика: | День | Дата/День | Сегмент | Транспорт | Время в пути | Способ бронирования |
       if (cols.length >= 5 && /^\s*\*?\*?\d{1,2}/.test(cols[0])) {
         const dayCol = cols[0].replace(/[*_`]/g, '').trim()
-        const segmentCol = cols[1].replace(/[*_`]/g, '').trim()
-        const transportCol = cols[2].replace(/[*_`]/g, '').trim()
-        const durationCol = cols[3].replace(/[*_`]/g, '').trim()
-        const paymentCol = cols[4].replace(/[*_`]/g, '').trim()
+        // Гибко определяем, какая колонка что содержит:
+        // col[1] может быть "дата/день недели" или сразу сегмент (если 5 колонок)
+        // Если col[1] выглядит как дата — col[2] это сегмент, col[3] транспорт, col[4] время, col[5] оплата
+        // Если col[1] не дата — col[1] это сегмент, col[2] транспорт, col[3] время, col[4] оплата
+        let segmentCol: string
+        let transportCol: string
+        let durationCol: string
+        let paymentCol: string
+
+        const col1LooksLikeDate = /^\d{1,2}\s*[а-яё]+\s*(?:\([^)]*\))?$/i.test(cols[1].replace(/[*_`]/g, '').trim())
+
+        if (col1LooksLikeDate && cols.length >= 6) {
+          // формат с отдельной колонкой даты
+          segmentCol = cols[2].replace(/[*_`]/g, '').trim()
+          transportCol = cols[3].replace(/[*_`]/g, '').trim()
+          durationCol = cols[4].replace(/[*_`]/g, '').trim()
+          paymentCol = cols[5]?.replace(/[*_`]/g, '').trim() ?? ''
+        }
+        else {
+          // стандартный формат (дата вместе с номером дня, или её нет)
+          segmentCol = cols[1].replace(/[*_`]/g, '').trim()
+          transportCol = cols[2].replace(/[*_`]/g, '').trim()
+          durationCol = cols[3].replace(/[*_`]/g, '').trim()
+          paymentCol = cols[4]?.replace(/[*_`]/g, '').trim() ?? ''
+        }
+
+        // Если сегмент по-прежнему похож на дату — пробуем следующую колонку
+        if (/^\d{1,2}\s*[а-яё]+\s*(?:\([^)]*\))?$/i.test(segmentCol) && cols.length > 5) {
+          segmentCol = cols[2].replace(/[*_`]/g, '').trim()
+          transportCol = cols[3].replace(/[*_`]/g, '').trim()
+          durationCol = cols[4].replace(/[*_`]/g, '').trim()
+          paymentCol = cols[5]?.replace(/[*_`]/g, '').trim() ?? ''
+        }
 
         const dayNum = Number.parseInt(dayCol, 10) || 1
         const eventDate = new Date(startDate)
         eventDate.setDate(eventDate.getDate() + (dayNum - 1))
         const dateStr = eventDate.toISOString().split('T')[0]
 
-        // Пропускаем короткие внутригородские поездки на такси по 10-15 мин (Яндекс Go)
-        if (/яндекс\s*go|городское\s*такси/i.test(transportCol) && !/аэропорт/i.test(segmentCol)) {
+        // Пропускаем короткие внутригородские поездки (такси не к аэропорту)
+        if (/яндекс\s*go|городское\s*такси/i.test(transportCol) && !/аэропорт/i.test(segmentCol))
           continue
-        }
+
+        // Пропускаем передвижения внутри острова (без ➔ и слишком короткие описания)
+        if (!segmentCol || segmentCol.length < 5)
+          continue
 
         let sourceUrl: string | undefined
         for (const [key, url] of urlMap.entries()) {
@@ -536,17 +632,23 @@ export function parseTransportMarkdown(content: string, startDateStr: string): B
           }
         }
         if (!sourceUrl) {
-          const directUrlMatch = paymentCol.match(/([a-z0-9\-]+\.(?:ru|com|org|net))/i)
+          const directUrlMatch = paymentCol.match(/([a-z0-9\-]+\.(?:ru|com|org|net|tw)\/\S+)/i)
+            || paymentCol.match(/(?:https?:\/\/)([a-z0-9\-.]+\.[a-z]{2,})/i)
           if (directUrlMatch) {
-            sourceUrl = `https://${directUrlMatch[1]}`
+            sourceUrl = directUrlMatch[0].startsWith('http') ? directUrlMatch[0] : `https://${directUrlMatch[1]}`
           }
         }
 
-        const notes = [transportCol, durationCol ? `Время в пути: ${durationCol}` : '', paymentCol].filter(Boolean).join('. ')
+        const notes = [
+          transportCol,
+          durationCol ? `Время в пути: ${durationCol}` : '',
+          paymentCol,
+        ].filter(Boolean).join('. ')
 
-        // Если это экскурсия / билет / пропуск
-        if (/экскурси|билет|пропуск|эко-сбор|музей|сеанс|катер|подъемник/i.test(segmentCol) || /экскурси|музей|билет/i.test(transportCol)) {
-          const cleanTitle = segmentCol.replace(/^[^а-яёa-z0-9]+/i, '').trim()
+        // Экскурсия / билет / пропуск
+        if (/экскурси|билет|пропуск|эко-сбор|музей|сеанс|катер|подъемник/i.test(segmentCol)
+          || /экскурси|музей|билет/i.test(transportCol)) {
+          const cleanTitle = removeEmoji(segmentCol).replace(/[*_`]/g, '').replace(/^[^а-яёa-z0-9]+/i, '').trim()
           bookings.push({
             id: crypto.randomUUID(),
             type: 'attraction',
@@ -559,53 +661,49 @@ export function parseTransportMarkdown(content: string, startDateStr: string): B
               sourceUrl,
             },
           })
+          continue
+        }
+
+        // Обычный транспорт — определяем тип и генерируем осмысленный тайтл
+        const { type, icon } = classifyTransport(transportCol, segmentCol)
+        const { title, from, to } = extractRouteTitle(segmentCol, transportCol)
+
+        if (type === 'car') {
+          bookings.push({
+            id: crypto.randomUUID(),
+            type: 'car',
+            icon,
+            title,
+            data: {
+              company: removeEmoji(transportCol).replace(/[*_`]/g, '').trim() || undefined,
+              pickupLocation: from || undefined,
+              dropoffLocation: to || undefined,
+              pickupDateTime: `${dateStr}T09:00:00`,
+              dropoffDateTime: `${dateStr}T12:00:00`,
+              pickupTimeZone: inferTimezone(from),
+              dropoffTimeZone: inferTimezone(to),
+              notes,
+              sourceUrl,
+            },
+          })
         }
         else {
-          // Это междугородний трансфер / переезд / поезд / аренда авто
-          const stationsMatch = segmentCol.match(/([^\s➔]+)\s*➔\s*([^\s➔]+)/)
-          const depStation = stationsMatch ? stationsMatch[1].trim() : segmentCol
-          const arrStation = stationsMatch ? stationsMatch[2].trim() : ''
-
-          const isVehicle = /джип|внедорожник|минивэн|авто|такси|трансфер|машина|car|аренда/i.test(transportCol)
-            || /джип|трансфер|авто|прокат/i.test(segmentCol)
-
-          if (isVehicle) {
-            bookings.push({
-              id: crypto.randomUUID(),
-              type: 'car',
-              icon: 'mdi:car',
-              title: `Трансфер: ${segmentCol}`,
-              data: {
-                company: transportCol,
-                pickupLocation: depStation,
-                dropoffLocation: arrStation,
-                pickupDateTime: `${dateStr}T09:00:00`,
-                dropoffDateTime: `${dateStr}T12:00:00`,
-                pickupTimeZone: inferTimezone(depStation),
-                dropoffTimeZone: inferTimezone(arrStation),
-                notes,
-                sourceUrl,
-              },
-            })
-          }
-          else {
-            bookings.push({
-              id: crypto.randomUUID(),
-              type: 'train',
-              icon: 'mdi:train',
-              title: `Трансфер: ${segmentCol}`,
-              data: {
-                departureStation: depStation,
-                arrivalStation: arrStation,
-                departureDateTime: `${dateStr}T09:00:00`,
-                arrivalDateTime: `${dateStr}T12:00:00`,
-                departureTimeZone: inferTimezone(depStation),
-                arrivalTimeZone: inferTimezone(arrStation),
-                notes,
-                sourceUrl,
-              },
-            })
-          }
+          bookings.push({
+            id: crypto.randomUUID(),
+            type: 'train',
+            icon,
+            title,
+            data: {
+              departureStation: from || undefined,
+              arrivalStation: to || undefined,
+              departureDateTime: `${dateStr}T09:00:00`,
+              arrivalDateTime: `${dateStr}T12:00:00`,
+              departureTimeZone: inferTimezone(from),
+              arrivalTimeZone: inferTimezone(to),
+              notes,
+              sourceUrl,
+            },
+          })
         }
       }
       // Стандартный формат поездов: | Маршрут | Тип | Отправление | Прибытие | Оплата |
@@ -625,7 +723,7 @@ export function parseTransportMarkdown(content: string, startDateStr: string): B
             id: crypto.randomUUID(),
             type: 'train',
             icon: 'mdi:train',
-            title: `Поезд ${departureStation} ➔ ${arrivalStation}`,
+            title: `${departureStation} ➔ ${arrivalStation}`,
             data: {
               departureStation,
               arrivalStation,

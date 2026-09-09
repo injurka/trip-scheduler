@@ -641,7 +641,6 @@ async function handleGenerateWeatherInDialog() {
   gap: 8px;
   max-height: 400px;
   overflow-y: auto;
-  background-color: var(--bg-tertiary-color);
   padding: 8px;
   border-radius: var(--r-m);
 }

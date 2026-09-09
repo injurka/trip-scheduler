@@ -4,6 +4,7 @@ import { colors } from '../config/colors'
 import { loadEnvIfAvailable } from '../config/env'
 import { loadImporterConfig } from '../config/loader'
 import { ApiClient } from '../lib/api-client'
+import { loadGeocodeCache, loadUploadCache, saveGeocodeCache, saveUploadCache } from '../lib/cache'
 import { enrichActivityWithMediaAndLocation } from '../lib/enricher'
 import { buildImageIndex } from '../lib/image-indexer'
 import { generateActivitiesViaDirectLlm, mergeLlmActivitiesWithRawMarkdown } from '../lib/llm'
@@ -56,7 +57,11 @@ export async function runImport(): Promise<void> {
       process.exit(report.readinessSummary.canImport ? 0 : 1)
     }
 
-    const shouldProceed = await promptForContinueToImport()
+    if (!report.readinessSummary.canImport) {
+      console.log(`\n${colors.red}${colors.bright}⚠️  Внимание: в хранилище обнаружены критические ошибки!${colors.reset}`)
+    }
+
+    const shouldProceed = await promptForContinueToImport(report.readinessSummary.canImport)
     if (!shouldProceed) {
       console.log(`\n${colors.cyan}ℹ️  Валидация завершена. Вы можете исправить предупреждения в Obsidian и повторить запуск.${colors.reset}\n`)
       process.exit(0)
@@ -73,6 +78,10 @@ export async function runImport(): Promise<void> {
     process.exit(1)
   }
 
+  const bookingsTotal = tripData.bookingsContent?.bookings?.length || 0
+  const financesTotalRub = (tripData.financesContent?.transactions || []).reduce((sum, t) => sum + (t.amount || 0), 0)
+  const transactionsCount = tripData.financesContent?.transactions?.length || 0
+
   console.log(`\n${colors.green}✔ Найдено в структуре Obsidian:${colors.reset}`)
   console.log(`  • Название:        ${colors.bright}${tripData.title}${colors.reset}`)
   console.log(`  • Описание:        ${colors.cyan}${tripData.descriptionShort}${colors.reset}`)
@@ -82,6 +91,8 @@ export async function runImport(): Promise<void> {
   console.log(`  • Дней маршрута:   ${tripData.days.length}`)
   console.log(`  • Корневых файлов: ${tripData.rootNotes.length}`)
   console.log(`  • Папок с файлами: ${tripData.sectionFolders.length} (${tripData.sectionFolders.reduce((acc, f) => acc + f.files.length, 0)} файлов)`)
+  console.log(`  • Бронирований:    ${bookingsTotal}`)
+  console.log(`  • Смета и бюджет:  ${transactionsCount} статей на ~${financesTotalRub.toLocaleString('ru-RU')} ₽`)
   console.log(`  • Задач чек-листа: ${tripData.checklistContent.items?.length || 0} (в ${tripData.checklistFilesCount} файлах)`)
 
   if (cliOptions.dryRun) {
@@ -124,6 +135,17 @@ export async function runImport(): Promise<void> {
         const tabItems = tripData.checklistContent.items?.filter(i => i.type === tab.id) || []
         const tabGroups = tripData.checklistContent.groups?.filter(g => g.type === tab.id) || []
         console.log(`  [Вкладка: ${tab.name}] (${tabGroups.length} групп, ${tabItems.length} задач)`)
+      }
+    }
+
+    if (tripData.financesContent?.transactions && tripData.financesContent.transactions.length > 0) {
+      const totalRub = tripData.financesContent.transactions.reduce((sum, t) => sum + (t.amount || 0), 0)
+      console.log(`\n${colors.bright}💰 Смета и плановые расходы (${tripData.financesContent.transactions.length} статей на ~${totalRub.toLocaleString('ru-RU')} ₽):${colors.reset}`)
+      for (const t of tripData.financesContent.transactions.slice(0, 6)) {
+        console.log(`  • [${t.amount.toLocaleString('ru-RU')} ₽] ${t.title}${t.notes ? ` (${t.notes})` : ''}`)
+      }
+      if (tripData.financesContent.transactions.length > 6) {
+        console.log(`  ${colors.dim}... и ещё ${tripData.financesContent.transactions.length - 6} статей расходов${colors.reset}`)
       }
     }
 
@@ -239,15 +261,18 @@ export async function runImport(): Promise<void> {
           sectionContent = tripData.checklistContent && tripData.checklistContent.items && tripData.checklistContent.items.length > 0 ? tripData.checklistContent : null
         }
         else if (sec.type === 'finances') {
-          // Раздел «Финансы» создается чистым для логирования реальных трат во время поездки,
-          // но с преднастроенными курсами валют из конфигурации/Obsidian
+          const plannedTransactions = (tripData.financesContent?.transactions || []).map(t => ({
+            ...t,
+            isSpontaneous: false,
+          }))
+
           sectionContent = {
             settings: tripData.financesContent?.settings || {
               mainCurrency: appConfig.mainCurrency,
               exchangeRates: appConfig.exchangeRates,
             },
             categories: tripData.financesContent?.categories || [],
-            transactions: [],
+            transactions: plannedTransactions,
           }
         }
 
@@ -284,7 +309,14 @@ export async function runImport(): Promise<void> {
           console.log(`  ${colors.green}✔ Раздел «${sec.title}» наполнен:${colors.reset} 📝 ${totalGroups} групп (${totalItems} пунктов)`)
         }
         else if (sec.type === 'finances') {
-          console.log(`  ${colors.green}✔ Раздел создан:${colors.reset} ${sec.title} (готов для учета трат в поездке)`)
+          const transCount = sectionContent?.transactions?.length || 0
+          const totalRub = sectionContent?.transactions?.reduce((sum: number, t: any) => sum + (t.amount || 0), 0) || 0
+          if (transCount > 0) {
+            console.log(`  ${colors.green}✔ Раздел «${sec.title}» наполнен:${colors.reset} 💰 ${transCount} плановых статей расходов (~${totalRub.toLocaleString('ru-RU')} ₽)`)
+          }
+          else {
+            console.log(`  ${colors.green}✔ Раздел создан:${colors.reset} ${sec.title} (готов для учета трат в поездке)`)
+          }
         }
         else {
           console.log(`  ${colors.green}✔ Раздел создан:${colors.reset} ${sec.title}`)
@@ -453,12 +485,21 @@ export async function runImport(): Promise<void> {
   let totalImagesUploaded = 0
   let totalLocationsGeocoded = 0
 
+  // Load persistent caches (shared across all days in this run)
+  const geoCache = loadGeocodeCache()
+  const uploadCache = loadUploadCache()
+
   if (importActivities && importDays) {
     console.log(`\n${colors.dim}🧩 Генерация и добавление блоков активностей...${colors.reset}`)
 
     const imageIndex = buildImageIndex(targetDir)
-    const geoCache = new Map<string, [number, number]>()
-    const uploadCache = new Map<string, string>()
+
+    if (geoCache.size > 0) {
+      console.log(`  ${colors.dim}📍 Загружен кеш геокодирования: ${geoCache.size} локаций${colors.reset}`)
+    }
+    if (uploadCache.size > 0) {
+      console.log(`  ${colors.dim}📸 Загружен кеш загрузки фото: ${uploadCache.size} файлов${colors.reset}`)
+    }
 
     if (imageIndex.size > 0) {
       console.log(`  ${colors.dim}📸 Проиндексировано локальных медиа-файлов: ${Math.round(imageIndex.size / 4)}${colors.reset}`)
@@ -651,6 +692,13 @@ export async function runImport(): Promise<void> {
         }
       }
     }
+  }
+
+  // Persist caches to disk for future runs
+  saveGeocodeCache(geoCache)
+  saveUploadCache(uploadCache)
+  if (geoCache.size > 0 || uploadCache.size > 0) {
+    console.log(`\n${colors.dim}💾 Кеши сохранены: ${geoCache.size} локаций, ${uploadCache.size} фото${colors.reset}`)
   }
 
   console.log(`\n${colors.bright}${colors.green}════════════════════════════════════════════════════════════════════${colors.reset}`)

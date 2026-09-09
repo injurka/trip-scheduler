@@ -1,4 +1,5 @@
 export * from './api-client'
+export * from './cache'
 export * from './enricher'
 export * from './geocode'
 export * from './image-indexer'

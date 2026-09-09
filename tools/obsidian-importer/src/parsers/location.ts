@@ -58,6 +58,26 @@ export function extractCoordinatesFromUrl(url: string): [number, number] | undef
       }
     }
 
+    // Google Maps daddr / saddr / destination / origin: lat,lon
+    const destMatch = decoded.match(/[?&](?:daddr|saddr|destination|origin)=([-\d.]+)[,%2C\s]+([-\d.]+)/i)
+    if (destMatch) {
+      const lat = Number.parseFloat(destMatch[1])
+      const lon = Number.parseFloat(destMatch[2])
+      if (!Number.isNaN(lon) && !Number.isNaN(lat) && Math.abs(lon) <= 180 && Math.abs(lat) <= 90) {
+        return [lon, lat]
+      }
+    }
+
+    // Google Maps /search/lat,lon or /maps/dir/lat,lon
+    const pathCoordsMatch = decoded.match(/(?:\/search\/|\/dir\/)(?:[^/]+\/)*([-\d.]+)[,%2C\s]+([-\d.]+)/i)
+    if (pathCoordsMatch) {
+      const lat = Number.parseFloat(pathCoordsMatch[1])
+      const lon = Number.parseFloat(pathCoordsMatch[2])
+      if (!Number.isNaN(lon) && !Number.isNaN(lat) && Math.abs(lon) <= 180 && Math.abs(lat) <= 90) {
+        return [lon, lat]
+      }
+    }
+
     // OpenStreetMap mlat=lat&mlon=lon or #map=zoom/lat/lon
     const osmMlat = decoded.match(/[?&]mlat=([-\d.]+)[&]mlon=([-\d.]+)/i)
     if (osmMlat) {
@@ -81,6 +101,52 @@ export function extractCoordinatesFromUrl(url: string): [number, number] | undef
     // ignore decoding errors
   }
   return undefined
+}
+
+export function extractAllCoordinatesFromUrl(url: string): Array<[number, number]> {
+  try {
+    const decoded = decodeURIComponent(url)
+    const results: Array<[number, number]> = []
+
+    // 1. Google Maps /dir/lat1,lon1/lat2,lon2/...
+    const dirSegments = decoded.match(/\/dir\/([^?#]+)/i)
+    if (dirSegments) {
+      const parts = dirSegments[1].split('/')
+      for (const part of parts) {
+        const coordMatch = part.match(/([-\d.]+)[,%2C\s]+([-\d.]+)/)
+        if (coordMatch) {
+          const lat = Number.parseFloat(coordMatch[1])
+          const lon = Number.parseFloat(coordMatch[2])
+          if (!Number.isNaN(lon) && !Number.isNaN(lat) && Math.abs(lon) <= 180 && Math.abs(lat) <= 90) {
+            results.push([lon, lat])
+          }
+        }
+      }
+      if (results.length > 0)
+        return results
+    }
+
+    // 2. saddr and daddr in query
+    const saddrMatch = decoded.match(/[?&]saddr=([-\d.]+)[,%2C\s]+([-\d.]+)/i)
+    const daddrMatch = decoded.match(/[?&]daddr=([-\d.]+)[,%2C\s]+([-\d.]+)/i)
+    if (saddrMatch && daddrMatch) {
+      const sLat = Number.parseFloat(saddrMatch[1])
+      const sLon = Number.parseFloat(saddrMatch[2])
+      const dLat = Number.parseFloat(daddrMatch[1])
+      const dLon = Number.parseFloat(daddrMatch[2])
+      if (!Number.isNaN(sLon) && !Number.isNaN(sLat) && !Number.isNaN(dLon) && !Number.isNaN(dLat)) {
+        return [[sLon, sLat], [dLon, dLat]]
+      }
+    }
+
+    const single = extractCoordinatesFromUrl(url)
+    if (single)
+      return [single]
+  }
+  catch {
+    // ignore decoding errors
+  }
+  return []
 }
 
 export function extractLocationsFromText(text: string): Array<{ name: string, query: string, coordinates?: [number, number] }> {
@@ -110,8 +176,8 @@ export function extractLocationsFromText(text: string): Array<{ name: string, qu
     }
   }
 
-  // 1. Process explicit location lines (e.g. _Ссылка на локацию_:, _Локация_:, **Карта**:)
-  const locLineRegex = /^[ \t]*(?:[*-][ \t]*)?(?:_[^_\n]*(?:локаци|карт|маршрут|maps?|ориентир|ссылка)[^_\n]*_|\*\*[^*\n]*(?:локаци|карт|маршрут|maps?|ориентир|ссылка)[^*\n]*\*\*):[ \t]*(.*)$/gmi
+  // 1. Process explicit location lines (e.g. _Ссылка на локацию_:, _Локация_:, **Карта**:, _Хайкинг-маршрут_:)
+  const locLineRegex = /^[ \t]*(?:[*-][ \t]*)?(?:_[^_\n]*(?:локаци|карт|маршрут|maps?|ориентир|ссылка|хайкинг|трек|trail|точк|старт|финиш)[^_\n]*_|\*\*[^*\n]*(?:локаци|карт|маршрут|maps?|ориентир|ссылка|хайкинг|трек|trail|точк|старт|финиш)[^*\n]*\*\*):[ \t]*(.*)$/gmi
   let locLineMatch: RegExpExecArray | null
   while ((locLineMatch = locLineRegex.exec(text)) !== null) {
     const lineContent = locLineMatch[1]
@@ -123,8 +189,36 @@ export function extractLocationsFromText(text: string): Array<{ name: string, qu
       foundLink = true
       const linkTitle = linkMatch[1]
       const linkUrl = linkMatch[2]
-      const coords = extractCoordinatesFromUrl(linkUrl)
-      addLocation(linkTitle, linkTitle, coords)
+
+      let locationName = linkTitle
+      const stripped = linkTitle.replace(/^(?:Yandex Maps|Google Maps|2GIS|OpenStreetMap|AllTrails|Hikingbook|Карты Yandex|Карты Google|Карты|Maps|Map|Трек|Маршрут):\s*/i, '').trim()
+      if (!stripped || /^(?:Google Maps|Yandex Maps|2GIS|OpenStreetMap|AllTrails|Hikingbook|Карты|Maps|Ссылка|Локация|Маршрут|Трек)$/i.test(stripped)) {
+        try {
+          const decoded = decodeURIComponent(linkUrl)
+          const qMatch = decoded.match(/[?&]q=(?:loc:)?([^&]+)/i)
+          if (qMatch && qMatch[1].trim()) {
+            const qVal = qMatch[1].replace(/\+/g, ' ').trim()
+            if (qVal && !/^[-\d.,\s]+$/.test(qVal)) {
+              locationName = qVal
+            }
+          }
+        }
+        catch {
+          // ignore
+        }
+      }
+
+      const allCoords = extractAllCoordinatesFromUrl(linkUrl)
+      if (allCoords.length > 1) {
+        allCoords.forEach((coords, idx) => {
+          const ptName = `${locationName} (Точка ${idx + 1})`
+          addLocation(ptName, ptName, coords)
+        })
+      }
+      else {
+        const coords = allCoords.length === 1 ? allCoords[0] : extractCoordinatesFromUrl(linkUrl)
+        addLocation(locationName, locationName, coords)
+      }
     }
 
     const iframeRegex = /<iframe[^>]*src=["'](https?:\/\/[^"']+)["'][^>]*>/gi
@@ -179,13 +273,22 @@ export function extractLocationsFromText(text: string): Array<{ name: string, qu
   }
 
   // 3. Standalone map markdown links in text
-  const standaloneMapLinkRegex = /\[((?:Yandex Maps|Google Maps|2GIS|OpenStreetMap|Карты|Maps)[^\]]+)\]\((https?:\/\/[^)]+)\)/gi
+  const standaloneMapLinkRegex = /\[((?:Yandex Maps|Google Maps|2GIS|OpenStreetMap|AllTrails|Hikingbook|Карты|Maps|Трек|Маршрут)[^\]]+)\]\((https?:\/\/[^)]+)\)/gi
   let stdMapLinkMatch: RegExpExecArray | null
   while ((stdMapLinkMatch = standaloneMapLinkRegex.exec(text)) !== null) {
     const title = stdMapLinkMatch[1]
     const url = stdMapLinkMatch[2]
-    const coords = extractCoordinatesFromUrl(url)
-    addLocation(title, title, coords)
+    const allCoords = extractAllCoordinatesFromUrl(url)
+    if (allCoords.length > 1) {
+      allCoords.forEach((coords, idx) => {
+        const ptName = `${title} (Точка ${idx + 1})`
+        addLocation(ptName, ptName, coords)
+      })
+    }
+    else {
+      const coords = allCoords.length === 1 ? allCoords[0] : extractCoordinatesFromUrl(url)
+      addLocation(title, title, coords)
+    }
   }
 
   return locations

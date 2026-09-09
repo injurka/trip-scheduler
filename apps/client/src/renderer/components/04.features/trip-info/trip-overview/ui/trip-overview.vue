@@ -2,6 +2,7 @@
 import type { KitDropdownItem } from '~/components/01.kit/kit-dropdown'
 import type { MapRoute } from '~/components/03.domain/trip-info/geolocation-section'
 import type { IDay } from '~/components/04.features/trip-info/trip-plan/models/types'
+import type { OfflineDownloadOptions } from '~/shared/store/offline.store'
 import type { Trip, TripSection, TripWeatherData } from '~/shared/types/models/trip'
 import { Icon } from '@iconify/vue'
 import { useClipboard, useShare } from '@vueuse/core'
@@ -13,10 +14,11 @@ import { KitDropdown } from '~/components/01.kit/kit-dropdown'
 import { KitImage } from '~/components/01.kit/kit-image'
 import { KitInlineMdEditorWrapper } from '~/components/01.kit/kit-inline-md-editor'
 import { KitTooltip } from '~/components/01.kit/kit-tooltip'
+import { OfflineDownloadDialog } from '~/components/02.shared/offline-manager'
 import { useModuleStore } from '~/components/05.modules/trip-info/composables/use-trip-info-module'
 import { useTripPermissions } from '~/components/05.modules/trip-info/composables/use-trip-permissions'
-import { useToast } from '~/shared/composables/use-toast'
 import { vRipple } from '~/shared/directives/ripple'
+import { calculateTripBoundingBox } from '~/shared/lib/tile-calc'
 import { useOfflineStore } from '~/shared/store/offline.store'
 import { EActivitySectionType, EActivityTag } from '~/shared/types/models/activity'
 import { TripStatus } from '~/shared/types/models/trip'
@@ -66,6 +68,7 @@ const isCitiesDialogVisible = ref(false)
 const isParticipantsDialogVisible = ref(false)
 const isAttractionsDialogVisible = ref(false)
 const isExportDialogVisible = ref(false)
+const isOfflineDownloadDialogVisible = ref(false)
 
 const isDescriptionExpanded = ref(false)
 const descriptionShortText = ref('')
@@ -170,6 +173,20 @@ const allPoints = computed<any[]>(() =>
 const allRoutes = computed<MapRoute[]>(() =>
   allGeoSections.value.flatMap(s => s.section.routes || []),
 )
+
+const hasCoordinates = computed(() => {
+  if (!props.trip)
+    return false
+  return (
+    allPoints.value.length > 0
+    || allRoutes.value.length > 0
+    || Boolean(calculateTripBoundingBox({
+      ...props.trip,
+      days: props.days,
+      sections: props.sections,
+    }))
+  )
+})
 
 const visibleParticipants = computed(() => props.trip?.participants.slice(0, 5) || [])
 const hiddenParticipantsCount = computed(() => Math.max(0, (props.trip?.participants.length || 0) - 5))
@@ -337,17 +354,21 @@ async function handleMenuAction(action: string) {
     }
   }
   else if (action === 'save_offline' || action === 'update_offline') {
-    if (moduleStore.plan.trip) {
-      const fullTripData = {
-        ...moduleStore.plan.trip,
-        days: props.days,
-        sections: props.sections,
-      }
-      await offlineStore.saveTripForOffline(fullTripData)
-    }
+    isOfflineDownloadDialogVisible.value = true
   }
 
   isMoreMenuOpen.value = false
+}
+
+async function handleConfirmOfflineDownload(options: OfflineDownloadOptions) {
+  if (moduleStore.plan.trip) {
+    const fullTripData = {
+      ...moduleStore.plan.trip,
+      days: props.days,
+      sections: props.sections,
+    }
+    await offlineStore.saveTripForOffline(fullTripData, options)
+  }
 }
 
 onMounted(() => {
@@ -643,6 +664,12 @@ watch(() => props.trip?.id, (newId) => {
     <ParticipantsListDialog v-model:visible="isParticipantsDialogVisible" :participants="trip.participants" />
     <AttractionsListDialog v-model:visible="isAttractionsDialogVisible" :days="days" @navigate="navigateToDay" />
     <ExportTripDialog v-model:visible="isExportDialogVisible" :trip="trip" :days="days" :sections="sections" />
+    <OfflineDownloadDialog
+      v-model:visible="isOfflineDownloadDialogVisible"
+      :trip-title="trip?.title"
+      :has-coordinates="hasCoordinates"
+      @confirm="handleConfirmOfflineDownload"
+    />
   </div>
 </template>
 

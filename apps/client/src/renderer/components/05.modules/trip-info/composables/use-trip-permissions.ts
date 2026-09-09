@@ -1,11 +1,17 @@
+import { useOnline } from '@vueuse/core'
 import { useModuleStore } from '~/components/05.modules/trip-info/composables/use-trip-info-module'
 import { useAppStore } from '~/shared/composables/use-store'
 
 export function useTripPermissions() {
   const { auth } = useAppStore(['auth'])
   const { plan } = useModuleStore(['plan'])
+  const isOnline = useOnline()
 
   const canEdit = computed(() => {
+    // В офлайн-режиме редактирование блокируется для предотвращения сетевых сбоев и рассинхронизации
+    if (!isOnline.value)
+      return false
+
     if (auth.user?.role === 'admin')
       return true
 

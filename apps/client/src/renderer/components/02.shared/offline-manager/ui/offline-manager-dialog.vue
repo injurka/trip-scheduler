@@ -1,11 +1,15 @@
 <script setup lang="ts">
+import type { OfflineDownloadOptions } from '~/shared/store/offline.store'
 import { Icon } from '@iconify/vue'
 import { KitDialogWithClose } from '~/components/01.kit/kit-dialog-with-close'
 import { KitTooltip } from '~/components/01.kit/kit-tooltip'
 import { useModuleStore } from '~/components/05.modules/trip-info/composables/use-trip-info-module'
 import { AppRoutePaths } from '~/shared/constants/routes'
 import { formatDate } from '~/shared/lib/date-time'
+
+import { calculateTripBoundingBox } from '~/shared/lib/tile-calc'
 import { useOfflineStore } from '~/shared/store/offline.store'
+import OfflineDownloadDialog from './offline-download-dialog.vue'
 
 interface Props {
   visible: boolean
@@ -21,6 +25,9 @@ const offlineStore = useOfflineStore()
 const router = useRouter()
 const confirm = useConfirm()
 const moduleStore = useModuleStore(['plan', 'sections'])
+
+const selectedTripForUpdate = ref<{ id: string, title: string, hasCoordinates: boolean } | null>(null)
+const isDownloadDialogOpen = ref(false)
 
 function goToTrip(id: string) {
   emit('update:visible', false)
@@ -39,19 +46,37 @@ async function handleDelete(id: string, title: string) {
   }
 }
 
-async function handleUpdate(id: string) {
+function handleUpdate(id: string) {
   if (offlineStore.isTripDownloading(id))
     return
 
+  const currentSaved = offlineStore.savedTrips[id]
+  const hasCoordinates = currentSaved?.data
+    ? Boolean(calculateTripBoundingBox(currentSaved.data))
+    : (currentSaved?.includesTiles ?? true)
+
+  selectedTripForUpdate.value = {
+    id,
+    title: currentSaved?.title || 'Путешествие',
+    hasCoordinates,
+  }
+  isDownloadDialogOpen.value = true
+}
+
+async function handleConfirmDownload(options: OfflineDownloadOptions) {
+  if (!selectedTripForUpdate.value)
+    return
+
+  const id = selectedTripForUpdate.value.id
   if (moduleStore.plan.currentTripId === id && moduleStore.plan.trip) {
     await offlineStore.saveTripForOffline({
       ...moduleStore.plan.trip,
       days: moduleStore.plan.days,
       sections: moduleStore.sections.sections,
-    })
+    }, options)
   }
   else {
-    await offlineStore.saveTripByIdForOffline(id)
+    await offlineStore.saveTripByIdForOffline(id, options)
   }
 }
 </script>
@@ -129,6 +154,13 @@ async function handleUpdate(id: string) {
         </div>
       </div>
     </div>
+
+    <OfflineDownloadDialog
+      v-model:visible="isDownloadDialogOpen"
+      :trip-title="selectedTripForUpdate?.title"
+      :has-coordinates="selectedTripForUpdate?.hasCoordinates"
+      @confirm="handleConfirmDownload"
+    />
   </KitDialogWithClose>
 </template>
 

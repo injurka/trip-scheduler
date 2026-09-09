@@ -11,6 +11,7 @@ import { initializePwaUpdater } from '~/shared/services/pwa/pwa.service'
 import { startSyncWorker } from '~/shared/services/tracking/track-sync'
 import { useAppSettingsStore } from '~/shared/store/app-settings.store'
 import { useAppUpdateStore } from '~/shared/store/app-update.store'
+import { useOfflineStore } from '~/shared/store/offline.store'
 import { useTrackingStore } from '~/shared/store/tracking.store'
 // @ts-expect-error бред какой то
 import application from './app.vue'
@@ -75,6 +76,10 @@ async function initializeApp() {
   const trackingStore = useTrackingStore(pinia)
   void trackingStore.startPolling()
   startSyncWorker()
+
+  // Инициализация офлайн-хранилища путешествий из IndexedDB
+  const offlineStore = useOfflineStore(pinia)
+  void offlineStore.initStorage()
 
   app.mount('#app')
 }

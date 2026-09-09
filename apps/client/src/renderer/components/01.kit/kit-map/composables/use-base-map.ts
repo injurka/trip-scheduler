@@ -8,6 +8,7 @@ import type { Ref } from 'vue'
 import * as maplibregl from 'maplibre-gl'
 import { onUnmounted, readonly, ref, shallowRef } from 'vue'
 import { applyTerrain, ensureMaplibreWorkerReady, getMapStyle, OSM_STYLE } from '~/shared/lib/map-styles-sources'
+import { getMaplibreTransformRequest, mapTileCacheManager } from '~/shared/lib/map-tile-cache'
 import { isValidCoordinate } from '~/shared/services/geo'
 
 export interface BaseMapOptions {
@@ -194,6 +195,7 @@ export function useBaseMap() {
       mapInstance.value.remove()
       mapInstance.value = null
       isMapReady.value = false
+      mapTileCacheManager.releaseBlobUrls()
     }
   }
 
@@ -235,6 +237,8 @@ export function useBaseMap() {
             safeCenter = [37.6173, 55.7558]
           }
 
+          const transformRequest = getMaplibreTransformRequest()
+
           const map = new maplibregl.Map({
             container: targetElement,
             style: initialStyle,
@@ -249,6 +253,7 @@ export function useBaseMap() {
             dragRotate: true,
             pitchWithRotate: true,
             attributionControl: options.showAttribution === false ? false : undefined,
+            ...(transformRequest ? { transformRequest } : {}),
           })
 
           // Регистрация прозрачной SDF-заглушки для предотвращения ошибок спрайтов
