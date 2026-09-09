@@ -5,32 +5,42 @@ import { KitSkeleton } from '~/components/01.kit/kit-skeleton'
 <template>
   <div class="trip-overview-skeleton">
     <div class="overview-banner-skeleton">
-      <div class="banner-content-skeleton">
-        <KitSkeleton width="60%" height="2.5rem" class="mb-4" />
-        <div class="meta-line">
-          <KitSkeleton width="100px" height="1.5rem" />
-          <KitSkeleton width="100px" height="1.5rem" />
-        </div>
+      <!-- Top header bar skeleton -->
+      <div class="banner-top-bar-skeleton">
+        <KitSkeleton width="110px" height="28px" border-radius="var(--r-full)" />
+        <KitSkeleton width="38px" height="38px" border-radius="var(--r-full)" />
       </div>
-      <div class="banner-footer-skeleton">
-        <div class="footer-top-row">
-          <div class="footer-meta-left">
-            <KitSkeleton width="110px" height="32px" border-radius="var(--r-s)" />
-            <KitSkeleton width="90px" height="24px" />
-          </div>
 
-          <div class="footer-avatars">
-            <KitSkeleton width="36px" height="36px" border-radius="50%" />
-            <KitSkeleton width="36px" height="36px" border-radius="50%" class="avatar-overlap" />
-          </div>
+      <!-- Main banner content skeleton -->
+      <div class="banner-body-skeleton">
+        <KitSkeleton width="55%" height="2.5rem" class="title-skeleton" />
+
+        <div class="meta-row-skeleton">
+          <KitSkeleton width="140px" height="1.25rem" />
+          <KitSkeleton width="70px" height="1.25rem" border-radius="var(--r-full)" />
+          <KitSkeleton width="120px" height="1.25rem" />
+          <KitSkeleton width="90px" height="1.25rem" border-radius="var(--r-s)" />
         </div>
 
-        <div class="footer-tags-row">
-          <KitSkeleton width="60px" height="24px" border-radius="var(--r-full)" />
-          <KitSkeleton width="80px" height="24px" border-radius="var(--r-full)" />
-          <KitSkeleton width="70px" height="24px" border-radius="var(--r-full)" />
-          <KitSkeleton width="90px" height="24px" border-radius="var(--r-full)" />
-          <KitSkeleton width="60px" height="24px" border-radius="var(--r-full)" />
+        <div class="bottom-row-skeleton">
+          <div class="bottom-row-left-skeleton">
+            <div class="status-line-skeleton">
+              <KitSkeleton width="110px" height="24px" border-radius="var(--r-full)" />
+              <KitSkeleton width="90px" height="24px" border-radius="var(--r-full)" />
+            </div>
+
+            <div class="tags-skeleton">
+              <KitSkeleton width="60px" height="22px" border-radius="var(--r-full)" />
+              <KitSkeleton width="75px" height="22px" border-radius="var(--r-full)" />
+              <KitSkeleton width="65px" height="22px" border-radius="var(--r-full)" />
+            </div>
+          </div>
+
+          <div class="avatars-skeleton">
+            <KitSkeleton width="34px" height="34px" border-radius="50%" />
+            <KitSkeleton width="34px" height="34px" border-radius="50%" class="avatar-overlap" />
+            <KitSkeleton width="34px" height="34px" border-radius="50%" class="avatar-overlap" />
+          </div>
         </div>
       </div>
     </div>
@@ -98,101 +108,118 @@ import { KitSkeleton } from '~/components/01.kit/kit-skeleton'
 }
 
 .overview-banner-skeleton {
-  height: 380px;
+  min-height: 400px;
   background-color: var(--bg-secondary-color);
   border: 1px solid var(--border-secondary-color);
   border-radius: var(--r-l);
   display: flex;
   flex-direction: column;
-  justify-content: flex-end;
+  justify-content: space-between;
   overflow: hidden;
+  box-sizing: border-box;
 
   @include media-down(md) {
-    min-height: 300px;
-    height: auto;
+    min-height: 360px;
   }
 }
 
-.banner-content-skeleton {
-  padding: 24px;
-  display: flex;
-  flex-direction: column;
-}
-
-.meta-line {
-  display: flex;
-  gap: 1.5rem;
-}
-
-.banner-footer-skeleton {
-  background-color: var(--bg-tertiary-color);
-  padding: 1rem 1.5rem;
-  border-top: 1px solid var(--border-secondary-color);
-  display: flex;
-  flex-direction: column;
-  gap: 1rem;
-
-  @include media-down(sm) {
-    padding: 1rem;
-    gap: 1rem;
-  }
-}
-
-.footer-top-row {
+.banner-top-bar-skeleton {
   display: flex;
   align-items: center;
   justify-content: space-between;
+  padding: 1.25rem 1.5rem;
   width: 100%;
+  box-sizing: border-box;
 
-  @include media-down(xs) {
-    flex-direction: column;
-    align-items: flex-start;
-    gap: 1rem;
+  @include media-down(md) {
+    padding: 1rem;
+
+    :deep(> *:first-child) {
+      width: 38px !important;
+      height: 38px !important;
+    }
   }
 }
 
-.footer-meta-left {
+.banner-body-skeleton {
+  padding: 1.5rem 1.75rem;
   display: flex;
-  align-items: center;
-  gap: 1rem;
+  flex-direction: column;
+  gap: 14px;
+  box-sizing: border-box;
+
+  @include media-down(md) {
+    padding: 1rem;
+    gap: 10px;
+  }
 }
 
-.footer-avatars {
+.status-line-skeleton {
   display: flex;
+  gap: 8px;
+}
+
+.title-skeleton {
+  margin: 4px 0;
+
+  @include media-down(md) {
+    width: 85% !important;
+  }
+}
+
+.meta-row-skeleton {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.75rem 1.25rem;
+}
+
+.bottom-row-skeleton {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1.25rem;
+  margin-top: 6px;
+  padding-top: 10px;
+  border-top: 1px solid var(--border-secondary-color);
+
+  @include media-down(md) {
+    flex-direction: row;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.75rem;
+
+    .tags-skeleton {
+      display: none;
+    }
+  }
+}
+
+.bottom-row-left-skeleton {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 12px;
+  flex: 1;
+  min-width: 0;
+}
+
+.tags-skeleton {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+}
+
+.avatars-skeleton {
+  display: flex;
+  align-items: center;
   flex-shrink: 0;
 }
 
 .avatar-overlap {
-  margin-left: -10px;
+  margin-left: -8px;
   border: 2px solid var(--bg-secondary-color);
-}
-
-.footer-tags-row {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 0.5rem;
-}
-
-.footer-meta {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-
-  @include media-down(sm) {
-    flex-direction: column;
-    align-items: flex-start;
-    gap: 1rem;
-  }
-}
-
-.badges {
-  display: flex;
-  gap: 1rem;
-}
-
-.avatars {
-  display: flex;
 }
 
 .description-skeleton {

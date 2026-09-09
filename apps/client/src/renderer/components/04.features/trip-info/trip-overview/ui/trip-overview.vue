@@ -123,6 +123,12 @@ const formattedDates = computed(() => {
     return `${formatter.format(start)} ${start.getFullYear()} - ${formatter.format(end)} ${end.getFullYear()}`
 })
 
+function getRussianPlural(count: number, titles: [string, string, string]): string {
+  const cases = [2, 0, 1, 1, 1, 2]
+  const index = count % 100 > 4 && count % 100 < 20 ? 2 : cases[count % 10 < 5 ? count % 10 : 5]
+  return titles[index]
+}
+
 const tripDurationDays = computed(() => {
   if (!props.trip)
     return 0
@@ -131,6 +137,32 @@ const tripDurationDays = computed(() => {
   const diffTime = Math.abs(end.getTime() - start.getTime())
   const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24)) + 1
   return diffDays
+})
+
+const formattedDuration = computed(() => {
+  if (!tripDurationDays.value)
+    return ''
+  const label = getRussianPlural(tripDurationDays.value, ['день', 'дня', 'дней'])
+  return `${tripDurationDays.value} ${label}`
+})
+
+const formattedCities = computed(() => {
+  if (!props.trip?.cities?.length)
+    return ''
+  return props.trip.cities.join(' · ')
+})
+
+const citiesSummary = computed(() => {
+  if (!props.trip?.cities?.length)
+    return { first: '', count: 0, hasMore: false }
+  const first = props.trip.cities[0]
+  const count = props.trip.cities.length
+  return {
+    first,
+    count,
+    hasMore: count > 1,
+    moreCount: count - 1,
+  }
 })
 
 const overviewCalendarDays = computed(() =>
@@ -397,14 +429,14 @@ watch(() => props.trip?.id, (newId) => {
       </div>
       <div class="banner-overlay" />
 
+      <!-- Верхняя панель: статус приватности слева, меню действий справа -->
       <div class="header-actions-wrapper">
-        <div class="card-visibility-wrapper">
-          <KitTooltip :text="visibilityInfo.label">
-            <div class="card-visibility">
-              <Icon :icon="visibilityInfo.icon" />
-            </div>
-          </KitTooltip>
-        </div>
+        <KitTooltip :text="visibilityInfo.label">
+          <div class="card-visibility-pill">
+            <Icon :icon="visibilityInfo.icon" class="visibility-icon" />
+            <span class="visibility-text">{{ visibilityInfo.label }}</span>
+          </div>
+        </KitTooltip>
 
         <div class="card-actions" @click.stop>
           <KitTooltip text="Еще">
@@ -413,7 +445,7 @@ watch(() => props.trip?.id, (newId) => {
               align="end"
             >
               <template #trigger>
-                <button class="action-btn">
+                <button class="action-btn" aria-label="Еще действия">
                   <Icon icon="mdi:dots-vertical" />
                 </button>
               </template>
@@ -433,42 +465,74 @@ watch(() => props.trip?.id, (newId) => {
         </div>
       </div>
 
-      <div class="banner-content">
+      <!-- Главный информационный блок: заголовок, метаданные, статусы, теги и участники -->
+      <div class="banner-body">
+        <!-- Название путешествия -->
         <h1 class="trip-title">
           {{ trip.title }}
         </h1>
-        <div class="trip-meta">
-          <div class="meta-item">
+
+        <!-- Мета-информация: даты, длительность, города, бюджет -->
+        <div class="trip-meta-row">
+          <div class="meta-item meta-item--dates">
             <Icon icon="mdi:calendar-month-outline" />
             <span>{{ formattedDates }}</span>
+            <span v-if="formattedDuration" class="duration-badge">
+              {{ formattedDuration }}
+            </span>
           </div>
-          <div v-if="trip.cities.length" class="meta-item">
+
+          <div
+            v-if="trip.cities.length"
+            class="meta-item meta-item--cities"
+            :class="{ 'is-clickable': citiesSummary.hasMore }"
+            @click="citiesSummary.hasMore && (isCitiesDialogVisible = true)"
+          >
             <Icon icon="mdi:map-marker-outline" />
-            <span>{{ trip.cities.join(', ') }}</span>
+            <span class="cities-text" :title="trip.cities.join(', ')">
+              <span class="cities-full">{{ formattedCities }}</span>
+              <span class="cities-compact">{{ citiesSummary.first }}</span>
+            </span>
+            <span v-if="citiesSummary.hasMore" class="cities-more-badge">
+              +{{ citiesSummary.moreCount }}
+            </span>
+          </div>
+
+          <div v-if="formattedBudget" class="meta-item meta-item--budget">
+            <Icon icon="mdi:wallet-outline" />
+            <span>{{ formattedBudget }}</span>
           </div>
         </div>
-      </div>
 
-      <div class="banner-footer">
-        <div class="footer-meta-content">
-          <div class="trip-extra-meta">
-            <div class="meta-item meta-item--status" :class="statusInfo.class">
-              <Icon v-if="statusInfo.icon" :icon="statusInfo.icon" />
-              <span>{{ statusInfo.text }}</span>
-            </div>
-            <KitTooltip v-if="isCached" text="Путешествие сохранено для оффлайн доступа">
-              <div class="meta-item meta-item--offline">
-                <Icon icon="mdi:cloud-check" />
-                <span>Оффлайн</span>
+        <!-- Нижний ряд: Статусы и Теги слева, Аватары участников справа -->
+        <div class="banner-bottom-row">
+          <div class="banner-bottom-left">
+            <!-- Статусы: Запланировано / Оффлайн / Загрузка -->
+            <div class="banner-status-line">
+              <div class="status-pill" :class="statusInfo.class">
+                <Icon v-if="statusInfo.icon" :icon="statusInfo.icon" class="status-icon" />
+                <span>{{ statusInfo.text }}</span>
               </div>
-            </KitTooltip>
-            <div v-if="formattedBudget" class="meta-item">
-              <Icon icon="mdi:wallet-outline" />
-              <span>{{ formattedBudget }}</span>
+
+              <KitTooltip v-if="isCached" text="Путешествие сохранено для оффлайн доступа">
+                <div class="status-pill status-pill--offline">
+                  <Icon icon="mdi:cloud-check" />
+                  <span>Оффлайн</span>
+                </div>
+              </KitTooltip>
+
+              <div v-if="isDownloading" class="status-pill status-pill--downloading">
+                <Icon icon="mdi:loading" class="spin-icon" />
+                <span>Загрузка {{ progress }}%</span>
+              </div>
+            </div>
+
+            <div v-if="trip.tags?.length" class="trip-tags">
+              <span v-for="tag in trip.tags" :key="tag" v-ripple class="tag">#{{ formatTag(tag) }}</span>
             </div>
           </div>
 
-          <div class="trip-participants">
+          <div v-if="trip.participants.length" class="trip-participants">
             <KitAnimatedTooltip
               v-for="participant in visibleParticipants"
               :key="participant.id"
@@ -478,7 +542,7 @@ watch(() => props.trip?.id, (newId) => {
               <KitAvatar
                 :name="participant.name"
                 :src="participant.avatarUrl"
-                :size="36"
+                :size="34"
                 class="clickable-avatar"
                 @click.stop="navigateToProfile(participant.id)"
               />
@@ -486,17 +550,18 @@ watch(() => props.trip?.id, (newId) => {
             <KitAvatar
               v-if="hiddenParticipantsCount > 0"
               is-more
-              :size="36"
+              :size="34"
             >
               +{{ hiddenParticipantsCount }}
             </KitAvatar>
           </div>
         </div>
-
-        <div v-if="trip.tags?.length" class="trip-tags">
-          <span v-for="tag in trip.tags" :key="tag" v-ripple class="tag">{{ formatTag(tag) }}</span>
-        </div>
       </div>
+    </div>
+
+    <!-- Мобильная полоса тегов вне баннера, если они есть -->
+    <div v-if="trip.tags?.length" class="mobile-trip-tags">
+      <span v-for="tag in trip.tags" :key="tag" v-ripple class="tag">#{{ formatTag(tag) }}</span>
     </div>
 
     <div
@@ -730,13 +795,14 @@ watch(() => props.trip?.id, (newId) => {
 
 .overview-banner {
   position: relative;
-  height: 380px;
+  min-height: 400px;
   border-radius: var(--r-l);
   overflow: hidden;
   display: flex;
   flex-direction: column;
-  justify-content: flex-end;
+  justify-content: space-between;
   box-sizing: border-box;
+  border: 1px solid rgba(255, 255, 255, 0.08);
 
   .banner-image {
     position: absolute;
@@ -746,12 +812,12 @@ watch(() => props.trip?.id, (newId) => {
   }
 
   .banner-image :deep(.image) {
-    transition: transform 0.4s cubic-bezier(0.22, 1, 0.36, 1);
+    transition: transform 0.8s cubic-bezier(0.16, 1, 0.3, 1);
   }
 
   @include hover {
     & .banner-image :deep(.image) {
-      transform: scale(1.05);
+      transform: scale(1.04);
     }
   }
 
@@ -761,226 +827,343 @@ watch(() => props.trip?.id, (newId) => {
     display: flex;
     align-items: center;
     justify-content: center;
-    background-color: var(--bg-tertiary-color);
+    background: radial-gradient(circle at 50% 40%, var(--bg-secondary-color) 0%, var(--bg-tertiary-color) 100%);
     color: var(--fg-secondary-color);
-    font-size: 64px;
-    opacity: 0.5;
+    font-size: 72px;
+    opacity: 0.6;
   }
 
+  /* Cinematic Scrim Gradient: soft dark vignettes for editorial photography (reduced darkness by 10%) */
   .banner-overlay {
     position: absolute;
     inset: 0;
-    background: linear-gradient(to top, rgba(0, 0, 0, 0.9) 0%, transparent 70%);
+    background:
+      linear-gradient(180deg, rgba(0, 0, 0, 0.55) 0%, rgba(0, 0, 0, 0.12) 30%, transparent 50%),
+      linear-gradient(0deg, rgba(0, 0, 0, 0.82) 0%, rgba(0, 0, 0, 0.6) 35%, rgba(0, 0, 0, 0.25) 65%, transparent 100%);
+    pointer-events: none;
     z-index: 1;
   }
 
-  .banner-content {
+  /* Top Toolbar Actions */
+  .header-actions-wrapper {
     position: relative;
     z-index: 2;
-    color: rgba(var(--fg-secondary-color-rgb), 0.85);
-    background: linear-gradient(0deg, rgba(var(--bg-secondary-color-rgb), 0.7) 0%, transparent 100%);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 1.25rem 1.5rem;
+    width: 100%;
+    box-sizing: border-box;
+  }
 
-    text-shadow:
-      1px 1px 0 rgba(var(--bg-tertiary-color-rgb), 0.5),
-      -1px -1px 0 rgba(var(--bg-tertiary-color-rgb), 0.5),
-      1px -1px 0 rgba(var(--bg-tertiary-color-rgb), 0.5),
-      -1px 1px 0 rgba(var(--bg-tertiary-color-rgb), 0.5),
-      0 2px 8px rgba(0, 0, 0, 0.7);
+  .card-visibility-pill {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 6px 12px;
+    background: rgba(15, 15, 20, 0.55);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    border: 1px solid rgba(255, 255, 255, 0.15);
+    border-radius: var(--r-full);
+    color: rgba(255, 255, 255, 0.9);
+    font-size: 0.8rem;
+    font-weight: 500;
+    letter-spacing: 0.02em;
+    cursor: default;
+    box-shadow: 0 4px 14px rgba(0, 0, 0, 0.25);
+    transition:
+      background-color 0.2s ease,
+      border-color 0.2s ease;
 
+    .visibility-icon {
+      font-size: 1rem;
+      opacity: 0.9;
+    }
+
+    &:hover {
+      background: rgba(25, 25, 35, 0.75);
+      border-color: rgba(255, 255, 255, 0.25);
+    }
+  }
+
+  .card-actions {
+    display: flex;
+
+    .action-btn {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      width: 38px;
+      height: 38px;
+      background: rgba(15, 15, 20, 0.55);
+      backdrop-filter: blur(12px);
+      -webkit-backdrop-filter: blur(12px);
+      border: 1px solid rgba(255, 255, 255, 0.15);
+      color: rgba(255, 255, 255, 0.9);
+      border-radius: var(--r-full);
+      cursor: pointer;
+      box-shadow: 0 4px 14px rgba(0, 0, 0, 0.25);
+      transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+
+      @include hover {
+        & {
+          background: rgba(40, 40, 55, 0.85);
+          border-color: rgba(255, 255, 255, 0.35);
+          color: #ffffff;
+          transform: translateY(-1px);
+        }
+      }
+    }
+  }
+
+  /* Main Editorial Body */
+  .banner-body {
+    position: relative;
+    z-index: 2;
     display: flex;
     flex-direction: column;
     gap: 12px;
-    padding: 24px;
-    padding-top: 64px;
-    padding-bottom: 8px;
+    padding: 1.5rem 1.75rem 1.5rem;
 
     & > * {
-      animation: fadeInUp 0.6s 0.2s ease-out forwards;
+      animation: fadeInUp 0.5s 0.15s ease-out forwards;
       opacity: 0;
     }
-
-    .trip-title {
-      font-size: 2rem;
-      line-height: 1.2;
-      font-weight: 700;
-      margin: 0;
-    }
-
-    .trip-meta {
-      animation-delay: 0.3s;
-      display: flex;
-      flex-wrap: wrap;
-      gap: 0.5rem 1.5rem;
-
-      .meta-item {
-        display: flex;
-        align-items: center;
-        gap: 0.5rem;
-        font-size: 0.9rem;
-        font-weight: 500;
-      }
-    }
   }
-}
 
-.banner-footer {
-  position: relative;
-  z-index: 2;
-  background-color: rgba(var(--bg-primary-color-rgb), 0.4);
-  backdrop-filter: blur(10px);
-  padding: 1rem 1.5rem;
-  display: flex;
-  flex-direction: column;
-  align-items: flex-start;
-  justify-content: space-between;
-  gap: 1rem;
-
-  @include media-down(sm) {
-    padding: 1rem;
-    flex-direction: column;
-    align-items: flex-start;
-  }
-}
-
-.footer-meta-content {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  width: 100%;
-  gap: 1rem;
-}
-
-.trip-extra-meta {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 0.5rem 1.5rem;
-  color: var(--fg-primary-color);
-
-  .meta-item {
+  /* Status badges line */
+  .banner-status-line {
     display: flex;
+    flex-wrap: wrap;
     align-items: center;
-    gap: 0.5rem;
-    font-size: 0.9rem;
-    font-weight: 500;
+    gap: 8px;
   }
 
-  .meta-item--status {
-    font-weight: 600;
+  .status-pill {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
     padding: 4px 10px;
-    border-radius: var(--r-s);
+    border-radius: var(--r-full);
+    font-size: 0.75rem;
+    font-weight: 600;
+    letter-spacing: 0.03em;
+    text-transform: uppercase;
+    backdrop-filter: blur(8px);
+    -webkit-backdrop-filter: blur(8px);
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+
+    .status-icon {
+      font-size: 0.95rem;
+    }
 
     &.completed {
-      color: #28a745;
-      background-color: rgba(40, 167, 69, 0.15);
+      color: #4ade80;
+      background: rgba(34, 197, 94, 0.2);
+      border: 1px solid rgba(74, 222, 128, 0.35);
     }
+
     &.planned {
-      color: #d97706;
-      background-color: rgba(217, 119, 6, 0.15);
+      color: #fbbf24;
+      background: rgba(245, 158, 11, 0.2);
+      border: 1px solid rgba(251, 191, 36, 0.35);
     }
+
     &.draft {
-      color: #505458;
-      background-color: rgba(128, 127, 125, 0.15);
-    }
-  }
-
-  .meta-item--offline {
-    font-weight: 600;
-    padding: 4px 10px;
-    border-radius: var(--r-s);
-    color: var(--fg-success-color);
-    background-color: rgba(var(--fg-success-color-rgb), 0.15);
-    display: flex;
-    align-items: center;
-    gap: 4px;
-  }
-}
-
-.trip-tags {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
-
-  .tag {
-    background-color: rgba(var(--bg-tertiary-color-rgb), 0.4);
-    color: var(--fg-secondary-color);
-    padding: 2px 8px;
-    border-radius: var(--r-full);
-    font-size: 0.7rem;
-    font-weight: 500;
-  }
-}
-
-.trip-participants {
-  display: flex;
-  flex-shrink: 0;
-  align-self: center;
-
-  :deep(.kit-avatar) {
-    transition: transform 0.2s ease;
-
-    &:first-child {
-      margin-left: 0;
+      color: #cbd5e1;
+      background: rgba(148, 163, 184, 0.2);
+      border: 1px solid rgba(203, 213, 225, 0.3);
     }
 
-    @include hover {
-      & {
-        transform: translateY(-4px);
-        z-index: 10;
+    &--offline {
+      color: #38bdf8;
+      background: rgba(14, 165, 233, 0.2);
+      border: 1px solid rgba(56, 189, 248, 0.35);
+    }
+
+    &--downloading {
+      color: #f472b6;
+      background: rgba(236, 72, 153, 0.2);
+      border: 1px solid rgba(244, 114, 182, 0.35);
+
+      .spin-icon {
+        animation: spin 1s linear infinite;
       }
     }
   }
-}
 
-/* Header Actions Wrapper */
-.header-actions-wrapper {
-  position: absolute;
-  top: 1rem;
-  right: 1rem;
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  z-index: 3;
-}
-
-.card-visibility {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  width: 36px;
-  height: 36px;
-  background-color: rgba(var(--bg-secondary-color-rgb), 0.5);
-  color: var(--fg-primary-color);
-  border-radius: var(--r-full);
-  backdrop-filter: blur(4px);
-  cursor: help;
-  transition: background-color 0.2s ease;
-
-  &:hover {
-    background-color: rgba(var(--bg-secondary-color-rgb), 0.8);
+  /* Editorial Title */
+  .trip-title {
+    font-size: 2.25rem;
+    line-height: 1.15;
+    font-weight: 800;
+    letter-spacing: -0.02em;
+    color: #ffffff;
+    margin: 0;
+    word-break: break-word;
+    text-shadow: 0 2px 14px rgba(0, 0, 0, 0.6);
   }
-}
 
-.card-actions {
-  display: flex;
+  /* Meta Row: Dates, Duration, Cities, Budget */
+  .trip-meta-row {
+    animation-delay: 0.25s;
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.65rem 1.5rem;
+    color: rgba(255, 255, 255, 0.92);
 
-  .action-btn {
+    .meta-item {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.5rem;
+      font-size: 0.92rem;
+      font-weight: 500;
+      letter-spacing: 0.01em;
+
+      svg {
+        font-size: 1.1rem;
+        opacity: 0.85;
+      }
+
+      .duration-badge {
+        display: inline-flex;
+        align-items: center;
+        margin-left: 0.25rem;
+        padding: 2px 8px;
+        background: rgba(255, 255, 255, 0.16);
+        border: 1px solid rgba(255, 255, 255, 0.25);
+        border-radius: var(--r-full);
+        font-size: 0.75rem;
+        font-weight: 600;
+        color: #ffffff;
+        letter-spacing: 0.02em;
+      }
+
+      &--budget {
+        background: rgba(255, 255, 255, 0.12);
+        padding: 3px 10px;
+        border-radius: var(--r-s);
+        border: 1px solid rgba(255, 255, 255, 0.18);
+        font-weight: 600;
+        color: #ffffff;
+        margin-left: auto;
+      }
+
+      &--cities {
+        .cities-compact {
+          display: none;
+        }
+
+        .cities-full {
+          display: inline;
+        }
+
+        .cities-text {
+          max-width: 380px;
+          white-space: nowrap;
+          overflow: hidden;
+          text-overflow: ellipsis;
+        }
+
+        &.is-clickable {
+          cursor: pointer;
+          transition: opacity 0.2s ease;
+
+          &:hover {
+            opacity: 0.85;
+          }
+        }
+
+        .cities-more-badge {
+          display: none;
+          align-items: center;
+          padding: 1px 7px;
+          background: rgba(255, 255, 255, 0.16);
+          border: 1px solid rgba(255, 255, 255, 0.25);
+          border-radius: var(--r-full);
+          font-size: 0.72rem;
+          font-weight: 600;
+          color: #ffffff;
+        }
+      }
+    }
+  }
+
+  /* Bottom Row: Statuses, Tags and Participants */
+  .banner-bottom-row {
+    animation-delay: 0.35s;
     display: flex;
     align-items: center;
-    justify-content: center;
-    width: 36px;
-    height: 36px;
-    background-color: rgba(var(--bg-secondary-color-rgb), 0.5);
-    color: var(--fg-primary-color);
-    border: none;
-    border-radius: var(--r-full);
-    cursor: pointer;
-    backdrop-filter: blur(4px);
-    transition: all 0.2s ease;
+    justify-content: space-between;
+    gap: 1.25rem;
+    margin-top: 4px;
+    padding-top: 10px;
+    border-top: 1px solid rgba(255, 255, 255, 0.12);
+  }
 
-    @include hover {
-      & {
-        background-color: var(--bg-hover-color);
-        color: var(--fg-accent-color);
+  .banner-bottom-left {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 8px 12px;
+    flex: 1;
+    min-width: 0;
+  }
+
+  .trip-tags {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 6px;
+
+    .tag {
+      background: rgba(255, 255, 255, 0.12);
+      backdrop-filter: blur(8px);
+      -webkit-backdrop-filter: blur(8px);
+      border: 1px solid rgba(255, 255, 255, 0.15);
+      color: rgba(255, 255, 255, 0.9);
+      padding: 3px 10px;
+      border-radius: var(--r-full);
+      font-size: 0.72rem;
+      font-weight: 600;
+      letter-spacing: 0.02em;
+      transition: all 0.2s ease;
+
+      @include hover {
+        & {
+          background: rgba(255, 255, 255, 0.22);
+          color: #ffffff;
+          border-color: rgba(255, 255, 255, 0.3);
+        }
+      }
+    }
+  }
+
+  .trip-participants {
+    display: flex;
+    align-items: center;
+    flex-shrink: 0;
+
+    :deep(.kit-avatar) {
+      margin-left: -8px;
+      border: 2px solid rgba(20, 20, 25, 0.85);
+      box-shadow: 0 2px 6px rgba(0, 0, 0, 0.4);
+      transition:
+        transform 0.2s ease,
+        border-color 0.2s ease;
+
+      &:first-child {
+        margin-left: 0;
+      }
+
+      @include hover {
+        & {
+          transform: translateY(-3px) scale(1.08);
+          border-color: #ffffff;
+          z-index: 10;
+        }
       }
     }
   }
@@ -1039,6 +1222,23 @@ watch(() => props.trip?.id, (newId) => {
 @keyframes spin {
   to {
     transform: rotate(360deg);
+  }
+}
+
+.mobile-trip-tags {
+  display: none;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+
+  .tag {
+    background-color: var(--bg-secondary-color);
+    border: 1px solid var(--border-secondary-color);
+    color: var(--fg-secondary-color);
+    padding: 4px 10px;
+    border-radius: var(--r-full);
+    font-size: 0.75rem;
+    font-weight: 500;
   }
 }
 
@@ -1298,32 +1498,100 @@ watch(() => props.trip?.id, (newId) => {
     gap: 1rem;
   }
   .overview-banner {
-    height: auto;
-    min-height: 300px;
-  }
-  .banner-content {
-    padding: 1rem;
-    gap: 0.5rem;
-  }
-  .trip-title {
-    font-size: 1.5rem;
-    line-height: 1.3;
-  }
-  .trip-meta {
-    gap: 0.5rem 1rem;
-    .meta-item {
-      font-size: 0.85rem;
-      gap: 0.25rem;
+    min-height: 380px;
+
+    .header-actions-wrapper {
+      padding: 1rem;
+    }
+
+    .card-visibility-pill {
+      width: 38px;
+      height: 38px;
+      padding: 0;
+      justify-content: center;
+
+      .visibility-text {
+        display: none;
+      }
+    }
+
+    .banner-body {
+      padding: 1.25rem 1rem 1rem;
+      gap: 10px;
+    }
+
+    .trip-title {
+      font-size: 1.75rem;
+      line-height: 1.2;
+    }
+
+    .trip-meta-row {
+      display: grid;
+      grid-template-columns: 1fr auto;
+      align-items: center;
+      gap: 0.5rem 0.75rem;
+
+      .meta-item {
+        font-size: 0.85rem;
+      }
+
+      .meta-item--dates {
+        grid-column: 1 / -1;
+
+        .duration-badge {
+          margin-left: auto;
+        }
+      }
+
+      .meta-item--cities {
+        grid-column: 1 / 2;
+        min-width: 0;
+
+        .cities-full {
+          display: none;
+        }
+
+        .cities-compact {
+          display: inline;
+        }
+
+        .cities-more-badge {
+          display: inline-flex;
+        }
+      }
+
+      .meta-item--budget {
+        grid-column: 2 / 3;
+        margin-left: 0;
+      }
+    }
+
+    .banner-bottom-row {
+      flex-direction: row;
+      align-items: center;
+      justify-content: space-between;
+      gap: 0.75rem;
+    }
+
+    .banner-bottom-left {
+      flex: 1;
+      min-width: 0;
+      gap: 6px 10px;
+    }
+
+    .trip-tags {
+      display: none;
+    }
+
+    .trip-participants {
+      flex-shrink: 0;
     }
   }
-  .footer-meta-content {
-    flex-direction: column;
-    align-items: flex-start;
-    gap: 1rem;
+
+  .mobile-trip-tags {
+    display: flex;
   }
-  .trip-participants {
-    align-self: flex-start;
-  }
+
   .info-widgets,
   .overview-grid {
     grid-template-columns: 1fr;

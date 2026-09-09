@@ -21,6 +21,7 @@ declare global {
   const asyncComputed: typeof import('@vueuse/core').asyncComputed
   const autoResetRef: typeof import('@vueuse/core').autoResetRef
   const breakpoints: typeof import('../../composables/use-display').breakpoints
+  const calculateTripBoundingBox: typeof import('../../lib/tile-calc').calculateTripBoundingBox
   const checkMapTilerAvailability: typeof import('../../lib/map-styles-sources').checkMapTilerAvailability
   const computed: typeof import('vue').computed
   const computedAsync: typeof import('@vueuse/core').computedAsync
@@ -63,6 +64,8 @@ declare global {
   const getImageUrl: typeof import('../../lib/url').getImageUrl
   const getLocalDate: typeof import('../../lib/date-time').getLocalDate
   const getMapStyle: typeof import('../../lib/map-styles-sources').getMapStyle
+  const getMaplibreTransformRequest: typeof import('../../lib/map-tile-cache').getMaplibreTransformRequest
+  const getTilesForBBox: typeof import('../../lib/tile-calc').getTilesForBBox
   const getTimeFromTimestamp: typeof import('../../lib/date-time').getTimeFromTimestamp
   const h: typeof import('vue').h
   const handleDeepLinkUrl: typeof import('../../lib/deep-link').handleDeepLinkUrl
@@ -82,12 +85,14 @@ declare global {
   const isShallow: typeof import('vue').isShallow
   const isTauri: typeof import('../../lib/env').isTauri
   const lazyComponent: typeof import('../../lib/lazy-component').lazyComponent
+  const lngLatToTile: typeof import('../../lib/tile-calc').lngLatToTile
   const makeDestructurable: typeof import('@vueuse/core').makeDestructurable
   const manualResetRef: typeof import('@vueuse/core')['manualResetRef']
   const mapActions: typeof import('pinia').mapActions
   const mapGetters: typeof import('pinia').mapGetters
   const mapState: typeof import('pinia').mapState
   const mapStores: typeof import('pinia').mapStores
+  const mapTileCacheManager: typeof import('../../lib/map-tile-cache').mapTileCacheManager
   const mapWritableState: typeof import('pinia').mapWritableState
   const markRaw: typeof import('vue').markRaw
   const minutesToTime: typeof import('../../lib/date-time').minutesToTime
@@ -370,6 +375,9 @@ declare global {
   export type { TileSourceId, MapSourceMeta, MapSourceConfig } from '../../lib/map-styles-sources'
   import('../../lib/map-styles-sources')
   // @ts-ignore
+  export type { BoundingBox } from '../../lib/tile-calc'
+  import('../../lib/tile-calc')
+  // @ts-ignore
   export type { ImageOptions } from '../../lib/url'
   import('../../lib/url')
   // @ts-ignore
@@ -405,6 +413,7 @@ declare module 'vue' {
     readonly asyncComputed: UnwrapRef<typeof import('@vueuse/core')['asyncComputed']>
     readonly autoResetRef: UnwrapRef<typeof import('@vueuse/core')['autoResetRef']>
     readonly breakpoints: UnwrapRef<typeof import('../../composables/use-display')['breakpoints']>
+    readonly calculateTripBoundingBox: UnwrapRef<typeof import('../../lib/tile-calc')['calculateTripBoundingBox']>
     readonly checkMapTilerAvailability: UnwrapRef<typeof import('../../lib/map-styles-sources')['checkMapTilerAvailability']>
     readonly computed: UnwrapRef<typeof import('vue')['computed']>
     readonly computedAsync: UnwrapRef<typeof import('@vueuse/core')['computedAsync']>
@@ -447,6 +456,8 @@ declare module 'vue' {
     readonly getImageUrl: UnwrapRef<typeof import('../../lib/url')['getImageUrl']>
     readonly getLocalDate: UnwrapRef<typeof import('../../lib/date-time')['getLocalDate']>
     readonly getMapStyle: UnwrapRef<typeof import('../../lib/map-styles-sources')['getMapStyle']>
+    readonly getMaplibreTransformRequest: UnwrapRef<typeof import('../../lib/map-tile-cache')['getMaplibreTransformRequest']>
+    readonly getTilesForBBox: UnwrapRef<typeof import('../../lib/tile-calc')['getTilesForBBox']>
     readonly getTimeFromTimestamp: UnwrapRef<typeof import('../../lib/date-time')['getTimeFromTimestamp']>
     readonly h: UnwrapRef<typeof import('vue')['h']>
     readonly handleDeepLinkUrl: UnwrapRef<typeof import('../../lib/deep-link')['handleDeepLinkUrl']>
@@ -466,11 +477,13 @@ declare module 'vue' {
     readonly isShallow: UnwrapRef<typeof import('vue')['isShallow']>
     readonly isTauri: UnwrapRef<typeof import('../../lib/env')['isTauri']>
     readonly lazyComponent: UnwrapRef<typeof import('../../lib/lazy-component')['lazyComponent']>
+    readonly lngLatToTile: UnwrapRef<typeof import('../../lib/tile-calc')['lngLatToTile']>
     readonly makeDestructurable: UnwrapRef<typeof import('@vueuse/core')['makeDestructurable']>
     readonly mapActions: UnwrapRef<typeof import('pinia')['mapActions']>
     readonly mapGetters: UnwrapRef<typeof import('pinia')['mapGetters']>
     readonly mapState: UnwrapRef<typeof import('pinia')['mapState']>
     readonly mapStores: UnwrapRef<typeof import('pinia')['mapStores']>
+    readonly mapTileCacheManager: UnwrapRef<typeof import('../../lib/map-tile-cache')['mapTileCacheManager']>
     readonly mapWritableState: UnwrapRef<typeof import('pinia')['mapWritableState']>
     readonly markRaw: UnwrapRef<typeof import('vue')['markRaw']>
     readonly minutesToTime: UnwrapRef<typeof import('../../lib/date-time')['minutesToTime']>
