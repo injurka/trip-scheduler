@@ -10,7 +10,7 @@ import { existsSync } from 'node:fs'
 import { basename } from 'node:path'
 import { colors } from '../config/colors'
 import { dedentText } from '../parsers/activity'
-import { extractLocationsFromText } from '../parsers/location'
+import { extractExternalTrailLinks, extractLocationsFromText } from '../parsers/location'
 import { geocodeLocation } from './geocode'
 
 const CALLOUT_META_MAP: Record<string, { defaultTitle: string, icon: string, color: string }> = {
@@ -150,12 +150,38 @@ export async function enrichActivityWithMediaAndLocation(
     })
   }
 
+  // 3b. Extract external trail links (AllTrails, Hikingbook, Komoot, Wikiloc, Strava) and preserve as attached cards
+  const externalTrailLinks = extractExternalTrailLinks(text)
+  for (const trail of externalTrailLinks) {
+    const cleanTitle = trail.title
+      .replace(/^(?:AllTrails|Hikingbook|Komoot|Wikiloc|Strava|Трек|Маршрут|Велотрек|Веломаршрут):\s*/i, '')
+      .trim()
+    const platform = trail.url.includes('alltrails.com')
+      ? 'AllTrails'
+      : trail.url.includes('hikingbook.net')
+        ? 'Hikingbook'
+        : trail.url.includes('komoot.com')
+          ? 'Komoot'
+          : trail.url.includes('wikiloc.com')
+            ? 'Wikiloc'
+            : 'карте'
+    noteSections.push({
+      id: crypto.randomUUID(),
+      type: 'description',
+      isAttached: true,
+      title: trail.isBike ? 'Веломаршрут' : 'Хайкинг-трек',
+      icon: trail.isBike ? 'mdi:bicycle' : 'mdi:hiking',
+      color: '#A0C4FF',
+      text: `🗺️ **${cleanTitle || trail.title}**\n\n[Открыть трек в ${platform}](${trail.url})`,
+    })
+  }
+
   // 4. Clean description: remove location lines, iframes, image callouts, wikilinks, and note callouts
   text = text
-    .replace(/^[ \t]*(?:[*-][ \t]*)?(?:_[^_\n]*(?:локаци|карт|маршрут|maps?|ориентир|ссылка|хайкинг|трек|trail|точк|старт|финиш)[^_\n]*_|\*\*[^*\n]*(?:локаци|карт|маршрут|maps?|ориентир|ссылка|хайкинг|трек|trail|точк|старт|финиш)[^*\n]*\*\*):[^\n]*\n?/gmi, '')
+    .replace(/^[ \t]*(?:[*-][ \t]*)?(?:_[^_\n]*(?:локаци|карт|маршрут|maps?|ориентир|ссылка|хайкинг|трек|trail|точк|старт|финиш|вело|велотрек)[^_\n]*_|\*\*[^*\n]*(?:локаци|карт|маршрут|maps?|ориентир|ссылка|хайкинг|трек|trail|точк|старт|финиш|вело|велотрек)[^*\n]*\*\*):[^\n]*\n?/gmi, '')
     .replace(/<iframe[^>]*src=["'](?:https?:)?\/\/[^"']*["'][^>]*>\s*<\/iframe>/gi, '')
     .replace(/<iframe[^>]*>[\s\S]*?<\/iframe>/gi, '')
-    .replace(/\[(?:Yandex Maps|Google Maps|2GIS|OpenStreetMap|AllTrails|Hikingbook|Карты Yandex|Карты Google|Карты|Maps|Трек|Маршрут)[^\]]+\]\([^)]+\)/gi, '')
+    .replace(/\[(?:Yandex Maps|Google Maps|2GIS|OpenStreetMap|AllTrails|Hikingbook|Карты Yandex|Карты Google|Карты|Maps|Трек|Маршрут|Велотрек|Веломаршрут)[^\]]+\]\([^)]+\)/gi, '')
     .replace(imageCalloutRegex, '')
     .replace(/!\[\[[^\]]+\]\]/g, '')
     .replace(/!\[[^\]]*\]\([^)]+\)/g, '')
@@ -182,7 +208,7 @@ export async function enrichActivityWithMediaAndLocation(
   if (extractedLocations.length > 0) {
     const mapPoints: GeolocationPoint[] = []
     // Group trail waypoints (name ends with " (Точка N)") into routes
-    const routeGroups = new Map<string, GeolocationPoint[]>()
+    const routeGroups = new Map<string, Array<GeolocationPoint & { isBike?: boolean }>>()
 
     for (const loc of extractedLocations) {
       let coordinates: [number, number] | null = loc.coordinates || null
@@ -214,6 +240,7 @@ export async function enrichActivityWithMediaAndLocation(
           type: pointType,
           address: loc.name,
           comment: loc.name,
+          isBike: loc.isBike,
         })
       }
       else {
@@ -233,21 +260,31 @@ export async function enrichActivityWithMediaAndLocation(
       if (pts.length > 1) {
         // Mark intermediate points as 'via'
         const orderedPts = pts.map((p, i) => ({
-          ...p,
+          id: p.id,
+          coordinates: p.coordinates,
           type: (i === 0 ? 'start' : i === pts.length - 1 ? 'end' : 'via') as GeolocationPoint['type'],
+          address: p.address,
+          comment: p.comment,
         }))
+        const isBike = /вело|bike/i.test(routeName) || pts.some(p => p.isBike)
         routes.push({
           id: crypto.randomUUID(),
           title: routeName,
           points: orderedPts,
-          transportMode: 'foot',
+          transportMode: isBike ? 'bike' : 'foot',
           isVisible: true,
           isFetching: false,
         })
       }
       else {
         // Only one point resolved — add as POI
-        pts.forEach(p => mapPoints.push({ ...p, type: 'poi' }))
+        pts.forEach(p => mapPoints.push({
+          id: p.id,
+          coordinates: p.coordinates,
+          type: 'poi',
+          address: p.address,
+          comment: p.comment,
+        }))
       }
     }
 
