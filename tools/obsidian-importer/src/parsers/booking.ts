@@ -34,6 +34,84 @@ function parseDateSnippet(snippet: string, fallbackDate: Date): string {
   return fallbackDate.toISOString().split('T')[0]
 }
 
+function toIsoDate(year: number, month: number, day: number): string {
+  const y = String(year).padStart(4, '0')
+  const m = String(month + 1).padStart(2, '0')
+  const d = String(day).padStart(2, '0')
+  return `${y}-${m}-${d}`
+}
+
+export interface ExtractedDateRange {
+  checkInDate: string
+  checkOutDate: string
+}
+
+export function extractDateRangesFromText(text: string, fallbackDate: Date): ExtractedDateRange[] {
+  const results: ExtractedDateRange[] = []
+  const fallbackYear = fallbackDate.getFullYear()
+
+  // 1. ISO формат: YYYY-MM-DD – YYYY-MM-DD
+  const isoRegex = /(\d{4}-\d{2}-\d{2})\s*(?:[-–—]|по)\s*(\d{4}-\d{2}-\d{2})/g
+  for (const m of text.matchAll(isoRegex)) {
+    results.push({ checkInDate: m[1], checkOutDate: m[2] })
+  }
+  if (results.length > 0)
+    return results
+
+  // 2. Числовой формат: DD.MM[.YYYY] – DD.MM[.YYYY]
+  const numRegex = /(\d{1,2})\.(\d{1,2})(?:\.(\d{2,4}))?\s*(?:[-–—]|по)\s*(\d{1,2})\.(\d{1,2})(?:\.(\d{2,4}))?/g
+  for (const m of text.matchAll(numRegex)) {
+    const startDay = Number.parseInt(m[1], 10)
+    const startMonth = Number.parseInt(m[2], 10) - 1
+    const startYear = m[3] ? Number.parseInt(m[3].length === 2 ? `20${m[3]}` : m[3], 10) : fallbackYear
+
+    const endDay = Number.parseInt(m[4], 10)
+    const endMonth = Number.parseInt(m[5], 10) - 1
+    let endYear = m[6] ? Number.parseInt(m[6].length === 2 ? `20${m[6]}` : m[6], 10) : startYear
+    if (!m[6] && endMonth < startMonth)
+      endYear++
+
+    results.push({
+      checkInDate: toIsoDate(startYear, startMonth, startDay),
+      checkOutDate: toIsoDate(endYear, endMonth, endDay),
+    })
+  }
+  if (results.length > 0)
+    return results
+
+  // 3. Текстовый формат с русскими месяцами:
+  // "30 окт – 03 ноя", "12–14 ноя", "12 ноя – 14 ноя"
+  const textDateRegex = /(\d{1,2})(?:\s*([а-яё]+))?\s*(?:[-–—]|по)\s*(\d{1,2})\s*([а-яё]+)(?:\s*(\d{4}))?/gi
+  for (const m of text.matchAll(textDateRegex)) {
+    const startDay = Number.parseInt(m[1], 10)
+    const endDay = Number.parseInt(m[3], 10)
+    const endMonthStr = m[4].toLowerCase().slice(0, 3)
+    const startMonthStr = m[2] ? m[2].toLowerCase().slice(0, 3) : endMonthStr
+
+    const startMonth = MONTHS_MAP[startMonthStr]
+    const endMonth = MONTHS_MAP[endMonthStr]
+
+    if (startMonth !== undefined && endMonth !== undefined) {
+      let startYear = m[5] ? Number.parseInt(m[5], 10) : fallbackYear
+      let endYear = startYear
+      if (endMonth < startMonth) {
+        endYear++
+      }
+      else if (startMonth < fallbackDate.getMonth() && fallbackDate.getMonth() >= 10 && startMonth <= 2) {
+        startYear++
+        endYear++
+      }
+
+      results.push({
+        checkInDate: toIsoDate(startYear, startMonth, startDay),
+        checkOutDate: toIsoDate(endYear, endMonth, endDay),
+      })
+    }
+  }
+
+  return results
+}
+
 function inferTimezone(airportOrCity?: string): string {
   if (!airportOrCity)
     return '+03:00'
@@ -221,7 +299,15 @@ export function parseHotelsMarkdown(content: string, startDateStr: string): Book
 
       // Если отель основной или единственный в строке
       if (hotelName && !/опция|альтернатива/i.test(nightsCol)) {
-        // Поддержка нескольких периодов проживания в одной строке (например, "14–15, 17–18")
+        // Проверяем наличие явных дат в столбце локации или во всей строке
+        const extractedDates = extractDateRangesFromText(rawLocationCol, startDate)
+        if (extractedDates.length === 0) {
+          const fallbackDates = extractDateRangesFromText(line, startDate)
+          if (fallbackDates.length > 0)
+            extractedDates.push(...fallbackDates)
+        }
+
+        // Поддержка нескольких периодов проживания в одной строке (например, "14–15, 17–18" или "15–16, 18–19")
         const subRanges = nightsCol.split(',').map(s => s.trim()).filter(Boolean)
         const parsedRanges: Array<{ start: number, end: number }> = []
 
@@ -242,30 +328,48 @@ export function parseHotelsMarkdown(content: string, startDateStr: string): Book
           }
         }
 
-        if (parsedRanges.length === 0) {
+        if (parsedRanges.length === 0 && extractedDates.length > 0) {
+          for (let i = 0; i < extractedDates.length; i++) {
+            parsedRanges.push({ start: 1, end: 1 })
+          }
+        }
+        else if (parsedRanges.length === 0) {
           parsedRanges.push({ start: 1, end: 1 })
         }
 
         for (let rIdx = 0; rIdx < parsedRanges.length; rIdx++) {
-          const { start: startDayNum, end: endDayNum } = parsedRanges[rIdx]
+          let checkInDate: string
+          let checkOutDate: string
 
-          const inDate = new Date(startDate)
-          inDate.setDate(inDate.getDate() + (startDayNum - 1))
-          const checkInDate = inDate.toISOString().split('T')[0]
+          if (extractedDates[rIdx]) {
+            checkInDate = extractedDates[rIdx].checkInDate
+            checkOutDate = extractedDates[rIdx].checkOutDate
+          }
+          else if (extractedDates.length === 1 && parsedRanges.length === 1) {
+            checkInDate = extractedDates[0].checkInDate
+            checkOutDate = extractedDates[0].checkOutDate
+          }
+          else {
+            const { start: startDayNum, end: endDayNum } = parsedRanges[rIdx]
 
-          const outDate = new Date(startDate)
-          outDate.setDate(outDate.getDate() + endDayNum)
-          const checkOutDate = outDate.toISOString().split('T')[0]
+            const inDate = new Date(startDate)
+            inDate.setDate(inDate.getDate() + (startDayNum - 1))
+            checkInDate = inDate.toISOString().split('T')[0]
+
+            const outDate = new Date(startDate)
+            outDate.setDate(outDate.getDate() + endDayNum)
+            checkOutDate = outDate.toISOString().split('T')[0]
+          }
 
           const features = featuresMap.get(hotelName.toLowerCase()) || featuresCol || ''
           const priceInfo = priceNightCol ? `${priceNightCol} / ночь${totalCol ? ` (Итого: ${totalCol})` : ''}` : ''
           const notesParts = [priceInfo, features].filter(Boolean)
           const notes = notesParts.join('. ')
 
-          // Чистим локацию: убираем эмодзи, разметку, даты в скобках типа "(30 окт – 03 ноя)"
+          // Чистим локацию: убираем эмодзи, разметку, даты в скобках типа "(30 окт – 03 ноя)" или "(12–14 ноя, 15–17 ноя)"
           const cleanLocation = removeEmoji(rawLocationCol)
             .replace(/[*_`]/g, '')
-            .replace(/\(\s*\d{1,2}\s*[а-яё]+[^)]*–[^)]*\)/gi, '') // убираем диапазоны дат
+            .replace(/\(\s*\d{1,2}(?:\s*[а-яё]+|\.\d{2})?[^)]*[-–—][^)]*\)/gi, '') // убираем диапазоны дат
             .replace(/\(\s*\d{1,2}\s*[а-яё]+[^)]*\)/gi, '') // убираем одиночные даты
             .replace(/\s+/g, ' ')
             .trim()
@@ -307,6 +411,11 @@ export function parseHotelsMarkdown(content: string, startDateStr: string): Book
         const address = locMatch ? locMatch[1].replace(/[*_`]/g, '').trim() : undefined
         const notes = [priceMatch ? `Стоимость: ${priceMatch[1].trim()}` : '', notesMatch ? notesMatch[1].trim() : ''].filter(Boolean).join('. ')
 
+        const headerLine = sec.split('\n')[0] || ''
+        const secDates = extractDateRangesFromText(headerLine, startDate)
+        const checkInDate = secDates[0]?.checkInDate ?? startDateStr
+        const checkOutDate = secDates[0]?.checkOutDate ?? startDateStr
+
         bookings.push({
           id: crypto.randomUUID(),
           type: 'hotel',
@@ -315,8 +424,8 @@ export function parseHotelsMarkdown(content: string, startDateStr: string): Book
           data: {
             hotelName,
             address,
-            checkInDate: startDateStr,
-            checkOutDate: startDateStr,
+            checkInDate,
+            checkOutDate,
             notes: notes || undefined,
             sourceUrl,
           },

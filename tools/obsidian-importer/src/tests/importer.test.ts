@@ -41,6 +41,62 @@ describe('Hotel Booking Parser', () => {
       expect(hotel.data.address).toBe('Тайбэй')
     }
   })
+
+  it('correctly uses explicit date ranges from location column instead of relative day offset', () => {
+    const markdown = `
+| Ночи | Локация | Отель №1 (Основной выбор) | Ночей | Цена / ночь | Итого за локацию |
+|:---:|:---|:---|:---:|:---:|:---:|
+| **01–04** | 🏙️ **Тайбэй** (30 окт – 03 ноя) | [Morwing Hotel Fairy Tale](https://www.trip.com/w/VfPGsYCo6W2) | **4н** | 3 183 ₽ | **12 732 ₽** |
+| **09** | 🌲 **Алишань (2200 м)** (07 ноя – 08 ноя) | [Ho Fong Villa Hotel](https://www.trip.com/w/PWHVD6Yp6W2) | **1н** | 8 310 ₽ | **8 310 ₽** |
+`
+    // Trip starts on 29 Oct (flight), but Taipei hotel is 30 Oct – 03 Nov
+    const bookings = parseHotelsMarkdown(markdown, '2026-10-29')
+    expect(bookings).toHaveLength(2)
+
+    const taipei = bookings[0]
+    expect(taipei.type).toBe('hotel')
+    if (taipei.type === 'hotel') {
+      expect(taipei.data.hotelName).toBe('Morwing Hotel Fairy Tale')
+      expect(taipei.data.address).toBe('Тайбэй')
+      expect(taipei.data.checkInDate).toBe('2026-10-30')
+      expect(taipei.data.checkOutDate).toBe('2026-11-03')
+    }
+
+    const alishan = bookings[1]
+    expect(alishan.type).toBe('hotel')
+    if (alishan.type === 'hotel') {
+      expect(alishan.data.hotelName).toBe('Ho Fong Villa Hotel')
+      expect(alishan.data.address).toBe('Алишань (2200 м)')
+      expect(alishan.data.checkInDate).toBe('2026-11-07')
+      expect(alishan.data.checkOutDate).toBe('2026-11-08')
+    }
+  })
+
+  it('handles multi-stay hotel rows with multiple explicit date intervals', () => {
+    const markdown = `
+| Ночи / Дни | Локация | Отель №1 (Основной выбор) | Ночей | Цена / ночь | Итого за локацию |
+|:---:|:---|:---|:---:|:---:|:---:|
+| **15–16, 18–19** | 🚢 **Гаосюн** (12 ноя – 14 ноя, 15 ноя – 17 ноя) | [moon yancheg](https://www.trip.com/w/9icz1Kpr6W2) | **4н** | 2 316 ₽ | **9 264 ₽** |
+`
+    const bookings = parseHotelsMarkdown(markdown, '2026-10-29')
+    expect(bookings).toHaveLength(2)
+
+    const stay1 = bookings[0]
+    expect(stay1.title).toBe('moon yancheg (1-й заезд)')
+    if (stay1.type === 'hotel') {
+      expect(stay1.data.checkInDate).toBe('2026-11-12')
+      expect(stay1.data.checkOutDate).toBe('2026-11-14')
+      expect(stay1.data.address).toBe('Гаосюн')
+    }
+
+    const stay2 = bookings[1]
+    expect(stay2.title).toBe('moon yancheg (2-й заезд)')
+    if (stay2.type === 'hotel') {
+      expect(stay2.data.checkInDate).toBe('2026-11-15')
+      expect(stay2.data.checkOutDate).toBe('2026-11-17')
+      expect(stay2.data.address).toBe('Гаосюн')
+    }
+  })
 })
 
 describe('Location Parser', () => {
