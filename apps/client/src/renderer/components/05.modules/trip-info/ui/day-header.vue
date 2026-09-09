@@ -248,11 +248,13 @@ function handleScrollToActivity(activityId: string) {
 
 .day-title {
   margin-bottom: 10px;
+  font-family: var(--font-accent);
 
   :deep() {
     .ProseMirror {
       h1,
       p {
+        font-family: var(--font-accent);
         font-size: 1.55rem;
         font-weight: 700;
         color: var(--fg-primary-color);

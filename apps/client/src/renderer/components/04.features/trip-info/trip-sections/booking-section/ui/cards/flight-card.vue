@@ -381,6 +381,8 @@ function updateSegmentField<K extends keyof FlightSegment>(segmentIndex: number,
     font-size: 1.75rem;
     font-weight: 600;
     line-height: 1.1;
+    font-family: var(--font-mono);
+    font-variant-numeric: tabular-nums;
   }
   .city {
     font-size: 1rem;

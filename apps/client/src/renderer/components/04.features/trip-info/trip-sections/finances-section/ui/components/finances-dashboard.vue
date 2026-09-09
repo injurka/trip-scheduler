@@ -271,6 +271,8 @@ onMounted(() => {
   font-weight: 600;
   font-size: 1.1rem;
   text-align: right;
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
 }
 
 .dsa-item.spontaneous {
@@ -336,6 +338,8 @@ onMounted(() => {
 
   .legend-value {
     font-weight: 500;
+    font-family: var(--font-mono);
+    font-variant-numeric: tabular-nums;
   }
 }
 

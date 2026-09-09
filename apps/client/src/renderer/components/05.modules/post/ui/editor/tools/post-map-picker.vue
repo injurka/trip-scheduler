@@ -217,12 +217,13 @@ watch(() => props.visible, (isOpen) => {
   border-radius: var(--r-s);
 
   .address {
-    font-family: var(--font-sans, system-ui, sans-serif);
+    font-family: var(--font-base, system-ui, sans-serif);
     font-weight: 600;
     margin-bottom: 2px;
   }
 
   .coords {
+    font-family: var(--font-mono);
     color: var(--fg-secondary-color);
     font-size: 0.8rem;
   }

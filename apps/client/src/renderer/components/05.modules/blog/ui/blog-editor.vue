@@ -863,7 +863,7 @@ const contentStats = computed(() => {
   color: var(--fg-primary-color);
   outline: none;
   padding: 0;
-  font-family: inherit;
+  font-family: var(--font-accent);
 
   &::placeholder {
     color: var(--fg-tertiary-color);
@@ -947,6 +947,7 @@ const contentStats = computed(() => {
 }
 
 .preview-article-title {
+  font-family: var(--font-accent);
   font-size: 2.5rem;
   font-weight: 700;
   line-height: 1.2;

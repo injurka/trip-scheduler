@@ -9,6 +9,13 @@ html {
   -webkit-tap-highlight-color: transparent;
 }
 
+html,
+body {
+  font-family: var(--font-base);
+  font-variant-numeric: tabular-nums;
+  font-feature-settings: 'tnum';
+}
+
 body {
   box-sizing: border-box;
   margin: 0;
@@ -19,21 +26,52 @@ body {
   transition: background-color 0.3s ease;
   color: var(--fg-primary-color);
   font-size: map.get($font-sizes, 'base');
-
-  *,
-  *::before,
-  *::after {
-    box-sizing: border-box;
-    text-decoration-color: var(--fg-primary-color);
-    caret-color: var(--fg-primary-color);
-    font-family: var(--font-base);
-  }
+  text-decoration-color: var(--fg-primary-color);
+  caret-color: var(--fg-primary-color);
 }
 
 *,
 *::before,
 *::after {
   box-sizing: border-box;
+}
+
+button,
+input,
+optgroup,
+select,
+textarea {
+  font-family: inherit;
+  font-variant-numeric: tabular-nums;
+  font-feature-settings: 'tnum';
+}
+
+h1,
+h2,
+h3,
+h4,
+h5,
+h6 {
+  font-family: var(--font-accent);
+}
+
+code,
+kbd,
+samp,
+pre {
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+  font-feature-settings: 'tnum';
+}
+
+// Utility classes for tabular mono values (times, prices, coordinates)
+.tabular-mono,
+.time-value,
+.price-value,
+.coord-value {
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+  font-feature-settings: 'tnum';
 }
 
 button,

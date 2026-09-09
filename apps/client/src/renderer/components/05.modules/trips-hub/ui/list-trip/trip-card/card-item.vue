@@ -488,6 +488,7 @@ const tripData = computed<Trip>(() => ({
 
 .card-title {
   position: relative;
+  font-family: var(--font-accent);
   font-size: 1.4rem;
   font-weight: 700;
   line-height: 1.25;

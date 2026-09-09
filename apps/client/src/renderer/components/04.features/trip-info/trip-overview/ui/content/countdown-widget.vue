@@ -154,6 +154,7 @@ onUnmounted(() => {
   color: var(--fg-primary-color);
   font-family: var(--font-accent);
   line-height: 1.2;
+  font-variant-numeric: tabular-nums;
 }
 
 .label {

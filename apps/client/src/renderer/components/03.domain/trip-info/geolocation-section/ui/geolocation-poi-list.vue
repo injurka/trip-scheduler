@@ -447,6 +447,7 @@ onClickOutside(mapIframeContainerRef, () => {
   display: flex;
   flex-direction: column;
   gap: 2px;
+  height: 100%;
   min-width: 0;
   padding: 8px 10px 8px 0;
 

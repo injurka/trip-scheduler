@@ -1034,6 +1034,8 @@ onClickOutside(timeEditorRef, saveTimeChanges)
       gap: 16px;
       flex: 1;
       min-width: 0;
+      font-family: var(--font-mono);
+      font-variant-numeric: tabular-nums;
     }
 
     .collapse-toggle-btn {
@@ -1182,7 +1184,7 @@ onClickOutside(timeEditorRef, saveTimeChanges)
 
     &-view {
       width: 100%;
-      font-weight: 500;
+      font-weight: 600;
       font-size: 1.05rem;
       line-height: 1.45;
       color: var(--fg-primary-color);

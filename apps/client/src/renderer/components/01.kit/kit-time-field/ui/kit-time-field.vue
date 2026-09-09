@@ -73,6 +73,7 @@ const internalModel = computed({
   text-align: center;
   background-color: var(--bg-tertiary-color);
   user-select: none;
+  font-family: var(--font-mono);
   font-variant-numeric: tabular-nums;
 
   .TimeFieldLiteral {

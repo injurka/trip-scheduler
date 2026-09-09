@@ -395,7 +395,7 @@ onBeforeUnmount(() => {
     h4,
     h5,
     h6 {
-      font-family: var(--font-base) !important;
+      font-family: var(--font-accent) !important;
       color: var(--fg-primary-color);
       letter-spacing: -0.015em;
     }
@@ -479,6 +479,7 @@ onBeforeUnmount(() => {
           flex-shrink: 0 !important;
           width: 0.75rem !important;
           height: 1em !important;
+          white-space: nowrap !important;
           transform: translateY(0.1em) !important;
           user-select: none !important;
 
@@ -657,7 +658,7 @@ onBeforeUnmount(() => {
           text-transform: uppercase;
           letter-spacing: 0.06em;
           color: var(--callout-title-color, var(--callout-accent));
-          font-family: var(--font-base) !important;
+          font-family: var(--font-accent) !important;
         }
       }
 

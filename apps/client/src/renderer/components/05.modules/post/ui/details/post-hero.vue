@@ -151,6 +151,7 @@ const heroMediaUrl = computed(() => {
 }
 
 .hero-title {
+  font-family: var(--font-accent);
   font-size: 2.5rem;
   line-height: 1.1;
   font-weight: 800;

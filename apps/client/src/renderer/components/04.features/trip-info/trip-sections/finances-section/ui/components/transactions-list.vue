@@ -132,6 +132,8 @@ function getConvertedAmountInMainCurrency(transaction: Transaction): string | nu
     strong {
       color: var(--fg-error-color);
       font-weight: 600;
+      font-family: var(--font-mono);
+      font-variant-numeric: tabular-nums;
     }
   }
 }
@@ -203,11 +205,15 @@ function getConvertedAmountInMainCurrency(transaction: Transaction): string | nu
   font-weight: 500;
   font-size: 1rem;
   color: var(--fg-error-color);
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
 }
 .converted-amount {
   font-size: 0.8rem;
   font-weight: 400;
   color: var(--fg-tertiary-color);
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
 }
 
 .item-actions {

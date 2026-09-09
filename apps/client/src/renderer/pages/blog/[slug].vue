@@ -146,6 +146,7 @@ onMounted(() => {
 }
 
 :deep(.article-content) {
+  font-family: var(--font-accent);
   line-height: 1.7;
   color: var(--fg-primary-color);
   font-size: 1.05rem;
