@@ -1220,7 +1220,7 @@ onClickOutside(timeEditorRef, saveTimeChanges)
   .activity-sections {
     margin-top: 10px;
     padding-left: 8px;
-    padding-right: 4px;
+    padding-right: 2px;
   }
 
   .sections-list {

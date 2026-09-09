@@ -191,6 +191,7 @@ const collapseRouteIcon = computed(() => allRouteBlocksCollapsed.value ? 'mdi:ch
 
     .divider-with-action {
       flex-shrink: 0;
+      margin-bottom: 0px;
 
       &::before {
         display: none;
@@ -215,7 +216,7 @@ const collapseRouteIcon = computed(() => allRouteBlocksCollapsed.value ? 'mdi:ch
       .canvas-column {
         height: 100%;
         overflow-y: auto;
-        padding-right: 8px;
+        padding-left: 8px;
         padding-bottom: 32px;
 
         &::-webkit-scrollbar {
