@@ -152,7 +152,7 @@ onUnmounted(() => {
   font-size: 2rem;
   font-weight: 700;
   color: var(--fg-primary-color);
-  font-family: 'Rubik', sans-serif;
+  font-family: var(--font-accent);
   line-height: 1.2;
 }
 

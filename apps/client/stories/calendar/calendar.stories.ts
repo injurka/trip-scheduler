@@ -47,7 +47,7 @@ function interactiveRender(args: any) {
       }
     },
     template: `
-    <div style="font-family: 'Rubik', sans-serif;">
+    <div style="font-family: var(--font-base), sans-serif;">
       <KitCalendar v-model="selectedDate" @update:modelValue="args['onUpdate:modelValue']" />
       <div style="margin-top: 16px; text-align: center;">
         <p style="margin: 0; font-size: 14px; color: #666;">v-model state:</p>

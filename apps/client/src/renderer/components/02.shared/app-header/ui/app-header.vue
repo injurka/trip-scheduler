@@ -283,7 +283,7 @@ onMounted(() => {
     width: 100%;
     height: 100%;
     margin: 0 auto;
-    font-family: 'Rubik';
+    font-family: var(--font-base);
     padding: 0 12px;
     align-items: center;
 
@@ -341,7 +341,7 @@ onMounted(() => {
       }
 
       &-text {
-        font-family: 'Sansation';
+        font-family: var(--font-accent);
         font-size: 1rem;
         font-weight: 600;
         position: relative;

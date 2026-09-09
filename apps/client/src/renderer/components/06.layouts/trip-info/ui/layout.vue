@@ -409,7 +409,7 @@ onBeforeUnmount(() => {
         font-weight: 600;
         color: var(--fg-primary-color);
         margin: 0;
-        font-family: 'Sansation';
+        font-family: var(--font-accent);
         white-space: nowrap;
         overflow: hidden;
         text-overflow: ellipsis;

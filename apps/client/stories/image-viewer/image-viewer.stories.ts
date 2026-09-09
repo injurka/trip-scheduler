@@ -56,7 +56,7 @@ function createRender(imageList: ImageViewerImage[]) {
       return { args, viewer, imageList, openViewer }
     },
     template: `
-    <div style="font-family: 'Rubik', sans-serif;">
+    <div style="font-family: var(--font-base), sans-serif;">
       <p>Click on an image to open the viewer.</p>
       <div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 16px;">
         <img

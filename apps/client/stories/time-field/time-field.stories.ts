@@ -46,7 +46,7 @@ function interactiveRender(args: any) {
       return { args, timeValue }
     },
     template: `
-    <div style="font-family: 'Rubik', sans-serif; display: flex; flex-direction: column; gap: 16px; width: 250px;">
+    <div style="font-family: var(--font-base), sans-serif; display: flex; flex-direction: column; gap: 16px; width: 250px;">
       <div>
         <label for="time-field" style="display: block; margin-bottom: 8px; font-weight: 500;">Select Time</label>
         <KitTimeField

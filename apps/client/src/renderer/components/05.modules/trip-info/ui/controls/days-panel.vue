@@ -375,7 +375,7 @@ function getDayActivitiesCount(day: Day): number {
     font-size: 0.85rem;
     font-weight: 600;
     transition: all 0.2s ease;
-    font-family: 'Sansation';
+    font-family: var(--font-accent);
   }
 
   .day-draft-icon {
@@ -391,7 +391,7 @@ function getDayActivitiesCount(day: Day): number {
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
-    font-family: 'Sansation';
+    font-family: var(--font-accent);
   }
 
   &-meta {
@@ -406,7 +406,7 @@ function getDayActivitiesCount(day: Day): number {
     font-size: 0.8rem;
     color: var(--fg-secondary-color);
     white-space: nowrap;
-    font-family: 'Sansation';
+    font-family: var(--font-accent);
   }
 
   .day-activities-count {
@@ -425,7 +425,7 @@ function getDayActivitiesCount(day: Day): number {
     font-size: 0.7rem;
     font-weight: 800;
     line-height: 1;
-    font-family: 'Sansation';
+    font-family: var(--font-accent);
   }
 
   .day-draft-badge {

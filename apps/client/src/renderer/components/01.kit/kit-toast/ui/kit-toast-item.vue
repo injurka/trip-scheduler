@@ -71,7 +71,7 @@ const swipeStyle = computed(() => {
   cursor: grab;
   user-select: none;
   touch-action: none;
-  font-family: 'Rubik', sans-serif;
+  font-family: var(--font-base);
   font-size: 0.95rem;
   font-weight: 500;
   line-height: 1.4;

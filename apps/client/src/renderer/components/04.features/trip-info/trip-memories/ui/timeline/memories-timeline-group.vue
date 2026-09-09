@@ -401,7 +401,7 @@ onClickOutside(titleEditorRef, saveTitle)
 
   span {
     font-size: 0.75rem;
-    font-family: Sansation;
+    font-family: var(--font-accent);
     line-height: 34px;
   }
 }

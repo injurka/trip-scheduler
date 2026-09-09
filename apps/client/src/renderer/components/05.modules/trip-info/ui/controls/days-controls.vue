@@ -427,12 +427,12 @@ onUnmounted(() => {
     margin: 0;
     font-size: 1.4rem;
     font-weight: 600;
-    font-family: 'Sansation';
+    font-family: var(--font-accent);
   }
   span {
     color: var(--fg-secondary-color);
     text-transform: capitalize;
-    font-family: 'Sansation';
+    font-family: var(--font-accent);
     font-weight: 500;
   }
   &.readonly {

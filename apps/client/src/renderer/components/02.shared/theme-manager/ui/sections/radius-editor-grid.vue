@@ -67,7 +67,7 @@ const radiusPalette = defineModel<RadiusPalette>({ required: true })
   border-radius: var(--r-xs);
   background-color: var(--bg-primary-color);
   color: var(--fg-primary-color);
-  font-family: 'Consolas', 'Monaco', 'Courier New', monospace;
+  font-family: var(--font-mono);
   font-size: 0.9rem;
   transition: all 0.2s ease;
   width: 100%;

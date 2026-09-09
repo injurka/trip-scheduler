@@ -68,7 +68,7 @@ withDefaults(defineProps<Props>(), {
   color: var(--fg-warning-color);
   letter-spacing: 0.02em;
   text-transform: uppercase;
-  font-family: 'Sansation', sans-serif;
+  font-family: var(--font-accent);
 }
 
 .wip-bg-glow {

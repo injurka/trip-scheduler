@@ -74,7 +74,7 @@ const router = useRouter()
   color: var(--fg-tertiary-color);
   opacity: 0.3;
   margin-bottom: 1rem;
-  font-family: 'Sansation', sans-serif;
+  font-family: var(--font-accent);
 }
 
 .title {

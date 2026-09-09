@@ -368,7 +368,7 @@ onBeforeUnmount(() => {
   .ProseMirror {
     background-color: transparent !important;
     background: transparent !important;
-    font-family: 'Rubik', sans-serif !important;
+    font-family: var(--font-base) !important;
     color: var(--fg-primary-color);
     font-size: 0.9375rem;
     line-height: 1.6;
@@ -395,7 +395,7 @@ onBeforeUnmount(() => {
     h4,
     h5,
     h6 {
-      font-family: 'Rubik', sans-serif !important;
+      font-family: var(--font-base) !important;
       color: var(--fg-primary-color);
       letter-spacing: -0.015em;
     }
@@ -657,7 +657,7 @@ onBeforeUnmount(() => {
           text-transform: uppercase;
           letter-spacing: 0.06em;
           color: var(--callout-title-color, var(--callout-accent));
-          font-family: 'Rubik', sans-serif !important;
+          font-family: var(--font-base) !important;
         }
       }
 

@@ -1,6 +1,19 @@
+$font-family-base: 'Inter', system-ui, -apple-system, sans-serif;
+$font-family-accent: 'Onest', system-ui, -apple-system, sans-serif;
+$font-family-mono: 'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, 'Liberation Mono', monospace;
+
 @mixin default-font {
-  font-family: 'Rubik';
+  font-family: $font-family-base;
   color: var(--fg-primary-color);
   font-size: 1rem;
   line-height: 24px;
 }
+
+@mixin accent-font {
+  font-family: $font-family-accent;
+}
+
+@mixin mono-font {
+  font-family: $font-family-mono;
+}
+

@@ -74,7 +74,7 @@ function render(args: any) {
       return { args, content }
     },
     template: `
-    <div style="font-family: 'Rubik', sans-serif;">
+    <div style="font-family: var(--font-base), sans-serif;">
       <p><strong>Editor:</strong></p>
       <div style="border: 1px solid #ccc; border-radius: var(--r-s); padding: 4px; min-height: 80px;">
         <KitInlineMdEditorWrapper

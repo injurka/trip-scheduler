@@ -220,7 +220,7 @@ onMounted(() => {
     margin: 0 0.1em;
     font-size: 0.9em;
     border-radius: 6px;
-    font-family: 'Maple Mono CN', 'JetBrains Mono', monospace;
+    font-family: var(--font-mono);
     font-weight: 600;
     vertical-align: baseline;
     display: inline-block;

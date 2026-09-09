@@ -183,7 +183,7 @@ function discardDraft() {
     bottom: 12px;
     right: 12px;
     color: var(--fg-tertiary-color);
-    font-family: 'Sansation';
+    font-family: var(--font-accent);
     font-size: 0.7rem;
     pointer-events: none;
     z-index: 10;

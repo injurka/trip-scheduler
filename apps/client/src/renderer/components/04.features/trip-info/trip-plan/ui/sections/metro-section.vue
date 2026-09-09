@@ -342,7 +342,7 @@ watch(() => sectionData.value.systemId, (newId) => {
     text-align: center;
     font-size: 0.8rem;
     font-weight: 700;
-    font-family: 'Sansation';
+    font-family: var(--font-accent);
     display: flex;
     justify-content: center;
     align-items: center;

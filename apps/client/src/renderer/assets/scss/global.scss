@@ -26,7 +26,7 @@ body {
     box-sizing: border-box;
     text-decoration-color: var(--fg-primary-color);
     caret-color: var(--fg-primary-color);
-    font-family: 'Rubik';
+    font-family: var(--font-base);
   }
 }
 
