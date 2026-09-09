@@ -163,37 +163,42 @@ const tripData = computed<Trip>(() => ({
           <Icon icon="mdi:map-legend" />
         </div>
         <div class="image-overlay" />
-        <div class="card-header" />
+
+        <div class="card-header-row">
+          <div class="header-badges">
+            <div v-if="isHighlight" class="active-trip-badge">
+              <Icon icon="mdi:fire" class="badge-icon" />
+              <span>Идёт сейчас</span>
+            </div>
+
+            <KitTooltip :text="visibilityIcon.title">
+              <div class="card-visibility">
+                <Icon :icon="visibilityIcon.icon" />
+              </div>
+            </KitTooltip>
+          </div>
+
+          <div class="card-actions" @click.stop>
+            <KitTooltip text="Еще">
+              <KitDropdown
+                v-model:open="isMoreMenuOpen"
+                align="end"
+                :items="moreMenuItems"
+                @update:model-value="handleMenuAction"
+              >
+                <template #trigger>
+                  <button class="action-btn" aria-label="Еще действия">
+                    <Icon icon="mdi:dots-vertical" />
+                  </button>
+                </template>
+              </KitDropdown>
+            </KitTooltip>
+          </div>
+        </div>
 
         <h3 class="card-title">
           {{ title }}
         </h3>
-
-        <div v-if="isHighlight" class="active-trip-badge">
-          <Icon icon="mdi:fire" class="badge-icon" />
-          <span>Идёт сейчас</span>
-        </div>
-
-        <span class="card-visibility">
-          <Icon :icon="visibilityIcon.icon" />
-        </span>
-
-        <div class="card-actions" @click.stop>
-          <KitTooltip text="Еще">
-            <KitDropdown
-              v-model:open="isMoreMenuOpen"
-              align="end"
-              :items="moreMenuItems"
-              @update:model-value="handleMenuAction"
-            >
-              <template #trigger>
-                <button class="action-btn">
-                  <Icon icon="mdi:dots-vertical" />
-                </button>
-              </template>
-            </KitDropdown>
-          </KitTooltip>
-        </div>
       </div>
 
       <div class="card-content">
@@ -373,7 +378,7 @@ const tripData = computed<Trip>(() => ({
   display: flex;
   flex-direction: column;
   justify-content: space-between;
-  padding: 12px 16px;
+  padding: 12px 14px;
   box-sizing: border-box;
   border-radius: var(--r-l);
   overflow: hidden;
@@ -386,13 +391,13 @@ const tripData = computed<Trip>(() => ({
   }
 
   .card-image :deep(.image) {
-    transition: transform 0.4s cubic-bezier(0.22, 1, 0.36, 1);
+    transition: transform 0.8s cubic-bezier(0.16, 1, 0.3, 1);
   }
 }
 
 @media (hover: hover) and (pointer: fine) {
   .travel-card-wrapper:hover .card-image :deep(.image) {
-    transform: scale(1.05);
+    transform: scale(1.06);
   }
 }
 
@@ -402,70 +407,105 @@ const tripData = computed<Trip>(() => ({
   display: flex;
   align-items: center;
   justify-content: center;
-  background-color: var(--bg-tertiary-color);
+  background: radial-gradient(circle at 50% 40%, var(--bg-secondary-color) 0%, var(--bg-tertiary-color) 100%);
   color: var(--fg-secondary-color);
   font-size: 56px;
-  opacity: 0.5;
+  opacity: 0.6;
 }
 
 .image-overlay {
   position: absolute;
   inset: 0;
-  background: linear-gradient(to top, var(--bg-tertiary-color) 0%, transparent 80%);
-  opacity: 0.7;
+  background:
+    linear-gradient(180deg, rgba(0, 0, 0, 0.42) 0%, rgba(0, 0, 0, 0.06) 35%, transparent 55%),
+    linear-gradient(0deg, rgba(0, 0, 0, 0.7) 0%, rgba(0, 0, 0, 0.45) 45%, rgba(0, 0, 0, 0.12) 75%, transparent 100%);
+  pointer-events: none;
   z-index: 1;
 }
 
-.card-header {
+.card-header-row {
   position: relative;
-  display: flex;
   z-index: 2;
-  min-height: 20px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  min-height: 32px;
+}
+
+.header-badges {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.active-trip-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 4px 10px;
+  background-color: var(--fg-accent-color);
+  color: var(--fg-inverted-color);
+  border-radius: var(--r-full);
+  font-size: 0.8rem;
+  font-weight: 600;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.25);
+  animation: pulse-badge 2s infinite;
+
+  .badge-icon {
+    font-size: 0.95rem;
+    flex-shrink: 0;
+  }
 }
 
 .card-visibility {
-  position: absolute;
-  bottom: 12px;
-  right: 16px;
-  z-index: 2;
-  display: flex;
+  display: inline-flex;
   align-items: center;
   justify-content: center;
   width: 32px;
   height: 32px;
-  font-size: 1.1rem;
-  background-color: var(--bg-primary-color);
-  color: var(--fg-primary-color);
-  border: 1px solid var(--border-secondary-color);
+  font-size: 1.05rem;
+  background: rgba(15, 15, 20, 0.55);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1px solid rgba(255, 255, 255, 0.18);
   border-radius: var(--r-full);
-  backdrop-filter: blur(5px);
-  transition: background-color 0.2s ease;
+  color: rgba(255, 255, 255, 0.92);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.25);
+  cursor: default;
+  transition:
+    background-color 0.2s ease,
+    border-color 0.2s ease,
+    color 0.2s ease;
 
   &:hover {
-    background-color: var(--bg-overlay-secondary-color);
+    background: rgba(25, 25, 35, 0.75);
+    border-color: rgba(255, 255, 255, 0.3);
+    color: #ffffff;
   }
 }
 
 .card-title {
   position: relative;
-  font-size: 1.5rem;
+  font-size: 1.4rem;
   font-weight: 700;
-  color: var(--fg-secondary-color);
-  margin: 0 40px 0 0;
+  line-height: 1.25;
+  letter-spacing: -0.01em;
+  color: #ffffff;
+  margin: 0;
   z-index: 2;
-  line-height: 1.2;
+  word-break: break-word;
+  text-shadow: 0 2px 10px rgba(0, 0, 0, 0.65);
 }
 
 .card-actions {
-  position: absolute;
-  top: 12px;
-  right: 12px;
   display: flex;
-  gap: 4px;
+  align-items: center;
   z-index: 3;
   opacity: 0;
-  transform: translateX(10px);
-  transition: all 0.3s ease;
+  transform: translateX(6px);
+  transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
 
   @media (hover: hover) and (pointer: fine) {
     .travel-card-wrapper:hover &,
@@ -481,19 +521,22 @@ const tripData = computed<Trip>(() => ({
     justify-content: center;
     width: 32px;
     height: 32px;
-    background-color: var(--bg-primary-color);
-    color: var(--fg-primary-color);
-    border: none;
+    background: rgba(15, 15, 20, 0.55);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    border: 1px solid rgba(255, 255, 255, 0.18);
+    color: rgba(255, 255, 255, 0.92);
     border-radius: var(--r-full);
     cursor: pointer;
-    backdrop-filter: blur(4px);
-    transition: all 0.2s ease;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.25);
+    transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
 
     @include hover {
       & {
-        background-color: var(--bg-hover-color);
-        transform: scale(1.1);
-        color: var(--fg-accent-color);
+        background: rgba(40, 40, 55, 0.85);
+        border-color: rgba(255, 255, 255, 0.35);
+        color: #ffffff;
+        transform: translateY(-1px);
       }
     }
   }

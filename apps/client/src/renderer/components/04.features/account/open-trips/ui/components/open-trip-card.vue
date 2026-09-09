@@ -160,8 +160,8 @@ const formattedBudget = computed(() => {
   width: 100%;
   display: flex;
   flex-direction: column;
-  justify-content: space-between;
-  padding: 12px 16px;
+  justify-content: flex-end;
+  padding: 12px 14px;
   box-sizing: border-box;
   border-radius: var(--r-l);
   overflow: hidden;
@@ -172,6 +172,16 @@ const formattedBudget = computed(() => {
     width: 100%;
     height: 100%;
   }
+
+  .card-image :deep(.image) {
+    transition: transform 0.8s cubic-bezier(0.16, 1, 0.3, 1);
+  }
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .travel-card-wrapper:hover .card-image :deep(.image) {
+    transform: scale(1.06);
+  }
 }
 
 .card-no-image {
@@ -180,29 +190,33 @@ const formattedBudget = computed(() => {
   display: flex;
   align-items: center;
   justify-content: center;
-  background-color: var(--bg-tertiary-color);
+  background: radial-gradient(circle at 50% 40%, var(--bg-secondary-color) 0%, var(--bg-tertiary-color) 100%);
   color: var(--fg-secondary-color);
   font-size: 56px;
-  opacity: 0.5;
+  opacity: 0.6;
 }
 
 .image-overlay {
   position: absolute;
   inset: 0;
-  background: linear-gradient(to top, var(--bg-tertiary-color) 0%, transparent 80%);
-  opacity: 0.7;
+  background:
+    linear-gradient(180deg, rgba(0, 0, 0, 0.38) 0%, rgba(0, 0, 0, 0.06) 35%, transparent 55%),
+    linear-gradient(0deg, rgba(0, 0, 0, 0.7) 0%, rgba(0, 0, 0, 0.45) 45%, rgba(0, 0, 0, 0.12) 75%, transparent 100%);
+  pointer-events: none;
   z-index: 1;
 }
 
 .card-title {
   position: relative;
-  font-size: 1.5rem;
+  font-size: 1.4rem;
   font-weight: 700;
-  color: var(--fg-secondary-color);
+  line-height: 1.25;
+  letter-spacing: -0.01em;
+  color: #ffffff;
   margin: 0;
   z-index: 2;
-  line-height: 1.2;
-  margin-top: auto;
+  word-break: break-word;
+  text-shadow: 0 2px 10px rgba(0, 0, 0, 0.65);
 }
 
 .card-content {

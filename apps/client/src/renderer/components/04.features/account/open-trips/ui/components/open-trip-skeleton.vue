@@ -60,7 +60,7 @@ import { KitSkeleton } from '~/components/01.kit/kit-skeleton'
   position: relative;
   height: 200px;
   width: 100%;
-  padding: 12px 16px;
+  padding: 12px 14px;
   box-sizing: border-box;
   display: flex;
   align-items: flex-end;

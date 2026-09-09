@@ -25,8 +25,13 @@ const router = useRouter()
 // @ts-expect-error используются в template
 const { mainNavigationRef, navigationWrapperRef } = layout
 const { plan, ui, routeGallery, memories, sections } = useModuleStore(['plan', 'ui', 'routeGallery', 'memories', 'sections'])
-const { canEdit } = useTripPermissions()
+const { canEdit, isOwner } = useTripPermissions()
 const { mdAndDown } = useDisplay()
+const toast = useToast()
+
+function handleReadOnlyClick() {
+  toast.info('Вы не можете редактировать, так как это не ваше путешествие')
+}
 
 const dayId = computed(() => route.query.day as string)
 const isMapView = computed(() => route.query.section === 'map')
@@ -197,6 +202,15 @@ onBeforeUnmount(() => {
                   <Icon width="18" height="18" :icon="ui.isViewMode ? 'mdi:pencil-outline' : 'mdi:eye-outline'" />
                 </button>
               </KitTooltip>
+              <KitTooltip v-else-if="!isOwner" text="Вы не можете редактировать, так как это не ваше путешествие">
+                <button
+                  v-ripple
+                  class="nav-button nav-button--readonly"
+                  @click="handleReadOnlyClick"
+                >
+                  <Icon width="18" height="18" icon="mdi:lock-outline" />
+                </button>
+              </KitTooltip>
             </template>
           </div>
         </div>
@@ -297,6 +311,17 @@ onBeforeUnmount(() => {
         background-color: var(--bg-hover-color);
         border-color: var(--border-secondary-color);
       }
+
+      &--readonly {
+        cursor: not-allowed;
+        opacity: 0.75;
+
+        &:hover {
+          color: var(--fg-secondary-color);
+          background-color: var(--bg-secondary-color);
+          border-color: transparent;
+        }
+      }
     }
 
     .navigation-wrapper {
@@ -356,6 +381,8 @@ onBeforeUnmount(() => {
       transition: background-color 0.2s ease;
       text-align: center;
       height: 40px;
+      min-width: 0;
+      width: 100%;
 
       &:hover {
         background-color: var(--bg-hover-color);
@@ -383,6 +410,10 @@ onBeforeUnmount(() => {
         color: var(--fg-primary-color);
         margin: 0;
         font-family: 'Sansation';
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        min-width: 0;
 
         @include media-down(sm) {
           font-size: 1.1rem;
@@ -726,30 +757,50 @@ onBeforeUnmount(() => {
 
 @include media-down(sm) {
   .main-navigation {
-    flex-wrap: wrap;
-    row-gap: 16px;
+    flex-wrap: nowrap;
+    gap: 8px;
 
     .navigation-wrapper {
-      order: 3;
-      width: 100%;
+      flex: 1;
+      min-width: 0;
       justify-content: center;
-      background-color: var(--bg-secondary-color);
-      border-radius: var(--r-m);
-      box-shadow: var(--s-s);
+
+      .nav-arrow {
+        display: none;
+      }
 
       .current-section {
-        width: 100%;
+        max-width: 100%;
+        min-width: 0;
+        padding: 6px 12px;
+        gap: 6px;
         justify-content: center;
+        background-color: var(--bg-secondary-color);
+        border-radius: var(--r-m);
+        box-shadow: var(--s-s);
+
+        .current-section-icon {
+          font-size: 1.25rem;
+          flex-shrink: 0;
+        }
+
+        .chevron-icon {
+          font-size: 1.1rem;
+          flex-shrink: 0;
+          margin-left: 2px;
+        }
       }
     }
 
     &-left {
       width: auto;
-      flex-grow: 1;
+      flex-shrink: 0;
     }
 
     &-right {
       width: auto;
+      flex-shrink: 0;
+      gap: 6px;
     }
   }
 }

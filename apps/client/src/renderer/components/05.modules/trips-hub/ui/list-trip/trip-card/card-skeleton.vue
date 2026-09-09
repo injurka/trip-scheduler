@@ -6,14 +6,12 @@ import { KitSkeleton } from '~/components/01.kit/kit-skeleton'
   <div class="travel-card-wrapper">
     <div class="travel-card">
       <div class="card-image-container">
-        <div class="card-header-skeleton" />
-
-        <div class="card-title-skeleton">
-          <KitSkeleton width="55%" height="28px" />
+        <div class="card-header-skeleton">
+          <KitSkeleton width="32px" height="32px" border-radius="50%" />
         </div>
 
-        <div class="card-visibility-skeleton">
-          <KitSkeleton width="32px" height="32px" border-radius="50%" />
+        <div class="card-title-skeleton">
+          <KitSkeleton width="70%" height="26px" />
         </div>
       </div>
 
@@ -73,7 +71,7 @@ import { KitSkeleton } from '~/components/01.kit/kit-skeleton'
   position: relative;
   height: 200px;
   width: 100%;
-  padding: 12px 16px;
+  padding: 12px 14px;
   box-sizing: border-box;
   display: flex;
   flex-direction: column;
@@ -83,6 +81,8 @@ import { KitSkeleton } from '~/components/01.kit/kit-skeleton'
 
 .card-header-skeleton {
   display: flex;
+  align-items: center;
+  justify-content: space-between;
   z-index: 2;
 }
 
@@ -90,14 +90,6 @@ import { KitSkeleton } from '~/components/01.kit/kit-skeleton'
   display: flex;
   flex-direction: column;
   gap: 8px;
-  z-index: 2;
-  margin-right: 40px;
-}
-
-.card-visibility-skeleton {
-  position: absolute;
-  bottom: 12px;
-  right: 16px;
   z-index: 2;
 }
 

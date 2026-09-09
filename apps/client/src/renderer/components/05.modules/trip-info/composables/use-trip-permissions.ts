@@ -30,7 +30,17 @@ export function useTripPermissions() {
     return participants.some(p => p.id === currentUser.id)
   })
 
+  const isOwner = computed(() => {
+    const currentUser = auth.user
+    const trip = plan.trip
+    if (!currentUser || !trip)
+      return false
+
+    return Boolean(trip.userId && trip.userId === currentUser.id)
+  })
+
   return {
     canEdit,
+    isOwner,
   }
 }
