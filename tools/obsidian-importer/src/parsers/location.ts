@@ -298,19 +298,29 @@ export function extractLocationsFromText(text: string): ExtractedLocation[] {
         locationName = stripped
       }
       else {
-        try {
-          const decoded = decodeURIComponent(linkUrl)
-          const qMatch = decoded.match(/[?&]q=(?:loc:)?([^&]+)/i)
-          if (qMatch && qMatch[1].trim()) {
-            const qVal = qMatch[1].replace(/\+/g, ' ').trim()
-            if (qVal && !/^[-\d.,\s]+$/.test(qVal)) {
+        locationName = ''
+      }
+
+      let locationQuery = locationName
+      try {
+        const decoded = decodeURIComponent(linkUrl)
+        const qMatch = decoded.match(/[?&]q=(?:loc:)?([^&]+)/i)
+        if (qMatch && qMatch[1].trim()) {
+          const qVal = qMatch[1].replace(/\+/g, ' ').trim()
+          if (qVal && !/^[-\d.,\s]+$/.test(qVal)) {
+            locationQuery = qVal
+            if (!locationName) {
               locationName = qVal
             }
           }
         }
-        catch {
-          // ignore
-        }
+      }
+      catch {
+        // ignore
+      }
+
+      if (!locationName) {
+        locationName = locationQuery || linkTitle
       }
 
       // 1. Check for coordinate-based route points in URL
@@ -332,7 +342,7 @@ export function extractLocationsFromText(text: string): ExtractedLocation[] {
         }
         else {
           const coords = allCoords.length === 1 ? allCoords[0] : extractCoordinatesFromUrl(linkUrl)
-          addLocation(locationName, locationName, coords, isBike)
+          addLocation(locationName, locationQuery, coords, isBike)
         }
       }
     }
@@ -358,10 +368,13 @@ export function extractLocationsFromText(text: string): ExtractedLocation[] {
     }
   }
 
+  // Strip explicit location lines so that standalone iframes/links don't re-process them
+  const remainingText = text.replace(locLineRegex, '')
+
   // 2. Standalone iframes in text
   const standaloneIframeRegex = /<iframe[^>]*src=["'](https?:\/\/[^"']+)["'][^>]*>/gi
   let stdIframeMatch: RegExpExecArray | null
-  while ((stdIframeMatch = standaloneIframeRegex.exec(text)) !== null) {
+  while ((stdIframeMatch = standaloneIframeRegex.exec(remainingText)) !== null) {
     const src = stdIframeMatch[1]
     const coords = extractCoordinatesFromUrl(src)
     if (coords && locations.length > 0 && !locations[locations.length - 1].coordinates) {
@@ -391,7 +404,7 @@ export function extractLocationsFromText(text: string): ExtractedLocation[] {
   // 3. Standalone map markdown links in text
   const standaloneMapLinkRegex = /\[((?:Yandex Maps|Google Maps|2GIS|OpenStreetMap|AllTrails|Hikingbook|Карты|Maps|Трек|Маршрут|Велотрек|Веломаршрут)[^\]]+)\]\((https?:\/\/[^)]+)\)/gi
   let stdMapLinkMatch: RegExpExecArray | null
-  while ((stdMapLinkMatch = standaloneMapLinkRegex.exec(text)) !== null) {
+  while ((stdMapLinkMatch = standaloneMapLinkRegex.exec(remainingText)) !== null) {
     const title = stdMapLinkMatch[1]
     const url = stdMapLinkMatch[2]
     const isBike = /вело|bike/i.test(title) || /travelmode=bicycl|travelmode=bike|!3e1/i.test(url)

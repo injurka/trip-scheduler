@@ -35,7 +35,7 @@ describe('Hotel Booking Parser', () => {
     expect(bookings).toHaveLength(1)
     const hotel = bookings[0]
     expect(hotel.type).toBe('hotel')
-    expect(hotel.title).toBe('Morwing Hotel Fairy Tale (Тайбэй)')
+    expect(hotel.title).toBe('Morwing Hotel Fairy Tale')
     if (hotel.type === 'hotel') {
       expect(hotel.data.hotelName).toBe('Morwing Hotel Fairy Tale')
       expect(hotel.data.address).toBe('Тайбэй')
@@ -58,6 +58,14 @@ describe('Location Parser', () => {
     expect(locations).toHaveLength(1)
     expect(locations[0].name).toBe('Taipei 101')
     expect(locations[0].query).toBe('Taipei 101')
+  })
+
+  it('creates only one location when link has custom title and line contains iframe with query', () => {
+    const text = '* _Ссылка на локацию_: [Google Maps: Chifeng Street Zhongshan](https://maps.google.com/?q=Chifeng+Street+Taipei)<iframe src="https://maps.google.com/maps?q=Chifeng+Street+Taipei&output=embed" style="width: 100%; min-width: 100%; height: 350px; display: block; border: 0; border-radius: 8px; margin-top: 10px; margin-bottom: 15px;" loading="lazy"></iframe>'
+    const locations = extractLocationsFromText(text)
+    expect(locations).toHaveLength(1)
+    expect(locations[0].name).toBe('Chifeng Street Zhongshan')
+    expect(locations[0].query).toBe('Chifeng Street Taipei')
   })
 })
 
