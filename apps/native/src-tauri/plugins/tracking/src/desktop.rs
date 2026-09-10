@@ -44,4 +44,8 @@ impl<R: Runtime> Tracking<R> {
     pub fn open_app_settings(&self) -> Result<bool> {
         Ok(true)
     }
+
+    pub fn set_system_bars_theme(&self, _payload: SystemBarsThemePayload) -> Result<bool> {
+        Ok(true)
+    }
 }

@@ -335,6 +335,15 @@ async fn tracking_open_app_settings(
     app.tracking().open_app_settings().map_err(|e| e.to_string())
 }
 
+#[tauri::command]
+async fn set_system_bars_theme(
+    app: tauri::AppHandle,
+    payload: tauri_plugin_tracking::SystemBarsThemePayload,
+) -> Result<bool, String> {
+    use tauri_plugin_tracking::TrackingExt;
+    app.tracking().set_system_bars_theme(payload).map_err(|e| e.to_string())
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
@@ -360,7 +369,8 @@ pub fn run() {
             tracking_check_permissions,
             tracking_request_notification_permission,
             tracking_request_ignore_battery_optimizations,
-            tracking_open_app_settings
+            tracking_open_app_settings,
+            set_system_bars_theme
         ])
         .setup(|app| {
             if cfg!(debug_assertions) {

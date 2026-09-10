@@ -189,6 +189,27 @@ class TrackingPlugin(private val activity: Activity) : Plugin(activity) {
         }
     }
 
+    private fun parseColorSafely(colorStr: String?): Int? {
+        if (colorStr.isNullOrBlank()) return null
+        return try {
+            var clean = colorStr.trim().removePrefix("#")
+            if (clean.length == 3) {
+                clean = clean.map { "$it$it" }.joinToString("")
+            }
+            if (clean.length == 6) {
+                Color.parseColor("#$clean")
+            } else if (clean.length == 8) {
+                val rrggbb = clean.substring(0, 6)
+                val aa = clean.substring(6, 8)
+                Color.parseColor("#$aa$rrggbb")
+            } else {
+                Color.parseColor(colorStr)
+            }
+        } catch (_: Exception) {
+            null
+        }
+    }
+
     @Command
     fun setSystemBarsTheme(invoke: Invoke) {
         val isDark = invoke.getBoolean("isDark") ?: false
@@ -205,12 +226,14 @@ class TrackingPlugin(private val activity: Activity) : Plugin(activity) {
                 insetsController.isAppearanceLightStatusBars = !isDark
                 insetsController.isAppearanceLightNavigationBars = !isDark
 
-                if (!statusBarColor.isNullOrBlank()) {
-                    window.statusBarColor = Color.parseColor(statusBarColor)
+                val parsedStatusColor = parseColorSafely(statusBarColor)
+                if (parsedStatusColor != null) {
+                    window.statusBarColor = parsedStatusColor
                 }
 
-                if (!navigationBarColor.isNullOrBlank()) {
-                    window.navigationBarColor = Color.parseColor(navigationBarColor)
+                val parsedNavColor = parseColorSafely(navigationBarColor)
+                if (parsedNavColor != null) {
+                    window.navigationBarColor = parsedNavColor
                 }
 
                 invoke.resolve(true)

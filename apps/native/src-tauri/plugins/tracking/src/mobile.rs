@@ -50,4 +50,8 @@ impl<R: Runtime> Tracking<R> {
     pub fn open_app_settings(&self) -> Result<bool> {
         self.0.run_mobile_plugin("openAppSettings", ()).map_err(Into::into)
     }
+
+    pub fn set_system_bars_theme(&self, payload: SystemBarsThemePayload) -> Result<bool> {
+        self.0.run_mobile_plugin("setSystemBarsTheme", payload).map_err(Into::into)
+    }
 }

@@ -223,7 +223,7 @@ onBeforeUnmount(() => {
     </div>
 
     <BackgroundEffects />
-    <AppFooter />
+    <AppFooter :class="{ 'is-panel-pinned': isDaysPanelPinned && !mdAndDown }" />
   </main>
 
   <ThemeManager />
@@ -451,6 +451,8 @@ onBeforeUnmount(() => {
 }
 
 .content-wrapper {
+  transition: margin-left 0.3s ease;
+
   &.has-error {
     background: transparent;
   }
@@ -801,6 +803,16 @@ onBeforeUnmount(() => {
       width: auto;
       flex-shrink: 0;
       gap: 6px;
+    }
+  }
+}
+
+:deep(.app-footer) {
+  transition: margin-left 0.3s ease;
+
+  &.is-panel-pinned {
+    @media (max-width: 1800px) {
+      margin-left: 440px;
     }
   }
 }

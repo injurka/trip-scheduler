@@ -41,6 +41,7 @@ pub fn init<R: Runtime>() -> TauriPlugin<R> {
             commands::request_notification_permission,
             commands::request_ignore_battery_optimizations,
             commands::open_app_settings,
+            commands::set_system_bars_theme,
         ])
         .setup(|app, api| {
             #[cfg(mobile)]

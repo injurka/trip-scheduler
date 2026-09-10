@@ -20,6 +20,8 @@ const emit = defineEmits<{
 
 const { ui } = useModuleStore(['ui'])
 const { mdAndDown } = useDisplay()
+const appStore = useAppStore(['layout'])
+const { isHeaderVisible } = storeToRefs(appStore.layout)
 
 const { isDaysPanelPinned, isViewMode } = storeToRefs(ui)
 const { toggleDaysPanelPinned } = ui
@@ -56,7 +58,14 @@ function getDayActivitiesCount(day: Day): number {
     @click="$emit('close')"
   />
 
-  <aside class="panel" :class="{ open: isOpen, pinned: !mdAndDown && isDaysPanelPinned }">
+  <aside
+    class="panel"
+    :class="{
+      'open': isOpen,
+      'pinned': !mdAndDown && isDaysPanelPinned,
+      'header-hidden': !isHeaderVisible,
+    }"
+  >
     <header class="panel-header">
       <div class="header-title">
         <Icon icon="mdi:calendar-month-outline" />
@@ -197,23 +206,22 @@ function getDayActivitiesCount(day: Day): number {
     position: fixed;
     transform: none;
     top: var(--header-height);
-    height: calc(100% - var(--header-height) - 47px);
+    bottom: 0;
+    height: calc(100% - var(--header-height));
     opacity: 1;
     box-shadow: none;
     border-right: 1px solid var(--border-secondary-color);
+    transition:
+      top 0.3s cubic-bezier(0.4, 0, 0.2, 1),
+      height 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+
+    &.header-hidden {
+      top: 0;
+      height: 100%;
+    }
 
     .close-btn {
       display: none;
-    }
-
-    &::before {
-      content: '';
-      position: absolute;
-      width: 8px;
-      bottom: -47px;
-      right: -1px;
-      border-right: 1px solid var(--border-secondary-color);
-      height: 47px;
     }
   }
 

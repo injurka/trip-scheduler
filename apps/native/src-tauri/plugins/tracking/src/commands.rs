@@ -40,3 +40,12 @@ pub(crate) async fn request_ignore_battery_optimizations<R: Runtime>(app: AppHan
 pub(crate) async fn open_app_settings<R: Runtime>(app: AppHandle<R>) -> Result<bool> {
     app.tracking().open_app_settings()
 }
+
+#[command]
+pub(crate) async fn set_system_bars_theme<R: Runtime>(
+    app: AppHandle<R>,
+    payload: SystemBarsThemePayload,
+) -> Result<bool> {
+    app.tracking().set_system_bars_theme(payload)
+}
+
