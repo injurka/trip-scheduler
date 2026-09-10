@@ -446,6 +446,7 @@ onClickOutside(mapIframeContainerRef, () => {
   flex: 1;
   display: flex;
   flex-direction: column;
+  justify-content: center;
   gap: 2px;
   height: 100%;
   min-width: 0;
@@ -461,14 +462,14 @@ onClickOutside(mapIframeContainerRef, () => {
 
 .poi-field {
   display: flex;
-  align-items: flex-start;
+  align-items: center;
   gap: 6px;
+  min-height: 26px;
 
   .field-icon {
     font-size: 0.95rem;
     color: var(--fg-tertiary-color);
     flex-shrink: 0;
-    margin-top: 2px;
   }
 
   &.comment-field {
@@ -489,6 +490,7 @@ onClickOutside(mapIframeContainerRef, () => {
   align-items: center;
   font-size: 0.68rem;
   font-weight: 700;
+  line-height: 1.4;
   padding: 1px 6px;
   border-radius: var(--r-2xs);
   text-transform: uppercase;
@@ -596,9 +598,26 @@ onClickOutside(mapIframeContainerRef, () => {
 
 .poi-editor {
   flex: 1;
-  padding: 1px 0;
+  padding: 0;
   line-height: 1.45;
   min-height: 20px;
+  display: flex;
+  align-items: center;
+
+  :deep() {
+    .milkdown {
+      width: 100%;
+    }
+
+    .milkdown .ProseMirror {
+      padding: 0;
+    }
+
+    .milkdown .ProseMirror p {
+      margin: 0 !important;
+      line-height: 1.45;
+    }
+  }
 }
 
 .poi-address {

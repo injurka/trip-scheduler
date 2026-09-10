@@ -557,7 +557,7 @@ watch(() => props.trip?.id, (newId) => {
               <KitAvatar
                 :name="participant.name"
                 :src="participant.avatarUrl"
-                :size="34"
+                :size="28"
                 class="clickable-avatar"
                 @click.stop="navigateToProfile(participant.id)"
               />
@@ -565,7 +565,7 @@ watch(() => props.trip?.id, (newId) => {
             <KitAvatar
               v-if="hiddenParticipantsCount > 0"
               is-more
-              :size="34"
+              :size="28"
             >
               +{{ hiddenParticipantsCount }}
             </KitAvatar>
@@ -960,7 +960,9 @@ watch(() => props.trip?.id, (newId) => {
     display: inline-flex;
     align-items: center;
     gap: 6px;
-    padding: 4px 10px;
+    height: 28px;
+    padding: 0 10px;
+    box-sizing: border-box;
     border-radius: var(--r-full);
     font-size: 0.75rem;
     font-weight: 600;
@@ -969,9 +971,12 @@ watch(() => props.trip?.id, (newId) => {
     backdrop-filter: blur(8px);
     -webkit-backdrop-filter: blur(8px);
     box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+    line-height: 1;
 
-    .status-icon {
+    .status-icon,
+    .iconify {
       font-size: 0.95rem;
+      flex-shrink: 0;
     }
 
     &.completed {
@@ -1013,7 +1018,9 @@ watch(() => props.trip?.id, (newId) => {
     display: none;
     align-items: center;
     gap: 4px;
-    padding: 4px 10px;
+    height: 28px;
+    padding: 0 10px;
+    box-sizing: border-box;
     border-radius: var(--r-full);
     font-size: 0.75rem;
     font-weight: 600;
@@ -1026,12 +1033,13 @@ watch(() => props.trip?.id, (newId) => {
     color: #ffffff;
     cursor: pointer;
     font-family: inherit;
-    line-height: 1.2;
+    line-height: 1;
     transition: all 0.2s ease;
     user-select: none;
 
     .toggle-icon {
       font-size: 0.85rem;
+      flex-shrink: 0;
       transition: transform 0.2s ease;
     }
 
@@ -1075,6 +1083,7 @@ watch(() => props.trip?.id, (newId) => {
       letter-spacing: 0.01em;
 
       svg {
+        flex-shrink: 0;
         font-size: 1.1rem;
         opacity: 0.85;
       }
@@ -1171,16 +1180,22 @@ watch(() => props.trip?.id, (newId) => {
     gap: 6px;
 
     .tag {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      height: 28px;
+      padding: 0 10px;
+      box-sizing: border-box;
       background: rgba(255, 255, 255, 0.12);
       backdrop-filter: blur(8px);
       -webkit-backdrop-filter: blur(8px);
       border: 1px solid rgba(255, 255, 255, 0.15);
       color: rgba(255, 255, 255, 0.9);
-      padding: 3px 10px;
       border-radius: var(--r-full);
       font-size: 0.72rem;
       font-weight: 600;
       letter-spacing: 0.02em;
+      line-height: 1;
       transition: all 0.2s ease;
 
       @include hover {
@@ -1199,9 +1214,12 @@ watch(() => props.trip?.id, (newId) => {
     flex-shrink: 0;
 
     :deep(.kit-avatar) {
+      width: 28px;
+      height: 28px;
       margin-left: -8px;
       border: 2px solid rgba(20, 20, 25, 0.85);
       box-shadow: 0 2px 6px rgba(0, 0, 0, 0.4);
+      box-sizing: border-box;
       transition:
         transform 0.2s ease,
         border-color 0.2s ease;
@@ -1284,13 +1302,19 @@ watch(() => props.trip?.id, (newId) => {
   gap: 6px;
 
   .tag {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    height: 28px;
+    padding: 0 10px;
+    box-sizing: border-box;
     background-color: var(--bg-secondary-color);
     border: 1px solid var(--border-secondary-color);
     color: var(--fg-secondary-color);
-    padding: 4px 10px;
     border-radius: var(--r-full);
     font-size: 0.75rem;
     font-weight: 500;
+    line-height: 1;
   }
 }
 

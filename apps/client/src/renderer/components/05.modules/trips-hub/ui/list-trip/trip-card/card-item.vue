@@ -571,6 +571,7 @@ const tripData = computed<Trip>(() => ({
     font-size: 0.9rem;
 
     .iconify {
+      flex-shrink: 0;
       font-size: 1.25rem;
       color: var(--fg-tertiary-color);
       transition: color 0.2s;

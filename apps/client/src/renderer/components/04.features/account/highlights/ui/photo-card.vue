@@ -394,6 +394,7 @@ function toggleTooltip(e: Event) {
   color: rgba(255, 255, 255, 0.7);
 
   .iconify {
+    flex-shrink: 0;
     font-size: 1rem;
   }
 }

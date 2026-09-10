@@ -220,6 +220,10 @@ const dateRange = defineModel<DateRange>('dateRange', { required: true })
     display: flex;
     align-items: center;
     gap: 4px;
+
+    .iconify {
+      flex-shrink: 0;
+    }
   }
 }
 
