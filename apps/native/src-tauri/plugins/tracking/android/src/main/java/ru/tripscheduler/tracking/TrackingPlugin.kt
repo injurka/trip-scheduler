@@ -19,7 +19,6 @@ import androidx.core.view.WindowCompat
 import app.tauri.annotation.Command
 import app.tauri.annotation.TauriPlugin
 import app.tauri.plugin.Invoke
-import app.tauri.plugin.JSArray
 import app.tauri.plugin.JSObject
 import app.tauri.plugin.Plugin
 
@@ -55,7 +54,7 @@ class TrackingPlugin(private val activity: Activity) : Plugin(activity) {
                 action = TrackingService.ACTION_START
             }
             ContextCompat.startForegroundService(activity, intent)
-            invoke.resolve(true)
+            invoke.resolveObject(true)
         } catch (e: Exception) {
             android.util.Log.e("TrackingPlugin", "Failed to start tracking service", e)
             invoke.reject("Failed to start tracking service: ${e.message}")
@@ -69,7 +68,7 @@ class TrackingPlugin(private val activity: Activity) : Plugin(activity) {
                 action = TrackingService.ACTION_STOP
             }
             activity.stopService(intent)
-            invoke.resolve(true)
+            invoke.resolveObject(true)
         } catch (e: Exception) {
             android.util.Log.e("TrackingPlugin", "Failed to stop tracking service", e)
             invoke.reject("Failed to stop tracking service: ${e.message}")
@@ -78,21 +77,17 @@ class TrackingPlugin(private val activity: Activity) : Plugin(activity) {
 
     @Command
     fun isTrackingRunning(invoke: Invoke) {
-        invoke.resolve(TrackingService.isRunning)
+        invoke.resolveObject(TrackingService.isRunning)
     }
 
     @Command
     fun getBufferedLocations(invoke: Invoke) {
         val locations = TrackingService.drainBuffer(activity.applicationContext)
-        val array = JSArray()
-        for (loc in locations) {
-            array.put(locationToJs(loc))
-        }
-        invoke.resolve(array)
+        invoke.resolveObject(locations.map { locationToMap(it) })
     }
 
     @Command
-    fun checkPermissions(invoke: Invoke) {
+    override fun checkPermissions(invoke: Invoke) {
         val context = activity.applicationContext
         val pm = context.getSystemService(Context.POWER_SERVICE) as PowerManager
 
@@ -132,7 +127,7 @@ class TrackingPlugin(private val activity: Activity) : Plugin(activity) {
             ) == PackageManager.PERMISSION_GRANTED
 
             if (hasNotification) {
-                invoke.resolve(true)
+                invoke.resolveObject(true)
                 return
             }
 
@@ -141,9 +136,9 @@ class TrackingPlugin(private val activity: Activity) : Plugin(activity) {
                 arrayOf(Manifest.permission.POST_NOTIFICATIONS),
                 90211
             )
-            invoke.resolve(true)
+            invoke.resolveObject(true)
         } else {
-            invoke.resolve(true)
+            invoke.resolveObject(true)
         }
     }
 
@@ -158,13 +153,13 @@ class TrackingPlugin(private val activity: Activity) : Plugin(activity) {
                         data = Uri.parse("package:${activity.packageName}")
                     }
                     activity.startActivity(intent)
-                    invoke.resolve(true)
+                    invoke.resolveObject(true)
                     return
                 } catch (e: Exception) {
                     try {
                         val intent = Intent(Settings.ACTION_IGNORE_BATTERY_OPTIMIZATION_SETTINGS)
                         activity.startActivity(intent)
-                        invoke.resolve(true)
+                        invoke.resolveObject(true)
                         return
                     } catch (e2: Exception) {
                         invoke.reject("Failed to open battery settings: ${e2.message}")
@@ -173,7 +168,7 @@ class TrackingPlugin(private val activity: Activity) : Plugin(activity) {
                 }
             }
         }
-        invoke.resolve(true)
+        invoke.resolveObject(true)
     }
 
     @Command
@@ -183,7 +178,7 @@ class TrackingPlugin(private val activity: Activity) : Plugin(activity) {
                 data = Uri.fromParts("package", activity.packageName, null)
             }
             activity.startActivity(intent)
-            invoke.resolve(true)
+            invoke.resolveObject(true)
         } catch (e: Exception) {
             invoke.reject("Failed to open app settings: ${e.message}")
         }
@@ -212,9 +207,10 @@ class TrackingPlugin(private val activity: Activity) : Plugin(activity) {
 
     @Command
     fun setSystemBarsTheme(invoke: Invoke) {
-        val isDark = invoke.getBoolean("isDark") ?: false
-        val statusBarColor = invoke.getString("statusBarColor")
-        val navigationBarColor = invoke.getString("navigationBarColor")
+        val args = invoke.getArgs()
+        val isDark = args.getBoolean("isDark", false)
+        val statusBarColor = args.getString("statusBarColor", null)
+        val navigationBarColor = args.getString("navigationBarColor", null)
 
         activity.runOnUiThread {
             try {
@@ -236,7 +232,7 @@ class TrackingPlugin(private val activity: Activity) : Plugin(activity) {
                     window.navigationBarColor = parsedNavColor
                 }
 
-                invoke.resolve(true)
+                invoke.resolveObject(true)
             } catch (e: Exception) {
                 android.util.Log.e("TrackingPlugin", "Failed to set system bars theme", e)
                 invoke.reject("Failed to set system bars theme: ${e.message}")
@@ -246,13 +242,25 @@ class TrackingPlugin(private val activity: Activity) : Plugin(activity) {
 
     private fun locationToJs(loc: Location): JSObject {
         val ret = JSObject()
-        ret.put("latitude", loc.latitude)
-        ret.put("longitude", loc.longitude)
-        ret.put("accuracy", if (loc.hasAccuracy()) loc.accuracy else null)
-        ret.put("altitude", if (loc.hasAltitude()) loc.altitude else null)
-        ret.put("speed", if (loc.hasSpeed()) loc.speed else null)
-        ret.put("heading", if (loc.hasBearing()) loc.bearing else null)
-        ret.put("timestamp", loc.time)
+        for ((key, value) in locationToMap(loc)) {
+            ret.put(key, value)
+        }
+        return ret
+    }
+
+    /**
+     * Плоская map-версия точки: сериализуется Jackson'ом в JSON-объект напрямую,
+     * без обёрток org.json (JSObject/JSArray), которые Jackson не умеет в JSON.
+     */
+    private fun locationToMap(loc: Location): Map<String, Any?> {
+        val ret = LinkedHashMap<String, Any?>()
+        ret["latitude"] = loc.latitude
+        ret["longitude"] = loc.longitude
+        ret["accuracy"] = loc.accuracy.toDouble().takeIf { loc.hasAccuracy() && it.isFinite() }
+        ret["altitude"] = loc.altitude.takeIf { loc.hasAltitude() && it.isFinite() }
+        ret["speed"] = loc.speed.toDouble().takeIf { loc.hasSpeed() && it.isFinite() }
+        ret["heading"] = loc.bearing.toDouble().takeIf { loc.hasBearing() && it.isFinite() }
+        ret["timestamp"] = loc.time
         return ret
     }
 }

@@ -13,6 +13,7 @@ import android.location.Location
 import android.os.Build
 import android.os.HandlerThread
 import android.os.IBinder
+import android.os.Looper
 import android.os.PowerManager
 import androidx.core.app.NotificationCompat
 import com.google.android.gms.location.FusedLocationProviderClient
@@ -68,39 +69,43 @@ class TrackingService : Service() {
 
             // 2. Считываем сохраненный на диск буфер (для защиты от выгрузки процесса ОС)
             synchronized(fileLock) {
-                try {
-                    val file = File(context.filesDir, BUFFER_FILENAME)
-                    if (file.exists()) {
-                        BufferedReader(FileReader(file)).use { reader ->
-                            var line: String? = reader.readLine()
-                            while (line != null) {
-                                if (line.isNotBlank()) {
-                                    try {
-                                        val json = JSONObject(line)
-                                        val loc = Location("fused").apply {
-                                            latitude = json.getDouble("lat")
-                                            longitude = json.getDouble("lng")
-                                            if (json.has("acc")) accuracy = json.getDouble("acc").toFloat()
-                                            if (json.has("alt")) altitude = json.getDouble("alt")
-                                            if (json.has("spd")) speed = json.getDouble("spd").toFloat()
-                                            if (json.has("brg")) bearing = json.getDouble("brg").toFloat()
-                                            time = json.getLong("time")
-                                        }
-                                        list.add(loc)
-                                    } catch (_: Exception) {}
-                                }
-                                line = reader.readLine()
-                            }
-                        }
-                        file.delete()
-                    }
-                } catch (e: Exception) {
-                    android.util.Log.w("TrackingService", "Error reading persistent buffer", e)
-                }
+                readPersistedPoints(context, list)
             }
 
             // Дедупликация и сортировка по времени
             return list.distinctBy { it.time }.sortedBy { it.time }
+        }
+
+        private fun readPersistedPoints(context: Context, out: MutableList<Location>) {
+            try {
+                val file = File(context.filesDir, BUFFER_FILENAME)
+                if (file.exists()) {
+                    BufferedReader(FileReader(file)).use { reader ->
+                        var line: String? = reader.readLine()
+                        while (line != null) {
+                            if (line.isNotBlank()) {
+                                try {
+                                    val json = JSONObject(line)
+                                    val loc = Location("fused").apply {
+                                        latitude = json.getDouble("lat")
+                                        longitude = json.getDouble("lng")
+                                        if (json.has("acc")) accuracy = json.getDouble("acc").toFloat()
+                                        if (json.has("alt")) altitude = json.getDouble("alt")
+                                        if (json.has("spd")) speed = json.getDouble("spd").toFloat()
+                                        if (json.has("brg")) bearing = json.getDouble("brg").toFloat()
+                                        time = json.getLong("time")
+                                    }
+                                    out.add(loc)
+                                } catch (_: Exception) {}
+                            }
+                            line = reader.readLine()
+                        }
+                    }
+                    file.delete()
+                }
+            } catch (e: Exception) {
+                android.util.Log.w("TrackingService", "Error reading persistent buffer", e)
+            }
         }
 
         private fun persistPoint(context: Context, location: Location) {
