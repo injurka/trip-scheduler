@@ -47,6 +47,10 @@ impl<R: Runtime> Tracking<R> {
         self.0.run_mobile_plugin("requestIgnoreBatteryOptimizations", ()).map_err(Into::into)
     }
 
+    pub fn request_activity_permission(&self) -> Result<bool> {
+        self.0.run_mobile_plugin("requestActivityPermission", ()).map_err(Into::into)
+    }
+
     pub fn open_app_settings(&self) -> Result<bool> {
         self.0.run_mobile_plugin("openAppSettings", ()).map_err(Into::into)
     }

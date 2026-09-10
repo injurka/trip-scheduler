@@ -3,6 +3,40 @@ import { db } from 'db'
 import { trackPoints, trackSegments } from 'db/schema'
 import { and, eq, gte, lt, lte } from 'drizzle-orm'
 
+/** Активность в терминах пакета @injurka/track-processing. */
+type TrackActivity = 'still' | 'walk' | 'bike' | 'vehicle' | 'rail' | 'unknown'
+
+/** Строка track_points в объёме, который нужен пост-обработке дня. */
+interface ReprocessSourceRow {
+  tsUtc: Date
+  lat: number
+  lng: number
+  speed: number | null
+  activity: TrackActivity
+  accuracy: number | null
+  deviceActivity: TrackActivity | null
+  deviceActivityConfidence: number | null
+}
+
+/**
+ * Проекция строки точки во вход пост-обработки. Все вызовы reprocessDay идут через неё:
+ * раньше серверная переобработка отдавала пакету accuracy: null, поэтому шумовой шлюз
+ * (смещение меньше погрешности GPS — не движение) не работал вовсе, и день на сервере
+ * классифицировался иначе, чем живой трек на устройстве.
+ */
+function toReprocessPoint(p: ReprocessSourceRow) {
+  return {
+    tsUtc: p.tsUtc.getTime(),
+    lat: p.lat,
+    lng: p.lng,
+    speed: p.speed,
+    activity: p.activity,
+    accuracy: p.accuracy,
+    deviceActivity: p.deviceActivity,
+    deviceActivityConfidence: p.deviceActivityConfidence,
+  }
+}
+
 export const trackingService = {
   /**
    * Идемпотентный батч-ингест: дедуп по clientPointId (onConflictDoNothing).
@@ -24,6 +58,10 @@ export const trackingService = {
       activityConfidence: p.activityConfidence <= 1 && p.activityConfidence > 0
         ? Math.round(p.activityConfidence * 100)
         : Math.round(Math.min(100, Math.max(0, p.activityConfidence))),
+      deviceActivity: p.deviceActivity ?? null,
+      deviceActivityConfidence: p.deviceActivityConfidence == null
+        ? null
+        : Math.round(Math.min(100, Math.max(0, p.deviceActivityConfidence))),
     }))
 
     const accepted: string[] = []
@@ -47,7 +85,10 @@ export const trackingService = {
             lat: trackPoints.lat,
             lng: trackPoints.lng,
             speed: trackPoints.speed,
+            accuracy: trackPoints.accuracy,
             activity: trackPoints.activity,
+            deviceActivity: trackPoints.deviceActivity,
+            deviceActivityConfidence: trackPoints.deviceActivityConfidence,
           })
           .from(trackPoints)
           .where(and(
@@ -57,13 +98,7 @@ export const trackingService = {
           .orderBy(trackPoints.tsUtc)
 
         if (sessionPoints.length >= 2) {
-          await trackingService.reprocessDay(userId, sId, sessionPoints.map(p => ({
-            tsUtc: p.tsUtc.getTime(),
-            lat: p.lat,
-            lng: p.lng,
-            speed: p.speed,
-            activity: p.activity,
-          })))
+          await trackingService.reprocessDay(userId, sId, sessionPoints.map(toReprocessPoint))
         }
       }
     }
@@ -91,6 +126,8 @@ export const trackingService = {
           speed: trackPoints.speed,
           bearing: trackPoints.bearing,
           activity: trackPoints.activity,
+          deviceActivity: trackPoints.deviceActivity,
+          deviceActivityConfidence: trackPoints.deviceActivityConfidence,
           sessionId: trackPoints.sessionId,
         })
         .from(trackPoints)
@@ -118,13 +155,7 @@ export const trackingService = {
         for (const sId of sIds) {
           const sPoints = points.filter(p => p.sessionId === sId)
           if (sPoints.length >= 2) {
-            await trackingService.reprocessDay(userId, sId, sPoints.map(p => ({
-              tsUtc: p.tsUtc.getTime(),
-              lat: p.lat,
-              lng: p.lng,
-              speed: p.speed,
-              activity: p.activity,
-            })))
+            await trackingService.reprocessDay(userId, sId, sPoints.map(toReprocessPoint))
           }
         }
         segments = await db
@@ -167,7 +198,12 @@ export const trackingService = {
     lat: number
     lng: number
     speed: number | null
-    activity: 'still' | 'walk' | 'bike' | 'vehicle' | 'rail' | 'unknown'
+    activity: TrackActivity
+    /** Погрешность фикса: без неё шумовой шлюз пакета не работает (смещение в пределах погрешности — не движение). */
+    accuracy: number | null
+    /** Сигнал системного Activity Recognition — независимое от GPS свидетельство. */
+    deviceActivity: TrackActivity | null
+    deviceActivityConfidence: number | null
   }>) {
     if (rawPoints.length < 2)
       return { segments: 0 }
@@ -181,11 +217,13 @@ export const trackingService = {
       lat: p.lat,
       lng: p.lng,
       altitude: null,
-      accuracy: null,
+      accuracy: p.accuracy,
       speed: p.speed,
       bearing: null,
       activity: p.activity,
       activityConfidence: 0,
+      deviceActivity: p.deviceActivity,
+      deviceActivityConfidence: p.deviceActivityConfidence,
       sessionId,
     })))
 
@@ -267,7 +305,10 @@ export const trackingService = {
         lat: trackPoints.lat,
         lng: trackPoints.lng,
         speed: trackPoints.speed,
+        accuracy: trackPoints.accuracy,
         activity: trackPoints.activity,
+        deviceActivity: trackPoints.deviceActivity,
+        deviceActivityConfidence: trackPoints.deviceActivityConfidence,
       })
       .from(trackPoints)
       .where(and(
@@ -299,13 +340,7 @@ export const trackingService = {
             for (const sId of sIds) {
               const sPoints = dayPoints.filter(p => p.sessionId === sId)
               if (sPoints.length >= 2) {
-                await trackingService.reprocessDay(userId, sId, sPoints.map(p => ({
-                  tsUtc: p.tsUtc.getTime(),
-                  lat: p.lat,
-                  lng: p.lng,
-                  speed: p.speed,
-                  activity: p.activity,
-                })))
+                await trackingService.reprocessDay(userId, sId, sPoints.map(toReprocessPoint))
               }
             }
           }
@@ -398,7 +433,10 @@ export const trackingService = {
           lat: trackPoints.lat,
           lng: trackPoints.lng,
           speed: trackPoints.speed,
+          accuracy: trackPoints.accuracy,
           activity: trackPoints.activity,
+          deviceActivity: trackPoints.deviceActivity,
+          deviceActivityConfidence: trackPoints.deviceActivityConfidence,
         })
         .from(trackPoints)
         .where(and(
@@ -408,13 +446,7 @@ export const trackingService = {
         .orderBy(trackPoints.tsUtc)
 
       if (remaining.length >= 2) {
-        const res = await trackingService.reprocessDay(userId, target.sessionId, remaining.map(p => ({
-          tsUtc: p.tsUtc.getTime(),
-          lat: p.lat,
-          lng: p.lng,
-          speed: p.speed,
-          activity: p.activity,
-        })))
+        const res = await trackingService.reprocessDay(userId, target.sessionId, remaining.map(toReprocessPoint))
         reprocessedSegments = res.segments
       }
       else {

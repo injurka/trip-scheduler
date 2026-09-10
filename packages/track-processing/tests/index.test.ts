@@ -1,15 +1,19 @@
-import type { TrackPoint } from '../src/index'
+import type { TrackActivityType, TrackPoint } from '../src/index'
 import { describe, expect, it } from 'vitest'
 import {
   catmullRomSpline,
   classifySegment,
+  consolidateSegments,
+  deviceReco,
   evaluatePointValidity,
   filterGpsOutliers,
   filterStaticDrift,
   mergeStationaryPoints,
+  movementEvidence,
   normalizeSplineVertices,
   processDayTrack,
   rdpSimplify,
+  smoothActivityRuns,
   splitTrackIntoLegs,
   windowFeatures,
 } from '../src/index'
@@ -366,5 +370,241 @@ describe('robustness and edge cases in track processing', () => {
     // Проверяем, что временной охват сегментов доходит до конца трека
     const lastSeg = segments[segments.length - 1]
     expect(lastSeg.points[lastSeg.points.length - 1].tsUtc).toBe(walk[walk.length - 1].tsUtc)
+  })
+})
+
+// ─── Регресс: «сижу, а трекер говорит, что я на велосипеде» ───────────────────
+
+function seededRandom(seed: number): () => number {
+  let s = seed
+  return () => {
+    s = (s * 1_103_515_245 + 12_345) % 2_147_483_648
+    return s / 2_147_483_648
+  }
+}
+
+const METER_LAT = 1 / 111_320
+const METER_LNG = (lat: number) => 1 / (111_320 * Math.cos(lat * Math.PI / 180))
+
+/**
+ * Покой: фиксы дрожат вокруг одной точки в пределах ±jitterM метров.
+ * `reportedSpeedFromGeometry` воспроизводит баг старого клиента, который писал скорость
+ * по смещению сырых фиксов — из-за неё покой превращался в велосипед.
+ */
+function sittingTrack(options: { count?: number, jitterM?: number, accuracy?: number, reportedSpeedFromGeometry?: boolean } = {}): TrackPoint[] {
+  const count = options.count ?? 60
+  const jitterM = options.jitterM ?? 12
+  const accuracy = options.accuracy ?? 12
+  const rand = seededRandom(42)
+  const baseLat = 55.751
+  const baseLng = 37.618
+  const mLng = METER_LNG(baseLat)
+  const out: TrackPoint[] = []
+  let prev: { lat: number, lng: number } | null = null
+  for (let i = 0; i < count; i++) {
+    const lat = baseLat + (rand() - 0.5) * 2 * jitterM * METER_LAT
+    const lng = baseLng + (rand() - 0.5) * 2 * jitterM * mLng
+    const stepM = prev ? Math.hypot((lat - prev.lat) / METER_LAT, (lng - prev.lng) / mLng) : 0
+    const p = pt(lat, lng, options.reportedSpeedFromGeometry ? stepM / 2 : 0)
+    out.push({ ...p, accuracy, activity: 'bike', activityConfidence: 85 })
+    prev = { lat, lng }
+  }
+  return out
+}
+
+/** Ровная поездка с заданной скоростью: фиксы согласованы с движением. */
+function ridingTrack(options: { speedMs: number, seconds: number, accuracy?: number }): TrackPoint[] {
+  const baseLat = 55.751
+  const mLng = METER_LNG(baseLat)
+  const count = Math.max(2, Math.round(options.seconds / 2))
+  const lngStep = options.speedMs * 2 * mLng
+  let lng = 37.618
+  const out: TrackPoint[] = []
+  for (let i = 0; i < count; i++) {
+    lng += lngStep
+    out.push({ ...pt(baseLat, lng, options.speedMs), accuracy: options.accuracy ?? 10 })
+  }
+  return out
+}
+
+describe('регресс: покой против движения', () => {
+  it('движение подтверждается геометрией окна, а дрожание покоя — нет', () => {
+    const sitting = movementEvidence(sittingTrack({ count: 40, jitterM: 12, accuracy: 12 }))
+    // Даже при худшем случае дрожания (±12м) за 78 секунд нельзя «наехать» быстрее ходьбы
+    expect(sitting.speedKmh).toBeLessThan(2.5)
+
+    const riding = movementEvidence(ridingTrack({ speedMs: 4.2, seconds: 78, accuracy: 10 }))
+    expect(riding.credible).toBe(true)
+    expect(riding.speedKmh).toBeGreaterThan(10)
+  })
+
+  it('окно покоя с «велосипедной» скоростью и меткой bike остаётся покоем', () => {
+    const sitting = sittingTrack({ count: 40, jitterM: 12, accuracy: 12, reportedSpeedFromGeometry: true })
+    const segment = classifySegment(sitting, { activity: 'bike', share: 1 })
+    expect(segment.activity).toBe('still')
+  })
+
+  it('день, проведённый сидя, не содержит сегмента велосипеда', () => {
+    const segments = processDayTrack(sittingTrack({ count: 60, jitterM: 12, accuracy: 12, reportedSpeedFromGeometry: true }))
+    expect(segments.length).toBeGreaterThan(0)
+    expect(segments.some(s => s.activity === 'bike')).toBe(false)
+    expect(segments.some(s => s.activity === 'still')).toBe(true)
+  })
+
+  it('реальная поездка на велосипеде по-прежнему распознаётся как движение', () => {
+    const segments = processDayTrack(ridingTrack({ speedMs: 4.2, seconds: 300, accuracy: 8 }))
+    expect(segments.length).toBeGreaterThan(0)
+    expect(segments.every(s => s.activity === 'still')).toBe(false)
+  })
+})
+
+// ─── Сигнал Activity Recognition (акселерометр устройства) ────────────────────
+
+describe('сигнал устройства: Activity Recognition', () => {
+  it('deviceReco считает взвешенную долю по уверенности точек', () => {
+    const points = sittingTrack({ count: 4, jitterM: 5, accuracy: 8 })
+    const withDevice = points.map((p, i) => ({
+      ...p,
+      deviceActivity: (i === 3 ? 'still' : 'bike') as TrackActivityType,
+      deviceActivityConfidence: i === 3 ? 30 : 90,
+    }))
+    // Явно помечаем три точки велосипедом, четвёртая ниже порога и не участвует
+    withDevice[0] = { ...withDevice[0], deviceActivity: 'bike', deviceActivityConfidence: 90 }
+    withDevice[1] = { ...withDevice[1], deviceActivity: 'bike', deviceActivityConfidence: 90 }
+    withDevice[2] = { ...withDevice[2], deviceActivity: 'bike', deviceActivityConfidence: 90 }
+    expect(deviceReco(withDevice)).toEqual({ activity: 'bike', share: 1 })
+  })
+
+  it('сигнал ниже порога уверенности не учитывается', () => {
+    const points = sittingTrack({ count: 5, jitterM: 5, accuracy: 8 }).map(p => ({
+      ...p,
+      deviceActivity: 'bike' as TrackActivityType,
+      deviceActivityConfidence: 35,
+    }))
+    expect(deviceReco(points)).toBe('unknown')
+  })
+
+  it('медленная езда в «пешем» диапазоне (5 км/ч) различается по устройству', () => {
+    // 5 км/ч — единственная скорость, где геометрия бессильна: пешком и на велосипеде
+    // фиксы выглядят одинаково. Решает акселерометр.
+    const slowRide = ridingTrack({ speedMs: 1.5, seconds: 300, accuracy: 12 })
+    expect(processDayTrack(slowRide).some(s => s.activity === 'bike')).toBe(false)
+
+    const withDevice = slowRide.map(p => ({
+      ...p,
+      deviceActivity: 'bike' as TrackActivityType,
+      deviceActivityConfidence: 90,
+    }))
+    expect(processDayTrack(withDevice).some(s => s.activity === 'bike')).toBe(true)
+  })
+
+  it('на стоянке сигнал «велосипед» не переворачивает покой в движение', () => {
+    // Телефон лежит на велосипеде у магазина: устройство может решить, что велосипед
+    // «едет». Геометрия окна это опровергает, и покой остаётся покоем.
+    const waiting = sittingTrack({ count: 60, jitterM: 6, accuracy: 12 }).map(p => ({
+      ...p,
+      deviceActivity: 'bike' as TrackActivityType,
+      deviceActivityConfidence: 90,
+    }))
+    const segments = processDayTrack(waiting)
+    expect(segments.some(s => s.activity === 'bike')).toBe(false)
+  })
+
+  it('покой с сигналом STILL не превращается в движение', () => {
+    const sitting = sittingTrack({ count: 60, jitterM: 12, accuracy: 12, reportedSpeedFromGeometry: true }).map(p => ({
+      ...p,
+      deviceActivity: 'still' as TrackActivityType,
+      deviceActivityConfidence: 90,
+    }))
+    const segments = processDayTrack(sitting)
+    expect(segments.some(s => s.activity === 'bike')).toBe(false)
+    expect(segments.some(s => s.activity === 'still')).toBe(true)
+  })
+})
+
+describe('регресс: далёкие невалидные точки', () => {
+  it('выброс на ~250м между соседними фиксами не попадает в трек', () => {
+    const walk = walkTrack().slice(0, 30)
+    const spiked = [...walk]
+    const victim = walk[15]
+    spiked[15] = { ...victim, lat: victim.lat + 0.002, lng: victim.lng + 0.002 }
+    const filtered = filterGpsOutliers(spiked)
+    expect(filtered.some(p => p.clientPointId === victim.clientPointId)).toBe(false)
+    expect(filtered.length).toBe(29)
+  })
+
+  it('фикс с погрешностью хуже 65м не попадает в трек', () => {
+    const walk = walkTrack().slice(0, 10)
+    const noisy = [...walk]
+    noisy[5] = { ...noisy[5], lat: noisy[5].lat + 0.01, lng: noisy[5].lng + 0.01, accuracy: 120 }
+    const filtered = filterGpsOutliers(noisy)
+    expect(filtered.some(p => p.accuracy === 120)).toBe(false)
+    expect(filtered.length).toBe(9)
+  })
+})
+
+describe('регресс: группировка точек в маршруте', () => {
+  it('smoothActivityRuns поглощает короткую вставку чужой активности', () => {
+    // 3-секундный шаг: велосипед 60с → пешком 30с (шум) → велосипед 120с
+    const points = Array.from({ length: 70 }, (_, i) => ({ tsUtc: i * 3000 }))
+    const raw: TrackActivityType[] = [
+      ...Array.from({ length: 20 }, () => 'bike' as const),
+      ...Array.from({ length: 10 }, () => 'walk' as const),
+      ...Array.from({ length: 40 }, () => 'bike' as const),
+    ]
+    const smoothed = smoothActivityRuns(points, raw)
+    expect(smoothed.includes('walk')).toBe(false)
+    expect(smoothed.every(a => a === 'bike')).toBe(true)
+  })
+
+  it('smoothActivityRuns не трогает длинные состояния', () => {
+    const points = Array.from({ length: 90 }, (_, i) => ({ tsUtc: i * 3000 }))
+    const raw: TrackActivityType[] = [
+      ...Array.from({ length: 30 }, () => 'bike' as const),
+      ...Array.from({ length: 30 }, () => 'walk' as const),
+      ...Array.from({ length: 30 }, () => 'bike' as const),
+    ]
+    expect(smoothActivityRuns(points, raw)).toEqual(raw)
+  })
+
+  it('consolidateSegments склеивает микро-сегменты и соседние сегменты одной активности', () => {
+    const build = (activity: TrackActivityType, count: number, latFrom: number): TrackPoint[] => {
+      const out: TrackPoint[] = []
+      let lat = latFrom
+      for (let i = 0; i < count; i++) {
+        lat += 0.00001
+        out.push({ ...pt(lat, 37.618, activity === 'still' ? 0 : 4), activity, activityConfidence: 90 })
+      }
+      return out
+    }
+    const makeSegment = (activity: TrackActivityType, points: TrackPoint[]) => ({
+      points,
+      activity,
+      confidence: 0.8,
+      features: windowFeatures(points),
+    })
+
+    const bikeBefore = build('bike', 150, 55.75) // 5 мин
+    const walkBlip = build('walk', 10, 55.76) // 20 секунд, ~11 метров
+    const bikeAfter = build('bike', 150, 55.77) // 5 мин
+
+    const merged = consolidateSegments([
+      makeSegment('bike', bikeBefore),
+      makeSegment('walk', walkBlip),
+      makeSegment('bike', bikeAfter),
+    ])
+
+    expect(merged.length).toBe(1)
+    expect(merged[0].activity).toBe('bike')
+    expect(merged[0].points[merged[0].points.length - 1].tsUtc).toBe(bikeAfter[bikeAfter.length - 1].tsUtc)
+    expect(merged[0].features.durationMs).toBeGreaterThan(45_000)
+  })
+
+  it('в дне не остаётся сегментов короче 45 секунд и 120 метров', () => {
+    const track = [...walkTrack(), ...ridingTrack({ speedMs: 5, seconds: 40, accuracy: 8 }), ...walkTrack()]
+    const segments = processDayTrack(track)
+    expect(segments.length).toBeGreaterThan(0)
+    for (const seg of segments)
+      expect(seg.features.durationMs >= 45_000 || seg.features.distanceM >= 120).toBe(true)
   })
 })

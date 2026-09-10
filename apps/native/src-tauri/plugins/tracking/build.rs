@@ -6,6 +6,7 @@ const COMMANDS: &[&str] = &[
     "check_permissions",
     "request_notification_permission",
     "request_ignore_battery_optimizations",
+    "request_activity_permission",
     "open_app_settings",
 ];
 

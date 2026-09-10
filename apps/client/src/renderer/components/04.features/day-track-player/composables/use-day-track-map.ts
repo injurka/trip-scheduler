@@ -3,7 +3,7 @@ import type { DayData, DayPoint, PointStatusBadge, RenderSegment, SelectedPointI
 import * as maplibregl from 'maplibre-gl'
 import { onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { useKitMap } from '~/components/01.kit/kit-map/composables/use-kit-map'
-import { normalizeSplineVertices, splitTrackIntoLegs } from '~/shared/services/tracking/track-processing'
+import { haversineM, normalizeSplineVertices, splitTrackIntoLegs } from '~/shared/services/tracking/track-processing'
 import { ACTIVITY_COLORS } from '../models/types'
 
 export interface UseDayTrackMapOptions {
@@ -47,11 +47,17 @@ export function useDayTrackMap(options: UseDayTrackMapOptions) {
   const isCopied = ref(false)
   let copyTimer: ReturnType<typeof setTimeout> | null = null
 
+  // Последний отрисованный набор точек и режим — нужны обработчику клика
+  // (в «Маршруте» слой точек отфильтрован, поэтому ищем ближайшую точку вручную).
+  let renderedPoints: DayPoint[] = []
+  let lastIsPointsMode = true
+
   const ROUTE_SOURCE_ID = 'day-track-route-source'
   const PROGRESS_SOURCE_ID = 'day-track-progress-source'
   const POINTS_SOURCE_ID = 'day-track-points-source'
 
   const ROUTE_LAYER_ID = 'day-track-route-layer'
+  const ROUTE_CASING_LAYER_ID = 'day-track-route-casing-layer'
   const PROGRESS_GLOW_LAYER_ID = 'day-track-progress-glow-layer'
   const PROGRESS_LINE_LAYER_ID = 'day-track-progress-line-layer'
   const POINTS_LAYER_ID = 'day-track-points-layer'
@@ -209,8 +215,29 @@ export function useDayTrackMap(options: UseDayTrackMapOptions) {
         paint: {
           'line-color': ['get', 'color'],
           'line-width': ['get', 'width'],
+          'line-opacity': 0.95,
         },
       })
+    }
+
+    // Подложка-кант под линией маршрута: отделяет цвет трека от подложки карты,
+    // чтобы маршрут читался линией, а не набором цветных пятен.
+    if (!map.getLayer(ROUTE_CASING_LAYER_ID)) {
+      map.addLayer({
+        id: ROUTE_CASING_LAYER_ID,
+        type: 'line',
+        source: ROUTE_SOURCE_ID,
+        layout: {
+          'line-cap': 'round',
+          'line-join': 'round',
+        },
+        paint: {
+          'line-color': '#0f172a',
+          'line-opacity': 0.35,
+          'line-width': ['+', ['get', 'width'], 5],
+          'line-blur': 1.5,
+        },
+      }, ROUTE_LAYER_ID)
     }
 
     if (!map.getSource(PROGRESS_SOURCE_ID)) {
@@ -310,8 +337,8 @@ export function useDayTrackMap(options: UseDayTrackMapOptions) {
           routeFeatures.push({
             type: 'Feature',
             properties: {
-              color: `${ACTIVITY_COLORS[seg.activity]}88`,
-              width: seg.activity === 'rail' ? 5 : 3.5,
+              color: ACTIVITY_COLORS[seg.activity] || ACTIVITY_COLORS.unknown,
+              width: seg.activity === 'rail' ? 6 : 4.5,
             },
             geometry: {
               type: 'LineString',
@@ -357,16 +384,47 @@ export function useDayTrackMap(options: UseDayTrackMapOptions) {
     const pointsList = displayPoints.value
     const pointFeatures: GeoJSON.Feature[] = []
 
+    renderedPoints = pointsList
+    lastIsPointsMode = isPointsMode
+
+    // Точки-ориентиры для режима «Маршрут». Кружок у каждого фикса превращал маршрут
+    // в цепочку жирных точек поверх линии, поэтому в route-режиме оставляем только
+    // смысловые точки: границы плеч (в т.ч. разрывы) и стоянки, прореженные по
+    // расстоянию/времени — остальное рисует линия.
+    const waypointRefs = new Set<DayPoint>()
+    if (!isPointsMode) {
+      const legs = splitTrackIntoLegs(pointsList)
+      for (const leg of legs) {
+        waypointRefs.add(leg.points[0])
+        waypointRefs.add(leg.points[leg.points.length - 1])
+      }
+      let lastKept: DayPoint | null = null
+      for (const p of pointsList) {
+        const isAnchor = waypointRefs.has(p) || p.activity === 'still'
+        if (!isAnchor)
+          continue
+        if (lastKept) {
+          const dM = haversineM(lastKept.lat, lastKept.lng, p.lat, p.lng)
+          if (dM < 15 && p.tsUtc - lastKept.tsUtc < 30_000)
+            continue
+        }
+        waypointRefs.add(p)
+        lastKept = p
+      }
+    }
+
     for (let i = 0; i < pointsList.length; i++) {
       const p = pointsList[i]
+      const isWaypoint = isPointsMode || waypointRefs.has(p)
       pointFeatures.push({
         type: 'Feature',
         properties: {
           pointIndex: i + 1,
           totalPoints: pointsList.length,
+          kind: isWaypoint ? 'waypoint' : 'track',
           color: ACTIVITY_COLORS[p.activity] || '#2196f3',
-          radius: isPointsMode ? 5.5 : 4,
-          strokeWidth: isPointsMode ? 1.5 : 1,
+          radius: isPointsMode ? 5.5 : (isWaypoint ? 5 : 3),
+          strokeWidth: isPointsMode ? 1.5 : (isWaypoint ? 1.5 : 1),
           pointData: JSON.stringify(p),
         },
         geometry: {
@@ -381,6 +439,12 @@ export function useDayTrackMap(options: UseDayTrackMapOptions) {
       features: pointFeatures,
     }
     ;(map.getSource(POINTS_SOURCE_ID) as maplibregl.GeoJSONSource)?.setData(pointsGeojson)
+
+    // В режиме «Маршрут» показываем только ориентиры (линия несёт сам трек),
+    // в режиме «Точки» — все точки, включая Bezier-опорные.
+    if (map.getLayer(POINTS_LAYER_ID)) {
+      map.setFilter(POINTS_LAYER_ID, isPointsMode ? null : ['==', ['get', 'kind'], 'waypoint'])
+    }
 
     updateProgressLine()
 
@@ -425,30 +489,55 @@ export function useDayTrackMap(options: UseDayTrackMapOptions) {
       }).setDOMContent(popupHost.value)
     }
 
-    map.on('click', POINTS_LAYER_ID, (e) => {
-      const feature = e.features?.[0]
-      if (feature && feature.properties?.pointData) {
+    // Клик по карте — единственный обработчик для попапа точки. В режиме «Маршрут»
+    // слой точек отфильтрован до ориентиров, поэтому как fallback ищем ближайшую
+    // точку дня в радиусе ~12px: любая точка остаётся кликабельной.
+    map.on('click', (e) => {
+      let pData: DayPoint | null = null
+      let idx = 1
+
+      const feature = map.queryRenderedFeatures(e.point, { layers: [POINTS_LAYER_ID] })[0]
+      if (feature?.properties?.pointData) {
         try {
-          const pData = JSON.parse(feature.properties.pointData) as DayPoint
-          selectedPoint.value = {
-            point: pData,
-            index: feature.properties.pointIndex || 1,
-            total: feature.properties.totalPoints || 1,
-          }
-          if (pointPopup) {
-            pointPopup.setLngLat([pData.lng, pData.lat]).addTo(map)
-          }
+          pData = JSON.parse(feature.properties.pointData) as DayPoint
+          idx = feature.properties.pointIndex || 1
         }
         catch (err) {
           console.error('[useDayTrackMap] Ошибка парсинга данных точки:', err)
         }
       }
-    })
 
-    map.on('click', (e) => {
-      const features = map.queryRenderedFeatures(e.point, { layers: [POINTS_LAYER_ID] })
-      if (features.length === 0) {
+      if (!pData && !lastIsPointsMode && renderedPoints.length > 0) {
+        const clicked = map.unproject(e.point)
+        const metersPerPixel = 156_543.03392 * Math.cos((clicked.lat * Math.PI) / 180) / 2 ** map.getZoom()
+        const maxDistM = Math.max(60, metersPerPixel * 12)
+        let best = Number.POSITIVE_INFINITY
+        for (let i = 0; i < renderedPoints.length; i++) {
+          const cand = renderedPoints[i]
+          const dM = haversineM(clicked.lat, clicked.lng, cand.lat, cand.lng)
+          if (dM < best) {
+            best = dM
+            pData = cand
+            idx = i + 1
+          }
+        }
+        if (best > maxDistM) {
+          pData = null
+        }
+      }
+
+      if (!pData) {
         closePointPopup()
+        return
+      }
+
+      selectedPoint.value = {
+        point: pData,
+        index: idx,
+        total: renderedPoints.length || 1,
+      }
+      if (pointPopup) {
+        pointPopup.setLngLat([pData.lng, pData.lat]).addTo(map)
       }
     })
 

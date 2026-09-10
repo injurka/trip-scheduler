@@ -124,6 +124,11 @@ export const trackingProcedures = {
         lng: z.number().min(-180).max(180),
         speed: z.number().nullable(),
         activity: TrackActivityTypeSchema,
+        // Погрешность и сигнал Activity Recognition: без них день на сервере
+        // классифицируется иначе, чем живой трек на устройстве.
+        accuracy: z.number().nullable().default(null),
+        deviceActivity: TrackActivityTypeSchema.nullable().default(null),
+        deviceActivityConfidence: z.number().min(0).max(100).nullable().default(null),
       })).max(20_000),
     }))
     .output(z.object({ segments: z.number().int() }))

@@ -40,6 +40,7 @@ pub fn init<R: Runtime>() -> TauriPlugin<R> {
             commands::check_permissions,
             commands::request_notification_permission,
             commands::request_ignore_battery_optimizations,
+            commands::request_activity_permission,
             commands::open_app_settings,
             commands::set_system_bars_theme,
         ])

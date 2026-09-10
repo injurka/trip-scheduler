@@ -37,6 +37,11 @@ pub(crate) async fn request_ignore_battery_optimizations<R: Runtime>(app: AppHan
 }
 
 #[command]
+pub(crate) async fn request_activity_permission<R: Runtime>(app: AppHandle<R>) -> Result<bool> {
+    app.tracking().request_activity_permission()
+}
+
+#[command]
 pub(crate) async fn open_app_settings<R: Runtime>(app: AppHandle<R>) -> Result<bool> {
     app.tracking().open_app_settings()
 }

@@ -141,7 +141,6 @@ function updateKind(value?: string) {
       </div>
 
       <div class="route-visualizer">
-        <BookingKindBadge v-if="kindMeta" :meta="kindMeta" class="kind-pill" />
         <div class="total-duration">
           {{ totalDurationFormatted !== '---' ? totalDurationFormatted : (booking.data.carModel || booking.data.company || 'Авто') }}
         </div>

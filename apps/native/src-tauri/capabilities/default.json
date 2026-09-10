@@ -34,6 +34,7 @@
     "tracking:allow-check-permissions",
     "tracking:allow-request-notification-permission",
     "tracking:allow-request-ignore-battery-optimizations",
+    "tracking:allow-request-activity-permission",
     "tracking:allow-open-app-settings"
   ]
 }

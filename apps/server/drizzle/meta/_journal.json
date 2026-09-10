@@ -57,6 +57,13 @@
       "when": 1788514364016,
       "tag": "0007_soft_sheva_callister",
       "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "7",
+      "when": 1789064548067,
+      "tag": "0008_talented_meltdown",
+      "breakpoints": true
     }
   ]
 }

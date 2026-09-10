@@ -7,6 +7,9 @@
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_LOCATION" />
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
     <uses-permission android:name="android.permission.WAKE_LOCK" />
+    <!-- Распознавание активности (STILL / ON_BICYCLE / IN_VEHICLE…). Начиная с Android 10
+         выдаётся рантайм-разрешением; без него трекинг работает только по GPS. -->
+    <uses-permission android:name="android.permission.ACTIVITY_RECOGNITION" />
 
     <application>
         <service

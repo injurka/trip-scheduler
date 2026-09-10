@@ -749,6 +749,8 @@ export const trackPoints = pgTable('track_points', {
   bearing: real('bearing'),
   activity: trackActivityTypeEnum('activity').notNull().default('unknown'),
   activityConfidence: integer('activity_confidence').notNull().default(0),
+  deviceActivity: trackActivityTypeEnum('device_activity'),
+  deviceActivityConfidence: integer('device_activity_confidence'),
   createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
 }, t => ({
   userTsIndex: index('track_points_user_ts_idx').on(t.userId, t.tsUtc),

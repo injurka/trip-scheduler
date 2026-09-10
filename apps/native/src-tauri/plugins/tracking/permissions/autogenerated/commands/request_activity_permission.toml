@@ -1,0 +1,13 @@
+# Automatically generated - DO NOT EDIT!
+
+"$schema" = "../../schemas/schema.json"
+
+[[permission]]
+identifier = "allow-request-activity-permission"
+description = "Enables the request_activity_permission command without any pre-configured scope."
+commands.allow = ["request_activity_permission"]
+
+[[permission]]
+identifier = "deny-request-activity-permission"
+description = "Denies the request_activity_permission command without any pre-configured scope."
+commands.deny = ["request_activity_permission"]

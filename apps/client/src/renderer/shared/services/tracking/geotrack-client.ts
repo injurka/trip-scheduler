@@ -1,6 +1,6 @@
 import type { TrackActivityType } from '@injurka/track-processing'
 import type { PluginListener } from '@tauri-apps/api/core'
-import { bearingDeg, evaluatePointValidity, haversineM } from '@injurka/track-processing'
+import { bearingDeg, evaluatePointValidity, haversineM, movementEvidence } from '@injurka/track-processing'
 import { addPluginListener, invoke } from '@tauri-apps/api/core'
 import {
   checkPermissions as tauriCheckPermissions,
@@ -26,6 +26,10 @@ export interface TrackPoint {
   activity: ActivityType
   activityConfidence: number
   sessionId: string
+  /** Активность по системному Activity Recognition (Android), не выводимая из GPS. */
+  deviceActivity?: ActivityType | null
+  /** Уверенность Activity Recognition, 0..100. */
+  deviceActivityConfidence?: number | null
 }
 
 export interface TrackingTelemetry {
@@ -163,19 +167,80 @@ function detectNetwork(): 'wifi' | 'cellular' | 'offline' | 'other' {
   return 'other'
 }
 
+const LIVE_FIXES_WINDOW_MS = 45_000
+const LIVE_FIXES_MAX = 30
+
 /**
- * Определение предполагаемой активности по мгновенной и средней скорости.
+ * Порог уверенности Activity Recognition, ниже которого сигнал устройства не учитываем.
+ * Google регулярно отдаёт «unknown» и короткие перескоки с уверенностью 30-45.
  */
+const DEVICE_ACTIVITY_MIN_CONFIDENCE = 50
+/** Окно наблюдений за устройством: короткие одиночные перескоки не должны менять состояние. */
+const DEVICE_ACTIVITY_WINDOW_MS = 90_000
+/** Сколько независимых наблюдений должны согласиться, прежде чем мы поверим устройству. */
+const DEVICE_ACTIVITY_MIN_VOTES = 2
+
+interface DeviceActivitySample {
+  activity: ActivityType
+  confidence: number
+  tsUtc: number
+}
+
+/**
+ * Разбор сырого значения активности из Android Activity Recognition.
+ * Возвращает null для неизвестных/служебных типов (Google отдаёт ещё TILTING, UNKNOWN,
+ * EXITING_VEHICLE — они не описывают способ перемещения).
+ */
+function normalizeDeviceActivity(raw: unknown, confidence: unknown): DeviceActivitySample | null {
+  if (typeof raw !== 'string')
+    return null
+  const map: Record<string, ActivityType> = {
+    still: 'still',
+    walk: 'walk',
+    on_foot: 'walk',
+    running: 'walk',
+    bike: 'bike',
+    on_bicycle: 'bike',
+    vehicle: 'vehicle',
+    in_vehicle: 'vehicle',
+  }
+  const activity = map[raw.toLowerCase()]
+  if (!activity)
+    return null
+  const conf = typeof confidence === 'number' && Number.isFinite(confidence) ? confidence : 0
+  // Дополнительно принимаем шкалу 0..1, если плагин прислал её в долях
+  const normalizedConf = conf > 0 && conf <= 1 ? Math.round(conf * 100) : Math.round(Math.min(100, Math.max(0, conf)))
+  return { activity, confidence: normalizedConf, tsUtc: 0 }
+}
+
+/** Активность по скорости из окна фиксов: границы согласованы с пакетом @injurka/track-processing. */
 function estimateActivity(speedMs: number): ActivityType {
-  if (speedMs < 0.6)
+  const kmh = speedMs * 3.6
+  if (kmh < 2.5)
     return 'still'
-  if (speedMs < 2.5)
-    return 'walk' // до 9 км/ч
-  if (speedMs < 8.5)
-    return 'bike' // 9-30 км/ч
-  if (speedMs < 36.0)
+  if (kmh < 8)
+    return 'walk' // 2.5-8 км/ч
+  if (kmh < 30)
+    return 'bike' // 8-30 км/ч
+  if (kmh < 130)
     return 'vehicle' // 30-130 км/ч
   return 'rail' // свыше 130 км/ч
+}
+
+/**
+ * Доверенная скорость текущего момента по окну фиксов.
+ * Пока геометрия не подтвердила перемещение (прямое смещение окна не превышает
+ * погрешность GPS), скорость равна нулю: устройство может писать «еду 25 км/ч»,
+ * но стоящий телефон с дрожащими фиксами так и остаётся стоящим.
+ */
+function trustedSpeedMs(
+  evidence: ReturnType<typeof movementEvidence>,
+  deviceSpeedMs: number | null,
+): number {
+  if (!evidence.credible)
+    return 0
+  // Заявленная скорость не может вдвое превышать подтверждённую геометрией окна.
+  return Math.min(Math.max(deviceSpeedMs ?? 0, evidence.speedMs), evidence.speedMs * 2)
 }
 
 /**
@@ -469,6 +534,19 @@ class WebGeolocationTracker {
   private sessionEndedAt = 0
   private sessionDistanceM = 0
   private lastFixPoint: TrackPoint | null = null
+  /**
+   * Скользящее окно последних принятых фиксов (сырые координаты + точность).
+   * Живое состояние («стою / иду / еду») нельзя определять по паре соседних фиксов:
+   * при точности 30–40 м дрожание координат даёт «скорость» 5–20 м/с, и сидящий
+   * телефон уезжает на велосипеде. Окно 15+ секунд усредняет дрожание геометрией.
+   */
+  private liveFixes: Array<{ lat: number, lng: number, tsUtc: number, accuracy: number | null }> = []
+  /**
+   * Наблюдения Activity Recognition от Android: способ перемещения по акселерометру,
+   * независимый от GPS. Используется там, где координаты бессильны — телефон сидящего
+   * человека в кармане, велосипед на светофоре, медленная езда при плохом приёме.
+   */
+  private deviceActivitySamples: DeviceActivitySample[] = []
   private stationaryAnchorPoint: TrackPoint | null = null
   private lastError: string | null = null
   private isRunning = false
@@ -550,6 +628,8 @@ class WebGeolocationTracker {
     this.sessionEndedAt = 0
     this.sessionDistanceM = 0
     this.lastFixPoint = null
+    this.liveFixes = []
+    this.deviceActivitySamples = []
     this.stationaryAnchorPoint = null
     this.isRunning = true
 
@@ -660,6 +740,8 @@ class WebGeolocationTracker {
         speed?: number | null
         heading?: number | null
         timestamp: number
+        activity?: string | null
+        activityConfidence?: number | null
       }>>('tracking_get_buffered')
 
       if (Array.isArray(buffered) && buffered.length > 0) {
@@ -676,6 +758,8 @@ class WebGeolocationTracker {
               heading: pos.heading,
             },
             timestamp: pos.timestamp,
+            activity: pos.activity,
+            activityConfidence: pos.activityConfidence,
           })
         }
         // Запускаем фоновый синк накопившихся точек на сервер
@@ -727,6 +811,7 @@ class WebGeolocationTracker {
             location: boolean
             notifications: boolean
             batteryOptimizationsIgnored: boolean
+            activityRecognition: boolean
           }>('tracking_check_permissions')
 
           if (perm) {
@@ -735,6 +820,13 @@ class WebGeolocationTracker {
             // На Android 13+ уведомление обязательно для Foreground Service
             if (!perm.notifications) {
               await invoke('tracking_request_notification_permission').catch(() => {})
+            }
+
+            // Activity Recognition (Android 10+) — независимый от GPS источник активности.
+            // Без него классификация опирается только на координаты, а в покое телефон
+            // начинает «видеть» велосипед по дрожанию фиксов.
+            if (perm.activityRecognition === false) {
+              await invoke('tracking_request_activity_permission').catch(() => {})
             }
 
             // Предлагаем отключить Doze Mode оптимизацию батареи
@@ -778,6 +870,8 @@ class WebGeolocationTracker {
             speed?: number | null
             heading?: number | null
             timestamp?: number
+            activity?: string | null
+            activityConfidence?: number | null
           }>('tracking', 'locationUpdate', (pos) => {
             if (pos && typeof pos.latitude === 'number' && typeof pos.longitude === 'number') {
               this.handlePositionUpdate({
@@ -790,6 +884,8 @@ class WebGeolocationTracker {
                   heading: pos.heading,
                 },
                 timestamp: pos.timestamp || Date.now(),
+                activity: pos.activity,
+                activityConfidence: pos.activityConfidence,
               })
             }
           })
@@ -995,6 +1091,7 @@ class WebGeolocationTracker {
     location: boolean
     notifications: boolean
     batteryOptimizationsIgnored: boolean
+    activityRecognition: boolean
   } | null> {
     if (!isMobileApp)
       return null
@@ -1003,6 +1100,7 @@ class WebGeolocationTracker {
         location: boolean
         notifications: boolean
         batteryOptimizationsIgnored: boolean
+        activityRecognition: boolean
       }>('tracking_check_permissions')
       if (perm) {
         this.batteryOptimizationsIgnored = perm.batteryOptimizationsIgnored
@@ -1011,6 +1109,23 @@ class WebGeolocationTracker {
     }
     catch {
       return null
+    }
+  }
+
+  /**
+   * Разрешение на распознавание активности (Android 10+). Оно не критично: без него
+   * трекер продолжает работать по координатам, поэтому отказ не считается ошибкой.
+   */
+  public async requestActivityPermission(): Promise<boolean> {
+    if (!isMobileApp)
+      return true
+    try {
+      const res = await invoke<boolean>('tracking_request_activity_permission')
+      await this.checkPermissions()
+      return res
+    }
+    catch {
+      return false
     }
   }
 
@@ -1038,16 +1153,83 @@ class WebGeolocationTracker {
     }
   }
 
+  /**
+   * Регистрирует наблюдение Activity Recognition от Android. Окно ограничено по времени и
+   * по количеству: старое наблюдение не должно влиять на текущее состояние.
+   */
+  private pushDeviceActivity(sample: DeviceActivitySample): void {
+    if (!sample.tsUtc)
+      sample.tsUtc = Date.now()
+    this.deviceActivitySamples.push(sample)
+    const from = Date.now() - DEVICE_ACTIVITY_WINDOW_MS
+    this.deviceActivitySamples = this.deviceActivitySamples.filter(s => s.tsUtc >= from).slice(-10)
+  }
+
+  /**
+   * Активность, подтверждённая устройством. Доверяем только повторяющемуся сигналу
+   * (≥2 наблюдения с уверенностью ≥50): одиночный перескок Activity Recognition не должен
+   * переворачивать состояние момента.
+   */
+  private deviceRecoHint(): { activity: ActivityType, confidence: number } | null {
+    const trusted = this.deviceActivitySamples.filter(s => s.confidence >= DEVICE_ACTIVITY_MIN_CONFIDENCE)
+    if (trusted.length < DEVICE_ACTIVITY_MIN_VOTES)
+      return null
+
+    const weights = new Map<ActivityType, number>()
+    for (const s of trusted)
+      weights.set(s.activity, (weights.get(s.activity) ?? 0) + s.confidence)
+
+    let best: ActivityType | null = null
+    let bestWeight = 0
+    let bestVotes = 0
+    for (const [act, weight] of weights) {
+      if (weight > bestWeight) {
+        best = act
+        bestWeight = weight
+        bestVotes = trusted.filter(s => s.activity === act).length
+      }
+    }
+    if (!best || bestVotes < DEVICE_ACTIVITY_MIN_VOTES)
+      return null
+
+    return { activity: best, confidence: Math.round(bestWeight / bestVotes) }
+  }
+
+  /**
+   * Итоговая активность момента. Геометрия окна — арбитр (она проверяема), сигнал устройства —
+   * решающий голос там, где GPS слеп: движение без смещения координат (телефон в кармане,
+   * велосипед на светофоре, медленная езда при плохом приёме). Ровно поэтому «сижу, а трекер
+   * говорит велосипед» больше не возникает: без подтверждённого смещения поверить можно только
+   * самому устройству, а оно в покое уверенно сообщает STILL.
+   */
+  private resolveLiveActivity(
+    evidence: ReturnType<typeof movementEvidence>,
+    speedMs: number,
+  ): { activity: ActivityType, confidence: number } {
+    if (evidence.credible)
+      return { activity: estimateActivity(speedMs), confidence: 88 }
+
+    const device = this.deviceRecoHint()
+    if (device)
+      return { activity: device.activity, confidence: Math.max(DEVICE_ACTIVITY_MIN_CONFIDENCE, Math.min(95, device.confidence)) }
+
+    return { activity: 'still', confidence: 95 }
+  }
+
   private handlePositionUpdate(pos: {
     coords: {
       latitude: number
       longitude: number
       accuracy?: number | null
       altitude?: number | null
-      speed?: number | null
       heading?: number | null
+      speed?: number | null
     }
     timestamp?: number
+    /** Активность из системного Activity Recognition (Android-плагин трекинга). */
+    activity?: string | null
+    /** Уверенность Activity Recognition, 0..100 или 0..1. */
+    activityConfidence?: number | null
   }): void {
     const coords = pos.coords
     const ts = pos.timestamp && pos.timestamp > 0 ? pos.timestamp : Date.now()
@@ -1061,12 +1243,14 @@ class WebGeolocationTracker {
       return
     }
 
-    let speed = typeof coords.speed === 'number' && Number.isFinite(coords.speed) && coords.speed >= 0 ? coords.speed : null
+    const speed = typeof coords.speed === 'number' && Number.isFinite(coords.speed) && coords.speed >= 0 ? coords.speed : null
     let bearing = typeof coords.heading === 'number' && Number.isFinite(coords.heading) && coords.heading >= 0 ? coords.heading : null
 
+    let dM = 0
+    let gapDetected = false
+
     if (this.lastFixPoint) {
-      const dM = haversineM(this.lastFixPoint.lat, this.lastFixPoint.lng, lat, lng)
-      const dtSec = Math.max(0.1, (ts - this.lastFixPoint.tsUtc) / 1000)
+      dM = haversineM(this.lastFixPoint.lat, this.lastFixPoint.lng, lat, lng)
 
       // Игнорируем дублирующие точки от параллельных слушателей (Tauri + Web)
       if (dM < 1.0 && (ts - this.lastFixPoint.tsUtc) < 800) {
@@ -1085,6 +1269,8 @@ class WebGeolocationTracker {
         if (this.consecutiveRejectedCount >= 3) {
           console.warn('[Tracking] Серия отклонений: сброс якорной точки и перекалибровка на новые координаты.')
           this.lastFixPoint = null
+          // Окно живой оценки тоже сбрасываем: его координаты принадлежат «сбойной» серии
+          this.liveFixes = []
           this.consecutiveRejectedCount = 0
         }
         return
@@ -1092,30 +1278,47 @@ class WebGeolocationTracker {
 
       this.consecutiveRejectedCount = 0
 
-      // Если девайс не отдал мгновенную скорость, рассчитываем по дельте
-      if (speed === null && dtSec > 0) {
-        speed = dM / dtSec
-      }
-
       // Если девайс не отдал азимут, рассчитываем
       if (bearing === null && dM > 3) {
         bearing = bearingDeg(this.lastFixPoint.lat, this.lastFixPoint.lng, lat, lng)
       }
 
-      // Прибавляем дистанцию, отсекая статичный GPS-дрейф (< 1.5м на месте) и не накручивая одометр при длинных разрывах
-      if (dM >= 1.5 && (speed == null || speed >= 0.3) && !validity.isGap) {
-        this.sessionDistanceM += dM
-      }
+      gapDetected = validity.isGap
     }
 
-    const estimatedSpeed = speed ?? 0
-    const activity = estimateActivity(estimatedSpeed)
+    // Живое состояние определяем по окну последних фиксов, а не по паре соседних:
+    // при точности 30-40 м дрожание координат даёт «мгновенную скорость» 5-20 м/с
+    // и сидящий телефон уезжает на велосипеде. Окно даёт прямое смещение, которое
+    // сравнивается с погрешностью: не превышает — значит перемещение не доказано.
+    this.liveFixes.push({ lat, lng, tsUtc: ts, accuracy })
+    const liveWindowFrom = ts - LIVE_FIXES_WINDOW_MS
+    this.liveFixes = this.liveFixes.filter(f => f.tsUtc >= liveWindowFrom).slice(-LIVE_FIXES_MAX)
+    const evidence = movementEvidence(this.liveFixes)
+    const speedMs = trustedSpeedMs(evidence, speed)
 
-    // Если устройство находится на одном месте (скорость < 0.6 м/с или still):
-    // группируем точки в радиусе 5 метров, предотвращая создание сотен одинаковых точек в БД.
+    // Сигнал Activity Recognition добавляем в окно наблюдений и используем как решающий
+    // голос там, где геометрия не подтверждает перемещение.
+    const deviceSample = normalizeDeviceActivity(pos.activity, pos.activityConfidence)
+    if (deviceSample)
+      this.pushDeviceActivity(deviceSample)
+    const deviceActivity = deviceSample?.activity ?? null
+    const deviceActivityConfidence = deviceSample?.confidence ?? null
+
+    const resolved = this.resolveLiveActivity(evidence, speedMs)
+    const activity = resolved.activity
+    const activityConfidence = resolved.confidence
+
+    // Одометр: прибавляем дистанцию только когда перемещение подтверждено окном,
+    // иначе дрожание стоящего устройства накручивает километры.
+    if (this.lastFixPoint && dM >= 1.5 && speedMs >= 0.3 && !gapDetected) {
+      this.sessionDistanceM += dM
+    }
+
+    // Перемещение не подтверждено окном (activity === 'still'): группируем точки
+    // в радиусе 5 метров, предотвращая создание сотен одинаковых точек в БД.
     // При нахождении на месте мы обновляем последнюю точку / телеметрию,
     // а новую точку в очередь пишем только раз в 3 минуты (или при выходе из радиуса 5м).
-    const isStationary = activity === 'still' || estimatedSpeed < 0.6
+    const isStationary = activity === 'still'
     if (isStationary) {
       if (!this.stationaryAnchorPoint) {
         this.stationaryAnchorPoint = {
@@ -1128,8 +1331,10 @@ class WebGeolocationTracker {
           speed: 0,
           bearing,
           activity: 'still',
-          activityConfidence: 90,
+          activityConfidence,
           sessionId: this.currentSessionId || uuidv4(),
+          deviceActivity,
+          deviceActivityConfidence,
         }
       }
       else {
@@ -1151,8 +1356,10 @@ class WebGeolocationTracker {
               speed: 0,
               bearing,
               activity: 'still',
-              activityConfidence: 90,
+              activityConfidence,
               sessionId: this.currentSessionId || uuidv4(),
+              deviceActivity,
+              deviceActivityConfidence,
             }
             this.lastFixPoint = updatedPoint
 
@@ -1173,7 +1380,7 @@ class WebGeolocationTracker {
       }
     }
     else {
-      // Началось реальное движение (> 0.6 м/с)
+      // Перемещение подтверждено окном — выходим из режима стоянки
       this.stationaryAnchorPoint = null
     }
 
@@ -1184,11 +1391,13 @@ class WebGeolocationTracker {
       lng,
       altitude,
       accuracy,
-      speed,
+      speed: speedMs,
       bearing,
       activity,
-      activityConfidence: 85,
+      activityConfidence,
       sessionId: this.currentSessionId || uuidv4(),
+      deviceActivity,
+      deviceActivityConfidence,
     }
 
     this.lastFixPoint = point
@@ -1211,7 +1420,7 @@ class WebGeolocationTracker {
     const distFormatted = this.sessionDistanceM >= 1000
       ? `${(this.sessionDistanceM / 1000).toFixed(2)} км`
       : `${Math.round(this.sessionDistanceM)} м`
-    const speedFormatted = speed != null ? `${Math.round(speed * 3.6)} км/ч` : '0 км/ч'
+    const speedFormatted = speedMs > 0.3 ? `${Math.round(speedMs * 3.6)} км/ч` : '0 км/ч'
     this.keepalive.updateNotification(
       `Запись GPS: ${distFormatted} • ${speedFormatted}`,
       'TripScheduler • Фоновый трекинг активен',
@@ -1331,6 +1540,17 @@ export function parseTrackPoint(raw: unknown): TrackPoint | null {
     ? Math.round(rawConf * 100)
     : Math.round(Math.min(100, Math.max(0, rawConf)))
 
+  // Сигнал Activity Recognition: не валидируем строго — отсутствие поля допустимо,
+  // испорченное значение отбрасываем, чтобы не тащить мусор в классификацию дня.
+  const deviceRaw = r.deviceActivity
+  const deviceActivity = typeof deviceRaw === 'string' && activities.includes(deviceRaw as ActivityType)
+    ? deviceRaw as ActivityType
+    : null
+  const rawDeviceConf = num(r.deviceActivityConfidence) ? (r.deviceActivityConfidence as number) : null
+  const deviceActivityConfidence = rawDeviceConf == null
+    ? null
+    : Math.round(rawDeviceConf > 0 && rawDeviceConf <= 1 ? rawDeviceConf * 100 : Math.min(100, Math.max(0, rawDeviceConf)))
+
   return {
     clientPointId: r.clientPointId,
     tsUtc: Math.round(r.tsUtc as number),
@@ -1343,5 +1563,7 @@ export function parseTrackPoint(raw: unknown): TrackPoint | null {
     activity,
     activityConfidence,
     sessionId: r.sessionId,
+    deviceActivity,
+    deviceActivityConfidence,
   }
 }

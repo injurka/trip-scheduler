@@ -128,7 +128,6 @@ const hasCoords = computed(() => Boolean(props.booking.data.startCoords || props
       <div class="other-hero-row">
         <div class="other-main-info">
           <div class="other-name-line">
-            <Icon :icon="kindIcon" class="other-kind-icon" />
             <span class="other-name-text">
               {{ booking.data.name || booking.title || 'Перемещение' }}
             </span>
@@ -410,12 +409,6 @@ const hasCoords = computed(() => Boolean(props.booking.data.startCoords || props
   display: flex;
   align-items: center;
   gap: 8px;
-}
-
-.other-kind-icon {
-  font-size: 1.15rem;
-  color: var(--fg-accent-color);
-  flex-shrink: 0;
 }
 
 .other-name-text {

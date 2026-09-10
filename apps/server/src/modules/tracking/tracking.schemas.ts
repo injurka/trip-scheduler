@@ -14,6 +14,9 @@ export const TrackPointInputSchema = z.object({
   bearing: z.number().nullable().optional(),
   activity: TrackActivityTypeSchema.default('unknown'),
   activityConfidence: z.number().min(0).max(100).default(0),
+  /** Сырой сигнал системного Activity Recognition: null — устройство его не сообщило. */
+  deviceActivity: TrackActivityTypeSchema.nullable().optional(),
+  deviceActivityConfidence: z.number().min(0).max(100).nullable().optional(),
 })
 
 export const IngestBatchInputSchema = z.object({

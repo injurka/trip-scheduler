@@ -328,6 +328,14 @@ async fn tracking_request_ignore_battery_optimizations(
 }
 
 #[tauri::command]
+async fn tracking_request_activity_permission(
+    app: tauri::AppHandle,
+) -> Result<bool, String> {
+    use tauri_plugin_tracking::TrackingExt;
+    app.tracking().request_activity_permission().map_err(|e| e.to_string())
+}
+
+#[tauri::command]
 async fn tracking_open_app_settings(
     app: tauri::AppHandle,
 ) -> Result<bool, String> {
@@ -369,6 +377,7 @@ pub fn run() {
             tracking_check_permissions,
             tracking_request_notification_permission,
             tracking_request_ignore_battery_optimizations,
+            tracking_request_activity_permission,
             tracking_open_app_settings,
             set_system_bars_theme
         ])

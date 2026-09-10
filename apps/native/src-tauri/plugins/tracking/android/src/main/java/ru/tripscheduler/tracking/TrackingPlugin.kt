@@ -111,10 +111,20 @@ class TrackingPlugin(private val activity: Activity) : Plugin(activity) {
             true
         }
 
+        val hasActivityRecognition = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+            ContextCompat.checkSelfPermission(
+                context,
+                Manifest.permission.ACTIVITY_RECOGNITION
+            ) == PackageManager.PERMISSION_GRANTED
+        } else {
+            true
+        }
+
         val ret = JSObject()
         ret.put("location", hasLocation)
         ret.put("notifications", hasNotification)
         ret.put("batteryOptimizationsIgnored", isBatteryIgnored)
+        ret.put("activityRecognition", hasActivityRecognition)
         invoke.resolve(ret)
     }
 
@@ -140,6 +150,33 @@ class TrackingPlugin(private val activity: Activity) : Plugin(activity) {
         } else {
             invoke.resolveObject(true)
         }
+    }
+
+    @SuppressLint("MissingPermission")
+    @Command
+    fun requestActivityPermission(invoke: Invoke) {
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.Q) {
+            // До Android 10 разрешение не нужно: Activity Recognition доступен сразу
+            invoke.resolveObject(true)
+            return
+        }
+
+        val hasActivityRecognition = ContextCompat.checkSelfPermission(
+            activity,
+            Manifest.permission.ACTIVITY_RECOGNITION
+        ) == PackageManager.PERMISSION_GRANTED
+
+        if (hasActivityRecognition) {
+            invoke.resolveObject(true)
+            return
+        }
+
+        ActivityCompat.requestPermissions(
+            activity,
+            arrayOf(Manifest.permission.ACTIVITY_RECOGNITION),
+            90212
+        )
+        invoke.resolveObject(true)
     }
 
     @SuppressLint("BatteryLife")
@@ -261,6 +298,17 @@ class TrackingPlugin(private val activity: Activity) : Plugin(activity) {
         ret["speed"] = loc.speed.toDouble().takeIf { loc.hasSpeed() && it.isFinite() }
         ret["heading"] = loc.bearing.toDouble().takeIf { loc.hasBearing() && it.isFinite() }
         ret["timestamp"] = loc.time
+
+        // Активность по акселерометру (Activity Recognition) — независимое от GPS свидетельство
+        // о способе передвижения. Нет данных — полей нет, потребитель обязан это учитывать.
+        val extras = loc.extras
+        val deviceActivity = extras?.getString(TrackingService.EXTRA_DEVICE_ACTIVITY)
+        if (!deviceActivity.isNullOrEmpty()) {
+            ret["activity"] = deviceActivity
+            ret["activityConfidence"] =
+                extras.getInt(TrackingService.EXTRA_DEVICE_ACTIVITY_CONFIDENCE, 0)
+        }
+
         return ret
     }
 }

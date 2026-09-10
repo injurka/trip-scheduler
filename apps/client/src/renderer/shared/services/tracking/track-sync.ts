@@ -56,6 +56,12 @@ async function syncOnce(): Promise<number> {
         activityConfidence: p.activityConfidence <= 1 && p.activityConfidence > 0
           ? Math.round(p.activityConfidence * 100)
           : Math.round(Math.min(100, Math.max(0, p.activityConfidence || 0))),
+        // Сигнал Activity Recognition храним отдельно от нашей классификации: на сервере
+        // он нужен, чтобы переобработка дня не теряла независимое от GPS свидетельство.
+        deviceActivity: p.deviceActivity ?? null,
+        deviceActivityConfidence: p.deviceActivityConfidence == null
+          ? null
+          : Math.round(Math.min(100, Math.max(0, p.deviceActivityConfidence))),
       })),
     }) as { accepted: string[], rejectedCount: number }
 

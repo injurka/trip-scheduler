@@ -30,10 +30,15 @@ impl<R: Runtime> Tracking<R> {
             location: true,
             notifications: true,
             battery_optimizations_ignored: true,
+            activity_recognition: true,
         })
     }
 
     pub fn request_notification_permission(&self) -> Result<bool> {
+        Ok(true)
+    }
+
+    pub fn request_activity_permission(&self) -> Result<bool> {
         Ok(true)
     }
 

@@ -258,6 +258,11 @@ export async function runImport(): Promise<void> {
 
     for (const sec of appConfig.defaultSections) {
       try {
+        if (sec.type === 'finances') {
+          // Не трогаем и не обогащаем секцию Финансы
+          continue
+        }
+
         let sectionContent: any = null
 
         if (sec.type === 'bookings') {
@@ -265,21 +270,6 @@ export async function runImport(): Promise<void> {
         }
         else if (sec.type === 'checklist' && importChecklists) {
           sectionContent = tripData.checklistContent && tripData.checklistContent.items && tripData.checklistContent.items.length > 0 ? tripData.checklistContent : null
-        }
-        else if (sec.type === 'finances') {
-          const plannedTransactions = (tripData.financesContent?.transactions || []).map(t => ({
-            ...t,
-            isSpontaneous: false,
-          }))
-
-          sectionContent = {
-            settings: tripData.financesContent?.settings || {
-              mainCurrency: appConfig.mainCurrency,
-              exchangeRates: appConfig.exchangeRates,
-            },
-            categories: tripData.financesContent?.categories || [],
-            transactions: plannedTransactions,
-          }
         }
 
         const existingSec = existingSections.find(s => s.type === sec.type)
@@ -315,18 +305,8 @@ export async function runImport(): Promise<void> {
           const totalGroups = sectionContent.groups?.length || 0
           console.log(`  ${colors.green}✔ Раздел «${sec.title}» наполнен:${colors.reset} 📝 ${totalGroups} групп (${totalItems} пунктов)`)
         }
-        else if (sec.type === 'finances') {
-          const transCount = sectionContent?.transactions?.length || 0
-          const totalRub = sectionContent?.transactions?.reduce((sum: number, t: any) => sum + (t.amount || 0), 0) || 0
-          if (transCount > 0) {
-            console.log(`  ${colors.green}✔ Раздел «${sec.title}» наполнен:${colors.reset} 💰 ${transCount} плановых статей расходов (~${totalRub.toLocaleString('ru-RU')} ₽)`)
-          }
-          else {
-            console.log(`  ${colors.green}✔ Раздел создан:${colors.reset} ${sec.title} (готов для учета трат в поездке)`)
-          }
-        }
         else {
-          console.log(`  ${colors.green}✔ Раздел создан:${colors.reset} ${sec.title}`)
+          console.log(`  ${colors.green}✔ Раздел сохранен:${colors.reset} ${sec.title}`)
         }
       }
       catch (err: any) {
