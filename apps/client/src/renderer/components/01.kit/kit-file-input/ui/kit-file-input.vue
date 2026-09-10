@@ -277,7 +277,6 @@ const componentClasses = computed(() => ({
 
   &.is-drag-over {
     border-style: solid;
-    transform: translateY(-1px);
   }
 
   &.is-disabled,
@@ -377,7 +376,6 @@ const componentClasses = computed(() => ({
     &:not(:disabled) {
       border-color: var(--border-focus-color);
       color: var(--fg-accent-color);
-      transform: translateY(-1px);
     }
   }
 

@@ -163,16 +163,18 @@ async function handleTelegramAuth() {
   justify-content: center;
   flex: 1;
   width: 100%;
+  height: 100%;
   min-height: 100%;
   padding: 16px;
   box-sizing: border-box;
+  overflow-y: auto;
 }
 
 .card {
   position: relative;
   width: 100%;
   max-width: 420px;
-  margin: 0 auto;
+  margin: auto;
   backdrop-filter: blur(8px);
   border: 1px solid var(--border-secondary-color);
   box-shadow: var(--s-l);
@@ -183,7 +185,6 @@ async function handleTelegramAuth() {
 
   @include media-down(xs) {
     padding: 16px;
-    margin: 0;
   }
 }
 

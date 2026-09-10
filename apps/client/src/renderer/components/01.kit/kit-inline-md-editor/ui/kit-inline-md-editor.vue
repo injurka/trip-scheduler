@@ -480,7 +480,6 @@ onBeforeUnmount(() => {
           width: 0.75rem !important;
           height: 1em !important;
           white-space: nowrap !important;
-          transform: translateY(0.1em) !important;
           user-select: none !important;
 
           .bullet,

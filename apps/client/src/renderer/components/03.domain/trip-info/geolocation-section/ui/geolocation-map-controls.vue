@@ -139,6 +139,7 @@ function zoomOut() {
 
   &.is-fullscreen {
     top: calc(12px + var(--safe-area-inset-top));
+    right: calc(12px + var(--safe-area-inset-right));
   }
 
   .kit-btn,

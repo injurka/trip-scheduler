@@ -328,7 +328,6 @@ function scrollRight() {
     & {
       background: rgba(var(--fg-accent-color-rgb), 0.15);
       border-style: solid;
-      transform: translateY(-1px);
     }
   }
 }

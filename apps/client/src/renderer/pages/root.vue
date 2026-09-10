@@ -10,7 +10,12 @@ import { WelcomeCard } from '~/components/05.modules/welcome-card'
 
 <style lang="scss" scoped>
 .root-wrapper {
-  background-color: transparent;
+  display: flex;
+  flex-direction: column;
+  flex: 1;
   width: 100%;
+  height: 100%;
+  min-height: 100%;
+  background-color: transparent;
 }
 </style>

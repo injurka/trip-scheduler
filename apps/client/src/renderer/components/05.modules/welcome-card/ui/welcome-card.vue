@@ -127,6 +127,8 @@ onMounted(() => {
   align-items: center;
   gap: 24px;
   width: 100%;
+  flex: 1;
+  height: 100%;
   min-height: 100%;
   padding: 16px;
   animation: fadeIn 0.8s ease-out forwards;

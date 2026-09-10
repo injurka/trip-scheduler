@@ -155,7 +155,7 @@
   .maplibre-marker-pin.is-via {
     opacity: 0.35;
     .marker-pin-inner {
-      transform: scale(0.35);
+      transform: scale(0.44);
     }
     &:hover {
       opacity: 1;
@@ -169,7 +169,7 @@
   .maplibre-marker-pin.is-end,
   .maplibre-marker-pin.is-poi {
     .marker-pin-inner {
-      transform: scale(0.55);
+      transform: scale(0.69);
     }
     &:hover .marker-pin-inner {
       transform: scale(1.1);
@@ -189,7 +189,7 @@
   .maplibre-marker-pin.is-via {
     opacity: 0.7;
     .marker-pin-inner {
-      transform: scale(0.6);
+      transform: scale(0.75);
     }
     &:hover {
       opacity: 1;
@@ -203,7 +203,7 @@
   .maplibre-marker-pin.is-end,
   .maplibre-marker-pin.is-poi {
     .marker-pin-inner {
-      transform: scale(0.72);
+      transform: scale(0.9);
     }
     &:hover .marker-pin-inner {
       transform: scale(1.1);
@@ -222,7 +222,7 @@
 
   .maplibre-marker-pin.is-via {
     .marker-pin-inner {
-      transform: scale(0.82);
+      transform: scale(0.9);
     }
   }
 
@@ -230,7 +230,7 @@
   .maplibre-marker-pin.is-end,
   .maplibre-marker-pin.is-poi {
     .marker-pin-inner {
-      transform: scale(0.88);
+      transform: scale(0.98);
     }
   }
 }

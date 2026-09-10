@@ -479,7 +479,6 @@ function insertToEditor(image: any) {
   &:hover {
     background: #fff;
     color: #000;
-    transform: translateY(-1px);
   }
 
   &.active {

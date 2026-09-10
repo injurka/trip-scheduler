@@ -173,6 +173,9 @@ async function handleMapClick(coords: Coordinate) {
       coords,
       isFetchingAddress: false,
     }
+    if (isMapFullscreen.value) {
+      isPanelVisible.value = true
+    }
   }
 }
 
@@ -381,6 +384,26 @@ onUnmounted(() => {
       class="main-panel"
       :class="{ 'fullscreen-panel': isMapFullscreen }"
     >
+      <!-- Шапка панели в полноэкранном режиме с кнопкой закрытия -->
+      <div v-if="isMapFullscreen" class="fullscreen-panel-header">
+        <div class="fullscreen-panel-title">
+          <Icon
+            :icon="activeView === 'points' ? 'mdi:map-marker-multiple-outline' : 'mdi:directions'"
+            class="panel-title-icon"
+          />
+          <span>{{ activeView === 'points' ? 'Точки на карте' : 'Маршруты' }}</span>
+        </div>
+        <button
+          type="button"
+          class="fullscreen-panel-close-btn"
+          title="Скрыть панель"
+          aria-label="Скрыть панель"
+          @click="isPanelVisible = false"
+        >
+          <Icon icon="mdi:close" />
+        </button>
+      </div>
+
       <!-- Верхний тулбар: Поиск и переключение табов -->
       <div v-if="!readonly || (points.length > 0 && routes.length > 0)" class="geo-top-toolbar">
         <div v-if="!readonly" class="search-input-wrapper">
@@ -677,16 +700,83 @@ onUnmounted(() => {
 
   &.fullscreen-panel {
     position: absolute;
-    left: 12px;
+    left: calc(12px + var(--safe-area-inset-left));
     top: calc(12px + var(--safe-area-inset-top));
-    bottom: 12px;
+    bottom: calc(12px + var(--safe-area-inset-bottom));
     z-index: 1001;
     width: 380px;
     max-width: calc(100% - 80px);
+    box-sizing: border-box;
+    padding: 12px;
+    border-radius: var(--r-m);
     box-shadow: var(--s-l);
     border: 1px solid var(--border-primary-color);
-    backdrop-filter: blur(12px);
+    backdrop-filter: blur(14px);
+    -webkit-backdrop-filter: blur(14px);
     background-color: rgba(var(--bg-primary-color-rgb), 0.95);
+    overflow: hidden;
+
+    .lists-container {
+      flex: 1 1 auto;
+      min-height: 0;
+      max-height: none;
+    }
+
+    @media (max-width: 640px) {
+      left: calc(8px + var(--safe-area-inset-left));
+      right: calc(8px + var(--safe-area-inset-right));
+      width: auto;
+      max-width: none;
+      top: auto;
+      bottom: calc(8px + var(--safe-area-inset-bottom));
+      max-height: calc(52vh - var(--safe-area-inset-bottom));
+      max-height: calc(52dvh - var(--safe-area-inset-bottom));
+      padding: 10px;
+      box-shadow: 0 -4px 20px rgba(0, 0, 0, 0.3);
+    }
+  }
+}
+
+.fullscreen-panel-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding-bottom: 6px;
+  border-bottom: 1px solid var(--border-secondary-color);
+  flex-shrink: 0;
+
+  .fullscreen-panel-title {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 0.88rem;
+    font-weight: 600;
+    color: var(--fg-primary-color);
+
+    .panel-title-icon {
+      font-size: 1.15rem;
+      color: var(--fg-accent-color);
+    }
+  }
+
+  .fullscreen-panel-close-btn {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 28px;
+    height: 28px;
+    border-radius: var(--r-xs);
+    border: none;
+    background-color: transparent;
+    color: var(--fg-secondary-color);
+    cursor: pointer;
+    font-size: 1.15rem;
+    transition: all 0.15s ease;
+
+    &:hover {
+      background-color: var(--bg-hover-color);
+      color: var(--fg-primary-color);
+    }
   }
 }
 
@@ -694,6 +784,7 @@ onUnmounted(() => {
   display: flex;
   flex-direction: column;
   gap: 8px;
+  flex-shrink: 0;
 }
 
 .search-input-wrapper {
@@ -820,15 +911,15 @@ onUnmounted(() => {
   }
 }
 
-/* Карточка выбранной точки: фиксированная высота и стабильная структура */
+/* Карточка выбранной точки: стабильная структура */
 .selected-point-card {
   display: flex;
   flex-direction: column;
   justify-content: space-between;
-  height: 74px;
   min-height: 74px;
-  max-height: 74px;
   padding: 8px 10px;
+  gap: 6px;
+  flex-shrink: 0;
   background: var(--bg-tertiary-color);
   border: 1px solid var(--border-secondary-color);
   border-radius: var(--r-s);
@@ -925,6 +1016,7 @@ onUnmounted(() => {
     overflow-x: auto;
     overflow-y: hidden;
     scrollbar-width: none;
+    -webkit-overflow-scrolling: touch;
 
     &::-webkit-scrollbar {
       display: none;
@@ -1002,6 +1094,7 @@ onUnmounted(() => {
 .geo-actions-toolbar {
   display: flex;
   flex-direction: column;
+  flex-shrink: 0;
 }
 
 .active-banner {

@@ -316,7 +316,6 @@ onMounted(() => {
       @include hover {
         & {
           border-radius: 10px;
-          transform: translateY(-1px);
           box-shadow: var(--s-l);
 
           .logo-icon {
@@ -377,7 +376,6 @@ onMounted(() => {
     @include hover {
       & {
         border-radius: 10px;
-        transform: translateY(-1px);
         box-shadow: var(--s-l);
       }
     }

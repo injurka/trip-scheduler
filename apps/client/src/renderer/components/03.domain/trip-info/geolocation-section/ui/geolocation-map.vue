@@ -407,7 +407,7 @@ watch(isMapLoaded, (isReady) => {
 .map-inline-search {
   position: absolute;
   top: calc(12px + var(--safe-area-inset-top));
-  left: 12px;
+  left: calc(12px + var(--safe-area-inset-left));
   z-index: 8;
 
   .search-trigger-btn {

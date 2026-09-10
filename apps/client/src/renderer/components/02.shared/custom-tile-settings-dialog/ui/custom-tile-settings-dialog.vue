@@ -373,7 +373,6 @@ function handleReset() {
   &:hover {
     background: var(--bg-hover-color);
     border-color: var(--fg-accent-color);
-    transform: translateY(-1px);
   }
 
   &.is-active {

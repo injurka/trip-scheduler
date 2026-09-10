@@ -964,7 +964,6 @@ function applyCrop() {
 
       &:hover {
         background: rgba(0, 0, 0, 0.8);
-        transform: translateY(-1px);
         border-color: rgba(255, 255, 255, 0.4);
       }
 

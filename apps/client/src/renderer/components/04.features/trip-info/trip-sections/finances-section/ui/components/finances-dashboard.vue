@@ -619,7 +619,6 @@ useMutationObserver(
   &.is-active {
     border-color: color-mix(in srgb, var(--fg-accent-color) 45%, var(--border-secondary-color));
     box-shadow: 0 1px 4px rgba(0, 0, 0, 0.05);
-    transform: translateY(-1px);
   }
 
   .legend-icon-badge {

@@ -461,13 +461,14 @@ onClickOutside(mapIframeContainerRef, () => {
 
 .poi-field {
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   gap: 6px;
 
   .field-icon {
     font-size: 0.95rem;
     color: var(--fg-tertiary-color);
     flex-shrink: 0;
+    margin-top: 2px;
   }
 
   &.comment-field {
@@ -568,7 +569,7 @@ onClickOutside(mapIframeContainerRef, () => {
   align-items: center;
   gap: 2px;
   flex-shrink: 0;
-  margin-left: 4px;
+  margin-left: auto;
 }
 
 .mini-btn {
@@ -757,7 +758,6 @@ onClickOutside(mapIframeContainerRef, () => {
     & {
       background-color: var(--bg-hover-color);
       border-color: var(--fg-accent-color);
-      transform: translateY(-1px);
     }
   }
 

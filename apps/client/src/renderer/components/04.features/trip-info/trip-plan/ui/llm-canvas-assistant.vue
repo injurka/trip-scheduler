@@ -363,7 +363,6 @@ defineExpose({
 
       @include hover {
         & {
-          transform: translateY(-1px);
           box-shadow: 0 4px 12px rgba(var(--fg-accent-color-rgb), 0.45);
         }
       }

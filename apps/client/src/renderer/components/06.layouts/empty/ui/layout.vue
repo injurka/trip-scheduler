@@ -1,9 +1,16 @@
 <script lang="ts" setup>
+import { useHead } from '@vueuse/head'
 import { BackgroundEffects } from '~/components/02.shared/background-effects'
+
+useHead({
+  htmlAttrs: {
+    class: 'layout-empty',
+  },
+})
 </script>
 
 <template>
-  <main class="main">
+  <main class="main empty-layout">
     <div class="main-content">
       <slot />
     </div>
@@ -13,6 +20,13 @@ import { BackgroundEffects } from '~/components/02.shared/background-effects'
 </template>
 
 <style scoped lang="scss">
+:global(html.layout-empty),
+:global(html:has(.empty-layout)),
+:global(body:has(.empty-layout)) {
+  scrollbar-gutter: auto !important;
+  overflow: hidden !important;
+}
+
 .main {
   display: flex;
   flex-direction: column;
@@ -31,5 +45,6 @@ import { BackgroundEffects } from '~/components/02.shared/background-effects'
   flex: 1;
   min-height: 0;
   width: 100%;
+  height: 100%;
 }
 </style>
