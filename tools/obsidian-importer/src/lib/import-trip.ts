@@ -4,6 +4,7 @@ import { colors } from '../config/colors'
 import { DEFAULT_TRIP_SECTIONS } from '../config/constants'
 import { parseActivitiesFromMarkdown } from '../parsers/activity'
 import { parseObsidianTripFolder } from '../parsers/vault'
+import { computeDayLlmHash, loadGeocodeCache, loadLlmCache, saveGeocodeCache, saveLlmCache } from './cache'
 import { enrichActivityWithMediaAndLocation } from './enricher'
 import { buildImageIndex } from './image-indexer'
 import { generateActivitiesViaDirectLlm, mergeLlmActivitiesWithRawMarkdown } from './llm'
@@ -275,7 +276,8 @@ export async function importTripFolderCore(
     progress?.('activities', 'Генерация и добавление блоков активностей')
 
     const imageIndex = uploadImages ? buildImageIndex(targetDir) : new Map<string, string>()
-    const geoCache = new Map<string, [number, number]>()
+    const geoCache = loadGeocodeCache()
+    const llmCache = loadLlmCache()
     const uploadCache = new Map<string, string>()
 
     for (const day of tripData.days) {
@@ -288,39 +290,55 @@ export async function importTripFolderCore(
 
       if (useLlm) {
         let llmActivities: import('../types').ActivityPayload[] | null = null
-        const directLlmKey = process.env.AI_HUBMIX_KEY || process.env.OPENAI_API_KEY
-        if (directLlmKey) {
-          try {
-            const directGenerated = await generateActivitiesViaDirectLlm(day.rawContent, options.llmModel)
-            if (directGenerated && directGenerated.length > 0) {
-              llmActivities = directGenerated
-            }
-            else {
-              throw new Error('LLM не вернул распознанных активностей')
-            }
-          }
-          catch (directErr: any) {
-            log?.(`Прямой LLM для дня ${day.dayNumber}: ${directErr.message}, пробую серверный`)
-          }
+        const dayHash = computeDayLlmHash(day.rawContent, options.llmModel || 'default')
+
+        if (llmCache.has(dayHash)) {
+          llmActivities = llmCache.get(dayHash)!.activities
+          log?.(`⚡ Использован кеш ИИ для дня ${day.dayNumber} (контент не менялся)`)
         }
-
-        if (!llmActivities) {
-          try {
-            const generated = await transport.generateDayTemplate?.(dayId, {
-              prompt: 'Преобразуй этот план дня в структурированные блоки расписания (активности) с точным временем начала и конца, тегами и подробными секциями с описанием.',
-              currentActivities: [],
-              canvasNote: day.rawContent,
-            })
-
-            if (Array.isArray(generated) && generated.length > 0) {
-              llmActivities = generated
+        else {
+          const directLlmKey = process.env.AI_HUBMIX_KEY || process.env.OPENAI_API_KEY
+          if (directLlmKey) {
+            try {
+              const directGenerated = await generateActivitiesViaDirectLlm(day.rawContent, options.llmModel)
+              if (directGenerated && directGenerated.length > 0) {
+                llmActivities = directGenerated
+              }
+              else {
+                throw new Error('LLM не вернул распознанных активностей')
+              }
             }
-            else {
-              throw new Error('Пустой ответ от сервера')
+            catch (directErr: any) {
+              log?.(`Прямой LLM для дня ${day.dayNumber}: ${directErr.message}, пробую серверный`)
             }
           }
-          catch (serverLlmErr: any) {
-            log?.(`Серверный LLM для дня ${day.dayNumber}: ${serverLlmErr.message}, использую встроенный парсер`)
+
+          if (!llmActivities) {
+            try {
+              const generated = await transport.generateDayTemplate?.(dayId, {
+                prompt: 'Преобразуй этот план дня в структурированные блоки расписания (активности) с точным временем начала и конца, тегами и подробными секциями с описанием.',
+                currentActivities: [],
+                canvasNote: day.rawContent,
+              })
+
+              if (Array.isArray(generated) && generated.length > 0) {
+                llmActivities = generated
+              }
+              else {
+                throw new Error('Пустой ответ от сервера')
+              }
+            }
+            catch (serverLlmErr: any) {
+              log?.(`Серверный LLM для дня ${day.dayNumber}: ${serverLlmErr.message}, использую встроенный парсер`)
+            }
+          }
+
+          if (llmActivities && llmActivities.length > 0) {
+            llmCache.set(dayHash, {
+              date: new Date().toISOString(),
+              model: options.llmModel || 'default',
+              activities: llmActivities,
+            })
           }
         }
 
@@ -375,6 +393,9 @@ export async function importTripFolderCore(
         }
       }
     }
+
+    saveGeocodeCache(geoCache)
+    saveLlmCache(llmCache)
   }
 
   log?.(`${colors.green}Импорт «${tripData.title}» завершен: дней ${dayIdMap.size}, активностей ${activitiesCreated}, заметок ${notesCreated}${colors.reset}`)

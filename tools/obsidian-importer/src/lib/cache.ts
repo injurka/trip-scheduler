@@ -1,3 +1,5 @@
+import type { ActivityPayload } from '../types'
+import { createHash } from 'node:crypto'
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs'
 import { dirname, join, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
@@ -5,7 +7,21 @@ import { fileURLToPath } from 'node:url'
 const __dirname = dirname(fileURLToPath(import.meta.url))
 const CACHE_DIR = resolve(__dirname, '../../.cache')
 const GEOCODE_CACHE_FILE = join(CACHE_DIR, 'geocode-cache.json')
-const UPLOAD_CACHE_FILE = join(CACHE_DIR, 'upload-cache.json')
+const LLM_CACHE_FILE = join(CACHE_DIR, 'llm-cache.json')
+
+export const LLM_PROMPT_VERSION = 'v1'
+
+export function computeDayLlmHash(content: string, modelName: string = 'default'): string {
+  return createHash('sha256')
+    .update(`${LLM_PROMPT_VERSION}::${modelName.trim()}::${content.trim()}`)
+    .digest('hex')
+}
+
+export interface LlmCacheEntry {
+  date: string
+  model: string
+  activities: ActivityPayload[]
+}
 
 function ensureCacheDir(): void {
   try {
@@ -48,32 +64,32 @@ export function saveGeocodeCache(cache: Map<string, [number, number]>): void {
   }
 }
 
-export function loadUploadCache(): Map<string, string> {
+export function loadLlmCache(): Map<string, LlmCacheEntry> {
   try {
-    if (existsSync(UPLOAD_CACHE_FILE)) {
-      const raw = readFileSync(UPLOAD_CACHE_FILE, 'utf-8')
+    if (existsSync(LLM_CACHE_FILE)) {
+      const raw = readFileSync(LLM_CACHE_FILE, 'utf-8')
       const parsed = JSON.parse(raw)
       if (parsed && typeof parsed === 'object') {
         const entries = Object.entries(parsed).filter(
-          ([, v]) => typeof v === 'string',
-        ) as Array<[string, string]>
+          ([, v]: any) => v && Array.isArray(v.activities),
+        ) as Array<[string, LlmCacheEntry]>
         return new Map(entries)
       }
     }
   }
   catch (err: any) {
-    console.warn(`[Cache] Предупреждение: не удалось прочитать кеш загрузки фото: ${err.message}`)
+    console.warn(`[Cache] Предупреждение: не удалось прочитать кеш ИИ: ${err.message}`)
   }
   return new Map()
 }
 
-export function saveUploadCache(cache: Map<string, string>): void {
+export function saveLlmCache(cache: Map<string, LlmCacheEntry>): void {
   try {
     ensureCacheDir()
     const obj = Object.fromEntries(cache)
-    writeFileSync(UPLOAD_CACHE_FILE, JSON.stringify(obj, null, 2), 'utf-8')
+    writeFileSync(LLM_CACHE_FILE, JSON.stringify(obj, null, 2), 'utf-8')
   }
   catch (err: any) {
-    console.warn(`[Cache] Ошибка сохранения кеша фото: ${err.message}`)
+    console.warn(`[Cache] Ошибка сохранения кеша ИИ: ${err.message}`)
   }
 }

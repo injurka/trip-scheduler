@@ -168,8 +168,29 @@ class S3Service {
         )
       }
     }
-    catch (error) {
-      console.error('S3 DeleteFiles Error:', error)
+    catch (error: any) {
+      // Некоторые S3-совместимые хранилища (например, BunnyCDN Storage S3) не реализуют bulk-удаление (501 NotImplemented).
+      // В таком случае удаляем файлы поштучно параллельными пачками.
+      console.warn(`[S3] Пакетное удаление DeleteObjectsCommand не поддерживается хранилищем (${error.name || error.message}). Переключаемся на параллельное поштучное удаление DeleteObjectCommand...`)
+      try {
+        const CONCURRENCY = 25
+        for (let i = 0; i < validKeys.length; i += CONCURRENCY) {
+          const batch = validKeys.slice(i, i + CONCURRENCY)
+          await Promise.allSettled(
+            batch.map(Key =>
+              this.client.send(
+                new DeleteObjectCommand({
+                  Bucket: this.bucket,
+                  Key,
+                }),
+              ),
+            ),
+          )
+        }
+      }
+      catch (fallbackError) {
+        console.error('S3 DeleteFiles fallback Error:', fallbackError)
+      }
     }
   }
 
@@ -200,6 +221,22 @@ class S3Service {
 
         continuationToken = listResponse.IsTruncated ? listResponse.NextContinuationToken : undefined
       } while (continuationToken)
+
+      // Дополнительно удаляем префикс как объект, если S3 хранилище создало отдельный маркер каталога
+      const rawPrefix = prefix.replace(/\/+$/, '')
+      if (rawPrefix) {
+        try {
+          await this.client.send(
+            new DeleteObjectCommand({
+              Bucket: this.bucket,
+              Key: rawPrefix,
+            }),
+          )
+        }
+        catch {
+          // Игнорируем ошибку, если маркер не существует
+        }
+      }
     }
     catch (error) {
       console.error(`S3 DeleteFolder Error for prefix ${prefix}:`, error)

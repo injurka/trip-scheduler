@@ -4,7 +4,13 @@ import { colors } from '../config/colors'
 import { loadEnvIfAvailable } from '../config/env'
 import { loadImporterConfig } from '../config/loader'
 import { ApiClient } from '../lib/api-client'
-import { loadGeocodeCache, loadUploadCache, saveGeocodeCache, saveUploadCache } from '../lib/cache'
+import {
+  computeDayLlmHash,
+  loadGeocodeCache,
+  loadLlmCache,
+  saveGeocodeCache,
+  saveLlmCache,
+} from '../lib/cache'
 import { enrichActivityWithMediaAndLocation } from '../lib/enricher'
 import { buildImageIndex } from '../lib/image-indexer'
 import { generateActivitiesViaDirectLlm, mergeLlmActivitiesWithRawMarkdown } from '../lib/llm'
@@ -485,9 +491,10 @@ export async function runImport(): Promise<void> {
   let totalImagesUploaded = 0
   let totalLocationsGeocoded = 0
 
-  // Load persistent caches (shared across all days in this run)
+  // Persistent caches (geocode + content-addressed LLM) and in-memory upload cache for the current run
   const geoCache = loadGeocodeCache()
-  const uploadCache = loadUploadCache()
+  const llmCache = loadLlmCache()
+  const uploadCache = new Map<string, string>()
 
   if (importActivities && importDays) {
     console.log(`\n${colors.dim}🧩 Генерация и добавление блоков активностей...${colors.reset}`)
@@ -497,8 +504,8 @@ export async function runImport(): Promise<void> {
     if (geoCache.size > 0) {
       console.log(`  ${colors.dim}📍 Загружен кеш геокодирования: ${geoCache.size} локаций${colors.reset}`)
     }
-    if (uploadCache.size > 0) {
-      console.log(`  ${colors.dim}📸 Загружен кеш загрузки фото: ${uploadCache.size} файлов${colors.reset}`)
+    if (llmCache.size > 0) {
+      console.log(`  ${colors.dim}🤖 Загружен кеш ИИ распознавания: ${llmCache.size} дней${colors.reset}`)
     }
 
     if (imageIndex.size > 0) {
@@ -517,21 +524,51 @@ export async function runImport(): Promise<void> {
 
       if (useLlm) {
         let llmActivities: ActivityPayload[] | null = null
-        const directLlmKey = process.env.AI_HUBMIX_KEY || process.env.OPENAI_API_KEY
-        if (directLlmKey) {
-          try {
-            process.stdout.write(`    ${colors.dim}🤖 Запрос к LLM (${colors.cyan}${selectedModel}${colors.dim})...${colors.reset} `)
-            const directGenerated = await generateActivitiesViaDirectLlm(day.rawContent, selectedModel)
-            if (directGenerated && directGenerated.length > 0) {
-              llmActivities = directGenerated
-              process.stdout.write(`${colors.green}OK (получено ${directGenerated.length} блоков)${colors.reset}\n`)
+        const dayHash = computeDayLlmHash(day.rawContent, selectedModel)
+
+        if (llmCache.has(dayHash)) {
+          const cachedEntry = llmCache.get(dayHash)!
+          llmActivities = cachedEntry.activities
+          console.log(`    ${colors.green}⚡ Использован кеш ИИ${colors.reset} ${colors.dim}(контент не менялся, получено ${llmActivities.length} блоков, 0 токенов)${colors.reset}`)
+        }
+        else {
+          const directLlmKey = process.env.AI_HUBMIX_KEY || process.env.OPENAI_API_KEY
+          if (directLlmKey) {
+            try {
+              process.stdout.write(`    ${colors.dim}🤖 Запрос к LLM (${colors.cyan}${selectedModel}${colors.dim})...${colors.reset} `)
+              const directGenerated = await generateActivitiesViaDirectLlm(day.rawContent, selectedModel)
+              if (directGenerated && directGenerated.length > 0) {
+                llmActivities = directGenerated
+                process.stdout.write(`${colors.green}OK (получено ${directGenerated.length} блоков)${colors.reset}\n`)
+              }
+              else {
+                throw new Error('LLM не вернул распознанных активностей')
+              }
             }
-            else {
-              throw new Error('LLM не вернул распознанных активностей')
+            catch (directErr: any) {
+              process.stdout.write(`${colors.yellow}Ошибка прямого LLM: ${directErr.message}. Пробую серверный LLM...${colors.reset}\n`)
+              try {
+                process.stdout.write(`    ${colors.dim}🤖 Запрос к LLM на сервере...${colors.reset} `)
+                const generated = await api.generateDayTemplate(dayId, {
+                  prompt: 'Преобразуй этот план дня в структурированные блоки расписания (активности) с точным временем начала и конца, тегами и подробными секциями с описанием.',
+                  currentActivities: [],
+                  canvasNote: day.rawContent,
+                })
+
+                if (Array.isArray(generated) && generated.length > 0) {
+                  llmActivities = generated
+                  process.stdout.write(`${colors.green}OK (получено ${generated.length} блоков)${colors.reset}\n`)
+                }
+                else {
+                  throw new Error('Пустой ответ от сервера')
+                }
+              }
+              catch (serverLlmErr: any) {
+                process.stdout.write(`${colors.yellow}Серверный LLM: ${serverLlmErr.message}. Использую встроенный парсер...${colors.reset}\n`)
+              }
             }
           }
-          catch (directErr: any) {
-            process.stdout.write(`${colors.yellow}Ошибка прямого LLM: ${directErr.message}. Пробую серверный LLM...${colors.reset}\n`)
+          else {
             try {
               process.stdout.write(`    ${colors.dim}🤖 Запрос к LLM на сервере...${colors.reset} `)
               const generated = await api.generateDayTemplate(dayId, {
@@ -549,29 +586,16 @@ export async function runImport(): Promise<void> {
               }
             }
             catch (serverLlmErr: any) {
-              process.stdout.write(`${colors.yellow}Серверный LLM: ${serverLlmErr.message}. Использую встроенный парсер...${colors.reset}\n`)
+              process.stdout.write(`${colors.yellow}Серверный LLM: ${serverLlmErr.message}${colors.reset}\n`)
             }
           }
-        }
-        else {
-          try {
-            process.stdout.write(`    ${colors.dim}🤖 Запрос к LLM на сервере...${colors.reset} `)
-            const generated = await api.generateDayTemplate(dayId, {
-              prompt: 'Преобразуй этот план дня в структурированные блоки расписания (активности) с точным временем начала и конца, тегами и подробными секциями с описанием.',
-              currentActivities: [],
-              canvasNote: day.rawContent,
-            })
 
-            if (Array.isArray(generated) && generated.length > 0) {
-              llmActivities = generated
-              process.stdout.write(`${colors.green}OK (получено ${generated.length} блоков)${colors.reset}\n`)
-            }
-            else {
-              throw new Error('Пустой ответ от сервера')
-            }
-          }
-          catch (serverLlmErr: any) {
-            process.stdout.write(`${colors.yellow}Серверный LLM: ${serverLlmErr.message}${colors.reset}\n`)
+          if (llmActivities && llmActivities.length > 0) {
+            llmCache.set(dayHash, {
+              date: new Date().toISOString(),
+              model: selectedModel,
+              activities: llmActivities,
+            })
           }
         }
 
@@ -696,9 +720,14 @@ export async function runImport(): Promise<void> {
 
   // Persist caches to disk for future runs
   saveGeocodeCache(geoCache)
-  saveUploadCache(uploadCache)
-  if (geoCache.size > 0 || uploadCache.size > 0) {
-    console.log(`\n${colors.dim}💾 Кеши сохранены: ${geoCache.size} локаций, ${uploadCache.size} фото${colors.reset}`)
+  saveLlmCache(llmCache)
+  const savedMessages: string[] = []
+  if (geoCache.size > 0)
+    savedMessages.push(`${geoCache.size} локаций`)
+  if (llmCache.size > 0)
+    savedMessages.push(`${llmCache.size} дней ИИ`)
+  if (savedMessages.length > 0) {
+    console.log(`\n${colors.dim}💾 Кеши сохранены: ${savedMessages.join(', ')}${colors.reset}`)
   }
 
   console.log(`\n${colors.bright}${colors.green}════════════════════════════════════════════════════════════════════${colors.reset}`)
