@@ -204,6 +204,10 @@ export interface TripDocumentResponse {
   metadata: {
     access: DocumentAccess
     folderId: string | null
+    title?: string | null
+    category?: string | null
+    isFavorite?: boolean
+    note?: string | null
   }
 }
 
@@ -233,7 +237,14 @@ export interface IFileRepository {
   listDocuments: (tripId: string) => Promise<TripDocumentResponse[]>
   updateDocumentMeta: (
     id: string,
-    metadata: { access?: DocumentAccess, folderId?: string | null },
+    metadata: {
+      access?: DocumentAccess
+      folderId?: string | null
+      title?: string | null
+      category?: string | null
+      isFavorite?: boolean
+      note?: string | null
+    },
   ) => Promise<TripDocumentResponse>
 }
 

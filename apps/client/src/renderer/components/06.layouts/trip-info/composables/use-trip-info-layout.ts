@@ -112,6 +112,7 @@ export function useTripInfoLayout() {
     const currentQuery = { ...route.query }
     delete currentQuery.day
     delete currentQuery.section
+    delete currentQuery.folder
 
     if (id === 'trip-map') {
       router.push({ query: { ...currentQuery, section: 'map' } })

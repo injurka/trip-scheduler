@@ -11,9 +11,18 @@ interface Props {
 
 const props = defineProps<Props>()
 
+const emit = defineEmits<{
+  (e: 'toggleFullscreen'): void
+}>()
 const filterDay = defineModel<string>('filterDay', { required: true })
 const filterRating = defineModel<number>('filterRating', { required: true })
 const sortOrder = defineModel<string>('sortOrder', { required: true })
+const isFullscreen = defineModel<boolean>('isFullscreen', { default: false })
+
+function toggleFullscreen() {
+  isFullscreen.value = !isFullscreen.value
+  emit('toggleFullscreen')
+}
 
 const currentFilterLabel = computed(() =>
   props.availableDays.find(d => d.value === filterDay.value)?.label || 'Все дни',
@@ -67,17 +76,31 @@ const starColor = computed(() => filterRating.value > 0 ? 'var(--c-orange-500)' 
       </div>
     </div>
 
-    <!-- Правая часть: Сортировка -->
-    <div class="filter-group sort-group">
-      <KitDropdown v-model="sortOrder" :items="sortOptions" align="end">
-        <template #trigger>
-          <KitTooltip text="Сортировка">
-            <button class="icon-trigger" aria-label="Сортировка">
-              <Icon icon="mdi:sort" />
-            </button>
-          </KitTooltip>
-        </template>
-      </KitDropdown>
+    <!-- Правая часть: Действия и сортировка -->
+    <div class="right-controls">
+      <div class="filter-group sort-group">
+        <KitDropdown v-model="sortOrder" :items="sortOptions" align="end">
+          <template #trigger>
+            <KitTooltip text="Сортировка">
+              <button class="icon-trigger" aria-label="Сортировка">
+                <Icon icon="mdi:sort" />
+              </button>
+            </KitTooltip>
+          </template>
+        </KitDropdown>
+      </div>
+
+      <div class="filter-group fullscreen-group">
+        <KitTooltip :text="isFullscreen ? 'Свернуть' : 'На весь экран'">
+          <button
+            class="icon-trigger"
+            :aria-label="isFullscreen ? 'Свернуть' : 'На весь экран'"
+            @click="toggleFullscreen"
+          >
+            <Icon :icon="isFullscreen ? 'mdi:fullscreen-exit' : 'mdi:fullscreen'" />
+          </button>
+        </KitTooltip>
+      </div>
     </div>
   </div>
 </template>
@@ -100,6 +123,12 @@ const starColor = computed(() => filterRating.value > 0 ? 'var(--c-orange-500)' 
   align-items: center;
   gap: 12px;
   flex-wrap: wrap;
+}
+
+.right-controls {
+  display: flex;
+  align-items: center;
+  gap: 8px;
 }
 
 .divider {
@@ -282,9 +311,12 @@ const starColor = computed(() => filterRating.value > 0 ? 'var(--c-orange-500)' 
     }
   }
 
-  .sort-group {
+  .right-controls {
     grid-column: 2;
     grid-row: 1;
+    display: flex;
+    align-items: center;
+    gap: 6px;
     justify-content: flex-end;
 
     .icon-trigger {

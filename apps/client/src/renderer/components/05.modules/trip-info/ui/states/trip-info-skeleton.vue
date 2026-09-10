@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { useRoute } from 'vue-router'
 import { KitSkeleton } from '~/components/01.kit/kit-skeleton'
+import TripDocumentsSkeleton from './trip-documents-skeleton.vue'
 import TripGenericSectionSkeleton from './trip-generic-section-skeleton.vue'
 import TripMapSkeleton from './trip-map-skeleton.vue'
 import TripNotesSkeleton from './trip-notes-skeleton.vue'
@@ -74,6 +75,7 @@ const sectionQuery = computed(() => route.query.section as string)
 
   <TripNotesSkeleton v-else-if="sectionQuery === 'notes'" />
   <TripMapSkeleton v-else-if="sectionQuery === 'map'" />
+  <TripDocumentsSkeleton v-else-if="sectionQuery === 'documents'" />
   <TripGenericSectionSkeleton v-else-if="sectionQuery && sectionQuery !== 'overview'" />
 
   <TripOverviewSkeleton v-else />

@@ -160,41 +160,71 @@ onClickOutside(dateFilterWrapperRef, () => {
 
 <template>
   <div class="finances-section">
-    <div class="category-filter-pills">
-      <!-- Фильтры по типу (основные/дополнительные) -->
-      <button
-        v-ripple
-        class="filter-pill type-pill planned"
-        :class="{ active: typeFilter === 'planned' }"
-        @click="typeFilter = typeFilter === 'planned' ? 'all' : 'planned'"
-      >
-        <Icon icon="mdi:target" />
-        <span>План</span>
-      </button>
-      <button
-        v-ripple
-        class="filter-pill type-pill spontaneous"
-        :class="{ active: typeFilter === 'spontaneous' }"
-        @click="typeFilter = typeFilter === 'spontaneous' ? 'all' : 'spontaneous'"
-      >
-        <Icon icon="mdi:sparkles" />
-        <span>Спонтанно</span>
-      </button>
+    <div class="filters-bar">
+      <div class="category-filter-pills">
+        <!-- Фильтры по типу (основные/дополнительные) -->
+        <button
+          v-ripple
+          class="filter-pill type-pill planned"
+          :class="{ active: typeFilter === 'planned' }"
+          @click="typeFilter = typeFilter === 'planned' ? 'all' : 'planned'"
+        >
+          <Icon icon="mdi:target" />
+          <span>План</span>
+        </button>
+        <button
+          v-ripple
+          class="filter-pill type-pill spontaneous"
+          :class="{ active: typeFilter === 'spontaneous' }"
+          @click="typeFilter = typeFilter === 'spontaneous' ? 'all' : 'spontaneous'"
+        >
+          <Icon icon="mdi:sparkles" />
+          <span>Спонтанно</span>
+        </button>
 
-      <div class="pill-divider" />
+        <div class="pill-divider" />
 
-      <!-- Фильтры по категориям -->
-      <button
-        v-for="item in categoryFilterItems"
-        :key="String(item.value)"
-        v-ripple
-        class="filter-pill"
-        :class="{ active: item.value === 'ALL' ? selectedCategoryFilters.length === 0 : selectedCategoryFilters.includes(item.value) }"
-        @click="item.value === 'ALL' ? toggleCategoryFilter(null) : toggleCategoryFilter(item.value)"
-      >
-        <Icon :icon="item.icon" />
-        <span>{{ item.label }}</span>
-      </button>
+        <!-- Фильтры по категориям -->
+        <button
+          v-for="item in categoryFilterItems"
+          :key="String(item.value)"
+          v-ripple
+          class="filter-pill"
+          :class="{ active: item.value === 'ALL' ? selectedCategoryFilters.length === 0 : selectedCategoryFilters.includes(item.value) }"
+          @click="item.value === 'ALL' ? toggleCategoryFilter(null) : toggleCategoryFilter(item.value)"
+        >
+          <Icon :icon="item.icon" />
+          <span>{{ item.label }}</span>
+        </button>
+      </div>
+
+      <div ref="dateFilterWrapperRef" class="date-filter-wrapper">
+        <KitBtn
+          icon="mdi:calendar-blank-outline"
+          variant="tonal"
+          size="sm"
+          :class="{ 'has-active-filter': dateFilter.start || dateFilter.end }"
+          @click="isDateFilterOpen = !isDateFilterOpen"
+        >
+          {{ formattedDateFilter }}
+        </KitBtn>
+        <div v-if="isDateFilterOpen" class="calendar-popover">
+          <KitCalendarRange
+            v-model="calendarDateFilter"
+            :min-value="availableDateRange.minValue"
+            :max-value="availableDateRange.maxValue"
+            :initial-focus-date="availableDateRange.maxValue"
+          />
+          <div class="popover-actions">
+            <KitBtn variant="text" size="sm" @click="clearDateFilter">
+              Сбросить
+            </KitBtn>
+            <KitBtn size="sm" @click="isDateFilterOpen = false">
+              Применить
+            </KitBtn>
+          </div>
+        </div>
+      </div>
     </div>
 
     <FinancesDashboard
@@ -208,43 +238,24 @@ onClickOutside(dateFilterWrapperRef, () => {
 
     <div class="toolbar">
       <div class="main-actions">
-        <KitBtn v-if="!readonly" icon="mdi:plus" variant="subtle" @click="openTransactionForm()">
+        <KitBtn v-if="!readonly" icon="mdi:plus" variant="solid" @click="openTransactionForm()">
           Добавить трату
         </KitBtn>
-        <KitBtn v-if="!readonly" icon="mdi:auto-fix" variant="tonal" @click="isAiCreatorOpen = !isAiCreatorOpen">
-          AI
+        <KitBtn
+          v-if="!readonly"
+          icon="mdi:auto-fix"
+          variant="tonal"
+          :class="{ active: isAiCreatorOpen }"
+          title="Быстрый ввод списка трат через AI или распознавание чека"
+          @click="isAiCreatorOpen = !isAiCreatorOpen"
+        >
+          Чек / AI-ввод
         </KitBtn>
       </div>
 
       <div class="secondary-actions">
         <KitBtn v-if="!readonly" icon="mdi:tag-outline" variant="tonal" title="Управление категориями" @click="handleOpenCategoryManager" />
         <KitBtn v-if="!readonly" icon="mdi:cog-outline" variant="tonal" title="Настройки" @click="isSettingsOpen = true" />
-
-        <div ref="dateFilterWrapperRef" class="date-filter-wrapper">
-          <KitBtn
-            icon="mdi:calendar-blank-outline"
-            variant="tonal"
-            @click="isDateFilterOpen = !isDateFilterOpen"
-          >
-            {{ formattedDateFilter }}
-          </KitBtn>
-          <div v-if="isDateFilterOpen" class="calendar-popover">
-            <KitCalendarRange
-              v-model="calendarDateFilter"
-              :min-value="availableDateRange.minValue"
-              :max-value="availableDateRange.maxValue"
-              :initial-focus-date="availableDateRange.maxValue"
-            />
-            <div class="popover-actions">
-              <KitBtn variant="text" size="sm" @click="clearDateFilter">
-                Сбросить
-              </KitBtn>
-              <KitBtn size="sm" @click="isDateFilterOpen = false">
-                Применить
-              </KitBtn>
-            </div>
-          </div>
-        </div>
       </div>
     </div>
 
@@ -300,11 +311,20 @@ onClickOutside(dateFilterWrapperRef, () => {
   z-index: 6;
 }
 
+.filters-bar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 1rem;
+  flex-wrap: wrap;
+}
+
 .category-filter-pills {
   display: flex;
   flex-wrap: wrap;
   gap: 0.5rem;
   align-items: center;
+  flex-grow: 1;
 }
 
 .pill-divider {
@@ -391,6 +411,8 @@ onClickOutside(dateFilterWrapperRef, () => {
   border: 1px solid var(--border-secondary-color);
   border-radius: var(--r-m);
   padding: 0.5rem;
+  display: flex;
+  align-items: center;
   box-shadow: var(--shadow-l);
 }
 
@@ -411,6 +433,21 @@ onClickOutside(dateFilterWrapperRef, () => {
 }
 
 @include media-down(sm) {
+  .filters-bar {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 0.75rem;
+
+    .date-filter-wrapper {
+      width: 100%;
+
+      .kit-btn {
+        width: 100%;
+        justify-content: center;
+      }
+    }
+  }
+
   .toolbar {
     flex-direction: column;
     align-items: stretch;

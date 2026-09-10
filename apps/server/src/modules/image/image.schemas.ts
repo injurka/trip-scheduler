@@ -43,6 +43,10 @@ export const GetImageMetadataInputSchema = z.object({ id: z.string().uuid() })
 export const DocumentMetadataSchema = z.object({
   access: z.enum(['public', 'private']).default('private'),
   folderId: z.string().nullable().default(null),
+  title: z.string().nullable().optional(),
+  category: z.string().nullable().optional(),
+  isFavorite: z.boolean().nullable().optional(),
+  note: z.string().nullable().optional(),
 })
 
 export const TripDocumentSchema = z.object({

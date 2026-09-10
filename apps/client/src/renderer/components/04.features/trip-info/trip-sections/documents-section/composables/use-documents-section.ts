@@ -1,9 +1,16 @@
-import type { DocumentFile, DocumentFolder, DocumentsSectionContent } from '../models/types'
+import type {
+  DocumentCategory,
+  DocumentFile,
+  DocumentsSectionContent,
+} from '../models/types'
 import type { TripDocumentResponse } from '~/shared/services/api/model/types'
-import { useDebounceFn } from '@vueuse/core'
-import { v4 as uuidv4 } from 'uuid'
+import { computed, onMounted, ref } from 'vue'
 import { useRequest } from '~/plugins/request'
 import { useOfflineStore } from '~/shared/store/offline.store'
+import { useDocumentFilters } from './use-document-filters'
+import { useDocumentFolders } from './use-document-folders'
+import { useDocumentSelection } from './use-document-selection'
+import { useDocumentUpload } from './use-document-upload'
 
 interface UseDocumentsSectionProps {
   section: {
@@ -24,11 +31,23 @@ export function useDocumentsSection(
   const offlineStore = useOfflineStore()
 
   const documents = ref<DocumentFile[]>([])
-  const folders = ref<DocumentFolder[]>(JSON.parse(JSON.stringify(props.section.content?.folders || [])))
-
-  const currentFolderId = ref<string | null>(null)
-  const isUploading = ref(false)
   const isFetching = ref(false)
+
+  function mapResponseToDoc(d: TripDocumentResponse): DocumentFile {
+    return {
+      id: d.id,
+      url: d.url,
+      originalName: d.originalName,
+      sizeBytes: d.sizeBytes,
+      createdAt: d.createdAt,
+      access: d.metadata.access,
+      folderId: d.metadata.folderId,
+      title: d.metadata.title ?? null,
+      category: (d.metadata.category as DocumentCategory) ?? null,
+      isFavorite: Boolean(d.metadata.isFavorite),
+      note: d.metadata.note ?? null,
+    }
+  }
 
   async function loadDocuments() {
     isFetching.value = true
@@ -39,40 +58,16 @@ export function useDocumentsSection(
         if ((!res || res.length === 0) && offlineStore.isTripCached(props.section.tripId)) {
           const cachedDocs = offlineStore.getSavedTripDocuments(props.section.tripId)
           if (cachedDocs && cachedDocs.length > 0) {
-            documents.value = cachedDocs.map(d => ({
-              id: d.id,
-              url: d.url,
-              originalName: d.originalName,
-              sizeBytes: d.sizeBytes,
-              createdAt: d.createdAt,
-              access: d.metadata.access,
-              folderId: d.metadata.folderId,
-            }))
+            documents.value = cachedDocs.map(mapResponseToDoc)
             return
           }
         }
-        documents.value = res.map(d => ({
-          id: d.id,
-          url: d.url,
-          originalName: d.originalName,
-          sizeBytes: d.sizeBytes,
-          createdAt: d.createdAt,
-          access: d.metadata.access,
-          folderId: d.metadata.folderId,
-        }))
+        documents.value = res.map(mapResponseToDoc)
       },
       onError: () => {
         const cachedDocs = offlineStore.getSavedTripDocuments(props.section.tripId)
         if (cachedDocs && cachedDocs.length > 0) {
-          documents.value = cachedDocs.map(d => ({
-            id: d.id,
-            url: d.url,
-            originalName: d.originalName,
-            sizeBytes: d.sizeBytes,
-            createdAt: d.createdAt,
-            access: d.metadata.access,
-            folderId: d.metadata.folderId,
-          }))
+          documents.value = cachedDocs.map(mapResponseToDoc)
           toast.info('Нет подключения к сети. Загружены офлайн-документы.')
           return
         }
@@ -84,105 +79,39 @@ export function useDocumentsSection(
 
   onMounted(() => loadDocuments())
 
-  const debouncedUpdate = useDebounceFn(() => {
-    emit('updateSection', {
-      ...props.section,
-      content: {
-        folders: folders.value,
+  // Базовые операции над отдельными документами
+  async function updateDocument(updatedDoc: DocumentFile) {
+    const prev = documents.value.find(d => d.id === updatedDoc.id)
+    const index = documents.value.findIndex(d => d.id === updatedDoc.id)
+    if (index !== -1) {
+      documents.value[index] = { ...updatedDoc }
+    }
+
+    await useRequest({
+      key: `documents:update:${updatedDoc.id}`,
+      fn: api =>
+        api.files.updateDocumentMeta(updatedDoc.id, {
+          folderId: updatedDoc.folderId,
+          access: updatedDoc.access,
+          title: updatedDoc.title,
+          category: updatedDoc.category,
+          isFavorite: updatedDoc.isFavorite,
+          note: updatedDoc.note,
+        }),
+      onError: () => {
+        if (prev && index !== -1) {
+          documents.value[index] = prev
+        }
+        toast.error('Не удалось обновить документ')
       },
     })
-  }, 700)
-
-  const breadcrumbs = computed(() => {
-    const crumbs = [{ id: null as string | null, name: 'Все документы' }]
-
-    if (currentFolderId.value) {
-      const folder = folders.value.find(f => f.id === currentFolderId.value)
-      if (folder) {
-        crumbs.push({ id: folder.id, name: folder.name })
-      }
-    }
-    return crumbs
-  })
-
-  const visibleFolders = computed(() => currentFolderId.value ? [] : folders.value)
-  const visibleDocuments = computed(() => documents.value.filter(d => d.folderId === currentFolderId.value))
-
-  async function addFolder(name: string) {
-    if (props.readonly || !name.trim())
-      return
-    folders.value.unshift({ id: uuidv4(), name: name.trim() })
-  }
-
-  async function deleteFolder(folderId: string) {
-    const isConfirmed = await confirm({
-      title: 'Удалить папку?',
-      description: 'Все документы внутри папки будут перемещены в корень. Это действие необратимо.',
-      type: 'danger',
-    })
-    if (isConfirmed) {
-      folders.value = folders.value.filter(f => f.id !== folderId)
-
-      const docsToUpdate = documents.value.filter(d => d.folderId === folderId)
-      docsToUpdate.forEach(d => updateDocument({ ...d, folderId: null }))
-    }
-  }
-
-  function updateFolder(folder: DocumentFolder) {
-    const index = folders.value.findIndex(f => f.id === folder.id)
-    if (index !== -1)
-      folders.value[index] = folder
-  }
-
-  async function uploadFiles(files: File[], folderId: string | null, access: 'public' | 'private') {
-    if (props.readonly || files.length === 0)
-      return
-
-    isUploading.value = true
-    try {
-      const uploadedDocs = await Promise.all(files.map((file, idx) =>
-        useRequest({
-          key: `documents:upload:${Date.now()}_${idx}`,
-          cancelPrevious: false,
-          fn: api => api.files.uploadFile(file, props.section.tripId, 'trip', 'documents', null, null, { access, folderId }),
-        }),
-      )) as (TripDocumentResponse | null)[]
-
-      for (const res of uploadedDocs) {
-        if (res) {
-          const docAccess = res.metadata?.access || access
-          const docFolderId = res.metadata?.folderId !== undefined ? res.metadata.folderId : folderId
-
-          const newDoc: DocumentFile = {
-            id: res.id,
-            url: res.url,
-            originalName: res.originalName,
-            sizeBytes: res.sizeBytes,
-            createdAt: res.createdAt,
-            access: docAccess,
-            folderId: docFolderId,
-          }
-
-          documents.value.unshift(newDoc)
-
-          // WORKAROUND: Если сервер не сохранил folderId из multipart payload'а,
-          // принудительно обновляем метаданные через JSON endpoint.
-          if (folderId && res.metadata?.folderId !== folderId) {
-            await updateDocument(newDoc)
-          }
-        }
-      }
-      toast.success(`Успешно загружено ${files.length} файла(ов).`)
-    }
-    finally {
-      isUploading.value = false
-    }
   }
 
   async function deleteDocument(docId: string) {
+    const doc = documents.value.find(d => d.id === docId)
     const isConfirmed = await confirm({
-      title: 'Удалить документ?',
-      description: 'Действие необратимо.',
+      title: `Удалить «${doc?.title || doc?.originalName || 'документ'}»?`,
+      description: 'Файл будет удален навсегда.',
       type: 'danger',
     })
 
@@ -192,46 +121,134 @@ export function useDocumentsSection(
         fn: api => api.files.deleteFile(docId),
         onSuccess: () => {
           documents.value = documents.value.filter(d => d.id !== docId)
-          toast.success('Удалено')
+          toast.success('Документ удален')
         },
-        onError: () => toast.error('Ошибка удаления'),
+        onError: () => {
+          toast.error('Не удалось удалить документ')
+        },
       })
     }
   }
 
-  async function updateDocument(doc: DocumentFile) {
-    const index = documents.value.findIndex(d => d.id === doc.id)
-    if (index !== -1) {
-      documents.value[index] = doc
-    }
-
-    await useRequest({
-      key: `documents:update:${doc.id}`,
-      fn: api => api.files.updateDocumentMeta(doc.id, { access: doc.access, folderId: doc.folderId }),
+  async function toggleFavorite(doc: DocumentFile) {
+    await updateDocument({
+      ...doc,
+      isFavorite: !doc.isFavorite,
     })
   }
 
-  function setCurrentFolder(folderId: string | null) {
-    currentFolderId.value = folderId
+  // Декомпозированные подсистемы
+  const foldersModule = useDocumentFolders(
+    props,
+    emit,
+    documents,
+    ref(''),
+    ref('all'),
+    ref(false),
+    updateDocument,
+  )
+
+  async function moveDocument(doc: DocumentFile, targetFolderId: string | null) {
+    if (doc.folderId === targetFolderId)
+      return
+    await updateDocument({
+      ...doc,
+      folderId: targetFolderId,
+    })
+    const targetName = targetFolderId ? foldersModule.folders.value.find(f => f.id === targetFolderId)?.name : 'Корень'
+    toast.success(`Перемещено в «${targetName || 'Все документы'}»`)
   }
 
-  watch(folders, debouncedUpdate, { deep: true })
+  // Общая статистика
+  const totalStats = computed(() => ({
+    count: documents.value.length,
+    sizeBytes: documents.value.reduce((acc, d) => acc + d.sizeBytes, 0),
+    favoritesCount: documents.value.filter(d => d.isFavorite).length,
+  }))
+
+  const filtersModule = useDocumentFilters(
+    documents,
+    foldersModule.currentFolderId,
+  )
+
+  // Перенаправляем фильтры в foldersModule для точного расчета видимых папок
+  const visibleFolders = computed(() => {
+    if (foldersModule.currentFolderId.value)
+      return []
+    if (
+      filtersModule.searchQuery.value.trim()
+      || filtersModule.selectedCategory.value !== 'all'
+      || filtersModule.onlyFavorites.value
+    ) {
+      return []
+    }
+    return foldersModule.folders.value
+  })
+
+  const selectionModule = useDocumentSelection(
+    documents,
+    foldersModule.folders,
+    filtersModule.filteredDocuments,
+    updateDocument,
+  )
+
+  const uploadModule = useDocumentUpload(
+    props.section.tripId,
+    props.readonly,
+    documents,
+    updateDocument,
+  )
 
   return {
+    // Документы и общее состояние
     documents,
-    folders,
-    currentFolderId,
-    isUploading,
     isFetching,
-    breadcrumbs,
-    visibleFolders,
-    visibleDocuments,
-    addFolder,
-    deleteFolder,
-    updateFolder,
-    uploadFiles,
-    deleteDocument,
+    totalStats,
+    loadDocuments,
     updateDocument,
-    setCurrentFolder,
+    deleteDocument,
+    toggleFavorite,
+    moveDocument,
+
+    // Папки
+    folders: foldersModule.folders,
+    currentFolderId: foldersModule.currentFolderId,
+    currentFolder: foldersModule.currentFolder,
+    breadcrumbs: foldersModule.breadcrumbs,
+    folderStats: foldersModule.folderStats,
+    visibleFolders,
+    isAddingFolder: foldersModule.isAddingFolder,
+    addFolder: foldersModule.addFolder,
+    deleteFolder: foldersModule.deleteFolder,
+    updateFolder: foldersModule.updateFolder,
+    renameFolder: foldersModule.renameFolder,
+    setCurrentFolder: foldersModule.setCurrentFolder,
+
+    // Фильтры, поиск, сортировка
+    searchQuery: filtersModule.searchQuery,
+    selectedCategory: filtersModule.selectedCategory,
+    onlyFavorites: filtersModule.onlyFavorites,
+    sortOption: filtersModule.sortOption,
+    viewMode: filtersModule.viewMode,
+    sortOptions: filtersModule.sortOptions,
+    currentSortLabel: filtersModule.currentSortLabel,
+    categoryCounts: filtersModule.categoryCounts,
+    filteredDocuments: filtersModule.filteredDocuments,
+    resetFilters: filtersModule.resetFilters,
+
+    // Мультивыбор
+    selectedDocIds: selectionModule.selectedDocIds,
+    isSelectionMode: selectionModule.isSelectionMode,
+    toggleDocSelection: selectionModule.toggleDocSelection,
+    selectAll: selectionModule.selectAll,
+    clearSelection: selectionModule.clearSelection,
+    exitSelectionMode: selectionModule.exitSelectionMode,
+    deleteSelectedDocs: selectionModule.deleteSelectedDocs,
+    moveSelectedDocs: selectionModule.moveSelectedDocs,
+
+    // Загрузка
+    isUploading: uploadModule.isUploading,
+    uploadProgress: uploadModule.uploadProgress,
+    uploadFiles: uploadModule.uploadFiles,
   }
 }

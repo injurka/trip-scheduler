@@ -2,6 +2,7 @@
 import type { Component } from 'vue'
 import type { IDay } from '~/components/04.features/trip-info/trip-plan/models/types'
 import type { TripSection } from '~/shared/types/models/trip'
+import { DocumentsSkeleton } from '~/components/04.features/trip-info/trip-sections/documents-section/ui'
 import { useModuleStore } from '~/components/05.modules/trip-info/composables/use-trip-info-module'
 import { lazyComponent } from '~/shared/lib/lazy-component'
 import { TripSectionType } from '~/shared/types/models/trip'
@@ -21,7 +22,10 @@ const componentsMap: Partial<Record<TripSectionType, Component>> = {
   [TripSectionType.CHECKLIST]: lazyComponent(() => import('~/components/04.features/trip-info/trip-sections/checklist-section/ui/checklist-section.vue'), { showLoader: true }),
   [TripSectionType.BOOKINGS]: lazyComponent(() => import('~/components/04.features/trip-info/trip-sections/booking-section/ui/booking-section.vue'), { showLoader: true }),
   [TripSectionType.FINANCES]: lazyComponent(() => import('~/components/04.features/trip-info/trip-sections/finances-section/ui/finances-section.vue'), { showLoader: true }),
-  [TripSectionType.DOCUMENTS]: lazyComponent(() => import('~/components/04.features/trip-info/trip-sections/documents-section/ui/documents-section.vue'), { showLoader: true }),
+  [TripSectionType.DOCUMENTS]: lazyComponent(
+    () => import('~/components/04.features/trip-info/trip-sections/documents-section/ui/documents-section.vue'),
+    { loadingComponent: DocumentsSkeleton, delay: 0 },
+  ),
   [TripSectionType.MEMORIES]: lazyComponent(() => import('~/components/04.features/trip-info/trip-sections/memories-section/ui/memories-section.vue'), { showLoader: true }),
   [TripSectionType.NOTES]: lazyComponent(() => import('~/components/04.features/trip-info/trip-sections/notes-section/ui/notes-section.vue'), { showLoader: true }),
 }

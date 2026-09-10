@@ -5,6 +5,7 @@ import { useToastStore } from '~/shared/store/toast.store'
 
 interface LazyComponentOptions {
   showLoader?: boolean
+  loadingComponent?: Component
   delay?: number
   timeout?: number
 }
@@ -18,7 +19,7 @@ export function lazyComponent(
   loader: () => Promise<Component | { default: Component }>,
   options: LazyComponentOptions = {},
 ) {
-  const { showLoader = false, delay = 200, timeout = 15000 } = options
+  const { showLoader = false, loadingComponent, delay = 200, timeout = 15000 } = options
 
   return defineAsyncComponent({
     loader: async () => {
@@ -26,17 +27,18 @@ export function lazyComponent(
       return ('default' in module ? module.default : module) as Component
     },
 
-    loadingComponent: showLoader
-      ? () =>
-          h(
-            'div',
-            {
-              style:
-              'display: flex; justify-content: center; align-items: center; padding: 24px; width: 100%; min-height: 100px;',
-            },
-            [h(KitSkeleton, { style: 'width: 100%; height: 100%; min-height: 80px; border-radius: 8px;' })],
-          )
-      : undefined,
+    loadingComponent: loadingComponent
+      || (showLoader
+        ? () =>
+            h(
+              'div',
+              {
+                style:
+                'display: flex; justify-content: center; align-items: center; padding: 24px; width: 100%; min-height: 100px;',
+              },
+              [h(KitSkeleton, { style: 'width: 100%; height: 100%; min-height: 80px; border-radius: 8px;' })],
+            )
+        : undefined),
 
     delay,
     timeout,

@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { Icon } from '@iconify/vue'
-import { useIntersectionObserver } from '@vueuse/core'
+import { onKeyStroke, useIntersectionObserver, useScrollLock } from '@vueuse/core'
+import { onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { KitImageViewer, useImageViewer } from '~/components/01.kit/kit-image-viewer'
 import { KitSkeleton } from '~/components/01.kit/kit-skeleton'
 import { useModuleStore } from '~/components/05.modules/trip-info/composables/use-trip-info-module'
@@ -25,6 +26,26 @@ const {
 } = useMemoriesView(memories)
 
 const imageViewer = useImageViewer()
+const isFullscreen = ref(false)
+
+const isBodyScrollLocked = useScrollLock(typeof document !== 'undefined' ? document.body : null)
+const isHtmlScrollLocked = useScrollLock(typeof document !== 'undefined' ? document.documentElement : null)
+
+watch(isFullscreen, (val) => {
+  isBodyScrollLocked.value = val
+  isHtmlScrollLocked.value = val
+})
+
+onKeyStroke('Escape', () => {
+  if (!imageViewer.isOpen.value && isFullscreen.value) {
+    isFullscreen.value = false
+  }
+})
+
+onBeforeUnmount(() => {
+  isBodyScrollLocked.value = false
+  isHtmlScrollLocked.value = false
+})
 
 function openViewer(memoryId: string) {
   const index = allFilteredMemories.value.findIndex(m => m.id === memoryId)
@@ -55,11 +76,12 @@ onMounted(() => {
 </script>
 
 <template>
-  <div class="memories-section">
+  <div class="memories-section" :class="{ 'is-fullscreen': isFullscreen }">
     <MemoriesFilters
       v-model:filter-day="filterDay"
       v-model:filter-rating="filterRating"
       v-model:sort-order="sortType"
+      v-model:is-fullscreen="isFullscreen"
       :available-days="availableDays"
       :sort-options="sortOptions"
     />
@@ -110,6 +132,29 @@ onMounted(() => {
   gap: 16px;
   min-height: 400px;
   z-index: 6;
+
+  &.is-fullscreen {
+    position: fixed;
+    inset: 0;
+    top: var(--safe-area-inset-top, 0px);
+    z-index: 990;
+    background-color: var(--bg-primary-color);
+    padding: 16px 24px;
+    overflow-y: auto;
+    height: 100vh;
+    height: 100dvh;
+
+    @media (max-width: 768px) {
+      padding: 12px 12px calc(12px + var(--safe-area-inset-bottom, 0px));
+    }
+
+    :deep(.filters-header) {
+      position: sticky;
+      top: 0;
+      z-index: 20;
+      box-shadow: var(--s-m);
+    }
+  }
 }
 
 .gallery-content {

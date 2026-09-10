@@ -66,6 +66,52 @@ const FULL_COLUMNS = {
   metadata: true,
 } as const
 
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === 'object' && value !== null && !Array.isArray(value)
+}
+
+function parseDocumentMetadata(raw: unknown): DocumentMetadata {
+  if (!isRecord(raw)) {
+    return {
+      access: 'private',
+      folderId: null,
+      title: null,
+      category: null,
+      isFavorite: false,
+      note: null,
+    }
+  }
+
+  return {
+    access: raw.access === 'public' ? 'public' : 'private',
+    folderId: typeof raw.folderId === 'string' ? raw.folderId || null : null,
+    title: typeof raw.title === 'string' ? raw.title || null : null,
+    category: typeof raw.category === 'string' ? raw.category || null : null,
+    isFavorite: Boolean(raw.isFavorite),
+    note: typeof raw.note === 'string' ? raw.note || null : null,
+  }
+}
+
+function toTripDocument(doc: {
+  id: string
+  tripId: string
+  url: string
+  originalName: string
+  sizeBytes: number
+  createdAt: Date
+  metadata: unknown
+}): TripDocument {
+  return {
+    id: doc.id,
+    tripId: doc.tripId,
+    url: doc.url,
+    originalName: doc.originalName,
+    sizeBytes: doc.sizeBytes,
+    createdAt: doc.createdAt,
+    metadata: parseDocumentMetadata(doc.metadata),
+  }
+}
+
 export const imageRepository = {
   async create(
     tripId: string,
@@ -200,18 +246,7 @@ export const imageRepository = {
       orderBy: (images, { desc }) => [desc(images.createdAt)],
     })
 
-    return docs.map(doc => ({
-      id: doc.id,
-      tripId: doc.tripId,
-      url: doc.url,
-      originalName: doc.originalName,
-      sizeBytes: doc.sizeBytes,
-      createdAt: doc.createdAt,
-      metadata: {
-        access: (doc.metadata as any)?.access || 'private',
-        folderId: (doc.metadata as any)?.folderId || null,
-      },
-    }))
+    return docs.map(toTripDocument)
   },
 
   async updateDocumentMeta(id: string, newMetadata: Partial<DocumentMetadata>): Promise<TripDocument | null> {
@@ -219,8 +254,9 @@ export const imageRepository = {
     if (!current)
       return null
 
-    const mergedMetadata = {
-      ...(current.metadata as Record<string, any> || {}),
+    const currentMetadata = isRecord(current.metadata) ? current.metadata : {}
+    const mergedMetadata: Record<string, unknown> = {
+      ...currentMetadata,
       ...newMetadata,
     }
 
@@ -232,17 +268,6 @@ export const imageRepository = {
     if (!updated)
       return null
 
-    return {
-      id: updated.id,
-      tripId: updated.tripId,
-      url: updated.url,
-      originalName: updated.originalName,
-      sizeBytes: updated.sizeBytes,
-      createdAt: updated.createdAt,
-      metadata: {
-        access: (updated.metadata as any)?.access || 'private',
-        folderId: (updated.metadata as any)?.folderId || null,
-      },
-    }
+    return toTripDocument(updated)
   },
 }

@@ -105,6 +105,10 @@ export type TripImage = TripMedia
 export interface DocumentMetadata {
   access: 'public' | 'private'
   folderId: string | null
+  title?: string | null
+  category?: string | null
+  isFavorite?: boolean | null
+  note?: string | null
 }
 
 export interface TripDocument {
