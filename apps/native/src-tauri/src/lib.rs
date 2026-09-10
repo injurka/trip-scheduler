@@ -303,6 +303,38 @@ async fn tracking_get_buffered(
     app.tracking().get_buffered_locations().map_err(|e| e.to_string())
 }
 
+#[tauri::command]
+async fn tracking_check_permissions(
+    app: tauri::AppHandle,
+) -> Result<tauri_plugin_tracking::TrackingPermissionsStatus, String> {
+    use tauri_plugin_tracking::TrackingExt;
+    app.tracking().check_permissions().map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+async fn tracking_request_notification_permission(
+    app: tauri::AppHandle,
+) -> Result<bool, String> {
+    use tauri_plugin_tracking::TrackingExt;
+    app.tracking().request_notification_permission().map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+async fn tracking_request_ignore_battery_optimizations(
+    app: tauri::AppHandle,
+) -> Result<bool, String> {
+    use tauri_plugin_tracking::TrackingExt;
+    app.tracking().request_ignore_battery_optimizations().map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+async fn tracking_open_app_settings(
+    app: tauri::AppHandle,
+) -> Result<bool, String> {
+    use tauri_plugin_tracking::TrackingExt;
+    app.tracking().open_app_settings().map_err(|e| e.to_string())
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
@@ -324,7 +356,11 @@ pub fn run() {
             tracking_start,
             tracking_stop,
             tracking_is_running,
-            tracking_get_buffered
+            tracking_get_buffered,
+            tracking_check_permissions,
+            tracking_request_notification_permission,
+            tracking_request_ignore_battery_optimizations,
+            tracking_open_app_settings
         ])
         .setup(|app| {
             if cfg!(debug_assertions) {

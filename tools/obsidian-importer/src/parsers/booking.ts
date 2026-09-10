@@ -725,6 +725,10 @@ export function parseTransportMarkdown(content: string, startDateStr: string): B
         eventDate.setDate(eventDate.getDate() + (dayNum - 1))
         const dateStr = eventDate.toISOString().split('T')[0]
 
+        // Пропускаем авиаперелеты (они парсятся отдельно из Авиаперелеты.md)
+        if (/✈|авиа|самолет|flight/i.test(transportCol) || /авиаперелет/i.test(segmentCol) || /авиабилет/i.test(paymentCol))
+          continue
+
         // Пропускаем короткие внутригородские поездки (такси не к аэропорту)
         if (/яндекс\s*go|городское\s*такси/i.test(transportCol) && !/аэропорт/i.test(segmentCol))
           continue

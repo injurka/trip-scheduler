@@ -20,3 +20,23 @@ pub(crate) async fn is_tracking_running<R: Runtime>(app: AppHandle<R>) -> Result
 pub(crate) async fn get_buffered_locations<R: Runtime>(app: AppHandle<R>) -> Result<Vec<LocationRecord>> {
     app.tracking().get_buffered_locations()
 }
+
+#[command]
+pub(crate) async fn check_permissions<R: Runtime>(app: AppHandle<R>) -> Result<TrackingPermissionsStatus> {
+    app.tracking().check_permissions()
+}
+
+#[command]
+pub(crate) async fn request_notification_permission<R: Runtime>(app: AppHandle<R>) -> Result<bool> {
+    app.tracking().request_notification_permission()
+}
+
+#[command]
+pub(crate) async fn request_ignore_battery_optimizations<R: Runtime>(app: AppHandle<R>) -> Result<bool> {
+    app.tracking().request_ignore_battery_optimizations()
+}
+
+#[command]
+pub(crate) async fn open_app_settings<R: Runtime>(app: AppHandle<R>) -> Result<bool> {
+    app.tracking().open_app_settings()
+}

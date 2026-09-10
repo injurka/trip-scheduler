@@ -212,6 +212,8 @@ function handleSave() {
   emit('update:visible', false)
 }
 
+const isFullDescriptionOpen = ref(false)
+
 watch(() => props.visible, (isVisible) => {
   if (isVisible && props.trip) {
     editableTrip.value = {
@@ -230,7 +232,11 @@ watch(() => props.visible, (isVisible) => {
       weatherData: props.trip.weatherData ? { ...props.trip.weatherData } : {},
     }
     hasFetchedImages.value = false
+    isFullDescriptionOpen.value = false
     fetchDialogData()
+  }
+  else if (!isVisible) {
+    isFullDescriptionOpen.value = false
   }
 }, { immediate: true })
 
@@ -299,11 +305,32 @@ async function handleGenerateWeatherInDialog() {
       </div>
 
       <div class="field-group">
-        <label class="field-label">Подробное описание</label>
-        <p class="field-hint">
+        <div
+          class="field-label-row is-collapsible"
+          role="button"
+          tabindex="0"
+          :aria-expanded="isFullDescriptionOpen"
+          @click="isFullDescriptionOpen = !isFullDescriptionOpen"
+          @keydown.enter.prevent="isFullDescriptionOpen = !isFullDescriptionOpen"
+          @keydown.space.prevent="isFullDescriptionOpen = !isFullDescriptionOpen"
+        >
+          <div class="field-label-left">
+            <span class="field-label">Подробное описание</span>
+            <span v-if="descriptionModel?.trim()" class="field-badge">заполнено</span>
+          </div>
+          <div class="field-toggle-action">
+            <span>{{ isFullDescriptionOpen ? 'Свернуть' : 'Развернуть' }}</span>
+            <Icon
+              icon="mdi:chevron-down"
+              class="chevron-icon"
+              :class="{ 'is-open': isFullDescriptionOpen }"
+            />
+          </div>
+        </div>
+        <p v-show="isFullDescriptionOpen" class="field-hint">
           Раскрывается по кнопке «Подробнее» — детали, история, впечатления.
         </p>
-        <div class="md-field-editor">
+        <div v-show="isFullDescriptionOpen" class="md-field-editor">
           <KitInlineMdEditorWrapper
             v-model="descriptionModel"
             placeholder="Подробное описание..."
@@ -529,6 +556,73 @@ async function handleGenerateWeatherInDialog() {
     font-size: 0.8rem;
     color: var(--fg-tertiary-color);
     margin: 0 0 2px;
+  }
+
+  .field-label-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+
+    &.is-collapsible {
+      cursor: pointer;
+      user-select: none;
+      padding: 2px 0;
+      border-radius: var(--r-xs);
+      transition: opacity 0.2s ease;
+
+      &:hover {
+        .field-label {
+          color: var(--fg-primary-color);
+        }
+
+        .field-toggle-action {
+          color: var(--fg-primary-color);
+        }
+      }
+
+      &:focus-visible {
+        outline: 2px solid var(--border-focus-color);
+        outline-offset: 2px;
+      }
+    }
+
+    .field-label-left {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .field-badge {
+      font-size: 0.72rem;
+      padding: 1px 7px;
+      border-radius: var(--r-full);
+      background-color: var(--bg-tertiary-color);
+      color: var(--fg-secondary-color);
+      font-weight: 500;
+    }
+
+    .field-toggle-action {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      background: none;
+      border: none;
+      padding: 0;
+      font-family: inherit;
+      font-size: 0.8rem;
+      color: var(--fg-accent-color);
+      cursor: pointer;
+      transition: color 0.2s ease;
+
+      .chevron-icon {
+        font-size: 1.1rem;
+        transition: transform 0.2s ease;
+
+        &.is-open {
+          transform: rotate(180deg);
+        }
+      }
+    }
   }
 }
 

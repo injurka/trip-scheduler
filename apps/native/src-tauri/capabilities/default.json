@@ -26,6 +26,14 @@
     "geolocation:allow-request-permissions",
     "geolocation:allow-get-current-position",
     "geolocation:allow-watch-position",
-    "geolocation:allow-clear-watch"
+    "geolocation:allow-clear-watch",
+    "tracking:allow-start-tracking",
+    "tracking:allow-stop-tracking",
+    "tracking:allow-is-tracking-running",
+    "tracking:allow-get-buffered-locations",
+    "tracking:allow-check-permissions",
+    "tracking:allow-request-notification-permission",
+    "tracking:allow-request-ignore-battery-optimizations",
+    "tracking:allow-open-app-settings"
   ]
 }

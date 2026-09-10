@@ -24,4 +24,24 @@ impl<R: Runtime> Tracking<R> {
     pub fn get_buffered_locations(&self) -> Result<Vec<LocationRecord>> {
         Ok(vec![])
     }
+
+    pub fn check_permissions(&self) -> Result<TrackingPermissionsStatus> {
+        Ok(TrackingPermissionsStatus {
+            location: true,
+            notifications: true,
+            battery_optimizations_ignored: true,
+        })
+    }
+
+    pub fn request_notification_permission(&self) -> Result<bool> {
+        Ok(true)
+    }
+
+    pub fn request_ignore_battery_optimizations(&self) -> Result<bool> {
+        Ok(true)
+    }
+
+    pub fn open_app_settings(&self) -> Result<bool> {
+        Ok(true)
+    }
 }

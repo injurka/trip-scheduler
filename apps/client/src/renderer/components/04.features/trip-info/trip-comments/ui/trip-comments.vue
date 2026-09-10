@@ -44,7 +44,10 @@ watch(comments, async (newComments, oldComments) => {
   if (asyncWrapper.value) {
     if (!oldComments || newComments.length > oldComments.length) {
       await nextTick()
-      asyncWrapper.value.scrollTop = asyncWrapper.value.scrollHeight
+      const el = (asyncWrapper.value as any)?.$el || asyncWrapper.value
+      if (el) {
+        el.scrollTop = el.scrollHeight
+      }
     }
   }
 }, { deep: true })
@@ -108,19 +111,29 @@ watch(comments, async (newComments, oldComments) => {
   gap: 8px;
   border-radius: var(--r-s);
   height: 100%;
+  flex: 1;
+  min-height: 0;
 }
 
 .async-wrapper {
-  flex-grow: 1;
+  flex: 1;
+  min-height: 0;
   overflow-y: auto;
-  min-height: 100px;
+  overscroll-behavior: contain;
+
+  :deep(.async-state-wrapper-content) {
+    min-height: 100%;
+    height: auto;
+    display: flex;
+    flex-direction: column;
+  }
 }
 
 .comments-list {
   display: flex;
   flex-direction: column;
   gap: 8px;
-  padding-top: 8px;
+  padding: 8px 0;
 }
 
 .load-more-trigger {
@@ -167,7 +180,8 @@ watch(comments, async (newComments, oldComments) => {
   background-color: var(--bg-tertiary-color);
   border-radius: var(--r-m);
   color: var(--fg-secondary-color);
-  margin: 8px 0;
+  margin: 8px 0 0;
+  flex-shrink: 0;
 
   .iconify {
     font-size: 1.8rem;

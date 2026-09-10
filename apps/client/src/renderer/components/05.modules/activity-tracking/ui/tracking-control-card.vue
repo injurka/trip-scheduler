@@ -3,6 +3,7 @@ import type { ActivityType } from '../models/types'
 import { Icon } from '@iconify/vue'
 import { KitBtn } from '~/components/01.kit/kit-btn'
 import { useToast } from '~/shared/composables/use-toast'
+import { isMobileApp } from '~/shared/lib/env'
 import { useTrackingStore } from '~/shared/store/tracking.store'
 import { ACTIVITY_COLORS, ACTIVITY_ICONS, ACTIVITY_LABELS } from '../models/constants'
 
@@ -12,6 +13,10 @@ const emit = defineEmits<{
 
 const tracking = useTrackingStore()
 const toast = useToast()
+
+async function handleIgnoreBattery() {
+  await tracking.requestIgnoreBatteryOptimizations()
+}
 
 onMounted(() => {
   void tracking.startPolling()
@@ -149,6 +154,30 @@ function formatSyncTime(ts: number | null): string {
       <button class="clear-error-btn" aria-label="Скрыть ошибку" @click="tracking.clearError">
         <Icon icon="mdi:close" />
       </button>
+    </div>
+
+    <!-- Предупреждение об оптимизации батареи Android (Doze Mode) -->
+    <div v-if="isMobileApp && tracking.isRunning && !tracking.batteryIgnored" class="battery-banner">
+      <Icon icon="mdi:battery-alert" class="battery-icon" />
+      <div class="battery-text">
+        <div class="battery-title">
+          Оптимизация батареи активна
+        </div>
+        <div class="battery-desc">
+          При выключенном экране Android может приостанавливать запись GPS. Выберите «Без ограничений» для непрерывной фоновой записи.
+        </div>
+        <div class="battery-actions">
+          <KitBtn
+            variant="outlined"
+            size="xs"
+            color="primary"
+            class="battery-request-btn"
+            @click="handleIgnoreBattery"
+          >
+            Отключить ограничение
+          </KitBtn>
+        </div>
+      </div>
     </div>
 
     <!-- Панель живой телеметрии во время активной записи -->
@@ -458,6 +487,42 @@ function formatSyncTime(ts: number | null): string {
 
     &:hover {
       opacity: 1;
+    }
+  }
+}
+
+.battery-banner {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--p-s);
+  padding: var(--p-s) var(--p-m);
+  background-color: var(--bg-warning-color);
+  border: 1px solid var(--border-warning-color);
+  border-radius: var(--r-m);
+  color: var(--fg-warning-color);
+
+  .battery-icon {
+    font-size: 1.2rem;
+    flex-shrink: 0;
+    margin-top: 1px;
+  }
+
+  .battery-text {
+    flex: 1;
+    font-size: 0.8rem;
+
+    .battery-title {
+      font-weight: 600;
+      margin-bottom: 2px;
+    }
+
+    .battery-desc {
+      opacity: 0.9;
+      line-height: 1.35;
+    }
+
+    .battery-actions {
+      margin-top: 8px;
     }
   }
 }

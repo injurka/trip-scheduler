@@ -43,7 +43,9 @@ function handleSubmit() {
   display: flex;
   gap: 12px;
   align-items: center;
-  margin-bottom: 8px;
+  flex-shrink: 0;
+  margin-bottom: 0;
+  margin-top: 4px;
 }
 .input-wrapper {
   flex-grow: 1;

@@ -295,6 +295,18 @@
       "type": "string",
       "oneOf": [
         {
+          "description": "Enables the check_permissions command without any pre-configured scope.",
+          "type": "string",
+          "const": "allow-check-permissions",
+          "markdownDescription": "Enables the check_permissions command without any pre-configured scope."
+        },
+        {
+          "description": "Denies the check_permissions command without any pre-configured scope.",
+          "type": "string",
+          "const": "deny-check-permissions",
+          "markdownDescription": "Denies the check_permissions command without any pre-configured scope."
+        },
+        {
           "description": "Enables the get_buffered_locations command without any pre-configured scope.",
           "type": "string",
           "const": "allow-get-buffered-locations",
@@ -317,6 +329,42 @@
           "type": "string",
           "const": "deny-is-tracking-running",
           "markdownDescription": "Denies the is_tracking_running command without any pre-configured scope."
+        },
+        {
+          "description": "Enables the open_app_settings command without any pre-configured scope.",
+          "type": "string",
+          "const": "allow-open-app-settings",
+          "markdownDescription": "Enables the open_app_settings command without any pre-configured scope."
+        },
+        {
+          "description": "Denies the open_app_settings command without any pre-configured scope.",
+          "type": "string",
+          "const": "deny-open-app-settings",
+          "markdownDescription": "Denies the open_app_settings command without any pre-configured scope."
+        },
+        {
+          "description": "Enables the request_ignore_battery_optimizations command without any pre-configured scope.",
+          "type": "string",
+          "const": "allow-request-ignore-battery-optimizations",
+          "markdownDescription": "Enables the request_ignore_battery_optimizations command without any pre-configured scope."
+        },
+        {
+          "description": "Denies the request_ignore_battery_optimizations command without any pre-configured scope.",
+          "type": "string",
+          "const": "deny-request-ignore-battery-optimizations",
+          "markdownDescription": "Denies the request_ignore_battery_optimizations command without any pre-configured scope."
+        },
+        {
+          "description": "Enables the request_notification_permission command without any pre-configured scope.",
+          "type": "string",
+          "const": "allow-request-notification-permission",
+          "markdownDescription": "Enables the request_notification_permission command without any pre-configured scope."
+        },
+        {
+          "description": "Denies the request_notification_permission command without any pre-configured scope.",
+          "type": "string",
+          "const": "deny-request-notification-permission",
+          "markdownDescription": "Denies the request_notification_permission command without any pre-configured scope."
         },
         {
           "description": "Enables the start_tracking command without any pre-configured scope.",

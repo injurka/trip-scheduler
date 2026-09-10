@@ -39,9 +39,12 @@ watch(isPanelOpen, (isOpen) => {
       side="right"
       class="comments-widget-drawer"
     >
-      <h2 class="drawer-title">
-        {{ drawerTitle }}
-      </h2>
+      <header class="drawer-header">
+        <div class="header-title">
+          <Icon icon="mdi:forum-outline" />
+          <h2>{{ drawerTitle }}</h2>
+        </div>
+      </header>
       <div class="drawer-content">
         <TripComments
           :parent-id="parentId"
@@ -53,30 +56,6 @@ watch(isPanelOpen, (isOpen) => {
 </template>
 
 <style scoped lang="scss">
-.comments-widget-drawer {
-  .drawer-title {
-    padding: 20px;
-    padding-bottom: 16px;
-    font-size: 1rem;
-    font-weight: 600;
-    margin: 0 0 16px;
-    border-bottom: 1px solid var(--border-secondary-color);
-
-    h2 {
-      margin: 0;
-      font-size: 1.25rem;
-      font-weight: 600;
-    }
-  }
-
-  .drawer-content {
-    padding: 0 8px;
-    display: flex;
-    flex-direction: column;
-    height: 100%;
-  }
-}
-
 .widget-trigger {
   position: relative;
   display: flex;
@@ -96,6 +75,77 @@ watch(isPanelOpen, (isOpen) => {
   &:hover {
     color: var(--fg-accent-color);
     background-color: var(--bg-hover-color);
+  }
+}
+
+.drawer-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 16px 20px;
+  padding-top: calc(16px + var(--safe-area-inset-top));
+  padding-right: 56px;
+  border-bottom: 1px solid var(--border-secondary-color);
+  flex-shrink: 0;
+  box-sizing: border-box;
+
+  .header-title {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 1.2rem;
+    min-width: 0;
+
+    h2 {
+      font-size: inherit;
+      font-weight: 600;
+      margin: 0;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      font-family: var(--font-accent);
+    }
+
+    .iconify {
+      font-size: 1.4rem;
+      color: var(--fg-secondary-color);
+      flex-shrink: 0;
+    }
+  }
+}
+
+.drawer-content {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  padding: 0 16px;
+  padding-bottom: calc(12px + var(--safe-area-inset-bottom));
+  box-sizing: border-box;
+
+  :deep(.comments-section) {
+    flex: 1;
+    min-height: 0;
+    height: 100%;
+    overflow: hidden;
+  }
+}
+</style>
+
+<style lang="scss">
+.drawer-content-wrapper.comments-widget-drawer {
+  top: 0 !important;
+  bottom: 0 !important;
+  height: 100% !important;
+  max-height: 100dvh !important;
+  display: flex !important;
+  flex-direction: column !important;
+  overflow: hidden !important;
+
+  .close-button {
+    top: calc(16px + var(--safe-area-inset-top)) !important;
+    right: 16px !important;
   }
 }
 </style>

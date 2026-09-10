@@ -275,7 +275,6 @@ function createBlankBadge() {
                 side="top"
               >
                 <KitInlineMdEditorWrapper
-                  v-if="hoveredTooltipBadgeId === item.id"
                   :model-value="item.content || ''"
                   :readonly="true"
                 />
@@ -783,7 +782,8 @@ function createBlankBadge() {
   max-width: 800px;
   z-index: 100;
 
-  &[data-state='delayed-open'] {
+  &[data-state='delayed-open'],
+  &[data-state='instant-open'] {
     animation: tooltip-fade-in 0.2s ease-out;
   }
   &[data-state='closed'] {

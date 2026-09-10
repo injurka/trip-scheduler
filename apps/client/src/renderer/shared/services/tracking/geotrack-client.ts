@@ -459,6 +459,8 @@ class WebGeolocationTracker {
   private watchId: number | null = null
   private tauriWatchId: number | null = null
   private trackingPluginListener: PluginListener | null = null
+  private trackingStateListener: PluginListener | null = null
+  private batteryOptimizationsIgnored = false
   private wakeLockSentinel: any = null
   private watchdogTimer: ReturnType<typeof setInterval> | null = null
   private keepalive = new BackgroundAudioKeepalive()
@@ -521,7 +523,7 @@ class WebGeolocationTracker {
       unsentCount: unsent.length,
       network: detectNetwork(),
       lastFixTsUtc: this.lastFixPoint?.tsUtc ?? null,
-      batteryIgnored: false,
+      batteryIgnored: this.batteryOptimizationsIgnored,
       telemetry,
       error: this.lastError,
     }
@@ -661,7 +663,9 @@ class WebGeolocationTracker {
       }>>('tracking_get_buffered')
 
       if (Array.isArray(buffered) && buffered.length > 0) {
-        for (const pos of buffered) {
+        // Сортируем точки по времени, чтобы они воспроизводились строго в хронологическом порядке
+        const sorted = [...buffered].sort((a, b) => a.timestamp - b.timestamp)
+        for (const pos of sorted) {
           this.handlePositionUpdate({
             coords: {
               latitude: pos.latitude,
@@ -674,6 +678,8 @@ class WebGeolocationTracker {
             timestamp: pos.timestamp,
           })
         }
+        // Запускаем фоновый синк накопившихся точек на сервер
+        void import('./track-sync').then(m => m.runSync()).catch(() => {})
       }
     }
     catch (e) {
@@ -705,80 +711,123 @@ class WebGeolocationTracker {
     // 2. Нативный Android Foreground Service + Tauri Geolocation Watcher
     if (isMobileApp) {
       try {
+        // Проверяем и запрашиваем базовые права локации
         let status = await tauriCheckPermissions()
         if (status.location === 'prompt' || status.location === 'prompt-with-rationale') {
           status = await tauriRequestPermissions(['location', 'coarseLocation'])
         }
         if (status.location === 'denied' && status.coarseLocation === 'denied') {
           this.lastError = 'Доступ к геолокации запрещён в настройках Android. Разрешите доступ в настройках приложения.'
+          return
         }
-        else {
-          // Запускаем системный Android Foreground Service с CPU PARTIAL_WAKE_LOCK и постоянным уведомлением
-          await invoke('tracking_start').catch((e) => {
-            console.warn('[Tracking] Ошибка запуска нативного сервиса трекинга:', e)
-          })
 
-          // Подписываемся на непрерывный поток координат из Android сервиса
-          try {
-            this.trackingPluginListener = await addPluginListener<{
-              latitude: number
-              longitude: number
-              accuracy?: number | null
-              altitude?: number | null
-              speed?: number | null
-              heading?: number | null
-              timestamp?: number
-            }>('tracking', 'locationUpdate', (pos) => {
-              if (pos && typeof pos.latitude === 'number' && typeof pos.longitude === 'number') {
-                this.handlePositionUpdate({
-                  coords: {
-                    latitude: pos.latitude,
-                    longitude: pos.longitude,
-                    accuracy: pos.accuracy,
-                    altitude: pos.altitude,
-                    speed: pos.speed,
-                    heading: pos.heading,
-                  },
-                  timestamp: pos.timestamp || Date.now(),
-                })
-              }
-            })
+        // Проверяем специфичные Android права для непрерывной работы в фоне
+        try {
+          const perm = await invoke<{
+            location: boolean
+            notifications: boolean
+            batteryOptimizationsIgnored: boolean
+          }>('tracking_check_permissions')
+
+          if (perm) {
+            this.batteryOptimizationsIgnored = perm.batteryOptimizationsIgnored
+
+            // На Android 13+ уведомление обязательно для Foreground Service
+            if (!perm.notifications) {
+              await invoke('tracking_request_notification_permission').catch(() => {})
+            }
+
+            // Предлагаем отключить Doze Mode оптимизацию батареи
+            if (!perm.batteryOptimizationsIgnored) {
+              await invoke('tracking_request_ignore_battery_optimizations').catch(() => {})
+            }
           }
-          catch (e) {
-            console.warn('[Tracking] Ошибка подписки на события сервиса трекинга:', e)
-          }
+        }
+        catch (e) {
+          console.warn('[Tracking] Ошибка проверки расширенных прав трекинга:', e)
+        }
 
-          // Выгружаем накопленные точки
-          void this.drainNativeBufferedPoints()
+        // Запускаем системный Android Foreground Service с CPU PARTIAL_WAKE_LOCK и постоянным уведомлением
+        await invoke('tracking_start').catch((e) => {
+          console.warn('[Tracking] Ошибка запуска нативного сервиса трекинга:', e)
+        })
 
-          // Дополнительно запускаем плагинный watchPosition пока экран включен
-          this.tauriWatchId = await tauriWatchPosition(
-            {
-              enableHighAccuracy: true,
-              timeout: 15000,
-              maximumAge: 3000,
-            },
-            (pos, err) => {
-              if (err) {
-                this.lastError = typeof err === 'string' ? err : 'Ошибка получения координат GPS'
-                return
-              }
-              if (pos) {
-                this.handlePositionUpdate({
-                  coords: {
-                    latitude: pos.coords.latitude,
-                    longitude: pos.coords.longitude,
-                    accuracy: pos.coords.accuracy,
-                    altitude: pos.coords.altitude,
-                    speed: pos.coords.speed,
-                    heading: pos.coords.heading,
-                  },
-                  timestamp: pos.timestamp,
-                })
+        // Слушатель изменения состояния сервиса (например, нажали «Остановить» в уведомлении)
+        try {
+          this.trackingStateListener = await addPluginListener<{ running: boolean }>(
+            'tracking',
+            'trackingStateChanged',
+            (state) => {
+              if (state && !state.running && this.isRunning) {
+                void this.stop()
               }
             },
           )
         }
+        catch (e) {
+          console.warn('[Tracking] Ошибка подписки на статус сервиса:', e)
+        }
+
+        // Подписываемся на непрерывный поток координат из Android сервиса
+        try {
+          this.trackingPluginListener = await addPluginListener<{
+            latitude: number
+            longitude: number
+            accuracy?: number | null
+            altitude?: number | null
+            speed?: number | null
+            heading?: number | null
+            timestamp?: number
+          }>('tracking', 'locationUpdate', (pos) => {
+            if (pos && typeof pos.latitude === 'number' && typeof pos.longitude === 'number') {
+              this.handlePositionUpdate({
+                coords: {
+                  latitude: pos.latitude,
+                  longitude: pos.longitude,
+                  accuracy: pos.accuracy,
+                  altitude: pos.altitude,
+                  speed: pos.speed,
+                  heading: pos.heading,
+                },
+                timestamp: pos.timestamp || Date.now(),
+              })
+            }
+          })
+        }
+        catch (e) {
+          console.warn('[Tracking] Ошибка подписки на события сервиса трекинга:', e)
+        }
+
+        // Выгружаем накопленные за время выключения точки
+        void this.drainNativeBufferedPoints()
+
+        // Дополнительно запускаем плагинный watchPosition пока экран включен
+        this.tauriWatchId = await tauriWatchPosition(
+          {
+            enableHighAccuracy: true,
+            timeout: 15000,
+            maximumAge: 3000,
+          },
+          (pos, err) => {
+            if (err) {
+              this.lastError = typeof err === 'string' ? err : 'Ошибка получения координат GPS'
+              return
+            }
+            if (pos) {
+              this.handlePositionUpdate({
+                coords: {
+                  latitude: pos.coords.latitude,
+                  longitude: pos.coords.longitude,
+                  accuracy: pos.coords.accuracy,
+                  altitude: pos.coords.altitude,
+                  speed: pos.coords.speed,
+                  heading: pos.coords.heading,
+                },
+                timestamp: pos.timestamp,
+              })
+            }
+          },
+        )
       }
       catch (err: any) {
         console.warn('[Tracking] Tauri watchPosition failed:', err)
@@ -815,6 +864,11 @@ class WebGeolocationTracker {
       if (this.trackingPluginListener) {
         void this.trackingPluginListener.unregister().catch(() => {})
         this.trackingPluginListener = null
+      }
+
+      if (this.trackingStateListener) {
+        void this.trackingStateListener.unregister().catch(() => {})
+        this.trackingStateListener = null
       }
     }
   }
@@ -935,6 +989,53 @@ class WebGeolocationTracker {
     }
 
     return false
+  }
+
+  public async checkPermissions(): Promise<{
+    location: boolean
+    notifications: boolean
+    batteryOptimizationsIgnored: boolean
+  } | null> {
+    if (!isMobileApp)
+      return null
+    try {
+      const perm = await invoke<{
+        location: boolean
+        notifications: boolean
+        batteryOptimizationsIgnored: boolean
+      }>('tracking_check_permissions')
+      if (perm) {
+        this.batteryOptimizationsIgnored = perm.batteryOptimizationsIgnored
+      }
+      return perm
+    }
+    catch {
+      return null
+    }
+  }
+
+  public async requestIgnoreBatteryOptimizations(): Promise<boolean> {
+    if (!isMobileApp)
+      return true
+    try {
+      const res = await invoke<boolean>('tracking_request_ignore_battery_optimizations')
+      await this.checkPermissions()
+      return res
+    }
+    catch {
+      return false
+    }
+  }
+
+  public async openAppSettings(): Promise<boolean> {
+    if (!isMobileApp)
+      return false
+    try {
+      return await invoke<boolean>('tracking_open_app_settings')
+    }
+    catch {
+      return false
+    }
   }
 
   private handlePositionUpdate(pos: {
@@ -1180,6 +1281,18 @@ export const geotrack = {
 
   async markSynced(clientPointIds: string[]): Promise<void> {
     trackerInstance.markSynced(clientPointIds)
+  },
+
+  async checkPermissions() {
+    return trackerInstance.checkPermissions()
+  },
+
+  async requestIgnoreBatteryOptimizations(): Promise<boolean> {
+    return trackerInstance.requestIgnoreBatteryOptimizations()
+  },
+
+  async openAppSettings(): Promise<boolean> {
+    return trackerInstance.openAppSettings()
   },
 
   async setConfig(_cfg: {

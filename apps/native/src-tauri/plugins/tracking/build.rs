@@ -3,6 +3,10 @@ const COMMANDS: &[&str] = &[
     "stop_tracking",
     "is_tracking_running",
     "get_buffered_locations",
+    "check_permissions",
+    "request_notification_permission",
+    "request_ignore_battery_optimizations",
+    "open_app_settings",
 ];
 
 fn main() {

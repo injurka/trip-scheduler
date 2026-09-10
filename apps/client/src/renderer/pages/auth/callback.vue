@@ -61,11 +61,14 @@ onMounted(() => {
 
 <style lang="scss" scoped>
 .content {
-  width: 100vw;
-  height: 100vh;
+  width: 100%;
+  flex: 1;
+  min-height: 100%;
   display: flex;
   align-items: center;
   justify-content: center;
+  padding: 16px;
+  box-sizing: border-box;
 }
 
 .card {

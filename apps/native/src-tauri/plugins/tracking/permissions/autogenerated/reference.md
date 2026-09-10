@@ -10,6 +10,32 @@
 <tr>
 <td>
 
+`tracking:allow-check-permissions`
+
+</td>
+<td>
+
+Enables the check_permissions command without any pre-configured scope.
+
+</td>
+</tr>
+
+<tr>
+<td>
+
+`tracking:deny-check-permissions`
+
+</td>
+<td>
+
+Denies the check_permissions command without any pre-configured scope.
+
+</td>
+</tr>
+
+<tr>
+<td>
+
 `tracking:allow-get-buffered-locations`
 
 </td>
@@ -55,6 +81,84 @@ Enables the is_tracking_running command without any pre-configured scope.
 <td>
 
 Denies the is_tracking_running command without any pre-configured scope.
+
+</td>
+</tr>
+
+<tr>
+<td>
+
+`tracking:allow-open-app-settings`
+
+</td>
+<td>
+
+Enables the open_app_settings command without any pre-configured scope.
+
+</td>
+</tr>
+
+<tr>
+<td>
+
+`tracking:deny-open-app-settings`
+
+</td>
+<td>
+
+Denies the open_app_settings command without any pre-configured scope.
+
+</td>
+</tr>
+
+<tr>
+<td>
+
+`tracking:allow-request-ignore-battery-optimizations`
+
+</td>
+<td>
+
+Enables the request_ignore_battery_optimizations command without any pre-configured scope.
+
+</td>
+</tr>
+
+<tr>
+<td>
+
+`tracking:deny-request-ignore-battery-optimizations`
+
+</td>
+<td>
+
+Denies the request_ignore_battery_optimizations command without any pre-configured scope.
+
+</td>
+</tr>
+
+<tr>
+<td>
+
+`tracking:allow-request-notification-permission`
+
+</td>
+<td>
+
+Enables the request_notification_permission command without any pre-configured scope.
+
+</td>
+</tr>
+
+<tr>
+<td>
+
+`tracking:deny-request-notification-permission`
+
+</td>
+<td>
+
+Denies the request_notification_permission command without any pre-configured scope.
 
 </td>
 </tr>

@@ -34,4 +34,20 @@ impl<R: Runtime> Tracking<R> {
     pub fn get_buffered_locations(&self) -> Result<Vec<LocationRecord>> {
         self.0.run_mobile_plugin("getBufferedLocations", ()).map_err(Into::into)
     }
+
+    pub fn check_permissions(&self) -> Result<TrackingPermissionsStatus> {
+        self.0.run_mobile_plugin("checkPermissions", ()).map_err(Into::into)
+    }
+
+    pub fn request_notification_permission(&self) -> Result<bool> {
+        self.0.run_mobile_plugin("requestNotificationPermission", ()).map_err(Into::into)
+    }
+
+    pub fn request_ignore_battery_optimizations(&self) -> Result<bool> {
+        self.0.run_mobile_plugin("requestIgnoreBatteryOptimizations", ()).map_err(Into::into)
+    }
+
+    pub fn open_app_settings(&self) -> Result<bool> {
+        self.0.run_mobile_plugin("openAppSettings", ()).map_err(Into::into)
+    }
 }

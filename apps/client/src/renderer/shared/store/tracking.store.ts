@@ -18,6 +18,7 @@ export interface ITrackingState {
   network: 'wifi' | 'cellular' | 'offline' | 'other'
   lastError: string | null
   hasPermissionDenied: boolean
+  batteryIgnored: boolean
   lastSyncAt: number | null
   telemetry: TrackingTelemetry
 }
@@ -47,6 +48,7 @@ export const useTrackingStore = defineStore('tracking', {
     network: 'other',
     lastError: null,
     hasPermissionDenied: false,
+    batteryIgnored: true,
     lastSyncAt: null,
     telemetry: { ...defaultTelemetry },
   }),
@@ -95,6 +97,7 @@ export const useTrackingStore = defineStore('tracking', {
         this.isRunning = status.running
         this.unsentCount = status.unsentCount
         this.network = status.network
+        this.batteryIgnored = status.batteryIgnored
         if (status.telemetry) {
           this.telemetry = { ...status.telemetry }
         }
@@ -227,6 +230,16 @@ export const useTrackingStore = defineStore('tracking', {
     clearError() {
       this.lastError = null
       this.hasPermissionDenied = false
+    },
+
+    async requestIgnoreBatteryOptimizations(): Promise<boolean> {
+      const res = await geotrack.requestIgnoreBatteryOptimizations()
+      await this.refreshStatus()
+      return res
+    },
+
+    async openAppSettings(): Promise<boolean> {
+      return geotrack.openAppSettings()
     },
   },
 })

@@ -25,13 +25,16 @@ import { AppRoutePaths } from '~/shared/constants/routes'
   display: flex;
   align-items: center;
   justify-content: center;
-  height: 100vh;
+  flex: 1;
   width: 100%;
+  min-height: 100%;
+  padding: 16px;
+  box-sizing: border-box;
 }
 .card {
   width: 100%;
   max-width: 520px;
-  margin: 16px;
+  margin: 0 auto;
   padding: 32px;
   text-align: center;
   border: 1px solid var(--border-secondary-color);

@@ -73,6 +73,7 @@ const isOfflineDownloadDialogVisible = ref(false)
 const isDescriptionExpanded = ref(false)
 const descriptionShortText = ref('')
 const descriptionFullText = ref('')
+const isMobileTagsOpen = ref(false)
 
 function formatTag(tag: string): string {
   if (!tag)
@@ -86,6 +87,7 @@ watch(
   (newTrip) => {
     descriptionShortText.value = newTrip?.descriptionShort || newTrip?.description || ''
     descriptionFullText.value = newTrip?.description || ''
+    isMobileTagsOpen.value = false
   },
   { immediate: true, deep: true },
 )
@@ -527,6 +529,19 @@ watch(() => props.trip?.id, (newId) => {
               </div>
             </div>
 
+            <!-- Мобильная кнопка показа тегов: справа от статусов -->
+            <button
+              v-if="trip.tags?.length"
+              type="button"
+              class="mobile-tags-toggle-btn"
+              :class="{ 'is-active': isMobileTagsOpen }"
+              :aria-expanded="isMobileTagsOpen"
+              @click.stop="isMobileTagsOpen = !isMobileTagsOpen"
+            >
+              <span>Теги</span>
+              <Icon :icon="isMobileTagsOpen ? 'mdi:minus' : 'mdi:plus'" class="toggle-icon" />
+            </button>
+
             <div v-if="trip.tags?.length" class="trip-tags">
               <span v-for="tag in trip.tags" :key="tag" v-ripple class="tag">#{{ formatTag(tag) }}</span>
             </div>
@@ -559,10 +574,12 @@ watch(() => props.trip?.id, (newId) => {
       </div>
     </div>
 
-    <!-- Мобильная полоса тегов вне баннера, если они есть -->
-    <div v-if="trip.tags?.length" class="mobile-trip-tags">
-      <span v-for="tag in trip.tags" :key="tag" v-ripple class="tag">#{{ formatTag(tag) }}</span>
-    </div>
+    <!-- Мобильная полоса тегов вне баннера, если они есть и раскрыты -->
+    <Transition name="tags-expand">
+      <div v-if="trip.tags?.length && isMobileTagsOpen" class="mobile-trip-tags">
+        <span v-for="tag in trip.tags" :key="tag" v-ripple class="tag">#{{ formatTag(tag) }}</span>
+      </div>
+    </Transition>
 
     <div
       v-if="trip.descriptionShort || trip.description"
@@ -993,6 +1010,42 @@ watch(() => props.trip?.id, (newId) => {
     }
   }
 
+  .mobile-tags-toggle-btn {
+    display: none;
+    align-items: center;
+    gap: 4px;
+    padding: 4px 10px;
+    border-radius: var(--r-full);
+    font-size: 0.75rem;
+    font-weight: 600;
+    letter-spacing: 0.03em;
+    backdrop-filter: blur(8px);
+    -webkit-backdrop-filter: blur(8px);
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+    background: rgba(255, 255, 255, 0.15);
+    border: 1px solid rgba(255, 255, 255, 0.25);
+    color: #ffffff;
+    cursor: pointer;
+    font-family: inherit;
+    line-height: 1.2;
+    transition: all 0.2s ease;
+    user-select: none;
+
+    .toggle-icon {
+      font-size: 0.85rem;
+      transition: transform 0.2s ease;
+    }
+
+    &.is-active {
+      background: rgba(255, 255, 255, 0.28);
+      border-color: rgba(255, 255, 255, 0.45);
+    }
+
+    &:active {
+      transform: scale(0.95);
+    }
+  }
+
   /* Editorial Title */
   .trip-title {
     font-size: 2.25rem;
@@ -1240,6 +1293,19 @@ watch(() => props.trip?.id, (newId) => {
     font-size: 0.75rem;
     font-weight: 500;
   }
+}
+
+.tags-expand-enter-active,
+.tags-expand-leave-active {
+  transition:
+    opacity 0.2s ease,
+    transform 0.2s ease;
+}
+
+.tags-expand-enter-from,
+.tags-expand-leave-to {
+  opacity: 0;
+  transform: translateY(-6px);
 }
 
 .trip-description-summary {
@@ -1581,6 +1647,10 @@ watch(() => props.trip?.id, (newId) => {
 
     .trip-tags {
       display: none;
+    }
+
+    .mobile-tags-toggle-btn {
+      display: inline-flex;
     }
 
     .trip-participants {

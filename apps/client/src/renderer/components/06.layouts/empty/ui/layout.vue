@@ -20,11 +20,16 @@ import { BackgroundEffects } from '~/components/02.shared/background-effects'
   position: relative;
   overflow: clip;
   padding-top: var(--safe-area-inset-top);
+  padding-bottom: var(--safe-area-inset-bottom);
+  min-height: 100dvh;
+  box-sizing: border-box;
 }
 
 .main-content {
-  height: 100%;
   display: flex;
+  flex-direction: column;
   flex: 1;
+  min-height: 0;
+  width: 100%;
 }
 </style>

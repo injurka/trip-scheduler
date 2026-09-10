@@ -37,6 +37,10 @@ pub fn init<R: Runtime>() -> TauriPlugin<R> {
             commands::stop_tracking,
             commands::is_tracking_running,
             commands::get_buffered_locations,
+            commands::check_permissions,
+            commands::request_notification_permission,
+            commands::request_ignore_battery_optimizations,
+            commands::open_app_settings,
         ])
         .setup(|app, api| {
             #[cfg(mobile)]

@@ -11,8 +11,8 @@ import android.content.Intent
 import android.content.pm.ServiceInfo
 import android.location.Location
 import android.os.Build
+import android.os.HandlerThread
 import android.os.IBinder
-import android.os.Looper
 import android.os.PowerManager
 import androidx.core.app.NotificationCompat
 import com.google.android.gms.location.FusedLocationProviderClient
@@ -21,12 +21,18 @@ import com.google.android.gms.location.LocationRequest
 import com.google.android.gms.location.LocationResult
 import com.google.android.gms.location.LocationServices
 import com.google.android.gms.location.Priority
+import org.json.JSONObject
+import java.io.BufferedReader
+import java.io.File
+import java.io.FileReader
+import java.io.FileWriter
 import java.util.concurrent.ConcurrentLinkedQueue
 
 class TrackingService : Service() {
 
     private var fusedLocationClient: FusedLocationProviderClient? = null
     private var locationCallback: LocationCallback? = null
+    private var locationHandlerThread: HandlerThread? = null
     private var wakeLock: PowerManager.WakeLock? = null
     private var recordedCount = 0
 
@@ -35,6 +41,8 @@ class TrackingService : Service() {
         const val NOTIFICATION_ID = 90210
         const val ACTION_START = "ru.tripscheduler.tracking.START"
         const val ACTION_STOP = "ru.tripscheduler.tracking.STOP"
+        private const val BUFFER_FILENAME = "tracking_buffered_points.jsonl"
+        private val fileLock = Any()
 
         @Volatile
         var isRunning: Boolean = false
@@ -43,16 +51,78 @@ class TrackingService : Service() {
         @Volatile
         var onLocationReceived: ((Location) -> Unit)? = null
 
-        val locationBuffer = ConcurrentLinkedQueue<Location>()
-        private const val MAX_BUFFER_SIZE = 1000
+        @Volatile
+        var onStateChanged: ((Boolean) -> Unit)? = null
 
-        fun drainBuffer(): List<Location> {
+        val locationBuffer = ConcurrentLinkedQueue<Location>()
+        private const val MAX_RAM_BUFFER_SIZE = 5000
+
+        fun drainBuffer(context: Context): List<Location> {
             val list = mutableListOf<Location>()
+
+            // 1. Извлекаем точки из оперативной памяти
             while (true) {
                 val loc = locationBuffer.poll() ?: break
                 list.add(loc)
             }
-            return list
+
+            // 2. Считываем сохраненный на диск буфер (для защиты от выгрузки процесса ОС)
+            synchronized(fileLock) {
+                try {
+                    val file = File(context.filesDir, BUFFER_FILENAME)
+                    if (file.exists()) {
+                        BufferedReader(FileReader(file)).use { reader ->
+                            var line: String? = reader.readLine()
+                            while (line != null) {
+                                if (line.isNotBlank()) {
+                                    try {
+                                        val json = JSONObject(line)
+                                        val loc = Location("fused").apply {
+                                            latitude = json.getDouble("lat")
+                                            longitude = json.getDouble("lng")
+                                            if (json.has("acc")) accuracy = json.getDouble("acc").toFloat()
+                                            if (json.has("alt")) altitude = json.getDouble("alt")
+                                            if (json.has("spd")) speed = json.getDouble("spd").toFloat()
+                                            if (json.has("brg")) bearing = json.getDouble("brg").toFloat()
+                                            time = json.getLong("time")
+                                        }
+                                        list.add(loc)
+                                    } catch (_: Exception) {}
+                                }
+                                line = reader.readLine()
+                            }
+                        }
+                        file.delete()
+                    }
+                } catch (e: Exception) {
+                    android.util.Log.w("TrackingService", "Error reading persistent buffer", e)
+                }
+            }
+
+            // Дедупликация и сортировка по времени
+            return list.distinctBy { it.time }.sortedBy { it.time }
+        }
+
+        private fun persistPoint(context: Context, location: Location) {
+            synchronized(fileLock) {
+                try {
+                    val file = File(context.filesDir, BUFFER_FILENAME)
+                    val json = JSONObject().apply {
+                        put("lat", location.latitude)
+                        put("lng", location.longitude)
+                        if (location.hasAccuracy()) put("acc", location.accuracy)
+                        if (location.hasAltitude()) put("alt", location.altitude)
+                        if (location.hasSpeed()) put("spd", location.speed)
+                        if (location.hasBearing()) put("brg", location.bearing)
+                        put("time", location.time)
+                    }
+                    FileWriter(file, true).use { writer ->
+                        writer.write(json.toString() + "\n")
+                    }
+                } catch (e: Exception) {
+                    android.util.Log.w("TrackingService", "Error persisting location to disk", e)
+                }
+            }
         }
     }
 
@@ -83,6 +153,8 @@ class TrackingService : Service() {
             ).apply {
                 description = "Уведомление активного сервиса записи маршрута"
                 setShowBadge(false)
+                enableVibration(false)
+                enableLights(false)
             }
             val manager = getSystemService(NotificationManager::class.java)
             manager?.createNotificationChannel(channel)
@@ -100,13 +172,27 @@ class TrackingService : Service() {
             )
         } else null
 
+        val stopIntent = Intent(this, TrackingService::class.java).apply {
+            action = ACTION_STOP
+        }
+        val stopPendingIntent = PendingIntent.getService(
+            this,
+            1,
+            stopIntent,
+            PendingIntent.FLAG_UPDATE_CURRENT or (if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) PendingIntent.FLAG_IMMUTABLE else 0)
+        )
+
+        val appIcon = applicationInfo.icon.takeIf { it != 0 } ?: android.R.drawable.ic_menu_mylocation
+
         val builder = NotificationCompat.Builder(this, CHANNEL_ID)
             .setContentTitle("TripScheduler: Запись маршрута")
             .setContentText(statusText)
-            .setSmallIcon(android.R.drawable.ic_menu_mylocation)
+            .setSmallIcon(appIcon)
             .setOngoing(true)
             .setPriority(NotificationCompat.PRIORITY_LOW)
             .setCategory(NotificationCompat.CATEGORY_SERVICE)
+            .setForegroundServiceBehavior(NotificationCompat.FOREGROUND_SERVICE_IMMEDIATE)
+            .addAction(android.R.drawable.ic_menu_close_clear_cancel, "Остановить", stopPendingIntent)
 
         if (pendingIntent != null) {
             builder.setContentIntent(pendingIntent)
@@ -117,23 +203,28 @@ class TrackingService : Service() {
 
     @SuppressLint("MissingPermission")
     private fun startTracking() {
+        // Обязательно сразу вызываем startForeground, соблюдая 5-секундный контракт Android 8+
+        val notification = buildNotification(if (recordedCount > 0) "Записано точек: $recordedCount" else "GPS-трекинг активен")
+        try {
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+                startForeground(
+                    NOTIFICATION_ID,
+                    notification,
+                    ServiceInfo.FOREGROUND_SERVICE_TYPE_LOCATION
+                )
+            } else {
+                startForeground(NOTIFICATION_ID, notification)
+            }
+        } catch (e: Exception) {
+            android.util.Log.e("TrackingService", "Failed to start foreground", e)
+        }
+
         if (isRunning) return
         isRunning = true
         recordedCount = 0
+        onStateChanged?.invoke(true)
 
-        // 1. Start as Foreground Service with location type
-        val notification = buildNotification("GPS-трекинг активен")
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
-            startForeground(
-                NOTIFICATION_ID,
-                notification,
-                ServiceInfo.FOREGROUND_SERVICE_TYPE_LOCATION
-            )
-        } else {
-            startForeground(NOTIFICATION_ID, notification)
-        }
-
-        // 2. Acquire CPU partial wake lock to keep processor alive when screen is locked
+        // 1. Захватываем CPU Partial WakeLock для предотвращения сна процессора при заблокированном экране
         try {
             val powerManager = getSystemService(Context.POWER_SERVICE) as PowerManager
             wakeLock = powerManager.newWakeLock(
@@ -141,20 +232,24 @@ class TrackingService : Service() {
                 "TripScheduler:TrackingServiceWakeLock"
             ).apply {
                 setReferenceCounted(false)
-                acquire(24 * 60 * 60 * 1000L) // safety timeout 24 hours
+                acquire(24 * 60 * 60 * 1000L) // Таймаут безопасности 24 часа
             }
         } catch (e: Exception) {
             android.util.Log.e("TrackingService", "Failed to acquire wake lock", e)
         }
 
-        // 3. Request high-accuracy continuous updates via FusedLocationProviderClient
+        // 2. Создаем отдельный HandlerThread для изоляции вызовов GPS от главного/UI потока и WebView
         try {
+            locationHandlerThread = HandlerThread("TripSchedulerTrackerThread").apply { start() }
+            val looper = locationHandlerThread?.looper ?: Looper.getMainLooper()
+
             fusedLocationClient = LocationServices.getFusedLocationProviderClient(this)
 
             val locationRequest = LocationRequest.Builder(Priority.PRIORITY_HIGH_ACCURACY, 3000L)
                 .setMinUpdateIntervalMillis(1500L)
-                .setMaxUpdateDelayMillis(4000L)
+                .setMaxUpdateDelayMillis(0L) // Немедленная доставка координат без накопления в Play Services
                 .setMinUpdateDistanceMeters(0f)
+                .setWaitForAccurateLocation(false)
                 .build()
 
             locationCallback = object : LocationCallback() {
@@ -168,7 +263,7 @@ class TrackingService : Service() {
             fusedLocationClient?.requestLocationUpdates(
                 locationRequest,
                 locationCallback!!,
-                Looper.getMainLooper()
+                looper
             )
         } catch (e: Exception) {
             android.util.Log.e("TrackingService", "Failed to request location updates", e)
@@ -178,21 +273,24 @@ class TrackingService : Service() {
     private fun handleLocation(location: Location) {
         recordedCount++
 
-        // Buffer location
-        if (locationBuffer.size >= MAX_BUFFER_SIZE) {
+        // 1. Сохраняем в оперативную очередь
+        if (locationBuffer.size >= MAX_RAM_BUFFER_SIZE) {
             locationBuffer.poll()
         }
         locationBuffer.offer(location)
 
-        // Forward to real-time listener if UI/plugin is subscribed
+        // 2. Сохраняем в файл на диске на случай выгрузки процесса системой
+        persistPoint(applicationContext, location)
+
+        // 3. Передаем в реальном времени подписчикам (когда UI активен)
         try {
             onLocationReceived?.invoke(location)
         } catch (e: Exception) {
             android.util.Log.w("TrackingService", "Error dispatching location update", e)
         }
 
-        // Update notification periodically (every 10 points)
-        if (recordedCount % 10 == 0) {
+        // 4. Периодически обновляем статус в шторке и на экране блокировки
+        if (recordedCount % 5 == 0) {
             try {
                 val manager = getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
                 manager.notify(NOTIFICATION_ID, buildNotification("Записано точек: $recordedCount"))
@@ -203,6 +301,7 @@ class TrackingService : Service() {
     private fun stopTracking() {
         if (!isRunning) return
         isRunning = false
+        onStateChanged?.invoke(false)
 
         try {
             if (locationCallback != null) {
@@ -214,6 +313,13 @@ class TrackingService : Service() {
         }
 
         try {
+            locationHandlerThread?.quitSafely()
+            locationHandlerThread = null
+        } catch (e: Exception) {
+            android.util.Log.w("TrackingService", "Error quitting handler thread", e)
+        }
+
+        try {
             wakeLock?.let {
                 if (it.isHeld) it.release()
             }
@@ -222,11 +328,15 @@ class TrackingService : Service() {
             android.util.Log.w("TrackingService", "Error releasing wake lock", e)
         }
 
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
-            stopForeground(STOP_FOREGROUND_REMOVE)
-        } else {
-            @Suppress("DEPRECATION")
-            stopForeground(true)
+        try {
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
+                stopForeground(STOP_FOREGROUND_REMOVE)
+            } else {
+                @Suppress("DEPRECATION")
+                stopForeground(true)
+            }
+        } catch (e: Exception) {
+            android.util.Log.w("TrackingService", "Error stopping foreground service", e)
         }
     }
 
