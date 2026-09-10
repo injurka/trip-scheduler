@@ -1,11 +1,14 @@
 <script setup lang="ts">
 import type { HighlightStatus } from '../../composables/use-booking-section'
-import type { Booking, CarData } from '../../models/types'
+import type { Booking, CarData, CarKind } from '../../models/types'
 import { Icon } from '@iconify/vue'
 import { KitBtn } from '~/components/01.kit/kit-btn'
+import { getBookingKindOptions, resolveBookingKind } from '../../models/booking-kinds'
 import BookingCardWrapper from '../shared/booking-card-wrapper.vue'
 import BookingDateTimeField from '../shared/booking-date-time-field.vue'
 import BookingField from '../shared/booking-field.vue'
+import BookingKindBadge from '../shared/booking-kind-badge.vue'
+import BookingKindField from '../shared/booking-kind-field.vue'
 import BookingLocationField from '../shared/booking-location-field.vue'
 import BookingLocationViewer from '../shared/booking-location-viewer.vue'
 import BookingSourceLink from '../shared/booking-source-link.vue'
@@ -100,6 +103,14 @@ const totalDurationMs = computed(() => {
 const totalDurationFormatted = computed(() => {
   return formatDuration(totalDurationMs.value)
 })
+
+const kindOptions = getBookingKindOptions('car')
+
+const kindMeta = computed(() => resolveBookingKind('car', props.booking.data.kind, props.booking.icon))
+
+function updateKind(value?: string) {
+  updateDataField('kind', value as CarKind)
+}
 </script>
 
 <template>
@@ -112,6 +123,10 @@ const totalDurationFormatted = computed(() => {
     @delete="$emit('delete')"
     @update:title="updateTitle"
   >
+    <template #badge>
+      <BookingKindBadge v-if="kindMeta" :meta="kindMeta" />
+    </template>
+
     <div class="card-content">
       <div class="time-info">
         <div class="time">
@@ -126,12 +141,13 @@ const totalDurationFormatted = computed(() => {
       </div>
 
       <div class="route-visualizer">
+        <BookingKindBadge v-if="kindMeta" :meta="kindMeta" class="kind-pill" />
         <div class="total-duration">
           {{ totalDurationFormatted !== '---' ? totalDurationFormatted : (booking.data.carModel || booking.data.company || 'Авто') }}
         </div>
         <div class="route-line">
           <div class="route-icon">
-            <Icon icon="mdi:car" />
+            <Icon :icon="kindMeta?.icon || 'mdi:car'" />
           </div>
         </div>
         <div class="stations">
@@ -155,6 +171,14 @@ const totalDurationFormatted = computed(() => {
 
     <template #details>
       <div class="details-grid">
+        <BookingKindField
+          :model-value="booking.data.kind"
+          :options="kindOptions"
+          label="Тип авто"
+          :readonly="readonly"
+          class="span-2"
+          @update:model-value="updateKind"
+        />
         <BookingField
           :model-value="booking.data.company"
           label="Компания / Перевозчик"

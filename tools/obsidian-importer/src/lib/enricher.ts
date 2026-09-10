@@ -445,6 +445,13 @@ export async function enrichActivityWithMediaAndLocation(
             isMatched = true
           }
         }
+        else if (booking.type === 'other') {
+          const name = booking.data.name?.toLowerCase()
+          if ((name && name.length >= 4 && actText.includes(name))
+            || (booking.title && booking.title.length >= 5 && actText.includes(booking.title.toLowerCase()))) {
+            isMatched = true
+          }
+        }
 
         if (isMatched) {
           newSections.push({

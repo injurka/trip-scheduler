@@ -103,6 +103,38 @@ Here is the schema you must follow:
               }
             }`
       break
+    case 'car':
+      schema = `{
+              "type": "car",
+              "title": "Авто в <Город> (например, 'Такси в аэропорт')",
+              "data": {
+                "kind": "one of: taxi | transfer | chauffeur | rental | personal | bus | bike | other",
+                "company": "string", "carModel": "string", "carType": "string",
+                "pickupLocation": "string", "dropoffLocation": "string",
+                "pickupDateTime": "YYYY-MM-DDTHH:mm:ss", "dropoffDateTime": "YYYY-MM-DDTHH:mm:ss",
+                "pickupTimeZone": "+-HH:mm", "dropoffTimeZone": "+-HH:mm",
+                "confirmationNumber": "string", "phone": "string", "email": "string",
+                "notes": "string",
+                "sourceUrl": "URL to the booking source, if available"
+              }
+            }`
+      break
+    case 'other':
+      schema = `{
+              "type": "other",
+              "title": "<Что за перемещение> (например, 'Паром на остров')",
+              "data": {
+                "kind": "one of: ferry | boat | cablecar | bike | pedestrian | luggage | other",
+                "name": "string (что это за перемещение, например 'Паром Мурманск — Остров')",
+                "startLocation": "string", "endLocation": "string",
+                "startDateTime": "YYYY-MM-DDTHH:mm:ss", "endDateTime": "YYYY-MM-DDTHH:mm:ss",
+                "startTimeZone": "+-HH:mm", "endTimeZone": "+-HH:mm",
+                "bookingReference": "string",
+                "notes": "string",
+                "sourceUrl": "URL to the booking source, if available"
+              }
+            }`
+      break
     default:
       throw new Error('Unsupported booking type for prompt generation.')
   }

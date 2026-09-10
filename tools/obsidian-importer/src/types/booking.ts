@@ -76,7 +76,26 @@ export interface AttractionData {
   sourceUrl?: string
 }
 
+/**
+ * Пометки («теги») для раздела «Авто»: раздел объединяет такси, трансфер,
+ * аренду, личное авто, авто с водителем и автобус, поэтому каждая запись
+ * должна нести визуально понятный признак.
+ *
+ * Значения должны быть синхронизированы с `CAR_KINDS` в клиенте
+ * (booking-section/models/booking-kinds.ts).
+ */
+export type CarKind = 'taxi' | 'transfer' | 'chauffeur' | 'rental' | 'personal' | 'bus' | 'bike' | 'other'
+
+/**
+ * Пометки для раздела «Другое» (паром, катер, канатная дорога, электровелосипед
+ * и прочие неочевидные способы перемещения).
+ *
+ * Значения должны быть синхронизированы с `OTHER_KINDS` в клиенте.
+ */
+export type OtherKind = 'ferry' | 'boat' | 'cablecar' | 'bike' | 'pedestrian' | 'luggage' | 'other'
+
 export interface CarData {
+  kind?: CarKind
   company?: string
   carModel?: string
   carType?: string
@@ -95,6 +114,27 @@ export interface CarData {
   sourceUrl?: string
 }
 
+/**
+ * Раздел «Другое»: паромы, катера, канатные дороги, электровелосипеды,
+ * пешие переходы и прочие перемещения, которые не являются ни «Авто»,
+ * ни «Поездом». Точечные перемещения описываются парой start/end.
+ */
+export interface OtherData {
+  kind?: OtherKind
+  name?: string // Что это за перемещение
+  startLocation?: string
+  endLocation?: string
+  startCoords?: LocationCoords
+  endCoords?: LocationCoords
+  startDateTime?: string // ISO 8601 format
+  endDateTime?: string // ISO 8601 format
+  startTimeZone?: string
+  endTimeZone?: string
+  bookingReference?: string
+  notes?: string
+  sourceUrl?: string
+}
+
 export interface BookingBase {
   id: string
   icon: string
@@ -107,6 +147,7 @@ export type Booking
     | (BookingBase & { type: 'train', data: TrainData })
     | (BookingBase & { type: 'car', data: CarData })
     | (BookingBase & { type: 'attraction', data: AttractionData })
+    | (BookingBase & { type: 'other', data: OtherData })
 
 export type BookingType = Booking['type']
 

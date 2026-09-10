@@ -1,3 +1,4 @@
+import type { Booking } from '../types'
 import type {
   DayValidationSummary,
   UnparsedActivityCandidate,
@@ -451,6 +452,11 @@ export function validateObsidianVault(context: ValidationScopeContext, startDate
   const trainsCount = bookingsData.bookings.filter(b => b.type === 'train').length
   const carsCount = bookingsData.bookings.filter(b => b.type === 'car').length
   const attractionsCount = bookingsData.bookings.filter(b => b.type === 'attraction').length
+  const othersCount = bookingsData.bookings.filter(b => b.type === 'other').length
+  // Записи разделов «Авто»/«Другое» без пометки типа (kind) — их не отличить визуально
+  const untaggedTransport = bookingsData.bookings.filter(
+    (b): b is Extract<Booking, { type: 'car' | 'other' }> => (b.type === 'car' || b.type === 'other') && !b.data.kind,
+  ).length
 
   const bookingDirNames = ['03 - Бронирования', '03 - Bookings', '01 - Бронирования', 'Бронирования']
   const hasBookingsDir = bookingDirNames.some(d => existsSync(join(tripRoot, d)))
@@ -470,6 +476,15 @@ export function validateObsidianVault(context: ValidationScopeContext, startDate
         category: 'bookings',
         message: 'В папке бронирований не найдено ни одного распарсенного отеля (проверьте таблицу в Отели.md).',
         recommendation: 'Оформите сводную таблицу в `Отели.md` с колонками `| Ночи | Локация | Отель ... |`.',
+      })
+    }
+
+    if (untaggedTransport > 0) {
+      issues.push({
+        severity: 'info',
+        category: 'bookings',
+        message: `${untaggedTransport} записей в разделах «Авто»/«Другое» без пометки типа (kind${othersCount > 0 ? `, всего в «Другое» — ${othersCount}` : ''}).`,
+        recommendation: 'Уточните способ перемещения в колонке «Транспорт» (такси, трансфер, аренда, паром, электровелосипед и т.п.) — пометка проставится автоматически.',
       })
     }
   }

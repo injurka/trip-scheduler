@@ -21,6 +21,7 @@ export const BOOKING_TYPES_CONFIG = {
   train: { label: 'Поезда', icon: 'mdi:train', defaultTitle: 'Новый билет на поезд' },
   car: { label: 'Авто', icon: 'mdi:car', defaultTitle: 'Новый автомобиль' },
   attraction: { label: 'Места', icon: 'mdi:map-marker-star-outline', defaultTitle: 'Новое место' },
+  other: { label: 'Другое', icon: 'mdi:dots-horizontal-circle-outline', defaultTitle: 'Новое перемещение' },
 } as const
 
 /**
@@ -52,6 +53,10 @@ function getBookingTimeRange(booking: Booking): { start: number, end: number } |
       case 'attraction':
         startStr = booking.data.dateTime
         endStr = undefined
+        break
+      case 'other':
+        startStr = booking.data.startDateTime
+        endStr = booking.data.endDateTime
         break
     }
 
@@ -212,9 +217,13 @@ export function useBookingSection(
 
     const initialData: any = {}
 
-    if (type === 'train' || type === 'car') {
+    if (type === 'train' || type === 'car' || type === 'other') {
       const tz = getCurrentTimeZoneOffset()
-      if (type === 'train') {
+      if (type === 'other') {
+        initialData.startTimeZone = tz
+        initialData.endTimeZone = tz
+      }
+      else if (type === 'train') {
         initialData.departureTimeZone = tz
         initialData.arrivalTimeZone = tz
       }

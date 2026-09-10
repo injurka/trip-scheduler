@@ -11,6 +11,7 @@ import AttractionCard from '../cards/attraction-card.vue'
 import CarCard from '../cards/car-card.vue'
 import FlightCard from '../cards/flight-card.vue'
 import HotelCard from '../cards/hotel-card.vue'
+import OtherCard from '../cards/other-card.vue'
 import TrainCard from '../cards/train-card.vue'
 
 type CreatorState = 'upload' | 'loading' | 'preview' | 'error'
@@ -44,6 +45,7 @@ const cardComponents = {
   train: TrainCard,
   car: CarCard,
   attraction: AttractionCard,
+  other: OtherCard,
 }
 const previewCardComponent = computed(() => {
   return generatedBooking.value ? cardComponents[generatedBooking.value.type] : null

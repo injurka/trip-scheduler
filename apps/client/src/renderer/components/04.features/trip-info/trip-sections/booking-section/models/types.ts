@@ -1,3 +1,7 @@
+import type { CarKind, OtherKind } from './booking-kinds'
+
+export type { CarKind, OtherKind } from './booking-kinds'
+
 /**
  * Базовая структура для любого типа бронирования.
  */
@@ -107,6 +111,10 @@ export interface AttractionData {
  * Тип данных для аренды авто / трансфера / поездки на автомобиле.
  */
 export interface CarData {
+  /**
+   * Пометка: такси, трансфер, аренда, личное авто, авто с водителем и т. п.
+   */
+  kind?: CarKind
   company?: string // Прокатная компания или перевозчик
   carModel?: string // Модель/марка авто
   carType?: string // Класс авто (SUV, Седан, Минивэн)
@@ -125,12 +133,37 @@ export interface CarData {
   sourceUrl?: string
 }
 
+/**
+ * Тип данных для «прочего» перемещения, которое не является ни перелетом,
+ * ни поездом, ни автомобилем: паром, канатная дорога, электровелосипед,
+ * пеший переход, перевозка багажа и т. п.
+ */
+export interface OtherData {
+  /**
+   * Пометка: паром, катер, канатная дорога, велосипед, пеший переход и т. п.
+   */
+  kind?: OtherKind
+  name?: string // Что это за перемещение
+  startLocation?: string // Место отправления
+  endLocation?: string // Место прибытия
+  startCoords?: LocationCoords
+  endCoords?: LocationCoords
+  startDateTime?: string // ISO 8601 format
+  endDateTime?: string // ISO 8601 format
+  startTimeZone?: string // Timezone offset, e.g., "+03:00"
+  endTimeZone?: string // Timezone offset, e.g., "+03:00"
+  bookingReference?: string
+  notes?: string
+  sourceUrl?: string
+}
+
 export type Booking
   = | (BookingBase & { type: 'flight', data: FlightData })
     | (BookingBase & { type: 'hotel', data: HotelData })
     | (BookingBase & { type: 'train', data: TrainData })
     | (BookingBase & { type: 'car', data: CarData })
     | (BookingBase & { type: 'attraction', data: AttractionData })
+    | (BookingBase & { type: 'other', data: OtherData })
 
 export type BookingType = Booking['type']
 

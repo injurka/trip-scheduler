@@ -307,7 +307,8 @@ export async function runImport(): Promise<void> {
           const trainsCount = sectionContent.bookings.filter((b: any) => b.type === 'train').length
           const carsCount = sectionContent.bookings.filter((b: any) => b.type === 'car').length
           const attractionsCount = sectionContent.bookings.filter((b: any) => b.type === 'attraction').length
-          console.log(`  ${colors.green}✔ Раздел «${sec.title}» наполнен:${colors.reset} ${hotelsCount > 0 ? `🏨 ${hotelsCount} отелей ` : ''}${flightsCount > 0 ? `✈️ ${flightsCount} рейсов ` : ''}${trainsCount > 0 ? `🚆 ${trainsCount} поездов ` : ''}${carsCount > 0 ? `🚗 ${carsCount} авто/трансферов ` : ''}${attractionsCount > 0 ? `🎟️ ${attractionsCount} билетов/пропусков` : ''}`)
+          const othersCount = sectionContent.bookings.filter((b: any) => b.type === 'other').length
+          console.log(`  ${colors.green}✔ Раздел «${sec.title}» наполнен:${colors.reset} ${hotelsCount > 0 ? `🏨 ${hotelsCount} отелей ` : ''}${flightsCount > 0 ? `✈️ ${flightsCount} рейсов ` : ''}${trainsCount > 0 ? `🚆 ${trainsCount} поездов ` : ''}${carsCount > 0 ? `🚗 ${carsCount} авто/трансферов ` : ''}${attractionsCount > 0 ? `🎟️ ${attractionsCount} билетов/пропусков ` : ''}${othersCount > 0 ? `🧭 ${othersCount} прочих переездов` : ''}`)
         }
         else if (sec.type === 'checklist' && sectionContent?.items?.length > 0) {
           const totalItems = sectionContent.items.length

@@ -1,7 +1,8 @@
 /* eslint-disable no-misleading-character-class */
-import type { Booking, BookingSectionContent, FlightSegment } from '../types'
+import type { Booking, BookingSectionContent, CarKind, FlightSegment, OtherKind } from '../types'
 import { existsSync, readdirSync, readFileSync, statSync } from 'node:fs'
 import { join } from 'node:path'
+import { classifyTransportText } from '../lib/transport-classifier'
 
 /**
  * Месяцы для парсинга текстовых дат (например, "29 окт", "21 нояб")
@@ -604,45 +605,16 @@ export function parseTransportMarkdown(content: string, startDateStr: string): B
   }
 
   /**
-   * Определяет иконку и тип транспорта по тексту в колонке «Транспорт».
-   * Возвращает { type, icon } для Booking.
+   * Определяет тип, иконку и пометку («тег») по тексту в колонке «Транспорт».
+   *
+   * Раздел `car` («Авто») — только автомобильный транспорт (такси, трансфер,
+   * аренда, личное авто, авто с водителем, автобус). Раздел `other` («Другое») —
+   * паромы, катера, канатные дороги, электровелосипеды и прочие перемещения,
+   * которые не являются ни автомобилем, ни поездом.
    */
-  function classifyTransport(transportText: string, segmentText: string): { type: 'train' | 'car', icon: string } {
-    const t = transportText.toLowerCase()
-    const s = segmentText.toLowerCase()
-
-    // Паром / корабль
-    if (/паром|ferry|⛴|корабл|судно/i.test(t) || /паром|ferry|⛴/i.test(s))
-      return { type: 'train', icon: 'mdi:ferry' }
-
-    // Автобус (включая горные, шаттлы и городские)
-    if (/автобус|bus|🚌|шаттл|shuttle/i.test(t))
-      return { type: 'train', icon: 'mdi:bus' }
-
-    // Метро / MRT / подземка
-    if (/метро|mrt|🚇|subway|underground/i.test(t))
-      return { type: 'train', icon: 'mdi:subway-variant' }
-
-    // Скоростной поезд THSR
-    if (/thsr|高鐵|скоростн|🚄|high.speed/i.test(t))
-      return { type: 'train', icon: 'mdi:train-variant' }
-
-    // Обычный поезд TRA / EMU / узкоколейка
-    if (/tra|поезд|train|🚆|🚂|emu|узкоколейн|tze-chiang/i.test(t))
-      return { type: 'train', icon: 'mdi:train' }
-
-    // Мотоцикл / электробайк / скутер
-    if (/мотоцикл|скутер|байк|мопед|e-bike|ebike|🛵/i.test(t))
-      return { type: 'car', icon: 'mdi:moped' }
-
-    // Такси / машина / авто / аренда
-    if (/такси|taxi|авто|машина|car|джип|трансфер|аренда|🚗|🚖|grab|uber/i.test(t)
-      || /такси|авто|прокат|трансфер/i.test(s)) {
-      return { type: 'car', icon: 'mdi:car' }
-    }
-
-    // Fallback
-    return { type: 'train', icon: 'mdi:transit-transfer' }
+  function classifyTransport(transportText: string, segmentText: string): { type: 'train' | 'car' | 'other', icon: string, kind?: CarKind | OtherKind } {
+    const { type, icon, kind } = classifyTransportText(transportText, segmentText)
+    return { type, icon, kind }
   }
 
   /**
@@ -759,7 +731,7 @@ export function parseTransportMarkdown(content: string, startDateStr: string): B
         ].filter(Boolean).join('. ')
 
         // Экскурсия / билет / пропуск
-        if (/экскурси|билет|пропуск|эко-сбор|музей|сеанс|катер|подъемник/i.test(segmentCol)
+        if (/экскурси|билет|пропуск|эко-сбор|музей|сеанс/i.test(segmentCol)
           || /экскурси|музей|билет/i.test(transportCol)) {
           const cleanTitle = removeEmoji(segmentCol).replace(/[*_`]/g, '').replace(/^[^а-яёa-z0-9]+/i, '').trim()
           bookings.push({
@@ -777,8 +749,8 @@ export function parseTransportMarkdown(content: string, startDateStr: string): B
           continue
         }
 
-        // Обычный транспорт — определяем тип и генерируем осмысленный тайтл
-        const { type, icon } = classifyTransport(transportCol, segmentCol)
+        // Обычный транспорт — определяем тип, пометку и генерируем осмысленный тайтл
+        const { type, icon, kind } = classifyTransport(transportCol, segmentCol)
         const { title, from, to } = extractRouteTitle(segmentCol, transportCol)
 
         if (type === 'car') {
@@ -788,6 +760,7 @@ export function parseTransportMarkdown(content: string, startDateStr: string): B
             icon,
             title,
             data: {
+              kind: kind as CarKind | undefined,
               company: removeEmoji(transportCol).replace(/[*_`]/g, '').trim() || undefined,
               pickupLocation: from || undefined,
               dropoffLocation: to || undefined,
@@ -795,6 +768,29 @@ export function parseTransportMarkdown(content: string, startDateStr: string): B
               dropoffDateTime: `${dateStr}T12:00:00`,
               pickupTimeZone: inferTimezone(from),
               dropoffTimeZone: inferTimezone(to),
+              notes,
+              sourceUrl,
+            },
+          })
+        }
+        else if (type === 'other') {
+          // Паромы, катера, канатные дороги, электровелосипеды и прочие переезды:
+          // это не «Авто» и не «Поезд», поэтому они идут в раздел «Другое»
+          const transportName = removeEmoji(transportCol).replace(/[*_`]/g, '').trim()
+          bookings.push({
+            id: crypto.randomUUID(),
+            type: 'other',
+            icon,
+            title,
+            data: {
+              kind: kind as OtherKind | undefined,
+              name: transportName || title,
+              startLocation: from || undefined,
+              endLocation: to || undefined,
+              startDateTime: `${dateStr}T09:00:00`,
+              endDateTime: `${dateStr}T12:00:00`,
+              startTimeZone: inferTimezone(from),
+              endTimeZone: inferTimezone(to),
               notes,
               sourceUrl,
             },

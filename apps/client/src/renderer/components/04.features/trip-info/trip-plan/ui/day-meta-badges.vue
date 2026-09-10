@@ -119,6 +119,16 @@ const bookingsForSelectedDay = computed(() => {
       case 'train': {
         return booking.data.departureDateTime?.startsWith(selectedDateStr)
       }
+      case 'car': {
+        // Авто: аренда и трансфер могут длиться несколько дней — показываем
+        // в день начала и в день окончания
+        return booking.data.pickupDateTime?.startsWith(selectedDateStr)
+          || booking.data.dropoffDateTime?.startsWith(selectedDateStr)
+      }
+      case 'other': {
+        return booking.data.startDateTime?.startsWith(selectedDateStr)
+          || booking.data.endDateTime?.startsWith(selectedDateStr)
+      }
       case 'attraction': {
         return booking.data.dateTime?.startsWith(selectedDateStr)
       }

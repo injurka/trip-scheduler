@@ -76,6 +76,10 @@ async function handleDelete() {
           @click.stop
         />
 
+        <div v-if="$slots.badge" class="badge-slot">
+          <slot name="badge" />
+        </div>
+
         <div v-if="statusBadge" class="status-badge" :style="{ color: statusBadge.color, borderColor: statusBadge.color }">
           <Icon :icon="statusBadge.icon" />
           <span>{{ statusBadge.text }}</span>
@@ -171,6 +175,13 @@ async function handleDelete() {
   flex-grow: 1;
   min-width: 0;
   margin-right: 8px;
+}
+
+.badge-slot {
+  display: flex;
+  align-items: center;
+  margin-left: auto;
+  flex-shrink: 0;
 }
 
 .status-badge {

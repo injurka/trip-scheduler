@@ -67,6 +67,8 @@ function isBookingMatchingDay(booking: Booking, dateStr: string | null): boolean
     }
     case 'attraction':
       return !!booking.data.dateTime?.startsWith(dateStr)
+    case 'other':
+      return !!booking.data.startDateTime?.startsWith(dateStr)
     default:
       return false
   }
@@ -129,6 +131,19 @@ function getBookingSummary(booking: Booking): { title: string, subtitle: string,
       return {
         title: booking.title || booking.data.attractionName || 'Место',
         subtitle: booking.data.address || 'Адрес не указан',
+        dateInfo: date,
+      }
+    }
+    case 'other': {
+      const date = booking.data.startDateTime
+        ? new Date(booking.data.startDateTime).toLocaleString('ru-RU', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })
+        : ''
+      const route = booking.data.startLocation && booking.data.endLocation
+        ? `${booking.data.startLocation} → ${booking.data.endLocation}`
+        : (booking.data.startLocation || booking.data.endLocation || 'Маршрут не указан')
+      return {
+        title: booking.title || booking.data.name || 'Перемещение',
+        subtitle: route,
         dateInfo: date,
       }
     }

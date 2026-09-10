@@ -30,3 +30,4 @@ project_prompt.md
 ./docker/letsencrypt/acme.json
 docs
 .hermes-workspace
+tools/obsidian-importer/backups/

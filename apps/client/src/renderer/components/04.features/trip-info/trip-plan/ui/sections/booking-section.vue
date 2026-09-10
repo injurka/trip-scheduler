@@ -8,6 +8,7 @@ import AttractionCard from '~/components/04.features/trip-info/trip-sections/boo
 import CarCard from '~/components/04.features/trip-info/trip-sections/booking-section/ui/cards/car-card.vue'
 import FlightCard from '~/components/04.features/trip-info/trip-sections/booking-section/ui/cards/flight-card.vue'
 import HotelCard from '~/components/04.features/trip-info/trip-sections/booking-section/ui/cards/hotel-card.vue'
+import OtherCard from '~/components/04.features/trip-info/trip-sections/booking-section/ui/cards/other-card.vue'
 import TrainCard from '~/components/04.features/trip-info/trip-sections/booking-section/ui/cards/train-card.vue'
 import { useModuleStore } from '~/components/05.modules/trip-info/composables/use-trip-info-module'
 import { TripSectionType } from '~/shared/types/models/trip'
@@ -48,6 +49,7 @@ const cardComponents = {
   train: TrainCard,
   car: CarCard,
   attraction: AttractionCard,
+  other: OtherCard,
 }
 
 function handleUpdateBooking(updatedBooking: any) {
