@@ -1,9 +1,10 @@
 <script setup lang="ts">
-import type { KitMapRoute, MapMarker } from '~/components/01.kit/kit-map'
+import type { useGeolocationMap } from '~/components/03.domain/trip-info/geolocation-section/composables/use-geolocation-map'
+import type { Coordinate, MapPoint, MapRoute } from '~/components/03.domain/trip-info/geolocation-section/models/types'
 import { Icon } from '@iconify/vue'
 import { useRouter } from 'vue-router'
 import { KitBtn } from '~/components/01.kit/kit-btn'
-import { KitMap } from '~/components/01.kit/kit-map'
+import GeolocationMap from '~/components/03.domain/trip-info/geolocation-section/ui/geolocation-map.vue'
 import { isValidCoordinate, nominatimService } from '~/shared/services/geo'
 
 interface Props {
@@ -22,9 +23,9 @@ const router = useRouter()
 const { smAndDown } = useDisplay()
 
 const isLoading = ref(true)
-const mapMarkers = ref<MapMarker[]>([])
-const mapRoutes = ref<KitMapRoute[]>([])
-const mapCenter = ref<[number, number]>([37.6176, 55.7558])
+const mapPoints = ref<MapPoint[]>([])
+const mapRoutes = ref<MapRoute[]>([])
+const mapCenter = ref<Coordinate>([37.6176, 55.7558])
 
 async function fetchCoordinates(city: string): Promise<[number, number] | null> {
   try {
@@ -42,8 +43,8 @@ async function fetchCoordinates(city: string): Promise<[number, number] | null> 
 
 async function initMapData() {
   if (props.points.length > 0 || props.routes.length > 0) {
-    const markers: MapMarker[] = []
-    const routes: KitMapRoute[] = []
+    const points: MapPoint[] = []
+    const routes: MapRoute[] = []
 
     props.points.forEach((p) => {
       if (p && p.coordinates && isValidCoordinate(p.coordinates)) {
@@ -53,25 +54,41 @@ async function initMapData() {
           lat = lon
           lon = temp
         }
-        markers.push({
+        points.push({
           id: p.id,
-          coords: { lon, lat },
-          color: p.style?.color,
-          pointType: p.type || 'poi',
+          coordinates: [lon, lat],
+          type: p.type || 'poi',
+          style: p.style,
           comment: p.comment,
           address: p.address,
-          payload: p,
         })
       }
     })
 
     props.routes.forEach((r) => {
-      if (r.isVisible !== false && r.geometry && r.geometry.length >= 2) {
+      if (r.isVisible !== false) {
         routes.push({
           id: r.id,
-          title: r.title,
+          title: r.title || 'Маршрут',
+          points: (r.points || []).map((rp: any) => {
+            let [lon, lat] = rp.coordinates || [0, 0]
+            if (Math.abs(lat) > 90 && Math.abs(lon) <= 90) {
+              const temp = lat
+              lat = lon
+              lon = temp
+            }
+            return {
+              ...rp,
+              coordinates: [lon, lat],
+            }
+          }),
           color: r.color || '#4A90E2',
+          transportMode: r.transportMode,
+          distance: r.distance,
+          duration: r.duration,
           geometry: r.geometry,
+          isVisible: true,
+          isDirect: r.isDirect,
         })
       }
 
@@ -84,15 +101,14 @@ async function initMapData() {
               lat = lon
               lon = temp
             }
-            if (!markers.some(m => m.id === rp.id)) {
-              markers.push({
+            if (!points.some(m => m.id === rp.id)) {
+              points.push({
                 id: rp.id,
-                coords: { lon, lat },
-                color: rp.style?.color || r.color,
-                pointType: rp.type,
+                coordinates: [lon, lat],
+                type: rp.type || 'via',
+                style: rp.style?.color ? rp.style : { ...rp.style, color: r.color },
                 comment: rp.comment,
                 address: rp.address,
-                payload: rp,
               })
             }
           }
@@ -100,11 +116,11 @@ async function initMapData() {
       }
     })
 
-    mapMarkers.value = markers
+    mapPoints.value = points
     mapRoutes.value = routes
 
-    if (markers.length > 0) {
-      mapCenter.value = [markers[0].coords.lon, markers[0].coords.lat]
+    if (points.length > 0) {
+      mapCenter.value = points[0].coordinates
     }
     else if (routes.length > 0 && routes[0].geometry && routes[0].geometry.length > 0) {
       mapCenter.value = routes[0].geometry[0]
@@ -116,7 +132,7 @@ async function initMapData() {
 
   if (props.cities.length > 0) {
     isLoading.value = true
-    const markers: MapMarker[] = []
+    const points: MapPoint[] = []
     const centerSum: [number, number] = [0, 0]
     let validCount = 0
 
@@ -125,11 +141,13 @@ async function initMapData() {
       return { city, coords }
     }))
 
-    results.forEach(({ coords }, index) => {
+    results.forEach(({ coords, city }, index) => {
       if (coords) {
-        markers.push({
+        points.push({
           id: `city-${index}`,
-          coords: { lon: coords[0], lat: coords[1] },
+          coordinates: [coords[0], coords[1]],
+          type: 'poi',
+          comment: city,
         })
         centerSum[0] += coords[0]
         centerSum[1] += coords[1]
@@ -139,20 +157,68 @@ async function initMapData() {
 
     if (validCount > 0) {
       mapCenter.value = [centerSum[0] / validCount, centerSum[1] / validCount]
-      mapMarkers.value = markers
+      mapPoints.value = points
     }
     mapRoutes.value = []
     isLoading.value = false
     return
   }
 
-  mapMarkers.value = []
+  mapPoints.value = []
   mapRoutes.value = []
   isLoading.value = false
 }
 
 function openFullMap() {
   router.push({ query: { ...router.currentRoute.value.query, section: 'map' } })
+}
+
+function handleMapReady(controller: ReturnType<typeof useGeolocationMap>) {
+  if (controller.mapInstance.value) {
+    fitViewToData(controller.mapInstance.value)
+  }
+}
+
+function fitViewToData(map: any) {
+  let minLon = Number.POSITIVE_INFINITY
+  let minLat = Number.POSITIVE_INFINITY
+  let maxLon = Number.NEGATIVE_INFINITY
+  let maxLat = Number.NEGATIVE_INFINITY
+
+  const considerPoint = (coords: Coordinate) => {
+    if (!isValidCoordinate(coords))
+      return
+    const [lon, lat] = coords
+    if (lon < minLon)
+      minLon = lon
+    if (lon > maxLon)
+      maxLon = lon
+    if (lat < minLat)
+      minLat = lat
+    if (lat > maxLat)
+      maxLat = lat
+  }
+
+  mapPoints.value.forEach(p => considerPoint(p.coordinates))
+
+  mapRoutes.value.forEach((r) => {
+    if (r.geometry && r.geometry.length > 0) {
+      r.geometry.forEach(considerPoint)
+    }
+    else if (r.points && r.points.length > 0) {
+      r.points.forEach(p => considerPoint(p.coordinates))
+    }
+  })
+
+  if (minLon !== Number.POSITIVE_INFINITY && maxLon !== Number.NEGATIVE_INFINITY) {
+    map.fitBounds(
+      [
+        [minLon, minLat],
+        [maxLon, maxLat],
+      ],
+      { padding: 40, maxZoom: 14, duration: 500 },
+    )
+  }
 }
 
 onMounted(() => {
@@ -186,20 +252,27 @@ watch(() => [props.cities, props.points, props.routes], () => {
         <span>Загрузка карты...</span>
       </div>
 
-      <div v-else-if="mapMarkers.length === 0 && mapRoutes.length === 0 && cities.length === 0" class="empty-state">
+      <div v-else-if="mapPoints.length === 0 && mapRoutes.length === 0 && cities.length === 0" class="empty-state">
         <Icon icon="mdi:map-marker-off-outline" />
         <span>Нет отмеченных локаций</span>
       </div>
 
-      <KitMap
+      <GeolocationMap
         v-else
+        :is-loading="false"
         :center="mapCenter"
         :zoom="10"
         height="100%"
-        :markers="mapMarkers"
+        :points="mapPoints"
         :routes="mapRoutes"
-        :auto-pan="true"
+        use-static-renderer
+        :readonly="true"
+        :interactive-on-click="false"
+        mode="pan"
+        :with-panel="false"
+        :is-fullscreen="false"
         class="interactive-map"
+        @map-ready="handleMapReady"
       />
     </div>
   </div>
@@ -249,6 +322,7 @@ watch(() => [props.cities, props.points, props.routes], () => {
   border: 1px solid var(--border-secondary-color);
 }
 
+:deep(.geolocation-map-container),
 :deep(.kit-map-wrapper) {
   position: absolute;
   top: 0;
