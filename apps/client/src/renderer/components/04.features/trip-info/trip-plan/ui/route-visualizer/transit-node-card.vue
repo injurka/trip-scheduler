@@ -3,7 +3,7 @@ import type { IActivity } from '~/components/05.modules/trip-info/models/types'
 import type { ActivitySectionMetro } from '~/shared/types/models/activity'
 import { Icon } from '@iconify/vue'
 import { activityTagIcons } from '~/components/05.modules/trip-info/lib/helpers'
-import { timeToMinutes } from '~/shared/lib/date-time'
+import { timeRangeDurationMinutes } from '~/shared/lib/date-time'
 import { EActivitySectionType, EActivityStatus, EActivityTag } from '~/shared/types/models/activity'
 
 interface Props {
@@ -56,8 +56,7 @@ const displayIcon = computed(() => {
 })
 
 const durationMinutes = computed(() => {
-  const duration = timeToMinutes(props.activity.endTime) - timeToMinutes(props.activity.startTime)
-  return Math.max(0, duration)
+  return timeRangeDurationMinutes(props.activity.startTime, props.activity.endTime)
 })
 
 const formattedDuration = computed(() => {

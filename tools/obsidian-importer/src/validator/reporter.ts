@@ -101,6 +101,8 @@ export function printValidationReport(report: ValidationReport): void {
     bookingParts.push(`🚗 ${b.carsCount} авто/трансферов`)
   if (b.attractionsCount > 0)
     bookingParts.push(`🎟️ ${b.attractionsCount} билетов`)
+  if (b.othersCount > 0)
+    bookingParts.push(`⛴️ ${b.othersCount} других`)
   console.log(`  ${colors.cyan}🏨 Бронирования:${colors.reset}      ${bookingParts.length > 0 ? bookingParts.join(', ') : 'нет записей'}`)
 
   // Финансы

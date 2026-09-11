@@ -1,6 +1,6 @@
 import type { ParsedDay, ParsedNoteFile, ParsedNoteFolder, ParsedTripData } from '../types'
 import { existsSync, readdirSync, readFileSync, statSync } from 'node:fs'
-import { basename, join } from 'node:path'
+import { basename, isAbsolute, join, relative, resolve } from 'node:path'
 import { discoverVaultFolders, normalizeFsPath } from '../lib/vault-locator'
 import { resolveValidationScopeContext } from '../validator/path-resolver'
 import { normalizeIframeLineBreaks } from './activity'
@@ -52,6 +52,108 @@ export function cleanMarkdownFormatting(text: string): string {
     .replace(/[*_`~]/g, '')
     .replace(/\s+/g, ' ')
     .trim()
+}
+
+export interface TripFrontmatter {
+  cover?: string
+  descriptionShort?: string
+  tags?: string[]
+  cities?: string[]
+}
+
+function unquoteYamlScalar(value: string): string {
+  const trimmed = value.trim()
+  if ((trimmed.startsWith('"') && trimmed.endsWith('"')) || (trimmed.startsWith('\'') && trimmed.endsWith('\'')))
+    return trimmed.slice(1, -1).replace(/\\"/g, '"').replace(/''/g, '\'')
+  return trimmed
+}
+
+function parseYamlArray(value: string): string[] {
+  const trimmed = value.trim()
+  if (!trimmed.startsWith('[') || !trimmed.endsWith(']'))
+    return []
+  const items: string[] = []
+  let current = ''
+  let quote: '"' | '\'' | null = null
+  for (const char of trimmed.slice(1, -1)) {
+    if ((char === '"' || char === '\'') && (!quote || quote === char)) {
+      quote = quote === char ? null : char
+      current += char
+    }
+    else if (char === ',' && !quote) {
+      items.push(unquoteYamlScalar(current))
+      current = ''
+    }
+    else {
+      current += char
+    }
+  }
+  items.push(unquoteYamlScalar(current))
+  return items.map(item => item.trim()).filter(Boolean)
+}
+
+/** Parses the small, explicit frontmatter schema supported by trip master notes. */
+export function parseTripFrontmatter(markdown: string): TripFrontmatter {
+  const match = markdown.match(/^---\s*\r?\n([\s\S]*?)\r?\n---(?:\s*\r?\n|$)/)
+  if (!match)
+    return {}
+
+  const result: TripFrontmatter = {}
+  const lines = match[1].split(/\r?\n/)
+  for (let index = 0; index < lines.length; index++) {
+    const keyMatch = lines[index].match(/^([A-Za-z][\w-]*):\s*(.*)$/)
+    if (!keyMatch)
+      continue
+
+    const key = keyMatch[1]
+    const rawValue = keyMatch[2]
+    if (key === 'cover' || key === 'imageUrl') {
+      const value = unquoteYamlScalar(rawValue)
+      if (value)
+        result.cover = value
+      continue
+    }
+
+    if (key === 'descriptionShort') {
+      if (/^[>|][-+]?\s*$/.test(rawValue)) {
+        const parts: string[] = []
+        while (index + 1 < lines.length && /^\s+/.test(lines[index + 1]))
+          parts.push(lines[++index].trim())
+        result.descriptionShort = parts.join(' ').trim()
+      }
+      else {
+        result.descriptionShort = unquoteYamlScalar(rawValue)
+      }
+      continue
+    }
+
+    if (key === 'tags' || key === 'cities') {
+      const values = parseYamlArray(rawValue)
+      while (index + 1 < lines.length) {
+        const listMatch = lines[index + 1].match(/^\s+-\s+(.+)$/)
+        if (!listMatch)
+          break
+        values.push(unquoteYamlScalar(listMatch[1]))
+        index++
+      }
+      result[key] = values.filter(Boolean)
+    }
+  }
+  return result
+}
+
+function resolveCoverImage(cover: string | undefined, tripRoot: string): { cover?: string, coverImagePath?: string } {
+  if (!cover)
+    return {}
+  const cleaned = cover.replace(/^!?'?\[\[/, '').replace(/\]\]'?$/, '').split('|')[0].trim()
+  if (/^https?:\/\//i.test(cleaned))
+    return { cover: cleaned }
+
+  const candidate = isAbsolute(cleaned) ? resolve(cleaned) : resolve(tripRoot, cleaned)
+  const relativePath = relative(tripRoot, candidate)
+  if (relativePath.startsWith('..') || isAbsolute(relativePath) || !existsSync(candidate))
+    return { cover: cleaned }
+  return { cover: cleaned, coverImagePath: candidate }
 }
 
 export function extractDayTitle(fileNameWithoutExt: string, dayNumber: number): string {
@@ -147,7 +249,7 @@ export function parseObsidianTripFolder(tripPath: string, startDateStr?: string)
       const fileNameWithoutExt = entry.name.replace(/\.md$/, '')
 
       const rawContent = normalizeIframeLineBreaks(content)
-      if (entry.name.toLowerCase().includes(folderName.toLowerCase()) || fileNameWithoutExt === folderName || entries.length <= 6) {
+      if (entry.name.toLowerCase().includes(folderName.toLowerCase()) || fileNameWithoutExt === folderName) {
         if (!conceptContent) {
           conceptContent = rawContent
         }
@@ -160,6 +262,12 @@ export function parseObsidianTripFolder(tripPath: string, startDateStr?: string)
         content: rawContent,
       })
     }
+  }
+
+  if (!conceptContent) {
+    const likelyHub = rootNotes.find(note => /^#\s+.+/m.test(note.content) && /(?:Краткое\s+описание|descriptionShort:)/i.test(note.content))
+      ?? (rootNotes.length === 1 ? rootNotes[0] : undefined)
+    conceptContent = likelyHub?.content ?? ''
   }
 
   // 2. Discover day files in "02 - Маршрутный план" or subdirectories
@@ -217,9 +325,9 @@ export function parseObsidianTripFolder(tripPath: string, startDateStr?: string)
       }
 
       const dayNumberMatch = fileName.match(/^(?:0*(\d{1,2})|[дd](\d{1,2})|day\s*(\d{1,2}))/i)
-      const dayNumber = dayNumberMatch
-        ? Number.parseInt(dayNumberMatch[1] || dayNumberMatch[2] || dayNumberMatch[3], 10)
-        : (parsedDays.length + 1)
+      if (!dayNumberMatch)
+        continue
+      const dayNumber = Number.parseInt(dayNumberMatch[1] || dayNumberMatch[2] || dayNumberMatch[3], 10)
 
       const title = extractDayTitle(fileNameWithoutExt, dayNumber)
       const dayDescription = extractDayDescription(content)
@@ -303,10 +411,12 @@ export function parseObsidianTripFolder(tripPath: string, startDateStr?: string)
     extractedTitle = titleMatch[1].trim()
   }
 
-  const cities = extractCities(mainText, parsedDays)
-  const tags = extractTags(mainText)
-  const descriptionShort = extractShortDescription(mainText, parsedDays, cities)
+  const frontmatter = parseTripFrontmatter(mainText)
+  const cities = frontmatter.cities?.length ? frontmatter.cities : extractCities(mainText, parsedDays)
+  const tags = frontmatter.tags?.length ? frontmatter.tags : extractTags(mainText)
+  const descriptionShort = frontmatter.descriptionShort || extractShortDescription(mainText, parsedDays, cities)
   const description = extractDetailedDescription(mainText, extractedTitle)
+  const coverData = resolveCoverImage(frontmatter.cover, resolvedPath)
 
   const lastDayDate = new Date(startDate)
   lastDayDate.setDate(lastDayDate.getDate() + Math.max(0, parsedDays.length - 1))
@@ -318,6 +428,7 @@ export function parseObsidianTripFolder(tripPath: string, startDateStr?: string)
     title: extractedTitle,
     description,
     descriptionShort,
+    ...coverData,
     cities,
     tags,
     startDate: startDate.toISOString().split('T')[0],
@@ -333,6 +444,10 @@ export function parseObsidianTripFolder(tripPath: string, startDateStr?: string)
 }
 
 export function extractCities(mainText: string, parsedDays: ParsedDay[] = []): string[] {
+  const explicitCities = parseTripFrontmatter(mainText).cities
+  if (explicitCities?.length)
+    return explicitCities
+
   const citiesMap = new Map<string, string>()
 
   const knownCities = [
@@ -423,6 +538,10 @@ export function extractCities(mainText: string, parsedDays: ParsedDay[] = []): s
 }
 
 export function extractTags(mainText: string): string[] {
+  const explicitTags = parseTripFrontmatter(mainText).tags
+  if (explicitTags?.length)
+    return explicitTags
+
   const tagsSet = new Set<string>()
 
   // Macro-regions and countries with word boundaries
@@ -475,6 +594,10 @@ export function extractTags(mainText: string): string[] {
 export function extractShortDescription(mainText: string, parsedDays: ParsedDay[] = [], cities: string[] = []): string {
   if (!mainText)
     return ''
+
+  const explicitDescription = parseTripFrontmatter(mainText).descriptionShort
+  if (explicitDescription)
+    return explicitDescription
 
   // 1. Explicit "## Краткое описание" / "## 📝 Краткое описание" section
   const shortSectionMatch = mainText.match(

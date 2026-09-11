@@ -5,7 +5,7 @@ import type { ActivitySectionMetro } from '~/shared/types/models/activity'
 import { Icon } from '@iconify/vue'
 import { KitTooltip } from '~/components/01.kit/kit-tooltip'
 import { activityTagColors, activityTagIcons, getTagInfo } from '~/components/05.modules/trip-info/lib/helpers'
-import { timeToMinutes } from '~/shared/lib/date-time'
+import { timeRangeDurationMinutes } from '~/shared/lib/date-time'
 import { EActivitySectionType, EActivityStatus } from '~/shared/types/models/activity'
 
 interface Props {
@@ -35,8 +35,7 @@ const emit = defineEmits<{
 const tagInfo = computed(() => getTagInfo(props.activity.tag))
 
 const durationMinutes = computed(() => {
-  const duration = timeToMinutes(props.activity.endTime) - timeToMinutes(props.activity.startTime)
-  return Math.max(0, duration)
+  return timeRangeDurationMinutes(props.activity.startTime, props.activity.endTime)
 })
 
 const formattedDuration = computed(() => {

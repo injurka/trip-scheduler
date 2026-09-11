@@ -2,6 +2,7 @@
 import type { Booking, BookingSectionContent, CarKind, FlightSegment, OtherKind } from '../types'
 import { existsSync, readdirSync, readFileSync, statSync } from 'node:fs'
 import { join } from 'node:path'
+import { stableId } from '../lib/stable-id'
 import { classifyTransportText } from '../lib/transport-classifier'
 
 /**
@@ -113,15 +114,15 @@ export function extractDateRangesFromText(text: string, fallbackDate: Date): Ext
   return results
 }
 
-function inferTimezone(airportOrCity?: string): string {
+function inferTimezone(airportOrCity?: string, fallback = '+03:00'): string {
   if (!airportOrCity)
-    return '+03:00'
+    return fallback
   const norm = airportOrCity.toUpperCase()
   if (/SVO|DME|VKO|LED|МОСКВА|ПИТЕР|САНКТ|МУРМАНСК|MMK/i.test(norm))
     return '+03:00'
   if (/ULV|УЛЬЯНОВСК|SAMARA|KUF/i.test(norm))
     return '+04:00'
-  if (/TPE|CAN|TFU|CSX|CKG|HGH|PEK|PVG|SHA|ТАЙБЭЙ|ГУАНЧЖОУ|КИТАЙ|ТАЙВАНЬ|ШАНХАЙ|ПЕКИН|ЧАНША|ЧУНЦИН|ЧЭНДУ/i.test(norm))
+  if (/TPE|CAN|TFU|CSX|CKG|HGH|PEK|PVG|SHA|ТАЙБЭЙ|ЦЗЯОСИ|ИЛАНЬ|ХУАЛЯНЬ|BANQIAO|TAICHUNG|ТАЙЧЖУН|SUN MOON|ШУЙШЭ|АЛИШАН|ФЭНЬЦИХУ|ШИЧЖОУ|ЦЗЯИ|ТАЙНАНЬ|ГАОСЮН|KAOHSIUNG|ZUOYING|СЯОЛЮЦЮ|ДУНГАН|ЦИЦЗИНЬ|TAOYUAN|ТАОЮАНЬ|ГУАНЧЖОУ|КИТАЙ|ТАЙВАНЬ|ШАНХАЙ|ПЕКИН|ЧАНША|ЧУНЦИН|ЧЭНДУ/i.test(norm))
     return '+08:00'
   if (/NRT|HND|KIX|ТОКИО|ОСАКА|ЯПОНИЯ/i.test(norm))
     return '+09:00'
@@ -131,7 +132,7 @@ function inferTimezone(airportOrCity?: string): string {
     return '+08:00'
   if (/BKK|HKT|ТАИЛАНД|ПХУКЕТ|БАНГКОК/i.test(norm))
     return '+07:00'
-  return '+03:00'
+  return fallback
 }
 
 /**
@@ -379,7 +380,7 @@ export function parseHotelsMarkdown(content: string, startDateStr: string): Book
           const stayTitle = parsedRanges.length > 1 ? `${baseTitle} (${rIdx + 1}-й заезд)` : baseTitle
 
           bookings.push({
-            id: crypto.randomUUID(),
+            id: stableId('booking-hotel', hotelName, checkInDate, checkOutDate),
             type: 'hotel',
             icon: 'mdi:hotel',
             title: stayTitle,
@@ -418,7 +419,7 @@ export function parseHotelsMarkdown(content: string, startDateStr: string): Book
         const checkOutDate = secDates[0]?.checkOutDate ?? startDateStr
 
         bookings.push({
-          id: crypto.randomUUID(),
+          id: stableId('booking-hotel', hotelName, checkInDate, checkOutDate),
           type: 'hotel',
           icon: 'mdi:hotel',
           title: `Отель: ${hotelName}`,
@@ -532,7 +533,7 @@ export function parseFlightsMarkdown(content: string, startDateStr: string, endD
 
     if (segments.length > 0) {
       bookings.push({
-        id: crypto.randomUUID(),
+        id: stableId('booking-flight', segments[0]?.departureDateTime, segments.at(-1)?.arrivalDateTime, makeFlightTitle(rawRouteTitle, isOutbound, isInbound, segments)),
         type: 'flight',
         icon: 'mdi:airplane',
         title: makeFlightTitle(rawRouteTitle, isOutbound, isInbound, segments),
@@ -555,7 +556,7 @@ export function parseFlightsMarkdown(content: string, startDateStr: string, endD
     const cleanTitle = makeFlightTitle(routeText, true, false)
 
     bookings.push({
-      id: crypto.randomUUID(),
+      id: stableId('booking-flight', startDateStr, cleanTitle),
       type: 'flight',
       icon: 'mdi:airplane',
       title: cleanTitle,
@@ -588,6 +589,7 @@ export function parseTransportMarkdown(content: string, startDateStr: string): B
   const startDate = new Date(startDateStr)
   const bookings: Booking[] = []
   const lines = content.split('\n')
+  const defaultTimezone = /тайван|taiwan|тайбэй|taipei|tpe/i.test(content) ? '+08:00' : '+03:00'
 
   // Собираем ссылки из текста советов в конце файла
   const urlMap = new Map<string, string>()
@@ -652,8 +654,11 @@ export function parseTransportMarkdown(content: string, startDateStr: string): B
 
   for (const line of lines) {
     const trimmed = line.trim()
-    if (trimmed.startsWith('|') && trimmed.endsWith('|') && !trimmed.includes('---') && !/сегмент|маршрут|время в пути|отправление/i.test(trimmed)) {
+    if (trimmed.startsWith('|') && trimmed.endsWith('|') && !trimmed.includes('---')) {
       const cols = trimmed.slice(1, -1).split('|').map(c => c.trim())
+      const firstCell = removeEmoji(cols[0] ?? '').replace(/[*_`.]/g, '').trim()
+      if (/^(?:дата(?:\s*день)?|день|сегмент|маршрут)$/i.test(firstCell))
+        continue
 
       // Формат графика: | День | Дата/День | Сегмент | Транспорт | Время в пути | Способ бронирования |
       if (cols.length >= 5 && /^\s*\*?\*?\d{1,2}/.test(cols[0])) {
@@ -692,10 +697,14 @@ export function parseTransportMarkdown(content: string, startDateStr: string): B
           paymentCol = cols[5]?.replace(/[*_`]/g, '').trim() ?? ''
         }
 
-        const dayNum = Number.parseInt(dayCol, 10) || 1
-        const eventDate = new Date(startDate)
-        eventDate.setDate(eventDate.getDate() + (dayNum - 1))
-        const dateStr = eventDate.toISOString().split('T')[0]
+        const dateStr = /[а-яё]/i.test(dayCol)
+          ? parseDateSnippet(dayCol, startDate)
+          : (() => {
+              const dayNum = Number.parseInt(dayCol, 10) || 1
+              const eventDate = new Date(startDate)
+              eventDate.setDate(eventDate.getDate() + (dayNum - 1))
+              return eventDate.toISOString().split('T')[0]
+            })()
 
         // Пропускаем авиаперелеты (они парсятся отдельно из Авиаперелеты.md)
         if (/✈|авиа|самолет|flight/i.test(transportCol) || /авиаперелет/i.test(segmentCol) || /авиабилет/i.test(paymentCol))
@@ -735,7 +744,7 @@ export function parseTransportMarkdown(content: string, startDateStr: string): B
           || /экскурси|музей|билет/i.test(transportCol)) {
           const cleanTitle = removeEmoji(segmentCol).replace(/[*_`]/g, '').replace(/^[^а-яёa-z0-9]+/i, '').trim()
           bookings.push({
-            id: crypto.randomUUID(),
+            id: stableId('booking-attraction', dateStr, cleanTitle),
             type: 'attraction',
             icon: 'mdi:ticket-confirmation-outline',
             title: cleanTitle,
@@ -755,7 +764,7 @@ export function parseTransportMarkdown(content: string, startDateStr: string): B
 
         if (type === 'car') {
           bookings.push({
-            id: crypto.randomUUID(),
+            id: stableId('booking-car', dateStr, title, transportCol),
             type: 'car',
             icon,
             title,
@@ -766,8 +775,8 @@ export function parseTransportMarkdown(content: string, startDateStr: string): B
               dropoffLocation: to || undefined,
               pickupDateTime: `${dateStr}T09:00:00`,
               dropoffDateTime: `${dateStr}T12:00:00`,
-              pickupTimeZone: inferTimezone(from),
-              dropoffTimeZone: inferTimezone(to),
+              pickupTimeZone: inferTimezone(from, defaultTimezone),
+              dropoffTimeZone: inferTimezone(to, defaultTimezone),
               notes,
               sourceUrl,
             },
@@ -778,7 +787,7 @@ export function parseTransportMarkdown(content: string, startDateStr: string): B
           // это не «Авто» и не «Поезд», поэтому они идут в раздел «Другое»
           const transportName = removeEmoji(transportCol).replace(/[*_`]/g, '').trim()
           bookings.push({
-            id: crypto.randomUUID(),
+            id: stableId('booking-other', dateStr, title, transportCol),
             type: 'other',
             icon,
             title,
@@ -789,8 +798,8 @@ export function parseTransportMarkdown(content: string, startDateStr: string): B
               endLocation: to || undefined,
               startDateTime: `${dateStr}T09:00:00`,
               endDateTime: `${dateStr}T12:00:00`,
-              startTimeZone: inferTimezone(from),
-              endTimeZone: inferTimezone(to),
+              startTimeZone: inferTimezone(from, defaultTimezone),
+              endTimeZone: inferTimezone(to, defaultTimezone),
               notes,
               sourceUrl,
             },
@@ -798,7 +807,7 @@ export function parseTransportMarkdown(content: string, startDateStr: string): B
         }
         else {
           bookings.push({
-            id: crypto.randomUUID(),
+            id: stableId('booking-train', dateStr, title, transportCol),
             type: 'train',
             icon,
             title,
@@ -807,8 +816,8 @@ export function parseTransportMarkdown(content: string, startDateStr: string): B
               arrivalStation: to || undefined,
               departureDateTime: `${dateStr}T09:00:00`,
               arrivalDateTime: `${dateStr}T12:00:00`,
-              departureTimeZone: inferTimezone(from),
-              arrivalTimeZone: inferTimezone(to),
+              departureTimeZone: inferTimezone(from, defaultTimezone),
+              arrivalTimeZone: inferTimezone(to, defaultTimezone),
               notes,
               sourceUrl,
             },
@@ -829,7 +838,7 @@ export function parseTransportMarkdown(content: string, startDateStr: string): B
           const arrivalStation = stationsMatch[2].trim()
 
           bookings.push({
-            id: crypto.randomUUID(),
+            id: stableId('booking-train', startDateStr, departureStation, arrivalStation, depTimeCol),
             type: 'train',
             icon: 'mdi:train',
             title: `${departureStation} ➔ ${arrivalStation}`,

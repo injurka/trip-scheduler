@@ -21,6 +21,7 @@ export interface Transport {
     title?: string
     description?: string
     descriptionShort?: string
+    imageUrl?: string | null
     cities?: string[]
     tags?: string[]
     status?: 'planned' | 'draft' | 'completed'
@@ -28,6 +29,8 @@ export interface Transport {
     startDate?: string
     endDate?: string
   }) => Promise<unknown>
+
+  deleteTrip?: (id: string) => Promise<unknown>
 
   getTripDetails: (tripId: string) => Promise<{ sections?: Array<{ id: string, type: string, title: string }> } | null>
 

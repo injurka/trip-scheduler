@@ -6,6 +6,7 @@ import { sanitizeActivity } from '~/components/05.modules/trip-info/lib/helpers'
 import { useRequest, useRequestError, useRequestStatus, useRequestStatusByPrefix, useRequestStore } from '~/plugins/request'
 import { createApiErrorHandler } from '~/plugins/request/lib/error-handler'
 import { AppRoutePaths } from '~/shared/constants/routes'
+import { timeRangeDurationMinutes } from '~/shared/lib/date-time'
 import { useOfflineStore } from '~/shared/store/offline.store'
 import { useActivityDiff } from '../composables/use-activity-diff'
 
@@ -802,7 +803,7 @@ export const useTripPlanStore = defineStore('tripPlan', {
       let lastEndTimeMinutes = anchorStartTimeMinutes - GAP_BETWEEN_ACTIVITIES_MINUTES
 
       for (const activity of newOrder) {
-        const duration = timeToMinutes(activity.endTime) - timeToMinutes(activity.startTime)
+        const duration = timeRangeDurationMinutes(activity.startTime, activity.endTime)
         const newStartTimeMinutes = lastEndTimeMinutes + GAP_BETWEEN_ACTIVITIES_MINUTES
         const newEndTimeMinutes = newStartTimeMinutes + duration
 

@@ -303,7 +303,8 @@ export class TelegramAuthService {
             }
           }
           else {
-            await new Promise(resolve => setTimeout(resolve, 3000))
+            const delay = res.status >= 500 ? 10000 : 3000
+            await new Promise(resolve => setTimeout(resolve, delay))
           }
         }
         catch (err) {
@@ -339,12 +340,14 @@ export class TelegramAuthService {
 
       const res = await this.fetchTelegram('setWebhook', payload)
 
-      const data = await res.json()
-      if (data.ok) {
-        this.logger.info(`[TelegramAuth] Webhook зарегистрирован: ${webhookUrl}`)
-      }
-      else {
-        this.logger.error('[TelegramAuth] Ошибка регистрации webhook:', data)
+      if (res.ok) {
+        const data = await res.json()
+        if (data.ok) {
+          this.logger.info(`[TelegramAuth] Webhook зарегистрирован: ${webhookUrl}`)
+        }
+        else {
+          this.logger.error('[TelegramAuth] Ошибка регистрации webhook:', data)
+        }
       }
     }
     catch (error) {
@@ -369,7 +372,10 @@ export class TelegramAuthService {
     try {
       const res = await fetch(url, options)
       if (!res.ok) {
-        const errData = await res.text()
+        let errData = await res.text()
+        if (errData.includes('<!DOCTYPE html') || errData.includes('<html')) {
+          errData = `HTML-ответ (возможно Cloudflare/прокси шлюз ${res.status}): ${errData.slice(0, 150).replace(/\s+/g, ' ')}...`
+        }
         this.logger.error(`[TelegramAuth] Ошибка вызова Telegram API ${methodName} (${res.status}): ${errData}`)
       }
       return res

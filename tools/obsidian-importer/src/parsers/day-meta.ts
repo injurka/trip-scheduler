@@ -1,4 +1,5 @@
 import type { DayMetaInfo } from '../types'
+import { stableId } from '../lib/stable-id'
 
 export function cleanEmoji(str: string): string {
   if (!str)
@@ -149,7 +150,7 @@ export function parseDayMetaFromMarkdown(dayContent: string): DayMetaInfo[] {
     const content = cleanBodyLines || cleanTitleLine
 
     metaBadges.push({
-      id: crypto.randomUUID(),
+      id: stableId('day-meta', title || cleanTitleLine, content, metaBadges.length),
       title: title || cleanTitleLine,
       subtitle: subtitle || undefined,
       icon,
@@ -174,7 +175,7 @@ export function parseDayMetaFromMarkdown(dayContent: string): DayMetaInfo[] {
     const cleanSectionHeader = cleanEmoji(rawSectionHeader)
     if (sectionBody && !metaBadges.some(b => b.title.includes(cleanSectionHeader))) {
       metaBadges.push({
-        id: crypto.randomUUID(),
+        id: stableId('day-meta', cleanSectionHeader, sectionBody, metaBadges.length),
         title: cleanSectionHeader,
         subtitle: undefined,
         icon: 'mdi:map-marker-path',
@@ -193,7 +194,7 @@ export function parseDayMetaFromMarkdown(dayContent: string): DayMetaInfo[] {
       const totalSubtitle = totalMatch ? totalMatch[1].trim() : undefined
 
       metaBadges.push({
-        id: crypto.randomUUID(),
+        id: stableId('day-meta', 'finances', finBody),
         title: 'Финансовые затраты на день',
         subtitle: totalSubtitle ? cleanEmoji(totalSubtitle) : undefined,
         icon: 'mdi:currency-usd',

@@ -8,7 +8,7 @@ import type {
   ValidationScopeContext,
 } from './types'
 import { existsSync, readdirSync, readFileSync, statSync } from 'node:fs'
-import { basename, join } from 'node:path'
+import { basename, isAbsolute, join, relative, resolve } from 'node:path'
 import { buildImageIndex } from '../lib/image-indexer'
 import { normalizeIframeLineBreaks, parseActivitiesFromMarkdown } from '../parsers/activity'
 import { parseObsidianBookings } from '../parsers/booking'
@@ -23,6 +23,7 @@ import {
   extractDetailedDescription,
   extractShortDescription,
   extractTags,
+  parseTripFrontmatter,
 } from '../parsers/vault'
 
 /**
@@ -87,6 +88,21 @@ export function validateObsidianVault(context: ValidationScopeContext, startDate
 
     descriptionShort = extractShortDescription(rootNoteContent, [])
     detailedDescription = extractDetailedDescription(rootNoteContent, extractedTitle)
+
+    const cover = parseTripFrontmatter(rootNoteContent).cover
+    if (cover && !/^https?:\/\//i.test(cover)) {
+      const coverPath = isAbsolute(cover) ? resolve(cover) : resolve(tripRoot, cover)
+      const relativeCoverPath = relative(tripRoot, coverPath)
+      if (relativeCoverPath.startsWith('..') || isAbsolute(relativeCoverPath) || !existsSync(coverPath)) {
+        issues.push({
+          severity: 'warning',
+          category: 'media',
+          file: hubFile.name,
+          message: `Локальная обложка не найдена или находится вне папки путешествия: ${cover}.`,
+          recommendation: 'Укажите существующий vault-relative путь внутри папки путешествия или HTTPS URL.',
+        })
+      }
+    }
   }
   else {
     issues.push({
@@ -298,7 +314,7 @@ export function validateObsidianVault(context: ValidationScopeContext, startDate
         if (/\.(png|jpg|jpeg|webp|gif|heic|heif|svg)$/i.test(imgName)) {
           if (!imagesReferenced.includes(imgName)) {
             imagesReferenced.push(imgName)
-            if (!imageIndex.has(imgName) && !imageIndex.has(imgName.toLowerCase())) {
+            if (!imageIndex.get(imgName) && !imageIndex.get(imgName.toLowerCase())) {
               missingImages.push(imgName)
             }
           }
@@ -310,7 +326,7 @@ export function validateObsidianVault(context: ValidationScopeContext, startDate
         const imgName = basename(m[1].trim())
         if (!imagesReferenced.includes(imgName)) {
           imagesReferenced.push(imgName)
-          if (!imageIndex.has(imgName) && !imageIndex.has(imgName.toLowerCase())) {
+          if (!imageIndex.get(imgName) && !imageIndex.get(imgName.toLowerCase())) {
             missingImages.push(imgName)
           }
         }
@@ -395,6 +411,19 @@ export function validateObsidianVault(context: ValidationScopeContext, startDate
         }
       })
 
+      for (const activity of activities) {
+        const [startHours, startMinutes] = activity.startTime.split(':').map(Number)
+        const [endHours, endMinutes] = activity.endTime.split(':').map(Number)
+        if (endHours * 60 + endMinutes < startHours * 60 + startMinutes) {
+          dayIssues.push({
+            severity: 'info',
+            category: 'timeline',
+            file: fileName,
+            message: `Активность «${activity.title}» заканчивается после полуночи (${activity.startTime}–${activity.endTime}); конец будет интерпретирован как следующий день.`,
+          })
+        }
+      }
+
       issues.push(...dayIssues)
 
       daySummaries.push({
@@ -453,6 +482,38 @@ export function validateObsidianVault(context: ValidationScopeContext, startDate
   const carsCount = bookingsData.bookings.filter(b => b.type === 'car').length
   const attractionsCount = bookingsData.bookings.filter(b => b.type === 'attraction').length
   const othersCount = bookingsData.bookings.filter(b => b.type === 'other').length
+  const tripEndDate = new Date(startDate)
+  tripEndDate.setDate(tripEndDate.getDate() + Math.max(0, daySummaries.length - 1))
+  const latestAllowedBookingDate = new Date(tripEndDate)
+  latestAllowedBookingDate.setDate(latestAllowedBookingDate.getDate() + 1)
+
+  const bookingDates = (booking: Booking): string[] => {
+    if (booking.type === 'flight')
+      return booking.data.segments.flatMap(segment => [segment.departureDateTime, segment.arrivalDateTime]).filter((value): value is string => !!value)
+    if (booking.type === 'hotel')
+      return [booking.data.checkInDate, booking.data.checkOutDate].filter((value): value is string => !!value)
+    if (booking.type === 'train')
+      return [booking.data.departureDateTime, booking.data.arrivalDateTime].filter((value): value is string => !!value)
+    if (booking.type === 'car')
+      return [booking.data.pickupDateTime, booking.data.dropoffDateTime].filter((value): value is string => !!value)
+    if (booking.type === 'other')
+      return [booking.data.startDateTime, booking.data.endDateTime].filter((value): value is string => !!value)
+    return [booking.data.dateTime].filter((value): value is string => !!value)
+  }
+
+  for (const booking of bookingsData.bookings) {
+    for (const value of bookingDates(booking)) {
+      const date = new Date(value.slice(0, 10))
+      if (Number.isNaN(date.getTime()) || date < startDate || date > latestAllowedBookingDate) {
+        issues.push({
+          severity: 'error',
+          category: 'bookings',
+          message: `Бронирование «${booking.title}» содержит дату вне маршрута: ${value}.`,
+          recommendation: 'Проверьте, что столбец «Дата» распознается как календарная дата, а «День» — как номер дня поездки.',
+        })
+      }
+    }
+  }
   // Записи разделов «Авто»/«Другое» без пометки типа (kind) — их не отличить визуально
   const untaggedTransport = bookingsData.bookings.filter(
     (b): b is Extract<Booking, { type: 'car' | 'other' }> => (b.type === 'car' || b.type === 'other') && !b.data.kind,
@@ -514,6 +575,33 @@ export function validateObsidianVault(context: ValidationScopeContext, startDate
       recommendation: 'Создайте `04 - Финансы/Финансы.md` со сводной таблицей расходов по категориям (✈️, 🚄, 🏨, 🍜, 🎟️, 🎁).',
     })
   }
+  else {
+    const financesContent = readFileSync(financesFilePath, 'utf-8')
+    const declaredTotalMatch = financesContent.match(/(?:общий[^\n]*бюджет|итого[^\n]*под ключ)[^\n]*?([\d][\d\s]+)\s*₽/i)
+    const declaredTotal = declaredTotalMatch
+      ? Number.parseInt(declaredTotalMatch[1].replace(/\s+/g, ''), 10)
+      : undefined
+    if (declaredTotal && Math.abs(declaredTotal - totalFinancesRub) > 1) {
+      issues.push({
+        severity: 'error',
+        category: 'finances',
+        message: `Сумма распознанных статей (${totalFinancesRub.toLocaleString('ru-RU')} ₽) не совпадает с объявленным бюджетом (${declaredTotal.toLocaleString('ru-RU')} ₽).`,
+        recommendation: 'Не смешивайте детальные статьи, подытоги и сводную таблицу; оставьте один авторитетный уровень бюджета.',
+      })
+    }
+
+    const usedCategories = new Set(financesData.transactions.map(transaction => transaction.categoryId))
+    const expectedCategories = ['cat-flights', 'cat-transport', 'cat-housing', 'cat-food', 'cat-entertainment', 'cat-shopping']
+    const missingCategories = expectedCategories.filter(category => !usedCategories.has(category))
+    if (missingCategories.length > 0) {
+      issues.push({
+        severity: 'warning',
+        category: 'finances',
+        message: `Не распознаны обязательные категории бюджета: ${missingCategories.join(', ')}.`,
+        recommendation: 'Проверьте заголовки категорий и строки сводного бюджета.',
+      })
+    }
+  }
 
   // 7. Валидация чек-листов (06 - Чек лист/*)
   const checklistFiles: string[] = []
@@ -573,6 +661,9 @@ export function validateObsidianVault(context: ValidationScopeContext, startDate
   const hubWarningCount = issues.filter(i => i.severity === 'warning' && i.category === 'hub').length
   score -= hubWarningCount * 4
 
+  const semanticWarningCount = issues.filter(i => i.severity === 'warning' && ['bookings', 'finances', 'days'].includes(i.category)).length
+  score -= semanticWarningCount * 6
+
   // Отсутствующие изображения
   const missingImgTotal = daySummaries.reduce((sum, d) => sum + d.missingImages.length, 0)
   score -= Math.min(15, missingImgTotal * 2)
@@ -598,9 +689,6 @@ export function validateObsidianVault(context: ValidationScopeContext, startDate
     status = 'good'
   }
 
-  const lastDayDate = new Date(startDate)
-  lastDayDate.setDate(lastDayDate.getDate() + Math.max(0, daySummaries.length - 1))
-
   return {
     context,
     tripTitle: extractedTitle,
@@ -610,7 +698,7 @@ export function validateObsidianVault(context: ValidationScopeContext, startDate
     tags,
     dates: {
       startDate: startDate.toISOString().split('T')[0],
-      endDate: lastDayDate.toISOString().split('T')[0],
+      endDate: tripEndDate.toISOString().split('T')[0],
       durationDays: daySummaries.length,
     },
     days: finalDays,
@@ -624,6 +712,7 @@ export function validateObsidianVault(context: ValidationScopeContext, startDate
       trainsCount,
       carsCount,
       attractionsCount,
+      othersCount,
       totalBookings: bookingsData.bookings.length,
     },
     financesSummary: {

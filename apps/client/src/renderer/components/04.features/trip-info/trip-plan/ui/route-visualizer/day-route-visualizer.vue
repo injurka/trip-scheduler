@@ -6,7 +6,7 @@ import { onKeyStroke } from '@vueuse/core'
 import { KitBtn } from '~/components/01.kit/kit-btn'
 import { KitTooltip } from '~/components/01.kit/kit-tooltip'
 import { useModuleStore } from '~/components/05.modules/trip-info/composables/use-trip-info-module'
-import { timeToMinutes } from '~/shared/lib/date-time'
+import { timeRangeDurationMinutes, timeToMinutes } from '~/shared/lib/date-time'
 import { EActivitySectionType } from '~/shared/types/models/activity'
 import QuickActivityDialog from './quick-activity-dialog.vue'
 import TransitCanvas from './transit-canvas.vue'
@@ -69,9 +69,7 @@ const dayTimeSpan = computed(() => {
     return null
   const first = sortedActivities.value[0]
   const last = sortedActivities.value[sortedActivities.value.length - 1]
-  const startMin = timeToMinutes(first.startTime)
-  const endMin = timeToMinutes(last.endTime)
-  const diffMin = Math.max(0, endMin - startMin)
+  const diffMin = timeRangeDurationMinutes(first.startTime, last.endTime)
   const hours = Math.floor(diffMin / 60)
   const mins = diffMin % 60
   const durationStr = mins > 0 ? `${hours}ч ${mins}м` : `${hours}ч`

@@ -33,8 +33,8 @@ bunx --bun @limiteddissolve/obsidian-importer \
 # Проверка из корня монорепозитория
 bun run validate:obsidian -d "@/home/injurka/Documents/obsidian-mark/Personal Note/Travel/-- Taiwan/02 - Маршрутный план"
 
-# Или через CLI-флаг --validate (-v)
-bun run import:obsidian --validate -d "~/Documents/obsidian-mark/Personal Note/Travel/-- Taiwan"
+# Или гарантированно только проверить и завершиться без вопросов
+bun run import:obsidian --validate --yes -d "~/Documents/obsidian-mark/Personal Note/Travel/-- Taiwan"
 ```
 
 Валидатор автоматически:
@@ -46,7 +46,7 @@ bun run import:obsidian --validate -d "~/Documents/obsidian-mark/Personal Note/T
 5. Проверяет адаптивность `<iframe>` Google Maps и бейджи `day.meta`.
 6. Формирует подробный отчет с оценкой совместимости в процентах (0–100%) и рекомендациями.
 
-Требуются переменные окружения `TRIP_API_URL` / `TRIP_API_TOKEN` (или интерактивный вход) и `AI_HUBMIX_KEY` / `OPENAI_API_KEY` для LLM-режима.
+Для импорта используются `API_URL`, `ADMIN_EMAIL` / `USER_EMAIL` и `ADMIN_PASSWORD` / `USER_PASSWORD` (либо интерактивный вход). Для LLM-режима нужен `AI_HUBMIX_KEY` или `OPENAI_API_KEY`. Самостоятельный `--validate --yes` авторизации не требует.
 
 ### Разделы бронирований: «Авто» и «Другое»
 
@@ -70,18 +70,6 @@ bun run import:obsidian --validate -d "~/Documents/obsidian-mark/Personal Note/T
 | ни один признак не найден                                  | Другое | Прочее           |
 
 Порядок правил важен: такси проверяется раньше трансфера («🚖 Шаттл / такси к причалу» — такси), а «автобус» — раньше «авто» (иначе подстрока «авто» перехватила бы автобус).
-
-### Разовая миграция уже импортированных бронирований
-
-Туры, импортированные старым парсером (автобусы и паромы в «Поездах», у «Авто» нет пометок), переразмечаются без повторного импорта:
-
-```bash
-cd tools/obsidian-importer
-bun run migrate:bookings --trip-id <uuid> -u https://trip-scheduler-api.limited-dissolve.ru            # предпросмотр
-bun run migrate:bookings --trip-id <uuid> -u https://trip-scheduler-api.limited-dissolve.ru --apply    # запись
-```
-
-Скрипт печатает построчный список изменений и счётчики «было/станет», сохраняет бэкап содержимого раздела в `backups/` и пишет в API только с `--apply`. Признак определяется тем же классификатором, что и при импорте, поэтому результат совпадает с повторным импортом.
 
 ### Конфигурационный файл (`importer.config.json`)
 

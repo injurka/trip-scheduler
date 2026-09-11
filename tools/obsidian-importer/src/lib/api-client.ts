@@ -100,6 +100,7 @@ export class ApiClient {
     title?: string
     description?: string
     descriptionShort?: string
+    imageUrl?: string | null
     cities?: string[]
     tags?: string[]
     status?: 'planned' | 'draft' | 'completed'
@@ -123,6 +124,10 @@ export class ApiClient {
     return await this.request<any>(`/trips/${tripId}`, {
       method: 'GET',
     })
+  }
+
+  async deleteTrip(tripId: string): Promise<any> {
+    return await this.request<any>(`/trips/${tripId}`, { method: 'DELETE' })
   }
 
   async getTripDetails(tripId: string): Promise<any> {
@@ -179,7 +184,7 @@ export class ApiClient {
     }
   }
 
-  async getDaysByTripId(tripId: string): Promise<Array<{ id: string, date: string, title: string }>> {
+  async getDaysByTripId(tripId: string): Promise<Array<{ id: string, date: string, title: string, activities?: Array<{ id: string, title: string, startTime: string, endTime: string, sections?: Array<{ id: string, type: string }> }> }>> {
     return await this.request<any>(`/days/by-trip/${tripId}`, {
       method: 'GET',
     })
@@ -296,6 +301,10 @@ export class ApiClient {
       method: 'PATCH',
       body: JSON.stringify({ id, ...payload }),
     })
+  }
+
+  async getNotesByTripId(tripId: string): Promise<Array<{ id: string, parentId?: string | null, type: string, title: string }>> {
+    return await this.request<any>(`/notes/by-trip/${tripId}`, { method: 'GET' })
   }
 
   // 7. Image Upload Endpoint

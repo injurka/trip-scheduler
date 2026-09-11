@@ -7,6 +7,7 @@ import type {
 } from '../types'
 import { existsSync, readdirSync, readFileSync, statSync } from 'node:fs'
 import { basename, join } from 'node:path'
+import { stableId } from '../lib/stable-id'
 
 export function detectIconForGroup(groupName: string): string {
   const text = groupName.toLowerCase()
@@ -250,7 +251,7 @@ export function parseObsidianChecklists(checklistDirOrFiles: string[] | string):
         const groupTitle = cleanH2
           .replace(/^[\p{Extended_Pictographic}\p{Symbol}\s\uFE00-\uFE0F\u200D\d.)\-]+/gu, '')
           .trim() || cleanH2
-        const groupId = crypto.randomUUID()
+        const groupId = stableId('checklist-group', fileName, currentTabId, groupTitle)
 
         groups.push({
           id: groupId,
@@ -273,7 +274,7 @@ export function parseObsidianChecklists(checklistDirOrFiles: string[] | string):
           const groupTitle = rawH3
             .replace(/^[\p{Extended_Pictographic}\p{Symbol}\s\uFE00-\uFE0F\u200D\d.)\-]+/gu, '')
             .trim() || rawH3
-          const groupId = crypto.randomUUID()
+          const groupId = stableId('checklist-group', fileName, currentTabId, groupTitle)
 
           groups.push({
             id: groupId,
@@ -302,7 +303,7 @@ export function parseObsidianChecklists(checklistDirOrFiles: string[] | string):
             currentItem.subtasks = []
 
           currentItem.subtasks.push({
-            id: crypto.randomUUID(),
+            id: stableId('checklist-subtask', fileName, currentTabId, currentGroupId, taskText),
             text: taskText.replace(/^[*_`]+|[*_`]+$/g, '').trim(),
             completed: isChecked,
           })
@@ -324,7 +325,7 @@ export function parseObsidianChecklists(checklistDirOrFiles: string[] | string):
         }
 
         const newItem: ChecklistItem = {
-          id: crypto.randomUUID(),
+          id: stableId('checklist-item', fileName, currentTabId, currentGroupId, cleanText),
           text: cleanText,
           completed: isChecked,
           type: currentTabId,

@@ -1,4 +1,5 @@
 import type { ActivityPayload } from '../types'
+import { stableId } from '../lib/stable-id'
 
 export function inferActivityTag(title: string, content: string): ActivityPayload['tag'] {
   const text = `${title} ${content}`.toLowerCase()
@@ -134,7 +135,7 @@ export function parseActivitiesFromMarkdown(dayContent: string): ActivityPayload
       sections: sectionText
         ? [
             {
-              id: crypto.randomUUID(),
+              id: stableId('activity-section', currentActivity.startTime, 'description', 0),
               type: 'description',
               text: sectionText,
             },

@@ -32,6 +32,10 @@ export function createInProcessTransport(userId: string): Transport {
       await tripRepository.update(id, details as any)
     },
 
+    async deleteTrip(id) {
+      await tripRepository.delete(id)
+    },
+
     async getTripDetails(tripId) {
       const trip = await tripRepository.getById(tripId) as any
       if (!trip)
@@ -79,11 +83,14 @@ export function createInProcessTransport(userId: string): Transport {
     },
 
     async updateTripSection(id, payload) {
-      await tripSectionRepository.update(id, {
+      const update: Record<string, unknown> = {
         title: payload.title,
-        icon: payload.icon ?? null,
-        content: payload.content ?? null,
-      } as any)
+      }
+      if (payload.icon !== undefined)
+        update.icon = payload.icon
+      if (payload.content !== undefined)
+        update.content = payload.content
+      await tripSectionRepository.update(id, update as any)
     },
 
     async createNote(payload) {

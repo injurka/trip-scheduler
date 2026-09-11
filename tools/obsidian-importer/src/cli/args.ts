@@ -34,8 +34,7 @@ ${colors.bright}ОПЦИИ:${colors.reset}
 `)
 }
 
-export function parseCliArgs(): CliOptions {
-  const args = process.argv.slice(2)
+export function parseCliArgs(args = process.argv.slice(2)): CliOptions {
   const options: CliOptions = {
     apiUrl: process.env.API_URL || 'https://trip-scheduler-api.limited-dissolve.ru',
     email: process.env.ADMIN_EMAIL || process.env.USER_EMAIL,
@@ -51,24 +50,30 @@ export function parseCliArgs(): CliOptions {
 
   for (let i = 0; i < args.length; i++) {
     const arg = args[i]
+    const readValue = (): string => {
+      const value = args[++i]
+      if (!value || value.startsWith('-'))
+        throw new Error(`Для опции ${arg} требуется значение`)
+      return value
+    }
     if (arg === '-h' || arg === '--help') {
       printHelp()
       process.exit(0)
     }
     else if (arg === '-d' || arg === '--dir') {
-      options.dir = args[++i]
+      options.dir = readValue()
     }
     else if (arg === '-u' || arg === '--api-url') {
-      options.apiUrl = args[++i]
+      options.apiUrl = readValue()
     }
     else if (arg === '-e' || arg === '--email') {
-      options.email = args[++i]
+      options.email = readValue()
     }
     else if (arg === '-p' || arg === '--password') {
-      options.password = args[++i]
+      options.password = readValue()
     }
     else if (arg === '-s' || arg === '--start-date') {
-      options.startDate = args[++i]
+      options.startDate = readValue()
     }
     else if (arg === '--llm') {
       options.useLlm = true
@@ -77,23 +82,27 @@ export function parseCliArgs(): CliOptions {
       options.useLlm = false
     }
     else if (arg === '-m' || arg === '--model') {
-      options.llmModel = args[++i]
+      options.llmModel = readValue()
     }
     else if (arg === '--dry-run') {
       options.dryRun = true
     }
     else if (arg === '--status') {
-      const s = args[++i] as any
+      const s = readValue() as any
       if (['planned', 'draft', 'completed'].includes(s))
         options.status = s
+      else
+        throw new Error(`Недопустимый статус: ${s}`)
     }
     else if (arg === '--visibility') {
-      const v = args[++i] as any
+      const v = readValue() as any
       if (['private', 'public'].includes(v))
         options.visibility = v
+      else
+        throw new Error(`Недопустимая видимость: ${v}`)
     }
     else if (arg === '--trip-id') {
-      options.tripId = args[++i]
+      options.tripId = readValue()
     }
     else if (arg === '--overwrite-days') {
       options.daysOverwrite = true
@@ -105,13 +114,16 @@ export function parseCliArgs(): CliOptions {
       options.geocode = false
     }
     else if (arg === '-c' || arg === '--config') {
-      options.configPath = args[++i]
+      options.configPath = readValue()
     }
     else if (arg === '-y' || arg === '--yes') {
       options.nonInteractive = true
     }
     else if (arg === '-v' || arg === '--validate') {
       options.validate = true
+    }
+    else {
+      throw new Error(`Неизвестная опция: ${arg}. Используйте --help для списка опций.`)
     }
   }
 

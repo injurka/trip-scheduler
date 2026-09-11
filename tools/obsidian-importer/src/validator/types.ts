@@ -91,6 +91,7 @@ export interface ValidationReport {
     trainsCount: number
     carsCount: number
     attractionsCount: number
+    othersCount: number
     totalBookings: number
   }
   financesSummary: {

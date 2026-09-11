@@ -2,6 +2,14 @@ import type { ActivityPayload } from '../types'
 import process from 'node:process'
 import { getConfig } from '../config/loader'
 import { dedentText } from '../parsers/activity'
+import { stableId } from './stable-id'
+
+const ACTIVITY_TAGS = ['transport', 'walk', 'food', 'attraction', 'relax', 'activity'] as const
+const CLOCK_TIME_PATTERN = /^(?:[01]\d|2[0-3]):[0-5]\d$/
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === 'object' && value !== null && !Array.isArray(value)
+}
 
 export function mergeLlmActivitiesWithRawMarkdown(
   llmActs: ActivityPayload[],
@@ -126,22 +134,50 @@ IMPORTANT Guidelines:
   }
 
   try {
-    const parsed = JSON.parse(cleanJson)
+    const parsed: unknown = JSON.parse(cleanJson)
     if (Array.isArray(parsed)) {
-      return parsed.map(item => ({
-        id: crypto.randomUUID(),
-        startTime: item.startTime || '09:00',
-        endTime: item.endTime || '10:00',
-        title: item.title || 'Активность',
-        tag: ['transport', 'walk', 'food', 'attraction', 'relax', 'activity'].includes(item.tag) ? item.tag : 'activity',
-        sections: Array.isArray(item.sections)
-          ? item.sections.map((s: any) => ({
-              id: crypto.randomUUID(),
-              type: s.type || 'description',
-              text: typeof s.text === 'string' ? dedentText(s.text) : '',
-            }))
-          : (item.text ? [{ id: crypto.randomUUID(), type: 'description', text: dedentText(item.text) }] : []),
-      }))
+      const activities: ActivityPayload[] = []
+      for (const item of parsed) {
+        if (!isRecord(item)
+          || typeof item.title !== 'string'
+          || !item.title.trim()
+          || typeof item.startTime !== 'string'
+          || !CLOCK_TIME_PATTERN.test(item.startTime)
+          || typeof item.endTime !== 'string'
+          || !CLOCK_TIME_PATTERN.test(item.endTime)) {
+          return null
+        }
+
+        const tag = typeof item.tag === 'string' && (ACTIVITY_TAGS as readonly string[]).includes(item.tag)
+          ? item.tag as ActivityPayload['tag']
+          : 'activity'
+        const rawSections = Array.isArray(item.sections) ? item.sections : []
+        const descriptions = rawSections
+          .filter(section => isRecord(section) && section.type === 'description' && typeof section.text === 'string')
+          .map((section, index) => ({
+            id: stableId('llm-section', item.startTime, item.title, index),
+            type: 'description' as const,
+            text: dedentText(String(section.text)),
+          }))
+
+        if (descriptions.length === 0 && typeof item.text === 'string') {
+          descriptions.push({
+            id: stableId('llm-section', item.startTime, item.title, 0),
+            type: 'description',
+            text: dedentText(item.text),
+          })
+        }
+
+        activities.push({
+          id: stableId('llm-activity', item.startTime, item.endTime, item.title),
+          startTime: item.startTime,
+          endTime: item.endTime,
+          title: item.title.trim(),
+          tag,
+          sections: descriptions,
+        })
+      }
+      return activities
     }
   }
   catch {

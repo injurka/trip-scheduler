@@ -1,10 +1,13 @@
+import { existsSync, mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs'
+import { tmpdir } from 'node:os'
+import { join } from 'node:path'
 import { describe, expect, it } from 'bun:test'
 import { normalizeFsPath } from '../lib/vault-locator'
 import { parseActivitiesFromMarkdown } from '../parsers/activity'
 import { parseHotelsMarkdown } from '../parsers/booking'
 import { extractLocationFromText } from '../parsers/checklist'
 import { extractCoordinatesFromUrl, extractLocationsFromText } from '../parsers/location'
-import { extractDayTitle } from '../parsers/vault'
+import { extractCities, extractDayTitle, extractShortDescription, extractTags, parseObsidianTripFolder, parseTripFrontmatter } from '../parsers/vault'
 
 describe('Path Resolver & Normalizer', () => {
   it('strips leading @ prefix and quotes', () => {
@@ -21,6 +24,69 @@ describe('Path Resolver & Normalizer', () => {
   it('converts Windows backslashes and drive letter', () => {
     const p = normalizeFsPath('C:\\Users\\user\\travel')
     expect(p).toContain('/mnt/c/Users/user/travel')
+  })
+})
+
+describe('Trip YAML frontmatter', () => {
+  const markdown = `---
+cover: "_/all/cover.jpg"
+descriptionShort: >-
+  Короткое описание
+  в две строки.
+tags:
+  - Тайвань
+  - Воркейшн
+cities: [Тайбэй, Гаосюн]
+---
+
+# Тайвань
+
+## 📝 Краткое описание
+
+Описание из Markdown.
+`
+
+  it('parses supported scalar, folded and array values', () => {
+    expect(parseTripFrontmatter(markdown)).toEqual({
+      cover: '_/all/cover.jpg',
+      descriptionShort: 'Короткое описание в две строки.',
+      tags: ['Тайвань', 'Воркейшн'],
+      cities: ['Тайбэй', 'Гаосюн'],
+    })
+  })
+
+  it('keeps commas inside quoted flow-array values', () => {
+    expect(parseTripFrontmatter('---\ncities: ["Taipei, Taiwan", Гаосюн]\n---\n')).toEqual({
+      cities: ['Taipei, Taiwan', 'Гаосюн'],
+    })
+  })
+
+  it('gives explicit metadata priority over inferred Markdown values', () => {
+    expect(extractShortDescription(markdown)).toBe('Короткое описание в две строки.')
+    expect(extractTags(markdown)).toEqual(['Тайвань', 'Воркейшн'])
+    expect(extractCities(markdown)).toEqual(['Тайбэй', 'Гаосюн'])
+  })
+
+  it('keeps legacy Markdown extraction when frontmatter is absent', () => {
+    const legacy = '# Тайвань\n\n## 📝 Краткое описание\n\nСтарое подробное описание путешествия по Тайваню без YAML-метаданных. Оно продолжает извлекаться из привычного Markdown-раздела.\n\n## Маршрут'
+    expect(extractShortDescription(legacy)).toBe('Старое подробное описание путешествия по Тайваню без YAML-метаданных. Оно продолжает извлекаться из привычного Markdown-раздела.')
+    expect(extractTags(legacy)).toContain('Тайвань')
+  })
+
+  it('resolves a local cover from a trip folder', () => {
+    const tripDir = mkdtempSync(join(tmpdir(), 'obsidian-trip-frontmatter-'))
+    try {
+      mkdirSync(join(tripDir, '_', 'all'), { recursive: true })
+      writeFileSync(join(tripDir, '_', 'all', 'cover.jpg'), 'fixture')
+      writeFileSync(join(tripDir, 'Trip.md'), markdown)
+      const trip = parseObsidianTripFolder(tripDir, '2026-10-29')
+      expect(trip.cover).toBe('_/all/cover.jpg')
+      expect(trip.coverImagePath).toBe(join(tripDir, '_', 'all', 'cover.jpg'))
+      expect(existsSync(trip.coverImagePath!)).toBeTrue()
+    }
+    finally {
+      rmSync(tripDir, { recursive: true, force: true })
+    }
   })
 })
 

@@ -5,13 +5,16 @@ import type {
   Booking,
   GeolocationPoint,
 } from '../types'
-import type { ApiClient } from './api-client'
 import { existsSync } from 'node:fs'
-import { basename } from 'node:path'
 import { colors } from '../config/colors'
 import { dedentText } from '../parsers/activity'
 import { extractExternalTrailLinks, extractLocationsFromText } from '../parsers/location'
 import { geocodeLocation } from './geocode'
+import { stableId } from './stable-id'
+
+interface ImageUploader {
+  uploadImage: (tripId: string, filePath: string, placement?: 'route' | 'memories' | 'notes' | 'documents') => Promise<string>
+}
 
 const CALLOUT_META_MAP: Record<string, { defaultTitle: string, icon: string, color: string }> = {
   TIP: { defaultTitle: 'Совет', icon: 'mdi:lightbulb-outline', color: '#A3D9A5' },
@@ -40,7 +43,7 @@ export function getCalloutMetadata(type: string, rawTitle?: string): { title: st
 export async function enrichActivityWithMediaAndLocation(
   act: ActivityPayload,
   imageIndex: Map<string, string>,
-  api: ApiClient | null,
+  api: ImageUploader | null,
   tripId: string | null,
   geoCache: Map<string, [number, number]>,
   uploadCache: Map<string, string>,
@@ -93,7 +96,7 @@ export async function enrichActivityWithMediaAndLocation(
     const wikilinkRegex = /!\[\[([^\]|]+)(?:\|[^\]]+)?\]\]/g
     let m: RegExpExecArray | null
     while ((m = wikilinkRegex.exec(callout)) !== null) {
-      const fileName = basename(m[1].trim())
+      const fileName = m[1].trim().replace(/^\.\//, '')
       if (/\.(png|jpg|jpeg|webp|gif|heic|heif|svg)$/i.test(fileName) && !foundImageNames.includes(fileName)) {
         foundImageNames.push(fileName)
       }
@@ -104,7 +107,7 @@ export async function enrichActivityWithMediaAndLocation(
   const nonCalloutWikilinkRegex = /!\[\[([^\]|]+)(?:\|[^\]]+)?\]\]/g
   let mWikilink: RegExpExecArray | null
   while ((mWikilink = nonCalloutWikilinkRegex.exec(text)) !== null) {
-    const fileName = basename(mWikilink[1].trim())
+    const fileName = mWikilink[1].trim().replace(/^\.\//, '')
     if (/\.(png|jpg|jpeg|webp|gif|heic|heif|svg)$/i.test(fileName) && !foundImageNames.includes(fileName)) {
       foundImageNames.push(fileName)
     }
@@ -114,8 +117,8 @@ export async function enrichActivityWithMediaAndLocation(
   const mdImageRegex = /!\[[^\]]*\]\(([^)]+\.(?:png|jpg|jpeg|webp|gif|heic|heif|svg))\)/gi
   let mMdImage: RegExpExecArray | null
   while ((mMdImage = mdImageRegex.exec(text)) !== null) {
-    const fileName = basename(mMdImage[1].trim())
-    if (!foundImageNames.includes(fileName)) {
+    const fileName = mMdImage[1].trim().replace(/^\.\//, '')
+    if (!/^https?:\/\//i.test(fileName) && !foundImageNames.includes(fileName)) {
       foundImageNames.push(fileName)
     }
   }
@@ -140,7 +143,7 @@ export async function enrichActivityWithMediaAndLocation(
     const calloutBody = dedentText(cleanBodyLines) || meta.title
 
     noteSections.push({
-      id: crypto.randomUUID(),
+      id: stableId('activity-note', act.startTime, meta.title, calloutBody),
       type: 'description',
       isAttached: true,
       title: meta.title,
@@ -166,7 +169,7 @@ export async function enrichActivityWithMediaAndLocation(
             ? 'Wikiloc'
             : 'карте'
     noteSections.push({
-      id: crypto.randomUUID(),
+      id: stableId('activity-trail', act.startTime, trail.url),
       type: 'description',
       isAttached: true,
       title: trail.isBike ? 'Веломаршрут' : 'Хайкинг-трек',
@@ -193,7 +196,7 @@ export async function enrichActivityWithMediaAndLocation(
   // Add primary cleaned description section if text remains
   if (text) {
     newSections.push({
-      id: crypto.randomUUID(),
+      id: stableId('activity-description', act.startTime, text),
       type: 'description',
       text,
     })
@@ -231,7 +234,7 @@ export async function enrichActivityWithMediaAndLocation(
         }
         const pts = routeGroups.get(routeName)!
         pts.push({
-          id: crypto.randomUUID(),
+          id: stableId('activity-map-point', act.startTime, routeName, coordinates.join(',')),
           coordinates,
           type: loc.pointType || 'via',
           address: loc.pointType === 'connect' ? undefined : (loc.name || undefined),
@@ -251,7 +254,7 @@ export async function enrichActivityWithMediaAndLocation(
           const pts = routeGroups.get(routeName)!
           const pointType: GeolocationPoint['type'] = ptIndex === 1 ? 'start' : 'via'
           pts.push({
-            id: crypto.randomUUID(),
+            id: stableId('activity-map-point', act.startTime, routeName, ptIndex, coordinates.join(',')),
             coordinates,
             type: pointType,
             address: routeName,
@@ -261,7 +264,7 @@ export async function enrichActivityWithMediaAndLocation(
         }
         else {
           mapPoints.push({
-            id: crypto.randomUUID(),
+            id: stableId('activity-map-point', act.startTime, loc.name, coordinates.join(',')),
             coordinates,
             type: 'poi',
             address: loc.name,
@@ -294,7 +297,7 @@ export async function enrichActivityWithMediaAndLocation(
         })
         const isBike = /вело|bike/i.test(routeName) || pts.some(p => p.isBike)
         routes.push({
-          id: crypto.randomUUID(),
+          id: stableId('activity-route', act.startTime, routeName),
           title: routeName,
           points: orderedPts,
           transportMode: isBike ? 'bike' : 'foot',
@@ -325,7 +328,7 @@ export async function enrichActivityWithMediaAndLocation(
       const center = mapPoints[0]?.coordinates || routes[0]?.points[0]?.coordinates
       const totalPoints = mapPoints.length + routes.reduce((s: number, r: any) => s + r.points.length, 0)
       newSections.push({
-        id: crypto.randomUUID(),
+        id: stableId('activity-geolocation', act.startTime),
         type: 'geolocation',
         title: sectionTitle,
         points: mapPoints,
@@ -342,7 +345,10 @@ export async function enrichActivityWithMediaAndLocation(
 
     for (let imgIdx = 0; imgIdx < foundImageNames.length; imgIdx++) {
       const imgName = foundImageNames[imgIdx]
-      const localPath = imageIndex.get(imgName) || imageIndex.get(imgName.toLowerCase())
+      const localPath = imageIndex.get(imgName)
+        || imageIndex.get(imgName.toLowerCase())
+        || imageIndex.get(imgName.split('/').at(-1) ?? '')
+        || imageIndex.get((imgName.split('/').at(-1) ?? '').toLowerCase())
       if (localPath && existsSync(localPath)) {
         if (shouldUpload && api && tripId) {
           try {
@@ -360,17 +366,15 @@ export async function enrichActivityWithMediaAndLocation(
           }
           catch (uploadErr: any) {
             console.warn(`      ${colors.yellow}⚠ Ошибка загрузки фото ${imgName}: ${uploadErr.message}${colors.reset}`)
+            throw uploadErr
           }
-        }
-        else {
-          uploadedImageUrls.push(imgName)
         }
       }
     }
 
     if (uploadedImageUrls.length > 0) {
       newSections.push({
-        id: crypto.randomUUID(),
+        id: stableId('activity-gallery', act.startTime, uploadedImageUrls.join('|')),
         type: 'gallery',
         imageUrls: uploadedImageUrls,
       })
@@ -455,7 +459,7 @@ export async function enrichActivityWithMediaAndLocation(
 
         if (isMatched) {
           newSections.push({
-            id: crypto.randomUUID(),
+            id: stableId('activity-booking', act.startTime, booking.id),
             type: 'booking',
             bookingId: booking.id,
           })
@@ -472,6 +476,9 @@ export async function enrichActivityWithMediaAndLocation(
 
   return {
     ...act,
-    sections: newSections,
+    sections: newSections.map((section, index) => ({
+      ...section,
+      id: stableId('activity-section', act.startTime, section.type, index),
+    })),
   }
 }

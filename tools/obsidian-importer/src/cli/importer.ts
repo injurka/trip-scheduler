@@ -14,6 +14,7 @@ import {
 import { enrichActivityWithMediaAndLocation } from '../lib/enricher'
 import { buildImageIndex } from '../lib/image-indexer'
 import { generateActivitiesViaDirectLlm, mergeLlmActivitiesWithRawMarkdown } from '../lib/llm'
+import { stableId } from '../lib/stable-id'
 import { parseActivitiesFromMarkdown } from '../parsers/activity'
 import { parseObsidianTripFolder } from '../parsers/vault'
 import {
@@ -35,6 +36,11 @@ export async function runImport(): Promise<void> {
   loadEnvIfAvailable()
   const cliOptions = parseCliArgs()
   const appConfig = loadImporterConfig(cliOptions.configPath)
+  const importErrors: string[] = []
+  const recordError = (label: string, error: unknown): void => {
+    const message = error instanceof Error ? error.message : String(error)
+    importErrors.push(`${label}: ${message}`)
+  }
 
   console.log(`\n${colors.bright}${colors.cyan}════════════════════════════════════════════════════════════════════${colors.reset}`)
   console.log(`${colors.bright}${colors.cyan}    🛫 Obsidian ➔ Trip Scheduler Import Tool (Advanced)${colors.reset}`)
@@ -182,7 +188,7 @@ export async function runImport(): Promise<void> {
     overwriteDays = targetSelection.overwriteDays
   }
 
-  let createdTrip: { id: string, title: string, startDate?: string, endDate?: string }
+  let createdTrip: { id: string, title: string, startDate?: string, endDate?: string, imageUrl?: string | null }
 
   if (targetTripId) {
     console.log(`\n${colors.dim}🔗 Подключение к существующему путешествию...${colors.reset}`)
@@ -193,6 +199,7 @@ export async function runImport(): Promise<void> {
         title: existingTrip.title,
         startDate: existingTrip.startDate,
         endDate: existingTrip.endDate,
+        imageUrl: existingTrip.imageUrl,
       }
       console.log(`  ${colors.green}✔ Найдено путешествие:${colors.reset} ${colors.bright}${createdTrip.title}${colors.reset} (ID: ${createdTrip.id})`)
     }
@@ -218,6 +225,18 @@ export async function runImport(): Promise<void> {
     }
   }
 
+  let coverImageUrl = tripData.cover && /^https?:\/\//i.test(tripData.cover) ? tripData.cover : undefined
+  if (cliOptions.uploadImages && tripData.coverImagePath && (!targetTripId || !createdTrip.imageUrl || overwriteDays)) {
+    try {
+      coverImageUrl = await api.uploadImage(createdTrip.id, tripData.coverImagePath, 'route')
+      console.log(`  ${colors.green}✔ Обложка путешествия загружена${colors.reset}`)
+    }
+    catch (err: any) {
+      recordError('Загрузка обложки', err)
+      console.warn(`  ${colors.yellow}⚠ Ошибка загрузки обложки: ${err.message}${colors.reset}`)
+    }
+  }
+
   // Update Trip Metadata & Cities
   if (importTripMeta) {
     try {
@@ -225,6 +244,7 @@ export async function runImport(): Promise<void> {
         title: tripData.title,
         description: tripData.description,
         descriptionShort: tripData.descriptionShort,
+        imageUrl: coverImageUrl,
         cities: tripData.cities,
         tags: tripData.tags,
         status: cliOptions.status,
@@ -235,6 +255,7 @@ export async function runImport(): Promise<void> {
       console.log(`  ${colors.green}✔ Метаданные путешествия обновлены${colors.reset} (города: ${tripData.cities.join(', ') || '—'}, теги: ${tripData.tags.join(', ')})`)
     }
     catch (err: any) {
+      recordError('Обновление метаданных', err)
       console.warn(`  ${colors.yellow}⚠ Ошибка обновления метаданных: ${err.message}${colors.reset}`)
     }
   }
@@ -252,34 +273,35 @@ export async function runImport(): Promise<void> {
         existingSections = details.sections
       }
     }
-    catch {
-      existingSections = []
+    catch (error) {
+      recordError('Получение разделов путешествия', error)
+      throw error
     }
 
     for (const sec of appConfig.defaultSections) {
       try {
-        if (sec.type === 'finances') {
-          // Не трогаем и не обогащаем секцию Финансы
-          continue
-        }
-
-        let sectionContent: any = null
+        let sectionContent: any
 
         if (sec.type === 'bookings') {
-          sectionContent = tripData.bookingsContent && tripData.bookingsContent.bookings.length > 0 ? tripData.bookingsContent : null
+          sectionContent = tripData.bookingsContent && tripData.bookingsContent.bookings.length > 0 ? tripData.bookingsContent : undefined
         }
         else if (sec.type === 'checklist' && importChecklists) {
-          sectionContent = tripData.checklistContent && tripData.checklistContent.items && tripData.checklistContent.items.length > 0 ? tripData.checklistContent : null
+          sectionContent = tripData.checklistContent && tripData.checklistContent.items && tripData.checklistContent.items.length > 0 ? tripData.checklistContent : undefined
+        }
+        else if (sec.type === 'finances') {
+          sectionContent = tripData.financesContent?.transactions?.length ? tripData.financesContent : undefined
         }
 
         const existingSec = existingSections.find(s => s.type === sec.type)
 
         if (existingSec) {
-          await api.updateTripSection(existingSec.id, {
+          const updatePayload: { title: string, icon: string | null, content?: unknown } = {
             title: sec.title,
             icon: sec.icon,
-            content: sectionContent,
-          })
+          }
+          if (sectionContent !== undefined)
+            updatePayload.content = sectionContent
+          await api.updateTripSection(existingSec.id, updatePayload)
         }
         else {
           await api.createTripSection({
@@ -310,6 +332,7 @@ export async function runImport(): Promise<void> {
         }
       }
       catch (err: any) {
+        recordError(`Раздел «${sec.title}»`, err)
         console.warn(`  ${colors.yellow}⚠ Раздел «${sec.title}»: ${err.message}${colors.reset}`)
       }
     }
@@ -317,7 +340,7 @@ export async function runImport(): Promise<void> {
 
   // 3. Create Days
   const dayIdMap = new Map<number, string>()
-  let existingDays: Array<{ id: string, date: string, title: string, activities?: Array<{ id: string, title?: string, startTime?: string }> }> = []
+  let existingDays: Array<{ id: string, date: string, title: string, activities?: Array<{ id: string, title?: string, startTime?: string, sections?: Array<{ id: string, type: string }> }> }> = []
 
   if (importDays) {
     console.log(`\n${colors.dim}📅 Создание дней маршрута (${tripData.days.length} дн.)...${colors.reset}`)
@@ -342,13 +365,21 @@ export async function runImport(): Promise<void> {
           const BATCH_SIZE = appConfig.batchSize || 8
           for (let b = 0; b < allActivitiesToDelete.length; b += BATCH_SIZE) {
             const chunk = allActivitiesToDelete.slice(b, b + BATCH_SIZE)
-            await Promise.allSettled(chunk.map(id => api.deleteActivity(id)))
+            const results = await Promise.allSettled(chunk.map(id => api.deleteActivity(id)))
+            for (const result of results) {
+              if (result.status === 'rejected')
+                throw result.reason
+            }
           }
 
           // Batch delete days in chunks of 5
           for (let b = 0; b < existingDays.length; b += BATCH_SIZE) {
             const chunk = existingDays.slice(b, b + BATCH_SIZE)
-            await Promise.allSettled(chunk.map(d => api.deleteDay(d.id)))
+            const results = await Promise.allSettled(chunk.map(d => api.deleteDay(d.id)))
+            for (const result of results) {
+              if (result.status === 'rejected')
+                throw result.reason
+            }
           }
 
           existingDays = await api.getDaysByTripId(createdTrip.id)
@@ -356,8 +387,9 @@ export async function runImport(): Promise<void> {
         }
       }
     }
-    catch {
-      existingDays = []
+    catch (error) {
+      recordError('Получение или очистка дней', error)
+      throw error
     }
 
     for (let i = 0; i < tripData.days.length; i++) {
@@ -398,11 +430,13 @@ export async function runImport(): Promise<void> {
             console.log(`    ${colors.cyan}🏷️  Добавлено ${day.meta.length} инфо-блоков day.meta${colors.reset}`)
           }
           catch (metaErr: any) {
+            recordError(`day.meta дня ${day.dayNumber}`, metaErr)
             console.warn(`    ${colors.yellow}⚠ Ошибка сохранения day.meta: ${metaErr.message}${colors.reset}`)
           }
         }
       }
       catch (err: any) {
+        recordError(`День ${day.dayNumber}`, err)
         console.error(`  ${colors.red}❌ Ошибка создания дня ${day.dayNumber}: ${err.message}${colors.reset}`)
       }
     }
@@ -411,24 +445,25 @@ export async function runImport(): Promise<void> {
   // 4. Create Notes Hierarchy
   if (importNotes && (tripData.sectionFolders.length > 0 || tripData.rootNotes.length > 0)) {
     console.log(`\n${colors.dim}📝 Импорт структуры заметок и статей...${colors.reset}`)
+    let existingNotes: Array<{ id: string, parentId?: string | null, type: string, title: string }> = []
+    try {
+      existingNotes = await api.getNotesByTripId(createdTrip.id)
+    }
+    catch (error) {
+      recordError('Получение существующих заметок', error)
+      throw error
+    }
 
     for (const folder of tripData.sectionFolders) {
       try {
-        const folderRecord = await api.createNote({
-          tripId: createdTrip.id,
-          type: 'folder',
-          title: folder.folderName,
-        })
+        const existingFolder = existingNotes.find(note => note.type === 'folder' && !note.parentId && note.title === folder.folderName)
+        const folderRecord = existingFolder ?? await api.createNote({ tripId: createdTrip.id, type: 'folder', title: folder.folderName })
         console.log(`  ${colors.green}📁 Папка:${colors.reset} ${folder.folderName}`)
 
         for (const file of folder.files) {
           try {
-            const noteRecord = await api.createNote({
-              tripId: createdTrip.id,
-              parentId: folderRecord.id,
-              type: 'markdown',
-              title: file.title,
-            })
+            const existingNote = existingNotes.find(note => note.type === 'markdown' && note.parentId === folderRecord.id && note.title === file.title)
+            const noteRecord = existingNote ?? await api.createNote({ tripId: createdTrip.id, parentId: folderRecord.id, type: 'markdown', title: file.title })
 
             await api.updateNote(noteRecord.id, {
               title: file.title,
@@ -437,11 +472,13 @@ export async function runImport(): Promise<void> {
             console.log(`    ${colors.dim}📄 ${file.title}${colors.reset}`)
           }
           catch (fileErr: any) {
+            recordError(`Файл ${file.title}`, fileErr)
             console.warn(`    ${colors.yellow}⚠ Файл ${file.title}: ${fileErr.message}${colors.reset}`)
           }
         }
       }
       catch (folderErr: any) {
+        recordError(`Папка ${folder.folderName}`, folderErr)
         console.warn(`  ${colors.yellow}⚠ Папка ${folder.folderName}: ${folderErr.message}${colors.reset}`)
       }
     }
@@ -449,11 +486,8 @@ export async function runImport(): Promise<void> {
     if (tripData.rootNotes.length > 0) {
       for (const rootNote of tripData.rootNotes) {
         try {
-          const noteRecord = await api.createNote({
-            tripId: createdTrip.id,
-            type: 'markdown',
-            title: rootNote.title,
-          })
+          const existingNote = existingNotes.find(note => note.type === 'markdown' && !note.parentId && note.title === rootNote.title)
+          const noteRecord = existingNote ?? await api.createNote({ tripId: createdTrip.id, type: 'markdown', title: rootNote.title })
           await api.updateNote(noteRecord.id, {
             title: rootNote.title,
             content: rootNote.content,
@@ -461,6 +495,7 @@ export async function runImport(): Promise<void> {
           console.log(`  ${colors.green}📄 Корневая заметка:${colors.reset} ${rootNote.title}`)
         }
         catch (err: any) {
+          recordError(`Заметка ${rootNote.title}`, err)
           console.warn(`  ${colors.yellow}⚠ Заметка ${rootNote.title}: ${err.message}${colors.reset}`)
         }
       }
@@ -633,35 +668,37 @@ export async function runImport(): Promise<void> {
           )
           enrichedActivities.push(enriched)
         }
-        catch {
+        catch (error) {
+          recordError(`Обогащение активности «${act.title}»`, error)
           enrichedActivities.push(act)
         }
       }
 
       const existingDayRecord = existingDays.find(d => d.id === dayId)
       const existingActs = existingDayRecord?.activities || []
+      const retainedExistingActivityIds = new Set<string>()
 
       for (const act of enrichedActivities) {
-        // In sync mode, skip creating exact duplicate activity if already present
-        if (!overwriteDays && existingActs.length > 0) {
-          const isDuplicate = existingActs.some(
-            (ex: any) => ex.startTime === act.startTime && (ex.title === act.title || ex.title?.toLowerCase().includes(act.title.toLowerCase())),
-          )
-          if (isDuplicate) {
-            console.log(`    ${colors.dim}⏩ [Пропущено: уже существует] [${act.startTime}–${act.endTime}] ${act.title}${colors.reset}`)
-            continue
-          }
-        }
-
         try {
-          await api.createActivity({
+          const expectedSectionIds = new Set((act.sections ?? []).map(section => section.id))
+          const existingActivity = !overwriteDays
+            ? existingActs.find(existing => existing.sections?.some(section => expectedSectionIds.has(section.id)))
+            ?? existingActs.find(existing => existing.startTime === act.startTime && existing.title === act.title)
+            : undefined
+          const activityPayload = {
             dayId,
             title: act.title,
             startTime: act.startTime,
             endTime: act.endTime,
             tag: act.tag,
             sections: act.sections || [],
-          })
+          }
+          if (existingActivity)
+            await api.updateActivity({ id: existingActivity.id, ...activityPayload })
+          else
+            await api.createActivity(activityPayload)
+          if (existingActivity)
+            retainedExistingActivityIds.add(existingActivity.id)
 
           const descSections = act.sections?.filter(s => s.type === 'description') || []
           const attachedNotes = descSections.filter(s => s.isAttached)
@@ -690,10 +727,29 @@ export async function runImport(): Promise<void> {
             totalLocationsGeocoded += geoSection.points.length
           }
 
-          console.log(`    ${colors.green}✔ [${act.startTime}–${act.endTime}]${colors.reset} [${act.tag}] ${act.title}${noteBadge}${bookingBadge}${geoBadge}${galleryBadge}`)
+          const action = existingActivity ? '↻' : '✔'
+          console.log(`    ${colors.green}${action} [${act.startTime}–${act.endTime}]${colors.reset} [${act.tag}] ${act.title}${noteBadge}${bookingBadge}${geoBadge}${galleryBadge}`)
         }
         catch (actErr: any) {
+          recordError(`Активность «${act.title}»`, actErr)
           console.warn(`    ${colors.yellow}⚠ Активность «${act.title}»: ${actErr.message}${colors.reset}`)
+        }
+      }
+
+      if (!overwriteDays) {
+        for (const existing of existingActs) {
+          const isImporterOwned = existing.sections?.some(
+            (section, index) => section.id === stableId('activity-section', existing.startTime, section.type, index),
+          )
+          if (isImporterOwned && !retainedExistingActivityIds.has(existing.id)) {
+            try {
+              await api.deleteActivity(existing.id)
+              console.log(`    ${colors.dim}🗑 Удалена отсутствующая в vault активность: ${existing.title}${colors.reset}`)
+            }
+            catch (error) {
+              recordError(`Удаление устаревшей активности «${existing.title}»`, error)
+            }
+          }
         }
       }
     }
@@ -709,6 +765,22 @@ export async function runImport(): Promise<void> {
     savedMessages.push(`${llmCache.size} дней ИИ`)
   if (savedMessages.length > 0) {
     console.log(`\n${colors.dim}💾 Кеши сохранены: ${savedMessages.join(', ')}${colors.reset}`)
+  }
+
+  if (importErrors.length > 0) {
+    if (!targetTripId) {
+      try {
+        await api.deleteTrip(createdTrip.id)
+        console.error(`  ${colors.yellow}Созданное частично путешествие удалено.${colors.reset}`)
+      }
+      catch (cleanupError) {
+        recordError('Удаление незавершенного путешествия', cleanupError)
+      }
+    }
+    console.error(`\n${colors.bright}${colors.red}Импорт завершен с ошибками (${importErrors.length}):${colors.reset}`)
+    for (const error of importErrors)
+      console.error(`  ${colors.red}• ${error}${colors.reset}`)
+    throw new Error(`Импорт не завершен полностью: ${importErrors.length} ошибок`)
   }
 
   console.log(`\n${colors.bright}${colors.green}════════════════════════════════════════════════════════════════════${colors.reset}`)

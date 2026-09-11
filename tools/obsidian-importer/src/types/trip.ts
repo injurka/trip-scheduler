@@ -27,6 +27,8 @@ export interface ParsedTripData {
   title: string
   description: string
   descriptionShort: string
+  cover?: string
+  coverImagePath?: string
   cities: string[]
   tags: string[]
   startDate: string

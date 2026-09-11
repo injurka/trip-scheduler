@@ -21,9 +21,17 @@ export function timeToMinutes(time: string): number {
   return hours * 60 + minutes
 }
 
+/** Returns a clock-time interval, treating an earlier end as next day. */
+export function timeRangeDurationMinutes(startTime: string, endTime: string): number {
+  const start = timeToMinutes(startTime)
+  const end = timeToMinutes(endTime)
+  return end >= start ? end - start : end + 24 * 60 - start
+}
+
 export function minutesToTime(minutes: number): string {
-  const hours = Math.floor(minutes / 60)
-  const mins = minutes % 60
+  const normalized = ((minutes % (24 * 60)) + 24 * 60) % (24 * 60)
+  const hours = Math.floor(normalized / 60)
+  const mins = normalized % 60
 
   return `${String(hours).padStart(2, '0')}:${String(mins).padStart(2, '0')}`
 }
