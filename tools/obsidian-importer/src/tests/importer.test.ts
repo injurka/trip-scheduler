@@ -190,6 +190,38 @@ describe('Location Parser', () => {
     expect(locations[0].query).toBe('Chifeng Street Taipei')
   })
 
+  it('deduplicates a named map link and its iframe after activity normalization', () => {
+    const markdown = `
+* **10:00 - 13:00** — Fenqihu Old Street:
+    * _Ссылка на локацию_: [Google Maps: 3. Fenqihu Station — багаж](https://maps.google.com/?q=Fenqihu+Station)<iframe src="https://maps.google.com/maps?q=Fenqihu+Station&output=embed"></iframe>
+    * _Ссылка на локацию_: [Google Maps: Fenqihu Hotel Restaurant — бэнто](https://maps.google.com/?q=奮起湖大飯店)<iframe src="https://maps.google.com/maps?q=奮起湖大飯店&output=embed"></iframe>
+    `.trim()
+    const activity = parseActivitiesFromMarkdown(markdown)[0]
+    const description = activity.sections?.find(section => section.type === 'description')
+    const locations = extractLocationsFromText(description?.type === 'description' ? description.text : '')
+
+    expect(locations).toHaveLength(2)
+    expect(locations.map(location => location.query)).toEqual([
+      'Fenqihu Station',
+      '奮起湖大飯店',
+    ])
+  })
+
+  it('keeps different locations whose names partially overlap', () => {
+    const text = `
+* _Ссылка на локацию_: [Google Maps: Old Street](https://maps.google.com/?q=Old+Street)
+* _Ссылка на локацию_: [Google Maps: Fenqihu Old Street](https://maps.google.com/?q=Fenqihu+Old+Street)
+    `.trim()
+
+    const locations = extractLocationsFromText(text)
+
+    expect(locations).toHaveLength(2)
+    expect(locations.map(location => location.query)).toEqual([
+      'Old Street',
+      'Fenqihu Old Street',
+    ])
+  })
+
   it('segments route titles with arrows into clean waypoints without duplicate noise', () => {
     const text = '* _Хайкинг-трек_: [Google Maps: Jiufen Old Street Entrance → Shuqi Road → A-Mei Tea House](https://www.google.com/maps/dir/25.109860,121.845190/25.109200,121.844300/25.108800,121.843900/?travelmode=walking)'
     const locations = extractLocationsFromText(text)

@@ -280,10 +280,19 @@ export function extractLocationsFromText(text: string): ExtractedLocation[] {
       return
     }
 
-    const existing = locations.find(l => !l.routeName && (cleanName && l.name.toLowerCase() === cleanName.toLowerCase()))
+    // A Markdown label may contain a human-readable suffix (for example
+    // "Fenqihu Station — багаж"), while the iframe contains only the
+    // canonical query ("Fenqihu Station"). Deduplicate only exact canonical
+    // queries: partial title matches can be distinct places.
+    const canonicalQuery = cleanQuery.toLocaleLowerCase().replace(/\s+/g, ' ').trim()
+    const existing = locations.find(location =>
+      !location.routeName
+      && location.query.toLocaleLowerCase().replace(/\s+/g, ' ').trim() === canonicalQuery)
     if (existing) {
       if (!existing.coordinates && coords)
         existing.coordinates = coords
+      if (existing.query === existing.name && cleanQuery)
+        existing.query = cleanQuery
       if (isBike)
         existing.isBike = true
     }
