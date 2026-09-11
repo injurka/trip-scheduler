@@ -250,12 +250,14 @@ function getDecoratedRoutePoints(route: MapRoute): MapPoint[] {
   display: flex;
   flex-direction: column;
   gap: 8px;
+  min-width: 0;
 }
 
 .routes-container {
   display: flex;
   flex-direction: column;
   gap: 8px;
+  min-width: 0;
 }
 
 .route-card {
@@ -293,7 +295,9 @@ function getDecoratedRoutePoints(route: MapRoute): MapPoint[] {
   display: flex;
   align-items: center;
   gap: 8px;
+  min-width: 0;
   padding: 8px 12px;
+  box-sizing: border-box;
   cursor: pointer;
   user-select: none;
   flex-wrap: wrap;
@@ -307,8 +311,8 @@ function getDecoratedRoutePoints(route: MapRoute): MapPoint[] {
   display: flex;
   align-items: center;
   gap: 6px;
-  flex: 1;
-  min-width: 140px;
+  flex: 1 1 180px;
+  min-width: 0;
 
   .route-mode-icon {
     font-size: 1.1rem;
@@ -318,6 +322,7 @@ function getDecoratedRoutePoints(route: MapRoute): MapPoint[] {
 
 .route-title-editor {
   flex: 1;
+  min-width: 0;
   :deep() {
     .milkdown .ProseMirror p {
       font-weight: 600;
@@ -328,6 +333,10 @@ function getDecoratedRoutePoints(route: MapRoute): MapPoint[] {
 }
 
 .route-title-static {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
   font-weight: 600;
   font-size: 0.88rem;
   color: var(--fg-primary-color);
@@ -470,6 +479,30 @@ function getDecoratedRoutePoints(route: MapRoute): MapPoint[] {
   display: inline-block;
   animation: rotation 1s linear infinite;
   flex-shrink: 0;
+}
+
+@media (max-width: 600px) {
+  .route-header {
+    gap: 6px;
+    padding: 8px;
+  }
+
+  .route-title-block {
+    flex-basis: 100%;
+  }
+
+  .transport-switcher {
+    order: 2;
+  }
+
+  .route-metrics {
+    order: 3;
+    margin-left: auto;
+  }
+
+  .route-actions {
+    order: 4;
+  }
 }
 
 @keyframes rotation {

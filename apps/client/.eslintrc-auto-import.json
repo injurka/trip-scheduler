@@ -176,6 +176,7 @@
     "templateRef": true,
     "throttledRef": true,
     "throttledWatch": true,
+    "timeRangeDurationMinutes": true,
     "timeToMinutes": true,
     "toRaw": true,
     "toReactive": true,

@@ -315,6 +315,7 @@ function focusOnItem(item: MapPoint | MapRoute) {
           :is-loading="false"
           :points="geolocationMapPoints"
           :routes="geolocationMapRoutes"
+          use-static-renderer
           :readonly="true"
           :interactive-on-click="true"
           :center="mapCenter"
@@ -539,12 +540,16 @@ function focusOnItem(item: MapPoint | MapRoute) {
   display: flex;
   flex-direction: column;
   gap: 4px;
+  min-width: 0;
 }
 
 .route-group-in-sidebar {
   display: flex;
   flex-direction: column;
   gap: 4px;
+  width: 100%;
+  min-width: 0;
+  box-sizing: border-box;
   padding: 4px;
   border: 1px solid var(--border-secondary-color);
   border-radius: var(--r-s);
@@ -554,6 +559,7 @@ function focusOnItem(item: MapPoint | MapRoute) {
   display: flex;
   flex-direction: column;
   gap: 4px;
+  min-width: 0;
   padding-left: 12px;
   position: relative;
 

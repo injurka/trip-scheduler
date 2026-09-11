@@ -79,6 +79,9 @@ const itemColor = computed(() => {
   display: flex;
   align-items: center;
   gap: 10px;
+  width: 100%;
+  min-width: 0;
+  box-sizing: border-box;
   padding: 6px 8px;
   border-radius: var(--r-s);
   cursor: pointer;

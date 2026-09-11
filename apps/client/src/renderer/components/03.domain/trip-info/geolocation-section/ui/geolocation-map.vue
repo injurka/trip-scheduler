@@ -25,6 +25,7 @@ interface Props {
   activeItemId?: string | null
   withSearchControl?: boolean
   selectedCoords?: Coordinate | null
+  useStaticRenderer?: boolean
 }
 
 const props = withDefaults(defineProps<Props>(), {
@@ -37,6 +38,7 @@ const props = withDefaults(defineProps<Props>(), {
   activeItemId: null,
   withSearchControl: false,
   selectedCoords: null,
+  useStaticRenderer: false,
 })
 
 const emit = defineEmits<{
@@ -62,6 +64,7 @@ const {
   clearSearchResult,
   setActivePointId,
   setSelectionMarker,
+  setStaticMapData,
   ...restMapController
 } = useGeolocationMap()
 
@@ -96,6 +99,10 @@ let previousPointIds = new Set<string>()
 let previousRouteIds = new Set<string>()
 
 watch(() => props.points, (newPoints) => {
+  if (props.useStaticRenderer) {
+    setStaticMapData(newPoints, props.routes)
+    return
+  }
   if (!isMapLoaded.value)
     return
 
@@ -109,6 +116,10 @@ watch(() => props.points, (newPoints) => {
 }, { deep: true })
 
 watch(() => props.routes, (newRoutes) => {
+  if (props.useStaticRenderer) {
+    setStaticMapData(props.points, newRoutes)
+    return
+  }
   if (!isMapLoaded.value)
     return
 
@@ -201,12 +212,17 @@ onMounted(async () => {
     clearSearchResult,
     setActivePointId,
     setSelectionMarker,
+    setStaticMapData,
     ...restMapController,
   })
 })
 
 watch(isMapLoaded, (isReady) => {
   if (isReady) {
+    if (props.useStaticRenderer) {
+      setStaticMapData(props.points, props.routes)
+      return
+    }
     props.points.forEach(addOrUpdatePoint)
     previousPointIds = new Set(props.points.map(p => p.id))
 

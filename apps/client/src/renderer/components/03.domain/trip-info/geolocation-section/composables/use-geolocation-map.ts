@@ -28,6 +28,13 @@ interface PointItem {
   point: MapPoint
 }
 
+const STATIC_POINTS_SOURCE_ID = 'static-map-points'
+const STATIC_ROUTES_SOURCE_ID = 'static-map-routes'
+const STATIC_ROUTE_CASING_LAYER_ID = 'static-map-routes-casing'
+const STATIC_ROUTE_LINE_LAYER_ID = 'static-map-routes-line'
+const STATIC_ROUTE_HIT_LAYER_ID = 'static-map-routes-hit'
+const STATIC_POINTS_LAYER_ID = 'static-map-points-layer'
+
 export type PointDragEndCallback = (pointId: string, coords: Coordinate) => void
 
 export function useGeolocationMap() {
@@ -39,6 +46,7 @@ export function useGeolocationMap() {
   let searchResultMarker: maplibregl.Marker | null = null
   let currentLocationMarker: maplibregl.Marker | null = null
   let selectionMarker: maplibregl.Marker | null = null
+  let staticData: { points: MapPoint[], routes: MapRoute[] } | null = null
 
   const activePointId = ref<string | null>(null)
   const hoveredPointId = ref<string | null>(null)
@@ -127,6 +135,110 @@ export function useGeolocationMap() {
 
   const setTileSource = (sourceId: TileSourceId) => {
     baseMap.setStyle(getMapStyle(sourceId))
+  }
+
+  const getStaticRouteData = (routes: MapRoute[]): GeoJSON.FeatureCollection<GeoJSON.LineString> => ({
+    type: 'FeatureCollection',
+    features: routes.flatMap((route) => {
+      const geometry = route.geometry?.filter(isValidCoordinate) ?? []
+      if (geometry.length < 2)
+        return []
+
+      return [{
+        type: 'Feature' as const,
+        properties: {
+          id: route.id,
+          color: route.color || '#4363D8',
+          isDirect: Boolean(route.isDirect),
+        },
+        geometry: { type: 'LineString' as const, coordinates: geometry },
+      }]
+    }),
+  })
+
+  const getStaticPointData = (points: MapPoint[]): GeoJSON.FeatureCollection<GeoJSON.Point> => ({
+    type: 'FeatureCollection',
+    features: points.flatMap((point) => {
+      if (!isValidCoordinate(point.coordinates))
+        return []
+
+      return [{
+        type: 'Feature' as const,
+        properties: {
+          id: point.id,
+          color: point.style?.color || POINT_TYPE_COLORS[point.type] || '#3498db',
+          type: point.type,
+        },
+        geometry: { type: 'Point' as const, coordinates: point.coordinates },
+      }]
+    }),
+  })
+
+  const renderStaticData = (map: MapLibreMap) => {
+    if (!staticData)
+      return
+
+    const routes = getStaticRouteData(staticData.routes)
+    const points = getStaticPointData(staticData.points)
+    const routeSource = map.getSource(STATIC_ROUTES_SOURCE_ID) as maplibregl.GeoJSONSource | undefined
+    const pointSource = map.getSource(STATIC_POINTS_SOURCE_ID) as maplibregl.GeoJSONSource | undefined
+
+    if (routeSource) {
+      routeSource.setData(routes)
+    }
+    else {
+      map.addSource(STATIC_ROUTES_SOURCE_ID, { type: 'geojson', data: routes })
+      map.addLayer({
+        id: STATIC_ROUTE_CASING_LAYER_ID,
+        type: 'line',
+        source: STATIC_ROUTES_SOURCE_ID,
+        layout: { 'line-cap': 'round', 'line-join': 'round' },
+        paint: { 'line-color': '#ffffff', 'line-width': ['interpolate', ['linear'], ['zoom'], 8, 3.5, 12, 6, 16, 8.5], 'line-opacity': 0.95 },
+      })
+      map.addLayer({
+        id: STATIC_ROUTE_LINE_LAYER_ID,
+        type: 'line',
+        source: STATIC_ROUTES_SOURCE_ID,
+        layout: { 'line-cap': 'round', 'line-join': 'round' },
+        paint: {
+          'line-color': ['get', 'color'],
+          'line-width': ['interpolate', ['linear'], ['zoom'], 8, 2, 12, 3.8, 16, 5.5],
+          'line-dasharray': ['case', ['get', 'isDirect'], ['literal', [2, 2]], ['literal', [1, 0]]],
+        },
+      })
+      map.addLayer({
+        id: STATIC_ROUTE_HIT_LAYER_ID,
+        type: 'line',
+        source: STATIC_ROUTES_SOURCE_ID,
+        layout: { 'line-cap': 'round', 'line-join': 'round' },
+        paint: { 'line-color': '#000000', 'line-width': 18, 'line-opacity': 0 },
+      })
+    }
+
+    if (pointSource) {
+      pointSource.setData(points)
+    }
+    else {
+      map.addSource(STATIC_POINTS_SOURCE_ID, { type: 'geojson', data: points })
+      map.addLayer({
+        id: STATIC_POINTS_LAYER_ID,
+        type: 'circle',
+        source: STATIC_POINTS_SOURCE_ID,
+        paint: {
+          'circle-color': ['get', 'color'],
+          'circle-radius': ['case', ['==', ['get', 'type'], 'connect'], 4, 7],
+          'circle-stroke-color': '#ffffff',
+          'circle-stroke-width': 2,
+        },
+      })
+    }
+  }
+
+  const setStaticMapData = (points: MapPoint[], routes: MapRoute[]) => {
+    staticData = { points, routes }
+    const map = baseMap.mapInstance.value
+    if (map && baseMap.isMapReady.value)
+      renderStaticData(map)
   }
 
   const renderRoute = (map: MapLibreMap, route: MapRoute) => {
@@ -696,6 +808,7 @@ export function useGeolocationMap() {
 
       // При смене стиля восстанавливаем 3D рельеф, маршруты и маркеры
       baseMap.onStyleLoad((m) => {
+        renderStaticData(m)
         routesMap.forEach((route) => {
           renderRoute(m, route)
         })
@@ -756,6 +869,7 @@ export function useGeolocationMap() {
       selectionMarker.remove()
       selectionMarker = null
     }
+    staticData = null
   })
 
   const setInteractive = (interactive: boolean) => {
@@ -782,6 +896,7 @@ export function useGeolocationMap() {
     addOrUpdateRoute,
     removeRoute,
     clearRoutes,
+    setStaticMapData,
     activePointId: readonly(activePointId),
     hoveredPointId: readonly(hoveredPointId),
     currentZoom: baseMap.currentZoom,

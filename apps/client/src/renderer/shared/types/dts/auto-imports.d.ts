@@ -158,6 +158,7 @@ declare global {
   const templateRef: typeof import('@vueuse/core').templateRef
   const throttledRef: typeof import('@vueuse/core').throttledRef
   const throttledWatch: typeof import('@vueuse/core').throttledWatch
+  const timeRangeDurationMinutes: typeof import('../../lib/date-time').timeRangeDurationMinutes
   const timeToMinutes: typeof import('../../lib/date-time').timeToMinutes
   const toRaw: typeof import('vue').toRaw
   const toReactive: typeof import('@vueuse/core').toReactive
@@ -552,6 +553,7 @@ declare module 'vue' {
     readonly templateRef: UnwrapRef<typeof import('@vueuse/core')['templateRef']>
     readonly throttledRef: UnwrapRef<typeof import('@vueuse/core')['throttledRef']>
     readonly throttledWatch: UnwrapRef<typeof import('@vueuse/core')['throttledWatch']>
+    readonly timeRangeDurationMinutes: UnwrapRef<typeof import('../../lib/date-time')['timeRangeDurationMinutes']>
     readonly timeToMinutes: UnwrapRef<typeof import('../../lib/date-time')['timeToMinutes']>
     readonly toRaw: UnwrapRef<typeof import('vue')['toRaw']>
     readonly toReactive: UnwrapRef<typeof import('@vueuse/core')['toReactive']>
