@@ -140,7 +140,10 @@ export function useGeolocationMap() {
   const getStaticRouteData = (routes: MapRoute[]): GeoJSON.FeatureCollection<GeoJSON.LineString> => ({
     type: 'FeatureCollection',
     features: routes.flatMap((route) => {
-      const geometry = route.geometry?.filter(isValidCoordinate) ?? []
+      const geometry = (route.geometry?.length
+        ? route.geometry
+        : route.points.map(point => point.coordinates)
+      ).filter(isValidCoordinate)
       if (geometry.length < 2)
         return []
 
@@ -149,7 +152,7 @@ export function useGeolocationMap() {
         properties: {
           id: route.id,
           color: route.color || '#4363D8',
-          isDirect: Boolean(route.isDirect),
+          isDirect: Boolean(route.isDirect) || !route.geometry?.length,
         },
         geometry: { type: 'LineString' as const, coordinates: geometry },
       }]

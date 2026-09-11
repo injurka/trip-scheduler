@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import type { useGeolocationMap } from '~/components/03.domain/trip-info/geolocation-section/composables/use-geolocation-map'
-import type { MapPoint, MapRoute } from '~/components/03.domain/trip-info/geolocation-section/models/types'
+import type { ActivitySectionGeolocation, MapPoint, MapRoute } from '~/components/03.domain/trip-info/geolocation-section/models/types'
 import type { IDay } from '~/components/04.features/trip-info/trip-plan/models/types'
 
 import { Icon } from '@iconify/vue'
@@ -8,6 +8,7 @@ import { useFullscreen, useMediaQuery } from '@vueuse/core'
 import { KitBtn } from '~/components/01.kit/kit-btn'
 import { KitSelectWithSearch } from '~/components/01.kit/kit-select-with-search'
 import GeolocationMap from '~/components/03.domain/trip-info/geolocation-section/ui/geolocation-map.vue'
+import { timeToMinutes } from '~/shared/lib/date-time'
 import { EActivitySectionType } from '~/shared/types/models/activity'
 import { TripMapDetailsItem } from './details'
 import TripMapSidebarItem from './trip-map-sidebar-item.vue'
@@ -103,13 +104,19 @@ function startDetailsResize(e: MouseEvent) {
   document.body.style.userSelect = 'none'
 }
 
-const collapsedGroups = reactive({
-  points: false,
-  routes: false,
-})
+interface TimelineItem {
+  item: MapPoint | MapRoute
+  type: 'point' | 'route'
+}
 
-function toggleGroup(group: keyof typeof collapsedGroups) {
-  collapsedGroups[group] = !collapsedGroups[group]
+interface TimelineActivity {
+  id: string
+  dayNumber: number
+  dayTitle: string
+  title: string
+  startTime: string
+  endTime: string
+  items: TimelineItem[]
 }
 
 const dayOptions = computed(() => {
@@ -140,13 +147,45 @@ const allRoutes = computed(() => allGeoSections.value.flatMap(s => s.section.rou
 const filteredPoints = computed(() => selectedDayId.value === 'all' ? allPoints.value : allPoints.value.filter(p => p.dayId === selectedDayId.value))
 const filteredRoutes = computed(() => selectedDayId.value === 'all' ? allRoutes.value : allRoutes.value.filter(r => r.dayId === selectedDayId.value))
 
+const timelineActivities = computed<TimelineActivity[]>(() => props.days.flatMap((day, dayIndex) => {
+  if (selectedDayId.value !== 'all' && day.id !== selectedDayId.value)
+    return []
+
+  return [...day.activities]
+    .sort((a, b) => timeToMinutes(a.startTime) - timeToMinutes(b.startTime))
+    .map((activity) => {
+      const geoSections = activity.sections?.filter((section): section is ActivitySectionGeolocation => section.type === EActivitySectionType.GEOLOCATION) ?? []
+      const items = geoSections.flatMap((section): TimelineItem[] => [
+        ...section.points.map(point => ({ item: point, type: 'point' as const })),
+        ...section.routes.flatMap(route => [
+          { item: route, type: 'route' as const },
+          ...route.points.map(point => ({ item: point, type: 'point' as const })),
+        ]),
+      ])
+
+      return {
+        id: activity.id,
+        dayNumber: dayIndex + 1,
+        dayTitle: day.title || `День ${dayIndex + 1}`,
+        title: activity.title,
+        startTime: activity.startTime,
+        endTime: activity.endTime,
+        items,
+      }
+    })
+    .filter(activity => activity.items.length > 0)
+}))
+
 const selectedActivity = computed(() => {
   if (!selectedItemId.value)
     return null
 
   const geoSection = allGeoSections.value.find(s =>
     s.section.points.some((p: any) => p.id === selectedItemId.value)
-    || s.section.routes.some((r: any) => r.id === selectedItemId.value),
+    || s.section.routes.some((route: MapRoute) =>
+      route.id === selectedItemId.value
+      || route.points.some(point => point.id === selectedItemId.value),
+    ),
   )
 
   if (!geoSection)
@@ -176,8 +215,11 @@ const detailsPanelStyle = computed(() => {
 const mapCenter = computed((): [number, number] => {
   if (allPoints.value.length > 0)
     return allPoints.value[0].coordinates
-  if (allRoutes.value.length > 0 && allRoutes.value[0].geometry)
-    return allRoutes.value[0].geometry[0]
+  const firstRoute = allRoutes.value[0]
+  if (firstRoute?.geometry?.length)
+    return firstRoute.geometry[0]
+  if (firstRoute?.points?.length)
+    return firstRoute.points[0].coordinates
   return [37.6176, 55.7558] // Moscow
 })
 
@@ -216,8 +258,10 @@ function focusOnItem(item: MapPoint | MapRoute) {
   if ('coordinates' in item) { // MapPoint
     mapController.value?.flyToLocation(item.coordinates[0], item.coordinates[1], 16)
   }
-  else if ('geometry' in item && item.geometry && item.geometry.length > 0) { // MapRoute
-    mapController.value?.flyToLocation(item.geometry[0][0], item.geometry[0][1], 14)
+  else if ('geometry' in item) { // MapRoute
+    const start = item.geometry?.[0] || item.points[0]?.coordinates
+    if (start)
+      mapController.value?.flyToLocation(start[0], start[1], 14)
   }
 
   if (isSmallScreen.value) {
@@ -263,35 +307,26 @@ function focusOnItem(item: MapPoint | MapRoute) {
               />
             </div>
             <div class="sidebar-content">
-              <div v-if="filteredPoints.length > 0 || filteredRoutes.length > 0">
-                <div v-if="filteredPoints.length > 0" class="items-group">
-                  <div class="group-header" @click="toggleGroup('points')">
-                    <h4 class="group-title">
-                      Точки интереса
-                    </h4>
-                    <Icon :icon="collapsedGroups.points ? 'mdi:chevron-down' : 'mdi:chevron-up'" class="group-toggle-icon" />
+              <div v-if="timelineActivities.length > 0" class="timeline-list">
+                <section v-for="activity in timelineActivities" :key="activity.id" class="timeline-activity">
+                  <p v-if="selectedDayId === 'all'" class="timeline-day">
+                    День {{ activity.dayNumber }} · {{ activity.dayTitle }}
+                  </p>
+                  <div class="timeline-activity-header">
+                    <span class="timeline-time">{{ activity.startTime }}–{{ activity.endTime }}</span>
+                    <span class="timeline-title">{{ activity.title }}</span>
                   </div>
-                  <div v-show="!collapsedGroups.points" class="group-content">
-                    <TripMapSidebarItem v-for="point in filteredPoints" :key="point.id" :item="point" type="point" @click="focusOnItem(point)" />
+                  <div class="timeline-items">
+                    <TripMapSidebarItem
+                      v-for="entry in activity.items"
+                      :key="`${entry.type}-${entry.item.id}`"
+                      :item="entry.item"
+                      :type="entry.type"
+                      :active="selectedItemId === entry.item.id"
+                      @click="focusOnItem(entry.item)"
+                    />
                   </div>
-                </div>
-
-                <div v-if="filteredRoutes.length > 0" class="items-group">
-                  <div class="group-header" @click="toggleGroup('routes')">
-                    <h4 class="group-title">
-                      Маршруты
-                    </h4>
-                    <Icon :icon="collapsedGroups.routes ? 'mdi:chevron-down' : 'mdi:chevron-up'" class="group-toggle-icon" />
-                  </div>
-                  <div v-show="!collapsedGroups.routes" class="group-content">
-                    <div v-for="route in filteredRoutes" :key="route.id" class="route-group-in-sidebar">
-                      <TripMapSidebarItem :item="route" type="route" @click="focusOnItem(route)" />
-                      <div class="route-points-list">
-                        <TripMapSidebarItem v-for="point in route.points" :key="point.id" :item="point" type="point" @click="focusOnItem(point)" />
-                      </div>
-                    </div>
-                  </div>
-                </div>
+                </section>
               </div>
               <div v-else class="empty-state">
                 <Icon icon="mdi:map-marker-off-outline" />
@@ -443,6 +478,11 @@ function focusOnItem(item: MapPoint | MapRoute) {
     flex-grow: 1;
     min-width: 0;
   }
+  :deep(.dropdown-panel) {
+    width: calc(50vh);
+    max-width: calc(50vh);
+    max-height: calc(50vh);
+  }
   :deep(.day-option-content) {
     display: flex;
     align-items: center;
@@ -500,78 +540,60 @@ function focusOnItem(item: MapPoint | MapRoute) {
   }
 }
 
-.items-group {
+.timeline-list {
   display: flex;
   flex-direction: column;
-  gap: 4px;
-  margin-bottom: 8px;
+  gap: 12px;
 }
 
-.group-header {
+.timeline-activity {
   display: flex;
-  align-items: center;
-  justify-content: space-between;
-  cursor: pointer;
-  padding: 4px 8px;
+  flex-direction: column;
+  gap: 6px;
+  padding: 8px;
   border-radius: var(--r-s);
-  user-select: none;
-  transition: background-color 0.2s;
-
-  &:hover {
-    background-color: var(--bg-tertiary-color);
-  }
+  background-color: rgba(var(--bg-tertiary-color-rgb), 0.45);
+  border: 1px solid var(--border-secondary-color);
 }
 
-.group-title {
+.timeline-day {
+  margin: 0 0 2px;
   font-size: 0.75rem;
   font-weight: 600;
   color: var(--fg-tertiary-color);
   text-transform: uppercase;
-  margin: 0;
   letter-spacing: 0.5px;
 }
 
-.group-toggle-icon {
-  font-size: 1.1rem;
-  color: var(--fg-tertiary-color);
+.timeline-activity-header {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  min-width: 0;
 }
 
-.group-content {
+.timeline-time {
+  flex-shrink: 0;
+  font-size: 0.75rem;
+  font-variant-numeric: tabular-nums;
+  color: var(--fg-accent-color);
+}
+
+.timeline-title {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: var(--fg-primary-color);
+}
+
+.timeline-items {
   display: flex;
   flex-direction: column;
   gap: 4px;
   min-width: 0;
-}
-
-.route-group-in-sidebar {
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-  width: 100%;
-  min-width: 0;
-  box-sizing: border-box;
-  padding: 4px;
-  border: 1px solid var(--border-secondary-color);
-  border-radius: var(--r-s);
-}
-
-.route-points-list {
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-  min-width: 0;
-  padding-left: 12px;
-  position: relative;
-
-  &::after {
-    content: '';
-    position: absolute;
-    top: 0;
-    left: 4px;
-    height: 90%;
-    width: 1px;
-    border-left: 2px solid var(--border-secondary-color);
-  }
 }
 
 .details-panel {

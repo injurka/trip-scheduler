@@ -6,6 +6,7 @@ import { KitTooltip } from '~/components/01.kit/kit-tooltip'
 interface Props {
   item: (MapPoint | MapRoute) & { dayId?: string }
   type: 'point' | 'route'
+  active?: boolean
 }
 const props = defineProps<Props>()
 
@@ -53,17 +54,34 @@ const itemSubtitle = computed(() => {
 })
 
 const itemColor = computed(() => {
-  if (props.type === 'point')
-    return (props.item as MapPoint).style?.color
+  if (props.type === 'point') {
+    const point = props.item as MapPoint
 
-  return (props.item as MapRoute).color
+    if (point.style?.color)
+      return point.style.color
+
+    switch (point.type) {
+      case 'start':
+        return 'var(--fg-success-color)'
+      case 'end':
+        return 'var(--fg-error-color)'
+      case 'connect':
+        return 'var(--fg-tertiary-color)'
+      case 'via':
+      case 'poi':
+      default:
+        return 'var(--fg-accent-color)'
+    }
+  }
+
+  return (props.item as MapRoute).color || 'var(--fg-accent-color)'
 })
 </script>
 
 <template>
-  <div class="sidebar-item">
-    <div class="item-icon-wrapper" :style="{ borderColor: itemColor, backgroundColor: `${itemColor}20` }">
-      <Icon v-if="itemIcon" :icon="itemIcon" class="item-icon" :style="{ color: itemColor }" />
+  <div class="sidebar-item" :class="{ 'is-active': active }">
+    <div class="item-icon-wrapper" :style="{ color: itemColor }">
+      <Icon v-if="itemIcon" :icon="itemIcon" class="item-icon" />
     </div>
     <div class="item-info">
       <KitTooltip :text="itemText">
@@ -91,6 +109,11 @@ const itemColor = computed(() => {
   &:hover {
     background-color: var(--bg-hover-color);
   }
+
+  &.is-active {
+    background-color: color-mix(in srgb, var(--fg-accent-color) 14%, var(--bg-tertiary-color));
+    box-shadow: inset 3px 0 0 var(--fg-accent-color);
+  }
 }
 
 .item-icon-wrapper {
@@ -101,11 +124,12 @@ const itemColor = computed(() => {
   align-items: center;
   justify-content: center;
   border-radius: var(--r-s);
-  border: 1px solid;
+  border: 1px solid currentColor;
+  background-color: color-mix(in srgb, currentColor 12%, transparent);
   transition: all 0.2s ease;
 
   .sidebar-item:hover & {
-    background-color: var(--bg-primary-color) !important;
+    background-color: color-mix(in srgb, currentColor 20%, transparent) !important;
   }
 }
 
@@ -117,11 +141,21 @@ const itemColor = computed(() => {
   display: flex;
   flex-direction: column;
   gap: 2px;
+  flex: 1 1 0;
   min-width: 0;
-  flex-grow: 1;
+  max-width: 100%;
+
+  :deep(.kit-tooltip-wrapper),
+  :deep(.kit-tooltip-trigger) {
+    display: block;
+    min-width: 0;
+    max-width: 100%;
+  }
 }
 
 .item-text {
+  display: block;
+  max-width: 100%;
   font-size: 0.9rem;
   font-weight: 500;
   color: var(--fg-primary-color);
@@ -132,6 +166,8 @@ const itemColor = computed(() => {
 }
 
 .item-subtitle {
+  display: block;
+  max-width: 100%;
   font-size: 0.75rem;
   font-weight: 400;
   color: var(--fg-secondary-color);
