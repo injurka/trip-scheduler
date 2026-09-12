@@ -2,6 +2,26 @@ import type { ActivityPayload } from '../types'
 import { readFileSync } from 'node:fs'
 import { basename } from 'node:path'
 
+function getMimeType(filePath: string): string {
+  const ext = filePath.split('.').pop()?.toLowerCase()
+  switch (ext) {
+    case 'pdf': return 'application/pdf'
+    case 'jpg':
+    case 'jpeg': return 'image/jpeg'
+    case 'png': return 'image/png'
+    case 'webp': return 'image/webp'
+    case 'gif': return 'image/gif'
+    case 'svg': return 'image/svg+xml'
+    case 'doc': return 'application/msword'
+    case 'docx': return 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'
+    case 'xls': return 'application/vnd.ms-excel'
+    case 'xlsx': return 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+    case 'txt': return 'text/plain'
+    case 'mp4': return 'video/mp4'
+    default: return 'application/octet-stream'
+  }
+}
+
 export class ApiClient {
   private baseUrl: string
   private token: string | null = null
@@ -307,19 +327,25 @@ export class ApiClient {
     return await this.request<any>(`/notes/by-trip/${tripId}`, { method: 'GET' })
   }
 
-  // 7. Image Upload Endpoint
+  // 7. Image & Document Upload Endpoint
   async uploadImage(
     tripId: string,
     filePath: string,
     placement: 'route' | 'memories' | 'notes' | 'documents' = 'route',
+    metadata?: Record<string, any>,
   ): Promise<string> {
     const formData = new FormData()
     const buffer = readFileSync(filePath)
-    const file = new Blob([buffer])
+    const mimeType = getMimeType(filePath)
+    const file = new Blob([buffer], { type: mimeType })
     formData.append('file', file, basename(filePath))
     formData.append('entityType', 'trip')
     formData.append('entityId', tripId)
     formData.append('placement', placement)
+
+    if (metadata) {
+      formData.append('metadata', JSON.stringify(metadata))
+    }
 
     const url = `${this.baseUrl}/api/upload`
     const headers: Record<string, string> = {}
@@ -340,5 +366,39 @@ export class ApiClient {
 
     const result = (await response.json()) as any
     return result.url || result.dbRecord?.url || result.dbRecord?.path || ''
+  }
+
+  async uploadDocument(
+    tripId: string,
+    filePath: string,
+    metadata?: {
+      access?: 'public' | 'private'
+      folderId?: string | null
+      title?: string | null
+      category?: string | null
+    },
+  ): Promise<string> {
+    return this.uploadImage(tripId, filePath, 'documents', {
+      access: 'private',
+      ...metadata,
+    })
+  }
+
+  async listDocuments(tripId: string): Promise<Array<{
+    id: string
+    tripId: string
+    url: string
+    originalName: string
+    sizeBytes: number
+    metadata?: any
+  }>> {
+    try {
+      const input = encodeURIComponent(JSON.stringify({ tripId }))
+      const res = await this.request<any>(`/trpc/image.listDocuments?input=${input}`, { method: 'GET' })
+      return res?.result?.data || (Array.isArray(res) ? res : [])
+    }
+    catch {
+      return []
+    }
   }
 }

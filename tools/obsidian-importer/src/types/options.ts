@@ -15,6 +15,7 @@ export interface CliOptions {
   importChecklists?: boolean
   importNotes?: boolean
   importSections?: boolean
+  importDocuments?: boolean
   uploadImages: boolean
   geocode: boolean
   nonInteractive?: boolean

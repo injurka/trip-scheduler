@@ -32,6 +32,7 @@ export interface ImportCoreOptions {
   importChecklists?: boolean
   importNotes?: boolean
   importSections?: boolean
+  importDocuments?: boolean
   onLog?: (message: string) => void
   onProgress?: (stage: string, detail?: string) => void
 }
@@ -43,6 +44,7 @@ export interface ImportCoreResult {
   activitiesCreated: number
   notesCreated: number
   sectionsCreated: number
+  documentsUploaded: number
 }
 
 function safeCall(fn: () => Promise<unknown>, log?: (message: string) => void, label = ''): Promise<void> {
@@ -74,6 +76,7 @@ export async function importTripFolderCore(
   const importChecklists = options.importChecklists !== false
   const importNotes = options.importNotes !== false
   const importSections = options.importSections !== false
+  const importDocuments = options.importDocuments !== false
 
   // 1. Create trip
   progress?.('trip', 'Создание путешествия')
@@ -143,6 +146,9 @@ export async function importTripFolderCore(
           }
           else if (sec.type === 'finances') {
             sectionContent = tripData.financesContent?.transactions?.length ? tripData.financesContent : undefined
+          }
+          else if (sec.type === 'documents') {
+            sectionContent = tripData.documentsContent?.folders?.length ? tripData.documentsContent : { folders: [] }
           }
 
           const existingSec = existingSections.find(s => s.type === sec.type)
@@ -296,7 +302,39 @@ export async function importTripFolderCore(
       }
     }
 
-    // 5. Activities
+    // 5. Documents
+    let documentsUploaded = 0
+    if (importDocuments && tripData.documents && tripData.documents.length > 0 && transport.uploadImage) {
+      progress?.('documents', `Загрузка документов (${tripData.documents.length} шт.)`)
+      log?.(`Загрузка документов (${tripData.documents.length} шт.)...`)
+
+      const folderMap = new Map<string, string>()
+      if (tripData.documentsContent?.folders) {
+        for (const f of tripData.documentsContent.folders) {
+          folderMap.set(f.name.toLowerCase(), f.id)
+        }
+      }
+
+      for (const doc of tripData.documents) {
+        try {
+          const folderId = doc.folderName ? folderMap.get(doc.folderName.toLowerCase()) || null : null
+          await transport.uploadImage(createdTrip.id, doc.filePath, 'documents', {
+            access: doc.access,
+            folderId,
+            title: doc.title,
+            category: doc.category,
+          })
+          documentsUploaded++
+          const accessLabel = doc.access === 'private' ? 'личный/private' : 'публичный/public'
+          log?.(`  ✔ Загружен документ: ${doc.fileName} (${accessLabel})`)
+        }
+        catch (docErr: any) {
+          log?.(`⚠ Ошибка загрузки документа «${doc.fileName}»: ${docErr.message || docErr}`)
+        }
+      }
+    }
+
+    // 6. Activities
     if (importActivities && importDays) {
       progress?.('activities', 'Генерация и добавление блоков активностей')
 
@@ -438,7 +476,7 @@ export async function importTripFolderCore(
       saveLlmCache(llmCache)
     }
 
-    log?.(`${colors.green}Импорт «${tripData.title}» завершен: дней ${dayIdMap.size}, активностей ${activitiesCreated}, заметок ${notesCreated}${colors.reset}`)
+    log?.(`${colors.green}Импорт «${tripData.title}» завершен: дней ${dayIdMap.size}, активностей ${activitiesCreated}, заметок ${notesCreated}, документов ${documentsUploaded}${colors.reset}`)
 
     return {
       tripId: createdTrip.id,
@@ -447,6 +485,7 @@ export async function importTripFolderCore(
       activitiesCreated,
       notesCreated,
       sectionsCreated,
+      documentsUploaded,
     }
   }
   catch (error) {

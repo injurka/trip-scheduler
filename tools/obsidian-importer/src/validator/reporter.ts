@@ -17,6 +17,7 @@ export function printValidationReport(report: ValidationReport): void {
     bookingsSummary,
     financesSummary,
     checklistsSummary,
+    documentsSummary,
     issues,
     score,
     status,
@@ -112,6 +113,11 @@ export function printValidationReport(report: ValidationReport): void {
   // Чек-листы
   const c = checklistsSummary
   console.log(`  ${colors.cyan}📋 Чек-листы:${colors.reset}         ${c.tasksCount > 0 ? `${c.tabsCount} вкладок, ${c.groupsCount} групп, ${c.tasksCount} пунктов (цен: ${c.tasksWithCost}, локаций: ${c.tasksWithLocation})` : 'нет чек-листов'}`)
+
+  // Документы
+  if (documentsSummary && documentsSummary.documentsCount > 0) {
+    console.log(`  ${colors.cyan}📁 Документы:${colors.reset}         ${documentsSummary.documentsCount} файл(ов)${documentsSummary.foldersCount > 0 ? ` (${documentsSummary.foldersCount} папок)` : ''} [личные документы]`)
+  }
 
   // 4. Посуточная диагностика дней
   if (days.length > 0) {

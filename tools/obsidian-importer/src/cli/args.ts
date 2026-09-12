@@ -28,6 +28,7 @@ ${colors.bright}ОПЦИИ:${colors.reset}
   --trip-id <id>            UUID существующего путешествия для синхронизации/дополнения
   --overwrite-days          Полностью удалить старые дни и активности существующей поездки перед импортом
   --no-images               Не загружать медиа-файлы и фото на сервер
+  --no-documents            Не загружать личные документы на сервер
   --no-geo                  Отключить геокодирование адресов в OpenLayers координаты
   -y, --yes                 Не задавать интерактивных вопросов (non-interactive mode)
   -h, --help                Показать эту справку
@@ -45,6 +46,7 @@ export function parseCliArgs(args = process.argv.slice(2)): CliOptions {
     visibility: 'private',
     status: 'draft',
     uploadImages: true,
+    importDocuments: true,
     geocode: true,
   }
 
@@ -109,6 +111,12 @@ export function parseCliArgs(args = process.argv.slice(2)): CliOptions {
     }
     else if (arg === '--no-images') {
       options.uploadImages = false
+    }
+    else if (arg === '--no-documents' || arg === '--no-docs') {
+      options.importDocuments = false
+    }
+    else if (arg === '--documents' || arg === '--docs') {
+      options.importDocuments = true
     }
     else if (arg === '--no-geo') {
       options.geocode = false

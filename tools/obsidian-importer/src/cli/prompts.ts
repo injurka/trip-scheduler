@@ -127,6 +127,7 @@ export async function promptForInteractiveOptions(
   importChecklists: boolean
   importNotes: boolean
   importSections: boolean
+  importDocuments: boolean
   useLlm: boolean
   selectedModel: string
   confirmed: boolean
@@ -137,6 +138,7 @@ export async function promptForInteractiveOptions(
   let importChecklists = cliOptions.importChecklists ?? true
   let importNotes = cliOptions.importNotes ?? true
   let importSections = cliOptions.importSections ?? true
+  let importDocuments = cliOptions.importDocuments ?? true
   let useLlm = cliOptions.useLlm
   let selectedModel = cliOptions.llmModel || DEFAULT_AIHUBMIX_MODEL
 
@@ -148,6 +150,7 @@ export async function promptForInteractiveOptions(
       { title: `📋 Чек-листы и списки сборов (${tripData.checklistContent.items?.length || 0} задач)`, value: 'checklists', selected: true },
       { title: `📝 Заметки и статьи (${tripData.sectionFolders.length} папок, ${tripData.rootNotes.length} корн. файлов)`, value: 'notes', selected: true },
       { title: `📑 Разделы-вкладки (Бронирования, Финансы, Чек-листы, Заметки, Воспоминания, Документы)`, value: 'sections', selected: true },
+      { title: `📁 Личные документы (${tripData.documents?.length || 0} файл(ов) из _/PrivateDocuments)`, value: 'documents', selected: true },
     ]
 
     const modulesResp = await prompts({
@@ -171,6 +174,7 @@ export async function promptForInteractiveOptions(
     importChecklists = selectedMods.includes('checklists')
     importNotes = selectedMods.includes('notes')
     importSections = selectedMods.includes('sections')
+    importDocuments = selectedMods.includes('documents')
 
     if (importActivities) {
       const modeResp = await prompts({
@@ -255,6 +259,7 @@ export async function promptForInteractiveOptions(
     importChecklists,
     importNotes,
     importSections,
+    importDocuments,
     useLlm,
     selectedModel,
     confirmed: true,

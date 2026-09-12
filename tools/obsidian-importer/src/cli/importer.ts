@@ -118,6 +118,7 @@ export async function runImport(): Promise<void> {
     importChecklists,
     importNotes,
     importSections,
+    importDocuments,
     useLlm,
     selectedModel,
   } = await promptForInteractiveOptions(cliOptions, tripData)
@@ -130,6 +131,16 @@ export async function runImport(): Promise<void> {
     console.log(`  • Чек-листы:      ${importChecklists ? `Да (${tripData.checklistContent.items?.length || 0} задач)` : 'Нет'}`)
     console.log(`  • Заметки:        ${importNotes ? `Да (${tripData.sectionFolders.length} папок)` : 'Нет'}`)
     console.log(`  • Разделы:        ${importSections ? 'Да' : 'Нет'}`)
+    console.log(`  • Документы:      ${importDocuments ? `Да (${tripData.documents?.length || 0} файлов)` : 'Нет'}`)
+
+    if (tripData.documents && tripData.documents.length > 0) {
+      console.log(`\n${colors.bright}📁 Документы поездки, которые будут загружены (${tripData.documents.length} шт.):${colors.reset}`)
+      for (const doc of tripData.documents) {
+        const folderStr = doc.folderName ? ` [Папка: ${doc.folderName}]` : ''
+        const accessStr = doc.access === 'private' ? 'личный/private' : 'публичный/public'
+        console.log(`  • ${doc.fileName}${folderStr} (Категория: ${doc.category}, Доступ: ${accessStr}, ${(doc.sizeBytes / 1024).toFixed(1)} КБ)`)
+      }
+    }
 
     if (tripData.days.length > 0) {
       console.log(`\n${colors.bright}📅 Дни маршрута и распарсенные инфо-блоки (day.meta):${colors.reset}`)
@@ -266,7 +277,7 @@ export async function runImport(): Promise<void> {
   if (importSections) {
     console.log(`\n${colors.dim}📑 Наполнение разделов-вкладок путешествия...${colors.reset}`)
 
-    let existingSections: Array<{ id: string, type: string, title: string }> = []
+    let existingSections: Array<{ id: string, type: string, title: string, content?: any }> = []
     try {
       const details = await api.getTripDetails(createdTrip.id)
       if (Array.isArray(details?.sections)) {
@@ -280,6 +291,7 @@ export async function runImport(): Promise<void> {
 
     for (const sec of appConfig.defaultSections) {
       try {
+        const existingSec = existingSections.find(s => s.type === sec.type)
         let sectionContent: any
 
         if (sec.type === 'bookings') {
@@ -291,8 +303,17 @@ export async function runImport(): Promise<void> {
         else if (sec.type === 'finances') {
           sectionContent = tripData.financesContent?.transactions?.length ? tripData.financesContent : undefined
         }
-
-        const existingSec = existingSections.find(s => s.type === sec.type)
+        else if (sec.type === 'documents') {
+          const existingFolders = Array.isArray(existingSec?.content?.folders) ? existingSec.content.folders : []
+          const newFolders = tripData.documentsContent?.folders || []
+          const mergedFolders = [...existingFolders]
+          for (const nf of newFolders) {
+            if (!mergedFolders.some(ef => ef.name.toLowerCase() === nf.name.toLowerCase())) {
+              mergedFolders.push(nf)
+            }
+          }
+          sectionContent = { folders: mergedFolders }
+        }
 
         if (existingSec) {
           const updatePayload: { title: string, icon: string | null, content?: unknown } = {
@@ -326,6 +347,9 @@ export async function runImport(): Promise<void> {
           const totalItems = sectionContent.items.length
           const totalGroups = sectionContent.groups?.length || 0
           console.log(`  ${colors.green}✔ Раздел «${sec.title}» наполнен:${colors.reset} 📝 ${totalGroups} групп (${totalItems} пунктов)`)
+        }
+        else if (sec.type === 'documents' && sectionContent?.folders?.length > 0) {
+          console.log(`  ${colors.green}✔ Раздел «${sec.title}» наполнен:${colors.reset} 📁 ${sectionContent.folders.length} папок`)
         }
         else {
           console.log(`  ${colors.green}✔ Раздел сохранен:${colors.reset} ${sec.title}`)
@@ -502,7 +526,55 @@ export async function runImport(): Promise<void> {
     }
   }
 
-  // 5. Generate & Create Activities (Blocks) for each day
+  // 5. Upload Personal Documents
+  let totalDocumentsUploaded = 0
+  if (importDocuments && tripData.documents && tripData.documents.length > 0) {
+    console.log(`\n${colors.dim}📁 Загрузка документов (${tripData.documents.length} шт.)...${colors.reset}`)
+
+    const folderMap = new Map<string, string>()
+    if (tripData.documentsContent?.folders) {
+      for (const f of tripData.documentsContent.folders) {
+        folderMap.set(f.name.toLowerCase(), f.id)
+      }
+    }
+
+    let existingDocs: any[] = []
+    try {
+      existingDocs = await api.listDocuments(createdTrip.id)
+    }
+    catch {
+      existingDocs = []
+    }
+
+    for (const doc of tripData.documents) {
+      try {
+        const folderId = doc.folderName ? folderMap.get(doc.folderName.toLowerCase()) || null : null
+        const alreadyUploaded = existingDocs.find(d => d.originalName === doc.fileName)
+
+        if (alreadyUploaded && !overwriteDays) {
+          console.log(`  ${colors.dim}✔ Документ уже загружен:${colors.reset} ${doc.fileName}`)
+          totalDocumentsUploaded++
+          continue
+        }
+
+        await api.uploadImage(createdTrip.id, doc.filePath, 'documents', {
+          access: doc.access,
+          folderId,
+          title: doc.title,
+          category: doc.category,
+        })
+        totalDocumentsUploaded++
+        const accessLabel = doc.access === 'private' ? 'личный/private' : 'публичный/public'
+        console.log(`  ${colors.green}✔ Загружен документ:${colors.reset} ${doc.fileName} ${colors.dim}(Категория: ${doc.category}, Доступ: ${accessLabel})${colors.reset}`)
+      }
+      catch (docErr: any) {
+        recordError(`Загрузка документа «${doc.fileName}»`, docErr)
+        console.warn(`  ${colors.yellow}⚠ Документ «${doc.fileName}»: ${docErr.message}${colors.reset}`)
+      }
+    }
+  }
+
+  // 6. Generate & Create Activities (Blocks) for each day
   let totalActivitiesCreated = 0
   let totalImagesUploaded = 0
   let totalLocationsGeocoded = 0
@@ -792,6 +864,9 @@ export async function runImport(): Promise<void> {
       console.log(`  📸 Загружено фото:       ${colors.cyan}${totalImagesUploaded}${colors.reset}`)
     if (totalLocationsGeocoded > 0)
       console.log(`  📍 Локаций на карте:     ${colors.green}${totalLocationsGeocoded}${colors.reset}`)
+  }
+  if (totalDocumentsUploaded > 0) {
+    console.log(`  📁 Загружено документов: ${colors.green}${totalDocumentsUploaded}${colors.reset}`)
   }
   const clientUrl = cliOptions.apiUrl.includes('localhost')
     ? cliOptions.apiUrl.replace(/:\d+$/, ':5173')

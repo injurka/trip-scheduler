@@ -137,7 +137,7 @@ export const imageRepository = {
         width: metadata.width,
         height: metadata.height,
         variants: metadata.variants,
-        metadata: metadata.metadata,
+        metadata: metadata.metadata ?? (metadata as any),
       })
       .returning()
 

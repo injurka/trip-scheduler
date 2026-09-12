@@ -27,24 +27,24 @@ export interface BookingKindMeta<T extends string = string> {
 export const CAR_KINDS = [
   { value: 'taxi', label: 'Такси', icon: 'mdi:taxi', token: 'warning' },
   { value: 'transfer', label: 'Трансфер', icon: 'mdi:airport-shuttle', token: 'info' },
-  { value: 'chauffeur', label: 'Авто с водителем', icon: 'mdi:car-connected', token: 'accent' },
+  { value: 'chauffeur', label: 'С водителем', icon: 'mdi:car-connected', token: 'accent' },
   { value: 'rental', label: 'Аренда авто', icon: 'mdi:car-key', token: 'success' },
   { value: 'personal', label: 'Личное авто', icon: 'mdi:car', token: 'action' },
   { value: 'bus', label: 'Автобус', icon: 'mdi:bus', token: 'info' },
-  { value: 'bike', label: 'Вело / мото', icon: 'mdi:moped', token: 'success' },
-  { value: 'other', label: 'Прочее авто', icon: 'mdi:help-circle-outline', token: 'muted' },
+  { value: 'bike', label: 'Мото', icon: 'mdi:moped', token: 'success' },
+  { value: 'other', label: 'Прочее', icon: 'mdi:help-circle-outline', token: 'muted' },
 ] as const satisfies readonly BookingKindMeta[]
 
 /**
  * Пометки для типа `other`.
  */
 export const OTHER_KINDS = [
-  { value: 'ferry', label: 'Паром / корабль', icon: 'mdi:ferry', token: 'info' },
-  { value: 'boat', label: 'Катер / лодка', icon: 'mdi:sail-boat', token: 'info' },
-  { value: 'cablecar', label: 'Канатная дорога', icon: 'mdi:gondola', token: 'accent' },
-  { value: 'bike', label: 'Вело / самокат', icon: 'mdi:bike', token: 'success' },
-  { value: 'pedestrian', label: 'Пеший переход', icon: 'mdi:walk', token: 'action' },
-  { value: 'luggage', label: 'Багаж / перевозка', icon: 'mdi:bag-checked', token: 'warning' },
+  { value: 'ferry', label: 'Паром', icon: 'mdi:ferry', token: 'info' },
+  { value: 'boat', label: 'Катер', icon: 'mdi:sail-boat', token: 'info' },
+  { value: 'cablecar', label: 'Канатка', icon: 'mdi:gondola', token: 'accent' },
+  { value: 'bike', label: 'Вело', icon: 'mdi:bike', token: 'success' },
+  { value: 'pedestrian', label: 'Пешком', icon: 'mdi:walk', token: 'action' },
+  { value: 'luggage', label: 'Багаж', icon: 'mdi:bag-checked', token: 'warning' },
   { value: 'other', label: 'Прочее', icon: 'mdi:dots-horizontal-circle-outline', token: 'muted' },
 ] as const satisfies readonly BookingKindMeta[]
 

@@ -111,6 +111,10 @@ export interface ValidationReport {
     foldersCount: number
     filesCount: number
   }
+  documentsSummary?: {
+    documentsCount: number
+    foldersCount: number
+  }
   issues: ValidationIssue[]
   score: number // 0-100%
   status: 'excellent' | 'good' | 'needs-attention' | 'critical'

@@ -2,6 +2,7 @@
 import type { useGeolocationMap } from '~/components/03.domain/trip-info/geolocation-section/composables/use-geolocation-map'
 import type { Coordinate, MapPoint, MapRoute } from '~/components/03.domain/trip-info/geolocation-section/models/types'
 import { Icon } from '@iconify/vue'
+import { useFullscreen } from '@vueuse/core'
 import { useRouter } from 'vue-router'
 import { KitBtn } from '~/components/01.kit/kit-btn'
 import GeolocationMap from '~/components/03.domain/trip-info/geolocation-section/ui/geolocation-map.vue'
@@ -21,6 +22,8 @@ const props = withDefaults(defineProps<Props>(), {
 
 const router = useRouter()
 const { smAndDown } = useDisplay()
+const mapWidgetRef = ref<HTMLElement | null>(null)
+const { isFullscreen, toggle: toggleFullscreen } = useFullscreen(mapWidgetRef)
 
 const isLoading = ref(true)
 const mapPoints = ref<MapPoint[]>([])
@@ -231,7 +234,7 @@ watch(() => [props.cities, props.points, props.routes], () => {
 </script>
 
 <template>
-  <div class="trip-map-widget">
+  <div ref="mapWidgetRef" class="trip-map-widget" :class="{ 'is-fullscreen': isFullscreen }">
     <div class="widget-title">
       <Icon icon="mdi:map-search-outline" class="title-icon" />
       <span>Карта путешествия</span>
@@ -270,9 +273,11 @@ watch(() => [props.cities, props.points, props.routes], () => {
         :interactive-on-click="false"
         mode="pan"
         :with-panel="false"
-        :is-fullscreen="false"
+        :with-fullscreen-control="false"
+        :is-fullscreen="isFullscreen"
         class="interactive-map"
         @map-ready="handleMapReady"
+        @toggle-fullscreen="toggleFullscreen"
       />
     </div>
   </div>
@@ -289,6 +294,16 @@ watch(() => [props.cities, props.points, props.routes], () => {
 
   :deep(.controls-container) {
     display: none;
+  }
+
+  &.is-fullscreen,
+  &:fullscreen {
+    box-sizing: border-box;
+    width: 100%;
+    height: 100%;
+    padding: 1rem;
+    border: 0;
+    border-radius: 0;
   }
 }
 
@@ -320,6 +335,12 @@ watch(() => [props.cities, props.points, props.routes], () => {
   border-radius: var(--r-m);
   overflow: hidden;
   border: 1px solid var(--border-secondary-color);
+
+  .trip-map-widget.is-fullscreen &,
+  .trip-map-widget:fullscreen & {
+    height: auto;
+    flex: 1;
+  }
 }
 
 :deep(.geolocation-map-container),

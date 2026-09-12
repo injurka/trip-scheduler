@@ -82,5 +82,24 @@ const props = withDefaults(defineProps<{
   &.is-muted-strong {
     color: var(--fg-secondary-color);
   }
+
+  @media (max-width: 600px) {
+    &.is-sm {
+      width: 1.5rem;
+      height: 1.5rem;
+      justify-content: center;
+      padding: 0;
+      border-color: transparent;
+      background-color: color-mix(in srgb, currentColor 12%, transparent);
+    }
+
+    .kind-label {
+      display: none;
+    }
+
+    .kind-icon {
+      font-size: 0.95rem;
+    }
+  }
 }
 </style>

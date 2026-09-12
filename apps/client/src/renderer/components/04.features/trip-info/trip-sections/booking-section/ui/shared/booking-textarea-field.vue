@@ -59,7 +59,7 @@ const internalModel = computed({
 
 .field-icon {
   font-size: 1rem;
-  color: var(--fg-accent-color);
+  color: var(--booking-icon-color, var(--fg-accent-color));
 }
 
 .editor-wrapper {

@@ -7,6 +7,7 @@ import { normalizeIframeLineBreaks } from './activity'
 import { parseObsidianBookings } from './booking'
 import { parseObsidianChecklists } from './checklist'
 import { parseDayMetaFromMarkdown } from './day-meta'
+import { parseObsidianDocuments } from './document'
 import { parseObsidianFinances } from './finances'
 
 export function normalizeVaultPath(rawPath: string): string {
@@ -423,6 +424,7 @@ export function parseObsidianTripFolder(tripPath: string, startDateStr?: string)
   const endDateStr = lastDayDate.toISOString().split('T')[0]
 
   const bookingsContent = parseObsidianBookings(resolvedPath, startDate.toISOString().split('T')[0], endDateStr)
+  const { documents, documentsContent } = parseObsidianDocuments(resolvedPath)
 
   return {
     title: extractedTitle,
@@ -440,6 +442,8 @@ export function parseObsidianTripFolder(tripPath: string, startDateStr?: string)
     checklistFilesCount: checklistFiles.length,
     financesContent,
     bookingsContent,
+    documents,
+    documentsContent,
   }
 }
 

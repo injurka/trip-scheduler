@@ -5,14 +5,18 @@ import { KitEditable } from '~/components/01.kit/kit-editable'
 import { KitTooltip } from '~/components/01.kit/kit-tooltip'
 import { vRipple } from '~/shared/directives/ripple'
 
+type BookingIconTone = 'flight' | 'train' | 'hotel' | 'car' | 'attraction' | 'other'
+
 interface Props {
   icon: string
+  iconTone?: BookingIconTone
   readonly: boolean
   highlightStatus?: HighlightStatus
   showDragHandle?: boolean
 }
 
 const props = withDefaults(defineProps<Props>(), {
+  iconTone: 'other',
   highlightStatus: null,
   showDragHandle: true,
 })
@@ -51,7 +55,7 @@ async function handleDelete() {
 </script>
 
 <template>
-  <div class="booking-card" :class="highlightClass">
+  <div class="booking-card" :class="[highlightClass, `icon-tone-${iconTone}`]">
     <header v-ripple class="card-header" @click="isDetailsVisible = !isDetailsVisible">
       <div class="title-container">
         <KitTooltip v-if="!readonly && showDragHandle" text="Перетащить">
@@ -59,7 +63,7 @@ async function handleDelete() {
             <Icon icon="mdi:drag-vertical" />
           </button>
         </KitTooltip>
-        <Icon :icon="icon" class="title-icon" />
+        <Icon :icon="icon" class="title-icon" :class="`is-${iconTone}`" />
 
         <span
           v-if="readonly"
@@ -121,6 +125,25 @@ async function handleDelete() {
   display: flex;
   flex-direction: column;
   transition: all 0.3s ease;
+
+  &.icon-tone-flight {
+    --booking-icon-color: #38bdf8;
+  }
+  &.icon-tone-train {
+    --booking-icon-color: #a78bfa;
+  }
+  &.icon-tone-hotel {
+    --booking-icon-color: #34d399;
+  }
+  &.icon-tone-car {
+    --booking-icon-color: #f59e0b;
+  }
+  &.icon-tone-attraction {
+    --booking-icon-color: #f472b6;
+  }
+  &.icon-tone-other {
+    --booking-icon-color: #94a3b8;
+  }
 
   @include hover {
     & {
@@ -206,8 +229,8 @@ async function handleDelete() {
 
 .title-icon {
   font-size: 1.25rem;
-  color: var(--fg-secondary-color);
   flex-shrink: 0;
+  color: var(--booking-icon-color);
 }
 
 .card-title {
@@ -216,6 +239,15 @@ async function handleDelete() {
   min-height: 40px;
   display: flex;
   align-items: center;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.group-name {
+  min-width: 0;
+  flex: 1;
 }
 
 .card-actions {

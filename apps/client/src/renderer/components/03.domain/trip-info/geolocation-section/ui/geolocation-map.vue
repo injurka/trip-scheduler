@@ -22,6 +22,7 @@ interface Props {
   isFullscreen: boolean
   interactiveOnClick?: boolean
   withPanel?: boolean
+  withFullscreenControl?: boolean
   activeItemId?: string | null
   withSearchControl?: boolean
   selectedCoords?: Coordinate | null
@@ -304,6 +305,7 @@ watch(isMapLoaded, (isReady) => {
         :is-fullscreen="isFullscreen"
         :portal-target="mapContainerRef"
         :with-panel="withPanel"
+        :with-fullscreen-control="withFullscreenControl"
         @toggle-panel="$emit('togglePanel')"
         @toggle-fullscreen="$emit('toggleFullscreen')"
         @set-tile-source="handleSetTileSource"
@@ -387,7 +389,7 @@ watch(isMapLoaded, (isReady) => {
   left: 0;
   width: 100%;
   height: 100%;
-  z-index: 9;
+  z-index: 200;
   cursor: pointer;
   display: flex;
   align-items: center;

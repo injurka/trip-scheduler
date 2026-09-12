@@ -120,6 +120,7 @@ const hasQuickInfo = computed(() => {
   <BookingCardWrapper
     :title="booking.title"
     :icon="booking.icon"
+    icon-tone="hotel"
     :readonly="readonly"
     :highlight-status="highlightStatus"
     :show-drag-handle="showDragHandle"
@@ -625,12 +626,13 @@ const hasQuickInfo = computed(() => {
 }
 
 .address-field-wrapper {
-  display: flex;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
   align-items: flex-end;
   gap: 8px;
 
   :deep(.booking-field) {
-    flex-grow: 1;
+    min-width: 0;
   }
   .kit-btn {
     flex-shrink: 0;

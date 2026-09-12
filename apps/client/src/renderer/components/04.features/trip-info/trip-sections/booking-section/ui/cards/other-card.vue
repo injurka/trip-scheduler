@@ -114,6 +114,7 @@ const hasCoords = computed(() => Boolean(props.booking.data.startCoords || props
   <BookingCardWrapper
     :title="booking.title"
     :icon="kindIcon"
+    icon-tone="other"
     :readonly="readonly"
     :highlight-status="highlightStatus"
     :show-drag-handle="showDragHandle"
@@ -434,6 +435,28 @@ const hasCoords = computed(() => Boolean(props.booking.data.startCoords || props
   .route-text {
     overflow: hidden;
     text-overflow: ellipsis;
+  }
+}
+
+.details-grid {
+  display: flex;
+  flex-direction: column;
+  gap: 0.875rem;
+}
+
+.address-field-wrapper {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: flex-end;
+  gap: 8px;
+
+  :deep(.booking-field) {
+    min-width: 0;
+  }
+
+  .kit-btn {
+    flex-shrink: 0;
+    height: 36px;
   }
 }
 

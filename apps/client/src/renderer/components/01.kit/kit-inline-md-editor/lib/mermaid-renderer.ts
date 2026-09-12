@@ -40,7 +40,6 @@ export function getBeautifulMermaidOptions(): BeautifulMermaidOptions {
 function getMermaidThemeVariables() {
   const bg = cssProp('--bg-primary-color', '#1e1f20')
   const fg = cssProp('--fg-primary-color', '#e4e4e4')
-  const fgSecondary = cssProp('--fg-secondary-color', '#e4e4e4cc')
   const accent = cssProp('--fg-accent-color', '#ff8856')
   const border = cssProp('--border-primary-color', '#353535')
   const surface = cssProp('--bg-secondary-color', '#121314')
@@ -51,16 +50,18 @@ function getMermaidThemeVariables() {
   return {
     darkMode: isDark,
     background: bg,
-    primaryColor: accent,
+    // Keep node fills neutral so the primary foreground color remains legible
+    // with every application theme. The accent is reserved for connectors.
+    primaryColor: surface,
     primaryTextColor: fg,
-    primaryBorderColor: border,
+    primaryBorderColor: accent,
     lineColor: accent,
-    secondaryColor: surface,
-    secondaryTextColor: fgSecondary,
-    secondaryBorderColor: border,
-    tertiaryColor: surfaceLow,
-    tertiaryTextColor: fgSecondary,
-    tertiaryBorderColor: border,
+    secondaryColor: surfaceLow,
+    secondaryTextColor: fg,
+    secondaryBorderColor: accent,
+    tertiaryColor: surface,
+    tertiaryTextColor: fg,
+    tertiaryBorderColor: accent,
     edgeLabelBackground: surface,
     clusterBkg: surfaceLow,
     clusterBorder: border,
@@ -212,8 +213,9 @@ function setupFullscreenOverlay(svgClone: SVGSVGElement) {
 
   const viewer = document.createElement('div')
   viewer.style.cssText = `
-    position: relative; width: 100vw; height: 100vh;
+    position: relative; width: 100vw; height: 100dvh;
     overflow: hidden;
+    touch-action: none;
   `
   overlay.appendChild(viewer)
 
@@ -261,7 +263,7 @@ function setupFullscreenOverlay(svgClone: SVGSVGElement) {
   }
 
   // ── Cleanup & Close handler ──
-  const onMouseMove = (e: MouseEvent) => {
+  const onPointerMove = (e: PointerEvent) => {
     if (!state.isDragging)
       return
     state.translateX = state.origTranslateX + (e.clientX - state.dragStartX)
@@ -269,7 +271,7 @@ function setupFullscreenOverlay(svgClone: SVGSVGElement) {
     applyTransform()
   }
 
-  const onMouseUp = () => {
+  const onPointerUp = () => {
     if (state.isDragging) {
       state.isDragging = false
       overlay.style.cursor = 'grab'
@@ -284,8 +286,9 @@ function setupFullscreenOverlay(svgClone: SVGSVGElement) {
   }
 
   function closeOverlay() {
-    window.removeEventListener('mousemove', onMouseMove)
-    window.removeEventListener('mouseup', onMouseUp)
+    window.removeEventListener('pointermove', onPointerMove)
+    window.removeEventListener('pointerup', onPointerUp)
+    window.removeEventListener('pointercancel', onPointerUp)
     window.removeEventListener('keydown', onKeyDown)
     if (overlay.parentNode) {
       overlay.parentNode.removeChild(overlay)
@@ -298,7 +301,7 @@ function setupFullscreenOverlay(svgClone: SVGSVGElement) {
   closeBtn.title = 'Закрыть (Esc)'
   closeBtn.setAttribute('aria-label', 'Закрыть')
   closeBtn.style.cssText = `
-    position: fixed; top: 16px; right: 16px; z-index: 10001;
+    position: fixed; top: calc(env(safe-area-inset-top, 0px) + 16px); right: calc(env(safe-area-inset-right, 0px) + 16px); z-index: 10001;
     width: 40px; height: 40px; border-radius: 50%;
     border: 1px solid var(--border-secondary-color);
     background: var(--bg-secondary-color);
@@ -357,7 +360,7 @@ function setupFullscreenOverlay(svgClone: SVGSVGElement) {
 
   const controlsContainer = document.createElement('div')
   controlsContainer.style.cssText = `
-    position: fixed; bottom: 24px; left: 50%; transform: translateX(-50%);
+    position: fixed; bottom: calc(env(safe-area-inset-bottom, 0px) + 24px); left: 50%; transform: translateX(-50%);
     z-index: 10001; display: flex; gap: 6px;
     background: var(--bg-secondary-color);
     border: 1px solid var(--border-secondary-color);
@@ -389,9 +392,13 @@ function setupFullscreenOverlay(svgClone: SVGSVGElement) {
     zoomAt(e.clientX, e.clientY, factor)
   }, { passive: false })
 
-  // ── Mouse drag pan ──
-  overlay.addEventListener('mousedown', (e) => {
+  // ── Unified pointer drag pan ──
+  // Pointer Events avoid Android's compatibility mouse events fighting with
+  // touch events while a diagram is being moved or pinched.
+  overlay.addEventListener('pointerdown', (e) => {
     if ((e.target as HTMLElement).closest('button'))
+      return
+    if (!e.isPrimary)
       return
     state.isDragging = true
     state.dragStartX = e.clientX
@@ -399,65 +406,13 @@ function setupFullscreenOverlay(svgClone: SVGSVGElement) {
     state.origTranslateX = state.translateX
     state.origTranslateY = state.translateY
     overlay.style.cursor = 'grabbing'
+    overlay.setPointerCapture(e.pointerId)
   })
 
-  window.addEventListener('mousemove', onMouseMove)
-  window.addEventListener('mouseup', onMouseUp)
+  window.addEventListener('pointermove', onPointerMove)
+  window.addEventListener('pointerup', onPointerUp)
+  window.addEventListener('pointercancel', onPointerUp)
   window.addEventListener('keydown', onKeyDown)
-
-  // ── Touch support ──
-  let lastTouchDist = 0
-  let lastTouchCenterX = 0
-  let lastTouchCenterY = 0
-
-  overlay.addEventListener('touchstart', (e) => {
-    if (e.touches.length === 1) {
-      state.isDragging = true
-      state.dragStartX = e.touches[0].clientX
-      state.dragStartY = e.touches[0].clientY
-      state.origTranslateX = state.translateX
-      state.origTranslateY = state.translateY
-    }
-    else if (e.touches.length === 2) {
-      state.isDragging = false
-      const dx = e.touches[0].clientX - e.touches[1].clientX
-      const dy = e.touches[0].clientY - e.touches[1].clientY
-      lastTouchDist = Math.sqrt(dx * dx + dy * dy)
-      lastTouchCenterX = (e.touches[0].clientX + e.touches[1].clientX) / 2
-      lastTouchCenterY = (e.touches[0].clientY + e.touches[1].clientY) / 2
-    }
-  }, { passive: true })
-
-  overlay.addEventListener('touchmove', (e) => {
-    e.preventDefault()
-    if (e.touches.length === 1 && state.isDragging) {
-      state.translateX = state.origTranslateX + (e.touches[0].clientX - state.dragStartX)
-      state.translateY = state.origTranslateY + (e.touches[0].clientY - state.dragStartY)
-      applyTransform()
-    }
-    else if (e.touches.length === 2 && lastTouchDist > 0) {
-      const dx = e.touches[0].clientX - e.touches[1].clientX
-      const dy = e.touches[0].clientY - e.touches[1].clientY
-      const dist = Math.sqrt(dx * dx + dy * dy)
-      const cx = (e.touches[0].clientX + e.touches[1].clientX) / 2
-      const cy = (e.touches[0].clientY + e.touches[1].clientY) / 2
-
-      const factor = dist / lastTouchDist
-      const newScale = Math.max(0.1, Math.min(10, state.scale * factor))
-      state.translateX = cx - (cx - state.translateX) * (newScale / state.scale) + (cx - lastTouchCenterX)
-      state.translateY = cy - (cy - state.translateY) * (newScale / state.scale) + (cy - lastTouchCenterY)
-      state.scale = newScale
-      lastTouchDist = dist
-      lastTouchCenterX = cx
-      lastTouchCenterY = cy
-      applyTransform()
-    }
-  }, { passive: false })
-
-  overlay.addEventListener('touchend', () => {
-    state.isDragging = false
-    lastTouchDist = 0
-  }, { passive: true })
 
   document.body.appendChild(overlay)
 }
@@ -480,9 +435,13 @@ export function addFullscreenButton(container: HTMLElement, getSvg: () => SVGSVG
   container.style.position = 'relative'
   container.appendChild(btn)
 
+  const isTouchDevice = window.matchMedia('(hover: none), (pointer: coarse)').matches
+  if (isTouchDevice)
+    btn.style.opacity = '1'
+
   container.addEventListener('mouseenter', () => btn.style.opacity = '1')
   container.addEventListener('mouseleave', () => {
-    if (!btn.dataset.keep)
+    if (!isTouchDevice && !btn.dataset.keep)
       btn.style.opacity = '0'
   })
   btn.addEventListener('mouseenter', () => {
@@ -491,7 +450,8 @@ export function addFullscreenButton(container: HTMLElement, getSvg: () => SVGSVG
   })
   btn.addEventListener('mouseleave', () => {
     delete btn.dataset.keep
-    btn.style.opacity = '0'
+    if (!isTouchDevice)
+      btn.style.opacity = '0'
   })
 
   btn.addEventListener('click', (e) => {

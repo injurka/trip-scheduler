@@ -6,6 +6,7 @@ import { normalizeFsPath } from '../lib/vault-locator'
 import { parseActivitiesFromMarkdown } from '../parsers/activity'
 import { parseHotelsMarkdown } from '../parsers/booking'
 import { extractLocationFromText } from '../parsers/checklist'
+import { detectDocumentCategory, parseObsidianDocuments } from '../parsers/document'
 import { extractCoordinatesFromUrl, extractLocationsFromText } from '../parsers/location'
 import { extractCities, extractDayTitle, extractShortDescription, extractTags, parseObsidianTripFolder, parseTripFrontmatter } from '../parsers/vault'
 
@@ -322,5 +323,92 @@ _Хайкинг-трек_: [Google Maps: Yehliu Visitor Center → Yehliu Cape T
     expect(geoSec.routes[0].points[2].type).toBe('end')
     expect(geoSec.routes[0].points[2].address).toBe('Yehliu Cape Tip')
     expect(geoSec.routes[0].points[2].comment).toBeUndefined()
+  })
+})
+
+describe('PrivateDocuments Parser', () => {
+  it('correctly categorizes documents based on filename and subfolder', () => {
+    expect(detectDocumentCategory('Эл. маршрут-квитанция.pdf')).toBe('tickets')
+    expect(detectDocumentCategory('ticket_china_eastern.pdf')).toBe('tickets')
+    expect(detectDocumentCategory('boarding_pass.pdf')).toBe('tickets')
+    expect(detectDocumentCategory('Загранпаспорт.pdf')).toBe('id')
+    expect(detectDocumentCategory('visa_taiwan.png')).toBe('id')
+    expect(detectDocumentCategory('Driver_License.pdf')).toBe('id')
+    expect(detectDocumentCategory('Полис_Тинькофф_Страхование.pdf')).toBe('insurance')
+    expect(detectDocumentCategory('Hotel_Confirmation.pdf')).toBe('lodging')
+    expect(detectDocumentCategory('THSR_Train_Booking.pdf')).toBe('transport')
+    expect(detectDocumentCategory('Guide_Notes.txt')).toBe('other')
+  })
+
+  it('scans _/PrivateDocuments and creates folders with private access', () => {
+    const tempTripDir = mkdtempSync(join(tmpdir(), 'trip-doc-test-'))
+    try {
+      const privateDocsDir = join(tempTripDir, '_', 'PrivateDocuments')
+      const ticketsSubdir = join(privateDocsDir, 'Билеты')
+      mkdirSync(ticketsSubdir, { recursive: true })
+
+      writeFileSync(join(privateDocsDir, 'Эл. маршрут-квитанция.pdf'), 'PDF-CONTENT-ROOT')
+      writeFileSync(join(ticketsSubdir, 'Поезд_THSR.pdf'), 'PDF-CONTENT-SUBDIR')
+
+      const result = parseObsidianDocuments(tempTripDir)
+
+      expect(result.documents).toHaveLength(2)
+
+      const rootDoc = result.documents.find(d => d.fileName === 'Эл. маршрут-квитанция.pdf')
+      expect(rootDoc).toBeDefined()
+      expect(rootDoc?.title).toBe('Эл. маршрут-квитанция')
+      expect(rootDoc?.category).toBe('tickets')
+      expect(rootDoc?.access).toBe('private')
+      expect(rootDoc?.folderName).toBeNull()
+
+      const subDoc = result.documents.find(d => d.fileName === 'Поезд_THSR.pdf')
+      expect(subDoc).toBeDefined()
+      expect(subDoc?.title).toBe('Поезд_THSR')
+      expect(subDoc?.category).toBe('transport')
+      expect(subDoc?.access).toBe('private')
+      expect(subDoc?.folderName).toBe('Билеты')
+
+      expect(result.documentsContent.folders).toHaveLength(1)
+      expect(result.documentsContent.folders[0].name).toBe('Билеты')
+    }
+    finally {
+      rmSync(tempTripDir, { recursive: true, force: true })
+    }
+  })
+
+  it('scans PublicDocument and _/PublicDocuments with public access', () => {
+    const tempTripDir = mkdtempSync(join(tmpdir(), 'trip-pub-doc-test-'))
+    try {
+      const publicDocDir = join(tempTripDir, 'PublicDocument')
+      const underPublicDocsDir = join(tempTripDir, '_', 'PublicDocuments')
+      const guidesSubdir = join(underPublicDocsDir, 'Инструкции')
+      mkdirSync(publicDocDir, { recursive: true })
+      mkdirSync(guidesSubdir, { recursive: true })
+
+      writeFileSync(join(publicDocDir, 'General_Guide.pdf'), 'PDF-GUIDE')
+      writeFileSync(join(guidesSubdir, 'Metro_Map.png'), 'PNG-MAP')
+
+      const result = parseObsidianDocuments(tempTripDir)
+
+      expect(result.documents).toHaveLength(2)
+
+      const guideDoc = result.documents.find(d => d.fileName === 'General_Guide.pdf')
+      expect(guideDoc).toBeDefined()
+      expect(guideDoc?.title).toBe('General_Guide')
+      expect(guideDoc?.access).toBe('public')
+      expect(guideDoc?.folderName).toBeNull()
+
+      const mapDoc = result.documents.find(d => d.fileName === 'Metro_Map.png')
+      expect(mapDoc).toBeDefined()
+      expect(mapDoc?.title).toBe('Metro_Map')
+      expect(mapDoc?.access).toBe('public')
+      expect(mapDoc?.folderName).toBe('Инструкции')
+
+      expect(result.documentsContent.folders).toHaveLength(1)
+      expect(result.documentsContent.folders[0].name).toBe('Инструкции')
+    }
+    finally {
+      rmSync(tempTripDir, { recursive: true, force: true })
+    }
   })
 })

@@ -99,7 +99,12 @@ export interface Transport {
     canvasNote: string
   }) => Promise<ActivityPayload[]>
 
-  uploadImage?: (tripId: string, filePath: string, placement?: 'route' | 'memories' | 'notes' | 'documents') => Promise<string>
+  uploadImage?: (
+    tripId: string,
+    filePath: string,
+    placement?: 'route' | 'memories' | 'notes' | 'documents',
+    metadata?: Record<string, any>,
+  ) => Promise<string>
 }
 
 export type { ActivityPayload, Booking }

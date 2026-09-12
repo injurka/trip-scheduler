@@ -13,6 +13,7 @@ interface Props {
   isFullscreen: boolean
   portalTarget?: HTMLElement
   withPanel?: boolean
+  withFullscreenControl?: boolean
 }
 
 const props = defineProps<Props>()
@@ -110,6 +111,7 @@ function zoomOut() {
       @applied="handleTileSettingsApplied"
     />
     <KitBtn
+      v-if="withFullscreenControl !== false"
       variant="outlined"
       color="secondary"
       :icon="isFullscreen ? 'mdi:fullscreen-exit' : 'mdi:fullscreen'"

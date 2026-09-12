@@ -194,6 +194,7 @@ function updateSegmentField<K extends keyof FlightSegment>(segmentIndex: number,
   <BookingCardWrapper
     :title="booking.title"
     :icon="booking.icon"
+    icon-tone="flight"
     :readonly="readonly"
     :show-drag-handle="showDragHandle"
     @delete="$emit('delete')"
@@ -219,6 +220,7 @@ function updateSegmentField<K extends keyof FlightSegment>(segmentIndex: number,
         <div class="route-line">
           <template v-for="(part) in journeySegments" :key="part.tooltip">
             <KitTooltip
+              class="journey-part-tooltip"
               :text="part.tooltip"
               :style="{ width: `${part.widthPercent}%` }"
             >
@@ -231,6 +233,9 @@ function updateSegmentField<K extends keyof FlightSegment>(segmentIndex: number,
               />
             </KitTooltip>
           </template>
+          <div class="route-icon">
+            <Icon icon="mdi:airplane" />
+          </div>
         </div>
         <div class="airports">
           <span>{{ firstSegment.departureAirport }}</span>
@@ -410,23 +415,24 @@ function updateSegmentField<K extends keyof FlightSegment>(segmentIndex: number,
   color: var(--fg-tertiary-color);
   background-color: var(--bg-tertiary-color);
   padding: 2px 8px;
+  margin-bottom: 4px;
   border-radius: var(--r-full);
 }
 
 .route-line {
   width: 100%;
-  height: 4px;
-  background-color: var(--border-secondary-color);
+  height: 2px;
+  background-color: var(--fg-tertiary-color);
   display: flex;
   align-items: center;
   position: relative;
   margin: 8px 0;
 
-  > :first-child {
+  > :first-child :deep(.journey-part) {
     border-top-left-radius: var(--r-full);
     border-bottom-left-radius: var(--r-full);
   }
-  > :last-child {
+  > :nth-last-child(2) :deep(.journey-part) {
     border-top-right-radius: var(--r-full);
     border-bottom-right-radius: var(--r-full);
   }
@@ -468,7 +474,6 @@ function updateSegmentField<K extends keyof FlightSegment>(segmentIndex: number,
   width: 100%;
   height: 100%;
   transition: filter 0.2s ease;
-  height: 4px;
 
   &.part-flight {
     background-color: var(--fg-accent-color);
@@ -488,6 +493,29 @@ function updateSegmentField<K extends keyof FlightSegment>(segmentIndex: number,
     background-size: 8px 8px;
     cursor: pointer;
   }
+}
+
+.journey-part-tooltip {
+  display: block;
+  height: 2px;
+  flex-shrink: 0;
+
+  :deep(.kit-tooltip-trigger) {
+    display: block;
+    height: 100%;
+  }
+}
+
+.route-icon {
+  position: absolute;
+  left: 50%;
+  z-index: 3;
+  padding: 0 4px;
+  color: var(--fg-tertiary-color);
+  background-color: var(--bg-secondary-color);
+  font-size: 1.2rem;
+  line-height: 1;
+  transform: translateX(-50%);
 }
 
 .airports {

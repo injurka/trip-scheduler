@@ -14,6 +14,7 @@ import { normalizeIframeLineBreaks, parseActivitiesFromMarkdown } from '../parse
 import { parseObsidianBookings } from '../parsers/booking'
 import { parseObsidianChecklists } from '../parsers/checklist'
 import { parseDayMetaFromMarkdown } from '../parsers/day-meta'
+import { parseObsidianDocuments } from '../parsers/document'
 import { parseObsidianFinances } from '../parsers/finances'
 import { extractLocationsFromText } from '../parsers/location'
 import {
@@ -731,6 +732,10 @@ export function validateObsidianVault(context: ValidationScopeContext, startDate
     notesSummary: {
       foldersCount: rootEntries.filter(e => e.isDirectory() && !e.name.startsWith('.')).length,
       filesCount: rootMdFiles.length,
+    },
+    documentsSummary: {
+      documentsCount: parseObsidianDocuments(tripRoot).documents.length,
+      foldersCount: parseObsidianDocuments(tripRoot).documentsContent.folders.length,
     },
     issues,
     score,

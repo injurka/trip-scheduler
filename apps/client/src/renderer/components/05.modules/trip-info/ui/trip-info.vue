@@ -10,6 +10,7 @@ import { DayMetaBadges, TripPlanView } from '~/components/04.features/trip-info/
 import { useDisplay } from '~/shared/composables/use-display'
 import { useModuleStore } from '../composables/use-trip-info-module'
 import { useTripInfoView } from '../composables/use-trip-info-view'
+import DayRouteMap from './content/day-route-map.vue'
 import SectionRenderer from './content/section-renderer.vue'
 import TripOverviewContent from './content/trip-overview.vue'
 import DayNavigation from './controls/day-navigation.vue'
@@ -124,6 +125,8 @@ onUnmounted(() => {
                       :readonly="isViewMode"
                       @update:meta="newMeta => plan.updateDayDetails(getSelectedDay!.id, { meta: newMeta })"
                     />
+
+                    <DayRouteMap :day="getSelectedDay!" />
                   </template>
                 </TripPlanView>
 

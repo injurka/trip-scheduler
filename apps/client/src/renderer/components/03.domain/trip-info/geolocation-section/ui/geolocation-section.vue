@@ -651,6 +651,7 @@ onUnmounted(() => {
       :zoom="section.zoom"
       :readonly="readonly"
       :is-fullscreen="isMapFullscreen"
+      with-fullscreen-control
       :interactive-on-click="true"
       :selected-coords="selectedLocation?.coords || null"
       @map-ready="onMapReady"

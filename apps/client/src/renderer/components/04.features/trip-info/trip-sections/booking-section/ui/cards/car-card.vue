@@ -117,6 +117,7 @@ function updateKind(value?: string) {
   <BookingCardWrapper
     :title="booking.title"
     :icon="booking.icon || 'mdi:car'"
+    icon-tone="car"
     :readonly="readonly"
     :highlight-status="highlightStatus"
     :show-drag-handle="showDragHandle"
@@ -475,12 +476,13 @@ function updateKind(value?: string) {
 }
 
 .address-field-wrapper {
-  display: flex;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
   align-items: flex-end;
   gap: 8px;
 
   :deep(.booking-field) {
-    flex-grow: 1;
+    min-width: 0;
   }
   .kit-btn {
     flex-shrink: 0;

@@ -70,7 +70,8 @@ const href = computed(() => {
 .readonly-wrapper {
   display: flex;
   flex-direction: column;
-  gap: 3px;
+  gap: 2px;
+  margin-block: 2px;
 }
 
 .field-label {
@@ -80,6 +81,7 @@ const href = computed(() => {
   font-weight: 600;
   text-transform: uppercase;
   letter-spacing: 0.3px;
+  line-height: 1.2;
 }
 
 .readonly-content {
@@ -96,7 +98,7 @@ const href = computed(() => {
 
 .field-icon {
   font-size: 1rem;
-  color: var(--fg-accent-color);
+  color: var(--booking-icon-color, var(--fg-accent-color));
   flex-shrink: 0;
 }
 
@@ -137,5 +139,8 @@ const href = computed(() => {
   &:focus {
     background-color: var(--bg-primary-color);
   }
+}
+.booking-field:deep(.input-icon-prefix) {
+  color: var(--booking-icon-color, var(--fg-tertiary-color));
 }
 </style>

@@ -145,7 +145,7 @@ export class ImageUploadService {
     const isVideo = ctx.file.type.startsWith('video/') || /\.(?:mp4|webm|mov|mkv|avi|ogg|quicktime)$/i.test(fileName)
     const isImage = !isVideo && (ctx.file.type.startsWith('image/') || /\.(?:jpg|jpeg|png|webp|avif|gif)$/i.test(fileName))
     const mediaType: 'image' | 'video' = isVideo ? 'video' : 'image'
-    let metadata: any = { originalName: ctx.file.name, mediaType }
+    let metadata: any = { originalName: ctx.file.name, mediaType, ...ctx.customMetadata }
 
     if (isImage) {
       try {
@@ -155,12 +155,21 @@ export class ImageUploadService {
         else {
           const metaResult = await extractAndStructureMetadata(ctx.buffer)
           metadata = { ...metadata, ...metaResult.metadata }
+          metadata.metadata = {
+            ...(metaResult.metadata?.metadata || {}),
+            ...ctx.customMetadata,
+          }
           variants = await generateImageVariants(ctx.buffer)
         }
       }
       catch (e: any) {
         console.error('Sharp error:', e)
         throw new HTTPException(415, { message: 'Ошибка обработки изображения.' })
+      }
+    }
+    else {
+      metadata.metadata = {
+        ...ctx.customMetadata,
       }
     }
 

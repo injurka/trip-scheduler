@@ -341,6 +341,7 @@ function focusOnItem(item: MapPoint | MapRoute) {
           class="sidebar-open-btn"
           icon="mdi:menu"
           variant="solid"
+          size="xs"
           color="secondary"
           title="Показать список"
           @click="isSidebarVisible = true"
