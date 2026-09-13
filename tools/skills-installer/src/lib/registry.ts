@@ -43,12 +43,12 @@ export function parseSkillFrontmatter(skillMdPath: string): { name: string, desc
         name = line.slice(5).trim()
       }
       else if (line.startsWith('description:')) {
-        const afterColon = line.slice(12).replace(/^>-\s*/, '').trim()
+        const afterColon = line.slice(12).trim().replace(/^(?:>|\|)[+-]?\s*/, '').trim()
         const descParts: string[] = afterColon ? [afterColon] : []
         while (i + 1 < yamlLines.length && !/^[a-z_]+:/i.test(yamlLines[i + 1])) {
           i++
           const nextTrimmed = yamlLines[i].trim()
-          if (nextTrimmed) {
+          if (nextTrimmed && !/^[>|][+-]?$/u.test(nextTrimmed)) {
             descParts.push(nextTrimmed)
           }
         }

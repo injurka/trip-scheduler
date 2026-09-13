@@ -411,4 +411,26 @@ describe('PrivateDocuments Parser', () => {
       rmSync(tempTripDir, { recursive: true, force: true })
     }
   })
+
+  it('recognizes the singular _/PrivateDocument and _/PublicDocument aliases', () => {
+    const tempTripDir = mkdtempSync(join(tmpdir(), 'trip-singular-doc-test-'))
+    try {
+      const privateDocsDir = join(tempTripDir, '_', 'PrivateDocument')
+      const publicDocsDir = join(tempTripDir, '_', 'PublicDocument')
+      mkdirSync(privateDocsDir, { recursive: true })
+      mkdirSync(publicDocsDir, { recursive: true })
+
+      writeFileSync(join(privateDocsDir, 'Passport.pdf'), 'PRIVATE-PASSPORT')
+      writeFileSync(join(publicDocsDir, 'General_Guide.pdf'), 'PUBLIC-GUIDE')
+
+      const result = parseObsidianDocuments(tempTripDir)
+
+      expect(result.documents).toHaveLength(2)
+      expect(result.documents.find(d => d.fileName === 'Passport.pdf')?.access).toBe('private')
+      expect(result.documents.find(d => d.fileName === 'General_Guide.pdf')?.access).toBe('public')
+    }
+    finally {
+      rmSync(tempTripDir, { recursive: true, force: true })
+    }
+  })
 })
