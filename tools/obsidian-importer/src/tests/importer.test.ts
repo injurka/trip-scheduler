@@ -109,6 +109,21 @@ describe('Hotel Booking Parser', () => {
     }
   })
 
+  it('imports hotel coordinates from the dedicated map-location column', () => {
+    const markdown = `
+| Ночи | Локация | Отель №1 | Ночей | Локация отеля | Итого |
+|:---:|:---|:---|:---:|:---|:---:|
+| 01 | Тайбэй | [Morwing Hotel Fairy Tale](https://trip.com) | 1 | [Google Maps](https://maps.google.com/?q=25.047878,121.517113) | 3 200 ₽ |
+`
+    const bookings = parseHotelsMarkdown(markdown, '2026-10-01')
+
+    expect(bookings).toHaveLength(1)
+    expect(bookings[0]).toMatchObject({
+      type: 'hotel',
+      data: { location: { lat: 25.047878, lon: 121.517113 } },
+    })
+  })
+
   it('correctly uses explicit date ranges from location column instead of relative day offset', () => {
     const markdown = `
 | Ночи | Локация | Отель №1 (Основной выбор) | Ночей | Цена / ночь | Итого за локацию |

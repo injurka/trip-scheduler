@@ -31,3 +31,4 @@ project_prompt.md
 docs
 .hermes-workspace
 tools/obsidian-importer/backups/
+.firecrawl

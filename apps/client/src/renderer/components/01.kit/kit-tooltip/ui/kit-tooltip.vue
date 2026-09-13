@@ -121,10 +121,13 @@ onUnmounted(() => {
 <style lang="scss" scoped>
 .kit-tooltip-wrapper {
   display: inline-flex;
+  align-items: center;
 }
 
 .kit-tooltip-trigger {
   display: inline-flex;
+  align-items: center;
+  justify-content: center;
 
   :deep(.dialog-icon-btn) {
     display: flex;

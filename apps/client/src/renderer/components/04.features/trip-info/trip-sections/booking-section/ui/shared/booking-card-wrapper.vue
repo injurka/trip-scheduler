@@ -198,6 +198,13 @@ async function handleDelete() {
   flex-grow: 1;
   min-width: 0;
   margin-right: 8px;
+
+  :deep(.kit-tooltip-wrapper),
+  :deep(.kit-tooltip-trigger) {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+  }
 }
 
 .badge-slot {
@@ -279,9 +286,15 @@ async function handleDelete() {
 }
 
 .drag-handle {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
   color: var(--fg-tertiary-color);
   font-size: 1.1rem;
+  line-height: 1;
   cursor: grab;
+
   &:active {
     cursor: grabbing;
   }

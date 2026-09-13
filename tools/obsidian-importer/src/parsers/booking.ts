@@ -4,6 +4,7 @@ import { existsSync, readdirSync, readFileSync, statSync } from 'node:fs'
 import { join } from 'node:path'
 import { stableId } from '../lib/stable-id'
 import { classifyTransportText } from '../lib/transport-classifier'
+import { extractCoordinatesFromUrl } from './location'
 
 /**
  * Месяцы для парсинга текстовых дат (например, "29 окт", "21 нояб")
@@ -157,6 +158,16 @@ function makeHotelTitle(hotelName: string): string {
   return hotelName || 'Отель'
 }
 
+function extractHotelLocation(value: string): { lat: number, lon: number } | undefined {
+  const urlMatch = value.match(/\[[^\]]*\]\((https?:\/\/[^)]+)\)/)
+  const coordinates = extractCoordinatesFromUrl(urlMatch?.[1] || value)
+  if (!coordinates)
+    return undefined
+
+  const [lon, lat] = coordinates
+  return { lat, lon }
+}
+
 /**
  * Формирует чистый заголовок перелёта вида «Город1 - Город2»
  * из заголовка секции или массива сегментов.
@@ -226,6 +237,7 @@ export function parseHotelsMarkdown(content: string, startDateStr: string): Book
   let colFeatures = 3
   let colPriceNight = 4
   let colTotal = 5
+  let colHotelLocation = -1
   let headerDetected = false
 
   for (const line of lines) {
@@ -254,6 +266,7 @@ export function parseHotelsMarkdown(content: string, startDateStr: string): Book
 
       const iNights = findIdx([/ночи|ночь|дни/])
       const iLocation = findIdx([/локаци|город/])
+      const iHotelLocation = findIdx([/локаци.*отел|отел.*локаци|координат|карта/])
       const iHotel = findIdx([/отел/])
       const iFeatures = findIdx([/особен|инфра|удобства|оценка/])
       const iPriceNight = findIdx([/цена|стоимост.*ночь/])
@@ -263,6 +276,8 @@ export function parseHotelsMarkdown(content: string, startDateStr: string): Book
         colNights = iNights
       if (iLocation !== -1)
         colLocation = iLocation
+      if (iHotelLocation !== -1)
+        colHotelLocation = iHotelLocation
       if (iHotel !== -1)
         colHotel = iHotel
       if (iFeatures !== -1)
@@ -283,6 +298,7 @@ export function parseHotelsMarkdown(content: string, startDateStr: string): Book
     if (cols.length >= 4) {
       const nightsCol = cols[colNights]?.replace(/[*_`]/g, '').trim() ?? ''
       const rawLocationCol = cols[colLocation] ?? ''
+      const hotelLocationCol = colHotelLocation === -1 ? '' : (cols[colHotelLocation] ?? '')
       const hotelCol = cols[colHotel] ?? ''
       const featuresCol = cols[colFeatures]?.replace(/[*_`]/g, '').trim() ?? ''
       const priceNightCol = cols[colPriceNight]?.replace(/[*_`]/g, '').trim() ?? ''
@@ -387,6 +403,7 @@ export function parseHotelsMarkdown(content: string, startDateStr: string): Book
             data: {
               hotelName,
               address: cleanLocation || undefined,
+              location: extractHotelLocation(hotelLocationCol),
               checkInDate,
               checkOutDate,
               notes: notes || undefined,
