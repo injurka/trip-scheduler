@@ -73,6 +73,21 @@ function clearDateFilter() {
   isDateFilterOpen.value = false
 }
 
+const hasActiveFilters = computed(() => {
+  return statusFilter.value !== 'all'
+    || typeFilter.value !== 'all'
+    || selectedCategoryFilters.value.length > 0
+    || !!dateFilter.value.start
+    || !!dateFilter.value.end
+})
+
+function resetAllFilters() {
+  statusFilter.value = 'all'
+  typeFilter.value = 'all'
+  selectedCategoryFilters.value = []
+  dateFilter.value = { start: null, end: null }
+}
+
 const categoryFilterItems = computed(() => {
   const items = categories.value.map((c) => {
     if (c.id === 'cat-other') {
@@ -164,87 +179,120 @@ onClickOutside(dateFilterWrapperRef, () => {
 
 <template>
   <div class="finances-section">
-    <div class="filters-bar">
-      <div class="category-filter-pills">
-        <!-- Фильтры по статусу (Все / Оплачено / В планах) и типу (Спонтанно) -->
-        <button
-          v-ripple
-          class="filter-pill"
-          :class="{ active: statusFilter === 'all' && typeFilter === 'all' }"
-          @click="statusFilter = 'all'; typeFilter = 'all'"
-        >
-          <Icon icon="mdi:format-list-bulleted" />
-          <span>Все</span>
-        </button>
-        <button
-          v-ripple
-          class="filter-pill status-pill paid"
-          :class="{ active: statusFilter === 'paid' }"
-          @click="statusFilter = statusFilter === 'paid' ? 'all' : 'paid'"
-        >
-          <Icon icon="mdi:check-circle-outline" />
-          <span>Оплачено</span>
-        </button>
-        <button
-          v-ripple
-          class="filter-pill status-pill planned"
-          :class="{ active: statusFilter === 'planned' }"
-          @click="statusFilter = statusFilter === 'planned' ? 'all' : 'planned'"
-        >
-          <Icon icon="mdi:clock-outline" />
-          <span>В планах</span>
-        </button>
-        <button
-          v-ripple
-          class="filter-pill type-pill spontaneous"
-          :class="{ active: typeFilter === 'spontaneous' }"
-          @click="typeFilter = typeFilter === 'spontaneous' ? 'all' : 'spontaneous'"
-        >
-          <Icon icon="mdi:sparkles" />
-          <span>Спонтанно</span>
-        </button>
+    <div class="finances-filters-bar">
+      <!-- Строка 1: Мета-фильтры (Статус / Тип) + Период + Быстрый сброс -->
+      <div class="filters-meta-row">
+        <div class="meta-filters-group">
+          <!-- Статусный сегментированный переключатель: Все / Оплачено / В планах -->
+          <div class="status-segmented-control">
+            <button
+              v-ripple
+              type="button"
+              class="status-segment-btn"
+              :class="{ 'is-active': statusFilter === 'all' && typeFilter === 'all' }"
+              @click="statusFilter = 'all'; typeFilter = 'all'"
+            >
+              <Icon icon="mdi:format-list-bulleted" class="segment-icon" />
+              <span>Все</span>
+            </button>
+            <button
+              v-ripple
+              type="button"
+              class="status-segment-btn is-paid"
+              :class="{ 'is-active': statusFilter === 'paid' }"
+              @click="statusFilter = statusFilter === 'paid' ? 'all' : 'paid'"
+            >
+              <Icon icon="mdi:check-circle-outline" class="segment-icon" />
+              <span>Оплачено</span>
+            </button>
+            <button
+              v-ripple
+              type="button"
+              class="status-segment-btn is-planned"
+              :class="{ 'is-active': statusFilter === 'planned' }"
+              @click="statusFilter = statusFilter === 'planned' ? 'all' : 'planned'"
+            >
+              <Icon icon="mdi:clock-outline" class="segment-icon" />
+              <span>В планах</span>
+            </button>
+          </div>
 
-        <div class="pill-divider" />
+          <!-- Фильтр-флаг: Спонтанные расходы -->
+          <button
+            v-ripple
+            type="button"
+            class="type-pill-btn is-spontaneous"
+            :class="{ 'is-active': typeFilter === 'spontaneous' }"
+            @click="typeFilter = typeFilter === 'spontaneous' ? 'all' : 'spontaneous'"
+          >
+            <Icon icon="mdi:sparkles" class="type-icon" />
+            <span>Спонтанно</span>
+          </button>
+        </div>
 
-        <!-- Фильтры по категориям -->
-        <button
-          v-for="item in categoryFilterItems"
-          :key="String(item.value)"
-          v-ripple
-          class="filter-pill"
-          :class="{ active: item.value === 'ALL' ? selectedCategoryFilters.length === 0 : selectedCategoryFilters.includes(item.value) }"
-          @click="item.value === 'ALL' ? toggleCategoryFilter(null) : toggleCategoryFilter(item.value)"
-        >
-          <Icon :icon="item.icon" />
-          <span>{{ item.label }}</span>
-        </button>
+        <div class="meta-controls-group">
+          <!-- Кнопка сброса всех фильтров при активной фильтрации -->
+          <button
+            v-if="hasActiveFilters"
+            v-ripple
+            type="button"
+            class="reset-filters-btn"
+            title="Сбросить все активные фильтры"
+            @click="resetAllFilters"
+          >
+            <Icon icon="mdi:filter-off-outline" class="reset-icon" />
+            <span>Сбросить</span>
+          </button>
+
+          <!-- Выбор периода по дате -->
+          <div ref="dateFilterWrapperRef" class="date-filter-wrapper">
+            <KitBtn
+              icon="mdi:calendar-blank-outline"
+              variant="tonal"
+              size="sm"
+              :class="{ 'has-active-filter': dateFilter.start || dateFilter.end }"
+              @click="isDateFilterOpen = !isDateFilterOpen"
+            >
+              {{ formattedDateFilter }}
+            </KitBtn>
+            <div v-if="isDateFilterOpen" class="calendar-popover">
+              <KitCalendarRange
+                v-model="calendarDateFilter"
+                :min-value="availableDateRange.minValue"
+                :max-value="availableDateRange.maxValue"
+                :initial-focus-date="availableDateRange.maxValue"
+              />
+              <div class="popover-actions">
+                <KitBtn variant="text" size="sm" @click="clearDateFilter">
+                  Сбросить
+                </KitBtn>
+                <KitBtn size="sm" @click="isDateFilterOpen = false">
+                  Применить
+                </KitBtn>
+              </div>
+            </div>
+          </div>
+        </div>
       </div>
 
-      <div ref="dateFilterWrapperRef" class="date-filter-wrapper">
-        <KitBtn
-          icon="mdi:calendar-blank-outline"
-          variant="tonal"
-          size="sm"
-          :class="{ 'has-active-filter': dateFilter.start || dateFilter.end }"
-          @click="isDateFilterOpen = !isDateFilterOpen"
-        >
-          {{ formattedDateFilter }}
-        </KitBtn>
-        <div v-if="isDateFilterOpen" class="calendar-popover">
-          <KitCalendarRange
-            v-model="calendarDateFilter"
-            :min-value="availableDateRange.minValue"
-            :max-value="availableDateRange.maxValue"
-            :initial-focus-date="availableDateRange.maxValue"
-          />
-          <div class="popover-actions">
-            <KitBtn variant="text" size="sm" @click="clearDateFilter">
-              Сбросить
-            </KitBtn>
-            <KitBtn size="sm" @click="isDateFilterOpen = false">
-              Применить
-            </KitBtn>
-          </div>
+      <!-- Строка 2: Категории расходов -->
+      <div class="category-filters-row">
+        <div class="category-filter-pills">
+          <button
+            v-for="item in categoryFilterItems"
+            :key="String(item.value)"
+            v-ripple
+            type="button"
+            class="filter-pill category-pill"
+            :class="{
+              'active': item.value === 'ALL' ? selectedCategoryFilters.length === 0 : selectedCategoryFilters.includes(item.value),
+              'is-all': item.value === 'ALL',
+            }"
+            @click="item.value === 'ALL' ? toggleCategoryFilter(null) : toggleCategoryFilter(item.value)"
+          >
+            <Icon :icon="item.icon" class="pill-icon" />
+            <span>{{ item.label }}</span>
+          </button>
         </div>
       </div>
     </div>
@@ -336,77 +384,221 @@ onClickOutside(dateFilterWrapperRef, () => {
   z-index: 6;
 }
 
-.filters-bar {
+.finances-filters-bar {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  width: 100%;
+}
+
+.filters-meta-row {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  gap: 1rem;
+  gap: 0.75rem;
   flex-wrap: wrap;
 }
 
-.category-filter-pills {
+.meta-filters-group {
   display: flex;
+  align-items: center;
+  gap: 0.5rem;
   flex-wrap: wrap;
-  gap: 0.5rem;
-  align-items: center;
-  flex-grow: 1;
 }
 
-.pill-divider {
-  width: 1px;
-  height: 24px;
-  background-color: var(--border-secondary-color);
-  margin: 0 4px;
-}
-
-.filter-pill {
-  display: flex;
+.status-segmented-control {
+  display: inline-flex;
   align-items: center;
-  gap: 0.5rem;
-  padding: 6px 12px;
+  background-color: var(--bg-tertiary-color);
+  border: 1px solid var(--border-secondary-color);
   border-radius: var(--r-full);
-  background-color: var(--bg-secondary-color);
-  border: 1px solid var(--border-primary-color);
-  color: var(--fg-secondary-color);
-  font-size: 0.8rem;
+  padding: 3px;
+  gap: 2px;
+  box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.08);
+}
+
+.status-segment-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 12px;
+  border-radius: var(--r-full);
+  font-size: 0.8125rem;
   font-weight: 500;
-  transition: all 0.2s ease;
+  color: var(--fg-secondary-color);
+  background: transparent;
+  border: none;
   cursor: pointer;
+  transition: all 0.18s ease;
+  user-select: none;
+  height: 28px;
+
+  .segment-icon {
+    font-size: 0.95rem;
+    flex-shrink: 0;
+  }
+
+  &:hover:not(.is-active) {
+    color: var(--fg-primary-color);
+  }
+
+  &.is-active {
+    background-color: var(--bg-primary-color);
+    color: var(--fg-primary-color);
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.16);
+
+    &.is-paid {
+      background-color: rgba(16, 185, 129, 0.16);
+      color: #10b981;
+      .segment-icon {
+        color: #10b981;
+      }
+    }
+
+    &.is-planned {
+      background-color: rgba(59, 130, 246, 0.16);
+      color: #3b82f6;
+      .segment-icon {
+        color: #3b82f6;
+      }
+    }
+  }
+}
+
+.type-pill-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 12px;
+  height: 34px;
+  border-radius: var(--r-full);
+  font-size: 0.8125rem;
+  font-weight: 500;
+  border: 1px dashed var(--border-primary-color);
+  background-color: var(--bg-secondary-color);
+  color: var(--fg-secondary-color);
+  cursor: pointer;
+  user-select: none;
+  transition: all 0.18s ease;
+
+  .type-icon {
+    font-size: 0.95rem;
+    flex-shrink: 0;
+  }
 
   &:hover {
     border-color: var(--border-accent-color);
     color: var(--fg-primary-color);
   }
 
-  &.active {
-    background-color: var(--bg-accent-color);
-    border-color: var(--bg-accent-color);
-    color: var(--fg-on-accent-color);
-  }
-}
-
-.status-pill {
-  &.paid.active {
-    background-color: rgba(16, 185, 129, 0.15);
-    border-color: #10b981;
-    color: #10b981;
-  }
-
-  &.planned.active {
-    background-color: rgba(59, 130, 246, 0.15);
-    border-color: #3b82f6;
-    color: #3b82f6;
-  }
-}
-
-.type-pill {
-  border-style: dashed;
-
-  &.spontaneous.active {
+  &.is-spontaneous.is-active {
     background-color: rgba(189, 16, 224, 0.15);
     border-color: #bd10e0;
     border-style: solid;
     color: #bd10e0;
+  }
+}
+
+.meta-controls-group {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.reset-filters-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 5px 10px;
+  font-size: 0.8rem;
+  font-weight: 500;
+  color: var(--fg-muted-color);
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: var(--r-xs);
+  cursor: pointer;
+  transition: all 0.15s ease;
+
+  .reset-icon {
+    font-size: 0.95rem;
+  }
+
+  &:hover {
+    color: var(--fg-accent-color);
+    background-color: color-mix(in srgb, var(--fg-accent-color) 10%, transparent);
+  }
+}
+
+.category-filters-row {
+  width: 100%;
+}
+
+.category-filter-pills {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.45rem;
+  align-items: center;
+}
+
+.filter-pill,
+.category-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 5px 12px;
+  height: 32px;
+  border-radius: var(--r-full);
+  background-color: var(--bg-secondary-color);
+  border: 1px solid var(--border-secondary-color);
+  color: var(--fg-secondary-color);
+  font-size: 0.8125rem;
+  font-weight: 500;
+  transition: all 0.18s ease;
+  cursor: pointer;
+  user-select: none;
+  white-space: nowrap;
+
+  .pill-icon,
+  svg {
+    font-size: 0.95rem;
+    flex-shrink: 0;
+    opacity: 0.8;
+    transition: opacity 0.18s ease;
+  }
+
+  &:hover {
+    border-color: var(--border-primary-color);
+    color: var(--fg-primary-color);
+    background-color: var(--bg-tertiary-color);
+
+    .pill-icon,
+    svg {
+      opacity: 1;
+    }
+  }
+
+  &.active {
+    background-color: color-mix(in srgb, var(--fg-accent-color) 14%, var(--bg-secondary-color));
+    border-color: color-mix(in srgb, var(--fg-accent-color) 60%, transparent);
+    color: var(--fg-accent-color);
+
+    .pill-icon,
+    svg {
+      opacity: 1;
+      color: var(--fg-accent-color);
+    }
+
+    &.is-all {
+      background-color: var(--bg-primary-color);
+      border-color: var(--border-primary-color);
+      color: var(--fg-primary-color);
+      box-shadow: 0 1px 3px rgba(0, 0, 0, 0.12);
+
+      .pill-icon,
+      svg {
+        color: var(--fg-primary-color);
+      }
+    }
   }
 }
 
@@ -465,17 +657,41 @@ onClickOutside(dateFilterWrapperRef, () => {
 }
 
 @include media-down(sm) {
-  .filters-bar {
-    flex-direction: column;
-    align-items: stretch;
-    gap: 0.75rem;
+  .finances-filters-bar {
+    gap: 0.5rem;
 
-    .date-filter-wrapper {
+    .filters-meta-row {
+      flex-direction: column;
+      align-items: stretch;
+      gap: 0.5rem;
+    }
+
+    .meta-filters-group {
       width: 100%;
+    }
 
-      .kit-btn {
-        width: 100%;
+    .status-segmented-control {
+      flex: 1;
+      justify-content: space-between;
+
+      .status-segment-btn {
+        flex: 1;
         justify-content: center;
+        padding: 4px 6px;
+      }
+    }
+
+    .meta-controls-group {
+      width: 100%;
+      justify-content: space-between;
+
+      .date-filter-wrapper {
+        flex: 1;
+
+        .kit-btn {
+          width: 100%;
+          justify-content: center;
+        }
       }
     }
   }

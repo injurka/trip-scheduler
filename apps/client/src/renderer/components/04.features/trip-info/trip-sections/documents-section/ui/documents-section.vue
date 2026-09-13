@@ -149,6 +149,7 @@ function handleOpenEdit(doc: DocumentFile) {
     v-if="isFetching && documents.length === 0"
     :view-mode="viewMode"
     :show-folders="!currentFolderId"
+    :readonly="readonly"
   />
 
   <div v-else class="documents-section">

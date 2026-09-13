@@ -1,10 +1,18 @@
 <script setup lang="ts">
 import { DocumentsSkeleton } from '~/components/04.features/trip-info/trip-sections/documents-section/ui'
+
+interface Props {
+  readonly?: boolean
+}
+
+withDefaults(defineProps<Props>(), {
+  readonly: false,
+})
 </script>
 
 <template>
   <div class="trip-documents-skeleton-wrapper">
-    <DocumentsSkeleton />
+    <DocumentsSkeleton :readonly="readonly" />
   </div>
 </template>
 

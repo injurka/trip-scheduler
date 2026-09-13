@@ -341,6 +341,7 @@ useMutationObserver(
       <KitViewSwitcher
         v-model="currentView"
         :items="viewSwitcherItems"
+        size="sm"
       />
     </header>
 
@@ -739,7 +740,6 @@ useMutationObserver(
   &.active {
     background-color: var(--bg-primary-color);
     color: var(--fg-primary-color);
-    font-weight: 600;
     box-shadow: 0 1px 2px rgba(0, 0, 0, 0.08);
   }
 }

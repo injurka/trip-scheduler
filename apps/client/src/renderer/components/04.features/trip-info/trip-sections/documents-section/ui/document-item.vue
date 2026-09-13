@@ -413,9 +413,8 @@ function handleCardClick() {
     </div>
 
     <!-- Категория -->
-    <div class="row-category-area">
+    <div v-if="categoryMeta" class="row-category-area">
       <span
-        v-if="categoryMeta"
         class="cat-badge"
         :style="{ color: categoryMeta.color, backgroundColor: `${categoryMeta.color}15`, borderColor: `${categoryMeta.color}30` }"
       >
@@ -824,8 +823,7 @@ function handleCardClick() {
 
 /* ==================== РЕЖИМ СПИСКА (LIST) ==================== */
 .doc-row {
-  display: grid;
-  grid-template-columns: auto auto 1fr auto auto auto auto auto;
+  display: flex;
   align-items: center;
   gap: 12px;
   padding: 8px 12px;
@@ -850,12 +848,18 @@ function handleCardClick() {
   }
 
   @media (max-width: 768px) {
-    grid-template-columns: auto auto 1fr auto auto;
     .row-category-area,
     .row-access-area {
       display: none;
     }
   }
+}
+
+.row-checkbox-box {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
 }
 
 .row-icon-box {
@@ -879,6 +883,7 @@ function handleCardClick() {
   display: flex;
   flex-direction: column;
   min-width: 0;
+  flex: 1 1 0;
   gap: 2px;
 
   .row-title-line {
@@ -917,6 +922,12 @@ function handleCardClick() {
   }
 }
 
+.row-category-area {
+  display: flex;
+  align-items: center;
+  flex-shrink: 0;
+}
+
 .row-meta-area {
   display: flex;
   flex-direction: column;
@@ -925,12 +936,26 @@ function handleCardClick() {
   font-size: 0.78rem;
   color: var(--fg-tertiary-color);
   white-space: nowrap;
+  flex-shrink: 0;
+}
+
+.row-access-area {
+  display: flex;
+  align-items: center;
+  flex-shrink: 0;
+}
+
+.row-star-area {
+  display: flex;
+  align-items: center;
+  flex-shrink: 0;
 }
 
 .row-actions-area {
   display: flex;
   align-items: center;
   gap: 2px;
+  flex-shrink: 0;
 }
 
 /* ==================== ВЫПАДАЮЩЕЕ МЕНЮ ==================== */
