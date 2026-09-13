@@ -77,14 +77,8 @@ export function useDayTrackPlayback(options: UseDayTrackPlaybackOptions) {
   }
 
   const currentSegment = computed(() =>
-    renderSegments.value.find(s => t.value >= s.t0 && t.value <= s.t1)
-    ?? renderSegments.value[0],
+    renderSegments.value.find(s => t.value >= s.t0 && t.value <= s.t1),
   )
-
-  const currentActivity = computed<ActivityType>(() => currentSegment.value?.activity || 'still')
-  const currentActivityColor = computed(() => ACTIVITY_COLORS[currentActivity.value] || '#2196f3')
-  const currentActivityIcon = computed(() => ACTIVITY_ICONS[currentActivity.value] || 'mdi:crosshairs-question')
-  const currentActivityLabel = computed(() => ACTIVITY_LABELS[currentActivity.value] || 'Движение')
 
   const currentPoint = computed<DayData['points'][0] | null>(() => {
     const pts = dayData.value?.points
@@ -97,10 +91,23 @@ export function useDayTrackPlayback(options: UseDayTrackPlaybackOptions) {
         p = q
       else break
     }
-    return p
+    const next = pts.find(q => q.tsUtc > t.value)
+    if (p.stop && t.value <= p.stop.endedAt)
+      return p
+    if (!next || next.sessionId !== p.sessionId || next.tsUtc - p.tsUtc > 900_000)
+      return { ...p, stop: undefined, speed: null, activity: 'unknown' }
+    const fraction = Math.max(0, Math.min(1, (t.value - p.tsUtc) / (next.tsUtc - p.tsUtc)))
+    return { ...p, lat: p.lat + (next.lat - p.lat) * fraction, lng: p.lng + (next.lng - p.lng) * fraction, stop: undefined }
   })
 
+  const currentActivity = computed<ActivityType>(() => currentPoint.value?.stop ? 'still' : currentSegment.value?.activity || 'unknown')
+  const currentActivityColor = computed(() => ACTIVITY_COLORS[currentActivity.value] || '#2196f3')
+  const currentActivityIcon = computed(() => ACTIVITY_ICONS[currentActivity.value] || 'mdi:crosshairs-question')
+  const currentActivityLabel = computed(() => ACTIVITY_LABELS[currentActivity.value] || 'Движение')
+
   const speedKmhFromPoints = computed(() => {
+    if (currentPoint.value?.stop)
+      return 0
     if (currentPoint.value?.speed != null && currentPoint.value.speed >= 0) {
       return currentPoint.value.speed * 3.6
     }

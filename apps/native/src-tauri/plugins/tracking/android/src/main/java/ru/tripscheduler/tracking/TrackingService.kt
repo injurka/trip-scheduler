@@ -66,7 +66,7 @@ class TrackingService : Service() {
 
         /**
          * Transition API не сообщает confidence: сам факт перехода означает, что детектор
-         * уверенно различил смену состояния, поэтому переходам даём высокое доверие.
+         * различил смену состояния. Число ниже — вес источника, не вероятность Google.
          */
         private const val TRANSITION_CONFIDENCE = 90
 
@@ -85,6 +85,9 @@ class TrackingService : Service() {
         @Volatile
         var currentDeviceActivityConfidence: Int = 0
             private set
+
+        @Volatile
+        private var activitySinceNanos: Long = 0
 
         /**
          * Google DetectedActivity → словарь активностей трека.
@@ -324,7 +327,7 @@ class TrackingService : Service() {
                 .setMinUpdateIntervalMillis(1500L)
                 .setMaxUpdateDelayMillis(0L) // Немедленная доставка координат без накопления в Play Services
                 .setMinUpdateDistanceMeters(0f)
-                .setWaitForAccurateLocation(false)
+                .setWaitForAccurateLocation(true)
                 .build()
 
             locationCallback = object : LocationCallback() {
@@ -365,7 +368,6 @@ class TrackingService : Service() {
         try {
             val transitions = listOf(
                 DetectedActivity.STILL,
-                DetectedActivity.ON_FOOT,
                 DetectedActivity.WALKING,
                 DetectedActivity.RUNNING,
                 DetectedActivity.ON_BICYCLE,
@@ -424,6 +426,8 @@ class TrackingService : Service() {
      * ждать ENTER следующей активности не нужно (он может прийти с задержкой).
      */
     private fun applyActivityTransition(event: ActivityTransitionEvent) {
+        if (event.elapsedRealTimeNanos < activitySinceNanos) return
+        activitySinceNanos = event.elapsedRealTimeNanos
         val activity = mapDetectedActivity(event.activityType)
         if (activity == "unknown") return
 
@@ -459,6 +463,7 @@ class TrackingService : Service() {
 
         currentDeviceActivity = "unknown"
         currentDeviceActivityConfidence = 0
+        activitySinceNanos = 0
     }
 
     private fun handleLocation(location: Location) {
@@ -467,8 +472,9 @@ class TrackingService : Service() {
         // 0. Приклеиваем к точке текущее состояние Activity Recognition: без него
         //    классификация видит только координаты и на плохом приёме путает покой с движением.
         location.extras = (location.extras ?: Bundle()).apply {
-            putString(EXTRA_DEVICE_ACTIVITY, currentDeviceActivity)
-            putInt(EXTRA_DEVICE_ACTIVITY_CONFIDENCE, currentDeviceActivityConfidence)
+            val applicable = location.elapsedRealtimeNanos >= activitySinceNanos
+            putString(EXTRA_DEVICE_ACTIVITY, if (applicable) currentDeviceActivity else "unknown")
+            putInt(EXTRA_DEVICE_ACTIVITY_CONFIDENCE, if (applicable) currentDeviceActivityConfidence else 0)
         }
 
         // 1. Сохраняем в оперативную очередь

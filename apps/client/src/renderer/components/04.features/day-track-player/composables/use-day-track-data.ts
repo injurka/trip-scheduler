@@ -5,8 +5,7 @@ import { useRoute, useRouter } from 'vue-router'
 import { AppRouteNames } from '~/shared/constants/routes'
 import { deleteStoredPoint } from '~/shared/services/tracking/geotrack-client'
 import {
-  filterGpsOutliers,
-  mergeStationaryPoints,
+  prepareTrack,
   processDayTrack,
 } from '~/shared/services/tracking/track-processing'
 import { trpc } from '~/shared/services/trpc/trpc.service'
@@ -26,22 +25,41 @@ export function useDayTrackData(options: UseDayTrackDataOptions = {}) {
   const dayData = ref<DayData | null>(null)
   const loadError = ref<string | null>(null)
   const isDeletingPoint = ref(false)
+  let loadSequence = 0
 
   async function loadDay(targetDay: string) {
+    const sequence = ++loadSequence
     isLoading.value = true
     loadError.value = null
     try {
       const res = await (trpc as any).tracking.getDay.query({ dayUtc: targetDay })
+      if (sequence !== loadSequence)
+        return
       if (res && Array.isArray(res.points)) {
-        res.points = filterGpsOutliers(res.points)
+        res.rawPoints = res.points
+        const source = res.points.map((p: DayPoint) => ({ ...p, altitude: p.altitude ?? null, bearing: p.bearing ?? null, activityConfidence: 0 }))
+        res.points = prepareTrack(source)
+        res.segments = processDayTrack(source).map((s, i) => ({
+          id: `processed-${i}`,
+          sessionId: s.points[0].sessionId,
+          activity: s.activity,
+          confidence: s.confidence,
+          startedAt: s.points[0].tsUtc,
+          endedAt: s.points[s.points.length - 1].tsUtc,
+          distanceM: s.features.distanceM,
+          pointCount: s.points.length,
+          geometry: s.points.map(p => [p.lng, p.lat]),
+        }))
       }
       dayData.value = res
     }
     catch (e) {
-      loadError.value = e instanceof Error ? e.message : String(e)
+      if (sequence === loadSequence)
+        loadError.value = e instanceof Error ? e.message : String(e)
     }
     finally {
-      isLoading.value = false
+      if (sequence === loadSequence)
+        isLoading.value = false
     }
   }
 
@@ -106,11 +124,7 @@ export function useDayTrackData(options: UseDayTrackDataOptions = {}) {
     if (d.segments.length > 0) {
       return d.segments.map(s => ({
         activity: s.activity,
-        points: s.geometry.map(([lng, lat], i) => ({
-          tsUtc: s.startedAt + (i / Math.max(1, s.geometry.length - 1)) * (s.endedAt - s.startedAt),
-          lat,
-          lng,
-        })),
+        points: d.points.filter(p => p.sessionId === s.sessionId && p.tsUtc >= s.startedAt && p.tsUtc <= s.endedAt),
         t0: s.startedAt,
         t1: s.endedAt,
       }))
@@ -131,7 +145,7 @@ export function useDayTrackData(options: UseDayTrackDataOptions = {}) {
     return out
   })
 
-  const totalPointsCount = computed(() => dayData.value?.points.length ?? 0)
+  const totalPointsCount = computed(() => dayData.value?.rawPoints?.length ?? dayData.value?.points.length ?? 0)
 
   const sortedPoints = computed(() => {
     const pts = dayData.value?.points || []
@@ -139,7 +153,7 @@ export function useDayTrackData(options: UseDayTrackDataOptions = {}) {
   })
 
   const displayPoints = computed(() => {
-    return mergeStationaryPoints(sortedPoints.value, { maxDistanceM: 5.0 })
+    return sortedPoints.value.filter((p, i, all) => !p.stop || i === 0 || p.stop !== all[i - 1].stop)
   })
 
   const displayPointsCount = computed(() => displayPoints.value.length)
@@ -173,42 +187,8 @@ export function useDayTrackData(options: UseDayTrackDataOptions = {}) {
       // 2. Удаляем из локальной очереди клиента (если еще не отправлена)
       deleteStoredPoint(pt.clientPointId)
 
-      // 3. Удаляем из текущего массива точек
-      dayData.value.points = dayData.value.points.filter(p => p.clientPointId !== pt.clientPointId)
-
-      // 4. Мгновенная нормализация сегментов на клиенте из оставшихся точек
-      const remaining = dayData.value.points
-      if (remaining.length >= 2) {
-        const processed = processDayTrack(remaining.map(p => ({
-          clientPointId: p.clientPointId,
-          tsUtc: p.tsUtc,
-          lat: p.lat,
-          lng: p.lng,
-          altitude: p.altitude ?? null,
-          accuracy: p.accuracy,
-          speed: p.speed,
-          bearing: p.bearing ?? null,
-          activity: p.activity,
-          activityConfidence: 85,
-          sessionId: p.sessionId,
-        })))
-        dayData.value.segments = processed.map((s, idx) => ({
-          id: `client-seg-${idx}`,
-          sessionId: s.points[0]?.sessionId || '',
-          activity: s.activity,
-          confidence: s.confidence,
-          startedAt: s.points[0].tsUtc,
-          endedAt: s.points[s.points.length - 1].tsUtc,
-          distanceM: s.features.distanceM,
-          pointCount: s.points.length,
-          geometry: s.points.map(p => [p.lng, p.lat] as [number, number]),
-        }))
-      }
-      else {
-        dayData.value.segments = []
-      }
-
       onDeleted?.()
+      await loadDay(selectedDay.value)
     }
     catch (err) {
       console.error('Ошибка удаления точки:', err)

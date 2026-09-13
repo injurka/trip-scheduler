@@ -7,6 +7,7 @@ defineProps<{
   selectedPoint: SelectedPointInfo | null
   timezoneMode: TimezoneMode
   formattedTime: string
+  formattedEndTime?: string
   isCopied: boolean
   isDeleting: boolean
   statusBadge: PointStatusBadge | null
@@ -24,7 +25,7 @@ const emit = defineEmits<{
     <div v-if="selectedPoint" class="point-popup-card">
       <div class="popup-head">
         <div class="popup-title-group">
-          <span class="popup-index">Точка #{{ selectedPoint.index }} из {{ selectedPoint.total }}</span>
+          <span class="popup-index">{{ selectedPoint.point.stop ? 'Остановка' : `Точка #${selectedPoint.index} из ${selectedPoint.total}` }}</span>
           <span
             class="popup-act-badge"
             :style="{
@@ -40,6 +41,7 @@ const emit = defineEmits<{
         <div class="popup-actions">
           <!-- Кнопка удаления точки с автоматической нормализацией маршрута -->
           <button
+            v-if="!selectedPoint.point.stop"
             class="popup-action-btn delete-btn"
             :disabled="isDeleting"
             title="Удалить эту точку и пересчитать маршрут"
@@ -60,7 +62,7 @@ const emit = defineEmits<{
       <div class="popup-grid">
         <div class="popup-item">
           <span class="item-lbl">Время ({{ timezoneMode === 'track' ? 'Местное' : 'Локальное' }})</span>
-          <span class="item-val">{{ formattedTime }}</span>
+          <span class="item-val">{{ formattedTime }}<template v-if="selectedPoint.point.stop"> – {{ formattedEndTime }}</template></span>
         </div>
         <div class="popup-item">
           <span class="item-lbl">Скорость</span>
@@ -71,7 +73,7 @@ const emit = defineEmits<{
         <div class="popup-item">
           <span class="item-lbl">Точность GPS</span>
           <span class="item-val" :class="{ 'is-warning': (selectedPoint.point.accuracy ?? 0) > 30 }">
-            ±{{ Math.round(selectedPoint.point.accuracy ?? 0) }} м
+            {{ selectedPoint.point.accuracy == null ? 'Неизвестна' : `≈ ${Math.round(selectedPoint.point.accuracy)} м` }}
           </span>
         </div>
         <div v-if="selectedPoint.point.altitude != null" class="popup-item">

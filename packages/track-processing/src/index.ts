@@ -1,3 +1,8 @@
+import type { DisplayTrackPoint } from './stays'
+import { collapseStayPoints, smoothMovingPoints } from './stays'
+
+export * from './stays'
+
 export interface TrackPoint {
   clientPointId: string
   tsUtc: number
@@ -742,7 +747,7 @@ export function catmullRomSpline(points: SplinePoint[], subdivPerSegment = 6): S
  * чтобы не соединять единой непрерывной кривой места, где GPS долго не работал
  * (например, телефон спал 2 часа) или происходил дальний авиаперелет.
  */
-export function splitTrackIntoLegs<T extends { lat: number, lng: number, tsUtc: number }>(
+export function splitTrackIntoLegs<T extends { lat: number, lng: number, tsUtc: number, sessionId?: string }>(
   points: T[],
   maxGapTimeMs = 15 * 60 * 1000,
   maxGapDistanceM = 8000,
@@ -764,7 +769,7 @@ export function splitTrackIntoLegs<T extends { lat: number, lng: number, tsUtc: 
     const isDistGap = dist > maxGapDistanceM && vKmh < 350
     const isFlightJump = dist > 40_000 && vKmh > 350
 
-    if (isTimeGap || isDistGap || isFlightJump) {
+    if (isTimeGap || isDistGap || isFlightJump || cur.sessionId !== prev.sessionId) {
       if (currentLeg.length > 0) {
         legs.push({ points: currentLeg, isFlight: isFlightJump, isGap: isTimeGap || isDistGap })
       }
@@ -1048,12 +1053,67 @@ export function railScoreOf(f: WindowFeatures): number {
 /**
  * Пост-обработка дня: фильтр → разбиение на плечи → классификация без дублирования точек → RDP.
  */
+export function prepareTrack(raw: TrackPoint[]): DisplayTrackPoint[] {
+  const sessions = new Map<string, TrackPoint[]>()
+  for (const p of raw) {
+    if (!Number.isFinite(p.lat) || !Number.isFinite(p.lng) || Math.abs(p.lat) > 90 || Math.abs(p.lng) > 180 || !Number.isFinite(p.tsUtc)
+      || (p.accuracy != null && (!Number.isFinite(p.accuracy) || p.accuracy < 0 || p.accuracy > MAX_ACCURACY_M))) {
+      continue
+    }
+    const list = sessions.get(p.sessionId) ?? []
+    list.push(p)
+    sessions.set(p.sessionId, list)
+  }
+  const result: DisplayTrackPoint[] = []
+  for (const session of sessions.values()) {
+    const ordered = [...new Map(session.sort((a, b) => a.tsUtc - b.tsUtc).map(p => [p.tsUtc, p])).values()]
+    for (const leg of splitTrackIntoLegs(filterGpsOutliers(ordered)))
+      result.push(...smoothMovingPoints(collapseStayPoints(leg.points)))
+  }
+  return result.sort((a, b) => a.tsUtc - b.tsUtc)
+}
+
 export function processDayTrack(raw: TrackPoint[]): TrackSegment[] {
+  const prepared = prepareTrack(raw)
+  const result: TrackSegment[] = []
+  let run: DisplayTrackPoint[] = []
+  const flush = () => {
+    if (!run.length)
+      return
+    if (run.every(p => p.stop)) {
+      const endpoints = [run[0], run[run.length - 1]]
+      result.push({ points: endpoints, activity: 'still', confidence: 0.9, features: { ...windowFeatures(endpoints), distanceM: 0 } })
+    }
+    else {
+      for (const segment of processMovingTrack(run)) {
+        if (segment.activity === 'still') {
+          segment.activity = 'unknown'
+        }
+        result.push(segment)
+      }
+    }
+  }
+  for (const p of prepared) {
+    const prev = run[run.length - 1]
+    if (prev && (p.sessionId !== prev.sessionId || p.tsUtc - prev.tsUtc > 900_000 || p.stop !== prev.stop)) {
+      // Include the stop anchor in the adjacent moving path, retaining exact arrival/departure time.
+      if (!prev.stop && p.stop && p.sessionId === prev.sessionId && p.tsUtc - prev.tsUtc <= 900_000)
+        run.push(p)
+      flush()
+      run = prev.stop && !p.stop && p.sessionId === prev.sessionId && p.tsUtc - prev.tsUtc <= 900_000 ? [prev] : []
+    }
+    run.push(p)
+  }
+  flush()
+  return result.sort((a, b) => a.points[0].tsUtc - b.points[0].tsUtc)
+}
+
+function processMovingTrack(raw: TrackPoint[]): TrackSegment[] {
   if (raw.length < 2)
     return []
 
   // 1. Очистка от шума и выбросов
-  const cleaned = medianFilter(filterStaticDrift(filterGpsOutliers(raw)))
+  const cleaned = raw
   if (cleaned.length < 2)
     return []
 

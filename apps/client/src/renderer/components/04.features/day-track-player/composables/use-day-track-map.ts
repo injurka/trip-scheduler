@@ -3,7 +3,7 @@ import type { DayData, DayPoint, PointStatusBadge, RenderSegment, SelectedPointI
 import * as maplibregl from 'maplibre-gl'
 import { onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { useKitMap } from '~/components/01.kit/kit-map/composables/use-kit-map'
-import { haversineM, normalizeSplineVertices, splitTrackIntoLegs } from '~/shared/services/tracking/track-processing'
+import { haversineM, splitTrackIntoLegs } from '~/shared/services/tracking/track-processing'
 import { ACTIVITY_COLORS } from '../models/types'
 
 export interface UseDayTrackMapOptions {
@@ -80,7 +80,9 @@ export function useDayTrackMap(options: UseDayTrackMapOptions) {
     if (speed > 350) {
       return { type: 'flight', icon: 'mdi:airplane', label: 'Авиаперелет / Скоростное перемещение' }
     }
-    if ((p.accuracy ?? 0) > 60) {
+    if (p.stop)
+      return { type: 'valid', icon: 'mdi:pause-circle-outline', label: `Остановка · ${Math.round((p.stop.endedAt - p.stop.startedAt) / 60_000)} мин · ${p.stop.samplesCount} измерений` }
+    if (p.accuracy == null || p.accuracy > 60) {
       return { type: 'warning', icon: 'mdi:alert-outline', label: 'Низкая точность спутника' }
     }
     return { type: 'valid', icon: 'mdi:check-circle-outline', label: 'Валидная GPS-точка' }
@@ -159,10 +161,7 @@ export function useDayTrackMap(options: UseDayTrackMapOptions) {
     for (const leg of legs) {
       if (leg.points.length < 2)
         continue
-      const smooth = normalizeSplineVertices(
-        leg.points.map(p => ({ lat: p.lat, lng: p.lng })),
-        6,
-      )
+      const smooth = leg.points
       if (smooth.length < 2)
         continue
 
@@ -314,7 +313,7 @@ export function useDayTrackMap(options: UseDayTrackMapOptions) {
     const routeFeatures: GeoJSON.Feature[] = []
 
     const uniquePoints: DayPoint[] = []
-    for (const p of displayPoints.value) {
+    for (const p of dayData.value?.rawPoints ?? displayPoints.value) {
       const prev = uniquePoints[uniquePoints.length - 1]
       if (!prev || Math.abs(prev.lat - p.lat) > 1e-6 || Math.abs(prev.lng - p.lng) > 1e-6) {
         uniquePoints.push(p)
@@ -323,14 +322,13 @@ export function useDayTrackMap(options: UseDayTrackMapOptions) {
 
     if (viewMode.value === 'route') {
       for (const seg of renderSegments.value) {
+        if (seg.activity === 'still')
+          continue
         const legs = splitTrackIntoLegs(seg.points)
         for (const leg of legs) {
           if (leg.points.length < 2)
             continue
-          const smooth = normalizeSplineVertices(
-            leg.points.map(p => ({ lat: p.lat, lng: p.lng })),
-            6,
-          )
+          const smooth = leg.points
           if (smooth.length < 2)
             continue
 
@@ -353,10 +351,7 @@ export function useDayTrackMap(options: UseDayTrackMapOptions) {
       for (const leg of legs) {
         if (leg.points.length < 2)
           continue
-        const smooth = normalizeSplineVertices(
-          leg.points.map(p => ({ lat: p.lat, lng: p.lng })),
-          8,
-        )
+        const smooth = leg.points
         if (smooth.length < 2)
           continue
 
@@ -381,7 +376,7 @@ export function useDayTrackMap(options: UseDayTrackMapOptions) {
     ;(map.getSource(ROUTE_SOURCE_ID) as maplibregl.GeoJSONSource)?.setData(routeGeojson)
 
     const isPointsMode = viewMode.value === 'points'
-    const pointsList = displayPoints.value
+    const pointsList = isPointsMode ? dayData.value?.rawPoints ?? displayPoints.value : displayPoints.value
     const pointFeatures: GeoJSON.Feature[] = []
 
     renderedPoints = pointsList
@@ -400,7 +395,7 @@ export function useDayTrackMap(options: UseDayTrackMapOptions) {
       }
       let lastKept: DayPoint | null = null
       for (const p of pointsList) {
-        const isAnchor = waypointRefs.has(p) || p.activity === 'still'
+        const isAnchor = waypointRefs.has(p) || !!p.stop
         if (!isAnchor)
           continue
         if (lastKept) {
@@ -421,9 +416,10 @@ export function useDayTrackMap(options: UseDayTrackMapOptions) {
         properties: {
           pointIndex: i + 1,
           totalPoints: pointsList.length,
+          stopLabel: p.stop ? `Пауза ${Math.round((p.stop.endedAt - p.stop.startedAt) / 60_000)} мин` : '',
           kind: isWaypoint ? 'waypoint' : 'track',
           color: ACTIVITY_COLORS[p.activity] || '#2196f3',
-          radius: isPointsMode ? 5.5 : (isWaypoint ? 5 : 3),
+          radius: p.stop ? 9 : isPointsMode ? 4 : (isWaypoint ? 5 : 3),
           strokeWidth: isPointsMode ? 1.5 : (isWaypoint ? 1.5 : 1),
           pointData: JSON.stringify(p),
         },
@@ -439,6 +435,41 @@ export function useDayTrackMap(options: UseDayTrackMapOptions) {
       features: pointFeatures,
     }
     ;(map.getSource(POINTS_SOURCE_ID) as maplibregl.GeoJSONSource)?.setData(pointsGeojson)
+    if (!map.getLayer('day-track-stop-labels')) {
+      map.addLayer({
+        id: 'day-track-stop-labels',
+        type: 'symbol',
+        source: POINTS_SOURCE_ID,
+        filter: ['!=', ['get', 'stopLabel'], ''],
+        layout: { 'text-field': ['get', 'stopLabel'], 'text-size': 12, 'text-offset': [0, 1.6], 'text-anchor': 'top' },
+        paint: { 'text-color': '#334155', 'text-halo-color': '#ffffff', 'text-halo-width': 2 },
+      })
+    }
+
+    const areas: GeoJSON.Feature[] = []
+    if (!isPointsMode) {
+      for (const p of pointsList) {
+        if (!p.stop)
+          continue
+        const ring = Array.from({ length: 49 }, (_, i) => {
+          const angle = i * Math.PI * 2 / 48
+          return [p.lng + Math.cos(angle) * p.stop!.radiusM / (111_320 * Math.max(0.01, Math.cos(p.lat * Math.PI / 180))), p.lat + Math.sin(angle) * p.stop!.radiusM / 111_320]
+        })
+        areas.push({ type: 'Feature', properties: {}, geometry: { type: 'Polygon', coordinates: [ring] } })
+      }
+    }
+    const areaData: GeoJSON.FeatureCollection = { type: 'FeatureCollection', features: areas }
+    if (!map.getSource('day-track-stop-areas'))
+      map.addSource('day-track-stop-areas', { type: 'geojson', data: areaData })
+    else
+      (map.getSource('day-track-stop-areas') as maplibregl.GeoJSONSource).setData(areaData)
+    if (!map.getLayer('day-track-stop-areas')) {
+      map.addLayer({ id: 'day-track-stop-areas', type: 'fill', source: 'day-track-stop-areas', paint: {
+        'fill-color': '#64748b',
+        'fill-opacity': 0.13,
+        'fill-outline-color': '#64748b',
+      } }, POINTS_LAYER_ID)
+    }
 
     // В режиме «Маршрут» показываем только ориентиры (линия несёт сам трек),
     // в режиме «Точки» — все точки, включая Bezier-опорные.

@@ -168,6 +168,7 @@ async function onDeletePoint(pt: DayPoint) {
         :selected-point="map.selectedPoint.value"
         :timezone-mode="timezone.timezoneMode.value"
         :formatted-time="map.selectedPoint.value ? timezone.formatPointTime(map.selectedPoint.value.point.tsUtc, map.selectedPoint.value.point) : ''"
+        :formatted-end-time="map.selectedPoint.value?.point.stop ? timezone.formatPointTime(map.selectedPoint.value.point.stop.endedAt, map.selectedPoint.value.point) : ''"
         :is-copied="map.isCopied.value"
         :is-deleting="isDeletingPoint"
         :status-badge="map.selectedPoint.value ? map.getPointStatusBadge(map.selectedPoint.value.point) : null"

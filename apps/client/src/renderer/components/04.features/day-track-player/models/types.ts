@@ -11,6 +11,9 @@ export interface DayPoint {
   bearing?: number | null
   activity: ActivityType
   sessionId: string
+  deviceActivity?: ActivityType | null
+  deviceActivityConfidence?: number | null
+  stop?: import('@injurka/track-processing').TrackStop
 }
 
 export interface DaySegment {
@@ -27,6 +30,7 @@ export interface DaySegment {
 
 export interface DayData {
   points: DayPoint[]
+  rawPoints?: DayPoint[]
   segments: DaySegment[]
 }
 

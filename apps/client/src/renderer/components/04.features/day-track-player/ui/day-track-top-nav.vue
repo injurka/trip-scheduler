@@ -68,12 +68,12 @@ const emit = defineEmits<{
         <button
           class="mode-tab-btn"
           :class="{ 'is-active': viewMode === 'points' }"
-          :title="totalPointsCount !== displayPointsCount ? `Отображается ${displayPointsCount} точек на карте (из ${totalPointsCount} исходных)` : 'Отображать все точки активности, соединенные кривой Безье'"
+          title="Исходные измерения GPS: включая погрешности и дрейф на остановках"
           @click="emit('update:viewMode', 'points')"
         >
           <Icon icon="mdi:vector-bezier" class="tab-icon" />
-          <span class="tab-label">Точки (Безье)</span>
-          <span v-if="displayPointsCount > 0" class="points-pill">{{ displayPointsCount }}</span>
+          <span class="tab-label">Исходные точки</span>
+          <span v-if="totalPointsCount > 0" class="points-pill">{{ totalPointsCount }}</span>
         </button>
       </div>
 

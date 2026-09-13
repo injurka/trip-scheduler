@@ -1,6 +1,6 @@
 import type { TrackActivityType } from '@injurka/track-processing'
 import type { PluginListener } from '@tauri-apps/api/core'
-import { bearingDeg, evaluatePointValidity, haversineM, movementEvidence } from '@injurka/track-processing'
+import { bearingDeg, evaluatePointValidity, haversineM, MAX_ACCURACY_M, movementEvidence, prepareTrack } from '@injurka/track-processing'
 import { addPluginListener, invoke } from '@tauri-apps/api/core'
 import {
   checkPermissions as tauriCheckPermissions,
@@ -177,8 +177,6 @@ const LIVE_FIXES_MAX = 30
 const DEVICE_ACTIVITY_MIN_CONFIDENCE = 50
 /** Окно наблюдений за устройством: короткие одиночные перескоки не должны менять состояние. */
 const DEVICE_ACTIVITY_WINDOW_MS = 90_000
-/** Сколько независимых наблюдений должны согласиться, прежде чем мы поверим устройству. */
-const DEVICE_ACTIVITY_MIN_VOTES = 2
 
 interface DeviceActivitySample {
   activity: ActivityType
@@ -533,6 +531,10 @@ class WebGeolocationTracker {
   private sessionStartedAt = 0
   private sessionEndedAt = 0
   private sessionDistanceM = 0
+  private recentMeasurements: TrackPoint[] = []
+  private recentDistanceM = 0
+  private displayFix: TrackPoint | null = null
+  private displayStopAnchor: { lat: number, lng: number } | null = null
   private lastFixPoint: TrackPoint | null = null
   /**
    * Скользящее окно последних принятых фиксов (сырые координаты + точность).
@@ -547,7 +549,6 @@ class WebGeolocationTracker {
    * человека в кармане, велосипед на светофоре, медленная езда при плохом приёме.
    */
   private deviceActivitySamples: DeviceActivitySample[] = []
-  private stationaryAnchorPoint: TrackPoint | null = null
   private lastError: string | null = null
   private isRunning = false
   private consecutiveRejectedCount = 0
@@ -582,7 +583,8 @@ class WebGeolocationTracker {
 
     let telemetry: TrackingTelemetry | undefined
     if (this.isRunning || this.lastFixPoint) {
-      const speedKmh = this.lastFixPoint?.speed != null ? Math.round(this.lastFixPoint.speed * 3.6) : null
+      const fix = this.displayFix ?? this.lastFixPoint
+      const speedKmh = fix?.activity === 'still' ? 0 : fix?.speed != null ? Math.round(fix.speed * 3.6) : null
       // После остановки длительность фиксируется на моменте stop() или последней точке, а не «сейчас»
       const endTs = this.isRunning ? now : (this.sessionEndedAt || this.lastFixPoint?.tsUtc || now)
       telemetry = {
@@ -590,9 +592,9 @@ class WebGeolocationTracker {
         accuracyM: this.lastFixPoint?.accuracy != null ? Math.round(this.lastFixPoint.accuracy) : null,
         distanceM: Math.round(this.sessionDistanceM),
         durationMs: this.sessionStartedAt > 0 ? Math.max(0, endTs - this.sessionStartedAt) : 0,
-        activity: this.lastFixPoint?.activity || 'still',
-        lat: this.lastFixPoint?.lat ?? null,
-        lng: this.lastFixPoint?.lng ?? null,
+        activity: fix?.activity || 'still',
+        lat: fix?.lat ?? null,
+        lng: fix?.lng ?? null,
       }
     }
 
@@ -627,10 +629,13 @@ class WebGeolocationTracker {
     this.sessionStartedAt = Date.now()
     this.sessionEndedAt = 0
     this.sessionDistanceM = 0
+    this.recentMeasurements = []
+    this.recentDistanceM = 0
+    this.displayFix = null
+    this.displayStopAnchor = null
     this.lastFixPoint = null
     this.liveFixes = []
     this.deviceActivitySamples = []
-    this.stationaryAnchorPoint = null
     this.isRunning = true
 
     writeStoredSession({
@@ -1161,38 +1166,19 @@ class WebGeolocationTracker {
     if (!sample.tsUtc)
       sample.tsUtc = Date.now()
     this.deviceActivitySamples.push(sample)
-    const from = Date.now() - DEVICE_ACTIVITY_WINDOW_MS
+    const from = sample.tsUtc - DEVICE_ACTIVITY_WINDOW_MS
     this.deviceActivitySamples = this.deviceActivitySamples.filter(s => s.tsUtc >= from).slice(-10)
   }
 
   /**
-   * Активность, подтверждённая устройством. Доверяем только повторяющемуся сигналу
-   * (≥2 наблюдения с уверенностью ≥50): одиночный перескок Activity Recognition не должен
-   * переворачивать состояние момента.
+   * Последнее состояние Transition API. Повторение в GPS-фиксах не повышает его вес.
    */
   private deviceRecoHint(): { activity: ActivityType, confidence: number } | null {
-    const trusted = this.deviceActivitySamples.filter(s => s.confidence >= DEVICE_ACTIVITY_MIN_CONFIDENCE)
-    if (trusted.length < DEVICE_ACTIVITY_MIN_VOTES)
-      return null
-
-    const weights = new Map<ActivityType, number>()
-    for (const s of trusted)
-      weights.set(s.activity, (weights.get(s.activity) ?? 0) + s.confidence)
-
-    let best: ActivityType | null = null
-    let bestWeight = 0
-    let bestVotes = 0
-    for (const [act, weight] of weights) {
-      if (weight > bestWeight) {
-        best = act
-        bestWeight = weight
-        bestVotes = trusted.filter(s => s.activity === act).length
-      }
-    }
-    if (!best || bestVotes < DEVICE_ACTIVITY_MIN_VOTES)
-      return null
-
-    return { activity: best, confidence: Math.round(bestWeight / bestVotes) }
+    // Transition events represent a persistent state; repeated GPS fixes are not independent votes.
+    const latest = this.deviceActivitySamples[this.deviceActivitySamples.length - 1]
+    return latest && latest.confidence >= DEVICE_ACTIVITY_MIN_CONFIDENCE
+      ? { activity: latest.activity, confidence: latest.confidence }
+      : null
   }
 
   /**
@@ -1206,10 +1192,14 @@ class WebGeolocationTracker {
     evidence: ReturnType<typeof movementEvidence>,
     speedMs: number,
   ): { activity: ActivityType, confidence: number } {
+    const device = this.deviceRecoHint()
+    if (device?.activity === 'still' && !evidence.credible)
+      return device
+    if (device && device.activity !== 'still')
+      return device
     if (evidence.credible)
       return { activity: estimateActivity(speedMs), confidence: 88 }
 
-    const device = this.deviceRecoHint()
     if (device)
       return { activity: device.activity, confidence: Math.max(DEVICE_ACTIVITY_MIN_CONFIDENCE, Math.min(95, device.confidence)) }
 
@@ -1233,13 +1223,17 @@ class WebGeolocationTracker {
   }): void {
     const coords = pos.coords
     const ts = pos.timestamp && pos.timestamp > 0 ? pos.timestamp : Date.now()
+    if (this.lastFixPoint && ts <= this.lastFixPoint.tsUtc)
+      return
     const lat = coords.latitude
     const lng = coords.longitude
+    if (!Number.isFinite(lat) || !Number.isFinite(lng) || Math.abs(lat) > 90 || Math.abs(lng) > 180)
+      return
     const accuracy = typeof coords.accuracy === 'number' && Number.isFinite(coords.accuracy) ? coords.accuracy : null
     const altitude = typeof coords.altitude === 'number' && Number.isFinite(coords.altitude) ? coords.altitude : null
 
-    // Отсекаем координаты с критически плохой точностью (> 140 метров)
-    if (accuracy && accuracy > 140) {
+    // Единый порог качества для первого и последующих фиксов, клиента и сервера.
+    if (accuracy != null && (accuracy < 0 || accuracy > MAX_ACCURACY_M)) {
       return
     }
 
@@ -1247,7 +1241,6 @@ class WebGeolocationTracker {
     let bearing = typeof coords.heading === 'number' && Number.isFinite(coords.heading) && coords.heading >= 0 ? coords.heading : null
 
     let dM = 0
-    let gapDetected = false
 
     if (this.lastFixPoint) {
       dM = haversineM(this.lastFixPoint.lat, this.lastFixPoint.lng, lat, lng)
@@ -1282,8 +1275,6 @@ class WebGeolocationTracker {
       if (bearing === null && dM > 3) {
         bearing = bearingDeg(this.lastFixPoint.lat, this.lastFixPoint.lng, lat, lng)
       }
-
-      gapDetected = validity.isGap
     }
 
     // Живое состояние определяем по окну последних фиксов, а не по паре соседних:
@@ -1299,8 +1290,13 @@ class WebGeolocationTracker {
     // Сигнал Activity Recognition добавляем в окно наблюдений и используем как решающий
     // голос там, где геометрия не подтверждает перемещение.
     const deviceSample = normalizeDeviceActivity(pos.activity, pos.activityConfidence)
-    if (deviceSample)
+    if (deviceSample) {
+      deviceSample.tsUtc = ts
       this.pushDeviceActivity(deviceSample)
+    }
+    else {
+      this.deviceActivitySamples = []
+    }
     const deviceActivity = deviceSample?.activity ?? null
     const deviceActivityConfidence = deviceSample?.confidence ?? null
 
@@ -1310,79 +1306,8 @@ class WebGeolocationTracker {
 
     // Одометр: прибавляем дистанцию только когда перемещение подтверждено окном,
     // иначе дрожание стоящего устройства накручивает километры.
-    if (this.lastFixPoint && dM >= 1.5 && speedMs >= 0.3 && !gapDetected) {
-      this.sessionDistanceM += dM
-    }
 
-    // Перемещение не подтверждено окном (activity === 'still'): группируем точки
-    // в радиусе 5 метров, предотвращая создание сотен одинаковых точек в БД.
-    // При нахождении на месте мы обновляем последнюю точку / телеметрию,
-    // а новую точку в очередь пишем только раз в 3 минуты (или при выходе из радиуса 5м).
-    const isStationary = activity === 'still'
-    if (isStationary) {
-      if (!this.stationaryAnchorPoint) {
-        this.stationaryAnchorPoint = {
-          clientPointId: uuidv4(),
-          tsUtc: ts,
-          lat,
-          lng,
-          altitude,
-          accuracy,
-          speed: 0,
-          bearing,
-          activity: 'still',
-          activityConfidence,
-          sessionId: this.currentSessionId || uuidv4(),
-          deviceActivity,
-          deviceActivityConfidence,
-        }
-      }
-      else {
-        const distFromAnchor = haversineM(this.stationaryAnchorPoint.lat, this.stationaryAnchorPoint.lng, lat, lng)
-        if (distFromAnchor <= 5.0) {
-          // Устройство всё ещё в пределах 5 метров от якорной стоянки.
-          // Если с момента последней сохраненной точки прошло менее 3 минут,
-          // обновляем только телеметрию и текущую точку, не создавая дубликат в очереди.
-          const timeSinceLastSaved = this.lastFixPoint ? (ts - this.lastFixPoint.tsUtc) : 0
-          if (timeSinceLastSaved < 3 * 60 * 1000) {
-            // Обновляем текущее состояние без засорения БД
-            const updatedPoint: TrackPoint = {
-              clientPointId: this.lastFixPoint?.clientPointId || this.stationaryAnchorPoint.clientPointId,
-              tsUtc: ts,
-              lat: this.stationaryAnchorPoint.lat,
-              lng: this.stationaryAnchorPoint.lng,
-              altitude,
-              accuracy,
-              speed: 0,
-              bearing,
-              activity: 'still',
-              activityConfidence,
-              sessionId: this.currentSessionId || uuidv4(),
-              deviceActivity,
-              deviceActivityConfidence,
-            }
-            this.lastFixPoint = updatedPoint
-
-            writeStoredSession({
-              sessionId: this.currentSessionId || updatedPoint.sessionId,
-              startedAt: this.sessionStartedAt,
-              distanceM: this.sessionDistanceM,
-              lastPoint: updatedPoint,
-              isRunning: this.isRunning,
-            })
-            return
-          }
-        }
-        else {
-          // Вышли за 5м — сбрасываем старый якорь
-          this.stationaryAnchorPoint = null
-        }
-      }
-    }
-    else {
-      // Перемещение подтверждено окном — выходим из режима стоянки
-      this.stationaryAnchorPoint = null
-    }
+    // Preserve every accepted measurement so the shared processor can reconstruct dwell intervals.
 
     const point: TrackPoint = {
       clientPointId: uuidv4(),
@@ -1391,7 +1316,7 @@ class WebGeolocationTracker {
       lng,
       altitude,
       accuracy,
-      speed: speedMs,
+      speed,
       bearing,
       activity,
       activityConfidence,
@@ -1401,6 +1326,33 @@ class WebGeolocationTracker {
     }
 
     this.lastFixPoint = point
+    this.recentMeasurements.push(point)
+    const prepared = prepareTrack(this.recentMeasurements)
+    let recentDistance = 0
+    let committed = 0
+    const cutoff = ts - 180_000
+    for (let i = 1; i < prepared.length; i++) {
+      const a = prepared[i - 1]
+      const b = prepared[i]
+      const distance = !b.stop && b.activity !== 'still' && b.tsUtc - a.tsUtc <= 15_000
+        ? haversineM(a.lat, a.lng, b.lat, b.lng)
+        : 0
+      recentDistance += distance
+      if (a.tsUtc < cutoff)
+        committed += distance
+    }
+    this.sessionDistanceM = Math.max(0, this.sessionDistanceM - this.recentDistanceM + recentDistance)
+    this.recentDistanceM = recentDistance - committed
+    this.recentMeasurements = this.recentMeasurements.filter(p => p.tsUtc >= cutoff)
+    const display = prepared[prepared.length - 1]
+    if (display?.stop) {
+      this.displayStopAnchor ??= { lat: display.lat, lng: display.lng }
+      this.displayFix = { ...display, ...this.displayStopAnchor }
+    }
+    else {
+      this.displayStopAnchor = null
+      this.displayFix = display ?? point
+    }
 
     // Сохраняем точку в локальный буфер
     const queue = readStoredPoints()
