@@ -27,6 +27,12 @@ interface TileMeta {
   accessedAt: number
 }
 
+export interface TilePrecacheResult {
+  total: number
+  successCount: number
+  failedCount: number
+}
+
 class MapTileCacheManager {
   private dbPromise: Promise<IDBDatabase | null> | null = null
   private cleanupScheduled = false
@@ -237,41 +243,56 @@ class MapTileCacheManager {
    */
   public async precacheUrls(
     urls: string[],
-    onProgress?: (loaded: number, total: number) => void,
-  ): Promise<void> {
-    if (typeof caches === 'undefined' || urls.length === 0)
-      return
+    onProgress?: (loaded: number, total: number, failed: number) => void,
+  ): Promise<TilePrecacheResult> {
+    if (typeof caches === 'undefined' || urls.length === 0) {
+      return { total: urls.length, successCount: 0, failedCount: urls.length }
+    }
 
     const cache = await caches.open(CACHE_NAME)
     const BATCH_SIZE = 6
     let loaded = 0
+    let successCount = 0
+    let failedCount = 0
 
     for (let i = 0; i < urls.length; i += BATCH_SIZE) {
       const batch = urls.slice(i, i + BATCH_SIZE)
       await Promise.all(
         batch.map(async (url) => {
+          let success = false
           try {
             const hasMatch = await cache.match(url)
-            if (!hasMatch) {
+            if (hasMatch) {
+              success = true
+            }
+            else {
               const res = await fetch(url)
               if (res.ok) {
                 await cache.put(url, res)
                 void this.recordAccess(url)
+                success = true
               }
             }
           }
           catch {
-            // Игнорируем сетевые ошибки для отдельных тайлов
+            // Ошибка сети или кэширования для отдельного тайла
           }
           finally {
+            if (success) {
+              successCount++
+            }
+            else {
+              failedCount++
+            }
             loaded++
-            onProgress?.(loaded, urls.length)
+            onProgress?.(loaded, urls.length, failedCount)
           }
         }),
       )
     }
 
     this.scheduleCleanup()
+    return { total: urls.length, successCount, failedCount }
   }
 
   /**

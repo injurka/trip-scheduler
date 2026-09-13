@@ -6,12 +6,14 @@ interface Props {
   label: string
   icon?: string
   readonly: boolean
+  disabled?: boolean
   placeholder?: string
   linkType?: 'web' | 'email' | 'tel'
 }
 
 const props = withDefaults(defineProps<Props>(), {
   icon: undefined,
+  disabled: false,
   placeholder: '...',
   linkType: undefined,
 })
@@ -60,7 +62,7 @@ const href = computed(() => {
       :label="label"
       :icon="icon"
       :placeholder="placeholder"
-      :disabled="readonly"
+      :disabled="disabled"
       size="sm"
     />
   </div>

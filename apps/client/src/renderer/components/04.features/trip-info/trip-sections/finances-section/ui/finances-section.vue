@@ -91,14 +91,11 @@ function resetAllFilters() {
 
 const categoryFilterItems = computed(() => {
   const items = categories.value.map((c) => {
-    if (c.id === 'cat-other') {
-      return { value: c.id, label: 'Без категории', icon: c.icon }
-    }
-    return { value: c.id, label: c.name, icon: c.icon }
+    return { value: c.id, label: c.name || (c.id === 'cat-other' ? 'Прочее' : 'Без названия'), icon: c.icon }
   })
 
   if (!items.some(i => i.value === 'cat-other')) {
-    items.push({ value: 'cat-other', label: 'Без категории', icon: 'mdi:dots-horizontal-circle-outline' })
+    items.push({ value: 'cat-other', label: 'Прочее', icon: 'mdi:dots-horizontal-circle-outline' })
   }
 
   items.unshift({ value: 'ALL', label: 'Все категории', icon: 'mdi:format-list-bulleted' } as any)
@@ -529,6 +526,7 @@ onClickOutside(dateFilterWrapperRef, () => {
   align-items: center;
   gap: 4px;
   padding: 5px 10px;
+  height: 38px;
   font-size: 0.8rem;
   font-weight: 500;
   color: var(--fg-muted-color);

@@ -51,7 +51,8 @@ Here is the schema you must follow:
                   "flightNumber": "string", "airline": "string", "airlineIataCode": "string",
                   "aircraft": "string",
                   "terminalDeparture": "string",
-                  "terminalArrival": "string"
+                  "terminalArrival": "string",
+                  "seat": "string (например, '12A' или '15K', если указан)"
                 }]
               }
             }`

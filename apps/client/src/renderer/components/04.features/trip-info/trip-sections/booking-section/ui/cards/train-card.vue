@@ -170,7 +170,7 @@ const totalDurationFormatted = computed(() => {
         <BookingField :model-value="booking.data.arrivalPlatform" label="Путь/платформа (приб.)" icon="mdi:sign-direction" :readonly="readonly" @update:model-value="updateDataField('arrivalPlatform', $event)" />
 
         <BookingField :model-value="booking.data.trainNumber" label="Номер поезда" icon="mdi:pound" :readonly="readonly" @update:model-value="updateDataField('trainNumber', $event)" />
-        <BookingField :model-value="totalDurationFormatted" label="В пути" icon="mdi:timer-sand" readonly />
+        <BookingField :model-value="totalDurationFormatted" label="В пути" icon="mdi:timer-sand" :readonly="readonly" disabled />
 
         <BookingField :model-value="booking.data.carriage" label="Вагон" icon="mdi:train-car" :readonly="readonly" @update:model-value="updateDataField('carriage', $event)" />
         <BookingField :model-value="booking.data.seat" label="Место" icon="mdi:seat-passenger" :readonly="readonly" @update:model-value="updateDataField('seat', $event)" />

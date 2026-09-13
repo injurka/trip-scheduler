@@ -152,7 +152,7 @@ const emit = defineEmits<{
   background-color: var(--bg-secondary-color);
   border: 1px solid var(--border-secondary-color);
   border-radius: var(--r-m);
-  padding: 3px 6px;
+  padding: 3px;
 
   .crumb {
     display: inline-flex;

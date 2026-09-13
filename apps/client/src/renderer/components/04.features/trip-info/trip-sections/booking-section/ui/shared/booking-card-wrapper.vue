@@ -68,6 +68,7 @@ async function handleDelete() {
         <span
           v-if="readonly"
           class="card-title"
+          :title="title"
         >
           {{ title }}
         </span>
@@ -125,6 +126,7 @@ async function handleDelete() {
   display: flex;
   flex-direction: column;
   transition: all 0.3s ease;
+  min-width: 0;
 
   &.icon-tone-flight {
     --booking-icon-color: #38bdf8;
@@ -178,6 +180,7 @@ async function handleDelete() {
   padding: 0.5rem 0.75rem;
   background-color: var(--bg-tertiary-color);
   border-bottom: 1px solid var(--border-secondary-color);
+  min-width: 0;
 
   .highlight-active & {
     background-color: rgba(var(--fg-success-color-rgb), 0.1);
@@ -195,7 +198,7 @@ async function handleDelete() {
   display: flex;
   align-items: center;
   gap: 0.5rem;
-  flex-grow: 1;
+  flex: 1;
   min-width: 0;
   margin-right: 8px;
 
@@ -244,8 +247,9 @@ async function handleDelete() {
   font-size: 1rem;
   font-weight: 600;
   min-height: 40px;
-  display: flex;
-  align-items: center;
+  line-height: 40px;
+  display: block;
+  flex: 1;
   min-width: 0;
   overflow: hidden;
   text-overflow: ellipsis;

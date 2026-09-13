@@ -5,7 +5,7 @@ import * as pdfjsLib from 'pdfjs-dist'
 import pdfWorkerUrl from 'pdfjs-dist/build/pdf.worker.min.mjs?url'
 import { computed, nextTick, onBeforeUnmount, onMounted, ref, shallowRef, watch } from 'vue'
 import { KitBtn } from '~/components/01.kit/kit-btn'
-import { resolveApiUrl } from '~/shared/lib/url'
+import { resolveApiUrl, stripAuthTokenFromUrl } from '~/shared/lib/url'
 
 interface Props {
   url: string
@@ -36,12 +36,14 @@ const zoomPercent = computed(() => `${Math.round(zoomLevel.value * 100)}%`)
 
 async function fetchPdfData(url: string): Promise<ArrayBuffer> {
   const absoluteUrl = resolveApiUrl(url)
+  const urlWithoutToken = stripAuthTokenFromUrl(absoluteUrl)
 
   // 1. Попытка загрузить из оффлайн-кэша медиафайлов
   if (typeof caches !== 'undefined') {
     try {
       const cache = await caches.open('trip-scheduler-offline-media')
-      const match = await cache.match(absoluteUrl) || await cache.match(url)
+      const match = await cache.match(absoluteUrl)
+        || (urlWithoutToken ? await cache.match(urlWithoutToken) : null)
       if (match) {
         return await match.arrayBuffer()
       }

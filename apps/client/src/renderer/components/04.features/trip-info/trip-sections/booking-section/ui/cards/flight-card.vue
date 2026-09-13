@@ -328,8 +328,9 @@ function updateSegmentField<K extends keyof FlightSegment>(segmentIndex: number,
           <BookingField :model-value="segment.arrivalTimeZone" label="Часовой пояс прилета" icon="mdi:clock-time-four-outline" :readonly="readonly" placeholder="+08:00" @update:model-value="updateSegmentField(index, 'arrivalTimeZone', $event)" />
           <BookingField :model-value="segment.terminalDeparture" label="Терминал вылета" icon="mdi:gate" :readonly="readonly" @update:model-value="updateSegmentField(index, 'terminalDeparture', $event)" />
           <BookingField :model-value="segment.terminalArrival" label="Терминал прилета" icon="mdi:gate" :readonly="readonly" @update:model-value="updateSegmentField(index, 'terminalArrival', $event)" />
-          <BookingField :model-value="segment.aircraft" label="Самолет" icon="mdi:airplane" :readonly="readonly" @update:model-value="updateSegmentField(index, 'aircraft', $event)" />
-          <BookingField :model-value="segmentDuration(segment)" label="В пути" icon="mdi:timer-sand" readonly />
+          <BookingField :model-value="segment.aircraft" label="Самолет" icon="mdi:airplane" :readonly="readonly" class="span-2" @update:model-value="updateSegmentField(index, 'aircraft', $event)" />
+          <BookingField :model-value="segment.seat" label="Место" icon="mdi:seat-passenger" :readonly="readonly" placeholder="12A" @update:model-value="updateSegmentField(index, 'seat', $event)" />
+          <BookingField :model-value="segmentDuration(segment)" label="В пути" icon="mdi:timer-sand" :readonly="readonly" disabled />
         </template>
 
         <KitDivider class="span-2" />

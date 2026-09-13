@@ -226,7 +226,7 @@ const totalSearchedAmount = computed(() => {
                 </div>
                 <div class="item-meta-row">
                   <span class="item-category">
-                    {{ getCategory(tx.categoryId, categories)?.name || 'Без категории' }}
+                    {{ getCategory(tx.categoryId, categories)?.name || 'Прочее' }}
                   </span>
                   <span v-if="tx.notes" class="item-notes" :title="tx.notes">
                     • {{ tx.notes }}
@@ -338,7 +338,7 @@ const totalSearchedAmount = computed(() => {
   }
 
   .search-wrap {
-    min-width: 240px;
+    min-width: 300px;
     display: flex;
     align-items: center;
 

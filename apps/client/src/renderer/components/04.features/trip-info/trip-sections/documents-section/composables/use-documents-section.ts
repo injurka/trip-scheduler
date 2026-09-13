@@ -51,6 +51,16 @@ export function useDocumentsSection(
 
   async function loadDocuments() {
     isFetching.value = true
+
+    if (typeof navigator !== 'undefined' && !navigator.onLine && offlineStore.isTripCached(props.section.tripId)) {
+      const cachedDocs = offlineStore.getSavedTripDocuments(props.section.tripId)
+      if (cachedDocs && cachedDocs.length > 0) {
+        documents.value = cachedDocs.map(mapResponseToDoc)
+        isFetching.value = false
+        return
+      }
+    }
+
     await useRequest({
       key: `documents:list:${props.section.tripId}`,
       fn: api => api.files.listDocuments(props.section.tripId),

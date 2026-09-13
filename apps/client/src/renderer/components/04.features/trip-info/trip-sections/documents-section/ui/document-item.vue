@@ -7,7 +7,7 @@ import { KitTooltip } from '~/components/01.kit/kit-tooltip'
 import { useToast } from '~/shared/composables/use-toast'
 import { isTauri } from '~/shared/lib/env'
 import { openExternalUrl } from '~/shared/lib/opener'
-import { resolveApiUrl } from '~/shared/lib/url'
+import { resolveApiUrl, stripAuthTokenFromUrl } from '~/shared/lib/url'
 import { getCategoryMeta, getFileTypeInfo } from '../constants'
 
 interface Props {
@@ -97,11 +97,14 @@ function toggleAccess() {
   toast.info(newAccess === 'public' ? 'Файл стал публичным' : 'Файл доступен только участникам')
 }
 
-async function fetchFileBlob(absoluteUrl: string, rawUrl: string): Promise<Blob | null> {
+async function fetchFileBlob(absoluteUrl: string, _rawUrl: string): Promise<Blob | null> {
+  const urlWithoutToken = stripAuthTokenFromUrl(absoluteUrl)
+
   if (typeof caches !== 'undefined') {
     try {
       const cache = await caches.open('trip-scheduler-offline-media')
-      const match = await cache.match(absoluteUrl) || await cache.match(rawUrl)
+      const match = await cache.match(absoluteUrl)
+        || (urlWithoutToken ? await cache.match(urlWithoutToken) : null)
       if (match) {
         return await match.blob()
       }

@@ -9,7 +9,7 @@ import { KitDropdown } from '~/components/01.kit/kit-dropdown'
 import { useToast } from '~/shared/composables/use-toast'
 import { isTauri } from '~/shared/lib/env'
 import { openExternalUrl } from '~/shared/lib/opener'
-import { resolveApiUrl } from '~/shared/lib/url'
+import { resolveApiUrl, stripAuthTokenFromUrl } from '~/shared/lib/url'
 import { formatBytes, getFileTypeInfo } from '../constants'
 import DocumentPdfViewer from './document-pdf-viewer.vue'
 
@@ -73,10 +73,31 @@ watch(() => props.document, async (doc) => {
   if (doc && isText.value) {
     isTextLoading.value = true
     try {
-      const res = await fetch(resolveApiUrl(doc.url))
-      if (res.ok) {
-        textContent.value = await res.text()
+      const targetUrl = resolveApiUrl(doc.url)
+      const urlWithoutToken = stripAuthTokenFromUrl(targetUrl)
+      let loadedText: string | null = null
+
+      if (typeof caches !== 'undefined') {
+        try {
+          const cache = await caches.open('trip-scheduler-offline-media')
+          const match = await cache.match(targetUrl)
+            || (urlWithoutToken ? await cache.match(urlWithoutToken) : null)
+          if (match) {
+            loadedText = await match.text()
+          }
+        }
+        catch {
+          // ignore cache error
+        }
       }
+
+      if (loadedText === null) {
+        const res = await fetch(targetUrl)
+        if (res.ok) {
+          loadedText = await res.text()
+        }
+      }
+      textContent.value = loadedText
     }
     catch (e) {
       console.warn('Failed to load text content:', e)
@@ -102,6 +123,46 @@ async function handleDownload() {
   try {
     const doc = props.document
     const url = resolveApiUrl(doc.url)
+    const urlWithoutToken = stripAuthTokenFromUrl(url)
+
+    let blob: Blob | null = null
+    if (typeof caches !== 'undefined') {
+      try {
+        const cache = await caches.open('trip-scheduler-offline-media')
+        const match = await cache.match(url)
+          || (urlWithoutToken ? await cache.match(urlWithoutToken) : null)
+        if (match) {
+          blob = await match.blob()
+        }
+      }
+      catch {
+        // ignore
+      }
+    }
+
+    if (!blob) {
+      try {
+        const res = await fetch(url)
+        if (res.ok)
+          blob = await res.blob()
+      }
+      catch {
+        // ignore
+      }
+    }
+
+    if (blob) {
+      const objectUrl = URL.createObjectURL(blob)
+      const link = document.createElement('a')
+      link.href = objectUrl
+      link.download = doc.originalName || doc.title || 'document'
+      document.body.appendChild(link)
+      link.click()
+      document.body.removeChild(link)
+      URL.revokeObjectURL(objectUrl)
+      toast.success('Загрузка файла началась')
+      return
+    }
 
     if (isTauri) {
       await openExternalUrl(url)

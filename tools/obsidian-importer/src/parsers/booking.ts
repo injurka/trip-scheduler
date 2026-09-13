@@ -528,6 +528,9 @@ export function parseFlightsMarkdown(content: string, startDateStr: string, endD
             const departureTimeZone = inferTimezone(departureAirport)
             const arrivalTimeZone = inferTimezone(arrivalAirport)
 
+            const seatMatch = trimmed.match(/(?:мест[оа]|seat[s]?):\s*([A-Za-z0-9,\s]+?)(?:\||<br|\n|$)/i)
+            const seat = seatMatch ? seatMatch[1].trim() : undefined
+
             segments.push({
               departureCity,
               arrivalCity,
@@ -538,6 +541,7 @@ export function parseFlightsMarkdown(content: string, startDateStr: string, endD
               flightNumber: flightNumber || undefined,
               airline: flightNumber.startsWith('CZ') ? 'China Southern Airlines' : (flightNumber.startsWith('SU') ? 'Аэрофлот' : undefined),
               aircraft: aircraft || undefined,
+              seat: seat || undefined,
               departureDateTime: `${depDateStr}T${depTime}:00`,
               arrivalDateTime: `${arrDateStr}T${arrTime}:00`,
               departureTimeZone,

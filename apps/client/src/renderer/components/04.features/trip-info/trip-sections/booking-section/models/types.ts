@@ -39,6 +39,7 @@ export interface FlightSegment {
   aircraft?: string
   terminalDeparture?: string
   terminalArrival?: string
+  seat?: string
 }
 
 /**

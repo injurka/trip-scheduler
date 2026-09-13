@@ -95,3 +95,27 @@ export function getImageUrl(
     return `${base}${separator}${query}`
   }
 }
+
+/**
+ * Удаляет только параметр авторизации `token` из URL, сохраняя остальные query-параметры (w, h, fmt и т.д.)
+ */
+export function stripAuthTokenFromUrl(url: string | null | undefined): string {
+  if (!url)
+    return ''
+
+  try {
+    const isAbsolute = url.startsWith('http://') || url.startsWith('https://')
+    const parsed = new URL(url, isAbsolute ? undefined : 'http://localhost')
+    if (parsed.searchParams.has('token')) {
+      parsed.searchParams.delete('token')
+    }
+    if (!isAbsolute) {
+      const search = parsed.search ? parsed.search : ''
+      return `${parsed.pathname}${search}`
+    }
+    return parsed.toString()
+  }
+  catch {
+    return url.replace(/([?&])token=[^&]*(&|$)/, (_, sep, rest) => (rest ? sep : ''))
+  }
+}

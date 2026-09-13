@@ -1,6 +1,6 @@
 import type { Directive, DirectiveBinding } from 'vue'
 import type { ImageOptions } from '~/shared/lib/url'
-import { resolveApiUrl } from '~/shared/lib/url'
+import { resolveApiUrl, stripAuthTokenFromUrl } from '~/shared/lib/url'
 
 const OFFLINE_MEDIA_CACHE_NAME = 'trip-scheduler-offline-media'
 
@@ -9,7 +9,9 @@ async function tryLoadFromCache(el: HTMLImageElement, url: string) {
     return
   try {
     const cache = await caches.open(OFFLINE_MEDIA_CACHE_NAME)
+    const urlWithoutToken = stripAuthTokenFromUrl(url)
     const match = await cache.match(url)
+      || (urlWithoutToken ? await cache.match(urlWithoutToken) : null)
     if (match) {
       const blob = await match.blob()
       el.src = URL.createObjectURL(blob)

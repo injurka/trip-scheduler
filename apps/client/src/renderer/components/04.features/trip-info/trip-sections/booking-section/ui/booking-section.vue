@@ -179,8 +179,12 @@ function getCardComponent(type: Booking['type']) {
 
 .bookings-grid {
   display: grid;
-  grid-template-columns: 1fr;
+  grid-template-columns: minmax(0, 1fr);
   gap: 1rem;
+
+  > * {
+    min-width: 0;
+  }
 }
 
 .ghost-item {

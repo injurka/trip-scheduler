@@ -39,7 +39,12 @@ registerRoute(
 
     try {
       const offlineCache = await caches.open(OFFLINE_MEDIA_CACHE_NAME)
-      const offlineResponse = await offlineCache.match(request) || await offlineCache.match(url.href) || await offlineCache.match(url.pathname)
+      let offlineResponse = await offlineCache.match(request) || await offlineCache.match(url.href)
+      if (!offlineResponse && url.searchParams.has('token')) {
+        const cleanUrl = new URL(url.href)
+        cleanUrl.searchParams.delete('token')
+        offlineResponse = await offlineCache.match(cleanUrl.toString())
+      }
       if (offlineResponse) {
         if (import.meta.env.DEV)
           console.log(`[SW] Served from Offline Cache: ${url.pathname}`)

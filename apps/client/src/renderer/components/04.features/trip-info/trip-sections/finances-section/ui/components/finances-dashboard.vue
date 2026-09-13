@@ -16,6 +16,7 @@ interface CategorySpendingItem {
   paidAmount?: number
   plannedAmount?: number
   budgetLimit?: number
+  colorIndex?: number
 }
 
 interface Props {
@@ -62,7 +63,8 @@ const CATEGORY_COLORS = [
 ]
 
 function getCategoryColor(index: number): string {
-  return CATEGORY_COLORS[index % CATEGORY_COLORS.length]
+  const safeIndex = Math.max(0, Math.abs(index || 0)) % CATEGORY_COLORS.length
+  return CATEGORY_COLORS[safeIndex]
 }
 
 function getCategoryBg(index: number): string {
@@ -168,23 +170,27 @@ const isDoughnutPlanMode = computed(() => {
   return chartMode.value === 'plan'
 })
 
-const doughnutChartData = computed(() => {
+const doughnutChartItems = computed(() => {
   const isPlan = isDoughnutPlanMode.value
 
-  const items = props.spendingByCategory.map((cat, i) => {
+  return props.spendingByCategory.map((cat, i) => {
     const val = isPlan
       ? (cat.budgetLimit || cat.plannedAmount || cat.amount)
       : (cat.paidAmount !== undefined ? cat.paidAmount : cat.amount)
     return {
       name: cat.name,
       value: val,
-      index: i,
+      colorIndex: cat.colorIndex !== undefined ? cat.colorIndex : i,
+      spendingCategoryIndex: i,
     }
   }).filter(item => item.value > 0)
+})
 
+const doughnutChartData = computed(() => {
+  const items = doughnutChartItems.value
   const labels = items.map(cat => cat.name)
   const data = items.map(cat => cat.value)
-  const colors = items.map(item => getCategoryColor(item.index))
+  const colors = items.map(item => getCategoryColor(item.colorIndex))
 
   return {
     labels,
@@ -237,7 +243,9 @@ const doughnutChartOptions = computed(() => ({
   },
   onHover: (_event: any, elements: any[]) => {
     if (elements && elements.length > 0) {
-      hoveredIndex.value = elements[0].index
+      const itemIndex = elements[0].index
+      const targetItem = doughnutChartItems.value[itemIndex]
+      hoveredIndex.value = targetItem ? targetItem.spendingCategoryIndex : null
     }
   },
 }))
@@ -349,7 +357,6 @@ useMutationObserver(
       <KitViewSwitcher
         v-model="currentView"
         :items="viewSwitcherItems"
-        size="sm"
       />
     </header>
 
@@ -454,7 +461,7 @@ useMutationObserver(
               :class="{ active: chartMode === 'fact' }"
               @click="chartMode = 'fact'"
             >
-              Факт
+              Потрачено
             </button>
             <button
               type="button"
@@ -462,7 +469,7 @@ useMutationObserver(
               :class="{ active: chartMode === 'plan' }"
               @click="chartMode = 'plan'"
             >
-              План
+              Запланировано
             </button>
           </div>
 
@@ -495,26 +502,29 @@ useMutationObserver(
             @mouseenter="hoveredIndex = index"
             @mouseleave="hoveredIndex = null"
           >
-            <div class="legend-icon-badge" :style="{ backgroundColor: getCategoryBg(index) }">
-              <Icon :icon="cat.icon || 'mdi:tag-outline'" :style="{ color: getCategoryColor(index) }" />
+            <div class="legend-icon-badge" :style="{ backgroundColor: getCategoryBg(cat.colorIndex ?? index) }">
+              <Icon :icon="cat.icon || 'mdi:tag-outline'" :style="{ color: getCategoryColor(cat.colorIndex ?? index) }" />
             </div>
 
             <div class="legend-details">
               <div class="legend-main-row">
                 <span class="legend-title" :title="cat.name">{{ cat.name }}</span>
                 <div class="legend-values">
-                  <span v-if="cat.budgetLimit && cat.budgetLimit > 0" class="legend-percentage" :class="{ 'is-over': ((cat.paidAmount || 0) + (cat.plannedAmount || 0)) > cat.budgetLimit }">
-                    {{ Math.round((((cat.paidAmount || 0) + (cat.plannedAmount || 0)) / cat.budgetLimit) * 100) }}%
+                  <span
+                    v-if="cat.budgetLimit && cat.budgetLimit > 0"
+                    class="legend-percentage"
+                    :class="{ 'is-over': (cat.paidAmount || 0) > cat.budgetLimit }"
+                  >
+                    {{ Math.round(((cat.paidAmount || 0) / cat.budgetLimit) * 100) }}%
                   </span>
                   <span v-else class="legend-percentage">{{ getCategoryPercent(cat.amount) }}%</span>
                   <span class="legend-separator" />
-                  <span class="legend-amount">
+                  <span
+                    class="legend-amount"
+                    :title="cat.budgetLimit ? `Оплачено: ${formatCurrency(cat.paidAmount || 0, mainCurrency)}${cat.plannedAmount ? `, в планах: ${formatCurrency(cat.plannedAmount, mainCurrency)}` : ''}, лимит: ${formatCurrency(cat.budgetLimit, mainCurrency)}` : undefined"
+                  >
                     <template v-if="cat.budgetLimit && cat.budgetLimit > 0">
-                      {{ formatCurrency(cat.paidAmount || 0, mainCurrency) }}
-                      <span v-if="(cat.plannedAmount || 0) > 0" class="legend-sub-planned" :title="`В планах к оплате: ${formatCurrency(cat.plannedAmount || 0, mainCurrency)}`">
-                        (+{{ formatCurrency(cat.plannedAmount || 0, mainCurrency) }})
-                      </span>
-                      / {{ formatCurrency(cat.budgetLimit, mainCurrency) }}
+                      {{ formatCurrency(cat.paidAmount || 0, mainCurrency) }} / {{ formatCurrency(cat.budgetLimit, mainCurrency) }}
                     </template>
                     <template v-else>
                       {{ formatCurrency(cat.amount, mainCurrency) }}
@@ -528,8 +538,9 @@ useMutationObserver(
                   :class="{ 'is-over': cat.budgetLimit && (cat.paidAmount || 0) > cat.budgetLimit }"
                   :style="{
                     width: `${cat.budgetLimit && cat.budgetLimit > 0 ? Math.min(100, Math.round(((cat.paidAmount || 0) / cat.budgetLimit) * 100)) : getCategoryPercent(cat.amount)}%`,
-                    backgroundColor: (cat.budgetLimit && (cat.paidAmount || 0) > cat.budgetLimit) ? '#EF4444' : getCategoryColor(index),
+                    backgroundColor: (cat.budgetLimit && (cat.paidAmount || 0) > cat.budgetLimit) ? '#EF4444' : getCategoryColor(cat.colorIndex ?? index),
                   }"
+                  :title="`Оплачено: ${formatCurrency(cat.paidAmount || 0, mainCurrency)}`"
                 />
                 <div
                   v-if="cat.budgetLimit && cat.budgetLimit > 0 && (cat.plannedAmount || 0) > 0"
@@ -537,8 +548,9 @@ useMutationObserver(
                   :class="{ 'is-over': ((cat.paidAmount || 0) + (cat.plannedAmount || 0)) > cat.budgetLimit }"
                   :style="{
                     width: `${Math.min(100 - Math.min(100, Math.round(((cat.paidAmount || 0) / cat.budgetLimit) * 100)), Math.round(((cat.plannedAmount || 0) / cat.budgetLimit) * 100))}%`,
-                    backgroundColor: ((cat.paidAmount || 0) + (cat.plannedAmount || 0)) > cat.budgetLimit ? '#F87171' : getCategoryColor(index),
+                    backgroundColor: ((cat.paidAmount || 0) + (cat.plannedAmount || 0)) > cat.budgetLimit ? '#F87171' : getCategoryColor(cat.colorIndex ?? index),
                   }"
+                  :title="`В планах: ${formatCurrency(cat.plannedAmount || 0, mainCurrency)}`"
                 />
               </div>
             </div>
@@ -595,6 +607,49 @@ useMutationObserver(
   display: flex;
   flex-direction: column;
   gap: 1.25rem;
+
+  :deep(.kit-view-switcher) {
+    height: 34px;
+    padding: 3px;
+    background-color: var(--bg-tertiary-color);
+    border: 1px solid var(--border-secondary-color);
+    border-radius: var(--r-xs);
+
+    .kit-view-switcher-glider {
+      top: 3px;
+      height: calc(100% - 6px);
+      border-radius: calc(var(--r-xs) - 2px);
+      box-shadow: 0 1px 2px rgba(0, 0, 0, 0.08);
+    }
+
+    .kit-view-switcher-button {
+      height: 100%;
+      min-height: 0;
+      padding: 0 12px;
+      font-size: 0.8rem;
+      gap: 6px;
+      border-radius: calc(var(--r-xs) - 2px);
+
+      .kit-view-switcher-icon {
+        font-size: 1rem;
+      }
+    }
+
+    @include media-down(sm) {
+      height: 32px;
+      padding: 2px;
+
+      .kit-view-switcher-glider {
+        top: 2px;
+        height: calc(100% - 4px);
+      }
+
+      .kit-view-switcher-button {
+        padding: 0 8px;
+        min-width: 0;
+      }
+    }
+  }
 }
 
 .card-header {
@@ -856,7 +911,7 @@ useMutationObserver(
   margin: 0;
   flex-grow: 1;
   display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
   gap: 0.4rem 0.6rem;
   align-content: center;
 }
@@ -871,6 +926,7 @@ useMutationObserver(
   border: 1px solid var(--border-secondary-color);
   transition: all 0.15s ease;
   cursor: pointer;
+  min-width: 0;
 
   &:hover,
   &.is-active {
@@ -908,21 +964,24 @@ useMutationObserver(
     justify-content: space-between;
     align-items: baseline;
     gap: 0.4rem;
+    min-width: 0;
   }
 
   .legend-title {
-    font-size: 0.78rem;
+    font-size: 0.8rem;
     font-weight: 500;
     color: var(--fg-primary-color);
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
+    min-width: 0;
+    flex-shrink: 1;
   }
 
   .legend-values {
     display: flex;
     align-items: center;
-    gap: 0.45rem;
+    gap: 0.35rem;
     flex-shrink: 0;
   }
 
@@ -952,18 +1011,12 @@ useMutationObserver(
   }
 
   .legend-amount {
-    font-size: 0.8rem;
+    font-size: 0.78rem;
     font-weight: 600;
     font-family: var(--font-mono);
     font-variant-numeric: tabular-nums;
     color: var(--fg-primary-color);
     white-space: nowrap;
-  }
-
-  .legend-sub-planned {
-    color: #3b82f6;
-    font-size: 0.72rem;
-    font-weight: 500;
   }
 
   .legend-progress-track {

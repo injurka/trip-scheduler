@@ -153,6 +153,7 @@ declare global {
   const sharedIconList: typeof import('../../constants/icon-list').sharedIconList
   const slugify: typeof import('../../lib/slug').slugify
   const storeToRefs: typeof import('pinia').storeToRefs
+  const stripAuthTokenFromUrl: typeof import('../../lib/url').stripAuthTokenFromUrl
   const syncRef: typeof import('@vueuse/core').syncRef
   const syncRefs: typeof import('@vueuse/core').syncRefs
   const templateRef: typeof import('@vueuse/core').templateRef
@@ -380,6 +381,9 @@ declare global {
   export type { TileSourceId, MapSourceMeta, MapSourceConfig } from '../../lib/map-styles-sources'
   import('../../lib/map-styles-sources')
   // @ts-ignore
+  export type { TilePrecacheResult } from '../../lib/map-tile-cache'
+  import('../../lib/map-tile-cache')
+  // @ts-ignore
   export type { BoundingBox } from '../../lib/tile-calc'
   import('../../lib/tile-calc')
   // @ts-ignore
@@ -548,6 +552,7 @@ declare module 'vue' {
     readonly sharedIconList: UnwrapRef<typeof import('../../constants/icon-list')['sharedIconList']>
     readonly slugify: UnwrapRef<typeof import('../../lib/slug')['slugify']>
     readonly storeToRefs: UnwrapRef<typeof import('pinia')['storeToRefs']>
+    readonly stripAuthTokenFromUrl: UnwrapRef<typeof import('../../lib/url')['stripAuthTokenFromUrl']>
     readonly syncRef: UnwrapRef<typeof import('@vueuse/core')['syncRef']>
     readonly syncRefs: UnwrapRef<typeof import('@vueuse/core')['syncRefs']>
     readonly templateRef: UnwrapRef<typeof import('@vueuse/core')['templateRef']>

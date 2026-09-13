@@ -34,7 +34,7 @@ export const pwaCfg: Parameters<typeof VitePWA>[0] = {
     }],
   },
   injectManifest: {
-    globPatterns: ['**/*.{js,json,css,html,txt,svg,png,ico,webp,woff,woff2,ttf,eot,otf,wasm}'],
+    globPatterns: ['**/*.{js,mjs,json,css,html,txt,svg,png,ico,webp,woff,woff2,ttf,eot,otf,wasm}'],
     globIgnores: ['emojis/**', 'manifest**.webmanifest'],
     maximumFileSizeToCacheInBytes: 20 * 1024 * 1024,
     dontCacheBustURLsMatching: /\.\w{8}\./,

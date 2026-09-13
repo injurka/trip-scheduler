@@ -9,7 +9,7 @@ const DEFAULT_CATEGORIES: Category[] = [
   { id: 'cat-housing', name: 'Жильё', icon: 'mdi:bed', isDefault: true },
   { id: 'cat-entertainment', name: 'Развлечения', icon: 'mdi:party-popper', isDefault: true },
   { id: 'cat-shopping', name: 'Покупки', icon: 'mdi:shopping-outline', isDefault: true },
-  { id: 'cat-other', name: 'Без категории', icon: 'mdi:dots-horizontal-circle-outline', isDefault: true },
+  { id: 'cat-other', name: 'Прочее', icon: 'mdi:dots-horizontal-circle-outline', isDefault: true },
 ]
 
 const DEFAULT_SETTINGS: FinancesSettings = {
@@ -34,7 +34,7 @@ export function useFinancesSection(
   const content = computed(() => props.section.content)
 
   const transactions = ref<Transaction[]>(JSON.parse(JSON.stringify(content.value?.transactions || [])).map((tx: Transaction) => ({ ...tx, status: tx.status || 'paid', source: tx.source || 'manual' })))
-  const categories = ref<Category[]>(JSON.parse(JSON.stringify(content.value?.categories || DEFAULT_CATEGORIES)).map((category: Category) => category.id === 'cat-other' ? { ...category, name: 'Без категории' } : category))
+  const categories = ref<Category[]>(JSON.parse(JSON.stringify(content.value?.categories || DEFAULT_CATEGORIES)))
   const settings = ref<FinancesSettings>(JSON.parse(JSON.stringify(content.value?.settings || DEFAULT_SETTINGS)))
   const selectedCategoryFilters = ref<string[]>([])
   const dateFilter = ref<{ start: string | null, end: string | null }>({ start: null, end: null })
@@ -213,23 +213,27 @@ export function useFinancesSection(
     return result
   })
 
-  const paidTotal = computed(() => {
-    return baseFilteredTransactions.value
+  const tripPaidTotal = computed(() => {
+    return transactions.value
       .filter(tx => tx.status !== 'planned')
       .reduce((sum, tx) => sum + (convertToMainCurrency(tx.amount, tx.currency) || 0), 0)
   })
 
-  const plannedTotal = computed(() => {
-    return baseFilteredTransactions.value
+  const tripPlannedTotal = computed(() => {
+    return transactions.value
       .filter(tx => tx.status === 'planned')
       .reduce((sum, tx) => sum + (convertToMainCurrency(tx.amount, tx.currency) || 0), 0)
   })
 
-  const spontaneousTotal = computed(() => {
-    return baseFilteredTransactions.value
+  const tripSpontaneousTotal = computed(() => {
+    return transactions.value
       .filter(tx => tx.isSpontaneous && tx.status !== 'planned')
       .reduce((sum, tx) => sum + (convertToMainCurrency(tx.amount, tx.currency) || 0), 0)
   })
+
+  const paidTotal = tripPaidTotal
+  const plannedTotal = tripPlannedTotal
+  const spontaneousTotal = tripSpontaneousTotal
 
   const totalSpending = computed(() => {
     return sumInMainCurrency(transactions.value)
@@ -244,11 +248,11 @@ export function useFinancesSection(
       return settings.value.totalBudget
     if (categoryBudgetsTotal.value > 0)
       return categoryBudgetsTotal.value
-    return paidTotal.value + plannedTotal.value
+    return tripPaidTotal.value + tripPlannedTotal.value
   })
 
   const remainingBudget = computed(() => {
-    return Math.max(0, overallBudget.value - paidTotal.value)
+    return Math.max(0, overallBudget.value - tripPaidTotal.value)
   })
 
   const spendingByCategory = computed(() => {
@@ -260,9 +264,10 @@ export function useFinancesSection(
       paidAmount: number
       plannedAmount: number
       budgetLimit?: number
+      colorIndex: number
     }>()
 
-    categories.value.forEach((cat) => {
+    categories.value.forEach((cat, index) => {
       spendingMap.set(cat.id, {
         id: cat.id,
         name: cat.name,
@@ -271,10 +276,11 @@ export function useFinancesSection(
         paidAmount: 0,
         plannedAmount: 0,
         budgetLimit: cat.budgetLimit,
+        colorIndex: index,
       })
     })
 
-    baseFilteredTransactions.value.forEach((tx) => {
+    filteredTransactions.value.forEach((tx) => {
       const categoryId = tx.categoryId || 'cat-other'
       const amountInMain = convertToMainCurrency(tx.amount, tx.currency)
       if (amountInMain === null)
@@ -282,6 +288,7 @@ export function useFinancesSection(
 
       if (!spendingMap.has(categoryId)) {
         const cat = categories.value.find(c => c.id === categoryId) || DEFAULT_CATEGORIES.find(c => c.id === 'cat-other')!
+        const catIndex = categories.value.findIndex(c => c.id === categoryId)
         spendingMap.set(categoryId, {
           id: categoryId,
           name: cat.name,
@@ -290,6 +297,7 @@ export function useFinancesSection(
           paidAmount: 0,
           plannedAmount: 0,
           budgetLimit: cat.budgetLimit,
+          colorIndex: catIndex >= 0 ? catIndex : categories.value.length,
         })
       }
 
@@ -304,7 +312,15 @@ export function useFinancesSection(
     })
 
     return Array.from(spendingMap.values())
-      .filter(cat => cat.amount > 0 || (cat.budgetLimit && cat.budgetLimit > 0))
+      .filter((cat) => {
+        if (selectedCategoryFilters.value.length > 0) {
+          return selectedCategoryFilters.value.includes(cat.id)
+        }
+        if (statusFilter.value !== 'all' || typeFilter.value !== 'all') {
+          return cat.amount > 0
+        }
+        return cat.amount > 0 || (cat.budgetLimit && cat.budgetLimit > 0)
+      })
       .sort((a, b) => {
         const aVal = Math.max(a.paidAmount, a.amount, a.budgetLimit || 0)
         const bVal = Math.max(b.paidAmount, b.amount, b.budgetLimit || 0)
@@ -315,8 +331,8 @@ export function useFinancesSection(
   const spendingByDay = computed(() => {
     const spendingMap = new Map<string, number>()
 
-    baseFilteredTransactions.value
-      .filter(tx => tx.date && tx.status !== 'planned')
+    filteredTransactions.value
+      .filter(tx => !!tx.date && tx.status !== 'planned')
       .forEach((tx) => {
         const date = tx.date!.split('T')[0]
         const amountInMain = convertToMainCurrency(tx.amount, tx.currency)
