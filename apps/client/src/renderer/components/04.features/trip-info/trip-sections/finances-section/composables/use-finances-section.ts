@@ -9,6 +9,7 @@ const DEFAULT_CATEGORIES: Category[] = [
   { id: 'cat-housing', name: 'Жильё', icon: 'mdi:bed', isDefault: true },
   { id: 'cat-entertainment', name: 'Развлечения', icon: 'mdi:party-popper', isDefault: true },
   { id: 'cat-shopping', name: 'Покупки', icon: 'mdi:shopping-outline', isDefault: true },
+  { id: 'cat-telecom', name: 'Связь и страховка', icon: 'mdi:cellphone-wireless', isDefault: true },
   { id: 'cat-other', name: 'Прочее', icon: 'mdi:dots-horizontal-circle-outline', isDefault: true },
 ]
 
@@ -332,7 +333,7 @@ export function useFinancesSection(
     const spendingMap = new Map<string, number>()
 
     filteredTransactions.value
-      .filter(tx => !!tx.date && tx.status !== 'planned')
+      .filter(tx => !!tx.date && (statusFilter.value === 'planned' ? tx.status === 'planned' : tx.status !== 'planned'))
       .forEach((tx) => {
         const date = tx.date!.split('T')[0]
         const amountInMain = convertToMainCurrency(tx.amount, tx.currency)

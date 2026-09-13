@@ -165,7 +165,7 @@ const hasQuickInfo = computed(() => {
             title="Посмотреть на карте"
             @click.stop="isLocationViewerOpen = true"
           >
-            На карте
+            <span class="hotel-map-btn-text">На карте</span>
           </KitBtn>
         </div>
       </div>
@@ -341,7 +341,7 @@ const hasQuickInfo = computed(() => {
   flex-direction: column;
   gap: 4px;
   flex: 1;
-  min-width: 200px;
+  min-width: 180px;
 }
 
 .hotel-address-line {
@@ -398,6 +398,18 @@ const hasQuickInfo = computed(() => {
 
 .hotel-map-btn {
   font-size: 0.775rem;
+
+  @include media-down(sm) {
+    padding: 0.375rem;
+
+    :deep(.kit-btn-content) {
+      gap: 0;
+    }
+
+    .hotel-map-btn-text {
+      display: none;
+    }
+  }
 }
 
 .stay-banner {

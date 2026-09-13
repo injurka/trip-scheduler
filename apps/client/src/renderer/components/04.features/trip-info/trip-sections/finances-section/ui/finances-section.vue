@@ -309,11 +309,18 @@ onClickOutside(dateFilterWrapperRef, () => {
       :planned-total="plannedTotal"
       :spontaneous-total="spontaneousTotal"
       :filtered-total="filteredTotal"
+      :status-filter="statusFilter"
     />
 
     <div class="toolbar">
       <div class="main-actions">
-        <KitBtn v-if="!readonly" icon="mdi:plus" variant="solid" @click="openTransactionForm()">
+        <KitBtn
+          v-if="!readonly"
+          icon="mdi:plus"
+          variant="solid"
+          size="sm"
+          @click="openTransactionForm()"
+        >
           Добавить трату
         </KitBtn>
         <KitBtn
@@ -322,6 +329,7 @@ onClickOutside(dateFilterWrapperRef, () => {
           variant="tonal"
           :class="{ active: isAiCreatorOpen }"
           title="Быстрый ввод списка трат через AI или распознавание чека"
+          size="sm"
           @click="isAiCreatorOpen = !isAiCreatorOpen"
         >
           Чек / AI-ввод
@@ -329,8 +337,20 @@ onClickOutside(dateFilterWrapperRef, () => {
       </div>
 
       <div class="secondary-actions">
-        <KitBtn v-if="!readonly" icon="mdi:tag-outline" variant="tonal" title="Управление категориями" @click="handleOpenCategoryManager" />
-        <KitBtn v-if="!readonly" icon="mdi:cog-outline" variant="tonal" title="Настройки" @click="isSettingsOpen = true" />
+        <KitBtn
+          v-if="!readonly"
+          size="sm" icon="mdi:tag-outline"
+          variant="tonal"
+          title="Управление категориями"
+          @click="handleOpenCategoryManager"
+        />
+        <KitBtn
+          v-if="!readonly"
+          size="sm" icon="mdi:cog-outline"
+          variant="tonal"
+          title="Настройки"
+          @click="isSettingsOpen = true"
+        />
       </div>
     </div>
 
@@ -360,6 +380,7 @@ onClickOutside(dateFilterWrapperRef, () => {
       :transaction="transactionToEdit"
       :categories="categories"
       :main-currency="settings.mainCurrency"
+      :exchange-rates="settings.exchangeRates"
       @save="saveTransaction"
       @open-category-manager="handleOpenCategoryManager"
     />
@@ -367,6 +388,8 @@ onClickOutside(dateFilterWrapperRef, () => {
     <CategoryManagerDialog
       v-model:visible="isCategoryManagerOpen"
       :categories="categories"
+      :main-currency="settings.mainCurrency"
+      :total-budget="settings.totalBudget"
       @save="saveCategory"
       @delete="deleteCategory"
     />

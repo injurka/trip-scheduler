@@ -163,7 +163,6 @@ function handleCancel() {
           <div class="option-content">
             <div class="option-header">
               <span class="option-title">Медиа и фотографии</span>
-              <span class="option-tag tag-media">Фото и галереи</span>
             </div>
             <span class="option-description">Обложки, фотографии дней, галереи и аватары</span>
           </div>
@@ -193,7 +192,6 @@ function handleCancel() {
           <div class="option-content">
             <div class="option-header">
               <span class="option-title">Заметки поездки</span>
-              <span class="option-tag tag-notes">Заметки и списки</span>
             </div>
             <span class="option-description">Текстовые заметки, списки дел и вложенные фото</span>
           </div>
@@ -223,7 +221,6 @@ function handleCancel() {
           <div class="option-content">
             <div class="option-header">
               <span class="option-title">Документы и билеты</span>
-              <span class="option-tag tag-docs">PDF и ваучеры</span>
             </div>
             <span class="option-description">PDF-ваучеры, бронирования отелей, билеты и файлы</span>
           </div>
@@ -257,9 +254,6 @@ function handleCancel() {
           <div class="option-content">
             <div class="option-header">
               <span class="option-title">Карта зоны маршрута</span>
-              <span class="option-tag tag-map">
-                {{ hasCoordinates ? 'Векторные тайлы' : 'Недоступно' }}
-              </span>
             </div>
             <span class="option-description">
               {{ hasCoordinates ? 'Векторные тайлы и рельеф зоны поездки (зум 10–15)' : 'В маршруте нет гео-точек для скачивания' }}
@@ -530,36 +524,6 @@ function handleCancel() {
         text-overflow: ellipsis;
         white-space: nowrap;
       }
-
-      .option-tag {
-        font-size: 0.72rem;
-        font-weight: 600;
-        padding: 2px 7px;
-        border-radius: 6px;
-        letter-spacing: 0.01em;
-        white-space: nowrap;
-        flex-shrink: 0;
-
-        &.tag-media {
-          background: rgba(139, 92, 246, 0.12);
-          color: #c4b5fd;
-        }
-
-        &.tag-notes {
-          background: rgba(245, 158, 11, 0.12);
-          color: #fcd34d;
-        }
-
-        &.tag-docs {
-          background: rgba(16, 185, 129, 0.12);
-          color: #6ee7b7;
-        }
-
-        &.tag-map {
-          background: rgba(14, 165, 233, 0.12);
-          color: #7dd3fc;
-        }
-      }
     }
 
     .option-description {
@@ -672,11 +636,6 @@ function handleCancel() {
         .option-title {
           font-size: 0.88rem;
           white-space: normal;
-        }
-
-        .option-tag {
-          font-size: 0.68rem;
-          padding: 1px 5px;
         }
       }
 

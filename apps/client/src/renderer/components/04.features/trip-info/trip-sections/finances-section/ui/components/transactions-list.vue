@@ -1,8 +1,10 @@
 <script setup lang="ts">
 import type { Category, FinancesSettings, Transaction } from '../../models/types'
+import type { KitDropdownItem } from '~/components/01.kit/kit-dropdown'
 import { Icon } from '@iconify/vue'
 import { computed, ref } from 'vue'
 import { KitBtn } from '~/components/01.kit/kit-btn'
+import { KitDropdown } from '~/components/01.kit/kit-dropdown'
 import { KitInput } from '~/components/01.kit/kit-input'
 import { KitTooltip } from '~/components/01.kit/kit-tooltip'
 import { useCurrencyFormatter } from '../../composables/use-currency-formatter'
@@ -56,6 +58,15 @@ function getTxWord(count: number): string {
   if (mod10 >= 2 && mod10 <= 4)
     return 'траты'
   return 'трат'
+}
+
+function getTxStatusTooltip(tx: Transaction): string {
+  if (props.readonly) {
+    return tx.status === 'planned' ? 'В планах (к оплате)' : 'Оплачено'
+  }
+  return tx.status === 'planned'
+    ? 'В планах (к оплате). Нажмите, чтобы отметить оплаченным.'
+    : 'Оплачено. Нажмите, чтобы вернуть в статус «В планах».'
 }
 
 const searchedTransactions = computed(() => {
@@ -129,6 +140,53 @@ const groupedTransactions = computed<DayGroup[]>(() => {
 const totalSearchedAmount = computed(() => {
   return searchedTransactions.value.reduce((sum, tx) => sum + getAmountInMainCurrency(tx), 0)
 })
+
+function getTransactionActions(tx: Transaction): KitDropdownItem[] {
+  const items: KitDropdownItem[] = []
+
+  if (tx.status === 'planned') {
+    items.push({
+      value: 'toggle-status',
+      label: 'Отметить как оплаченное',
+      icon: 'mdi:check-circle-outline',
+    })
+  }
+  else {
+    items.push({
+      value: 'toggle-status',
+      label: 'Перенести в планы',
+      icon: 'mdi:clock-outline',
+    })
+  }
+
+  items.push(
+    {
+      value: 'edit',
+      label: 'Редактировать',
+      icon: 'mdi:pencil-outline',
+    },
+    {
+      value: 'delete',
+      label: 'Удалить',
+      icon: 'mdi:trash-can-outline',
+      isDestructive: true,
+    },
+  )
+
+  return items
+}
+
+function handleTransactionAction(action: string, tx: Transaction) {
+  if (action === 'toggle-status') {
+    emit('toggleStatus', tx.id)
+  }
+  else if (action === 'edit') {
+    emit('editTransaction', tx)
+  }
+  else if (action === 'delete') {
+    emit('deleteTransaction', tx.id)
+  }
+}
 </script>
 
 <template>
@@ -187,35 +245,27 @@ const totalSearchedAmount = computed(() => {
             class="transaction-item"
           >
             <div class="item-main">
-              <div class="item-icon" :class="{ 'is-spontaneous': tx.isSpontaneous }">
-                <Icon :icon="getCategory(tx.categoryId, categories)?.icon || 'mdi:help-rhombus-outline'" />
-              </div>
+              <KitTooltip
+                class="item-icon-tooltip"
+                :text="getTxStatusTooltip(tx)"
+              >
+                <button
+                  type="button"
+                  class="item-icon"
+                  :class="[
+                    tx.status === 'planned' ? 'planned' : 'paid',
+                    { 'is-spontaneous': tx.isSpontaneous, 'is-clickable': !props.readonly },
+                  ]"
+                  :disabled="props.readonly"
+                  :aria-label="tx.status === 'planned' ? 'В планах' : 'Оплачено'"
+                  @click.stop="!props.readonly && emit('toggleStatus', tx.id)"
+                >
+                  <Icon :icon="getCategory(tx.categoryId, categories)?.icon || 'mdi:help-rhombus-outline'" />
+                </button>
+              </KitTooltip>
               <div class="item-details">
                 <div class="item-title-row">
                   <span class="item-title">{{ tx.title }}</span>
-
-                  <KitTooltip v-if="statusFilter === 'all' && tx.status === 'planned'" text="В планах (к оплате). Нажмите, чтобы отметить оплаченным.">
-                    <button
-                      type="button"
-                      class="status-badge planned"
-                      :disabled="props.readonly"
-                      @click.stop="!props.readonly && emit('toggleStatus', tx.id)"
-                    >
-                      <Icon icon="mdi:clock-outline" />
-                      <span>В планах</span>
-                    </button>
-                  </KitTooltip>
-                  <KitTooltip v-else-if="statusFilter === 'all'" text="Оплачено. Нажмите, чтобы вернуть в статус «В планах».">
-                    <button
-                      type="button"
-                      class="status-badge paid"
-                      :disabled="props.readonly"
-                      @click.stop="!props.readonly && emit('toggleStatus', tx.id)"
-                    >
-                      <Icon icon="mdi:check-circle-outline" />
-                      <span>Оплачено</span>
-                    </button>
-                  </KitTooltip>
 
                   <KitTooltip v-if="tx.isSpontaneous" text="Спонтанная/дополнительная трата">
                     <span class="spontaneous-badge">
@@ -244,33 +294,23 @@ const totalSearchedAmount = computed(() => {
                   ~{{ getConvertedAmountInMainCurrency(tx) }}
                 </span>
               </div>
-              <div v-if="!props.readonly" class="item-actions">
-                <KitBtn
-                  v-if="tx.status === 'planned'"
-                  icon="mdi:check-circle-outline"
-                  variant="tonal"
-                  color="secondary"
+              <div v-if="!props.readonly" class="item-actions" @click.stop>
+                <KitDropdown
+                  :items="getTransactionActions(tx)"
+                  align="end"
                   size="sm"
-                  class="mark-paid-btn"
-                  title="Отметить как оплаченное"
-                  @click="emit('toggleStatus', tx.id)"
-                />
-                <KitBtn
-                  icon="mdi:pencil-outline"
-                  variant="text"
-                  color="secondary"
-                  size="sm"
-                  title="Редактировать"
-                  @click="emit('editTransaction', tx)"
-                />
-                <KitBtn
-                  icon="mdi:trash-can-outline"
-                  variant="text"
-                  color="secondary"
-                  size="sm"
-                  title="Удалить"
-                  @click="emit('deleteTransaction', tx.id)"
-                />
+                  @update:model-value="(val) => handleTransactionAction(val as string, tx)"
+                >
+                  <template #trigger>
+                    <KitBtn
+                      icon="mdi:dots-vertical"
+                      variant="text"
+                      color="secondary"
+                      size="sm"
+                      title="Действия"
+                    />
+                  </template>
+                </KitDropdown>
               </div>
             </div>
           </div>
@@ -495,6 +535,10 @@ const totalSearchedAmount = computed(() => {
   min-width: 0;
 }
 
+.item-icon-tooltip {
+  flex-shrink: 0;
+}
+
 .item-icon {
   width: 36px;
   height: 36px;
@@ -507,11 +551,54 @@ const totalSearchedAmount = computed(() => {
   border: 1px solid var(--border-secondary-color);
   color: var(--fg-secondary-color);
   flex-shrink: 0;
+  padding: 0;
+  margin: 0;
+  outline: none;
+  font-family: inherit;
+  line-height: 1;
+  transition: all 0.15s ease;
+
+  &.is-clickable {
+    cursor: pointer;
+
+    &:hover {
+      transform: scale(1.05);
+    }
+
+    &:active {
+      transform: scale(0.95);
+    }
+  }
+
+  &:disabled {
+    cursor: default;
+  }
+
+  &.planned {
+    color: #3b82f6;
+    background-color: color-mix(in srgb, #3b82f6 12%, transparent);
+    border-color: color-mix(in srgb, #3b82f6 30%, transparent);
+
+    &.is-clickable:hover {
+      background-color: color-mix(in srgb, #3b82f6 20%, transparent);
+      border-color: color-mix(in srgb, #3b82f6 45%, transparent);
+    }
+  }
+
+  &.paid {
+    color: #10b981;
+    background-color: color-mix(in srgb, #10b981 12%, transparent);
+    border-color: color-mix(in srgb, #10b981 25%, transparent);
+
+    &.is-clickable:hover {
+      background-color: color-mix(in srgb, #10b981 20%, transparent);
+      border-color: color-mix(in srgb, #10b981 40%, transparent);
+    }
+  }
 
   &.is-spontaneous {
-    color: #bd10e0;
-    background-color: color-mix(in srgb, #bd10e0 12%, transparent);
-    border: 1px dashed color-mix(in srgb, #bd10e0 40%, transparent);
+    border-style: dashed;
+    border-width: 1.5px;
   }
 }
 
@@ -548,47 +635,6 @@ const totalSearchedAmount = computed(() => {
   padding: 1px 6px;
   border-radius: 9999px;
   flex-shrink: 0;
-}
-
-.status-badge {
-  display: inline-flex;
-  align-items: center;
-  gap: 3px;
-  font-size: 0.68rem;
-  font-weight: 600;
-  padding: 1px 7px;
-  border-radius: 9999px;
-  border: 1px solid transparent;
-  cursor: pointer;
-  background: none;
-  font-family: inherit;
-  line-height: 1.4;
-  transition: all 0.15s ease;
-  flex-shrink: 0;
-
-  &:disabled {
-    cursor: default;
-  }
-
-  &.planned {
-    color: #2563eb;
-    background-color: color-mix(in srgb, #3b82f6 12%, transparent);
-    border-color: color-mix(in srgb, #3b82f6 30%, transparent);
-
-    &:not(:disabled):hover {
-      background-color: color-mix(in srgb, #3b82f6 24%, transparent);
-    }
-  }
-
-  &.paid {
-    color: #059669;
-    background-color: color-mix(in srgb, #10b981 12%, transparent);
-    border-color: color-mix(in srgb, #10b981 25%, transparent);
-
-    &:not(:disabled):hover {
-      background-color: color-mix(in srgb, #10b981 24%, transparent);
-    }
-  }
 }
 
 .item-meta-row {
@@ -650,16 +696,8 @@ const totalSearchedAmount = computed(() => {
 .item-actions {
   display: flex;
   align-items: center;
-  gap: 0.15rem;
   opacity: 0.6;
   transition: opacity 0.2s;
-
-  .mark-paid-btn {
-    color: #059669;
-    &:hover {
-      background-color: color-mix(in srgb, #10b981 15%, transparent);
-    }
-  }
 }
 
 .empty-state,

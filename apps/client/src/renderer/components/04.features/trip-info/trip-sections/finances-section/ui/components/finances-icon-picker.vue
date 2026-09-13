@@ -3,9 +3,15 @@ import { IconPicker } from '~/components/02.shared/icon-picker'
 
 interface Props {
   disabled?: boolean
+  size?: 'sm' | 'md' | 'lg'
+  chevron?: boolean
 }
 
-const props = defineProps<Props>()
+const props = withDefaults(defineProps<Props>(), {
+  disabled: false,
+  size: 'md',
+  chevron: false,
+})
 
 const model = defineModel<string>({ required: true })
 const { smAndDown: isMobile } = useDisplay()
@@ -16,7 +22,8 @@ const { smAndDown: isMobile } = useDisplay()
     v-model="model"
     :mode="isMobile ? 'modal' : 'dropdown'"
     :disabled="props.disabled"
-    size="lg"
+    :size="props.size"
+    :chevron="props.chevron"
     align="center"
   />
 </template>

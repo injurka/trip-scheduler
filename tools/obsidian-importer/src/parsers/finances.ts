@@ -11,6 +11,7 @@ const DEFAULT_CATEGORIES: FinanceCategory[] = [
   { id: 'cat-food', name: 'Еда и напитки', icon: 'mdi:food-fork-drink', isDefault: true },
   { id: 'cat-entertainment', name: 'Развлечения', icon: 'mdi:party-popper', isDefault: true },
   { id: 'cat-shopping', name: 'Покупки', icon: 'mdi:shopping-outline', isDefault: true },
+  { id: 'cat-telecom', name: 'Связь и страховка', icon: 'mdi:cellphone-wireless', isDefault: true },
   { id: 'cat-other', name: 'Прочее', icon: 'mdi:dots-horizontal-circle-outline', isDefault: true },
 ]
 
@@ -115,6 +116,8 @@ function categoryFor(text: string): string {
     return 'cat-food'
   if (/билет|активност|экскурси|музе|парк|снорклинг|достопримеч|геопарк/i.test(text))
     return 'cat-entertainment'
+  if (/связь|интернет|esim|sim-карт|сим|страховк|полис/i.test(text))
+    return 'cat-telecom'
   if (/сувенир|подарк|покупк|шопинг|чай|резерв/i.test(text))
     return 'cat-shopping'
   if (/виз|evisa|сбор/i.test(text))

@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { arrow, autoUpdate, flip, offset, shift, useFloating } from '@floating-ui/vue'
-import { useMediaQuery } from '@vueuse/core'
+import { onClickOutside, useMediaQuery } from '@vueuse/core'
 
 interface Props {
   text?: string
@@ -15,6 +15,7 @@ const props = withDefaults(defineProps<Props>(), {
 
 const slots = useSlots()
 
+const wrapperRef = ref<HTMLElement | null>(null)
 const referenceRef = ref<HTMLElement | null>(null)
 const floatingRef = ref<HTMLElement | null>(null)
 const arrowRef = ref<HTMLElement | null>(null)
@@ -45,10 +46,55 @@ function show() {
   }, 200)
 }
 
+function showImmediately() {
+  if (props.disabled || (!props.text && !slots.content))
+    return
+  clearTimeout(timeout)
+  isVisible.value = true
+}
+
 function hide() {
   clearTimeout(timeout)
   isVisible.value = false
 }
+
+function handleFocusIn() {
+  if (props.disabled || (!props.text && !slots.content))
+    return
+  clearTimeout(timeout)
+  timeout = setTimeout(() => {
+    isVisible.value = true
+  }, 200)
+}
+
+function handleClick(event: MouseEvent) {
+  if (props.disabled || (!props.text && !slots.content))
+    return
+
+  const target = event.target as HTMLElement | null
+  const isInteractive = Boolean(target?.closest('button, a, input, select, textarea, [role="button"]'))
+
+  if (isInteractive) {
+    hide()
+    return
+  }
+
+  if (isVisible.value) {
+    hide()
+  }
+  else {
+    showImmediately()
+  }
+}
+
+onClickOutside(
+  wrapperRef,
+  () => {
+    if (isVisible.value)
+      hide()
+  },
+  { ignore: [floatingRef] },
+)
 
 const floatingStyle = computed(() => {
   const isPositioned = x.value != null && y.value != null
@@ -87,12 +133,13 @@ onUnmounted(() => {
 
 <template>
   <div
+    ref="wrapperRef"
     class="kit-tooltip-wrapper"
     @mouseenter="show"
     @mouseleave="hide"
-    @focusin="show"
+    @focusin="handleFocusIn"
     @focusout="hide"
-    @click="hide"
+    @click="handleClick"
   >
     <div ref="referenceRef" class="kit-tooltip-trigger">
       <slot />

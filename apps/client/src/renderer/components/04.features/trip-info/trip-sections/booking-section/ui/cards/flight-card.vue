@@ -218,7 +218,7 @@ function updateSegmentField<K extends keyof FlightSegment>(segmentIndex: number,
           {{ totalDurationFormatted }}
         </div>
         <div class="route-line">
-          <template v-for="(part) in journeySegments" :key="part.tooltip">
+          <template v-for="(part, index) in journeySegments" :key="`${part.type}-${index}`">
             <KitTooltip
               class="journey-part-tooltip"
               :text="part.tooltip"
@@ -475,6 +475,7 @@ function updateSegmentField<K extends keyof FlightSegment>(segmentIndex: number,
   width: 100%;
   height: 100%;
   transition: filter 0.2s ease;
+  cursor: pointer;
 
   &.part-flight {
     background-color: var(--fg-accent-color);
@@ -492,13 +493,12 @@ function updateSegmentField<K extends keyof FlightSegment>(segmentIndex: number,
       transparent 100%
     );
     background-size: 8px 8px;
-    cursor: pointer;
   }
 }
 
 .journey-part-tooltip {
   display: block;
-  height: 16px;
+  height: 20px;
   flex-shrink: 0;
 
   :deep(.kit-tooltip-trigger) {
@@ -508,7 +508,7 @@ function updateSegmentField<K extends keyof FlightSegment>(segmentIndex: number,
 
   :deep(.journey-part) {
     height: 2px;
-    margin-block: 7px;
+    margin-block: 9px;
   }
 }
 
@@ -522,6 +522,7 @@ function updateSegmentField<K extends keyof FlightSegment>(segmentIndex: number,
   font-size: 1.2rem;
   line-height: 1;
   transform: translateX(-50%);
+  pointer-events: none;
 }
 
 .airports {

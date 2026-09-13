@@ -3,7 +3,7 @@ import type { ViewSwitcherItem } from '~/components/01.kit/kit-view-switcher'
 import { Icon } from '@iconify/vue'
 import { useMutationObserver } from '@vueuse/core'
 import { ArcElement, BarElement, CategoryScale, Chart as ChartJS, Legend, LinearScale, Title, Tooltip } from 'chart.js'
-import { computed, onMounted, ref } from 'vue'
+import { computed, onMounted, onUnmounted, ref } from 'vue'
 import { Bar, Doughnut } from 'vue-chartjs'
 import { KitViewSwitcher } from '~/components/01.kit/kit-view-switcher'
 import { useCurrencyFormatter } from '../../composables/use-currency-formatter'
@@ -28,6 +28,7 @@ interface Props {
   plannedTotal: number
   spontaneousTotal: number
   filteredTotal: number
+  statusFilter?: 'all' | 'paid' | 'planned'
 }
 
 const props = defineProps<Props>()
@@ -37,7 +38,6 @@ ChartJS.register(Title, Tooltip, Legend, ArcElement, CategoryScale, BarElement, 
 const { format: formatCurrency } = useCurrencyFormatter()
 
 const currentView = ref<'category' | 'day'>('category')
-const chartMode = ref<'fact' | 'plan'>('fact')
 const hoveredIndex = ref<number | null>(null)
 
 const viewSwitcherItems: ViewSwitcherItem<'category' | 'day'>[] = [
@@ -167,16 +167,67 @@ const hoveredCategory = computed(() => {
 })
 
 const isDoughnutPlanMode = computed(() => {
-  return chartMode.value === 'plan'
+  return props.statusFilter === 'planned'
 })
 
-const doughnutChartItems = computed(() => {
-  const isPlan = isDoughnutPlanMode.value
+function getCategoryActiveAmount(cat: CategorySpendingItem): number {
+  if (props.statusFilter === 'planned') {
+    return cat.plannedAmount || cat.amount
+  }
+  if (props.statusFilter === 'paid') {
+    return cat.paidAmount !== undefined ? cat.paidAmount : cat.amount
+  }
+  if (isDoughnutPlanMode.value) {
+    return (cat.paidAmount || 0) + (cat.plannedAmount || 0) || cat.amount
+  }
+  return cat.paidAmount !== undefined ? cat.paidAmount : cat.amount
+}
 
+function getCategoryBudgetPercent(cat: CategorySpendingItem): number {
+  if (!cat.budgetLimit || cat.budgetLimit <= 0)
+    return 0
+  const activeAmount = getCategoryActiveAmount(cat)
+  return Math.round((activeAmount / cat.budgetLimit) * 100)
+}
+
+function isCategoryOverBudget(cat: CategorySpendingItem): boolean {
+  if (!cat.budgetLimit || cat.budgetLimit <= 0)
+    return false
+  return getCategoryActiveAmount(cat) > cat.budgetLimit
+}
+
+function getCategoryAmountTitle(cat: CategorySpendingItem): string | undefined {
+  if (props.statusFilter === 'planned') {
+    return cat.budgetLimit
+      ? `В планах: ${formatCurrency(cat.plannedAmount || cat.amount, props.mainCurrency)} (лимит: ${formatCurrency(cat.budgetLimit, props.mainCurrency)})`
+      : `В планах: ${formatCurrency(cat.amount, props.mainCurrency)}`
+  }
+  if (props.statusFilter === 'paid') {
+    return cat.budgetLimit
+      ? `Оплачено: ${formatCurrency(cat.paidAmount || cat.amount, props.mainCurrency)} (лимит: ${formatCurrency(cat.budgetLimit, props.mainCurrency)})`
+      : `Оплачено: ${formatCurrency(cat.amount, props.mainCurrency)}`
+  }
+  return cat.budgetLimit
+    ? `Оплачено: ${formatCurrency(cat.paidAmount || 0, props.mainCurrency)}${cat.plannedAmount ? `, в планах: ${formatCurrency(cat.plannedAmount, props.mainCurrency)}` : ''}, лимит: ${formatCurrency(cat.budgetLimit, props.mainCurrency)}`
+    : `Всего: ${formatCurrency(cat.amount, props.mainCurrency)}`
+}
+
+const doughnutChartItems = computed(() => {
   return props.spendingByCategory.map((cat, i) => {
-    const val = isPlan
-      ? (cat.budgetLimit || cat.plannedAmount || cat.amount)
-      : (cat.paidAmount !== undefined ? cat.paidAmount : cat.amount)
+    let val = 0
+    if (props.statusFilter === 'planned') {
+      val = cat.plannedAmount || cat.amount
+    }
+    else if (props.statusFilter === 'paid') {
+      val = cat.paidAmount !== undefined ? cat.paidAmount : cat.amount
+    }
+    else if (isDoughnutPlanMode.value) {
+      val = cat.budgetLimit || ((cat.paidAmount || 0) + (cat.plannedAmount || 0)) || cat.amount
+    }
+    else {
+      val = cat.paidAmount !== undefined ? cat.paidAmount : cat.amount
+    }
+
     return {
       name: cat.name,
       value: val,
@@ -211,9 +262,74 @@ const doughnutChartData = computed(() => {
 const hasDoughnutData = computed(() => doughnutChartData.value.datasets[0].data.length > 0)
 
 const emptyChartMessage = computed(() => {
+  if (props.statusFilter === 'planned')
+    return 'Нет запланированных трат для отображения.'
+  if (props.statusFilter === 'paid')
+    return 'Нет оплаченных трат для отображения.'
   return isDoughnutPlanMode.value
     ? 'Нет данных для плановой диаграммы.'
     : 'Нет оплаченных трат для отображения факта.'
+})
+
+function externalTooltipHandler(context: { chart: any, tooltip: any }) {
+  const { chart, tooltip } = context
+  const parent = chart.canvas?.parentNode
+  if (!parent)
+    return
+
+  let tooltipEl = parent.querySelector('.chartjs-custom-tooltip') as HTMLElement | null
+
+  if (!tooltipEl) {
+    tooltipEl = document.createElement('div')
+    tooltipEl.className = 'chartjs-custom-tooltip'
+    parent.appendChild(tooltipEl)
+  }
+
+  if (tooltip.opacity === 0) {
+    tooltipEl.style.opacity = '0'
+    return
+  }
+
+  if (tooltip.body) {
+    const titleLines = tooltip.title || []
+    const bodyLines = tooltip.body.map((b: any) => b.lines)
+
+    let innerHtml = ''
+    titleLines.forEach((title: string) => {
+      innerHtml += `<div class="tooltip-title">${title}</div>`
+    })
+    bodyLines.forEach((body: string[]) => {
+      innerHtml += `<div class="tooltip-body">${body.join('<br>')}</div>`
+    })
+    tooltipEl.innerHTML = innerHtml
+  }
+
+  const { offsetLeft: positionX, offsetTop: positionY } = chart.canvas
+
+  tooltipEl.style.opacity = '1'
+  tooltipEl.style.position = 'absolute'
+  tooltipEl.style.left = `${positionX + tooltip.caretX}px`
+  tooltipEl.style.top = `${positionY + tooltip.caretY}px`
+
+  if (tooltip.yAlign === 'top') {
+    tooltipEl.style.transform = 'translate(-50%, 10px)'
+  }
+  else if (tooltip.yAlign === 'bottom') {
+    tooltipEl.style.transform = 'translate(-50%, calc(-100% - 10px))'
+  }
+  else if (tooltip.xAlign === 'left') {
+    tooltipEl.style.transform = 'translate(10px, -50%)'
+  }
+  else if (tooltip.xAlign === 'right') {
+    tooltipEl.style.transform = 'translate(calc(-100% - 10px), -50%)'
+  }
+  else {
+    tooltipEl.style.transform = 'translate(-50%, calc(-100% - 10px))'
+  }
+}
+
+onUnmounted(() => {
+  document.querySelectorAll('.chartjs-custom-tooltip').forEach(el => el.remove())
 })
 
 const doughnutChartOptions = computed(() => ({
@@ -225,18 +341,21 @@ const doughnutChartOptions = computed(() => ({
       display: false,
     },
     tooltip: {
-      enabled: true,
-      backgroundColor: 'rgba(25, 20, 25, 0.92)',
-      padding: 10,
-      cornerRadius: 8,
-      titleFont: { size: 12 },
-      bodyFont: { size: 13, weight: 'bold' as const },
+      enabled: false,
+      external: externalTooltipHandler,
       callbacks: {
+        title: (items: any[]) => {
+          if (!items || items.length === 0)
+            return ''
+          return items[0].label || ''
+        },
         label: (context: any) => {
           const val = context.parsed || 0
-          const base = isDoughnutPlanMode.value ? effectiveOverallBudget.value : (effectivePaidTotal.value || 1)
+          const base = props.statusFilter === 'planned'
+            ? (effectivePlannedTotal.value || 1)
+            : (isDoughnutPlanMode.value ? effectiveOverallBudget.value : (effectivePaidTotal.value || 1))
           const pct = Number(((val / (base || 1)) * 100).toFixed(1))
-          return ` ${formatCurrency(val, props.mainCurrency)} (${pct}%)`
+          return `${formatCurrency(val, props.mainCurrency)} (${pct}%)`
         },
       },
     },
@@ -454,36 +573,17 @@ useMutationObserver(
     <div v-if="currentView === 'category'">
       <div v-if="spendingByCategory.length > 0" class="categories-content">
         <div class="chart-wrapper">
-          <div v-if="hasBudget" class="chart-toggle-row">
-            <button
-              type="button"
-              class="chart-toggle-btn"
-              :class="{ active: chartMode === 'fact' }"
-              @click="chartMode = 'fact'"
-            >
-              Потрачено
-            </button>
-            <button
-              type="button"
-              class="chart-toggle-btn"
-              :class="{ active: chartMode === 'plan' }"
-              @click="chartMode = 'plan'"
-            >
-              Запланировано
-            </button>
-          </div>
-
           <div v-if="hasDoughnutData" class="chart-container" @mouseleave="hoveredIndex = null">
             <Doughnut :data="doughnutChartData" :options="doughnutChartOptions" />
             <div class="chart-center" :class="{ 'is-hovered': hoveredCategory !== null }">
               <span class="center-label">
-                {{ hoveredCategory ? hoveredCategory.name : (isDoughnutPlanMode ? 'Бюджет' : 'Оплачено') }}
+                {{ hoveredCategory ? hoveredCategory.name : (props.statusFilter === 'planned' ? 'В планах' : 'Оплачено') }}
               </span>
               <span class="center-amount">
-                {{ formatCurrency(hoveredCategory ? (isDoughnutPlanMode ? (hoveredCategory.budgetLimit || hoveredCategory.amount) : (hoveredCategory.paidAmount ?? hoveredCategory.amount)) : (isDoughnutPlanMode ? effectiveOverallBudget : effectivePaidTotal), mainCurrency) }}
+                {{ formatCurrency(hoveredCategory ? (props.statusFilter === 'planned' || props.statusFilter === 'paid' ? hoveredCategory.amount : getCategoryActiveAmount(hoveredCategory)) : (props.statusFilter === 'planned' ? effectivePlannedTotal : effectivePaidTotal), mainCurrency) }}
               </span>
               <span class="center-meta">
-                {{ hoveredCategory ? (hoveredCategory.budgetLimit ? `${Math.round(((hoveredCategory.paidAmount || 0) / (hoveredCategory.budgetLimit || 1)) * 100)}% плана` : `${getCategoryPercent(hoveredCategory.amount)}%`) : `${spendingByCategory.length} ${getCategoryWord(spendingByCategory.length)}` }}
+                {{ hoveredCategory ? `${getCategoryPercent(hoveredCategory.amount)}%` : `${spendingByCategory.length} ${getCategoryWord(spendingByCategory.length)}` }}
               </span>
             </div>
           </div>
@@ -511,20 +611,20 @@ useMutationObserver(
                 <span class="legend-title" :title="cat.name">{{ cat.name }}</span>
                 <div class="legend-values">
                   <span
-                    v-if="cat.budgetLimit && cat.budgetLimit > 0"
+                    v-if="(!props.statusFilter || props.statusFilter === 'all') && cat.budgetLimit && cat.budgetLimit > 0"
                     class="legend-percentage"
-                    :class="{ 'is-over': (cat.paidAmount || 0) > cat.budgetLimit }"
+                    :class="{ 'is-over': isCategoryOverBudget(cat) }"
                   >
-                    {{ Math.round(((cat.paidAmount || 0) / cat.budgetLimit) * 100) }}%
+                    {{ getCategoryBudgetPercent(cat) }}%
                   </span>
                   <span v-else class="legend-percentage">{{ getCategoryPercent(cat.amount) }}%</span>
                   <span class="legend-separator" />
                   <span
                     class="legend-amount"
-                    :title="cat.budgetLimit ? `Оплачено: ${formatCurrency(cat.paidAmount || 0, mainCurrency)}${cat.plannedAmount ? `, в планах: ${formatCurrency(cat.plannedAmount, mainCurrency)}` : ''}, лимит: ${formatCurrency(cat.budgetLimit, mainCurrency)}` : undefined"
+                    :title="getCategoryAmountTitle(cat)"
                   >
-                    <template v-if="cat.budgetLimit && cat.budgetLimit > 0">
-                      {{ formatCurrency(cat.paidAmount || 0, mainCurrency) }} / {{ formatCurrency(cat.budgetLimit, mainCurrency) }}
+                    <template v-if="(!props.statusFilter || props.statusFilter === 'all') && cat.budgetLimit && cat.budgetLimit > 0">
+                      {{ formatCurrency(getCategoryActiveAmount(cat), mainCurrency) }} / {{ formatCurrency(cat.budgetLimit, mainCurrency) }}
                     </template>
                     <template v-else>
                       {{ formatCurrency(cat.amount, mainCurrency) }}
@@ -533,25 +633,37 @@ useMutationObserver(
                 </div>
               </div>
               <div class="legend-progress-track">
-                <div
-                  class="legend-progress-fill"
-                  :class="{ 'is-over': cat.budgetLimit && (cat.paidAmount || 0) > cat.budgetLimit }"
-                  :style="{
-                    width: `${cat.budgetLimit && cat.budgetLimit > 0 ? Math.min(100, Math.round(((cat.paidAmount || 0) / cat.budgetLimit) * 100)) : getCategoryPercent(cat.amount)}%`,
-                    backgroundColor: (cat.budgetLimit && (cat.paidAmount || 0) > cat.budgetLimit) ? '#EF4444' : getCategoryColor(cat.colorIndex ?? index),
-                  }"
-                  :title="`Оплачено: ${formatCurrency(cat.paidAmount || 0, mainCurrency)}`"
-                />
-                <div
-                  v-if="cat.budgetLimit && cat.budgetLimit > 0 && (cat.plannedAmount || 0) > 0"
-                  class="legend-progress-planned"
-                  :class="{ 'is-over': ((cat.paidAmount || 0) + (cat.plannedAmount || 0)) > cat.budgetLimit }"
-                  :style="{
-                    width: `${Math.min(100 - Math.min(100, Math.round(((cat.paidAmount || 0) / cat.budgetLimit) * 100)), Math.round(((cat.plannedAmount || 0) / cat.budgetLimit) * 100))}%`,
-                    backgroundColor: ((cat.paidAmount || 0) + (cat.plannedAmount || 0)) > cat.budgetLimit ? '#F87171' : getCategoryColor(cat.colorIndex ?? index),
-                  }"
-                  :title="`В планах: ${formatCurrency(cat.plannedAmount || 0, mainCurrency)}`"
-                />
+                <template v-if="props.statusFilter === 'planned' || props.statusFilter === 'paid'">
+                  <div
+                    class="legend-progress-fill"
+                    :style="{
+                      width: `${getCategoryPercent(cat.amount)}%`,
+                      backgroundColor: getCategoryColor(cat.colorIndex ?? index),
+                    }"
+                    :title="getCategoryAmountTitle(cat)"
+                  />
+                </template>
+                <template v-else>
+                  <div
+                    class="legend-progress-fill"
+                    :class="{ 'is-over': cat.budgetLimit && (cat.paidAmount || 0) > cat.budgetLimit }"
+                    :style="{
+                      width: `${cat.budgetLimit && cat.budgetLimit > 0 ? Math.min(100, Math.round(((cat.paidAmount || 0) / cat.budgetLimit) * 100)) : getCategoryPercent(cat.amount)}%`,
+                      backgroundColor: (cat.budgetLimit && (cat.paidAmount || 0) > cat.budgetLimit) ? '#EF4444' : getCategoryColor(cat.colorIndex ?? index),
+                    }"
+                    :title="`Оплачено: ${formatCurrency(cat.paidAmount || 0, mainCurrency)}`"
+                  />
+                  <div
+                    v-if="cat.budgetLimit && cat.budgetLimit > 0 && (cat.plannedAmount || 0) > 0"
+                    class="legend-progress-planned"
+                    :class="{ 'is-over': ((cat.paidAmount || 0) + (cat.plannedAmount || 0)) > cat.budgetLimit }"
+                    :style="{
+                      width: `${Math.min(100 - Math.min(100, Math.round(((cat.paidAmount || 0) / cat.budgetLimit) * 100)), Math.round(((cat.plannedAmount || 0) / cat.budgetLimit) * 100))}%`,
+                      backgroundColor: ((cat.paidAmount || 0) + (cat.plannedAmount || 0)) > cat.budgetLimit ? '#F87171' : getCategoryColor(cat.colorIndex ?? index),
+                    }"
+                    :title="`В планах: ${formatCurrency(cat.plannedAmount || 0, mainCurrency)}`"
+                  />
+                </template>
               </div>
             </div>
           </li>
@@ -784,36 +896,6 @@ useMutationObserver(
   gap: 0.5rem;
 }
 
-.chart-toggle-row {
-  display: flex;
-  background-color: var(--bg-tertiary-color);
-  border-radius: var(--r-s);
-  padding: 2px;
-  gap: 2px;
-}
-
-.chart-toggle-btn {
-  border: none;
-  background: none;
-  padding: 2px 10px;
-  font-size: 0.72rem;
-  font-weight: 500;
-  border-radius: calc(var(--r-s) - 2px);
-  color: var(--fg-secondary-color);
-  cursor: pointer;
-  transition: all 0.15s ease;
-
-  &:hover {
-    color: var(--fg-primary-color);
-  }
-
-  &.active {
-    background-color: var(--bg-primary-color);
-    color: var(--fg-primary-color);
-    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.08);
-  }
-}
-
 .categories-content {
   display: flex;
   gap: 1.5rem;
@@ -853,6 +935,40 @@ useMutationObserver(
   }
 }
 
+:deep(.chartjs-custom-tooltip) {
+  position: absolute;
+  z-index: 20;
+  pointer-events: none;
+  transition:
+    opacity 0.15s ease,
+    transform 0.15s ease;
+  background-color: rgba(25, 20, 25, 0.95);
+  color: #ffffff;
+  border-radius: 8px;
+  padding: 5px 9px;
+  font-size: 0.75rem;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.35);
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  white-space: nowrap;
+  backdrop-filter: blur(4px);
+  text-align: center;
+  line-height: 1.3;
+
+  .tooltip-title {
+    font-size: 0.72rem;
+    font-weight: 500;
+    color: rgba(255, 255, 255, 0.8);
+    margin-bottom: 2px;
+  }
+
+  .tooltip-body {
+    font-size: 0.82rem;
+    font-weight: 700;
+    font-family: var(--font-mono);
+    color: #ffffff;
+  }
+}
+
 .chart-center {
   position: absolute;
   top: 50%;
@@ -866,6 +982,7 @@ useMutationObserver(
   pointer-events: none;
   width: 110px;
   transition: all 0.2s ease-out;
+  z-index: 1;
 
   .center-label {
     font-size: 0.72rem;
