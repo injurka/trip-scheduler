@@ -13,6 +13,8 @@ ENV PORT=8080
 
 COPY package.json bun.lock ./
 COPY apps/server/package.json ./apps/server/package.json
+COPY packages/finance-contract/package.json ./packages/finance-contract/package.json
+COPY packages/finance-contract/src ./packages/finance-contract/src
 COPY packages/track-processing/package.json ./packages/track-processing/package.json
 COPY packages/track-processing/src ./packages/track-processing/src
 COPY tools/obsidian-importer/package.json ./tools/obsidian-importer/package.json
