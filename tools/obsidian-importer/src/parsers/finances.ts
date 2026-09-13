@@ -367,7 +367,11 @@ function parseDetailed(
           title = `${col0} (${cols[1]})`
         }
 
-        const catId = /виз|evisa|сбор/i.test(title) ? 'cat-other' : currentCategory
+        const catId = /виз|evisa|сбор/i.test(title)
+          ? 'cat-other'
+          : /связь|интернет|esim|sim-карт|сим|страховк|полис/i.test(title)
+            ? 'cat-telecom'
+            : currentCategory
         const isPaid = /оплачен|paid|online/i.test(trimmed)
         const date = resolveDateFromText(trimmed, startDate)
           || findDateFromKeywords(trimmed)
@@ -390,7 +394,9 @@ function parseDetailed(
     if (bullet && amount && !/итого|подитог|сводка|средняя стоимость|текущий статус|разбивка/i.test(bullet[1])) {
       const isPaid = /оплачен|paid|online/i.test(trimmed)
       const title = bullet[1]
-      const catId = currentCategory
+      const catId = /связь|интернет|esim|sim-карт|сим|страховк|полис/i.test(title)
+        ? 'cat-telecom'
+        : currentCategory
       const date = resolveDateFromText(trimmed, startDate) || findDateFromKeywords(trimmed)
 
       result.push(makeTransaction(
@@ -466,7 +472,7 @@ export function parseObsidianFinances(
     transactions.push(...flightsSummary)
   }
 
-  // 3. Other detailed transactions (Transport, Activities, Visa, Shopping)
+  // 3. Other detailed transactions (Transport, Activities, Visa, Shopping, Telecom)
   const detailedCategories = new Set(parsedDetailed.map(t => t.categoryId))
   transactions.push(...parsedDetailed)
 
