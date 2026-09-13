@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import type { DaySummary } from '../models/types'
 import { Icon } from '@iconify/vue'
+import { computed } from 'vue'
 import { KitBtn } from '~/components/01.kit/kit-btn'
 import ActivityBreakdownList from './activity-breakdown-list.vue'
 import ActivityProgressBar from './activity-progress-bar.vue'
@@ -24,6 +25,13 @@ const emit = defineEmits<{
   (e: 'openMap', dayUtc: string): void
 }>()
 
+const formattedDateSubtitle = computed(() => {
+  if (!props.isToday)
+    return null
+  const d = new Date(`${props.summary.dayUtc}T12:00:00Z`)
+  return d.toLocaleDateString('ru-RU', { day: 'numeric', month: 'short' })
+})
+
 function handleClick() {
   emit('openMap', props.summary.dayUtc)
 }
@@ -38,11 +46,14 @@ function handleClick() {
     @click="handleClick"
     @keydown.enter="handleClick"
   >
-    <div class="day-head">
+    <header class="day-head">
       <div class="day-title-group">
         <h2 class="day-title">
           {{ props.formatDay(props.summary.dayUtc) }}
         </h2>
+        <span v-if="props.isToday && formattedDateSubtitle" class="day-subtitle">
+          {{ formattedDateSubtitle }}
+        </span>
         <span v-if="props.isToday && props.isLiveRecording" class="live-recording-badge">
           <span class="live-dot" />
           Запись
@@ -50,20 +61,34 @@ function handleClick() {
       </div>
 
       <span v-if="props.summary.firstPointTs && props.summary.lastPointTs" class="day-range">
-        <Icon icon="mdi:clock-time-four-outline" class="range-icon" />
+        <Icon icon="mdi:clock-outline" class="range-icon" />
         {{ props.formatTime(props.summary.firstPointTs) }} – {{ props.formatTime(props.summary.lastPointTs) }}
       </span>
-    </div>
+    </header>
 
     <div class="day-totals-row">
-      <div class="totals-stat">
-        <span class="stat-value">{{ props.formatDistance(props.summary.totalDistanceM) }}</span>
-        <span class="stat-label">расстояние</span>
-      </div>
-      <div class="stat-divider" />
-      <div class="totals-stat">
-        <span class="stat-value">{{ props.formatDuration(props.summary.totalDurationMs) }}</span>
-        <span class="stat-label">время в пути</span>
+      <div class="totals-stats-group">
+        <div class="totals-stat">
+          <div class="stat-icon-wrapper distance">
+            <Icon icon="mdi:map-marker-distance" />
+          </div>
+          <div class="stat-content">
+            <span class="stat-value">{{ props.formatDistance(props.summary.totalDistanceM) }}</span>
+            <span class="stat-label">дистанция</span>
+          </div>
+        </div>
+
+        <div class="stat-divider" />
+
+        <div class="totals-stat">
+          <div class="stat-icon-wrapper duration">
+            <Icon icon="mdi:timer-outline" />
+          </div>
+          <div class="stat-content">
+            <span class="stat-value">{{ props.formatDuration(props.summary.totalDurationMs) }}</span>
+            <span class="stat-label">время в пути</span>
+          </div>
+        </div>
       </div>
 
       <div class="map-action">
@@ -71,11 +96,10 @@ function handleClick() {
           variant="tonal"
           size="xs"
           color="primary"
+          icon="mdi:map-search-outline"
+          class="map-btn"
           @click.stop="handleClick"
         >
-          <template #prepend>
-            <Icon icon="mdi:map-search-outline" />
-          </template>
           На карту
         </KitBtn>
       </div>
@@ -100,6 +124,7 @@ function handleClick() {
 
 <style scoped lang="scss">
 .activity-day-card {
+  position: relative;
   background-color: var(--bg-secondary-color);
   border: 1px solid var(--border-secondary-color);
   border-radius: var(--r-m);
@@ -114,16 +139,37 @@ function handleClick() {
     transform 0.2s ease,
     box-shadow 0.2s ease;
 
-  &:hover,
+  &:hover {
+    border-color: var(--border-primary-color);
+    box-shadow: var(--s-m);
+    transform: translateY(-1px);
+
+    .map-btn {
+      color: var(--fg-accent-color);
+      background-color: var(--bg-hover-color);
+    }
+  }
+
   &:focus-visible {
     border-color: var(--border-focus-color);
-
-    box-shadow: var(--s-m);
+    box-shadow: 0 0 0 2px var(--border-focus-color);
   }
 
   &.is-today {
-    border-color: var(--border-success-color);
-    background: linear-gradient(180deg, var(--bg-hover-color) 0%, var(--bg-secondary-color) 100%);
+    border-color: var(--border-accent-color);
+    background: linear-gradient(
+      180deg,
+      rgba(var(--fg-accent-color-rgb, 255, 136, 86), 0.04) 0%,
+      var(--bg-secondary-color) 100%
+    );
+    box-shadow: 0 0 0 1px rgba(var(--fg-accent-color-rgb, 255, 136, 86), 0.15);
+
+    &:hover {
+      border-color: var(--fg-accent-color);
+      box-shadow:
+        0 0 0 1px var(--fg-accent-color),
+        var(--s-m);
+    }
   }
 
   .day-head {
@@ -131,11 +177,13 @@ function handleClick() {
     justify-content: space-between;
     align-items: center;
     gap: var(--p-s);
+    flex-wrap: wrap;
 
     .day-title-group {
       display: flex;
       align-items: center;
-      gap: 10px;
+      gap: 8px;
+      flex-wrap: wrap;
     }
 
     .day-title {
@@ -144,18 +192,31 @@ function handleClick() {
       color: var(--fg-primary-color);
       text-transform: capitalize;
       margin: 0;
+      line-height: 1.3;
+    }
+
+    .day-subtitle {
+      font-size: 0.8rem;
+      font-weight: 500;
+      color: var(--fg-secondary-color);
+      padding: 1px 7px;
+      border-radius: var(--r-2xs);
+      background-color: var(--bg-tertiary-color);
+      border: 1px solid var(--border-secondary-color);
     }
 
     .live-recording-badge {
       display: inline-flex;
       align-items: center;
       gap: 5px;
-      padding: 2px 7px;
+      padding: 2px 8px;
       border-radius: var(--r-full);
-      font-size: 0.7rem;
+      font-size: 0.72rem;
       font-weight: 600;
       background-color: var(--bg-success-color);
       color: var(--fg-success-color);
+      border: 1px solid var(--border-success-color);
+      box-shadow: 0 0 8px rgba(var(--fg-success-color-rgb, 103, 209, 116), 0.25);
 
       .live-dot {
         width: 6px;
@@ -167,15 +228,21 @@ function handleClick() {
     }
 
     .day-range {
-      display: flex;
+      display: inline-flex;
       align-items: center;
-      gap: 4px;
-      font-size: 0.8rem;
+      gap: 5px;
+      font-size: 0.78rem;
+      font-weight: 500;
       color: var(--fg-secondary-color);
       font-variant-numeric: tabular-nums;
+      padding: 2px 8px;
+      background-color: var(--bg-tertiary-color);
+      border: 1px solid var(--border-secondary-color);
+      border-radius: var(--r-full);
 
       .range-icon {
         font-size: 0.95rem;
+        color: var(--fg-secondary-color);
       }
     }
   }
@@ -183,36 +250,79 @@ function handleClick() {
   .day-totals-row {
     display: flex;
     align-items: center;
-    gap: var(--p-m);
-    padding: var(--p-xs) var(--p-s);
+    justify-content: space-between;
+    gap: var(--p-s);
+    padding: 10px 14px;
     background-color: var(--bg-tertiary-color);
+    border: 1px solid var(--border-secondary-color);
     border-radius: var(--r-s);
+    flex-wrap: wrap;
+
+    .totals-stats-group {
+      display: flex;
+      align-items: center;
+      gap: var(--p-m);
+      flex-wrap: wrap;
+    }
 
     .totals-stat {
       display: flex;
-      flex-direction: column;
+      align-items: center;
+      gap: 10px;
 
-      .stat-value {
+      .stat-icon-wrapper {
+        width: 32px;
+        height: 32px;
+        border-radius: var(--r-xs);
+        display: flex;
+        align-items: center;
+        justify-content: center;
         font-size: 1.15rem;
-        font-weight: 700;
-        color: var(--fg-primary-color);
-        font-variant-numeric: tabular-nums;
+        flex-shrink: 0;
+
+        &.distance {
+          background-color: var(--bg-info-color);
+          color: var(--fg-info-color);
+        }
+
+        &.duration {
+          background-color: var(--bg-warning-color);
+          color: var(--fg-warning-color);
+        }
       }
 
-      .stat-label {
-        font-size: 0.72rem;
-        color: var(--fg-secondary-color);
+      .stat-content {
+        display: flex;
+        flex-direction: column;
+
+        .stat-value {
+          font-size: 1.05rem;
+          font-weight: 700;
+          color: var(--fg-primary-color);
+          font-variant-numeric: tabular-nums;
+          line-height: 1.2;
+        }
+
+        .stat-label {
+          font-size: 0.72rem;
+          color: var(--fg-secondary-color);
+          line-height: 1.2;
+        }
       }
     }
 
     .stat-divider {
       width: 1px;
-      height: 28px;
+      height: 26px;
       background-color: var(--border-secondary-color);
     }
 
     .map-action {
       margin-left: auto;
+
+      .map-btn {
+        transition: all 0.2s ease;
+      }
     }
   }
 }

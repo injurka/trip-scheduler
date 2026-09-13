@@ -304,8 +304,10 @@ const activeViewMode = computed(() => props.viewMode || storedViewMode.value || 
 
 .documents-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(230px, 1fr));
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 230px), 1fr));
   gap: 14px;
+  min-width: 0;
+  width: 100%;
 
   .skeleton-doc-card {
     background-color: var(--bg-secondary-color);
@@ -314,6 +316,9 @@ const activeViewMode = computed(() => props.viewMode || storedViewMode.value || 
     overflow: hidden;
     display: flex;
     flex-direction: column;
+    min-width: 0;
+    width: 100%;
+    box-sizing: border-box;
 
     .card-preview-area {
       width: 100%;
@@ -330,6 +335,9 @@ const activeViewMode = computed(() => props.viewMode || storedViewMode.value || 
       padding: 12px;
       gap: 8px;
       flex-grow: 1;
+      min-width: 0;
+      width: 100%;
+      box-sizing: border-box;
     }
 
     .card-tags-row {
@@ -338,12 +346,16 @@ const activeViewMode = computed(() => props.viewMode || storedViewMode.value || 
       justify-content: space-between;
       gap: 6px;
       min-height: 22px;
+      min-width: 0;
+      width: 100%;
     }
 
     .card-title-box {
       display: flex;
       flex-direction: column;
       gap: 2px;
+      min-width: 0;
+      width: 100%;
     }
 
     .card-footer {

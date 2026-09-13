@@ -406,12 +406,12 @@ function handleCardClick() {
     <!-- Название и заметка -->
     <div class="row-title-area">
       <div class="row-title-line">
-        <span class="row-main-title">{{ displayName }}</span>
-        <span v-if="secondaryName" class="row-secondary-name">({{ secondaryName }})</span>
+        <span class="row-main-title" :title="displayName">{{ displayName }}</span>
+        <span v-if="secondaryName" class="row-secondary-name" :title="secondaryName">({{ secondaryName }})</span>
       </div>
-      <span v-if="document.note" class="row-note-text">
+      <span v-if="document.note" class="row-note-text" :title="document.note">
         <Icon icon="mdi:note-text-outline" width="13" height="13" />
-        {{ document.note }}
+        <span class="row-note-inner">{{ document.note }}</span>
       </span>
     </div>
 
@@ -611,6 +611,14 @@ function handleCardClick() {
   font-weight: 600;
   border: 1px solid transparent;
   white-space: nowrap;
+  min-width: 0;
+  max-width: 100%;
+
+  span {
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
 }
 
 /* Кнопка в футере */
@@ -650,6 +658,8 @@ function handleCardClick() {
   cursor: pointer;
   transition: all 0.22s cubic-bezier(0.4, 0, 0.2, 1);
   box-sizing: border-box;
+  min-width: 0;
+  width: 100%;
 
   &:hover:not(.readonly) {
     border-color: var(--border-primary-color);
@@ -738,6 +748,9 @@ function handleCardClick() {
   padding: 12px;
   gap: 8px;
   flex-grow: 1;
+  min-width: 0;
+  width: 100%;
+  box-sizing: border-box;
 }
 
 .card-tags-row {
@@ -746,6 +759,18 @@ function handleCardClick() {
   justify-content: space-between;
   gap: 6px;
   min-height: 22px;
+  min-width: 0;
+  width: 100%;
+
+  .cat-badge {
+    min-width: 0;
+    max-width: calc(100% - 28px);
+    flex-shrink: 1;
+  }
+
+  .access-chip {
+    flex-shrink: 0;
+  }
 }
 
 .card-title-box {
@@ -753,8 +778,27 @@ function handleCardClick() {
   flex-direction: column;
   gap: 2px;
   min-width: 0;
+  width: 100%;
+
+  :deep(.kit-tooltip-wrapper) {
+    display: flex;
+    width: 100%;
+    max-width: 100%;
+    min-width: 0;
+  }
+
+  :deep(.kit-tooltip-trigger) {
+    display: flex;
+    width: 100%;
+    max-width: 100%;
+    min-width: 0;
+    justify-content: flex-start;
+  }
 
   .card-title {
+    display: block;
+    width: 100%;
+    min-width: 0;
     font-size: 0.95rem;
     font-weight: 600;
     color: var(--fg-primary-color);
@@ -762,14 +806,19 @@ function handleCardClick() {
     overflow: hidden;
     text-overflow: ellipsis;
     line-height: 1.3;
+    text-align: left;
   }
 
   .card-subtitle {
+    display: block;
+    width: 100%;
+    min-width: 0;
     font-size: 0.78rem;
     color: var(--fg-tertiary-color);
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
+    text-align: left;
   }
 }
 
@@ -783,6 +832,9 @@ function handleCardClick() {
   border: 1px dashed var(--border-secondary-color);
   font-size: 0.8rem;
   color: var(--fg-secondary-color);
+  min-width: 0;
+  width: 100%;
+  box-sizing: border-box;
 
   .note-icon {
     flex-shrink: 0;
@@ -793,6 +845,8 @@ function handleCardClick() {
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
+    min-width: 0;
+    flex: 1;
   }
 }
 
@@ -804,6 +858,9 @@ function handleCardClick() {
   margin-top: auto;
   padding-top: 6px;
   border-top: 1px solid var(--border-secondary-color);
+  min-width: 0;
+  width: 100%;
+  box-sizing: border-box;
 
   .card-meta {
     font-size: 0.78rem;
@@ -811,9 +868,20 @@ function handleCardClick() {
     display: flex;
     align-items: center;
     gap: 4px;
+    min-width: 0;
+    overflow: hidden;
+    white-space: nowrap;
+    flex-shrink: 1;
+
+    span {
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
 
     .dot {
       opacity: 0.5;
+      flex-shrink: 0;
     }
   }
 
@@ -821,11 +889,13 @@ function handleCardClick() {
     display: flex;
     align-items: center;
     gap: 2px;
+    flex-shrink: 0;
   }
 }
 
 /* ==================== РЕЖИМ СПИСКА (LIST) ==================== */
 .doc-row {
+  position: relative;
   display: flex;
   align-items: center;
   gap: 12px;
@@ -835,6 +905,9 @@ function handleCardClick() {
   border: 1px solid var(--border-secondary-color);
   cursor: pointer;
   transition: all 0.2s;
+  min-width: 0;
+  width: 100%;
+  box-sizing: border-box;
 
   &:hover:not(.readonly) {
     background-color: var(--bg-hover-color);
@@ -888,12 +961,14 @@ function handleCardClick() {
   min-width: 0;
   flex: 1 1 0;
   gap: 2px;
+  overflow: hidden;
 
   .row-title-line {
     display: flex;
     align-items: center;
     gap: 6px;
     min-width: 0;
+    width: 100%;
 
     .row-main-title {
       font-size: 0.95rem;
@@ -902,6 +977,8 @@ function handleCardClick() {
       white-space: nowrap;
       overflow: hidden;
       text-overflow: ellipsis;
+      min-width: 0;
+      flex-shrink: 1;
     }
 
     .row-secondary-name {
@@ -910,6 +987,8 @@ function handleCardClick() {
       white-space: nowrap;
       overflow: hidden;
       text-overflow: ellipsis;
+      min-width: 0;
+      flex-shrink: 2;
     }
   }
 
@@ -919,9 +998,20 @@ function handleCardClick() {
     gap: 4px;
     font-size: 0.78rem;
     color: var(--fg-secondary-color);
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
+    min-width: 0;
+    width: 100%;
+
+    .row-note-inner {
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      min-width: 0;
+      flex: 1;
+    }
+
+    svg {
+      flex-shrink: 0;
+    }
   }
 }
 

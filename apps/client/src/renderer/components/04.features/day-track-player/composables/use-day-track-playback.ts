@@ -76,22 +76,46 @@ export function useDayTrackPlayback(options: UseDayTrackPlaybackOptions) {
     t.value = Math.max(dayStart.value, Math.min(dayEnd.value, t.value + deltaSec * 1000))
   }
 
+  function findPointIndexByTime(pts: DayData['points'], targetT: number): number {
+    let low = 0
+    let high = pts.length - 1
+    let ans = 0
+    while (low <= high) {
+      const mid = (low + high) >> 1
+      if (pts[mid].tsUtc <= targetT) {
+        ans = mid
+        low = mid + 1
+      }
+      else {
+        high = mid - 1
+      }
+    }
+    return ans
+  }
+
   const currentSegment = computed(() =>
     renderSegments.value.find(s => t.value >= s.t0 && t.value <= s.t1),
   )
+
+  const currentPointIndex = computed(() => {
+    const pts = dayData.value?.points
+    if (!pts || pts.length === 0)
+      return -1
+    return findPointIndexByTime(pts, t.value)
+  })
 
   const currentPoint = computed<DayData['points'][0] | null>(() => {
     const pts = dayData.value?.points
     if (!pts || pts.length === 0)
       return null
 
-    let p = pts[0]
-    for (const q of pts) {
-      if (q.tsUtc <= t.value)
-        p = q
-      else break
-    }
-    const next = pts.find(q => q.tsUtc > t.value)
+    const idx = currentPointIndex.value
+    if (idx < 0)
+      return null
+
+    const p = pts[idx]
+    const next = idx < pts.length - 1 ? pts[idx + 1] : undefined
+
     if (p.stop && t.value <= p.stop.endedAt)
       return p
     if (!next || next.sessionId !== p.sessionId || next.tsUtc - p.tsUtc > 900_000)
@@ -114,11 +138,9 @@ export function useDayTrackPlayback(options: UseDayTrackPlaybackOptions) {
     const pts = dayData.value?.points
     if (!pts || pts.length < 2)
       return null
-    let i = 0
-    for (let j = 1; j < pts.length; j++) {
-      if (pts[j].tsUtc <= t.value)
-        i = j
-    }
+    const i = currentPointIndex.value
+    if (i < 0)
+      return null
     const a = pts[Math.max(0, i - 1)]
     const b = pts[i]
     const dtH = (b.tsUtc - a.tsUtc) / 3_600_000
@@ -128,20 +150,34 @@ export function useDayTrackPlayback(options: UseDayTrackPlaybackOptions) {
     return dM / 1000 / dtH
   })
 
+  function skipToPrevMovement() {
+    const pts = dayData.value?.points
+    if (!pts || pts.length === 0)
+      return
+
+    for (let i = pts.length - 1; i >= 0; i--) {
+      const p = pts[i]
+      if (p.tsUtc < t.value - 2000 && (p.activity !== 'still' || (p.speed != null && p.speed > 0.5))) {
+        t.value = p.tsUtc
+        return
+      }
+    }
+    t.value = dayStart.value
+  }
+
   function skipToNextMovement() {
     const pts = dayData.value?.points
     if (!pts || pts.length === 0)
       return
 
-    // Ищем следующую точку с движением (скорость > 0.5 м/с или активность не still)
-    const nextMoving = pts.find(p => p.tsUtc > t.value + 1000 && (p.activity !== 'still' || (p.speed != null && p.speed > 0.5)))
-    if (nextMoving) {
-      t.value = nextMoving.tsUtc
+    for (let i = 0; i < pts.length; i++) {
+      const p = pts[i]
+      if (p.tsUtc > t.value + 2000 && (p.activity !== 'still' || (p.speed != null && p.speed > 0.5))) {
+        t.value = p.tsUtc
+        return
+      }
     }
-    else {
-      // Если после текущего времени движения нет, переходим в конец дня
-      t.value = dayEnd.value
-    }
+    t.value = dayEnd.value
   }
 
   return {
@@ -158,6 +194,7 @@ export function useDayTrackPlayback(options: UseDayTrackPlaybackOptions) {
     speedKmhFromPoints,
     resetPlayback,
     stepSeconds,
+    skipToPrevMovement,
     skipToNextMovement,
   }
 }

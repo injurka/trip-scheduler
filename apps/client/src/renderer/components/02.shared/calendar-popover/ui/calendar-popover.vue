@@ -1,5 +1,5 @@
 <script lang="ts" setup>
-import type { CalendarDate } from '@internationalized/date'
+import type { CalendarDate, DateValue } from '@internationalized/date'
 import {
   PopoverContent,
   PopoverPortal,
@@ -13,15 +13,22 @@ import { useCalendarPopover } from '../composables/use-calendar-popover'
 interface Props {
   disabled?: boolean
   clearable?: boolean
+  maxValue?: DateValue
+  minValue?: DateValue
+  isDateDisabled?: (date: DateValue) => boolean
+  side?: 'top' | 'right' | 'bottom' | 'left'
+  align?: 'start' | 'center' | 'end'
 }
 
 const props = withDefaults(defineProps<Props>(), {
   disabled: false,
   clearable: true,
+  side: 'bottom',
+  align: 'start',
 })
 
 const model = defineModel<CalendarDate | null>({ required: true })
-const { isOpen, handleDateSelect } = useCalendarPopover()
+const { isOpen, handleDateSelect, closeCalendar } = useCalendarPopover()
 
 function handleUpdateValue(value: CalendarDate | null) {
   handleDateSelect(value, (v) => {
@@ -45,19 +52,22 @@ function clearDate() {
     </PopoverTrigger>
     <PopoverPortal>
       <PopoverContent
-        side="bottom"
-        align="start"
+        :side="props.side"
+        :align="props.align"
         class="date-picker-content"
         :avoid-collisions="true"
         :collision-padding="4"
       >
         <KitCalendar
           :model-value="model"
+          :max-value="props.maxValue"
+          :min-value="props.minValue"
+          :is-date-disabled="props.isDateDisabled"
           @update:model-value="handleUpdateValue"
         >
           <template #footer>
-            <div class="calendar-footer">
-              <slot name="footer" />
+            <div v-if="props.clearable || $slots.footer" class="calendar-footer">
+              <slot name="footer" :close="closeCalendar" />
               <KitBtn v-if="props.clearable" variant="text" size="sm" @click="clearDate">
                 Очистить дату
               </KitBtn>

@@ -367,18 +367,24 @@ function handleOpenEdit(doc: DocumentFile) {
 .docs-block {
   display: flex;
   flex-direction: column;
+  min-width: 0;
+  width: 100%;
 }
 
 .documents-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(230px, 1fr));
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 230px), 1fr));
   gap: 14px;
+  min-width: 0;
+  width: 100%;
 }
 
 .documents-list {
   display: flex;
   flex-direction: column;
   gap: 8px;
+  min-width: 0;
+  width: 100%;
 }
 
 /* ==================== EMPTY STATES ==================== */

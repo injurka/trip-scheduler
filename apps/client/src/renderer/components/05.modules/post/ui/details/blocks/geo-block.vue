@@ -154,6 +154,7 @@ const mapCenter = computed<[number, number]>(() => {
         :readonly="true"
         :is-fullscreen="false"
         :with-panel="false"
+        :with-fullscreen-control="false"
         :interactive-on-click="false"
         :disable-context-menu="true"
       />

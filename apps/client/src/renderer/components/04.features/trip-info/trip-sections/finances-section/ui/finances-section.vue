@@ -470,6 +470,7 @@ onClickOutside(dateFilterWrapperRef, () => {
   cursor: pointer;
   transition: all 0.18s ease;
   user-select: none;
+  white-space: nowrap;
   height: 28px;
 
   .segment-icon {
@@ -518,6 +519,7 @@ onClickOutside(dateFilterWrapperRef, () => {
   color: var(--fg-secondary-color);
   cursor: pointer;
   user-select: none;
+  white-space: nowrap;
   transition: all 0.18s ease;
 
   .type-icon {
@@ -676,6 +678,7 @@ onClickOutside(dateFilterWrapperRef, () => {
   border-radius: var(--r-m);
   padding: 0.5rem;
   display: flex;
+  flex-direction: column;
   align-items: center;
   box-shadow: var(--shadow-l);
 }
@@ -701,13 +704,12 @@ onClickOutside(dateFilterWrapperRef, () => {
     gap: 0.5rem;
 
     .filters-meta-row {
-      flex-direction: column;
-      align-items: stretch;
-      gap: 0.5rem;
+      display: contents;
     }
 
     .meta-filters-group {
       width: 100%;
+      order: 1;
     }
 
     .status-segmented-control {
@@ -721,8 +723,14 @@ onClickOutside(dateFilterWrapperRef, () => {
       }
     }
 
+    .category-filters-row {
+      width: 100%;
+      order: 2;
+    }
+
     .meta-controls-group {
       width: 100%;
+      order: 3;
       justify-content: space-between;
 
       .date-filter-wrapper {
@@ -755,17 +763,11 @@ onClickOutside(dateFilterWrapperRef, () => {
       min-width: 46px;
     }
   }
-  .date-filter-wrapper {
-    flex-grow: 1;
-    .kit-btn {
-      width: 100%;
-      justify-content: center;
-    }
-  }
   .calendar-popover {
     right: auto;
     left: 0;
-    width: 100%;
+    width: auto;
+    max-width: calc(100vw - 32px);
     display: flex;
     flex-direction: column;
   }

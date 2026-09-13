@@ -39,7 +39,8 @@ export function useDayTrackData(options: UseDayTrackDataOptions = {}) {
         res.rawPoints = res.points
         const source = res.points.map((p: DayPoint) => ({ ...p, altitude: p.altitude ?? null, bearing: p.bearing ?? null, activityConfidence: 0 }))
         res.points = prepareTrack(source)
-        res.segments = processDayTrack(source).map((s, i) => ({
+        const processed = processDayTrack(source)
+        res.segments = processed.map((s, i) => ({
           id: `processed-${i}`,
           sessionId: s.points[0].sessionId,
           activity: s.activity,
@@ -49,6 +50,7 @@ export function useDayTrackData(options: UseDayTrackDataOptions = {}) {
           distanceM: s.features.distanceM,
           pointCount: s.points.length,
           geometry: s.points.map(p => [p.lng, p.lat]),
+          simplifiedPoints: s.points.map(p => ({ tsUtc: p.tsUtc, lat: p.lat, lng: p.lng })),
         }))
       }
       dayData.value = res
@@ -110,9 +112,16 @@ export function useDayTrackData(options: UseDayTrackDataOptions = {}) {
     }
   }
 
+  function selectDay(targetDay: string) {
+    if (targetDay > todayUtc)
+      return
+    selectedDay.value = targetDay
+    if (route.name === AppRouteNames.ActivityMap) {
+      router.replace({ query: { ...route.query, day: targetDay } })
+    }
+  }
+
   function formatHeaderDay(dayStr: string): string {
-    if (dayStr === todayUtc)
-      return 'Сегодня'
     const d = new Date(`${dayStr}T12:00:00Z`)
     return d.toLocaleDateString('ru-RU', { weekday: 'short', day: 'numeric', month: 'long' })
   }
@@ -124,9 +133,10 @@ export function useDayTrackData(options: UseDayTrackDataOptions = {}) {
     if (d.segments.length > 0) {
       return d.segments.map(s => ({
         activity: s.activity,
-        points: d.points.filter(p => p.sessionId === s.sessionId && p.tsUtc >= s.startedAt && p.tsUtc <= s.endedAt),
+        points: s.simplifiedPoints || d.points.filter(p => p.sessionId === s.sessionId && p.tsUtc >= s.startedAt && p.tsUtc <= s.endedAt),
         t0: s.startedAt,
         t1: s.endedAt,
+        geometry: s.geometry,
       }))
     }
     // Fallback: группировка сырых точек по активности
@@ -214,6 +224,7 @@ export function useDayTrackData(options: UseDayTrackDataOptions = {}) {
     dayEnd,
     loadDay,
     changeDay,
+    selectDay,
     goToToday,
     formatHeaderDay,
     handleDeletePoint,

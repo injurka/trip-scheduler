@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import type { CalendarDate } from '@internationalized/date'
+import type { CalendarDate, DateValue } from '@internationalized/date'
 import { Icon } from '@iconify/vue'
 import {
   CalendarCell,
@@ -16,6 +16,14 @@ import {
   CalendarRoot,
 } from 'reka-ui'
 
+interface Props {
+  maxValue?: DateValue
+  minValue?: DateValue
+  isDateDisabled?: (date: DateValue) => boolean
+}
+
+const props = defineProps<Props>()
+
 const locale = 'ru-RU'
 
 const model = defineModel<CalendarDate | null>({ required: true })
@@ -28,6 +36,9 @@ const model = defineModel<CalendarDate | null>({ required: true })
     class="calendar"
     fixed-weeks
     :locale="locale"
+    :max-value="props.maxValue"
+    :min-value="props.minValue"
+    :is-date-disabled="props.isDateDisabled"
   >
     <CalendarHeader class="calendarHeader">
       <CalendarPrev class="calendarNavButton">

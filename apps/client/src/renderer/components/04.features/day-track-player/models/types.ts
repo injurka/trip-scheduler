@@ -26,6 +26,7 @@ export interface DaySegment {
   distanceM: number
   pointCount: number
   geometry: [number, number][]
+  simplifiedPoints?: Array<{ tsUtc: number, lat: number, lng: number }>
 }
 
 export interface DayData {
@@ -39,6 +40,7 @@ export interface RenderSegment {
   points: Array<{ tsUtc: number, lat: number, lng: number }>
   t0: number
   t1: number
+  geometry?: [number, number][]
 }
 
 export interface SelectedPointInfo {

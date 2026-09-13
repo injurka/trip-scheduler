@@ -54,6 +54,7 @@ const {
   dayEnd,
   loadDay,
   changeDay,
+  selectDay,
   goToToday,
   formatHeaderDay,
   handleDeletePoint,
@@ -127,6 +128,7 @@ async function onDeletePoint(pt: DayPoint) {
       :is-fit-disabled="renderSegments.length === 0 && totalPointsCount === 0"
       :show-today-button="showTodayButton"
       @change-day="changeDay"
+      @select-day="selectDay"
       @go-to-today="goToToday"
       @update:view-mode="viewMode = $event"
       @fit-bounds="map.fitTrackBounds"
@@ -217,9 +219,13 @@ async function onDeletePoint(pt: DayPoint) {
       :total-points-count="totalPointsCount"
       :day-start="dayStart"
       :day-end="dayEnd"
+      :day-start-formatted="timezone.fmtRange(dayStart)"
+      :day-end-formatted="timezone.fmtRange(dayEnd)"
+      :render-segments="renderSegments"
       :time-range-formatted="`${timezone.fmtRange(dayStart)} – ${timezone.fmtRange(dayEnd)}`"
       @toggle-timezone="timezone.toggleTimezone"
       @step-seconds="playback.stepSeconds"
+      @skip-to-prev-movement="playback.skipToPrevMovement"
       @skip-to-next-movement="playback.skipToNextMovement"
       @seek-start="playback.t.value = dayStart"
       @seek-end="playback.t.value = dayEnd"

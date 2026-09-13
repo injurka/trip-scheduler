@@ -314,6 +314,7 @@ function handleClose() {
   display: flex;
   flex-direction: column;
   gap: 12px;
+  min-width: 0;
 }
 
 .search-input {
@@ -322,6 +323,7 @@ function handleClose() {
 
 .category-tabs {
   margin-top: -4px;
+  min-width: 0;
 }
 
 .bookings-list {

@@ -169,12 +169,16 @@ onUnmounted(() => {
 .kit-tooltip-wrapper {
   display: inline-flex;
   align-items: center;
+  max-width: 100%;
+  min-width: 0;
 }
 
 .kit-tooltip-trigger {
   display: inline-flex;
   align-items: center;
   justify-content: center;
+  max-width: 100%;
+  min-width: 0;
 
   :deep(.dialog-icon-btn) {
     display: flex;

@@ -36,6 +36,7 @@ const props = withDefaults(defineProps<Props>(), {
   bearing: 0,
   interactiveOnClick: false,
   withPanel: true,
+  withFullscreenControl: true,
   activeItemId: null,
   withSearchControl: false,
   selectedCoords: null,

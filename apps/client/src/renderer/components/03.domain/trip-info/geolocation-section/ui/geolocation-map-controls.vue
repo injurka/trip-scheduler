@@ -16,7 +16,9 @@ interface Props {
   withFullscreenControl?: boolean
 }
 
-const props = defineProps<Props>()
+const props = withDefaults(defineProps<Props>(), {
+  withFullscreenControl: true,
+})
 
 const emit = defineEmits<{
   (e: 'togglePanel'): void

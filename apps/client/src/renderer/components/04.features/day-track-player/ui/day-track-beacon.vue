@@ -10,9 +10,13 @@ defineProps<{
 </script>
 
 <template>
-  <div class="playback-beacon" :class="{ 'is-active': isActive }">
-    <div class="beacon-ripple" :style="{ borderColor: activityColor }" />
-    <div class="beacon-core" :style="{ backgroundColor: activityColor }">
+  <div
+    class="playback-beacon"
+    :class="{ 'is-active': isActive }"
+    :style="{ '--beacon-color': activityColor }"
+  >
+    <div class="beacon-ripple" />
+    <div class="beacon-core">
       <Icon :icon="activityIcon" class="beacon-icon" />
     </div>
     <div v-if="speedKmh !== null && speedKmh > 0.5" class="beacon-speed-pill">
@@ -37,7 +41,7 @@ defineProps<{
     position: absolute;
     inset: -6px;
     border-radius: var(--r-full);
-    border: 2.5px solid var(--fg-accent-color);
+    border: 2.5px solid var(--beacon-color, var(--fg-accent-color));
     animation: beaconRipple 1.6s cubic-bezier(0.2, 0.8, 0.2, 1) infinite;
     pointer-events: none;
   }
@@ -46,7 +50,7 @@ defineProps<{
     width: 28px;
     height: 28px;
     border-radius: var(--r-full);
-    background-color: var(--fg-accent-color);
+    background-color: var(--beacon-color, var(--fg-accent-color));
     border: 2px solid #ffffff;
     box-shadow: var(--s-m);
     display: flex;

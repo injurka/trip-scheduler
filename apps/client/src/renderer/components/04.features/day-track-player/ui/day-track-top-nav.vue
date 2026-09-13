@@ -1,9 +1,13 @@
 <script setup lang="ts">
+import type { CalendarDate } from '@internationalized/date'
 import type { ViewMode } from '../models/types'
 import { Icon } from '@iconify/vue'
+import { parseDate } from '@internationalized/date'
+import { computed } from 'vue'
 import { KitBtn } from '~/components/01.kit/kit-btn'
+import { CalendarPopover } from '~/components/02.shared/calendar-popover'
 
-withDefaults(defineProps<{
+const props = withDefaults(defineProps<{
   selectedDay: string
   todayUtc: string
   headerDayTitle: string
@@ -18,11 +22,41 @@ withDefaults(defineProps<{
 
 const emit = defineEmits<{
   (e: 'changeDay', offset: number): void
+  (e: 'selectDay', day: string): void
   (e: 'goToToday'): void
   (e: 'update:viewMode', mode: ViewMode): void
   (e: 'fitBounds'): void
   (e: 'close'): void
 }>()
+
+const calendarDate = computed<CalendarDate | null>({
+  get: () => {
+    if (!props.selectedDay)
+      return null
+    try {
+      return parseDate(props.selectedDay)
+    }
+    catch {
+      return null
+    }
+  },
+  set: (val) => {
+    if (!val)
+      return
+    emit('selectDay', val.toString())
+  },
+})
+
+const maxCalendarDate = computed<CalendarDate | undefined>(() => {
+  if (!props.todayUtc)
+    return undefined
+  try {
+    return parseDate(props.todayUtc)
+  }
+  catch {
+    return undefined
+  }
+})
 </script>
 
 <template>
@@ -37,11 +71,36 @@ const emit = defineEmits<{
         <Icon icon="mdi:chevron-left" />
       </button>
 
-      <div class="day-current">
-        <Icon icon="mdi:calendar-month-outline" class="cal-icon" />
-        <span class="day-text">{{ headerDayTitle }}</span>
-        <span v-if="selectedDay === todayUtc" class="today-chip">Сегодня</span>
-      </div>
+      <CalendarPopover
+        v-model="calendarDate"
+        :clearable="false"
+        :max-value="maxCalendarDate"
+        align="center"
+      >
+        <template #trigger>
+          <button
+            type="button"
+            class="day-current"
+            title="Выбрать день в календаре"
+            aria-label="Выбрать день в календаре"
+          >
+            <Icon icon="mdi:calendar-month-outline" class="cal-icon" />
+            <span class="day-text">{{ headerDayTitle }}</span>
+            <span v-if="selectedDay === todayUtc" class="today-chip">Сегодня</span>
+            <Icon icon="mdi:chevron-down" class="dropdown-icon" />
+          </button>
+        </template>
+        <template #footer="{ close }">
+          <KitBtn
+            v-if="selectedDay !== todayUtc"
+            variant="text"
+            size="sm"
+            @click="() => { emit('goToToday'); close?.(); }"
+          >
+            Сегодня
+          </KitBtn>
+        </template>
+      </CalendarPopover>
 
       <button
         class="day-arrow-btn"
@@ -54,6 +113,26 @@ const emit = defineEmits<{
     </div>
 
     <div class="top-actions">
+      <KitBtn
+        v-if="showTodayButton && selectedDay !== todayUtc"
+        variant="subtle"
+        size="xs"
+        @click="emit('goToToday')"
+      >
+        Сегодня
+      </KitBtn>
+
+      <button
+        class="fit-bounds-btn"
+        type="button"
+        title="Центрировать трек на карте"
+        aria-label="Центрировать трек на карте"
+        :disabled="isFitDisabled"
+        @click="emit('fitBounds')"
+      >
+        <Icon icon="mdi:crosshairs-gps" class="fit-bounds-icon" />
+      </button>
+
       <!-- Переключатель режима: Маршрут / Точки Безье -->
       <div class="view-mode-tabs">
         <button
@@ -76,24 +155,6 @@ const emit = defineEmits<{
           <span v-if="totalPointsCount > 0" class="points-pill">{{ totalPointsCount }}</span>
         </button>
       </div>
-
-      <KitBtn
-        v-if="showTodayButton && selectedDay !== todayUtc"
-        variant="subtle"
-        size="xs"
-        @click="emit('goToToday')"
-      >
-        Сегодня
-      </KitBtn>
-
-      <KitBtn
-        variant="tonal"
-        size="sm"
-        icon="mdi:crosshairs-gps" title="Центрировать трек на карте"
-        aria-label="Центрировать трек на карте"
-        :disabled="isFitDisabled"
-        @click="emit('fitBounds')"
-      />
 
       <slot name="top-actions" />
     </div>
@@ -156,11 +217,33 @@ const emit = defineEmits<{
       display: flex;
       align-items: center;
       gap: 6px;
-      padding: 0 6px;
+      padding: 0 8px;
+      height: 28px;
+      border: none;
+      background: transparent;
+      border-radius: var(--r-full);
+      cursor: pointer;
+      font-family: inherit;
+      color: inherit;
+      transition: background-color 0.2s;
+
+      &:hover {
+        background: var(--bg-hover-color);
+
+        .dropdown-icon {
+          color: var(--fg-primary-color);
+        }
+      }
+
+      &:focus-visible {
+        outline: 2px solid var(--border-accent-color);
+        outline-offset: 1px;
+      }
 
       .cal-icon {
         font-size: 1.1rem;
         color: var(--fg-accent-color);
+        flex-shrink: 0;
       }
 
       .day-text {
@@ -178,6 +261,14 @@ const emit = defineEmits<{
         background: var(--bg-success-color);
         color: var(--fg-success-color);
       }
+
+      .dropdown-icon {
+        font-size: 1rem;
+        color: var(--fg-secondary-color);
+        margin-left: -2px;
+        transition: color 0.2s;
+        flex-shrink: 0;
+      }
     }
   }
 
@@ -185,6 +276,50 @@ const emit = defineEmits<{
     display: flex;
     align-items: center;
     gap: 8px;
+
+    .fit-bounds-btn {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: 38px;
+      height: 38px;
+      border-radius: var(--r-full);
+      border: 1px solid var(--border-secondary-color);
+      background-color: var(--bg-secondary-color);
+      backdrop-filter: blur(12px);
+      box-shadow: var(--s-m);
+      color: var(--fg-accent-color);
+      cursor: pointer;
+      padding: 0;
+      transition:
+        color 0.2s ease,
+        background-color 0.2s ease,
+        border-color 0.2s ease,
+        transform 0.15s ease,
+        box-shadow 0.2s ease;
+      flex-shrink: 0;
+
+      .fit-bounds-icon {
+        font-size: 1.25rem;
+      }
+
+      &:hover:not(:disabled) {
+        background-color: var(--bg-hover-color);
+        border-color: var(--border-primary-color);
+        transform: scale(1.04);
+      }
+
+      &:active:not(:disabled) {
+        transform: scale(0.94);
+      }
+
+      &:disabled {
+        opacity: 0.4;
+        cursor: not-allowed;
+        box-shadow: none;
+        transform: none;
+      }
+    }
 
     .view-mode-tabs {
       display: inline-flex;
@@ -277,6 +412,10 @@ const emit = defineEmits<{
         .today-chip {
           display: none;
         }
+
+        .dropdown-icon {
+          display: none;
+        }
       }
     }
 
@@ -286,6 +425,15 @@ const emit = defineEmits<{
       justify-content: space-between;
       width: 100%;
       gap: 6px;
+
+      .fit-bounds-btn {
+        width: 34px;
+        height: 34px;
+
+        .fit-bounds-icon {
+          font-size: 1.25rem;
+        }
+      }
 
       .view-mode-tabs {
         flex: 1;

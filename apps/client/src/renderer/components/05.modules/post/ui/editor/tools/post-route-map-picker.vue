@@ -260,6 +260,7 @@ watch(() => props.visible, (isOpen) => {
           :is-fullscreen="false"
           :disable-context-menu="true"
           :with-search-control="true"
+          :with-fullscreen-control="false"
           @map-ready="onMapReady"
           @map-click="handleMapClick"
         />

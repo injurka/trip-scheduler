@@ -400,10 +400,34 @@ onBeforeUnmount(() => flushPendingSave())
     border-radius: 0;
     border: none;
     margin: 0;
-    top: 0px;
+    top: 0;
     left: 0;
     bottom: 0;
     right: 0;
+
+    .editor-header {
+      padding-top: calc(6px + var(--safe-area-inset-top, env(safe-area-inset-top, 0px)));
+      height: calc(50px + var(--safe-area-inset-top, env(safe-area-inset-top, 0px)));
+      padding-left: calc(16px + var(--safe-area-inset-left, env(safe-area-inset-left, 0px)));
+      padding-right: calc(16px + var(--safe-area-inset-right, env(safe-area-inset-right, 0px)));
+    }
+
+    .sidebar-header {
+      padding-top: calc(3px + var(--safe-area-inset-top, env(safe-area-inset-top, 0px)));
+      height: calc(50px + var(--safe-area-inset-top, env(safe-area-inset-top, 0px)));
+      padding-left: calc(12px + var(--safe-area-inset-left, env(safe-area-inset-left, 0px)));
+    }
+
+    .editor-body {
+      padding-bottom: var(--safe-area-inset-bottom, env(safe-area-inset-bottom, 0px));
+      padding-left: var(--safe-area-inset-left, env(safe-area-inset-left, 0px));
+      padding-right: var(--safe-area-inset-right, env(safe-area-inset-right, 0px));
+    }
+
+    .tree-wrapper {
+      padding-bottom: calc(6px + var(--safe-area-inset-bottom, env(safe-area-inset-bottom, 0px)));
+      padding-left: calc(6px + var(--safe-area-inset-left, env(safe-area-inset-left, 0px)));
+    }
   }
 }
 

@@ -59,6 +59,22 @@ function handlePointerMove(e: PointerEvent) {
 
 function handlePointerUp() {
   isPointerDown = false
+  setTimeout(() => {
+    isDragging = false
+  }, 50)
+}
+
+function handleWheel(e: WheelEvent) {
+  const switcherEl = switcherRef.value
+  if (!switcherEl)
+    return
+
+  if (switcherEl.scrollWidth > switcherEl.clientWidth) {
+    if (Math.abs(e.deltaY) > Math.abs(e.deltaX)) {
+      switcherEl.scrollLeft += e.deltaY
+      e.preventDefault()
+    }
+  }
 }
 
 function handleItemClick(itemId: T) {
@@ -152,6 +168,7 @@ onMounted(() => {
     @pointermove="handlePointerMove"
     @pointerup="handlePointerUp"
     @pointercancel="handlePointerUp"
+    @wheel="handleWheel"
   >
     <div class="kit-view-switcher-glider" :style="gliderStyle" />
 
@@ -189,12 +206,14 @@ onMounted(() => {
   transition: opacity 0.2s ease-out;
   height: 46px;
   max-width: 100%;
+  min-width: 0;
   overflow-x: auto;
   overflow-y: hidden;
   scrollbar-width: none;
   -ms-overflow-style: none;
   -webkit-overflow-scrolling: touch;
   touch-action: pan-x;
+  overscroll-behavior-x: contain;
 
   &::-webkit-scrollbar {
     display: none;
@@ -245,10 +264,10 @@ onMounted(() => {
   min-height: 36px;
   flex-shrink: 0;
 
-  // full-width: buttons share space evenly, but still no text wrap
+  // full-width: buttons share space evenly if they fit, but never shrink below content
   .is-full-width & {
     flex: 1 0 0;
-    min-width: 0;
+    min-width: max-content;
     justify-content: center;
   }
 

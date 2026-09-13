@@ -162,15 +162,28 @@ export const useTrackingStore = defineStore('tracking', {
       this.lastError = null
       this.hasPermissionDenied = false
       try {
-        const status = enable ? await geotrack.start() : await geotrack.stop()
-        this.isRunning = status.running
-        this.unsentCount = status.unsentCount
-        if (status.telemetry) {
-          this.telemetry = { ...status.telemetry }
+        const actionPromise = enable ? geotrack.start() : geotrack.stop()
+        let timeoutTimer: any
+        const timeoutPromise = new Promise<never>((_, reject) => {
+          timeoutTimer = setTimeout(
+            () => reject(new Error(enable ? 'Превышено время ожидания запуска трекинга' : 'Превышено время ожидания остановки трекинга')),
+            8000,
+          )
+        })
+        try {
+          const status = await Promise.race([actionPromise, timeoutPromise])
+          this.isRunning = status.running
+          this.unsentCount = status.unsentCount
+          if (status.telemetry) {
+            this.telemetry = { ...status.telemetry }
+          }
+          if (!enable) {
+            // При остановке сразу отправляем оставшиеся точки на сервер
+            void this.syncNow()
+          }
         }
-        if (!enable) {
-          // При остановке сразу отправляем оставшиеся точки на сервер
-          void this.syncNow()
+        finally {
+          clearTimeout(timeoutTimer)
         }
       }
       catch (e) {
