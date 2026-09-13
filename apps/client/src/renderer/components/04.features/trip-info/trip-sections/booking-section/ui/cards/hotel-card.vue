@@ -129,15 +129,9 @@ const hasQuickInfo = computed(() => {
   >
     <!-- READONLY MODE -->
     <div v-if="readonly" class="hotel-view">
-      <!-- Hotel Primary Line & Badges -->
-      <div class="hotel-hero-row">
+      <!-- Hotel Address & Actions -->
+      <div v-if="booking.data.address || hotelWebsiteUrl || booking.data.location" class="hotel-hero-row">
         <div class="hotel-main-info">
-          <div class="hotel-name-line">
-            <span class="hotel-name-text">
-              {{ booking.data.hotelName || booking.title || 'Отель' }}
-            </span>
-          </div>
-
           <div v-if="booking.data.address" class="hotel-address-line">
             <Icon icon="mdi:map-marker-outline" class="address-icon" />
             <span class="address-text">{{ booking.data.address }}</span>
@@ -348,19 +342,6 @@ const hasQuickInfo = computed(() => {
   gap: 4px;
   flex: 1;
   min-width: 200px;
-}
-
-.hotel-name-line {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-}
-
-.hotel-name-text {
-  font-size: 1.05rem;
-  font-weight: 600;
-  color: var(--fg-primary-color);
-  line-height: 1.3;
 }
 
 .hotel-address-line {

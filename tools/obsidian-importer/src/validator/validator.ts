@@ -582,8 +582,11 @@ export function validateObsidianVault(context: ValidationScopeContext, startDate
     }
   }
 
-  const financesData = parseObsidianFinances(financesFilePath, tripRoot)
-  const totalFinancesRub = financesData.transactions.reduce((sum, t) => sum + t.amount, 0)
+  const financesData = parseObsidianFinances(financesFilePath, tripRoot, startDate.toISOString().split('T')[0])
+  const categoryLimitsTotal = financesData.categories.reduce((sum, c) => sum + (c.budgetLimit || 0), 0)
+  const totalFinancesRub = categoryLimitsTotal > 0
+    ? categoryLimitsTotal
+    : financesData.transactions.reduce((sum, t) => sum + t.amount, 0)
 
   if (!financesFilePath) {
     issues.push({
@@ -608,7 +611,10 @@ export function validateObsidianVault(context: ValidationScopeContext, startDate
       })
     }
 
-    const usedCategories = new Set(financesData.transactions.map(transaction => transaction.categoryId))
+    const usedCategories = new Set([
+      ...financesData.transactions.map(transaction => transaction.categoryId),
+      ...financesData.categories.filter(c => (c.budgetLimit || 0) > 0).map(c => c.id),
+    ])
     const expectedCategories = ['cat-flights', 'cat-transport', 'cat-housing', 'cat-food', 'cat-entertainment', 'cat-shopping']
     const missingCategories = expectedCategories.filter(category => !usedCategories.has(category))
     if (missingCategories.length > 0) {

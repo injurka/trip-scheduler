@@ -435,7 +435,7 @@ export function parseObsidianTripFolder(tripPath: string, startDateStr?: string)
 
   // 4. Parse Checklists, Finances & Bookings into Rich Structures
   const checklistContent = parseObsidianChecklists(checklistFiles)
-  const financesContent = parseObsidianFinances(financesFilePath, resolvedPath)
+  const financesContent = parseObsidianFinances(financesFilePath, resolvedPath, startDate.toISOString().split('T')[0])
 
   // 5. Extract title, short description, cities, tags from concept/summary
   const titleMatch = mainText.match(/^#\s*(?:Концепция маршрута:\s*)?[«"']?([^»"'\n(]+)[»"']?/m)

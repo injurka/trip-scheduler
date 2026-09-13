@@ -94,6 +94,9 @@ export function useFinancesSection(
     const tx = transactions.value.find(t => t.id === id)
     if (tx) {
       tx.status = tx.status === 'planned' ? 'paid' : 'planned'
+      if (tx.status === 'paid' && !tx.date) {
+        tx.date = new Date().toISOString().split('T')[0]
+      }
     }
   }
 
@@ -268,7 +271,7 @@ export function useFinancesSection(
       })
     })
 
-    filteredTransactions.value.forEach((tx) => {
+    baseFilteredTransactions.value.forEach((tx) => {
       const categoryId = tx.categoryId || 'cat-other'
       const amountInMain = convertToMainCurrency(tx.amount, tx.currency)
 
@@ -307,7 +310,7 @@ export function useFinancesSection(
   const spendingByDay = computed(() => {
     const spendingMap = new Map<string, number>()
 
-    filteredTransactions.value
+    baseFilteredTransactions.value
       .filter(tx => tx.date && tx.status !== 'planned')
       .forEach((tx) => {
         const date = tx.date!.split('T')[0]

@@ -105,15 +105,9 @@ const hasQuickInfo = computed(() => {
   >
     <!-- READONLY MODE -->
     <div v-if="readonly" class="attraction-view">
-      <!-- Attraction Hero Row -->
-      <div class="attraction-hero-row">
+      <!-- Attraction Address & Actions -->
+      <div v-if="booking.data.address || booking.data.location" class="attraction-hero-row">
         <div class="attraction-main-info">
-          <div class="attraction-name-line">
-            <span class="attraction-name-text">
-              {{ booking.data.attractionName || booking.title || 'Достопримечательность / Событие' }}
-            </span>
-          </div>
-
           <div v-if="booking.data.address" class="attraction-address-line">
             <Icon icon="mdi:map-marker-outline" class="address-icon" />
             <span class="address-text">{{ booking.data.address }}</span>
@@ -273,19 +267,6 @@ const hasQuickInfo = computed(() => {
   gap: 4px;
   flex: 1;
   min-width: 200px;
-}
-
-.attraction-name-line {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-}
-
-.attraction-name-text {
-  font-size: 1.05rem;
-  font-weight: 600;
-  color: var(--fg-primary-color);
-  line-height: 1.3;
 }
 
 .attraction-address-line {

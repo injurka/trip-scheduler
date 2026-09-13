@@ -110,6 +110,10 @@ const remainingBudget = computed(() => {
   return Math.max(0, effectiveOverallBudget.value - effectivePaidTotal.value)
 })
 
+const freeBudget = computed(() => {
+  return Math.max(0, effectiveOverallBudget.value - effectivePaidTotal.value - effectivePlannedTotal.value)
+})
+
 const paidPercentOfBudget = computed(() => {
   if (effectiveOverallBudget.value === 0)
     return 0
@@ -352,7 +356,8 @@ useMutationObserver(
             {{ formatCurrency(effectiveOverallBudget, mainCurrency) }}
           </div>
           <div class="card-meta">
-            <span>Остаток: {{ formatCurrency(remainingBudget, mainCurrency) }}</span>
+            <span v-if="freeBudget > 0">Свободно: <strong>{{ formatCurrency(freeBudget, mainCurrency) }}</strong></span>
+            <span v-else>Остаток: {{ formatCurrency(remainingBudget, mainCurrency) }}</span>
           </div>
         </div>
 
@@ -485,14 +490,18 @@ useMutationObserver(
               <div class="legend-main-row">
                 <span class="legend-title" :title="cat.name">{{ cat.name }}</span>
                 <div class="legend-values">
-                  <span v-if="cat.budgetLimit && cat.budgetLimit > 0" class="legend-percentage" :class="{ 'is-over': (cat.paidAmount || 0) > cat.budgetLimit }">
-                    {{ Math.round(((cat.paidAmount || 0) / cat.budgetLimit) * 100) }}%
+                  <span v-if="cat.budgetLimit && cat.budgetLimit > 0" class="legend-percentage" :class="{ 'is-over': ((cat.paidAmount || 0) + (cat.plannedAmount || 0)) > cat.budgetLimit }">
+                    {{ Math.round((((cat.paidAmount || 0) + (cat.plannedAmount || 0)) / cat.budgetLimit) * 100) }}%
                   </span>
                   <span v-else class="legend-percentage">{{ getCategoryPercent(cat.amount) }}%</span>
                   <span class="legend-separator" />
                   <span class="legend-amount">
                     <template v-if="cat.budgetLimit && cat.budgetLimit > 0">
-                      {{ formatCurrency(cat.paidAmount || 0, mainCurrency) }} / {{ formatCurrency(cat.budgetLimit, mainCurrency) }}
+                      {{ formatCurrency(cat.paidAmount || 0, mainCurrency) }}
+                      <span v-if="(cat.plannedAmount || 0) > 0" class="legend-sub-planned" :title="`В планах к оплате: ${formatCurrency(cat.plannedAmount || 0, mainCurrency)}`">
+                        (+{{ formatCurrency(cat.plannedAmount || 0, mainCurrency) }})
+                      </span>
+                      / {{ formatCurrency(cat.budgetLimit, mainCurrency) }}
                     </template>
                     <template v-else>
                       {{ formatCurrency(cat.amount, mainCurrency) }}
@@ -507,6 +516,15 @@ useMutationObserver(
                   :style="{
                     width: `${cat.budgetLimit && cat.budgetLimit > 0 ? Math.min(100, Math.round(((cat.paidAmount || 0) / cat.budgetLimit) * 100)) : getCategoryPercent(cat.amount)}%`,
                     backgroundColor: (cat.budgetLimit && (cat.paidAmount || 0) > cat.budgetLimit) ? '#EF4444' : getCategoryColor(index),
+                  }"
+                />
+                <div
+                  v-if="cat.budgetLimit && cat.budgetLimit > 0 && (cat.plannedAmount || 0) > 0"
+                  class="legend-progress-planned"
+                  :class="{ 'is-over': ((cat.paidAmount || 0) + (cat.plannedAmount || 0)) > cat.budgetLimit }"
+                  :style="{
+                    width: `${Math.min(100 - Math.min(100, Math.round(((cat.paidAmount || 0) / cat.budgetLimit) * 100)), Math.round(((cat.plannedAmount || 0) / cat.budgetLimit) * 100))}%`,
+                    backgroundColor: ((cat.paidAmount || 0) + (cat.plannedAmount || 0)) > cat.budgetLimit ? '#F87171' : getCategoryColor(index),
                   }"
                 />
               </div>
@@ -905,21 +923,44 @@ useMutationObserver(
     white-space: nowrap;
   }
 
+  .legend-sub-planned {
+    color: #3b82f6;
+    font-size: 0.72rem;
+    font-weight: 500;
+  }
+
   .legend-progress-track {
     width: 100%;
-    height: 3px;
+    height: 4px;
     background-color: var(--border-secondary-color);
     border-radius: 2px;
     overflow: hidden;
+    display: flex;
   }
 
   .legend-progress-fill {
     height: 100%;
-    border-radius: 2px;
     transition: width 0.3s ease;
 
     &.is-over {
       background-color: #ef4444 !important;
+    }
+  }
+
+  .legend-progress-planned {
+    height: 100%;
+    transition: width 0.3s ease;
+    opacity: 0.6;
+    background-image: repeating-linear-gradient(
+      -45deg,
+      transparent,
+      transparent 2px,
+      rgba(255, 255, 255, 0.4) 2px,
+      rgba(255, 255, 255, 0.4) 4px
+    );
+
+    &.is-over {
+      background-color: #f87171 !important;
     }
   }
 }

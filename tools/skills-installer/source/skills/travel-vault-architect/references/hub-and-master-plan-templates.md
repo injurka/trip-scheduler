@@ -4,6 +4,8 @@
 
 ```markdown
 ---
+startDate: "2026-10-22"
+endDate: "2026-11-12"
 cover: "_/all/<cover-file>.jpg"
 descriptionShort: >-
   <Краткое описание поездки для карточки.>

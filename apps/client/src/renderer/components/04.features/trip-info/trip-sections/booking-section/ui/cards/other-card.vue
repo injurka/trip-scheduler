@@ -126,14 +126,8 @@ const hasCoords = computed(() => Boolean(props.booking.data.startCoords || props
     </template>
 
     <div class="other-view">
-      <div class="other-hero-row">
+      <div v-if="routeLine || hasCoords" class="other-hero-row">
         <div class="other-main-info">
-          <div class="other-name-line">
-            <span class="other-name-text">
-              {{ booking.data.name || booking.title || 'Перемещение' }}
-            </span>
-          </div>
-
           <div v-if="routeLine" class="other-route-line">
             <Icon icon="mdi:map-marker-outline" class="route-marker-icon" />
             <span class="route-text">{{ routeLine }}</span>
@@ -404,19 +398,6 @@ const hasCoords = computed(() => Boolean(props.booking.data.startCoords || props
   gap: 4px;
   flex: 1;
   min-width: 200px;
-}
-
-.other-name-line {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-}
-
-.other-name-text {
-  font-size: 1.05rem;
-  font-weight: 600;
-  color: var(--fg-primary-color);
-  line-height: 1.3;
 }
 
 .other-route-line {
