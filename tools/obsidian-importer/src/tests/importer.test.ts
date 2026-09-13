@@ -448,4 +448,37 @@ describe('PrivateDocuments Parser', () => {
       rmSync(tempTripDir, { recursive: true, force: true })
     }
   })
+
+  it('generates stable folder IDs and supports direct path to PrivateDocuments', () => {
+    const tempTripDir = mkdtempSync(join(tmpdir(), 'trip-stable-doc-test-'))
+    try {
+      const privateDocsDir = join(tempTripDir, '_', 'PrivateDocuments')
+      const hotelsDir = join(privateDocsDir, 'Отели')
+      const flightsDir = join(privateDocsDir, 'Авибилеты')
+      mkdirSync(hotelsDir, { recursive: true })
+      mkdirSync(flightsDir, { recursive: true })
+
+      writeFileSync(join(hotelsDir, 'Yoshi Hotel.pdf'), 'HOTEL-PDF')
+      writeFileSync(join(flightsDir, 'SVO-TPE-SVO.pdf'), 'FLIGHT-PDF')
+
+      const fromRoot1 = parseObsidianDocuments(tempTripDir)
+      const fromRoot2 = parseObsidianDocuments(tempTripDir)
+
+      expect(fromRoot1.documentsContent.folders).toHaveLength(2)
+      expect(fromRoot1.documents).toHaveLength(2)
+      // Folder IDs must be stable across multiple runs
+      expect(fromRoot1.documentsContent.folders[0].id).toBe(fromRoot2.documentsContent.folders[0].id)
+      expect(fromRoot1.documentsContent.folders[1].id).toBe(fromRoot2.documentsContent.folders[1].id)
+
+      // Direct path to PrivateDocuments directory must also parse identically
+      const fromDirect = parseObsidianDocuments(privateDocsDir)
+      expect(fromDirect.documentsContent.folders).toHaveLength(2)
+      expect(fromDirect.documents).toHaveLength(2)
+      expect(fromDirect.documentsContent.folders.map(f => f.id).sort())
+        .toEqual(fromRoot1.documentsContent.folders.map(f => f.id).sort())
+    }
+    finally {
+      rmSync(tempTripDir, { recursive: true, force: true })
+    }
+  })
 })

@@ -308,7 +308,7 @@ export async function runImport(): Promise<void> {
           const newFolders = tripData.documentsContent?.folders || []
           const mergedFolders = [...existingFolders]
           for (const nf of newFolders) {
-            if (!mergedFolders.some(ef => ef.name.toLowerCase() === nf.name.toLowerCase())) {
+            if (!mergedFolders.some(ef => ef.name.trim().toLowerCase() === nf.name.trim().toLowerCase())) {
               mergedFolders.push(nf)
             }
           }
@@ -531,10 +531,29 @@ export async function runImport(): Promise<void> {
   if (importDocuments && tripData.documents && tripData.documents.length > 0) {
     console.log(`\n${colors.dim}📁 Загрузка документов (${tripData.documents.length} шт.)...${colors.reset}`)
 
+    let currentSectionFolders: Array<{ id: string, name: string }> = []
+    try {
+      const details = await api.getTripDetails(createdTrip.id)
+      const docSec = details?.sections?.find((s: any) => s.type === 'documents')
+      if (Array.isArray(docSec?.content?.folders)) {
+        currentSectionFolders = docSec.content.folders
+      }
+    }
+    catch {
+      currentSectionFolders = []
+    }
+
     const folderMap = new Map<string, string>()
+    for (const f of currentSectionFolders) {
+      if (f?.name && f?.id) {
+        folderMap.set(f.name.trim().toLowerCase(), f.id)
+      }
+    }
     if (tripData.documentsContent?.folders) {
       for (const f of tripData.documentsContent.folders) {
-        folderMap.set(f.name.toLowerCase(), f.id)
+        if (f?.name && f?.id && !folderMap.has(f.name.trim().toLowerCase())) {
+          folderMap.set(f.name.trim().toLowerCase(), f.id)
+        }
       }
     }
 
@@ -548,12 +567,37 @@ export async function runImport(): Promise<void> {
 
     for (const doc of tripData.documents) {
       try {
-        const folderId = doc.folderName ? folderMap.get(doc.folderName.toLowerCase()) || null : null
+        const folderId = doc.folderName ? folderMap.get(doc.folderName.trim().toLowerCase()) || null : null
         const alreadyUploaded = existingDocs.find(d => d.originalName === doc.fileName)
 
-        if (alreadyUploaded && !overwriteDays) {
-          console.log(`  ${colors.dim}✔ Документ уже загружен:${colors.reset} ${doc.fileName}`)
-          totalDocumentsUploaded++
+        if (alreadyUploaded) {
+          const currentFolderId = alreadyUploaded.metadata?.folderId ?? null
+          const currentCategory = alreadyUploaded.metadata?.category ?? null
+          const currentAccess = alreadyUploaded.metadata?.access ?? null
+          const currentTitle = alreadyUploaded.metadata?.title ?? null
+
+          const needsUpdate = (
+            currentFolderId !== folderId
+            || (doc.access && currentAccess !== doc.access)
+            || (doc.category && currentCategory !== doc.category)
+            || (doc.title && currentTitle !== doc.title)
+          )
+
+          if (needsUpdate) {
+            await api.updateDocumentMeta(alreadyUploaded.id, {
+              folderId,
+              access: doc.access,
+              title: doc.title,
+              category: doc.category,
+            })
+            totalDocumentsUploaded++
+            const accessLabel = doc.access === 'private' ? 'личный/private' : 'публичный/public'
+            console.log(`  ${colors.green}✔ Обновлены метаданные документа:${colors.reset} ${doc.fileName} ${colors.dim}(Папка: ${doc.folderName || 'Корень'}, Категория: ${doc.category}, Доступ: ${accessLabel})${colors.reset}`)
+          }
+          else if (!overwriteDays) {
+            console.log(`  ${colors.dim}✔ Документ уже загружен:${colors.reset} ${doc.fileName}`)
+            totalDocumentsUploaded++
+          }
           continue
         }
 
@@ -565,7 +609,7 @@ export async function runImport(): Promise<void> {
         })
         totalDocumentsUploaded++
         const accessLabel = doc.access === 'private' ? 'личный/private' : 'публичный/public'
-        console.log(`  ${colors.green}✔ Загружен документ:${colors.reset} ${doc.fileName} ${colors.dim}(Категория: ${doc.category}, Доступ: ${accessLabel})${colors.reset}`)
+        console.log(`  ${colors.green}✔ Загружен документ:${colors.reset} ${doc.fileName} ${colors.dim}(Папка: ${doc.folderName || 'Корень'}, Категория: ${doc.category}, Доступ: ${accessLabel})${colors.reset}`)
       }
       catch (docErr: any) {
         recordError(`Загрузка документа «${doc.fileName}»`, docErr)

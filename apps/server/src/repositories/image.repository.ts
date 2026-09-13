@@ -82,13 +82,17 @@ function parseDocumentMetadata(raw: unknown): DocumentMetadata {
     }
   }
 
+  const metaObj = (isRecord(raw.metadata) && typeof raw.folderId !== 'string')
+    ? { ...raw, ...raw.metadata }
+    : raw
+
   return {
-    access: raw.access === 'public' ? 'public' : 'private',
-    folderId: typeof raw.folderId === 'string' ? raw.folderId || null : null,
-    title: typeof raw.title === 'string' ? raw.title || null : null,
-    category: typeof raw.category === 'string' ? raw.category || null : null,
-    isFavorite: Boolean(raw.isFavorite),
-    note: typeof raw.note === 'string' ? raw.note || null : null,
+    access: metaObj.access === 'public' ? 'public' : 'private',
+    folderId: typeof metaObj.folderId === 'string' ? metaObj.folderId || null : null,
+    title: typeof metaObj.title === 'string' ? metaObj.title || null : null,
+    category: typeof metaObj.category === 'string' ? metaObj.category || null : null,
+    isFavorite: Boolean(metaObj.isFavorite),
+    note: typeof metaObj.note === 'string' ? metaObj.note || null : null,
   }
 }
 

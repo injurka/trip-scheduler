@@ -1,8 +1,8 @@
 import type { Dirent } from 'node:fs'
 import type { DocumentCategory, DocumentFolderInfo, DocumentsSectionContent, ParsedDocumentFile } from '../types/documents'
-import { randomUUID } from 'node:crypto'
 import { existsSync, readdirSync, statSync } from 'node:fs'
-import { join } from 'node:path'
+import { basename, join } from 'node:path'
+import { stableId } from '../lib/stable-id'
 
 function matchCategory(text: string): DocumentCategory | null {
   const t = text.toLowerCase()
@@ -81,6 +81,12 @@ export function parseObsidianDocuments(tripRootPath: string): {
     if (!candidateDirs.some(c => c.path === dirPath) && existsSync(dirPath) && statSync(dirPath).isDirectory()) {
       candidateDirs.push({ path: dirPath, defaultAccess: access })
     }
+  }
+
+  // 0. Если передан прямой путь к папке документов (например, _/PrivateDocuments)
+  const directSelfAccess = getDirectoryDefaultAccess(basename(tripRootPath))
+  if (directSelfAccess) {
+    addCandidate(tripRootPath, directSelfAccess)
   }
 
   // 1. Проверяем вложения в _/
@@ -174,7 +180,7 @@ export function parseObsidianDocuments(tripRootPath: string): {
           const folderName = entry.name
           if (!foldersMap.has(folderName)) {
             foldersMap.set(folderName, {
-              id: randomUUID(),
+              id: stableId('doc-folder', folderName.trim().toLowerCase()),
               name: folderName,
             })
           }

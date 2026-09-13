@@ -109,6 +109,27 @@ export interface Transport {
     placement?: 'route' | 'memories' | 'notes' | 'documents',
     metadata?: Record<string, any>,
   ) => Promise<string>
+
+  listDocuments?: (tripId: string) => Promise<Array<{
+    id: string
+    tripId: string
+    url: string
+    originalName: string
+    sizeBytes: number
+    metadata?: any
+  }>>
+
+  updateDocumentMeta?: (
+    id: string,
+    metadata: {
+      folderId?: string | null
+      access?: 'public' | 'private'
+      title?: string | null
+      category?: string | null
+      isFavorite?: boolean
+      note?: string | null
+    },
+  ) => Promise<unknown>
 }
 
 export type { ActivityPayload, Booking }

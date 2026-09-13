@@ -138,6 +138,7 @@ export async function importTripFolderCore(
 
       for (const sec of DEFAULT_TRIP_SECTIONS) {
         try {
+          const existingSec = existingSections.find(s => s.type === sec.type)
           let sectionContent: any
 
           if (sec.type === 'bookings') {
@@ -150,10 +151,16 @@ export async function importTripFolderCore(
             sectionContent = tripData.financesContent?.transactions?.length ? tripData.financesContent : undefined
           }
           else if (sec.type === 'documents') {
-            sectionContent = tripData.documentsContent?.folders?.length ? tripData.documentsContent : { folders: [] }
+            const existingFolders = Array.isArray((existingSec as any)?.content?.folders) ? (existingSec as any).content.folders : []
+            const newFolders = tripData.documentsContent?.folders || []
+            const mergedFolders = [...existingFolders]
+            for (const nf of newFolders) {
+              if (!mergedFolders.some((ef: any) => ef.name.trim().toLowerCase() === nf.name.trim().toLowerCase())) {
+                mergedFolders.push(nf)
+              }
+            }
+            sectionContent = { folders: mergedFolders }
           }
-
-          const existingSec = existingSections.find(s => s.type === sec.type)
 
           if (existingSec) {
             const updatePayload: { title: string, icon: string | null, content?: unknown } = {
@@ -310,16 +317,74 @@ export async function importTripFolderCore(
       progress?.('documents', `Загрузка документов (${tripData.documents.length} шт.)`)
       log?.(`Загрузка документов (${tripData.documents.length} шт.)...`)
 
+      let currentSectionFolders: Array<{ id: string, name: string }> = []
+      try {
+        const details = await transport.getTripDetails(createdTrip.id)
+        const docSec: any = details?.sections?.find((s: any) => s.type === 'documents')
+        if (Array.isArray(docSec?.content?.folders)) {
+          currentSectionFolders = docSec.content.folders
+        }
+      }
+      catch {
+        currentSectionFolders = []
+      }
+
       const folderMap = new Map<string, string>()
+      for (const f of currentSectionFolders) {
+        if (f?.name && f?.id) {
+          folderMap.set(f.name.trim().toLowerCase(), f.id)
+        }
+      }
       if (tripData.documentsContent?.folders) {
         for (const f of tripData.documentsContent.folders) {
-          folderMap.set(f.name.toLowerCase(), f.id)
+          if (f?.name && f?.id && !folderMap.has(f.name.trim().toLowerCase())) {
+            folderMap.set(f.name.trim().toLowerCase(), f.id)
+          }
+        }
+      }
+
+      let existingDocs: any[] = []
+      if (transport.listDocuments) {
+        try {
+          existingDocs = await transport.listDocuments(createdTrip.id)
+        }
+        catch {
+          existingDocs = []
         }
       }
 
       for (const doc of tripData.documents) {
         try {
-          const folderId = doc.folderName ? folderMap.get(doc.folderName.toLowerCase()) || null : null
+          const folderId = doc.folderName ? folderMap.get(doc.folderName.trim().toLowerCase()) || null : null
+          const alreadyUploaded = existingDocs.find(d => d.originalName === doc.fileName)
+
+          if (alreadyUploaded) {
+            const currentFolderId = alreadyUploaded.metadata?.folderId ?? null
+            const currentCategory = alreadyUploaded.metadata?.category ?? null
+            const currentAccess = alreadyUploaded.metadata?.access ?? null
+            const currentTitle = alreadyUploaded.metadata?.title ?? null
+
+            const needsUpdate = (
+              currentFolderId !== folderId
+              || (doc.access && currentAccess !== doc.access)
+              || (doc.category && currentCategory !== doc.category)
+              || (doc.title && currentTitle !== doc.title)
+            )
+
+            if (needsUpdate && transport.updateDocumentMeta) {
+              await transport.updateDocumentMeta(alreadyUploaded.id, {
+                folderId,
+                access: doc.access,
+                title: doc.title,
+                category: doc.category,
+              })
+              documentsUploaded++
+              const accessLabel = doc.access === 'private' ? 'личный/private' : 'публичный/public'
+              log?.(`  ✔ Обновлены метаданные документа: ${doc.fileName} (${accessLabel})`)
+            }
+            continue
+          }
+
           await transport.uploadImage(createdTrip.id, doc.filePath, 'documents', {
             access: doc.access,
             folderId,

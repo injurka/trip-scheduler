@@ -403,4 +403,22 @@ export class ApiClient {
       return []
     }
   }
+
+  async updateDocumentMeta(
+    id: string,
+    metadata: {
+      folderId?: string | null
+      access?: 'public' | 'private'
+      title?: string | null
+      category?: string | null
+      isFavorite?: boolean
+      note?: string | null
+    },
+  ): Promise<any> {
+    const res = await this.request<any>('/trpc/image.updateDocumentMeta', {
+      method: 'POST',
+      body: JSON.stringify({ id, metadata }),
+    })
+    return res?.result?.data ?? res
+  }
 }
