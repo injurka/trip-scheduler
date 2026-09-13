@@ -1,12 +1,17 @@
 <script setup lang="ts">
 import type { DocumentFile } from '../models/types'
+import type { KitDropdownItem } from '~/components/01.kit/kit-dropdown'
 import { Icon } from '@iconify/vue'
 import { computed, ref, watch } from 'vue'
 import { KitBtn } from '~/components/01.kit/kit-btn'
 import { KitDialogWithClose } from '~/components/01.kit/kit-dialog-with-close'
+import { KitDropdown } from '~/components/01.kit/kit-dropdown'
+import { useToast } from '~/shared/composables/use-toast'
+import { isTauri } from '~/shared/lib/env'
 import { openExternalUrl } from '~/shared/lib/opener'
 import { resolveApiUrl } from '~/shared/lib/url'
 import { formatBytes, getFileTypeInfo } from '../constants'
+import DocumentPdfViewer from './document-pdf-viewer.vue'
 
 interface Props {
   visible: boolean
@@ -20,6 +25,7 @@ const emit = defineEmits<{
   (e: 'download', doc: DocumentFile): void
 }>()
 
+const toast = useToast()
 const isTextLoading = ref(false)
 const textContent = ref<string | null>(null)
 
@@ -41,6 +47,26 @@ const absoluteUrl = computed(() => {
 
 const isPdf = computed(() => extension.value === 'pdf')
 const isText = computed(() => ['txt', 'md', 'json', 'csv'].includes(extension.value))
+
+const dropdownActions = computed<KitDropdownItem<string>[]>(() => {
+  return [
+    {
+      label: isTauri ? 'Открыть в приложении' : 'В новой вкладке',
+      value: 'openExternal',
+      icon: 'mdi:open-in-new',
+    },
+    {
+      label: 'Скачать',
+      value: 'download',
+      icon: 'mdi:download-outline',
+    },
+    {
+      label: 'Скопировать ссылку',
+      value: 'copyLink',
+      icon: 'mdi:link-variant',
+    },
+  ]
+})
 
 watch(() => props.document, async (doc) => {
   textContent.value = null
@@ -67,9 +93,58 @@ function handleOpenExternal() {
   }
 }
 
-function handleDownload() {
-  if (props.document) {
-    emit('download', props.document)
+async function handleDownload() {
+  if (!props.document)
+    return
+
+  emit('download', props.document)
+
+  try {
+    const doc = props.document
+    const url = resolveApiUrl(doc.url)
+
+    if (isTauri) {
+      await openExternalUrl(url)
+      toast.info('Загрузка файла передана системе...')
+      return
+    }
+
+    const link = document.createElement('a')
+    link.href = url
+    link.target = '_blank'
+    link.download = doc.originalName || doc.title || 'document'
+    document.body.appendChild(link)
+    link.click()
+    document.body.removeChild(link)
+    toast.success('Загрузка файла началась')
+  }
+  catch (error) {
+    console.error('Ошибка при скачивании:', error)
+    toast.error('Не удалось скачать файл')
+  }
+}
+
+async function handleCopyLink() {
+  if (!absoluteUrl.value)
+    return
+  try {
+    await navigator.clipboard.writeText(absoluteUrl.value)
+    toast.success('Ссылка на файл скопирована в буфер')
+  }
+  catch {
+    toast.error('Не удалось скопировать ссылку')
+  }
+}
+
+function handleActionSelect(action: string) {
+  if (action === 'openExternal') {
+    handleOpenExternal()
+  }
+  else if (action === 'download') {
+    handleDownload()
+  }
+  else if (action === 'copyLink') {
+    handleCopyLink()
   }
 }
 </script>
@@ -99,14 +174,19 @@ function handleDownload() {
           </span>
         </div>
 
-        <!-- Кнопки в шапке только при встроенном просмотре PDF/текста -->
-        <div v-if="isPdf || isText" class="topbar-actions">
-          <KitBtn size="xs" variant="outlined" icon="mdi:open-in-new" @click="handleOpenExternal">
-            В новой вкладке
-          </KitBtn>
-          <KitBtn size="xs" icon="mdi:download-outline" @click="handleDownload">
-            Скачать
-          </KitBtn>
+        <!-- Меню действий в шапке -->
+        <div class="topbar-actions">
+          <KitDropdown
+            align="end"
+            :items="dropdownActions"
+            @update:model-value="handleActionSelect"
+          >
+            <template #trigger>
+              <button class="topbar-more-btn" title="Действия с файлом">
+                <Icon icon="mdi:dots-vertical" width="16" height="16" />
+              </button>
+            </template>
+          </KitDropdown>
         </div>
       </div>
 
@@ -115,14 +195,12 @@ function handleDownload() {
         {{ document.title || document.originalName }}
       </div>
 
-      <!-- PDF Viewer -->
-      <div v-if="isPdf" class="pdf-wrapper">
-        <iframe
-          :src="`${absoluteUrl}#toolbar=1&navpanes=0`"
-          class="pdf-frame"
-          title="PDF Preview"
-        />
-      </div>
+      <!-- Встроенный PDF Viewer (pdfjs-dist) -->
+      <DocumentPdfViewer
+        v-if="isPdf"
+        :url="document.url"
+        :title="document.title || document.originalName"
+      />
 
       <!-- Текстовый файл -->
       <div v-else-if="isText" class="text-wrapper">
@@ -169,40 +247,57 @@ function handleDownload() {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  flex-wrap: wrap;
+  flex-wrap: nowrap;
   gap: 12px;
-  padding-bottom: 8px;
+  padding-bottom: 10px;
   border-bottom: 1px solid var(--border-secondary-color);
+  min-width: 0;
 }
 
 .file-badges {
   display: flex;
   align-items: center;
   gap: 8px;
-  flex-wrap: wrap;
+  flex-wrap: nowrap;
+  min-width: 0;
+  overflow-x: auto;
+  scrollbar-width: none;
+  height: 26px;
+
+  &::-webkit-scrollbar {
+    display: none;
+  }
 }
 
 .type-badge {
   display: inline-flex;
   align-items: center;
   gap: 6px;
-  padding: 4px 10px;
-  border-radius: var(--r-s);
+  padding: 0 8px;
+  height: 26px;
+  box-sizing: border-box;
+  border-radius: var(--r-xs);
   font-size: 0.8rem;
   font-weight: 600;
+  white-space: nowrap;
+  flex-shrink: 0;
 }
 
 .privacy-badge {
   display: inline-flex;
   align-items: center;
   gap: 5px;
-  padding: 4px 10px;
-  border-radius: var(--r-s);
+  padding: 0 8px;
+  height: 26px;
+  box-sizing: border-box;
+  border-radius: var(--r-xs);
   font-size: 0.8rem;
   font-weight: 500;
   border: 1px solid var(--border-secondary-color);
   background-color: var(--bg-secondary-color);
   color: var(--fg-secondary-color);
+  white-space: nowrap;
+  flex-shrink: 0;
 
   &.privacy--public {
     color: var(--fg-success-color);
@@ -212,12 +307,18 @@ function handleDownload() {
 }
 
 .size-badge {
+  display: inline-flex;
+  align-items: center;
+  height: 26px;
+  box-sizing: border-box;
   font-size: 0.8rem;
   color: var(--fg-tertiary-color);
-  padding: 4px 8px;
+  padding: 0 8px;
   background-color: var(--bg-secondary-color);
-  border-radius: var(--r-s);
+  border-radius: var(--r-xs);
   border: 1px solid var(--border-secondary-color);
+  white-space: nowrap;
+  flex-shrink: 0;
 }
 
 .preview-doc-title {
@@ -233,23 +334,31 @@ function handleDownload() {
 .topbar-actions {
   display: flex;
   align-items: center;
-  gap: 8px;
+  flex-shrink: 0;
+  height: 26px;
+  margin-left: auto;
 }
 
-.pdf-wrapper {
-  width: 100%;
-  height: 65vh;
-  min-height: 480px;
-  border-radius: var(--r-m);
-  overflow: hidden;
+.topbar-more-btn {
+  width: 26px;
+  height: 26px;
+  box-sizing: border-box;
+  border-radius: var(--r-xs);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
   border: 1px solid var(--border-secondary-color);
-  background-color: #525659;
-}
+  background-color: var(--bg-primary-color);
+  color: var(--fg-secondary-color);
+  cursor: pointer;
+  padding: 0;
+  transition: all 0.2s;
 
-.pdf-frame {
-  width: 100%;
-  height: 100%;
-  border: none;
+  &:hover {
+    background-color: var(--bg-hover-color);
+    color: var(--fg-primary-color);
+    border-color: var(--border-primary-color);
+  }
 }
 
 .text-wrapper {

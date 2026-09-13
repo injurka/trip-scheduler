@@ -4,6 +4,7 @@ import type { Category, Transaction } from '../../models/types'
 import { Icon } from '@iconify/vue'
 import { getLocalTimeZone, parseDate, today } from '@internationalized/date'
 import { onClickOutside, useDateFormat } from '@vueuse/core'
+import { computed, ref, watch } from 'vue'
 import { KitBtn } from '~/components/01.kit/kit-btn'
 import { KitCalendar } from '~/components/01.kit/kit-calendar'
 import { KitCheckbox } from '~/components/01.kit/kit-checkbox'
@@ -78,7 +79,7 @@ watch(() => props.visible, (isVisible) => {
   if (isVisible) {
     isCalendarOpen.value = false
     form.value = props.transaction
-      ? { ...props.transaction }
+      ? { status: props.transaction.status || 'paid', ...props.transaction }
       : {
           date: today(getLocalTimeZone()).toString(),
           currency: props.mainCurrency,
@@ -87,6 +88,7 @@ watch(() => props.visible, (isVisible) => {
           amount: 0,
           notes: '',
           isSpontaneous: false,
+          status: 'paid',
         }
     isTimeless.value = !form.value.date
   }
@@ -102,6 +104,30 @@ watch(isTimeless, (isNowTimeless) => {
   <KitDialogWithClose :visible="visible" :title="title" icon="mdi:cash-plus" @update:visible="emit('update:visible', $event)">
     <form v-if="form" class="form-grid" @submit.prevent="handleSubmit">
       <KitInput v-model="form.title" label="Название" placeholder="Обед в ресторане" required class="span-2" />
+
+      <div class="span-2 status-picker-wrapper">
+        <label class="kit-input__label">Статус оплаты</label>
+        <div class="status-options">
+          <button
+            type="button"
+            class="status-btn"
+            :class="{ active: (form.status || 'paid') === 'paid' }"
+            @click="form.status = 'paid'"
+          >
+            <Icon icon="mdi:check-circle" />
+            <span>Оплачено (Факт)</span>
+          </button>
+          <button
+            type="button"
+            class="status-btn"
+            :class="{ active: form.status === 'planned' }"
+            @click="form.status = 'planned'"
+          >
+            <Icon icon="mdi:clock-outline" />
+            <span>В планах / К оплате</span>
+          </button>
+        </div>
+      </div>
 
       <KitInput v-model.number="form.amount" label="Сумма" type="number" required />
       <KitInput v-model="form.currency" label="Валюта" placeholder="RUB, USD..." />
@@ -183,6 +209,67 @@ watch(isTimeless, (isNowTimeless) => {
 }
 .span-2 {
   grid-column: span 2;
+}
+
+.status-picker-wrapper {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+
+  .kit-input__label {
+    font-size: 0.875rem;
+    font-weight: 500;
+    color: var(--fg-secondary-color);
+  }
+}
+
+.status-options {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.5rem;
+  background-color: var(--bg-tertiary-color);
+  padding: 4px;
+  border-radius: var(--r-s);
+  border: 1px solid var(--border-secondary-color);
+}
+
+.status-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 8px 12px;
+  border-radius: calc(var(--r-s) - 2px);
+  border: none;
+  background: none;
+  color: var(--fg-secondary-color);
+  font-size: 0.875rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.15s ease;
+
+  svg {
+    font-size: 1.1rem;
+  }
+
+  &.active {
+    background-color: var(--bg-primary-color);
+    color: var(--fg-primary-color);
+    box-shadow: var(--s-xs);
+    font-weight: 600;
+
+    &:first-child {
+      color: #059669;
+    }
+
+    &:last-child {
+      color: #2563eb;
+    }
+  }
+
+  &:hover:not(.active) {
+    color: var(--fg-primary-color);
+  }
 }
 
 .date-picker-wrapper {

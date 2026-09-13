@@ -1,3 +1,5 @@
+export type TransactionStatus = 'paid' | 'planned'
+
 export interface FinanceTransaction {
   id: string
   title: string
@@ -6,6 +8,8 @@ export interface FinanceTransaction {
   categoryId: string
   notes?: string
   date?: string
+  isSpontaneous?: boolean
+  status?: TransactionStatus
 }
 
 export interface FinanceCategory {
@@ -13,12 +17,14 @@ export interface FinanceCategory {
   name: string
   icon: string
   isDefault: boolean
+  budgetLimit?: number
 }
 
 export interface FinancesSectionContent {
   settings: {
     mainCurrency: string
     exchangeRates: Record<string, number>
+    totalBudget?: number
   }
   categories: FinanceCategory[]
   transactions: FinanceTransaction[]

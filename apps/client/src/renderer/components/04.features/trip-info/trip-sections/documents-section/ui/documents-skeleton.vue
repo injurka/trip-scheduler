@@ -320,13 +320,28 @@ const activeViewMode = computed(() => props.viewMode || storedViewMode.value || 
   }
 }
 
-@media (max-width: 600px) {
+@media (max-width: 768px) {
   .skeleton-filters-toolbar {
-    flex-direction: column;
-    align-items: stretch;
+    display: grid;
+    grid-template-columns: 1fr auto;
+    grid-template-areas:
+      'search fav'
+      'categories categories';
+    gap: 8px 10px;
+    padding: 10px 12px;
 
     .search-box {
+      grid-area: search;
       max-width: none;
+    }
+
+    .fav-toggle-box {
+      grid-area: fav;
+    }
+
+    .categories-filter {
+      grid-area: categories;
+      overflow-x: hidden;
     }
   }
 

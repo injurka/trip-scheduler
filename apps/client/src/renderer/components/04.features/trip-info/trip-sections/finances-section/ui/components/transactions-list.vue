@@ -19,6 +19,7 @@ const props = defineProps<Props>()
 const emit = defineEmits<{
   (e: 'editTransaction', transaction: Transaction): void
   (e: 'deleteTransaction', id: string): void
+  (e: 'toggleStatus', id: string): void
 }>()
 
 const { format: formatCurrency } = useCurrencyFormatter()
@@ -154,7 +155,7 @@ const totalSearchedAmount = computed(() => {
         </div>
 
         <div v-if="filteredTotal > 0" class="total-amount">
-          <span>Потрачено:</span>
+          <span>Сумма:</span>
           <strong>{{ formatCurrency(searchQuery ? totalSearchedAmount : filteredTotal, settings.mainCurrency) }}</strong>
         </div>
       </div>
@@ -191,6 +192,30 @@ const totalSearchedAmount = computed(() => {
               <div class="item-details">
                 <div class="item-title-row">
                   <span class="item-title">{{ tx.title }}</span>
+
+                  <KitTooltip v-if="tx.status === 'planned'" text="В планах (к оплате). Нажмите, чтобы отметить оплаченным.">
+                    <button
+                      type="button"
+                      class="status-badge planned"
+                      :disabled="props.readonly"
+                      @click.stop="!props.readonly && emit('toggleStatus', tx.id)"
+                    >
+                      <Icon icon="mdi:clock-outline" />
+                      <span>В планах</span>
+                    </button>
+                  </KitTooltip>
+                  <KitTooltip v-else text="Оплачено. Нажмите, чтобы вернуть в статус «В планах».">
+                    <button
+                      type="button"
+                      class="status-badge paid"
+                      :disabled="props.readonly"
+                      @click.stop="!props.readonly && emit('toggleStatus', tx.id)"
+                    >
+                      <Icon icon="mdi:check-circle-outline" />
+                      <span>Оплачено</span>
+                    </button>
+                  </KitTooltip>
+
                   <KitTooltip v-if="tx.isSpontaneous" text="Спонтанная/дополнительная трата">
                     <span class="spontaneous-badge">
                       <Icon icon="mdi:sparkles" />
@@ -211,14 +236,24 @@ const totalSearchedAmount = computed(() => {
 
             <div class="item-amount">
               <div class="amount-group">
-                <span class="original-amount">
+                <span class="original-amount" :class="{ 'is-planned': tx.status === 'planned' }">
                   -{{ formatCurrency(tx.amount, tx.currency) }}
                 </span>
                 <span v-if="tx.currency !== settings.mainCurrency" class="converted-amount">
                   ~{{ getConvertedAmountInMainCurrency(tx) }}
                 </span>
               </div>
-              <div v-if="!readonly" class="item-actions">
+              <div v-if="!props.readonly" class="item-actions">
+                <KitBtn
+                  v-if="tx.status === 'planned'"
+                  icon="mdi:check-circle-outline"
+                  variant="tonal"
+                  color="secondary"
+                  size="sm"
+                  class="mark-paid-btn"
+                  title="Отметить как оплаченное"
+                  @click="emit('toggleStatus', tx.id)"
+                />
                 <KitBtn
                   icon="mdi:pencil-outline"
                   variant="text"
@@ -514,6 +549,47 @@ const totalSearchedAmount = computed(() => {
   flex-shrink: 0;
 }
 
+.status-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  font-size: 0.68rem;
+  font-weight: 600;
+  padding: 1px 7px;
+  border-radius: 9999px;
+  border: 1px solid transparent;
+  cursor: pointer;
+  background: none;
+  font-family: inherit;
+  line-height: 1.4;
+  transition: all 0.15s ease;
+  flex-shrink: 0;
+
+  &:disabled {
+    cursor: default;
+  }
+
+  &.planned {
+    color: #2563eb;
+    background-color: color-mix(in srgb, #3b82f6 12%, transparent);
+    border-color: color-mix(in srgb, #3b82f6 30%, transparent);
+
+    &:not(:disabled):hover {
+      background-color: color-mix(in srgb, #3b82f6 24%, transparent);
+    }
+  }
+
+  &.paid {
+    color: #059669;
+    background-color: color-mix(in srgb, #10b981 12%, transparent);
+    border-color: color-mix(in srgb, #10b981 25%, transparent);
+
+    &:not(:disabled):hover {
+      background-color: color-mix(in srgb, #10b981 24%, transparent);
+    }
+  }
+}
+
 .item-meta-row {
   display: flex;
   align-items: center;
@@ -557,6 +633,10 @@ const totalSearchedAmount = computed(() => {
   color: var(--fg-error-color);
   font-family: var(--font-mono);
   font-variant-numeric: tabular-nums;
+
+  &.is-planned {
+    color: #2563eb;
+  }
 }
 
 .converted-amount {
@@ -568,9 +648,17 @@ const totalSearchedAmount = computed(() => {
 
 .item-actions {
   display: flex;
+  align-items: center;
   gap: 0.15rem;
   opacity: 0.6;
   transition: opacity 0.2s;
+
+  .mark-paid-btn {
+    color: #059669;
+    &:hover {
+      background-color: color-mix(in srgb, #10b981 15%, transparent);
+    }
+  }
 }
 
 .empty-state,

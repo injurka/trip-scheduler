@@ -39,6 +39,7 @@ export function useFinancesSection(
   const selectedCategoryFilters = ref<string[]>([])
   const dateFilter = ref<{ start: string | null, end: string | null }>({ start: null, end: null })
   const typeFilter = ref<'all' | 'planned' | 'spontaneous'>('all')
+  const statusFilter = ref<'all' | 'paid' | 'planned'>('all')
 
   const initialCategories = JSON.parse(JSON.stringify(content.value?.categories || DEFAULT_CATEGORIES))
   const catOther = initialCategories.find((c: Category) => c.id === 'cat-other')
@@ -77,9 +78,23 @@ export function useFinancesSection(
         transactions.value.splice(index, 1, tx as Transaction)
     }
     else {
-      transactions.value.unshift({ ...tx, id: uuidv4(), categoryId: tx.categoryId || null } as Transaction)
+      transactions.value.unshift({
+        ...tx,
+        id: uuidv4(),
+        categoryId: tx.categoryId || null,
+        status: tx.status || 'paid',
+      } as Transaction)
     }
     isTransactionFormOpen.value = false
+  }
+
+  function toggleTransactionStatus(id: string) {
+    if (props.readonly)
+      return
+    const tx = transactions.value.find(t => t.id === id)
+    if (tx) {
+      tx.status = tx.status === 'planned' ? 'paid' : 'planned'
+    }
   }
 
   function addMultipleTransactions(newTransactions: Partial<Transaction>[]) {
@@ -88,6 +103,7 @@ export function useFinancesSection(
       id: uuidv4(),
       categoryId: tx.categoryId || null,
       currency: tx.currency || settings.value.mainCurrency,
+      status: tx.status || 'paid',
     } as Transaction))
 
     transactions.value.unshift(...transactionsToAdd)
@@ -143,7 +159,7 @@ export function useFinancesSection(
     })
   })
 
-  // Фильтруем транзакции по всем фильтрам кроме type (для подсчета общих сумм)
+  // Фильтруем транзакции по всем фильтрам кроме type/status (для подсчета общих сумм)
   const baseFilteredTransactions = computed(() => {
     let result = sortedTransactions.value
 
@@ -169,9 +185,16 @@ export function useFinancesSection(
     return result
   })
 
-  // Итоговый фильтр с учетом typeFilter
+  // Итоговый фильтр с учетом statusFilter и typeFilter
   const filteredTransactions = computed(() => {
     let result = baseFilteredTransactions.value
+
+    if (statusFilter.value === 'paid') {
+      result = result.filter(tx => tx.status !== 'planned')
+    }
+    else if (statusFilter.value === 'planned') {
+      result = result.filter(tx => tx.status === 'planned')
+    }
 
     if (typeFilter.value === 'planned') {
       result = result.filter(tx => !tx.isSpontaneous)
@@ -183,15 +206,21 @@ export function useFinancesSection(
     return result
   })
 
+  const paidTotal = computed(() => {
+    return baseFilteredTransactions.value
+      .filter(tx => tx.status !== 'planned')
+      .reduce((sum, tx) => sum + convertToMainCurrency(tx.amount, tx.currency), 0)
+  })
+
   const plannedTotal = computed(() => {
     return baseFilteredTransactions.value
-      .filter(tx => !tx.isSpontaneous)
+      .filter(tx => tx.status === 'planned')
       .reduce((sum, tx) => sum + convertToMainCurrency(tx.amount, tx.currency), 0)
   })
 
   const spontaneousTotal = computed(() => {
     return baseFilteredTransactions.value
-      .filter(tx => tx.isSpontaneous)
+      .filter(tx => tx.isSpontaneous && tx.status !== 'planned')
       .reduce((sum, tx) => sum + convertToMainCurrency(tx.amount, tx.currency), 0)
   })
 
@@ -200,31 +229,86 @@ export function useFinancesSection(
       .reduce((sum, tx) => sum + convertToMainCurrency(tx.amount, tx.currency), 0)
   })
 
+  const categoryBudgetsTotal = computed(() => {
+    return categories.value.reduce((sum, c) => sum + (c.budgetLimit || 0), 0)
+  })
+
+  const overallBudget = computed(() => {
+    if (settings.value.totalBudget && settings.value.totalBudget > 0)
+      return settings.value.totalBudget
+    if (categoryBudgetsTotal.value > 0)
+      return categoryBudgetsTotal.value
+    return paidTotal.value + plannedTotal.value
+  })
+
+  const remainingBudget = computed(() => {
+    return Math.max(0, overallBudget.value - paidTotal.value)
+  })
+
   const spendingByCategory = computed(() => {
-    const spendingMap = new Map<string, { name: string, icon: string, amount: number }>()
+    const spendingMap = new Map<string, {
+      id: string
+      name: string
+      icon: string
+      amount: number
+      paidAmount: number
+      plannedAmount: number
+      budgetLimit?: number
+    }>()
 
-    filteredTransactions.value
-      .forEach((tx) => {
-        const categoryId = tx.categoryId || 'cat-other'
-        const category = categories.value.find(c => c.id === categoryId) || DEFAULT_CATEGORIES.find(c => c.id === 'cat-other')!
-        const amountInMain = convertToMainCurrency(tx.amount, tx.currency)
-
-        if (spendingMap.has(categoryId)) {
-          spendingMap.get(categoryId)!.amount += amountInMain
-        }
-        else {
-          spendingMap.set(categoryId, { name: category.name, icon: category.icon, amount: amountInMain })
-        }
+    categories.value.forEach((cat) => {
+      spendingMap.set(cat.id, {
+        id: cat.id,
+        name: cat.name,
+        icon: cat.icon,
+        amount: 0,
+        paidAmount: 0,
+        plannedAmount: 0,
+        budgetLimit: cat.budgetLimit,
       })
+    })
 
-    return Array.from(spendingMap.values()).sort((a, b) => b.amount - a.amount)
+    filteredTransactions.value.forEach((tx) => {
+      const categoryId = tx.categoryId || 'cat-other'
+      const amountInMain = convertToMainCurrency(tx.amount, tx.currency)
+
+      if (!spendingMap.has(categoryId)) {
+        const cat = categories.value.find(c => c.id === categoryId) || DEFAULT_CATEGORIES.find(c => c.id === 'cat-other')!
+        spendingMap.set(categoryId, {
+          id: categoryId,
+          name: cat.name,
+          icon: cat.icon,
+          amount: 0,
+          paidAmount: 0,
+          plannedAmount: 0,
+          budgetLimit: cat.budgetLimit,
+        })
+      }
+
+      const item = spendingMap.get(categoryId)!
+      item.amount += amountInMain
+      if (tx.status === 'planned') {
+        item.plannedAmount += amountInMain
+      }
+      else {
+        item.paidAmount += amountInMain
+      }
+    })
+
+    return Array.from(spendingMap.values())
+      .filter(cat => cat.amount > 0 || (cat.budgetLimit && cat.budgetLimit > 0))
+      .sort((a, b) => {
+        const aVal = Math.max(a.paidAmount, a.amount, a.budgetLimit || 0)
+        const bVal = Math.max(b.paidAmount, b.amount, b.budgetLimit || 0)
+        return bVal - aVal
+      })
   })
 
   const spendingByDay = computed(() => {
     const spendingMap = new Map<string, number>()
 
     filteredTransactions.value
-      .filter(tx => tx.date)
+      .filter(tx => tx.date && tx.status !== 'planned')
       .forEach((tx) => {
         const date = tx.date!.split('T')[0]
         const amountInMain = convertToMainCurrency(tx.amount, tx.currency)
@@ -276,9 +360,13 @@ export function useFinancesSection(
     selectedCategoryFilters,
     dateFilter,
     typeFilter,
+    statusFilter,
 
     // Computed
     totalSpending,
+    overallBudget,
+    remainingBudget,
+    paidTotal,
     plannedTotal,
     spontaneousTotal,
     spendingByCategory,
@@ -289,6 +377,7 @@ export function useFinancesSection(
     // Methods
     openTransactionForm,
     saveTransaction,
+    toggleTransactionStatus,
     addMultipleTransactions,
     deleteTransaction,
     saveCategory,

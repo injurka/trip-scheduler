@@ -15,6 +15,8 @@ export interface Transport {
     description?: string
     startDate?: string
     endDate?: string
+    budget?: number | null
+    currency?: string | null
   }) => Promise<{ id: string, title: string }>
 
   updateTrip: (id: string, details: {
@@ -28,6 +30,8 @@ export interface Transport {
     visibility?: 'private' | 'public'
     startDate?: string
     endDate?: string
+    budget?: number | null
+    currency?: string | null
   }) => Promise<unknown>
 
   deleteTrip?: (id: string) => Promise<unknown>

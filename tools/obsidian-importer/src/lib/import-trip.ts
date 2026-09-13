@@ -113,6 +113,8 @@ export async function importTripFolderCore(
           visibility: options.visibility,
           startDate: tripData.startDate,
           endDate: tripData.endDate,
+          budget: tripData.budget ?? tripData.financesContent?.settings?.totalBudget ?? null,
+          currency: tripData.currency ?? tripData.financesContent?.settings?.mainCurrency ?? 'RUB',
         })
       }, log, 'Обновление метаданных')
     }

@@ -40,6 +40,8 @@ export interface ParsedTripData {
   checklistContent: ChecklistSectionContent
   checklistFilesCount: number
   financesContent: FinancesSectionContent
+  budget?: number
+  currency?: string
   bookingsContent: BookingSectionContent
   documents: ParsedDocumentFile[]
   documentsContent: DocumentsSectionContent

@@ -8,10 +8,22 @@ import { Bar, Doughnut } from 'vue-chartjs'
 import { KitViewSwitcher } from '~/components/01.kit/kit-view-switcher'
 import { useCurrencyFormatter } from '../../composables/use-currency-formatter'
 
+interface CategorySpendingItem {
+  id?: string
+  name: string
+  icon: string
+  amount: number
+  paidAmount?: number
+  plannedAmount?: number
+  budgetLimit?: number
+}
+
 interface Props {
   mainCurrency: string
-  spendingByCategory: { name: string, icon: string, amount: number }[]
+  spendingByCategory: CategorySpendingItem[]
   spendingByDay: { date: string, amount: number }[]
+  overallBudget?: number
+  paidTotal?: number
   plannedTotal: number
   spontaneousTotal: number
   filteredTotal: number
@@ -24,6 +36,7 @@ ChartJS.register(Title, Tooltip, Legend, ArcElement, CategoryScale, BarElement, 
 const { format: formatCurrency } = useCurrencyFormatter()
 
 const currentView = ref<'category' | 'day'>('category')
+const chartMode = ref<'fact' | 'plan'>('fact')
 const hoveredIndex = ref<number | null>(null)
 
 const viewSwitcherItems: ViewSwitcherItem<'category' | 'day'>[] = [
@@ -73,6 +86,42 @@ function getCategoryWord(count: number): string {
   return 'категорий'
 }
 
+const hasBudget = computed(() => {
+  return (props.overallBudget && props.overallBudget > 0)
+    || props.spendingByCategory.some(c => (c.budgetLimit && c.budgetLimit > 0))
+    || (props.plannedTotal > 0 && props.paidTotal !== undefined)
+})
+
+const effectivePaidTotal = computed(() => {
+  return props.paidTotal !== undefined ? props.paidTotal : props.filteredTotal
+})
+
+const effectivePlannedTotal = computed(() => {
+  return props.plannedTotal
+})
+
+const effectiveOverallBudget = computed(() => {
+  if (props.overallBudget && props.overallBudget > 0)
+    return props.overallBudget
+  return effectivePaidTotal.value + effectivePlannedTotal.value
+})
+
+const remainingBudget = computed(() => {
+  return Math.max(0, effectiveOverallBudget.value - effectivePaidTotal.value)
+})
+
+const paidPercentOfBudget = computed(() => {
+  if (effectiveOverallBudget.value === 0)
+    return 0
+  return Math.round((effectivePaidTotal.value / effectiveOverallBudget.value) * 100)
+})
+
+const plannedPercentOfBudget = computed(() => {
+  if (effectiveOverallBudget.value === 0)
+    return 0
+  return Math.round((effectivePlannedTotal.value / effectiveOverallBudget.value) * 100)
+})
+
 const categoryTotal = computed(() => {
   return props.spendingByCategory.reduce((sum, cat) => sum + cat.amount, 0)
 })
@@ -111,10 +160,27 @@ const hoveredCategory = computed(() => {
   return null
 })
 
+const isDoughnutPlanMode = computed(() => {
+  return chartMode.value === 'plan' || effectivePaidTotal.value === 0
+})
+
 const doughnutChartData = computed(() => {
-  const labels = props.spendingByCategory.map(cat => cat.name)
-  const data = props.spendingByCategory.map(cat => cat.amount)
-  const colors = props.spendingByCategory.map((_, i) => getCategoryColor(i))
+  const isPlan = isDoughnutPlanMode.value
+
+  const items = props.spendingByCategory.map((cat, i) => {
+    const val = isPlan
+      ? (cat.budgetLimit || cat.plannedAmount || cat.amount)
+      : (cat.paidAmount !== undefined ? cat.paidAmount : cat.amount)
+    return {
+      name: cat.name,
+      value: val,
+      index: i,
+    }
+  }).filter(item => item.value > 0)
+
+  const labels = items.map(cat => cat.name)
+  const data = items.map(cat => cat.value)
+  const colors = items.map(item => getCategoryColor(item.index))
 
   return {
     labels,
@@ -150,7 +216,8 @@ const doughnutChartOptions = computed(() => ({
       callbacks: {
         label: (context: any) => {
           const val = context.parsed || 0
-          const pct = getCategoryPercent(val)
+          const base = isDoughnutPlanMode.value ? effectiveOverallBudget.value : (effectivePaidTotal.value || 1)
+          const pct = Number(((val / (base || 1)) * 100).toFixed(1))
           return ` ${formatCurrency(val, props.mainCurrency)} (${pct}%)`
         },
       },
@@ -265,7 +332,7 @@ useMutationObserver(
   <div class="card finances-card">
     <header class="card-header">
       <div class="header-title-group">
-        <h4>Расходы</h4>
+        <h4>Финансы и бюджет</h4>
       </div>
       <KitViewSwitcher
         v-model="currentView"
@@ -273,63 +340,131 @@ useMutationObserver(
       />
     </header>
 
-    <div v-if="totalSpend > 0" class="summary-cards">
-      <div class="summary-card total">
-        <div class="card-top">
-          <span class="card-label">Всего расходов</span>
-          <Icon icon="mdi:wallet-outline" class="card-icon" />
+    <div v-if="effectiveOverallBudget > 0 || totalSpend > 0" class="summary-cards">
+      <!-- Режим План vs Факт -->
+      <template v-if="hasBudget">
+        <div class="summary-card total budget">
+          <div class="card-top">
+            <span class="card-label">Бюджет поездки</span>
+            <Icon icon="mdi:wallet-outline" class="card-icon" />
+          </div>
+          <div class="card-value">
+            {{ formatCurrency(effectiveOverallBudget, mainCurrency) }}
+          </div>
+          <div class="card-meta">
+            <span>Остаток: {{ formatCurrency(remainingBudget, mainCurrency) }}</span>
+          </div>
         </div>
-        <div class="card-value">
-          {{ formatCurrency(totalSpend, mainCurrency) }}
-        </div>
-        <div class="card-meta">
-          {{ spendingByCategory.length }} {{ getCategoryWord(spendingByCategory.length) }}
-        </div>
-      </div>
 
-      <div class="summary-card planned">
-        <div class="card-top">
-          <span class="card-label">Основные</span>
-          <Icon icon="mdi:target" class="card-icon" />
+        <div class="summary-card paid">
+          <div class="card-top">
+            <span class="card-label">Оплачено (Факт)</span>
+            <Icon icon="mdi:check-circle-outline" class="card-icon" />
+          </div>
+          <div class="card-value">
+            {{ formatCurrency(effectivePaidTotal, mainCurrency) }}
+          </div>
+          <div class="card-meta">
+            <span class="badge paid">{{ paidPercentOfBudget }}%</span>
+            <span>от бюджета</span>
+          </div>
         </div>
-        <div class="card-value">
-          {{ formatCurrency(plannedTotal, mainCurrency) }}
-        </div>
-        <div class="card-meta">
-          <span class="badge planned">{{ plannedPercent }}%</span>
-          <span>по плану</span>
-        </div>
-      </div>
 
-      <div class="summary-card spontaneous" :class="{ 'is-muted': spontaneousTotal === 0 }">
-        <div class="card-top">
-          <span class="card-label">Дополнительные</span>
-          <Icon icon="mdi:sparkles" class="card-icon" />
+        <div class="summary-card planned">
+          <div class="card-top">
+            <span class="card-label">В планах / К оплате</span>
+            <Icon icon="mdi:clock-outline" class="card-icon" />
+          </div>
+          <div class="card-value">
+            {{ formatCurrency(effectivePlannedTotal, mainCurrency) }}
+          </div>
+          <div class="card-meta">
+            <span class="badge planned">{{ plannedPercentOfBudget }}%</span>
+            <span>предстоит</span>
+          </div>
         </div>
-        <div class="card-value">
-          {{ formatCurrency(spontaneousTotal, mainCurrency) }}
+      </template>
+
+      <!-- Классический режим (без заданного бюджета) -->
+      <template v-else>
+        <div class="summary-card total">
+          <div class="card-top">
+            <span class="card-label">Всего расходов</span>
+            <Icon icon="mdi:wallet-outline" class="card-icon" />
+          </div>
+          <div class="card-value">
+            {{ formatCurrency(totalSpend, mainCurrency) }}
+          </div>
+          <div class="card-meta">
+            {{ spendingByCategory.length }} {{ getCategoryWord(spendingByCategory.length) }}
+          </div>
         </div>
-        <div class="card-meta">
-          <span v-if="spontaneousTotal > 0" class="badge spontaneous">{{ spontaneousPercent }}%</span>
-          <span>{{ spontaneousTotal > 0 ? 'сверх плана' : 'нет спонтанных' }}</span>
+
+        <div class="summary-card planned">
+          <div class="card-top">
+            <span class="card-label">Основные</span>
+            <Icon icon="mdi:target" class="card-icon" />
+          </div>
+          <div class="card-value">
+            {{ formatCurrency(plannedTotal, mainCurrency) }}
+          </div>
+          <div class="card-meta">
+            <span class="badge planned">{{ plannedPercent }}%</span>
+            <span>по плану</span>
+          </div>
         </div>
-      </div>
+
+        <div class="summary-card spontaneous" :class="{ 'is-muted': spontaneousTotal === 0 }">
+          <div class="card-top">
+            <span class="card-label">Дополнительные</span>
+            <Icon icon="mdi:sparkles" class="card-icon" />
+          </div>
+          <div class="card-value">
+            {{ formatCurrency(spontaneousTotal, mainCurrency) }}
+          </div>
+          <div class="card-meta">
+            <span v-if="spontaneousTotal > 0" class="badge spontaneous">{{ spontaneousPercent }}%</span>
+            <span>{{ spontaneousTotal > 0 ? 'сверх плана' : 'нет спонтанных' }}</span>
+          </div>
+        </div>
+      </template>
     </div>
 
     <div v-if="currentView === 'category'">
       <div v-if="spendingByCategory.length > 0" class="categories-content">
-        <div class="chart-container" @mouseleave="hoveredIndex = null">
-          <Doughnut :data="doughnutChartData" :options="doughnutChartOptions" />
-          <div class="chart-center" :class="{ 'is-hovered': hoveredCategory !== null }">
-            <span class="center-label">
-              {{ hoveredCategory ? hoveredCategory.name : 'Всего' }}
-            </span>
-            <span class="center-amount">
-              {{ formatCurrency(hoveredCategory ? hoveredCategory.amount : (categoryTotal || totalSpend), mainCurrency) }}
-            </span>
-            <span class="center-meta">
-              {{ hoveredCategory ? `${getCategoryPercent(hoveredCategory.amount)}%` : `${spendingByCategory.length} ${getCategoryWord(spendingByCategory.length)}` }}
-            </span>
+        <div class="chart-wrapper">
+          <div v-if="hasBudget && effectivePaidTotal > 0" class="chart-toggle-row">
+            <button
+              type="button"
+              class="chart-toggle-btn"
+              :class="{ active: chartMode === 'fact' }"
+              @click="chartMode = 'fact'"
+            >
+              Факт
+            </button>
+            <button
+              type="button"
+              class="chart-toggle-btn"
+              :class="{ active: chartMode === 'plan' }"
+              @click="chartMode = 'plan'"
+            >
+              План
+            </button>
+          </div>
+
+          <div class="chart-container" @mouseleave="hoveredIndex = null">
+            <Doughnut :data="doughnutChartData" :options="doughnutChartOptions" />
+            <div class="chart-center" :class="{ 'is-hovered': hoveredCategory !== null }">
+              <span class="center-label">
+                {{ hoveredCategory ? hoveredCategory.name : (isDoughnutPlanMode ? 'Бюджет' : 'Оплачено') }}
+              </span>
+              <span class="center-amount">
+                {{ formatCurrency(hoveredCategory ? (isDoughnutPlanMode ? (hoveredCategory.budgetLimit || hoveredCategory.amount) : (hoveredCategory.paidAmount ?? hoveredCategory.amount)) : (isDoughnutPlanMode ? effectiveOverallBudget : effectivePaidTotal), mainCurrency) }}
+              </span>
+              <span class="center-meta">
+                {{ hoveredCategory ? (hoveredCategory.budgetLimit ? `${Math.round(((hoveredCategory.paidAmount || 0) / (hoveredCategory.budgetLimit || 1)) * 100)}% плана` : `${getCategoryPercent(hoveredCategory.amount)}%`) : `${spendingByCategory.length} ${getCategoryWord(spendingByCategory.length)}` }}
+              </span>
+            </div>
           </div>
         </div>
 
@@ -350,17 +485,28 @@ useMutationObserver(
               <div class="legend-main-row">
                 <span class="legend-title" :title="cat.name">{{ cat.name }}</span>
                 <div class="legend-values">
-                  <span class="legend-percentage">{{ getCategoryPercent(cat.amount) }}%</span>
+                  <span v-if="cat.budgetLimit && cat.budgetLimit > 0" class="legend-percentage" :class="{ 'is-over': (cat.paidAmount || 0) > cat.budgetLimit }">
+                    {{ Math.round(((cat.paidAmount || 0) / cat.budgetLimit) * 100) }}%
+                  </span>
+                  <span v-else class="legend-percentage">{{ getCategoryPercent(cat.amount) }}%</span>
                   <span class="legend-separator" />
-                  <span class="legend-amount">{{ formatCurrency(cat.amount, mainCurrency) }}</span>
+                  <span class="legend-amount">
+                    <template v-if="cat.budgetLimit && cat.budgetLimit > 0">
+                      {{ formatCurrency(cat.paidAmount || 0, mainCurrency) }} / {{ formatCurrency(cat.budgetLimit, mainCurrency) }}
+                    </template>
+                    <template v-else>
+                      {{ formatCurrency(cat.amount, mainCurrency) }}
+                    </template>
+                  </span>
                 </div>
               </div>
               <div class="legend-progress-track">
                 <div
                   class="legend-progress-fill"
+                  :class="{ 'is-over': cat.budgetLimit && (cat.paidAmount || 0) > cat.budgetLimit }"
                   :style="{
-                    width: `${getCategoryPercent(cat.amount)}%`,
-                    backgroundColor: getCategoryColor(index),
+                    width: `${cat.budgetLimit && cat.budgetLimit > 0 ? Math.min(100, Math.round(((cat.paidAmount || 0) / cat.budgetLimit) * 100)) : getCategoryPercent(cat.amount)}%`,
+                    backgroundColor: (cat.budgetLimit && (cat.paidAmount || 0) > cat.budgetLimit) ? '#EF4444' : getCategoryColor(index),
                   }"
                 />
               </div>
@@ -370,7 +516,7 @@ useMutationObserver(
       </div>
       <div v-else class="empty-state">
         <Icon icon="mdi:chart-pie-outline" />
-        <p>Здесь появится график, когда вы добавите расходы.</p>
+        <p>Здесь появится график, когда вы добавите расходы или смету.</p>
       </div>
     </div>
 
@@ -463,6 +609,19 @@ useMutationObserver(
     }
   }
 
+  &.paid {
+    border-color: color-mix(in srgb, #10b981 35%, var(--border-secondary-color));
+    background: linear-gradient(
+      135deg,
+      var(--bg-primary-color) 0%,
+      color-mix(in srgb, #10b981 10%, var(--bg-primary-color)) 100%
+    );
+
+    .card-value {
+      color: var(--fg-primary-color);
+    }
+  }
+
   &.is-muted {
     opacity: 0.7;
 
@@ -512,6 +671,11 @@ useMutationObserver(
     font-weight: 600;
     font-size: 0.7rem;
 
+    &.paid {
+      background-color: color-mix(in srgb, #10b981 15%, transparent);
+      color: #059669;
+    }
+
     &.planned {
       background-color: color-mix(in srgb, #3b82f6 15%, transparent);
       color: #2563eb;
@@ -521,6 +685,44 @@ useMutationObserver(
       background-color: color-mix(in srgb, #bd10e0 15%, transparent);
       color: #9333ea;
     }
+  }
+}
+
+.chart-wrapper {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.chart-toggle-row {
+  display: flex;
+  background-color: var(--bg-tertiary-color);
+  border-radius: var(--r-s);
+  padding: 2px;
+  gap: 2px;
+}
+
+.chart-toggle-btn {
+  border: none;
+  background: none;
+  padding: 2px 10px;
+  font-size: 0.72rem;
+  font-weight: 500;
+  border-radius: calc(var(--r-s) - 2px);
+  color: var(--fg-secondary-color);
+  cursor: pointer;
+  transition: all 0.15s ease;
+
+  &:hover {
+    color: var(--fg-primary-color);
+  }
+
+  &.active {
+    background-color: var(--bg-primary-color);
+    color: var(--fg-primary-color);
+    font-weight: 600;
+    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.08);
   }
 }
 
@@ -680,6 +882,11 @@ useMutationObserver(
     line-height: 1.2;
     letter-spacing: -0.2px;
     transition: all 0.15s ease;
+
+    &.is-over {
+      color: #ef4444;
+      background-color: color-mix(in srgb, #ef4444 15%, transparent);
+    }
   }
 
   .legend-separator {
@@ -710,6 +917,10 @@ useMutationObserver(
     height: 100%;
     border-radius: 2px;
     transition: width 0.3s ease;
+
+    &.is-over {
+      background-color: #ef4444 !important;
+    }
   }
 }
 

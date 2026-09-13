@@ -127,6 +127,8 @@ export class ApiClient {
     visibility?: 'private' | 'public'
     startDate?: string
     endDate?: string
+    budget?: number | null
+    currency?: string | null
   }): Promise<any> {
     return await this.request<any>(`/trips/${id}`, {
       method: 'PATCH',

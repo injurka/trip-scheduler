@@ -1,3 +1,5 @@
+export type TransactionStatus = 'paid' | 'planned'
+
 /**
  * Транзакция.
  */
@@ -10,6 +12,7 @@ export interface Transaction {
   categoryId: string | null
   notes?: string
   isSpontaneous?: boolean
+  status?: TransactionStatus
 }
 
 /**
@@ -20,6 +23,7 @@ export interface Category {
   name: string
   icon: string
   isDefault?: boolean // Для неотключаемых категорий
+  budgetLimit?: number // Плановый лимит / бюджет на категорию
 }
 
 /**
@@ -29,6 +33,7 @@ export interface FinancesSettings {
   mainCurrency: string
   // Ключ - код валюты (USD), значение - курс к основной валюте (90)
   exchangeRates: Record<string, number>
+  totalBudget?: number // Общий предполагаемый бюджет поездки
 }
 
 /**

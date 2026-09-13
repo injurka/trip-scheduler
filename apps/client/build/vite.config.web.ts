@@ -105,6 +105,8 @@ export default defineConfig({
             return 'vendor-ui'
           if (id.includes('chart.js') || id.includes('vue-chartjs'))
             return 'vendor-charts'
+          if (id.includes('pdfjs-dist'))
+            return 'vendor-pdf'
           if (id.includes('workbox') || id.includes('localforage'))
             return 'vendor-storage'
           if (

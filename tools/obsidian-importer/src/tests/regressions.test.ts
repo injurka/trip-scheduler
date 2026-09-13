@@ -76,6 +76,41 @@ describe('importer regressions', () => {
     expect(finances.transactions.reduce((sum, item) => sum + item.amount, 0)).toBe(195624)
     expect(finances.transactions.find(item => item.amount === 18500)?.categoryId).toBe('cat-food')
     expect(finances.transactions.map(item => item.id)).toEqual(parseObsidianFinances(file).transactions.map(item => item.id))
+    expect(finances.settings.totalBudget).toBe(195624)
+  })
+
+  it('correctly sets totalBudget, category budget limits, and paid vs planned transaction statuses', () => {
+    const directory = temporaryDirectory('obsidian-plan-fact-')
+    mkdirSync(join(directory, '03 - Бронирования'), { recursive: true })
+    mkdirSync(join(directory, '04 - Финансы'), { recursive: true })
+
+    writeFileSync(join(directory, '03 - Бронирования', 'Отели.md'), `
+# Отели
+* 🏙️ Отель 1: 5 000 ₽ *(оплачено)*
+* 🏨 Отель 2: 10 000 ₽ *(к оплате при заселении)*
+`)
+
+    const financesFile = join(directory, '04 - Финансы', 'Финансы.md')
+    writeFileSync(financesFile, `
+> [!summary]+ Общий бюджет: **30 000 ₽**
+> - ✈️ **Международный авиаперелет:** \`15 000 ₽\` *(оплачено)*
+> - 🏨 **Проживание:** \`15 000 ₽\`
+
+### ✈️ 1. Международный авиаперелет
+* Авиабилеты Москва-Тайбэй: 15 000 ₽ *(оплачено)*
+`)
+
+    const finances = parseObsidianFinances(financesFile, directory)
+    expect(finances.settings.totalBudget).toBe(30000)
+    expect(finances.categories.find(c => c.id === 'cat-flights')?.budgetLimit).toBe(15000)
+    expect(finances.categories.find(c => c.id === 'cat-housing')?.budgetLimit).toBe(15000)
+
+    const paidTx = finances.transactions.filter(t => t.status === 'paid')
+    const plannedTx = finances.transactions.filter(t => t.status === 'planned')
+
+    expect(paidTx.map(t => t.amount)).toContain(15000)
+    expect(paidTx.map(t => t.amount)).toContain(5000)
+    expect(plannedTx.map(t => t.amount)).toContain(10000)
   })
 
   it('marks duplicate image basenames as ambiguous while retaining relative paths', () => {

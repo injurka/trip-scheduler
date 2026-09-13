@@ -309,6 +309,11 @@ function handleCardClick() {
                 <span>Просмотреть</span>
               </button>
 
+              <button class="menu-item" :disabled="isDownloading" @click="handleDownload">
+                <Icon :icon="isDownloading ? 'mdi:loading' : 'mdi:download-outline'" :class="{ spin: isDownloading }" />
+                <span>Скачать</span>
+              </button>
+
               <button class="menu-item" @click="emit('edit', document)">
                 <Icon icon="mdi:pencil-outline" />
                 <span>Свойства и заметка</span>
@@ -453,15 +458,9 @@ function handleCardClick() {
 
     <!-- Действия -->
     <div class="row-actions-area" @click.stop>
-      <KitTooltip text="Скачать">
-        <button class="footer-btn" :disabled="isDownloading" @click="handleDownload">
-          <Icon :icon="isDownloading ? 'mdi:loading' : 'mdi:download-outline'" :class="{ spin: isDownloading }" width="17" height="17" />
-        </button>
-      </KitTooltip>
-
-      <KitDropdown v-if="!readonly" align="end" :items="[]">
+      <KitDropdown align="end" :items="[]">
         <template #trigger>
-          <button class="footer-btn">
+          <button class="footer-btn" title="Действия с документом">
             <Icon icon="mdi:dots-vertical" width="17" height="17" />
           </button>
         </template>
@@ -470,47 +469,62 @@ function handleCardClick() {
             <Icon icon="mdi:file-eye-outline" />
             <span>Просмотреть</span>
           </button>
-          <button class="menu-item" @click="emit('edit', document)">
-            <Icon icon="mdi:pencil-outline" />
-            <span>Свойства и заметка</span>
+
+          <button class="menu-item" :disabled="isDownloading" @click="handleDownload">
+            <Icon :icon="isDownloading ? 'mdi:loading' : 'mdi:download-outline'" :class="{ spin: isDownloading }" />
+            <span>Скачать</span>
           </button>
+
           <button class="menu-item" @click="handleCopyLink">
             <Icon icon="mdi:link-variant" />
             <span>Скопировать ссылку</span>
           </button>
-          <button class="menu-item" @click="toggleAccess">
-            <Icon :icon="document.access === 'public' ? 'mdi:lock-outline' : 'mdi:earth'" />
-            <span>{{ document.access === 'public' ? 'Сделать приватным' : 'Сделать публичным' }}</span>
-          </button>
 
-          <div v-if="folders.length > 0" class="menu-divider" />
-          <div v-if="folders.length > 0" class="menu-section-header">
-            Переместить:
-          </div>
-          <button
-            v-if="document.folderId !== null"
-            class="menu-item sub-item"
-            @click="emit('move', document.id, null)"
-          >
-            <Icon icon="mdi:folder-home-outline" />
-            <span>Все документы</span>
-          </button>
-          <template v-for="f in folders" :key="f.id">
+          <template v-if="!readonly">
+            <button class="menu-item" @click="emit('edit', document)">
+              <Icon icon="mdi:pencil-outline" />
+              <span>Свойства и заметка</span>
+            </button>
+
+            <button class="menu-item" @click="emit('toggleFavorite', document)">
+              <Icon :icon="document.isFavorite ? 'mdi:star-off-outline' : 'mdi:star-outline'" />
+              <span>{{ document.isFavorite ? 'Убрать из важного' : 'Добавить в важное' }}</span>
+            </button>
+
+            <button class="menu-item" @click="toggleAccess">
+              <Icon :icon="document.access === 'public' ? 'mdi:lock-outline' : 'mdi:earth'" />
+              <span>{{ document.access === 'public' ? 'Сделать приватным' : 'Сделать публичным' }}</span>
+            </button>
+
+            <div v-if="folders.length > 0" class="menu-divider" />
+            <div v-if="folders.length > 0" class="menu-section-header">
+              Переместить:
+            </div>
             <button
-              v-if="document.folderId !== f.id"
+              v-if="document.folderId !== null"
               class="menu-item sub-item"
-              @click="emit('move', document.id, f.id)"
+              @click="emit('move', document.id, null)"
             >
-              <Icon icon="mdi:folder-outline" />
-              <span>{{ f.name }}</span>
+              <Icon icon="mdi:folder-home-outline" />
+              <span>Все документы</span>
+            </button>
+            <template v-for="f in folders" :key="f.id">
+              <button
+                v-if="document.folderId !== f.id"
+                class="menu-item sub-item"
+                @click="emit('move', document.id, f.id)"
+              >
+                <Icon icon="mdi:folder-outline" />
+                <span>{{ f.name }}</span>
+              </button>
+            </template>
+
+            <div class="menu-divider" />
+            <button class="menu-item menu-item--danger" @click="emit('delete')">
+              <Icon icon="mdi:trash-can-outline" />
+              <span>Удалить</span>
             </button>
           </template>
-
-          <div class="menu-divider" />
-          <button class="menu-item menu-item--danger" @click="emit('delete')">
-            <Icon icon="mdi:trash-can-outline" />
-            <span>Удалить</span>
-          </button>
         </div>
       </KitDropdown>
     </div>

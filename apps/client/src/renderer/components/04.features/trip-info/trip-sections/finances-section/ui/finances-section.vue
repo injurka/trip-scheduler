@@ -37,14 +37,18 @@ const {
   spendingByDay,
   filteredTransactions,
   filteredTotal,
+  overallBudget,
+  paidTotal,
   plannedTotal,
   spontaneousTotal,
   selectedCategoryFilters,
   dateFilter,
   typeFilter,
+  statusFilter,
   toggleCategoryFilter,
   openTransactionForm,
   saveTransaction,
+  toggleTransactionStatus,
   addMultipleTransactions,
   deleteTransaction,
   saveCategory,
@@ -162,15 +166,33 @@ onClickOutside(dateFilterWrapperRef, () => {
   <div class="finances-section">
     <div class="filters-bar">
       <div class="category-filter-pills">
-        <!-- Фильтры по типу (основные/дополнительные) -->
+        <!-- Фильтры по статусу (Все / Оплачено / В планах) и типу (Спонтанно) -->
         <button
           v-ripple
-          class="filter-pill type-pill planned"
-          :class="{ active: typeFilter === 'planned' }"
-          @click="typeFilter = typeFilter === 'planned' ? 'all' : 'planned'"
+          class="filter-pill"
+          :class="{ active: statusFilter === 'all' && typeFilter === 'all' }"
+          @click="statusFilter = 'all'; typeFilter = 'all'"
         >
-          <Icon icon="mdi:target" />
-          <span>План</span>
+          <Icon icon="mdi:format-list-bulleted" />
+          <span>Все</span>
+        </button>
+        <button
+          v-ripple
+          class="filter-pill status-pill paid"
+          :class="{ active: statusFilter === 'paid' }"
+          @click="statusFilter = statusFilter === 'paid' ? 'all' : 'paid'"
+        >
+          <Icon icon="mdi:check-circle-outline" />
+          <span>Оплачено</span>
+        </button>
+        <button
+          v-ripple
+          class="filter-pill status-pill planned"
+          :class="{ active: statusFilter === 'planned' }"
+          @click="statusFilter = statusFilter === 'planned' ? 'all' : 'planned'"
+        >
+          <Icon icon="mdi:clock-outline" />
+          <span>В планах</span>
         </button>
         <button
           v-ripple
@@ -231,6 +253,8 @@ onClickOutside(dateFilterWrapperRef, () => {
       :main-currency="settings.mainCurrency"
       :spending-by-category="spendingByCategory"
       :spending-by-day="spendingByDay"
+      :overall-budget="overallBudget"
+      :paid-total="paidTotal"
       :planned-total="plannedTotal"
       :spontaneous-total="spontaneousTotal"
       :filtered-total="filteredTotal"
@@ -276,6 +300,7 @@ onClickOutside(dateFilterWrapperRef, () => {
       :filtered-total="filteredTotal"
       @edit-transaction="openTransactionForm"
       @delete-transaction="deleteTransaction"
+      @toggle-status="toggleTransactionStatus"
     />
 
     <TransactionFormDialog
@@ -360,15 +385,22 @@ onClickOutside(dateFilterWrapperRef, () => {
   }
 }
 
-.type-pill {
-  border-style: dashed;
+.status-pill {
+  &.paid.active {
+    background-color: rgba(16, 185, 129, 0.15);
+    border-color: #10b981;
+    color: #10b981;
+  }
 
   &.planned.active {
-    background-color: rgba(74, 144, 226, 0.15);
-    border-color: #4a90e2;
-    border-style: solid;
-    color: #4a90e2;
+    background-color: rgba(59, 130, 246, 0.15);
+    border-color: #3b82f6;
+    color: #3b82f6;
   }
+}
+
+.type-pill {
+  border-style: dashed;
 
   &.spontaneous.active {
     background-color: rgba(189, 16, 224, 0.15);

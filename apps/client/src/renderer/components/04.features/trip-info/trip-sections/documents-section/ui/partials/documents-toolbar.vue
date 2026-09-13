@@ -91,25 +91,30 @@ const emit = defineEmits<{
   border-radius: var(--r-m);
   background-color: var(--bg-secondary-color);
   border: 1px solid var(--border-secondary-color);
-  flex-wrap: wrap;
 
   @media (max-width: 768px) {
-    flex-direction: column;
-    align-items: stretch;
+    display: grid;
+    grid-template-columns: 1fr auto;
+    grid-template-areas:
+      'search fav'
+      'categories categories';
+    gap: 8px 10px;
+    padding: 10px 12px;
   }
 }
 
 .search-box {
-  flex: 1;
-  min-width: 200px;
-  max-width: 320px;
+  flex: 0 1 300px;
+  min-width: 180px;
 
   .search-icon {
     color: var(--fg-tertiary-color);
   }
 
   @media (max-width: 768px) {
-    max-width: 100%;
+    grid-area: search;
+    min-width: 0;
+    max-width: none;
   }
 }
 
@@ -117,13 +122,21 @@ const emit = defineEmits<{
   display: flex;
   align-items: center;
   gap: 6px;
-  flex: 2;
+  flex: 1;
+  min-width: 0;
   overflow-x: auto;
-  padding-bottom: 2px;
   scrollbar-width: none;
+  padding-bottom: 2px;
 
   &::-webkit-scrollbar {
     display: none;
+  }
+
+  @media (max-width: 768px) {
+    grid-area: categories;
+    width: 100%;
+    -webkit-overflow-scrolling: touch;
+    padding: 2px 0 4px;
   }
 }
 
@@ -141,6 +154,7 @@ const emit = defineEmits<{
   white-space: nowrap;
   cursor: pointer;
   transition: all 0.2s;
+  flex-shrink: 0;
 
   &:hover {
     color: var(--fg-primary-color);
@@ -174,13 +188,20 @@ const emit = defineEmits<{
 
 .fav-toggle-box {
   flex-shrink: 0;
+
+  @media (max-width: 768px) {
+    grid-area: fav;
+    display: flex;
+    align-items: center;
+  }
 }
 
 .filter-toggle-btn {
   display: inline-flex;
   align-items: center;
+  justify-content: center;
   gap: 6px;
-  height: 36px;
+  height: 38px;
   padding: 0 10px;
   border-radius: var(--r-s);
   border: 1px solid var(--border-secondary-color);
@@ -190,6 +211,7 @@ const emit = defineEmits<{
   font-weight: 500;
   cursor: pointer;
   transition: all 0.2s;
+  box-sizing: border-box;
 
   &:hover {
     color: var(--fg-primary-color);

@@ -60,6 +60,8 @@ export interface TripFrontmatter {
   descriptionShort?: string
   tags?: string[]
   cities?: string[]
+  startDate?: string
+  endDate?: string
 }
 
 function unquoteYamlScalar(value: string): string {
@@ -138,6 +140,21 @@ export function parseTripFrontmatter(markdown: string): TripFrontmatter {
         index++
       }
       result[key] = values.filter(Boolean)
+      continue
+    }
+
+    if (key === 'startDate' || key === 'start_date') {
+      const value = unquoteYamlScalar(rawValue)
+      if (value)
+        result.startDate = value
+      continue
+    }
+
+    if (key === 'endDate' || key === 'end_date') {
+      const value = unquoteYamlScalar(rawValue)
+      if (value)
+        result.endDate = value
+      continue
     }
   }
   return result
@@ -309,8 +326,24 @@ export function parseObsidianTripFolder(tripPath: string, startDateStr?: string)
     }
   }
 
+  const mainText = conceptContent || summaryContent || ''
+  const frontmatter = parseTripFrontmatter(mainText)
+  let explicitStartDate = startDateStr || frontmatter.startDate
+
+  if (!explicitStartDate) {
+    const flightsFile = join(resolvedPath, '03 - Бронирования', 'Авиаперелеты.md')
+    if (existsSync(flightsFile)) {
+      const flightContent = readFileSync(flightsFile, 'utf-8')
+      const flightDateMatch = flightContent.match(/(?:отправления|вылет|даты[^\n]*полета)[^\n]*?(\d{4}-\d{2}-\d{2})/i)
+        || flightContent.match(/(\d{4}-\d{2}-\d{2})/i)
+      if (flightDateMatch) {
+        explicitStartDate = flightDateMatch[1]
+      }
+    }
+  }
+
   const parsedDays: ParsedDay[] = []
-  const startDate = startDateStr ? new Date(startDateStr) : new Date()
+  const startDate = explicitStartDate ? new Date(explicitStartDate) : new Date()
 
   if (daysDirPath) {
     const dayFiles = readdirSync(daysDirPath).filter(f => f.endsWith('.md'))
@@ -402,17 +435,14 @@ export function parseObsidianTripFolder(tripPath: string, startDateStr?: string)
 
   // 4. Parse Checklists, Finances & Bookings into Rich Structures
   const checklistContent = parseObsidianChecklists(checklistFiles)
-  const financesContent = parseObsidianFinances(financesFilePath)
+  const financesContent = parseObsidianFinances(financesFilePath, resolvedPath)
 
   // 5. Extract title, short description, cities, tags from concept/summary
-  const mainText = conceptContent || summaryContent || ''
-
   const titleMatch = mainText.match(/^#\s*(?:Концепция маршрута:\s*)?[«"']?([^»"'\n(]+)[»"']?/m)
   if (titleMatch && titleMatch[1].trim()) {
     extractedTitle = titleMatch[1].trim()
   }
 
-  const frontmatter = parseTripFrontmatter(mainText)
   const cities = frontmatter.cities?.length ? frontmatter.cities : extractCities(mainText, parsedDays)
   const tags = frontmatter.tags?.length ? frontmatter.tags : extractTags(mainText)
   const descriptionShort = frontmatter.descriptionShort || extractShortDescription(mainText, parsedDays, cities)
@@ -421,7 +451,7 @@ export function parseObsidianTripFolder(tripPath: string, startDateStr?: string)
 
   const lastDayDate = new Date(startDate)
   lastDayDate.setDate(lastDayDate.getDate() + Math.max(0, parsedDays.length - 1))
-  const endDateStr = lastDayDate.toISOString().split('T')[0]
+  const endDateStr = frontmatter.endDate || lastDayDate.toISOString().split('T')[0]
 
   const bookingsContent = parseObsidianBookings(resolvedPath, startDate.toISOString().split('T')[0], endDateStr)
   const { documents, documentsContent } = parseObsidianDocuments(resolvedPath)
@@ -441,6 +471,8 @@ export function parseObsidianTripFolder(tripPath: string, startDateStr?: string)
     checklistContent,
     checklistFilesCount: checklistFiles.length,
     financesContent,
+    budget: financesContent.settings.totalBudget,
+    currency: financesContent.settings.mainCurrency,
     bookingsContent,
     documents,
     documentsContent,

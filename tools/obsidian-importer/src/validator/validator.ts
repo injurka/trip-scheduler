@@ -164,7 +164,22 @@ export function validateObsidianVault(context: ValidationScopeContext, startDate
 
   // 4. Валидация дней маршрута
   const daySummaries: DayValidationSummary[] = []
-  const startDate = startDateStr ? new Date(startDateStr) : new Date()
+  const frontmatter = parseTripFrontmatter(rootNoteContent)
+  let explicitStartDate = startDateStr || frontmatter.startDate
+
+  if (!explicitStartDate) {
+    const flightsFile = join(tripRoot, '03 - Бронирования', 'Авиаперелеты.md')
+    if (existsSync(flightsFile)) {
+      const flightContent = readFileSync(flightsFile, 'utf-8')
+      const flightDateMatch = flightContent.match(/(?:отправления|вылет|даты[^\n]*полета)[^\n]*?(\d{4}-\d{2}-\d{2})/i)
+        || flightContent.match(/(\d{4}-\d{2}-\d{2})/i)
+      if (flightDateMatch) {
+        explicitStartDate = flightDateMatch[1]
+      }
+    }
+  }
+
+  const startDate = explicitStartDate ? new Date(explicitStartDate) : new Date()
 
   if (daysDirPath) {
     const dayFiles = readdirSync(daysDirPath).filter(f => f.endsWith('.md'))
@@ -483,8 +498,10 @@ export function validateObsidianVault(context: ValidationScopeContext, startDate
   const carsCount = bookingsData.bookings.filter(b => b.type === 'car').length
   const attractionsCount = bookingsData.bookings.filter(b => b.type === 'attraction').length
   const othersCount = bookingsData.bookings.filter(b => b.type === 'other').length
-  const tripEndDate = new Date(startDate)
-  tripEndDate.setDate(tripEndDate.getDate() + Math.max(0, daySummaries.length - 1))
+  const tripEndDate = frontmatter.endDate ? new Date(frontmatter.endDate) : new Date(startDate)
+  if (!frontmatter.endDate) {
+    tripEndDate.setDate(tripEndDate.getDate() + Math.max(0, daySummaries.length - 1))
+  }
   const latestAllowedBookingDate = new Date(tripEndDate)
   latestAllowedBookingDate.setDate(latestAllowedBookingDate.getDate() + 1)
 
@@ -565,7 +582,7 @@ export function validateObsidianVault(context: ValidationScopeContext, startDate
     }
   }
 
-  const financesData = parseObsidianFinances(financesFilePath)
+  const financesData = parseObsidianFinances(financesFilePath, tripRoot)
   const totalFinancesRub = financesData.transactions.reduce((sum, t) => sum + t.amount, 0)
 
   if (!financesFilePath) {
