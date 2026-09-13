@@ -50,16 +50,26 @@ function closeModal() {
     @update:visible="closeModal"
   >
     <div class="location-viewer-content">
-      <KitMap :center="center" :zoom="14" :markers="markers" />
+      <KitMap :center="center" :zoom="14" :markers="markers" height="500px" />
     </div>
   </KitDialogWithClose>
 </template>
 
 <style scoped lang="scss">
+:deep(.location-dialog-content) {
+  height: 600px;
+  max-height: 85vh;
+}
+
 .location-viewer-content {
   height: 100%;
   min-height: 500px;
   display: flex;
   flex-direction: column;
+
+  :deep(.kit-map-wrapper) {
+    flex: 1;
+    min-height: 500px;
+  }
 }
 </style>
