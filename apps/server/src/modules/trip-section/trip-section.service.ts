@@ -1,5 +1,6 @@
 import type { z } from 'zod'
 import type { CreateTripSectionInputSchema, ReorderTripSectionsInputSchema, TripSectionType, UpdateTripSectionInputSchema } from './trip-section.schemas'
+import { FinancesSectionContentSchema } from '@injurka/finance-contract'
 import { createTRPCError } from '~/lib/trpc'
 import { tripSectionRepository } from '~/repositories/trip-section.repository'
 import { tripRepository } from '~/repositories/trip.repository'
@@ -37,7 +38,12 @@ export const tripSectionService = {
     if (section.trip.userId !== userId && userRole !== 'admin')
       throw createTRPCError('FORBIDDEN', 'У вас нет прав на изменение этого раздела.')
 
-    const { id, ...updateData } = data
+    const { id, expectedUpdatedAt, ...updateData } = data
+    if (expectedUpdatedAt && section.updatedAt.getTime() !== expectedUpdatedAt.getTime())
+      throw createTRPCError('CONFLICT', 'Раздел изменён в другой вкладке. Обновите страницу и повторите действие.')
+
+    if (section.type === 'finances' && updateData.content !== undefined)
+      updateData.content = FinancesSectionContentSchema.parse(updateData.content)
     const updatedSection = await tripSectionRepository.update(id, updateData)
     if (!updatedSection)
       throw createTRPCError('NOT_FOUND', `Раздел с ID ${id} не найден.`)

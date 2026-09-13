@@ -79,7 +79,7 @@ watch(() => props.visible, (isVisible) => {
   if (isVisible) {
     isCalendarOpen.value = false
     form.value = props.transaction
-      ? { status: props.transaction.status || 'paid', ...props.transaction }
+      ? { ...props.transaction }
       : {
           date: today(getLocalTimeZone()).toString(),
           currency: props.mainCurrency,
@@ -115,7 +115,7 @@ watch(isTimeless, (isNowTimeless) => {
             @click="form.status = 'paid'"
           >
             <Icon icon="mdi:check-circle" />
-            <span>Оплачено (Факт)</span>
+            <span>Оплачено</span>
           </button>
           <button
             type="button"
@@ -124,7 +124,7 @@ watch(isTimeless, (isNowTimeless) => {
             @click="form.status = 'planned'"
           >
             <Icon icon="mdi:clock-outline" />
-            <span>В планах / К оплате</span>
+            <span>В планах</span>
           </button>
         </div>
       </div>

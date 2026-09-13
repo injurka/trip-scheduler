@@ -61,6 +61,7 @@ export const useTripSectionsStore = defineStore('tripSections', {
           break
         case TripSectionType.FINANCES:
           defaultContent = {
+            schemaVersion: 1,
             transactions: [],
             categories: [],
             settings: { mainCurrency: 'RUB', exchangeRates: {} },
@@ -141,7 +142,12 @@ export const useTripSectionsStore = defineStore('tripSections', {
           title: section.title,
           icon: section.icon,
           content: section.content,
+          expectedUpdatedAt: section.updatedAt,
         }),
+        onSuccess: (updatedSection) => {
+          if (updatedSection && this.sections[index]?.updatedAt === section.updatedAt)
+            this.sections[index] = updatedSection as TripSection
+        },
         onError: ({ error }) => {
           this.sections[index] = originalSection
           useToast().error(`Ошибка при обновлении раздела: ${error.customMessage}`)
@@ -168,6 +174,7 @@ export const useTripSectionsStore = defineStore('tripSections', {
           break
         case TripSectionType.FINANCES:
           defaultContent = {
+            schemaVersion: 1,
             transactions: [],
             categories: [],
             settings: { mainCurrency: 'RUB', exchangeRates: {} },

@@ -1,30 +1,16 @@
-export type TransactionStatus = 'paid' | 'planned'
+import type { FinancesSectionContent as ContractFinancesSectionContent, FinanceCategory, FinanceTransaction, TransactionSource, TransactionStatus } from '@injurka/finance-contract'
+
+export type { TransactionSource, TransactionStatus }
 
 /**
  * Транзакция.
  */
-export interface Transaction {
-  id: string
-  title: string
-  amount: number
-  currency: string // e.g., 'RUB', 'USD', 'EUR'
-  date?: string // ISO 8601 format
-  categoryId: string | null
-  notes?: string
-  isSpontaneous?: boolean
-  status?: TransactionStatus
-}
+export type Transaction = FinanceTransaction
 
 /**
  * Категория расходов/доходов.
  */
-export interface Category {
-  id: string
-  name: string
-  icon: string
-  isDefault?: boolean // Для неотключаемых категорий
-  budgetLimit?: number // Плановый лимит / бюджет на категорию
-}
+export type Category = FinanceCategory
 
 /**
  * Настройки финансового раздела.
@@ -39,8 +25,4 @@ export interface FinancesSettings {
 /**
  * Структура контента для секции финансов.
  */
-export interface FinancesSectionContent {
-  transactions: Transaction[]
-  categories: Category[]
-  settings: FinancesSettings
-}
+export type FinancesSectionContent = ContractFinancesSectionContent

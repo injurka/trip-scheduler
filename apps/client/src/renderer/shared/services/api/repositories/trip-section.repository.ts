@@ -7,7 +7,7 @@ export class TripSectionRepository implements ITripSectionRepository {
     return await trpc.tripSection.create.mutate(data) as TripSection
   }
 
-  async update(data: { id: string, title?: string | undefined, icon?: string | null | undefined, content?: any }): Promise<TripSection> {
+  async update(data: { id: string, title?: string | undefined, icon?: string | null | undefined, content?: any, expectedUpdatedAt?: string }): Promise<TripSection> {
     return await trpc.tripSection.update.mutate(data) as TripSection
   }
 

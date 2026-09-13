@@ -13,6 +13,7 @@ interface Props {
   settings: FinancesSettings
   readonly: boolean
   filteredTotal: number
+  statusFilter: 'all' | 'paid' | 'planned'
 }
 
 const props = defineProps<Props>()
@@ -193,7 +194,7 @@ const totalSearchedAmount = computed(() => {
                 <div class="item-title-row">
                   <span class="item-title">{{ tx.title }}</span>
 
-                  <KitTooltip v-if="tx.status === 'planned'" text="В планах (к оплате). Нажмите, чтобы отметить оплаченным.">
+                  <KitTooltip v-if="statusFilter === 'all' && tx.status === 'planned'" text="В планах (к оплате). Нажмите, чтобы отметить оплаченным.">
                     <button
                       type="button"
                       class="status-badge planned"
@@ -204,7 +205,7 @@ const totalSearchedAmount = computed(() => {
                       <span>В планах</span>
                     </button>
                   </KitTooltip>
-                  <KitTooltip v-else text="Оплачено. Нажмите, чтобы вернуть в статус «В планах».">
+                  <KitTooltip v-else-if="statusFilter === 'all'" text="Оплачено. Нажмите, чтобы вернуть в статус «В планах».">
                     <button
                       type="button"
                       class="status-badge paid"

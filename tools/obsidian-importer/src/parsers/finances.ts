@@ -151,9 +151,12 @@ function makeTransaction(
     amount,
     currency: 'RUB',
     categoryId,
+    isSpontaneous: false,
     status,
     notes: notes ? cleanMarkdown(notes) : undefined,
     date,
+    source: 'imported',
+    sourceKey: stableId('finance-source', categoryId, cleanTitle, amount, date || ''),
   }
 }
 
@@ -411,6 +414,7 @@ export function parseObsidianFinances(
 
   if (!financesFilePath || !existsSync(financesFilePath)) {
     return {
+      schemaVersion: 1,
       settings: {
         mainCurrency: activeConfig.mainCurrency,
         exchangeRates: activeConfig.exchangeRates,
@@ -501,5 +505,5 @@ export function parseObsidianFinances(
     totalBudget: calculatedTotal > 0 ? calculatedTotal : undefined,
   }
 
-  return { settings, categories: baseCategories, transactions }
+  return { schemaVersion: 1, settings, categories: baseCategories, transactions }
 }

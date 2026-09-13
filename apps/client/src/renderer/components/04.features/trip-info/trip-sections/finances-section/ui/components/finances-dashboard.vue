@@ -165,7 +165,7 @@ const hoveredCategory = computed(() => {
 })
 
 const isDoughnutPlanMode = computed(() => {
-  return chartMode.value === 'plan' || effectivePaidTotal.value === 0
+  return chartMode.value === 'plan'
 })
 
 const doughnutChartData = computed(() => {
@@ -200,6 +200,14 @@ const doughnutChartData = computed(() => {
       },
     ],
   }
+})
+
+const hasDoughnutData = computed(() => doughnutChartData.value.datasets[0].data.length > 0)
+
+const emptyChartMessage = computed(() => {
+  return isDoughnutPlanMode.value
+    ? 'Нет данных для плановой диаграммы.'
+    : 'Нет оплаченных трат для отображения факта.'
 })
 
 const doughnutChartOptions = computed(() => ({
@@ -364,7 +372,7 @@ useMutationObserver(
 
         <div class="summary-card paid">
           <div class="card-top">
-            <span class="card-label">Оплачено (Факт)</span>
+            <span class="card-label">Оплачено</span>
             <Icon icon="mdi:check-circle-outline" class="card-icon" />
           </div>
           <div class="card-value">
@@ -378,7 +386,7 @@ useMutationObserver(
 
         <div class="summary-card planned">
           <div class="card-top">
-            <span class="card-label">В планах / К оплате</span>
+            <span class="card-label">В планах</span>
             <Icon icon="mdi:clock-outline" class="card-icon" />
           </div>
           <div class="card-value">
@@ -439,7 +447,7 @@ useMutationObserver(
     <div v-if="currentView === 'category'">
       <div v-if="spendingByCategory.length > 0" class="categories-content">
         <div class="chart-wrapper">
-          <div v-if="hasBudget && effectivePaidTotal > 0" class="chart-toggle-row">
+          <div v-if="hasBudget" class="chart-toggle-row">
             <button
               type="button"
               class="chart-toggle-btn"
@@ -458,7 +466,7 @@ useMutationObserver(
             </button>
           </div>
 
-          <div class="chart-container" @mouseleave="hoveredIndex = null">
+          <div v-if="hasDoughnutData" class="chart-container" @mouseleave="hoveredIndex = null">
             <Doughnut :data="doughnutChartData" :options="doughnutChartOptions" />
             <div class="chart-center" :class="{ 'is-hovered': hoveredCategory !== null }">
               <span class="center-label">
@@ -471,6 +479,10 @@ useMutationObserver(
                 {{ hoveredCategory ? (hoveredCategory.budgetLimit ? `${Math.round(((hoveredCategory.paidAmount || 0) / (hoveredCategory.budgetLimit || 1)) * 100)}% плана` : `${getCategoryPercent(hoveredCategory.amount)}%`) : `${spendingByCategory.length} ${getCategoryWord(spendingByCategory.length)}` }}
               </span>
             </div>
+          </div>
+          <div v-else class="chart-empty-state">
+            <Icon :icon="isDoughnutPlanMode ? 'mdi:chart-donut-variant' : 'mdi:receipt-text-clock-outline'" />
+            <span>{{ emptyChartMessage }}</span>
           </div>
         </div>
 
@@ -541,6 +553,9 @@ useMutationObserver(
 
     <div v-else-if="currentView === 'day'">
       <div v-if="spendingByDay.length > 0" class="days-content">
+        <p class="day-chart-caption">
+          Факт по дням: учитываются только оплаченные траты с датой.
+        </p>
         <div class="days-stats-grid">
           <div class="days-stat-card">
             <span class="days-stat-label">В среднем в день</span>
@@ -565,7 +580,7 @@ useMutationObserver(
       </div>
       <div v-else class="empty-state">
         <Icon icon="mdi:chart-bar" />
-        <p>Здесь появится график, когда вы добавите расходы.</p>
+        <p>Здесь появится график фактических трат, когда появится оплаченная запись с датой.</p>
       </div>
     </div>
   </div>
@@ -759,6 +774,28 @@ useMutationObserver(
   display: flex;
   align-items: center;
   justify-content: center;
+}
+
+.chart-empty-state {
+  width: 180px;
+  height: 180px;
+  padding: 1rem;
+  border: 1px dashed var(--border-secondary-color);
+  border-radius: 50%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  color: var(--fg-tertiary-color);
+  text-align: center;
+  font-size: 0.78rem;
+  line-height: 1.35;
+  flex-shrink: 0;
+
+  svg {
+    font-size: 1.65rem;
+  }
 }
 
 .chart-center {
@@ -1009,6 +1046,12 @@ useMutationObserver(
 .chart-container-bar {
   position: relative;
   height: 200px;
+}
+
+.day-chart-caption {
+  margin: 0;
+  color: var(--fg-secondary-color);
+  font-size: 0.78rem;
 }
 
 .empty-state {

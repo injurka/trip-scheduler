@@ -279,7 +279,7 @@ export interface IUserRepository {
 
 export interface ITripSectionRepository {
   create: (data: { tripId: string, type: TripSectionType, title: string, icon: string | null, content: any }) => Promise<TripSection>
-  update: (data: { id: string, title?: string | undefined, icon?: string | null | undefined, content?: any }) => Promise<TripSection>
+  update: (data: { id: string, title?: string | undefined, icon?: string | null | undefined, content?: any, expectedUpdatedAt?: string }) => Promise<TripSection>
   delete: (id: string) => Promise<TripSection>
 }
 

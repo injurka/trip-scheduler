@@ -37,6 +37,7 @@ const {
   spendingByDay,
   filteredTransactions,
   filteredTotal,
+  missingCurrencyCodes,
   overallBudget,
   paidTotal,
   plannedTotal,
@@ -297,6 +298,11 @@ onClickOutside(dateFilterWrapperRef, () => {
       </div>
     </div>
 
+    <div v-if="missingCurrencyCodes.length" class="currency-warning">
+      <Icon icon="mdi:currency-usd-off" />
+      Курс для {{ missingCurrencyCodes.join(', ') }} не задан: такие траты исключены из итогов и диаграмм.
+    </div>
+
     <FinancesDashboard
       :main-currency="settings.mainCurrency"
       :spending-by-category="spendingByCategory"
@@ -346,6 +352,7 @@ onClickOutside(dateFilterWrapperRef, () => {
       :settings="settings"
       :readonly="readonly"
       :filtered-total="filteredTotal"
+      :status-filter="statusFilter"
       @edit-transaction="openTransactionForm"
       @delete-transaction="deleteTransaction"
       @toggle-status="toggleTransactionStatus"
@@ -382,6 +389,18 @@ onClickOutside(dateFilterWrapperRef, () => {
   flex-direction: column;
   gap: 1.5rem;
   z-index: 6;
+}
+
+.currency-warning {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.7rem 0.85rem;
+  border: 1px solid color-mix(in srgb, #f59e0b 45%, var(--border-secondary-color));
+  border-radius: var(--r-s);
+  color: #b45309;
+  background: color-mix(in srgb, #f59e0b 10%, transparent);
+  font-size: 0.82rem;
 }
 
 .finances-filters-bar {

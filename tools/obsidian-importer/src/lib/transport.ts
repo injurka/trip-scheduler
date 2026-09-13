@@ -36,7 +36,7 @@ export interface Transport {
 
   deleteTrip?: (id: string) => Promise<unknown>
 
-  getTripDetails: (tripId: string) => Promise<{ sections?: Array<{ id: string, type: string, title: string }> } | null>
+  getTripDetails: (tripId: string) => Promise<{ sections?: Array<{ id: string, type: string, title: string, content?: unknown }> } | null>
 
   getDaysByTripId: (tripId: string) => Promise<Array<{ id: string, date: string, title: string }>>
 

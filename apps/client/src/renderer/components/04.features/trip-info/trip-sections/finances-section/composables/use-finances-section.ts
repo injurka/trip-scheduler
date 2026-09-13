@@ -33,19 +33,13 @@ export function useFinancesSection(
   const confirm = useConfirm()
   const content = computed(() => props.section.content)
 
-  const transactions = ref<Transaction[]>(JSON.parse(JSON.stringify(content.value?.transactions || [])))
-  const categories = ref<Category[]>(JSON.parse(JSON.stringify(content.value?.categories || DEFAULT_CATEGORIES)))
+  const transactions = ref<Transaction[]>(JSON.parse(JSON.stringify(content.value?.transactions || [])).map((tx: Transaction) => ({ ...tx, status: tx.status || 'paid', source: tx.source || 'manual' })))
+  const categories = ref<Category[]>(JSON.parse(JSON.stringify(content.value?.categories || DEFAULT_CATEGORIES)).map((category: Category) => category.id === 'cat-other' ? { ...category, name: 'Без категории' } : category))
   const settings = ref<FinancesSettings>(JSON.parse(JSON.stringify(content.value?.settings || DEFAULT_SETTINGS)))
   const selectedCategoryFilters = ref<string[]>([])
   const dateFilter = ref<{ start: string | null, end: string | null }>({ start: null, end: null })
   const typeFilter = ref<'all' | 'planned' | 'spontaneous'>('all')
   const statusFilter = ref<'all' | 'paid' | 'planned'>('all')
-
-  const initialCategories = JSON.parse(JSON.stringify(content.value?.categories || DEFAULT_CATEGORIES))
-  const catOther = initialCategories.find((c: Category) => c.id === 'cat-other')
-  if (catOther && catOther.name === 'Прочее') {
-    catOther.name = 'Без категории'
-  }
 
   const isTransactionFormOpen = ref(false)
   const isCategoryManagerOpen = ref(false)
@@ -57,6 +51,7 @@ export function useFinancesSection(
     emit('updateSection', {
       ...props.section,
       content: {
+        schemaVersion: 1,
         transactions: transactions.value,
         categories: categories.value,
         settings: settings.value,
@@ -83,6 +78,7 @@ export function useFinancesSection(
         id: uuidv4(),
         categoryId: tx.categoryId || null,
         status: tx.status || 'paid',
+        source: tx.source || 'manual',
       } as Transaction)
     }
     isTransactionFormOpen.value = false
@@ -97,6 +93,7 @@ export function useFinancesSection(
       if (tx.status === 'paid' && !tx.date) {
         tx.date = new Date().toISOString().split('T')[0]
       }
+      useToast().success(tx.status === 'paid' ? 'Трата отмечена как оплаченная.' : 'Трата перенесена в планы.')
     }
   }
 
@@ -107,6 +104,7 @@ export function useFinancesSection(
       categoryId: tx.categoryId || null,
       currency: tx.currency || settings.value.mainCurrency,
       status: tx.status || 'paid',
+      source: tx.source || 'manual',
     } as Transaction))
 
     transactions.value.unshift(...transactionsToAdd)
@@ -143,12 +141,18 @@ export function useFinancesSection(
     isSettingsOpen.value = false
   }
 
-  const convertToMainCurrency = (amount: number, currency: string): number => {
+  const convertToMainCurrency = (amount: number, currency: string): number | null => {
     if (currency === settings.value.mainCurrency)
       return amount
-    const rate = settings.value.exchangeRates[currency] || 1
-    return amount * rate
+    const rate = settings.value.exchangeRates[currency]
+    return rate && rate > 0 ? amount * rate : null
   }
+
+  const missingCurrencyCodes = computed(() => [...new Set(transactions.value
+    .filter(tx => tx.currency !== settings.value.mainCurrency && !settings.value.exchangeRates[tx.currency])
+    .map(tx => tx.currency))])
+
+  const sumInMainCurrency = (items: Transaction[]) => items.reduce((sum, tx) => sum + (convertToMainCurrency(tx.amount, tx.currency) || 0), 0)
 
   const sortedTransactions = computed(() => {
     return [...transactions.value].sort((a, b) => {
@@ -212,24 +216,23 @@ export function useFinancesSection(
   const paidTotal = computed(() => {
     return baseFilteredTransactions.value
       .filter(tx => tx.status !== 'planned')
-      .reduce((sum, tx) => sum + convertToMainCurrency(tx.amount, tx.currency), 0)
+      .reduce((sum, tx) => sum + (convertToMainCurrency(tx.amount, tx.currency) || 0), 0)
   })
 
   const plannedTotal = computed(() => {
     return baseFilteredTransactions.value
       .filter(tx => tx.status === 'planned')
-      .reduce((sum, tx) => sum + convertToMainCurrency(tx.amount, tx.currency), 0)
+      .reduce((sum, tx) => sum + (convertToMainCurrency(tx.amount, tx.currency) || 0), 0)
   })
 
   const spontaneousTotal = computed(() => {
     return baseFilteredTransactions.value
       .filter(tx => tx.isSpontaneous && tx.status !== 'planned')
-      .reduce((sum, tx) => sum + convertToMainCurrency(tx.amount, tx.currency), 0)
+      .reduce((sum, tx) => sum + (convertToMainCurrency(tx.amount, tx.currency) || 0), 0)
   })
 
   const totalSpending = computed(() => {
-    return transactions.value
-      .reduce((sum, tx) => sum + convertToMainCurrency(tx.amount, tx.currency), 0)
+    return sumInMainCurrency(transactions.value)
   })
 
   const categoryBudgetsTotal = computed(() => {
@@ -274,6 +277,8 @@ export function useFinancesSection(
     baseFilteredTransactions.value.forEach((tx) => {
       const categoryId = tx.categoryId || 'cat-other'
       const amountInMain = convertToMainCurrency(tx.amount, tx.currency)
+      if (amountInMain === null)
+        return
 
       if (!spendingMap.has(categoryId)) {
         const cat = categories.value.find(c => c.id === categoryId) || DEFAULT_CATEGORIES.find(c => c.id === 'cat-other')!
@@ -315,6 +320,8 @@ export function useFinancesSection(
       .forEach((tx) => {
         const date = tx.date!.split('T')[0]
         const amountInMain = convertToMainCurrency(tx.amount, tx.currency)
+        if (amountInMain === null)
+          return
 
         if (spendingMap.has(date))
           spendingMap.set(date, spendingMap.get(date)! + amountInMain)
@@ -330,7 +337,7 @@ export function useFinancesSection(
 
   const filteredTotal = computed(() => {
     return filteredTransactions.value
-      .reduce((sum, tx) => sum + convertToMainCurrency(tx.amount, tx.currency), 0)
+      .reduce((sum, tx) => sum + (convertToMainCurrency(tx.amount, tx.currency) || 0), 0)
   })
 
   function toggleCategoryFilter(categoryId: string | null) {
@@ -376,6 +383,7 @@ export function useFinancesSection(
     spendingByDay,
     filteredTransactions,
     filteredTotal,
+    missingCurrencyCodes,
 
     // Methods
     openTransactionForm,

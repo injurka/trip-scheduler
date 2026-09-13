@@ -1,3 +1,4 @@
+import type { FinancesSectionContent } from '../types'
 import type { Transport } from './transport'
 import process from 'node:process'
 import { colors } from '../config/colors'
@@ -148,7 +149,9 @@ export async function importTripFolderCore(
             sectionContent = tripData.checklistContent && tripData.checklistContent.items && tripData.checklistContent.items.length > 0 ? tripData.checklistContent : undefined
           }
           else if (sec.type === 'finances') {
-            sectionContent = tripData.financesContent?.transactions?.length ? tripData.financesContent : undefined
+            sectionContent = tripData.financesContent?.transactions?.length
+              ? mergeFinancesContent((existingSec as any)?.content, tripData.financesContent)
+              : undefined
           }
           else if (sec.type === 'documents') {
             const existingFolders = Array.isArray((existingSec as any)?.content?.folders) ? (existingSec as any).content.folders : []
@@ -567,4 +570,27 @@ export async function importTripFolderCore(
     }
     throw error
   }
+}
+function mergeFinancesContent(existing: unknown, incoming: FinancesSectionContent): FinancesSectionContent {
+  const current = existing as Partial<FinancesSectionContent> | undefined
+  if (!current?.transactions || !current?.categories)
+    return incoming
+
+  const incomingByKey = new Map(incoming.transactions.map(tx => [tx.sourceKey || tx.id, tx]))
+  const transactions = current.transactions.flatMap((transaction) => {
+    if (transaction.source !== 'imported')
+      return [{ ...transaction, source: transaction.source || 'manual', status: transaction.status || 'paid' }]
+    const key = transaction.sourceKey || transaction.id
+    const replacement = incomingByKey.get(key)
+    incomingByKey.delete(key)
+    return replacement ? [replacement] : []
+  })
+  transactions.push(...incomingByKey.values())
+
+  const categories = [...incoming.categories]
+  for (const category of current.categories) {
+    if (!categories.some(item => item.id === category.id))
+      categories.push(category)
+  }
+  return { ...incoming, categories, transactions }
 }

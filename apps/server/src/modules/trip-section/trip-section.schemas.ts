@@ -39,7 +39,9 @@ export const UpdateTripSectionInputSchema = TripSectionSchema.pick({
   title: true,
   icon: true,
   content: true,
-}).partial())
+}).partial()).extend({
+  expectedUpdatedAt: z.coerce.date().optional(),
+})
 
 export const DeleteTripSectionInputSchema = TripSectionSchema.pick({
   id: true,
