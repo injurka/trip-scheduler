@@ -4,10 +4,8 @@ import { bearingDeg, evaluatePointValidity, haversineM, MAX_ACCURACY_M, movement
 import { addPluginListener, invoke } from '@tauri-apps/api/core'
 import {
   checkPermissions as tauriCheckPermissions,
-  clearWatch as tauriClearWatch,
   getCurrentPosition as tauriGetCurrentPosition,
   requestPermissions as tauriRequestPermissions,
-  watchPosition as tauriWatchPosition,
 } from '@tauri-apps/plugin-geolocation'
 import { v4 as uuidv4 } from 'uuid'
 import { isMobileApp } from '~/shared/lib/env'
@@ -520,7 +518,6 @@ class BackgroundAudioKeepalive {
 
 class WebGeolocationTracker {
   private watchId: number | null = null
-  private tauriWatchId: number | null = null
   private trackingPluginListener: PluginListener | null = null
   private trackingStateListener: PluginListener | null = null
   private batteryOptimizationsIgnored = false
@@ -883,21 +880,10 @@ class WebGeolocationTracker {
       }
     }
 
-    // 2. Нативный Android Foreground Service + Tauri Geolocation Watcher
+    // 2. Нативный Android Foreground Service. Он является основным непрерывным
+    // источником координат на мобильном устройстве и работает при погашенном экране.
     if (isMobileApp) {
-      let timeoutTimer: any
-      try {
-        const timeoutPromise = new Promise<never>((_, reject) => {
-          timeoutTimer = setTimeout(
-            () => reject(new Error('Превышено время запуска нативных служб геолокации')),
-            5000,
-          )
-        })
-        await Promise.race([this.startNativeWatchers(generation), timeoutPromise])
-      }
-      finally {
-        clearTimeout(timeoutTimer)
-      }
+      await this.startNativeWatchers(generation)
     }
   }
 
@@ -1025,41 +1011,6 @@ class WebGeolocationTracker {
 
     // Выгружаем накопленные за время выключения точки
     void this.drainNativeBufferedPoints()
-
-    // Дополнительно запускаем плагинный watchPosition пока экран включен
-    const watchId = await tauriWatchPosition(
-      {
-        enableHighAccuracy: true,
-        timeout: 15000,
-        maximumAge: 3000,
-      },
-      (pos, err) => {
-        if (!isCurrent())
-          return
-        if (err) {
-          this.lastError = typeof err === 'string' ? err : 'Ошибка получения координат GPS'
-          return
-        }
-        if (pos) {
-          this.handlePositionUpdate({
-            coords: {
-              latitude: pos.coords.latitude,
-              longitude: pos.coords.longitude,
-              accuracy: pos.coords.accuracy,
-              altitude: pos.coords.altitude,
-              speed: pos.coords.speed,
-              heading: pos.coords.heading,
-            },
-            timestamp: pos.timestamp,
-          })
-        }
-      },
-    )
-    if (!isCurrent()) {
-      void tauriClearWatch(watchId).catch(() => {})
-      return
-    }
-    this.tauriWatchId = watchId
   }
 
   private stopWatchers(): void {
@@ -1071,16 +1022,6 @@ class WebGeolocationTracker {
         // игнорируем
       }
       this.watchId = null
-    }
-
-    if (this.tauriWatchId !== null) {
-      try {
-        void tauriClearWatch(this.tauriWatchId)
-      }
-      catch (e) {
-        console.warn('[Tracking] Tauri clearWatch error:', e)
-      }
-      this.tauriWatchId = null
     }
 
     if (isMobileApp) {
