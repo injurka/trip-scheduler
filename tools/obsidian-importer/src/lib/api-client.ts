@@ -45,28 +45,51 @@ export class ApiClient {
       headers.Authorization = `Bearer ${this.token}`
     }
 
-    const response = await fetch(url, {
-      ...options,
-      headers,
-    })
+    const maxRetries = 3
+    let lastError: any
 
-    const text = await response.text()
-    let data: any
-    try {
-      data = JSON.parse(text)
-    }
-    catch {
-      data = text
+    for (let attempt = 0; attempt <= maxRetries; attempt++) {
+      try {
+        const response = await fetch(url, {
+          ...options,
+          headers,
+        })
+
+        const text = await response.text()
+        let data: any
+        try {
+          data = JSON.parse(text)
+        }
+        catch {
+          data = text
+        }
+
+        if (!response.ok) {
+          const errorMsg = typeof data === 'object' && data?.message
+            ? data.message
+            : (typeof data === 'object' && data?.error ? JSON.stringify(data.error) : `HTTP ${response.status}: ${text}`)
+          throw new Error(errorMsg)
+        }
+
+        return data as T
+      }
+      catch (err: any) {
+        lastError = err
+        const isSocketOrNetworkError = err?.message?.includes('socket connection was closed')
+          || err?.message?.includes('ECONNRESET')
+          || err?.message?.includes('ETIMEDOUT')
+          || err?.code === 'ECONNRESET'
+
+        if (attempt < maxRetries && isSocketOrNetworkError) {
+          const backoff = (attempt + 1) * 750
+          await new Promise(resolve => setTimeout(resolve, backoff))
+          continue
+        }
+        throw err
+      }
     }
 
-    if (!response.ok) {
-      const errorMsg = typeof data === 'object' && data?.message
-        ? data.message
-        : (typeof data === 'object' && data?.error ? JSON.stringify(data.error) : `HTTP ${response.status}: ${text}`)
-      throw new Error(errorMsg)
-    }
-
-    return data as T
+    throw lastError
   }
 
   // 1. Auth: SignIn
@@ -355,19 +378,42 @@ export class ApiClient {
       headers.Authorization = `Bearer ${this.token}`
     }
 
-    const response = await fetch(url, {
-      method: 'POST',
-      headers,
-      body: formData,
-    })
+    const maxRetries = 3
+    let lastError: any
 
-    if (!response.ok) {
-      const text = await response.text()
-      throw new Error(`HTTP ${response.status}: ${text}`)
+    for (let attempt = 0; attempt <= maxRetries; attempt++) {
+      try {
+        const response = await fetch(url, {
+          method: 'POST',
+          headers,
+          body: formData,
+        })
+
+        if (!response.ok) {
+          const text = await response.text()
+          throw new Error(`HTTP ${response.status}: ${text}`)
+        }
+
+        const result = (await response.json()) as any
+        return result.url || result.dbRecord?.url || result.dbRecord?.path || ''
+      }
+      catch (err: any) {
+        lastError = err
+        const isSocketOrNetworkError = err?.message?.includes('socket connection was closed')
+          || err?.message?.includes('ECONNRESET')
+          || err?.message?.includes('ETIMEDOUT')
+          || err?.code === 'ECONNRESET'
+
+        if (attempt < maxRetries && isSocketOrNetworkError) {
+          const backoff = (attempt + 1) * 750
+          await new Promise(resolve => setTimeout(resolve, backoff))
+          continue
+        }
+        throw err
+      }
     }
 
-    const result = (await response.json()) as any
-    return result.url || result.dbRecord?.url || result.dbRecord?.path || ''
+    throw lastError
   }
 
   async uploadDocument(
