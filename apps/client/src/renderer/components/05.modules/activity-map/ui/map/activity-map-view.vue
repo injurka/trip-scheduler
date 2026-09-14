@@ -298,12 +298,13 @@ const controlsLeftPosition = computed(() => isMobileScreen.value ? '16px' : `${s
     right: 0;
     bottom: 0;
     width: 100% !important;
-    max-height: 70dvh;
+    max-height: calc(70dvh - var(--safe-area-inset-bottom, 0px));
     border-radius: var(--r-xl) var(--r-xl) 0 0;
     border-left: none;
     border-right: none;
     border-bottom: none;
     z-index: 1001;
+    padding-bottom: var(--safe-area-inset-bottom, env(safe-area-inset-bottom, 0px));
 
     &.is-mobile-open {
       display: flex;

@@ -236,7 +236,7 @@ const windowStyle = computed(() => {
   top: var(--safe-area-inset-top);
   left: 0;
   width: 100%;
-  height: calc(100% - var(--safe-area-inset-top));
+  height: calc(100% - var(--safe-area-inset-top) - var(--safe-area-inset-bottom, 0px));
   background-color: rgba(0, 0, 0, 0.5);
   z-index: 1000;
   display: flex;

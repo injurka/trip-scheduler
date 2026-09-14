@@ -79,7 +79,7 @@ const { offlineReady, needRefresh } = storeToRefs(pwaStore)
     flex-direction: column;
     right: var(--p-s, 12px);
     left: var(--p-s, 12px);
-    bottom: var(--p-s, 12px);
+    bottom: calc(var(--p-s, 12px) + var(--safe-area-inset-bottom, 0px));
     max-width: calc(100% - 24px);
   }
 }

@@ -74,7 +74,7 @@ const visible = defineModel<boolean>('open', { required: true })
   box-shadow: var(--s-xl);
   display: flex;
   flex-direction: column;
-  max-height: calc(100dvh - var(--safe-area-inset-top));
+  max-height: calc(100dvh - var(--safe-area-inset-top) - var(--safe-area-inset-bottom, 0px));
   top: var(--safe-area-inset-top);
   overflow: hidden;
 
@@ -88,6 +88,7 @@ const visible = defineModel<boolean>('open', { required: true })
     left: 0;
     max-width: 80vw;
     border-right: 1px solid var(--border-secondary-color);
+    padding-bottom: var(--safe-area-inset-bottom, env(safe-area-inset-bottom, 0px));
     &[data-state='open'] {
       animation: slide-in-from-left 300ms cubic-bezier(0.22, 1, 0.36, 1) forwards;
     }
@@ -102,6 +103,7 @@ const visible = defineModel<boolean>('open', { required: true })
     right: 0;
     max-width: 80vw;
     border-left: 1px solid var(--border-secondary-color);
+    padding-bottom: var(--safe-area-inset-bottom, env(safe-area-inset-bottom, 0px));
     &[data-state='open'] {
       animation: slide-in-from-right 300ms cubic-bezier(0.22, 1, 0.36, 1) forwards;
     }
@@ -130,8 +132,9 @@ const visible = defineModel<boolean>('open', { required: true })
     left: 0;
     right: 0;
     height: auto;
-    max-height: 80vh;
+    max-height: calc(80vh - var(--safe-area-inset-bottom, 0px));
     border-top: 1px solid var(--border-secondary-color);
+    padding-bottom: var(--safe-area-inset-bottom, env(safe-area-inset-bottom, 0px));
     &[data-state='open'] {
       animation: slide-in-from-bottom 300ms cubic-bezier(0.22, 1, 0.36, 1) forwards;
     }

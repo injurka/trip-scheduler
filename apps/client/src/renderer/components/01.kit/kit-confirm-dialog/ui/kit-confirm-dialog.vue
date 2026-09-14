@@ -93,6 +93,7 @@ const emit = defineEmits<{
   flex-direction: column;
   gap: 16px;
   overflow: hidden;
+  max-height: calc(100dvh - var(--safe-area-inset-top, 0px) - var(--safe-area-inset-bottom, 0px) - 32px);
 
   &:focus {
     outline: none;

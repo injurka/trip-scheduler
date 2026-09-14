@@ -206,7 +206,7 @@ const progressDetails = computed(() => {
     flex-direction: column;
     right: 16px;
     left: 16px;
-    bottom: 16px;
+    bottom: calc(16px + var(--safe-area-inset-bottom, 0px));
     width: auto;
     max-width: none;
     padding: 14px 16px;

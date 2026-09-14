@@ -284,7 +284,7 @@ function getDayActivitiesCount(day: Day): number {
 .panel-content {
   flex-grow: 1;
   overflow-y: auto;
-  padding: 12px 0;
+  padding: 12px 0 calc(12px + var(--safe-area-inset-bottom, 0px));
   display: flex;
   flex-direction: column;
   gap: 16px;

@@ -961,12 +961,11 @@ useEventListener(typeof window !== 'undefined' ? window : null, 'keydown', (e: K
 
       .readout-time-group {
         flex-shrink: 0;
-        gap: 6px;
+        gap: 8px;
         height: 26px;
-        min-width: 0;
 
         .time {
-          font-size: 1.1rem;
+          font-size: 1.15rem;
           line-height: 26px;
         }
 
@@ -974,17 +973,16 @@ useEventListener(typeof window !== 'undefined' ? window : null, 'keydown', (e: K
           height: 26px;
           padding: 0 8px;
           font-size: 0.68rem;
-          flex-shrink: 1;
-          min-width: 0;
+          flex-shrink: 0;
 
           .tz-text {
-            max-width: 50px;
+            max-width: 90px;
           }
         }
       }
 
       .readout-telemetry {
-        flex: 1 1 auto;
+        flex: 0 1 auto;
         min-width: 0;
         height: 26px;
         justify-self: auto;

@@ -28,7 +28,7 @@ const { remove } = toastStore
 <style lang="scss">
 .kit-toast-container {
   position: fixed;
-  bottom: 16px;
+  bottom: calc(16px + var(--safe-area-inset-bottom, 0px));
   right: 16px;
   z-index: 9999;
   display: flex;

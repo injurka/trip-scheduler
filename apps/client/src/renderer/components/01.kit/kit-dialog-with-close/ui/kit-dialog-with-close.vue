@@ -153,6 +153,7 @@ function handlePointerDownOutside(event: PointerDownOutsideEvent) {
 
   @include media-down(sm) {
     padding: 12px;
+    padding-bottom: calc(12px + var(--safe-area-inset-bottom, env(safe-area-inset-bottom, 0px)));
     top: auto;
     bottom: 0;
     left: 0;
@@ -162,7 +163,7 @@ function handlePointerDownOutside(event: PointerDownOutsideEvent) {
     max-width: 100% !important;
     border-bottom-left-radius: 0;
     border-bottom-right-radius: 0;
-    max-height: 92dvh;
+    max-height: calc(92dvh - var(--safe-area-inset-bottom, env(safe-area-inset-bottom, 0px)));
 
     &[data-state='open'] {
       animation: content-slide-up 300ms cubic-bezier(0.22, 1, 0.36, 1) forwards;
