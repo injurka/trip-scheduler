@@ -114,6 +114,84 @@ Denies the open_app_settings command without any pre-configured scope.
 <tr>
 <td>
 
+`tracking:allow-register-listener`
+
+</td>
+<td>
+
+Enables the register_listener command without any pre-configured scope.
+
+</td>
+</tr>
+
+<tr>
+<td>
+
+`tracking:deny-register-listener`
+
+</td>
+<td>
+
+Denies the register_listener command without any pre-configured scope.
+
+</td>
+</tr>
+
+<tr>
+<td>
+
+`tracking:allow-remove-listener`
+
+</td>
+<td>
+
+Enables the remove_listener command without any pre-configured scope.
+
+</td>
+</tr>
+
+<tr>
+<td>
+
+`tracking:deny-remove-listener`
+
+</td>
+<td>
+
+Denies the remove_listener command without any pre-configured scope.
+
+</td>
+</tr>
+
+<tr>
+<td>
+
+`tracking:allow-request-activity-permission`
+
+</td>
+<td>
+
+Enables the request_activity_permission command without any pre-configured scope.
+
+</td>
+</tr>
+
+<tr>
+<td>
+
+`tracking:deny-request-activity-permission`
+
+</td>
+<td>
+
+Denies the request_activity_permission command without any pre-configured scope.
+
+</td>
+</tr>
+
+<tr>
+<td>
+
 `tracking:allow-request-ignore-battery-optimizations`
 
 </td>

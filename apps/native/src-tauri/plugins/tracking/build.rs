@@ -1,4 +1,8 @@
 const COMMANDS: &[&str] = &[
+    // Used internally by `@tauri-apps/api/core::addPluginListener` on mobile.
+    // These commands still pass through Tauri's ACL before reaching Plugin.kt.
+    "register_listener",
+    "remove_listener",
     "start_tracking",
     "stop_tracking",
     "is_tracking_running",

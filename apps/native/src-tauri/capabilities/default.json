@@ -27,6 +27,8 @@
     "geolocation:allow-get-current-position",
     "geolocation:allow-watch-position",
     "geolocation:allow-clear-watch",
+    "tracking:allow-register-listener",
+    "tracking:allow-remove-listener",
     "tracking:allow-start-tracking",
     "tracking:allow-stop-tracking",
     "tracking:allow-is-tracking-running",
