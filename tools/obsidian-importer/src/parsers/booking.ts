@@ -319,6 +319,21 @@ export function parseHotelsMarkdown(content: string, startDateStr: string): Book
   const photosMap = new Map<string, string[]>()
 
   for (const sec of detailSections) {
+    // Галерея основного отеля может находиться в конце секции после документов
+    // и альтернатив. Нулевой отступ отличает её от вложенных галерей альтернатив.
+    const primaryLineMatch = sec.match(/^\*\s*\*\*(?:✅\s*)?(?:Забронировано|№1[^*]*):\*\*\s*([^\n]+)/m)
+    if (primaryLineMatch) {
+      const primaryNameMatch = primaryLineMatch[1].match(/\[([^\]]+)\](?:\([^)]+\))?/) || primaryLineMatch[1].match(/\*\*([^*]+)\*\*/)
+      const primaryName = primaryNameMatch?.[1]?.replace(/[*_`\\]/g, '').trim()
+      const primaryCallouts = Array.from(sec.matchAll(/^>\s*\[!(?:INFO|NOTE|TIP)\]-?\s*(?:Картинки|Изображения|Фото(?:графии)?|Photos?|Images?|Галерея)[^\n]*\n((?:>[^\n]*(?:\n|$))*)/gim))
+      if (primaryName && primaryCallouts.length > 0) {
+        const key = normalizeHotelKey(primaryName)
+        const photos = primaryCallouts.flatMap(match => extractPhotosFromText(match[0]))
+        if (key && photos.length > 0)
+          photosMap.set(key, Array.from(new Set(photos)))
+      }
+    }
+
     const hotelBlocks = sec.split(/\n(?=^\*\s*\*\*(?:[^*]+?)(?:\*\*:|:\*\*)|^####?\s*)/m)
 
     for (const block of hotelBlocks) {
@@ -380,9 +395,7 @@ export function parseHotelsMarkdown(content: string, startDateStr: string): Book
   let colNights = 0
   let colLocation = 1
   let colHotel = 2
-  let colFeatures = 3
-  let colPriceNight = 4
-  let colTotal = 5
+  let colFeatures = -1
   let colHotelLocation = -1
   let colPhotos = -1
   let headerDetected = false
@@ -416,9 +429,7 @@ export function parseHotelsMarkdown(content: string, startDateStr: string): Book
       const iHotelLocation = findIdx([/локаци.*отел|отел.*локаци|координат|карта/])
       const iHotel = findIdx([/отел/])
       const iFeatures = findIdx([/особен|инфра|удобства|оценка/])
-      const iPriceNight = findIdx([/цена|стоимост.*ночь/])
       const iPhotos = findIdx([/фото|галере|photo|image/])
-      const iTotal = findIdx([/итого/])
 
       if (iNights !== -1)
         colNights = iNights
@@ -428,14 +439,9 @@ export function parseHotelsMarkdown(content: string, startDateStr: string): Book
         colHotelLocation = iHotelLocation
       if (iHotel !== -1)
         colHotel = iHotel
-      if (iFeatures !== -1)
-        colFeatures = iFeatures
-      if (iPriceNight !== -1)
-        colPriceNight = iPriceNight
+      colFeatures = iFeatures
       if (iPhotos !== -1)
         colPhotos = iPhotos
-      if (iTotal !== -1)
-        colTotal = iTotal
 
       headerDetected = true
       continue
@@ -450,9 +456,7 @@ export function parseHotelsMarkdown(content: string, startDateStr: string): Book
       const rawLocationCol = cols[colLocation] ?? ''
       const hotelLocationCol = colHotelLocation === -1 ? '' : (cols[colHotelLocation] ?? '')
       const hotelCol = cols[colHotel] ?? ''
-      const featuresCol = cols[colFeatures]?.replace(/[*_`]/g, '').trim() ?? ''
-      const priceNightCol = cols[colPriceNight]?.replace(/[*_`]/g, '').trim() ?? ''
-      const totalCol = cols[colTotal]?.replace(/[*_`]/g, '').trim() ?? ''
+      const featuresCol = colFeatures === -1 ? '' : (cols[colFeatures]?.replace(/[*_`]/g, '').trim() ?? '')
 
       let hotelName = hotelCol.replace(/[_`]/g, '').replace(/\[([^\]]+)\]\([^)]+\)/g, '$1').trim()
       let sourceUrl: string | undefined
@@ -462,8 +466,11 @@ export function parseHotelsMarkdown(content: string, startDateStr: string): Book
         sourceUrl = linkMatch[2].trim()
       }
 
+      // Убираем пометки оплаты вида *(оплачено)* или (оплачено)
+      hotelName = hotelName.replace(/\*\(оплачено\)\*/gi, '').replace(/\(оплачено\)/gi, '').trim()
+
       // Убираем эмодзи из имени отеля
-      hotelName = removeEmoji(hotelName)
+      hotelName = removeEmoji(hotelName).trim()
 
       // Если отель основной или единственный в строке
       if (hotelName && !/опция|альтернатива/i.test(nightsCol)) {
@@ -535,9 +542,7 @@ export function parseHotelsMarkdown(content: string, startDateStr: string): Book
           const rowPhotos = extractPhotosFromText(line)
           const allPhotos = Array.from(new Set([...catalogPhotos, ...tablePhotos, ...rowPhotos]))
 
-          const priceInfo = priceNightCol ? `${priceNightCol} / ночь${totalCol ? ` (Итого: ${totalCol})` : ''}` : ''
-          const notesParts = [priceInfo, features].filter(Boolean)
-          const notes = notesParts.join('. ')
+          const notes = features.trim()
 
           // Чистим локацию: убираем эмодзи, разметку, даты в скобках типа "(30 окт – 03 ноя)" или "(12–14 ноя, 15–17 ноя)"
           const cleanLocation = removeEmoji(rawLocationCol)
@@ -578,14 +583,16 @@ export function parseHotelsMarkdown(content: string, startDateStr: string): Book
       const linkMatch = sec.match(/\[([^\]]+)\]\((https?:\/\/[^)]+)\)/)
       const nameMatch = sec.match(/####?\s*\d*\.?\s*(?:🏆|🎨|🌲|🌊)?\s*([^\n(\]]+)/i)
       if (linkMatch || nameMatch) {
-        const hotelName = (linkMatch ? linkMatch[1] : nameMatch![1]).replace(/[*_`\\]/g, '').trim()
+        let hotelName = (linkMatch ? linkMatch[1] : nameMatch![1]).replace(/[*_`\\]/g, '').trim()
+        hotelName = hotelName.replace(/\*\(оплачено\)\*/gi, '').replace(/\(оплачено\)/gi, '').trim()
+        hotelName = removeEmoji(hotelName).trim()
+
         const sourceUrl = linkMatch ? linkMatch[2].trim() : undefined
         const locMatch = sec.match(/\*\s*\*(?:Локация|Адрес):\*\s*([^\n]+)/i)
-        const priceMatch = sec.match(/\*\s*\*(?:Стоимость|Цена):\*\s*`?([^`\n]+)`?/i)
         const notesMatch = sec.match(/\*\s*\*(?:Инфраструктура|Особенности):\*\s*([^\n]+)/i)
 
         const address = locMatch ? locMatch[1].replace(/[*_`]/g, '').trim() : undefined
-        const notes = [priceMatch ? `Стоимость: ${priceMatch[1].trim()}` : '', notesMatch ? notesMatch[1].trim() : ''].filter(Boolean).join('. ')
+        const notes = notesMatch ? notesMatch[1].trim() : ''
 
         const headerLine = sec.split('\n')[0] || ''
         const secDates = extractDateRangesFromText(headerLine, startDate)

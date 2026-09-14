@@ -106,6 +106,27 @@ describe('Hotel Booking Parser', () => {
     if (hotel.type === 'hotel') {
       expect(hotel.data.hotelName).toBe('Morwing Hotel Fairy Tale')
       expect(hotel.data.address).toBe('Тайбэй')
+      expect(hotel.data.notes).toBeUndefined()
+    }
+  })
+
+  it('strips *(оплачено)* and (оплачено) from hotelName and keeps notes clean from prices', () => {
+    const markdown = `
+| Ночи | Локация | Отель №1 (Основной выбор) | Ночей | Цена / ночь | Итого за локацию |
+|:---:|:---|:---|:---:|:---:|:---:|
+| 03–06 | 🏙️ **Тайбэй** (06 ноя – 10 ноя) | Dongmen Hotel *(оплачено)* | 4н | 4 375 ₽ | 17 501 ₽ |
+
+### 🏙️ Тайбэй (4 ночи: 06 ноя – 10 ноя)
+* **✅ Забронировано:** **Dongmen Hotel (東門旅店)** — **4 375 ₽ / ночь**
+  * *Особенности:* Расположение прямо у станции метро MRT Dongmen.
+`
+    const bookings = parseHotelsMarkdown(markdown, '2026-11-04')
+    expect(bookings).toHaveLength(1)
+    const hotel = bookings[0]
+    expect(hotel.title).toBe('Dongmen Hotel')
+    if (hotel.type === 'hotel') {
+      expect(hotel.data.hotelName).toBe('Dongmen Hotel')
+      expect(hotel.data.notes).toBe('Расположение прямо у станции метро MRT Dongmen.')
     }
   })
 
@@ -204,6 +225,48 @@ describe('Hotel Booking Parser', () => {
     const mutaixu = bookings[1]
     expect(mutaixu.data.photos).toEqual(['mutaixu_pool.webp', 'mutaixu_room.jpg'])
     expect(mutaixu.data.imageUrls).toEqual(['mutaixu_pool.webp', 'mutaixu_room.jpg'])
+  })
+
+  it('extracts photos from an indented collapsible hotel callout', () => {
+    const markdown = `
+| Ночи | Локация | Отель №1 | Ночей | Цена / ночь | Итого |
+|:---:|:---|:---|:---:|:---:|:---:|
+| 02 | Гуанчжоу (05 ноя – 06 ноя) | Southern Airlines Pearl Hotel (North District) | 1 | 150 CNY | 150 CNY |
+
+### Гуанчжоу (05 ноя – 06 ноя)
+* **Забронировано:** Southern Airlines Pearl Hotel (North District)
+  * *Логистика:* Бесплатный шаттл от стойки China Southern.
+  > [!INFO]- Картинки
+  > ![[_/hotels/southern_airlines_pearl_hotel_1.png]]
+  > ![[_/hotels/southern_airlines_pearl_hotel_2.png]]
+`
+    const bookings = parseHotelsMarkdown(markdown, '2026-11-04')
+    expect(bookings).toHaveLength(1)
+    expect(bookings[0].data.photos).toEqual([
+      '_/hotels/southern_airlines_pearl_hotel_1.png',
+      '_/hotels/southern_airlines_pearl_hotel_2.png',
+    ])
+  })
+
+  it('keeps a trailing primary gallery attached after documents and alternatives', () => {
+    const markdown = `
+| Ночи | Локация | Отель №1 | Ночей | Цена / ночь | Итого |
+|:---:|:---|:---|:---:|:---:|:---:|
+| 14–17 | Тайнань (17 ноя – 21 ноя) | Yoshi Hotel | 4 | 3 961 ₽ | 15 844 ₽ |
+
+### Тайнань (17 ноя – 21 ноя)
+* **✅ Забронировано:** **Yoshi Hotel**
+  * *Особенности:* Исторический центр.
+  * *Документы:* Ваучер.
+* **Альтернативы:**
+  * [WUYU](https://example.com/wuyu)
+  * [LIHO Hotel](https://example.com/liho)
+> [!INFO]- Картинки
+> ![[_/hotels/yoshi.jpg]]
+`
+    const bookings = parseHotelsMarkdown(markdown, '2026-11-04')
+    expect(bookings).toHaveLength(1)
+    expect(bookings[0].data.photos).toEqual(['_/hotels/yoshi.jpg'])
   })
 
   it('extracts hotel photos from dedicated Фото table column', () => {
