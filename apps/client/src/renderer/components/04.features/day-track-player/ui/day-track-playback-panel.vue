@@ -954,11 +954,16 @@ useEventListener(typeof window !== 'undefined' ? window : null, 'keydown', (e: K
     gap: 6px;
 
     .memories-readout {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
       gap: 6px;
 
       .readout-time-group {
+        flex-shrink: 0;
         gap: 6px;
         height: 26px;
+        min-width: 0;
 
         .time {
           font-size: 1.1rem;
@@ -969,25 +974,55 @@ useEventListener(typeof window !== 'undefined' ? window : null, 'keydown', (e: K
           height: 26px;
           padding: 0 8px;
           font-size: 0.68rem;
+          flex-shrink: 1;
+          min-width: 0;
 
           .tz-text {
-            max-width: 60px;
+            max-width: 50px;
           }
         }
       }
 
       .readout-telemetry {
+        flex: 1 1 auto;
+        min-width: 0;
         height: 26px;
+        justify-self: auto;
+        display: flex;
+        align-items: center;
+        justify-content: center;
 
         .telemetry-pill {
+          min-width: 0;
+          max-width: 100%;
           height: 26px;
-          padding: 0 9px;
+          padding: 0 8px;
           font-size: 0.72rem;
+
+          .pill-label {
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+          }
+
+          .pill-speed {
+            flex-shrink: 0;
+          }
+
+          .pill-icon {
+            flex-shrink: 0;
+          }
+
+          .pill-sep {
+            flex-shrink: 0;
+          }
         }
       }
 
       .readout-actions-right {
+        flex-shrink: 0;
         height: 26px;
+        justify-self: auto;
 
         .camera-follow-btn {
           height: 26px;
