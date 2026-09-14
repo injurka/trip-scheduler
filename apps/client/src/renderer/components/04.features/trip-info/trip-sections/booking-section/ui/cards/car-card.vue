@@ -2,7 +2,10 @@
 import type { HighlightStatus } from '../../composables/use-booking-section'
 import type { Booking, CarData, CarKind } from '../../models/types'
 import { Icon } from '@iconify/vue'
+import { useRoute } from 'vue-router'
 import { KitBtn } from '~/components/01.kit/kit-btn'
+import { KitDivider } from '~/components/01.kit/kit-divider'
+import { useTripPlanStore } from '~/components/04.features/trip-info/trip-plan'
 import { getBookingKindOptions, resolveBookingKind } from '../../models/booking-kinds'
 import BookingCardWrapper from '../shared/booking-card-wrapper.vue'
 import BookingDateTimeField from '../shared/booking-date-time-field.vue'
@@ -13,6 +16,7 @@ import BookingLocationField from '../shared/booking-location-field.vue'
 import BookingLocationViewer from '../shared/booking-location-viewer.vue'
 import BookingSourceLink from '../shared/booking-source-link.vue'
 import BookingTextareaField from '../shared/booking-textarea-field.vue'
+import BookingPhotos from './components/booking-photos.vue'
 
 interface Props {
   booking: Booking & { type: 'car' }
@@ -46,6 +50,23 @@ function updateDataField<K extends keyof CarData>(key: K, value: CarData[K]) {
 
 function updateTitle(newTitle: string) {
   emit('update:booking', { ...props.booking, title: newTitle })
+}
+
+const route = useRoute()
+const tripPlanStore = useTripPlanStore()
+const tripId = computed(() => (route?.params?.id as string) || tripPlanStore?.currentTripId || '')
+
+const photosList = computed<string[]>(() => props.booking.data.photos || props.booking.data.imageUrls || [])
+
+function updatePhotos(newPhotos: string[]) {
+  emit('update:booking', {
+    ...props.booking,
+    data: {
+      ...props.booking.data,
+      photos: newPhotos,
+      imageUrls: newPhotos,
+    },
+  })
 }
 
 function createDateWithTimezone(dateTime?: string, timeZone?: string): Date | null {
@@ -125,6 +146,10 @@ function updateKind(value?: string) {
     @update:title="updateTitle"
   >
     <template #badge>
+      <div v-if="photosList.length > 0" class="booking-photos-badge" :title="`Фото/документов: ${photosList.length}`">
+        <Icon icon="mdi:camera-outline" />
+        <span>{{ photosList.length }}</span>
+      </div>
       <BookingKindBadge v-if="kindMeta" :meta="kindMeta" />
     </template>
 
@@ -336,6 +361,19 @@ function updateKind(value?: string) {
           class="span-2"
           @update:model-value="updateDataField('notes', $event)"
         />
+
+        <KitDivider v-if="!readonly || photosList.length > 0" class="span-2" />
+
+        <BookingPhotos
+          v-if="!readonly || photosList.length > 0"
+          :photos="photosList"
+          :readonly="readonly"
+          :trip-id="tripId"
+          title="Фото авто и документы"
+          icon="mdi:camera-outline"
+          class="span-2"
+          @update:photos="updatePhotos"
+        />
       </div>
     </template>
   </BookingCardWrapper>
@@ -521,6 +559,25 @@ function updateKind(value?: string) {
 
   .span-2 {
     grid-column: span 1 / span 1;
+  }
+}
+
+.booking-photos-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 2px 7px;
+  background-color: var(--bg-primary-color);
+  border: 1px solid var(--border-secondary-color);
+  border-radius: var(--r-full);
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--fg-secondary-color);
+  margin-right: 4px;
+
+  svg {
+    font-size: 0.85rem;
+    color: var(--fg-accent-color);
   }
 }
 </style>

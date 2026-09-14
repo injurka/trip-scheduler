@@ -23,6 +23,9 @@
         "./db/*"
       ]
     },
+    "types": [
+      "bun"
+    ],
     "allowJs": true,
     // Best practices
     "strict": true,

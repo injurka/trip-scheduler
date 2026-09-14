@@ -19,9 +19,31 @@ interface Props {
 const props = defineProps<Props>()
 
 const mapSectionWrapperRef = ref<HTMLElement | null>(null)
-const { isFullscreen, toggle: toggleFullscreen } = useFullscreen(mapSectionWrapperRef)
+const { isFullscreen: isNativeFullscreen, isSupported: isFullscreenSupported, toggle: toggleNativeFullscreen } = useFullscreen(mapSectionWrapperRef)
+const isCustomFullscreen = ref(false)
+const isFullscreen = computed(() => isNativeFullscreen.value || isCustomFullscreen.value)
 
 const mapController = ref<ReturnType<typeof useGeolocationMap>>()
+
+async function handleToggleFullscreen() {
+  if (isFullscreenSupported.value) {
+    try {
+      await toggleNativeFullscreen()
+      isCustomFullscreen.value = false
+    }
+    catch {
+      isCustomFullscreen.value = !isCustomFullscreen.value
+    }
+  }
+  else {
+    isCustomFullscreen.value = !isCustomFullscreen.value
+  }
+
+  nextTick(() => {
+    mapController.value?.mapInstance.value?.resize()
+  })
+}
+
 const selectedDayId = ref('all')
 const selectedItemId = ref<string | null>(null)
 
@@ -363,7 +385,7 @@ function focusOnItem(item: MapPoint | MapRoute) {
           :active-item-id="selectedItemId"
           @map-ready="onMapReady"
           @map-click="handleMapClick"
-          @toggle-fullscreen="toggleFullscreen"
+          @toggle-fullscreen="handleToggleFullscreen"
         />
 
         <Transition name="slide-up">
@@ -398,7 +420,8 @@ function focusOnItem(item: MapPoint | MapRoute) {
   z-index: 6;
 }
 
-.is-fullscreen {
+.is-fullscreen,
+&:fullscreen {
   position: fixed;
   top: var(--safe-area-inset-top) !important;
   left: 0;
@@ -415,7 +438,8 @@ function focusOnItem(item: MapPoint | MapRoute) {
   display: flex;
   flex-direction: column;
 
-  .is-fullscreen & {
+  .is-fullscreen &,
+  :fullscreen & {
     max-width: 100%;
   }
 }

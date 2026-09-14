@@ -5,6 +5,7 @@ import { colors } from '../config/colors'
 import { DEFAULT_TRIP_SECTIONS } from '../config/constants'
 import { parseActivitiesFromMarkdown } from '../parsers/activity'
 import { parseObsidianTripFolder } from '../parsers/vault'
+import { resolveAndUploadBookingPhotos } from './booking-media'
 import { computeDayLlmHash, loadGeocodeCache, loadLlmCache, saveGeocodeCache, saveLlmCache } from './cache'
 import { enrichActivityWithMediaAndLocation } from './enricher'
 import { buildImageIndex } from './image-indexer'
@@ -118,6 +119,24 @@ export async function importTripFolderCore(
           currency: tripData.currency ?? tripData.financesContent?.settings?.mainCurrency ?? 'RUB',
         })
       }, log, 'Обновление метаданных')
+    }
+
+    const uploadCache = new Map<string, string>()
+    const imageIndex = uploadImages ? buildImageIndex(targetDir) : new Map<string, string>()
+
+    if (tripData.bookingsContent?.bookings && tripData.bookingsContent.bookings.length > 0) {
+      const uploader = transport.uploadImage ? { uploadImage: transport.uploadImage.bind(transport) } : null
+      await resolveAndUploadBookingPhotos(
+        tripData.bookingsContent.bookings,
+        imageIndex,
+        uploader,
+        createdTrip.id,
+        uploadCache,
+        {
+          uploadImages,
+          onLog: msg => log?.(msg),
+        },
+      )
     }
 
     const createdBookings = tripData.bookingsContent?.bookings || []
@@ -408,10 +427,8 @@ export async function importTripFolderCore(
     if (importActivities && importDays) {
       progress?.('activities', 'Генерация и добавление блоков активностей')
 
-      const imageIndex = uploadImages ? buildImageIndex(targetDir) : new Map<string, string>()
       const geoCache = loadGeocodeCache()
       const llmCache = loadLlmCache()
-      const uploadCache = new Map<string, string>()
 
       for (const day of tripData.days) {
         const dayId = dayIdMap.get(day.dayNumber)

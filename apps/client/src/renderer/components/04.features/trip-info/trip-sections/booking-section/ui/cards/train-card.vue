@@ -2,7 +2,10 @@
 import type { HighlightStatus } from '../../composables/use-booking-section'
 import type { Booking, TrainData } from '../../models/types'
 import { Icon } from '@iconify/vue'
+import { useRoute } from 'vue-router'
 import { KitBtn } from '~/components/01.kit/kit-btn'
+import { KitDivider } from '~/components/01.kit/kit-divider'
+import { useTripPlanStore } from '~/components/04.features/trip-info/trip-plan'
 import BookingCardWrapper from '../shared/booking-card-wrapper.vue'
 import BookingDateTimeField from '../shared/booking-date-time-field.vue'
 import BookingField from '../shared/booking-field.vue'
@@ -10,6 +13,7 @@ import BookingLocationField from '../shared/booking-location-field.vue'
 import BookingLocationViewer from '../shared/booking-location-viewer.vue'
 import BookingSourceLink from '../shared/booking-source-link.vue'
 import BookingTextareaField from '../shared/booking-textarea-field.vue'
+import BookingPhotos from './components/booking-photos.vue'
 
 interface Props {
   booking: Booking & { type: 'train' }
@@ -41,6 +45,23 @@ function updateDataField<K extends keyof TrainData>(key: K, value: TrainData[K])
 
 function updateTitle(newTitle: string) {
   emit('update:booking', { ...props.booking, title: newTitle })
+}
+
+const route = useRoute()
+const tripPlanStore = useTripPlanStore()
+const tripId = computed(() => (route?.params?.id as string) || tripPlanStore?.currentTripId || '')
+
+const photosList = computed<string[]>(() => props.booking.data.photos || props.booking.data.imageUrls || [])
+
+function updatePhotos(newPhotos: string[]) {
+  emit('update:booking', {
+    ...props.booking,
+    data: {
+      ...props.booking.data,
+      photos: newPhotos,
+      imageUrls: newPhotos,
+    },
+  })
 }
 
 function createDateWithTimezone(dateTime?: string, timeZone?: string): Date | null {
@@ -106,6 +127,12 @@ const totalDurationFormatted = computed(() => {
     @delete="$emit('delete')"
     @update:title="updateTitle"
   >
+    <template #badge>
+      <div v-if="photosList.length > 0" class="booking-photos-badge" :title="`Билетов/фото: ${photosList.length}`">
+        <Icon icon="mdi:ticket-outline" />
+        <span>{{ photosList.length }}</span>
+      </div>
+    </template>
     <div class="card-content">
       <div class="time-info">
         <div class="time">
@@ -200,6 +227,19 @@ const totalDurationFormatted = computed(() => {
           :readonly="readonly"
           class="span-2"
           @update:model-value="updateDataField('notes', $event)"
+        />
+
+        <KitDivider v-if="!readonly || photosList.length > 0" class="span-2" />
+
+        <BookingPhotos
+          v-if="!readonly || photosList.length > 0"
+          :photos="photosList"
+          :readonly="readonly"
+          :trip-id="tripId"
+          title="Билеты и фотографии"
+          icon="mdi:ticket-outline"
+          class="span-2"
+          @update:photos="updatePhotos"
         />
       </div>
     </template>
@@ -383,6 +423,25 @@ const totalDurationFormatted = computed(() => {
 
   .span-2 {
     grid-column: span 1 / span 1;
+  }
+}
+
+.booking-photos-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 2px 7px;
+  background-color: var(--bg-primary-color);
+  border: 1px solid var(--border-secondary-color);
+  border-radius: var(--r-full);
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--fg-secondary-color);
+  margin-right: 4px;
+
+  svg {
+    font-size: 0.85rem;
+    color: var(--fg-accent-color);
   }
 }
 </style>

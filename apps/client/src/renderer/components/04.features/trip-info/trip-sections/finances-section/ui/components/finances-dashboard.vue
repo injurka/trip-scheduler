@@ -484,7 +484,10 @@ useMutationObserver(
       <template v-if="hasBudget">
         <div class="summary-card total budget">
           <div class="card-top">
-            <span class="card-label">Бюджет поездки</span>
+            <span class="card-label">
+              <span class="label-full">Бюджет поездки</span>
+              <span class="label-short">Бюджет</span>
+            </span>
             <Icon icon="mdi:wallet-outline" class="card-icon" />
           </div>
           <div class="card-value">
@@ -506,7 +509,7 @@ useMutationObserver(
           </div>
           <div class="card-meta">
             <span class="badge paid">{{ paidPercentOfBudget }}%</span>
-            <span>от бюджета</span>
+            <span class="meta-desc">от бюджета</span>
           </div>
         </div>
 
@@ -520,7 +523,7 @@ useMutationObserver(
           </div>
           <div class="card-meta">
             <span class="badge planned">{{ plannedPercentOfBudget }}%</span>
-            <span>предстоит</span>
+            <span class="meta-desc">предстоит</span>
           </div>
         </div>
       </template>
@@ -529,7 +532,10 @@ useMutationObserver(
       <template v-else>
         <div class="summary-card total">
           <div class="card-top">
-            <span class="card-label">Всего расходов</span>
+            <span class="card-label">
+              <span class="label-full">Всего расходов</span>
+              <span class="label-short">Всего</span>
+            </span>
             <Icon icon="mdi:wallet-outline" class="card-icon" />
           </div>
           <div class="card-value">
@@ -550,13 +556,16 @@ useMutationObserver(
           </div>
           <div class="card-meta">
             <span class="badge planned">{{ plannedPercent }}%</span>
-            <span>по плану</span>
+            <span class="meta-desc">по плану</span>
           </div>
         </div>
 
         <div class="summary-card spontaneous" :class="{ 'is-muted': spontaneousTotal === 0 }">
           <div class="card-top">
-            <span class="card-label">Дополнительные</span>
+            <span class="card-label">
+              <span class="label-full">Дополнительные</span>
+              <span class="label-short">Доп.</span>
+            </span>
             <Icon icon="mdi:sparkles" class="card-icon" />
           </div>
           <div class="card-value">
@@ -564,7 +573,7 @@ useMutationObserver(
           </div>
           <div class="card-meta">
             <span v-if="spontaneousTotal > 0" class="badge spontaneous">{{ spontaneousPercent }}%</span>
-            <span>{{ spontaneousTotal > 0 ? 'сверх плана' : 'нет спонтанных' }}</span>
+            <span class="meta-desc">{{ spontaneousTotal > 0 ? 'сверх плана' : 'нет спонтанных' }}</span>
           </div>
         </div>
       </template>
@@ -841,6 +850,10 @@ useMutationObserver(
 
   .card-label {
     font-weight: 500;
+
+    .label-short {
+      display: none;
+    }
   }
 
   .card-icon {
@@ -1272,8 +1285,60 @@ useMutationObserver(
     align-items: stretch;
   }
 
+  .label-full {
+    display: none;
+  }
+
+  .label-short {
+    display: inline;
+  }
+
   .summary-cards {
-    grid-template-columns: 1fr;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 0.4rem;
+    padding-bottom: 0;
+  }
+
+  .summary-card {
+    padding: 0.5rem 0.45rem;
+    gap: 0.25rem;
+    border-radius: var(--r-s);
+
+    .card-top {
+      font-size: 0.7rem;
+    }
+
+    .card-icon {
+      font-size: 0.85rem;
+    }
+
+    .card-value {
+      font-size: clamp(0.82rem, 3.4vw, 1.05rem);
+      letter-spacing: -0.02em;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .card-meta {
+      font-size: 0.65rem;
+      gap: 0.2rem;
+      flex-wrap: wrap;
+      line-height: 1.2;
+
+      strong {
+        white-space: nowrap;
+      }
+
+      .meta-desc {
+        white-space: nowrap;
+      }
+    }
+
+    .badge {
+      font-size: 0.62rem;
+      padding: 1px 4px;
+    }
   }
 }
 </style>

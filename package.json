@@ -41,6 +41,6 @@
     "remove-prompt": "find . -type f -name 'src_prompt.md' -delete"
   },
   "devDependencies": {
-    "lefthook": "^1.13.6"
+    "lefthook": "^2.1.14"
   }
 }

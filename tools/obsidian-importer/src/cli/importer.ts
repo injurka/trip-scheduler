@@ -4,6 +4,7 @@ import { colors } from '../config/colors'
 import { loadEnvIfAvailable } from '../config/env'
 import { loadImporterConfig } from '../config/loader'
 import { ApiClient } from '../lib/api-client'
+import { resolveAndUploadBookingPhotos } from '../lib/booking-media'
 import {
   computeDayLlmHash,
   loadGeocodeCache,
@@ -91,6 +92,8 @@ export async function runImport(): Promise<void> {
   }
 
   const bookingsTotal = tripData.bookingsContent?.bookings?.length || 0
+  const bookingsWithPhotos = (tripData.bookingsContent?.bookings || []).filter((b: any) => (b.data as any)?.photos?.length > 0).length
+  const totalPhotosCount = (tripData.bookingsContent?.bookings || []).reduce((sum: number, b: any) => sum + ((b.data as any)?.photos?.length || 0), 0)
   const financesTotalRub = (tripData.financesContent?.transactions || []).reduce((sum, t) => sum + (t.amount || 0), 0)
   const transactionsCount = tripData.financesContent?.transactions?.length || 0
 
@@ -103,7 +106,7 @@ export async function runImport(): Promise<void> {
   console.log(`  • Дней маршрута:   ${tripData.days.length}`)
   console.log(`  • Корневых файлов: ${tripData.rootNotes.length}`)
   console.log(`  • Папок с файлами: ${tripData.sectionFolders.length} (${tripData.sectionFolders.reduce((acc, f) => acc + f.files.length, 0)} файлов)`)
-  console.log(`  • Бронирований:    ${bookingsTotal}`)
+  console.log(`  • Бронирований:    ${bookingsTotal}${totalPhotosCount > 0 ? ` (${totalPhotosCount} фото в ${bookingsWithPhotos} бронях)` : ''}`)
   console.log(`  • Смета и бюджет:  ${transactionsCount} статей на ~${financesTotalRub.toLocaleString('ru-RU')} ₽`)
   console.log(`  • Задач чек-листа: ${tripData.checklistContent.items?.length || 0} (в ${tripData.checklistFilesCount} файлах)`)
 
@@ -272,6 +275,23 @@ export async function runImport(): Promise<void> {
   }
 
   // 2. Create / Update Trip Section Tabs (All 6 Standard Sections)
+  const uploadCache = new Map<string, string>()
+  const imageIndex = buildImageIndex(targetDir)
+
+  if (tripData.bookingsContent?.bookings && tripData.bookingsContent.bookings.length > 0) {
+    await resolveAndUploadBookingPhotos(
+      tripData.bookingsContent.bookings,
+      imageIndex,
+      api,
+      createdTrip.id,
+      uploadCache,
+      {
+        uploadImages: cliOptions.uploadImages,
+        onLog: msg => console.log(`  ${colors.dim}${msg}${colors.reset}`),
+      },
+    )
+  }
+
   const createdBookings: Booking[] = tripData.bookingsContent?.bookings || []
 
   if (importSections) {
@@ -341,7 +361,8 @@ export async function runImport(): Promise<void> {
           const carsCount = sectionContent.bookings.filter((b: any) => b.type === 'car').length
           const attractionsCount = sectionContent.bookings.filter((b: any) => b.type === 'attraction').length
           const othersCount = sectionContent.bookings.filter((b: any) => b.type === 'other').length
-          console.log(`  ${colors.green}✔ Раздел «${sec.title}» наполнен:${colors.reset} ${hotelsCount > 0 ? `🏨 ${hotelsCount} отелей ` : ''}${flightsCount > 0 ? `✈️ ${flightsCount} рейсов ` : ''}${trainsCount > 0 ? `🚆 ${trainsCount} поездов ` : ''}${carsCount > 0 ? `🚗 ${carsCount} авто/трансферов ` : ''}${attractionsCount > 0 ? `🎟️ ${attractionsCount} билетов/пропусков ` : ''}${othersCount > 0 ? `🧭 ${othersCount} прочих переездов` : ''}`)
+          const totalBookingPhotos = sectionContent.bookings.reduce((sum: number, b: any) => sum + ((b.data as any)?.photos?.length || 0), 0)
+          console.log(`  ${colors.green}✔ Раздел «${sec.title}» наполнен:${colors.reset} ${hotelsCount > 0 ? `🏨 ${hotelsCount} отелей ` : ''}${flightsCount > 0 ? `✈️ ${flightsCount} рейсов ` : ''}${trainsCount > 0 ? `🚆 ${trainsCount} поездов ` : ''}${carsCount > 0 ? `🚗 ${carsCount} авто/трансферов ` : ''}${attractionsCount > 0 ? `🎟️ ${attractionsCount} билетов/пропусков ` : ''}${othersCount > 0 ? `🧭 ${othersCount} прочих переездов ` : ''}${totalBookingPhotos > 0 ? `📸 ${totalBookingPhotos} фото` : ''}`)
         }
         else if (sec.type === 'checklist' && sectionContent?.items?.length > 0) {
           const totalItems = sectionContent.items.length
@@ -626,12 +647,9 @@ export async function runImport(): Promise<void> {
   // Persistent caches (geocode + content-addressed LLM) and in-memory upload cache for the current run
   const geoCache = loadGeocodeCache()
   const llmCache = loadLlmCache()
-  const uploadCache = new Map<string, string>()
 
   if (importActivities && importDays) {
     console.log(`\n${colors.dim}🧩 Генерация и добавление блоков активностей...${colors.reset}`)
-
-    const imageIndex = buildImageIndex(targetDir)
 
     if (geoCache.size > 0) {
       console.log(`  ${colors.dim}📍 Загружен кеш геокодирования: ${geoCache.size} локаций${colors.reset}`)

@@ -109,7 +109,7 @@ const groupedTransactions = computed<DayGroup[]>(() => {
 
       if (tx.date) {
         const d = new Date(tx.date)
-        dateFormatted = d.toLocaleDateString('ru-RU', { day: 'numeric', month: 'long', year: 'numeric' })
+        dateFormatted = d.toLocaleDateString('ru-RU', { day: 'numeric', month: 'long' })
         const rawWd = d.toLocaleDateString('ru-RU', { weekday: 'short' })
         dayOfWeek = rawWd.charAt(0).toUpperCase() + rawWd.slice(1)
       }

@@ -15,6 +15,9 @@
         "./src/*"
       ]
     },
+    "types": [
+      "bun"
+    ],
     "allowJs": true,
     "strict": true,
     "noFallthroughCasesInSwitch": true,

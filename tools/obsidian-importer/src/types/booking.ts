@@ -28,6 +28,8 @@ export interface FlightData {
   notes?: string
   segments: FlightSegment[]
   sourceUrl?: string
+  photos?: string[]
+  imageUrls?: string[]
 }
 
 export interface HotelData {
@@ -44,6 +46,8 @@ export interface HotelData {
   website?: string
   notes?: string
   sourceUrl?: string
+  photos?: string[]
+  imageUrls?: string[]
 }
 
 export interface TrainData {
@@ -63,6 +67,8 @@ export interface TrainData {
   bookingReference?: string
   notes?: string
   sourceUrl?: string
+  photos?: string[]
+  imageUrls?: string[]
 }
 
 export interface AttractionData {
@@ -75,6 +81,8 @@ export interface AttractionData {
   bookingReference?: string
   notes?: string
   sourceUrl?: string
+  photos?: string[]
+  imageUrls?: string[]
 }
 
 /**
@@ -113,6 +121,8 @@ export interface CarData {
   email?: string
   notes?: string
   sourceUrl?: string
+  photos?: string[]
+  imageUrls?: string[]
 }
 
 /**
@@ -134,6 +144,8 @@ export interface OtherData {
   bookingReference?: string
   notes?: string
   sourceUrl?: string
+  photos?: string[]
+  imageUrls?: string[]
 }
 
 export interface BookingBase {

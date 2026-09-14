@@ -82,6 +82,18 @@ const hasActiveFilters = computed(() => {
     || !!dateFilter.value.end
 })
 
+const activeFiltersCount = computed(() => {
+  let count = 0
+  if (statusFilter.value !== 'all')
+    count++
+  if (typeFilter.value !== 'all')
+    count++
+  count += selectedCategoryFilters.value.length
+  if (dateFilter.value.start || dateFilter.value.end)
+    count++
+  return count
+})
+
 function resetAllFilters() {
   statusFilter.value = 'all'
   typeFilter.value = 'all'
@@ -89,7 +101,7 @@ function resetAllFilters() {
   dateFilter.value = { start: null, end: null }
 }
 
-const categoryFilterItems = computed(() => {
+const categoryFilterList = computed(() => {
   const items = categories.value.map((c) => {
     return { value: c.id, label: c.name || (c.id === 'cat-other' ? 'Прочее' : 'Без названия'), icon: c.icon }
   })
@@ -97,8 +109,6 @@ const categoryFilterItems = computed(() => {
   if (!items.some(i => i.value === 'cat-other')) {
     items.push({ value: 'cat-other', label: 'Прочее', icon: 'mdi:dots-horizontal-circle-outline' })
   }
-
-  items.unshift({ value: 'ALL', label: 'Все категории', icon: 'mdi:format-list-bulleted' } as any)
 
   return items
 })
@@ -178,53 +188,39 @@ onClickOutside(dateFilterWrapperRef, () => {
 <template>
   <div class="finances-section">
     <div class="finances-filters-bar">
-      <!-- Строка 1: Мета-фильтры (Статус / Тип) + Период + Быстрый сброс -->
+      <!-- Строка 1: Статус + Период + Быстрый сброс -->
       <div class="filters-meta-row">
-        <div class="meta-filters-group">
-          <!-- Статусный сегментированный переключатель: Все / Оплачено / В планах -->
-          <div class="status-segmented-control">
-            <button
-              v-ripple
-              type="button"
-              class="status-segment-btn"
-              :class="{ 'is-active': statusFilter === 'all' && typeFilter === 'all' }"
-              @click="statusFilter = 'all'; typeFilter = 'all'"
-            >
-              <Icon icon="mdi:format-list-bulleted" class="segment-icon" />
-              <span>Все</span>
-            </button>
-            <button
-              v-ripple
-              type="button"
-              class="status-segment-btn is-paid"
-              :class="{ 'is-active': statusFilter === 'paid' }"
-              @click="statusFilter = statusFilter === 'paid' ? 'all' : 'paid'"
-            >
-              <Icon icon="mdi:check-circle-outline" class="segment-icon" />
-              <span>Оплачено</span>
-            </button>
-            <button
-              v-ripple
-              type="button"
-              class="status-segment-btn is-planned"
-              :class="{ 'is-active': statusFilter === 'planned' }"
-              @click="statusFilter = statusFilter === 'planned' ? 'all' : 'planned'"
-            >
-              <Icon icon="mdi:clock-outline" class="segment-icon" />
-              <span>В планах</span>
-            </button>
-          </div>
-
-          <!-- Фильтр-флаг: Спонтанные расходы -->
+        <!-- Статусный сегментированный переключатель: Все / Оплачено / В планах -->
+        <div class="status-segmented-control">
           <button
             v-ripple
             type="button"
-            class="type-pill-btn is-spontaneous"
-            :class="{ 'is-active': typeFilter === 'spontaneous' }"
-            @click="typeFilter = typeFilter === 'spontaneous' ? 'all' : 'spontaneous'"
+            class="status-segment-btn"
+            :class="{ 'is-active': statusFilter === 'all' }"
+            @click="statusFilter = 'all'"
           >
-            <Icon icon="mdi:sparkles" class="type-icon" />
-            <span>Спонтанно</span>
+            <Icon icon="mdi:format-list-bulleted" class="segment-icon" />
+            <span>Все</span>
+          </button>
+          <button
+            v-ripple
+            type="button"
+            class="status-segment-btn is-paid"
+            :class="{ 'is-active': statusFilter === 'paid' }"
+            @click="statusFilter = statusFilter === 'paid' ? 'all' : 'paid'"
+          >
+            <Icon icon="mdi:check-circle-outline" class="segment-icon" />
+            <span>Оплачено</span>
+          </button>
+          <button
+            v-ripple
+            type="button"
+            class="status-segment-btn is-planned"
+            :class="{ 'is-active': statusFilter === 'planned' }"
+            @click="statusFilter = statusFilter === 'planned' ? 'all' : 'planned'"
+          >
+            <Icon icon="mdi:clock-outline" class="segment-icon" />
+            <span>В планах</span>
           </button>
         </div>
 
@@ -240,6 +236,7 @@ onClickOutside(dateFilterWrapperRef, () => {
           >
             <Icon icon="mdi:filter-off-outline" class="reset-icon" />
             <span>Сбросить</span>
+            <span v-if="activeFiltersCount > 0" class="reset-badge">{{ activeFiltersCount }}</span>
           </button>
 
           <!-- Выбор периода по дате -->
@@ -248,10 +245,11 @@ onClickOutside(dateFilterWrapperRef, () => {
               icon="mdi:calendar-blank-outline"
               variant="tonal"
               size="sm"
+              class="date-filter-btn"
               :class="{ 'has-active-filter': dateFilter.start || dateFilter.end }"
               @click="isDateFilterOpen = !isDateFilterOpen"
             >
-              {{ formattedDateFilter }}
+              <span class="date-filter-label">{{ formattedDateFilter }}</span>
             </KitBtn>
             <div v-if="isDateFilterOpen" class="calendar-popover">
               <KitCalendarRange
@@ -273,20 +271,44 @@ onClickOutside(dateFilterWrapperRef, () => {
         </div>
       </div>
 
-      <!-- Строка 2: Категории расходов -->
+      <!-- Строка 2: Категории расходов и быстрые фильтры -->
       <div class="category-filters-row">
         <div class="category-filter-pills">
+          <!-- Все категории -->
           <button
-            v-for="item in categoryFilterItems"
+            v-ripple
+            type="button"
+            class="filter-pill category-pill is-all"
+            :class="{ active: selectedCategoryFilters.length === 0 }"
+            @click="toggleCategoryFilter(null)"
+          >
+            <Icon icon="mdi:format-list-bulleted" class="pill-icon" />
+            <span>Все категории</span>
+          </button>
+
+          <!-- Спонтанные расходы -->
+          <button
+            v-ripple
+            type="button"
+            class="filter-pill category-pill is-spontaneous"
+            :class="{ active: typeFilter === 'spontaneous' }"
+            @click="typeFilter = typeFilter === 'spontaneous' ? 'all' : 'spontaneous'"
+          >
+            <Icon icon="mdi:sparkles" class="pill-icon" />
+            <span>Спонтанно</span>
+          </button>
+
+          <!-- Категории трат -->
+          <button
+            v-for="item in categoryFilterList"
             :key="String(item.value)"
             v-ripple
             type="button"
             class="filter-pill category-pill"
             :class="{
-              'active': item.value === 'ALL' ? selectedCategoryFilters.length === 0 : selectedCategoryFilters.includes(item.value),
-              'is-all': item.value === 'ALL',
+              active: selectedCategoryFilters.includes(item.value),
             }"
-            @click="item.value === 'ALL' ? toggleCategoryFilter(null) : toggleCategoryFilter(item.value)"
+            @click="toggleCategoryFilter(item.value)"
           >
             <Icon :icon="item.icon" class="pill-icon" />
             <span>{{ item.label }}</span>
@@ -438,13 +460,6 @@ onClickOutside(dateFilterWrapperRef, () => {
   flex-wrap: wrap;
 }
 
-.meta-filters-group {
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-  flex-wrap: wrap;
-}
-
 .status-segmented-control {
   display: inline-flex;
   align-items: center;
@@ -460,7 +475,7 @@ onClickOutside(dateFilterWrapperRef, () => {
   display: inline-flex;
   align-items: center;
   gap: 6px;
-  padding: 4px 12px;
+  padding: 4px 14px;
   border-radius: var(--r-full);
   font-size: 0.8125rem;
   font-weight: 500;
@@ -471,7 +486,7 @@ onClickOutside(dateFilterWrapperRef, () => {
   transition: all 0.18s ease;
   user-select: none;
   white-space: nowrap;
-  height: 28px;
+  height: 30px;
 
   .segment-icon {
     font-size: 0.95rem;
@@ -505,41 +520,6 @@ onClickOutside(dateFilterWrapperRef, () => {
   }
 }
 
-.type-pill-btn {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  padding: 4px 12px;
-  height: 34px;
-  border-radius: var(--r-full);
-  font-size: 0.8125rem;
-  font-weight: 500;
-  border: 1px dashed var(--border-primary-color);
-  background-color: var(--bg-secondary-color);
-  color: var(--fg-secondary-color);
-  cursor: pointer;
-  user-select: none;
-  white-space: nowrap;
-  transition: all 0.18s ease;
-
-  .type-icon {
-    font-size: 0.95rem;
-    flex-shrink: 0;
-  }
-
-  &:hover {
-    border-color: var(--border-accent-color);
-    color: var(--fg-primary-color);
-  }
-
-  &.is-spontaneous.is-active {
-    background-color: rgba(189, 16, 224, 0.15);
-    border-color: #bd10e0;
-    border-style: solid;
-    color: #bd10e0;
-  }
-}
-
 .meta-controls-group {
   display: flex;
   align-items: center;
@@ -549,25 +529,60 @@ onClickOutside(dateFilterWrapperRef, () => {
 .reset-filters-btn {
   display: inline-flex;
   align-items: center;
-  gap: 4px;
-  padding: 5px 10px;
-  height: 38px;
-  font-size: 0.8rem;
+  gap: 6px;
+  padding: 4px 10px;
+  height: 32px;
+  font-size: 0.8125rem;
   font-weight: 500;
   color: var(--fg-muted-color);
-  background: transparent;
-  border: 1px solid transparent;
-  border-radius: var(--r-xs);
+  background: var(--bg-tertiary-color);
+  border: 1px solid var(--border-secondary-color);
+  border-radius: var(--r-full);
   cursor: pointer;
-  transition: all 0.15s ease;
+  transition: all 0.18s ease;
+  white-space: nowrap;
+  user-select: none;
 
   .reset-icon {
     font-size: 0.95rem;
   }
 
+  .reset-badge {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 17px;
+    height: 17px;
+    padding: 0 4px;
+    border-radius: var(--r-full);
+    font-size: 0.7rem;
+    font-weight: 700;
+    line-height: 1;
+    background-color: var(--fg-accent-color);
+    color: var(--fg-inverted-color);
+  }
+
   &:hover {
     color: var(--fg-accent-color);
-    background-color: color-mix(in srgb, var(--fg-accent-color) 10%, transparent);
+    border-color: color-mix(in srgb, var(--fg-accent-color) 40%, transparent);
+    background-color: color-mix(in srgb, var(--fg-accent-color) 10%, var(--bg-secondary-color));
+  }
+}
+
+.date-filter-wrapper {
+  position: relative;
+}
+
+.date-filter-btn {
+  height: 32px;
+  border-radius: var(--r-full);
+  transition: all 0.18s ease;
+
+  &.has-active-filter {
+    background-color: color-mix(in srgb, var(--fg-accent-color) 12%, var(--bg-secondary-color));
+    border-color: color-mix(in srgb, var(--fg-accent-color) 40%, transparent);
+    color: var(--fg-accent-color);
+    font-weight: 600;
   }
 }
 
@@ -587,7 +602,7 @@ onClickOutside(dateFilterWrapperRef, () => {
   display: inline-flex;
   align-items: center;
   gap: 6px;
-  padding: 5px 12px;
+  padding: 4px 12px;
   height: 32px;
   border-radius: var(--r-full);
   background-color: var(--bg-secondary-color);
@@ -641,6 +656,28 @@ onClickOutside(dateFilterWrapperRef, () => {
         color: var(--fg-primary-color);
       }
     }
+
+    &.is-spontaneous {
+      background-color: rgba(189, 16, 224, 0.14);
+      border-color: #bd10e0;
+      color: #bd10e0;
+
+      .pill-icon,
+      svg {
+        color: #bd10e0;
+      }
+    }
+  }
+
+  &.is-spontaneous:not(.active) {
+    border-style: dashed;
+    border-color: color-mix(in srgb, #bd10e0 40%, var(--border-secondary-color));
+
+    .pill-icon,
+    svg {
+      color: #bd10e0;
+      opacity: 0.7;
+    }
   }
 }
 
@@ -661,10 +698,6 @@ onClickOutside(dateFilterWrapperRef, () => {
   display: flex;
   align-items: center;
   gap: 0.5rem;
-}
-
-.date-filter-wrapper {
-  position: relative;
 }
 
 .calendar-popover {
@@ -701,44 +734,85 @@ onClickOutside(dateFilterWrapperRef, () => {
 
 @include media-down(sm) {
   .finances-filters-bar {
-    gap: 0.5rem;
+    gap: 0.65rem;
 
     .filters-meta-row {
-      display: contents;
-    }
-
-    .meta-filters-group {
-      width: 100%;
-      order: 1;
+      flex-direction: column;
+      align-items: stretch;
+      gap: 0.65rem;
     }
 
     .status-segmented-control {
-      flex: 1;
-      justify-content: space-between;
+      width: 100%;
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      padding: 3px;
+      gap: 3px;
 
       .status-segment-btn {
-        flex: 1;
+        width: 100%;
+        height: 36px;
+        padding: 0 4px;
+        font-size: 0.8125rem;
         justify-content: center;
-        padding: 4px 6px;
+      }
+    }
+
+    .meta-controls-group {
+      width: 100%;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      justify-content: space-between;
+
+      .date-filter-wrapper {
+        flex: 1;
+        min-width: 0;
+
+        .date-filter-btn {
+          width: 100%;
+          height: 36px;
+          justify-content: center;
+
+          .date-filter-label {
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+          }
+        }
+      }
+
+      .reset-filters-btn {
+        height: 36px;
+        padding: 0 12px;
+        flex-shrink: 0;
       }
     }
 
     .category-filters-row {
       width: 100%;
-      order: 2;
-    }
+      overflow: hidden;
 
-    .meta-controls-group {
-      width: 100%;
-      order: 3;
-      justify-content: space-between;
+      .category-filter-pills {
+        display: flex;
+        flex-wrap: nowrap;
+        overflow-x: auto;
+        gap: 6px;
+        padding: 2px 4px 6px 4px;
+        -webkit-overflow-scrolling: touch;
+        scrollbar-width: none;
+        scroll-behavior: smooth;
+        overscroll-behavior-x: contain;
 
-      .date-filter-wrapper {
-        flex: 1;
+        &::-webkit-scrollbar {
+          display: none;
+        }
 
-        .kit-btn {
-          width: 100%;
-          justify-content: center;
+        .filter-pill {
+          flex-shrink: 0;
+          height: 32px;
+          padding: 0 12px;
+          white-space: nowrap;
         }
       }
     }

@@ -201,6 +201,111 @@ function makeFlightTitle(raw: string, isOutbound: boolean, isInbound: boolean, s
   return clean || (isOutbound ? 'Рейс ТУДА' : (isInbound ? 'Рейс ОБРАТНО' : 'Авиаперелет'))
 }
 
+const IMAGE_EXTENSION_REGEX = /\.(png|jpg|jpeg|webp|gif|heic|heif|svg)(?:[?#]|$)/i
+
+/**
+ * Извлекает ссылки на фотографии (Obsidian wikilinks ![[...]], markdown ![](), direct URLs)
+ * из блока текста или строк Markdown.
+ */
+export function extractPhotosFromText(text: string): string[] {
+  if (!text)
+    return []
+
+  const photos: string[] = []
+  const addPhoto = (raw: string): void => {
+    let clean = raw.trim()
+    clean = clean.replace(/^!*\[\[/, '').replace(/\]\]$/, '').split('|')[0].trim()
+    clean = clean.replace(/^!*\[[^\]]*\]\(/, '').replace(/\)$/, '').trim()
+    clean = clean.replace(/^[`'"]+|[`'"]+$/g, '')
+
+    if (!clean)
+      return
+
+    if (/^https?:\/\//i.test(clean)) {
+      if (!photos.includes(clean))
+        photos.push(clean)
+    }
+    else if (IMAGE_EXTENSION_REGEX.test(clean)) {
+      if (!photos.includes(clean))
+        photos.push(clean)
+    }
+  }
+
+  // 1. Коллауты картинок: > [!INFO]- Картинки / > [!INFO]- Фото / > [!INFO]- 📸 Фото отеля
+  const calloutRegex = />\s*\[!(?:INFO|NOTE|TIP)\]-?\s*[^\n]*?(?:Картинки|Изображения|Фото(?:графии)?|Photos?|Images?|Галерея)[^\n]*[\s\S]*?(?=\n[\t \r]*\n\s*[^\s>]|\n\s*##|\n\s*###|\n\s*---|\n\s*\*\s*\*\*|$)/gi
+  for (const calloutMatch of text.matchAll(calloutRegex)) {
+    const callout = calloutMatch[0]
+    const wikilinkRegex = /!\[\[([^\]|]+)(?:\|[^\]]+)?\]\]/g
+    for (const m of callout.matchAll(wikilinkRegex)) {
+      addPhoto(m[1])
+    }
+    const mdImageRegex = /!\[[^\]]*\]\(([^)]+)\)/g
+    for (const m of callout.matchAll(mdImageRegex)) {
+      addPhoto(m[1])
+    }
+  }
+
+  // 2. Строка с маркером фото: * *Фото:* ![[...]], ![[...]] или ссылки
+  const photoBulletRegex = /\*\s*\*(?:Фото(?:графии)?|Галерея|Photos?|Images?):\*\s*([^\n]+)/gi
+  for (const bMatch of text.matchAll(photoBulletRegex)) {
+    const line = bMatch[1]
+    const wikilinkRegex = /!?\[\[([^\]|]+)(?:\|[^\]]+)?\]\]/g
+    for (const m of line.matchAll(wikilinkRegex)) {
+      addPhoto(m[1])
+    }
+    const mdRegex = /!?\[[^\]]*\]\(([^)]+)\)/g
+    for (const m of line.matchAll(mdRegex)) {
+      addPhoto(m[1])
+    }
+    const tokens = line.split(/[,\s]+/)
+    for (const token of tokens) {
+      if (token.includes('://') || IMAGE_EXTENSION_REGEX.test(token)) {
+        addPhoto(token)
+      }
+    }
+  }
+
+  // 3. Общие wikilinks картинок в тексте
+  const generalWikilink = /!\[\[([^\]|]+)(?:\|[^\]]+)?\]\]/g
+  for (const m of text.matchAll(generalWikilink)) {
+    addPhoto(m[1])
+  }
+
+  // 4. Общие markdown картинки в тексте
+  const generalMdImage = /!\[[^\]]*\]\(([^)]+)\)/g
+  for (const m of text.matchAll(generalMdImage)) {
+    addPhoto(m[1])
+  }
+
+  return photos
+}
+
+export function normalizeHotelKey(name: string): string {
+  if (!name)
+    return ''
+  return removeEmoji(name)
+    .toLowerCase()
+    .replace(/\([^)]*\)/g, '')
+    .replace(/[_`*\\#]/g, '')
+    .replace(/[^a-zа-яё0-9]/gi, '')
+    .trim()
+}
+
+function findInHotelMap<T>(map: Map<string, T>, targetName: string): T | undefined {
+  const targetKey = normalizeHotelKey(targetName)
+  if (!targetKey)
+    return undefined
+  if (map.has(targetKey))
+    return map.get(targetKey)
+
+  for (const [k, v] of map) {
+    if (k && (k.includes(targetKey) || targetKey.includes(k))) {
+      return v
+    }
+  }
+  return undefined
+}
+
 /**
  * Парсер отелей из файла Отели.md
  */
@@ -211,18 +316,59 @@ export function parseHotelsMarkdown(content: string, startDateStr: string): Book
   // 1. Ищем детали отелей по подсекциям (каталогу)
   const detailSections = content.split(/\n(?=###?\s+)/)
   const featuresMap = new Map<string, string>()
+  const photosMap = new Map<string, string[]>()
 
   for (const sec of detailSections) {
-    const mainHotelMatch = sec.match(/\*\s*\*\*№?1?\s*\(?(?:Основной|Флагманский выбор|Основной выбор)?\)?:\*\*\s*\[?([^\]\n*]+)\]?(?:\(([^)]+)\))?[^\n]*/i)
-      || sec.match(/####?\s*\d*\.?\s*(?:🏆|🎨|🌲|🌊)?\s*\[?([^\n(\]]+)\]?/i)
+    const hotelBlocks = sec.split(/\n(?=^\*\s*\*\*(?:[^*]+?)(?:\*\*:|:\*\*)|^####?\s*)/m)
 
-    if (mainHotelMatch) {
-      const rawName = mainHotelMatch[1].replace(/[*_`]/g, '').trim()
-      const featuresMatch = sec.match(/\*\s*\*(?:Особенности|Инфраструктура и удобства|Инфраструктура|Сервис и особенности):\*\s*([^\n]+)/i)
-        || sec.match(/\*\s*\*\*Инфраструктура[^*]*\*\*:\s*([^\n]+)/i)
+    for (const block of hotelBlocks) {
+      const hotelLineMatch = block.match(/^\*\s*\*\*(?:[^*]+?)(?:\*\*:|:\*\*)\s*([^\n]+)/m)
+        || block.match(/\*\s*\*\*(?:[^*]+)\*\*:\s*([^\n]+)/i)
+        || block.match(/####?\s*\d*\.?\s*(?:🏆|🎨|🌲|🌊)?\s*([^\n]+)/i)
 
-      if (featuresMatch && rawName) {
-        featuresMap.set(rawName.toLowerCase(), featuresMatch[1].trim())
+      let rawName = ''
+      if (hotelLineMatch) {
+        const afterPrefix = hotelLineMatch[1]
+        const linkInLine = afterPrefix.match(/\[([^\]]+)\](?:\([^)]+\))?/)
+        const boldInLine = afterPrefix.match(/\*\*([^*]+)\*\*/)
+        if (linkInLine) {
+          rawName = linkInLine[1]
+        }
+        else if (boldInLine) {
+          rawName = boldInLine[1]
+        }
+        else {
+          rawName = afterPrefix.split(/\s+[—–\-]\s+|\s*[—–]\s*/)[0]
+        }
+      }
+      else {
+        const generalLink = block.match(/\[([^\]]+)\]\((https?:\/\/[^)]+)\)/)
+        const generalBold = block.match(/\*\*([^*]+)\*\*/)
+        if (generalLink) {
+          rawName = generalLink[1]
+        }
+        else if (generalBold) {
+          rawName = generalBold[1]
+        }
+      }
+
+      if (rawName) {
+        rawName = rawName.replace(/[*_`\\]/g, '').trim()
+        const key = normalizeHotelKey(rawName)
+        if (key) {
+          const featuresMatch = block.match(/\*\s*\*(?:Особенности|Инфраструктура и удобства|Инфраструктура|Сервис и особенности):\*\s*([^\n]+)/i)
+            || block.match(/\*\s*\*\*Инфраструктура[^*]*\*\*:\s*([^\n]+)/i)
+
+          if (featuresMatch) {
+            featuresMap.set(key, featuresMatch[1].trim())
+          }
+
+          const blockPhotos = extractPhotosFromText(block)
+          if (blockPhotos.length > 0) {
+            const existing = photosMap.get(key) || []
+            photosMap.set(key, Array.from(new Set([...existing, ...blockPhotos])))
+          }
+        }
       }
     }
   }
@@ -238,6 +384,7 @@ export function parseHotelsMarkdown(content: string, startDateStr: string): Book
   let colPriceNight = 4
   let colTotal = 5
   let colHotelLocation = -1
+  let colPhotos = -1
   let headerDetected = false
 
   for (const line of lines) {
@@ -270,6 +417,7 @@ export function parseHotelsMarkdown(content: string, startDateStr: string): Book
       const iHotel = findIdx([/отел/])
       const iFeatures = findIdx([/особен|инфра|удобства|оценка/])
       const iPriceNight = findIdx([/цена|стоимост.*ночь/])
+      const iPhotos = findIdx([/фото|галере|photo|image/])
       const iTotal = findIdx([/итого/])
 
       if (iNights !== -1)
@@ -284,6 +432,8 @@ export function parseHotelsMarkdown(content: string, startDateStr: string): Book
         colFeatures = iFeatures
       if (iPriceNight !== -1)
         colPriceNight = iPriceNight
+      if (iPhotos !== -1)
+        colPhotos = iPhotos
       if (iTotal !== -1)
         colTotal = iTotal
 
@@ -379,7 +529,12 @@ export function parseHotelsMarkdown(content: string, startDateStr: string): Book
             checkOutDate = outDate.toISOString().split('T')[0]
           }
 
-          const features = featuresMap.get(hotelName.toLowerCase()) || featuresCol || ''
+          const features = findInHotelMap(featuresMap, hotelName) || featuresCol || ''
+          const catalogPhotos = findInHotelMap(photosMap, hotelName) || []
+          const tablePhotos = colPhotos !== -1 ? extractPhotosFromText(cols[colPhotos] || '') : []
+          const rowPhotos = extractPhotosFromText(line)
+          const allPhotos = Array.from(new Set([...catalogPhotos, ...tablePhotos, ...rowPhotos]))
+
           const priceInfo = priceNightCol ? `${priceNightCol} / ночь${totalCol ? ` (Итого: ${totalCol})` : ''}` : ''
           const notesParts = [priceInfo, features].filter(Boolean)
           const notes = notesParts.join('. ')
@@ -408,6 +563,8 @@ export function parseHotelsMarkdown(content: string, startDateStr: string): Book
               checkOutDate,
               notes: notes || undefined,
               sourceUrl,
+              photos: allPhotos.length > 0 ? allPhotos : undefined,
+              imageUrls: allPhotos.length > 0 ? allPhotos : undefined,
             },
           })
         }
@@ -434,6 +591,7 @@ export function parseHotelsMarkdown(content: string, startDateStr: string): Book
         const secDates = extractDateRangesFromText(headerLine, startDate)
         const checkInDate = secDates[0]?.checkInDate ?? startDateStr
         const checkOutDate = secDates[0]?.checkOutDate ?? startDateStr
+        const secPhotos = extractPhotosFromText(sec)
 
         bookings.push({
           id: stableId('booking-hotel', hotelName, checkInDate, checkOutDate),
@@ -447,6 +605,8 @@ export function parseHotelsMarkdown(content: string, startDateStr: string): Book
             checkOutDate,
             notes: notes || undefined,
             sourceUrl,
+            photos: secPhotos.length > 0 ? secPhotos : undefined,
+            imageUrls: secPhotos.length > 0 ? secPhotos : undefined,
           },
         })
       }
@@ -553,6 +713,7 @@ export function parseFlightsMarkdown(content: string, startDateStr: string, endD
     }
 
     if (segments.length > 0) {
+      const flightPhotos = extractPhotosFromText(fSec)
       bookings.push({
         id: stableId('booking-flight', segments[0]?.departureDateTime, segments.at(-1)?.arrivalDateTime, makeFlightTitle(rawRouteTitle, isOutbound, isInbound, segments)),
         type: 'flight',
@@ -563,6 +724,8 @@ export function parseFlightsMarkdown(content: string, startDateStr: string, endD
           sourceUrl: sourceUrl || undefined,
           notes: generalNotes || undefined,
           segments,
+          photos: flightPhotos.length > 0 ? flightPhotos : undefined,
+          imageUrls: flightPhotos.length > 0 ? flightPhotos : undefined,
         },
       })
     }
@@ -760,6 +923,8 @@ export function parseTransportMarkdown(content: string, startDateStr: string): B
           paymentCol,
         ].filter(Boolean).join('. ')
 
+        const transportPhotos = extractPhotosFromText(line)
+
         // Экскурсия / билет / пропуск
         if (/экскурси|билет|пропуск|эко-сбор|музей|сеанс/i.test(segmentCol)
           || /экскурси|музей|билет/i.test(transportCol)) {
@@ -774,6 +939,8 @@ export function parseTransportMarkdown(content: string, startDateStr: string): B
               dateTime: `${dateStr}T11:00:00`,
               notes,
               sourceUrl,
+              photos: transportPhotos.length > 0 ? transportPhotos : undefined,
+              imageUrls: transportPhotos.length > 0 ? transportPhotos : undefined,
             },
           })
           continue
@@ -800,6 +967,8 @@ export function parseTransportMarkdown(content: string, startDateStr: string): B
               dropoffTimeZone: inferTimezone(to, defaultTimezone),
               notes,
               sourceUrl,
+              photos: transportPhotos.length > 0 ? transportPhotos : undefined,
+              imageUrls: transportPhotos.length > 0 ? transportPhotos : undefined,
             },
           })
         }
@@ -823,6 +992,8 @@ export function parseTransportMarkdown(content: string, startDateStr: string): B
               endTimeZone: inferTimezone(to, defaultTimezone),
               notes,
               sourceUrl,
+              photos: transportPhotos.length > 0 ? transportPhotos : undefined,
+              imageUrls: transportPhotos.length > 0 ? transportPhotos : undefined,
             },
           })
         }
@@ -841,6 +1012,8 @@ export function parseTransportMarkdown(content: string, startDateStr: string): B
               arrivalTimeZone: inferTimezone(to, defaultTimezone),
               notes,
               sourceUrl,
+              photos: transportPhotos.length > 0 ? transportPhotos : undefined,
+              imageUrls: transportPhotos.length > 0 ? transportPhotos : undefined,
             },
           })
         }

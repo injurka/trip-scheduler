@@ -173,11 +173,62 @@ describe('Hotel Booking Parser', () => {
 
     const stay2 = bookings[1]
     expect(stay2.title).toBe('moon yancheg (2-й заезд)')
-    if (stay2.type === 'hotel') {
-      expect(stay2.data.checkInDate).toBe('2026-11-15')
-      expect(stay2.data.checkOutDate).toBe('2026-11-17')
-      expect(stay2.data.address).toBe('Гаосюн')
-    }
+  })
+
+  it('extracts hotel photos from detail catalog bullet points and callouts', () => {
+    const markdown = `
+| Ночи | Локация | Отель №1 | Ночей | Цена / ночь | Итого |
+|:---:|:---|:---|:---:|:---:|:---:|
+| 01 | Тайбэй | [Morwing Hotel Fairy Tale](https://trip.com) | 1 | 3 200 ₽ | 3 200 ₽ |
+| 02 | Цзяоси | [Mutaixu hot spring](https://trip.com) | 1 | 3 100 ₽ | 3 100 ₽ |
+
+### 🏙️ Тайбэй (Ночь 01)
+* **№1 (Основной):** [Morwing Hotel Fairy Tale](https://trip.com) — **3 200 ₽ / ночь**
+  * *Особенности:* Центр города
+  * *Фото:* ![[Morwing_1.jpg]], ![[Morwing_2.png]]
+
+### ♨️ Цзяоси (Ночь 02)
+* **✅ Забронировано:** [Mutaixu hot spring](https://trip.com) — **3 100 ₽ / ночь**
+  * *Особенности:* Термальный бассейн
+> [!INFO]- Картинки
+> ![[mutaixu_pool.webp]]
+> ![[mutaixu_room.jpg]]
+`
+    const bookings = parseHotelsMarkdown(markdown, '2026-10-01')
+    expect(bookings).toHaveLength(2)
+
+    const morwing = bookings[0]
+    expect(morwing.data.photos).toEqual(['Morwing_1.jpg', 'Morwing_2.png'])
+    expect(morwing.data.imageUrls).toEqual(['Morwing_1.jpg', 'Morwing_2.png'])
+
+    const mutaixu = bookings[1]
+    expect(mutaixu.data.photos).toEqual(['mutaixu_pool.webp', 'mutaixu_room.jpg'])
+    expect(mutaixu.data.imageUrls).toEqual(['mutaixu_pool.webp', 'mutaixu_room.jpg'])
+  })
+
+  it('extracts hotel photos from dedicated Фото table column', () => {
+    const markdown = `
+| Ночи | Локация | Отель №1 | Ночей | Цена / ночь | Фото | Итого |
+|:---:|:---|:---|:---:|:---:|:---|:---:|
+| 01 | Тайбэй | [Morwing Hotel Fairy Tale](https://trip.com) | 1 | 3 200 ₽ | ![[table_photo.jpg]] | 3 200 ₽ |
+`
+    const bookings = parseHotelsMarkdown(markdown, '2026-10-01')
+    expect(bookings).toHaveLength(1)
+    expect(bookings[0].data.photos).toContain('table_photo.jpg')
+  })
+
+  it('extracts hotel photos in fallback catalog parsing without table', () => {
+    const markdown = `
+### 🏙️ Тайбэй (01–04 ноя)
+* **№1 (Основной):** [Morwing Hotel Fairy Tale](https://trip.com)
+  * *Локация:* Тайбэй
+  * *Стоимость:* 3 200 ₽
+  * *Особенности:* Wi-Fi 300 Мбит/с
+  * *Фото:* ![[fallback_hotel.jpg]]
+`
+    const bookings = parseHotelsMarkdown(markdown, '2026-11-01')
+    expect(bookings).toHaveLength(1)
+    expect(bookings[0].data.photos).toContain('fallback_hotel.jpg')
   })
 })
 

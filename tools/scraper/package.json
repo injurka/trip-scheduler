@@ -20,31 +20,31 @@
     "typecheck": "bunx tsc --noEmit"
   },
   "dependencies": {
-    "axios": "^1.13.2",
-    "cheerio": "^1.1.2",
-    "openai": "^6.9.1",
-    "playwright": "^1.56.1",
+    "axios": "^1.20.0",
+    "cheerio": "^1.2.0",
+    "openai": "^7.15.0",
+    "playwright": "^1.63.0",
     "prompts": "^2.4.2",
-    "puppeteer": "^25.3.0",
+    "puppeteer": "^25.11.0",
     "puppeteer-extra": "^3.3.6",
     "puppeteer-extra-plugin-stealth": "^2.11.2",
-    "selenium-webdriver": "^4.38.0",
+    "selenium-webdriver": "^4.49.0",
     "tsup": "^8.5.1",
-    "uuid": "^13.0.0",
-    "zod": "^4.4.3"
+    "uuid": "^14.0.2",
+    "zod": "^4.6.5"
   },
   "devDependencies": {
-    "@antfu/eslint-config": "8.2.0",
+    "@antfu/eslint-config": "9.5.1",
     "@types/bun": "latest",
     "@types/cheerio": "^1.0.0",
-    "@types/node": "24.10.1",
+    "@types/node": "26.5.1",
     "@types/prompts": "^2.4.9",
-    "@types/selenium-webdriver": "^4.35.4",
+    "@types/selenium-webdriver": "^4.35.6",
     "@types/uuid": "^11.0.0",
     "bun-types": "^1.4.2",
-    "eslint": "^9.29.0",
+    "eslint": "^10.10.0",
     "eslint-plugin-format": "2.0.1",
     "ts-node": "^10.9.2",
-    "typescript": "5.9.3"
+    "typescript": "6.0.3"
   }
 }
