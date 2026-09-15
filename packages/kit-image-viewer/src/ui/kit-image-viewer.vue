@@ -215,7 +215,23 @@ const visibleIndices = computed(() => {
 })
 
 const imageLoadStates = reactive<Record<number, { loaded: boolean, error: boolean, loader: boolean }>>({})
-const loaderTimeouts = new Map<number, any>()
+const loaderTimeouts = new Map<number, ReturnType<typeof setTimeout>>()
+
+function clearImageLoaderTimeout(index: number) {
+  const timer = loaderTimeouts.get(index)
+  if (timer) {
+    clearTimeout(timer)
+    loaderTimeouts.delete(index)
+  }
+}
+
+function resetImageLoadState() {
+  loaderTimeouts.forEach(timer => clearTimeout(timer))
+  loaderTimeouts.clear()
+  Object.keys(imageLoadStates).forEach((index) => {
+    delete imageLoadStates[Number(index)]
+  })
+}
 
 function getImageUrl(image: ImageViewerImage, quality: ImageQuality): string {
   if (!image)
@@ -248,7 +264,7 @@ function handleImageLoad(index: number, event: Event) {
     imageLoadStates[index].error = false
     imageLoadStates[index].loader = false
   }
-  clearTimeout(loaderTimeouts.get(index))
+  clearImageLoaderTimeout(index)
 
   if (index === props.currentIndex) {
     onImageLoad()
@@ -269,7 +285,7 @@ function handleVideoLoadedMetadata(index: number, event: Event) {
     imageLoadStates[index].error = false
     imageLoadStates[index].loader = false
   }
-  clearTimeout(loaderTimeouts.get(index))
+  clearImageLoaderTimeout(index)
 
   if (index === props.currentIndex) {
     onImageLoad()
@@ -292,7 +308,7 @@ function handleImageError(index: number, event: Event) {
     imageLoadStates[index].loaded = false
     imageLoadStates[index].loader = false
   }
-  clearTimeout(loaderTimeouts.get(index))
+  clearImageLoaderTimeout(index)
 
   if (index === props.currentIndex) {
     onImageError()
@@ -307,6 +323,15 @@ function setRef(el: any, index: number) {
 }
 
 watch(visibleIndices, (indices) => {
+  const visible = new Set(indices)
+  Object.keys(imageLoadStates).forEach((key) => {
+    const index = Number(key)
+    if (!visible.has(index)) {
+      clearImageLoaderTimeout(index)
+      delete imageLoadStates[index]
+    }
+  })
+
   indices.forEach((i) => {
     if (!imageLoadStates[i]) {
       imageLoadStates[i] = { loaded: false, error: false, loader: false }
@@ -314,11 +339,14 @@ watch(visibleIndices, (indices) => {
         if (!imageLoadStates[i].loaded && !imageLoadStates[i].error) {
           imageLoadStates[i].loader = true
         }
+        loaderTimeouts.delete(i)
       }, 500)
       loaderTimeouts.set(i, timer)
     }
   })
 }, { immediate: true })
+
+watch(() => props.images, resetImageLoadState)
 
 watch(() => [props.currentIndex, selectedQuality.value] as const, ([newIndex, newQuality], [oldIndex, oldQuality]) => {
   const image = props.images[newIndex]
@@ -336,11 +364,12 @@ watch(() => [props.currentIndex, selectedQuality.value] as const, ([newIndex, ne
       imageLoadStates[newIndex].loaded = false
       imageLoadStates[newIndex].error = false
       if (!imageLoadStates[newIndex].loader) {
-        clearTimeout(loaderTimeouts.get(newIndex))
+        clearImageLoaderTimeout(newIndex)
         const timer = setTimeout(() => {
           if (!imageLoadStates[newIndex].loaded && !imageLoadStates[newIndex].error) {
             imageLoadStates[newIndex].loader = true
           }
+          loaderTimeouts.delete(newIndex)
         }, 500)
         loaderTimeouts.set(newIndex, timer)
       }
@@ -649,7 +678,7 @@ onUnmounted(() => {
                         :style="i === currentIndex ? [imageStyle, currentImageStyle] : adjacentImageStyle"
                         controls
                         playsinline
-                        preload="metadata"
+                        :preload="i === currentIndex ? 'metadata' : 'none'"
                         @loadedmetadata="e => handleVideoLoadedMetadata(i, e)"
                         @error="e => handleImageError(i, e)"
                       />
@@ -658,6 +687,9 @@ onUnmounted(() => {
                         :ref="el => setRef(el, i)"
                         :src="getImageUrl(images[i], i === currentIndex ? selectedQuality : 'large')"
                         :alt="images[i]?.alt || `Image ${i + 1}`"
+                        :loading="i === currentIndex ? 'eager' : 'lazy'"
+                        decoding="async"
+                        :fetchpriority="i === currentIndex ? 'high' : 'low'"
                         class="viewer-image"
                         :class="{
                           'loaded': imageLoadStates[i]?.loaded,

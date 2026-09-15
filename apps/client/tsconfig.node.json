@@ -6,6 +6,9 @@
     "types": [
       "node"
     ],
+    "allowImportingTsExtensions": true,
+    "emitDeclarationOnly": true,
+    "outDir": "node_modules/.cache/tsconfig-node",
     "allowSyntheticDefaultImports": true,
     "skipLibCheck": true
   },

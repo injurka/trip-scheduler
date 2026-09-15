@@ -348,9 +348,9 @@ function updateSegmentField<K extends keyof FlightSegment>(segmentIndex: number,
           <BookingField :model-value="segment.arrivalCity" label="Город прилета" icon="mdi:city-variant-outline" :readonly="readonly" @update:model-value="updateSegmentField(index, 'arrivalCity', $event)" />
           <BookingField :model-value="segment.departureAirport" label="Аэропорт вылета" icon="mdi:airplane-takeoff" :readonly="readonly" @update:model-value="updateSegmentField(index, 'departureAirport', $event)" />
           <BookingField :model-value="segment.arrivalAirport" label="Аэропорт прилета" icon="mdi:airplane-landing" :readonly="readonly" @update:model-value="updateSegmentField(index, 'arrivalAirport', $event)" />
-          <BookingDateTimeField :model-value="segment.departureDateTime" label="Дата и время вылета" icon="mdi:clock-start" :readonly="readonly" type="datetime" @update:model-value="updateSegmentField(index, 'departureDateTime', $event)" />
+          <BookingDateTimeField :model-value="segment.departureDateTime" label="Время вылета" icon="mdi:clock-start" :readonly="readonly" type="datetime" @update:model-value="updateSegmentField(index, 'departureDateTime', $event)" />
           <BookingField :model-value="segment.departureTimeZone" label="Часовой пояс вылета" icon="mdi:clock-time-four-outline" :readonly="readonly" placeholder="+03:00" @update:model-value="updateSegmentField(index, 'departureTimeZone', $event)" />
-          <BookingDateTimeField :model-value="segment.arrivalDateTime" label="Дата и время прилета" icon="mdi:clock-end" :readonly="readonly" type="datetime" @update:model-value="updateSegmentField(index, 'arrivalDateTime', $event)" />
+          <BookingDateTimeField :model-value="segment.arrivalDateTime" label="Время прилета" icon="mdi:clock-end" :readonly="readonly" type="datetime" @update:model-value="updateSegmentField(index, 'arrivalDateTime', $event)" />
           <BookingField :model-value="segment.arrivalTimeZone" label="Часовой пояс прилета" icon="mdi:clock-time-four-outline" :readonly="readonly" placeholder="+08:00" @update:model-value="updateSegmentField(index, 'arrivalTimeZone', $event)" />
           <BookingField :model-value="segment.terminalDeparture" label="Терминал вылета" icon="mdi:gate" :readonly="readonly" @update:model-value="updateSegmentField(index, 'terminalDeparture', $event)" />
           <BookingField :model-value="segment.terminalArrival" label="Терминал прилета" icon="mdi:gate" :readonly="readonly" @update:model-value="updateSegmentField(index, 'terminalArrival', $event)" />
@@ -629,7 +629,7 @@ function updateSegmentField<K extends keyof FlightSegment>(segmentIndex: number,
 .details-grid {
   display: grid;
   grid-template-columns: 1fr 1fr;
-  gap: 0.5rem 1rem;
+  gap: 0.7rem 1rem;
 }
 
 .span-2 {

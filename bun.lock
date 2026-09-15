@@ -15,9 +15,9 @@
         "@excalidraw/excalidraw": "^0.18.1",
         "@iconify-icons/mdi": "^2.0.0",
         "@injurka/finance-contract": "workspace:*",
-        "@injurka/kit-image-viewer": "workspace:*",
-        "@injurka/track-processing": "workspace:*",
         "@internationalized/date": "^3.12.4",
+        "@limiteddissolve/kit-image-viewer": "workspace:*",
+        "@limiteddissolve/track-processing": "workspace:*",
         "@mapbox/polyline": "^1.2.1",
         "@milkdown/crepe": "^7.22.1",
         "@milkdown/kit": "^7.22.1",
@@ -118,8 +118,8 @@
         "@hono/swagger-ui": "^0.6.1",
         "@hono/trpc-server": "^0.4.2",
         "@injurka/finance-contract": "workspace:*",
-        "@injurka/track-processing": "workspace:*",
         "@limiteddissolve/obsidian-importer": "workspace:*",
+        "@limiteddissolve/track-processing": "workspace:*",
         "@trpc/server": "^11.18.0",
         "drizzle-orm": "^0.45.2",
         "drizzle-zod": "^0.8.3",
@@ -167,7 +167,7 @@
       },
     },
     "packages/kit-image-viewer": {
-      "name": "@injurka/kit-image-viewer",
+      "name": "@limiteddissolve/kit-image-viewer",
       "version": "1.0.0",
       "dependencies": {
         "@floating-ui/vue": "^2.0.1",
@@ -194,14 +194,21 @@
       },
     },
     "packages/track-processing": {
-      "name": "@injurka/track-processing",
+      "name": "@limiteddissolve/track-processing",
       "version": "1.0.0",
       "devDependencies": {
         "@antfu/eslint-config": "9.5.1",
+        "@iconify/vue": "^5.0.1",
+        "@types/node": "26.5.1",
+        "@vitejs/plugin-vue": "^6.0.9",
         "eslint": "^10.10.0",
         "eslint-plugin-format": "2.0.1",
+        "maplibre-gl": "^6.9.1",
         "typescript": "6.0.3",
+        "vite": "^8.3.0",
         "vitest": "^5.0.0",
+        "vue": "^3.5.42",
+        "vue-tsc": "^3.3.11",
       },
     },
     "tools/browse-agent": {
@@ -235,7 +242,7 @@
     },
     "tools/obsidian-importer": {
       "name": "@limiteddissolve/obsidian-importer",
-      "version": "1.1.0",
+      "version": "1.2.0",
       "bin": {
         "obsidian-importer": "src/run.ts",
       },
@@ -287,7 +294,7 @@
     },
     "tools/skills-installer": {
       "name": "@limiteddissolve/skills-installer",
-      "version": "1.0.3",
+      "version": "1.1.0",
       "bin": {
         "skills-installer": "src/run.ts",
       },
@@ -842,10 +849,6 @@
 
     "@injurka/finance-contract": ["@injurka/finance-contract@workspace:packages/finance-contract"],
 
-    "@injurka/kit-image-viewer": ["@injurka/kit-image-viewer@workspace:packages/kit-image-viewer"],
-
-    "@injurka/track-processing": ["@injurka/track-processing@workspace:packages/track-processing"],
-
     "@injurka/trip-scheduler-client": ["@injurka/trip-scheduler-client@workspace:apps/client"],
 
     "@injurka/trip-scheduler-native": ["@injurka/trip-scheduler-native@workspace:apps/native"],
@@ -916,9 +919,13 @@
 
     "@lezer/yaml": ["@lezer/yaml@1.0.3", "", { "dependencies": { "@lezer/common": "^1.2.0", "@lezer/highlight": "^1.0.0", "@lezer/lr": "^1.4.0" } }, "sha512-GuBLekbw9jDBDhGur82nuwkxKQ+a3W5H0GfaAthDXcAu+XdpS43VlnxA9E9hllkpSP5ellRDKjLLj7Lu9Wr6xA=="],
 
+    "@limiteddissolve/kit-image-viewer": ["@limiteddissolve/kit-image-viewer@workspace:packages/kit-image-viewer"],
+
     "@limiteddissolve/obsidian-importer": ["@limiteddissolve/obsidian-importer@workspace:tools/obsidian-importer"],
 
     "@limiteddissolve/skills-installer": ["@limiteddissolve/skills-installer@workspace:tools/skills-installer"],
+
+    "@limiteddissolve/track-processing": ["@limiteddissolve/track-processing@workspace:packages/track-processing"],
 
     "@mapbox/jsonlint-lines-primitives": ["@mapbox/jsonlint-lines-primitives@2.0.3", "", {}, "sha512-0SElaV0uMxEnxzBhhX9WTuPyUeMsAN/SS0i16tjuba4/mio63MG9khjC1a0JAiPGXAwvwm4UfHJURCN7nyudQg=="],
 

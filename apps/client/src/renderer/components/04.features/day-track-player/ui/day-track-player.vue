@@ -1,17 +1,22 @@
 <script setup lang="ts">
-import type { DayPoint, ViewMode } from '../models/types'
+import type { DayPoint, TrackPhoto, ViewMode } from '../models/types'
+import type { ImageViewerImage } from '~/components/01.kit/kit-image-viewer'
+import type { Memory } from '~/shared/types/models/memory'
 import { Icon } from '@iconify/vue'
-import { getCurrentInstance, ref, toRef } from 'vue'
+import { computed, getCurrentInstance, ref, toRef } from 'vue'
 import { useRouter } from 'vue-router'
 import { KitBtn } from '~/components/01.kit/kit-btn'
+import { KitImageViewer, useImageViewer } from '~/components/01.kit/kit-image-viewer'
 import { AppRouteNames } from '~/shared/constants/routes'
 import { useDayTrackData } from '../composables/use-day-track-data'
 import { useDayTrackMap } from '../composables/use-day-track-map'
+import { useDayTrackPhotos } from '../composables/use-day-track-photos'
 import { useDayTrackPlayback } from '../composables/use-day-track-playback'
 import { useDayTrackTimezone } from '../composables/use-day-track-timezone'
 import DayTrackBeacon from './day-track-beacon.vue'
 import DayTrackEmpty from './day-track-empty.vue'
 import DayTrackOverlayState from './day-track-overlay-state.vue'
+import DayTrackPhotoPopup from './day-track-photo-popup.vue'
 import DayTrackPlaybackPanel from './day-track-playback-panel.vue'
 import DayTrackPointPopup from './day-track-point-popup.vue'
 import DayTrackTopNav from './day-track-top-nav.vue'
@@ -20,9 +25,13 @@ const props = withDefaults(defineProps<{
   dayUtc?: string
   showBackButton?: boolean
   showTodayButton?: boolean
+  memories?: Memory[]
+  galleryImages?: ImageViewerImage[]
 }>(), {
   showBackButton: true,
   showTodayButton: true,
+  memories: () => [],
+  galleryImages: () => [],
 })
 
 const emit = defineEmits<{
@@ -35,6 +44,7 @@ const instance = getCurrentInstance()
 
 const mapHost = ref<HTMLElement | null>(null)
 const popupHost = ref<HTMLElement | null>(null)
+const photoPopupHost = ref<HTMLElement | null>(null)
 const playbackMarkerHost = ref<HTMLElement | null>(null)
 const viewMode = ref<ViewMode>('route')
 
@@ -62,7 +72,27 @@ const {
   dayUtcProp: toRef(props, 'dayUtc'),
 })
 
-// ─── 2. Воспроизведение трека ──────────────────────────────────────────────────
+// ─── 2. Фотографии дня и соотнесение координат ─────────────────────────────────
+const {
+  isPhotosVisible,
+  locatedPhotos,
+  unlocatedPhotos,
+  totalPhotosCount,
+  timelinePhotoMarkers,
+  selectedPhoto,
+  selectedClusterPhotos,
+  selectPhoto,
+  selectCluster,
+  closePhotoPopup,
+} = useDayTrackPhotos({
+  memories: toRef(props, 'memories'),
+  galleryImages: toRef(props, 'galleryImages'),
+  dayData,
+  dayStart,
+  dayEnd,
+})
+
+// ─── 3. Воспроизведение трека ──────────────────────────────────────────────────
 const playback = useDayTrackPlayback({
   selectedDay,
   dayStart,
@@ -71,14 +101,14 @@ const playback = useDayTrackPlayback({
   renderSegments,
 })
 
-// ─── 3. Часовые пояса и форматирование времени ─────────────────────────────────
+// ─── 4. Часовые пояса и форматирование времени ─────────────────────────────────
 const timezone = useDayTrackTimezone({
   currentPoint: playback.currentPoint,
   dayData,
   t: playback.t,
 })
 
-// ─── 4. Карта и интерактивные слои ─────────────────────────────────────────────
+// ─── 5. Карта и интерактивные слои ─────────────────────────────────────────────
 const map = useDayTrackMap({
   mapHost,
   popupHost,
@@ -92,7 +122,45 @@ const map = useDayTrackMap({
   isPlaying: playback.isPlaying,
   isFollowCamera: playback.isFollowCamera,
   viewMode,
+  photoPopupHost,
+  locatedPhotos,
+  isPhotosVisible,
+  onSelectPhoto: (p: TrackPhoto | null) => {
+    selectPhoto(p)
+  },
+  onSelectCluster: (photos: TrackPhoto[]) => {
+    selectCluster(photos)
+  },
 })
+
+// ─── 6. Полноэкранный просмотр фотографий ─────────────────────────────────────
+const imageViewer = useImageViewer()
+
+const viewerImages = computed<ImageViewerImage[]>(() => {
+  if (props.galleryImages && props.galleryImages.length > 0)
+    return props.galleryImages
+
+  return locatedPhotos.value.map(p => ({
+    url: p.imageUrl,
+    variants: { small: p.thumbnailUrl, large: p.imageUrl },
+    alt: p.title || p.comment || 'Фото дня',
+    caption: p.comment || null,
+    meta: {
+      memoryId: p.memoryId,
+      takenAt: new Date(p.tsUtc).toISOString(),
+      latitude: p.lat,
+      longitude: p.lng,
+    },
+  }))
+})
+
+function handleOpenViewer(photo: TrackPhoto) {
+  const list = viewerImages.value
+  if (list.length === 0)
+    return
+  const idx = list.findIndex(img => (img.meta as any)?.memoryId === photo.memoryId || img.url === photo.imageUrl)
+  imageViewer.open(list, idx !== -1 ? idx : 0)
+}
 
 function handleBack() {
   emit('back')
@@ -125,12 +193,17 @@ async function onDeletePoint(pt: DayPoint) {
       :view-mode="viewMode"
       :total-points-count="totalPointsCount"
       :display-points-count="displayPointsCount"
-      :is-fit-disabled="renderSegments.length === 0 && totalPointsCount === 0"
+      :total-photos-count="totalPhotosCount"
+      :located-photos-count="locatedPhotos.length"
+      :unlocated-photos-count="unlocatedPhotos.length"
+      :is-photos-visible="isPhotosVisible"
+      :is-fit-disabled="renderSegments.length === 0 && totalPointsCount === 0 && locatedPhotos.length === 0"
       :show-today-button="showTodayButton"
       @change-day="changeDay"
       @select-day="selectDay"
       @go-to-today="goToToday"
       @update:view-mode="viewMode = $event"
+      @update:is-photos-visible="isPhotosVisible = $event"
       @fit-bounds="map.fitTrackBounds"
     >
       <template #top-actions>
@@ -180,6 +253,18 @@ async function onDeletePoint(pt: DayPoint) {
       />
     </div>
 
+    <!-- Интерактивный попап инспекции фото -->
+    <div ref="photoPopupHost">
+      <DayTrackPhotoPopup
+        :photo="selectedPhoto"
+        :cluster-photos="selectedClusterPhotos"
+        :timezone-mode="timezone.timezoneMode.value"
+        :track-timezone="timezone.trackTimezone.value"
+        @open-viewer="handleOpenViewer"
+        @close="() => { closePhotoPopup(); map.closePhotoPopup(); }"
+      />
+    </div>
+
     <!-- Оверлей загрузки / ошибки -->
     <DayTrackOverlayState
       :is-loading="isLoading"
@@ -188,9 +273,9 @@ async function onDeletePoint(pt: DayPoint) {
       @retry="loadDay"
     />
 
-    <!-- Пустое состояние для дня без треков -->
+    <!-- Пустое состояние для дня без треков и без фото -->
     <DayTrackEmpty
-      v-if="!isLoading && !loadError && renderSegments.length === 0 && totalPointsCount === 0"
+      v-if="!isLoading && !loadError && renderSegments.length === 0 && totalPointsCount === 0 && locatedPhotos.length === 0"
       :selected-day="selectedDay"
       :today-utc="todayUtc"
       :show-today-button="showTodayButton"
@@ -200,7 +285,7 @@ async function onDeletePoint(pt: DayPoint) {
 
     <!-- Нижняя панель плеера -->
     <DayTrackPlaybackPanel
-      v-if="renderSegments.length > 0 || totalPointsCount > 0"
+      v-if="renderSegments.length > 0 || totalPointsCount > 0 || locatedPhotos.length > 0"
       v-model:t="playback.t.value"
       v-model:is-playing="playback.isPlaying.value"
       v-model:speed-multiplier="playback.speedMultiplier.value"
@@ -222,6 +307,7 @@ async function onDeletePoint(pt: DayPoint) {
       :day-start-formatted="timezone.fmtRange(dayStart)"
       :day-end-formatted="timezone.fmtRange(dayEnd)"
       :render-segments="renderSegments"
+      :photo-markers="timelinePhotoMarkers"
       :time-range-formatted="`${timezone.fmtRange(dayStart)} – ${timezone.fmtRange(dayEnd)}`"
       @toggle-timezone="timezone.toggleTimezone"
       @step-seconds="playback.stepSeconds"
@@ -229,6 +315,16 @@ async function onDeletePoint(pt: DayPoint) {
       @skip-to-next-movement="playback.skipToNextMovement"
       @seek-start="playback.t.value = dayStart"
       @seek-end="playback.t.value = dayEnd"
+      @seek-photo="(ts) => { playback.t.value = ts }"
+    />
+
+    <!-- Полноэкранный просмотрщик фотографий -->
+    <KitImageViewer
+      v-if="imageViewer.isOpen.value"
+      v-model:visible="imageViewer.isOpen.value"
+      v-model:current-index="imageViewer.currentIndex.value"
+      :images="imageViewer.images.value"
+      :close-on-overlay-click="true"
     />
   </div>
 </template>
@@ -247,10 +343,6 @@ async function onDeletePoint(pt: DayPoint) {
     min-height: 0;
     width: 100%;
     border-radius: var(--r-l, 16px) var(--r-l, 16px) 0 0;
-
-    :deep(.ol-viewport) {
-      border-radius: var(--r-l, 16px) var(--r-l, 16px) 0 0;
-    }
   }
 
   .floating-close-btn {
@@ -259,6 +351,87 @@ async function onDeletePoint(pt: DayPoint) {
     right: 14px;
     z-index: 21;
     border-radius: var(--r-full);
+  }
+
+  :deep(.day-track-photo-marker) {
+    position: relative;
+    cursor: pointer;
+    width: 38px;
+    height: 38px;
+    border-radius: 50%;
+    border: 2.5px solid #ffffff;
+    box-shadow: 0 3px 10px rgba(0, 0, 0, 0.35);
+    background: var(--bg-primary-color, #ffffff);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+
+    &:hover {
+      transform: scale(1.18);
+      z-index: 50;
+      box-shadow: 0 6px 16px rgba(0, 0, 0, 0.45);
+    }
+
+    &.is-playback-active {
+      transform: scale(1.22);
+      border-color: #f59e0b;
+      box-shadow:
+        0 0 0 4px rgba(245, 158, 11, 0.45),
+        0 6px 16px rgba(0, 0, 0, 0.4);
+      z-index: 60;
+    }
+
+    .photo-marker-img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      border-radius: 50%;
+      display: block;
+      pointer-events: none;
+    }
+
+    .photo-marker-badge {
+      position: absolute;
+      top: -4px;
+      right: -6px;
+      background: var(--fg-accent-color, #2563eb);
+      color: #ffffff;
+      font-size: 10px;
+      font-weight: 700;
+      border-radius: 999px;
+      padding: 0 5px;
+      border: 1.5px solid #ffffff;
+      box-shadow: 0 2px 4px rgba(0, 0, 0, 0.25);
+      line-height: 16px;
+      pointer-events: none;
+    }
+
+    .photo-marker-source-icon {
+      position: absolute;
+      bottom: -2px;
+      right: -2px;
+      width: 15px;
+      height: 15px;
+      border-radius: 50%;
+      background: #ffffff;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      box-shadow: 0 1px 3px rgba(0, 0, 0, 0.25);
+      pointer-events: none;
+    }
+  }
+
+  :deep(.maplibregl-popup.day-track-photo-popup) {
+    .maplibregl-popup-content {
+      padding: 0;
+      background: transparent;
+      box-shadow: none;
+      border: none;
+    }
+    .maplibregl-popup-tip {
+      border-top-color: var(--bg-primary-color);
+    }
   }
 
   @media (max-width: 640px) {

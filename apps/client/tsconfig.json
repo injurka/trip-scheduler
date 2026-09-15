@@ -20,10 +20,10 @@
       "@injurka/trip-scheduler-server/*": [
         "../server/src/*"
       ],
-      "@injurka/kit-image-viewer": [
+      "@limiteddissolve/kit-image-viewer": [
         "../../packages/kit-image-viewer/src/index.ts"
       ],
-      "@injurka/kit-image-viewer/*": [
+      "@limiteddissolve/kit-image-viewer/*": [
         "../../packages/kit-image-viewer/src/*"
       ]
     },

@@ -187,14 +187,14 @@ const totalDurationFormatted = computed(() => {
           <KitBtn v-if="readonly && booking.data.arrivalStationLocation" icon="mdi:map-search-outline" title="Посмотреть на карте" variant="text" @click="isArrivalLocationViewerOpen = true" />
         </div>
 
-        <BookingDateTimeField :model-value="booking.data.departureDateTime" label="Дата и время отправления" icon="mdi:clock-start" :readonly="readonly" type="datetime" @update:model-value="updateDataField('departureDateTime', $event)" />
+        <BookingDateTimeField :model-value="booking.data.departureDateTime" label="Время отправления" icon="mdi:clock-start" :readonly="readonly" type="datetime" @update:model-value="updateDataField('departureDateTime', $event)" />
         <BookingField :model-value="booking.data.departureTimeZone" label="Часовой пояс отправления" icon="mdi:clock-time-four-outline" :readonly="readonly" placeholder="+03:00" @update:model-value="updateDataField('departureTimeZone', $event)" />
 
-        <BookingDateTimeField :model-value="booking.data.arrivalDateTime" label="Дата и время прибытия" icon="mdi:clock-end" :readonly="readonly" type="datetime" @update:model-value="updateDataField('arrivalDateTime', $event)" />
+        <BookingDateTimeField :model-value="booking.data.arrivalDateTime" label="Время прибытия" icon="mdi:clock-end" :readonly="readonly" type="datetime" @update:model-value="updateDataField('arrivalDateTime', $event)" />
         <BookingField :model-value="booking.data.arrivalTimeZone" label="Часовой пояс прибытия" icon="mdi:clock-time-four-outline" :readonly="readonly" placeholder="+08:00" @update:model-value="updateDataField('arrivalTimeZone', $event)" />
 
-        <BookingField :model-value="booking.data.departurePlatform" label="Путь/платформа (отпр.)" icon="mdi:sign-direction" :readonly="readonly" @update:model-value="updateDataField('departurePlatform', $event)" />
-        <BookingField :model-value="booking.data.arrivalPlatform" label="Путь/платформа (приб.)" icon="mdi:sign-direction" :readonly="readonly" @update:model-value="updateDataField('arrivalPlatform', $event)" />
+        <BookingField :model-value="booking.data.departurePlatform" label="Платформа (отпр.)" icon="mdi:sign-direction" :readonly="readonly" @update:model-value="updateDataField('departurePlatform', $event)" />
+        <BookingField :model-value="booking.data.arrivalPlatform" label="Платформа (приб.)" icon="mdi:sign-direction" :readonly="readonly" @update:model-value="updateDataField('arrivalPlatform', $event)" />
 
         <BookingField :model-value="booking.data.trainNumber" label="Номер поезда" icon="mdi:pound" :readonly="readonly" @update:model-value="updateDataField('trainNumber', $event)" />
         <BookingField :model-value="totalDurationFormatted" label="В пути" icon="mdi:timer-sand" :readonly="readonly" disabled />
@@ -370,7 +370,7 @@ const totalDurationFormatted = computed(() => {
 .details-grid {
   display: grid;
   grid-template-columns: 1fr 1fr;
-  gap: 0.5rem 1rem;
+  gap: 0.7rem 1rem;
 }
 
 .span-2 {

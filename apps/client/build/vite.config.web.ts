@@ -9,18 +9,18 @@ import { defineConfig } from 'vite'
 import { compression as Compression } from 'vite-plugin-compression2'
 import { VitePWA } from 'vite-plugin-pwa'
 import packageJson from '../package.json' with { type: 'json' }
-import { autoImportOptionsCfg } from './cfg/auto-import'
-import { iconsCfg } from './cfg/icons'
-import { pwaCfg } from './cfg/pwa'
-import { resolveAppVersion, visualizerPlugin } from './lib/helpers'
+import { autoImportOptionsCfg } from './cfg/auto-import.ts'
+import { iconsCfg } from './cfg/icons.ts'
+import { pwaCfg } from './cfg/pwa.ts'
+import { resolveAppVersion, visualizerPlugin } from './lib/helpers.ts'
 
 const require = createRequire(import.meta.url)
 const appVersion = resolveAppVersion(packageJson.version)
 
 export default defineConfig({
   base: '/',
-  root: resolve(__dirname, '../src/renderer'),
-  publicDir: resolve(__dirname, '../public'),
+  root: resolve(import.meta.dirname, '../src/renderer'),
+  publicDir: resolve(import.meta.dirname, '../public'),
   envDir: '../..',
   define: {
     __APP_VERSION__: JSON.stringify(appVersion),
@@ -70,7 +70,7 @@ export default defineConfig({
     dedupe: ['vue', 'vue-router', 'pinia', 'react', 'react-dom', 'react/jsx-runtime', 'react/jsx-dev-runtime'],
     alias: {
       '~': fileURLToPath(new URL('../src/renderer', import.meta.url)),
-      '@injurka/kit-image-viewer': resolve(__dirname, '../../../packages/kit-image-viewer/src/index.ts'),
+      '@limiteddissolve/kit-image-viewer': resolve(__dirname, '../../../packages/kit-image-viewer/src/index.ts'),
       'react': path.dirname(require.resolve('react/package.json')),
       'react-dom': path.dirname(require.resolve('react-dom/package.json')),
     },

@@ -2,6 +2,8 @@ import type { ImageViewerImage, ImageViewerOptions } from '../models/types'
 import { tryOnUnmounted } from '@vueuse/core'
 import { computed, ref, watch } from 'vue'
 
+const IMAGE_VIEWER_HISTORY_KEY = '__tripSchedulerImageViewer'
+
 export function useImageViewer(options: ImageViewerOptions = {}) {
   const {
     enableKeyboard = true,
@@ -24,13 +26,42 @@ export function useImageViewer(options: ImageViewerOptions = {}) {
 
   let originalOverflow = ''
 
+  function isViewerHistoryEntry(state: unknown): boolean {
+    return !!state && typeof state === 'object' && (state as Record<string, unknown>)[IMAGE_VIEWER_HISTORY_KEY] === true
+  }
+
+  function handlePopState() {
+    // The entry we return to is the page's original state, so it does not
+    // contain the viewer marker anymore.
+    if (isOpen.value) {
+      isOpen.value = false
+    }
+  }
+
+  if (typeof window !== 'undefined') {
+    window.addEventListener('popstate', handlePopState)
+  }
+
   function open(imageList: ImageViewerImage[], startIndex = 0) {
     images.value = imageList
     currentIndex.value = Math.max(0, Math.min(startIndex, imageList.length - 1))
     isOpen.value = true
+
+    if (typeof window !== 'undefined' && !isViewerHistoryEntry(window.history.state)) {
+      window.history.pushState(
+        { ...(window.history.state ?? {}), [IMAGE_VIEWER_HISTORY_KEY]: true },
+        '',
+        window.location.href,
+      )
+    }
   }
 
   function close() {
+    if (typeof window !== 'undefined' && isViewerHistoryEntry(window.history.state)) {
+      isOpen.value = false
+      window.history.back()
+      return
+    }
     isOpen.value = false
   }
 
@@ -65,6 +96,9 @@ export function useImageViewer(options: ImageViewerOptions = {}) {
   })
 
   tryOnUnmounted(() => {
+    if (typeof window !== 'undefined') {
+      window.removeEventListener('popstate', handlePopState)
+    }
     if (typeof document !== 'undefined' && originalOverflow !== undefined) {
       document.body.style.overflow = originalOverflow
     }

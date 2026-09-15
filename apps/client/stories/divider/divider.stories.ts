@@ -34,7 +34,7 @@ export const WithText: Story = {
     setup() {
       return { args }
     },
-    template: '<KitDivider :isLoading="args.isLoading">{{ args.default }}</Divider>',
+    template: '<KitDivider :isLoading="args.isLoading">{{ args.default }}</KitDivider>',
   }),
   args: {
     isLoading: false,

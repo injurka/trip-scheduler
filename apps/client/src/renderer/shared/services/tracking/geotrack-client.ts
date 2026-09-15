@@ -1,6 +1,6 @@
-import type { TrackActivityType } from '@injurka/track-processing'
+import type { TrackActivityType } from '@limiteddissolve/track-processing'
 import type { PluginListener } from '@tauri-apps/api/core'
-import { bearingDeg, evaluatePointValidity, haversineM, MAX_ACCURACY_M, movementEvidence, prepareTrack } from '@injurka/track-processing'
+import { bearingDeg, evaluatePointValidity, haversineM, MAX_ACCURACY_M, movementEvidence, prepareTrack } from '@limiteddissolve/track-processing'
 import { addPluginListener, invoke } from '@tauri-apps/api/core'
 import {
   checkPermissions as tauriCheckPermissions,
@@ -209,7 +209,7 @@ function normalizeDeviceActivity(raw: unknown, confidence: unknown): DeviceActiv
   return { activity, confidence: normalizedConf, tsUtc: 0 }
 }
 
-/** Активность по скорости из окна фиксов: границы согласованы с пакетом @injurka/track-processing. */
+/** Активность по скорости из окна фиксов: границы согласованы с пакетом @limiteddissolve/track-processing. */
 function estimateActivity(speedMs: number): ActivityType {
   const kmh = speedMs * 3.6
   if (kmh < 2.5)

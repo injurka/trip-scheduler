@@ -1,6 +1,6 @@
 import type { Ref } from 'vue'
 import type { ImageViewerImage, VirtualThumbnailItem } from '../models/types'
-import { useElementSize, useMediaQuery } from '@vueuse/core'
+import { tryOnUnmounted, useElementSize, useMediaQuery } from '@vueuse/core'
 import { computed, nextTick, ref, watch } from 'vue'
 
 export type { VirtualThumbnailItem }
@@ -51,6 +51,8 @@ export function useImageViewerThumbnails(options: UseImageViewerThumbnailsOption
   })
 
   const scrollLeft = ref(0)
+  let scrollRaf: number | null = null
+  let pendingScrollLeft: number | null = null
   const failedThumbnails = ref<Set<number>>(new Set())
   const loadedThumbnails = ref<Set<number>>(new Set())
 
@@ -61,9 +63,24 @@ export function useImageViewerThumbnails(options: UseImageViewerThumbnailsOption
 
   function onThumbnailsScroll(event?: Event) {
     const target = (event?.target as HTMLElement | null) ?? thumbnailsRef.value
-    if (target) {
-      scrollLeft.value = target.scrollLeft
+    if (!target)
+      return
+
+    pendingScrollLeft = target.scrollLeft
+    if (scrollRaf !== null)
+      return
+
+    const update = () => {
+      scrollRaf = null
+      if (pendingScrollLeft !== null) {
+        scrollLeft.value = pendingScrollLeft
+        pendingScrollLeft = null
+      }
     }
+
+    scrollRaf = typeof window !== 'undefined' && window.requestAnimationFrame
+      ? window.requestAnimationFrame(update)
+      : setTimeout(update, 0) as unknown as number
   }
 
   const startIndex = computed(() => {
@@ -141,6 +158,16 @@ export function useImageViewerThumbnails(options: UseImageViewerThumbnailsOption
   function getThumbnailUrl(image: ImageViewerImage): string {
     return resolveThumbnailUrl(image, resolveUrl)
   }
+
+  tryOnUnmounted(() => {
+    if (scrollRaf === null)
+      return
+    if (typeof window !== 'undefined' && window.cancelAnimationFrame)
+      window.cancelAnimationFrame(scrollRaf)
+    else
+      clearTimeout(scrollRaf)
+    scrollRaf = null
+  })
 
   return {
     thumbnailsRef,

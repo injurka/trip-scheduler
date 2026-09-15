@@ -1,4 +1,4 @@
-# @injurka/kit-image-viewer
+# @limiteddissolve/kit-image-viewer
 
 Полнофункциональный, изолированный и высокопроизводительный компонент полноэкранного просмотра изображений (Image Viewer / Lightbox) для **Vue 3** с поддержкой жестов, зума, свайпов, ленты миниатюр и детальной панели EXIF-метаданных.
 
@@ -23,7 +23,7 @@
 ```json
 {
   "dependencies": {
-    "@injurka/kit-image-viewer": "workspace:*"
+    "@limiteddissolve/kit-image-viewer": "workspace:*"
   }
 }
 ```
@@ -34,8 +34,8 @@
 
 ```vue
 <script setup lang="ts">
-import type { ImageViewerImage } from '@injurka/kit-image-viewer'
-import { KitImageViewer, useImageViewer } from '@injurka/kit-image-viewer'
+import type { ImageViewerImage } from '@limiteddissolve/kit-image-viewer'
+import { KitImageViewer, useImageViewer } from '@limiteddissolve/kit-image-viewer'
 
 const viewer = useImageViewer()
 

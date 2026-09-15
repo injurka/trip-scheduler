@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import type { ImageViewerImage } from '~/components/01.kit/kit-image-viewer'
+import type { Memory } from '~/shared/types/models/memory'
 import { Icon } from '@iconify/vue'
 import { useEventListener, useScrollLock } from '@vueuse/core'
 import { toRef, watch } from 'vue'
@@ -8,9 +10,13 @@ const props = withDefaults(defineProps<{
   open?: boolean
   dayUtc?: string
   showTodayButton?: boolean
+  memories?: Memory[]
+  galleryImages?: ImageViewerImage[]
 }>(), {
   open: false,
   showTodayButton: true,
+  memories: () => [],
+  galleryImages: () => [],
 })
 
 const emit = defineEmits<{
@@ -62,6 +68,8 @@ useEventListener(typeof window !== 'undefined' ? window : null, 'keydown', (e: K
             :day-utc="dayUtc"
             :show-back-button="false"
             :show-today-button="showTodayButton"
+            :memories="memories"
+            :gallery-images="galleryImages"
             @close="handleClose"
             @back="handleClose"
           />

@@ -77,7 +77,6 @@ const href = computed(() => {
 }
 
 .field-label {
-  font-size: 0.725rem;
   margin-left: 2px;
   color: var(--fg-tertiary-color);
   font-weight: 600;

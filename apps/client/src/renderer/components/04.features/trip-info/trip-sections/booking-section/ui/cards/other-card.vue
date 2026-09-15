@@ -2,11 +2,9 @@
 import type { HighlightStatus } from '../../composables/use-booking-section'
 import type { Booking, OtherData, OtherKind } from '../../models/types'
 import { Icon } from '@iconify/vue'
-import { useClipboard } from '@vueuse/core'
 import { useRoute } from 'vue-router'
 import { KitBtn } from '~/components/01.kit/kit-btn'
 import { KitDivider } from '~/components/01.kit/kit-divider'
-import { KitTooltip } from '~/components/01.kit/kit-tooltip'
 import { useTripPlanStore } from '~/components/04.features/trip-info/trip-plan'
 import { getBookingKindOptions, resolveBookingKind } from '../../models/booking-kinds'
 import BookingCardWrapper from '../shared/booking-card-wrapper.vue'
@@ -42,8 +40,6 @@ const isEndPickerOpen = ref(false)
 
 const isStartViewerOpen = ref(false)
 const isEndViewerOpen = ref(false)
-
-const { copy, copied: isCopied } = useClipboard()
 
 const kindOptions = getBookingKindOptions('other')
 
@@ -83,13 +79,6 @@ function updateKind(value?: string) {
   updateDataField('kind', value as OtherKind)
 }
 
-function copyReferenceNumber() {
-  if (props.booking.data.bookingReference) {
-    copy(props.booking.data.bookingReference)
-    useToast().success('Номер бронирования скопирован')
-  }
-}
-
 function formatPoint(iso?: string) {
   if (!iso)
     return { date: '', weekday: '', time: '' }
@@ -98,7 +87,7 @@ function formatPoint(iso?: string) {
   if (Number.isNaN(dateObj.getTime()))
     return { date: datePart, weekday: '', time: getTime(iso) }
 
-  const date = new Intl.DateTimeFormat('ru-RU', { day: 'numeric', month: 'long', year: 'numeric' }).format(dateObj)
+  const date = new Intl.DateTimeFormat('ru-RU', { day: 'numeric', month: 'long' }).format(dateObj)
   const weekdayRaw = new Intl.DateTimeFormat('ru-RU', { weekday: 'short' }).format(dateObj)
 
   return {
@@ -204,21 +193,6 @@ const hasCoords = computed(() => Boolean(props.booking.data.startCoords || props
             </div>
           </div>
         </template>
-      </div>
-
-      <div v-if="booking.data.bookingReference" class="info-pills-row">
-        <div class="info-pill info-pill--ref">
-          <Icon icon="mdi:barcode-scan" class="pill-icon" />
-          <div class="pill-body">
-            <span class="pill-label">Бронь</span>
-            <span class="pill-val font-mono">{{ booking.data.bookingReference }}</span>
-          </div>
-          <KitTooltip text="Скопировать номер бронирования">
-            <button class="pill-copy-btn" @click.stop="copyReferenceNumber">
-              <Icon :icon="isCopied ? 'mdi:check' : 'mdi:content-copy'" />
-            </button>
-          </KitTooltip>
-        </div>
       </div>
     </div>
 
@@ -555,61 +529,6 @@ const hasCoords = computed(() => Boolean(props.booking.data.startCoords || props
 .time-arrow {
   font-size: 1.1rem;
   color: var(--fg-tertiary-color);
-}
-
-.info-pills-row {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
-}
-
-.info-pill {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  padding: 4px 10px;
-  border: 1px solid var(--border-secondary-color);
-  border-radius: var(--r-s);
-  background: var(--bg-primary-color);
-
-  .pill-icon {
-    font-size: 1rem;
-    color: var(--fg-tertiary-color);
-    flex-shrink: 0;
-  }
-
-  .pill-body {
-    display: flex;
-    flex-direction: column;
-    line-height: 1.2;
-  }
-
-  .pill-label {
-    font-size: 0.675rem;
-    color: var(--fg-tertiary-color);
-    text-transform: uppercase;
-    letter-spacing: 0.3px;
-  }
-
-  .pill-val {
-    font-size: 0.825rem;
-    color: var(--fg-primary-color);
-  }
-}
-
-.pill-copy-btn {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  border: none;
-  background: transparent;
-  color: var(--fg-tertiary-color);
-  cursor: pointer;
-  padding: 2px;
-
-  &:hover {
-    color: var(--fg-accent-color);
-  }
 }
 
 .booking-photos-badge {

@@ -16,8 +16,16 @@ const props = withDefaults(defineProps<{
   displayPointsCount: number
   isFitDisabled: boolean
   showTodayButton?: boolean
+  totalPhotosCount?: number
+  locatedPhotosCount?: number
+  unlocatedPhotosCount?: number
+  isPhotosVisible?: boolean
 }>(), {
   showTodayButton: true,
+  totalPhotosCount: 0,
+  locatedPhotosCount: 0,
+  unlocatedPhotosCount: 0,
+  isPhotosVisible: true,
 })
 
 const emit = defineEmits<{
@@ -25,6 +33,7 @@ const emit = defineEmits<{
   (e: 'selectDay', day: string): void
   (e: 'goToToday'): void
   (e: 'update:viewMode', mode: ViewMode): void
+  (e: 'update:isPhotosVisible', val: boolean): void
   (e: 'fitBounds'): void
   (e: 'close'): void
 }>()
@@ -155,6 +164,21 @@ const maxCalendarDate = computed<CalendarDate | undefined>(() => {
           <span v-if="totalPointsCount > 0" class="points-pill">{{ totalPointsCount }}</span>
         </button>
       </div>
+
+      <!-- Переключатель слоя фотографий (если есть фото) -->
+      <button
+        v-if="totalPhotosCount && totalPhotosCount > 0"
+        class="photos-toggle-btn"
+        :class="{ 'is-active': isPhotosVisible }"
+        :title="isPhotosVisible
+          ? `Скрыть фото (${locatedPhotosCount ?? 0} на карте${unlocatedPhotosCount ? `, ${unlocatedPhotosCount} без геоданных` : ''})`
+          : `Показать фото (${locatedPhotosCount ?? 0} на карте${unlocatedPhotosCount ? `, ${unlocatedPhotosCount} без геоданных` : ''})`"
+        type="button"
+        @click="emit('update:isPhotosVisible', !isPhotosVisible)"
+      >
+        <Icon icon="mdi:camera-outline" class="toggle-icon" />
+        <span class="photos-count-badge">{{ locatedPhotosCount ?? 0 }}</span>
+      </button>
 
       <slot name="top-actions" />
     </div>
@@ -374,6 +398,57 @@ const maxCalendarDate = computed<CalendarDate | undefined>(() => {
             background: rgba(var(--fg-inverted-color-rgb, 255, 255, 255), 0.25);
             color: var(--fg-inverted-color);
           }
+        }
+      }
+    }
+
+    .photos-toggle-btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+      height: 38px;
+      padding: 0 11px;
+      background-color: var(--bg-secondary-color);
+      backdrop-filter: blur(12px);
+      border: 1px solid var(--border-secondary-color);
+      border-radius: var(--r-full);
+      box-shadow: var(--s-m);
+      cursor: pointer;
+      color: var(--fg-secondary-color);
+      font-size: 0.8rem;
+      font-weight: 600;
+      transition: all 0.2s ease;
+
+      .toggle-icon {
+        font-size: 1.05rem;
+      }
+
+      .photos-count-badge {
+        font-size: 0.72rem;
+        font-weight: 700;
+        padding: 1px 6px;
+        border-radius: 10px;
+        background: var(--bg-primary-color);
+        color: var(--fg-secondary-color);
+        transition: all 0.2s ease;
+      }
+
+      &:hover {
+        background-color: var(--bg-hover-color);
+        border-color: var(--border-primary-color);
+        color: var(--fg-primary-color);
+        transform: scale(1.03);
+      }
+
+      &.is-active {
+        background: var(--fg-accent-color);
+        color: var(--fg-inverted-color);
+        border-color: var(--fg-accent-color);
+        box-shadow: var(--s-xs);
+
+        .photos-count-badge {
+          background: rgba(255, 255, 255, 0.25);
+          color: var(--fg-inverted-color);
         }
       }
     }

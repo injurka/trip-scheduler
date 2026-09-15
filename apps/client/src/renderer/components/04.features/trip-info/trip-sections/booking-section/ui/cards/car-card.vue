@@ -313,7 +313,7 @@ function updateKind(value?: string) {
         />
         <BookingField
           :model-value="booking.data.confirmationNumber"
-          label="Номер бронирования / ваучера"
+          label="Номер бронирования"
           icon="mdi:barcode-scan"
           :readonly="readonly"
           @update:model-value="updateDataField('confirmationNumber', $event)"
@@ -506,7 +506,7 @@ function updateKind(value?: string) {
 .details-grid {
   display: grid;
   grid-template-columns: 1fr 1fr;
-  gap: 0.5rem 1rem;
+  gap: 0.7rem 1rem;
 }
 
 .span-2 {

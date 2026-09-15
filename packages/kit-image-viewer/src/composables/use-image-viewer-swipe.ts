@@ -47,6 +47,9 @@ export function useImageViewerSwipe(options: UseSwipeNavigationOptions) {
 
   let swipeTimeout: ReturnType<typeof setTimeout> | null = null
   let pendingSwipeAction: (() => void) | null = null
+  let moveRaf: number | null = null
+  let pendingTranslateX: number | null = null
+  let latestTouchX = 0
 
   const canSwipeNext = computed(() => currentIndex.value < images.value.length - 1)
   const canSwipePrev = computed(() => currentIndex.value > 0)
@@ -86,6 +89,7 @@ export function useImageViewerSwipe(options: UseSwipeNavigationOptions) {
       currentX: touch.clientX,
       startTime: Date.now(),
     }
+    latestTouchX = touch.clientX
     isAnimating.value = false
   }
 
@@ -95,21 +99,42 @@ export function useImageViewerSwipe(options: UseSwipeNavigationOptions) {
 
     event.preventDefault()
     const touch = event.touches[0]
-    swipeState.value.currentX = touch.clientX
+    latestTouchX = touch.clientX
 
-    let diff = touch.clientX - swipeState.value.startX
+    let diff = latestTouchX - swipeState.value.startX
 
     if ((diff > 0 && !canSwipePrev.value) || (diff < 0 && !canSwipeNext.value))
       diff /= 3
 
-    translateX.value = diff
+    pendingTranslateX = diff
+    if (moveRaf !== null)
+      return
+
+    const update = () => {
+      moveRaf = null
+      if (swipeState.value.isSwipe && pendingTranslateX !== null)
+        translateX.value = pendingTranslateX
+    }
+
+    moveRaf = typeof window !== 'undefined' && window.requestAnimationFrame
+      ? window.requestAnimationFrame(update)
+      : setTimeout(update, 0) as unknown as number
   }
 
   function handleTouchEnd() {
     if (!swipeState.value.isSwipe || toValue(isZoomed))
       return
 
-    const deltaX = swipeState.value.currentX - swipeState.value.startX
+    if (moveRaf !== null) {
+      if (typeof window !== 'undefined' && window.cancelAnimationFrame)
+        window.cancelAnimationFrame(moveRaf)
+      else
+        clearTimeout(moveRaf)
+      moveRaf = null
+    }
+    pendingTranslateX = null
+
+    const deltaX = latestTouchX - swipeState.value.startX
     const deltaTime = Date.now() - swipeState.value.startTime
     const swipeVelocity = Math.abs(deltaX) / deltaTime
 
@@ -186,6 +211,13 @@ export function useImageViewerSwipe(options: UseSwipeNavigationOptions) {
       swipeTimeout = null
     }
     pendingSwipeAction = null
+    if (moveRaf !== null) {
+      if (typeof window !== 'undefined' && window.cancelAnimationFrame)
+        window.cancelAnimationFrame(moveRaf)
+      else
+        clearTimeout(moveRaf)
+      moveRaf = null
+    }
   })
 
   const containerStyle = computed(() => {

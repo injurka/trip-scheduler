@@ -9,12 +9,14 @@ interface Props {
   readonly: boolean
   placeholder?: string
   type?: 'date' | 'datetime'
+  showYear?: boolean
 }
 
 const props = withDefaults(defineProps<Props>(), {
   icon: undefined,
   placeholder: '...',
   type: 'date',
+  showYear: false,
 })
 
 const modelValue = defineModel<string | undefined>()
@@ -123,8 +125,10 @@ const formattedValue = computed(() => {
   const options: Intl.DateTimeFormatOptions = {
     day: 'numeric',
     month: 'long',
-    year: 'numeric',
   }
+
+  if (props.showYear)
+    options.year = 'numeric'
 
   if (props.type === 'datetime') {
     options.hour = '2-digit'

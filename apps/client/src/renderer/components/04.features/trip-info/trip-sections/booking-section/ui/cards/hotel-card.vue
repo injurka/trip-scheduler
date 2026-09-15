@@ -2,7 +2,6 @@
 import type { HighlightStatus } from '../../composables/use-booking-section'
 import type { Booking, HotelData } from '../../models/types'
 import { Icon } from '@iconify/vue'
-import { useClipboard } from '@vueuse/core'
 import { useRoute } from 'vue-router'
 import { KitBtn } from '~/components/01.kit/kit-btn'
 import { KitDivider } from '~/components/01.kit/kit-divider'
@@ -36,8 +35,6 @@ const emit = defineEmits<{
 const isLocationPickerOpen = ref(false)
 const isLocationViewerOpen = ref(false)
 
-const { copy, copied: isCopied } = useClipboard()
-
 function updateDataField<K extends keyof HotelData>(key: K, value: HotelData[K]) {
   emit('update:booking', {
     ...props.booking,
@@ -64,13 +61,6 @@ function updatePhotos(newPhotos: string[]) {
       imageUrls: newPhotos,
     },
   })
-}
-
-function copyConfirmationNumber() {
-  if (props.booking.data.confirmationNumber) {
-    copy(props.booking.data.confirmationNumber)
-    useToast().success('Номер бронирования скопирован')
-  }
 }
 
 const hotelWebsiteUrl = computed(() => {
@@ -129,11 +119,6 @@ function getStayWeekday(iso?: string): string {
   }).format(d)
   return wd.charAt(0).toUpperCase() + wd.slice(1)
 }
-
-const hasQuickInfo = computed(() => {
-  const d = props.booking.data
-  return Boolean(d.roomType || d.guests || d.confirmationNumber)
-})
 </script>
 
 <template>
@@ -237,38 +222,6 @@ const hasQuickInfo = computed(() => {
           </div>
         </div>
       </div>
-
-      <!-- Quick Info Pills (Room type, Guests, Booking reference) -->
-      <div v-if="hasQuickInfo" class="info-pills-row">
-        <div v-if="booking.data.roomType" class="info-pill">
-          <Icon icon="mdi:bed-outline" class="pill-icon" />
-          <div class="pill-body">
-            <span class="pill-label">Номер</span>
-            <span class="pill-val">{{ booking.data.roomType }}</span>
-          </div>
-        </div>
-
-        <div v-if="booking.data.guests" class="info-pill">
-          <Icon icon="mdi:account-group-outline" class="pill-icon" />
-          <div class="pill-body">
-            <span class="pill-label">Гости</span>
-            <span class="pill-val">{{ booking.data.guests }}</span>
-          </div>
-        </div>
-
-        <div v-if="booking.data.confirmationNumber" class="info-pill info-pill--ref">
-          <Icon icon="mdi:barcode-scan" class="pill-icon" />
-          <div class="pill-body">
-            <span class="pill-label">Бронь</span>
-            <span class="pill-val font-mono">{{ booking.data.confirmationNumber }}</span>
-          </div>
-          <KitTooltip text="Скопировать номер бронирования">
-            <button class="pill-copy-btn" @click.stop="copyConfirmationNumber">
-              <Icon :icon="isCopied ? 'mdi:check' : 'mdi:content-copy'" />
-            </button>
-          </KitTooltip>
-        </div>
-      </div>
     </div>
 
     <!-- EDIT MODE -->
@@ -369,7 +322,7 @@ const hasQuickInfo = computed(() => {
 
 .hotel-hero-row {
   display: flex;
-  align-items: flex-start;
+  align-items: center;
   justify-content: space-between;
   gap: 12px;
   flex-wrap: wrap;
@@ -649,7 +602,7 @@ const hasQuickInfo = computed(() => {
 .details-grid {
   display: grid;
   grid-template-columns: 1fr 1fr;
-  gap: 0.5rem 1rem;
+  gap: 0.7rem 1rem;
 }
 
 .span-2 {

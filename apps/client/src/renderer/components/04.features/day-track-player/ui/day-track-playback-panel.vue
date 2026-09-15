@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import type { RenderSegment, TimezoneMode } from '../models/types'
+import type { RenderSegment, TimezoneMode, TrackPhoto } from '../models/types'
 import type { KitDropdownItem } from '~/components/01.kit/kit-dropdown'
 import type { ActivityType } from '~/shared/services/tracking/track-processing'
 import { Icon } from '@iconify/vue'
@@ -35,6 +35,7 @@ const props = withDefaults(defineProps<{
   dayStartFormatted?: string
   dayEndFormatted?: string
   renderSegments?: RenderSegment[]
+  photoMarkers?: Array<{ id: string, tsUtc: number, percent: number, photo: TrackPhoto }>
 }>(), {
   trackTimezone: undefined,
   currentSegment: undefined,
@@ -45,6 +46,7 @@ const props = withDefaults(defineProps<{
   dayStartFormatted: '',
   dayEndFormatted: '',
   renderSegments: () => [],
+  photoMarkers: () => [],
 })
 
 const emit = defineEmits<{
@@ -58,6 +60,7 @@ const emit = defineEmits<{
   (e: 'skipToNextMovement'): void
   (e: 'seekStart'): void
   (e: 'seekEnd'): void
+  (e: 'seekPhoto', tsUtc: number): void
 }>()
 
 const currentT = computed({
@@ -211,6 +214,20 @@ function handleTimelineMouseLeave() {
   hoverPreview.value = null
 }
 
+function formatPhotoTime(tsUtc: number): string {
+  const tz = props.timezoneMode === 'track' ? props.trackTimezone : undefined
+  return new Date(tsUtc).toLocaleTimeString('ru-RU', {
+    hour: '2-digit',
+    minute: '2-digit',
+    ...(tz ? { timeZone: tz } : {}),
+  })
+}
+
+function handlePhotoDotClick(tsUtc: number) {
+  emit('update:t', tsUtc)
+  emit('seekPhoto', tsUtc)
+}
+
 // ─── 4. Селектор скорости (KitDropdown) ─────────────────────────────────────────
 const speedDropdownItems = computed<KitDropdownItem<number>[]>(() =>
   SPEED_MULTIPLIERS.map(s => ({
@@ -337,6 +354,19 @@ useEventListener(typeof window !== 'undefined' ? window : null, 'keydown', (e: K
           class="timeline-progress-fill"
           :style="{ '--progress-width': `${progressPercent}%` }"
         />
+
+        <!-- Засечки фотографий на таймлайне -->
+        <div v-if="photoMarkers && photoMarkers.length > 0" class="timeline-photo-markers">
+          <div
+            v-for="pm in photoMarkers"
+            :key="pm.id"
+            class="timeline-photo-dot"
+            :class="{ 'is-active': Math.abs(currentT - pm.tsUtc) < 45_000 }"
+            :style="{ left: `${pm.percent}%` }"
+            :title="`Фото: ${formatPhotoTime(pm.tsUtc)}${pm.photo.title ? ` (${pm.photo.title})` : ''}`"
+            @click.stop="handlePhotoDotClick(pm.tsUtc)"
+          />
+        </div>
 
         <!-- Всплывающее превью при наведении курсора -->
         <div
@@ -706,6 +736,44 @@ useEventListener(typeof window !== 'undefined' ? window : null, 'keydown', (e: K
         pointer-events: none;
       }
 
+      .timeline-photo-markers {
+        position: absolute;
+        inset: 0;
+        pointer-events: none;
+        z-index: 5;
+      }
+
+      .timeline-photo-dot {
+        position: absolute;
+        top: 50%;
+        width: 10px;
+        height: 10px;
+        margin-top: -5px;
+        margin-left: -5px;
+        border-radius: 50%;
+        background: #ffffff;
+        border: 2px solid #2563eb;
+        box-shadow: 0 1px 4px rgba(0, 0, 0, 0.35);
+        cursor: pointer;
+        pointer-events: auto;
+        transition:
+          transform 0.15s cubic-bezier(0.34, 1.56, 0.64, 1),
+          background-color 0.15s;
+
+        &:hover {
+          transform: scale(1.6);
+          background: #2563eb;
+          border-color: #ffffff;
+          z-index: 15;
+        }
+
+        &.is-active {
+          transform: scale(1.4);
+          background: #f59e0b;
+          border-color: #ffffff;
+        }
+      }
+
       .timeline-hover-indicator {
         position: absolute;
         top: -26px;
@@ -1041,10 +1109,6 @@ useEventListener(typeof window !== 'undefined' ? window : null, 'keydown', (e: K
     }
 
     .memories-actions {
-      .actions-left {
-        display: none;
-      }
-
       .playback-controls {
         gap: 6px;
 

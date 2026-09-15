@@ -1,7 +1,7 @@
 <script setup lang="ts">
-import type { Time } from '@internationalized/date'
 import type { Memory } from '~/shared/types/models/memory'
 import { Icon } from '@iconify/vue'
+import { Time } from '@internationalized/date'
 import { onClickOutside } from '@vueuse/core'
 import { KitInput } from '~/components/01.kit/kit-input'
 import { KitTimeField } from '~/components/01.kit/kit-time-field'
@@ -28,7 +28,7 @@ const props = withDefaults(defineProps<Props>(), {
   isFullScreen: false,
 })
 
-defineEmits<{ toggleCollapse: [] }>()
+const emit = defineEmits<{ toggleCollapse: [] }>()
 
 const { memories: memoriesStore, plan: tripPlanStore } = useModuleStore(['memories', 'plan'])
 const confirm = useConfirm()
@@ -41,11 +41,17 @@ const titleEditorRef = ref(null)
 const editableTime = shallowRef<Time | null>(null)
 
 function handleTimeClick() {
-  if (props.isViewMode || props.group.type !== 'activity' || !props.group.activity?.timestamp)
+  if (props.isViewMode || props.group.type !== 'activity' || !props.group.activity)
     return
 
   isEditingTime.value = true
-  editableTime.value = getTimeFromTimestamp(props.group.activity.timestamp)
+  if (props.group.activity.timestamp) {
+    editableTime.value = getTimeFromTimestamp(props.group.activity.timestamp)
+  }
+  else {
+    const now = new Date()
+    editableTime.value = new Time(now.getHours(), now.getMinutes())
+  }
 }
 
 function handleTitleClick() {
@@ -104,12 +110,31 @@ const tagInfo = computed(() => {
   return getTagInfo(props.group.activity.tag)
 })
 
+const tagSolidColor = computed(() => {
+  if (!tagInfo.value?.color)
+    return undefined
+  const c = tagInfo.value.color
+  if (c.startsWith('#') && c.length === 9) {
+    return c.slice(0, 7)
+  }
+  return c
+})
+
 const displayTime = computed(() => {
   if (!props.group.activity?.timestamp)
     return ''
 
   return formatTimestamp(props.group.activity.timestamp)
 })
+
+const photosCount = computed(() => props.group.memories.filter(m => m.imageId).length)
+const notesCount = computed(() => props.group.memories.filter(m => !m.imageId).length)
+
+function handleHeaderClick() {
+  if (props.isFullScreen && props.isCollapsed) {
+    emit('toggleCollapse')
+  }
+}
 
 onClickOutside(timeEditorRef, saveTime)
 onClickOutside(titleEditorRef, saveTitle)
@@ -120,29 +145,74 @@ onClickOutside(titleEditorRef, saveTitle)
     class="activity-timeline-node"
     :class="{ 'is-collapsed': isCollapsed, 'is-fullscreen-node': isFullScreen }"
   >
-    <div class="activity-header">
-      <div
-        v-if="group.type === 'activity'"
-        class="activity-time"
-        :class="{ 'is-editable': !isViewMode }"
-        @click="handleTimeClick"
-      >
-        <div v-if="isEditingTime" ref="timeEditorRef" class="time-editor-inline" @click.stop>
-          <KitTimeField v-model="editableTime" />
+    <div
+      class="activity-header"
+      :class="{ 'is-fullscreen-header': isFullScreen }"
+      @click="handleHeaderClick"
+    >
+      <div class="header-meta-group">
+        <div
+          v-if="group.type === 'activity'"
+          class="activity-time"
+          :class="{
+            'is-editable': !isViewMode,
+            'time-pill': isFullScreen,
+            'is-empty': !displayTime,
+          }"
+          @click.stop="handleTimeClick"
+        >
+          <div v-if="isEditingTime" ref="timeEditorRef" class="time-editor-inline" @click.stop>
+            <KitTimeField v-model="editableTime" />
 
-          <button class="save-btn" @click="saveTime">
-            <Icon icon="mdi:check" width="16" height="16" />
-          </button>
+            <button class="save-btn" @click="saveTime">
+              <Icon icon="mdi:check" width="16" height="16" />
+            </button>
+          </div>
+          <template v-else-if="isFullScreen">
+            <Icon icon="mdi:clock-outline" class="time-pill-icon" />
+            <span class="time-text">{{ displayTime || (isViewMode ? '—:—' : 'Задать время') }}</span>
+            <Icon v-if="!isViewMode" icon="mdi:pencil-outline" class="time-edit-hint" />
+          </template>
+          <span v-else>{{ displayTime }}</span>
         </div>
-        <span v-else>{{ displayTime }}</span>
+
+        <div
+          v-if="isFullScreen && tagInfo"
+          class="fullscreen-tag-badge"
+          :style="tagSolidColor ? { '--tag-color': tagSolidColor } : {}"
+        >
+          <span class="tag-dot" />
+          <Icon :icon="tagInfo.icon" class="tag-icon" />
+          <span class="tag-label">{{ tagInfo.label }}</span>
+        </div>
+
+        <div
+          v-if="isFullScreen && group.activity?.sourceActivityId"
+          class="fullscreen-imported-pill"
+          title="Связано с активностью из плана поездки"
+        >
+          <Icon icon="mdi:import" class="imported-icon" />
+          <span>Из плана</span>
+        </div>
+
+        <div v-if="isFullScreen && (photosCount > 0 || notesCount > 0)" class="memories-count-group">
+          <span v-if="photosCount > 0" class="count-pill photos-pill" title="Количество фотографий и видео">
+            <Icon icon="mdi:image-multiple-outline" class="count-icon" />
+            <span>{{ photosCount }}</span>
+          </span>
+          <span v-if="notesCount > 0" class="count-pill notes-pill" title="Количество заметок">
+            <Icon icon="mdi:note-text-outline" class="count-icon" />
+            <span>{{ notesCount }}</span>
+          </span>
+        </div>
+
+        <h5 v-if="group.type !== 'activity'" class="activity-title in-header">
+          <Icon v-if="tagInfo" :icon="tagInfo.icon" class="title-icon" />
+          {{ group.title }}
+        </h5>
       </div>
 
-      <h5 v-if="group.type !== 'activity'" class="activity-title in-header">
-        <Icon v-if="tagInfo" :icon="tagInfo.icon" class="title-icon" />
-        {{ group.title }}
-      </h5>
-
-      <div class="activity-header-actions">
+      <div class="activity-header-actions" @click.stop>
         <KitTooltip v-if="!isViewMode && group.type === 'activity'" text="Удалить активность">
           <button
             class="delete-activity-btn"
@@ -151,16 +221,25 @@ onClickOutside(titleEditorRef, saveTitle)
             <Icon icon="mdi:trash-can-outline" width="16" height="16" />
           </button>
         </KitTooltip>
-        <button class="collapse-toggle-btn" @click="$emit('toggleCollapse')">
-          <Icon :icon="isCollapsed ? 'mdi:chevron-down' : 'mdi:chevron-up'" />
-        </button>
+        <KitTooltip :text="isCollapsed ? 'Развернуть активность' : 'Свернуть активность'">
+          <button
+            class="collapse-toggle-btn"
+            :class="{ 'is-collapsed': isCollapsed }"
+            @click.stop="emit('toggleCollapse')"
+          >
+            <Icon icon="mdi:chevron-up" class="collapse-icon" />
+          </button>
+        </KitTooltip>
       </div>
     </div>
 
     <h5
       v-if="group.type === 'activity'"
       class="activity-title"
-      :class="{ 'is-editable': !isViewMode }"
+      :class="{
+        'is-editable': !isViewMode,
+        'is-fullscreen-title': isFullScreen,
+      }"
       @click="handleTitleClick"
     >
       <div v-if="isEditingTitle" ref="titleEditorRef" class="title-editor-wrapper" @click.stop>
@@ -170,15 +249,31 @@ onClickOutside(titleEditorRef, saveTitle)
         </button>
       </div>
       <template v-else>
-        <Icon v-if="tagInfo" :icon="tagInfo.icon" class="title-icon" />
-        {{ group.title }}
+        <Icon v-if="tagInfo && !isFullScreen" :icon="tagInfo.icon" class="title-icon" />
+        <span class="title-text">{{ group.title }}</span>
+        <Icon
+          v-if="!isViewMode && isFullScreen"
+          icon="mdi:pencil-outline"
+          class="title-edit-hint"
+        />
       </template>
     </h5>
 
     <div v-show="!isCollapsed" class="collapsible-content">
-      <div v-if="group.activity?.sourceActivityId" class="imported-badge">
+      <div v-if="!isFullScreen && group.activity?.sourceActivityId" class="imported-badge">
         <Icon width="18" height="18" icon="mdi:import" />
         <span>Импортировано из плана</span>
+      </div>
+
+      <div
+        v-if="isFullScreen && group.memories.length === 0"
+        class="fullscreen-empty-memories"
+      >
+        <Icon icon="mdi:camera-plus-outline" class="empty-icon" />
+        <div class="empty-text">
+          <span class="empty-title">В этой активности пока нет воспоминаний</span>
+          <span v-if="!isViewMode" class="empty-subtitle">Загрузите фото сверху или создайте заметку</span>
+        </div>
       </div>
 
       <div
@@ -226,38 +321,98 @@ onClickOutside(titleEditorRef, saveTitle)
   }
 
   &.is-fullscreen-node {
-    border-left: 4px solid var(--border-secondary-color);
-    padding-left: 40px;
-    padding-bottom: 64px;
+    border-left: 3px solid var(--border-secondary-color);
+    padding-left: 36px;
+    padding-top: 16px;
+    padding-bottom: 56px;
+    transition:
+      border-color 0.25s ease,
+      padding-bottom 0.3s ease;
+
+    @include media-down(sm) {
+      padding-left: 18px;
+      padding-bottom: 28px;
+      padding-top: 12px;
+    }
 
     &::before {
-      width: 24px;
-      height: 24px;
-      left: -14px;
-      top: 34px;
-      border-width: 5px;
+      width: 20px;
+      height: 20px;
+      left: -11.5px;
+      top: 21px;
+      border: 3px solid var(--border-secondary-color);
+      background-color: var(--bg-primary-color);
+      border-radius: 50%;
+      transform: none;
+      box-shadow:
+        0 0 0 4px var(--bg-primary-color),
+        0 2px 8px rgba(0, 0, 0, 0.1);
+      transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
     }
 
-    .activity-title {
-      font-size: 1.4rem;
-      margin-bottom: 24px;
+    &:hover {
+      border-left-color: var(--border-primary-color);
+
+      &::before {
+        border-color: var(--fg-accent-color);
+        box-shadow:
+          0 0 0 4px var(--bg-primary-color),
+          0 0 14px rgba(var(--fg-accent-color-rgb, 99, 102, 241), 0.4);
+        transform: scale(1.15);
+      }
     }
 
-    .activity-time span {
-      font-size: 1.1rem;
+    &.is-collapsed {
+      padding-bottom: 16px;
+
+      &::before {
+        background-color: var(--border-secondary-color);
+        transform: scale(0.9);
+      }
+
+      .activity-header {
+        cursor: pointer;
+      }
+    }
+
+    .activity-header-actions {
+      .collapse-toggle-btn,
+      .delete-activity-btn {
+        width: 30px;
+        height: 30px;
+        box-sizing: border-box;
+        border-radius: var(--r-full);
+        background-color: var(--bg-secondary-color);
+        border: 1px solid var(--border-secondary-color);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        padding: 0;
+        font-size: 16px;
+
+        &:hover {
+          background-color: var(--bg-hover-color);
+          border-color: var(--border-primary-color);
+        }
+      }
+
+      .delete-activity-btn:hover {
+        border-color: var(--fg-error-color);
+        color: var(--fg-error-color);
+      }
     }
   }
 
   &::before {
     content: '';
     position: absolute;
-    left: -9px;
+    left: -14px;
+    transform: rotate(45deg);
     top: 30px;
     width: 16px;
     height: 16px;
     background-color: var(--bg-primary-color);
     border: 3px solid var(--border-secondary-color);
-    border-radius: 50%;
   }
 }
 
@@ -266,11 +421,24 @@ onClickOutside(titleEditorRef, saveTitle)
   align-items: center;
   gap: 8px;
   margin-bottom: 4px;
+
+  &.is-fullscreen-header {
+    margin-bottom: 8px;
+    transition: background-color 0.2s ease;
+  }
+}
+
+.header-meta-group {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+  min-width: 0;
 }
 
 .activity-header-actions {
   display: flex;
-  gap: 4px;
+  gap: 6px;
   margin-left: auto;
   flex-shrink: 0;
 }
@@ -283,6 +451,162 @@ onClickOutside(titleEditorRef, saveTitle)
   &.is-editable:hover {
     cursor: pointer;
     color: var(--fg-primary-color);
+  }
+
+  &.time-pill {
+    height: 30px;
+    box-sizing: border-box;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 0 10px;
+    background-color: var(--bg-secondary-color);
+    border: 1px solid var(--border-secondary-color);
+    border-radius: var(--r-full);
+    font-size: 0.82rem;
+    font-weight: 600;
+    color: var(--fg-primary-color);
+    line-height: 1;
+    white-space: nowrap;
+    transition: all 0.2s ease;
+
+    .time-pill-icon {
+      font-size: 16px;
+      width: 16px;
+      height: 16px;
+      color: var(--fg-secondary-color);
+      flex-shrink: 0;
+    }
+
+    .time-text {
+      line-height: 1;
+    }
+
+    .time-edit-hint {
+      font-size: 14px;
+      width: 14px;
+      height: 14px;
+      opacity: 0;
+      color: var(--fg-secondary-color);
+      transition: opacity 0.2s ease;
+      margin-left: 2px;
+      flex-shrink: 0;
+    }
+
+    &.is-empty {
+      border-style: dashed;
+      color: var(--fg-secondary-color);
+      font-weight: 500;
+    }
+
+    &.is-editable:hover {
+      background-color: var(--bg-hover-color);
+      border-color: var(--border-primary-color);
+
+      .time-edit-hint {
+        opacity: 0.8;
+      }
+    }
+  }
+}
+
+.fullscreen-tag-badge {
+  height: 30px;
+  box-sizing: border-box;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 0 11px;
+  border-radius: var(--r-full);
+  background-color: var(--bg-secondary-color);
+  border: 1px solid var(--border-secondary-color);
+  color: var(--fg-primary-color);
+  font-size: 0.82rem;
+  font-weight: 600;
+  white-space: nowrap;
+  line-height: 1;
+  transition: all 0.2s ease;
+
+  .tag-dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background-color: var(--tag-color, var(--fg-accent-color));
+    flex-shrink: 0;
+    box-shadow: 0 0 8px var(--tag-color, var(--fg-accent-color));
+  }
+
+  .tag-icon {
+    font-size: 16px;
+    width: 16px;
+    height: 16px;
+    color: var(--tag-color, var(--fg-accent-color));
+    flex-shrink: 0;
+  }
+
+  .tag-label {
+    color: var(--fg-primary-color);
+    font-weight: 600;
+    line-height: 1;
+  }
+
+  &:hover {
+    border-color: var(--border-primary-color);
+    background-color: var(--bg-hover-color);
+  }
+}
+
+.fullscreen-imported-pill {
+  height: 30px;
+  box-sizing: border-box;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 0 10px;
+  border-radius: var(--r-full);
+  background-color: var(--bg-secondary-color);
+  border: 1px solid var(--border-secondary-color);
+  color: var(--fg-secondary-color);
+  font-size: 0.82rem;
+  font-weight: 600;
+  white-space: nowrap;
+  line-height: 1;
+
+  .imported-icon {
+    font-size: 16px;
+    width: 16px;
+    height: 16px;
+    flex-shrink: 0;
+  }
+}
+
+.memories-count-group {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+
+  .count-pill {
+    height: 30px;
+    box-sizing: border-box;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 0 10px;
+    border-radius: var(--r-full);
+    background-color: var(--bg-secondary-color);
+    border: 1px solid var(--border-secondary-color);
+    color: var(--fg-secondary-color);
+    font-size: 0.82rem;
+    font-weight: 600;
+    line-height: 1;
+    white-space: nowrap;
+
+    .count-icon {
+      font-size: 16px;
+      width: 16px;
+      height: 16px;
+      flex-shrink: 0;
+    }
   }
 }
 
@@ -304,6 +628,16 @@ onClickOutside(titleEditorRef, saveTitle)
   &:hover {
     background-color: var(--bg-hover-color);
     color: var(--fg-primary-color);
+  }
+}
+
+.collapse-toggle-btn {
+  .collapse-icon {
+    transition: transform 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+  }
+
+  &.is-collapsed .collapse-icon {
+    transform: rotate(180deg);
   }
 }
 
@@ -332,6 +666,43 @@ onClickOutside(titleEditorRef, saveTitle)
 
   &.in-header {
     margin: 0;
+  }
+
+  &.is-fullscreen-title {
+    font-size: 1.35rem;
+    font-weight: 700;
+    letter-spacing: -0.01em;
+    margin: 8px 0 18px;
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    color: var(--fg-primary-color);
+    line-height: 1.3;
+    transition: color 0.2s ease;
+
+    .title-edit-hint {
+      font-size: 1rem;
+      opacity: 0;
+      color: var(--fg-secondary-color);
+      transition:
+        opacity 0.2s ease,
+        transform 0.2s ease;
+    }
+
+    &.is-editable {
+      padding: 4px 8px;
+      border-radius: var(--r-s);
+      margin-left: -8px;
+
+      &:hover {
+        background-color: var(--bg-hover-color);
+
+        .title-edit-hint {
+          opacity: 0.8;
+          transform: translateX(2px);
+        }
+      }
+    }
   }
 }
 
@@ -372,6 +743,23 @@ onClickOutside(titleEditorRef, saveTitle)
   }
 }
 
+.is-fullscreen-node .title-editor-wrapper {
+  margin: 6px 0 16px;
+
+  .title-editor :deep(input) {
+    font-size: 1.35rem;
+    font-weight: 700;
+    height: 42px;
+    padding: 6px 12px;
+    border-radius: var(--r-s);
+  }
+
+  .save-btn {
+    width: 32px;
+    height: 32px;
+  }
+}
+
 .save-btn {
   background: var(--fg-accent-color);
   color: white;
@@ -406,6 +794,41 @@ onClickOutside(titleEditorRef, saveTitle)
   }
 }
 
+.fullscreen-empty-memories {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 20px 24px;
+  border-radius: var(--r-m);
+  border: 1px dashed var(--border-secondary-color);
+  background-color: rgba(var(--bg-secondary-color-rgb, 30, 30, 30), 0.3);
+  color: var(--fg-secondary-color);
+  margin-bottom: 16px;
+
+  .empty-icon {
+    font-size: 2rem;
+    opacity: 0.6;
+    flex-shrink: 0;
+  }
+
+  .empty-text {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+  }
+
+  .empty-title {
+    font-size: 0.95rem;
+    font-weight: 600;
+    color: var(--fg-primary-color);
+  }
+
+  .empty-subtitle {
+    font-size: 0.82rem;
+    color: var(--fg-secondary-color);
+  }
+}
+
 .memories-for-activity {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
@@ -416,8 +839,24 @@ onClickOutside(titleEditorRef, saveTitle)
   }
 
   &.fullscreen-grid {
-    grid-template-columns: repeat(auto-fill, minmax(600px, 1fr));
-    gap: 12px;
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(380px, 1fr));
+    gap: 20px;
+
+    @media (max-width: 960px) {
+      grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+      gap: 14px;
+    }
+
+    @media (max-width: 600px) {
+      grid-template-columns: 1fr;
+      gap: 12px;
+    }
+
+    @media (min-width: 1920px) {
+      grid-template-columns: repeat(auto-fill, minmax(460px, 1fr));
+      gap: 24px;
+    }
   }
 }
 </style>

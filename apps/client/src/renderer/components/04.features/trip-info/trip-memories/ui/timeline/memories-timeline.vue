@@ -7,7 +7,7 @@ import { KitInlineMdEditorWrapper } from '~/components/01.kit/kit-inline-md-edit
 import { KitTimeField } from '~/components/01.kit/kit-time-field'
 import { useModuleStore } from '~/components/05.modules/trip-info'
 import { useSharedMemoryViewer } from '../../composables'
-import { SHARED_VIEWER_KEY } from '../../lib'
+import { getTimelineGroupKey, SHARED_VIEWER_KEY } from '../../lib'
 import MemoriesTimelineGroup from './memories-timeline-group.vue'
 
 interface Props {
@@ -47,12 +47,12 @@ onClickOutside(commentEditorRef, saveViewerComment)
   <div class="timeline-section">
     <MemoriesTimelineGroup
       v-for="group in timelineGroups"
-      :key="group.type + group.activity?.id + group.title"
+      :key="getTimelineGroupKey(group)"
       :group="group"
       :is-view-mode="isViewMode"
-      :is-collapsed="ui.collapsedMemoryGroups.has(group.type + group.activity?.id + group.title)"
+      :is-collapsed="ui.collapsedMemoryGroups.has(getTimelineGroupKey(group))"
       :is-full-screen="isFullScreen"
-      @toggle-collapse="ui.toggleMemoryGroupCollapsed(group.type + group.activity?.id + group.title)"
+      @toggle-collapse="ui.toggleMemoryGroupCollapsed(getTimelineGroupKey(group))"
     />
   </div>
 

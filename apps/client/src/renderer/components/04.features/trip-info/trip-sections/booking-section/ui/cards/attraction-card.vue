@@ -2,11 +2,9 @@
 import type { HighlightStatus } from '../../composables/use-booking-section'
 import type { AttractionData, Booking } from '../../models/types'
 import { Icon } from '@iconify/vue'
-import { useClipboard } from '@vueuse/core'
 import { useRoute } from 'vue-router'
 import { KitBtn } from '~/components/01.kit/kit-btn'
 import { KitDivider } from '~/components/01.kit/kit-divider'
-import { KitTooltip } from '~/components/01.kit/kit-tooltip'
 import { useTripPlanStore } from '~/components/04.features/trip-info/trip-plan'
 import BookingCardWrapper from '../shared/booking-card-wrapper.vue'
 import BookingDateTimeField from '../shared/booking-date-time-field.vue'
@@ -485,7 +483,7 @@ const hasQuickInfo = computed(() => {
 .details-grid {
   display: grid;
   grid-template-columns: 1fr 1fr;
-  gap: 0.5rem 1rem;
+  gap: 0.7rem 1rem;
 }
 
 .span-2 {

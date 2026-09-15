@@ -395,6 +395,10 @@ function openViewer(galleryIndex: number, imageIndex = 0) {
 </template>
 
 <style scoped>
+:global(html) {
+  scrollbar-gutter: stable;
+}
+
 .playground {
   min-height: 100dvh;
   display: flex;

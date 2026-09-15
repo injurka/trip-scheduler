@@ -1,4 +1,6 @@
 <script lang="ts" setup>
+import { Comment, computed, useSlots } from 'vue'
+
 interface Props {
   isLoading?: boolean
 }
@@ -6,10 +8,27 @@ interface Props {
 withDefaults(defineProps<Props>(), {
   isLoading: false,
 })
+
+const slots = useSlots()
+
+const hasContent = computed(() => {
+  if (!slots.default)
+    return false
+  const nodes = slots.default()
+  return nodes.some((node) => {
+    if (node.type === Comment)
+      return false
+    if (typeof node.children === 'string' && !node.children.trim())
+      return false
+    if (Array.isArray(node.children) && node.children.length === 0)
+      return false
+    return true
+  })
+})
 </script>
 
 <template>
-  <div class="divider" :class="{ isLoading }">
+  <div class="divider" :class="{ isLoading, 'has-content': hasContent }">
     <slot />
   </div>
 </template>
@@ -27,36 +46,41 @@ withDefaults(defineProps<Props>(), {
   font-weight: 500;
   width: 100%;
 
-  &::before,
-  &::after {
+  &::before {
     content: '';
     flex: 1;
     border-bottom: 1px solid var(--border-secondary-color);
   }
 
-  &::before {
-    margin-right: 0.5em;
-  }
+  &.has-content {
+    &::before {
+      margin-right: 0.5em;
+    }
 
-  &::after {
-    margin-left: 0.5em;
+    &::after {
+      content: '';
+      flex: 1;
+      border-bottom: 1px solid var(--border-secondary-color);
+      margin-left: 0.5em;
+    }
   }
 
   &.isLoading {
-    &::before,
-    &::after {
+    &::before {
       border-bottom: none;
       height: 1px;
       background-color: var(--border-secondary-color);
       background-image: linear-gradient(to right, var(--bg-accent-overlay-color), var(--bg-accent-overlay-color));
       background-repeat: no-repeat;
-    }
-
-    &::before {
       animation: wave-left 2.5s infinite ease-in-out;
     }
 
-    &::after {
+    &.has-content::after {
+      border-bottom: none;
+      height: 1px;
+      background-color: var(--border-secondary-color);
+      background-image: linear-gradient(to right, var(--bg-accent-overlay-color), var(--bg-accent-overlay-color));
+      background-repeat: no-repeat;
       animation: wave-right 2.5s infinite ease-in-out;
     }
   }

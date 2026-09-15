@@ -440,7 +440,11 @@ onClickOutside(ratingMenuRef, () => isRatingMenuOpen.value = false)
   }
 
   &.is-fullscreen-item {
-    height: 600px;
+    height: clamp(380px, 48vh, 560px);
+
+    @include media-down(sm) {
+      height: 240px;
+    }
   }
 
   &.is-unsorted {

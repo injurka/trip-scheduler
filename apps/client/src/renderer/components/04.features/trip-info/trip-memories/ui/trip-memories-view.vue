@@ -18,7 +18,7 @@ import { useDisplay } from '~/shared/composables/use-display'
 import { useNotificationStore } from '~/shared/store/notification.store'
 import { useImageCacher } from '../composables/use-image-cacher'
 import { useTripMemoriesVault } from '../composables/use-trip-memories-vault'
-import { resolveMemoryImageSource } from '../lib/resolve-memory-image'
+import { getTimelineGroupKey, resolveMemoryImageSource } from '../lib'
 import AddActivityDialog from './dialogs/add-activity-dialog.vue'
 import AddNoteDialog from './dialogs/add-note-dialog.vue'
 import MemoriesList from './memories-list.vue'
@@ -118,14 +118,8 @@ const galleryImages = computed<ImageViewerImage[]>(() => {
     })
 })
 
-watch(galleryImages, (newImages) => {
-  if (imageCacher.isBackgroundCaching.value && newImages.length > 0) {
-    imageCacher.startCaching(newImages, imageCacher.backgroundCachingQuality.value, 'background')
-  }
-}, { immediate: true })
-
 const allMemoryGroupKeys = computed(() =>
-  timelineGroups.value.map(g => g.type + (g.activity?.id || g.title)),
+  timelineGroups.value.map(getTimelineGroupKey),
 )
 const allMemoryBlocksCollapsed = computed(() =>
   areAllMemoryGroupsCollapsed.value(allMemoryGroupKeys.value),
@@ -145,22 +139,13 @@ const cacheQualityOptions = [
   { label: 'Кеш: Оригинал', value: 'original', icon: 'mdi:image-outline' },
 ]
 
+const cachingPercent = computed(() => {
+  const total = Math.max(1, imageCacher.totalToCache.value)
+  return Math.round((imageCacher.cachedCount.value / total) * 100)
+})
+
 function handleCacheAll(quality: string | number | object | symbol) {
-  imageCacher.startCaching(galleryImages.value, quality as ImageQuality, 'manual')
-}
-
-const isBgCacheDropdownOpen = ref(false)
-const selectedBgQuality = ref<ImageQuality>(imageCacher.backgroundCachingQuality.value)
-
-function handleToggleBackgroundCaching() {
-  if (imageCacher.isBackgroundCaching.value) {
-    imageCacher.toggleBackgroundCaching(galleryImages.value)
-  }
-}
-
-function applyBackgroundCaching() {
-  imageCacher.toggleBackgroundCaching(galleryImages.value, selectedBgQuality.value)
-  isBgCacheDropdownOpen.value = false
+  imageCacher.startCaching(galleryImages.value, quality as ImageQuality)
 }
 
 const isFullScreen = ref(false)
@@ -294,100 +279,45 @@ async function handleNotifyParticipants() {
           </KitTooltip>
         </template>
 
-        <KitTooltip v-if="memoriesForSelectedDay.length > 0" text="Кешировать изображения на странице">
-          <KitDropdown :items="cacheQualityOptions" @update:model-value="handleCacheAll">
-            <template #trigger>
-              <button
-                class="control-btn cache-btn"
-                :class="{ 'is-active': imageCacher.isManualCaching.value }"
-              >
-                <div v-if="imageCacher.isManualCaching.value" class="progress-circle-wrapper">
-                  <svg class="progress-circle" viewBox="0 0 36 36">
-                    <path
-                      class="circle-bg"
-                      d="M18 2.0845
-                        a 15.9155 15.9155 0 0 1 0 31.831
-                        a 15.9155 15.9155 0 0 1 0 -31.831"
-                    />
-                    <path
-                      class="circle"
-                      :stroke-dasharray="`${(imageCacher.cachedCount.value / Math.max(1, imageCacher.totalToCache.value)) * 100}, 100`"
-                      d="M18 2.0845
-                        a 15.9155 15.9155 0 0 1 0 31.831
-                        a 15.9155 15.9155 0 0 1 0 -31.831"
-                    />
-                  </svg>
-                  <span class="progress-text">{{ Math.round((imageCacher.cachedCount.value / Math.max(1, imageCacher.totalToCache.value)) * 100) }}</span>
-                </div>
-                <Icon
-                  v-else
-                  icon="mdi:cached"
+        <KitTooltip
+          v-if="memoriesForSelectedDay.length > 0"
+          :text="imageCacher.isCaching.value ? `Кеширование (${cachingPercent}%). Нажмите для остановки` : 'Кешировать изображения на странице'"
+        >
+          <button
+            v-if="imageCacher.isCaching.value"
+            class="control-btn cache-btn is-active"
+            @click="imageCacher.stopCaching()"
+          >
+            <div class="progress-circle-wrapper">
+              <svg class="progress-circle" viewBox="0 0 36 36">
+                <path
+                  class="circle-bg"
+                  d="M18 2.0845
+                    a 15.9155 15.9155 0 0 1 0 31.831
+                    a 15.9155 15.9155 0 0 1 0 -31.831"
                 />
+                <path
+                  class="circle"
+                  :stroke-dasharray="`${cachingPercent}, 100`"
+                  d="M18 2.0845
+                    a 15.9155 15.9155 0 0 1 0 31.831
+                    a 15.9155 15.9155 0 0 1 0 -31.831"
+                />
+              </svg>
+              <span class="progress-text">{{ cachingPercent }}</span>
+            </div>
+          </button>
+          <KitDropdown
+            v-else
+            :items="cacheQualityOptions"
+            @update:model-value="handleCacheAll"
+          >
+            <template #trigger>
+              <button class="control-btn cache-btn">
+                <Icon icon="mdi:cached" />
               </button>
             </template>
           </KitDropdown>
-        </KitTooltip>
-
-        <KitTooltip v-if="memoriesForSelectedDay.length > 0" :text="imageCacher.isBackgroundCaching.value ? 'Выключить фоновое кеширование' : 'Включить фоновое кеширование'">
-          <template v-if="imageCacher.isBackgroundCaching.value">
-            <button
-              class="control-btn bg-cache-btn is-active"
-              @click="handleToggleBackgroundCaching"
-            >
-              <div v-if="imageCacher.isCaching.value && !imageCacher.isManualCaching.value" class="progress-circle-wrapper">
-                <svg class="progress-circle" viewBox="0 0 36 36">
-                  <path
-                    class="circle-bg"
-                    d="M18 2.0845
-                      a 15.9155 15.9155 0 0 1 0 31.831
-                      a 15.9155 15.9155 0 0 1 0 -31.831"
-                  />
-                  <path
-                    class="circle"
-                    :stroke-dasharray="`${(imageCacher.cachedCount.value / Math.max(1, imageCacher.totalToCache.value)) * 100}, 100`"
-                    d="M18 2.0845
-                      a 15.9155 15.9155 0 0 1 0 31.831
-                      a 15.9155 15.9155 0 0 1 0 -31.831"
-                  />
-                </svg>
-                <span class="progress-text">{{ Math.round((imageCacher.cachedCount.value / Math.max(1, imageCacher.totalToCache.value)) * 100) }}</span>
-              </div>
-              <Icon v-else icon="mdi:check-all" />
-            </button>
-          </template>
-          <template v-else>
-            <KitDropdown v-model:open="isBgCacheDropdownOpen" :items="[]">
-              <template #trigger>
-                <button
-                  class="control-btn bg-cache-btn"
-                  :disabled="imageCacher.isManualCaching.value"
-                >
-                  <Icon v-if="imageCacher.isManualCaching.value" icon="mdi:pause" />
-                  <Icon v-else icon="mdi:sync" />
-                </button>
-              </template>
-              <div class="bg-cache-menu">
-                <div class="bg-cache-title">
-                  Фоновое кеширование
-                </div>
-                <div class="bg-cache-options">
-                  <div
-                    v-for="opt in cacheQualityOptions"
-                    :key="opt.value"
-                    class="bg-cache-option"
-                    :class="{ 'is-selected': selectedBgQuality === opt.value }"
-                    @click="selectedBgQuality = opt.value as ImageQuality"
-                  >
-                    <Icon :icon="selectedBgQuality === opt.value ? 'mdi:radiobox-marked' : 'mdi:radiobox-blank'" class="radio-icon" />
-                    <span>{{ opt.label.replace('Кеш: ', '') }}</span>
-                  </div>
-                </div>
-                <button class="bg-cache-apply" @click="applyBackgroundCaching">
-                  Применить
-                </button>
-              </div>
-            </KitDropdown>
-          </template>
         </KitTooltip>
 
         <KitTooltip text="Маршрут дня (подвижность)">
@@ -417,13 +347,14 @@ async function handleNotifyParticipants() {
         <KitTooltip v-if="mdAndUp && memoriesForSelectedDay.length > 0" :text="isFullScreen ? 'Свернуть' : 'На весь экран'">
           <button
             class="control-btn fullscreen-btn"
+            :class="{ 'is-active': isFullScreen }"
             @click="toggleFullScreen"
           >
             <Icon :icon="isFullScreen ? 'mdi:fullscreen-exit' : 'mdi:fullscreen'" />
           </button>
         </KitTooltip>
 
-        <KitTooltip v-if="allMemoryGroupKeys.length > 0" text="Свернуть/развернуть все группы">
+        <KitTooltip v-if="allMemoryGroupKeys.length > 0" :text="allMemoryBlocksCollapsed ? 'Развернуть все группы' : 'Свернуть все группы'">
           <button
             class="control-btn collapse-btn"
             @click="handleToggleAllMemories"
@@ -500,6 +431,8 @@ async function handleNotifyParticipants() {
       :open="isTrackPlayerOpen"
       :day-utc="getSelectedDay?.date ? getSelectedDay.date.split('T')[0] : undefined"
       :show-today-button="false"
+      :memories="memoriesForSelectedDay"
+      :gallery-images="galleryImages"
       @close="isTrackPlayerOpen = false"
     />
   </div>
@@ -518,21 +451,26 @@ async function handleNotifyParticipants() {
     z-index: 100;
     background-color: var(--bg-primary-color);
     overflow-y: auto;
-    padding: 24px;
+    padding: 0px 8px;
   }
 }
 
 .divider-with-action {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 12px;
   padding: 8px 0;
+  min-height: 40px;
+
+  :deep(.divider) {
+    flex-grow: 1;
+  }
 }
 
 .controls-wrapper {
   display: flex;
   align-items: center;
-  gap: 4px;
+  gap: 6px;
   flex-shrink: 0;
 }
 
@@ -542,16 +480,18 @@ async function handleNotifyParticipants() {
   justify-content: center;
   width: 32px;
   height: 32px;
+  padding: 0;
   border-radius: var(--r-s);
-  background: transparent;
+  background-color: var(--bg-secondary-color);
   border: 1px solid var(--border-secondary-color);
   color: var(--fg-secondary-color);
   cursor: pointer;
-  font-size: 1rem;
+  font-size: 1.1rem;
   transition: all 0.2s ease;
 
   &:hover:not(:disabled) {
     background-color: var(--bg-hover-color);
+    border-color: var(--border-primary-color);
     color: var(--fg-primary-color);
   }
 
@@ -651,72 +591,5 @@ async function handleNotifyParticipants() {
   font-size: 0.55rem;
   font-weight: 600;
   color: var(--fg-accent-color);
-}
-
-.bg-cache-menu {
-  padding: 12px;
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
-  min-width: 220px;
-}
-
-.bg-cache-title {
-  font-size: 0.9rem;
-  font-weight: 600;
-  color: var(--fg-primary-color);
-}
-
-.bg-cache-options {
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-}
-
-.bg-cache-option {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  padding: 6px 8px;
-  border-radius: var(--r-xs);
-  cursor: pointer;
-  font-size: 0.85rem;
-  color: var(--fg-secondary-color);
-  transition: all 0.2s ease;
-
-  &:hover {
-    background-color: var(--bg-hover-color);
-  }
-
-  &.is-selected {
-    color: var(--fg-accent-color);
-    background-color: color-mix(in srgb, var(--fg-accent-color) 10%, transparent);
-
-    .radio-icon {
-      color: var(--fg-accent-color);
-    }
-  }
-
-  .radio-icon {
-    font-size: 1.1rem;
-    color: var(--fg-secondary-color);
-  }
-}
-
-.bg-cache-apply {
-  padding: 8px;
-  border-radius: var(--r-s);
-  background-color: var(--bg-accent-color);
-  color: var(--fg-on-accent-color);
-  border: none;
-  cursor: pointer;
-  font-size: 0.85rem;
-  font-weight: 600;
-  text-align: center;
-  transition: all 0.2s ease;
-
-  &:hover {
-    filter: brightness(1.1);
-  }
 }
 </style>

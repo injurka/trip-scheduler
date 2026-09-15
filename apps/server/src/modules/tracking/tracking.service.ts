@@ -1,11 +1,11 @@
 import type { GetTrackDayInput, IngestBatchInput } from './tracking.schemas'
-import { processDayTrack } from '@injurka/track-processing'
+import { processDayTrack } from '@limiteddissolve/track-processing'
 import { db } from 'db'
 import { trackPoints, trackSegments } from 'db/schema'
 import { and, eq, gte, lt, lte } from 'drizzle-orm'
 import { measureDbQuery } from '~/lib/db-monitoring'
 
-/** Активность в терминах пакета @injurka/track-processing. */
+/** Активность в терминах пакета @limiteddissolve/track-processing. */
 type TrackActivity = 'still' | 'walk' | 'bike' | 'vehicle' | 'rail' | 'unknown'
 
 /** Строка track_points в объёме, который нужен пост-обработке дня. */
@@ -158,8 +158,8 @@ export const trackingService = {
     if (rawPoints.length < 2)
       return { segments: 0 }
 
-    // Алгоритм в общем пакете @injurka/track-processing (общий с клиентом)
-    const { processDayTrack } = await import('@injurka/track-processing')
+    // Алгоритм в общем пакете @limiteddissolve/track-processing (общий с клиентом)
+    const { processDayTrack } = await import('@limiteddissolve/track-processing')
 
     const segments = processDayTrack(rawPoints.map((p, i) => ({
       clientPointId: `srv-${sessionId}-${i}`,

@@ -37,6 +37,16 @@ describe('useImageViewer', () => {
     expect(viewer.isOpen.value).toBe(false)
   })
 
+  it('closes without changing the page on browser back', () => {
+    const viewer = useImageViewer()
+    viewer.open(testImages, 0)
+    expect(viewer.isOpen.value).toBe(true)
+
+    window.dispatchEvent(new PopStateEvent('popstate', { state: history.state }))
+
+    expect(viewer.isOpen.value).toBe(false)
+  })
+
   it('navigates next and wraps around', () => {
     const viewer = useImageViewer()
     viewer.open(testImages, 1)

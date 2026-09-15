@@ -1,5 +1,5 @@
 import type { ComputedRef, Ref } from 'vue'
-import type { DayData, DayPoint, PointStatusBadge, RenderSegment, SelectedPointInfo, ViewMode } from '../models/types'
+import type { DayData, DayPoint, PointStatusBadge, RenderSegment, SelectedPointInfo, TrackPhoto, TrackPhotoCluster, ViewMode } from '../models/types'
 import * as maplibregl from 'maplibre-gl'
 import { onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { useKitMap } from '~/components/01.kit/kit-map/composables/use-kit-map'
@@ -9,6 +9,7 @@ import { ACTIVITY_COLORS } from '../models/types'
 export interface UseDayTrackMapOptions {
   mapHost: Ref<HTMLElement | null>
   popupHost: Ref<HTMLElement | null>
+  photoPopupHost?: Ref<HTMLElement | null>
   playbackMarkerHost: Ref<HTMLElement | null>
   dayData: Ref<DayData | null>
   displayPoints: ComputedRef<DayPoint[]>
@@ -19,12 +20,17 @@ export interface UseDayTrackMapOptions {
   isPlaying: Ref<boolean>
   isFollowCamera: Ref<boolean>
   viewMode: Ref<ViewMode>
+  locatedPhotos?: ComputedRef<TrackPhoto[]>
+  isPhotosVisible?: Ref<boolean>
+  onSelectPhoto?: (photo: TrackPhoto | null) => void
+  onSelectCluster?: (photos: TrackPhoto[]) => void
 }
 
 export function useDayTrackMap(options: UseDayTrackMapOptions) {
   const {
     mapHost,
     popupHost,
+    photoPopupHost,
     playbackMarkerHost,
     dayData,
     displayPoints,
@@ -35,6 +41,10 @@ export function useDayTrackMap(options: UseDayTrackMapOptions) {
     isPlaying,
     isFollowCamera,
     viewMode,
+    locatedPhotos,
+    isPhotosVisible,
+    onSelectPhoto,
+    onSelectCluster,
   } = options
 
   const { mapInstance, isMapReady, initMap } = useKitMap()
@@ -42,6 +52,20 @@ export function useDayTrackMap(options: UseDayTrackMapOptions) {
 
   let playbackMarker: maplibregl.Marker | null = null
   let pointPopup: maplibregl.Popup | null = null
+  let photoPopup: maplibregl.Popup | null = null
+  let photoClustersTimer: ReturnType<typeof setTimeout> | null = null
+  let activePhotoMarkers: Array<{
+    marker: maplibregl.Marker
+    element: HTMLElement
+    photos: TrackPhoto[]
+  }> = []
+  const CLUSTER_RADIUS_PX = 46
+
+  function closePhotoPopup() {
+    if (photoPopup?.isOpen()) {
+      photoPopup.remove()
+    }
+  }
 
   const selectedPoint = ref<SelectedPointInfo | null>(null)
 
@@ -71,12 +95,14 @@ export function useDayTrackMap(options: UseDayTrackMapOptions) {
   const ROUTE_SOURCE_ID = 'day-track-route-source'
   const PROGRESS_SOURCE_ID = 'day-track-progress-source'
   const POINTS_SOURCE_ID = 'day-track-points-source'
+  const PHOTO_ROUTE_SOURCE_ID = 'day-track-photo-route-source'
 
   const ROUTE_LAYER_ID = 'day-track-route-layer'
   const ROUTE_CASING_LAYER_ID = 'day-track-route-casing-layer'
   const PROGRESS_GLOW_LAYER_ID = 'day-track-progress-glow-layer'
   const PROGRESS_LINE_LAYER_ID = 'day-track-progress-line-layer'
   const POINTS_LAYER_ID = 'day-track-points-layer'
+  const PHOTO_ROUTE_LAYER_ID = 'day-track-photo-route-layer'
 
   function copyCoords(p: DayPoint) {
     const txt = `${p.lat.toFixed(6)}, ${p.lng.toFixed(6)}`
@@ -369,6 +395,213 @@ export function useDayTrackMap(options: UseDayTrackMapOptions) {
         },
       })
     }
+
+    if (!map.getSource(PHOTO_ROUTE_SOURCE_ID)) {
+      map.addSource(PHOTO_ROUTE_SOURCE_ID, {
+        type: 'geojson',
+        data: { type: 'FeatureCollection', features: [] },
+      })
+    }
+
+    if (!map.getLayer(PHOTO_ROUTE_LAYER_ID)) {
+      map.addLayer({
+        id: PHOTO_ROUTE_LAYER_ID,
+        type: 'line',
+        source: PHOTO_ROUTE_SOURCE_ID,
+        layout: {
+          'line-cap': 'round',
+          'line-join': 'round',
+        },
+        paint: {
+          'line-color': '#3b82f6',
+          'line-width': 2.5,
+          'line-dasharray': [2, 3],
+          'line-opacity': 0.75,
+        },
+      })
+    }
+  }
+
+  function createPhotoMarkerElement(
+    cluster: TrackPhotoCluster,
+    onPhotoClick: (p: TrackPhoto) => void,
+    onClusterClick: (photos: TrackPhoto[]) => void,
+  ): HTMLElement {
+    const el = document.createElement('div')
+    el.className = 'day-track-photo-marker'
+
+    const img = document.createElement('img')
+    img.src = cluster.representativePhoto.thumbnailUrl
+    img.alt = cluster.representativePhoto.title || 'Фото'
+    img.className = 'photo-marker-img'
+    img.loading = 'lazy'
+    el.appendChild(img)
+
+    if (cluster.count > 1) {
+      const badge = document.createElement('span')
+      badge.className = 'photo-marker-badge'
+      badge.textContent = String(cluster.count)
+      el.appendChild(badge)
+      el.title = `${cluster.count} фото в этой точке`
+    }
+    else {
+      const photo = cluster.representativePhoto
+      el.title = photo.title || photo.comment || 'Фото'
+      if (photo.source === 'gps') {
+        const icon = document.createElement('span')
+        icon.className = 'photo-marker-source-icon source-gps'
+        icon.title = 'GPS из фото'
+        icon.innerHTML = `<svg viewBox="0 0 24 24" width="9" height="9"><circle cx="12" cy="12" r="6" fill="#16a34a"/><circle cx="12" cy="12" r="10" fill="none" stroke="#16a34a" stroke-width="2.5"/></svg>`
+        el.appendChild(icon)
+      }
+      else if (photo.source === 'interpolated') {
+        const icon = document.createElement('span')
+        icon.className = 'photo-marker-source-icon source-interpolated'
+        icon.title = 'Привязано по треку'
+        icon.innerHTML = `<svg viewBox="0 0 24 24" width="9" height="9"><path fill="#2563eb" d="M12 2a10 10 0 1 0 10 10A10 10 0 0 0 12 2zm1 11h-4V7h2v4h2z"/></svg>`
+        el.appendChild(icon)
+      }
+    }
+
+    el.addEventListener('click', (e) => {
+      e.stopPropagation()
+      if (cluster.count > 1) {
+        onClusterClick(cluster.photos)
+      }
+      else {
+        onPhotoClick(cluster.representativePhoto)
+      }
+    })
+
+    return el
+  }
+
+  function clearPhotoMarkers() {
+    for (const item of activePhotoMarkers) {
+      item.marker.remove()
+    }
+    activePhotoMarkers = []
+  }
+
+  function schedulePhotoClustersUpdate() {
+    if (photoClustersTimer)
+      return
+    photoClustersTimer = setTimeout(() => {
+      photoClustersTimer = null
+      updatePhotoClusters()
+    }, 40)
+  }
+
+  function updatePhotoClusters() {
+    const map = mapInstance.value
+    if (!map || !isMapReady.value)
+      return
+
+    const photos = locatedPhotos?.value || []
+    if (!isPhotosVisible?.value || photos.length === 0) {
+      clearPhotoMarkers()
+      return
+    }
+
+    // 1. Проецируем координаты в экранные пиксели
+    const projected: Array<{ photo: TrackPhoto, x: number, y: number }> = []
+    for (const photo of photos) {
+      const p = map.project([photo.lng, photo.lat])
+      projected.push({ photo, x: p.x, y: p.y })
+    }
+
+    // 2. Жадная кластеризация по расстоянию на экране
+    const clusters: TrackPhotoCluster[] = []
+    const visited = new Uint8Array(projected.length)
+
+    for (let i = 0; i < projected.length; i++) {
+      if (visited[i])
+        continue
+      visited[i] = 1
+      const p1 = projected[i]
+      const clusterPhotos: TrackPhoto[] = [p1.photo]
+      let sumLng = p1.photo.lng
+      let sumLat = p1.photo.lat
+
+      for (let j = i + 1; j < projected.length; j++) {
+        if (visited[j])
+          continue
+        const p2 = projected[j]
+        const dist = Math.hypot(p1.x - p2.x, p1.y - p2.y)
+        if (dist < CLUSTER_RADIUS_PX) {
+          visited[j] = 1
+          clusterPhotos.push(p2.photo)
+          sumLng += p2.photo.lng
+          sumLat += p2.photo.lat
+        }
+      }
+
+      clusters.push({
+        id: `cluster-${i}-${clusterPhotos.length}`,
+        lat: sumLat / clusterPhotos.length,
+        lng: sumLng / clusterPhotos.length,
+        photos: clusterPhotos,
+        count: clusterPhotos.length,
+        representativePhoto: clusterPhotos[0],
+      })
+    }
+
+    // 3. Пересоздаем маркеры на карте
+    clearPhotoMarkers()
+
+    for (const cluster of clusters) {
+      const el = createPhotoMarkerElement(
+        cluster,
+        (photo) => {
+          closePointPopup()
+          onSelectPhoto?.(photo)
+          if (photoPopup && mapInstance.value) {
+            photoPopup.setLngLat([photo.lng, photo.lat]).addTo(mapInstance.value)
+          }
+        },
+        (clusterPhotos) => {
+          if (map.getZoom() < 17 && clusterPhotos.length > 1) {
+            const bounds = new maplibregl.LngLatBounds()
+            for (const p of clusterPhotos) {
+              bounds.extend([p.lng, p.lat])
+            }
+            map.fitBounds(bounds, {
+              padding: { top: 70, right: 70, bottom: 120, left: 70 },
+              maxZoom: 17.5,
+              duration: 400,
+            })
+          }
+          else {
+            closePointPopup()
+            onSelectCluster?.(clusterPhotos)
+            const first = clusterPhotos[0]
+            if (photoPopup && first && mapInstance.value) {
+              photoPopup.setLngLat([first.lng, first.lat]).addTo(mapInstance.value)
+            }
+          }
+        },
+      )
+
+      const marker = new maplibregl.Marker({
+        element: el,
+        anchor: 'center',
+      })
+        .setLngLat([cluster.lng, cluster.lat])
+        .addTo(map)
+
+      activePhotoMarkers.push({
+        marker,
+        element: el,
+        photos: cluster.photos,
+      })
+    }
+
+    if (t.value > 0) {
+      for (const item of activePhotoMarkers) {
+        const isNear = item.photos.some(p => Math.abs(t.value - p.tsUtc) < 45_000)
+        item.element.classList.toggle('is-playback-active', isNear)
+      }
+    }
   }
 
   function rebuildFeatures() {
@@ -550,9 +783,15 @@ export function useDayTrackMap(options: UseDayTrackMapOptions) {
       map.setFilter(POINTS_LAYER_ID, isPointsMode ? null : ['==', ['get', 'kind'], 'waypoint'])
     }
 
-    scheduleProgressUpdate(true)
+    // Линию между фото не рисуем — маркеры достаточно информативны сами по себе
+    const photos = (isPhotosVisible?.value && locatedPhotos?.value) ? locatedPhotos.value : []
+    const emptyGeojson: GeoJSON.FeatureCollection = { type: 'FeatureCollection', features: [] }
+    ;(map.getSource(PHOTO_ROUTE_SOURCE_ID) as maplibregl.GeoJSONSource)?.setData(emptyGeojson)
 
-    if (renderSegments.value.length > 0 || rawPoints.length > 0) {
+    scheduleProgressUpdate(true)
+    schedulePhotoClustersUpdate()
+
+    if (renderSegments.value.length > 0 || rawPoints.length > 0 || photos.length > 0) {
       fitTrackBounds()
     }
   }
@@ -593,10 +832,25 @@ export function useDayTrackMap(options: UseDayTrackMapOptions) {
       }).setDOMContent(popupHost.value)
     }
 
+    if (photoPopupHost?.value) {
+      photoPopup = new maplibregl.Popup({
+        offset: 16,
+        closeButton: false,
+        closeOnClick: false,
+        className: 'day-track-photo-popup',
+      }).setDOMContent(photoPopupHost.value)
+    }
+
+    map.on('move', schedulePhotoClustersUpdate)
+    map.on('zoom', schedulePhotoClustersUpdate)
+
     // Клик по карте — обработчик для попапа точки.
     // На мобильных/тач устройствах используем bounding box (расширенный хитбокс в пикселях),
     // чтобы по маленьким точкам было легко попадать пальцем без их визуального раздувания.
     map.on('click', (e) => {
+      closePhotoPopup()
+      onSelectPhoto?.(null)
+
       let pData: DayPoint | null = null
       let idx = 1
 
@@ -710,11 +964,24 @@ export function useDayTrackMap(options: UseDayTrackMapOptions) {
     }
   })
 
-  watch(t, () => {
+  watch(t, (curT) => {
     scheduleProgressUpdate(!isPlaying.value)
+    if (activePhotoMarkers.length > 0 && curT > 0) {
+      for (const item of activePhotoMarkers) {
+        const isNear = item.photos.some(p => Math.abs(curT - p.tsUtc) < 45_000)
+        item.element.classList.toggle('is-playback-active', isNear)
+      }
+    }
   })
 
   watch([renderSegments, viewMode], () => rebuildFeatures())
+
+  if (locatedPhotos && isPhotosVisible) {
+    watch([locatedPhotos, isPhotosVisible], () => {
+      rebuildFeatures()
+      schedulePhotoClustersUpdate()
+    }, { deep: true })
+  }
 
   onBeforeUnmount(() => {
     if (copyTimer)
@@ -723,6 +990,11 @@ export function useDayTrackMap(options: UseDayTrackMapOptions) {
       clearTimeout(progressTimer)
       progressTimer = null
     }
+    if (photoClustersTimer) {
+      clearTimeout(photoClustersTimer)
+      photoClustersTimer = null
+    }
+    clearPhotoMarkers()
     if (playbackMarker) {
       playbackMarker.remove()
       playbackMarker = null
@@ -730,6 +1002,10 @@ export function useDayTrackMap(options: UseDayTrackMapOptions) {
     if (pointPopup) {
       pointPopup.remove()
       pointPopup = null
+    }
+    if (photoPopup) {
+      photoPopup.remove()
+      photoPopup = null
     }
   })
 
@@ -740,6 +1016,7 @@ export function useDayTrackMap(options: UseDayTrackMapOptions) {
     copyCoords,
     getPointStatusBadge,
     closePointPopup,
+    closePhotoPopup,
     fitTrackBounds,
     rebuildFeatures,
   }

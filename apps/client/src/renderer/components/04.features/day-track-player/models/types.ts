@@ -13,7 +13,7 @@ export interface DayPoint {
   sessionId: string
   deviceActivity?: ActivityType | null
   deviceActivityConfidence?: number | null
-  stop?: import('@injurka/track-processing').TrackStop
+  stop?: import('@limiteddissolve/track-processing').TrackStop
 }
 
 export interface DaySegment {
@@ -47,6 +47,32 @@ export interface SelectedPointInfo {
   point: DayPoint
   index: number
   total: number
+}
+
+export type TrackPhotoSource = 'gps' | 'interpolated' | 'stop' | 'unlocated'
+
+export interface TrackPhoto {
+  id: string
+  memoryId: string
+  title?: string
+  comment?: string | null
+  imageUrl: string
+  thumbnailUrl: string
+  lat: number
+  lng: number
+  source: 'gps' | 'interpolated' | 'stop'
+  tsUtc: number
+  mediaType?: 'image' | 'video'
+  originalMemory?: any
+}
+
+export interface TrackPhotoCluster {
+  id: string
+  lat: number
+  lng: number
+  photos: TrackPhoto[]
+  count: number
+  representativePhoto: TrackPhoto
 }
 
 export type ViewMode = 'route' | 'points'
