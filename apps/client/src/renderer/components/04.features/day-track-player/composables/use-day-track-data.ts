@@ -12,14 +12,29 @@ import { trpc } from '~/shared/services/trpc/trpc.service'
 
 export interface UseDayTrackDataOptions {
   dayUtcProp?: Ref<string | undefined>
+  /**
+   * Даты дней (YYYY-MM-DD), между которыми разрешено переключаться. Нужны, когда
+   * плеер открыт внутри секции поездки: там «день» — это день плана, и выйти за
+   * список нельзя, иначе карта покажет дату, которой в секции нет.
+   * Пусто — свободная навигация по календарю (режим GPS-трекинга).
+   */
+  availableDays?: Ref<string[] | undefined>
 }
 
 export function useDayTrackData(options: UseDayTrackDataOptions = {}) {
   const route = useRoute()
   const router = useRouter()
 
+  const DAY_REGEX = /^\d{4}-\d{2}-\d{2}$/
+  function isValidDay(value: unknown): value is string {
+    return typeof value === 'string' && DAY_REGEX.test(value)
+  }
+
   const todayUtc = new Date().toISOString().slice(0, 10)
-  const selectedDay = ref(options.dayUtcProp?.value || (route.query.day as string) || todayUtc)
+  const initialDay = options.dayUtcProp?.value || (route.query.day as string) || todayUtc
+  // Защита от битой даты в данных («Invalid Date» и т.п.): в loadDay уходит только
+  // валидный YYYY-MM-DD, иначе сервер режет по zod `/^\d{4}-\d{2}-\d{2}$/`.
+  const selectedDay = ref(isValidDay(initialDay) ? initialDay : todayUtc)
 
   const isLoading = ref(true)
   const dayData = ref<DayData | null>(null)
@@ -28,6 +43,8 @@ export function useDayTrackData(options: UseDayTrackDataOptions = {}) {
   let loadSequence = 0
 
   async function loadDay(targetDay: string) {
+    if (!isValidDay(targetDay))
+      return
     const sequence = ++loadSequence
     isLoading.value = true
     loadError.value = null
@@ -69,7 +86,7 @@ export function useDayTrackData(options: UseDayTrackDataOptions = {}) {
     watch(
       options.dayUtcProp,
       (val) => {
-        if (val && val !== selectedDay.value) {
+        if (val && isValidDay(val) && val !== selectedDay.value) {
           selectedDay.value = val
         }
       },
@@ -79,7 +96,7 @@ export function useDayTrackData(options: UseDayTrackDataOptions = {}) {
   watch(
     () => route.query.day,
     (val) => {
-      if (typeof val === 'string' && val !== selectedDay.value) {
+      if (isValidDay(val) && val !== selectedDay.value) {
         selectedDay.value = val
       }
     },
@@ -93,35 +110,81 @@ export function useDayTrackData(options: UseDayTrackDataOptions = {}) {
     { immediate: true },
   )
 
-  function changeDay(offset: number) {
-    const cur = new Date(`${selectedDay.value}T12:00:00Z`)
-    cur.setUTCDate(cur.getUTCDate() + offset)
-    const nextStr = cur.toISOString().slice(0, 10)
-    if (nextStr > todayUtc)
-      return
-    selectedDay.value = nextStr
-    if (route.name === AppRouteNames.ActivityMap) {
-      router.replace({ query: { ...route.query, day: nextStr } })
+  const availableDays = computed(() => options.availableDays?.value ?? [])
+
+  /**
+   * Индекс текущей даты в списке дней. Дата вне списка (например, трекинг открыт
+   * на «сегодня», которого в поездке нет) — берём ближайший по календарю день.
+   */
+  function resolveDayIndex(): number {
+    const list = availableDays.value
+    const exact = list.indexOf(selectedDay.value)
+    if (exact !== -1)
+      return exact
+
+    const current = new Date(`${selectedDay.value}T12:00:00Z`).getTime()
+    let bestIndex = 0
+    let bestDiff = Number.POSITIVE_INFINITY
+    for (let i = 0; i < list.length; i++) {
+      const diff = Math.abs(new Date(`${list[i]}T12:00:00Z`).getTime() - current)
+      if (diff < bestDiff) {
+        bestDiff = diff
+        bestIndex = i
+      }
     }
+    return bestIndex
   }
 
-  function goToToday() {
-    selectedDay.value = todayUtc
-    if (route.name === AppRouteNames.ActivityMap) {
-      router.replace({ query: { ...route.query, day: todayUtc } })
-    }
-  }
-
-  function selectDay(targetDay: string) {
-    if (targetDay > todayUtc)
-      return
+  function applyDay(targetDay: string) {
     selectedDay.value = targetDay
     if (route.name === AppRouteNames.ActivityMap) {
       router.replace({ query: { ...route.query, day: targetDay } })
     }
   }
 
+  function changeDay(offset: number) {
+    const list = availableDays.value
+    if (list.length > 0) {
+      const next = list[resolveDayIndex() + offset]
+      if (next)
+        applyDay(next)
+      return
+    }
+
+    const cur = new Date(`${selectedDay.value}T12:00:00Z`)
+    cur.setUTCDate(cur.getUTCDate() + offset)
+    const nextStr = cur.toISOString().slice(0, 10)
+    if (nextStr > todayUtc)
+      return
+    applyDay(nextStr)
+  }
+
+  function goToToday() {
+    const list = availableDays.value
+    if (list.length > 0) {
+      // «Сегодня» вне списка дней поездки — берём последний прошедший день поездки
+      const past = list.filter(day => day <= todayUtc)
+      applyDay(past.length > 0 ? past[past.length - 1] : list[0])
+      return
+    }
+    applyDay(todayUtc)
+  }
+
+  function selectDay(targetDay: string) {
+    const list = availableDays.value
+    if (list.length > 0) {
+      if (list.includes(targetDay))
+        applyDay(targetDay)
+      return
+    }
+    if (targetDay > todayUtc)
+      return
+    applyDay(targetDay)
+  }
+
   function formatHeaderDay(dayStr: string): string {
+    if (!isValidDay(dayStr))
+      return dayStr || '—'
     const d = new Date(`${dayStr}T12:00:00Z`)
     return d.toLocaleDateString('ru-RU', { weekday: 'short', day: 'numeric', month: 'long' })
   }

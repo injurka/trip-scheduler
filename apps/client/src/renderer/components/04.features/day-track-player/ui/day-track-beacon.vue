@@ -30,7 +30,9 @@ defineProps<{
   position: relative;
   width: 32px;
   height: 32px;
-  transform: translate(-50%, -50%);
+  // Свой transform на маячке не задаём: его хост-элемент — это маркер MapLibre,
+  // он уже центрируется на координате через translate(-50%,-50%). Собственный
+  // translate сдвигал кружок на пол-размера по диагонали.
   display: flex;
   align-items: center;
   justify-content: center;

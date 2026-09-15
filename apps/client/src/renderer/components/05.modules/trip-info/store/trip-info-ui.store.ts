@@ -8,6 +8,8 @@ export interface ITripInfoUiState {
   isAddSectionDialogOpen: boolean
   isPossibleActivitiesDrawerOpen: boolean
   isParallelPlanView: boolean
+  /** Открыт ли плеер «Маршрут дня» в воспоминаниях (живёт в сторе — иначе ремонт дня закрывает его) */
+  isMemoriesTrackPlayerOpen: boolean
   activeView: RemovableRef<ActiveView>
   interactionMode: RemovableRef<InteractionMode>
   collapsedActivities: Set<string>
@@ -21,6 +23,7 @@ export const useTripInfoUiStore = defineStore('tripInfoUi', {
     isAddSectionDialogOpen: false,
     isPossibleActivitiesDrawerOpen: false,
     isParallelPlanView: false,
+    isMemoriesTrackPlayerOpen: false,
     activeView: useStorage<ActiveView>('trip-active-view', 'plan'),
     interactionMode: useStorage<InteractionMode>('tripinfo-interaction-mode', 'view'),
     collapsedActivities: new Set<string>(),
@@ -44,6 +47,12 @@ export const useTripInfoUiStore = defineStore('tripInfoUi', {
   actions: {
     toggleParallelPlanView() {
       this.isParallelPlanView = !this.isParallelPlanView
+    },
+    toggleMemoriesTrackPlayer() {
+      this.isMemoriesTrackPlayerOpen = !this.isMemoriesTrackPlayerOpen
+    },
+    closeMemoriesTrackPlayer() {
+      this.isMemoriesTrackPlayerOpen = false
     },
     openPossibleActivitiesDrawer() {
       this.isPossibleActivitiesDrawerOpen = true
@@ -116,6 +125,7 @@ export const useTripInfoUiStore = defineStore('tripInfoUi', {
       this.isDaysPanelOpen = false
       this.isDaysPanelPinned = false
       this.isParallelPlanView = false
+      this.isMemoriesTrackPlayerOpen = false
       this.activeView = 'plan'
       this.interactionMode = 'view'
       this.clearCollapsedState()

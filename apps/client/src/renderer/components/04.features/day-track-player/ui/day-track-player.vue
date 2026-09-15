@@ -23,11 +23,23 @@ import DayTrackTopNav from './day-track-top-nav.vue'
 
 const props = withDefaults(defineProps<{
   dayUtc?: string
+  /**
+   * 'memories' — просмотр прожитого дня: маячок воспроизведения («я здесь сейчас»)
+   * не показываем, плеер нужен только для фотографий и трека дня.
+   */
+  mode?: 'track' | 'memories'
+  /**
+   * Даты дней поездки (YYYY-MM-DD): в этом режиме переключаться можно только между
+   * ними, а смена дня сообщается наружу событием `dayChange` — иначе секция
+   * воспоминаний остаётся на прежнем дне и фото на карте не меняются.
+   */
+  dayDates?: string[]
   showBackButton?: boolean
   showTodayButton?: boolean
   memories?: Memory[]
   galleryImages?: ImageViewerImage[]
 }>(), {
+  mode: 'track',
   showBackButton: true,
   showTodayButton: true,
   memories: () => [],
@@ -37,6 +49,7 @@ const props = withDefaults(defineProps<{
 const emit = defineEmits<{
   (e: 'back'): void
   (e: 'close'): void
+  (e: 'dayChange', day: string): void
 }>()
 
 const router = useRouter()
@@ -47,6 +60,10 @@ const popupHost = ref<HTMLElement | null>(null)
 const photoPopupHost = ref<HTMLElement | null>(null)
 const playbackMarkerHost = ref<HTMLElement | null>(null)
 const viewMode = ref<ViewMode>('route')
+
+// Маячок воспроизведения — маркер «я здесь сейчас». В режиме воспоминаний
+// (просмотр прожитого дня) он читается как текущая геопозиция, поэтому скрыт.
+const isBeaconVisible = computed(() => props.mode !== 'memories')
 
 // ─── 1. Данные дня ─────────────────────────────────────────────────────────────
 const {
@@ -70,6 +87,7 @@ const {
   handleDeletePoint,
 } = useDayTrackData({
   dayUtcProp: toRef(props, 'dayUtc'),
+  availableDays: toRef(props, 'dayDates'),
 })
 
 // ─── 2. Фотографии дня и соотнесение координат ─────────────────────────────────
@@ -162,6 +180,31 @@ function handleOpenViewer(photo: TrackPhoto) {
   imageViewer.open(list, idx !== -1 ? idx : 0)
 }
 
+/**
+ * Смена дня внутри плеера должна уехать наверх: в секции поездки день выбирается
+ * стором плана, и без события воспоминания (а с ними и фото) остаются на прежнем дне.
+ */
+function handleChangeDay(offset: number) {
+  const before = selectedDay.value
+  changeDay(offset)
+  if (selectedDay.value !== before)
+    emit('dayChange', selectedDay.value)
+}
+
+function handleSelectDay(day: string) {
+  const before = selectedDay.value
+  selectDay(day)
+  if (selectedDay.value !== before)
+    emit('dayChange', selectedDay.value)
+}
+
+function handleGoToToday() {
+  const before = selectedDay.value
+  goToToday()
+  if (selectedDay.value !== before)
+    emit('dayChange', selectedDay.value)
+}
+
 function handleBack() {
   emit('back')
   emit('close')
@@ -197,14 +240,14 @@ async function onDeletePoint(pt: DayPoint) {
       :located-photos-count="locatedPhotos.length"
       :unlocated-photos-count="unlocatedPhotos.length"
       :is-photos-visible="isPhotosVisible"
-      :is-fit-disabled="renderSegments.length === 0 && totalPointsCount === 0 && locatedPhotos.length === 0"
+      :has-track="renderSegments.length > 0 || totalPointsCount > 0"
+      :days="dayDates"
       :show-today-button="showTodayButton"
-      @change-day="changeDay"
-      @select-day="selectDay"
-      @go-to-today="goToToday"
+      @change-day="handleChangeDay"
+      @select-day="handleSelectDay"
+      @go-to-today="handleGoToToday"
       @update:view-mode="viewMode = $event"
       @update:is-photos-visible="isPhotosVisible = $event"
-      @fit-bounds="map.fitTrackBounds"
     >
       <template #top-actions>
         <slot name="top-actions" />
@@ -228,7 +271,7 @@ async function onDeletePoint(pt: DayPoint) {
     <div ref="mapHost" class="memories-map" />
 
     <!-- Анимированный маркер воспроизведения на карте -->
-    <div ref="playbackMarkerHost">
+    <div v-if="isBeaconVisible" ref="playbackMarkerHost" class="playback-marker-host">
       <DayTrackBeacon
         :is-active="playback.currentPoint.value != null"
         :activity-color="playback.currentActivityColor.value"
@@ -279,13 +322,14 @@ async function onDeletePoint(pt: DayPoint) {
       :selected-day="selectedDay"
       :today-utc="todayUtc"
       :show-today-button="showTodayButton"
-      @go-to-today="goToToday"
+      @go-to-today="handleGoToToday"
       @go-to-list="router.push({ name: AppRouteNames.ActivityTracking })"
     />
 
-    <!-- Нижняя панель плеера -->
+    <!-- Нижняя панель плеера: только для дней с GPS-треком. В день из одних
+         воспоминаний таймлайн пуст («--:--», выключенный ползунок) и бесполезен -->
     <DayTrackPlaybackPanel
-      v-if="renderSegments.length > 0 || totalPointsCount > 0 || locatedPhotos.length > 0"
+      v-if="renderSegments.length > 0 || totalPointsCount > 0"
       v-model:t="playback.t.value"
       v-model:is-playing="playback.isPlaying.value"
       v-model:speed-multiplier="playback.speedMultiplier.value"
@@ -353,32 +397,60 @@ async function onDeletePoint(pt: DayPoint) {
     border-radius: var(--r-full);
   }
 
+  // Хост маячка — элемент маркера MapLibre. Размер задаём явно: якорь считается
+  // от габаритов именно этого элемента, а если он окажется обычным блоком в потоке
+  // (position: relative из-за :deep-правила), маячок уедет вместе со стопкой.
+  .playback-marker-host {
+    width: 32px;
+    height: 32px;
+  }
+
   :deep(.day-track-photo-marker) {
-    position: relative;
-    cursor: pointer;
+    // Корень маркера принадлежит MapLibre: он сам ставит ему position: absolute,
+    // top/left и transform для привязки к координате. Свои position/transform на
+    // корне ломают эту привязку (position: relative уводил метку в поток и сдвигал
+    // её вниз по стопке, а transform в :hover молча не применялся). Здесь — только
+    // габарит якоря, всё визуальное в .photo-marker-body.
     width: 38px;
     height: 38px;
-    border-radius: 50%;
-    border: 2.5px solid #ffffff;
-    box-shadow: 0 3px 10px rgba(0, 0, 0, 0.35);
-    background: var(--bg-primary-color, #ffffff);
-    display: flex;
-    align-items: center;
-    justify-content: center;
+    cursor: pointer;
+
+    .photo-marker-body {
+      position: absolute;
+      inset: 0;
+      border-radius: 50%;
+      border: 2.5px solid #ffffff;
+      box-shadow: 0 3px 10px rgba(0, 0, 0, 0.35);
+      background: var(--bg-primary-color, #ffffff);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transform-origin: center;
+      transition:
+        transform 0.15s ease,
+        border-color 0.2s ease,
+        box-shadow 0.2s ease;
+    }
 
     &:hover {
-      transform: scale(1.18);
       z-index: 50;
-      box-shadow: 0 6px 16px rgba(0, 0, 0, 0.45);
+
+      .photo-marker-body {
+        transform: scale(1.18);
+        box-shadow: 0 6px 16px rgba(0, 0, 0, 0.45);
+      }
     }
 
     &.is-playback-active {
-      transform: scale(1.22);
-      border-color: #f59e0b;
-      box-shadow:
-        0 0 0 4px rgba(245, 158, 11, 0.45),
-        0 6px 16px rgba(0, 0, 0, 0.4);
       z-index: 60;
+
+      .photo-marker-body {
+        transform: scale(1.22);
+        border-color: #f59e0b;
+        box-shadow:
+          0 0 0 4px rgba(245, 158, 11, 0.45),
+          0 6px 16px rgba(0, 0, 0, 0.4);
+      }
     }
 
     .photo-marker-img {

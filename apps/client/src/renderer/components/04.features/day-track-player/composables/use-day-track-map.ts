@@ -53,13 +53,17 @@ export function useDayTrackMap(options: UseDayTrackMapOptions) {
   let playbackMarker: maplibregl.Marker | null = null
   let pointPopup: maplibregl.Popup | null = null
   let photoPopup: maplibregl.Popup | null = null
-  let photoClustersTimer: ReturnType<typeof setTimeout> | null = null
   let activePhotoMarkers: Array<{
     marker: maplibregl.Marker
     element: HTMLElement
     photos: TrackPhoto[]
   }> = []
-  const CLUSTER_RADIUS_PX = 46
+  // Подпись текущей раскладки кластеров. Пока состав кластеров не меняется,
+  // DOM-маркеры не пересоздаются: раньше это происходило на каждом движении карты.
+  let photoMarkersSignature = ''
+  // Радиус группировки — в метрах, а не в пикселях экрана: раскладка не должна
+  // зависеть от зума, иначе метки переезжают прямо во время масштабирования.
+  const CLUSTER_RADIUS_M = 50
 
   function closePhotoPopup() {
     if (photoPopup?.isOpen()) {
@@ -144,42 +148,52 @@ export function useDayTrackMap(options: UseDayTrackMapOptions) {
   }
 
   function fitTrackBounds() {
-    const pts = dayData.value?.points
-    if (!pts || pts.length === 0) {
-      if (renderSegments.value.length === 0)
-        return
+    const pts = dayData.value?.points || []
+    // Скрытый слой фото в расчёт не берём: прятать фото и одновременно вписывать по ним — странно
+    const photos = isPhotosVisible?.value === false ? [] : (locatedPhotos?.value || [])
+
+    let minLon = Number.POSITIVE_INFINITY
+    let minLat = Number.POSITIVE_INFINITY
+    let maxLon = Number.NEGATIVE_INFINITY
+    let maxLat = Number.NEGATIVE_INFINITY
+
+    for (const p of pts) {
+      if (p.lng < minLon)
+        minLon = p.lng
+      if (p.lng > maxLon)
+        maxLon = p.lng
+      if (p.lat < minLat)
+        minLat = p.lat
+      if (p.lat > maxLat)
+        maxLat = p.lat
     }
 
-    if (pts && pts.length > 0) {
-      let minLon = Number.POSITIVE_INFINITY
-      let minLat = Number.POSITIVE_INFINITY
-      let maxLon = Number.NEGATIVE_INFINITY
-      let maxLat = Number.NEGATIVE_INFINITY
-      for (const p of pts) {
-        if (p.lng < minLon)
-          minLon = p.lng
-        if (p.lng > maxLon)
-          maxLon = p.lng
-        if (p.lat < minLat)
-          minLat = p.lat
-        if (p.lat > maxLat)
-          maxLat = p.lat
-      }
-
-      if (minLon !== Number.POSITIVE_INFINITY) {
-        mapInstance.value?.fitBounds(
-          [
-            [minLon, minLat],
-            [maxLon, maxLat],
-          ],
-          {
-            padding: { top: 60, right: 60, bottom: 140, left: 60 },
-            maxZoom: 16,
-            duration: 600,
-          },
-        )
-      }
+    // День без GPS-трека (или снимки в стороне от него) — единственные ориентиры фото
+    for (const photo of photos) {
+      if (photo.lng < minLon)
+        minLon = photo.lng
+      if (photo.lng > maxLon)
+        maxLon = photo.lng
+      if (photo.lat < minLat)
+        minLat = photo.lat
+      if (photo.lat > maxLat)
+        maxLat = photo.lat
     }
+
+    if (minLon === Number.POSITIVE_INFINITY)
+      return
+
+    mapInstance.value?.fitBounds(
+      [
+        [minLon, minLat],
+        [maxLon, maxLat],
+      ],
+      {
+        padding: { top: 60, right: 60, bottom: 140, left: 60 },
+        maxZoom: 16,
+        duration: 600,
+      },
+    )
   }
 
   const PROGRESS_THROTTLE_MS = 50 // Строгий лимит 20 FPS (интервал 50 мс) для предотвращения спама в Web Worker
@@ -427,21 +441,29 @@ export function useDayTrackMap(options: UseDayTrackMapOptions) {
     onPhotoClick: (p: TrackPhoto) => void,
     onClusterClick: (photos: TrackPhoto[]) => void,
   ): HTMLElement {
+    // Корень маркера — служебная оболочка: позицию и transform ему задаёт MapLibre
+    // (transform: translate(-50%,-50%) translate(x,y)). Всё визуальное живёт в
+    // .photo-marker-body, иначе собственные transform/position на корне ломают
+    // привязку метки к координате.
     const el = document.createElement('div')
     el.className = 'day-track-photo-marker'
+
+    const body = document.createElement('div')
+    body.className = 'photo-marker-body'
+    el.appendChild(body)
 
     const img = document.createElement('img')
     img.src = cluster.representativePhoto.thumbnailUrl
     img.alt = cluster.representativePhoto.title || 'Фото'
     img.className = 'photo-marker-img'
     img.loading = 'lazy'
-    el.appendChild(img)
+    body.appendChild(img)
 
     if (cluster.count > 1) {
       const badge = document.createElement('span')
       badge.className = 'photo-marker-badge'
       badge.textContent = String(cluster.count)
-      el.appendChild(badge)
+      body.appendChild(badge)
       el.title = `${cluster.count} фото в этой точке`
     }
     else {
@@ -452,14 +474,14 @@ export function useDayTrackMap(options: UseDayTrackMapOptions) {
         icon.className = 'photo-marker-source-icon source-gps'
         icon.title = 'GPS из фото'
         icon.innerHTML = `<svg viewBox="0 0 24 24" width="9" height="9"><circle cx="12" cy="12" r="6" fill="#16a34a"/><circle cx="12" cy="12" r="10" fill="none" stroke="#16a34a" stroke-width="2.5"/></svg>`
-        el.appendChild(icon)
+        body.appendChild(icon)
       }
       else if (photo.source === 'interpolated') {
         const icon = document.createElement('span')
         icon.className = 'photo-marker-source-icon source-interpolated'
         icon.title = 'Привязано по треку'
         icon.innerHTML = `<svg viewBox="0 0 24 24" width="9" height="9"><path fill="#2563eb" d="M12 2a10 10 0 1 0 10 10A10 10 0 0 0 12 2zm1 11h-4V7h2v4h2z"/></svg>`
-        el.appendChild(icon)
+        body.appendChild(icon)
       }
     }
 
@@ -483,70 +505,84 @@ export function useDayTrackMap(options: UseDayTrackMapOptions) {
     activePhotoMarkers = []
   }
 
-  function schedulePhotoClustersUpdate() {
-    if (photoClustersTimer)
-      return
-    photoClustersTimer = setTimeout(() => {
-      photoClustersTimer = null
-      updatePhotoClusters()
-    }, 40)
+  /**
+   * Группировка снимков по географии: фото в пределах CLUSTER_RADIUS_M метров
+   * сливаются в один «шарик» со счётчиком. Раскладка считается один раз на
+   * набор снимков и не зависит от зума — метка приклеена к месту и при
+   * масштабировании просто едет вместе с картой.
+   *
+   * Якорь группы — координаты её первой (самой ранней) фотографии, а не
+   * центроид: метка стоит на реальной точке съёмки, а не в пустоте между кадрами.
+   */
+  function buildPhotoClusters(photos: TrackPhoto[]): TrackPhotoCluster[] {
+    const clusters: TrackPhotoCluster[] = []
+    const visited = new Uint8Array(photos.length)
+
+    for (let i = 0; i < photos.length; i++) {
+      if (visited[i])
+        continue
+      visited[i] = 1
+      const seed = photos[i]
+      const clusterPhotos: TrackPhoto[] = [seed]
+
+      for (let j = i + 1; j < photos.length; j++) {
+        if (visited[j])
+          continue
+        if (haversineM(seed.lat, seed.lng, photos[j].lat, photos[j].lng) <= CLUSTER_RADIUS_M) {
+          visited[j] = 1
+          clusterPhotos.push(photos[j])
+        }
+      }
+
+      clusters.push({
+        id: `cluster-${seed.id}`,
+        lat: seed.lat,
+        lng: seed.lng,
+        photos: clusterPhotos,
+        count: clusterPhotos.length,
+        representativePhoto: seed,
+      })
+    }
+
+    return clusters
   }
 
-  function updatePhotoClusters() {
+  function updatePhotoMarkersPlaybackState() {
+    if (activePhotoMarkers.length === 0)
+      return
+    const curT = t.value
+    for (const item of activePhotoMarkers) {
+      const isNear = curT > 0 && item.photos.some(p => Math.abs(curT - p.tsUtc) < 45_000)
+      item.element.classList.toggle('is-playback-active', isNear)
+    }
+  }
+
+  /**
+   * Пересобирает слой фотографий. Вызывается только когда меняется набор снимков
+   * (или видимость слоя) — при панорамировании и зуме слой не трогаем: координаты
+   * групп фиксированы, MapLibre сам держит маркеры приклеенными к местам.
+   */
+  function updatePhotoLayer() {
     const map = mapInstance.value
     if (!map || !isMapReady.value)
       return
 
     const photos = locatedPhotos?.value || []
     if (!isPhotosVisible?.value || photos.length === 0) {
+      photoMarkersSignature = ''
       clearPhotoMarkers()
       return
     }
 
-    // 1. Проецируем координаты в экранные пиксели
-    const projected: Array<{ photo: TrackPhoto, x: number, y: number }> = []
-    for (const photo of photos) {
-      const p = map.project([photo.lng, photo.lat])
-      projected.push({ photo, x: p.x, y: p.y })
+    const clusters = buildPhotoClusters(photos)
+    const signature = clusters.map(c => `${c.id}(${c.photos.map(p => p.id).join(',')})`).join('|')
+    if (signature === photoMarkersSignature) {
+      updatePhotoMarkersPlaybackState()
+      return
     }
+    photoMarkersSignature = signature
 
-    // 2. Жадная кластеризация по расстоянию на экране
-    const clusters: TrackPhotoCluster[] = []
-    const visited = new Uint8Array(projected.length)
-
-    for (let i = 0; i < projected.length; i++) {
-      if (visited[i])
-        continue
-      visited[i] = 1
-      const p1 = projected[i]
-      const clusterPhotos: TrackPhoto[] = [p1.photo]
-      let sumLng = p1.photo.lng
-      let sumLat = p1.photo.lat
-
-      for (let j = i + 1; j < projected.length; j++) {
-        if (visited[j])
-          continue
-        const p2 = projected[j]
-        const dist = Math.hypot(p1.x - p2.x, p1.y - p2.y)
-        if (dist < CLUSTER_RADIUS_PX) {
-          visited[j] = 1
-          clusterPhotos.push(p2.photo)
-          sumLng += p2.photo.lng
-          sumLat += p2.photo.lat
-        }
-      }
-
-      clusters.push({
-        id: `cluster-${i}-${clusterPhotos.length}`,
-        lat: sumLat / clusterPhotos.length,
-        lng: sumLng / clusterPhotos.length,
-        photos: clusterPhotos,
-        count: clusterPhotos.length,
-        representativePhoto: clusterPhotos[0],
-      })
-    }
-
-    // 3. Пересоздаем маркеры на карте
+    // 3. Пересоздаём маркеры на карте
     clearPhotoMarkers()
 
     for (const cluster of clusters) {
@@ -596,12 +632,7 @@ export function useDayTrackMap(options: UseDayTrackMapOptions) {
       })
     }
 
-    if (t.value > 0) {
-      for (const item of activePhotoMarkers) {
-        const isNear = item.photos.some(p => Math.abs(t.value - p.tsUtc) < 45_000)
-        item.element.classList.toggle('is-playback-active', isNear)
-      }
-    }
+    updatePhotoMarkersPlaybackState()
   }
 
   function rebuildFeatures() {
@@ -611,6 +642,10 @@ export function useDayTrackMap(options: UseDayTrackMapOptions) {
 
     ensureLayers()
     closePointPopup()
+    // Попап фото привязан к координате прошлого дня/режима — при пересборке слоёв
+    // он остался бы висеть над пустым местом.
+    closePhotoPopup()
+    onSelectPhoto?.(null)
 
     const rawPoints = dayData.value?.points || []
     const routeFeatures: GeoJSON.Feature[] = []
@@ -789,7 +824,7 @@ export function useDayTrackMap(options: UseDayTrackMapOptions) {
     ;(map.getSource(PHOTO_ROUTE_SOURCE_ID) as maplibregl.GeoJSONSource)?.setData(emptyGeojson)
 
     scheduleProgressUpdate(true)
-    schedulePhotoClustersUpdate()
+    updatePhotoLayer()
 
     if (renderSegments.value.length > 0 || rawPoints.length > 0 || photos.length > 0) {
       fitTrackBounds()
@@ -834,15 +869,18 @@ export function useDayTrackMap(options: UseDayTrackMapOptions) {
 
     if (photoPopupHost?.value) {
       photoPopup = new maplibregl.Popup({
-        offset: 16,
+        // Шарик метки 38 px: поднимаем попап выше его верхней кромки, иначе
+        // «хвостик» попапа ложится поверх картинки.
+        offset: 26,
         closeButton: false,
         closeOnClick: false,
         className: 'day-track-photo-popup',
       }).setDOMContent(photoPopupHost.value)
     }
 
-    map.on('move', schedulePhotoClustersUpdate)
-    map.on('zoom', schedulePhotoClustersUpdate)
+    // Раскладку фото по зуму НЕ пересобираем: группы считаются по географии,
+    // поэтому подпись кластеров от зума не зависит, и метки просто едут с картой.
+    // (Раньше пересборка на move/zoom была и причиной прыжков, и причиной лагов.)
 
     // Клик по карте — обработчик для попапа точки.
     // На мобильных/тач устройствах используем bounding box (расширенный хитбокс в пикселях),
@@ -966,21 +1004,24 @@ export function useDayTrackMap(options: UseDayTrackMapOptions) {
 
   watch(t, (curT) => {
     scheduleProgressUpdate(!isPlaying.value)
-    if (activePhotoMarkers.length > 0 && curT > 0) {
-      for (const item of activePhotoMarkers) {
-        const isNear = item.photos.some(p => Math.abs(curT - p.tsUtc) < 45_000)
-        item.element.classList.toggle('is-playback-active', isNear)
-      }
-    }
+    if (curT > 0)
+      updatePhotoMarkersPlaybackState()
   })
 
   watch([renderSegments, viewMode], () => rebuildFeatures())
 
   if (locatedPhotos && isPhotosVisible) {
-    watch([locatedPhotos, isPhotosVisible], () => {
-      rebuildFeatures()
-      schedulePhotoClustersUpdate()
-    }, { deep: true })
+    // Глубокое отслеживание не нужно: computed всегда отдаёт новую ссылку,
+    // а deep-обход 60 снимков дёргал полную пересборку слоёв на каждое изменение.
+    watch(locatedPhotos, () => {
+      updatePhotoLayer()
+      // День без GPS-трека: камера держится только на фото, вписываем по ним.
+      // Когда трек есть, повторный fit не делаем — иначе камера дёргается
+      // на каждое добавленное воспоминание.
+      if (isPhotosVisible.value && !dayData.value?.points?.length)
+        fitTrackBounds()
+    })
+    watch(isPhotosVisible, () => updatePhotoLayer())
   }
 
   onBeforeUnmount(() => {
@@ -989,10 +1030,6 @@ export function useDayTrackMap(options: UseDayTrackMapOptions) {
     if (progressTimer) {
       clearTimeout(progressTimer)
       progressTimer = null
-    }
-    if (photoClustersTimer) {
-      clearTimeout(photoClustersTimer)
-      photoClustersTimer = null
     }
     clearPhotoMarkers()
     if (playbackMarker) {

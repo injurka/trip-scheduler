@@ -49,7 +49,7 @@ const {
   getProcessingMemories,
   isLoadingMemories,
 } = storeToRefs(memories)
-const { areAllMemoryGroupsCollapsed, isViewMode, activeView } = storeToRefs(ui)
+const { areAllMemoryGroupsCollapsed, isViewMode, activeView, isMemoriesTrackPlayerOpen } = storeToRefs(ui)
 const { getActivitiesForSelectedDay, getSelectedDay } = storeToRefs(tripData)
 
 const dropZoneRef = ref<HTMLDivElement | null>(null)
@@ -212,7 +212,40 @@ function handleImport(activity: Activity) {
 const isNotifyLoading = ref(false)
 
 // ─── Маршрут подвижности дня ──────────────────────────────────────────────────
-const isTrackPlayerOpen = ref(false)
+// Открытие плеера держим в ui-сторе, а не локально: смена дня перемонтирует
+// TripMemoriesView (в trip-info.vue блок `<div :key="currentDayId">`), и локальный
+// ref сбрасывался — карта закрывалась прямо при переключении дня.
+
+const DAY_REGEX = /^\d{4}-\d{2}-\d{2}$/
+
+/**
+ * Дни поездки: плеер «Маршрут дня» ограничен ими, а смена дня внутри плеера
+ * переключает выбранный день секции. Без этого плеер менял только свою дату —
+ * воспоминания оставались на прежнем дне, и фото на карте не обновлялись.
+ * Берём только валидные YYYY-MM-DD — битая дата ломает запрос dayUtc на сервере.
+ */
+const tripDayDates = computed(() =>
+  Array.from(new Set(
+    (tripData.getAllDays ?? [])
+      .map(day => day.date?.split('T')[0])
+      .filter((date): date is string => !!date && DAY_REGEX.test(date)),
+  )).sort(),
+)
+
+/** Дата выбранного дня для плеера; невалидную не пропускаем */
+const playerDayUtc = computed<string | undefined>(() => {
+  const date = getSelectedDay.value?.date
+  if (!date)
+    return undefined
+  const datePart = date.split('T')[0]
+  return DAY_REGEX.test(datePart) ? datePart : undefined
+})
+
+function handlePlayerDayChange(day: string) {
+  const target = (tripData.getAllDays ?? []).find(d => d.date?.split('T')[0] === day)
+  if (target && target.id !== tripData.currentDayId)
+    tripData.setCurrentDay(target.id)
+}
 
 async function handleNotifyParticipants() {
   if (!tripData.currentTripId || !getSelectedDay.value)
@@ -323,8 +356,8 @@ async function handleNotifyParticipants() {
         <KitTooltip text="Маршрут дня (подвижность)">
           <button
             class="control-btn track-route-btn"
-            :class="{ 'is-active': isTrackPlayerOpen }"
-            @click="isTrackPlayerOpen = !isTrackPlayerOpen"
+            :class="{ 'is-active': isMemoriesTrackPlayerOpen }"
+            @click="ui.toggleMemoriesTrackPlayer()"
           >
             <Icon icon="mdi:map-marker-path" />
           </button>
@@ -428,12 +461,15 @@ async function handleNotifyParticipants() {
     />
 
     <DayTrackDrawer
-      :open="isTrackPlayerOpen"
-      :day-utc="getSelectedDay?.date ? getSelectedDay.date.split('T')[0] : undefined"
+      :open="isMemoriesTrackPlayerOpen"
+      :day-utc="playerDayUtc"
+      mode="memories"
+      :day-dates="tripDayDates"
       :show-today-button="false"
       :memories="memoriesForSelectedDay"
       :gallery-images="galleryImages"
-      @close="isTrackPlayerOpen = false"
+      @close="ui.closeMemoriesTrackPlayer()"
+      @day-change="handlePlayerDayChange"
     />
   </div>
 </template>

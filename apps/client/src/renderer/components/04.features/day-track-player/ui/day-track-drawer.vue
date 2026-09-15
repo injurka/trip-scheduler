@@ -9,11 +9,16 @@ import DayTrackPlayer from './day-track-player.vue'
 const props = withDefaults(defineProps<{
   open?: boolean
   dayUtc?: string
+  mode?: 'track' | 'memories'
+  /** Даты дней поездки (YYYY-MM-DD) — ограничивают навигацию по дням в плеере */
+  dayDates?: string[]
   showTodayButton?: boolean
   memories?: Memory[]
   galleryImages?: ImageViewerImage[]
 }>(), {
   open: false,
+  mode: 'track',
+  dayDates: () => [],
   showTodayButton: true,
   memories: () => [],
   galleryImages: () => [],
@@ -22,6 +27,7 @@ const props = withDefaults(defineProps<{
 const emit = defineEmits<{
   (e: 'close'): void
   (e: 'update:open', val: boolean): void
+  (e: 'dayChange', day: string): void
 }>()
 
 const isBodyScrollLocked = useScrollLock(typeof document !== 'undefined' ? document.body : null)
@@ -66,12 +72,15 @@ useEventListener(typeof window !== 'undefined' ? window : null, 'keydown', (e: K
           <DayTrackPlayer
             class="track-player-embedded"
             :day-utc="dayUtc"
+            :mode="mode"
+            :day-dates="dayDates"
             :show-back-button="false"
             :show-today-button="showTodayButton"
             :memories="memories"
             :gallery-images="galleryImages"
             @close="handleClose"
             @back="handleClose"
+            @day-change="emit('dayChange', $event)"
           />
         </div>
       </div>

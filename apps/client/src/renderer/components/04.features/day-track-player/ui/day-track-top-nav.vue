@@ -14,13 +14,18 @@ const props = withDefaults(defineProps<{
   viewMode: ViewMode
   totalPointsCount: number
   displayPointsCount: number
-  isFitDisabled: boolean
+  /** Есть ли у дня GPS-трек: без него переключатели «Маршрут / Исходные точки» бессмысленны */
+  hasTrack?: boolean
+  /** Даты дней поездки: навигация и календарь ограничиваются ими, если список задан */
+  days?: string[]
   showTodayButton?: boolean
   totalPhotosCount?: number
   locatedPhotosCount?: number
   unlocatedPhotosCount?: number
   isPhotosVisible?: boolean
 }>(), {
+  hasTrack: true,
+  days: () => [],
   showTodayButton: true,
   totalPhotosCount: 0,
   locatedPhotosCount: 0,
@@ -34,7 +39,6 @@ const emit = defineEmits<{
   (e: 'goToToday'): void
   (e: 'update:viewMode', mode: ViewMode): void
   (e: 'update:isPhotosVisible', val: boolean): void
-  (e: 'fitBounds'): void
   (e: 'close'): void
 }>()
 
@@ -42,12 +46,7 @@ const calendarDate = computed<CalendarDate | null>({
   get: () => {
     if (!props.selectedDay)
       return null
-    try {
-      return parseDate(props.selectedDay)
-    }
-    catch {
-      return null
-    }
+    return parseDay(props.selectedDay) ?? null
   },
   set: (val) => {
     if (!val)
@@ -56,15 +55,41 @@ const calendarDate = computed<CalendarDate | null>({
   },
 })
 
-const maxCalendarDate = computed<CalendarDate | undefined>(() => {
-  if (!props.todayUtc)
+function parseDay(day?: string): CalendarDate | undefined {
+  if (!day)
     return undefined
   try {
-    return parseDate(props.todayUtc)
+    return parseDate(day)
   }
   catch {
     return undefined
   }
+}
+
+const maxCalendarDate = computed<CalendarDate | undefined>(() => {
+  // Конец списка дней поездки важнее «сегодня»: вне поездки выбирать нечего
+  if (props.days.length > 0)
+    return parseDay(props.days[props.days.length - 1])
+  return parseDay(props.todayUtc)
+})
+
+const minCalendarDate = computed<CalendarDate | undefined>(() =>
+  props.days.length > 0 ? parseDay(props.days[0]) : undefined,
+)
+
+/** Индекс выбранного дня в списке дней поездки (-1 — дата вне списка) */
+const dayIndexInDays = computed(() =>
+  props.days.length > 0 ? props.days.indexOf(props.selectedDay) : -1,
+)
+
+const canGoPrev = computed(() =>
+  dayIndexInDays.value >= 0 ? dayIndexInDays.value > 0 : true,
+)
+
+const canGoNext = computed(() => {
+  if (dayIndexInDays.value >= 0)
+    return dayIndexInDays.value < props.days.length - 1
+  return props.selectedDay < props.todayUtc
 })
 </script>
 
@@ -75,6 +100,7 @@ const maxCalendarDate = computed<CalendarDate | undefined>(() => {
       <button
         class="day-arrow-btn"
         aria-label="Предыдущий день"
+        :disabled="!canGoPrev"
         @click="emit('changeDay', -1)"
       >
         <Icon icon="mdi:chevron-left" />
@@ -83,6 +109,7 @@ const maxCalendarDate = computed<CalendarDate | undefined>(() => {
       <CalendarPopover
         v-model="calendarDate"
         :clearable="false"
+        :min-value="minCalendarDate"
         :max-value="maxCalendarDate"
         align="center"
       >
@@ -101,7 +128,7 @@ const maxCalendarDate = computed<CalendarDate | undefined>(() => {
         </template>
         <template #footer="{ close }">
           <KitBtn
-            v-if="selectedDay !== todayUtc"
+            v-if="showTodayButton && selectedDay !== todayUtc"
             variant="text"
             size="sm"
             @click="() => { emit('goToToday'); close?.(); }"
@@ -114,7 +141,7 @@ const maxCalendarDate = computed<CalendarDate | undefined>(() => {
       <button
         class="day-arrow-btn"
         aria-label="Следующий день"
-        :disabled="selectedDay >= todayUtc"
+        :disabled="!canGoNext"
         @click="emit('changeDay', 1)"
       >
         <Icon icon="mdi:chevron-right" />
@@ -131,19 +158,8 @@ const maxCalendarDate = computed<CalendarDate | undefined>(() => {
         Сегодня
       </KitBtn>
 
-      <button
-        class="fit-bounds-btn"
-        type="button"
-        title="Центрировать трек на карте"
-        aria-label="Центрировать трек на карте"
-        :disabled="isFitDisabled"
-        @click="emit('fitBounds')"
-      >
-        <Icon icon="mdi:crosshairs-gps" class="fit-bounds-icon" />
-      </button>
-
-      <!-- Переключатель режима: Маршрут / Точки Безье -->
-      <div class="view-mode-tabs">
+      <!-- Переключатель режима: Маршрут / Точки Безье (только когда трек есть) -->
+      <div v-if="hasTrack" class="view-mode-tabs">
         <button
           class="mode-tab-btn"
           :class="{ 'is-active': viewMode === 'route' }"
@@ -301,50 +317,6 @@ const maxCalendarDate = computed<CalendarDate | undefined>(() => {
     align-items: center;
     gap: 8px;
 
-    .fit-bounds-btn {
-      display: inline-flex;
-      align-items: center;
-      justify-content: center;
-      width: 38px;
-      height: 38px;
-      border-radius: var(--r-full);
-      border: 1px solid var(--border-secondary-color);
-      background-color: var(--bg-secondary-color);
-      backdrop-filter: blur(12px);
-      box-shadow: var(--s-m);
-      color: var(--fg-accent-color);
-      cursor: pointer;
-      padding: 0;
-      transition:
-        color 0.2s ease,
-        background-color 0.2s ease,
-        border-color 0.2s ease,
-        transform 0.15s ease,
-        box-shadow 0.2s ease;
-      flex-shrink: 0;
-
-      .fit-bounds-icon {
-        font-size: 1.25rem;
-      }
-
-      &:hover:not(:disabled) {
-        background-color: var(--bg-hover-color);
-        border-color: var(--border-primary-color);
-        transform: scale(1.04);
-      }
-
-      &:active:not(:disabled) {
-        transform: scale(0.94);
-      }
-
-      &:disabled {
-        opacity: 0.4;
-        cursor: not-allowed;
-        box-shadow: none;
-        transform: none;
-      }
-    }
-
     .view-mode-tabs {
       display: inline-flex;
       align-items: center;
@@ -500,15 +472,6 @@ const maxCalendarDate = computed<CalendarDate | undefined>(() => {
       justify-content: space-between;
       width: 100%;
       gap: 6px;
-
-      .fit-bounds-btn {
-        width: 34px;
-        height: 34px;
-
-        .fit-bounds-icon {
-          font-size: 1.25rem;
-        }
-      }
 
       .view-mode-tabs {
         flex: 1;
