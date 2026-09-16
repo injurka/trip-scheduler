@@ -110,7 +110,7 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
-  # ─── JOB 4: Сборка Linux + Windows ──────────────────────
+  # ─── JOB 4: Сборка Linux (.deb) + Windows ────────────────
   build-tauri:
     needs: [create-release]
     permissions:
@@ -119,12 +119,16 @@ jobs:
       fail-fast: false
       matrix:
         include:
+          # AppImage intentionally stays out of the release: Tauri bundles
+          # libwayland-client.so.0, which breaks WebKitGTK/EGL in Wayland sessions.
           - platform: ubuntu-22.04
             target: x86_64-unknown-linux-gnu
-            args: '--target x86_64-unknown-linux-gnu'
+            bundles: deb
+            args: '--target x86_64-unknown-linux-gnu --bundles deb'
           - platform: windows-latest
             target: x86_64-pc-windows-msvc
-            args: '--target x86_64-pc-windows-msvc'
+            bundles: nsis
+            args: '--target x86_64-pc-windows-msvc --bundles nsis'
     runs-on: ${{ matrix.platform }}
 
     steps:
@@ -172,7 +176,7 @@ jobs:
       - name: Install frontend dependencies
         run: bun install
 
-      - name: Build Tauri
+      - name: Build Tauri (${{ matrix.bundles }})
         uses: tauri-apps/tauri-action@v0
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
