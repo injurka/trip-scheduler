@@ -1,7 +1,7 @@
 {
   "name": "@limiteddissolve/obsidian-importer",
   "type": "module",
-  "version": "1.2.0",
+  "version": "1.2.2",
   "private": false,
   "exports": {
     ".": "./src/index.ts"
@@ -28,7 +28,6 @@
     "typecheck": "bunx tsc --noEmit"
   },
   "dependencies": {
-    "@injurka/finance-contract": "workspace:*",
     "prompts": "^2.4.2"
   },
   "devDependencies": {

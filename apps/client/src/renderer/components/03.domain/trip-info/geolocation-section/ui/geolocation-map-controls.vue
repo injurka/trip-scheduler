@@ -139,7 +139,7 @@ function zoomOut() {
   display: flex;
   flex-direction: column;
   gap: 8px;
-  z-index: 8;
+  z-index: 6;
 
   &.is-fullscreen {
     top: calc(12px + var(--safe-area-inset-top));

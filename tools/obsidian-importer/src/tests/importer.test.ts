@@ -399,6 +399,43 @@ describe('Activity & Day Title Parser', () => {
     expect(activities[0].tag).toBe('walk')
   })
 
+  it('parses a manual metro callout into a metro section and removes it from the note text', () => {
+    const md = `
+* **15:30 - 16:30** — Airport MRT и заселение:
+    * *Маршрут*: Доехать из аэропорта в центр и пересесть на городское метро.
+> [!METRO]- Метро
+> Taipei MRT
+>
+> | Откуда | Куда | Линия | Код | Цвет | Направление | Остановки |
+> | :--- | :--- | :--- | :---: | :---: | :--- | :---: |
+> | Airport Terminal 2 (A13) | Taipei Main Station (A1) | Taoyuan Airport MRT | A | #A93C93 | Taipei Main Station | 2 |
+> | Taipei Main Station (R10) | Dongmen (R07) | Tamsui–Xinyi Line | R | #D2072A | Xiangshan | 3 |
+`.trim()
+
+    const activity = parseActivitiesFromMarkdown(md)[0]
+    const description = activity.sections?.find(section => section.type === 'description')
+    const metro = activity.sections?.find(section => section.type === 'metro')
+
+    expect(description?.type === 'description' ? description.text : '').not.toContain('[!METRO]')
+    expect(metro).toBeDefined()
+    if (metro?.type === 'metro') {
+      expect(metro.mode).toBe('free')
+      expect(metro.systemId).toBeNull()
+      expect(metro.rides).toHaveLength(2)
+      expect(metro.rides[0]).toMatchObject({
+        startStation: 'Airport Terminal 2 (A13)',
+        endStation: 'Taipei Main Station (A1)',
+        lineNumber: 'A',
+        lineColor: '#A93C93',
+        direction: 'Taipei Main Station',
+        stops: 2,
+      })
+    }
+
+    const infoVariant = parseActivitiesFromMarkdown(md.replace('[!METRO]', '[!INFO]'))[0]
+    expect(infoVariant.sections?.some(section => section.type === 'metro')).toBeTrue()
+  })
+
   it('extracts clean day title removing number prefixes', () => {
     const title1 = extractDayTitle('01 Тайбэй (пт) 🛬 Врата на Формозу', 1)
     expect(title1).toBe('🛬 Врата на Формозу')
@@ -409,6 +446,56 @@ describe('Activity & Day Title Parser', () => {
 })
 
 describe('Activity Enrichment', () => {
+  it('keeps a parsed metro section while enriching the activity description', async () => {
+    const { enrichActivityWithMediaAndLocation } = await import('../lib/enricher')
+    const rawAct = {
+      startTime: '15:30',
+      endTime: '16:30',
+      title: 'Airport MRT',
+      tag: 'transport' as const,
+      sections: [
+        {
+          id: 'desc-1',
+          type: 'description' as const,
+          text: 'Сесть на поезд и доехать до отеля.',
+        },
+        {
+          id: 'metro-1',
+          type: 'metro' as const,
+          mode: 'free' as const,
+          systemId: null,
+          rides: [{
+            id: 'ride-1',
+            startStationId: null,
+            startStation: 'A13',
+            endStationId: null,
+            endStation: 'A1',
+            lineId: null,
+            lineName: 'Taoyuan Airport MRT',
+            lineNumber: 'A',
+            lineColor: '#A93C93',
+            direction: 'Taipei Main Station',
+            stops: 2,
+          }],
+        },
+      ],
+    }
+
+    const res = await enrichActivityWithMediaAndLocation(
+      rawAct,
+      new Map(),
+      null,
+      null,
+      new Map(),
+      new Map(),
+      { geocode: false },
+    )
+
+    const metro = res.sections?.find(section => section.type === 'metro')
+    expect(metro?.type === 'metro' ? metro.rides : []).toHaveLength(1)
+    expect(metro?.type === 'metro' ? metro.rides[0].endStation : '').toBe('A1')
+  })
+
   it('enriches activity with clean route without noisy duplicate comments', async () => {
     const { enrichActivityWithMediaAndLocation } = await import('../lib/enricher')
     const rawAct = {

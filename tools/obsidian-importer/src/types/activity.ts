@@ -42,12 +42,26 @@ export interface ActivitySectionGeolocation {
   icon?: string
 }
 
+export interface MetroRide {
+  id: string
+  startStationId: string | null
+  startStation: string
+  endStationId: string | null
+  endStation: string
+  lineId: string | null
+  lineName: string
+  lineNumber: string | null
+  lineColor: string
+  direction: string
+  stops: number
+}
+
 export interface ActivitySectionMetro {
   id: string
   type: 'metro'
   mode: 'free' | 'city'
-  systemId?: string | null
-  rides: any[]
+  systemId: string | null
+  rides: MetroRide[]
 }
 
 export interface ActivitySectionBooking {

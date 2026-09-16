@@ -242,12 +242,11 @@
     },
     "tools/obsidian-importer": {
       "name": "@limiteddissolve/obsidian-importer",
-      "version": "1.2.0",
+      "version": "1.2.2",
       "bin": {
         "obsidian-importer": "src/run.ts",
       },
       "dependencies": {
-        "@injurka/finance-contract": "workspace:*",
         "prompts": "^2.4.2",
       },
       "devDependencies": {

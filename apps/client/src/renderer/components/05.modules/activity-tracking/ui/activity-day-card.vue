@@ -98,9 +98,10 @@ function handleClick() {
           color="primary"
           icon="mdi:map-search-outline"
           class="map-btn"
+          aria-label="На карту"
           @click.stop="handleClick"
         >
-          На карту
+          <span class="map-btn-text">На карту</span>
         </KitBtn>
       </div>
     </div>
@@ -322,6 +323,18 @@ function handleClick() {
 
       .map-btn {
         transition: all 0.2s ease;
+
+        @include media-down(sm) {
+          padding: 0.375rem;
+
+          :deep(.kit-btn-content) {
+            gap: 0;
+          }
+
+          .map-btn-text {
+            display: none;
+          }
+        }
       }
     }
   }
