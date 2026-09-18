@@ -71,20 +71,46 @@ bun run import:obsidian --validate --yes -d "~/Documents/obsidian-mark/Personal 
 
 Порядок правил важен: такси проверяется раньше трансфера («🚖 Шаттл / такси к причалу» — такси), а «автобус» — раньше «авто» (иначе подстрока «авто» перехватила бы автобус).
 
-### Секции активностей: ручной маршрут метро
+### Секции активностей: структурированный транспорт
 
-Внутри активности можно добавить сворачиваемый callout с ручным маршрутом метро. Он хорошо читается в Obsidian и импортируется в `sections[]` как `type: "metro"`, `mode: "free"` (в UI это режим «Вручную»), `systemId: null` и массив `rides`:
+Внутри активности используйте YAML-блок `transport`. Один блок описывает один вид транспорта и может содержать несколько последовательных отрезков. В режиме чтения Obsidian локальный плагин `Travel Transport View` показывает компактный маршрут, а importer разбирает его без LLM:
 
-```markdown
-> [!METRO]- Метро
-> Taipei MRT
->
-> | Откуда                    | Куда          | Линия             | Код |  Цвет   | Направление | Остановки |
-> | :------------------------ | :------------ | :---------------- | :-: | :-----: | :---------- | :-------: |
-> | Taipei Main Station (R10) | Dongmen (R07) | Tamsui–Xinyi Line |  R  | #D2072A | Xiangshan   |     3     |
+````markdown
+```transport
+type: metro
+title: Taoyuan Airport MRT + Taipei MRT
+
+routes:
+  - from: Airport Terminal 2 (A13)
+    to: Taipei Main Station (A1)
+    line: Taoyuan Airport MRT
+    code: A
+    color: "#A93C93"
+    direction: Taipei Main Station
+    stops: 2
 ```
+````
 
-Каждая строка после разделителя таблицы — один отрезок метро; несколько строк показываются в приложении с пересадками. Поля `Откуда`, `Куда`, `Линия`, `Код`, `Цвет`, `Направление` и `Остановки` соответствуют ручным полям блока метро. Строка `Taipei MRT` — необязательная подпись системы для заметки и не превращается в `systemId`; ручной режим всегда импортируется с `systemId: null`. Заголовок `[!INFO]- Метро` тоже поддерживается, если в vault уже используется стандартный callout `INFO`; блок извлекается из текста описания и не дублируется в обычной заметке активности.
+Для автобусов используется тот же формат с `type: bus`, `route`, `operator` и необязательным `walk`:
+
+````markdown
+```transport
+type: bus
+title: Chiayi → Hinoki Village
+
+routes:
+  - from: TRA Chiayi Station
+    to: Hinoki Village
+    route: Zhongxiao Xinmin Main Line
+    code: Red A
+    operator: Kuo-Kuang
+    direction: Minxiong Industrial Park Service Center
+    stops: 2
+    walk: 95 м / 2 мин
+```
+````
+
+Каждый элемент `routes` импортируется в порядке исходного YAML. Для `metro` importer создаёт `sections[]` с `type: "metro"`, `mode: "free"`, `systemId: null` и массивом `rides`, поэтому пересадки остаются отдельными отрезками. Для `bus` текущий API не имеет отдельного типа секции: importer преобразует автобусные строки в читаемый activity description с оператором, направлением, остановками и пешим переходом.
 
 ### Конфигурационный файл (`importer.config.json`)
 

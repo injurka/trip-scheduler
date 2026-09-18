@@ -502,7 +502,8 @@ export async function importTripFolderCore(
         const enrichedActivities: import('../types').ActivityPayload[] = []
         let locationContext = tripData.cities.length > 0 ? tripData.cities[0] : undefined
         const locationMatch = day.rawContent.match(/>[ \t]*\*\*(?:Локация|Location):\*\*[ \t]*([^\n]+)/i)
-        const dayContextText = `${locationMatch?.[1] ?? ''} ${day.title} ${day.fileName}`
+        const dayLocation = day.location || locationMatch?.[1] || ''
+        const dayContextText = `${dayLocation} ${day.title} ${day.fileName}`
         for (const city of tripData.cities) {
           if (new RegExp(`(^|[^\\wа-яёА-ЯЁ])${city}(?![\\wа-яёА-ЯЁ])`, 'iu').test(dayContextText)) {
             locationContext = city

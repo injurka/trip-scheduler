@@ -13,6 +13,20 @@ export interface DayMetaInfo {
   content?: string | null
 }
 
+export interface DayFrontmatter {
+  day?: number
+  date?: string
+  weekday?: string
+  title?: string
+  location?: string
+  phase?: string
+  accommodation?: string
+  hotel?: string
+  highlight?: string
+  description?: string
+  tags?: string[]
+}
+
 export interface ParsedDay {
   dayNumber: number
   fileName: string
@@ -22,6 +36,12 @@ export interface ParsedDay {
   rawContent: string
   date: string
   meta: DayMetaInfo[]
+  location?: string
+  accommodation?: string
+  phase?: string
+  highlight?: string
+  tags?: string[]
+  frontmatter?: DayFrontmatter
 }
 
 export interface ParsedTripData {

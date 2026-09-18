@@ -37,6 +37,37 @@ function parseDateSnippet(snippet: string, fallbackDate: Date): string {
   return fallbackDate.toISOString().split('T')[0]
 }
 
+function shiftIsoDate(dateStr: string, days: number): string {
+  const date = new Date(`${dateStr}T12:00:00Z`)
+  date.setUTCDate(date.getUTCDate() + days)
+  return date.toISOString().split('T')[0]
+}
+
+interface ParsedTimeRange {
+  startTime: string
+  endTime?: string
+}
+
+function parseTimeRange(value: string): ParsedTimeRange | undefined {
+  const times = [...value.matchAll(/\b(\d{1,2}):(\d{2})\b/g)]
+    .map((match) => {
+      const hour = Number.parseInt(match[1], 10)
+      const minute = Number.parseInt(match[2], 10)
+      if (hour > 23 || minute > 59)
+        return null
+      return `${String(hour).padStart(2, '0')}:${String(minute).padStart(2, '0')}`
+    })
+    .filter((time): time is string => time !== null)
+
+  if (!times.length)
+    return undefined
+
+  return {
+    startTime: times[0],
+    endTime: times[1],
+  }
+}
+
 function toIsoDate(year: number, month: number, day: number): string {
   const y = String(year).padStart(4, '0')
   const m = String(month + 1).padStart(2, '0')
@@ -870,14 +901,14 @@ export function parseTransportMarkdown(content: string, startDateStr: string): B
           segmentCol = cols[2].replace(/[*_`]/g, '').trim()
           transportCol = cols[3].replace(/[*_`]/g, '').trim()
           durationCol = cols[4].replace(/[*_`]/g, '').trim()
-          paymentCol = cols[5]?.replace(/[*_`]/g, '').trim() ?? ''
+          paymentCol = cols.slice(5).join('; ').replace(/[*_`]/g, '').trim()
         }
         else {
           // стандартный формат (дата вместе с номером дня, или её нет)
           segmentCol = cols[1].replace(/[*_`]/g, '').trim()
           transportCol = cols[2].replace(/[*_`]/g, '').trim()
           durationCol = cols[3].replace(/[*_`]/g, '').trim()
-          paymentCol = cols[4]?.replace(/[*_`]/g, '').trim() ?? ''
+          paymentCol = cols.slice(4).join('; ').replace(/[*_`]/g, '').trim()
         }
 
         // Если сегмент по-прежнему похож на дату — пробуем следующую колонку
@@ -885,7 +916,7 @@ export function parseTransportMarkdown(content: string, startDateStr: string): B
           segmentCol = cols[2].replace(/[*_`]/g, '').trim()
           transportCol = cols[3].replace(/[*_`]/g, '').trim()
           durationCol = cols[4].replace(/[*_`]/g, '').trim()
-          paymentCol = cols[5]?.replace(/[*_`]/g, '').trim() ?? ''
+          paymentCol = cols.slice(5).join('; ').replace(/[*_`]/g, '').trim()
         }
 
         const dateStr = /[а-яё]/i.test(dayCol)
@@ -896,6 +927,12 @@ export function parseTransportMarkdown(content: string, startDateStr: string): B
               eventDate.setDate(eventDate.getDate() + (dayNum - 1))
               return eventDate.toISOString().split('T')[0]
             })()
+        const timeRange = parseTimeRange(durationCol)
+        const departureTime = timeRange?.startTime ?? '09:00'
+        const arrivalTime = timeRange?.endTime ?? '12:00'
+        const arrivalDateStr = timeRange?.endTime && timeRange.endTime < departureTime
+          ? shiftIsoDate(dateStr, 1)
+          : dateStr
 
         // Пропускаем авиаперелеты (они парсятся отдельно из Авиаперелеты.md)
         if (/✈|авиа|самолет|flight/i.test(transportCol) || /авиаперелет/i.test(segmentCol) || /авиабилет/i.test(paymentCol))
@@ -943,7 +980,7 @@ export function parseTransportMarkdown(content: string, startDateStr: string): B
             title: cleanTitle,
             data: {
               attractionName: cleanTitle,
-              dateTime: `${dateStr}T11:00:00`,
+              dateTime: `${dateStr}T${departureTime}:00`,
               notes,
               sourceUrl,
               photos: transportPhotos.length > 0 ? transportPhotos : undefined,
@@ -968,8 +1005,8 @@ export function parseTransportMarkdown(content: string, startDateStr: string): B
               company: removeEmoji(transportCol).replace(/[*_`]/g, '').trim() || undefined,
               pickupLocation: from || undefined,
               dropoffLocation: to || undefined,
-              pickupDateTime: `${dateStr}T09:00:00`,
-              dropoffDateTime: `${dateStr}T12:00:00`,
+              pickupDateTime: `${dateStr}T${departureTime}:00`,
+              dropoffDateTime: `${arrivalDateStr}T${arrivalTime}:00`,
               pickupTimeZone: inferTimezone(from, defaultTimezone),
               dropoffTimeZone: inferTimezone(to, defaultTimezone),
               notes,
@@ -993,8 +1030,8 @@ export function parseTransportMarkdown(content: string, startDateStr: string): B
               name: transportName || title,
               startLocation: from || undefined,
               endLocation: to || undefined,
-              startDateTime: `${dateStr}T09:00:00`,
-              endDateTime: `${dateStr}T12:00:00`,
+              startDateTime: `${dateStr}T${departureTime}:00`,
+              endDateTime: `${arrivalDateStr}T${arrivalTime}:00`,
               startTimeZone: inferTimezone(from, defaultTimezone),
               endTimeZone: inferTimezone(to, defaultTimezone),
               notes,
@@ -1013,8 +1050,8 @@ export function parseTransportMarkdown(content: string, startDateStr: string): B
             data: {
               departureStation: from || undefined,
               arrivalStation: to || undefined,
-              departureDateTime: `${dateStr}T09:00:00`,
-              arrivalDateTime: `${dateStr}T12:00:00`,
+              departureDateTime: `${dateStr}T${departureTime}:00`,
+              arrivalDateTime: `${arrivalDateStr}T${arrivalTime}:00`,
               departureTimeZone: inferTimezone(from, defaultTimezone),
               arrivalTimeZone: inferTimezone(to, defaultTimezone),
               notes,

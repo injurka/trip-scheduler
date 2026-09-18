@@ -1,5 +1,6 @@
 import type { DayMetaInfo } from '../types'
 import { stableId } from '../lib/stable-id'
+import { stripFrontmatter } from './activity'
 
 export function cleanEmoji(str: string): string {
   if (!str)
@@ -15,7 +16,8 @@ export function cleanEmoji(str: string): string {
 
 export function parseDayMetaFromMarkdown(dayContent: string): DayMetaInfo[] {
   const metaBadges: DayMetaInfo[] = []
-  const lines = dayContent.split('\n')
+  const cleanContent = stripFrontmatter(dayContent)
+  const lines = cleanContent.split('\n')
 
   // Find where activities begin
   const timeRegex = /^[*-]\s*\*\*(\d{1,2}:\d{2})\+?\s*(?:[-–—]\s*(\d{1,2}:\d{2}))?\+?\*\*\s*(?:[-–—:]\s*)?(.*)$/

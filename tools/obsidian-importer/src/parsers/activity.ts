@@ -1,5 +1,6 @@
-import type { ActivityPayload, ActivitySectionMetro, MetroRide } from '../types'
+import type { ActivityPayload } from '../types'
 import { stableId } from '../lib/stable-id'
+import { extractTransportBlocks, formatBusTransportBlock } from './transport'
 
 export function inferActivityTag(title: string, content: string): ActivityPayload['tag'] {
   const text = `${title} ${content}`.toLowerCase()
@@ -100,166 +101,16 @@ export function dedentText(text: string): string {
   return normalizeMarkdownIndentation(text)
 }
 
-const METRO_CALLOUT_HEADER = /^>\s*\[!(?:METRO|INFO)\]-?\s*(?:🚇\s*)?(?:метро|metro|mrt|subway)(?:\s|$|[·:–—-])/i
-const ANY_CALLOUT_HEADER = /^>\s*\[![\w-]+\]/
-
-type MetroColumn = 'startStation' | 'endStation' | 'lineName' | 'lineNumber' | 'lineColor' | 'direction' | 'stops'
-
-const METRO_COLUMN_ALIASES: Record<MetroColumn, string[]> = {
-  startStation: ['откуда', 'отправление', 'начальная станция', 'start', 'from'],
-  endStation: ['куда', 'прибытие', 'конечная станция', 'end', 'to'],
-  lineName: ['линия', 'название линии', 'line', 'line name'],
-  lineNumber: ['код', 'номер', '№', 'line code', 'line number'],
-  lineColor: ['цвет', 'цвет линии', 'color', 'line color'],
-  direction: ['направление', 'direction', 'в сторону'],
-  stops: ['остановки', 'остановок', 'станции', 'станций', 'stops', 'stop count'],
-}
-
-function normalizeMetroCell(value: string): string {
-  return value
-    .replace(/\[([^\]]+)\]\([^)]+\)/g, '$1')
-    .replace(/\*\*([^*]+)\*\*/g, '$1')
-    .replace(/`([^`]+)`/g, '$1')
-    .trim()
-}
-
-function normalizeMetroHeader(value: string): string {
-  return normalizeMetroCell(value)
-    .toLocaleLowerCase('ru-RU')
-    .replace(/[.:]/g, '')
-    .replace(/\s+/g, ' ')
-}
-
-function splitMarkdownTableRow(line: string): string[] {
-  const trimmed = line.trim()
-  if (!trimmed.startsWith('|') || !trimmed.endsWith('|'))
-    return []
-
-  return trimmed
-    .slice(1, -1)
-    .split('|')
-    .map(cell => normalizeMetroCell(cell))
-}
-
-function findMetroColumn(headers: string[], column: MetroColumn): number {
-  const aliases = METRO_COLUMN_ALIASES[column]
-  return headers.findIndex(header => aliases.includes(normalizeMetroHeader(header)))
-}
-
-function parseMetroColor(value: string): string {
-  const normalized = normalizeMetroCell(value)
-  if (/^#[\da-f]{3,8}$/i.test(normalized))
-    return normalized
-  return '#808080'
-}
-
-function parseMetroStops(value: string): number {
-  const match = normalizeMetroCell(value).match(/\d+/)
-  return match ? Number.parseInt(match[0], 10) : 0
-}
-
-function parseMetroRides(tableText: string, activityKey: string): MetroRide[] {
-  const rows = tableText
-    .split('\n')
-    .map(line => line.trim())
-    .filter(line => line.startsWith('|') && line.endsWith('|'))
-
-  if (rows.length < 3)
-    return []
-
-  const headers = splitMarkdownTableRow(rows[0])
-  const divider = splitMarkdownTableRow(rows[1])
-  if (headers.length === 0 || divider.length === 0 || !divider.every(cell => /^:?-{3,}:?$/.test(cell.replace(/\s/g, ''))))
-    return []
-
-  const columnIndexes = Object.fromEntries(
-    (Object.keys(METRO_COLUMN_ALIASES) as MetroColumn[]).map(column => [column, findMetroColumn(headers, column)]),
-  ) as Record<MetroColumn, number>
-
-  if (columnIndexes.startStation === -1 || columnIndexes.endStation === -1)
-    return []
-
-  const rides: MetroRide[] = []
-  for (const [index, row] of rows.slice(2).entries()) {
-    const cells = splitMarkdownTableRow(row)
-    const startStation = cells[columnIndexes.startStation] || ''
-    const endStation = cells[columnIndexes.endStation] || ''
-    if (!startStation || !endStation || startStation === '—' || endStation === '—')
-      continue
-
-    const lineName = columnIndexes.lineName >= 0 ? cells[columnIndexes.lineName] || '' : ''
-    const lineNumber = columnIndexes.lineNumber >= 0 ? cells[columnIndexes.lineNumber] || null : null
-    const direction = columnIndexes.direction >= 0 ? cells[columnIndexes.direction] || '' : ''
-    const lineColor = columnIndexes.lineColor >= 0 ? parseMetroColor(cells[columnIndexes.lineColor] || '') : '#808080'
-    const stops = columnIndexes.stops >= 0 ? parseMetroStops(cells[columnIndexes.stops] || '') : 0
-
-    rides.push({
-      id: stableId('metro-ride', activityKey, index, startStation, endStation, lineName),
-      startStation,
-      endStation,
-      lineName,
-      lineNumber,
-      lineColor,
-      direction,
-      stops,
-      startStationId: null,
-      endStationId: null,
-      lineId: null,
-    })
-  }
-
-  return rides
-}
-
-function stripCalloutPrefix(line: string): string {
-  return line.replace(/^>\s?/, '')
-}
-
-function extractMetroSection(markdown: string, activityKey: string): { text: string, section?: ActivitySectionMetro } {
-  const lines = markdown.split('\n')
-  const remaining: string[] = []
-  const metroTableLines: string[] = []
-  let foundMetroCallout = false
-
-  for (let index = 0; index < lines.length; index++) {
-    if (!METRO_CALLOUT_HEADER.test(lines[index])) {
-      remaining.push(lines[index])
-      continue
-    }
-
-    foundMetroCallout = true
-    index++
-    while (index < lines.length && lines[index].trim().startsWith('>')) {
-      if (ANY_CALLOUT_HEADER.test(lines[index]))
-        break
-      metroTableLines.push(stripCalloutPrefix(lines[index]))
-      index++
-    }
-    index--
-  }
-
-  if (!foundMetroCallout)
-    return { text: markdown }
-
-  const rides = parseMetroRides(metroTableLines.join('\n'), activityKey)
-  if (rides.length === 0)
-    return { text: markdown }
-
-  return {
-    text: remaining.join('\n'),
-    section: {
-      id: stableId('activity-section', activityKey, 'metro', 0),
-      type: 'metro',
-      mode: 'free',
-      systemId: null,
-      rides,
-    },
-  }
+export function stripFrontmatter(markdown: string): string {
+  if (!markdown)
+    return ''
+  return markdown.replace(/^---\s*\r?\n[\s\S]*?\r?\n---(?:\s*\r?\n|$)/, '')
 }
 
 export function parseActivitiesFromMarkdown(dayContent: string): ActivityPayload[] {
   const activities: ActivityPayload[] = []
-  const lines = dayContent.split('\n')
+  const cleanContent = stripFrontmatter(dayContent)
+  const lines = cleanContent.split('\n')
 
   const timeRegex = /^[*-]\s*\*\*(\d{1,2}:\d{2})\+?\s*(?:[-–—]\s*(\d{1,2}:\d{2}))?\+?\*\*\s*(?:[-–—:]\s*)?(.*)$/
 
@@ -275,8 +126,13 @@ export function parseActivitiesFromMarkdown(dayContent: string): ActivityPayload
       return
 
     const normalizedActivityText = normalizeMarkdownIndentation(currentActivity.lines.join('\n'))
-    const metro = extractMetroSection(normalizedActivityText, currentActivity.startTime)
-    const sectionText = normalizeMarkdownIndentation(metro.text)
+    const activityKey = currentActivity.startTime
+    const transport = extractTransportBlocks(normalizedActivityText)
+    const busText = transport.blocks
+      .filter(block => block.type === 'bus')
+      .map(formatBusTransportBlock)
+      .join('\n\n')
+    const sectionText = normalizeMarkdownIndentation([transport.text, busText].filter(Boolean).join('\n\n'))
     const cleanTitle = currentActivity.title
       .replace(/^[—–-]\s*/, '')
       .replace(/\s*[—–-]$/, '')
@@ -289,13 +145,34 @@ export function parseActivitiesFromMarkdown(dayContent: string): ActivityPayload
     const sections: ActivityPayload['sections'] = []
     if (sectionText) {
       sections.push({
-        id: stableId('activity-section', currentActivity.startTime, 'description', 0),
+        id: stableId('activity-section', activityKey, 'description', 0),
         type: 'description',
         text: sectionText,
       })
     }
-    if (metro.section)
-      sections.push(metro.section)
+    transport.blocks
+      .filter(block => block.type === 'metro')
+      .forEach((block, sectionIndex) => {
+        sections.push({
+          id: stableId('activity-section', activityKey, 'metro', sectionIndex),
+          type: 'metro',
+          mode: 'free',
+          systemId: null,
+          rides: block.routes.map((route, rideIndex) => ({
+            id: stableId('metro-ride', activityKey, 'transport', sectionIndex, rideIndex, route.from, route.to, route.route),
+            startStation: route.from,
+            endStation: route.to,
+            lineName: route.route,
+            lineNumber: route.code,
+            lineColor: route.color,
+            direction: route.direction,
+            stops: route.stops,
+            startStationId: null,
+            endStationId: null,
+            lineId: null,
+          })),
+        })
+      })
 
     activities.push({
       startTime: currentActivity.startTime,

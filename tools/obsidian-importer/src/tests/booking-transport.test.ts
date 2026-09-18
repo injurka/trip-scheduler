@@ -91,4 +91,30 @@ describe('Transport Booking Parser · разделы «Авто» и «Друг�
         expect(booking).not.toHaveProperty('data.segments')
     }
   })
+
+  it('сохраняет дополнительные колонки и извлекает точные часы, включая переход через полночь', () => {
+    const exact = parseTransportMarkdown(`
+| Дата | Переезд | Транспорт | Время | Статус | Следующее действие |
+| :--- | :--- | :--- | :--- | :--- | :--- |
+| **03 ноя (Вт) ➔ 04 ноя (Ср)** | Ульяновск ➔ Москва | 🚆 Поезд ФПК | **20:45–09:56** | ✅ Куплено | Сохранить PDF офлайн |
+| **21 ноя** | Donggang ➔ Xiaoliuqiu | ⛴️ Tungliu | **10:00–10:20** | ⚠️ Проверить | Следующий рейс — Plan B |
+`, '2026-11-04')
+
+    expect(exact).toHaveLength(2)
+    expect(exact[0]).toMatchObject({
+      type: 'train',
+      data: {
+        departureDateTime: '2026-11-03T20:45:00',
+        arrivalDateTime: '2026-11-04T09:56:00',
+      },
+    })
+    expect(exact[0].data.notes).toContain('Сохранить PDF офлайн')
+    expect(exact[1]).toMatchObject({
+      type: 'other',
+      data: {
+        startDateTime: '2026-11-21T10:00:00',
+        endDateTime: '2026-11-21T10:20:00',
+      },
+    })
+  })
 })

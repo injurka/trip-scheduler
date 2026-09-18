@@ -8,7 +8,17 @@ import { parseHotelsMarkdown } from '../parsers/booking'
 import { extractLocationFromText } from '../parsers/checklist'
 import { detectDocumentCategory, parseObsidianDocuments } from '../parsers/document'
 import { extractCoordinatesFromUrl, extractLocationsFromText } from '../parsers/location'
-import { extractCities, extractDayTitle, extractShortDescription, extractTags, parseObsidianTripFolder, parseTripFrontmatter } from '../parsers/vault'
+import { parseTransportBlock } from '../parsers/transport'
+import {
+  extractCities,
+  extractDayDescription,
+  extractDayTitle,
+  extractShortDescription,
+  extractTags,
+  parseDayFrontmatter,
+  parseObsidianTripFolder,
+  parseTripFrontmatter,
+} from '../parsers/vault'
 
 describe('Path Resolver & Normalizer', () => {
   it('strips leading @ prefix and quotes', () => {
@@ -84,6 +94,74 @@ cities: [Тайбэй, Гаосюн]
       expect(trip.cover).toBe('_/all/cover.jpg')
       expect(trip.coverImagePath).toBe(join(tripDir, '_', 'all', 'cover.jpg'))
       expect(existsSync(trip.coverImagePath!)).toBeTrue()
+    }
+    finally {
+      rmSync(tripDir, { recursive: true, force: true })
+    }
+  })
+})
+
+describe('Day YAML frontmatter', () => {
+  const dayMarkdown = `---
+day: 10
+date: "2026-11-13"
+weekday: "Пятница"
+title: "Скоростной транзит и спокойный вечер в Цзяи"
+location: "Хуалянь ➔ Banqiao ➔ Цзяи (Chiayi)"
+phase: "🌴 Фаза 1 — Чистый отпуск"
+accommodation: "StarYi Hotel"
+highlight: >-
+  Вместо одиннадцатичасового транспортного коридора — прибытие в Цзяи к обеду, 
+  зелёный Chiayi Park и вечерний рынок Вэньхуа без спешки.
+tags:
+  - маршрут/день
+  - тайвань
+  - транзит
+---
+
+# 🗓️ День 10: Пятница (🚄 Скоростной транзит и спокойный вечер в Цзяи)
+
+---
+
+* **07:00 - 09:15** — Поезд TRA EMU3000 в Banqiao:
+    * Скоростной экспресс.
+`
+
+  it('parses day frontmatter properties correctly', () => {
+    const fm = parseDayFrontmatter(dayMarkdown)
+    expect(fm.day).toBe(10)
+    expect(fm.date).toBe('2026-11-13')
+    expect(fm.weekday).toBe('Пятница')
+    expect(fm.title).toBe('Скоростной транзит и спокойный вечер в Цзяи')
+    expect(fm.location).toBe('Хуалянь ➔ Banqiao ➔ Цзяи (Chiayi)')
+    expect(fm.phase).toBe('🌴 Фаза 1 — Чистый отпуск')
+    expect(fm.accommodation).toBe('StarYi Hotel')
+    expect(fm.highlight).toContain('зелёный Chiayi Park')
+    expect(fm.tags).toEqual(['маршрут/день', 'тайвань', 'транзит'])
+  })
+
+  it('extracts day description from day frontmatter without blockquotes', () => {
+    const desc = extractDayDescription(dayMarkdown)
+    expect(desc).toContain('Фаза 1 — Чистый отпуск')
+    expect(desc).toContain('зелёный Chiayi Park')
+  })
+
+  it('parses day with frontmatter in parseObsidianTripFolder', () => {
+    const tripDir = mkdtempSync(join(tmpdir(), 'obsidian-day-fm-'))
+    try {
+      mkdirSync(join(tripDir, '02 - Маршрутный план'), { recursive: true })
+      writeFileSync(join(tripDir, 'Trip.md'), '# Trip\n\n## 📝 Краткое описание\n\nТест.')
+      writeFileSync(join(tripDir, '02 - Маршрутный план', '10 Цзяи.md'), dayMarkdown)
+
+      const trip = parseObsidianTripFolder(tripDir, '2026-11-04')
+      expect(trip.days).toHaveLength(1)
+      const d = trip.days[0]
+      expect(d.dayNumber).toBe(10)
+      expect(d.date).toBe('2026-11-13')
+      expect(d.title).toBe('Скоростной транзит и спокойный вечер в Цзяи')
+      expect(d.location).toBe('Хуалянь ➔ Banqiao ➔ Цзяи (Chiayi)')
+      expect(d.accommodation).toBe('StarYi Hotel')
+      expect(d.description).toContain('Фаза 1')
     }
     finally {
       rmSync(tripDir, { recursive: true, force: true })
@@ -399,41 +477,85 @@ describe('Activity & Day Title Parser', () => {
     expect(activities[0].tag).toBe('walk')
   })
 
-  it('parses a manual metro callout into a metro section and removes it from the note text', () => {
-    const md = `
-* **15:30 - 16:30** — Airport MRT и заселение:
-    * *Маршрут*: Доехать из аэропорта в центр и пересесть на городское метро.
-> [!METRO]- Метро
-> Taipei MRT
->
-> | Откуда | Куда | Линия | Код | Цвет | Направление | Остановки |
-> | :--- | :--- | :--- | :---: | :---: | :--- | :---: |
-> | Airport Terminal 2 (A13) | Taipei Main Station (A1) | Taoyuan Airport MRT | A | #A93C93 | Taipei Main Station | 2 |
-> | Taipei Main Station (R10) | Dongmen (R07) | Tamsui–Xinyi Line | R | #D2072A | Xiangshan | 3 |
-`.trim()
+  it('parses structured transport blocks and keeps bus routes readable for the current API', () => {
+    const metroBlock = parseTransportBlock(`
+type: metro
+title: Taoyuan Airport MRT + Taipei MRT
 
-    const activity = parseActivitiesFromMarkdown(md)[0]
+routes:
+  - from: Airport Terminal 2 (A13)
+    to: Taipei Main Station (A1)
+    line: Taoyuan Airport MRT
+    code: A
+    color: "#A93C93"
+    direction: Taipei Main Station
+    stops: 2
+  - from: Taipei Main Station (R10)
+    to: Dongmen (R07)
+    line: Tamsui–Xinyi Line
+    code: R
+    color: "#D2072A"
+    direction: Xiangshan
+    stops: 3
+`.trim())
+
+    expect(metroBlock).toMatchObject({
+      type: 'metro',
+      title: 'Taoyuan Airport MRT + Taipei MRT',
+    })
+    expect(metroBlock?.routes).toHaveLength(2)
+    expect(metroBlock?.routes[0]).toMatchObject({
+      from: 'Airport Terminal 2 (A13)',
+      to: 'Taipei Main Station (A1)',
+      route: 'Taoyuan Airport MRT',
+      code: 'A',
+      color: '#A93C93',
+      stops: 2,
+    })
+
+    const metroActivity = parseActivitiesFromMarkdown(`
+* **15:30 - 16:30** — Airport MRT:
+\`\`\`transport
+type: metro
+title: Taoyuan Airport MRT + Taipei MRT
+
+routes:
+  - from: Airport Terminal 2 (A13)
+    to: Taipei Main Station (A1)
+    line: Taoyuan Airport MRT
+    code: A
+    color: "#A93C93"
+    direction: Taipei Main Station
+    stops: 2
+\`\`\`
+`.trim())[0]
+    const metroSection = metroActivity.sections?.find(section => section.type === 'metro')
+
+    expect(metroSection?.type === 'metro' ? metroSection.rides : []).toHaveLength(1)
+    expect(metroSection?.type === 'metro' ? metroSection.rides[0].lineName : '').toBe('Taoyuan Airport MRT')
+
+    const activity = parseActivitiesFromMarkdown(`
+* **10:00 - 11:00** — Автобус до деревни:
+\`\`\`transport
+type: bus
+title: Chiayi → Hinoki Village
+
+routes:
+  - from: TRA Chiayi Station
+    to: Hinoki Village
+    route: Zhongxiao Xinmin Main Line
+    code: Red A
+    operator: Kuo-Kuang
+    direction: Minxiong Industrial Park Service Center
+    stops: 2
+    walk: 95 м / 2 мин
+\`\`\`
+`.trim())[0]
     const description = activity.sections?.find(section => section.type === 'description')
-    const metro = activity.sections?.find(section => section.type === 'metro')
 
-    expect(description?.type === 'description' ? description.text : '').not.toContain('[!METRO]')
-    expect(metro).toBeDefined()
-    if (metro?.type === 'metro') {
-      expect(metro.mode).toBe('free')
-      expect(metro.systemId).toBeNull()
-      expect(metro.rides).toHaveLength(2)
-      expect(metro.rides[0]).toMatchObject({
-        startStation: 'Airport Terminal 2 (A13)',
-        endStation: 'Taipei Main Station (A1)',
-        lineNumber: 'A',
-        lineColor: '#A93C93',
-        direction: 'Taipei Main Station',
-        stops: 2,
-      })
-    }
-
-    const infoVariant = parseActivitiesFromMarkdown(md.replace('[!METRO]', '[!INFO]'))[0]
-    expect(infoVariant.sections?.some(section => section.type === 'metro')).toBeTrue()
+    expect(description?.type === 'description' ? description.text : '').toContain('Kuo-Kuang')
+    expect(description?.type === 'description' ? description.text : '').toContain('95 м / 2 мин')
+    expect(description?.type === 'description' ? description.text : '').not.toContain('```transport')
   })
 
   it('extracts clean day title removing number prefixes', () => {

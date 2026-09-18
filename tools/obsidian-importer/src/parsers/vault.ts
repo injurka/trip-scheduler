@@ -1,4 +1,4 @@
-import type { ParsedDay, ParsedNoteFile, ParsedNoteFolder, ParsedTripData } from '../types'
+import type { DayFrontmatter, ParsedDay, ParsedNoteFile, ParsedNoteFolder, ParsedTripData } from '../types'
 import { existsSync, readdirSync, readFileSync, statSync } from 'node:fs'
 import { basename, isAbsolute, join, relative, resolve } from 'node:path'
 import { discoverVaultFolders, normalizeFsPath } from '../lib/vault-locator'
@@ -160,6 +160,109 @@ export function parseTripFrontmatter(markdown: string): TripFrontmatter {
   return result
 }
 
+/** Parses YAML frontmatter properties from day itinerary notes (02 - Маршрутный план/*). */
+export function parseDayFrontmatter(markdown: string): DayFrontmatter {
+  const match = markdown.match(/^---\s*\r?\n([\s\S]*?)\r?\n---(?:\s*\r?\n|$)/)
+  if (!match)
+    return {}
+
+  const result: DayFrontmatter = {}
+  const lines = match[1].split(/\r?\n/)
+  for (let index = 0; index < lines.length; index++) {
+    const keyMatch = lines[index].match(/^([A-Za-z][\w-]*):\s*(.*)$/)
+    if (!keyMatch)
+      continue
+
+    const key = keyMatch[1]
+    const rawValue = keyMatch[2]
+
+    if (key === 'day') {
+      const val = Number.parseInt(unquoteYamlScalar(rawValue), 10)
+      if (!Number.isNaN(val))
+        result.day = val
+      continue
+    }
+
+    if (key === 'date') {
+      const val = unquoteYamlScalar(rawValue)
+      if (val)
+        result.date = val
+      continue
+    }
+
+    if (key === 'weekday') {
+      const val = unquoteYamlScalar(rawValue)
+      if (val)
+        result.weekday = val
+      continue
+    }
+
+    if (key === 'title') {
+      const val = unquoteYamlScalar(rawValue)
+      if (val)
+        result.title = val
+      continue
+    }
+
+    if (key === 'location') {
+      const val = unquoteYamlScalar(rawValue)
+      if (val)
+        result.location = val
+      continue
+    }
+
+    if (key === 'phase') {
+      if (/^[>|][-+]?\s*$/.test(rawValue)) {
+        const parts: string[] = []
+        while (index + 1 < lines.length && /^\s+/.test(lines[index + 1]))
+          parts.push(lines[++index].trim())
+        result.phase = parts.join(' ').trim()
+      }
+      else {
+        result.phase = unquoteYamlScalar(rawValue)
+      }
+      continue
+    }
+
+    if (key === 'accommodation' || key === 'hotel') {
+      const val = unquoteYamlScalar(rawValue)
+      if (val) {
+        result.accommodation = val
+        result.hotel = val
+      }
+      continue
+    }
+
+    if (key === 'highlight' || key === 'description') {
+      if (/^[>|][-+]?\s*$/.test(rawValue)) {
+        const parts: string[] = []
+        while (index + 1 < lines.length && /^\s+/.test(lines[index + 1]))
+          parts.push(lines[++index].trim())
+        result[key] = parts.join(' ').trim()
+      }
+      else {
+        result[key] = unquoteYamlScalar(rawValue)
+      }
+      continue
+    }
+
+    if (key === 'tags') {
+      const values = parseYamlArray(rawValue)
+      while (index + 1 < lines.length) {
+        const listMatch = lines[index + 1].match(/^\s+-\s+(.+)$/)
+        if (!listMatch)
+          break
+        values.push(unquoteYamlScalar(listMatch[1]))
+        index++
+      }
+      result.tags = values.filter(Boolean)
+      continue
+    }
+  }
+
+  return result
+}
+
 function resolveCoverImage(cover: string | undefined, tripRoot: string): { cover?: string, coverImagePath?: string } {
   if (!cover)
     return {}
@@ -192,9 +295,27 @@ export function extractDayTitle(fileNameWithoutExt: string, dayNumber: number): 
   return fallbackTitle || `День ${dayNumber}`
 }
 
-export function extractDayDescription(content: string): string {
+export function extractDayDescription(content: string, frontmatter?: DayFrontmatter): string {
   if (!content)
     return ''
+
+  const fm = frontmatter ?? parseDayFrontmatter(content)
+  const rawPhaseFm = fm.phase ? cleanMarkdownFormatting(fm.phase) : ''
+  const rawHighlightFm = (fm.highlight || fm.description)
+    ? cleanMarkdownFormatting(fm.highlight || fm.description || '')
+    : ''
+
+  if (rawPhaseFm && rawHighlightFm) {
+    const cleanPhase = rawPhaseFm.replace(/[.;,]+$/, '')
+    const cleanHighlight = rawHighlightFm.replace(/[.;,]+$/, '')
+    return `${cleanPhase}. ${cleanHighlight}.`
+  }
+  if (rawPhaseFm) {
+    return rawPhaseFm.endsWith('.') ? rawPhaseFm : `${rawPhaseFm}.`
+  }
+  if (rawHighlightFm) {
+    return rawHighlightFm.endsWith('.') ? rawHighlightFm : `${rawHighlightFm}.`
+  }
 
   const phaseMatch = content.match(/>[ \t]*\*\*(?:Фаза тура|Фаза|Phase):\*\*[ \t]*([^\n]+)/i)
   const highlightMatch = content.match(/>[ \t]*\*\*(?:Ключевой хайлайт|Хайлайт дня|Хайлайты|Хайлайт|Highlight):\*\*[ \t]*([^\n]+)/i)
@@ -358,17 +479,27 @@ export function parseObsidianTripFolder(tripPath: string, startDateStr?: string)
         continue
       }
 
+      const dayFrontmatter = parseDayFrontmatter(content)
       const dayNumberMatch = fileName.match(/^(?:0*(\d{1,2})|[дd](\d{1,2})|day\s*(\d{1,2}))/i)
-      if (!dayNumberMatch)
+      const fallbackDayNumber = dayNumberMatch
+        ? Number.parseInt(dayNumberMatch[1] || dayNumberMatch[2] || dayNumberMatch[3], 10)
+        : 0
+      const dayNumber = dayFrontmatter.day ?? fallbackDayNumber
+      if (!dayNumber)
         continue
-      const dayNumber = Number.parseInt(dayNumberMatch[1] || dayNumberMatch[2] || dayNumberMatch[3], 10)
 
-      const title = extractDayTitle(fileNameWithoutExt, dayNumber)
-      const dayDescription = extractDayDescription(content)
+      const title = dayFrontmatter.title || extractDayTitle(fileNameWithoutExt, dayNumber)
+      const dayDescription = extractDayDescription(content, dayFrontmatter)
 
-      const dayDate = new Date(startDate)
-      dayDate.setDate(dayDate.getDate() + (dayNumber - 1))
-      const dateStr = dayDate.toISOString().split('T')[0]
+      let dateStr: string
+      if (dayFrontmatter.date) {
+        dateStr = dayFrontmatter.date
+      }
+      else {
+        const dayDate = new Date(startDate)
+        dayDate.setDate(dayDate.getDate() + (dayNumber - 1))
+        dateStr = dayDate.toISOString().split('T')[0]
+      }
 
       const rawContent = normalizeIframeLineBreaks(content)
       const dayMeta = parseDayMetaFromMarkdown(rawContent)
@@ -382,6 +513,12 @@ export function parseObsidianTripFolder(tripPath: string, startDateStr?: string)
         rawContent,
         date: dateStr,
         meta: dayMeta,
+        location: dayFrontmatter.location,
+        accommodation: dayFrontmatter.accommodation || dayFrontmatter.hotel,
+        phase: dayFrontmatter.phase,
+        highlight: dayFrontmatter.highlight,
+        tags: dayFrontmatter.tags,
+        frontmatter: Object.keys(dayFrontmatter).length > 0 ? dayFrontmatter : undefined,
       })
     }
   }

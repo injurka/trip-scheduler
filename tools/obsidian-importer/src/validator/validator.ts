@@ -24,6 +24,7 @@ import {
   extractDetailedDescription,
   extractShortDescription,
   extractTags,
+  parseDayFrontmatter,
   parseTripFrontmatter,
 } from '../parsers/vault'
 
@@ -194,10 +195,13 @@ export function validateObsidianVault(context: ValidationScopeContext, startDate
         continue
       }
 
+      const dayFm = parseDayFrontmatter(content)
       const dayNumberMatch = fileName.match(/^(?:0*(\d{1,2})|[дd](\d{1,2})|day\s*(\d{1,2}))/i)
-      const dayNumber = dayNumberMatch
-        ? Number.parseInt(dayNumberMatch[1] || dayNumberMatch[2] || dayNumberMatch[3], 10)
-        : (daySummaries.length + 1)
+      const dayNumber = dayFm.day ?? (
+        dayNumberMatch
+          ? Number.parseInt(dayNumberMatch[1] || dayNumberMatch[2] || dayNumberMatch[3], 10)
+          : (daySummaries.length + 1)
+      )
 
       // Проверка дубликатов номеров дней
       if (dayNumberSet.has(dayNumber)) {
@@ -211,21 +215,28 @@ export function validateObsidianVault(context: ValidationScopeContext, startDate
       }
       dayNumberSet.add(dayNumber)
 
-      const title = extractDayTitle(fileNameWithoutExt, dayNumber)
-      const dayDescription = extractDayDescription(content)
+      const title = dayFm.title || extractDayTitle(fileNameWithoutExt, dayNumber)
+      const dayDescription = extractDayDescription(content, dayFm)
       const rawContent = normalizeIframeLineBreaks(content)
 
-      const dayDate = new Date(startDate)
-      dayDate.setDate(dayDate.getDate() + (dayNumber - 1))
-      const dateStr = dayDate.toISOString().split('T')[0]
+      let dateStr: string
+      if (dayFm.date) {
+        dateStr = dayFm.date
+      }
+      else {
+        const dayDate = new Date(startDate)
+        dayDate.setDate(dayDate.getDate() + (dayNumber - 1))
+        dateStr = dayDate.toISOString().split('T')[0]
+      }
 
       const dayMeta = parseDayMetaFromMarkdown(rawContent)
       const activities = parseActivitiesFromMarkdown(rawContent)
 
       // Проверка шапки дня
       const dayIssues: ValidationIssue[] = []
-      const hasPhase = />[ \t]*\*\*(?:Фаза тура|Фаза|Phase):\*\*/i.test(content)
-      const hasHighlight = />[ \t]*\*\*(?:Ключевой хайлайт|Хайлайт дня|Хайлайты|Хайлайт|Highlight):\*\*/i.test(content)
+      const hasFmHighlight = Boolean(dayFm.highlight || dayFm.description)
+      const hasPhase = hasFmHighlight || />[ \t]*\*\*(?:Фаза тура|Фаза|Phase):\*\*/i.test(content)
+      const hasHighlight = hasFmHighlight || />[ \t]*\*\*(?:Ключевой хайлайт|Хайлайт дня|Хайлайты|Хайлайт|Highlight):\*\*/i.test(content)
 
       if (!hasPhase && !hasHighlight) {
         if (!dayDescription) {
@@ -233,8 +244,8 @@ export function validateObsidianVault(context: ValidationScopeContext, startDate
             severity: 'warning',
             category: 'days',
             file: fileName,
-            message: 'В шапке дня отсутствуют параметры `> **Фаза тура:**` и `> **Ключевой хайлайт:**`, описание дня не сформировано.',
-            recommendation: 'Добавьте в цитату шапки строки `> **Фаза тура:** ...` и `> **Ключевой хайлайт:** ...` для заполнения описания дня в расписании.',
+            message: 'В свойствах дня (frontmatter) или в шапке отсутствуют параметры описания (`highlight`/`description`), описание дня не сформировано.',
+            recommendation: 'Добавьте в frontmatter свойство `highlight: ...` (или в цитату шапки `> **Ключевой хайлайт:** ...`) для заполнения описания дня в расписании.',
           })
         }
         else {
@@ -242,8 +253,8 @@ export function validateObsidianVault(context: ValidationScopeContext, startDate
             severity: 'info',
             category: 'days',
             file: fileName,
-            message: 'В шапке дня не используются стандартные теги `> **Фаза тура:**` и `> **Ключевой хайлайт:**` (использован резервный источник описания).',
-            recommendation: 'Для соответствия Золотому стандарту оформите шапку дня через `> **Фаза тура:** ...` и `> **Ключевой хайлайт:** ...`.',
+            message: 'В свойствах дня не используются стандартные свойства frontmatter (`highlight`) или теги `> **Ключевой хайлайт:**` (использован резервный источник описания).',
+            recommendation: 'Для соответствия стандарту оформите свойства дня через frontmatter (`highlight: ...`) или цитату `> **Ключевой хайлайт:** ...`.',
           })
         }
       }
