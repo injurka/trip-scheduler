@@ -216,12 +216,14 @@ export function useTripsHub() {
       return
 
     const [removedTrip] = trips.value.splice(tripIndex, 1)
-    toast.info(`Путешествие "${removedTrip.title}" удалено.`)
+    const deletingToastId = toast.info(`Удаляем путешествие "${removedTrip.title}"…`, { expire: 0 })
 
     useRequest({
       key: `${ETripHubKeys.DELETE}:${tripId}`,
       fn: db => db.trips.delete(tripId),
       onSuccess: () => {
+        toast.remove(deletingToastId)
+        toast.success(`Путешествие "${removedTrip.title}" удалено.`)
         authStore.decrementTripCount()
         const offlineStore = useOfflineStore()
         if (offlineStore.isTripCached(tripId)) {
@@ -229,6 +231,7 @@ export function useTripsHub() {
         }
       },
       onError: ({ error }) => {
+        toast.remove(deletingToastId)
         trips.value.splice(tripIndex, 0, removedTrip)
         toast.error(`Не удалось удалить путешествие: ${error.customMessage}`)
       },

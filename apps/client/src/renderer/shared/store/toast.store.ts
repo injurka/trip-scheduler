@@ -33,6 +33,8 @@ export const useToastStore = defineStore('toast', {
       if (finalMessage.expire > 0) {
         setTimeout(() => this.remove(id), finalMessage.expire)
       }
+
+      return finalMessage.id
     },
 
     remove(id: string) {
@@ -43,19 +45,19 @@ export const useToastStore = defineStore('toast', {
     },
 
     success(detail: string, options: ToastOptions = {}) {
-      this.add({ type: 'success', detail, ...options })
+      return this.add({ type: 'success', detail, ...options })
     },
 
     error(detail: string, options: ToastOptions = {}) {
-      this.add({ type: 'error', detail, ...options })
+      return this.add({ type: 'error', detail, ...options })
     },
 
     info(detail: string, options: ToastOptions = {}) {
-      this.add({ type: 'info', detail, ...options })
+      return this.add({ type: 'info', detail, ...options })
     },
 
     warn(detail: string, options: ToastOptions = {}) {
-      this.add({ type: 'warn', detail, ...options })
+      return this.add({ type: 'warn', detail, ...options })
     },
   },
 })

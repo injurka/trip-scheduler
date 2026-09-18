@@ -12,10 +12,10 @@ export interface ToastMessage {
 export type ToastOptions = Omit<Partial<ToastMessage>, 'id' | 'detail'>
 
 export interface ToastApi {
-  add: (message: Omit<Partial<ToastMessage>, 'id'>) => void
+  add: (message: Omit<Partial<ToastMessage>, 'id'>) => string
   remove: (id: string) => void
-  success: (detail: string, options?: ToastOptions) => void
-  error: (detail: string, options?: ToastOptions) => void
-  warn: (detail: string, options?: ToastOptions) => void
-  info: (detail: string, options?: ToastOptions) => void
+  success: (detail: string, options?: ToastOptions) => string
+  error: (detail: string, options?: ToastOptions) => string
+  warn: (detail: string, options?: ToastOptions) => string
+  info: (detail: string, options?: ToastOptions) => string
 }

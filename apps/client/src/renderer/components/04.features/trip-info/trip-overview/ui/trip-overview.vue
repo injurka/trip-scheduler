@@ -15,8 +15,10 @@ import { KitImage } from '~/components/01.kit/kit-image'
 import { KitInlineMdEditorWrapper } from '~/components/01.kit/kit-inline-md-editor'
 import { KitTooltip } from '~/components/01.kit/kit-tooltip'
 import { OfflineDownloadDialog } from '~/components/02.shared/offline-manager'
+import { ETripPlanKeys } from '~/components/04.features/trip-info/trip-plan/store/trip-plan.store'
 import { useModuleStore } from '~/components/05.modules/trip-info/composables/use-trip-info-module'
 import { useTripPermissions } from '~/components/05.modules/trip-info/composables/use-trip-permissions'
+import { useRequestStatusByPrefix } from '~/plugins/request'
 import { vRipple } from '~/shared/directives/ripple'
 import { calculateTripBoundingBox } from '~/shared/lib/tile-calc'
 import { useOfflineStore } from '~/shared/store/offline.store'
@@ -62,6 +64,7 @@ const { isViewMode } = storeToRefs(moduleStore.ui)
 const isEditable = computed(() => canEdit.value && !isViewMode.value)
 
 const isMoreMenuOpen = ref(false)
+const isDeleting = useRequestStatusByPrefix(ETripPlanKeys.DELETE_TRIP)
 
 const isDaysDialogVisible = ref(false)
 const isCitiesDialogVisible = ref(false)
@@ -280,6 +283,9 @@ function handleEditTrip() {
 }
 
 async function handleDeleteTrip() {
+  if (isDeleting.value)
+    return
+
   const isConfirmed = await confirm({
     title: 'Удалить путешествие?',
     description: 'Это действие необратимо. Все дни, планы и воспоминания будут удалены.',
@@ -338,7 +344,12 @@ const moreMenuItems = computed((): KitDropdownItem<string>[] => {
 
   if (canEdit.value) {
     items.unshift({ value: 'edit', label: 'Редактировать', icon: 'mdi:pencil-outline' })
-    items.push({ value: 'delete', label: 'Удалить', icon: 'mdi:trash-can-outline', isDestructive: true })
+    if (isDeleting.value) {
+      items.push({ value: 'deleting', label: 'Удаление…', icon: 'mdi:loading' })
+    }
+    else {
+      items.push({ value: 'delete', label: 'Удалить', icon: 'mdi:trash-can-outline', isDestructive: true })
+    }
   }
   return items
 })
@@ -456,10 +467,10 @@ watch(() => props.trip?.id, (newId) => {
                 :key="item.value"
                 class="kit-dropdown-item"
                 :class="{ 'is-destructive': item.isDestructive }"
-                :disabled="item.value === 'downloading'"
+                :disabled="item.value === 'downloading' || item.value === 'deleting'"
                 @click="handleMenuAction(item.value)"
               >
-                <Icon v-if="item.icon" :icon="item.icon" class="item-icon" :class="{ 'spin-icon': item.value === 'downloading' }" />
+                <Icon v-if="item.icon" :icon="item.icon" class="item-icon" :class="{ 'spin-icon': item.value === 'downloading' || item.value === 'deleting' }" />
                 <span class="item-label">{{ item.label }}</span>
               </DropdownMenuItem>
             </KitDropdown>
@@ -753,6 +764,17 @@ watch(() => props.trip?.id, (newId) => {
       @confirm="handleConfirmOfflineDownload"
     />
   </div>
+
+  <Teleport to="body">
+    <Transition name="deleting-overlay-fade">
+      <div v-if="isDeleting" class="trip-deleting-overlay" role="status" aria-live="polite">
+        <div class="trip-deleting-overlay__card">
+          <Icon icon="mdi:loading" class="trip-deleting-overlay__spinner" />
+          <span>Удаляем путешествие…</span>
+        </div>
+      </div>
+    </Transition>
+  </Teleport>
 </template>
 
 <style scoped lang="scss">
@@ -1715,5 +1737,47 @@ watch(() => props.trip?.id, (newId) => {
     margin-left: 0;
     padding-left: 0;
   }
+}
+
+.trip-deleting-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 9998;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(10, 10, 15, 0.55);
+  backdrop-filter: blur(4px);
+  -webkit-backdrop-filter: blur(4px);
+
+  &__card {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 16px 24px;
+    border-radius: var(--r-l);
+    background-color: var(--bg-secondary-color);
+    border: 1px solid var(--border-primary-color);
+    box-shadow: var(--s-xl);
+    color: var(--fg-primary-color);
+    font-size: 1rem;
+    font-weight: 500;
+  }
+
+  &__spinner {
+    font-size: 1.5rem;
+    color: var(--fg-accent-color);
+    animation: spin 1s linear infinite;
+  }
+}
+
+.deleting-overlay-fade-enter-active,
+.deleting-overlay-fade-leave-active {
+  transition: opacity 0.2s ease;
+}
+
+.deleting-overlay-fade-enter-from,
+.deleting-overlay-fade-leave-to {
+  opacity: 0;
 }
 </style>
