@@ -167,6 +167,34 @@ tags:
       rmSync(tripDir, { recursive: true, force: true })
     }
   })
+
+  it('parses is_ready in frontmatter and appends (✅ Готов) to day description', () => {
+    const readyMarkdown = `---
+day: 3
+date: 2026-11-06
+weekday: Пятница
+title: Первые огни Тайбэя
+location: Гуанчжоу ➔ TPE ➔ Тайбэй
+phase: 🌴 Фаза 1 — Чистый отпуск
+highlight: Первое знакомство с Формозой без гонки после перелёта.
+is_ready: true
+---
+
+# 🗓️ День 03: Пятница
+`
+    const fm = parseDayFrontmatter(readyMarkdown)
+    expect(fm.is_ready).toBe(true)
+    expect(fm.isReady).toBe(true)
+
+    const desc = extractDayDescription(readyMarkdown, fm)
+    expect(desc).toBe('Фаза 1 — Чистый отпуск. Первое знакомство с Формозой без гонки после перелёта. (✅ Готов)')
+
+    const notReadyMarkdown = readyMarkdown.replace('is_ready: true', 'is_ready: false')
+    const fmNotReady = parseDayFrontmatter(notReadyMarkdown)
+    expect(fmNotReady.is_ready).toBe(false)
+    const descNotReady = extractDayDescription(notReadyMarkdown, fmNotReady)
+    expect(descNotReady).toBe('Фаза 1 — Чистый отпуск. Первое знакомство с Формозой без гонки после перелёта.')
+  })
 })
 
 describe('Hotel Booking Parser', () => {

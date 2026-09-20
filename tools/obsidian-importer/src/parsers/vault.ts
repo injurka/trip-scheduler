@@ -258,6 +258,13 @@ export function parseDayFrontmatter(markdown: string): DayFrontmatter {
       result.tags = values.filter(Boolean)
       continue
     }
+
+    if (key === 'is_ready' || key === 'isReady' || key === 'ready') {
+      const val = unquoteYamlScalar(rawValue).toLowerCase()
+      result.is_ready = val === 'true' || val === 'yes' || val === '1'
+      result.isReady = result.is_ready
+      continue
+    }
   }
 
   return result
@@ -300,6 +307,8 @@ export function extractDayDescription(content: string, frontmatter?: DayFrontmat
     return ''
 
   const fm = frontmatter ?? parseDayFrontmatter(content)
+  let description = ''
+
   const rawPhaseFm = fm.phase ? cleanMarkdownFormatting(fm.phase) : ''
   const rawHighlightFm = (fm.highlight || fm.description)
     ? cleanMarkdownFormatting(fm.highlight || fm.description || '')
@@ -308,61 +317,74 @@ export function extractDayDescription(content: string, frontmatter?: DayFrontmat
   if (rawPhaseFm && rawHighlightFm) {
     const cleanPhase = rawPhaseFm.replace(/[.;,]+$/, '')
     const cleanHighlight = rawHighlightFm.replace(/[.;,]+$/, '')
-    return `${cleanPhase}. ${cleanHighlight}.`
+    description = `${cleanPhase}. ${cleanHighlight}.`
   }
-  if (rawPhaseFm) {
-    return rawPhaseFm.endsWith('.') ? rawPhaseFm : `${rawPhaseFm}.`
+  else if (rawPhaseFm) {
+    description = rawPhaseFm.endsWith('.') ? rawPhaseFm : `${rawPhaseFm}.`
   }
-  if (rawHighlightFm) {
-    return rawHighlightFm.endsWith('.') ? rawHighlightFm : `${rawHighlightFm}.`
+  else if (rawHighlightFm) {
+    description = rawHighlightFm.endsWith('.') ? rawHighlightFm : `${rawHighlightFm}.`
   }
+  else {
+    const phaseMatch = content.match(/>[ \t]*\*\*(?:Фаза тура|Фаза|Phase):\*\*[ \t]*([^\n]+)/i)
+    const highlightMatch = content.match(/>[ \t]*\*\*(?:Ключевой хайлайт|Хайлайт дня|Хайлайты|Хайлайт|Highlight):\*\*[ \t]*([^\n]+)/i)
 
-  const phaseMatch = content.match(/>[ \t]*\*\*(?:Фаза тура|Фаза|Phase):\*\*[ \t]*([^\n]+)/i)
-  const highlightMatch = content.match(/>[ \t]*\*\*(?:Ключевой хайлайт|Хайлайт дня|Хайлайты|Хайлайт|Highlight):\*\*[ \t]*([^\n]+)/i)
+    const rawPhase = phaseMatch ? cleanMarkdownFormatting(phaseMatch[1]) : ''
+    const rawHighlight = highlightMatch ? cleanMarkdownFormatting(highlightMatch[1]) : ''
 
-  const rawPhase = phaseMatch ? cleanMarkdownFormatting(phaseMatch[1]) : ''
-  const rawHighlight = highlightMatch ? cleanMarkdownFormatting(highlightMatch[1]) : ''
+    if (rawPhase && rawHighlight) {
+      const cleanPhase = rawPhase.replace(/[.;,]+$/, '')
+      const cleanHighlight = rawHighlight.replace(/[.;,]+$/, '')
+      description = `${cleanPhase}. ${cleanHighlight}.`
+    }
+    else if (rawPhase) {
+      description = rawPhase.endsWith('.') ? rawPhase : `${rawPhase}.`
+    }
+    else if (rawHighlight) {
+      description = rawHighlight.endsWith('.') ? rawHighlight : `${rawHighlight}.`
+    }
+    else {
+      // Fallback 1: Explicit expectation / description section
+      const expectMatch = content.match(/##\s*(?:\S[^\n]*)?(?:Чего ожидать от дня|Описание дня|Обзор дня|Хайлайты дня)\s*\n([^#\n]+)/i)
+      if (expectMatch && expectMatch[1].trim()) {
+        const cleaned = cleanMarkdownFormatting(expectMatch[1])
+        if (cleaned)
+          description = cleaned
+      }
 
-  if (rawPhase && rawHighlight) {
-    const cleanPhase = rawPhase.replace(/[.;,]+$/, '')
-    const cleanHighlight = rawHighlight.replace(/[.;,]+$/, '')
-    return `${cleanPhase}. ${cleanHighlight}.`
-  }
-  if (rawPhase) {
-    return rawPhase.endsWith('.') ? rawPhase : `${rawPhase}.`
-  }
-  if (rawHighlight) {
-    return rawHighlight.endsWith('.') ? rawHighlight : `${rawHighlight}.`
-  }
+      if (!description) {
+        // Fallback 2: Title parenthesized subtitle, e.g. # 🗓️ День 01: Четверг (🛬 Перелет за Полярный круг...)
+        const titleSubMatch = content.match(/^#[ \t]*(?:🗓️[ \t]*)?День\s*\d+[^(\n]*\(([^)]+)\)/im)
+          || content.match(/^##[ \t]*Маршрут:[ \t]*([^\n]+)/im)
+        if (titleSubMatch && (titleSubMatch[1] || titleSubMatch[2])) {
+          const candidate = cleanMarkdownFormatting(titleSubMatch[1] || titleSubMatch[2])
+          if (candidate && candidate.length > 10) {
+            description = candidate.endsWith('.') ? candidate : `${candidate}.`
+          }
+        }
+      }
 
-  // Fallback 1: Explicit expectation / description section
-  const expectMatch = content.match(/##\s*(?:\S[^\n]*)?(?:Чего ожидать от дня|Описание дня|Обзор дня|Хайлайты дня)\s*\n([^#\n]+)/i)
-  if (expectMatch && expectMatch[1].trim()) {
-    const cleaned = cleanMarkdownFormatting(expectMatch[1])
-    if (cleaned)
-      return cleaned
-  }
-
-  // Fallback 2: Title parenthesized subtitle, e.g. # 🗓️ День 01: Четверг (🛬 Перелет за Полярный круг...)
-  const titleSubMatch = content.match(/^#[ \t]*(?:🗓️[ \t]*)?День\s*\d+[^(\n]*\(([^)]+)\)/im)
-    || content.match(/^##[ \t]*Маршрут:[ \t]*([^\n]+)/im)
-  if (titleSubMatch && (titleSubMatch[1] || titleSubMatch[2])) {
-    const candidate = cleanMarkdownFormatting(titleSubMatch[1] || titleSubMatch[2])
-    if (candidate && candidate.length > 10) {
-      return candidate.endsWith('.') ? candidate : `${candidate}.`
+      if (!description) {
+        // Fallback 3: First regular paragraph
+        const firstPara = content
+          .split('\n')
+          .map(l => l.trim())
+          .find(l => l && !l.startsWith('#') && !l.startsWith('>') && !l.startsWith('-') && !l.startsWith('*') && !l.startsWith('---'))
+        if (firstPara) {
+          description = cleanMarkdownFormatting(firstPara).slice(0, 250)
+        }
+      }
     }
   }
 
-  // Fallback 3: First regular paragraph
-  const firstPara = content
-    .split('\n')
-    .map(l => l.trim())
-    .find(l => l && !l.startsWith('#') && !l.startsWith('>') && !l.startsWith('-') && !l.startsWith('*') && !l.startsWith('---'))
-  if (firstPara) {
-    return cleanMarkdownFormatting(firstPara).slice(0, 250)
+  if (fm.is_ready || fm.isReady) {
+    if (description) {
+      return `${description} (✅ Готов)`
+    }
+    return '(✅ Готов)'
   }
 
-  return ''
+  return description
 }
 
 export function parseObsidianTripFolder(tripPath: string, startDateStr?: string): ParsedTripData {
@@ -518,6 +540,8 @@ export function parseObsidianTripFolder(tripPath: string, startDateStr?: string)
         phase: dayFrontmatter.phase,
         highlight: dayFrontmatter.highlight,
         tags: dayFrontmatter.tags,
+        is_ready: dayFrontmatter.is_ready,
+        isReady: dayFrontmatter.isReady,
         frontmatter: Object.keys(dayFrontmatter).length > 0 ? dayFrontmatter : undefined,
       })
     }

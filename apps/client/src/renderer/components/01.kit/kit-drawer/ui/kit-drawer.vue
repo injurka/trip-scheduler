@@ -57,7 +57,6 @@ const visible = defineModel<boolean>('open', { required: true })
   position: fixed;
   inset: 0;
   z-index: 1000;
-  top: var(--safe-area-inset-top);
 
   &[data-state='open'] {
     animation: overlay-show 300ms cubic-bezier(0.16, 1, 0.3, 1) forwards;
@@ -74,8 +73,6 @@ const visible = defineModel<boolean>('open', { required: true })
   box-shadow: var(--s-xl);
   display: flex;
   flex-direction: column;
-  max-height: calc(100dvh - var(--safe-area-inset-top) - var(--safe-area-inset-bottom, 0px));
-  top: var(--safe-area-inset-top);
   overflow: hidden;
 
   &:focus {
@@ -83,11 +80,13 @@ const visible = defineModel<boolean>('open', { required: true })
   }
 
   &.drawer--left {
-    top: var(--safe-area-inset-top);
+    top: 0;
     bottom: 0;
     left: 0;
+    max-height: 100dvh;
     max-width: 80vw;
     border-right: 1px solid var(--border-secondary-color);
+    padding-top: var(--safe-area-inset-top, env(safe-area-inset-top, 0px));
     padding-bottom: var(--safe-area-inset-bottom, env(safe-area-inset-bottom, 0px));
     &[data-state='open'] {
       animation: slide-in-from-left 300ms cubic-bezier(0.22, 1, 0.36, 1) forwards;
@@ -98,11 +97,13 @@ const visible = defineModel<boolean>('open', { required: true })
   }
 
   &.drawer--right {
-    top: var(--safe-area-inset-top);
+    top: 0;
     bottom: 0;
     right: 0;
+    max-height: 100dvh;
     max-width: 80vw;
     border-left: 1px solid var(--border-secondary-color);
+    padding-top: var(--safe-area-inset-top, env(safe-area-inset-top, 0px));
     padding-bottom: var(--safe-area-inset-bottom, env(safe-area-inset-bottom, 0px));
     &[data-state='open'] {
       animation: slide-in-from-right 300ms cubic-bezier(0.22, 1, 0.36, 1) forwards;
@@ -164,6 +165,11 @@ const visible = defineModel<boolean>('open', { required: true })
     background-color: var(--bg-hover-color);
     color: var(--fg-accent-color);
   }
+}
+
+.drawer--left .close-button,
+.drawer--right .close-button {
+  top: calc(16px + var(--safe-area-inset-top, env(safe-area-inset-top, 0px)));
 }
 
 @include media-down(sm) {

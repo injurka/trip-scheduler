@@ -25,6 +25,8 @@ export interface DayFrontmatter {
   highlight?: string
   description?: string
   tags?: string[]
+  is_ready?: boolean
+  isReady?: boolean
 }
 
 export interface ParsedDay {
@@ -41,6 +43,8 @@ export interface ParsedDay {
   phase?: string
   highlight?: string
   tags?: string[]
+  is_ready?: boolean
+  isReady?: boolean
   frontmatter?: DayFrontmatter
 }
 
