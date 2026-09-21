@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import type { IActivity } from '~/components/05.modules/trip-info/models/types'
-import type { ActivitySectionMetro } from '~/shared/types/models/activity'
+import type { ActivitySectionBus, ActivitySectionMetro } from '~/shared/types/models/activity'
 import { Icon } from '@iconify/vue'
 import { activityTagIcons } from '~/components/05.modules/trip-info/lib/helpers'
 import { timeRangeDurationMinutes } from '~/shared/lib/date-time'
@@ -75,6 +75,13 @@ const metroRides = computed(() => {
   return metroSection?.rides || []
 })
 
+const busRides = computed(() => {
+  const busSection = props.activity.sections?.find(
+    s => s.type === EActivitySectionType.BUS,
+  ) as ActivitySectionBus | undefined
+  return busSection?.rides || []
+})
+
 function handleCardClick(e: MouseEvent) {
   e.stopPropagation()
   if (props.isEditMode) {
@@ -135,6 +142,20 @@ function handleCardClick(e: MouseEvent) {
           <Icon icon="mdi:subway-variant" class="metro-icon" />
           <span v-if="ride.lineNumber" class="metro-num">{{ ride.lineNumber }}</span>
           <span class="metro-name">{{ ride.startStation || '...' }} → {{ ride.endStation || '...' }}</span>
+        </div>
+      </div>
+
+      <!-- Bus Transfer Line if Present -->
+      <div v-if="busRides.length > 0" class="card-bus-row">
+        <div
+          v-for="ride in busRides"
+          :key="ride.id"
+          class="bus-pill"
+          :style="{ backgroundColor: ride.color || '#F59E0B' }"
+        >
+          <Icon icon="mdi:bus" class="bus-icon" />
+          <span v-if="ride.code" class="bus-num">{{ ride.code }}</span>
+          <span class="bus-name">{{ ride.from || '...' }} → {{ ride.to || '...' }}</span>
         </div>
       </div>
 
@@ -326,14 +347,16 @@ function handleCardClick(e: MouseEvent) {
   }
 }
 
-.card-metro-row {
+.card-metro-row,
+.card-bus-row {
   display: flex;
   flex-direction: column;
   gap: 3px;
   margin-top: 2px;
 }
 
-.metro-pill {
+.metro-pill,
+.bus-pill {
   display: inline-flex;
   align-items: center;
   gap: 4px;
@@ -345,12 +368,14 @@ function handleCardClick(e: MouseEvent) {
   max-width: 100%;
   box-shadow: 0 1px 4px rgba(0, 0, 0, 0.2);
 
-  .metro-icon {
+  .metro-icon,
+  .bus-icon {
     font-size: 0.78rem;
     flex-shrink: 0;
   }
 
-  .metro-num {
+  .metro-num,
+  .bus-num {
     background: rgba(0, 0, 0, 0.25);
     padding: 0 3px;
     border-radius: 2px;
@@ -358,7 +383,8 @@ function handleCardClick(e: MouseEvent) {
     font-size: 0.58rem;
   }
 
-  .metro-name {
+  .metro-name,
+  .bus-name {
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;

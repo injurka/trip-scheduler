@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import type { IActivity } from '~/components/05.modules/trip-info/models/types'
-import type { MetroRide } from '~/shared/types/models/activity'
+import type { BusRide, MetroRide } from '~/shared/types/models/activity'
 import { Icon } from '@iconify/vue'
 import { KitBtn } from '~/components/01.kit/kit-btn'
 import { KitDialogWithClose } from '~/components/01.kit/kit-dialog-with-close'
@@ -14,6 +14,7 @@ export interface ITransitEdgeInfo {
   gapMinutes: number
   durationText: string | null
   metroRide: MetroRide | null
+  busRide?: BusRide | null
   color: string
   isDashed: boolean
 }
@@ -104,6 +105,7 @@ function handleSelectActivity(id: string) {
           <div class="connector-line" :style="{ backgroundColor: edgeInfo.color }" />
           <div class="connector-pill" :class="{ 'is-error': edgeInfo.gapMinutes < 0 }">
             <Icon v-if="edgeInfo.metroRide" icon="mdi:subway-variant" />
+            <Icon v-else-if="edgeInfo.busRide" icon="mdi:bus" />
             <Icon v-else-if="edgeInfo.gapMinutes < 0" icon="mdi:alert-circle" />
             <Icon v-else icon="mdi:clock-outline" />
             <span>
@@ -145,6 +147,22 @@ function handleSelectActivity(id: string) {
           <span>{{ edgeInfo.metroRide.startStation || 'Станция отправления' }}</span>
           <Icon icon="mdi:arrow-right" class="metro-arrow" />
           <span>{{ edgeInfo.metroRide.endStation || 'Станция назначения' }}</span>
+        </div>
+      </div>
+
+      <!-- Bus Transfer Details if Available -->
+      <div v-if="edgeInfo.busRide" class="metro-details-card">
+        <div class="metro-card-header">
+          <div class="metro-line-tag" :style="{ backgroundColor: edgeInfo.busRide.color || '#F59E0B' }">
+            <Icon icon="mdi:bus" />
+            <span v-if="edgeInfo.busRide.code">{{ edgeInfo.busRide.code }}</span>
+            <span>{{ edgeInfo.busRide.route || 'Автобус' }}</span>
+          </div>
+        </div>
+        <div class="metro-stations-row">
+          <span>{{ edgeInfo.busRide.from || 'Остановка отправления' }}</span>
+          <Icon icon="mdi:arrow-right" class="metro-arrow" />
+          <span>{{ edgeInfo.busRide.to || 'Остановка назначения' }}</span>
         </div>
       </div>
 

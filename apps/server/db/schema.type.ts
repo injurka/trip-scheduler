@@ -76,12 +76,31 @@ interface ActivitySectionMetro extends ActivitySectionBase {
   rides: MetroRide[]
 }
 
+export interface BusRide {
+  id: string
+  from: string
+  to: string
+  route: string
+  code: string | null
+  color: string
+  operator: string | null
+  direction: string
+  stops: number
+  walk: string | null
+  links?: string[]
+}
+
+export interface ActivitySectionBus extends ActivitySectionBase {
+  type: 'bus'
+  rides: BusRide[]
+}
+
 interface ActivitySectionBooking extends ActivitySectionBase {
   type: 'booking'
   bookingId: string
 }
 
-export type ActivitySection = ActivitySectionText | ActivitySectionGallery | ActivitySectionGeolocation | ActivitySectionMetro | ActivitySectionBooking
+export type ActivitySection = ActivitySectionText | ActivitySectionGallery | ActivitySectionGeolocation | ActivitySectionMetro | ActivitySectionBus | ActivitySectionBooking
 
 export type PostElementBlock
   = | PostContentBlockText

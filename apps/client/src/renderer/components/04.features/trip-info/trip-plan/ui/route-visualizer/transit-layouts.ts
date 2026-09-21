@@ -1,5 +1,5 @@
 import type { IActivity } from '~/components/05.modules/trip-info/models/types'
-import type { ActivitySectionMetro, MetroRide } from '~/shared/types/models/activity'
+import type { ActivitySectionBus, ActivitySectionMetro, BusRide, MetroRide } from '~/shared/types/models/activity'
 import { timeToMinutes } from '~/shared/lib/date-time'
 import { EActivitySectionType, EActivityStatus, EActivityTag } from '~/shared/types/models/activity'
 
@@ -47,6 +47,7 @@ export interface LayoutEdge {
   color: string
   isDashed: boolean
   metroRide: MetroRide | null
+  busRide?: BusRide | null
   durationText: string | null
   gapMinutes: number
 }
@@ -107,8 +108,12 @@ function computeEdgeBase(fromNode: LayoutNode, toNode: LayoutNode, index: number
   const toMetro = to.sections?.find(s => s.type === EActivitySectionType.METRO) as ActivitySectionMetro | undefined
   const metroRide = fromMetro?.rides?.[0] || toMetro?.rides?.[0] || null
 
+  const fromBus = from.sections?.find(s => s.type === EActivitySectionType.BUS) as ActivitySectionBus | undefined
+  const toBus = to.sections?.find(s => s.type === EActivitySectionType.BUS) as ActivitySectionBus | undefined
+  const busRide = fromBus?.rides?.[0] || toBus?.rides?.[0] || null
+
   const isWalk = from.tag === EActivityTag.WALK || to.tag === EActivityTag.WALK
-  const color = metroRide?.lineColor || (isWalk ? '#10B981' : 'var(--fg-accent-color)')
+  const color = metroRide?.lineColor || busRide?.color || (isWalk ? '#10B981' : 'var(--fg-accent-color)')
   const isDashed = isWalk
 
   const fromEndMin = timeToMinutes(from.endTime)
@@ -134,6 +139,7 @@ function computeEdgeBase(fromNode: LayoutNode, toNode: LayoutNode, index: number
     color,
     isDashed,
     metroRide,
+    busRide,
     durationText,
     gapMinutes: gap,
   }

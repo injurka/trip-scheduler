@@ -1,6 +1,6 @@
 import type { ActivityPayload } from '../types'
 import { stableId } from '../lib/stable-id'
-import { extractTransportBlocks, formatBusTransportBlock } from './transport'
+import { extractTransportBlocks } from './transport'
 
 export function inferActivityTag(title: string, content: string): ActivityPayload['tag'] {
   const text = `${title} ${content}`.toLowerCase()
@@ -128,11 +128,7 @@ export function parseActivitiesFromMarkdown(dayContent: string): ActivityPayload
     const normalizedActivityText = normalizeMarkdownIndentation(currentActivity.lines.join('\n'))
     const activityKey = currentActivity.startTime
     const transport = extractTransportBlocks(normalizedActivityText)
-    const busText = transport.blocks
-      .filter(block => block.type === 'bus')
-      .map(formatBusTransportBlock)
-      .join('\n\n')
-    const sectionText = normalizeMarkdownIndentation([transport.text, busText].filter(Boolean).join('\n\n'))
+    const sectionText = normalizeMarkdownIndentation(transport.text)
     const cleanTitle = currentActivity.title
       .replace(/^[—–-]\s*/, '')
       .replace(/\s*[—–-]$/, '')
@@ -140,7 +136,8 @@ export function parseActivitiesFromMarkdown(dayContent: string): ActivityPayload
       .replace(/:\s*$/, '')
       .trim() || 'Активность'
 
-    const tag = inferActivityTag(cleanTitle, sectionText)
+    const hasTransportBlocks = transport.blocks.length > 0
+    const tag = hasTransportBlocks ? 'transport' : inferActivityTag(cleanTitle, sectionText)
 
     const sections: ActivityPayload['sections'] = []
     if (sectionText) {
@@ -156,6 +153,7 @@ export function parseActivitiesFromMarkdown(dayContent: string): ActivityPayload
         sections.push({
           id: stableId('activity-section', activityKey, 'metro', sectionIndex),
           type: 'metro',
+          title: block.title,
           mode: 'free',
           systemId: null,
           rides: block.routes.map((route, rideIndex) => ({
@@ -170,6 +168,29 @@ export function parseActivitiesFromMarkdown(dayContent: string): ActivityPayload
             startStationId: null,
             endStationId: null,
             lineId: null,
+          })),
+        })
+      })
+
+    transport.blocks
+      .filter(block => block.type === 'bus')
+      .forEach((block, sectionIndex) => {
+        sections.push({
+          id: stableId('activity-section', activityKey, 'bus', sectionIndex),
+          type: 'bus',
+          title: block.title,
+          rides: block.routes.map((route, rideIndex) => ({
+            id: stableId('bus-ride', activityKey, 'transport', sectionIndex, rideIndex, route.from, route.to, route.route),
+            from: route.from,
+            to: route.to,
+            route: route.route,
+            code: route.code,
+            color: route.color,
+            operator: route.operator,
+            direction: route.direction,
+            stops: route.stops,
+            walk: route.walk,
+            links: route.links,
           })),
         })
       })

@@ -4,6 +4,7 @@ import type { ActivitySectionGeolocation } from '~/components/03.domain/trip-inf
 import type {
   ActivitySection,
   ActivitySectionBooking,
+  ActivitySectionBus,
   ActivitySectionGallery,
   ActivitySectionMetro,
   ActivitySectionText,
@@ -18,6 +19,7 @@ import { GeolocationSection } from '~/components/03.domain/trip-info/geolocation
 import { useModuleStore } from '~/components/05.modules/trip-info/composables/use-trip-info-module'
 import { EActivitySectionType } from '~/shared/types/models/activity'
 import BookingSection from './booking-section.vue'
+import BusSection from './bus-section.vue'
 import DescriptionSection from './description-section.vue'
 import MetroSection from './metro-section.vue'
 
@@ -63,6 +65,10 @@ const sectionMetaMap: Record<EActivitySectionType, { label: string, icon: string
   [EActivitySectionType.METRO]: {
     label: 'Метро',
     icon: 'mdi:subway-variant',
+  },
+  [EActivitySectionType.BUS]: {
+    label: 'Автобус',
+    icon: 'mdi:bus',
   },
 }
 
@@ -275,6 +281,12 @@ watch(() => props.section, (newSection) => {
     <MetroSection
       v-else-if="section.type === EActivitySectionType.METRO"
       :section="section as ActivitySectionMetro"
+      :readonly="isViewMode"
+      @update-section="onUpdate"
+    />
+    <BusSection
+      v-else-if="section.type === EActivitySectionType.BUS"
+      :section="section as ActivitySectionBus"
       :readonly="isViewMode"
       @update-section="onUpdate"
     />

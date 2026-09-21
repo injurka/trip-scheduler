@@ -51,8 +51,8 @@ function parseStops(value: string): number {
   return match ? Number.parseInt(match[0], 10) : 0
 }
 
-function parseColor(value: string): string {
-  return /^#[\da-f]{3,8}$/i.test(value) ? value : '#808080'
+function parseColor(value: string, defaultColor = '#808080'): string {
+  return /^#[\da-f]{3,8}$/i.test(value) ? value : defaultColor
 }
 
 function extractLinks(values: string[]): string[] {
@@ -119,7 +119,7 @@ export function parseTransportBlock(source: string, startLine = 1): ParsedTransp
         to,
         route: routeName,
         code: route.code || null,
-        color: parseColor(route.color || ''),
+        color: parseColor(route.color || '', type === 'bus' ? '#F59E0B' : '#808080'),
         operator: route.operator || null,
         direction: route.direction || '',
         stops: parseStops(route.stops || ''),

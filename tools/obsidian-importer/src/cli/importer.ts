@@ -861,8 +861,13 @@ export async function runImport(): Promise<void> {
             totalLocationsGeocoded += geoSection.points.length
           }
 
+          const metroSection = act.sections?.find(s => s.type === 'metro') as any
+          const metroBadge = metroSection?.rides?.length ? ` ${colors.cyan}[🚇 ${metroSection.rides.length} ${metroSection.rides.length === 1 ? 'метро' : 'метро'}]${colors.reset}` : ''
+          const busSection = act.sections?.find(s => s.type === 'bus') as any
+          const busBadge = busSection?.rides?.length ? ` ${colors.yellow}[🚌 ${busSection.rides.length} ${busSection.rides.length === 1 ? 'автобус' : 'автобуса'}]${colors.reset}` : ''
+
           const action = existingActivity ? '↻' : '✔'
-          console.log(`    ${colors.green}${action} [${act.startTime}–${act.endTime}]${colors.reset} [${act.tag}] ${act.title}${noteBadge}${bookingBadge}${geoBadge}${galleryBadge}`)
+          console.log(`    ${colors.green}${action} [${act.startTime}–${act.endTime}]${colors.reset} [${act.tag}] ${act.title}${noteBadge}${bookingBadge}${metroBadge}${busBadge}${geoBadge}${galleryBadge}`)
         }
         catch (actErr: any) {
           recordError(`Активность «${act.title}»`, actErr)

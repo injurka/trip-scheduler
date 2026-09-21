@@ -82,6 +82,25 @@ const ActivitySectionMetroSchema = ActivitySectionBaseSchema.extend({
   rides: z.array(MetroRideSchema),
 })
 
+const BusRideSchema = z.object({
+  id: z.string(),
+  from: z.string(),
+  to: z.string(),
+  route: z.string(),
+  code: z.string().nullable().optional(),
+  color: z.string().default('#F59E0B'),
+  operator: z.string().nullable().optional(),
+  direction: z.string().default(''),
+  stops: z.number().default(0),
+  walk: z.string().nullable().optional(),
+  links: z.array(z.string()).optional(),
+})
+
+const ActivitySectionBusSchema = ActivitySectionBaseSchema.extend({
+  type: z.literal('bus'),
+  rides: z.array(BusRideSchema),
+})
+
 const ActivitySectionBookingSchema = ActivitySectionBaseSchema.extend({
   type: z.literal('booking'),
   bookingId: z.string(),
@@ -92,6 +111,7 @@ export const ActivitySectionSchema = z.discriminatedUnion('type', [
   ActivitySectionGallerySchema,
   ActivitySectionGeolocationSchema,
   ActivitySectionMetroSchema,
+  ActivitySectionBusSchema,
   ActivitySectionBookingSchema,
 ])
 

@@ -60,9 +60,37 @@ export interface MetroRide {
 export interface ActivitySectionMetro {
   id: string
   type: 'metro'
+  title?: string | null
+  isAttached?: boolean
+  icon?: string | null
+  color?: string | null
   mode: 'free' | 'city'
   systemId: string | null
   rides: MetroRide[]
+}
+
+export interface BusRide {
+  id: string
+  from: string
+  to: string
+  route: string
+  code: string | null
+  color: string
+  operator: string | null
+  direction: string
+  stops: number
+  walk: string | null
+  links?: string[]
+}
+
+export interface ActivitySectionBus {
+  id: string
+  type: 'bus'
+  title?: string | null
+  isAttached?: boolean
+  icon?: string | null
+  color?: string | null
+  rides: BusRide[]
 }
 
 export interface ActivitySectionBooking {
@@ -76,6 +104,7 @@ export type ActivitySection
     | ActivitySectionGallery
     | ActivitySectionGeolocation
     | ActivitySectionMetro
+    | ActivitySectionBus
     | ActivitySectionBooking
 
 export interface ActivityPayload {

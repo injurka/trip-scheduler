@@ -1,148 +1,96 @@
-services:
-  traefik:
-    image: traefik:v3.6.10
-    container_name: traefik
-    restart: always
-    ports:
-      - "80:80"
-      - "443:443"
-    networks:
-      - trip-net
-    volumes:
-      - /var/run/docker.sock:/var/run/docker.sock:ro
-      - ./traefik.yml:/traefik.yml:ro
-      - ./letsencrypt:/letsencrypt
+version: '3.8'
 
+services:
   client:
-    image: injurka/trip-scheduler-client:${V_CLIENT:-latest}
-    container_name: trip-scheduler-client
-    restart: always
+    image: ${REGISTRY:-docker.io}/injurka/trip-scheduler-client:latest
     networks:
-      - trip-net
-    labels:
-      - "traefik.enable=true"
-      - "traefik.http.routers.client.rule=Host(`trip-scheduler.ru`)"
-      - "traefik.http.routers.client.entrypoints=websecure"
-      - "traefik.http.routers.client.tls.certresolver=letsencrypt"
-      - "traefik.http.services.client.loadbalancer.server.port=1420"
+      - prod-net
+    environment:
+      VITE_APP_SERVER_URL: "${VITE_APP_SERVER_URL}"
+    deploy:
+      restart_policy:
+        condition: any
+      labels:
+        - "traefik.enable=true"
+        - "traefik.http.routers.trip-client.rule=Host(`trip-scheduler.limited-dissolve.ru`)"
+        - "traefik.http.routers.trip-client.entrypoints=websecure"
+        - "traefik.http.routers.trip-client.tls=true"
+        - "traefik.http.services.trip-client.loadbalancer.server.port=1420"
 
   server:
-    image: injurka/trip-scheduler-server:${V_SERVER:-latest}
-    container_name: trip-scheduler-server
-    networks:
-      - trip-net
-    env_file:
-      - ../apps/server/.env
-    volumes:
-      - "$HOME/static-data:/usr/src/app/static"
-    restart: always
-    healthcheck:
-      disable: true
-    depends_on:
-      db:
-        condition: service_healthy
-    labels:
-      - "traefik.enable=true"
-      - "traefik.http.routers.server.rule=Host(`api.trip-scheduler.ru`)"
-      - "traefik.http.routers.server.entrypoints=websecure"
-      - "traefik.http.routers.server.tls.certresolver=letsencrypt"
-      - "traefik.http.services.server.loadbalancer.server.port=8080"
-      - "traefik.http.routers.server.middlewares=server-limit"
-      - "traefik.http.middlewares.server-limit.buffering.maxRequestBodyBytes=16777216"
+    image: ${REGISTRY:-docker.io}/injurka/trip-scheduler-server:latest
+    environment:
+      PORT: "8080"
+      FRONTEND_URL: "${FRONTEND_URL}"
+      VITE_APP_SERVER_URL: "${VITE_APP_SERVER_URL}"
+      API_URL: "${API_URL}"
+      DATABASE_URL: "${DATABASE_URL}"
+      JWT_SECRET: "${JWT_SECRET}"
+      DUMP_ENABLED: "${DUMP_ENABLED}"
+      BACKEND_URL: "${BACKEND_URL}"
+      RESEND_API_KEY: "${RESEND_API_KEY}"
+      
+      AI_HUBMIX_KEY: "${AI_HUBMIX_KEY}"
+      AI_HUBMIX_API_URL: "${AI_HUBMIX_API_URL}"
+      
+      VAPID_PUBLIC_KEY: "${VAPID_PUBLIC_KEY}"
+      VAPID_PRIVATE_KEY: "${VAPID_PRIVATE_KEY}"
+      VAPID_SUBJECT: "${VAPID_SUBJECT}"
+      
+      YANDEX_CLIENT_ID: "${YANDEX_CLIENT_ID}"
+      YANDEX_CLIENT_SECRET: "${YANDEX_CLIENT_SECRET}"
+      YANDEX_CALLBACK_URL: "${YANDEX_CALLBACK_URL}"
+      
+      TELEGRAM_API_URL: "${TELEGRAM_API_URL}"
+      TELEGRAM_BOT_TOKEN: "${TELEGRAM_BOT_TOKEN}"
+      TELEGRAM_BOT_USERNAME: "${TELEGRAM_BOT_USERNAME}"
+      TELEGRAM_MODE: "${TELEGRAM_MODE:-polling}"
 
-  # cache:
-  #   image: redis:7-alpine
-  #   container_name: trip-scheduler-cache
-  #   networks:
-  #     - trip-net
-  #   healthcheck:
-  #     test: ["CMD-SHELL", "[ $$(redis-cli ping) = 'PONG' ]"]
-  #     interval: 10s
-  #     timeout: 5s
-  #     retries: 5
-  #     start_interval: 5s
-  #     start_period: 30s
-  #   restart: always
+      S3_ENDPOINT: "${S3_ENDPOINT}"
+      S3_REGION: "${S3_REGION}"
+      S3_ACCESS_KEY: "${S3_ACCESS_KEY}"
+      S3_SECRET_KEY: "${S3_SECRET_KEY}"
+      S3_BUCKET: "${S3_BUCKET}"
+    networks:
+      - prod-net
+    deploy:
+      restart_policy:
+        condition: any
+      labels:
+        - "traefik.enable=true"
+        - "traefik.http.routers.trip-server.rule=Host(`trip-scheduler-api.limited-dissolve.ru`)"
+        - "traefik.http.routers.trip-server.entrypoints=websecure"
+        - "traefik.http.routers.trip-server.tls=true"
+        - "traefik.http.services.trip-server.loadbalancer.server.port=8080"
+        - "traefik.http.routers.trip-server.middlewares=trip-server-limit"
+        - "traefik.http.middlewares.trip-server-limit.buffering.maxRequestBodyBytes=16777216"
+    depends_on:
+      - db
 
   db:
     image: postgres:16-alpine
-    container_name: trip-scheduler-db
     networks:
-      - trip-net
-    env_file:
-      - .env.database
+      - prod-net
+    environment:
+      POSTGRES_USER: "${POSTGRES_USER}"
+      POSTGRES_PASSWORD: "${POSTGRES_PASSWORD}"
+      POSTGRES_DB: "${POSTGRES_DB}"
     volumes:
       - pgdata:/var/lib/postgresql/data
-    restart: always
+    deploy:
+      restart_policy:
+        condition: any
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U $$POSTGRES_USER"]
       interval: 10s
       timeout: 5s
       retries: 5
-      start_interval: 5s
       start_period: 30s
 
-  prometheus:
-    image: prom/prometheus:latest
-    container_name: prometheus
-    labels:
-      - "traefik.enable=true"
-      - "traefik.http.routers.prometheus.rule=Host(`prometheus.trip-scheduler.ru`)"
-      - "traefik.http.routers.prometheus.entrypoints=websecure"
-      - "traefik.http.routers.prometheus.tls.certresolver=letsencrypt"
-      - "traefik.http.services.prometheus.loadbalancer.server.port=9090"
-      - "traefik.http.routers.prometheus.middlewares=auth"
-      - "traefik.http.middlewares.auth.basicauth.users=admin:$$apr1$$..."
-    networks:
-      - trip-net
-    volumes:
-      - ./prometheus.yml:/etc/prometheus/prometheus.yml
-      - prometheus-data:/prometheus
-    command:
-      - "--config.file=/etc/prometheus/prometheus.yml"
-    restart: always
-    depends_on:
-      server:
-        condition: service_started
-
-  grafana:
-    image: grafana/grafana:latest
-    container_name: grafana
-    labels:
-      - "traefik.enable=true"
-      - "traefik.http.routers.grafana.rule=Host(`grafana.trip-scheduler.ru`)"
-      - "traefik.http.routers.grafana.entrypoints=websecure"
-      - "traefik.http.routers.grafana.tls.certresolver=letsencrypt"
-      - "traefik.http.services.grafana.loadbalancer.server.port=3000"
-    networks:
-      - trip-net
-    volumes:
-      - grafana-data:/var/lib/grafana
-      - ./grafana/provisioning/:/etc/grafana/provisioning/
-      - ./grafana/dashboards/:/var/lib/grafana/dashboards/
-    restart: always
-    depends_on:
-      prometheus:
-        condition: service_started
-
-  node-exporter:
-    image: prom/node-exporter:v1.7.0
-    container_name: node-exporter
-    networks:
-      - trip-net
-    command:
-      - "--path.rootfs=/host"
-    pid: host
-    restart: unless-stopped
-    volumes:
-      - "/:/host:ro,rslave"
-
 networks:
-  trip-net:
-    driver: bridge
-    name: trip-net
+  prod-net:
+    external: true
+    name: prod-net
 
 volumes:
   pgdata:
-  prometheus-data:
-  grafana-data:

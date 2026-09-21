@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import type { ActivitySectionGeolocation } from '~/components/03.domain/trip-info/geolocation-section'
 import type { IActivity } from '~/components/05.modules/trip-info/models/types'
-import type { ActivitySectionMetro } from '~/shared/types/models/activity'
+import type { ActivitySectionBus, ActivitySectionMetro } from '~/shared/types/models/activity'
 import { Icon } from '@iconify/vue'
 import { KitTooltip } from '~/components/01.kit/kit-tooltip'
 import { activityTagColors, activityTagIcons, getTagInfo } from '~/components/05.modules/trip-info/lib/helpers'
@@ -52,6 +52,13 @@ const metroRides = computed(() => {
     s => s.type === EActivitySectionType.METRO,
   ) as ActivitySectionMetro | undefined
   return metroSection?.rides || []
+})
+
+const busRides = computed(() => {
+  const busSection = props.activity.sections?.find(
+    s => s.type === EActivitySectionType.BUS,
+  ) as ActivitySectionBus | undefined
+  return busSection?.rides || []
 })
 
 const hasGeolocation = computed(() => {
@@ -153,6 +160,23 @@ function handleNodeClick() {
           </span>
           <span class="metro-stations">
             {{ ride.startStation || '...' }} → {{ ride.endStation || '...' }}
+          </span>
+        </div>
+      </div>
+
+      <!-- Bus stops summary if present -->
+      <div v-if="busRides.length > 0" class="node-bus-preview">
+        <div
+          v-for="ride in busRides"
+          :key="ride.id"
+          class="bus-ride-tag"
+          :style="{ borderColor: ride.color || '#F59E0B' }"
+        >
+          <span class="bus-line-indicator" :style="{ backgroundColor: ride.color || '#F59E0B' }">
+            {{ ride.code || 'Bus' }}
+          </span>
+          <span class="bus-stations">
+            {{ ride.from || '...' }} → {{ ride.to || '...' }}
           </span>
         </div>
       </div>
@@ -384,14 +408,16 @@ function handleNodeClick() {
   word-break: break-word;
 }
 
-.node-metro-preview {
+.node-metro-preview,
+.node-bus-preview {
   display: flex;
   flex-direction: column;
   gap: 4px;
   margin-top: 2px;
 }
 
-.metro-ride-tag {
+.metro-ride-tag,
+.bus-ride-tag {
   display: flex;
   align-items: center;
   gap: 6px;
@@ -401,7 +427,8 @@ function handleNodeClick() {
   padding: 2px 6px;
   font-size: 0.7rem;
 
-  .metro-line-indicator {
+  .metro-line-indicator,
+  .bus-line-indicator {
     color: #fff;
     font-weight: 700;
     padding: 0 4px;
@@ -409,7 +436,8 @@ function handleNodeClick() {
     font-size: 0.65rem;
   }
 
-  .metro-stations {
+  .metro-stations,
+  .bus-stations {
     color: var(--fg-secondary-color);
     white-space: nowrap;
     overflow: hidden;

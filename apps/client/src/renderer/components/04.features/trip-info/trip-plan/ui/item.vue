@@ -6,6 +6,7 @@ import type {
   Activity,
   ActivitySection,
   ActivitySectionBooking,
+  ActivitySectionBus,
   ActivitySectionGallery,
   ActivitySectionMetro,
   ActivitySections,
@@ -83,6 +84,7 @@ const sectionTypeIcons: Record<EActivitySectionType, string> = {
   [EActivitySectionType.GALLERY]: 'mdi:image-multiple-outline',
   [EActivitySectionType.GEOLOCATION]: 'mdi:map-marker-outline',
   [EActivitySectionType.METRO]: 'mdi:subway-variant',
+  [EActivitySectionType.BUS]: 'mdi:bus',
   [EActivitySectionType.BOOKING]: 'mdi:ticket-confirmation-outline',
 }
 
@@ -350,6 +352,28 @@ function addSection(type: EActivitySectionType) {
           },
         ],
       } as ActivitySectionMetro
+      break
+    case EActivitySectionType.BUS:
+      newSection = {
+        id: uuidv4(),
+        type: EActivitySectionType.BUS,
+        title: 'Автобус',
+        rides: [
+          {
+            id: uuidv4(),
+            from: 'Остановка отправления',
+            to: 'Остановка прибытия',
+            route: 'Автобус',
+            code: null,
+            color: '#F59E0B',
+            operator: null,
+            direction: '',
+            stops: 1,
+            walk: null,
+            links: [],
+          },
+        ],
+      } as ActivitySectionBus
       break
     default:
       return

@@ -14,6 +14,7 @@ export enum EActivitySectionType {
   GALLERY = 'gallery',
   GEOLOCATION = 'geolocation',
   METRO = 'metro',
+  BUS = 'bus',
   BOOKING = 'booking',
 }
 
@@ -56,12 +57,31 @@ export interface ActivitySectionMetro extends ActivitySection {
   rides: MetroRide[]
 }
 
+export interface BusRide {
+  id: string
+  from: string
+  to: string
+  route: string
+  code: string | null
+  color: string
+  operator: string | null
+  direction: string
+  stops: number
+  walk: string | null
+  links?: string[]
+}
+
+export interface ActivitySectionBus extends ActivitySection {
+  type: EActivitySectionType.BUS
+  rides: BusRide[]
+}
+
 export interface ActivitySectionBooking extends ActivitySection {
   type: EActivitySectionType.BOOKING
   bookingId: string
 }
 
-export type ActivitySections = (ActivitySectionText | ActivitySectionGallery | ActivitySectionGeolocation | ActivitySectionMetro | ActivitySectionBooking)[]
+export type ActivitySections = (ActivitySectionText | ActivitySectionGallery | ActivitySectionGeolocation | ActivitySectionMetro | ActivitySectionBus | ActivitySectionBooking)[]
 
 export interface Activity {
   id: string

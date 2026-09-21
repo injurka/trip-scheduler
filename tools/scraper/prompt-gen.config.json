@@ -1,8 +1,0 @@
-{
-  "extensions": "ts,json",
-  "directory": "./",
-  "output": "project_prompt.md",
-  "format": "structured",
-  "maxSize": "35",
-  "excludePaths": "**/playwright_profile/**,**/puppeteer_profile/**,**/artifacts/**"
-}

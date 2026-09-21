@@ -662,11 +662,21 @@ routes:
     walk: 95 м / 2 мин
 \`\`\`
 `.trim())[0]
-    const description = activity.sections?.find(section => section.type === 'description')
+    const busSection = activity.sections?.find(section => section.type === 'bus')
 
-    expect(description?.type === 'description' ? description.text : '').toContain('Kuo-Kuang')
-    expect(description?.type === 'description' ? description.text : '').toContain('95 м / 2 мин')
-    expect(description?.type === 'description' ? description.text : '').not.toContain('```transport')
+    expect(busSection).toBeDefined()
+    expect(busSection?.type === 'bus' ? busSection.title : '').toBe('Chiayi → Hinoki Village')
+    expect(busSection?.type === 'bus' ? busSection.rides : []).toHaveLength(1)
+    expect(busSection?.type === 'bus' ? busSection.rides[0] : null).toMatchObject({
+      from: 'TRA Chiayi Station',
+      to: 'Hinoki Village',
+      route: 'Zhongxiao Xinmin Main Line',
+      code: 'Red A',
+      operator: 'Kuo-Kuang',
+      direction: 'Minxiong Industrial Park Service Center',
+      stops: 2,
+      walk: '95 м / 2 мин',
+    })
   })
 
   it('extracts clean day title removing number prefixes', () => {

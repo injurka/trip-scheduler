@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import type { IActivity } from '~/components/05.modules/trip-info/models/types'
-import type { ActivitySectionMetro } from '~/shared/types/models/activity'
+import type { ActivitySectionBus, ActivitySectionMetro } from '~/shared/types/models/activity'
 import { Icon } from '@iconify/vue'
 import { KitDialogWithClose } from '~/components/01.kit/kit-dialog-with-close'
 import { KitInlineMdEditorWrapper } from '~/components/01.kit/kit-inline-md-editor'
@@ -91,6 +91,13 @@ const metroRides = computed(() => {
   return metroSection?.rides || []
 })
 
+const busRides = computed(() => {
+  const busSection = props.activity?.sections?.find(
+    s => s.type === EActivitySectionType.BUS,
+  ) as ActivitySectionBus | undefined
+  return busSection?.rides || []
+})
+
 const isCompleted = computed(() => props.activity?.status === EActivityStatus.COMPLETED)
 
 function handleScrollTo() {
@@ -172,6 +179,27 @@ function handleScrollTo() {
           </div>
           <div class="ride-path">
             {{ ride.startStation || 'Станция отправления' }} → {{ ride.endStation || 'Станция назначения' }}
+          </div>
+        </div>
+      </div>
+
+      <!-- Bus Transfer Details if Available -->
+      <div v-if="busRides.length > 0" class="metro-transfer-box">
+        <div class="metro-title">
+          <Icon icon="mdi:bus" />
+          <span>Поездка на автобусе</span>
+        </div>
+        <div
+          v-for="ride in busRides"
+          :key="ride.id"
+          class="metro-ride-item"
+          :style="{ borderLeftColor: ride.color || '#F59E0B' }"
+        >
+          <div class="ride-line" :style="{ backgroundColor: ride.color || '#F59E0B' }">
+            {{ ride.code || 'Bus' }} {{ ride.route }}
+          </div>
+          <div class="ride-path">
+            {{ ride.from || 'Остановка отправления' }} → {{ ride.to || 'Остановка назначения' }}
           </div>
         </div>
       </div>

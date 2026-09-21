@@ -68,6 +68,14 @@ const sectionOptions: SectionOption[] = [
     description: 'Добавить маршрут на метро',
     category: 'location',
   },
+  {
+    type: EActivitySectionType.BUS,
+    label: 'Автобус',
+    icon: 'mdi:bus',
+    shortcut: 'U',
+    description: 'Добавить автобусный маршрут',
+    category: 'location',
+  },
 ]
 
 const contentOptions = computed(() => sectionOptions.filter(opt => opt.category === 'content'))

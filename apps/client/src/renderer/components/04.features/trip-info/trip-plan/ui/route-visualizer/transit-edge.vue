@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import type { IActivity } from '~/components/05.modules/trip-info/models/types'
-import type { ActivitySectionMetro, MetroRide } from '~/shared/types/models/activity'
+import type { ActivitySectionBus, ActivitySectionMetro, BusRide, MetroRide } from '~/shared/types/models/activity'
 import { Icon } from '@iconify/vue'
 import { timeToMinutes } from '~/shared/lib/date-time'
 import { EActivitySectionType, EActivityTag } from '~/shared/types/models/activity'
@@ -43,12 +43,33 @@ const metroRide = computed((): MetroRide | null => {
   return null
 })
 
+const busRide = computed((): BusRide | null => {
+  const busSection = props.fromActivity.sections?.find(
+    s => s.type === EActivitySectionType.BUS,
+  ) as ActivitySectionBus | undefined
+
+  if (busSection?.rides && busSection.rides.length > 0) {
+    return busSection.rides[0]
+  }
+
+  const nextBusSection = props.toActivity.sections?.find(
+    s => s.type === EActivitySectionType.BUS,
+  ) as ActivitySectionBus | undefined
+
+  if (nextBusSection?.rides && nextBusSection.rides.length > 0) {
+    return nextBusSection.rides[0]
+  }
+
+  return null
+})
+
 const isWalk = computed(() => {
   return props.fromActivity.tag === EActivityTag.WALK || props.toActivity.tag === EActivityTag.WALK
 })
 
 const isTransport = computed(() => {
   return !!metroRide.value
+    || !!busRide.value
     || props.fromActivity.tag === EActivityTag.TRANSPORT
     || props.toActivity.tag === EActivityTag.TRANSPORT
 })
@@ -56,6 +77,9 @@ const isTransport = computed(() => {
 const edgeLineColor = computed(() => {
   if (metroRide.value?.lineColor) {
     return metroRide.value.lineColor
+  }
+  if (busRide.value?.color) {
+    return busRide.value.color
   }
   if (isWalk.value) {
     return 'var(--border-secondary-color)'
@@ -87,6 +111,7 @@ const formattedDuration = computed(() => {
       `transit-edge--${orientation}`,
       {
         'is-metro': !!metroRide,
+        'is-bus': !metroRide && !!busRide,
         'is-walk': isWalk,
         'is-transport': isTransport,
         'is-overlap': gapMinutes < 0,
@@ -97,7 +122,7 @@ const formattedDuration = computed(() => {
     <!-- Connecting Line -->
     <div class="edge-track">
       <div class="edge-line" />
-      <div v-if="!isEditMode && (isTransport || metroRide)" class="edge-pulse-dot" />
+      <div v-if="!isEditMode && (isTransport || metroRide || busRide)" class="edge-pulse-dot" />
     </div>
 
     <!-- Edge Info Badge -->
@@ -108,6 +133,14 @@ const formattedDuration = computed(() => {
         <span v-if="metroRide.lineNumber" class="line-num">{{ metroRide.lineNumber }}</span>
         <span class="line-name">{{ metroRide.lineName || 'Метро' }}</span>
         <span v-if="metroRide.stops" class="stops-count">• {{ metroRide.stops }} ост.</span>
+      </div>
+
+      <!-- Bus badge -->
+      <div v-else-if="busRide" class="edge-bus-pill" :style="{ backgroundColor: busRide.color }">
+        <Icon icon="mdi:bus" class="bus-icon" />
+        <span v-if="busRide.code" class="line-num">{{ busRide.code }}</span>
+        <span class="line-name">{{ busRide.route || 'Автобус' }}</span>
+        <span v-if="busRide.stops" class="stops-count">• {{ busRide.stops }} ост.</span>
       </div>
 
       <!-- Gap / Transit duration badge -->
@@ -235,7 +268,8 @@ const formattedDuration = computed(() => {
   justify-content: center;
 }
 
-.edge-metro-pill {
+.edge-metro-pill,
+.edge-bus-pill {
   display: inline-flex;
   align-items: center;
   gap: 4px;
@@ -248,7 +282,8 @@ const formattedDuration = computed(() => {
   white-space: nowrap;
   letter-spacing: 0.02em;
 
-  .metro-icon {
+  .metro-icon,
+  .bus-icon {
     font-size: 0.85rem;
   }
 
