@@ -235,7 +235,7 @@ class TrackingPlugin(private val activity: Activity) : Plugin(activity) {
 
             val uri = FileProvider.getUriForFile(
                 activity,
-                "${activity.packageName}.updates.fileprovider",
+                "${activity.packageName}.fileprovider",
                 apk,
             )
             val intent = Intent(Intent.ACTION_VIEW).apply {

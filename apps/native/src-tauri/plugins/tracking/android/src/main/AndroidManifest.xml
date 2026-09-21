@@ -17,14 +17,5 @@
             android:name="ru.tripscheduler.tracking.TrackingService"
             android:foregroundServiceType="location"
             android:exported="false" />
-        <provider
-            android:name="androidx.core.content.FileProvider"
-            android:authorities="${applicationId}.updates.fileprovider"
-            android:exported="false"
-            android:grantUriPermissions="true">
-            <meta-data
-                android:name="android.support.FILE_PROVIDER_PATHS"
-                android:resource="@xml/update_file_paths" />
-        </provider>
     </application>
 </manifest>

@@ -5,6 +5,10 @@ const MANIFEST_PATH = resolve(
   import.meta.dirname,
   '../src-tauri/gen/android/app/src/main/AndroidManifest.xml',
 )
+const FILE_PATHS_PATH = resolve(
+  import.meta.dirname,
+  '../src-tauri/gen/android/app/src/main/res/xml/file_paths.xml',
+)
 
 const REQUIRED_PERMISSIONS = [
   'android.permission.ACCESS_FINE_LOCATION',
@@ -27,6 +31,21 @@ export function configureAndroidManifest(): boolean {
 
   let content = readFileSync(MANIFEST_PATH, 'utf-8')
   let modified = false
+
+  // Tauri owns the app FileProvider. Extend its resource instead of declaring
+  // a second provider in the tracking plugin (Android merges providers by
+  // android:name and rejects conflicting FILE_PROVIDER_PATHS metadata).
+  if (existsSync(FILE_PATHS_PATH)) {
+    let filePaths = readFileSync(FILE_PATHS_PATH, 'utf-8')
+    if (!filePaths.includes('name="updates"')) {
+      filePaths = filePaths.replace(
+        '</paths>',
+        '    <cache-path name="updates" path="updates/" />\n</paths>',
+      )
+      writeFileSync(FILE_PATHS_PATH, filePaths, 'utf-8')
+      console.log('[configure-android] Added APK update path to FileProvider paths')
+    }
+  }
 
   // 1. Add permissions inside <manifest> if missing
   for (const perm of REQUIRED_PERMISSIONS) {
@@ -90,4 +109,3 @@ export function configureAndroidManifest(): boolean {
 if (import.meta.main) {
   configureAndroidManifest()
 }
-
