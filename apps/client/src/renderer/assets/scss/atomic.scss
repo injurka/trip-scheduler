@@ -16,6 +16,7 @@
   @include default-font();
 
   position: relative;
+  isolation: isolate;
   display: flex;
   flex-direction: column;
   flex-grow: 1;
@@ -40,7 +41,7 @@
     bottom: 0;
     width: var(--content-gradient-width);
     pointer-events: none;
-    z-index: 0;
+    z-index: -1;
     background-color: rgba(var(--bg-primary-color-rgb), var(--content-bg-opacity));
     transition: background-color 0.3s ease;
     -webkit-mask-image: linear-gradient(to left, black, transparent);
@@ -89,4 +90,3 @@
     }
   }
 }
-

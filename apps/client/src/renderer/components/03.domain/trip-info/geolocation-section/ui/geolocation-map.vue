@@ -73,6 +73,7 @@ const {
 const mapContainerRef = ref<HTMLElement>()
 const isMapActive = ref(!props.interactiveOnClick)
 const showActivateMessage = ref(false)
+const dropdownPortalTarget = computed(() => props.isFullscreen ? mapContainerRef.value : undefined)
 
 function activateMap() {
   if (isMapActive.value || !mapInstance.value)
@@ -304,7 +305,7 @@ watch(isMapLoaded, (isReady) => {
       <GeolocationMapControls
         :map-instance="mapInstance"
         :is-fullscreen="isFullscreen"
-        :portal-target="mapContainerRef"
+        :portal-target="dropdownPortalTarget"
         :with-panel="withPanel"
         :with-fullscreen-control="withFullscreenControl"
         @toggle-panel="$emit('togglePanel')"
