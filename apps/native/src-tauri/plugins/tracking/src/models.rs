@@ -42,3 +42,8 @@ pub struct SystemBarsThemePayload {
     pub navigation_bar_color: Option<String>,
 }
 
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct InstallApkPayload {
+    pub path: String,
+}

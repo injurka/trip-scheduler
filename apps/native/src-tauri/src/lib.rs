@@ -271,10 +271,22 @@ async fn download_app_update(
 
 #[tauri::command]
 async fn open_downloaded_apk(app: tauri::AppHandle, path: String) -> Result<(), String> {
-    use tauri_plugin_opener::OpenerExt;
-    app.opener()
-        .open_path(path, None::<&str>)
-        .map_err(|e| e.to_string())
+    #[cfg(mobile)]
+    {
+        use tauri_plugin_tracking::{InstallApkPayload, TrackingExt};
+        app.tracking()
+            .install_apk(InstallApkPayload { path })
+            .map(|_| ())
+            .map_err(|e| e.to_string())
+    }
+
+    #[cfg(desktop)]
+    {
+        use tauri_plugin_opener::OpenerExt;
+        app.opener()
+            .open_path(path, None::<&str>)
+            .map_err(|e| e.to_string())
+    }
 }
 
 #[tauri::command]
