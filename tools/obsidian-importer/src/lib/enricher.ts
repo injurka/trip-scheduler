@@ -29,6 +29,49 @@ const CALLOUT_META_MAP: Record<string, { defaultTitle: string, icon: string, col
   QUOTE: { defaultTitle: 'Цитата', icon: 'mdi:format-quote-close', color: '#FFC6FF' },
 }
 
+function localDateTimeToMinutes(value?: string): number | null {
+  const match = value?.match(/^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2})/)
+  if (!match)
+    return null
+
+  return Math.floor(Date.UTC(
+    Number(match[1]),
+    Number(match[2]) - 1,
+    Number(match[3]),
+    Number(match[4]),
+    Number(match[5]),
+  ) / 60_000)
+}
+
+function activityDateTimeToMinutes(dayDate: string | undefined, time: string): number | null {
+  if (!dayDate || !/^\d{2}:\d{2}$/.test(time))
+    return null
+
+  return localDateTimeToMinutes(`${dayDate}T${time}`)
+}
+
+function flightSegmentOverlapsActivity(
+  act: ActivityPayload,
+  dayDate: string | undefined,
+  departureDateTime?: string,
+  arrivalDateTime?: string,
+): boolean | null {
+  const activityStart = activityDateTimeToMinutes(dayDate, act.startTime)
+  let activityEnd = activityDateTimeToMinutes(dayDate, act.endTime)
+  const flightStart = localDateTimeToMinutes(departureDateTime)
+  let flightEnd = localDateTimeToMinutes(arrivalDateTime)
+
+  if (activityStart === null || activityEnd === null || flightStart === null)
+    return null
+
+  if (activityEnd <= activityStart)
+    activityEnd += 24 * 60
+  if (flightEnd === null || flightEnd <= flightStart)
+    flightEnd = flightStart + 1
+
+  return activityStart < flightEnd && activityEnd > flightStart
+}
+
 export function getCalloutMetadata(type: string, rawTitle?: string): { title: string, icon: string, color: string } {
   const upperType = type.toUpperCase()
   const meta = CALLOUT_META_MAP[upperType] || { defaultTitle: 'Заметка', icon: 'mdi:information-outline', color: '#A3D9A5' }
@@ -414,8 +457,17 @@ export async function enrichActivityWithMediaAndLocation(
           for (const seg of booking.data.segments || []) {
             const segDate = seg.departureDateTime?.split('T')[0]
             const isDateMatch = !currentDayDate || !segDate || currentDayDate === segDate
+            const overlapsActivity = flightSegmentOverlapsActivity(
+              act,
+              currentDayDate,
+              seg.departureDateTime,
+              seg.arrivalDateTime,
+            )
 
-            if (seg.flightNumber && actText.includes(seg.flightNumber.toLowerCase()) && isDateMatch) {
+            if (seg.flightNumber
+              && actText.includes(seg.flightNumber.toLowerCase())
+              && isDateMatch
+              && overlapsActivity !== false) {
               isMatched = true
               break
             }
@@ -423,10 +475,23 @@ export async function enrichActivityWithMediaAndLocation(
           if (!isMatched && /авиаперелет|перелет|вылет|аэропорт/i.test(act.title)) {
             const depCity = booking.data.segments?.[0]?.departureCity?.toLowerCase()
             const arrCity = booking.data.segments?.[booking.data.segments.length - 1]?.arrivalCity?.toLowerCase()
-            const segDate = booking.data.segments?.[0]?.departureDateTime?.split('T')[0]
+            const firstSegment = booking.data.segments?.[0]
+            const lastSegment = booking.data.segments?.[booking.data.segments.length - 1]
+            const segDate = firstSegment?.departureDateTime?.split('T')[0]
             const isDateMatch = !currentDayDate || !segDate || currentDayDate === segDate
+            const overlapsActivity = flightSegmentOverlapsActivity(
+              act,
+              currentDayDate,
+              firstSegment?.departureDateTime,
+              lastSegment?.arrivalDateTime,
+            )
 
-            if (depCity && arrCity && actText.includes(depCity) && actText.includes(arrCity) && isDateMatch) {
+            if (depCity
+              && arrCity
+              && actText.includes(depCity)
+              && actText.includes(arrCity)
+              && isDateMatch
+              && overlapsActivity !== false) {
               isMatched = true
             }
           }

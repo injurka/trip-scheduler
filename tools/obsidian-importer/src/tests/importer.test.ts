@@ -596,6 +596,72 @@ routes:
 })
 
 describe('Activity Enrichment', () => {
+  it('attaches a flight booking only to the activity overlapping the flight time', async () => {
+    const { enrichActivityWithMediaAndLocation } = await import('../lib/enricher')
+    const booking = {
+      id: 'flight-cz3097',
+      type: 'flight' as const,
+      icon: 'mdi:airplane',
+      title: 'Гуанчжоу - Тайбэй',
+      data: {
+        segments: [{
+          departureCity: 'Гуанчжоу',
+          arrivalCity: 'Тайбэй',
+          departureDateTime: '2026-11-06T12:00:00',
+          arrivalDateTime: '2026-11-06T14:15:00',
+          flightNumber: 'CZ3097',
+        }],
+      },
+    }
+    const activities = [
+      {
+        startTime: '07:30',
+        endTime: '08:00',
+        title: 'Сборы и чек-аут',
+        description: 'Проверьте посадочный талон на CZ3097.',
+      },
+      {
+        startTime: '08:00',
+        endTime: '09:00',
+        title: 'Шаттл в CAN-T2',
+        description: 'Вернитесь в терминал до вылета CZ3097.',
+      },
+      {
+        startTime: '09:00',
+        endTime: '12:00',
+        title: 'Контроль и ожидание рейса CZ3097',
+        description: 'Пройдите формальности перед посадкой.',
+      },
+      {
+        startTime: '12:00',
+        endTime: '14:15',
+        title: 'Перелет Гуанчжоу - Тайбэй',
+        description: 'Рейс CZ3097 на Тайвань.',
+      },
+    ]
+
+    const enriched = await Promise.all(activities.map(activity => enrichActivityWithMediaAndLocation(
+      {
+        startTime: activity.startTime,
+        endTime: activity.endTime,
+        title: activity.title,
+        tag: 'transport',
+        sections: [{ id: `desc-${activity.startTime}`, type: 'description', text: activity.description }],
+      },
+      new Map(),
+      null,
+      null,
+      new Map(),
+      new Map(),
+      { geocode: false, bookings: [booking], dayDate: '2026-11-06' },
+    )))
+
+    const bookingSections = enriched.map(activity => activity.sections?.filter(section => section.type === 'booking') ?? [])
+    expect(bookingSections.slice(0, 3).every(sections => sections.length === 0)).toBeTrue()
+    expect(bookingSections[3]).toHaveLength(1)
+    expect(bookingSections[3][0]).toMatchObject({ bookingId: 'flight-cz3097' })
+  })
+
   it('keeps a parsed metro section while enriching the activity description', async () => {
     const { enrichActivityWithMediaAndLocation } = await import('../lib/enricher')
     const rawAct = {
