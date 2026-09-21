@@ -79,6 +79,7 @@ onMounted(() => {
 <template>
   <div class="welcome-page">
     <BackgroundParallaxEffects
+      v-if="!isMobile"
       class="particles-background"
       :quantity="60"
       :ease="100"

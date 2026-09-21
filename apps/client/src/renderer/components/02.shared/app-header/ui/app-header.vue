@@ -8,6 +8,7 @@ import { ProfileDrawer } from '~/components/02.shared/profile-drawer'
 import { ThemePopover } from '~/components/02.shared/theme-manager'
 import { useAppStore } from '~/shared/composables/use-store'
 import { AppRouteNames, AppRoutePaths } from '~/shared/constants/routes'
+import { isMobileApp } from '~/shared/lib/env'
 
 const router = useRouter()
 const route = useRoute()
@@ -146,6 +147,39 @@ onMounted(() => {
       'header--small-screen': isSmallScreen,
     }"
   >
+    <!-- Топографический узор и фоновый градиент в зоне системного бара только в Tauri APK -->
+    <div v-if="isMobileApp" class="header-topo-bg" aria-hidden="true">
+      <svg
+        class="topo-pattern-svg"
+        viewBox="0 0 1440 160"
+        preserveAspectRatio="xMidYMid slice"
+        xmlns="http://www.w3.org/2000/svg"
+      >
+        <g fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round">
+          <!-- Контурные изолинии высот -->
+          <path stroke-width="1" d="M -20,145 C 200,165 300,110 490,130 C 670,155 800,95 1030,120 C 1240,145 1380,110 1460,135" />
+          <path stroke-width="1" d="M -20,120 C 180,140 320,80 500,105 C 680,130 820,70 1020,95 C 1220,120 1360,85 1460,110" />
+          <path stroke-width="1.8" d="M -20,95 C 160,115 340,60 510,80 C 690,105 840,45 1010,70 C 1200,95 1340,65 1460,85" />
+          <path stroke-width="1" d="M -20,70 C 140,85 360,40 520,55 C 700,75 860,25 1000,45 C 1180,70 1320,45 1460,60" />
+          <path stroke-width="1.8" d="M -20,45 C 120,60 380,20 530,30 C 710,50 880,10 990,25 C 1160,45 1300,25 1460,40" />
+          <path stroke-width="1" d="M -20,25 C 100,35 240,5 390,10 C 540,15 700,30 850,5 C 1000,5 1150,25 1300,10 C 1380,5 1420,15 1460,20" />
+
+          <!-- Замкнутые контуры высот (вершины и холмы) -->
+          <path stroke-width="1.5" d="M 330,65 C 380,50 430,50 470,65 C 440,80 360,80 330,65 Z" />
+          <path stroke-width="1.2" d="M 355,65 C 385,55 415,55 445,65 C 425,75 375,75 355,65 Z" />
+          <path stroke-width="1.5" d="M 820,40 C 860,25 910,25 940,40 C 920,55 850,55 820,40 Z" />
+          <path stroke-width="1.2" d="M 845,40 C 865,30 895,30 915,40 C 900,48 860,48 845,40 Z" />
+          <path stroke-width="1" d="M 80,45 C 180,45 220,15 320,15 C 420,15 460,40 560,40" />
+          <path stroke-width="1" d="M 720,35 C 800,10 880,5 960,25 C 1040,45 1100,20 1180,20" />
+        </g>
+        <!-- Высотные отметки (изолинии рельефа) -->
+        <text x="140" y="92" font-size="9" font-family="var(--font-mono)" fill="currentColor" opacity="0.6" transform="rotate(8 140 92)">1150</text>
+        <text x="400" y="78" font-size="9" font-family="var(--font-mono)" fill="currentColor" opacity="0.6" transform="rotate(-5 400 78)">1250</text>
+        <text x="890" y="42" font-size="9" font-family="var(--font-mono)" fill="currentColor" opacity="0.6" transform="rotate(6 890 42)">1400</text>
+      </svg>
+      <div class="topo-overlay-gradient" />
+    </div>
+
     <div class="header-content">
       <div class="header-left">
         <KitDropdown
@@ -248,10 +282,51 @@ onMounted(() => {
     box-shadow 0.3s ease;
   padding-top: var(--safe-area-inset-top);
 
+  &-topo-bg {
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    pointer-events: none;
+    overflow: hidden;
+    z-index: -1;
+    transition: opacity 0.3s ease;
+
+    .topo-pattern-svg {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      color: var(--fg-accent-color);
+      opacity: 0.2;
+      mask-image: linear-gradient(to bottom, black 0%, black 50%, transparent 100%);
+      -webkit-mask-image: linear-gradient(to bottom, black 0%, black 50%, transparent 100%);
+      transition: opacity 0.3s ease;
+    }
+
+    .topo-overlay-gradient {
+      position: absolute;
+      inset: 0;
+      background: linear-gradient(
+        to bottom,
+        rgba(var(--bg-primary-color-rgb), 0.95) 0%,
+        rgba(var(--bg-primary-color-rgb), 0.75) calc(var(--safe-area-inset-top) + 20px),
+        transparent 100%
+      );
+      transition: background 0.3s ease;
+    }
+  }
+
   &--scrolled {
     backdrop-filter: blur(8px);
-    background-color: var(--bg-primary-color-rgb);
+    background-color: rgba(var(--bg-primary-color-rgb), 0.88);
     box-shadow: var(--s-s);
+
+    .header-topo-bg .topo-pattern-svg {
+      opacity: 0.12;
+    }
 
     .header-border {
       opacity: 1;

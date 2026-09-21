@@ -1,6 +1,7 @@
 <script lang="ts" setup>
 import { Icon, loadIcons } from '@iconify/vue'
 import defaultBackgroundImage from '~/assets/images/cloudy_crescent.png'
+import { isMobile } from '~/shared/lib/env'
 import { useThemeStore } from '~/shared/store/theme.store'
 
 const themeStore = useThemeStore()
@@ -31,17 +32,21 @@ function getRandomIcon() {
   return travelIcons[Math.floor(Math.random() * travelIcons.length)]
 }
 
-const symbols = Array.from({ length: 40 }, () => ({
-  icon: getRandomIcon(),
-  top: Math.random() * 100,
-  left: Math.random() * 100,
-  delay: Math.random() * 1,
-  duration: 10 + Math.random() * 15,
-  size: 1 + Math.random() * 0.8,
-}))
+const symbols = isMobile
+  ? []
+  : Array.from({ length: 40 }, () => ({
+      icon: getRandomIcon(),
+      top: Math.random() * 100,
+      left: Math.random() * 100,
+      delay: Math.random() * 1,
+      duration: 10 + Math.random() * 15,
+      size: 1 + Math.random() * 0.8,
+    }))
 
 onMounted(() => {
-  loadIcons(travelIcons)
+  if (!isMobile) {
+    loadIcons(travelIcons)
+  }
 })
 </script>
 
@@ -56,7 +61,7 @@ onMounted(() => {
       }"
     />
 
-    <template v-if="backgroundSettings.showSymbols">
+    <template v-if="!isMobile && backgroundSettings.showSymbols">
       <div
         v-for="(symbol, index) in symbols"
         :key="index"
@@ -106,6 +111,10 @@ onMounted(() => {
     user-select: none;
     opacity: 0;
     will-change: transform, opacity;
+
+    @include media-down(md) {
+      display: none !important;
+    }
   }
 }
 

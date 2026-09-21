@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { Icon, loadIcons } from '@iconify/vue'
 import { useMouse } from '@vueuse/core'
+import { isMobile } from '~/shared/lib/env'
 
 interface Particle {
   id: number
@@ -60,6 +61,9 @@ const { x: mouseX, y: mouseY } = useMouse()
 let animationFrameId: number
 
 onMounted(() => {
+  if (isMobile) {
+    return
+  }
   loadIcons(travelIcons)
   init()
   animate()
@@ -130,7 +134,7 @@ function animate() {
 </script>
 
 <template>
-  <div ref="containerRef" class="interactive-icon-particles-bg">
+  <div v-if="!isMobile" ref="containerRef" class="interactive-icon-particles-bg">
     <div
       v-for="particle in particles"
       :key="particle.id"
