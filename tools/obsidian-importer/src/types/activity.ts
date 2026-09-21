@@ -24,6 +24,7 @@ export interface GeolocationPoint {
   type: 'poi' | 'start' | 'via' | 'end' | 'connect'
   address?: string | null
   comment?: string | null
+  externalUrl?: string | null
   style?: {
     iconUrl?: string
     color?: string

@@ -282,6 +282,7 @@ export async function enrichActivityWithMediaAndLocation(
           type: loc.pointType || 'via',
           address: loc.pointType === 'connect' ? undefined : (loc.name || undefined),
           comment: undefined,
+          externalUrl: loc.externalUrl,
           isBike: loc.isBike,
         })
       }
@@ -302,6 +303,7 @@ export async function enrichActivityWithMediaAndLocation(
             type: pointType,
             address: routeName,
             comment: undefined,
+            externalUrl: loc.externalUrl,
             isBike: loc.isBike,
           })
         }
@@ -312,6 +314,7 @@ export async function enrichActivityWithMediaAndLocation(
             type: 'poi',
             address: loc.name,
             comment: undefined,
+            externalUrl: loc.externalUrl,
           })
         }
       }
@@ -336,6 +339,7 @@ export async function enrichActivityWithMediaAndLocation(
             type,
             address: type === 'connect' ? undefined : p.address,
             comment: undefined,
+            externalUrl: p.externalUrl,
           }
         })
         const isBike = /вело|bike/i.test(routeName) || pts.some(p => p.isBike)
@@ -356,6 +360,7 @@ export async function enrichActivityWithMediaAndLocation(
           type: 'poi',
           address: p.address,
           comment: undefined,
+          externalUrl: p.externalUrl,
         }))
       }
     }

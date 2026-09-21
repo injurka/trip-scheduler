@@ -2,6 +2,7 @@ import { existsSync, mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { describe, expect, it } from 'bun:test'
+import { enrichActivityWithMediaAndLocation } from '../lib/enricher'
 import { normalizeFsPath } from '../lib/vault-locator'
 import { parseActivitiesFromMarkdown } from '../parsers/activity'
 import { parseHotelsMarkdown } from '../parsers/booking'
@@ -411,11 +412,13 @@ describe('Location Parser', () => {
   })
 
   it('extracts fallback query from url when link text is generic', () => {
-    const text = '* _Ссылка на локацию_: [Google Maps](https://maps.google.com/?q=Taipei+101)'
+    const url = 'https://maps.google.com/?q=Taipei+101'
+    const text = `* _Ссылка на локацию_: [Google Maps](${url})`
     const locations = extractLocationsFromText(text)
     expect(locations).toHaveLength(1)
     expect(locations[0].name).toBe('Taipei 101')
     expect(locations[0].query).toBe('Taipei 101')
+    expect(locations[0].externalUrl).toBe(url)
   })
 
   it('creates only one location when link has custom title and line contains iframe with query', () => {
@@ -424,6 +427,35 @@ describe('Location Parser', () => {
     expect(locations).toHaveLength(1)
     expect(locations[0].name).toBe('Chifeng Street Zhongshan')
     expect(locations[0].query).toBe('Chifeng Street Taipei')
+    expect(locations[0].externalUrl).toBe('https://maps.google.com/?q=Chifeng+Street+Taipei')
+  })
+
+  it('preserves the exact map URL in the imported geolocation point', async () => {
+    const url = 'https://www.google.com/maps/place/Southern+Airlines+Pearl+Airport+Hotel/@23.4268711,113.3121694,17.46z/data=!3m1!4b1!8m2!3d23.427542!4d113.318474'
+    const markdown = `
+* **16:00 - 17:00** — Трансфер в транзитный отель:
+    * _Ссылка на отель_: [Google Maps: Southern Airlines Pearl Hotel (North District)](${url})
+`.trim()
+
+    const activity = parseActivitiesFromMarkdown(markdown)[0]
+    const enriched = await enrichActivityWithMediaAndLocation(
+      activity,
+      new Map(),
+      null,
+      null,
+      new Map(),
+      new Map(),
+      { geocode: false, uploadImages: false },
+    )
+    const geolocation = enriched.sections?.find(section => section.type === 'geolocation')
+
+    expect(geolocation?.type).toBe('geolocation')
+    if (geolocation?.type === 'geolocation') {
+      expect(geolocation.points[0]).toMatchObject({
+        coordinates: [113.318474, 23.427542],
+        externalUrl: url,
+      })
+    }
   })
 
   it('deduplicates a named map link and its iframe after activity normalization', () => {
@@ -481,6 +513,57 @@ describe('Location Parser', () => {
     expect(locations[1].pointType).toBe('connect')
     expect(locations[2].name).toBe('Yehliu Cape Tip')
     expect(locations[2].pointType).toBe('end')
+  })
+
+  it('keeps named Google directions endpoints in payload coordinate order', () => {
+    const url = 'https://www.google.com/maps/dir/Longshan+Temple/Bopiliao+Historical+Block/@25.0366454,121.5008012,307m/data=!4m18!4m17!1m5!1m1!1s0x3442a9a8d7e7de09:0xf8e8335e58c41c8a!2m2!1d121.4998654!2d25.0373106!1m5!1m1!1s0x3442a9a8d017b6dd:0xff3361bbadd40fe9!2m2!1d121.5021648!2d25.036838!3e2'
+    const text = `* _Маршрут пешком_: [Google Maps: Longshan Temple → Bopiliao Historical Block](${url})`
+    const locations = extractLocationsFromText(text)
+
+    expect(locations).toHaveLength(2)
+    expect(locations.map(location => location.coordinates)).toEqual([
+      [121.4998654, 25.0373106],
+      [121.5021648, 25.036838],
+    ])
+    expect(locations.map(location => location.pointType)).toEqual(['start', 'end'])
+  })
+
+  it('ignores Google directions camera and map-mode path segments', () => {
+    const url = 'https://www.google.com/maps/dir/25.0355642,121.4999438/25.0368022,121.4998956/@25.0355642,121.4973689,1270m/am=t/data=!3m1!1e3!4m6!4m5!3e2'
+    const text = `* _Маршрут пешком_: [Google Maps: MRT Longshan Temple → Longshan Temple](${url})`
+    const locations = extractLocationsFromText(text)
+
+    expect(locations).toHaveLength(2)
+    expect(locations.map(location => location.coordinates)).toEqual([
+      [121.4999438, 25.0355642],
+      [121.4998956, 25.0368022],
+    ])
+  })
+
+  it('does not create an am=t waypoint for a named Google walking route', () => {
+    const url = 'https://www.google.com/maps/dir/Bopiliao+Historical+Block,+Lane+173,+Kangding+Rd,+Fuyin+Village,+Wanhua+District,+Taipei+City,+Taiwan+108/The+Red+House,+No.+10,+Chengdu+Rd,+Ximen+Village,+Wanhua+District,+Taipei+City,+Taiwan+108/@25.0401668,121.5045655,848m/am=t/data=!3m2!1e3!5s0x3442a909a49c352f:0x94934848da84e6ed!4m18!4m17!1m5!1m1!1s0x3442a9a8d017b6dd:0xff3361bbadd40fe9!2m2!1d121.5021648!2d25.036838!1m5!1m1!1s0x3442a909a4acec8b:0x7c34275cfedcc1c5!2m2!1d121.5068592!2d25.0420139!3e2'
+    const text = `* _Маршрут пешком_: [Google Maps: Bopiliao Historical Block → The Red House](${url})`
+    const locations = extractLocationsFromText(text)
+
+    expect(locations).toHaveLength(2)
+    expect(locations.map(location => location.name)).toEqual([
+      'Bopiliao Historical Block, Lane 173, Kangding Rd, Fuyin Village, Wanhua District, Taipei City, Taiwan 108',
+      'The Red House, No. 10, Chengdu Rd, Ximen Village, Wanhua District, Taipei City, Taiwan 108',
+    ])
+    expect(locations.map(location => location.pointType)).toEqual(['start', 'end'])
+  })
+
+  it('aligns a named origin and coordinate destination in Google directions', () => {
+    const url = 'https://www.google.com/maps/dir/Dihua+Old+Street/25.0627303,121.510896/@25.058117,121.507176,1270m/data=!4m14!4m13!1m5!1m1!1s0x3442a91438867265:0xc524ad8c103e4a1e!2m2!1d121.5097835!2d25.0581195!1m0!3e2'
+    const text = `* _Маршрут пешком_: [Google Maps: Dihua Old Street → MRT D3](${url})`
+    const locations = extractLocationsFromText(text)
+
+    expect(locations).toHaveLength(2)
+    expect(locations.map(location => location.name)).toEqual(['Dihua Old Street', 'MRT D3'])
+    expect(locations.map(location => location.coordinates)).toEqual([
+      [121.5097835, 25.0581195],
+      [121.510896, 25.0627303],
+    ])
   })
 })
 

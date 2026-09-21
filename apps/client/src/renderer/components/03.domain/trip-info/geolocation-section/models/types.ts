@@ -19,6 +19,7 @@ export interface MapPoint {
   style?: MarkerStyle
   address?: string
   comment?: string
+  externalUrl?: string | null
 }
 
 export type TransportMode = 'foot' | 'bike' | 'car'

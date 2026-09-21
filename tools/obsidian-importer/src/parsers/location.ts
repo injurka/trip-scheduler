@@ -108,12 +108,25 @@ export function extractAllCoordinatesFromUrl(url: string): Array<[number, number
     const decoded = decodeURIComponent(url)
     const results: Array<[number, number]> = []
 
-    // 1. Google Maps /dir/lat1,lon1/lat2,lon2/...
+    // 1. Google Maps /dir/... keeps waypoints in path order. A waypoint may
+    // be encoded directly as lat,lon or as a place name whose exact
+    // coordinate is stored in the data payload as !1d<lon>!2d<lat>.
+    // Reading the first generic coordinate from the URL is unsafe here: the
+    // @lat,lon value is only the camera center, while !3d/!4d may describe a
+    // single selected place rather than the ordered route endpoints.
     const dirSegments = decoded.match(/\/dir\/([^?#]+)/i)
     if (dirSegments) {
-      const parts = dirSegments[1].split('/')
+      const parts = dirSegments[1]
+        .split('/')
+        .map(part => part.trim())
+        .filter(part => part && !part.startsWith('@') && !/^(?:am|data)=/i.test(part))
+      const payloadCoordinates = [...decoded.matchAll(/!1d([-\d.]+)!2d([-\d.]+)/gi)]
+        .map((match): [number, number] => [Number.parseFloat(match[1]), Number.parseFloat(match[2])])
+        .filter(([lon, lat]) => !Number.isNaN(lon) && !Number.isNaN(lat) && Math.abs(lon) <= 180 && Math.abs(lat) <= 90)
+      let payloadIndex = 0
+
       for (const part of parts) {
-        const coordMatch = part.match(/([-\d.]+)[,%2C\s]+([-\d.]+)/)
+        const coordMatch = part.match(/^([-\d.]+)[,%2C\s]+([-\d.]+)$/)
         if (coordMatch) {
           const lat = Number.parseFloat(coordMatch[1])
           const lon = Number.parseFloat(coordMatch[2])
@@ -121,8 +134,12 @@ export function extractAllCoordinatesFromUrl(url: string): Array<[number, number
             results.push([lon, lat])
           }
         }
+        else if (payloadCoordinates[payloadIndex]) {
+          results.push(payloadCoordinates[payloadIndex])
+          payloadIndex++
+        }
       }
-      if (results.length > 0)
+      if (results.length === parts.length && results.length > 0)
         return results
     }
 
@@ -164,7 +181,7 @@ export function extractNamedWaypointsFromUrl(url: string): string[] {
       const results: string[] = []
       for (const part of parts) {
         const trimmed = part.trim()
-        if (!trimmed || trimmed.startsWith('data=') || /^!/i.test(trimmed) || /^@/i.test(trimmed) || /^[-\d.,\s]+$/.test(trimmed))
+        if (!trimmed || /^(?:am|data)=/i.test(trimmed) || /^!/i.test(trimmed) || /^@/i.test(trimmed) || /^[-\d.,\s]+$/.test(trimmed))
           continue
         const cleaned = trimmed.replace(/\+/g, ' ').trim()
         if (cleaned)
@@ -238,9 +255,14 @@ export interface ExtractedLocation {
   name: string
   query: string
   coordinates?: [number, number]
+  externalUrl?: string
   isBike?: boolean
   routeName?: string
   pointType?: 'start' | 'via' | 'end' | 'connect' | 'poi'
+}
+
+function isSupportedMapUrl(url: string): boolean {
+  return /(?:google\.[^/]+\/maps|maps\.google\.|maps\.app\.goo\.gl|goo\.gl\/maps|yandex\.[^/]+\/maps|2gis\.[^/]+|openstreetmap\.org|map\.baidu\.com)/i.test(url)
 }
 
 export function extractLocationsFromText(text: string): ExtractedLocation[] {
@@ -255,6 +277,7 @@ export function extractLocationsFromText(text: string): ExtractedLocation[] {
     isBike?: boolean,
     routeName?: string,
     pointType?: 'start' | 'via' | 'end' | 'connect' | 'poi',
+    externalUrl?: string,
   ) {
     const cleanName = name
       .replace(PREFIX_CLEAN_REGEX, '')
@@ -273,6 +296,7 @@ export function extractLocationsFromText(text: string): ExtractedLocation[] {
         name: cleanName,
         query: cleanQuery || cleanName,
         coordinates: coords,
+        externalUrl,
         isBike,
         routeName,
         pointType: pointType || (coords ? 'via' : 'poi'),
@@ -295,12 +319,15 @@ export function extractLocationsFromText(text: string): ExtractedLocation[] {
         existing.query = cleanQuery
       if (isBike)
         existing.isBike = true
+      if (!existing.externalUrl && externalUrl)
+        existing.externalUrl = externalUrl
     }
     else {
       locations.push({
         name: cleanName || cleanQuery,
         query: cleanQuery || cleanName,
         coordinates: coords,
+        externalUrl,
         isBike,
         pointType: 'poi',
       })
@@ -312,6 +339,7 @@ export function extractLocationsFromText(text: string): ExtractedLocation[] {
     coordsList: Array<[number, number]>,
     namedList: string[],
     isBike?: boolean,
+    externalUrl?: string,
   ) {
     const rawSegments = routeName.split(/\s*(?:→|->|➔|—|–)\s*/).map(s => s.trim()).filter(Boolean)
     const count = Math.max(coordsList.length, namedList.length)
@@ -377,6 +405,7 @@ export function extractLocationsFromText(text: string): ExtractedLocation[] {
         name: ptName,
         query: ptName || named || routeName,
         coordinates: coords,
+        externalUrl,
         isBike,
         routeName,
         pointType,
@@ -399,6 +428,7 @@ export function extractLocationsFromText(text: string): ExtractedLocation[] {
       const linkTitle = linkMatch[1]
       const linkUrl = linkMatch[2]
       const isBike = isLineBike || /travelmode=bicycl|travelmode=bike|!3e1/i.test(linkUrl)
+      const externalUrl = isSupportedMapUrl(linkUrl) ? linkUrl : undefined
 
       let locationName = linkTitle
       const stripped = linkTitle.replace(PREFIX_CLEAN_REGEX, '').trim()
@@ -434,11 +464,11 @@ export function extractLocationsFromText(text: string): ExtractedLocation[] {
       const allCoords = extractAllCoordinatesFromUrl(linkUrl)
       const namedWaypoints = extractNamedWaypointsFromUrl(linkUrl)
       if (allCoords.length > 1 || namedWaypoints.length > 1) {
-        addRouteLocations(locationName, allCoords, namedWaypoints, isBike)
+        addRouteLocations(locationName, allCoords, namedWaypoints, isBike, externalUrl)
       }
       else {
         const coords = allCoords.length === 1 ? allCoords[0] : extractCoordinatesFromUrl(linkUrl)
-        addLocation(locationName, locationQuery, coords, isBike)
+        addLocation(locationName, locationQuery, coords, isBike, undefined, undefined, externalUrl)
       }
     }
 
@@ -503,15 +533,16 @@ export function extractLocationsFromText(text: string): ExtractedLocation[] {
     const title = stdMapLinkMatch[1]
     const url = stdMapLinkMatch[2]
     const isBike = /вело|bike/i.test(title) || /travelmode=bicycl|travelmode=bike|!3e1/i.test(url)
+    const externalUrl = isSupportedMapUrl(url) ? url : undefined
     const cleanTitle = title.replace(PREFIX_CLEAN_REGEX, '').trim() || title
     const allCoords = extractAllCoordinatesFromUrl(url)
     const namedWaypoints = extractNamedWaypointsFromUrl(url)
     if (allCoords.length > 1 || namedWaypoints.length > 1) {
-      addRouteLocations(cleanTitle, allCoords, namedWaypoints, isBike)
+      addRouteLocations(cleanTitle, allCoords, namedWaypoints, isBike, externalUrl)
     }
     else {
       const coords = allCoords.length === 1 ? allCoords[0] : extractCoordinatesFromUrl(url)
-      addLocation(cleanTitle, cleanTitle, coords, isBike)
+      addLocation(cleanTitle, cleanTitle, coords, isBike, undefined, undefined, externalUrl)
     }
   }
 

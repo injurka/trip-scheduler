@@ -52,6 +52,7 @@ interface MapProvider {
   icon: string
   getExternalUrl: (lat: number, lon: number) => string
   getEmbedUrl: (lat: number, lon: number) => string
+  matchesUrl: (url: string) => boolean
 }
 
 const mapChoicePanelRef = ref<HTMLElement | null>(null)
@@ -67,18 +68,21 @@ const mapProviders: MapProvider[] = [
     icon: 'mdi:google-maps',
     getExternalUrl: (lat, lon) => `https://www.google.com/maps/search/?api=1&query=${lat},${lon}`,
     getEmbedUrl: (lat, lon) => `https://www.google.com/maps?q=${lat},${lon}&output=embed`,
+    matchesUrl: url => /google\.[^/]+\/maps|maps\.google\.|maps\.app\.goo\.gl|goo\.gl\/maps/i.test(url),
   },
   {
     name: 'Yandex Maps',
     icon: 'mdi:map-marker',
     getExternalUrl: (lat, lon) => `https://yandex.ru/maps/?pt=${lon},${lat}&z=16&l=map`,
     getEmbedUrl: (lat, lon) => `https://yandex.ru/map-widget/v1/?ll=${lon}%2C${lat}&z=15&pt=${lon},${lat}`,
+    matchesUrl: url => /yandex\.[^/]+\/maps/i.test(url),
   },
   {
     name: '2GIS',
     icon: 'mdi:map-marker-radius',
     getExternalUrl: (lat, lon) => `https://2gis.ru/geo/${lon},${lat}`,
     getEmbedUrl: (lat, lon) => `https://2gis.ru/geo/${lon},${lat}`,
+    matchesUrl: url => /2gis\.[^/]+/i.test(url),
   },
   {
     name: 'OpenStreetMap',
@@ -89,12 +93,14 @@ const mapProviders: MapProvider[] = [
       const bbox = [lon - delta, lat - delta, lon + delta, lat + delta].join(',')
       return `https://www.openstreetmap.org/export/embed.html?bbox=${bbox}&layer=mapnik&marker=${lat},${lon}`
     },
+    matchesUrl: url => /openstreetmap\.org/i.test(url),
   },
   {
     name: 'Baidu Maps',
     icon: 'mdi:map-legend',
     getExternalUrl: (lat, lon) => `https://api.map.baidu.com/marker?location=${lat},${lon}&output=html`,
     getEmbedUrl: (lat, lon) => `http://api.map.baidu.com/marker?location=${lat},${lon}&output=html`,
+    matchesUrl: url => /map\.baidu\.com/i.test(url),
   },
 ]
 
@@ -103,12 +109,26 @@ function openMapChoice(point: MapPoint) {
   isMapChoiceVisible.value = true
 }
 
+function hasOriginalUrl(provider: MapProvider): boolean {
+  const url = selectedPointForMap.value?.externalUrl
+  return !!url && provider.matchesUrl(url)
+}
+
 async function selectMapProvider(provider: MapProvider) {
   if (!selectedPointForMap.value)
     return
 
-  const [lon, lat] = selectedPointForMap.value.coordinates
+  const selectedPoint = selectedPointForMap.value
+  const [lon, lat] = selectedPoint.coordinates
   isMapChoiceVisible.value = false
+
+  // Preserve the exact source URL only for its matching provider. Choosing a
+  // different provider intentionally keeps the coordinate-based fallback.
+  if (selectedPoint.externalUrl && provider.matchesUrl(selectedPoint.externalUrl)) {
+    await openExternalUrl(selectedPoint.externalUrl)
+    selectedPointForMap.value = null
+    return
+  }
 
   if (isMobileApp) {
     const url = provider.getExternalUrl(lat, lon)
@@ -305,16 +325,28 @@ onClickOutside(mapIframeContainerRef, () => {
       <div v-if="isMapChoiceVisible" class="map-choice-overlay">
         <div ref="mapChoicePanelRef" class="map-choice-panel">
           <h4>Выберите карту</h4>
+          <p v-if="selectedPointForMap?.externalUrl" class="map-choice-note">
+            <Icon icon="mdi:information-outline" />
+            Исходная ссылка отмечена бейджем. Остальные варианты откроются по координатам.
+          </p>
           <div class="map-provider-list">
             <button
               v-for="provider in mapProviders"
               :key="provider.name"
               type="button"
               class="map-provider-btn"
+              :class="{ 'is-original': hasOriginalUrl(provider) }"
               @click="selectMapProvider(provider)"
             >
               <Icon :icon="provider.icon" class="provider-icon" />
-              <span>{{ provider.name }}</span>
+              <span class="provider-copy">
+                <span class="provider-name">{{ provider.name }}</span>
+                <span v-if="hasOriginalUrl(provider)" class="provider-badge">
+                  <Icon icon="mdi:link-variant" />
+                  Исходная ссылка
+                </span>
+                <span v-else-if="selectedPointForMap?.externalUrl" class="provider-coordinate-note">по координатам</span>
+              </span>
             </button>
           </div>
         </div>
@@ -751,6 +783,22 @@ onClickOutside(mapIframeContainerRef, () => {
   }
 }
 
+.map-choice-note {
+  display: flex;
+  align-items: flex-start;
+  gap: 6px;
+  margin: -6px 0 14px;
+  color: var(--fg-secondary-color);
+  font-size: 0.78rem;
+  line-height: 1.35;
+
+  > .iconify {
+    flex-shrink: 0;
+    margin-top: 1px;
+    color: var(--fg-accent-color);
+  }
+}
+
 .map-provider-list {
   display: flex;
   flex-direction: column;
@@ -773,6 +821,12 @@ onClickOutside(mapIframeContainerRef, () => {
   cursor: pointer;
   transition: all 0.15s ease;
 
+  &.is-original {
+    border-color: var(--fg-accent-color);
+    background-color: rgba(var(--fg-accent-color-rgb), 0.1);
+    box-shadow: 0 0 0 1px rgba(var(--fg-accent-color-rgb), 0.16);
+  }
+
   @include hover {
     & {
       background-color: var(--bg-hover-color);
@@ -783,6 +837,42 @@ onClickOutside(mapIframeContainerRef, () => {
   .provider-icon {
     font-size: 1.2rem;
     color: var(--fg-accent-color);
+  }
+
+  .provider-copy {
+    display: flex;
+    min-width: 0;
+    flex-direction: column;
+    gap: 3px;
+  }
+
+  .provider-name {
+    line-height: 1.1;
+  }
+
+  .provider-badge {
+    display: inline-flex;
+    align-items: center;
+    align-self: flex-start;
+    gap: 4px;
+    padding: 2px 6px;
+    border-radius: 999px;
+    background-color: rgba(var(--fg-accent-color-rgb), 0.14);
+    color: var(--fg-accent-color);
+    font-size: 0.68rem;
+    font-weight: 700;
+    line-height: 1.2;
+
+    > .iconify {
+      font-size: 0.78rem;
+    }
+  }
+
+  .provider-coordinate-note {
+    color: var(--fg-secondary-color);
+    font-size: 0.7rem;
+    font-weight: 400;
+    line-height: 1.1;
   }
 }
 

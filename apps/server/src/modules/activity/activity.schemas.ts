@@ -35,6 +35,7 @@ const MapPointSchema = z.object({
   style: MarkerStyleSchema,
   address: z.string().optional().nullable(),
   comment: z.string().optional().nullable(),
+  externalUrl: z.string().url().optional().nullable(),
 })
 
 const MapRouteSchema = z.object({
