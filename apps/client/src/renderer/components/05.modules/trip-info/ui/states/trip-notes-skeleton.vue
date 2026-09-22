@@ -58,9 +58,11 @@ import { KitSkeleton } from '~/components/01.kit/kit-skeleton'
     height: 100%;
     width: 100%;
     overflow: hidden;
+    min-height: 0;
     border: 1px solid var(--border-secondary-color);
     border-radius: var(--r-m);
     background: var(--bg-primary-color);
+    flex: 1;
   }
 }
 
@@ -110,6 +112,7 @@ import { KitSkeleton } from '~/components/01.kit/kit-skeleton'
   flex: 1;
   display: flex;
   flex-direction: column;
+  min-height: 0;
   background: var(--bg-primary-color);
 }
 
@@ -124,6 +127,8 @@ import { KitSkeleton } from '~/components/01.kit/kit-skeleton'
 }
 
 .editor-body {
+  flex: 1;
+  min-height: 0;
   padding: 24px;
   display: flex;
   flex-direction: column;

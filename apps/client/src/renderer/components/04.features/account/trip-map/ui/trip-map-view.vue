@@ -46,6 +46,7 @@ const scrollRef = ref<HTMLDivElement | null>(null)
 const showCityList = ref(false)
 const panelRef = ref<InstanceType<typeof TripMapPanel> | null>(null)
 const geoError = ref(false)
+const isNativeFullscreen = ref(false)
 
 const hoveredCity = ref<MapCity | null>(null)
 const selectedCity = ref<MapCity | null>(null)
@@ -157,6 +158,7 @@ function handleTouchEnd(e: TouchEvent): void {
 }
 
 function handleFsChange(): void {
+  isNativeFullscreen.value = document.fullscreenElement === containerRef.value
   onFsChange(() => nextTick(applySize))
 }
 
@@ -358,90 +360,92 @@ watch(dotPathLow, redraw)
 </script>
 
 <template>
-  <div
-    ref="containerRef"
-    class="trip-map"
-    :class="{ 'trip-map-fs': isFullscreen }"
-  >
+  <Teleport to="body" :disabled="!isFullscreen || isNativeFullscreen">
     <div
-      ref="scrollRef"
-      class="trip-map-scroll"
-      @mousedown="handleMouseDown"
+      ref="containerRef"
+      class="trip-map"
+      :class="{ 'trip-map-fs': isFullscreen }"
     >
-      <TripMapSkeleton v-if="isLoading || isBuilding" />
+      <div
+        ref="scrollRef"
+        class="trip-map-scroll"
+        @mousedown="handleMouseDown"
+      >
+        <TripMapSkeleton v-if="isLoading || isBuilding" />
 
-      <TripMapError
-        v-else-if="geoError"
-        message="Не удалось загрузить карту мира"
-        @retry="loadGeoJson"
-      />
+        <TripMapError
+          v-else-if="geoError"
+          message="Не удалось загрузить карту мира"
+          @retry="loadGeoJson"
+        />
 
-      <template v-else>
-        <!-- Canvas Wrapper / Stage -->
-        <div
-          class="trip-map-stage"
-          :class="{ 'is-hovering': hoveredCity, 'is-dragging': isDragging }"
-          :style="{ width: `${cssW}px`, height: `${cssH}px`, margin: '0 auto' }"
-          @mousemove="handleCanvasMouseMove"
-          @mouseleave="handleCanvasMouseLeave"
-          @click="handleCanvasClick"
-        >
-          <canvas ref="canvasRef" class="trip-map-canvas" />
+        <template v-else>
+          <!-- Canvas Wrapper / Stage -->
+          <div
+            class="trip-map-stage"
+            :class="{ 'is-hovering': hoveredCity, 'is-dragging': isDragging }"
+            :style="{ width: `${cssW}px`, height: `${cssH}px`, margin: '0 auto' }"
+            @mousemove="handleCanvasMouseMove"
+            @mouseleave="handleCanvasMouseLeave"
+            @click="handleCanvasClick"
+          >
+            <canvas ref="canvasRef" class="trip-map-canvas" />
 
-          <!-- Overlays -->
-          <div v-if="hoveredCity && hoveredCity.id !== selectedCity?.id" class="trip-map-tooltip" :style="hoverStyle">
-            {{ hoveredCity.name }}
-          </div>
-
-          <div v-if="selectedCity" class="trip-map-popover" :style="popoverStyle" @click.stop>
-            <div class="popover-header">
-              <span class="popover-title">{{ selectedCity.name }}</span>
-              <button class="popover-close" @click.stop="selectedCity = null; redraw()">
-                <Icon icon="mdi:close" width="16" height="16" />
-              </button>
+            <!-- Overlays -->
+            <div v-if="hoveredCity && hoveredCity.id !== selectedCity?.id" class="trip-map-tooltip" :style="hoverStyle">
+              {{ hoveredCity.name }}
             </div>
-            <div class="popover-body">
-              {{ selectedCity.country }}
+
+            <div v-if="selectedCity" class="trip-map-popover" :style="popoverStyle" @click.stop>
+              <div class="popover-header">
+                <span class="popover-title">{{ selectedCity.name }}</span>
+                <button class="popover-close" @click.stop="selectedCity = null; redraw()">
+                  <Icon icon="mdi:close" width="16" height="16" />
+                </button>
+              </div>
+              <div class="popover-body">
+                {{ selectedCity.country }}
+              </div>
             </div>
           </div>
-        </div>
 
-        <TripMapEmpty v-if="cities.length === 0" />
+          <TripMapEmpty v-if="cities.length === 0" />
 
-        <div v-if="cities.length > 0" class="trip-map-badge">
-          {{ cities.length }}&nbsp;{{ pluralize(cities.length) }}
-        </div>
-
-        <Transition name="fade">
-          <div v-if="isFullscreen" class="trip-map-hint">
-            Колесо — приближение · Перетащи — перемещение
+          <div v-if="cities.length > 0" class="trip-map-badge">
+            {{ cities.length }}&nbsp;{{ pluralize(cities.length) }}
           </div>
-        </Transition>
+
+          <Transition name="fade">
+            <div v-if="isFullscreen" class="trip-map-hint">
+              Колесо — приближение · Перетащи — перемещение
+            </div>
+          </Transition>
+        </template>
+      </div>
+
+      <template v-if="!isLoading && !isBuilding && !geoError">
+        <TripMapToolbar
+          :show-list="showCityList"
+          :is-fullscreen="isFullscreen"
+          :has-cities="cities.length > 0"
+          :show-reset="isMapDirty"
+          @toggle-list="showCityList = !showCityList"
+          @toggle-fullscreen="handleToggleFullscreen"
+          @reset="resetMap"
+          @zoom-in="handleZoomIn"
+          @zoom-out="handleZoomOut"
+        />
+
+        <TripMapPanel
+          ref="panelRef"
+          v-model:open="showCityList"
+          :cities="cities"
+          :grouped="grouped"
+          @city-click="focusCity"
+        />
       </template>
     </div>
-
-    <template v-if="!isLoading && !isBuilding && !geoError">
-      <TripMapToolbar
-        :show-list="showCityList"
-        :is-fullscreen="isFullscreen"
-        :has-cities="cities.length > 0"
-        :show-reset="isMapDirty"
-        @toggle-list="showCityList = !showCityList"
-        @toggle-fullscreen="handleToggleFullscreen"
-        @reset="resetMap"
-        @zoom-in="handleZoomIn"
-        @zoom-out="handleZoomOut"
-      />
-
-      <TripMapPanel
-        ref="panelRef"
-        v-model:open="showCityList"
-        :cities="cities"
-        :grouped="grouped"
-        @city-click="focusCity"
-      />
-    </template>
-  </div>
+  </Teleport>
 </template>
 
 <style scoped lang="scss">
@@ -454,10 +458,12 @@ watch(dotPathLow, redraw)
     inset: 0;
     width: 100vw;
     height: 100vh;
+    height: 100dvh;
     border-radius: 0;
     border: none;
     background: var(--bg-primary-color);
-    z-index: 50;
+    isolation: isolate;
+    z-index: 9998;
   }
 }
 

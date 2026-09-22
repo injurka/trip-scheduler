@@ -388,6 +388,8 @@ onBeforeUnmount(() => flushPendingSave())
   overflow: hidden;
   position: relative;
   min-width: 0;
+  min-height: 0;
+  flex: 1;
 
   border: 1px solid var(--border-secondary-color);
   border-radius: var(--r-m);
@@ -557,6 +559,7 @@ onBeforeUnmount(() => flushPendingSave())
   display: flex;
   flex-direction: column;
   min-width: 0;
+  min-height: 0;
   overflow: hidden;
   background: var(--bg-primary-color);
 }
@@ -686,8 +689,10 @@ onBeforeUnmount(() => flushPendingSave())
   overflow-x: hidden;
   position: relative;
   min-width: 0;
+  min-height: 0;
   width: 100%;
   max-width: 100%;
+  overscroll-behavior: contain;
   scrollbar-width: none;
   -ms-overflow-style: none;
 

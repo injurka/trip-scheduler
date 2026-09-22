@@ -13,8 +13,12 @@ export function resolveApiUrl(path: string | null | undefined): string {
     return ''
   }
 
+  const isHttpUrl = path.startsWith('http://') || path.startsWith('https://')
+  const isBlobUrl = path.startsWith('blob:')
+  const isRelativeApiPath = !isHttpUrl && !isBlobUrl
+
   let base = path
-  if (!path.startsWith('http://') && !path.startsWith('https://') && !path.startsWith('blob:')) {
+  if (isRelativeApiPath) {
     const cleanedServer = serverUrl.endsWith('/') ? serverUrl.slice(0, -1) : serverUrl
     const cleanedPath = path.startsWith('/') ? path.slice(1) : path
     base = `${cleanedServer}/${IMAGE_ROUTE}/${cleanedPath}`
@@ -23,8 +27,9 @@ export function resolveApiUrl(path: string | null | undefined): string {
   if (typeof window !== 'undefined') {
     const token = localStorage.getItem('auth_token')
     if (token) {
-      const isOurServer = (!path.startsWith('http://') && !path.startsWith('https://'))
-        || base.startsWith(serverUrl)
+      const normalizedServerUrl = serverUrl.replace(/\/+$/, '')
+      const isOurServer = isRelativeApiPath
+        || (normalizedServerUrl.length > 0 && (base === normalizedServerUrl || base.startsWith(`${normalizedServerUrl}/`)))
 
       if (isOurServer) {
         try {

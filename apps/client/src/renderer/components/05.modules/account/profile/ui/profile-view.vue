@@ -11,6 +11,7 @@ import { HighlightsFeedView } from '~/components/04.features/account/highlights'
 import { OpenTripsView } from '~/components/04.features/account/open-trips'
 import { TripMapView } from '~/components/04.features/account/trip-map'
 import { AppRoutePaths } from '~/shared/constants/routes'
+import { resolveApiUrl } from '~/shared/lib/url'
 import { useAuthStore } from '~/shared/store/auth.store'
 import { useProfileView } from '../composables/use-profile-view'
 
@@ -115,17 +116,15 @@ const tabItems = computed<TabItem[]>(() => [
 ])
 
 const headerStyle = computed(() => {
-  const cover = userProfile.value?.coverUrl ?? '/images/mock.png'
+  const cover = userProfile.value?.coverUrl
+  const coverUrl = cover ? resolveApiUrl(cover) : '/images/mock.png'
 
-  if (cover) {
-    return {
-      backgroundImage: `linear-gradient(to top, var(--bg-secondary-color) 10%, transparent 80%), url(${cover})`,
-      backgroundSize: 'cover',
-      backgroundPosition: 'center',
-      backgroundRepeat: 'no-repeat',
-    }
+  return {
+    backgroundImage: `linear-gradient(to top, var(--bg-secondary-color) 10%, transparent 80%), url(${JSON.stringify(coverUrl)})`,
+    backgroundSize: 'cover',
+    backgroundPosition: 'center',
+    backgroundRepeat: 'no-repeat',
   }
-  return {}
 })
 
 watch(userId, (newId) => {
