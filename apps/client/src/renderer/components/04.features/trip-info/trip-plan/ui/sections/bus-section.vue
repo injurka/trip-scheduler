@@ -74,7 +74,7 @@ function removeRide(rideId: string) {
           <!-- Editable Mode -->
           <div v-if="!readonly" class="ride-content free-mode editable">
             <div class="line-indicator" :style="{ backgroundColor: ride.color }">
-              <span v-if="ride.code && ride.code.length <= 4" class="line-number">{{ ride.code }}</span>
+              <span v-if="ride.code && ride.code.length <= 3" class="line-number">{{ ride.code }}</span>
               <Icon v-else icon="mdi:bus" class="bus-icon-indicator" />
             </div>
             <div class="free-mode-grid">
@@ -149,7 +149,7 @@ function removeRide(rideId: string) {
           <!-- Readonly View -->
           <div v-else class="ride-content readonly">
             <div class="line-indicator" :style="{ backgroundColor: ride.color }">
-              <span v-if="ride.code && ride.code.length <= 4" class="line-number">{{ ride.code }}</span>
+              <span v-if="ride.code && ride.code.length <= 3" class="line-number">{{ ride.code }}</span>
               <Icon v-else icon="mdi:bus" class="bus-icon-indicator" />
             </div>
             <div class="ride-info">
