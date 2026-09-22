@@ -11,7 +11,9 @@ import { TripInfo } from '~/components/05.modules/trip-info'
 <style lang="scss" scoped>
 .content-wrapper-inner {
   display: flex;
+  flex-direction: column;
   flex-grow: 1;
+  min-height: 0;
   width: 100%;
 }
 </style>

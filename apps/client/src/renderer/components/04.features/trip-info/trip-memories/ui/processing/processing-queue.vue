@@ -48,48 +48,50 @@ const {
 </script>
 
 <template>
-  <div :class="queueClasses">
-    <div class="queue-header">
-      <div class="header-content">
-        <h4><Icon icon="mdi:image-sync-outline" /> Медиафайлы для обработки</h4>
-        <p>Здесь находятся медиа без даты или снятые в другой день. Назначьте им время и комментарий, чтобы они появились в ленте воспоминаний.</p>
+  <Teleport to="body" :disabled="!isFullScreen">
+    <div :class="queueClasses">
+      <div class="queue-header">
+        <div class="header-content">
+          <h4><Icon icon="mdi:image-sync-outline" /> Медиафайлы для обработки</h4>
+          <p>Здесь находятся медиа без даты или снятые в другой день. Назначьте им время и комментарий, чтобы они появились в ленте воспоминаний.</p>
+        </div>
+        <div class="header-actions">
+          <KitTooltip :text="isFullScreen ? 'Свернуть из полноэкранного режима' : 'На весь экран'">
+            <button class="action-btn" @click="isFullScreen = !isFullScreen">
+              <Icon :icon="isFullScreen ? 'mdi:fullscreen-exit' : 'mdi:fullscreen'" />
+            </button>
+          </KitTooltip>
+          <KitTooltip :text="isCollapsed ? 'Развернуть' : 'Свернуть'">
+            <button class="action-btn" @click="isCollapsed = !isCollapsed">
+              <Icon :icon="isCollapsed ? 'mdi:chevron-down' : 'mdi:chevron-up'" />
+            </button>
+          </KitTooltip>
+        </div>
       </div>
-      <div class="header-actions">
-        <KitTooltip :text="isFullScreen ? 'Свернуть из полноэкранного режима' : 'На весь экран'">
-          <button class="action-btn" @click="isFullScreen = !isFullScreen">
-            <Icon :icon="isFullScreen ? 'mdi:fullscreen-exit' : 'mdi:fullscreen'" />
+      <div v-show="!isCollapsed" class="queue-content">
+        <div class="queue-filters">
+          <KitCheckbox v-model="filters.showWithoutDate">
+            Без даты
+          </KitCheckbox>
+          <KitCheckbox v-model="filters.showWithDate">
+            Снятые в другой день
+          </KitCheckbox>
+        </div>
+        <div v-if="filteredMemories.length > 0" class="queue-grid">
+          <MemoryProcessingCard v-for="memory in paginatedMemories" :key="memory.id" :memory="memory" />
+        </div>
+        <div v-else class="empty-queue">
+          <Icon icon="mdi:check-circle-outline" class="empty-icon" />
+          <p>Отлично! Все фотографии отсортированы.</p>
+        </div>
+        <div v-if="hasMoreMemories" class="show-more-container">
+          <button class="show-more-button" @click="showMore">
+            Показать больше
           </button>
-        </KitTooltip>
-        <KitTooltip :text="isCollapsed ? 'Развернуть' : 'Свернуть'">
-          <button class="action-btn" @click="isCollapsed = !isCollapsed">
-            <Icon :icon="isCollapsed ? 'mdi:chevron-down' : 'mdi:chevron-up'" />
-          </button>
-        </KitTooltip>
+        </div>
       </div>
     </div>
-    <div v-show="!isCollapsed" class="queue-content">
-      <div class="queue-filters">
-        <KitCheckbox v-model="filters.showWithoutDate">
-          Без даты
-        </KitCheckbox>
-        <KitCheckbox v-model="filters.showWithDate">
-          Снятые в другой день
-        </KitCheckbox>
-      </div>
-      <div v-if="filteredMemories.length > 0" class="queue-grid">
-        <MemoryProcessingCard v-for="memory in paginatedMemories" :key="memory.id" :memory="memory" />
-      </div>
-      <div v-else class="empty-queue">
-        <Icon icon="mdi:check-circle-outline" class="empty-icon" />
-        <p>Отлично! Все фотографии отсортированы.</p>
-      </div>
-      <div v-if="hasMoreMemories" class="show-more-container">
-        <button class="show-more-button" @click="showMore">
-          Показать больше
-        </button>
-      </div>
-    </div>
-  </div>
+  </Teleport>
 </template>
 
 <style scoped lang="scss">
@@ -107,7 +109,7 @@ const {
     left: 0;
     width: 100vw;
     height: 100vh;
-    z-index: 1000;
+    z-index: 995;
     overflow-y: auto;
     border-radius: 0;
     padding: 24px 48px;

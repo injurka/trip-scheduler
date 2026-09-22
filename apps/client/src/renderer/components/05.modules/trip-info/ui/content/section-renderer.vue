@@ -74,11 +74,16 @@ function handleSectionUpdate(updatedSectionData: TripSection) {
   display: flex;
   flex-direction: column;
   flex: 1;
+  min-height: 0;
 }
 
 .section-content {
   width: 100%;
   position: relative;
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-height: 0;
 }
 
 .section-not-found {

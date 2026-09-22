@@ -278,6 +278,7 @@ onBeforeUnmount(() => {
     padding: 0 8px;
     padding-top: 16px;
     padding-bottom: 8px;
+    flex-shrink: 0;
   }
 
   &-navigation {
@@ -289,6 +290,7 @@ onBeforeUnmount(() => {
     width: 100%;
     padding: 0 8px;
     padding-top: 16px;
+    flex-shrink: 0;
 
     .nav-button {
       width: 40px;
@@ -437,10 +439,10 @@ onBeforeUnmount(() => {
   }
 
   &-content {
-    height: 100%;
     display: flex;
     flex-direction: column;
     flex: 1;
+    min-height: 0;
 
     // Хедер absolute (вне потока) — отступ от него лежит на .content-wrapper:
     // фон тянется до верха под хедером, контент начинается ниже
@@ -451,6 +453,10 @@ onBeforeUnmount(() => {
 }
 
 .content-wrapper {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-height: 0;
   transition: margin-left 0.3s ease;
 
   &.has-error {

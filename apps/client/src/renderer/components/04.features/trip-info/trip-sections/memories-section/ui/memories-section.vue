@@ -76,53 +76,55 @@ onMounted(() => {
 </script>
 
 <template>
-  <div class="memories-section" :class="{ 'is-fullscreen': isFullscreen }">
-    <MemoriesFilters
-      v-model:filter-day="filterDay"
-      v-model:filter-rating="filterRating"
-      v-model:sort-order="sortType"
-      v-model:is-fullscreen="isFullscreen"
-      :available-days="availableDays"
-      :sort-options="sortOptions"
-    />
-
-    <div v-if="isLoadingMemories && memories.length === 0" class="skeleton-grid">
-      <div v-for="i in 12" :key="i" class="skeleton-item">
-        <KitSkeleton width="100%" height="100%" />
-      </div>
-    </div>
-
-    <div v-else-if="allFilteredMemories.length === 0" class="empty-state">
-      <Icon icon="mdi:image-filter-hdr" class="empty-icon" />
-      <p>Фотографий не найдено</p>
-      <span v-if="memories.length === 0" class="sub-text">Добавляйте фото в ленту дня или через меню загрузки.</span>
-    </div>
-
-    <div v-else class="gallery-content">
-      <MemoriesGroup
-        v-for="group in groupedMemories"
-        :key="group.date"
-        :group="group"
-        @click-image="openViewer"
+  <Teleport to="body" :disabled="!isFullscreen">
+    <div class="memories-section" :class="{ 'is-fullscreen': isFullscreen }">
+      <MemoriesFilters
+        v-model:filter-day="filterDay"
+        v-model:filter-rating="filterRating"
+        v-model:sort-order="sortType"
+        v-model:is-fullscreen="isFullscreen"
+        :available-days="availableDays"
+        :sort-options="sortOptions"
       />
 
-      <div v-if="hasMore" ref="loadMoreTrigger" class="load-trigger">
-        <span class="loading-text">
-          <Icon icon="mdi:loading" class="spin" />
-          Загрузка фото...
-        </span>
+      <div v-if="isLoadingMemories && memories.length === 0" class="skeleton-grid">
+        <div v-for="i in 12" :key="i" class="skeleton-item">
+          <KitSkeleton width="100%" height="100%" />
+        </div>
       </div>
-    </div>
 
-    <KitImageViewer
-      v-if="imageViewer.isOpen.value"
-      v-model:visible="imageViewer.isOpen.value"
-      v-model:current-index="imageViewer.currentIndex.value"
-      :images="viewerImages"
-      :show-counter="true"
-      :enable-thumbnails="true"
-    />
-  </div>
+      <div v-else-if="allFilteredMemories.length === 0" class="empty-state">
+        <Icon icon="mdi:image-filter-hdr" class="empty-icon" />
+        <p>Фотографий не найдено</p>
+        <span v-if="memories.length === 0" class="sub-text">Добавляйте фото в ленту дня или через меню загрузки.</span>
+      </div>
+
+      <div v-else class="gallery-content">
+        <MemoriesGroup
+          v-for="group in groupedMemories"
+          :key="group.date"
+          :group="group"
+          @click-image="openViewer"
+        />
+
+        <div v-if="hasMore" ref="loadMoreTrigger" class="load-trigger">
+          <span class="loading-text">
+            <Icon icon="mdi:loading" class="spin" />
+            Загрузка фото...
+          </span>
+        </div>
+      </div>
+
+      <KitImageViewer
+        v-if="imageViewer.isOpen.value"
+        v-model:visible="imageViewer.isOpen.value"
+        v-model:current-index="imageViewer.currentIndex.value"
+        :images="viewerImages"
+        :show-counter="true"
+        :enable-thumbnails="true"
+      />
+    </div>
+  </Teleport>
 </template>
 
 <style scoped lang="scss">
@@ -131,13 +133,12 @@ onMounted(() => {
   flex-direction: column;
   gap: 16px;
   min-height: 400px;
-  z-index: 6;
 
   &.is-fullscreen {
     position: fixed;
     inset: 0;
     top: var(--safe-area-inset-top, 0px);
-    z-index: 990;
+    z-index: 995;
     background-color: var(--bg-primary-color);
     padding: 16px 24px;
     overflow-y: auto;

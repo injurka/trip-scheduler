@@ -243,3 +243,16 @@ img,
   }
 }
 
+// -----------------------------------------------------------------------------
+// Fullscreen Mode Overrides (Header & Footer Suppression)
+// -----------------------------------------------------------------------------
+body:has(.is-fullscreen),
+body:has(.is-full-screen),
+body:has(.mermaid-fullscreen-overlay),
+body:has(:fullscreen) {
+  .header,
+  .app-footer {
+    display: none !important;
+  }
+}
+

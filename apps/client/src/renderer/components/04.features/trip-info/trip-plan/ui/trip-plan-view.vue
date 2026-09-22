@@ -81,90 +81,92 @@ const collapseRouteIcon = computed(() => allRouteBlocksCollapsed.value ? 'mdi:ch
 </script>
 
 <template>
-  <div class="plan-view" :class="{ 'is-full-screen': isFullScreen }">
-    <div class="divider-with-action" :class="{ 'is-parallel-mode': isParallelPlanView }">
-      <div v-if="!isFullScreen" class="view-mode-controls left">
-        <div class="mode-group">
+  <Teleport to="body" :disabled="!isFullScreen">
+    <div class="plan-view" :class="{ 'is-full-screen': isFullScreen }">
+      <div class="divider-with-action" :class="{ 'is-parallel-mode': isParallelPlanView }">
+        <div v-if="!isFullScreen" class="view-mode-controls left">
+          <div class="mode-group">
+            <KitBtn
+              icon="mdi:view-list-outline"
+              variant="outlined"
+              size="xs"
+              color="secondary"
+              :class="{ active: viewMode === 'template' && !isParallelPlanView }"
+              title="Шаблонный вид"
+              @click="setViewMode('template')"
+            />
+            <KitBtn
+              icon="mdi:text-box-outline"
+              variant="outlined"
+              size="xs"
+              color="secondary"
+              :class="{ active: viewMode === 'canvas' && !isParallelPlanView }"
+              title="Полотно (сплошной текст)"
+              @click="setViewMode('canvas')"
+            />
+          </div>
           <KitBtn
-            icon="mdi:view-list-outline"
-            variant="outlined"
+            class="mode-parallel"
+            variant="subtle"
             size="xs"
             color="secondary"
-            :class="{ active: viewMode === 'template' && !isParallelPlanView }"
-            title="Шаблонный вид"
-            @click="setViewMode('template')"
-          />
-          <KitBtn
-            icon="mdi:text-box-outline"
-            variant="outlined"
-            size="xs"
-            color="secondary"
-            :class="{ active: viewMode === 'canvas' && !isParallelPlanView }"
-            title="Полотно (сплошной текст)"
-            @click="setViewMode('canvas')"
-          />
+            :class="{ active: isParallelPlanView }"
+            title="Параллельный просмотр"
+            @click="toggleParallelView"
+          >
+            <Icon icon="mdi:view-column-outline" />
+          </KitBtn>
         </div>
-        <KitBtn
-          class="mode-parallel"
-          variant="subtle"
-          size="xs"
-          color="secondary"
-          :class="{ active: isParallelPlanView }"
-          title="Параллельный просмотр"
-          @click="toggleParallelView"
+
+        <KitDivider :is-loading="plan.isLoadingUpdateActivity" class="route-divider">
+          <div class="divider-content">
+            <span class="divider-label">маршрут</span>
+          </div>
+        </KitDivider>
+
+        <div class="view-mode-controls right">
+          <KitTooltip :text="isFullScreen ? 'Выйти из полноэкранного режима (Esc)' : 'На весь экран'">
+            <button
+              class="fullscreen-toggle-btn"
+              :class="{ active: isFullScreen }"
+              @click="toggleFullScreen"
+            >
+              <Icon :icon="isFullScreen ? 'mdi:fullscreen-exit' : 'mdi:fullscreen'" />
+            </button>
+          </KitTooltip>
+
+          <KitTooltip v-if="isViewMode && allActivityIds.length > 0 && !isFullScreen" text="Свернуть/развернуть все активности">
+            <button
+              class="collapse-all-btn"
+              @click="ui.toggleAllActivities(allActivityIds)"
+            >
+              <Icon :icon="collapseRouteIcon" />
+            </button>
+          </KitTooltip>
+        </div>
+      </div>
+
+      <div class="plan-content" :class="{ 'is-parallel': isParallelPlanView }">
+        <div
+          v-if="hasRenderedPlan"
+          v-show="isParallelPlanView || viewMode === 'template'"
+          class="plan-column"
         >
-          <Icon icon="mdi:view-column-outline" />
-        </KitBtn>
-      </div>
-
-      <KitDivider :is-loading="plan.isLoadingUpdateActivity" class="route-divider">
-        <div class="divider-content">
-          <span class="divider-label">маршрут</span>
+          <DayActivitiesList @add="handleAddNewActivity" />
         </div>
-      </KitDivider>
 
-      <div class="view-mode-controls right">
-        <KitTooltip :text="isFullScreen ? 'Выйти из полноэкранного режима (Esc)' : 'На весь экран'">
-          <button
-            class="fullscreen-toggle-btn"
-            :class="{ active: isFullScreen }"
-            @click="toggleFullScreen"
-          >
-            <Icon :icon="isFullScreen ? 'mdi:fullscreen-exit' : 'mdi:fullscreen'" />
-          </button>
-        </KitTooltip>
-
-        <KitTooltip v-if="isViewMode && allActivityIds.length > 0 && !isFullScreen" text="Свернуть/развернуть все активности">
-          <button
-            class="collapse-all-btn"
-            @click="ui.toggleAllActivities(allActivityIds)"
-          >
-            <Icon :icon="collapseRouteIcon" />
-          </button>
-        </KitTooltip>
+        <div
+          v-if="hasRenderedCanvas"
+          v-show="isParallelPlanView || viewMode === 'canvas'"
+          class="canvas-column"
+        >
+          <DayNote :day-id="getSelectedDay?.id || ''" />
+        </div>
       </div>
+
+      <slot v-if="!isFullScreen" name="footer" />
     </div>
-
-    <div class="plan-content" :class="{ 'is-parallel': isParallelPlanView }">
-      <div
-        v-if="hasRenderedPlan"
-        v-show="isParallelPlanView || viewMode === 'template'"
-        class="plan-column"
-      >
-        <DayActivitiesList @add="handleAddNewActivity" />
-      </div>
-
-      <div
-        v-if="hasRenderedCanvas"
-        v-show="isParallelPlanView || viewMode === 'canvas'"
-        class="canvas-column"
-      >
-        <DayNote :day-id="getSelectedDay?.id || ''" />
-      </div>
-    </div>
-
-    <slot v-if="!isFullScreen" name="footer" />
-  </div>
+  </Teleport>
 </template>
 
 <style scoped lang="scss">
@@ -174,11 +176,11 @@ const collapseRouteIcon = computed(() => allRouteBlocksCollapsed.value ? 'mdi:ch
 
   &.is-full-screen {
     position: fixed;
-    top: var(--safe-area-inset-top);
+    top: 0;
     left: 0;
     width: 100vw;
     height: 100vh;
-    z-index: 10;
+    z-index: 995;
     background-color: var(--bg-primary-color);
     padding: 16px 32px;
     display: flex;
