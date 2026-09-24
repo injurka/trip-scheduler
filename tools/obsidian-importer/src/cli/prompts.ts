@@ -150,7 +150,7 @@ export async function promptForInteractiveOptions(
       { title: `📋 Чек-листы и списки сборов (${tripData.checklistContent.items?.length || 0} задач)`, value: 'checklists', selected: true },
       { title: `📝 Заметки и статьи (${tripData.sectionFolders.length} папок, ${tripData.rootNotes.length} корн. файлов)`, value: 'notes', selected: true },
       { title: `📑 Разделы-вкладки (Бронирования, Финансы, Чек-листы, Заметки, Воспоминания, Документы)`, value: 'sections', selected: true },
-      { title: `📁 Личные документы (${tripData.documents?.length || 0} файл(ов) из _/PrivateDocuments)`, value: 'documents', selected: true },
+      { title: `📁 Личные документы (${tripData.documents?.length || 0} файл(ов) из 00 - Файлы и документы/PrivateDocuments)`, value: 'documents', selected: true },
     ]
 
     const modulesResp = await prompts({

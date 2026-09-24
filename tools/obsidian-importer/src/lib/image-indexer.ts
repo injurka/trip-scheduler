@@ -1,5 +1,6 @@
 import { existsSync, readdirSync, statSync } from 'node:fs'
 import { basename, dirname, join, relative } from 'node:path'
+import { TRIP_MEDIA_ROOT_DIR_NAMES } from '../config/paths'
 
 const IMAGE_EXTENSIONS = new Set(['.png', '.jpg', '.jpeg', '.webp', '.gif', '.heic', '.heif', '.svg'])
 
@@ -64,7 +65,7 @@ export function buildImageIndex(tripDir: string): Map<string, string> {
 
   const parentDir = dirname(tripDir)
   if (parentDir && existsSync(parentDir)) {
-    for (const folder of ['_', 'attachments', 'assets', 'images', 'media', 'files']) {
+    for (const folder of [...TRIP_MEDIA_ROOT_DIR_NAMES, 'attachments', 'assets', 'images', 'media', 'files']) {
       const candidate = join(parentDir, folder)
       if (existsSync(candidate) && statSync(candidate).isDirectory())
         walk(candidate, candidate)

@@ -364,8 +364,8 @@ export function validateObsidianVault(context: ValidationScopeContext, startDate
           severity: 'warning',
           category: 'media',
           file: fileName,
-          message: `В заметке упомянуты файлы изображений, которых нет в папке \`_\`: ${missingImages.join(', ')}`,
-          recommendation: 'Поместите файлы фото в папку вложений `_` или проверьте правильность их имен.',
+          message: `В заметке упомянуты файлы изображений, которых нет в папке вложений \`00 - Файлы и документы\`: ${missingImages.join(', ')}`,
+          recommendation: 'Поместите файлы фото в папку `00 - Файлы и документы` или в legacy-папку `_`, либо проверьте правильность их имен.',
         })
       }
 

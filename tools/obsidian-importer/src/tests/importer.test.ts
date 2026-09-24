@@ -959,6 +959,45 @@ describe('PrivateDocuments Parser', () => {
     }
   })
 
+  it('recognizes documents under the canonical media root', () => {
+    const tempTripDir = mkdtempSync(join(tmpdir(), 'trip-canonical-doc-test-'))
+    try {
+      const privateDocsDir = join(tempTripDir, '00 - Файлы и документы', 'PrivateDocuments')
+      const publicDocsDir = join(tempTripDir, '00 - Файлы и документы', 'PublicDocument')
+      mkdirSync(privateDocsDir, { recursive: true })
+      mkdirSync(publicDocsDir, { recursive: true })
+
+      writeFileSync(join(privateDocsDir, 'Passport.pdf'), 'PRIVATE-PASSPORT')
+      writeFileSync(join(publicDocsDir, 'General_Guide.pdf'), 'PUBLIC-GUIDE')
+
+      const result = parseObsidianDocuments(tempTripDir)
+
+      expect(result.documents).toHaveLength(2)
+      expect(result.documents.find(d => d.fileName === 'Passport.pdf')?.access).toBe('private')
+      expect(result.documents.find(d => d.fileName === 'General_Guide.pdf')?.access).toBe('public')
+    }
+    finally {
+      rmSync(tempTripDir, { recursive: true, force: true })
+    }
+  })
+
+  it('does not expose the canonical media root as a notes section', () => {
+    const tempTripDir = mkdtempSync(join(tmpdir(), 'trip-media-root-test-'))
+    try {
+      const mediaRoot = join(tempTripDir, '00 - Файлы и документы')
+      mkdirSync(mediaRoot, { recursive: true })
+      writeFileSync(join(mediaRoot, 'README.md'), '# Media')
+      writeFileSync(join(tempTripDir, 'Trip.md'), '# Trip\n\n## 📝 Краткое описание\n\nTest.')
+
+      const result = parseObsidianTripFolder(tempTripDir, '2026-01-01')
+
+      expect(result.sectionFolders.some(folder => folder.folderName === '00 - Файлы и документы')).toBeFalse()
+    }
+    finally {
+      rmSync(tempTripDir, { recursive: true, force: true })
+    }
+  })
+
   it('generates stable folder IDs and supports direct path to PrivateDocuments', () => {
     const tempTripDir = mkdtempSync(join(tmpdir(), 'trip-stable-doc-test-'))
     try {

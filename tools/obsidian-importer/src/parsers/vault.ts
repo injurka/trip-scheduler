@@ -1,6 +1,7 @@
 import type { DayFrontmatter, ParsedDay, ParsedNoteFile, ParsedNoteFolder, ParsedTripData } from '../types'
 import { existsSync, readdirSync, readFileSync, statSync } from 'node:fs'
 import { basename, isAbsolute, join, relative, resolve } from 'node:path'
+import { TRIP_MEDIA_ROOT_DIR_NAMES } from '../config/paths'
 import { discoverVaultFolders, normalizeFsPath } from '../lib/vault-locator'
 import { resolveValidationScopeContext } from '../validator/path-resolver'
 import { normalizeIframeLineBreaks } from './activity'
@@ -556,7 +557,7 @@ export function parseObsidianTripFolder(tripPath: string, startDateStr?: string)
 
   for (const entry of entries) {
     if (entry.isDirectory()) {
-      if (entry.name === basename(daysDirPath) || entry.name.startsWith('.') || entry.name === '_' || entry.name === 'attachments') {
+      if (entry.name === basename(daysDirPath) || entry.name.startsWith('.') || TRIP_MEDIA_ROOT_DIR_NAMES.includes(entry.name as typeof TRIP_MEDIA_ROOT_DIR_NAMES[number]) || entry.name === 'attachments') {
         continue
       }
 

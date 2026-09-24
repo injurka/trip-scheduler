@@ -2,6 +2,7 @@ import type { Dirent } from 'node:fs'
 import type { DocumentCategory, DocumentFolderInfo, DocumentsSectionContent, ParsedDocumentFile } from '../types/documents'
 import { existsSync, readdirSync, statSync } from 'node:fs'
 import { basename, join } from 'node:path'
+import { TRIP_MEDIA_ROOT_DIR_NAMES } from '../config/paths'
 import { stableId } from '../lib/stable-id'
 
 function matchCategory(text: string): DocumentCategory | null {
@@ -59,9 +60,10 @@ function getDirectoryDefaultAccess(name: string): 'private' | 'public' | null {
 }
 
 /**
- * Сканирует директорию путешествия на наличие папок с документами
- * (личные: `_/PrivateDocuments`, `PrivateDocuments`, `_/PrivateDocument`, `PrivateDocument`, `_/Личные документы`;
- *  публичные: `_/PublicDocuments`, `PublicDocuments`, `_/PublicDocument`, `PublicDocument`, `_/Общие документы`, `_/Documents`).
+ * Сканирует директорию путешествия на наличие папок с документами.
+ * Канонический корень: `00 - Файлы и документы/`; `_` остается legacy-алиасом.
+ * Внутри обоих корней поддерживаются PrivateDocument(s)/PublicDocument(s),
+ * а также соответствующие русские и корневые варианты.
  */
 export function parseObsidianDocuments(tripRootPath: string): {
   documents: ParsedDocumentFile[]
@@ -83,28 +85,30 @@ export function parseObsidianDocuments(tripRootPath: string): {
     }
   }
 
-  // 0. Если передан прямой путь к папке документов (например, _/PrivateDocuments)
+  // 0. Если передан прямой путь к папке документов (например, 00 - Файлы и документы/PrivateDocuments)
   const directSelfAccess = getDirectoryDefaultAccess(basename(tripRootPath))
   if (directSelfAccess) {
     addCandidate(tripRootPath, directSelfAccess)
   }
 
-  // 1. Проверяем вложения в _/
-  const underscoreDir = join(tripRootPath, '_')
-  if (existsSync(underscoreDir) && statSync(underscoreDir).isDirectory()) {
-    try {
-      const underEntries = readdirSync(underscoreDir, { withFileTypes: true })
-      for (const entry of underEntries) {
-        if (entry.isDirectory() && !entry.name.startsWith('.')) {
-          const access = getDirectoryDefaultAccess(entry.name)
-          if (access) {
-            addCandidate(join(underscoreDir, entry.name), access)
+  // 1. Проверяем канонический и legacy-корни вложений.
+  for (const mediaRootName of TRIP_MEDIA_ROOT_DIR_NAMES) {
+    const mediaRootDir = join(tripRootPath, mediaRootName)
+    if (existsSync(mediaRootDir) && statSync(mediaRootDir).isDirectory()) {
+      try {
+        const mediaRootEntries = readdirSync(mediaRootDir, { withFileTypes: true })
+        for (const entry of mediaRootEntries) {
+          if (entry.isDirectory() && !entry.name.startsWith('.')) {
+            const access = getDirectoryDefaultAccess(entry.name)
+            if (access) {
+              addCandidate(join(mediaRootDir, entry.name), access)
+            }
           }
         }
       }
-    }
-    catch {
-      // ignore
+      catch {
+        // ignore
+      }
     }
   }
 
@@ -125,22 +129,26 @@ export function parseObsidianDocuments(tripRootPath: string): {
   }
 
   // 3. Прямая проверка известных путей по умолчанию
+  const mediaRootDefaults: Array<{ path: string, access: 'private' | 'public' }> = TRIP_MEDIA_ROOT_DIR_NAMES.flatMap(mediaRootName => [
+    { path: join(tripRootPath, mediaRootName, 'PrivateDocuments'), access: 'private' },
+    { path: join(tripRootPath, mediaRootName, 'PrivateDocument'), access: 'private' },
+    { path: join(tripRootPath, mediaRootName, 'Личные документы'), access: 'private' },
+    { path: join(tripRootPath, mediaRootName, 'PublicDocuments'), access: 'public' },
+    { path: join(tripRootPath, mediaRootName, 'PublicDocument'), access: 'public' },
+    { path: join(tripRootPath, mediaRootName, 'Общие документы'), access: 'public' },
+    { path: join(tripRootPath, mediaRootName, 'Documents'), access: 'public' },
+    { path: join(tripRootPath, mediaRootName, 'Документы'), access: 'public' },
+  ])
+
   const directDefaults: Array<{ path: string, access: 'private' | 'public' }> = [
-    { path: join(tripRootPath, '_', 'PrivateDocuments'), access: 'private' },
-    { path: join(tripRootPath, '_', 'PrivateDocument'), access: 'private' },
+    ...mediaRootDefaults,
     { path: join(tripRootPath, 'PrivateDocuments'), access: 'private' },
     { path: join(tripRootPath, 'PrivateDocument'), access: 'private' },
-    { path: join(tripRootPath, '_', 'Личные документы'), access: 'private' },
     { path: join(tripRootPath, 'Личные документы'), access: 'private' },
-    { path: join(tripRootPath, '_', 'PublicDocuments'), access: 'public' },
-    { path: join(tripRootPath, '_', 'PublicDocument'), access: 'public' },
     { path: join(tripRootPath, 'PublicDocuments'), access: 'public' },
     { path: join(tripRootPath, 'PublicDocument'), access: 'public' },
-    { path: join(tripRootPath, '_', 'Общие документы'), access: 'public' },
     { path: join(tripRootPath, 'Общие документы'), access: 'public' },
-    { path: join(tripRootPath, '_', 'Documents'), access: 'public' },
     { path: join(tripRootPath, 'Documents'), access: 'public' },
-    { path: join(tripRootPath, '_', 'Документы'), access: 'public' },
     { path: join(tripRootPath, 'Документы'), access: 'public' },
   ]
 

@@ -15,12 +15,31 @@
     разделитель перед названием. Формат `HH:MM - HH:MM — Название:` остается
     предпочтительным STYLE-стандартом Travel Vault.
 
-## 1.1. Frontmatter корневой заметки (`src/parsers/vault.ts`)
+## 1.1. Структурированные транспортные блоки (`src/parsers/transport.ts`)
 
-- Поддерживаются `cover` (и legacy `imageUrl`), `descriptionShort`, `tags`,
-  `cities`.
+- Канонический формат внутри активности — fenced block `transport` с
+  верхнеуровневыми `type` (`metro` или `bus`), `title` и массивом `routes`.
+- Обязательные поля маршрута — `from`, `to` и `line` для метро либо `route`
+  для автобуса. Общие поля: `code`, `color`, `direction`, `stops`; для
+  автобуса также `operator` и `walk`. Несколько элементов `routes` сохраняют
+  порядок отрезков.
+- YAML поддерживается намеренно ограниченным подмножеством: плоские пары
+  ключ-значение и список объектов под `routes`. Такой контракт одинаково
+  валидируется локальным Obsidian-плагином и importer без тяжёлого YAML runtime.
+
+## 1.2. Frontmatter корневой заметки (`src/parsers/vault.ts`)
+
+- Поддерживаются `cover` (и legacy `imageUrl`), `descriptionShort`, `cities`.
 - Явные значения имеют приоритет над выводом из Markdown.
 - Локальный `cover` должен находиться внутри корня поездки.
+
+## 1.3. Frontmatter заметок дня (`src/parsers/vault.ts`)
+
+- Поддерживаются `day`, `date`, `weekday`, `title`, `location`, `phase`, `accommodation` (и `hotel`), `highlight` (и `description`), `is_ready`.
+- `is_ready` (`boolean`) — статус готовности заметки дня: `true` — день проверен и готов к использованию, `false` — день на стадии проверки/редактирования.
+- Значения `highlight` и `phase` формируют `day.description`.
+- При наличии frontmatter цитаты `> **Фаза тура:**` и `> **Ключевой хайлайт:**` в шапке дня не требуются.
+- Перед парсингом активностей и инфо-бейджей frontmatter автоматически вырезается функцией `stripFrontmatter()`.
 
 ## 2. Инфо-бейджи дня (`src/parsers/day-meta.ts`)
 - **Регулярное выражение Callout:**

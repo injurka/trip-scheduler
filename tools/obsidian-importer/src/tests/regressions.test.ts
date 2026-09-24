@@ -126,6 +126,18 @@ describe('importer regressions', () => {
     expect(index.get('_/02/same.jpg')).toBe(join(directory, '_', '02', 'same.jpg'))
   })
 
+  it('indexes images under the canonical media root', () => {
+    const directory = temporaryDirectory('obsidian-canonical-images-')
+    const mediaRoot = '00 - Файлы и документы'
+    mkdirSync(join(directory, mediaRoot, '01'), { recursive: true })
+    writeFileSync(join(directory, mediaRoot, '01', 'cover.jpg'), 'cover')
+
+    const index = buildImageIndex(directory)
+
+    expect(index.get(`${mediaRoot}/01/cover.jpg`)).toBe(join(directory, mediaRoot, '01', 'cover.jpg'))
+    expect(index.get('cover.jpg')).toBe(join(directory, mediaRoot, '01', 'cover.jpg'))
+  })
+
   it('keeps day metadata and checklist identities stable across repeated parsing', () => {
     const day = '> [!TIP]\n> Купить EasyCard\n\n* **09:00 - 10:00** — **Прогулка**:'
     expect(parseDayMetaFromMarkdown(day)).toEqual(parseDayMetaFromMarkdown(day))
