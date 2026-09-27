@@ -689,6 +689,62 @@ routes:
 })
 
 describe('Activity Enrichment', () => {
+  it('attaches hotel bookings only to explicit check-in and return activities', async () => {
+    const { enrichActivityWithMediaAndLocation } = await import('../lib/enricher')
+    const bookings = [
+      {
+        id: 'hotel-dongmen',
+        type: 'hotel' as const,
+        icon: 'mdi:hotel',
+        title: 'Dongmen Hotel',
+        data: { hotelName: 'Dongmen Hotel', checkInDate: '2026-11-06', checkOutDate: '2026-11-10' },
+      },
+      {
+        id: 'hotel-mutaixu',
+        type: 'hotel' as const,
+        icon: 'mdi:hotel',
+        title: 'Mutaixu hot spring',
+        data: { hotelName: 'Mutaixu hot spring', checkInDate: '2026-11-10', checkOutDate: '2026-11-11' },
+      },
+      {
+        id: 'hotel-together',
+        type: 'hotel' as const,
+        icon: 'mdi:hotel',
+        title: 'Together Hotel - Hualien Zhongshan',
+        data: { hotelName: 'Together Hotel - Hualien Zhongshan', checkInDate: '2026-11-11', checkOutDate: '2026-11-13' },
+      },
+    ]
+    const enrich = async (title: string, dayDate: string, description: string) => {
+      const result = await enrichActivityWithMediaAndLocation(
+        {
+          startTime: '20:00',
+          endTime: '21:00',
+          title,
+          tag: 'relax',
+          sections: [{ id: 'description', type: 'description', text: description }],
+        },
+        new Map(),
+        null,
+        null,
+        new Map(),
+        new Map(),
+        { geocode: false, bookings, dayDate },
+      )
+      return result.sections?.filter(section => section.type === 'booking') ?? []
+    }
+
+    expect(await enrich('Поездка на метро MRT к горе', '2026-11-06', 'От отеля Dongmen Hotel до станции MRT.')).toHaveLength(0)
+    expect(await enrich('Отдых в отеле Dongmen Hotel и сон', '2026-11-06', 'Душ и сон в Dongmen Hotel.')).toHaveLength(0)
+    expect(await enrich('Чек-аут из отеля Dongmen Hotel', '2026-11-10', 'Сдать ключ и багаж.')).toHaveLength(0)
+    expect(await enrich('Сдать багаж в отеле Dongmen Hotel', '2026-11-06', 'Комната будет доступна после 16:00.')).toHaveLength(0)
+    expect(await enrich('Заселение в отель Dongmen Hotel', '2026-11-06', 'Пройти регистрацию и получить ключ.'))
+      .toMatchObject([{ bookingId: 'hotel-dongmen' }])
+    expect(await enrich('Возвращение в отель и отдых', '2026-11-07', 'Вернуться после прогулки.'))
+      .toMatchObject([{ bookingId: 'hotel-dongmen' }])
+    expect(await enrich('Возвращение в отель Together Hotel Hualien', '2026-11-11', 'Вернуться после прогулки.'))
+      .toMatchObject([{ bookingId: 'hotel-together' }])
+  })
+
   it('attaches a flight booking only to the activity overlapping the flight time', async () => {
     const { enrichActivityWithMediaAndLocation } = await import('../lib/enricher')
     const booking = {

@@ -9,11 +9,36 @@ import { existsSync } from 'node:fs'
 import { colors } from '../config/colors'
 import { dedentText } from '../parsers/activity'
 import { extractExternalTrailLinks, extractLocationsFromText } from '../parsers/location'
+import { extractGalleryBlocks } from '../parsers/gallery'
 import { geocodeLocation } from './geocode'
 import { stableId } from './stable-id'
 
 interface ImageUploader {
   uploadImage: (tripId: string, filePath: string, placement?: 'route' | 'memories' | 'notes' | 'documents') => Promise<string>
+}
+
+function getHotelActivityKind(title: string): 'check-in' | 'return' | null {
+  const hasHotelDestination = /(?:^|\s)(?:в|к)\s+(?:(?:этот|наш|свой|транзитн\p{L}*|назначенн\p{L}*|выбранн\p{L}*)\s+)*(?:отел\p{L}*|гостиниц\p{L}*|hotel|hostel)(?=$|[\s:,.!?()])|(?:^|\s)(?:to|at)\s+(?:the\s+)?(?:hotel|hostel)(?=$|[\s:,.!?()])/iu.test(title)
+  if (!hasHotelDestination)
+    return null
+
+  if (/(?:засел\p{L}*|заезд\p{L}*|check[\s-]?in|checking\s+in)/iu.test(title))
+    return 'check-in'
+  if (/(?:возвращ\p{L}*|возврат\p{L}*|return(?:ing)?|back\s+to)/iu.test(title))
+    return 'return'
+
+  return null
+}
+
+function matchesHotelBookingActivity(title: string, hotelName: string): boolean {
+  const normalize = (value: string) => value.toLowerCase().replace(/[^\p{L}\p{N}]+/gu, ' ').trim()
+  const normalizedTitle = normalize(title)
+  const normalizedHotelName = normalize(hotelName)
+  const brandName = normalize(hotelName.toLowerCase().split(/(?:^|\s)(?:hotel|hostel|villa|inn|b&b|boutique|resort|отел\p{L}*|гостиниц\p{L}*)/iu, 1)[0])
+  const shortName = normalize(hotelName.toLowerCase().replace(/(?:^|\s)(?:hotel|hostel|villa|inn|b&b|boutique|resort|отел\p{L}*|гостиниц\p{L}*)/giu, ' '))
+
+  return [normalizedHotelName, brandName, shortName]
+    .some(alias => alias.length >= 4 && normalizedTitle.includes(alias))
 }
 
 const CALLOUT_META_MAP: Record<string, { defaultTitle: string, icon: string, color: string }> = {
@@ -130,8 +155,11 @@ export async function enrichActivityWithMediaAndLocation(
   // 1. Extract location iframes & map links (support Yandex, Google, 2GIS, OSM, direct coords)
   const extractedLocations = extractLocationsFromText(text)
 
-  // 2. Extract image callouts & wikilinks
-  const foundImageNames: string[] = []
+  // 2. Extract structured galleries, image callouts & wikilinks
+  const parsedGalleries = extractGalleryBlocks(text)
+  text = parsedGalleries.text
+  const foundImageNames: string[] = [...new Set(parsedGalleries.galleries.flatMap(gallery => gallery.images))]
+  const explicitImageNames = new Set(foundImageNames)
   const imageCalloutRegex = />\s*\[!INFO\]-?\s*(?:Картинки|Изображения|Фото|Photos|Images)[\s\S]*?(?=\n[\t\v\f\r \xA0\u1680\u2000-\u200A\u2028\u2029\u202F\u205F\u3000\uFEFF]*\n\s*[^\s>]|\n\s*##|\n\s*###|\n\s*---|\n\s*\*\s*\*\*|$)/gi
   const callouts = text.match(imageCalloutRegex) || []
 
@@ -388,44 +416,58 @@ export async function enrichActivityWithMediaAndLocation(
   }
 
   // 6. Process Images -> Gallery Section ("Галерея")
-  if (foundImageNames.length > 0) {
-    const uploadedImageUrls: string[] = []
+  const galleryGroups = [
+    ...parsedGalleries.galleries.map(gallery => ({ title: gallery.title, images: gallery.images })),
+    ...(foundImageNames.some(image => !explicitImageNames.has(image))
+      ? [{ title: '', images: foundImageNames.filter(image => !explicitImageNames.has(image)) }]
+      : []),
+  ]
+  if (galleryGroups.length === 0 && foundImageNames.length > 0)
+    galleryGroups.push({ title: '', images: foundImageNames })
 
-    for (let imgIdx = 0; imgIdx < foundImageNames.length; imgIdx++) {
-      const imgName = foundImageNames[imgIdx]
-      const localPath = imageIndex.get(imgName)
-        || imageIndex.get(imgName.toLowerCase())
-        || imageIndex.get(imgName.split('/').at(-1) ?? '')
-        || imageIndex.get((imgName.split('/').at(-1) ?? '').toLowerCase())
-      if (localPath && existsSync(localPath)) {
-        if (shouldUpload && api && tripId) {
-          try {
-            if (uploadCache.has(localPath)) {
-              uploadedImageUrls.push(uploadCache.get(localPath)!)
-            }
-            else {
-              notify(`📸 Загрузка фото [${imgIdx + 1}/${foundImageNames.length}]: ${imgName}`)
-              const uploadedUrl = await api.uploadImage(tripId, localPath, 'route')
-              if (uploadedUrl) {
-                uploadCache.set(localPath, uploadedUrl)
-                uploadedImageUrls.push(uploadedUrl)
+  if (galleryGroups.length > 0) {
+    let imageNumber = 0
+    const totalImages = galleryGroups.reduce((total, gallery) => total + gallery.images.length, 0)
+    for (const gallery of galleryGroups) {
+      const uploadedImageUrls: string[] = []
+
+      for (const imgName of gallery.images) {
+        imageNumber++
+        const localPath = imageIndex.get(imgName)
+          || imageIndex.get(imgName.toLowerCase())
+          || imageIndex.get(imgName.split('/').at(-1) ?? '')
+          || imageIndex.get((imgName.split('/').at(-1) ?? '').toLowerCase())
+        if (localPath && existsSync(localPath)) {
+          if (shouldUpload && api && tripId) {
+            try {
+              if (uploadCache.has(localPath)) {
+                uploadedImageUrls.push(uploadCache.get(localPath)!)
+              }
+              else {
+                notify(`📸 Загрузка фото [${imageNumber}/${totalImages}]: ${imgName}`)
+                const uploadedUrl = await api.uploadImage(tripId, localPath, 'route')
+                if (uploadedUrl) {
+                  uploadCache.set(localPath, uploadedUrl)
+                  uploadedImageUrls.push(uploadedUrl)
+                }
               }
             }
-          }
-          catch (uploadErr: any) {
-            console.warn(`      ${colors.yellow}⚠ Ошибка загрузки фото ${imgName}: ${uploadErr.message}${colors.reset}`)
-            throw uploadErr
+            catch (uploadErr: any) {
+              console.warn(`      ${colors.yellow}⚠ Ошибка загрузки фото ${imgName}: ${uploadErr.message}${colors.reset}`)
+              throw uploadErr
+            }
           }
         }
       }
-    }
 
-    if (uploadedImageUrls.length > 0) {
-      newSections.push({
-        id: stableId('activity-gallery', act.startTime, uploadedImageUrls.join('|')),
-        type: 'gallery',
-        imageUrls: uploadedImageUrls,
-      })
+      if (uploadedImageUrls.length > 0) {
+        newSections.push({
+          id: stableId('activity-gallery', act.startTime, gallery.title, uploadedImageUrls.join('|')),
+          type: 'gallery',
+          imageUrls: uploadedImageUrls,
+          ...(gallery.title ? { title: gallery.title } : {}),
+        })
+      }
     }
   }
 
@@ -434,27 +476,37 @@ export async function enrichActivityWithMediaAndLocation(
     const actText = `${act.title} ${accumulatedDescription}`.toLowerCase()
     const hasBookingSection = newSections.some(s => s.type === 'booking') || customOtherSections.some(s => s.type === 'booking')
     const currentDayDate = options.dayDate // YYYY-MM-DD
+    const hotelActivityKind = getHotelActivityKind(act.title)
+    const hotelBookingsForDay = options.bookings.filter((candidate) => {
+      if (candidate.type !== 'hotel')
+        return false
+      const { checkInDate, checkOutDate } = candidate.data
+      return !currentDayDate || !checkInDate || (currentDayDate >= checkInDate && (!checkOutDate || currentDayDate <= checkOutDate))
+    })
 
     if (!hasBookingSection) {
       for (const booking of options.bookings) {
         let isMatched = false
         if (booking.type === 'hotel') {
-          // Check date window if dayDate is available
-          const inDate = booking.data.checkInDate
-          const outDate = booking.data.checkOutDate
-          const isInDateWindow = !currentDayDate || !inDate || (currentDayDate >= inDate && (!outDate || currentDayDate <= outDate))
+          if (hotelActivityKind && hotelBookingsForDay.some(candidate => candidate.id === booking.id)) {
+            const namedMatches = hotelBookingsForDay.filter(candidate => candidate.type === 'hotel'
+              && matchesHotelBookingActivity(act.title, candidate.data.hotelName || ''))
 
-          if (isInDateWindow) {
-            const hotelName = booking.data.hotelName?.toLowerCase() || ''
-            const shortName = hotelName.replace(/hotel|hostel|villa|inn|b&b|boutique|resort|гостиница|отель/gi, '').trim()
-            if (shortName.length >= 4 && actText.includes(shortName)) {
-              isMatched = true
+            if (namedMatches.length === 1) {
+              isMatched = namedMatches[0].id === booking.id
             }
-            else if (hotelName && hotelName.length >= 4 && actText.includes(hotelName)) {
-              isMatched = true
-            }
-            else if (booking.title && booking.title.length >= 4 && actText.includes(booking.title.toLowerCase()) && /отел|заселен|check-in|checkout|гостиниц/i.test(actText)) {
-              isMatched = true
+            else if (namedMatches.length === 0) {
+              if (hotelActivityKind === 'check-in') {
+                const sameDayCheckIns = currentDayDate
+                  ? hotelBookingsForDay.filter(candidate => candidate.type === 'hotel' && candidate.data.checkInDate === currentDayDate)
+                  : []
+                isMatched = sameDayCheckIns.length === 1
+                  ? sameDayCheckIns[0].id === booking.id
+                  : hotelBookingsForDay.length === 1 && hotelBookingsForDay[0].id === booking.id
+              }
+              else {
+                isMatched = hotelBookingsForDay.length === 1 && hotelBookingsForDay[0].id === booking.id
+              }
             }
           }
         }
