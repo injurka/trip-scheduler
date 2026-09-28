@@ -79,7 +79,26 @@ export function normalizeMarkdownIndentation(text: string): string {
     currentBlock = []
   }
 
+  let fenceMarker: string | null = null
   for (const line of lines) {
+    const fenceMatch = line.match(/^(`{3,}|~{3,})(.*)$/)
+    if (fenceMarker) {
+      resultLines.push(line)
+      if (fenceMatch
+        && fenceMatch[1][0] === fenceMarker[0]
+        && fenceMatch[1].length >= fenceMarker.length
+        && !fenceMatch[2].trim()) {
+        fenceMarker = null
+      }
+      continue
+    }
+    if (fenceMatch) {
+      flushBlock()
+      resultLines.push(line)
+      fenceMarker = fenceMatch[1]
+      continue
+    }
+
     if (line.trim().startsWith('>')) {
       flushBlock()
       resultLines.push(line.trim())

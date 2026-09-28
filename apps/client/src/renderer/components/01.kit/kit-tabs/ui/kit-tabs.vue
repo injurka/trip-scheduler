@@ -20,6 +20,7 @@ const { smAndDown } = useDisplay()
 
 const transitionName = ref('slide-left')
 const contentWrapperRef = ref<HTMLElement | null>(null)
+const isTransitioning = ref(false)
 
 const currentTab = computed(() => {
   return props.items.find(item => item.id === model.value)
@@ -30,6 +31,7 @@ const currentProps = computed(() => {
 })
 
 function onBeforeLeave(el: Element) {
+  isTransitioning.value = true
   if (contentWrapperRef.value) {
     const htmlEl = el as HTMLElement
     contentWrapperRef.value.style.height = `${htmlEl.offsetHeight}px`
@@ -48,6 +50,7 @@ function onEnter(el: Element) {
 }
 
 function onAfterEnter() {
+  isTransitioning.value = false
   if (contentWrapperRef.value) {
     contentWrapperRef.value.style.height = 'auto'
   }
@@ -70,7 +73,7 @@ watch(model, (newVal, oldVal) => {
       </KitDivider>
     </div>
 
-    <div ref="contentWrapperRef" class="kit-tabs-content-wrapper">
+    <div ref="contentWrapperRef" class="kit-tabs-content-wrapper" :class="{ 'is-transitioning': isTransitioning }">
       <Transition
         v-if="!cache"
         :name="transitionName"
@@ -151,6 +154,10 @@ watch(model, (newVal, oldVal) => {
   transition: height 0.3s ease-in-out;
   min-height: 50px;
   z-index: 6;
+
+  &.is-transitioning {
+    overflow: hidden;
+  }
 }
 
 .kit-tabs-pane {

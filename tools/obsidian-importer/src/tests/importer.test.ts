@@ -689,6 +689,46 @@ routes:
 })
 
 describe('Activity Enrichment', () => {
+  it('keeps sibling list items and removes empty map bullets from an activity with a gallery', async () => {
+    const markdown = [
+      '* **12:45 - 13:40** — Старая улица и депо:',
+      '    * *Контекст:* Старый город.',
+      '    * *Маршрут:* Улица, затем депо.',
+      '    * *Ключевые точки:*',
+      '        1. Депо',
+      '        2. Бамбук',
+      '    * _Локации в районе улицы_:',
+      '        * [Google Maps: Depot](https://maps.google.com/?q=depot)',
+      '        * [Google Maps: Bamboo](https://maps.google.com/?q=bamboo)',
+      '```gallery',
+      'title: "Старая улица"',
+      'images: ["photo.png"]',
+      '```',
+    ].join('\n')
+    const activity = parseActivitiesFromMarkdown(markdown)[0]
+    const parsedDescription = activity.sections?.find(section => section.type === 'description')
+    expect(parsedDescription?.type === 'description' ? parsedDescription.text : '').toContain('\n* *Маршрут:*')
+    expect(parsedDescription?.type === 'description' ? parsedDescription.text : '').toContain('\n    1. Депо')
+
+    const result = await enrichActivityWithMediaAndLocation(
+      activity,
+      new Map(),
+      null,
+      null,
+      new Map(),
+      new Map(),
+      { geocode: false },
+    )
+    const description = result.sections?.find(section => section.type === 'description')
+    expect(description?.type === 'description' ? description.text : '').toBe([
+      '* *Контекст:* Старый город.',
+      '* *Маршрут:* Улица, затем депо.',
+      '* *Ключевые точки:*',
+      '    1. Депо',
+      '    2. Бамбук',
+    ].join('\n'))
+  })
+
   it('attaches hotel bookings only to explicit check-in and return activities', async () => {
     const { enrichActivityWithMediaAndLocation } = await import('../lib/enricher')
     const bookings = [

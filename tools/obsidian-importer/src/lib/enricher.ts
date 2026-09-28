@@ -8,8 +8,8 @@ import type {
 import { existsSync } from 'node:fs'
 import { colors } from '../config/colors'
 import { dedentText } from '../parsers/activity'
-import { extractExternalTrailLinks, extractLocationsFromText } from '../parsers/location'
 import { extractGalleryBlocks } from '../parsers/gallery'
+import { extractExternalTrailLinks, extractLocationsFromText } from '../parsers/location'
 import { geocodeLocation } from './geocode'
 import { stableId } from './stable-id'
 
@@ -260,6 +260,7 @@ export async function enrichActivityWithMediaAndLocation(
     .replace(/!\[\[[^\]]+\]\]/g, '')
     .replace(/!\[[^\]]*\]\([^)]+\)/g, '')
     .replace(noteCalloutRegex, '')
+    .replace(/^[ \t]*(?:[-*+]|\d+[.)])[ \t]*$/gm, '')
     .replace(/\n{3,}/g, '\n\n')
 
   text = dedentText(text)
