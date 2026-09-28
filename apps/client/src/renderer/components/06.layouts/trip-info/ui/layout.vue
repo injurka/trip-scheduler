@@ -100,7 +100,7 @@ onBeforeUnmount(() => {
 <template>
   <AppHeader />
 
-  <main class="main">
+  <main class="main" :class="{ 'is-notes-view': isNotesView }">
     <div class="main-content">
       <div
         class="content-wrapper"
@@ -268,6 +268,15 @@ onBeforeUnmount(() => {
   flex: 1;
   position: relative;
   overflow: hidden;
+
+  // Заметки занимают ровно высоту вьюпорта, скролл живёт внутри секции (дерево файлов, .editor-body).
+  // Без явной высоты flex-элемент растягивается по контенту, `#app` (min-height: 100dvh) растёт вместе с ним,
+  // и внутренние скролл-контейнеры остаются нерабочими (колесо "съедается" overscroll-behavior: contain).
+  &.is-notes-view {
+    flex: 0 0 auto;
+    height: 100dvh;
+    min-height: 0;
+  }
 
   .trip-info-divider {
     margin: 0 auto;
