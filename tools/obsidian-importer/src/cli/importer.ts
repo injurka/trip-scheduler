@@ -3,6 +3,7 @@ import process from 'node:process'
 import { colors } from '../config/colors'
 import { loadEnvIfAvailable } from '../config/env'
 import { loadImporterConfig } from '../config/loader'
+import { isTripMediaRootDirName } from '../config/paths'
 import { ApiClient } from '../lib/api-client'
 import { resolveAndUploadBookingPhotos } from '../lib/booking-media'
 import {
@@ -488,7 +489,8 @@ export async function runImport(): Promise<void> {
   }
 
   // 4. Create Notes Hierarchy
-  if (importNotes && (tripData.sectionFolders.length > 0 || tripData.rootNotes.length > 0)) {
+  const noteFolders = tripData.sectionFolders.filter(folder => !isTripMediaRootDirName(folder.folderName))
+  if (importNotes && (noteFolders.length > 0 || tripData.rootNotes.length > 0)) {
     console.log(`\n${colors.dim}📝 Импорт структуры заметок и статей...${colors.reset}`)
     let existingNotes: Array<{ id: string, parentId?: string | null, type: string, title: string }> = []
     try {
@@ -499,7 +501,7 @@ export async function runImport(): Promise<void> {
       throw error
     }
 
-    for (const folder of tripData.sectionFolders) {
+    for (const folder of noteFolders) {
       try {
         const existingFolder = existingNotes.find(note => note.type === 'folder' && !note.parentId && note.title === folder.folderName)
         const folderRecord = existingFolder ?? await api.createNote({ tripId: createdTrip.id, type: 'folder', title: folder.folderName })

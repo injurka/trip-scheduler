@@ -3,6 +3,7 @@ import type { Transport } from './transport'
 import process from 'node:process'
 import { colors } from '../config/colors'
 import { DEFAULT_TRIP_SECTIONS } from '../config/constants'
+import { isTripMediaRootDirName } from '../config/paths'
 import { parseActivitiesFromMarkdown } from '../parsers/activity'
 import { parseObsidianTripFolder } from '../parsers/vault'
 import { resolveAndUploadBookingPhotos } from './booking-media'
@@ -275,10 +276,11 @@ export async function importTripFolderCore(
     }
 
     // 4. Notes
-    if (importNotes && (tripData.sectionFolders.length > 0 || tripData.rootNotes.length > 0)) {
+    const noteFolders = tripData.sectionFolders.filter(folder => !isTripMediaRootDirName(folder.folderName))
+    if (importNotes && (noteFolders.length > 0 || tripData.rootNotes.length > 0)) {
       progress?.('notes', 'Импорт структуры заметок')
 
-      for (const folder of tripData.sectionFolders) {
+      for (const folder of noteFolders) {
         try {
           const folderRecord = await transport.createNote({
             tripId: createdTrip.id,
