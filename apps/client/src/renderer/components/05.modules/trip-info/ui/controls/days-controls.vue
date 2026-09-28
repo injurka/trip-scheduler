@@ -240,17 +240,17 @@ onUnmounted(() => {
       </div>
     </div>
 
-    <DaysPanel
-      :is-open="isDaysPanelOpen"
-      :days="getAllDays"
-      :selected-day-id="getSelectedDay?.id"
-      @close="isDaysPanelOpen = false"
-      @select-day="setCurrentDay"
-      @add-new-day="handleAddNewDay"
-      @add-new-draft-day="handleAddNewDraftDay"
-    />
-
     <Teleport to="body">
+      <DaysPanel
+        :is-open="isDaysPanelOpen"
+        :days="getAllDays"
+        :selected-day-id="getSelectedDay?.id"
+        @close="isDaysPanelOpen = false"
+        @select-day="setCurrentDay"
+        @add-new-day="handleAddNewDay"
+        @add-new-draft-day="handleAddNewDraftDay"
+      />
+
       <div
         ref="fixedLeftControlsRef"
         class="fixed-controls-container"
