@@ -11,7 +11,7 @@ import { KitTooltip } from '~/components/01.kit/kit-tooltip'
 import { EActivitySectionType } from '~/shared/types/models/activity'
 import ActivityPreviewDialog from './activity-preview-dialog.vue'
 import TransitEdgeDialog from './transit-edge-dialog.vue'
-import { calculateTransitLayout, TRANSIT_LAYOUT_OPTIONS } from './transit-layouts'
+import { calculateTransitLayout, PHASE_CARD_MIN_HEIGHT, TRANSIT_LAYOUT_OPTIONS } from './transit-layouts'
 import TransitNodeCard from './transit-node-card.vue'
 
 interface Props {
@@ -36,7 +36,7 @@ const emit = defineEmits<{
 const viewportRef = ref<HTMLElement | null>(null)
 const { width: viewportWidth, height: viewportHeight } = useElementSize(viewportRef)
 
-const validModes: TransitLayoutMode[] = ['phases', 'column', 'trail', 'radial']
+const validModes: TransitLayoutMode[] = ['phases', 'column', 'radial']
 const rawLayoutMode = useStorage<string>(
   'transit_canvas_layout_mode',
   props.initialLayoutMode || 'phases',
@@ -51,6 +51,8 @@ const scale = ref(1)
 const translateX = ref(40)
 const translateY = ref(40)
 const isDragging = ref(false)
+const isWheeling = ref(false)
+let wheelStopTimer: ReturnType<typeof setTimeout> | null = null
 
 // Multi-touch & Pointer gesture tracking
 const activePointers = new Map<number, { clientX: number, clientY: number }>()
@@ -91,7 +93,9 @@ const { x: tooltipX, y: tooltipY, strategy: tooltipStrategy } = useFloating(
       flip({ fallbackPlacements: ['bottom', 'right', 'left'] }),
       shift({ padding: 12 }),
     ],
-    open: isHoverTooltipVisible,
+    // NOTE: no `open` flag — with open:false floating-ui nulls x/y and the
+    // inline `visibility:hidden` then hides the tooltip instantly, killing
+    // the leave transition. Coordinates must stay live while the fade-out runs.
   },
 )
 
@@ -181,6 +185,14 @@ function handleSelectActivityCard(activity: IActivity) {
   isActivityPreviewVisible.value = true
 }
 
+/** Нативный тултип ребра: без пустых скобок, когда длительность переезда неизвестна. */
+function getEdgeTooltip(edge: LayoutEdge): string {
+  if (edge.metroRide)
+    return edge.durationText ? `${edge.metroRide.lineName} (${edge.durationText})` : edge.metroRide.lineName
+
+  return edge.durationText ? `Переход: ${edge.durationText}` : 'Переход'
+}
+
 function handleEdgeClick(edge: LayoutEdge) {
   selectedEdgeInfo.value = {
     id: edge.id,
@@ -213,7 +225,7 @@ function handleSelectMode(mode: TransitLayoutMode) {
 
 // Master Layout computation
 const computedLayout = computed(() => {
-  return calculateTransitLayout(layoutMode.value, props.activities)
+  return calculateTransitLayout(layoutMode.value, props.activities, { isEditMode: props.isEditMode })
 })
 
 // Fit To View: automatically centers & scales the content taking floating UI tabs into account
@@ -289,7 +301,9 @@ function handlePointerDown(e: PointerEvent) {
   }
 
   const target = e.target as HTMLElement
-  if (target.closest('button, input, textarea, .action-btn, .transit-node-card, .canvas-floating-tabs, .canvas-floating-controls, .edge-badge-group')) {
+  // Треки (базовые линии рёбер) кликабельны — не начинаем панораму и не забираем pointer capture,
+  // иначе клик не долетает до @click.stop на треке и диалог перехода не открывается.
+  if (target.closest('button, input, textarea, .action-btn, .transit-node-card, .canvas-floating-tabs, .canvas-floating-controls, .edge-badge-group, .track-path-base')) {
     return
   }
 
@@ -382,6 +396,13 @@ function handlePointerUp(e: PointerEvent) {
 // Wheel Zoom towards cursor
 function handleWheel(e: WheelEvent) {
   e.preventDefault()
+  isWheeling.value = true
+  if (wheelStopTimer) {
+    clearTimeout(wheelStopTimer)
+  }
+  wheelStopTimer = setTimeout(() => {
+    isWheeling.value = false
+  }, 180)
   if (!viewportRef.value)
     return
 
@@ -415,6 +436,12 @@ onMounted(() => {
   })
 })
 
+onUnmounted(() => {
+  if (wheelStopTimer) {
+    clearTimeout(wheelStopTimer)
+  }
+})
+
 defineExpose({
   fitToView,
   resetZoom,
@@ -428,7 +455,7 @@ defineExpose({
   <div
     ref="viewportRef"
     class="transit-canvas-viewport"
-    :class="{ 'is-grabbing': isDragging }"
+    :class="{ 'is-grabbing': isDragging, 'is-wheeling': isWheeling, 'is-phases-mode': layoutMode === 'phases' }"
     @pointerdown="handlePointerDown"
     @pointermove="handlePointerMove"
     @pointerup="handlePointerUp"
@@ -515,6 +542,28 @@ defineExpose({
           class="radial-orbit-ring"
         />
 
+        <!-- Radial Mode: Hour Ticks & Labels (real 24h dial) -->
+        <g v-if="layoutMode === 'radial' && computedLayout.decorators.radialTicks">
+          <template v-for="(tick, tickIndex) in computedLayout.decorators.radialTicks" :key="tickIndex">
+            <line
+              :x1="tick.x1"
+              :y1="tick.y1"
+              :x2="tick.x2"
+              :y2="tick.y2"
+              class="radial-hour-tick"
+            />
+            <text
+              v-if="tick.label"
+              :x="tick.labelX"
+              :y="tick.labelY + 3.5"
+              class="radial-hour-label"
+              text-anchor="middle"
+            >
+              {{ tick.label }}
+            </text>
+          </template>
+        </g>
+
         <!-- Column Mode: Vertical Spine Track -->
         <path
           v-if="layoutMode === 'column' && computedLayout.decorators.spinePathD"
@@ -522,25 +571,16 @@ defineExpose({
           class="spine-track-line"
         />
 
-        <!-- Base Background Track (Solid track base) -->
+        <!-- Base Background Track: серый трек + клик и тултип по ребру -->
         <path
           v-for="edge in computedLayout.edges"
           :key="`bg-${edge.id}`"
           :d="edge.pathD"
           class="track-path-base"
-        />
-
-        <!-- Colored Foreground Track with Click Interaction -->
-        <path
-          v-for="edge in computedLayout.edges"
-          :key="`fg-${edge.id}`"
-          :d="edge.pathD"
-          class="track-path-line"
           :class="{ 'is-dashed': edge.isDashed }"
-          :stroke="edge.color"
           @click.stop="handleEdgeClick(edge)"
         >
-          <title>{{ edge.metroRide ? `${edge.metroRide.lineName} (${edge.durationText || ''})` : `Переход: ${edge.durationText || '0м'}` }}</title>
+          <title>{{ getEdgeTooltip(edge) }}</title>
         </path>
 
         <!-- Continuous Smooth Flowing Stream along tracks -->
@@ -602,7 +642,7 @@ defineExpose({
         :key="node.activity.id"
         class="transit-node-positioner"
         :style="{
-          transform: `translate(${node.x}px, ${node.y}px)`,
+          transform: `translate(${node.x}px, ${node.y}px) scale(${node.scale ?? 1})`,
           width: `${node.width}px`,
         }"
         @mouseenter="handleNodeMouseEnter(node.activity, $event.currentTarget as HTMLElement)"
@@ -614,6 +654,7 @@ defineExpose({
           :is-first="node.index === 0"
           :is-last="node.index === computedLayout.nodes.length - 1"
           :is-edit-mode="isEditMode"
+          :min-height="layoutMode === 'phases' ? PHASE_CARD_MIN_HEIGHT : undefined"
           :is-selected="selectedActivityId === node.activity.id"
           @select="handleSelectActivityCard"
           @edit="emit('editActivity', $event)"
@@ -778,6 +819,14 @@ defineExpose({
     cursor: grabbing;
   }
 
+  // While panning/zooming, freeze decorative flow animations — they force per-frame paints
+  &.is-grabbing,
+  &.is-wheeling {
+    .track-path-flow-stream {
+      animation-play-state: paused;
+    }
+  }
+
   @include media-down(sm) {
     height: 340px;
   }
@@ -817,7 +866,6 @@ defineExpose({
   border-radius: var(--r-s);
   padding: 3px;
   box-shadow: var(--s-m);
-  backdrop-filter: blur(10px);
   max-width: calc(100% - 24px);
   overflow-x: auto;
 
@@ -898,19 +946,12 @@ defineExpose({
   stroke-linecap: round;
   stroke-linejoin: round;
   opacity: 0.9;
-}
-
-.track-path-line {
-  fill: none;
-  stroke-width: 5px;
-  stroke-linecap: round;
-  stroke-linejoin: round;
   pointer-events: stroke;
   cursor: pointer;
   transition: stroke-width 0.2s ease;
 
   &:hover {
-    stroke-width: 7px;
+    stroke-width: 10px;
   }
 
   &.is-dashed {
@@ -995,6 +1036,20 @@ defineExpose({
   stroke-width: 2px;
   stroke-dasharray: 6 6;
   opacity: 0.75;
+}
+
+.radial-hour-tick {
+  stroke: var(--border-primary-color);
+  stroke-width: 2px;
+  opacity: 0.8;
+}
+
+.radial-hour-label {
+  fill: var(--fg-tertiary-color);
+  font-size: 10px;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  user-select: none;
 }
 
 .radial-center-hub {
@@ -1161,6 +1216,8 @@ defineExpose({
   top: 0;
   left: 0;
   z-index: 2;
+  /* radial layout scales cards from their top-left corner */
+  transform-origin: 0 0;
 }
 
 /* Floating Zoom & Fit Controls */
@@ -1177,7 +1234,6 @@ defineExpose({
   border-radius: var(--r-s);
   padding: 3px;
   box-shadow: var(--s-m);
-  backdrop-filter: blur(8px);
 }
 
 .canvas-tool-btn {

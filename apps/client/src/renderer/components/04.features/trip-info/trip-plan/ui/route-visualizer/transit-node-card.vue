@@ -13,6 +13,8 @@ interface Props {
   isLast?: boolean
   isEditMode?: boolean
   isSelected?: boolean
+  /** Переопределяет min-height карточки: «Фазы дня» рисует блоки крупнее (PHASE_CARD_MIN_HEIGHT). */
+  minHeight?: number
 }
 
 const props = withDefaults(defineProps<Props>(), {
@@ -45,6 +47,11 @@ const tagColor = computed(() => {
   }
   return '#64748B'
 })
+
+const cardStyle = computed(() => ({
+  '--accent-color': tagColor.value,
+  ...(props.minHeight ? { minHeight: `${props.minHeight}px` } : {}),
+}))
 
 const isCompleted = computed(() => props.activity.status === EActivityStatus.COMPLETED)
 
@@ -101,9 +108,7 @@ function handleCardClick(e: MouseEvent) {
       'is-selected': isSelected,
       'is-completed': isCompleted,
     }"
-    :style="{
-      '--accent-color': tagColor,
-    }"
+    :style="cardStyle"
     @click="handleCardClick"
   >
     <!-- Left: Station Bullet on Track Line -->

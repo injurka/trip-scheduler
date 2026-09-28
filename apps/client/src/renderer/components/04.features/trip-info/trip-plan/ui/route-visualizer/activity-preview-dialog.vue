@@ -113,7 +113,7 @@ function handleScrollTo() {
     v-if="activity"
     v-model:visible="visible"
     title="Остановка маршрута"
-    :max-width="480"
+    :max-width="520"
   >
     <div class="activity-preview-body">
       <!-- Top Card Header Box -->
@@ -346,18 +346,6 @@ function handleScrollTo() {
         &:last-child {
           margin-bottom: 0;
         }
-      }
-
-      ul,
-      ol {
-        padding-left: 18px;
-        margin: 4px 0;
-        font-size: 0.85rem;
-        color: var(--fg-primary-color);
-      }
-
-      li {
-        margin-bottom: 2px;
       }
 
       blockquote {
