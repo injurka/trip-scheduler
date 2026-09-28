@@ -85,6 +85,7 @@ export async function importTripFolderCore(
   progress?.('trip', 'Создание путешествия')
   const createdTrip = await transport.createTrip({
     title: tripData.title,
+    shareSlug: tripData.shareSlug,
     description: tripData.description,
     startDate: tripData.startDate,
     endDate: tripData.endDate,
@@ -107,6 +108,7 @@ export async function importTripFolderCore(
       await safeCall(async () => {
         await transport.updateTrip(createdTrip.id, {
           title: tripData.title,
+          shareSlug: tripData.shareSlug,
           description: tripData.description,
           descriptionShort: tripData.descriptionShort,
           imageUrl: coverImageUrl,

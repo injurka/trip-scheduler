@@ -3,6 +3,8 @@ import type { CreateTripInput, Trip, TripWeatherData, TripWithDays, UpdateTripIn
 import { trpc } from '~/shared/services/trpc/trpc.service'
 import { throttle } from '../lib/decorators'
 
+const UUID_PATTERN = /^[\da-f]{8}-[\da-f]{4}-[\da-f]{4}-[\da-f]{4}-[\da-f]{12}$/i
+
 class TripRepository implements ITripRepository {
   @throttle(500)
   async getAll(filters?: TripListFilters): Promise<Trip[]> {
@@ -16,7 +18,20 @@ class TripRepository implements ITripRepository {
 
   @throttle(500)
   async getByIdWithDays(tripId: string): Promise<TripWithDays | null> {
+    if (!UUID_PATTERN.test(tripId)) {
+      return await trpc.trip.getByShareSlug.query({ slug: tripId }) as TripWithDays
+    }
+
     return await trpc.trip.getByIdWithDays.query({ tripId }) as TripWithDays | null
+  }
+
+  @throttle(500)
+  async getOrCreateShareSlug(tripId: string): Promise<string> {
+    return await trpc.trip.getOrCreateShareSlug.mutate({ tripId })
+  }
+
+  async isShareSlugAvailable(tripId: string, slug: string): Promise<boolean> {
+    return await trpc.trip.checkShareSlugAvailability.query({ tripId, slug })
   }
 
   @throttle(500)

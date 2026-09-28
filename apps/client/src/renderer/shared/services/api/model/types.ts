@@ -168,6 +168,8 @@ export interface ITripRepository {
   getAll: (filters?: TripListFilters) => Promise<Trip[]>
   getById: (id: string) => Promise<Trip | null>
   getByIdWithDays: (id: string) => Promise<TripWithDays | null>
+  getOrCreateShareSlug: (tripId: string) => Promise<string>
+  isShareSlugAvailable: (tripId: string, slug: string) => Promise<boolean>
   create: (data: CreateTripInput) => Promise<Trip>
   update: (id: string, details: UpdateTripInput) => Promise<Trip>
   delete: (id: string) => Promise<Trip>

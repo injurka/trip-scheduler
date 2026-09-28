@@ -166,6 +166,28 @@ export function validateObsidianVault(context: ValidationScopeContext, startDate
   // 4. Валидация дней маршрута
   const daySummaries: DayValidationSummary[] = []
   const frontmatter = parseTripFrontmatter(rootNoteContent)
+  if (frontmatter.slug && (
+    frontmatter.slug.length < 3
+    || !/^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(frontmatter.slug)
+    || /^[\da-f]{8}-[\da-f]{4}-[\da-f]{4}-[\da-f]{4}-[\da-f]{12}$/i.test(frontmatter.slug)
+  )) {
+    issues.push({
+      severity: 'error',
+      category: 'hub',
+      file: hubFile?.name,
+      message: `Некорректный slug в frontmatter: ${frontmatter.slug}.`,
+      recommendation: 'Используйте от 3 до 80 символов: латинские строчные буквы и цифры, слова разделяйте дефисом (например, `taiwan-2026`).',
+    })
+  }
+  if (frontmatter.slug && frontmatter.slug.length > 80) {
+    issues.push({
+      severity: 'error',
+      category: 'hub',
+      file: hubFile?.name,
+      message: 'Slug в frontmatter длиннее 80 символов.',
+      recommendation: 'Сократите slug до 80 символов.',
+    })
+  }
   let explicitStartDate = startDateStr || frontmatter.startDate
 
   if (!explicitStartDate) {
@@ -328,6 +350,19 @@ export function validateObsidianVault(context: ValidationScopeContext, startDate
             message: `Строка таймлайна будет пропущена парсером: ${reason}`,
             recommendation: `Исправьте формат строки на: \`${fix}\``,
           })
+        }
+        else if (officialTimeRegex.test(line)) {
+          if (line.length > 80) {
+            dayIssues.push({
+              severity: 'warning',
+              category: 'timeline',
+              file: fileName,
+              line: lineIdx + 1,
+              rawText: trimmed,
+              message: `Длина строки активности превышает 80 символов (${line.length} симв.): «${trimmed.length > 60 ? `${trimmed.slice(0, 57)}...` : trimmed}»`,
+              recommendation: 'Сократите заголовок активности до 80 символов (стандарт Travel Vault), перенеся подробности во вложенные пункты (4 пробела: `    * ...`).',
+            })
+          }
         }
       }
 

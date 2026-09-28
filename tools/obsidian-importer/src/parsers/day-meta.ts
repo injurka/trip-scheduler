@@ -55,8 +55,12 @@ export function parseDayMetaFromMarkdown(dayContent: string): DayMetaInfo[] {
     const rawTitleLine = calloutMatch[2].trim()
     const rawBody = calloutMatch[3] || ''
 
-    if (/^(?:Картинки|Изображения|Фото|Photos|Images)$/i.test(rawTitleLine))
+    if (
+      /^(?:Картинки|Изображения|Фото|Photos|Images)$/i.test(rawTitleLine)
+      || /фокус дня|HUD/i.test(rawTitleLine)
+    ) {
       continue
+    }
 
     const cleanBodyLines = rawBody
       .split('\n')
@@ -187,7 +191,31 @@ export function parseDayMetaFromMarkdown(dayContent: string): DayMetaInfo[] {
     }
   }
 
-  // 3. Parse Financial expenses block
+  // 3. Parse Operational HUD block (> [!SUMMARY] ⚡ Оперативный фокус дня (HUD))
+  const hudMatch = cleanContent.match(/>\s*\[!(?:SUMMARY|IMPORTANT)\]-?\s*([^\n]*(?:фокус дня|HUD)[^\n]*)\n((?:[ \t]*>[^\n]*\n?)*)/i)
+  if (hudMatch) {
+    const rawTitleLine = hudMatch[1].trim()
+    const rawBody = hudMatch[2] || ''
+    const cleanBodyLines = rawBody
+      .split('\n')
+      .map(l => l.replace(/^[ \t]*>[ \t]?/, ''))
+      .join('\n')
+      .trim()
+
+    if (cleanBodyLines) {
+      const cleanTitle = cleanEmoji(rawTitleLine) || 'Оперативный фокус дня (HUD)'
+      metaBadges.push({
+        id: stableId('day-meta', 'hud', cleanBodyLines),
+        title: cleanTitle,
+        subtitle: 'Режим «Оператора»',
+        icon: 'mdi:lightning-bolt',
+        color: '#FF9F1C',
+        content: cleanBodyLines,
+      })
+    }
+  }
+
+  // 4. Parse Financial expenses block
   if (finText) {
     const finMatch = finText.match(/##\s*(?:💰\s*)?Финансовые затраты[^\n]*\n([\s\S]*?)(?=\n##|\n#|$)/i)
     if (finMatch) {

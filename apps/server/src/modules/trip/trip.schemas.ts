@@ -60,6 +60,25 @@ export const GetTripByIdInputSchema = z.object({
   tripId: z.string().uuid(),
 })
 
+export const ShareSlugSchema = z.string()
+  .min(3, 'Slug должен содержать не менее 3 символов.')
+  .max(80, 'Slug должен содержать не более 80 символов.')
+  .regex(/^[a-z0-9]+(?:-[a-z0-9]+)*$/, 'Используйте латинские строчные буквы, цифры и дефис между словами.')
+  .refine(slug => !/^[\da-f]{8}-[\da-f]{4}-[\da-f]{4}-[\da-f]{4}-[\da-f]{12}$/i.test(slug), 'Slug не должен совпадать с UUID путешествия.')
+
+export const GetTripByShareSlugInputSchema = z.object({
+  slug: z.string().min(1).max(128),
+})
+
+export const CreateTripShareLinkInputSchema = z.object({
+  tripId: z.string().uuid(),
+})
+
+export const CheckShareSlugAvailabilityInputSchema = z.object({
+  tripId: z.string().uuid(),
+  slug: ShareSlugSchema,
+})
+
 export const UpdateTripInputSchema = z.object({
   id: z.string().uuid(),
   details: TripSchema.pick({
@@ -78,6 +97,7 @@ export const UpdateTripInputSchema = z.object({
     weatherData: true,
   }).partial().extend({
     participantIds: z.array(z.string().uuid()).optional(),
+    shareSlug: ShareSlugSchema.optional(),
   }),
 })
 
@@ -98,6 +118,7 @@ export const CreateTripInputSchema = TripSchema.pick({
   description: z.string().optional(),
   startDate: z.union([z.date(), z.string()]).optional(),
   endDate: z.union([z.date(), z.string()]).optional(),
+  shareSlug: ShareSlugSchema.optional(),
 })
 
 export const ListTripsInputSchema = z.object({

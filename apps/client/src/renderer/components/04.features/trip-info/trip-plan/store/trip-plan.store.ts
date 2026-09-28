@@ -331,6 +331,7 @@ export const useTripPlanStore = defineStore('tripPlan', {
       const applyTripData = (result: any) => {
         const { days, sections, ...tripData } = result
         this.trip = tripData as Trip
+        this.currentTripId = this.trip.id
 
         const sortedDays = sortDaysList(result.days || [])
         this.days = sortedDays as IDay[]
@@ -778,7 +779,6 @@ export const useTripPlanStore = defineStore('tripPlan', {
         },
         onError: ({ error }) => {
           useToast().error(`Не удалось удалить путешествие: ${error.customMessage}`)
-          throw error
         },
       })
     },

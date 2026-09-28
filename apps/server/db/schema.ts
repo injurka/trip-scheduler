@@ -99,6 +99,7 @@ export const refreshTokens = pgTable('refresh_tokens', {
 
 export const trips = pgTable('trips', {
   id: uuid('id').primaryKey(),
+  shareSlug: text('share_slug').unique(),
   title: text('title').notNull(),
   imageUrl: text('image_url'),
   description: text('description'),

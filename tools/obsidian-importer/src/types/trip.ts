@@ -50,6 +50,7 @@ export interface ParsedDay {
 
 export interface ParsedTripData {
   title: string
+  shareSlug?: string
   description: string
   descriptionShort: string
   cover?: string

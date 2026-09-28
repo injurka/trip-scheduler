@@ -12,6 +12,7 @@ import type { ActivityPayload, Booking } from '../types'
 export interface Transport {
   createTrip: (payload: {
     title: string
+    shareSlug?: string
     description?: string
     startDate?: string
     endDate?: string
@@ -21,6 +22,7 @@ export interface Transport {
 
   updateTrip: (id: string, details: {
     title?: string
+    shareSlug?: string
     description?: string
     descriptionShort?: string
     imageUrl?: string | null

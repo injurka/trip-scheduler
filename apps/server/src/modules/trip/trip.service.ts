@@ -13,6 +13,16 @@ import { weatherGenerationService } from '~/services/llm/weather-generation.serv
 import { quotaService } from '~/services/quota.service'
 import { TripSectionType } from '../trip-section/trip-section.schemas'
 
+function isUniqueConstraintViolation(error: unknown): boolean {
+  let current = error
+  while (current && typeof current === 'object') {
+    if ('code' in current && (current as { code?: unknown }).code === '23505')
+      return true
+    current = 'cause' in current ? (current as { cause?: unknown }).cause : undefined
+  }
+  return false
+}
+
 export const tripService = {
   async getAll(filters?: z.infer<typeof ListTripsInputSchema>, userId?: string) {
     const trips = await tripRepository.getAll(filters, userId)
@@ -57,10 +67,72 @@ export const tripService = {
     return trip as unknown as z.infer<typeof TripWithDaysSchema>
   },
 
+  async getByShareSlug(shareSlug: string) {
+    const trip = await tripRepository.getByShareSlug(shareSlug)
+    if (!trip)
+      throw createTRPCError('NOT_FOUND', 'Путешествие по этой ссылке не найдено.')
+
+    if (trip.weatherData) {
+      trip.weatherData = weatherGenerationService.sanitizeTripWeatherPayload(
+        trip.weatherData,
+        trip.startDate,
+      )
+    }
+
+    return trip as unknown as z.infer<typeof TripWithDaysSchema>
+  },
+
+  async getOrCreateShareSlug(tripId: string, userId: string, userRole: string) {
+    const trip = await tripRepository.getById(tripId)
+    if (!trip)
+      throw createTRPCError('NOT_FOUND', 'Путешествие не найдено.')
+
+    const canShare = userRole === 'admin'
+      || trip.userId === userId
+      || await tripRepository.hasAccess(tripId, userId)
+
+    if (!canShare)
+      throw createTRPCError('FORBIDDEN', 'У вас нет прав на создание ссылки для этого путешествия.')
+
+    const shareSlug = await tripRepository.getOrCreateShareSlug(tripId, trip.title)
+    if (!shareSlug)
+      throw createTRPCError('INTERNAL_SERVER_ERROR', 'Не удалось создать ссылку для путешествия.')
+
+    return shareSlug
+  },
+
+  async checkShareSlugAvailability(tripId: string, shareSlug: string, userId: string, userRole: string) {
+    const trip = await tripRepository.getById(tripId)
+    if (!trip)
+      throw createTRPCError('NOT_FOUND', 'Путешествие не найдено.')
+
+    const canShare = userRole === 'admin'
+      || trip.userId === userId
+      || await tripRepository.hasAccess(tripId, userId)
+
+    if (!canShare)
+      throw createTRPCError('FORBIDDEN', 'У вас нет прав на создание ссылки для этого путешествия.')
+
+    return tripRepository.isShareSlugAvailable(shareSlug, tripId)
+  },
+
   async create(data: z.infer<typeof CreateTripInputSchema>, userId: string) {
     await quotaService.checkTripCreationQuota(userId)
 
-    const newTrip = await tripRepository.create(data, userId)
+    if (data.shareSlug && !await tripRepository.isShareSlugAvailable(data.shareSlug)) {
+      throw createTRPCError('CONFLICT', 'Этот slug уже занят. Выберите другой.')
+    }
+
+    let newTrip
+    try {
+      newTrip = await tripRepository.create(data, userId)
+    }
+    catch (error) {
+      if (isUniqueConstraintViolation(error) && data.shareSlug) {
+        throw createTRPCError('CONFLICT', 'Этот slug уже занят. Выберите другой.')
+      }
+      throw error
+    }
 
     if (!newTrip) {
       throw createTRPCError('INTERNAL_SERVER_ERROR', 'Не удалось создать путешествие.')
@@ -116,6 +188,10 @@ export const tripService = {
   ) {
     const existingTrip = await accessControlService.getTripAndVerifyAccess(id, userId, userRole)
 
+    if (details.shareSlug && !await tripRepository.isShareSlugAvailable(details.shareSlug, id)) {
+      throw createTRPCError('CONFLICT', 'Этот slug уже занят. Выберите другой.')
+    }
+
     // Если обновляются города или дата, но не передана погода, пробуем дополнить из кэша БД
     if (details.cities && details.cities.length > 0 && !details.weatherData) {
       try {
@@ -134,7 +210,16 @@ export const tripService = {
       }
     }
 
-    const updatedTrip = await tripRepository.update(id, details)
+    let updatedTrip
+    try {
+      updatedTrip = await tripRepository.update(id, details)
+    }
+    catch (error) {
+      if (isUniqueConstraintViolation(error) && details.shareSlug) {
+        throw createTRPCError('CONFLICT', 'Этот slug уже занят. Выберите другой.')
+      }
+      throw error
+    }
     if (!updatedTrip) {
       throw createTRPCError('NOT_FOUND', `Путешествие с ID ${id} не найдено.`)
     }

@@ -39,8 +39,16 @@ export function useTripPermissions() {
     return Boolean(trip.userId && trip.userId === currentUser.id)
   })
 
+  const canDelete = computed(() => {
+    if (!isOnline.value)
+      return false
+
+    return auth.user?.role === 'admin' || isOwner.value
+  })
+
   return {
     canEdit,
+    canDelete,
     isOwner,
   }
 }

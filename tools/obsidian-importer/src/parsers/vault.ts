@@ -57,6 +57,7 @@ export function cleanMarkdownFormatting(text: string): string {
 }
 
 export interface TripFrontmatter {
+  slug?: string
   cover?: string
   descriptionShort?: string
   tags?: string[]
@@ -111,6 +112,13 @@ export function parseTripFrontmatter(markdown: string): TripFrontmatter {
 
     const key = keyMatch[1]
     const rawValue = keyMatch[2]
+    if (key === 'slug') {
+      const value = unquoteYamlScalar(rawValue)
+      if (value)
+        result.slug = value
+      continue
+    }
+
     if (key === 'cover' || key === 'imageUrl') {
       const value = unquoteYamlScalar(rawValue)
       if (value)
@@ -620,6 +628,7 @@ export function parseObsidianTripFolder(tripPath: string, startDateStr?: string)
 
   return {
     title: extractedTitle,
+    shareSlug: frontmatter.slug,
     description,
     descriptionShort,
     ...coverData,

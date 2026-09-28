@@ -2,10 +2,13 @@ import z from 'zod'
 import { protectedProcedure, publicProcedure } from '~/lib/trpc'
 import {
   AddParticipantInputSchema,
+  CheckShareSlugAvailabilityInputSchema,
   CreateTripInputSchema,
+  CreateTripShareLinkInputSchema,
   GenerateWeatherInputSchema,
   GenerateWeatherOutputSchema,
   GetTripByIdInputSchema,
+  GetTripByShareSlugInputSchema,
   ListTripsByUserInputSchema,
   ListTripsInputSchema,
   TripSchema,
@@ -102,6 +105,27 @@ export const tripProcedures = {
     .output(TripWithDaysSchema)
     .query(async ({ input }) => {
       return tripService.getByIdWithDays(input.tripId)
+    }),
+
+  getByShareSlug: publicProcedure
+    .input(GetTripByShareSlugInputSchema)
+    .output(TripWithDaysSchema)
+    .query(async ({ input }) => {
+      return tripService.getByShareSlug(input.slug)
+    }),
+
+  getOrCreateShareSlug: protectedProcedure
+    .input(CreateTripShareLinkInputSchema)
+    .output(z.string())
+    .mutation(async ({ input, ctx }) => {
+      return tripService.getOrCreateShareSlug(input.tripId, ctx.user.id, ctx.user.role)
+    }),
+
+  checkShareSlugAvailability: protectedProcedure
+    .input(CheckShareSlugAvailabilityInputSchema)
+    .output(z.boolean())
+    .query(async ({ input, ctx }) => {
+      return tripService.checkShareSlugAvailability(input.tripId, input.slug, ctx.user.id, ctx.user.role)
     }),
 
   create: protectedProcedure

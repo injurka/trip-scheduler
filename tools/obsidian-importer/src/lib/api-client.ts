@@ -129,6 +129,7 @@ export class ApiClient {
   // 2. Trip Endpoints
   async createTrip(payload: {
     title: string
+    shareSlug?: string
     description?: string
     startDate?: string
     endDate?: string
@@ -141,6 +142,7 @@ export class ApiClient {
 
   async updateTrip(id: string, details: {
     title?: string
+    shareSlug?: string
     description?: string
     descriptionShort?: string
     imageUrl?: string | null

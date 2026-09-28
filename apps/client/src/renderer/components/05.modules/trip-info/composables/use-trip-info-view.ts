@@ -28,7 +28,13 @@ export function useTripInfoView() {
     'sections',
   ])
 
-  const tripId = computed(() => route.params.id as string)
+  const routeTripId = computed(() => route.params.id as string)
+  const tripId = computed(() => {
+    if (plan.trip && plan.currentTripId !== routeTripId.value)
+      return plan.trip.id
+
+    return routeTripId.value
+  })
   const dayId = computed(() => route.query.day as string)
   const sectionQuery = computed(() => route.query.section as string)
 
@@ -52,9 +58,9 @@ export function useTripInfoView() {
   const isMapView = computed(() => sectionQuery.value === 'map')
 
   function fetchData() {
-    if (tripId.value) {
+    if (routeTripId.value) {
       plan.fetchTripDetails(
-        tripId.value,
+        routeTripId.value,
         dayId.value,
         (loadedSections) => {
           sections.setSections(loadedSections)
@@ -63,7 +69,7 @@ export function useTripInfoView() {
     }
   }
 
-  watch(tripId, (newId) => {
+  watch(routeTripId, (newId) => {
     if (newId) {
       fetchData()
     }

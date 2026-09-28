@@ -5,7 +5,6 @@ import type { IDay } from '~/components/04.features/trip-info/trip-plan/models/t
 import type { OfflineDownloadOptions } from '~/shared/store/offline.store'
 import type { Trip, TripSection, TripWeatherData } from '~/shared/types/models/trip'
 import { Icon } from '@iconify/vue'
-import { useClipboard, useShare } from '@vueuse/core'
 import { DropdownMenuItem } from 'reka-ui'
 import { KitAnimatedTooltip } from '~/components/01.kit/kit-animated-tooltip'
 import { KitAvatar } from '~/components/01.kit/kit-avatar'
@@ -18,7 +17,8 @@ import { OfflineDownloadDialog } from '~/components/02.shared/offline-manager'
 import { ETripPlanKeys } from '~/components/04.features/trip-info/trip-plan/store/trip-plan.store'
 import { useModuleStore } from '~/components/05.modules/trip-info/composables/use-trip-info-module'
 import { useTripPermissions } from '~/components/05.modules/trip-info/composables/use-trip-permissions'
-import { useRequestStatusByPrefix } from '~/plugins/request'
+import { useRequest, useRequestStatusByPrefix } from '~/plugins/request'
+import { AppRoutePaths } from '~/shared/constants/routes'
 import { vRipple } from '~/shared/directives/ripple'
 import { calculateTripBoundingBox } from '~/shared/lib/tile-calc'
 import { useOfflineStore } from '~/shared/store/offline.store'
@@ -37,6 +37,7 @@ import {
   DaysListDialog,
   ExportTripDialog,
   ParticipantsListDialog,
+  ShareTripDialog,
 } from './dialogs'
 
 interface Props {
@@ -55,9 +56,7 @@ const router = useRouter()
 const confirm = useConfirm()
 const toast = useToast()
 const appStore = useAppStore(['auth', 'notif'])
-const { canEdit } = useTripPermissions()
-const { share, isSupported: isShareSupported } = useShare()
-const { copy } = useClipboard()
+const { canEdit, canDelete } = useTripPermissions()
 const offlineStore = useOfflineStore()
 const moduleStore = useModuleStore(['plan', 'ui'])
 const { isViewMode } = storeToRefs(moduleStore.ui)
@@ -72,6 +71,8 @@ const isParticipantsDialogVisible = ref(false)
 const isAttractionsDialogVisible = ref(false)
 const isExportDialogVisible = ref(false)
 const isOfflineDownloadDialogVisible = ref(false)
+const isShareDialogVisible = ref(false)
+const shareDialogInitialSlug = ref('')
 
 const isDescriptionExpanded = ref(false)
 const descriptionShortText = ref('')
@@ -283,7 +284,7 @@ function handleEditTrip() {
 }
 
 async function handleDeleteTrip() {
-  if (isDeleting.value)
+  if (!canDelete.value || isDeleting.value)
     return
 
   const isConfirmed = await confirm({
@@ -344,6 +345,9 @@ const moreMenuItems = computed((): KitDropdownItem<string>[] => {
 
   if (canEdit.value) {
     items.unshift({ value: 'edit', label: 'Редактировать', icon: 'mdi:pencil-outline' })
+  }
+
+  if (canDelete.value) {
     if (isDeleting.value) {
       items.push({ value: 'deleting', label: 'Удаление…', icon: 'mdi:loading' })
     }
@@ -356,23 +360,18 @@ const moreMenuItems = computed((): KitDropdownItem<string>[] => {
 
 async function handleMenuAction(action: string) {
   if (action === 'share') {
-    const shareData = {
-      title: props.trip?.title || 'Путешествие',
-      text: props.trip?.description || `Взгляните на план путешествия "${props.trip?.title}"`,
-      url: window.location.href,
-    }
+    if (!props.trip)
+      return
 
-    if (isShareSupported.value) {
-      try {
-        await share(shareData)
-      }
-      catch {
-      }
-    }
-    else {
-      await copy(shareData.url)
-      toast.success('Ссылка скопирована в буфер обмена')
-    }
+    const shareSlug = await useRequest({
+      key: `trip-overview:share:${props.trip.id}`,
+      fn: db => db.trips.getOrCreateShareSlug(props.trip!.id),
+    })
+
+    if (!shareSlug)
+      return
+    shareDialogInitialSlug.value = shareSlug
+    isShareDialogVisible.value = true
   }
   else if (action === 'subscribe_trip' && props.trip) {
     await appStore.notif.subscribeToTrip(props.trip.id)
@@ -383,7 +382,7 @@ async function handleMenuAction(action: string) {
   else if (action === 'edit') {
     handleEditTrip()
   }
-  else if (action === 'delete') {
+  else if (action === 'delete' && canDelete.value) {
     handleDeleteTrip()
   }
   else if (action === 'export') {
@@ -755,6 +754,7 @@ watch(() => props.trip?.id, (newId) => {
     <DaysListDialog v-model:visible="isDaysDialogVisible" :days="days" @navigate="navigateToDay" />
     <CitiesListDialog v-model:visible="isCitiesDialogVisible" :cities="trip.cities" />
     <ParticipantsListDialog v-model:visible="isParticipantsDialogVisible" :participants="trip.participants" />
+    <ShareTripDialog v-model:visible="isShareDialogVisible" :trip="trip" :initial-slug="shareDialogInitialSlug" :can-edit="canEdit" />
     <AttractionsListDialog v-model:visible="isAttractionsDialogVisible" :days="days" @navigate="navigateToDay" />
     <ExportTripDialog v-model:visible="isExportDialogVisible" :trip="trip" :days="days" :sections="sections" />
     <OfflineDownloadDialog

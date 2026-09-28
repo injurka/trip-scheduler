@@ -21,6 +21,7 @@ export function createInProcessTransport(userId: string): Transport {
       // tripService.create проверяет квоту, создает дефолтные разделы и «День 1»
       const trip = await tripService.create({
         title: payload.title,
+        shareSlug: payload.shareSlug,
         description: payload.description,
         startDate: payload.startDate,
         endDate: payload.endDate,

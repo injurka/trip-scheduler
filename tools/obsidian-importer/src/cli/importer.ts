@@ -100,6 +100,8 @@ export async function runImport(): Promise<void> {
 
   console.log(`\n${colors.green}✔ Найдено в структуре Obsidian:${colors.reset}`)
   console.log(`  • Название:        ${colors.bright}${tripData.title}${colors.reset}`)
+  if (tripData.shareSlug)
+    console.log(`  • Ссылка:          ${colors.cyan}${tripData.shareSlug}${colors.reset}`)
   console.log(`  • Описание:        ${colors.cyan}${tripData.descriptionShort}${colors.reset}`)
   console.log(`  • Города:          ${tripData.cities.join(', ') || 'Не определены'}`)
   console.log(`  • Теги:            ${tripData.tags.join(', ') || '—'}`)
@@ -228,6 +230,7 @@ export async function runImport(): Promise<void> {
     try {
       createdTrip = await api.createTrip({
         title: tripData.title,
+        shareSlug: tripData.shareSlug,
         description: tripData.description,
         startDate: tripData.startDate,
         endDate: tripData.endDate,
@@ -257,6 +260,7 @@ export async function runImport(): Promise<void> {
     try {
       await api.updateTrip(createdTrip.id, {
         title: tripData.title,
+        shareSlug: tripData.shareSlug,
         description: tripData.description,
         descriptionShort: tripData.descriptionShort,
         imageUrl: coverImageUrl,

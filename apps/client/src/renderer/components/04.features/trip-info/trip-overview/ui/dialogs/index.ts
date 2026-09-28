@@ -3,6 +3,7 @@ import CitiesListDialog from './cities-list-dialog.vue'
 import DaysListDialog from './days-list-dialog.vue'
 import ExportTripDialog from './export-trip-dialog.vue'
 import ParticipantsListDialog from './participants-list-dialog.vue'
+import ShareTripDialog from './share-trip-dialog.vue'
 
 export {
   AttractionsListDialog,
@@ -10,4 +11,5 @@ export {
   DaysListDialog,
   ExportTripDialog,
   ParticipantsListDialog,
+  ShareTripDialog,
 }

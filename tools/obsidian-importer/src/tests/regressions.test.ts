@@ -203,4 +203,38 @@ describe('importer regressions', () => {
     expect(report.issues.some(issue => issue.severity === 'error' && issue.category === 'bookings')).toBeTrue()
     expect(report.issues.some(issue => issue.severity === 'error' && issue.category === 'finances')).toBeTrue()
   })
+
+  it('extracts Operational HUD block into day metadata with lightning icon', () => {
+    const day = `* **09:00 - 10:00** — Утренняя прогулка:
+  * Описание прогулки
+
+---
+
+> [!SUMMARY] ⚡ Оперативный фокус дня (HUD)
+> * 🚌 **Посадка:** Остановка First Parking Lot
+> * 🧳 **Багаж:** Чемодан в камере хранения
+
+---
+
+## 💰 Финансовые затраты на день
+* Итого: ~1 000 ₽
+`
+    const meta = parseDayMetaFromMarkdown(day)
+    const hudBadge = meta.find(m => m.id.includes('hud') || m.title.includes('Оперативный фокус'))
+    expect(hudBadge).toBeDefined()
+    expect(hudBadge?.title).toBe('Оперативный фокус дня (HUD)')
+    expect(hudBadge?.icon).toBe('mdi:lightning-bolt')
+    expect(hudBadge?.subtitle).toBe('Режим «Оператора»')
+    expect(hudBadge?.content).toContain('First Parking Lot')
+  })
+
+  it('warns when activity headline length exceeds 80 characters', () => {
+    const directory = temporaryDirectory('-- Long-activity-')
+    mkdirSync(join(directory, '02 - Маршрутный план'))
+    writeFileSync(join(directory, 'Trip.md'), '# Trip\n\n## 📝 Краткое описание\n\nТест длины строки активности.')
+    const longLine = '* **10:00 - 12:00** — Очень длинный заголовок активности, превышающий лимит восемьдесят знаков:'
+    writeFileSync(join(directory, '02 - Маршрутный план', '01 Day.md'), `${longLine}\n  * Описание`)
+    const report = validateObsidianVault(resolveValidationScopeContext(directory), '2026-10-29')
+    expect(report.issues.some(i => i.severity === 'warning' && i.category === 'timeline' && i.message.includes('превышает 80 символов'))).toBeTrue()
+  })
 })

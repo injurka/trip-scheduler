@@ -1,10 +1,62 @@
 import type { z } from 'zod'
 import type { CreateTripInputSchema, ListTripsInputSchema, UpdateTripInputSchema } from '~/modules/trip/trip.schemas'
-import { and, asc, eq, ilike, inArray, or, sql } from 'drizzle-orm'
+import { randomBytes } from 'node:crypto'
+import { and, asc, eq, ilike, inArray, isNull, ne, or, sql } from 'drizzle-orm'
 import { v4 as uuidv4 } from 'uuid'
 import { measureDbQuery } from '~/lib/db-monitoring'
 import { db } from '../../db'
 import { activities, days, tripParticipants, trips, tripSections } from '../../db/schema'
+
+const RU_TO_EN_MAP: Record<string, string> = {
+  а: 'a',
+  б: 'b',
+  в: 'v',
+  г: 'g',
+  д: 'd',
+  е: 'e',
+  ё: 'yo',
+  ж: 'zh',
+  з: 'z',
+  и: 'i',
+  й: 'y',
+  к: 'k',
+  л: 'l',
+  м: 'm',
+  н: 'n',
+  о: 'o',
+  п: 'p',
+  р: 'r',
+  с: 's',
+  т: 't',
+  у: 'u',
+  ф: 'f',
+  х: 'kh',
+  ц: 'ts',
+  ч: 'ch',
+  ш: 'sh',
+  щ: 'shch',
+  ъ: '',
+  ы: 'y',
+  ь: '',
+  э: 'e',
+  ю: 'yu',
+  я: 'ya',
+}
+
+function createTripShareSlug(title: string): string {
+  const titleSlug = title
+    .toLowerCase()
+    .split('')
+    .map(char => RU_TO_EN_MAP[char] ?? char)
+    .join('')
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-+|-+$/g, '')
+    .slice(0, 48)
+    .replace(/-+$/g, '')
+  const randomToken = randomBytes(9).toString('hex')
+
+  return `${titleSlug || 'trip'}-${randomToken}`
+}
 
 const withParticipants = {
   participants: {
@@ -209,6 +261,73 @@ export const tripRepository = {
       })
 
       return mapTripParticipants(result)
+    })
+  },
+
+  async getByShareSlug(shareSlug: string) {
+    return measureDbQuery('trips', 'select', async () => {
+      const result = await db.query.trips.findFirst({
+        where: eq(trips.shareSlug, shareSlug),
+        with: {
+          ...withFullTripData,
+          days: {
+            orderBy: days.date,
+            with: {
+              activities: {
+                orderBy: activities.startTime,
+              },
+            },
+          },
+        },
+      })
+
+      return mapTripParticipants(result)
+    })
+  },
+
+  async isShareSlugAvailable(shareSlug: string, exceptTripId?: string): Promise<boolean> {
+    return measureDbQuery('trips', 'select', async () => {
+      const where = exceptTripId
+        ? and(eq(trips.shareSlug, shareSlug), ne(trips.id, exceptTripId))
+        : eq(trips.shareSlug, shareSlug)
+      const matchingTrip = await db.query.trips.findFirst({
+        where,
+        columns: { id: true },
+      })
+
+      return !matchingTrip
+    })
+  },
+
+  async getOrCreateShareSlug(id: string, title: string): Promise<string | null> {
+    return measureDbQuery('trips', 'update', async () => {
+      const currentTrip = await db.query.trips.findFirst({
+        where: eq(trips.id, id),
+        columns: { shareSlug: true },
+      })
+
+      if (!currentTrip)
+        return null
+
+      if (currentTrip.shareSlug)
+        return currentTrip.shareSlug
+
+      const [updatedTrip] = await db
+        .update(trips)
+        .set({ shareSlug: createTripShareSlug(title) })
+        .where(and(eq(trips.id, id), isNull(trips.shareSlug)))
+        .returning({ shareSlug: trips.shareSlug })
+
+      if (updatedTrip?.shareSlug)
+        return updatedTrip.shareSlug
+
+      // A concurrent share request may have filled this field first.
+      const concurrentTrip = await db.query.trips.findFirst({
+        where: eq(trips.id, id),
+        columns: { shareSlug: true },
+      })
+
+      return concurrentTrip?.shareSlug ?? null
     })
   },
 
