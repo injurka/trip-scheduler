@@ -17,7 +17,7 @@ import { enrichActivityWithMediaAndLocation } from '../lib/enricher'
 import { buildImageIndex } from '../lib/image-indexer'
 import { generateActivitiesViaDirectLlm, mergeLlmActivitiesWithRawMarkdown } from '../lib/llm'
 import { stableId } from '../lib/stable-id'
-import { parseActivitiesFromMarkdown } from '../parsers/activity'
+import { parseActivitiesFromMarkdown, stripFrontmatter } from '../parsers/activity'
 import { parseObsidianTripFolder } from '../parsers/vault'
 import {
   printValidationReport,
@@ -475,7 +475,7 @@ export async function runImport(): Promise<void> {
           try {
             await api.updateDay(createdDay.id, {
               meta: day.meta,
-              note: day.rawContent,
+              note: stripFrontmatter(day.rawContent),
             })
             console.log(`    ${colors.cyan}🏷️  Добавлено ${day.meta.length} инфо-блоков day.meta${colors.reset}`)
           }

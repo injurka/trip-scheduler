@@ -1,5 +1,6 @@
 import type { Ref } from 'vue'
 import type { ImageViewerImage } from '~/components/01.kit/kit-image-viewer'
+import type { Day } from '~/shared/types/models/activity'
 import type { Memory } from '~/shared/types/models/memory'
 import { computed, ref, watch } from 'vue'
 import { memoryToViewerImage } from '~/components/05.modules/trip-info/lib/helpers'
@@ -14,7 +15,7 @@ export interface GroupedMemory {
 
 export type SortType = 'date-desc' | 'date-asc' | 'rating-desc' | 'rating-asc'
 
-export function useMemoriesView(memories: Ref<Memory[]>) {
+export function useMemoriesView(memories: Ref<Memory[]>, days: Ref<Day[]>) {
   const sortType = ref<SortType>('date-asc')
   const filterDay = ref<string>('all')
   const filterRating = ref<number>(0)
@@ -27,15 +28,16 @@ export function useMemoriesView(memories: Ref<Memory[]>) {
   ]
 
   const availableDays = computed(() => {
-    const days = new Set<string>()
+    const dates = new Set<string>()
     memories.value.forEach((m) => {
       if (m.timestamp)
-        days.add(m.timestamp.split('T')[0])
+        dates.add(m.timestamp.split('T')[0])
     })
-    const sortedDays = Array.from(days).sort()
+    const sortedDays = Array.from(dates).sort()
     const options = sortedDays.map(date => ({
       value: date,
-      label: formatDate(date, { day: 'numeric', month: 'long' }),
+      label: days.value.find(day => day.date?.slice(0, 10) === date)?.title
+        || formatDate(date, { day: 'numeric', month: 'long' }),
     }))
     return [{ value: 'all', label: 'Все дни' }, ...options]
   })

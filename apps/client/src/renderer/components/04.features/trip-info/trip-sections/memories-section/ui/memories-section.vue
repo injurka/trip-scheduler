@@ -11,6 +11,7 @@ import MemoriesGroup from './memories-group.vue'
 
 const store = useModuleStore(['memories', 'plan'])
 const { memories, isLoadingMemories } = storeToRefs(store.memories)
+const { days } = storeToRefs(store.plan)
 
 const {
   filterDay,
@@ -23,7 +24,7 @@ const {
   filterRating,
   hasMore,
   loadMore,
-} = useMemoriesView(memories)
+} = useMemoriesView(memories, days)
 
 const imageViewer = useImageViewer()
 const isFullscreen = ref(false)

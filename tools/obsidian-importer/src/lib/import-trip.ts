@@ -4,7 +4,7 @@ import process from 'node:process'
 import { colors } from '../config/colors'
 import { DEFAULT_TRIP_SECTIONS } from '../config/constants'
 import { isTripMediaRootDirName } from '../config/paths'
-import { parseActivitiesFromMarkdown } from '../parsers/activity'
+import { parseActivitiesFromMarkdown, stripFrontmatter } from '../parsers/activity'
 import { parseObsidianTripFolder } from '../parsers/vault'
 import { resolveAndUploadBookingPhotos } from './booking-media'
 import { computeDayLlmHash, loadGeocodeCache, loadLlmCache, saveGeocodeCache, saveLlmCache } from './cache'
@@ -266,7 +266,7 @@ export async function importTripFolderCore(
           if (day.meta && day.meta.length > 0) {
             await safeCall(() => transport.updateDay(createdDay.id, {
               meta: day.meta,
-              note: day.rawContent,
+              note: stripFrontmatter(day.rawContent),
             }), log, `day.meta дня ${day.dayNumber}`)
           }
         }

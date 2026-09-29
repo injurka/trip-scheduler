@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { Icon } from '@iconify/vue'
-import { computed } from 'vue'
+import { computed, ref } from 'vue'
 import { KitDropdown } from '~/components/01.kit/kit-dropdown'
 import { KitTooltip } from '~/components/01.kit/kit-tooltip'
 
@@ -18,6 +18,7 @@ const filterDay = defineModel<string>('filterDay', { required: true })
 const filterRating = defineModel<number>('filterRating', { required: true })
 const sortOrder = defineModel<string>('sortOrder', { required: true })
 const isFullscreen = defineModel<boolean>('isFullscreen', { default: false })
+const isRatingFilterOpen = ref(false)
 
 function toggleFullscreen() {
   isFullscreen.value = !isFullscreen.value
@@ -32,7 +33,7 @@ const starColor = computed(() => filterRating.value > 0 ? 'var(--c-orange-500)' 
 </script>
 
 <template>
-  <div class="filters-header">
+  <div class="filters-header" :class="{ 'rating-filter-open': isRatingFilterOpen }">
     <!-- Левая часть: Фильтр по дате -->
     <div class="left-controls">
       <div class="filter-group day-group">
@@ -52,7 +53,7 @@ const starColor = computed(() => filterRating.value > 0 ? 'var(--c-orange-500)' 
       <div class="divider" />
 
       <!-- Фильтр по рейтингу (Слайдер) -->
-      <div class="filter-group rating-group">
+      <div id="memories-rating-filter" class="filter-group rating-group">
         <span class="filter-label">Рейтинг:</span>
         <div class="rating-slider-container">
           <KitTooltip
@@ -78,6 +79,21 @@ const starColor = computed(() => filterRating.value > 0 ? 'var(--c-orange-500)' 
 
     <!-- Правая часть: Действия и сортировка -->
     <div class="right-controls">
+      <div class="filter-group rating-toggle-group">
+        <KitTooltip text="Фильтр по рейтингу">
+          <button
+            class="icon-trigger"
+            :class="{ 'is-active': isRatingFilterOpen || filterRating > 0 }"
+            aria-label="Фильтр по рейтингу"
+            aria-controls="memories-rating-filter"
+            :aria-expanded="isRatingFilterOpen"
+            @click="isRatingFilterOpen = !isRatingFilterOpen"
+          >
+            <Icon icon="mdi:star" />
+          </button>
+        </KitTooltip>
+      </div>
+
       <div class="filter-group sort-group">
         <KitDropdown v-model="sortOrder" :items="sortOptions" align="end">
           <template #trigger>
@@ -264,6 +280,14 @@ const starColor = computed(() => filterRating.value > 0 ? 'var(--c-orange-500)' 
     color: var(--fg-primary-color);
     background-color: var(--bg-hover-color);
   }
+
+  &.is-active {
+    color: var(--c-orange-500);
+  }
+}
+
+.rating-toggle-group {
+  display: none;
 }
 
 @media (max-width: 600px) {
@@ -325,7 +349,12 @@ const starColor = computed(() => filterRating.value > 0 ? 'var(--c-orange-500)' 
     }
   }
 
+  .rating-toggle-group {
+    display: flex;
+  }
+
   .rating-group {
+    display: none;
     grid-column: 1 / -1;
     grid-row: 2;
     width: 100%;
@@ -364,6 +393,10 @@ const starColor = computed(() => filterRating.value > 0 ? 'var(--c-orange-500)' 
     .rating-value {
       flex-shrink: 0;
     }
+  }
+
+  .filters-header.rating-filter-open .rating-group {
+    display: flex;
   }
 }
 </style>

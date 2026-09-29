@@ -320,9 +320,11 @@ onKeyStroke('Escape', (e) => {
 
   @include media-down(sm) {
     display: grid;
-    grid-template-columns: 1fr auto;
+    grid-template-columns: minmax(0, 1fr) auto;
     align-items: center;
     gap: 8px 10px;
+    min-width: 0;
+    box-sizing: border-box;
   }
 }
 
@@ -371,6 +373,17 @@ onKeyStroke('Escape', (e) => {
     grid-column: 1 / -1;
     grid-row: 2;
     width: 100%;
+    min-width: 0;
+    max-width: 100%;
+    box-sizing: border-box;
+    gap: 12px;
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    scrollbar-width: none;
+
+    &::-webkit-scrollbar {
+      display: none;
+    }
   }
 }
 
@@ -384,6 +397,15 @@ onKeyStroke('Escape', (e) => {
   border: 1px solid var(--border-secondary-color);
   border-radius: var(--r-xs);
   padding: 2px 7px;
+
+  @include media-down(sm) {
+    flex: 0 0 auto;
+    gap: 5px;
+    padding: 0;
+    border: 0;
+    background: transparent;
+    white-space: nowrap;
+  }
 
   &.metro {
     color: var(--fg-accent-color);
@@ -445,5 +467,35 @@ onKeyStroke('Escape', (e) => {
   max-width: 100%;
   overflow: hidden;
   border-radius: var(--r-m);
+}
+
+@include media-down(sm) {
+  .day-route-visualizer-container.is-fullscreen {
+    top: 0;
+    height: 100vh;
+    height: 100dvh;
+    padding: 0;
+    gap: 0;
+
+    .visualizer-header {
+      flex: 0 0 auto;
+      padding: calc(8px + var(--safe-area-inset-top, env(safe-area-inset-top, 0px)))
+        calc(10px + var(--safe-area-inset-right, env(safe-area-inset-right, 0px))) 8px
+        calc(10px + var(--safe-area-inset-left, env(safe-area-inset-left, 0px)));
+    }
+
+    .visualizer-canvas-wrapper {
+      flex: 1 1 auto;
+      min-height: 0;
+      height: auto;
+      border-radius: 0;
+
+      :deep(.transit-canvas-viewport) {
+        height: 100%;
+        border: 0;
+        border-radius: 0;
+      }
+    }
+  }
 }
 </style>
