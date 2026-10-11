@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import type { HighlightStatus } from '../../composables/use-booking-section'
 import { Icon } from '@iconify/vue'
+import { useId } from 'vue'
 import { KitEditable } from '~/components/01.kit/kit-editable'
 import { KitTooltip } from '~/components/01.kit/kit-tooltip'
 import { vRipple } from '~/shared/directives/ripple'
@@ -25,6 +26,7 @@ const title = defineModel<string>('title', { required: true })
 const confirm = useConfirm()
 
 const isDetailsVisible = ref(false)
+const detailsId = useId()
 
 const highlightClass = computed(() => {
   if (!props.highlightStatus)
@@ -92,7 +94,14 @@ async function handleDelete() {
       </div>
       <div class="card-actions">
         <KitTooltip v-if="$slots.details" text="Подробнее">
-          <button class="details-btn">
+          <button
+            class="details-btn"
+            type="button"
+            :aria-expanded="isDetailsVisible"
+            :aria-controls="detailsId"
+            :aria-label="isDetailsVisible ? 'Скрыть подробности' : 'Показать подробности'"
+            @click.stop="isDetailsVisible = !isDetailsVisible"
+          >
             <Icon :icon="isDetailsVisible ? 'mdi:chevron-up' : 'mdi:chevron-down'" />
           </button>
         </KitTooltip>
@@ -106,7 +115,14 @@ async function handleDelete() {
     <div class="card-body">
       <slot />
 
-      <div v-if="$slots.details" class="details-collapse-wrapper" :class="{ 'is-open': isDetailsVisible }">
+      <div
+        v-if="$slots.details"
+        :id="detailsId"
+        class="details-collapse-wrapper"
+        :class="{ 'is-open': isDetailsVisible }"
+        :inert="!isDetailsVisible"
+        :aria-hidden="!isDetailsVisible"
+      >
         <div class="details-collapse-inner">
           <div class="details-content">
             <slot name="details" />
