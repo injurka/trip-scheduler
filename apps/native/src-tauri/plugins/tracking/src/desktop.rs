@@ -25,6 +25,10 @@ impl<R: Runtime> Tracking<R> {
         Ok(vec![])
     }
 
+    pub fn get_push_token(&self) -> Result<String> {
+        Err(crate::Error::Generic("RuStore push is available only on Android".to_string()))
+    }
+
     pub fn check_permissions(&self) -> Result<TrackingPermissionsStatus> {
         Ok(TrackingPermissionsStatus {
             location: true,

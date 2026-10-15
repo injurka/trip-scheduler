@@ -1,3 +1,4 @@
+import { invoke } from '@tauri-apps/api/core'
 import { defineStore } from 'pinia'
 import { useRequest } from '~/plugins/request'
 import { useToast } from '~/shared/composables/use-toast'
@@ -10,6 +11,7 @@ export enum ENotificationKeys {
   SUBSCRIBE_TRIP = 'push:subscribe-trip',
   UNSUBSCRIBE_TRIP = 'push:unsubscribe-trip',
   NOTIFY_MEMORY = 'push:notify-memory',
+  REGISTER_PUSH_TOKEN = 'push:register-token',
 }
 
 export interface NotificationState {
@@ -28,6 +30,39 @@ const useNotificationStore = defineStore('notification', {
   },
 
   actions: {
+    async _ensureNativePushCapability(): Promise<string> {
+      const hasPermission = await invoke<boolean>('tracking_request_notification_permission')
+      if (!hasPermission) {
+        throw new Error('Разрешите уведомления в настройках Android, чтобы следить за поездкой')
+      }
+
+      const token = await invoke<string>('tracking_get_push_token')
+      if (!token) {
+        throw new Error('RuStore не выдал push-токен. Проверьте, что на устройстве установлен RuStore или приложение VK')
+      }
+
+      return token
+    },
+
+    async syncNativePushToken(refreshedToken?: string) {
+      if (!isMobileApp || !useAuthStore().isAuthenticated)
+        return
+
+      try {
+        const token = refreshedToken ?? await invoke<string>('tracking_get_push_token')
+        if (!token)
+          return
+
+        await useRequest({
+          key: ENotificationKeys.REGISTER_PUSH_TOKEN,
+          fn: db => db.notification.registerPushToken(token),
+        })
+      }
+      catch (error) {
+        console.warn('[Notifications] Не удалось синхронизировать RuStore push-токен', error)
+      }
+    },
+
     /**
      * Техническая настройка: проверка прав и получение объекта подписки от браузера.
      */
@@ -105,25 +140,41 @@ const useNotificationStore = defineStore('notification', {
           throw new Error('Войдите в аккаунт, чтобы следить за поездкой')
         }
 
-        const subscription = await this._ensurePushCapability()
+        if (isMobileApp) {
+          const token = await this._ensureNativePushCapability()
+          await useRequest({
+            key: ENotificationKeys.SUBSCRIBE_TRIP,
+            fn: db => db.notification.subscribeToTripWithPushToken({ tripId, token }),
+            onSuccess: () => {
+              this.subscribedTripIds.add(tripId)
+              toast.success('Вы подписались на уведомления об этом путешествии')
+            },
+            onError: ({ error }) => {
+              toast.error(`Ошибка подписки: ${error.customMessage}`)
+            },
+          })
+        }
+        else {
+          const subscription = await this._ensurePushCapability()
 
-        if (!subscription)
-          throw new Error('Не удалось создать подписку')
+          if (!subscription)
+            throw new Error('Не удалось создать подписку')
 
-        await useRequest({
-          key: ENotificationKeys.SUBSCRIBE_TRIP,
-          fn: db => db.notification.subscribeToTrip({
-            tripId,
-            subscription: subscription.toJSON(),
-          }),
-          onSuccess: () => {
-            this.subscribedTripIds.add(tripId)
-            toast.success('Вы подписались на уведомления об этом путешествии')
-          },
-          onError: ({ error }) => {
-            toast.error(`Ошибка подписки: ${error.customMessage}`)
-          },
-        })
+          await useRequest({
+            key: ENotificationKeys.SUBSCRIBE_TRIP,
+            fn: db => db.notification.subscribeToTrip({
+              tripId,
+              subscription: subscription.toJSON(),
+            }),
+            onSuccess: () => {
+              this.subscribedTripIds.add(tripId)
+              toast.success('Вы подписались на уведомления об этом путешествии')
+            },
+            onError: ({ error }) => {
+              toast.error(`Ошибка подписки: ${error.customMessage}`)
+            },
+          })
+        }
       }
       catch (e: any) {
         toast.error(e instanceof Error ? e.message : 'Ошибка настройки уведомлений')

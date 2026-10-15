@@ -18,16 +18,32 @@ import androidx.core.content.FileProvider
 import android.graphics.Color
 import androidx.core.view.WindowCompat
 import app.tauri.annotation.Command
+import app.tauri.annotation.Permission
+import app.tauri.annotation.PermissionCallback
 import app.tauri.annotation.TauriPlugin
 import app.tauri.plugin.Invoke
 import app.tauri.plugin.JSObject
 import app.tauri.plugin.Plugin
 import java.io.File
 
-@TauriPlugin
+@TauriPlugin(
+    permissions = [
+        Permission(strings = [Manifest.permission.POST_NOTIFICATIONS], alias = "postNotification")
+    ]
+)
 class TrackingPlugin(private val activity: Activity) : Plugin(activity) {
 
     init {
+        onPushTokenChanged = { token ->
+            try {
+                val payload = JSObject()
+                payload.put("token", token)
+                trigger("pushTokenUpdated", payload)
+            } catch (e: Exception) {
+                android.util.Log.w("TrackingPlugin", "Failed to forward refreshed RuStore push token", e)
+            }
+        }
+
         // Передача координат из фонового сервиса в WebView (когда активно)
         TrackingService.onLocationReceived = { location ->
             try {
@@ -89,6 +105,27 @@ class TrackingPlugin(private val activity: Activity) : Plugin(activity) {
     }
 
     @Command
+    fun getPushToken(invoke: Invoke) {
+        try {
+            ru.rustore.sdk.pushclient.RuStorePushClient.getToken()
+                .addOnSuccessListener { token ->
+                    activity.getSharedPreferences(PUSH_PREFERENCES, Context.MODE_PRIVATE)
+                        .edit()
+                        .putString(PUSH_TOKEN_KEY, token)
+                        .apply()
+                    invoke.resolveObject(token)
+                }
+                .addOnFailureListener { error ->
+                    android.util.Log.w("TrackingPlugin", "Could not obtain RuStore push token", error)
+                    invoke.reject("Не удалось получить push-токен RuStore. Проверьте, что на устройстве установлен RuStore или приложение VK.")
+                }
+        } catch (e: Exception) {
+            android.util.Log.w("TrackingPlugin", "RuStore push SDK is unavailable", e)
+            invoke.reject("RuStore Push SDK недоступен на этом устройстве")
+        }
+    }
+
+    @Command
     override fun checkPermissions(invoke: Invoke) {
         val context = activity.applicationContext
         val pm = context.getSystemService(Context.POWER_SERVICE) as PowerManager
@@ -132,25 +169,31 @@ class TrackingPlugin(private val activity: Activity) : Plugin(activity) {
 
     @Command
     fun requestNotificationPermission(invoke: Invoke) {
+        if (hasNotificationPermission()) {
+            invoke.resolveObject(true)
+            return
+        }
+
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-            val hasNotification = ContextCompat.checkSelfPermission(
+            requestPermissionForAlias("postNotification", invoke, "onNotificationPermissionResult")
+        } else {
+            invoke.resolveObject(false)
+        }
+    }
+
+    @PermissionCallback
+    private fun onNotificationPermissionResult(invoke: Invoke) {
+        invoke.resolveObject(hasNotificationPermission())
+    }
+
+    private fun hasNotificationPermission(): Boolean {
+        return if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            ContextCompat.checkSelfPermission(
                 activity,
                 Manifest.permission.POST_NOTIFICATIONS
             ) == PackageManager.PERMISSION_GRANTED
-
-            if (hasNotification) {
-                invoke.resolveObject(true)
-                return
-            }
-
-            ActivityCompat.requestPermissions(
-                activity,
-                arrayOf(Manifest.permission.POST_NOTIFICATIONS),
-                90211
-            )
-            invoke.resolveObject(true)
         } else {
-            invoke.resolveObject(true)
+            NotificationManagerCompat.from(activity).areNotificationsEnabled()
         }
     }
 
@@ -340,5 +383,14 @@ class TrackingPlugin(private val activity: Activity) : Plugin(activity) {
         }
 
         return ret
+    }
+
+    companion object {
+        private const val PUSH_PREFERENCES = "push_tokens"
+        private const val PUSH_TOKEN_KEY = "token"
+
+        @Volatile
+        var onPushTokenChanged: ((String) -> Unit)? = null
+            private set
     }
 }

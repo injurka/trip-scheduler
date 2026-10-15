@@ -316,6 +316,14 @@ async fn tracking_get_buffered(
 }
 
 #[tauri::command]
+async fn tracking_get_push_token(
+    app: tauri::AppHandle,
+) -> Result<String, String> {
+    use tauri_plugin_tracking::TrackingExt;
+    app.tracking().get_push_token().map_err(|e| e.to_string())
+}
+
+#[tauri::command]
 async fn tracking_check_permissions(
     app: tauri::AppHandle,
 ) -> Result<tauri_plugin_tracking::TrackingPermissionsStatus, String> {
@@ -386,6 +394,7 @@ pub fn run() {
             tracking_stop,
             tracking_is_running,
             tracking_get_buffered,
+            tracking_get_push_token,
             tracking_check_permissions,
             tracking_request_notification_permission,
             tracking_request_ignore_battery_optimizations,

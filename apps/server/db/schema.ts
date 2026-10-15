@@ -406,6 +406,15 @@ export const pushSubscriptions = pgTable('push_subscriptions', {
   updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow().notNull(),
 })
 
+export const pushTokens = pgTable('push_tokens', {
+  token: text('token').primaryKey(),
+  userId: uuid('user_id').notNull().references(() => users.id, { onDelete: 'cascade' }),
+  createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
+  updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow().notNull(),
+}, t => ({
+  userIdx: index('push_tokens_user_id_idx').on(t.userId),
+}))
+
 export const tripSubscriptions = pgTable('trip_subscriptions', {
   userId: uuid('user_id').notNull().references(() => users.id, { onDelete: 'cascade' }),
   tripId: uuid('trip_id').notNull().references(() => trips.id, { onDelete: 'cascade' }),

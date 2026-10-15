@@ -1,4 +1,5 @@
 import { addCollection } from '@iconify/vue'
+import { addPluginListener } from '@tauri-apps/api/core'
 import { createHead } from '@vueuse/head'
 
 // файл генерируется скриптом
@@ -11,6 +12,7 @@ import { initializePwaUpdater } from '~/shared/services/pwa/pwa.service'
 import { startSyncWorker } from '~/shared/services/tracking/track-sync'
 import { useAppSettingsStore } from '~/shared/store/app-settings.store'
 import { useAppUpdateStore } from '~/shared/store/app-update.store'
+import { useNotificationStore } from '~/shared/store/notification.store'
 import { useOfflineStore } from '~/shared/store/offline.store'
 import { useTrackingStore } from '~/shared/store/tracking.store'
 // @ts-expect-error бред какой то
@@ -66,6 +68,18 @@ async function initializeApp() {
   initializeDeepLinks(pinia, router)
 
   await restoreSession(pinia)
+
+  const notificationStore = useNotificationStore(pinia)
+  void notificationStore.syncNativePushToken()
+
+  if (isMobileApp) {
+    addPluginListener<{ token: string }>('tracking', 'pushTokenUpdated', ({ token }) => {
+      void notificationStore.syncNativePushToken(token)
+    }).catch((error) => {
+      console.warn('[Notifications] Не удалось подписаться на обновление RuStore push-токена', error)
+    })
+  }
+
   initializePwaUpdater(pinia)
 
   // Проверка обновлений APK для мобильного приложения (Tauri)

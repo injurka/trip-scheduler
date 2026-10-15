@@ -37,6 +37,7 @@ pub fn init<R: Runtime>() -> TauriPlugin<R> {
             commands::stop_tracking,
             commands::is_tracking_running,
             commands::get_buffered_locations,
+            commands::get_push_token,
             commands::check_permissions,
             commands::request_notification_permission,
             commands::request_ignore_battery_optimizations,

@@ -22,6 +22,11 @@ pub(crate) async fn get_buffered_locations<R: Runtime>(app: AppHandle<R>) -> Res
 }
 
 #[command]
+pub(crate) async fn get_push_token<R: Runtime>(app: AppHandle<R>) -> Result<String> {
+    app.tracking().get_push_token()
+}
+
+#[command]
 pub(crate) async fn check_permissions<R: Runtime>(app: AppHandle<R>) -> Result<TrackingPermissionsStatus> {
     app.tracking().check_permissions()
 }
@@ -53,4 +58,3 @@ pub(crate) async fn set_system_bars_theme<R: Runtime>(
 ) -> Result<bool> {
     app.tracking().set_system_bars_theme(payload)
 }
-

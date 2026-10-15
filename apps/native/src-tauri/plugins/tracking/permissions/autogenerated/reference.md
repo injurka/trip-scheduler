@@ -59,6 +59,34 @@ Denies the get_buffered_locations command without any pre-configured scope.
 </td>
 </tr>
 
+
+<tr>
+<td>
+
+`tracking:allow-get-push-token`
+
+</td>
+<td>
+
+Enables the get_push_token command without any pre-configured scope.
+
+</td>
+</tr>
+
+
+<tr>
+<td>
+
+`tracking:deny-get-push-token`
+
+</td>
+<td>
+
+Denies the get_push_token command without any pre-configured scope.
+
+</td>
+</tr>
+
 <tr>
 <td>
 

@@ -35,6 +35,10 @@ impl<R: Runtime> Tracking<R> {
         self.0.run_mobile_plugin("getBufferedLocations", ()).map_err(Into::into)
     }
 
+    pub fn get_push_token(&self) -> Result<String> {
+        self.0.run_mobile_plugin("getPushToken", ()).map_err(Into::into)
+    }
+
     pub fn check_permissions(&self) -> Result<TrackingPermissionsStatus> {
         self.0.run_mobile_plugin("checkPermissions", ()).map_err(Into::into)
     }

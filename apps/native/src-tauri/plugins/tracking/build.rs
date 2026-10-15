@@ -7,6 +7,7 @@ const COMMANDS: &[&str] = &[
     "stop_tracking",
     "is_tracking_running",
     "get_buffered_locations",
+    "get_push_token",
     "check_permissions",
     "request_notification_permission",
     "request_ignore_battery_optimizations",

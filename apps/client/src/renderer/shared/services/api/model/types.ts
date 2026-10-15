@@ -104,6 +104,9 @@ export interface IPostRepository {
 export interface INotificationRepository {
   checkTripSubscription: (tripId: string) => Promise<boolean>
   subscribeToTrip: (payload: { tripId: string, subscription: any }) => Promise<void>
+  subscribeToTripWithPushToken: (payload: { tripId: string, token: string }) => Promise<void>
+  registerPushToken: (token: string) => Promise<void>
+  unregisterPushToken: (token: string) => Promise<void>
   unsubscribeFromTrip: (tripId: string) => Promise<void>
   sendMemoryUpdate: (payload: { tripId: string, dayId: string }) => Promise<void>
 }

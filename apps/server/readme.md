@@ -63,6 +63,11 @@ DATABASE_URL="postgresql://trip-scheduler:trip-scheduler@localhost:5432/trip_sch
 
 # URL API для доступа к загруженным файлам
 API_URL="http://localhost:8080"
+
+# Необязательно: серверная отправка push через RuStore.
+# Сервисный токен хранится только в окружении API-сервера, не добавляйте его в APK или VITE_*.
+RUSTORE_PUSH_PROJECT_ID="ваш_id_проекта_rustore"
+RUSTORE_PUSH_SERVICE_TOKEN="ваш_новый_сервисный_токен"
 ```
 
 ### 3. Установка зависимостей и запуск сервера

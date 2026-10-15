@@ -1,6 +1,6 @@
 import type { Pinia } from 'pinia'
 import type { Router } from 'vue-router'
-import { onOpenUrl } from '@tauri-apps/plugin-deep-link'
+import { getCurrent, onOpenUrl } from '@tauri-apps/plugin-deep-link'
 import { AppRoutePaths } from '~/shared/constants/routes'
 import { useToastStore } from '~/shared/store/toast.store'
 import { useAuthStore } from '../store/auth.store'
@@ -27,6 +27,13 @@ export async function handleDeepLinkUrl(rawUrl: string, pinia: Pinia, router: Ro
 
     const authStore = useAuthStore(pinia)
     const toastStore = useToastStore(pinia)
+
+    // Push notifications use trip-scheduler://trip/<id>?day=...&section=memories.
+    if (pathname.startsWith('/trip/')) {
+      await router.isReady()
+      await router.push({ path: pathname, query: Object.fromEntries(searchParams.entries()) })
+      return
+    }
 
     // 1. Авторизация через OAuth callback
     if (pathname.includes('/auth/callback') || pathname.startsWith('/auth/callback')) {
@@ -84,11 +91,21 @@ export function initializeDeepLinks(pinia: Pinia, router: Router): void {
   if (!isTauri)
     return
 
-  onOpenUrl(async (urls) => {
-    for (const url of urls) {
+  const handleUrls = async (urls: string[]) => {
+    for (const url of urls)
       await handleDeepLinkUrl(url, pinia, router)
-    }
-  }).catch((err) => {
+  }
+
+  onOpenUrl(handleUrls).catch((err) => {
     console.warn('[DeepLink] Не удалось инициализировать onOpenUrl:', err)
   })
+
+  getCurrent()
+    .then((urls) => {
+      if (urls?.length)
+        return handleUrls(urls)
+    })
+    .catch((err) => {
+      console.warn('[DeepLink] Не удалось прочитать ссылку запуска:', err)
+    })
 }

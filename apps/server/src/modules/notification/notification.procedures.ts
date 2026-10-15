@@ -2,8 +2,10 @@ import { z } from 'zod'
 import { protectedProcedure } from '~/lib/trpc'
 import {
   CheckTripSubscriptionInputSchema,
+  PushTokenInputSchema,
   SendMemoryUpdateInputSchema,
   SubscribeToTripInputSchema,
+  SubscribeToTripWithPushTokenInputSchema,
   UnsubscribeFromTripInputSchema,
 } from './notification.schemas'
 import { notificationService } from './notification.service'
@@ -21,6 +23,27 @@ export const notificationProcedures = {
     .output(z.void())
     .mutation(async ({ input, ctx }) => {
       await notificationService.subscribeToTrip(ctx.user.id, input.tripId, input.subscription as any)
+    }),
+
+  subscribeToTripWithPushToken: protectedProcedure
+    .input(SubscribeToTripWithPushTokenInputSchema)
+    .output(z.void())
+    .mutation(async ({ input, ctx }) => {
+      await notificationService.subscribeToTripWithPushToken(ctx.user.id, input.tripId, input.token)
+    }),
+
+  registerPushToken: protectedProcedure
+    .input(PushTokenInputSchema)
+    .output(z.void())
+    .mutation(async ({ input, ctx }) => {
+      await notificationService.registerPushToken(ctx.user.id, input.token)
+    }),
+
+  unregisterPushToken: protectedProcedure
+    .input(PushTokenInputSchema)
+    .output(z.void())
+    .mutation(async ({ input, ctx }) => {
+      await notificationService.unregisterPushToken(ctx.user.id, input.token)
     }),
 
   unsubscribeFromTrip: protectedProcedure

@@ -13,9 +13,19 @@
     <uses-permission android:name="android.permission.REQUEST_INSTALL_PACKAGES" />
 
     <application>
+        <meta-data
+            android:name="ru.rustore.sdk.pushclient.project_id"
+            android:value="8pPVGzStfCwf3EIGJd2NoHqUA2zOdEcb" />
         <service
             android:name="ru.tripscheduler.tracking.TrackingService"
             android:foregroundServiceType="location"
             android:exported="false" />
+        <service
+            android:name="ru.tripscheduler.tracking.TripSchedulerPushService"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="ru.rustore.sdk.pushclient.MESSAGING_EVENT" />
+            </intent-filter>
+        </service>
     </application>
 </manifest>

@@ -1,7 +1,7 @@
 import type { PushSubscription as WebPushSubscription } from 'web-push'
 import { and, eq, inArray } from 'drizzle-orm'
 import { db } from '~/../db'
-import { pushSubscriptions, tripSubscriptions } from '~/../db/schema'
+import { pushSubscriptions, pushTokens, tripSubscriptions } from '~/../db/schema'
 
 export const notificationRepository = {
   /**
@@ -26,6 +26,27 @@ export const notificationRepository = {
    */
   async deletePushSubscription(endpoint: string) {
     await db.delete(pushSubscriptions).where(eq(pushSubscriptions.endpoint, endpoint))
+  },
+
+  async upsertPushToken(userId: string, token: string) {
+    await db.insert(pushTokens)
+      .values({ userId, token, updatedAt: new Date() })
+      .onConflictDoUpdate({
+        target: pushTokens.token,
+        set: { userId, updatedAt: new Date() },
+      })
+  },
+
+  async deletePushToken(userId: string, token: string) {
+    await db.delete(pushTokens)
+      .where(and(
+        eq(pushTokens.userId, userId),
+        eq(pushTokens.token, token),
+      ))
+  },
+
+  async deletePushTokenByToken(token: string) {
+    await db.delete(pushTokens).where(eq(pushTokens.token, token))
   },
 
   /**
@@ -61,6 +82,14 @@ export const notificationRepository = {
     return !!record
   },
 
+  async hasAnyTripSubscription(userId: string): Promise<boolean> {
+    const record = await db.query.tripSubscriptions.findFirst({
+      where: eq(tripSubscriptions.userId, userId),
+      columns: { tripId: true },
+    })
+    return !!record
+  },
+
   /**
    * Находит все активные push-токены пользователей, подписанных на путешествие,
    * исключая самого инициатора события.
@@ -83,5 +112,24 @@ export const notificationRepository = {
     })
 
     return tokens
+  },
+
+  async getSubscribersPushTokens(tripId: string, excludeUserId: string) {
+    const subs = await db.query.tripSubscriptions.findMany({
+      where: eq(tripSubscriptions.tripId, tripId),
+      columns: { userId: true },
+    })
+
+    const userIds = subs
+      .map(s => s.userId)
+      .filter(id => id !== excludeUserId)
+
+    if (userIds.length === 0)
+      return []
+
+    return await db.query.pushTokens.findMany({
+      where: inArray(pushTokens.userId, userIds),
+      columns: { token: true },
+    })
   },
 }

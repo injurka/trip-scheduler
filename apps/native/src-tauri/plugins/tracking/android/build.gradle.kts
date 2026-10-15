@@ -27,5 +27,6 @@ dependencies {
     implementation("androidx.core:core-ktx:1.13.1")
     implementation("androidx.appcompat:appcompat:1.7.0")
     implementation("com.google.android.gms:play-services-location:21.3.0")
+    implementation("ru.rustore.sdk:pushclient:7.5.0")
     implementation(project(":tauri-android"))
 }

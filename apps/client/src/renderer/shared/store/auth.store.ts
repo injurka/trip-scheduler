@@ -4,9 +4,11 @@ import type {
   TokenPair,
   User,
 } from '../types/models/auth'
+import { invoke } from '@tauri-apps/api/core'
 import { ofetch } from 'ofetch'
 import { defineStore } from 'pinia'
 import { useRequest, useRequestStatus } from '~/plugins/request'
+import { isMobileApp } from '../lib/env'
 import { isNetworkOrServerError } from '../lib/error'
 
 export const TOKEN_KEY = 'auth_token'
@@ -111,6 +113,21 @@ export const useAuthStore = defineStore('auth', {
     },
 
     async signOut() {
+      if (isMobileApp) {
+        try {
+          const token = await invoke<string>('tracking_get_push_token')
+          if (token) {
+            await useRequest({
+              key: EAuthRequestKeys.SIGN_OUT,
+              fn: db => db.notification.unregisterPushToken(token),
+            })
+          }
+        }
+        catch {
+          // Logout must proceed even if the device is offline or native push is unavailable.
+        }
+      }
+
       return useRequest<void>({
         key: EAuthRequestKeys.SIGN_OUT,
         fn: db => db.auth.signOut(),
