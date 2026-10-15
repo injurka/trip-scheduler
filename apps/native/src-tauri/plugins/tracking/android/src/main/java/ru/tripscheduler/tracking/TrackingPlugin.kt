@@ -177,7 +177,7 @@ class TrackingPlugin(private val activity: Activity) : Plugin(activity) {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
             requestPermissionForAlias("postNotification", invoke, "onNotificationPermissionResult")
         } else {
-            invoke.resolveObject(false)
+            invoke.resolveObject(hasNotificationPermission())
         }
     }
 

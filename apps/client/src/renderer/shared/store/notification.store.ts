@@ -178,8 +178,9 @@ const useNotificationStore = defineStore('notification', {
           })
         }
       }
-      catch (e: any) {
-        toast.error(e instanceof Error ? e.message : 'Ошибка настройки уведомлений')
+      catch (e: unknown) {
+        const message = typeof e === 'string' ? e : e instanceof Error ? e.message : ''
+        toast.error(message || 'Не удалось настроить уведомления')
       }
       finally {
         this.loading = false
