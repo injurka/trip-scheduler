@@ -4,54 +4,13 @@ export interface MarkdownChecklistTask {
   noteId: string
   noteTitle: string
   lineIndex: number
+  indent: number
+  parentLineIndex: number | null
   text: string
   completed: boolean
 }
 
 const TASK_LINE = /^([\t ]*(?:[-+*]|\d+[.)])[\t ]+\[)([ x])\](.*)$/i
-
-function findFolderScope(notes: TripNote[], currentNoteId: string | null): { folderId: string, title: string } | null {
-  const currentNote = notes.find(note => note.id === currentNoteId)
-  if (!currentNote)
-    return null
-
-  if (currentNote.type === 'folder')
-    return { folderId: currentNote.id, title: currentNote.title }
-
-  const parent = notes.find(note => note.id === currentNote.parentId && note.type === 'folder')
-  return parent ? { folderId: parent.id, title: parent.title } : null
-}
-
-export function getChecklistScope(notes: TripNote[], currentNoteId: string | null): {
-  files: TripNote[]
-  folderTitle: string | null
-} {
-  const folder = findFolderScope(notes, currentNoteId)
-  if (!folder) {
-    return {
-      files: notes.filter(note => note.type === 'markdown'),
-      folderTitle: null,
-    }
-  }
-
-  const folderIds = new Set([folder.folderId])
-  let foldersAdded = true
-
-  while (foldersAdded) {
-    foldersAdded = false
-    for (const note of notes) {
-      if (note.type === 'folder' && note.parentId && folderIds.has(note.parentId) && !folderIds.has(note.id)) {
-        folderIds.add(note.id)
-        foldersAdded = true
-      }
-    }
-  }
-
-  return {
-    files: notes.filter(note => note.type === 'markdown' && note.parentId && folderIds.has(note.parentId)),
-    folderTitle: folder.title,
-  }
-}
 
 export function parseMarkdownChecklistTasks(note: TripNote): MarkdownChecklistTask[] {
   if (note.type !== 'markdown' || !note.content)
@@ -59,6 +18,7 @@ export function parseMarkdownChecklistTasks(note: TripNote): MarkdownChecklistTa
 
   const lines = note.content.split(/\r?\n/)
   const tasks: MarkdownChecklistTask[] = []
+  const parents: Array<{ indent: number, lineIndex: number }> = []
   let fence: { marker: '`' | '~', length: number } | null = null
 
   lines.forEach((line, lineIndex) => {
@@ -83,13 +43,22 @@ export function parseMarkdownChecklistTasks(note: TripNote): MarkdownChecklistTa
     if (!match)
       return
 
+    const listItem = /^[\t ]*(?:[-+*]|\d+[.)])/.exec(line)
+    const indentation = listItem?.[0].match(/^[\t ]*/)?.[0] ?? ''
+    const indent = [...indentation].reduce((size, character) => size + (character === '\t' ? 4 : 1), 0)
+    while (parents.length && parents.at(-1)!.indent >= indent)
+      parents.pop()
+
     tasks.push({
       noteId: note.id,
       noteTitle: note.title,
       lineIndex,
+      indent,
+      parentLineIndex: parents.at(-1)?.lineIndex ?? null,
       text: match[3]!.trim() || '(задача без названия)',
       completed: match[2]!.toLowerCase() === 'x',
     })
+    parents.push({ indent, lineIndex })
   })
 
   return tasks

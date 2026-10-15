@@ -9,9 +9,8 @@ import { useRequest } from '~/plugins/request'
 import { lazyComponent } from '~/shared/lib/lazy-component'
 import { resolveApiUrl } from '~/shared/lib/url'
 import { useNotesSection } from '../composables/use-notes-section'
-import { toggleMarkdownChecklistTask } from '../lib/checklist-progress'
+import { toggleMarkdownChecklistTask } from '../lib/markdown-checklist'
 import NotesTree from './components/notes-tree.vue'
-import ChecklistProgressDialog from './dialogs/checklist-progress-dialog.vue'
 import CommandPaletteDialog from './dialogs/command-palette-dialog.vue'
 import CreateNoteDialog from './dialogs/create-note-dialog.vue'
 import NotesGalleryDialog from './dialogs/notes-gallery-dialog.vue'
@@ -109,9 +108,16 @@ onKeyStroke('p', (e) => {
 const isCreateDialogOpen = ref(false)
 const createType = ref<NoteType>('markdown')
 const createParentId = ref<string | null>(null)
-const isChecklistProgressOpen = ref(false)
+const dataviewRefreshKey = ref(0)
+let dataviewRefreshTimer: ReturnType<typeof setTimeout> | undefined
 
-const hasMarkdownNotes = computed(() => flatFiles.value.some(note => note.type === 'markdown'))
+watch(() => notes.value.map(note => [note.id, note.content]), () => {
+  if (dataviewRefreshTimer)
+    clearTimeout(dataviewRefreshTimer)
+  dataviewRefreshTimer = setTimeout(() => {
+    dataviewRefreshKey.value += 1
+  }, 120)
+})
 
 function openCreateDialog(type: NoteType, parentId: string | null = null): void {
   createType.value = type
@@ -218,7 +224,11 @@ function exportExcalidraw(format: 'png' | 'svg'): void {
 }
 
 onMounted(() => fetchNotes())
-onBeforeUnmount(() => flushPendingSave())
+onBeforeUnmount(() => {
+  if (dataviewRefreshTimer)
+    clearTimeout(dataviewRefreshTimer)
+  flushPendingSave()
+})
 </script>
 
 <template>
@@ -316,15 +326,6 @@ onBeforeUnmount(() => flushPendingSave())
               </div>
 
               <div class="editor-header-actions">
-                <KitBtn
-                  v-if="hasMarkdownNotes"
-                  icon="mdi:chart-box-outline"
-                  variant="text"
-                  size="sm"
-                  title="Прогресс чек-листов"
-                  aria-label="Открыть прогресс чек-листов"
-                  @click="isChecklistProgressOpen = true"
-                />
                 <template v-if="activeNote">
                   <KitBtn icon="mdi:link-variant" variant="text" size="sm" title="Скопировать ссылку" @click="copyDirectLink" />
                   <KitBtn v-if="!readonly && activeNote.type === 'markdown'" icon="mdi:image-plus-outline" variant="text" size="sm" title="Вставить фото" @click="openGallery" />
@@ -349,7 +350,18 @@ onBeforeUnmount(() => flushPendingSave())
 
             <div ref="editorBodyRef" class="editor-body">
               <template v-if="activeNote">
-                <NoteEditorMd v-if="activeNote.type === 'markdown'" :key="activeNote.id" :note-id="activeNote.id" :content="activeNote.content" :readonly="readonly" @update:content="saveContent" @upload-image="handlePasteImage" />
+                <NoteEditorMd
+                  v-if="activeNote.type === 'markdown'"
+                  :key="activeNote.id"
+                  :note-id="activeNote.id"
+                  :content="activeNote.content"
+                  :readonly="readonly"
+                  :dataview-notes="notes"
+                  :dataview-refresh-key="dataviewRefreshKey"
+                  @update:content="saveContent"
+                  @upload-image="handlePasteImage"
+                  @toggle-task="toggleChecklistTask"
+                />
                 <NoteEditorExcalidraw v-else-if="activeNote.type === 'excalidraw'" :key="activeNote.id + 2" ref="excalidrawRef" :note-id="activeNote.id" :content="activeNote.content" :readonly="readonly" @update:content="saveContent" />
               </template>
               <div v-else class="editor-empty">
@@ -368,14 +380,6 @@ onBeforeUnmount(() => flushPendingSave())
     <CreateNoteDialog v-model:visible="isCreateDialogOpen" :type="createType" :parent-id="createParentId" @create="handleCreate" />
     <NotesGalleryDialog v-model:visible="isGalleryOpen" :trip-id="section.tripId" :images="imageUsage" :readonly="readonly" @refresh="fetchImagesUsage" @insert-image="handleInsertImage" />
     <CommandPaletteDialog v-model:visible="isCommandPaletteOpen" :files="flatFiles" @select="selectNote" />
-    <ChecklistProgressDialog
-      v-model:visible="isChecklistProgressOpen"
-      :notes="notes"
-      :current-note-id="activeNoteId"
-      :readonly="readonly"
-      @toggle-task="toggleChecklistTask"
-      @open-note="selectNote"
-    />
   </div>
 </template>
 

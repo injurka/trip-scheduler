@@ -1,5 +1,7 @@
 <script setup lang="ts">
 import type { CrepeFeature } from '@milkdown/crepe'
+import type { Node as ProseMirrorNode } from '@milkdown/kit/prose/model'
+import type { NodeView } from '@milkdown/kit/prose/view'
 import { MilkdownProvider } from '@milkdown/vue'
 import { KitInlineMdEditor } from '~/components/01.kit/kit-inline-md-editor'
 
@@ -8,6 +10,8 @@ interface Props {
   readonly?: boolean
   placeholder?: string
   features?: Partial<Record<CrepeFeature, boolean>>
+  codeBlockNodeView?: (node: ProseMirrorNode) => NodeView | undefined
+  codeBlockRefreshKey?: number
 }
 
 // eslint-disable-next-line unused-imports/no-unused-vars

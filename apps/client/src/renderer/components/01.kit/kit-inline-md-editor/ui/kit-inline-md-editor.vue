@@ -1,5 +1,7 @@
 <script setup lang="ts">
 import type { CrepeFeature } from '@milkdown/crepe'
+import type { Node as ProseMirrorNode } from '@milkdown/kit/prose/model'
+import type { NodeView } from '@milkdown/kit/prose/view'
 import { Crepe } from '@milkdown/crepe'
 import { editorViewCtx, editorViewOptionsCtx, parserCtx } from '@milkdown/kit/core'
 import { listener, listenerCtx } from '@milkdown/kit/plugin/listener'
@@ -17,6 +19,8 @@ interface Props {
   readonly?: boolean
   placeholder?: string
   features?: Partial<Record<CrepeFeature, boolean>>
+  codeBlockNodeView?: (node: ProseMirrorNode) => NodeView | undefined
+  codeBlockRefreshKey?: number
 }
 
 const props = defineProps<Props>()
@@ -58,6 +62,12 @@ const htmlView = $view(htmlSchema.node, () => (node) => {
 
 const mermaidView = $view(codeBlockSchema.node, () => (node) => {
   const language = (node.attrs.language as string) || ''
+
+  if (language.toLowerCase() === 'dataviewjs') {
+    const customNodeView = props.codeBlockNodeView?.(node)
+    if (customNodeView)
+      return customNodeView
+  }
 
   if (language.toLowerCase() === 'mermaid') {
     const dom = document.createElement('div')
@@ -255,6 +265,16 @@ watch(() => [props.readonly, props.disabled], ([isReadonly, isDisabled]) => {
   }
 })
 
+watch(() => props.codeBlockRefreshKey, () => {
+  queueMicrotask(() => {
+    if (!isEditorMounted.value)
+      return
+    crepeInstance.value?.editor.action((ctx) => {
+      ctx.get(editorViewCtx).dom.querySelectorAll('.milkdown-dataviewjs-block').forEach(node => node.dispatchEvent(new Event('dataviewjs-refresh')))
+    })
+  })
+})
+
 watch(markdown, (newValue) => {
   if (isInternalUpdate.value || !isEditorMounted.value)
     return
@@ -337,6 +357,47 @@ onBeforeUnmount(() => {
     min-width: 100%;
     border-collapse: collapse;
     margin: 0;
+  }
+}
+
+.kit-inline-md-editor-minimal :deep(.milkdown-dataviewjs-block) {
+  margin: 0.75rem 0;
+  padding: 10px 12px;
+  border: 1px solid var(--border-secondary-color);
+  border-radius: var(--r-s, 6px);
+  background: var(--bg-secondary-color);
+
+  .dataviewjs-source {
+    margin-bottom: 8px;
+
+    summary {
+      color: var(--fg-tertiary-color);
+      font-size: 0.78rem;
+      cursor: pointer;
+      user-select: none;
+    }
+
+    pre {
+      overflow: auto;
+      max-height: 300px;
+      margin: 8px 0 0;
+      padding: 10px;
+      border-radius: var(--r-xs, 4px);
+      background: var(--bg-tertiary-color);
+      white-space: pre-wrap;
+    }
+
+    code {
+      white-space: pre-wrap;
+    }
+  }
+
+  .dataviewjs-output {
+    display: block;
+    width: 100%;
+    min-height: 100px;
+    border: 0;
+    background: transparent;
   }
 }
 
@@ -506,6 +567,59 @@ onBeforeUnmount(() => {
             font-size: 0.85em;
             font-weight: 600;
             color: var(--fg-accent-color);
+          }
+        }
+
+        &:has(> .label-wrapper > :is(.checked, .unchecked)) {
+          align-items: flex-start !important;
+          gap: 10px !important;
+
+          > .label-wrapper {
+            width: 20px !important;
+            height: 32px !important;
+
+            > :is(.checked, .unchecked) {
+              position: relative;
+              box-sizing: border-box;
+              width: 18px !important;
+              height: 18px !important;
+              padding: 0;
+              border: 1.5px solid var(--fg-secondary-color);
+              border-radius: 5px;
+              background: var(--bg-primary-color);
+              transition:
+                background-color 0.15s,
+                border-color 0.15s;
+
+              svg {
+                display: none;
+              }
+
+              &.readonly {
+                cursor: default;
+              }
+
+              &:not(.readonly):hover {
+                border-color: var(--fg-accent-color);
+              }
+
+              &.checked {
+                border-color: var(--fg-accent-color);
+                background: var(--fg-accent-color);
+
+                &::after {
+                  content: '';
+                  position: absolute;
+                  width: 4px;
+                  height: 8px;
+                  top: 2px;
+                  left: 5px;
+                  border: solid #fff;
+                  border-width: 0 2px 2px 0;
+                  transform: rotate(45deg);
+                }
+              }
+            }
           }
         }
 
@@ -906,7 +1020,6 @@ onBeforeUnmount(() => {
       max-width: 100%;
       min-width: 0;
       margin: 0 auto;
-      line-height: normal;
 
       svg {
         display: block;
@@ -917,8 +1030,11 @@ onBeforeUnmount(() => {
         flex-shrink: 1;
         margin: 0 auto;
 
-        foreignObject > div {
-          line-height: 1.2 !important;
+        // Keep editor paragraph spacing out of Mermaid HTML labels.
+        foreignObject p {
+          margin: 0 !important;
+          padding: 2px 0 !important;
+          line-height: inherit;
         }
       }
     }
