@@ -193,6 +193,10 @@ function getEdgeTooltip(edge: LayoutEdge): string {
   return edge.durationText ? `Переход: ${edge.durationText}` : 'Переход'
 }
 
+function getEdgeBadgeWidth(text: string): number {
+  return Math.max(50, Math.ceil(text.length * 6 + 16))
+}
+
 function handleEdgeClick(edge: LayoutEdge) {
   selectedEdgeInfo.value = {
     id: edge.id,
@@ -603,9 +607,9 @@ defineExpose({
             @click.stop="handleEdgeClick(edge)"
           >
             <rect
-              :x="edge.midX - 25"
+              :x="edge.midX - getEdgeBadgeWidth(edge.durationText) / 2"
               :y="edge.midY - 10"
-              width="50"
+              :width="getEdgeBadgeWidth(edge.durationText)"
               height="20"
               rx="10"
               class="edge-badge-bg"

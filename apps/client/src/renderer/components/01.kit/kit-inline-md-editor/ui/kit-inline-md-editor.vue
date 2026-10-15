@@ -906,6 +906,7 @@ onBeforeUnmount(() => {
       max-width: 100%;
       min-width: 0;
       margin: 0 auto;
+      line-height: normal;
 
       svg {
         display: block;
@@ -915,6 +916,10 @@ onBeforeUnmount(() => {
         height: auto;
         flex-shrink: 1;
         margin: 0 auto;
+
+        foreignObject > div {
+          line-height: 1.2 !important;
+        }
       }
     }
 

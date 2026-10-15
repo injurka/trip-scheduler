@@ -9,7 +9,9 @@ import { useRequest } from '~/plugins/request'
 import { lazyComponent } from '~/shared/lib/lazy-component'
 import { resolveApiUrl } from '~/shared/lib/url'
 import { useNotesSection } from '../composables/use-notes-section'
+import { toggleMarkdownChecklistTask } from '../lib/checklist-progress'
 import NotesTree from './components/notes-tree.vue'
+import ChecklistProgressDialog from './dialogs/checklist-progress-dialog.vue'
 import CommandPaletteDialog from './dialogs/command-palette-dialog.vue'
 import CreateNoteDialog from './dialogs/create-note-dialog.vue'
 import NotesGalleryDialog from './dialogs/notes-gallery-dialog.vue'
@@ -31,6 +33,7 @@ const tripIdRef = computed(() => props.section.tripId)
 const readonlyRef = computed(() => props.readonly)
 
 const {
+  notes,
   notesTree,
   flatFiles,
   activeNote,
@@ -106,6 +109,9 @@ onKeyStroke('p', (e) => {
 const isCreateDialogOpen = ref(false)
 const createType = ref<NoteType>('markdown')
 const createParentId = ref<string | null>(null)
+const isChecklistProgressOpen = ref(false)
+
+const hasMarkdownNotes = computed(() => flatFiles.value.some(note => note.type === 'markdown'))
 
 function openCreateDialog(type: NoteType, parentId: string | null = null): void {
   createType.value = type
@@ -167,6 +173,19 @@ function selectNote(id: string): void {
   window.history.replaceState(null, '', `#note-${id}`)
   if (isMobile.value)
     isSidebarOpen.value = false
+}
+
+function toggleChecklistTask(payload: { noteId: string, lineIndex: number }): void {
+  if (props.readonly)
+    return
+
+  const note = notes.value.find(item => item.id === payload.noteId)
+  if (!note || note.type !== 'markdown')
+    return
+
+  const updatedContent = toggleMarkdownChecklistTask(note.content, payload.lineIndex)
+  if (updatedContent !== note.content)
+    saveContent(note.id, updatedContent)
 }
 
 function copyDirectLink(): void {
@@ -297,6 +316,15 @@ onBeforeUnmount(() => flushPendingSave())
               </div>
 
               <div class="editor-header-actions">
+                <KitBtn
+                  v-if="hasMarkdownNotes"
+                  icon="mdi:chart-box-outline"
+                  variant="text"
+                  size="sm"
+                  title="Прогресс чек-листов"
+                  aria-label="Открыть прогресс чек-листов"
+                  @click="isChecklistProgressOpen = true"
+                />
                 <template v-if="activeNote">
                   <KitBtn icon="mdi:link-variant" variant="text" size="sm" title="Скопировать ссылку" @click="copyDirectLink" />
                   <KitBtn v-if="!readonly && activeNote.type === 'markdown'" icon="mdi:image-plus-outline" variant="text" size="sm" title="Вставить фото" @click="openGallery" />
@@ -340,6 +368,14 @@ onBeforeUnmount(() => flushPendingSave())
     <CreateNoteDialog v-model:visible="isCreateDialogOpen" :type="createType" :parent-id="createParentId" @create="handleCreate" />
     <NotesGalleryDialog v-model:visible="isGalleryOpen" :trip-id="section.tripId" :images="imageUsage" :readonly="readonly" @refresh="fetchImagesUsage" @insert-image="handleInsertImage" />
     <CommandPaletteDialog v-model:visible="isCommandPaletteOpen" :files="flatFiles" @select="selectNote" />
+    <ChecklistProgressDialog
+      v-model:visible="isChecklistProgressOpen"
+      :notes="notes"
+      :current-note-id="activeNoteId"
+      :readonly="readonly"
+      @toggle-task="toggleChecklistTask"
+      @open-note="selectNote"
+    />
   </div>
 </template>
 

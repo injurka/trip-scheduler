@@ -124,6 +124,8 @@ export function routeTabFromTitle(title: string): string | undefined {
     matches.push('must-buy')
   if (/must-do|активност|впечатлен/i.test(title))
     matches.push('must-do')
+  if (/контрольный\s+таймлайн\s+готовности|таймлайн\s+готовности/i.test(title))
+    matches.push('readiness-timeline')
 
   // Composite titles (e.g. master navigation pages like
   // «Чек-листы: Подготовка, Сборы, Must-Try и Покупки») span multiple
@@ -135,6 +137,7 @@ const CUSTOM_TAB_META: Record<string, { name: string, icon: string }> = {
   'must-try': { name: 'Must-Try: Гастрономия', icon: 'mdi:noodles' },
   'must-buy': { name: 'Must-Buy: Шопинг', icon: 'mdi:shopping-outline' },
   'must-do': { name: 'Must-Do: Впечатления', icon: 'mdi:compass-outline' },
+  'readiness-timeline': { name: 'Контрольный таймлайн готовности', icon: 'mdi:timeline-clock-outline' },
 }
 
 function ensureCustomTab(tabs: ChecklistTabConfig[], tabId: string): void {

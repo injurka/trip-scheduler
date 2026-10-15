@@ -88,6 +88,14 @@ export function computePhasesLayout(items: IActivity[], options: CalculateLayout
     })
   })
 
+  const tallestPhase = Math.max(...phaseContainers.map(container => container.height), 0)
+
+  // Keep the three phase backgrounds aligned. An empty phase has no cards to
+  // contribute height, so its calculated bounds would otherwise cut through the header.
+  phaseContainers.forEach((container) => {
+    container.height = tallestPhase
+  })
+
   const nodes: LayoutNode[] = items.map((_, i) => nodesMap.get(i)!).filter(Boolean)
 
   const edges: LayoutEdge[] = []
@@ -116,7 +124,6 @@ export function computePhasesLayout(items: IActivity[], options: CalculateLayout
   }
 
   const totalWidth = PADDING_X * 2 + 3 * PHASE_COL_WIDTH + 2 * GAP_PHASE + 40
-  const tallestPhase = Math.max(...phaseContainers.map(c => c.height), 0)
   const totalHeight = PADDING_Y * 2 + tallestPhase + 40
 
   return { nodes, edges, totalWidth, totalHeight, decorators: { phaseContainers } }
