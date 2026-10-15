@@ -33,7 +33,7 @@
     "tracking:allow-stop-tracking",
     "tracking:allow-is-tracking-running",
     "tracking:allow-get-buffered-locations",
-    "tracking:allow-get-rustore-push-token",
+    "tracking:allow-get-push-token",
     "tracking:allow-check-permissions",
     "tracking:allow-request-notification-permission",
     "tracking:allow-request-ignore-battery-optimizations",
