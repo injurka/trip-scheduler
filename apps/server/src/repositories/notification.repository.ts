@@ -82,14 +82,6 @@ export const notificationRepository = {
     return !!record
   },
 
-  async hasAnyTripSubscription(userId: string): Promise<boolean> {
-    const record = await db.query.tripSubscriptions.findFirst({
-      where: eq(tripSubscriptions.userId, userId),
-      columns: { tripId: true },
-    })
-    return !!record
-  },
-
   /**
    * Находит все активные push-токены пользователей, подписанных на путешествие,
    * исключая самого инициатора события.

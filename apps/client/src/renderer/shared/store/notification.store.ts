@@ -67,10 +67,6 @@ const useNotificationStore = defineStore('notification', {
      * Техническая настройка: проверка прав и получение объекта подписки от браузера.
      */
     async _ensurePushCapability(): Promise<PushSubscription | null> {
-      if (isMobileApp) {
-        throw new Error('Push-уведомления пока не поддерживаются в мобильном приложении Tauri')
-      }
-
       if (!('serviceWorker' in navigator) || !('PushManager' in window)) {
         throw new Error('Push-уведомления не поддерживаются вашим браузером')
       }
@@ -114,10 +110,16 @@ const useNotificationStore = defineStore('notification', {
      * Проверяет, подписан ли пользователь на конкретное путешествие (на бэкенде).
      */
     async checkTripSubscription(tripId: string) {
+      const userId = useAuthStore().user?.id
+      if (!userId)
+        return
+
       await useRequest({
-        key: ENotificationKeys.CHECK_SUBSCRIPTION,
+        key: `${ENotificationKeys.CHECK_SUBSCRIPTION}:${userId}:${tripId}`,
         fn: db => db.notification.checkTripSubscription(tripId),
         onSuccess: (isSubscribed) => {
+          if (useAuthStore().user?.id !== userId)
+            return
           if (isSubscribed) {
             this.subscribedTripIds.add(tripId)
           }

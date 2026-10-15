@@ -12,6 +12,7 @@ import { initializePwaUpdater } from '~/shared/services/pwa/pwa.service'
 import { startSyncWorker } from '~/shared/services/tracking/track-sync'
 import { useAppSettingsStore } from '~/shared/store/app-settings.store'
 import { useAppUpdateStore } from '~/shared/store/app-update.store'
+import { useAuthStore } from '~/shared/store/auth.store'
 import { useNotificationStore } from '~/shared/store/notification.store'
 import { useOfflineStore } from '~/shared/store/offline.store'
 import { useTrackingStore } from '~/shared/store/tracking.store'
@@ -69,8 +70,14 @@ async function initializeApp() {
 
   await restoreSession(pinia)
 
+  const authStore = useAuthStore(pinia)
   const notificationStore = useNotificationStore(pinia)
-  void notificationStore.syncNativePushToken()
+  watch(() => authStore.user?.id, (userId, previousUserId) => {
+    if (userId !== previousUserId)
+      notificationStore.subscribedTripIds.clear()
+    if (userId)
+      void notificationStore.syncNativePushToken()
+  }, { immediate: true })
 
   if (isMobileApp) {
     addPluginListener<{ token: string }>('tracking', 'pushTokenUpdated', ({ token }) => {

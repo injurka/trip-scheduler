@@ -1,6 +1,7 @@
 import type { PushSubscription as WebPushSubscription } from 'web-push'
 import webpush from 'web-push'
 import { createTRPCError } from '~/lib/trpc'
+import { dayRepository } from '~/repositories/day.repository'
 import { notificationRepository } from '~/repositories/notification.repository'
 import { tripRepository } from '~/repositories/trip.repository'
 
@@ -41,9 +42,7 @@ export const notificationService = {
   },
 
   async registerPushToken(userId: string, token: string) {
-    if (await notificationRepository.hasAnyTripSubscription(userId)) {
-      await notificationRepository.upsertPushToken(userId, token)
-    }
+    await notificationRepository.upsertPushToken(userId, token)
   },
 
   async unregisterPushToken(userId: string, token: string) {
@@ -57,7 +56,14 @@ export const notificationService = {
   async sendMemoryUpdate(actorId: string, tripId: string, dayId: string) {
     const trip = await tripRepository.getById(tripId)
     if (!trip)
-      return
+      throw createTRPCError('NOT_FOUND', 'Путешествие не найдено')
+
+    if (!await tripRepository.hasAccess(tripId, actorId))
+      throw createTRPCError('FORBIDDEN', 'Нет доступа к путешествию')
+
+    const day = await dayRepository.findByIdWithOwner(dayId)
+    if (!day || day.tripId !== tripId)
+      throw createTRPCError('NOT_FOUND', 'День путешествия не найден')
 
     const [tokens, pushTokens] = await Promise.all([
       notificationRepository.getSubscribersTokens(tripId, actorId),

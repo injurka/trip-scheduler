@@ -346,14 +346,6 @@ const moreMenuItems = computed((): KitDropdownItem<string>[] => {
       disabled: appStore.notif.loading,
     })
   }
-  else if (isMobileApp) {
-    items.push({
-      value: 'trip_push_unavailable',
-      label: 'Push недоступен в мобильном приложении',
-      icon: 'mdi:bell-off-outline',
-      disabled: true,
-    })
-  }
   else if (!appStore.auth.isAuthenticated) {
     items.push({
       value: 'sign_in_to_subscribe_trip',
@@ -361,10 +353,10 @@ const moreMenuItems = computed((): KitDropdownItem<string>[] => {
       icon: 'mdi:login',
     })
   }
-  else if (!isWebPushAvailable.value) {
+  else if (!isMobileApp && !isWebPushAvailable.value) {
     items.push({
       value: 'trip_push_unavailable',
-      label: 'Push недоступен в этом браузере',
+      label: 'Уведомления недоступны',
       icon: 'mdi:bell-off-outline',
       disabled: true,
     })
@@ -372,7 +364,7 @@ const moreMenuItems = computed((): KitDropdownItem<string>[] => {
   else {
     items.push({
       value: 'subscribe_trip',
-      label: 'Следить за поездкой',
+      label: 'Следить',
       icon: 'mdi:bell-plus-outline',
       disabled: appStore.notif.loading,
     })
@@ -456,16 +448,10 @@ async function handleConfirmOfflineDownload(options: OfflineDownloadOptions) {
   }
 }
 
-onMounted(() => {
-  if (props.trip?.id && appStore.auth.isAuthenticated) {
-    appStore.notif.checkTripSubscription(props.trip.id)
-  }
-})
-
-watch(() => props.trip?.id, (newId) => {
-  if (newId && appStore.auth.isAuthenticated)
-    appStore.notif.checkTripSubscription(newId)
-})
+watch([() => props.trip?.id, () => appStore.auth.user?.id], ([tripId, userId]) => {
+  if (tripId && userId)
+    void appStore.notif.checkTripSubscription(tripId)
+}, { immediate: true })
 </script>
 
 <template>
