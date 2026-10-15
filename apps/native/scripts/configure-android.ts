@@ -9,6 +9,11 @@ const FILE_PATHS_PATH = resolve(
   import.meta.dirname,
   '../src-tauri/gen/android/app/src/main/res/xml/file_paths.xml',
 )
+const ANDROID_BUILD_GRADLE_PATH = resolve(
+  import.meta.dirname,
+  '../src-tauri/gen/android/build.gradle.kts',
+)
+const RUSTORE_MAVEN_REPOSITORY = 'https://nexus-external.rustore.ru/repository/maven-rustore-exposed/'
 
 const REQUIRED_PERMISSIONS = [
   'android.permission.ACCESS_FINE_LOCATION',
@@ -106,6 +111,33 @@ export function configureAndroidManifest(): boolean {
   return true
 }
 
+export function configureAndroidRepositories(): boolean {
+  if (!existsSync(ANDROID_BUILD_GRADLE_PATH)) {
+    console.log('[configure-android] Android root build.gradle.kts not found yet, skipping.')
+    return false
+  }
+
+  const content = readFileSync(ANDROID_BUILD_GRADLE_PATH, 'utf-8')
+  if (content.includes(RUSTORE_MAVEN_REPOSITORY)) {
+    console.log('[configure-android] RuStore Maven repository is already configured.')
+    return true
+  }
+
+  // Tauri's Android root project owns dependency repositories. The tracking
+  // plugin's settings.gradle is only used when the plugin is built separately.
+  const repositories = /allprojects\s*\{[\s\S]*?repositories\s*\{[\s\S]*?^([ \t]*)mavenCentral\(\)[ \t]*(\r?\n)/m.exec(content)
+  if (!repositories) {
+    throw new Error('[configure-android] Cannot find allprojects repositories in Android root build.gradle.kts.')
+  }
+
+  const insertionPoint = repositories.index + repositories[0].length
+  const repositoryLine = `${repositories[1]}maven { url = uri("${RUSTORE_MAVEN_REPOSITORY}") }${repositories[2]}`
+  writeFileSync(ANDROID_BUILD_GRADLE_PATH, content.slice(0, insertionPoint) + repositoryLine + content.slice(insertionPoint), 'utf-8')
+  console.log('[configure-android] Added RuStore Maven repository to Android root build.gradle.kts')
+  return true
+}
+
 if (import.meta.main) {
   configureAndroidManifest()
+  configureAndroidRepositories()
 }
