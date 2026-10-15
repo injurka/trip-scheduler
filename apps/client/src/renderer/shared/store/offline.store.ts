@@ -147,16 +147,6 @@ export const useOfflineStore = defineStore('offline', {
       }
       const toast = useToast()
 
-      if (!this.savedTrips[trip.id]) {
-        this.savedTrips[trip.id] = {
-          id: trip.id,
-          title: trip.title,
-          savedAt: Date.now(),
-          imageCount: 0,
-          data: JSON.parse(JSON.stringify(trip)),
-        }
-      }
-
       try {
         const urlsToCache = new Set<string>()
 
@@ -191,6 +181,7 @@ export const useOfflineStore = defineStore('offline', {
         // 2. Загрузка документов (Documents)
         let loadedDocuments: TripDocumentResponse[] = []
         let documentsFetchSuccess = false
+        let metadataFailureCount = 0
 
         const fetchPromises: Promise<any>[] = []
 
@@ -202,8 +193,15 @@ export const useOfflineStore = defineStore('offline', {
                   loadedNotes = notes as TripNote[]
                   notesFetchSuccess = true
                 }
+                else {
+                  metadataFailureCount++
+                  console.warn('[Offline] Не удалось загрузить свежие заметки: некорректный ответ')
+                }
               })
-              .catch((err: unknown) => console.warn('[Offline] Не удалось загрузить свежие заметки:', err)),
+              .catch((err: unknown) => {
+                metadataFailureCount++
+                console.warn('[Offline] Не удалось загрузить свежие заметки:', err)
+              }),
           )
         }
 
@@ -215,8 +213,15 @@ export const useOfflineStore = defineStore('offline', {
                   loadedDocuments = docs as unknown as TripDocumentResponse[]
                   documentsFetchSuccess = true
                 }
+                else {
+                  metadataFailureCount++
+                  console.warn('[Offline] Не удалось загрузить свежие документы: некорректный ответ')
+                }
               })
-              .catch((err: unknown) => console.warn('[Offline] Не удалось загрузить свежие документы:', err)),
+              .catch((err: unknown) => {
+                metadataFailureCount++
+                console.warn('[Offline] Не удалось загрузить свежие документы:', err)
+              }),
           )
         }
 
@@ -363,8 +368,12 @@ export const useOfflineStore = defineStore('offline', {
         }
 
         // 1. Кэширование медиа-файлов
-        if (typeof caches !== 'undefined' && urlsArray.length > 0) {
+        if (urlsArray.length > 0) {
+          const loadedBeforeMedia = loadedCount
           try {
+            if (typeof caches === 'undefined') {
+              throw new Error('Cache Storage API недоступен')
+            }
             const cache = await caches.open(OFFLINE_MEDIA_CACHE_NAME)
             const BATCH_SIZE = 4
             for (let i = 0; i < urlsArray.length; i += BATCH_SIZE) {
@@ -426,6 +435,20 @@ export const useOfflineStore = defineStore('offline', {
           }
           catch (e) {
             console.warn('[Offline] caches API error:', e)
+            const unprocessedCount = urlsArray.length - (loadedCount - loadedBeforeMedia)
+            if (unprocessedCount > 0) {
+              failedCount += unprocessedCount
+              loadedCount += unprocessedCount
+              const pct = Math.min(100, Math.round((loadedCount / totalCount) * 100))
+              this.downloadProgress[trip.id] = pct
+              this.downloadStatus[trip.id] = {
+                progress: pct,
+                total: totalCount,
+                loaded: loadedCount,
+                stage: 'caching',
+                statusText: `Кэширование файлов (${loadedCount}/${totalCount})...`,
+              }
+            }
           }
         }
 
@@ -437,8 +460,28 @@ export const useOfflineStore = defineStore('offline', {
             ...this.downloadStatus[trip.id],
             statusText: `Предзагрузка тайлов карты зоны поездки...`,
           }
-          const tileResult = await mapTileCacheManager.precacheUrls(tileUrls, (loaded, _total) => {
-            const currentTotalLoaded = urlsArray.length + loaded
+          try {
+            const tileResult = await mapTileCacheManager.precacheUrls(tileUrls, (loaded, _total) => {
+              const currentTotalLoaded = urlsArray.length + loaded
+              const pct = Math.min(100, Math.round((currentTotalLoaded / totalCount) * 100))
+              this.downloadProgress[trip.id] = pct
+              this.downloadStatus[trip.id] = {
+                progress: pct,
+                total: totalCount,
+                loaded: currentTotalLoaded,
+                stage: 'caching',
+                statusText: `Кэширование тайлов карты (${loaded}/${tileUrls.length})...`,
+              }
+            })
+            tileFailures = tileResult.failedCount
+            tileSuccesses = tileResult.successCount
+            failedCount += tileResult.failedCount
+          }
+          catch (e) {
+            console.warn('[Offline] Не удалось сохранить тайлы карты:', e)
+            tileFailures = tileUrls.length
+            failedCount += tileFailures
+            const currentTotalLoaded = urlsArray.length + tileUrls.length
             const pct = Math.min(100, Math.round((currentTotalLoaded / totalCount) * 100))
             this.downloadProgress[trip.id] = pct
             this.downloadStatus[trip.id] = {
@@ -446,13 +489,8 @@ export const useOfflineStore = defineStore('offline', {
               total: totalCount,
               loaded: currentTotalLoaded,
               stage: 'caching',
-              statusText: `Кэширование тайлов карты (${loaded}/${tileUrls.length})...`,
+              statusText: `Кэширование тайлов карты (${tileUrls.length}/${tileUrls.length})...`,
             }
-          })
-          if (tileResult) {
-            tileFailures = tileResult.failedCount
-            tileSuccesses = tileResult.successCount
-            failedCount += tileResult.failedCount
           }
         }
 
@@ -486,21 +524,22 @@ export const useOfflineStore = defineStore('offline', {
           includesTiles: includesTilesToSave,
         }
 
-        this.savedTrips[trip.id] = newEntry
         // Персистентное сохранение в IndexedDB
         await offlineStorageService.saveTrip(newEntry)
+        this.savedTrips[trip.id] = newEntry
 
         this.downloadProgress[trip.id] = 100
-        if (failedCount > 0) {
+        if (failedCount > 0 || metadataFailureCount > 0) {
+          const totalFailures = failedCount + metadataFailureCount
           const successCount = Math.max(0, totalCount - failedCount)
           this.downloadStatus[trip.id] = {
             progress: 100,
             total: totalCount,
             loaded: successCount,
             stage: 'completed',
-            statusText: `Сохранено с предупреждением (${failedCount} файлов недоступно)`,
+            statusText: `Сохранено с предупреждением (${totalFailures} элементов недоступно)`,
           }
-          toast.warn(`Путешествие сохранено, но не удалось загрузить ${failedCount} файл(ов).`)
+          toast.warn(`Путешествие сохранено не полностью: недоступно элементов — ${totalFailures}.`)
         }
         else {
           this.downloadStatus[trip.id] = {
@@ -536,9 +575,17 @@ export const useOfflineStore = defineStore('offline', {
     async removeOfflineTrip(tripId: string) {
       if (!this.savedTrips[tripId])
         return
-      delete this.savedTrips[tripId]
-      await offlineStorageService.removeTrip(tripId)
-      useToast().info('Путешествие удалено из памяти устройства.')
+
+      const toast = useToast()
+      try {
+        await offlineStorageService.removeTrip(tripId)
+        delete this.savedTrips[tripId]
+        toast.info('Путешествие удалено из памяти устройства.')
+      }
+      catch (e) {
+        console.error('[Offline] Ошибка удаления сохранённого путешествия:', e)
+        toast.error('Не удалось удалить путешествие из памяти устройства.')
+      }
     },
 
     async updateOfflineTrip(trip: TripWithDays, options?: OfflineDownloadOptions) {

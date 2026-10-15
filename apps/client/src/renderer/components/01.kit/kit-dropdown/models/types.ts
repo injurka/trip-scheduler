@@ -3,4 +3,5 @@ export interface KitDropdownItem<T = any> {
   label: string
   icon?: string
   isDestructive?: boolean
+  disabled?: boolean
 }

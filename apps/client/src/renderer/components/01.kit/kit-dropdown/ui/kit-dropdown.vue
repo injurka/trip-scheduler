@@ -67,7 +67,8 @@ function handleSelect(item: KitDropdownItem<T>) {
             v-for="item in props.items"
             :key="String(item.value)"
             class="kit-dropdown-item"
-            :class="[`kit-dropdown-item--${size}`, { 'active': modelValue === item.value, 'is-destructive': item.isDestructive }]"
+            :disabled="item.disabled"
+            :class="[`kit-dropdown-item--${size}`, { 'active': modelValue === item.value, 'is-destructive': item.isDestructive, 'is-disabled': item.disabled }]"
             @click="handleSelect(item)"
           >
             <Icon v-if="item.icon" :icon="item.icon" class="item-icon" />
@@ -164,6 +165,11 @@ function handleSelect(item: KitDropdownItem<T>) {
         color: var(--fg-error-color);
       }
     }
+  }
+
+  &.is-disabled {
+    opacity: 0.55;
+    cursor: not-allowed;
   }
 }
 

@@ -20,6 +20,7 @@ import { useTripPermissions } from '~/components/05.modules/trip-info/composable
 import { useRequest, useRequestStatusByPrefix } from '~/plugins/request'
 import { AppRoutePaths } from '~/shared/constants/routes'
 import { vRipple } from '~/shared/directives/ripple'
+import { isMobileApp } from '~/shared/lib/env'
 import { calculateTripBoundingBox } from '~/shared/lib/tile-calc'
 import { useOfflineStore } from '~/shared/store/offline.store'
 import { EActivitySectionType, EActivityTag } from '~/shared/types/models/activity'
@@ -110,6 +111,15 @@ const isTripUpcoming = computed(() => {
 const isSubscribedToCurrentTrip = computed(() => {
   return props.trip ? appStore.notif.isSubscribedToTrip(props.trip.id) : false
 })
+const isWebPushAvailable = computed(() =>
+  !import.meta.env.DEV
+  && !isMobileApp
+  && window.isSecureContext
+  && 'serviceWorker' in navigator
+  && 'PushManager' in window
+  && 'Notification' in window
+  && !!import.meta.env.VITE_VAPID_PUBLIC_KEY,
+)
 
 const formattedDates = computed(() => {
   if (!props.trip)
@@ -333,6 +343,30 @@ const moreMenuItems = computed((): KitDropdownItem<string>[] => {
       value: 'unsubscribe_trip',
       label: 'Не следить',
       icon: 'mdi:bell-off-outline',
+      disabled: appStore.notif.loading,
+    })
+  }
+  else if (isMobileApp) {
+    items.push({
+      value: 'trip_push_unavailable',
+      label: 'Push недоступен в мобильном приложении',
+      icon: 'mdi:bell-off-outline',
+      disabled: true,
+    })
+  }
+  else if (!appStore.auth.isAuthenticated) {
+    items.push({
+      value: 'sign_in_to_subscribe_trip',
+      label: 'Войти, чтобы следить',
+      icon: 'mdi:login',
+    })
+  }
+  else if (!isWebPushAvailable.value) {
+    items.push({
+      value: 'trip_push_unavailable',
+      label: 'Push недоступен в этом браузере',
+      icon: 'mdi:bell-off-outline',
+      disabled: true,
     })
   }
   else {
@@ -340,6 +374,7 @@ const moreMenuItems = computed((): KitDropdownItem<string>[] => {
       value: 'subscribe_trip',
       label: 'Следить за поездкой',
       icon: 'mdi:bell-plus-outline',
+      disabled: appStore.notif.loading,
     })
   }
 
@@ -378,6 +413,12 @@ async function handleMenuAction(action: string) {
   }
   else if (action === 'unsubscribe_trip' && props.trip) {
     await appStore.notif.unsubscribeFromTrip(props.trip.id)
+  }
+  else if (action === 'sign_in_to_subscribe_trip') {
+    await router.push({
+      path: AppRoutePaths.Auth.SignIn,
+      query: { returnUrl: router.currentRoute.value.fullPath },
+    })
   }
   else if (action === 'edit') {
     handleEditTrip()

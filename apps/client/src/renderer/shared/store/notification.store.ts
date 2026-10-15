@@ -1,7 +1,9 @@
 import { defineStore } from 'pinia'
 import { useRequest } from '~/plugins/request'
 import { useToast } from '~/shared/composables/use-toast'
+import { isMobileApp } from '~/shared/lib/env'
 import { urlBase64ToUint8Array } from '~/shared/lib/push-utils'
+import { useAuthStore } from '~/shared/store/auth.store'
 
 export enum ENotificationKeys {
   CHECK_SUBSCRIPTION = 'push:check-subscription',
@@ -30,8 +32,16 @@ const useNotificationStore = defineStore('notification', {
      * Техническая настройка: проверка прав и получение объекта подписки от браузера.
      */
     async _ensurePushCapability(): Promise<PushSubscription | null> {
+      if (isMobileApp) {
+        throw new Error('Push-уведомления пока не поддерживаются в мобильном приложении Tauri')
+      }
+
       if (!('serviceWorker' in navigator) || !('PushManager' in window)) {
         throw new Error('Push-уведомления не поддерживаются вашим браузером')
+      }
+
+      if (!('Notification' in window) || !window.isSecureContext) {
+        throw new Error('Для push-уведомлений нужен браузер с поддержкой уведомлений в безопасном контексте (HTTPS)')
       }
 
       const vapidPublicKey = import.meta.env.VITE_VAPID_PUBLIC_KEY
@@ -91,6 +101,10 @@ const useNotificationStore = defineStore('notification', {
       const toast = useToast()
 
       try {
+        if (!useAuthStore().isAuthenticated) {
+          throw new Error('Войдите в аккаунт, чтобы следить за поездкой')
+        }
+
         const subscription = await this._ensurePushCapability()
 
         if (!subscription)
@@ -112,7 +126,7 @@ const useNotificationStore = defineStore('notification', {
         })
       }
       catch (e: any) {
-        toast.error(e || 'Ошибка настройки уведомлений')
+        toast.error(e instanceof Error ? e.message : 'Ошибка настройки уведомлений')
       }
       finally {
         this.loading = false

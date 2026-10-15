@@ -113,9 +113,10 @@ class OfflineStorageService {
         try {
           const tx = db.transaction(STORE_NAME, 'readwrite')
           const store = tx.objectStore(STORE_NAME)
-          const req = store.put(entry)
-          req.onsuccess = () => resolve()
-          req.onerror = () => reject(req.error)
+          tx.oncomplete = () => resolve()
+          tx.onerror = () => reject(tx.error ?? new Error('IndexedDB save transaction failed'))
+          tx.onabort = () => reject(tx.error ?? new Error('IndexedDB save transaction aborted'))
+          store.put(entry)
         }
         catch (e) {
           reject(e)
@@ -125,16 +126,19 @@ class OfflineStorageService {
     }
 
     // Fallback: localStorage
-    if (typeof localStorage !== 'undefined') {
-      try {
-        const raw = localStorage.getItem(LEGACY_STORAGE_KEY)
-        const current = raw ? JSON.parse(raw) : {}
-        current[entry.id] = entry
-        localStorage.setItem(LEGACY_STORAGE_KEY, JSON.stringify(current))
-      }
-      catch (e) {
-        console.warn('[OfflineStorageService] Fallback localStorage failed:', e)
-      }
+    if (typeof localStorage === 'undefined') {
+      throw new Error('IndexedDB and localStorage are unavailable')
+    }
+
+    try {
+      const raw = localStorage.getItem(LEGACY_STORAGE_KEY)
+      const current = raw ? JSON.parse(raw) : {}
+      current[entry.id] = entry
+      localStorage.setItem(LEGACY_STORAGE_KEY, JSON.stringify(current))
+    }
+    catch (e) {
+      console.warn('[OfflineStorageService] Fallback localStorage failed:', e)
+      throw e
     }
   }
 
@@ -144,32 +148,38 @@ class OfflineStorageService {
   public async removeTrip(tripId: string): Promise<void> {
     const db = await this.getDB()
     if (db) {
-      await new Promise<void>((resolve) => {
+      await new Promise<void>((resolve, reject) => {
         try {
           const tx = db.transaction(STORE_NAME, 'readwrite')
           const store = tx.objectStore(STORE_NAME)
-          const req = store.delete(tripId)
-          req.onsuccess = () => resolve()
-          req.onerror = () => resolve()
+          tx.oncomplete = () => resolve()
+          tx.onerror = () => reject(tx.error ?? new Error('IndexedDB delete transaction failed'))
+          tx.onabort = () => reject(tx.error ?? new Error('IndexedDB delete transaction aborted'))
+          store.delete(tripId)
         }
-        catch {
-          resolve()
+        catch (e) {
+          reject(e)
         }
       })
       return
     }
 
     // Fallback: localStorage
-    if (typeof localStorage !== 'undefined') {
-      try {
-        const raw = localStorage.getItem(LEGACY_STORAGE_KEY)
-        if (raw) {
-          const current = JSON.parse(raw)
-          delete current[tripId]
-          localStorage.setItem(LEGACY_STORAGE_KEY, JSON.stringify(current))
-        }
+    if (typeof localStorage === 'undefined') {
+      throw new Error('IndexedDB and localStorage are unavailable')
+    }
+
+    try {
+      const raw = localStorage.getItem(LEGACY_STORAGE_KEY)
+      if (raw) {
+        const current = JSON.parse(raw)
+        delete current[tripId]
+        localStorage.setItem(LEGACY_STORAGE_KEY, JSON.stringify(current))
       }
-      catch {}
+    }
+    catch (e) {
+      console.warn('[OfflineStorageService] Fallback localStorage delete failed:', e)
+      throw e
     }
   }
 }

@@ -263,18 +263,22 @@ self.addEventListener('notificationclick', (event) => {
   event.notification.close()
 
   const urlToOpen = event.notification.data?.url || '/'
+  const targetUrl = new URL(urlToOpen, self.location.origin)
 
   event.waitUntil(
     self.clients.matchAll({ type: 'window', includeUncontrolled: true }).then((windowClients) => {
-      // Если вкладка уже открыта - фокусируемся на ней
+      if (targetUrl.origin !== self.location.origin)
+        return
+
+      // Используем открытую вкладку приложения, переходя на адрес из уведомления.
       for (const client of windowClients) {
-        if (client.url === urlToOpen && 'focus' in client) {
-          return client.focus()
+        if (new URL(client.url).origin === targetUrl.origin) {
+          return client.navigate(targetUrl.href).then(navigatedClient => navigatedClient?.focus() ?? client.focus())
         }
       }
-      // Иначе открываем новую
+
       if (self.clients.openWindow) {
-        return self.clients.openWindow(urlToOpen)
+        return self.clients.openWindow(targetUrl.href)
       }
     }),
   )
