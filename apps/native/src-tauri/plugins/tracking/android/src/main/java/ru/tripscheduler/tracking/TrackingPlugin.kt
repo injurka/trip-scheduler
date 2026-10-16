@@ -117,7 +117,13 @@ class TrackingPlugin(private val activity: Activity) : Plugin(activity) {
                 }
                 .addOnFailureListener { error ->
                     android.util.Log.w("TrackingPlugin", "Could not obtain RuStore push token", error)
-                    invoke.reject("Не удалось получить push-токен RuStore. Проверьте, что на устройстве установлен RuStore или приложение VK.")
+                    val message = when (error.javaClass.simpleName) {
+                        "HostAppNotInstalledException" -> "Установите RuStore и войдите в него"
+                        "UnauthorizedException" -> "Войдите в RuStore"
+                        "SdkIsNotInitializedException" -> "RuStore Push ещё запускается. Повторите попытку"
+                        else -> "RuStore не выдал токен: ${error.javaClass.simpleName}"
+                    }
+                    invoke.reject(message)
                 }
         } catch (e: Exception) {
             android.util.Log.w("TrackingPlugin", "RuStore push SDK is unavailable", e)
