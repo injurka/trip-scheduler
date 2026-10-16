@@ -1,10 +1,13 @@
 <script setup lang="ts">
 import type { Node as ProseMirrorNode } from '@milkdown/kit/prose/model'
 import type { NodeView } from '@milkdown/kit/prose/view'
+import type { NoteFrontmatter } from '../../lib/note-frontmatter'
 import type { TripNote } from '~/shared/services/api/model/types'
 import { nextTick, ref, watch } from 'vue'
 import { KitInlineMdEditorWrapper } from '~/components/01.kit/kit-inline-md-editor'
 import { createDataviewJsNodeView } from '../../lib/dataviewjs-renderer'
+import { composeNoteContent, readNoteFrontmatter } from '../../lib/note-frontmatter'
+import NoteProperties from './note-properties.vue'
 
 const props = defineProps<{
   noteId: string
@@ -20,13 +23,25 @@ const emit = defineEmits<{
   'toggleTask': [payload: { noteId: string, lineIndex: number }]
 }>()
 
-const localContent = ref(props.content ?? '')
+const frontmatter = ref<NoteFrontmatter>({ raw: '', body: '', properties: [] })
+const localContent = ref('')
 const containerRef = ref<HTMLElement | null>(null)
+
+/**
+ * Свойства заметки (Obsidian frontmatter) вырезаются из содержимого редактора и
+ * показываются отдельным блоком: Milkdown YAML-блок не разбирает и рисует его
+ * сырым текстом. Сам блок держим байт-в-байт и дописываем обратно при записи,
+ * иначе сохранение из редактора потеряло бы свойства.
+ */
+function applyContent(content: string | null): void {
+  frontmatter.value = readNoteFrontmatter(content)
+  localContent.value = frontmatter.value.body
+}
 
 // Обновляем локальный контент ТОЛЬКО при смене самой заметки.
 // Если сервер возвращает ответ, пока мы печатаем - мы его игнорируем
 watch(() => props.noteId, () => {
-  localContent.value = props.content ?? ''
+  applyContent(props.content)
   nextTick(() => {
     if (containerRef.value) {
       containerRef.value.scrollTop = 0
@@ -36,14 +51,16 @@ watch(() => props.noteId, () => {
 
 // Если мы в ReadOnly - разрешаем обновление извне
 watch(() => props.content, (newVal) => {
-  if (props.readonly && newVal !== localContent.value) {
-    localContent.value = newVal ?? ''
+  if (!props.readonly)
+    return
+  if (newVal !== composeNoteContent(frontmatter.value.raw, localContent.value)) {
+    applyContent(newVal)
   }
 })
 
 function handleUpdate(val: string) {
   localContent.value = val
-  emit('update:content', props.noteId, val)
+  emit('update:content', props.noteId, composeNoteContent(frontmatter.value.raw, val))
 }
 
 function createCodeBlockNodeView(node: ProseMirrorNode): NodeView | undefined {
@@ -79,6 +96,8 @@ function handlePaste(event: ClipboardEvent) {
 
 <template>
   <div ref="containerRef" class="md-editor-container" @paste="handlePaste">
+    <NoteProperties v-if="frontmatter.properties.length" :properties="frontmatter.properties" />
+
     <KitInlineMdEditorWrapper
       :model-value="localContent"
       :readonly="readonly"
