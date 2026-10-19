@@ -351,19 +351,6 @@ export function validateObsidianVault(context: ValidationScopeContext, startDate
             recommendation: `Исправьте формат строки на: \`${fix}\``,
           })
         }
-        else if (officialTimeRegex.test(line)) {
-          if (line.length > 80) {
-            dayIssues.push({
-              severity: 'warning',
-              category: 'timeline',
-              file: fileName,
-              line: lineIdx + 1,
-              rawText: trimmed,
-              message: `Длина строки активности превышает 80 символов (${line.length} симв.): «${trimmed.length > 60 ? `${trimmed.slice(0, 57)}...` : trimmed}»`,
-              recommendation: 'Сократите заголовок активности до 80 символов (стандарт Travel Vault), перенеся подробности во вложенные пункты (4 пробела: `    * ...`).',
-            })
-          }
-        }
       }
 
       // Проверка ссылок на изображения в дне
