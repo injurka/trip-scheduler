@@ -548,6 +548,9 @@ export function validateObsidianVault(context: ValidationScopeContext, startDate
   if (!frontmatter.endDate) {
     tripEndDate.setDate(tripEndDate.getDate() + Math.max(0, daySummaries.length - 1))
   }
+  // Ground transport can start the evening before the first itinerary day.
+  const earliestAllowedBookingDate = new Date(startDate)
+  earliestAllowedBookingDate.setDate(earliestAllowedBookingDate.getDate() - 1)
   const latestAllowedBookingDate = new Date(tripEndDate)
   latestAllowedBookingDate.setDate(latestAllowedBookingDate.getDate() + 1)
 
@@ -568,7 +571,7 @@ export function validateObsidianVault(context: ValidationScopeContext, startDate
   for (const booking of bookingsData.bookings) {
     for (const value of bookingDates(booking)) {
       const date = new Date(value.slice(0, 10))
-      if (Number.isNaN(date.getTime()) || date < startDate || date > latestAllowedBookingDate) {
+      if (Number.isNaN(date.getTime()) || date < earliestAllowedBookingDate || date > latestAllowedBookingDate) {
         issues.push({
           severity: 'error',
           category: 'bookings',

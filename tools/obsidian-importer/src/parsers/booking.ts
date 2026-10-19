@@ -49,23 +49,22 @@ interface ParsedTimeRange {
 }
 
 function parseTimeRange(value: string): ParsedTimeRange | undefined {
-  const times = [...value.matchAll(/\b(\d{1,2}):(\d{2})\b/g)]
-    .map((match) => {
-      const hour = Number.parseInt(match[1], 10)
-      const minute = Number.parseInt(match[2], 10)
-      if (hour > 23 || minute > 59)
-        return null
-      return `${String(hour).padStart(2, '0')}:${String(minute).padStart(2, '0')}`
-    })
-    .filter((time): time is string => time !== null)
-
-  if (!times.length)
+  // Only an adjacent range is an arrival; later clocks can refer to another service.
+  const match = value.match(/^\s*(?:около\s+|~)?(\d{1,2}:\d{2})(?:\s*[-–—]\s*(\d{1,2}:\d{2}))?/i)
+  if (!match)
     return undefined
-
-  return {
-    startTime: times[0],
-    endTime: times[1],
+  const normalize = (clock?: string): string | undefined => {
+    if (!clock)
+      return undefined
+    const [hour, minute] = clock.split(':').map(Number)
+    if (hour > 23 || minute > 59)
+      return undefined
+    return `${String(hour).padStart(2, '0')}:${String(minute).padStart(2, '0')}`
   }
+  const startTime = normalize(match[1])
+  if (!startTime)
+    return undefined
+  return { startTime, endTime: normalize(match[2]) }
 }
 
 function toIsoDate(year: number, month: number, day: number): string {
@@ -150,11 +149,11 @@ function inferTimezone(airportOrCity?: string, fallback = '+03:00'): string {
   if (!airportOrCity)
     return fallback
   const norm = airportOrCity.toUpperCase()
-  if (/SVO|DME|VKO|LED|МОСКВА|ПИТЕР|САНКТ|МУРМАНСК|MMK/i.test(norm))
+  if (/SVO|DME|VKO|LED|КАЗАНСКАЯ|МОСКВА|ПИТЕР|САНКТ|МУРМАНСК|MMK/i.test(norm))
     return '+03:00'
   if (/ULV|УЛЬЯНОВСК|SAMARA|KUF/i.test(norm))
     return '+04:00'
-  if (/TPE|CAN|TFU|CSX|CKG|HGH|PEK|PVG|SHA|ТАЙБЭЙ|ЦЗЯОСИ|ИЛАНЬ|ХУАЛЯНЬ|BANQIAO|TAICHUNG|ТАЙЧЖУН|SUN MOON|ШУЙШЭ|АЛИШАН|ФЭНЬЦИХУ|ШИЧЖОУ|ЦЗЯИ|ТАЙНАНЬ|ГАОСЮН|KAOHSIUNG|ZUOYING|СЯОЛЮЦЮ|ДУНГАН|ЦИЦЗИНЬ|TAOYUAN|ТАОЮАНЬ|ГУАНЧЖОУ|КИТАЙ|ТАЙВАНЬ|ШАНХАЙ|ПЕКИН|ЧАНША|ЧУНЦИН|ЧЭНДУ/i.test(norm))
+  if (/CHIAYI|TAINAN|FENQIHU|XIAOLIUQIU|DONGGANG|CHONGDE|HUALIEN|JIAOXI|TPE|CAN|TFU|CSX|CKG|HGH|PEK|PVG|SHA|ТАЙБЭЙ|ЦЗЯОСИ|ИЛАНЬ|ХУАЛЯНЬ|BANQIAO|TAICHUNG|ТАЙЧЖУН|SUN MOON|ШУЙШЭ|АЛИШАН|ФЭНЬЦИХУ|ШИЧЖОУ|ЦЗЯИ|ТАЙНАНЬ|ГАОСЮН|KAOHSIUNG|ZUOYING|СЯОЛЮЦЮ|ДУНГАН|ЦИЦЗИНЬ|TAOYUAN|ТАОЮАНЬ|ГУАНЧЖОУ|КИТАЙ|ТАЙВАНЬ|ШАНХАЙ|ПЕКИН|ЧАНША|ЧУНЦИН|ЧЭНДУ/i.test(norm))
     return '+08:00'
   if (/NRT|HND|KIX|ТОКИО|ОСАКА|ЯПОНИЯ/i.test(norm))
     return '+09:00'
@@ -847,13 +846,13 @@ export function parseTransportMarkdown(content: string, startDateStr: string): B
    */
   function extractRouteTitle(segmentCol: string, transportCol: string): { title: string, from: string, to: string } {
     // Ищем стрелочный маршрут A ➔ B (может быть несколько точек через ➔)
-    const arrowMatch = segmentCol.match(/(.+?)\s*➔\s*(.+)/)
+    const arrowMatch = segmentCol.match(/(.+?)\s*(?:➔|→|->)\s*(.+)/)
     if (arrowMatch) {
       // Берём первую и последнюю точки если несколько ➔
-      const parts = segmentCol.split(/\s*➔\s*/)
+      const parts = segmentCol.split(/\s*(?:➔|→|->)\s*/)
       const to = parts[parts.length - 1].trim()
       const fromClean = parts[0].trim()
-      return { title: `${fromClean} ➔ ${to}`, from: fromClean, to }
+      return { title: parts.join(' ➔ '), from: fromClean, to }
     }
 
     // Ищем паттерн «Аэропорт / Вокзал / Порт» в тексте сегмента
@@ -874,8 +873,24 @@ export function parseTransportMarkdown(content: string, startDateStr: string): B
     return { title: segClean || 'Трансфер', from: '', to: '' }
   }
 
+  let ignoreTable = false
+  let ignoredTableStarted = false
   for (const line of lines) {
     const trimmed = line.trim()
+    if (trimmed === '<!-- bookings:ignore -->') {
+      ignoreTable = true
+      continue
+    }
+    if (ignoreTable) {
+      if (trimmed.startsWith('|')) {
+        ignoredTableStarted = true
+        continue
+      }
+      if (!trimmed && !ignoredTableStarted)
+        continue
+      ignoreTable = false
+      ignoredTableStarted = false
+    }
     if (trimmed.startsWith('|') && trimmed.endsWith('|') && !trimmed.includes('---')) {
       const cols = trimmed.slice(1, -1).split('|').map(c => c.trim())
       const firstCell = removeEmoji(cols[0] ?? '').replace(/[*_`.]/g, '').trim()
@@ -883,7 +898,7 @@ export function parseTransportMarkdown(content: string, startDateStr: string): B
         continue
 
       // Формат графика: | День | Дата/День | Сегмент | Транспорт | Время в пути | Способ бронирования |
-      if (cols.length >= 5 && /^\s*\*?\*?\d{1,2}/.test(cols[0])) {
+      if (cols.length >= 5 && /^(?:\d{1,2}\b|Пре-сегмент\s*\()/i.test(firstCell)) {
         const dayCol = cols[0].replace(/[*_`]/g, '').trim()
         // Гибко определяем, какая колонка что содержит:
         // col[1] может быть "дата/день недели" или сразу сегмент (если 5 колонок)
@@ -919,8 +934,9 @@ export function parseTransportMarkdown(content: string, startDateStr: string): B
           paymentCol = cols.slice(5).join('; ').replace(/[*_`]/g, '').trim()
         }
 
-        const dateStr = /[а-яё]/i.test(dayCol)
-          ? parseDateSnippet(dayCol, startDate)
+        const dateSource = col1LooksLikeDate ? cols[1].replace(/[*_`]/g, '').trim() : dayCol
+        const dateStr = /[а-яё]/i.test(dateSource)
+          ? (extractDateRangesFromText(dateSource, startDate)[0]?.checkInDate ?? parseDateSnippet(dateSource, startDate))
           : (() => {
               const dayNum = Number.parseInt(dayCol, 10) || 1
               const eventDate = new Date(startDate)
@@ -928,11 +944,15 @@ export function parseTransportMarkdown(content: string, startDateStr: string): B
               return eventDate.toISOString().split('T')[0]
             })()
         const timeRange = parseTimeRange(durationCol)
-        const departureTime = timeRange?.startTime ?? '09:00'
-        const arrivalTime = timeRange?.endTime ?? '12:00'
-        const arrivalDateStr = timeRange?.endTime && timeRange.endTime < departureTime
+        const departureTime = timeRange?.startTime
+        const arrivalTime = timeRange?.endTime
+        const explicitDates = extractDateRangesFromText(dateSource, startDate)[0]
+        const arrivalDateStr = explicitDates?.checkOutDate ?? (arrivalTime && departureTime && arrivalTime < departureTime
           ? shiftIsoDate(dateStr, 1)
-          : dateStr
+          : dateStr)
+        // A date without a clock preserves the timeline day without inventing a departure.
+        const departureDateTime = departureTime ? `${dateStr}T${departureTime}:00` : dateStr
+        const arrivalDateTime = arrivalTime ? `${arrivalDateStr}T${arrivalTime}:00` : undefined
 
         // Пропускаем авиаперелеты (они парсятся отдельно из Авиаперелеты.md)
         if (/✈|авиа|самолет|flight/i.test(transportCol) || /авиаперелет/i.test(segmentCol) || /авиабилет/i.test(paymentCol))
@@ -980,7 +1000,7 @@ export function parseTransportMarkdown(content: string, startDateStr: string): B
             title: cleanTitle,
             data: {
               attractionName: cleanTitle,
-              dateTime: `${dateStr}T${departureTime}:00`,
+              dateTime: departureDateTime,
               notes,
               sourceUrl,
               photos: transportPhotos.length > 0 ? transportPhotos : undefined,
@@ -1005,8 +1025,8 @@ export function parseTransportMarkdown(content: string, startDateStr: string): B
               company: removeEmoji(transportCol).replace(/[*_`]/g, '').trim() || undefined,
               pickupLocation: from || undefined,
               dropoffLocation: to || undefined,
-              pickupDateTime: `${dateStr}T${departureTime}:00`,
-              dropoffDateTime: `${arrivalDateStr}T${arrivalTime}:00`,
+              pickupDateTime: departureDateTime,
+              dropoffDateTime: arrivalDateTime,
               pickupTimeZone: inferTimezone(from, defaultTimezone),
               dropoffTimeZone: inferTimezone(to, defaultTimezone),
               notes,
@@ -1030,8 +1050,8 @@ export function parseTransportMarkdown(content: string, startDateStr: string): B
               name: transportName || title,
               startLocation: from || undefined,
               endLocation: to || undefined,
-              startDateTime: `${dateStr}T${departureTime}:00`,
-              endDateTime: `${arrivalDateStr}T${arrivalTime}:00`,
+              startDateTime: departureDateTime,
+              endDateTime: arrivalDateTime,
               startTimeZone: inferTimezone(from, defaultTimezone),
               endTimeZone: inferTimezone(to, defaultTimezone),
               notes,
@@ -1048,10 +1068,13 @@ export function parseTransportMarkdown(content: string, startDateStr: string): B
             icon,
             title,
             data: {
+              trainNumber: transportCol.match(/№\s*([\w-]+)/)?.[1],
+              carriage: paymentCol.match(/вагон\s*(\d+)/i)?.[1],
+              seat: paymentCol.match(/место\s*(\d+)/i)?.[1],
               departureStation: from || undefined,
               arrivalStation: to || undefined,
-              departureDateTime: `${dateStr}T${departureTime}:00`,
-              arrivalDateTime: `${arrivalDateStr}T${arrivalTime}:00`,
+              departureDateTime,
+              arrivalDateTime,
               departureTimeZone: inferTimezone(from, defaultTimezone),
               arrivalTimeZone: inferTimezone(to, defaultTimezone),
               notes,
@@ -1071,7 +1094,7 @@ export function parseTransportMarkdown(content: string, startDateStr: string): B
         const notesCol = cols.length >= 5 ? cols.slice(4).join('; ').replace(/[*_`]/g, '').trim() : ''
 
         const stationsMatch = routeCol.match(/([^\s➔]+)\s*➔\s*([^\s➔]+)/)
-        if (stationsMatch) {
+        if (stationsMatch && /^\d{1,2}:\d{2}$/.test(depTimeCol) && /^\d{1,2}:\d{2}$/.test(arrTimeCol)) {
           const departureStation = stationsMatch[1].trim()
           const arrivalStation = stationsMatch[2].trim()
 

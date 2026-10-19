@@ -45,11 +45,11 @@ describe('importer regressions', () => {
     expect(first.map(booking => booking.id)).toEqual(second.map(booking => booking.id))
     expect(first[0]).toMatchObject({
       type: 'train',
-      data: { departureDateTime: '2026-10-30T09:00:00', departureTimeZone: '+08:00' },
+      data: { departureDateTime: '2026-10-30', departureTimeZone: '+08:00' },
     })
     expect(first[1]).toMatchObject({
       type: 'car',
-      data: { pickupDateTime: '2026-11-06T09:00:00', kind: 'bus', pickupTimeZone: '+08:00' },
+      data: { pickupDateTime: '2026-11-06', kind: 'bus', pickupTimeZone: '+08:00' },
     })
   })
 

@@ -118,3 +118,52 @@ describe('Transport Booking Parser · разделы «Авто» и «Друг�
     })
   })
 })
+
+it('does not invent clocks or read deadlines as transport times', () => {
+  const result = parseTransportMarkdown(`
+| Дата | Переезд | Транспорт | Время | Статус |
+| --- | --- | --- | --- | --- |
+| 04 ноя | Казанская ➔ SVO | 🚖 Такси или 🚇 Аэроэкспресс | 1–2 ч | До 20:15 |
+| 05 ноя | CAN-T2 ➔ Pearl Hotel | Транзитный шаттл China Southern | 22 ч стыковки | Уточнить |
+| 29 ноя | SVO ➔ Москва Казанская | 🚖 Такси | После прилёта в 13:00; поезд в 18:08 | План |
+| 21 ноя | Donggang ➔ Xiaoliuqiu | ⛴️ Tungliu | около 11:30 | План |
+`, '2026-11-04')
+  expect(result).toHaveLength(4)
+  expect(result[0]).toMatchObject({ type: 'car', data: { pickupDateTime: '2026-11-04', dropoffDateTime: undefined } })
+  expect(result[1]).toMatchObject({ type: 'car', data: { kind: 'transfer', pickupDateTime: '2026-11-05', dropoffDateTime: undefined } })
+  expect(result[2]).toMatchObject({ type: 'car', data: { pickupDateTime: '2026-11-29', dropoffDateTime: undefined } })
+  expect(result[3]).toMatchObject({ type: 'other', data: { startDateTime: '2026-11-21T11:30:00', endDateTime: undefined } })
+})
+
+it('imports pre-segments and station-local times, train number, carriage and seat', () => {
+  const result = parseTransportMarkdown(`
+| Дата | Переезд | Транспорт | Время | Статус | Примечание |
+| --- | --- | --- | --- | --- | --- |
+| Пре-сегмент (03–04 ноя) | Ульяновск Центр. ➔ Москва Казанская | 🚂 ФПК | 20:45–09:56 | Куплено | PDF |
+| 29 ноя ➔ 30 ноя | Москва Казанская ➔ Ульяновск Центр. | 🚂 ФПК №022 | 18:08–08:30 | Куплено | вагон 03, место 024 |
+| 13 ноя | Banqiao → Chiayi | 🚄 THSR №0821 | 11:19–12:54 | План | |
+`, '2026-11-04')
+  expect(result).toHaveLength(3)
+  expect(result[0]).toMatchObject({ type: 'train', data: { departureDateTime: '2026-11-03T20:45:00', arrivalDateTime: '2026-11-04T09:56:00', departureTimeZone: '+04:00', arrivalTimeZone: '+03:00' } })
+  expect(result[1]).toMatchObject({ type: 'train', data: { departureDateTime: '2026-11-29T18:08:00', arrivalDateTime: '2026-11-30T08:30:00', trainNumber: '022', carriage: '03', seat: '024' } })
+  expect(result[2]).toMatchObject({ type: 'train', data: { departureStation: 'Banqiao', arrivalStation: 'Chiayi', departureTimeZone: '+08:00', arrivalTimeZone: '+08:00' } })
+})
+
+it('ignores marked reference tables and action checklists', () => {
+  const result = parseTransportMarkdown(`
+| Когда | Сегмент | Статус | Действие |
+| --- | --- | --- | --- |
+| Сейчас | A ➔ B | Куплено | PDF |
+<!-- bookings:ignore -->
+
+| Дата | Переезд | Транспорт | Время | Статус |
+| --- | --- | --- | --- | --- |
+| 11 ноя | Хуалянь ➔ Chongde | 🚆 TRA | 13:25–13:46 | План |
+
+| Дата | Переезд | Транспорт | Время | Статус |
+| --- | --- | --- | --- | --- |
+| 11 ноя | Chongde ➔ Хуалянь | 🚆 TRA №4552 | 17:27–17:52 | План |
+`, '2026-11-04')
+  expect(result).toHaveLength(1)
+  expect(result[0].title).toBe('Chongde ➔ Хуалянь')
+})

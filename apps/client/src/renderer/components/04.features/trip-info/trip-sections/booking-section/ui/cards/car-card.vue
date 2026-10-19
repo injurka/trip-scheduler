@@ -70,7 +70,7 @@ function updatePhotos(newPhotos: string[]) {
 }
 
 function createDateWithTimezone(dateTime?: string, timeZone?: string): Date | null {
-  if (!dateTime)
+  if (!dateTime || !dateTime.includes('T'))
     return null
   const hasOffset = /Z|[+-]\d{2}(?::\d{2})?$/.test(dateTime)
   if (hasOffset) {
@@ -89,7 +89,7 @@ function formatDisplayDateTime(localDateTime?: string) {
   if (!localDateTime)
     return { time: '', date: '' }
   try {
-    const time = localDateTime.substring(11, 16)
+    const time = localDateTime.substring(11, 16) || 'Уточняется'
     const dateOnly = localDateTime.substring(0, 10)
     const dateObj = new Date(`${dateOnly}T12:00:00Z`)
     const dateStr = dateObj.toLocaleDateString('ru-RU', { day: 'numeric', month: 'short', weekday: 'short' })
@@ -117,12 +117,12 @@ const totalDurationMs = computed(() => {
   const startDate = createDateWithTimezone(props.booking.data.pickupDateTime, props.booking.data.pickupTimeZone)
   const endDate = createDateWithTimezone(props.booking.data.dropoffDateTime, props.booking.data.dropoffTimeZone)
   if (!startDate || !endDate)
-    return 0
+    return null
   return endDate.getTime() - startDate.getTime()
 })
 
 const totalDurationFormatted = computed(() => {
-  return formatDuration(totalDurationMs.value)
+  return totalDurationMs.value === null ? 'Время уточняется' : formatDuration(totalDurationMs.value)
 })
 
 const kindOptions = getBookingKindOptions('car')
