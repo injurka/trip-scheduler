@@ -84,7 +84,7 @@ function formatDisplayDateTime(localDateTime?: string) {
   if (!localDateTime)
     return { time: '', date: '' }
   try {
-    const time = localDateTime.substring(11, 16) || 'Уточняется'
+    const time = localDateTime.substring(11, 16)
     const dateOnly = localDateTime.substring(0, 10)
     const dateObj = new Date(`${dateOnly}T12:00:00Z`)
     const dateStr = dateObj.toLocaleDateString('ru-RU', { day: 'numeric', month: 'short', weekday: 'short' })
@@ -136,7 +136,7 @@ const totalDurationFormatted = computed(() => {
     <div class="card-content">
       <div class="time-info">
         <div class="time">
-          {{ formatDisplayDateTime(booking.data.departureDateTime).time }}
+          {{ formatDisplayDateTime(booking.data.departureDateTime).time || '—' }}
         </div>
         <div class="station">
           {{ booking.data.departureStation }}
@@ -163,7 +163,7 @@ const totalDurationFormatted = computed(() => {
 
       <div class="time-info arrival">
         <div class="time">
-          {{ formatDisplayDateTime(booking.data.arrivalDateTime).time }}
+          {{ formatDisplayDateTime(booking.data.arrivalDateTime).time || '—' }}
         </div>
         <div class="station">
           {{ booking.data.arrivalStation }}
