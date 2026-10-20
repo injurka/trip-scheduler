@@ -251,6 +251,29 @@ export function extractExternalTrailLinks(text: string): ExternalTrailLink[] {
   return results
 }
 
+export function extractRouteTransportMode(url = ''): 'foot' | 'bike' | 'car' | 'transit' | undefined {
+  const queryMode = url.match(/[?&]travelmode=(walking|bicycling|driving|transit)(?:&|$)/i)?.[1]?.toLowerCase()
+  const dataMode = url.match(/!3e([0123])(?:!|[?&#]|$)/)?.[1]
+  if (queryMode)
+    return ({ walking: 'foot', bicycling: 'bike', driving: 'car', transit: 'transit' } as const)[queryMode as 'walking' | 'bicycling' | 'driving' | 'transit']
+  return ({ 0: 'car', 1: 'bike', 2: 'foot', 3: 'transit' } as Record<string, 'foot' | 'bike' | 'car' | 'transit'>)[dataMode || '']
+}
+
+/** Explicit route labels override the mode encoded in the map URL. */
+export function extractLabeledRouteMode(text: string, url: string): 'foot' | 'bike' | 'car' | 'transit' | undefined {
+  const line = text.split('\n').find(line => line.includes(url))
+  const label = line?.match(/Маршрут на карте\s*\(([^)]+)\)/i)?.[1]?.trim().toLowerCase()
+  if (label === 'пешком')
+    return 'foot'
+  if (label === 'велосипед')
+    return 'bike'
+  if (label === 'авто' || label === 'такси')
+    return 'car'
+  if (label && ['автобус', 'поезд', 'метро', 'общественный транспорт'].includes(label))
+    return 'transit'
+  return undefined
+}
+
 export interface ExtractedLocation {
   name: string
   query: string
@@ -414,7 +437,7 @@ export function extractLocationsFromText(text: string): ExtractedLocation[] {
   }
 
   // 1. Process explicit location lines (e.g. _Ссылка на локацию_:, _Локация_:, _Хайкинг-трек_:, _Велотрек_:)
-  const locLineRegex = /^[ \t]*(?:[*-][ \t]*)?(?:_[^_\n]*(?:локаци|карт|маршрут|maps?|ориентир|ссылка|хайкинг|трек|trail|точк|старт|финиш|вело|велотрек)[^_\n]*_|\*\*[^*\n]*(?:локаци|карт|маршрут|maps?|ориентир|ссылка|хайкинг|трек|trail|точк|старт|финиш|вело|велотрек)[^*\n]*\*\*):[ \t]*(.*)$/gmi
+  const locLineRegex = /^[ \t]*(?:[*-][ \t]*)?(?:_[^_\n]*(?:локаци|карт|маршрут|путь|maps?|ориентир|ссылка|хайкинг|трек|trail|точк|старт|финиш|вело|велотрек)[^_\n]*_|\*\*[^*\n]*(?:локаци|карт|маршрут|путь|maps?|ориентир|ссылка|хайкинг|трек|trail|точк|старт|финиш|вело|велотрек)[^*\n]*\*\*):[ \t]*(.*)$/gmi
   let locLineMatch: RegExpExecArray | null
   while ((locLineMatch = locLineRegex.exec(text)) !== null) {
     const lineContent = locLineMatch[1]

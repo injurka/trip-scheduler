@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import type { useGeolocationMap } from '../composables/use-geolocation-map'
-import type { ActivitySectionGeolocation, Coordinate, MapPoint, MapRoute } from '../models/types'
+import type { ActivitySectionGeolocation, Coordinate, MapPoint, MapRoute, TransportMode } from '../models/types'
 import { Icon } from '@iconify/vue'
 import { useDebounceFn } from '@vueuse/core'
 import { computed, nextTick, onMounted, onUnmounted, ref, shallowRef, toRaw, watch } from 'vue'
@@ -89,8 +89,8 @@ const debouncedUpdate = useDebounceFn(() => {
 
   emit('updateSection', {
     ...props.section,
-    points: toRaw(points.value),
-    routes: toRaw(routes.value),
+    points: JSON.parse(JSON.stringify(toRaw(points.value))),
+    routes: JSON.parse(JSON.stringify(toRaw(routes.value))),
     center: currentCenter ? [currentCenter.lng, currentCenter.lat] : props.section.center,
     zoom: currentZoom !== undefined ? Math.round(currentZoom) : props.section.zoom,
   })
@@ -262,6 +262,16 @@ function handleRouteUpdate(route: MapRoute) {
       setRouteTransportMode(route.id, route.transportMode)
     }
   }
+}
+
+function handleTransportModeChange(routeId: string, mode: TransportMode) {
+  void setRouteTransportMode(routeId, mode)
+  // Persist the selected mode immediately, independently of route calculation.
+  emit('updateSection', {
+    ...props.section,
+    points: JSON.parse(JSON.stringify(toRaw(points.value))),
+    routes: JSON.parse(JSON.stringify(toRaw(routes.value))),
+  })
 }
 
 function setActiveRoute(routeId: string | null) {
@@ -633,7 +643,7 @@ onUnmounted(() => {
             @delete-route="deleteRoute"
             @set-active-route="setActiveRoute"
             @refresh-address="refreshRoutePointAddress"
-            @set-transport-mode="setRouteTransportMode"
+            @set-transport-mode="handleTransportModeChange"
           />
         </template>
       </div>

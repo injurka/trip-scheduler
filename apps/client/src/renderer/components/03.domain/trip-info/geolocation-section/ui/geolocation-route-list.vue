@@ -35,6 +35,7 @@ const transportModes: Array<{ mode: TransportMode, icon: string, label: string }
   { mode: 'foot', icon: 'mdi:walk', label: 'Пешком' },
   { mode: 'bike', icon: 'mdi:bicycle', label: 'Велосипед' },
   { mode: 'car', icon: 'mdi:car', label: 'Авто' },
+  { mode: 'transit', icon: 'mdi:bus', label: 'Общественный транспорт' },
 ]
 
 function toggleRoute(routeId: string) {
@@ -65,6 +66,8 @@ function formatDuration(duration?: number): string {
 }
 
 function getTransportIcon(mode?: TransportMode): string {
+  if (mode === 'transit')
+    return 'mdi:bus'
   if (mode === 'car')
     return 'mdi:car'
   if (mode === 'bike')
@@ -152,6 +155,13 @@ function getDecoratedRoutePoints(route: MapRoute): MapPoint[] {
             </div>
 
             <div class="route-metrics">
+              <a
+                v-if="route.transportMode === 'transit' && route.points.find(p => p.externalUrl)?.externalUrl"
+                :href="route.points.find(p => p.externalUrl)?.externalUrl || undefined"
+                target="_blank"
+                rel="noopener noreferrer"
+                @click.stop
+              >В Google Maps</a>
               <span v-if="route.distance" class="metric-badge">
                 <Icon icon="mdi:map-marker-distance" class="metric-icon" />
                 {{ formatDistance(route.distance) }}

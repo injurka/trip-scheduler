@@ -16,6 +16,7 @@ function formatCoordsLabel(coords: Coordinate, prefix: string): string {
 export function useGeolocationRoutes(mapApiRef: Ref<GeolocationMapApi | undefined>) {
   const routes = ref<MapRoute[]>([])
   const isLoading = ref(false)
+  const routeRequests = new Map<string, symbol>()
 
   async function createNewRoute(startCoords: Coordinate, transportMode: TransportMode = 'foot') {
     const startPoint: MapPoint = {
@@ -173,10 +174,12 @@ export function useGeolocationRoutes(mapApiRef: Ref<GeolocationMapApi | undefine
       return
     }
 
+    const request = Symbol(routeId)
+    routeRequests.set(routeId, request)
     route.isFetching = true
     try {
       const routeData = await routingService.calculateRoute(route.points, route.transportMode || 'foot', route.id)
-      if (routeData) {
+      if (routeData && routeRequests.get(routeId) === request && routes.value.includes(route)) {
         route.geometry = routeData.geometry
         route.distance = routeData.distance
         route.duration = routeData.duration
@@ -190,7 +193,10 @@ export function useGeolocationRoutes(mapApiRef: Ref<GeolocationMapApi | undefine
       }
     }
     finally {
-      route.isFetching = false
+      if (routeRequests.get(routeId) === request) {
+        route.isFetching = false
+        routeRequests.delete(routeId)
+      }
     }
   }
 
@@ -199,6 +205,10 @@ export function useGeolocationRoutes(mapApiRef: Ref<GeolocationMapApi | undefine
     if (!route)
       return
     route.transportMode = mode
+    route.geometry = []
+    route.distance = 0
+    route.duration = 0
+    mapApiRef.value?.removeRoute(routeId)
     await updateRouteGeometry(routeId)
   }
 

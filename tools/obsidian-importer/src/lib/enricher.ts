@@ -9,7 +9,7 @@ import { existsSync } from 'node:fs'
 import { colors } from '../config/colors'
 import { dedentText } from '../parsers/activity'
 import { extractGalleryBlocks } from '../parsers/gallery'
-import { extractExternalTrailLinks, extractLocationsFromText } from '../parsers/location'
+import { extractExternalTrailLinks, extractLabeledRouteMode, extractLocationsFromText, extractRouteTransportMode } from '../parsers/location'
 import { geocodeLocation } from './geocode'
 import { stableId } from './stable-id'
 
@@ -252,7 +252,7 @@ export async function enrichActivityWithMediaAndLocation(
 
   // 4. Clean description: remove location lines, iframes, image callouts, wikilinks, and note callouts
   text = text
-    .replace(/^[ \t]*(?:[*-][ \t]*)?(?:_[^_\n]*(?:локаци|карт|маршрут|maps?|ориентир|ссылка|хайкинг|трек|trail|точк|старт|финиш|вело|велотрек)[^_\n]*_|\*\*[^*\n]*(?:локаци|карт|маршрут|maps?|ориентир|ссылка|хайкинг|трек|trail|точк|старт|финиш|вело|велотрек)[^*\n]*\*\*):[^\n]*\n?/gmi, '')
+    .replace(/^[ \t]*(?:[*-][ \t]*)?(?:_[^_\n]*(?:локаци|карт|маршрут|путь|maps?|ориентир|ссылка|хайкинг|трек|trail|точк|старт|финиш|вело|велотрек)[^_\n]*_|\*\*[^*\n]*(?:локаци|карт|маршрут|путь|maps?|ориентир|ссылка|хайкинг|трек|trail|точк|старт|финиш|вело|велотрек)[^*\n]*\*\*):[^\n]*\n?/gmi, '')
     .replace(/<iframe[^>]*src=["'](?:https?:)?\/\/[^"']*["'][^>]*>\s*<\/iframe>/gi, '')
     .replace(/<iframe[^>]*>[\s\S]*?<\/iframe>/gi, '')
     .replace(/\[(?:Yandex Maps|Google Maps|2GIS|OpenStreetMap|AllTrails|Hikingbook|Карты Yandex|Карты Google|Карты|Maps|Трек|Маршрут|Велотрек|Веломаршрут)[^\]]+\]\([^)]+\)/gi, '')
@@ -376,7 +376,7 @@ export async function enrichActivityWithMediaAndLocation(
           id: stableId('activity-route', act.startTime, routeName),
           title: routeName,
           points: orderedPts,
-          transportMode: isBike ? 'bike' : 'foot',
+          transportMode: extractLabeledRouteMode(accumulatedDescription, pts.find(p => p.externalUrl)?.externalUrl || '') || extractRouteTransportMode(pts.find(p => p.externalUrl)?.externalUrl || undefined) || (isBike ? 'bike' : 'foot'),
           isVisible: true,
           isFetching: false,
         })
@@ -559,7 +559,22 @@ export async function enrichActivityWithMediaAndLocation(
           const trainDate = booking.data.departureDateTime?.split('T')[0]
           const isDateMatch = !currentDayDate || !trainDate || currentDayDate === trainDate
 
-          if (trainNum && actText.includes(trainNum) && isDateMatch) {
+          // Only visible prose can identify a train; URL coordinates often contain its number.
+          const trainText = `${act.title} ${accumulatedDescription}`
+            .replace(/<[^>]*>/g, ' ')
+            .replace(/https?:\/\/[^\s)<>]+/g, ' ')
+            .toLowerCase()
+          const escapedNumber = trainNum?.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+          const numberMatch = !!escapedNumber && new RegExp(`(?<![\\p{L}\\p{N}])${escapedNumber}(?![\\p{L}\\p{N}])`, 'u').test(trainText)
+          const overlaps = flightSegmentOverlapsActivity(act, currentDayDate, booking.data.departureDateTime, booking.data.arrivalDateTime)
+          const departureCity = booking.data.departureStation?.toLowerCase()
+          const arrivalCity = booking.data.arrivalStation?.toLowerCase()
+          const routeMatch = /(?:поезд|train|thsr|tra\b)/iu.test(act.title)
+            && !!departureCity && !!arrivalCity
+            && trainText.includes(departureCity) && trainText.includes(arrivalCity)
+            && overlaps === true
+
+          if (isDateMatch && overlaps !== false && (numberMatch || routeMatch)) {
             isMatched = true
           }
         }

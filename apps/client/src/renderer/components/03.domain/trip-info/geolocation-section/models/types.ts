@@ -22,7 +22,7 @@ export interface MapPoint {
   externalUrl?: string | null
 }
 
-export type TransportMode = 'foot' | 'bike' | 'car'
+export type TransportMode = 'foot' | 'bike' | 'car' | 'transit'
 
 export interface MapRoute {
   id: string

@@ -43,7 +43,7 @@ const MapRouteSchema = z.object({
   title: z.string(),
   points: z.array(MapPointSchema),
   color: z.string().optional(),
-  transportMode: z.enum(['foot', 'bike', 'car']).optional(),
+  transportMode: z.enum(['foot', 'bike', 'car', 'transit']).optional(),
   distance: z.number().optional(),
   duration: z.number().optional(),
   geometry: z.array(CoordinateSchema).optional(),

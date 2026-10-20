@@ -17,7 +17,6 @@ const OSRM_ENDPOINTS: Record<string, string> = {
   foot: 'https://routing.openstreetmap.de/routed-foot/route/v1/foot',
   walk: 'https://routing.openstreetmap.de/routed-foot/route/v1/foot',
   bike: 'https://routing.openstreetmap.de/routed-bike/route/v1/bicycle',
-  transit: 'https://routing.openstreetmap.de/routed-bike/route/v1/bicycle',
   car: 'https://routing.openstreetmap.de/routed-car/route/v1/driving',
 }
 
@@ -67,6 +66,15 @@ class RoutingService {
       }
     }
 
+    if (routeId) {
+      this.activeControllers.get(routeId)?.abort()
+      this.activeControllers.delete(routeId)
+    }
+    // No timetable provider: preserve waypoints without inventing a bus route or ETA.
+    if (mode === 'transit') {
+      return { geometry: coords, distance: 0, duration: 0, isDirect: true }
+    }
+
     const cacheKey = this.getCacheKey(coords, mode)
     const cached = this.routeCache.get(cacheKey)
     if (cached) {
@@ -89,12 +97,12 @@ class RoutingService {
     try {
       const response = await fetch(url, { signal })
       if (!response.ok) {
-        return this.createDirectFallback(coords)
+        return this.createDirectFallback(coords, mode)
       }
 
       const data = await response.json()
       if (data.code !== 'Ok' || !data.routes || data.routes.length === 0) {
-        return this.createDirectFallback(coords)
+        return this.createDirectFallback(coords, mode)
       }
 
       const route = data.routes[0]
@@ -118,7 +126,7 @@ class RoutingService {
         throw error
       }
       console.warn('[RoutingService] Fallback to direct path:', error)
-      return this.createDirectFallback(coords)
+      return this.createDirectFallback(coords, mode)
     }
     finally {
       if (routeId && this.activeControllers.get(routeId)?.signal === signal) {
@@ -141,14 +149,14 @@ class RoutingService {
     return R * c
   }
 
-  private createDirectFallback(coords: [number, number][]): CalculatedRoute {
+  private createDirectFallback(coords: [number, number][], mode: RoutingTransportMode): CalculatedRoute {
     let distance = 0
     for (let i = 0; i < coords.length - 1; i++) {
       distance += this.calculateHaversineDistance(coords[i], coords[i + 1])
     }
     const roundedDistance = Math.round(distance)
     // Оценка пешего времени: ~4.5 км/ч (1.25 м/с)
-    const duration = Math.round(roundedDistance / 1.25)
+    const duration = mode === 'foot' || mode === 'walk' ? Math.round(roundedDistance / 1.25) : 0
 
     return {
       geometry: coords,
