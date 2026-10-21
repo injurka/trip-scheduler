@@ -70,19 +70,19 @@ export default defineConfig({
     dedupe: ['vue', 'vue-router', 'pinia', 'react', 'react-dom', 'react/jsx-runtime', 'react/jsx-dev-runtime'],
     alias: {
       '~': fileURLToPath(new URL('../src/renderer', import.meta.url)),
-      '@limiteddissolve/kit-image-viewer': resolve(__dirname, '../../../packages/kit-image-viewer/src/index.ts'),
+      '@limiteddissolve/kit-image-viewer': resolve(import.meta.dirname, '../../../packages/kit-image-viewer/src/index.ts'),
       'react': path.dirname(require.resolve('react/package.json')),
       'react-dom': path.dirname(require.resolve('react-dom/package.json')),
     },
   },
   build: {
     cssCodeSplit: true,
-    outDir: resolve(__dirname, '../dist'),
+    outDir: resolve(import.meta.dirname, '../dist'),
     emptyOutDir: true,
     chunkSizeWarningLimit: 800,
     rollupOptions: {
       input: {
-        main: resolve(__dirname, '../src/renderer/index.html'),
+        main: resolve(import.meta.dirname, '../src/renderer/index.html'),
       },
       output: {
         manualChunks(id) {

@@ -1,3 +1,4 @@
+import type { UploadedDocumentLink } from '../lib/document-links'
 import type { ActivityPayload, Booking } from '../types'
 import process from 'node:process'
 import { colors } from '../config/colors'
@@ -13,6 +14,7 @@ import {
   saveGeocodeCache,
   saveLlmCache,
 } from '../lib/cache'
+import { convertActivityDocumentLinks } from '../lib/document-links'
 import { enrichActivityWithMediaAndLocation } from '../lib/enricher'
 import { buildGpxIndex } from '../lib/gpx-indexer'
 import { buildImageIndex } from '../lib/image-indexer'
@@ -595,6 +597,7 @@ export async function runImport(): Promise<void> {
 
   // 5. Upload Personal Documents
   let totalDocumentsUploaded = 0
+  const uploadedDocumentLinks: UploadedDocumentLink[] = []
   if (importDocuments && tripData.documents && tripData.documents.length > 0) {
     console.log(`\n${colors.dim}📁 Загрузка документов (${tripData.documents.length} шт.)...${colors.reset}`)
 
@@ -635,9 +638,10 @@ export async function runImport(): Promise<void> {
     for (const doc of tripData.documents) {
       try {
         const folderId = doc.folderName ? folderMap.get(doc.folderName.trim().toLowerCase()) || null : null
-        const alreadyUploaded = existingDocs.find(d => d.originalName === doc.fileName)
+        const alreadyUploaded = existingDocs.find(d => d.originalName === doc.fileName && tripData.documents!.filter(item => item.fileName === doc.fileName).length === 1)
 
         if (alreadyUploaded) {
+          uploadedDocumentLinks.push({ filePath: doc.filePath, url: alreadyUploaded.url })
           const currentFolderId = alreadyUploaded.metadata?.folderId ?? null
           const currentCategory = alreadyUploaded.metadata?.category ?? null
           const currentAccess = alreadyUploaded.metadata?.access ?? null
@@ -668,12 +672,13 @@ export async function runImport(): Promise<void> {
           continue
         }
 
-        await api.uploadImage(createdTrip.id, doc.filePath, 'documents', {
+        const uploadedUrl = await api.uploadImage(createdTrip.id, doc.filePath, 'documents', {
           access: doc.access,
           folderId,
           title: doc.title,
           category: doc.category,
         })
+        uploadedDocumentLinks.push({ filePath: doc.filePath, url: uploadedUrl })
         totalDocumentsUploaded++
         const accessLabel = doc.access === 'private' ? 'личный/private' : 'публичный/public'
         console.log(`  ${colors.green}✔ Загружен документ:${colors.reset} ${doc.fileName} ${colors.dim}(Папка: ${doc.folderName || 'Корень'}, Категория: ${doc.category}, Доступ: ${accessLabel})${colors.reset}`)
@@ -874,7 +879,7 @@ export async function runImport(): Promise<void> {
             startTime: act.startTime,
             endTime: act.endTime,
             tag: act.tag,
-            sections: act.sections || [],
+            sections: convertActivityDocumentLinks(act, targetDir, uploadedDocumentLinks) || [],
           }
           if (existingActivity)
             await api.updateActivity({ id: existingActivity.id, ...activityPayload })

@@ -2,6 +2,9 @@
 import type { ActivitySectionText } from '~/shared/types/models/activity'
 import { KitInlineMdEditorWrapper } from '~/components/01.kit/kit-inline-md-editor'
 import { useModuleStore } from '~/components/05.modules/trip-info/composables/use-trip-info-module'
+import { getDocumentLinkPath } from '~/shared/lib/document-link'
+import { openExternalUrl } from '~/shared/lib/opener'
+import { resolveApiUrl } from '~/shared/lib/url'
 
 interface Props {
   section: ActivitySectionText
@@ -15,13 +18,25 @@ const { isViewMode } = storeToRefs(store.ui)
 
 const sectionModel = ref<string>(props.section.text)
 
+function handleDocumentClick(event: MouseEvent) {
+  const link = (event.target as Element).closest<HTMLAnchorElement>('a')
+  const href = link?.getAttribute('href')
+  if (!href?.startsWith('#trip-document='))
+    return
+  event.preventDefault()
+  event.stopPropagation()
+  const path = getDocumentLinkPath(href)
+  if (path)
+    void openExternalUrl(resolveApiUrl(path))
+}
+
 function handleInlineEditorBlur() {
   emit('updateSection', { ...props.section, text: sectionModel.value })
 }
 </script>
 
 <template>
-  <div class="description-section">
+  <div class="description-section" @click.capture="handleDocumentClick">
     <KitInlineMdEditorWrapper
       v-model="sectionModel"
       :readonly="isViewMode"

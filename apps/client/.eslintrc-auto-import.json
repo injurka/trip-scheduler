@@ -86,6 +86,7 @@
     "getCurrentWatcher": true,
     "getCustomTileName": true,
     "getCustomTileUrl": true,
+    "getDocumentLinkPath": true,
     "getEffectiveMapTilerKey": true,
     "getImageUrl": true,
     "getLocalDate": true,

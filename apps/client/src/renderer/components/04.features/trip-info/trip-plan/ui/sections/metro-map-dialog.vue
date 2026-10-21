@@ -2,6 +2,7 @@
 import type { MetroSystemDetails } from '../../lib/metro-route'
 import type { MetroRide } from '~/shared/types/models/activity'
 import { Icon } from '@iconify/vue'
+import { KitBtn } from '~/components/01.kit/kit-btn'
 import { KitDialogWithClose } from '~/components/01.kit/kit-dialog-with-close'
 import { KitMap } from '~/components/01.kit/kit-map'
 import { KitViewSwitcher } from '~/components/01.kit/kit-view-switcher'
@@ -10,6 +11,7 @@ import { getMetroGeometry, getMetroRidePath } from '../../lib/metro-route'
 const props = defineProps<{ system: MetroSystemDetails | null, rides: MetroRide[] }>()
 const visible = defineModel<boolean>('visible', { required: true })
 const scope = ref<'network' | 'rides'>('network')
+const showStationNames = ref(true)
 const mappedLines = computed(() => (props.system?.lines || []).flatMap((line) => {
   if (scope.value === 'network') {
     const geometry = getMetroGeometry(line.isCircular ? [...line.stations, line.stations[0]!] : line.stations)
@@ -21,13 +23,19 @@ const mappedLines = computed(() => (props.system?.lines || []).flatMap((line) =>
     return path && geometry ? [{ id: ride.id, title: line.name, lineNumber: line.lineNumber, color: line.color, geometry, stations: path.stations }] : []
   })
 }))
+const mapCenter = computed<[number, number]>(() => {
+  const station = mappedLines.value[0]?.stations[0]
+  return station ? [station.longitude!, station.latitude!] : [0, 0]
+})
 const markers = computed(() => [...new Map(mappedLines.value.flatMap(line => line.stations.map(station => [station.id, {
   id: station.id,
   title: station.name,
   coords: { lat: station.latitude!, lon: station.longitude! },
   color: line.color,
   pointType: 'poi' as const,
-  scale: 0.45,
+  shape: 'circle' as const,
+  showLabel: showStationNames.value,
+  scale: 1,
 }] as const))).values()])
 const legend = computed(() => [...new Map(mappedLines.value.map((mapped) => {
   const groupKey = `${mapped.lineNumber || mapped.title}|${mapped.color}`
@@ -46,15 +54,24 @@ watch(visible, (open) => {
     <div class="metro-map">
       <div class="toolbar">
         <KitViewSwitcher v-model="scope" :items="[{ id: 'network', label: 'Вся сеть', icon: 'mdi:transit-connection-variant' }, { id: 'rides', label: 'Мой маршрут', icon: 'mdi:map-marker-path' }]" />
-        <span class="map-hint" title="Станции соединены по порядку. Расположение линий между станциями показано схематично.">
-          <Icon icon="mdi:information-outline" /> Схема по станциям
-        </span>
+        <KitBtn
+          class="labels-toggle"
+          variant="text"
+          color="secondary"
+          size="sm"
+          role="switch"
+          :aria-checked="showStationNames"
+          @click="showStationNames = !showStationNames"
+        >
+          <span class="toggle-track" aria-hidden="true"><span class="toggle-thumb" /></span>
+          Названия станций
+        </KitBtn>
       </div>
       <p v-if="incomplete" class="map-notice" role="status">
         <Icon icon="mdi:information-outline" /> Выберите линию и станции для всех отрезков маршрута.
       </p>
       <div class="map-canvas">
-        <KitMap v-if="markers.length" :key="scope" :center="[markers[0]!.coords.lon, markers[0]!.coords.lat]" :markers="markers" :routes="mappedLines" height="min(56dvh, 580px)" />
+        <KitMap v-if="markers.length" :key="scope" :center="mapCenter" :markers="markers" :routes="mappedLines" height="min(56dvh, 580px)" />
         <div v-else class="empty-state">
           <Icon icon="mdi:map-marker-path" />
           <span>Выберите станции, чтобы увидеть маршрут</span>
@@ -94,12 +111,39 @@ watch(visible, (open) => {
     width: fit-content;
   }
 }
-.map-hint {
+.labels-toggle {
+  font-size: 0.8rem;
+
+  :deep(.kit-btn-content) {
+    gap: 8px;
+  }
+
+  &[aria-checked='true'] {
+    .toggle-track {
+      background-color: var(--fg-accent-color);
+    }
+    .toggle-thumb {
+      transform: translateX(12px);
+    }
+  }
+}
+.toggle-track {
   display: inline-flex;
   align-items: center;
-  gap: 6px;
-  font-size: 0.75rem;
-  color: var(--fg-secondary-color);
+  width: 32px;
+  height: 20px;
+  padding: 3px;
+  box-sizing: border-box;
+  border-radius: 999px;
+  background-color: var(--fg-tertiary-color);
+  transition: background-color 0.2s;
+}
+.toggle-thumb {
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  background-color: #fff;
+  transition: transform 0.2s;
 }
 .map-canvas {
   overflow: hidden;
@@ -163,9 +207,6 @@ watch(visible, (open) => {
   .legend {
     grid-template-columns: repeat(2, minmax(0, 1fr));
     gap: 8px 12px;
-  }
-  .map-hint {
-    display: none;
   }
   .toolbar {
     justify-content: center;

@@ -38,10 +38,10 @@ export function useDocumentFilters(
     return DOCUMENT_SORT_OPTIONS.find(o => o.id === sortOption.value)?.label || 'Сортировка'
   })
 
-  // Количество документов в каждой категории (с учетом текущей папки, если поиск не активен)
+  // Количество документов в каждой категории (с учетом папки, если она открыта)
   const categoryCounts = computed(() => {
     const map = new Map<DocumentCategory, number>()
-    const relevantDocs = searchQuery.value.trim()
+    const relevantDocs = searchQuery.value.trim() || !currentFolderId.value
       ? documents.value
       : documents.value.filter(d => d.folderId === currentFolderId.value)
 
@@ -55,8 +55,8 @@ export function useDocumentFilters(
   const filteredDocuments = computed(() => {
     let list = documents.value
 
-    // Фильтр по папке (если не ведется глобальный поиск)
-    if (!searchQuery.value.trim()) {
+    // В корне показываем все документы поездки; выбранная папка ограничивает список.
+    if (!searchQuery.value.trim() && currentFolderId.value) {
       list = list.filter(d => d.folderId === currentFolderId.value)
     }
 

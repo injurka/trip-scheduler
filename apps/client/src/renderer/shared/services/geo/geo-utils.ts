@@ -57,6 +57,7 @@ export interface MarkerStyleOptions {
   scale?: number
   opacity?: number
   zIndex?: number
+  shape?: 'pin' | 'circle'
   isConnect?: boolean
   pointType?: 'start' | 'via' | 'end' | 'connect' | 'poi'
   label?: string
@@ -71,20 +72,34 @@ export function createMarkerElement(options: MarkerStyleOptions = {}): HTMLEleme
     scale = 1.0,
     opacity = 1.0,
     zIndex = 20,
+    shape = 'pin',
     isConnect = false,
     pointType,
   } = options
 
   const isConnectPoint = isConnect || pointType === 'connect'
   const container = document.createElement('div')
-  container.className = isConnectPoint ? 'maplibre-marker-connect' : 'maplibre-marker-pin'
+  container.className = isConnectPoint ? 'maplibre-marker-connect' : `maplibre-marker-${shape}`
   container.classList.add(`is-${pointType || (isConnectPoint ? 'connect' : 'poi')}`)
   container.style.cursor = 'pointer'
   container.style.opacity = String(opacity)
   container.style.zIndex = String(zIndex)
   container.style.transition = 'none'
 
-  if (isConnectPoint) {
+  if (shape === 'circle' && !isConnectPoint) {
+    container.style.setProperty('--marker-color', color)
+    container.style.setProperty('--marker-size', `${Math.round(10 * scale)}px`)
+    if (options.label) {
+      const label = document.createElement('span')
+      label.className = 'station-label'
+      label.textContent = options.label
+      container.append(label)
+      container.tabIndex = 0
+      container.setAttribute('role', 'img')
+      container.setAttribute('aria-label', options.label)
+    }
+  }
+  else if (isConnectPoint) {
     container.innerHTML = `
       <div class="connect-marker-inner" style="
         width: ${Math.round(13 * scale)}px;

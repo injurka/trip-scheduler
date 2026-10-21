@@ -45,8 +45,11 @@ const hasMapData = computed(() => activeSystemDetails.value?.lines.some(line => 
 function ridePath(ride: MetroRide) {
   return getMetroRidePath(activeSystemDetails.value?.lines.find(line => line.id === ride.lineId), ride.startStationId, ride.endStationId)
 }
+function intermediateStations(ride: MetroRide) {
+  return ridePath(ride)?.stations.slice(1, -1) || []
+}
 function getStops(ride: MetroRide) {
-  return sectionData.value.mode === 'city' ? (ridePath(ride)?.stops ?? 0) : ride.stops
+  return sectionData.value.mode === 'city' ? (ridePath(ride)?.stops ?? ride.stops) : ride.stops
 }
 
 const isLoadingSystems = ref(false)
@@ -68,7 +71,20 @@ function getStationOptionsForLine(lineId: string | null): KitDropdownItem<string
 }
 
 function getDirectionText(ride: MetroRide): string {
-  return sectionData.value.mode === 'city' ? (ridePath(ride)?.direction || 'Выберите разные станции') : (ride.direction || '...')
+  if (sectionData.value.mode !== 'city')
+    return ride.direction || '...'
+  const path = ridePath(ride)
+  if (path)
+    return path.direction
+  if (!activeSystemDetails.value)
+    return ride.direction || (isLoadingDetails.value ? 'Загрузка маршрута…' : 'Направление не указано')
+  if (props.readonly)
+    return ride.direction || 'Маршрут недоступен'
+  if (!ride.lineId || !ride.startStationId || !ride.endStationId)
+    return 'Выберите линию и станции'
+  return ride.startStationId === ride.endStationId
+    ? 'Выберите разные станции'
+    : 'Станции не найдены на выбранной линии'
 }
 
 async function fetchMetroSystems() {
@@ -210,7 +226,7 @@ watch(() => [sectionData.value.systemId, sectionData.value.mode] as const, ([id]
 </script>
 
 <template>
-  <div class="metro-section">
+  <div class="metro-section" :class="{ 'with-map': sectionData.mode === 'city' }">
     <div v-if="!readonly" class="controls-header">
       <KitViewSwitcher
         :model-value="sectionData.mode"
@@ -236,9 +252,21 @@ watch(() => [sectionData.value.systemId, sectionData.value.mode] as const, ([id]
     <p v-if="sectionData.mode === 'city' && activeSystemDetails && !activeSystemDetails.lines.length">
       В этом городе пока нет линий метро.
     </p>
-    <KitBtn v-if="sectionData.mode === 'city' && hasMapData" variant="subtle" icon="mdi:map-outline" @click="showMap = true">
-      Просмотр на карте
-    </KitBtn>
+    <KitBtn
+      v-if="sectionData.mode === 'city'"
+      class="map-button"
+      color="secondary"
+      :disabled="!hasMapData"
+      variant="text"
+      icon="mdi:map-search-outline"
+      size="sm"
+      aria-label="На карте"
+      :title="hasMapData ? 'На карте' : 'Карта этого метро пока недоступна'"
+      @click="showMap = true"
+    />
+    <span v-if="sectionData.mode === 'city' && !isLoadingDetails && activeSystemDetails?.lines.length && !hasMapData" class="map-unavailable">
+      Карта этого метро пока недоступна
+    </span>
     <MetroMapDialog v-model:visible="showMap" :system="activeSystemDetails" :rides="sectionData.rides" />
 
     <div class="rides-container">
@@ -288,7 +316,23 @@ watch(() => [sectionData.value.systemId, sectionData.value.mode] as const, ([id]
                 <div class="path-line" />
                 <div class="path-details">
                   <span>{{ getDirectionText(ride) }}</span>
-                  <span v-if="getStops(ride) > 0">{{ getStops(ride) }} ост.</span>
+                  <div class="stops-row">
+                    <span v-if="sectionData.mode === 'free' && getStops(ride) > 0" class="stops-count">{{ getStops(ride) }} ост.</span>
+                    <details
+                      v-if="sectionData.mode === 'city' && intermediateStations(ride).length"
+                      class="station-list"
+                    >
+                      <summary>
+                        Промежуточные станции · {{ getStops(ride) - 1 }}
+                        <Icon icon="mdi:chevron-down" class="expand-icon" />
+                      </summary>
+                      <ol aria-label="Промежуточные станции">
+                        <li v-for="station in intermediateStations(ride)" :key="station.id">
+                          {{ station.name }}
+                        </li>
+                      </ol>
+                    </details>
+                  </div>
                 </div>
               </div>
               <div class="station end">
@@ -315,19 +359,79 @@ watch(() => [sectionData.value.systemId, sectionData.value.mode] as const, ([id]
 </template>
 
 <style scoped lang="scss">
+.map-button {
+  position: absolute;
+  right: 12px;
+  top: 50%;
+  transform: translateY(-50%);
+  color: var(--fg-tertiary-color);
+}
+.map-unavailable {
+  font-size: 0.8rem;
+  color: var(--fg-secondary-color);
+}
+.stops-row {
+  min-height: 1.5em;
+  line-height: 1.5;
+}
+.station-list {
+  margin: 0;
+
+  summary {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    width: fit-content;
+    cursor: pointer;
+    color: var(--fg-primary-color);
+    list-style: none;
+
+    &::-webkit-details-marker {
+      display: none;
+    }
+
+    &:focus-visible {
+      outline: 2px solid var(--fg-accent-color);
+      outline-offset: 4px;
+      border-radius: var(--r-s);
+    }
+  }
+
+  .expand-icon {
+    transition: transform 0.2s;
+  }
+
+  &[open] .expand-icon {
+    transform: rotate(180deg);
+  }
+
+  ol {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    margin: 12px 0;
+    padding: 0 0 0 18px;
+    list-style: circle;
+    line-height: 1.5;
+  }
+}
 .city-ride-summary {
   grid-column: 1 / -1;
   font-size: 0.8rem;
   color: var(--fg-secondary-color);
 }
 .metro-section {
+  position: relative;
   background-color: var(--bg-secondary-color);
   border: 1px solid var(--border-secondary-color);
   border-radius: var(--r-m);
-  padding: 16px;
+  padding: 8px 16px;
   display: flex;
   flex-direction: column;
   gap: 16px;
+}
+.metro-section.with-map {
+  padding-right: 60px;
 }
 .controls-header {
   display: flex;
@@ -491,7 +595,7 @@ watch(() => [sectionData.value.systemId, sectionData.value.mode] as const, ([id]
   display: flex;
   flex-direction: column;
 
-  :last-child {
+  .stops-count {
     font-style: italic;
   }
 }

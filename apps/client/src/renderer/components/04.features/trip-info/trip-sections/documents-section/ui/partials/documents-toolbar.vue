@@ -107,6 +107,10 @@ const emit = defineEmits<{
   flex: 0 1 300px;
   min-width: 180px;
 
+  :deep(input) {
+    background-color: var(--bg-primary-color);
+  }
+
   .search-icon {
     color: var(--fg-tertiary-color);
   }

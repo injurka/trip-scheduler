@@ -1,4 +1,5 @@
 import type { FinancesSectionContent } from '../types'
+import type { UploadedDocumentLink } from './document-links'
 import type { Transport } from './transport'
 import process from 'node:process'
 import { colors } from '../config/colors'
@@ -8,6 +9,7 @@ import { parseActivitiesFromMarkdown, stripFrontmatter } from '../parsers/activi
 import { parseObsidianTripFolder } from '../parsers/vault'
 import { resolveAndUploadBookingPhotos } from './booking-media'
 import { computeDayLlmHash, loadGeocodeCache, loadLlmCache, saveGeocodeCache, saveLlmCache } from './cache'
+import { convertActivityDocumentLinks } from './document-links'
 import { enrichActivityWithMediaAndLocation } from './enricher'
 import { buildGpxIndex } from './gpx-indexer'
 import { buildImageIndex } from './image-indexer'
@@ -343,6 +345,7 @@ export async function importTripFolderCore(
 
     // 5. Documents
     let documentsUploaded = 0
+    const uploadedDocumentLinks: UploadedDocumentLink[] = []
     if (importDocuments && tripData.documents && tripData.documents.length > 0 && transport.uploadImage) {
       progress?.('documents', `Загрузка документов (${tripData.documents.length} шт.)`)
       log?.(`Загрузка документов (${tripData.documents.length} шт.)...`)
@@ -386,9 +389,10 @@ export async function importTripFolderCore(
       for (const doc of tripData.documents) {
         try {
           const folderId = doc.folderName ? folderMap.get(doc.folderName.trim().toLowerCase()) || null : null
-          const alreadyUploaded = existingDocs.find(d => d.originalName === doc.fileName)
+          const alreadyUploaded = existingDocs.find(d => d.originalName === doc.fileName && tripData.documents!.filter(item => item.fileName === doc.fileName).length === 1)
 
           if (alreadyUploaded) {
+            uploadedDocumentLinks.push({ filePath: doc.filePath, url: alreadyUploaded.url })
             const currentFolderId = alreadyUploaded.metadata?.folderId ?? null
             const currentCategory = alreadyUploaded.metadata?.category ?? null
             const currentAccess = alreadyUploaded.metadata?.access ?? null
@@ -415,12 +419,13 @@ export async function importTripFolderCore(
             continue
           }
 
-          await transport.uploadImage(createdTrip.id, doc.filePath, 'documents', {
+          const uploadedUrl = await transport.uploadImage(createdTrip.id, doc.filePath, 'documents', {
             access: doc.access,
             folderId,
             title: doc.title,
             category: doc.category,
           })
+          uploadedDocumentLinks.push({ filePath: doc.filePath, url: uploadedUrl })
           documentsUploaded++
           const accessLabel = doc.access === 'private' ? 'личный/private' : 'публичный/public'
           log?.(`  ✔ Загружен документ: ${doc.fileName} (${accessLabel})`)
@@ -561,7 +566,7 @@ export async function importTripFolderCore(
               startTime: act.startTime,
               endTime: act.endTime,
               tag: act.tag,
-              sections: act.sections || [],
+              sections: convertActivityDocumentLinks(act, targetDir, uploadedDocumentLinks) || [],
             })
             activitiesCreated++
           }

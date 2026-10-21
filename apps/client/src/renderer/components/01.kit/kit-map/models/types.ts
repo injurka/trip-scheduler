@@ -23,6 +23,8 @@ export interface MapMarker {
   payload?: any
   color?: string
   pointType?: 'start' | 'via' | 'end' | 'connect' | 'poi'
+  shape?: 'pin' | 'circle'
+  showLabel?: boolean
   scale?: number
   label?: string
   comment?: string

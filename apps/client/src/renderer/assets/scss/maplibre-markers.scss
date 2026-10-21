@@ -4,6 +4,50 @@
    ========================================================================== */
 
 /* 1. Корневые контейнеры маркеров MapLibre */
+.maplibre-marker-circle {
+  display: grid;
+  place-items: center;
+  width: 28px;
+  height: 28px;
+
+  &::before {
+    content: '';
+    box-sizing: border-box;
+    width: var(--marker-size, 10px);
+    height: var(--marker-size, 10px);
+    border: 2px solid #fff;
+    border-radius: 50%;
+    background-color: var(--marker-color);
+  }
+
+  .station-label {
+    display: none;
+    position: absolute;
+    left: calc(50% + 10px);
+    top: 50%;
+    transform: translateY(-50%);
+    padding: 3px 6px;
+    border-radius: 4px;
+    background: var(--bg-primary-color);
+    color: var(--fg-primary-color);
+    box-shadow: 0 1px 4px #0002;
+    font: 500 11px/1.4 var(--font-base, sans-serif);
+    white-space: nowrap;
+    pointer-events: none;
+  }
+
+  &.show-label .station-label,
+  &:hover .station-label,
+  &:focus-visible .station-label {
+    display: block;
+  }
+
+  &:hover,
+  &:focus-visible {
+    z-index: 50 !important;
+  }
+}
+
 .maplibre-marker-pin {
   user-select: none;
   pointer-events: auto;

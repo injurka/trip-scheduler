@@ -44,13 +44,14 @@ export function useKitMap() {
           color: marker.color || '#3399CC',
           scale: marker.scale || 1.1,
           pointType: marker.pointType || 'poi',
+          shape: marker.shape,
           isConnect,
-          label: marker.label,
+          label: marker.shape === 'circle' ? marker.title : marker.label,
         })
 
         markerInstance = new maplibregl.Marker({
           element: el,
-          anchor: isConnect ? 'center' : 'bottom',
+          anchor: isConnect || marker.shape === 'circle' ? 'center' : 'bottom',
         }).setLngLat([marker.coords.lon, marker.coords.lat])
 
         if (marker.imageUrl) {
@@ -75,7 +76,7 @@ export function useKitMap() {
             ? marker.comment!
             : (marker.pointType !== 'connect' && marker.address && marker.address.trim() !== '' ? marker.address : (marker.title || ''))
 
-          if (popupText && marker.pointType !== 'connect') {
+          if (popupText && marker.pointType !== 'connect' && marker.shape !== 'circle') {
             const popupElement = document.createElement('div')
             popupElement.className = 'ol-popup-comment'
             popupElement.textContent = popupText
@@ -111,6 +112,7 @@ export function useKitMap() {
       else {
         markerInstance.setLngLat([marker.coords.lon, marker.coords.lat])
       }
+      markerInstance.getElement().classList.toggle('show-label', Boolean(marker.showLabel))
     })
   }
 
