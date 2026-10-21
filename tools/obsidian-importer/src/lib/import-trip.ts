@@ -9,6 +9,7 @@ import { parseObsidianTripFolder } from '../parsers/vault'
 import { resolveAndUploadBookingPhotos } from './booking-media'
 import { computeDayLlmHash, loadGeocodeCache, loadLlmCache, saveGeocodeCache, saveLlmCache } from './cache'
 import { enrichActivityWithMediaAndLocation } from './enricher'
+import { buildGpxIndex } from './gpx-indexer'
 import { buildImageIndex } from './image-indexer'
 import { generateActivitiesViaDirectLlm, mergeLlmActivitiesWithRawMarkdown } from './llm'
 
@@ -126,6 +127,7 @@ export async function importTripFolderCore(
 
     const uploadCache = new Map<string, string>()
     const imageIndex = uploadImages ? buildImageIndex(targetDir) : new Map<string, string>()
+    const gpxIndex = buildGpxIndex(targetDir)
 
     if (tripData.bookingsContent?.bookings && tripData.bookingsContent.bookings.length > 0) {
       const uploader = transport.uploadImage ? { uploadImage: transport.uploadImage.bind(transport) } : null
@@ -534,6 +536,8 @@ export async function importTripFolderCore(
                 locationContext,
                 bookings: createdBookings,
                 dayDate: day.date,
+                gpxIndex,
+                onProgress: log,
               },
             )
             enrichedActivities.push(enriched)

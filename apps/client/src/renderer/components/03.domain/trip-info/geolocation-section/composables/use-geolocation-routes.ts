@@ -215,7 +215,14 @@ export function useGeolocationRoutes(mapApiRef: Ref<GeolocationMapApi | undefine
   async function setInitialRoutes(initialRoutes?: MapRoute[]) {
     routes.value = JSON.parse(JSON.stringify(initialRoutes || []))
 
-    const routeUpdatePromises = routes.value.map((route) => {
+    const routeUpdatePromises = routes.value.map(async (route) => {
+      // Импортированные треки (GPX) уже несут полную геометрию. Не пересчитывать её
+      // через routing-сервис: OSRM заменил бы фирменный трек дорожным маршрутом
+      // между стартом и финишем. Пересчёт остаётся для явных правок пользователя.
+      if (route.geometry && route.geometry.length >= 2) {
+        mapApiRef.value?.addOrUpdateRoute(route)
+        return
+      }
       return updateRouteGeometry(route.id)
     })
     await Promise.all(routeUpdatePromises)

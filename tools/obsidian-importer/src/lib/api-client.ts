@@ -2,6 +2,71 @@ import type { ActivityPayload } from '../types'
 import { readFileSync } from 'node:fs'
 import { basename } from 'node:path'
 
+export interface ValidationIssue {
+  path?: Array<string | number>
+  message?: string
+  code?: string
+}
+
+export class ApiHttpError extends Error {
+  readonly status: number
+  readonly issues: ValidationIssue[]
+
+  constructor(message: string, status: number, issues: ValidationIssue[] = []) {
+    super(message)
+    this.name = 'ApiHttpError'
+    this.status = status
+    this.issues = issues
+  }
+}
+
+/**
+ * Сервер собирает ActivitySectionSchema из своего кода. Старые версии API
+ * (до поддержки `transportMode: "transit"`) отвергают такие маршруты целиком.
+ * Импортёр — отдельный пакет, поэтому умеет откатиться на поддерживаемый режим,
+ * не теряя саму точку/маршрут.
+ */
+function isTransitModeRejected(error: unknown): boolean {
+  if (!(error instanceof ApiHttpError) || error.status !== 400)
+    return false
+  return error.issues.some(issue =>
+    issue.path?.includes('transportMode')
+    && (issue.code === undefined || issue.code === 'invalid_value' || issue.code === 'invalid_enum_value'),
+  )
+}
+
+function hasTransitRoute(sections: ActivityPayload['sections']): boolean {
+  return (sections ?? []).some(section =>
+    section.type === 'geolocation'
+    && section.routes.some((route: any) => route?.transportMode === 'transit'),
+  )
+}
+
+function downgradeTransitToCar<T extends { sections?: ActivityPayload['sections'] }>(payload: T): T {
+  if (!payload.sections)
+    return payload
+  return {
+    ...payload,
+    sections: payload.sections.map(section => section.type === 'geolocation'
+      ? {
+          ...section,
+          routes: section.routes.map((route: any) =>
+            route?.transportMode === 'transit' ? { ...route, transportMode: 'car' } : route),
+        }
+      : section),
+  }
+}
+
+function formatIssues(issues: ValidationIssue[]): string {
+  const details = issues
+    .map((issue) => {
+      const path = issue.path?.length ? issue.path.join('.') : ''
+      return [path, issue.message].filter(Boolean).join(': ')
+    })
+    .filter(Boolean)
+  return details.length > 0 ? ` (${details.join('; ')})` : ''
+}
+
 function getMimeType(filePath: string): string {
   const ext = filePath.split('.').pop()?.toLowerCase()
   switch (ext) {
@@ -25,9 +90,11 @@ function getMimeType(filePath: string): string {
 export class ApiClient {
   private baseUrl: string
   private token: string | null = null
+  private onWarning?: (message: string) => void
 
-  constructor(apiUrl: string) {
+  constructor(apiUrl: string, options: { onWarning?: (message: string) => void } = {}) {
     this.baseUrl = apiUrl.replace(/\/+$/, '')
+    this.onWarning = options.onWarning
   }
 
   public setToken(token: string): void {
@@ -65,10 +132,13 @@ export class ApiClient {
         }
 
         if (!response.ok) {
-          const errorMsg = typeof data === 'object' && data?.message
+          const issues: ValidationIssue[] = Array.isArray(data?.issues)
+            ? data.issues.filter((issue: any) => issue && typeof issue === 'object')
+            : []
+          const baseMessage = typeof data === 'object' && data?.message
             ? data.message
             : (typeof data === 'object' && data?.error ? JSON.stringify(data.error) : `HTTP ${response.status}: ${text}`)
-          throw new Error(errorMsg)
+          throw new ApiHttpError(`${baseMessage}${formatIssues(issues)}`, response.status, issues)
         }
 
         return data as T
@@ -295,10 +365,7 @@ export class ApiClient {
     tag?: string
     sections?: any[]
   }): Promise<any> {
-    return await this.request<any>('/activities', {
-      method: 'POST',
-      body: JSON.stringify(payload),
-    })
+    return this.sendActivity('POST', '/activities', payload)
   }
 
   async updateActivity(payload: {
@@ -310,10 +377,30 @@ export class ApiClient {
     tag?: string
     sections?: any[]
   }): Promise<any> {
-    return await this.request<any>(`/activities/${payload.id}`, {
-      method: 'PATCH',
-      body: JSON.stringify(payload),
-    })
+    return this.sendActivity('PATCH', `/activities/${payload.id}`, payload)
+  }
+
+  private async sendActivity(
+    method: 'POST' | 'PATCH',
+    path: string,
+    payload: { sections?: any[] } & Record<string, any>,
+  ): Promise<any> {
+    try {
+      return await this.request<any>(path, {
+        method,
+        body: JSON.stringify(payload),
+      })
+    }
+    catch (error) {
+      if (!isTransitModeRejected(error) || !hasTransitRoute(payload.sections as ActivityPayload['sections']))
+        throw error
+
+      this.onWarning?.('⚠ API не поддерживает transportMode «transit» (устаревшая версия сервера). Маршрут импортируется как «car».')
+      return await this.request<any>(path, {
+        method,
+        body: JSON.stringify(downgradeTransitToCar(payload)),
+      })
+    }
   }
 
   async deleteActivity(id: string): Promise<any> {

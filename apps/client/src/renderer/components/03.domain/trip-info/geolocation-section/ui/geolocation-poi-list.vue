@@ -423,7 +423,7 @@ onClickOutside(mapIframeContainerRef, () => {
   flex-direction: column;
   align-items: center;
   justify-content: flex-start;
-  padding: 10px 0 10px 10px;
+  padding: 9px 0 9px 9px;
   gap: 0;
 
   .is-connect & {

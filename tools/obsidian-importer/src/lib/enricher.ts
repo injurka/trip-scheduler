@@ -9,6 +9,7 @@ import { existsSync } from 'node:fs'
 import { colors } from '../config/colors'
 import { dedentText } from '../parsers/activity'
 import { extractGalleryBlocks } from '../parsers/gallery'
+import { extractGpxReferences, parseGpxFile, resolveGpxFile } from '../parsers/gpx'
 import { extractExternalTrailLinks, extractLabeledRouteMode, extractLocationsFromText, extractRouteTransportMode } from '../parsers/location'
 import { geocodeLocation } from './geocode'
 import { stableId } from './stable-id'
@@ -121,6 +122,7 @@ export async function enrichActivityWithMediaAndLocation(
     locationContext?: string
     bookings?: Booking[]
     dayDate?: string
+    gpxIndex?: Map<string, string>
     onProgress?: (message: string) => void
   } = {},
 ): Promise<ActivityPayload> {
@@ -151,6 +153,14 @@ export async function enrichActivityWithMediaAndLocation(
   }
 
   let text = accumulatedDescription
+
+  // 0. GPX-треки: явные ссылки на .gpx-файлы вольта ([[трек.gpx]], ![[трек.gpx|Название]], [Название](трек.gpx)).
+  // Убираем их из текста до парсинга локаций, чтобы не уехать в геокодер с «chinan.gpx».
+  const gpxReferences = extractGpxReferences(text)
+  for (const ref of gpxReferences) {
+    if (text.includes(ref.rawText))
+      text = text.split(ref.rawText).join('')
+  }
 
   // 1. Extract location iframes & map links (support Yandex, Google, 2GIS, OSM, direct coords)
   const extractedLocations = extractLocationsFromText(text)
@@ -280,7 +290,7 @@ export async function enrichActivityWithMediaAndLocation(
   }
 
   // 5. Process Locations -> Geolocation Section ("Локация")
-  if (extractedLocations.length > 0) {
+  if (extractedLocations.length > 0 || gpxReferences.length > 0) {
     const mapPoints: GeolocationPoint[] = []
     // Group trail waypoints into routes
     const routeGroups = new Map<string, Array<GeolocationPoint & { isBike?: boolean }>>()
@@ -392,6 +402,47 @@ export async function enrichActivityWithMediaAndLocation(
           externalUrl: p.externalUrl,
         }))
       }
+    }
+
+    // Build route objects for attached GPX tracks (full geometry, no geocoding)
+    for (const ref of gpxReferences) {
+      const filePath = options.gpxIndex ? resolveGpxFile(ref.fileName, options.gpxIndex) : null
+      if (!filePath) {
+        notify(`⚠ GPX-файл не найден в вольте: ${ref.fileName}`)
+        continue
+      }
+      const track = parseGpxFile(filePath)
+      if (!track || track.coordinates.length < 2) {
+        notify(`⚠ GPX-трек не содержит точек: ${ref.fileName}`)
+        continue
+      }
+      const title = ref.label || track.name || ref.fileName.replace(/\.gpx$/i, '')
+      const start = track.coordinates[0]
+      const end = track.coordinates[track.coordinates.length - 1]
+      routes.push({
+        id: stableId('activity-route', act.startTime, 'gpx', ref.fileName),
+        title,
+        points: [
+          {
+            id: stableId('activity-map-point', act.startTime, ref.fileName, 'start'),
+            coordinates: start,
+            type: 'start',
+            address: title,
+          },
+          {
+            id: stableId('activity-map-point', act.startTime, ref.fileName, 'end'),
+            coordinates: end,
+            type: 'end',
+            address: title,
+          },
+        ],
+        transportMode: ref.isBike ? 'bike' : 'foot',
+        distance: Math.round(track.distance),
+        ...(track.duration !== undefined ? { duration: track.duration } : {}),
+        geometry: track.coordinates,
+        isVisible: true,
+        isFetching: false,
+      })
     }
 
     if (mapPoints.length > 0 || routes.length > 0) {

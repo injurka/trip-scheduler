@@ -145,6 +145,7 @@ onMounted(() => {
       'header--scrolled': isScrolled,
       'header--hidden': !isHeaderVisible,
       'header--small-screen': isSmallScreen,
+      'header--mobile-app': isMobileApp,
     }"
   >
     <!-- Топографический узор и фоновый градиент в зоне системного бара только в Tauri APK -->
@@ -260,7 +261,7 @@ onMounted(() => {
       </div>
     </div>
 
-    <div class="header-border" />
+    <div v-if="isMobileApp" class="header-border" />
   </header>
   <ProfileDrawer v-model:open="isProfileDrawerOpen" />
 </template>
@@ -320,15 +321,35 @@ onMounted(() => {
   }
 
   &--scrolled {
-    backdrop-filter: blur(8px);
-    background-color: rgba(var(--bg-primary-color-rgb), 0.88);
-    box-shadow: var(--s-s);
-
     .header-topo-bg .topo-pattern-svg {
       opacity: 0.12;
     }
+  }
+
+  // Мобильное приложение (APK/iOS): у шапки плотная подложка и разделитель.
+  // В вебе шапка прозрачная — контент скроллится прямо под ней.
+  &--mobile-app {
+    &.header--scrolled {
+      backdrop-filter: blur(8px);
+      background-color: rgba(var(--bg-primary-color-rgb), 0.88);
+      box-shadow: var(--s-s);
+    }
 
     .header-border {
+      position: absolute;
+      bottom: 0;
+      left: 0;
+      right: 0;
+      height: 1px;
+      background: linear-gradient(90deg, transparent, var(--border-accent-color), transparent);
+      opacity: 0;
+      transform: scaleX(0);
+      transition:
+        opacity 0.3s ease,
+        transform 0.3s ease;
+    }
+
+    &.header--scrolled .header-border {
       opacity: 1;
       transform: scaleX(1);
     }
@@ -549,20 +570,6 @@ onMounted(() => {
     background-color: var(--border-secondary-color);
     opacity: 0.6;
     transition: opacity 0.2s ease;
-  }
-
-  &-border {
-    position: absolute;
-    bottom: 0;
-    left: 0;
-    right: 0;
-    height: 1px;
-    background: linear-gradient(90deg, transparent, var(--border-accent-color), transparent);
-    opacity: 0;
-    transform: scaleX(0);
-    transition:
-      opacity 0.3s ease,
-      transform 0.3s ease;
   }
 }
 

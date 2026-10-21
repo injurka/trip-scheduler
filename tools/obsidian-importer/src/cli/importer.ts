@@ -14,6 +14,7 @@ import {
   saveLlmCache,
 } from '../lib/cache'
 import { enrichActivityWithMediaAndLocation } from '../lib/enricher'
+import { buildGpxIndex } from '../lib/gpx-indexer'
 import { buildImageIndex } from '../lib/image-indexer'
 import { generateActivitiesViaDirectLlm, mergeLlmActivitiesWithRawMarkdown } from '../lib/llm'
 import { stableId } from '../lib/stable-id'
@@ -33,6 +34,13 @@ import {
   promptForTargetDirectory,
   promptForTargetTrip,
 } from './prompts'
+
+export class ImportErrorsError extends Error {
+  constructor(count: number) {
+    super(`Импорт не завершен полностью: ${count} ошибок`)
+    this.name = 'ImportErrorsError'
+  }
+}
 
 export async function runImport(): Promise<void> {
   loadEnvIfAvailable()
@@ -183,7 +191,9 @@ export async function runImport(): Promise<void> {
   }
 
   const { email, password } = await promptForCredentials(cliOptions)
-  const api = new ApiClient(cliOptions.apiUrl)
+  const api = new ApiClient(cliOptions.apiUrl, {
+    onWarning: message => console.warn(`${colors.yellow}${message}${colors.reset}`),
+  })
 
   try {
     process.stdout.write(`\n${colors.dim}🔐 Авторизация на ${cliOptions.apiUrl}...${colors.reset} `)
@@ -282,6 +292,7 @@ export async function runImport(): Promise<void> {
   // 2. Create / Update Trip Section Tabs (All 6 Standard Sections)
   const uploadCache = new Map<string, string>()
   const imageIndex = buildImageIndex(targetDir)
+  const gpxIndex = buildGpxIndex(targetDir)
 
   if (tripData.bookingsContent?.bookings && tripData.bookingsContent.bookings.length > 0) {
     await resolveAndUploadBookingPhotos(
@@ -801,6 +812,7 @@ export async function runImport(): Promise<void> {
               locationContext,
               bookings: createdBookings,
               dayDate: day.date,
+              gpxIndex,
               onProgress: (msg) => {
                 console.log(`      ${colors.dim}[${actIdx + 1}/${activitiesToCreate.length}] ${msg}${colors.reset}`)
               },
@@ -925,7 +937,7 @@ export async function runImport(): Promise<void> {
     console.error(`\n${colors.bright}${colors.red}Импорт завершен с ошибками (${importErrors.length}):${colors.reset}`)
     for (const error of importErrors)
       console.error(`  ${colors.red}• ${error}${colors.reset}`)
-    throw new Error(`Импорт не завершен полностью: ${importErrors.length} ошибок`)
+    throw new ImportErrorsError(importErrors.length)
   }
 
   console.log(`\n${colors.bright}${colors.green}════════════════════════════════════════════════════════════════════${colors.reset}`)

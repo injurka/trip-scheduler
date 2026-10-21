@@ -273,7 +273,7 @@ function getDecoratedRoutePoints(route: MapRoute): MapPoint[] {
 .route-card {
   position: relative;
   display: flex;
-  background-color: var(--bg-tertiary-color);
+  background-color: var(--bg-secondary-color);
   border: 1px solid var(--border-secondary-color);
   border-radius: var(--r-s);
   overflow: hidden;
@@ -281,6 +281,7 @@ function getDecoratedRoutePoints(route: MapRoute): MapPoint[] {
 
   &:hover {
     border-color: var(--border-primary-color);
+    box-shadow: var(--s-s);
   }
 
   &.is-active {
@@ -306,11 +307,12 @@ function getDecoratedRoutePoints(route: MapRoute): MapPoint[] {
   align-items: center;
   gap: 8px;
   min-width: 0;
-  padding: 8px 12px;
+  padding: 6px 12px;
   box-sizing: border-box;
   cursor: pointer;
   user-select: none;
   flex-wrap: wrap;
+  min-height: 42px;
 
   &:hover {
     background-color: var(--bg-hover-color);
@@ -402,7 +404,7 @@ function getDecoratedRoutePoints(route: MapRoute): MapPoint[] {
   font-size: 0.76rem;
   font-weight: 600;
   color: var(--fg-secondary-color);
-  background-color: var(--bg-secondary-color);
+  background-color: var(--bg-primary-color);
   padding: 2px 6px;
   border-radius: var(--r-2xs);
   border: 1px solid var(--border-secondary-color);
