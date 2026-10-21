@@ -8,11 +8,11 @@ describe('Google directions transport modes', () => {
     ['!3e0', 'car'],
     ['!3e1', 'bike'],
     ['!3e2', 'foot'],
-    ['!3e3!5i2', 'transit'],
+    ['!3e3!5i2', 'car'],
     ['?travelmode=driving', 'car'],
     ['?travelmode=walking', 'foot'],
     ['?travelmode=bicycling', 'bike'],
-    ['?travelmode=transit', 'transit'],
+    ['?travelmode=transit', 'car'],
   ])('imports %s as %s without leaving an empty path label', async (suffix, mode) => {
     const url = `https://www.google.com/maps/dir/25.151367,121.545997/25.0842798,121.5249762/data=${suffix}`
     const activity = parseActivitiesFromMarkdown(`* **14:25 - 15:15** — Возвращение автобусом:
@@ -58,9 +58,24 @@ describe('train booking attachment', () => {
   })
 })
 
+it('не привязывает старое пешее бронирование к другим пешим переходам', async () => {
+  const activity = parseActivitiesFromMarkdown('* **10:30 - 10:35** — Пеший переход от MRT к храму Луншань:\n    * От станции идите пешком к храму.')[0]
+  const result = await enrichActivityWithMediaAndLocation(activity, new Map(), null, null, new Map(), new Map(), {
+    geocode: false,
+    uploadImages: false,
+    dayDate: '2026-11-06',
+    bookings: [{ id: 'walk', type: 'other', icon: 'mdi:walk', title: 'Xin Zuoying → THSR Zuoying', data: {
+      name: 'Пеший переход',
+      kind: 'pedestrian',
+      startDateTime: '2026-11-21',
+    } }],
+  })
+  expect(result.sections?.some(section => section.type === 'booking')).toBe(false)
+})
+
 it('prioritizes explicit route labels and scopes them to each link', () => {
   const text = '_Маршрут на карте (автобус)_: [BRT](https://example.com/bus)\n_Маршрут на карте (пешком)_: [Walk](https://example.com/walk)'
-  expect(extractLabeledRouteMode(text, 'https://example.com/bus')).toBe('transit')
+  expect(extractLabeledRouteMode(text, 'https://example.com/bus')).toBe('car')
   expect(extractLabeledRouteMode(text, 'https://example.com/walk')).toBe('foot')
   expect(extractLabeledRouteMode(text, 'https://example.com/other')).toBeUndefined()
 })

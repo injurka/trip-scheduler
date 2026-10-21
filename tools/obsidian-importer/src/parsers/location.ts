@@ -255,8 +255,8 @@ export function extractRouteTransportMode(url = ''): 'foot' | 'bike' | 'car' | '
   const queryMode = url.match(/[?&]travelmode=(walking|bicycling|driving|transit)(?:&|$)/i)?.[1]?.toLowerCase()
   const dataMode = url.match(/!3e([0123])(?:!|[?&#]|$)/)?.[1]
   if (queryMode)
-    return ({ walking: 'foot', bicycling: 'bike', driving: 'car', transit: 'transit' } as const)[queryMode as 'walking' | 'bicycling' | 'driving' | 'transit']
-  return ({ 0: 'car', 1: 'bike', 2: 'foot', 3: 'transit' } as Record<string, 'foot' | 'bike' | 'car' | 'transit'>)[dataMode || '']
+    return ({ walking: 'foot', bicycling: 'bike', driving: 'car', transit: 'car' } as const)[queryMode as 'walking' | 'bicycling' | 'driving' | 'transit']
+  return ({ 0: 'car', 1: 'bike', 2: 'foot', 3: 'car' } as Record<string, 'foot' | 'bike' | 'car' | 'transit'>)[dataMode || '']
 }
 
 /** Explicit route labels override the mode encoded in the map URL. */
@@ -270,7 +270,7 @@ export function extractLabeledRouteMode(text: string, url: string): 'foot' | 'bi
   if (label === 'авто' || label === 'такси')
     return 'car'
   if (label && ['автобус', 'поезд', 'метро', 'общественный транспорт'].includes(label))
-    return 'transit'
+    return 'car'
   return undefined
 }
 

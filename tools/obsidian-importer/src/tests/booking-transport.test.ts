@@ -35,6 +35,18 @@ function pick(fragment: string) {
 }
 
 describe('Transport Booking Parser · разделы «Авто» и «Другое»', () => {
+  it('не создаёт бронирования из пеших пересадок', () => {
+    const result = parseTransportMarkdown(`
+| Дата | Сегмент | Транспорт | Время | Оплата |
+| --- | --- | --- | --- | --- |
+| **21 ноя** | Xin Zuoying ➔ THSR Zuoying | 🚶 Пеший переход | — | Пересадка |
+| **22 ноя** | THSR Zuoying ➔ Xin Zuoying | 🚶 Пеший переход | — | Пересадка |
+| **21 ноя** | THSR Zuoying ➔ Donggang | 🚌 9127D | 10:00–10:50 | На месте |
+`, '2026-11-04')
+    expect(result).toHaveLength(1)
+    expect(result[0]).toMatchObject({ type: 'car', data: { kind: 'bus' } })
+  })
+
   it('раскладывает перемещения по типам car/train/other', () => {
     const types = bookings.map(b => b.type)
     expect(types).toContain('car')

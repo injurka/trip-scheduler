@@ -35,7 +35,6 @@ const transportModes: Array<{ mode: TransportMode, icon: string, label: string }
   { mode: 'foot', icon: 'mdi:walk', label: 'Пешком' },
   { mode: 'bike', icon: 'mdi:bicycle', label: 'Велосипед' },
   { mode: 'car', icon: 'mdi:car', label: 'Авто' },
-  { mode: 'transit', icon: 'mdi:bus', label: 'Общественный транспорт' },
 ]
 
 function toggleRoute(routeId: string) {
@@ -66,9 +65,7 @@ function formatDuration(duration?: number): string {
 }
 
 function getTransportIcon(mode?: TransportMode): string {
-  if (mode === 'transit')
-    return 'mdi:bus'
-  if (mode === 'car')
+  if (mode === 'car' || mode === 'transit')
     return 'mdi:car'
   if (mode === 'bike')
     return 'mdi:bicycle'

@@ -274,23 +274,29 @@ onClickOutside(mapIframeContainerRef, () => {
           <div v-if="!readonly" class="poi-controls">
             <div class="poi-coords">
               <span class="coord-label">LAT</span>
-              <KitInput
-                :model-value="point.coordinates[1]"
-                type="text"
-                class="coord-input"
-                @update:model-value="point.coordinates[1] = Number($event)"
-                @keydown.enter="emit('updatePointCoords', point)"
-                @blur="emit('updatePointCoords', point)"
-              />
+              <div class="coord-input">
+                <KitInput
+                  :model-value="point.coordinates[1]"
+                  type="text"
+                  size="sm"
+                  aria-label="Широта"
+                  @update:model-value="point.coordinates[1] = Number($event)"
+                  @keydown.enter="emit('updatePointCoords', point)"
+                  @blur="emit('updatePointCoords', point)"
+                />
+              </div>
               <span class="coord-label">LON</span>
-              <KitInput
-                :model-value="point.coordinates[0]"
-                type="text"
-                class="coord-input"
-                @update:model-value="point.coordinates[0] = Number($event)"
-                @keydown.enter="emit('updatePointCoords', point)"
-                @blur="emit('updatePointCoords', point)"
-              />
+              <div class="coord-input">
+                <KitInput
+                  :model-value="point.coordinates[0]"
+                  type="text"
+                  size="sm"
+                  aria-label="Долгота"
+                  @update:model-value="point.coordinates[0] = Number($event)"
+                  @keydown.enter="emit('updatePointCoords', point)"
+                  @blur="emit('updatePointCoords', point)"
+                />
+              </div>
             </div>
 
             <div class="poi-actions">
@@ -704,13 +710,16 @@ onClickOutside(mapIframeContainerRef, () => {
   }
 
   .coord-input {
-    flex: 1;
-    max-width: 130px;
+    flex: 0 1 120px;
+    min-width: 0;
     font-family: var(--font-mono, monospace);
 
     :deep(input) {
-      height: 34px;
-      padding: 0 8px;
+      box-sizing: border-box;
+      min-width: 0;
+      height: 30px;
+      min-height: 30px;
+      padding: 0 6px;
       font-size: 0.8rem;
       font-family: var(--font-mono, monospace);
     }

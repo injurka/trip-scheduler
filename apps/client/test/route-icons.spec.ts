@@ -23,9 +23,10 @@ describe('route transport icons', () => {
       },
     })
     expect(wrapper.get('.route-mode-icon').attributes('data-icon')).toBe('mdi:walk')
-    const modes = ['foot', 'bike', 'car', 'transit'] as const
-    const icons = ['mdi:walk', 'mdi:bicycle', 'mdi:car', 'mdi:bus']
-    for (const index of [2, 1, 3, 0]) {
+    expect(wrapper.findAll('.transport-btn')).toHaveLength(3)
+    const modes = ['foot', 'bike', 'car'] as const
+    const icons = ['mdi:walk', 'mdi:bicycle', 'mdi:car']
+    for (const index of [2, 1, 0]) {
       await wrapper.findAll('.transport-btn')[index].trigger('click')
       expect(route.transportMode).toBe(modes[index])
       expect(wrapper.get('.route-mode-icon').attributes('data-icon')).toBe(icons[index])

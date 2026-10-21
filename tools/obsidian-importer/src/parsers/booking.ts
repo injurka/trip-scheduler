@@ -1012,6 +1012,9 @@ export function parseTransportMarkdown(content: string, startDateStr: string): B
 
         // Обычный транспорт — определяем тип, пометку и генерируем осмысленный тайтл
         const { type, icon, kind } = classifyTransport(transportCol, segmentCol)
+        // Пешие переходы описываются в маршруте дня и не являются бронированиями.
+        if (kind === 'pedestrian')
+          continue
         const { title, from, to } = extractRouteTitle(segmentCol, transportCol)
 
         if (type === 'car') {

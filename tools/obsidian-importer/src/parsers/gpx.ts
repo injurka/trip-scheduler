@@ -31,7 +31,7 @@ interface GpxLandmark {
 }
 
 interface GpxCheckpoint extends GpxLandmark {
-  type: 'start' | 'via' | 'end'
+  type: 'start' | 'via' | 'connect' | 'end'
 }
 
 const MAX_TRACK_POINTS = 1500
@@ -78,7 +78,7 @@ function buildCheckpoints(coordinates: Array<[number, number]>, landmarks: GpxLa
   for (let i = 1; i < coordinates.length; i++)
     cumulative.push(cumulative[i - 1] + haversineMeters(coordinates[i - 1], coordinates[i]))
   const distance = cumulative[cumulative.length - 1]
-  const stops: Array<GpxLandmark & { progress: number }> = []
+  const stops: Array<GpxLandmark & { progress: number, type: 'via' | 'connect' }> = []
   const detached: GpxLandmark[] = []
   for (const landmark of landmarks) {
     let nearest = { distance: Infinity, progress: 0 }
@@ -100,7 +100,7 @@ function buildCheckpoints(coordinates: Array<[number, number]>, landmarks: GpxLa
     // Nearby landmarks are checkpoints; distant landmarks must not divert the recorded trail.
     if (nearest.distance <= 100) {
       if (!stops.some(stop => stop.name === landmark.name && haversineMeters(stop.coordinates, landmark.coordinates) < 5))
-        stops.push({ ...landmark, progress: nearest.progress })
+        stops.push({ ...landmark, progress: nearest.progress, type: 'via' })
     }
     else {
       detached.push(landmark)
@@ -122,12 +122,12 @@ function buildCheckpoints(coordinates: Array<[number, number]>, landmarks: GpxLa
       const a = coordinates[index - 1]
       const b = coordinates[index]
       const fraction = (progress - cumulative[index - 1]) / (cumulative[index] - cumulative[index - 1])
-      intermediate.push({ name: `${progress / 1000} км`, coordinates: [a[0] + (b[0] - a[0]) * fraction, a[1] + (b[1] - a[1]) * fraction], progress })
+      intermediate.push({ name: `${progress / 1000} км`, coordinates: [a[0] + (b[0] - a[0]) * fraction, a[1] + (b[1] - a[1]) * fraction], progress, type: 'connect' })
     }
   }
   const checkpoints: GpxCheckpoint[] = [
     { name: startName?.name || 'Начало трека', coordinates: start, type: 'start' },
-    ...intermediate.map(stop => ({ name: stop.name, coordinates: stop.coordinates, type: 'via' as const })),
+    ...intermediate.map(stop => ({ name: stop.name, coordinates: stop.coordinates, type: stop.type })),
     { name: endName?.name || 'Конец трека', coordinates: end, type: 'end' },
   ]
   return { checkpoints, landmarks: detached }

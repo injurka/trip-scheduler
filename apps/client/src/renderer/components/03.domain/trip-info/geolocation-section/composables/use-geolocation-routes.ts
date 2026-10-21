@@ -216,6 +216,12 @@ export function useGeolocationRoutes(mapApiRef: Ref<GeolocationMapApi | undefine
     routes.value = JSON.parse(JSON.stringify(initialRoutes || []))
 
     const routeUpdatePromises = routes.value.map(async (route) => {
+      if (route.transportMode === 'transit') {
+        route.transportMode = 'car'
+        route.geometry = []
+        route.distance = 0
+        route.duration = 0
+      }
       // Импортированные треки (GPX) уже несут полную геометрию. Не пересчитывать её
       // через routing-сервис: OSRM заменил бы фирменный трек дорожным маршрутом
       // между стартом и финишем. Пересчёт остаётся для явных правок пользователя.

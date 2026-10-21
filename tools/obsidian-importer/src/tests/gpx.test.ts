@@ -117,6 +117,7 @@ describe('parseGpxContent', () => {
   it('adds kilometer checkpoints to an unnamed track without changing its geometry', () => {
     const track = parseGpxContent('<gpx><trk><trkseg><trkpt lat="25" lon="121"/><trkpt lat="25.03" lon="121"/></trkseg></trk></gpx>')!
     expect(track.checkpoints.map(point => point.name)).toEqual(['Начало трека', '1 км', '2 км', '3 км', 'Конец трека'])
+    expect(track.checkpoints.map(point => point.type)).toEqual(['start', 'connect', 'connect', 'connect', 'end'])
     expect(track.coordinates).toHaveLength(2)
     const firstMarker = track.checkpoints[1]
     expect(haversineMeters(track.coordinates[0], firstMarker.coordinates)).toBeCloseTo(1000, 0)
@@ -216,6 +217,23 @@ describe('enricher: gpx tracks', () => {
     const descSec = res.sections?.find(s => s.type === 'description') as any
     expect(descSec?.text ?? '').not.toContain('chinan.gpx')
     expect(descSec?.text ?? '').not.toContain('[[chinan.gpx')
+  })
+
+  it('persists generated checkpoints as distinct connecting points', async () => {
+    const { filePath, gpxIndex } = makeGpxFile('walk.gpx')
+    writeFileSync(filePath, '<gpx><trk><trkseg><trkpt lat="25" lon="121"/><trkpt lat="25.03" lon="121"/></trkseg></trk></gpx>')
+    const result = await enrichActivityWithMediaAndLocation({
+      startTime: '09:00',
+      endTime: '12:00',
+      title: 'Walk',
+      tag: 'walk',
+      sections: [{ id: 'description', type: 'description', text: '_GPX-трек_: [[walk.gpx]]' }],
+    }, new Map(), null, null, new Map(), new Map(), { geocode: false, gpxIndex })
+    const map = result.sections?.find(section => section.type === 'geolocation') as any
+    const route = map.routes[0]
+    expect(route.points.map((point: any) => point.type)).toEqual(['start', 'connect', 'connect', 'connect', 'end'])
+    expect(new Set(route.points.map((point: any) => point.id)).size).toBe(5)
+    expect(route.geometry).toEqual([[121, 25], [121, 25.03]])
   })
 
   it('marks a bike gpx as bike transport mode', async () => {

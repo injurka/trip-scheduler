@@ -14,6 +14,19 @@ afterEach(() => {
 })
 
 describe('route mode changes', () => {
+  it('converts saved transit routes to Auto and recalculates their geometry', async () => {
+    const urls: string[] = []
+    globalThis.fetch = mock(async (url: any) => {
+      urls.push(String(url))
+      return response(600)
+    }) as any
+    const state = useGeolocationRoutes(ref(undefined))
+    const legacyPoints = points.map(p => ({ ...p, coordinates: [p.coordinates[0] + 0.02, p.coordinates[1]] }))
+    await state.setInitialRoutes([{ id: 'legacy', title: 'A → B', points: legacyPoints, transportMode: 'transit', geometry: [[121, 25], [122, 26]], isVisible: true }] as any)
+    expect(state.routes.value[0]).toMatchObject({ transportMode: 'car', duration: 600 })
+    expect(urls[0]).toContain('routed-car')
+  })
+
   it('switches foot → car immediately and keeps the mode on reload', async () => {
     const urls: string[] = []
     globalThis.fetch = mock(async (url: any) => {

@@ -435,8 +435,8 @@ export async function enrichActivityWithMediaAndLocation(
         id: stableId('activity-route', act.startTime, 'gpx', ref.fileName),
         title,
         points: track.checkpoints.map((point, index) => ({
-          id: point.type === 'via'
-            ? stableId('activity-map-point', act.startTime, ref.fileName, 'via', index, point.name, point.coordinates.join(','))
+          id: point.type === 'via' || point.type === 'connect'
+            ? stableId('activity-map-point', act.startTime, ref.fileName, point.type, index, point.name, point.coordinates.join(','))
             : stableId('activity-map-point', act.startTime, ref.fileName, point.type),
           coordinates: point.coordinates,
           type: point.type,
@@ -544,6 +544,9 @@ export async function enrichActivityWithMediaAndLocation(
 
     if (!hasBookingSection) {
       for (const booking of options.bookings) {
+        // Старые импорты могли содержать пешие переходы среди бронирований.
+        if (booking.type === 'other' && (booking.data.kind === 'pedestrian' || booking.icon === 'mdi:walk'))
+          continue
         let isMatched = false
         if (booking.type === 'hotel') {
           if (hotelActivityKind && hotelBookingsForDay.some(candidate => candidate.id === booking.id)) {
