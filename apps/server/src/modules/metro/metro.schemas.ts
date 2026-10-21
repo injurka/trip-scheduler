@@ -35,6 +35,8 @@ export const ImportMetroSystemInputSchema = z.object({
     stations: z.array(z.object({
       id: z.string(),
       name: z.string(),
-    })),
+      latitude: z.number().min(-90).max(90).optional(),
+      longitude: z.number().min(-180).max(180).optional(),
+    }).refine(station => (station.latitude === undefined) === (station.longitude === undefined), { message: 'Both coordinates are required together' })),
   })),
 })

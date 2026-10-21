@@ -1,0 +1,979 @@
+{
+  "id": "tw-taipei",
+  "city": "Тайбэй",
+  "country": "Тайвань",
+  "lines": [
+    {
+      "id": "tw-taipei-br",
+      "lineNumber": "BR",
+      "name": "Wenhu",
+      "color": "#C48C31",
+      "stations": [
+        {
+          "id": "tw-taipei-br01",
+          "name": "BR01 Taipei Zoo · 動物園",
+          "latitude": 24.998197,
+          "longitude": 121.579338
+        },
+        {
+          "id": "tw-taipei-br02",
+          "name": "BR02 Muzha · 木柵",
+          "latitude": 24.998241,
+          "longitude": 121.573145
+        },
+        {
+          "id": "tw-taipei-br03",
+          "name": "BR03 Wanfang Community · 萬芳社區",
+          "latitude": 24.998585,
+          "longitude": 121.568102
+        },
+        {
+          "id": "tw-taipei-br04",
+          "name": "BR04 Wanfang Hospital · 萬芳醫院",
+          "latitude": 24.999386,
+          "longitude": 121.558152
+        },
+        {
+          "id": "tw-taipei-br05",
+          "name": "BR05 Xinhai · 辛亥",
+          "latitude": 25.005475,
+          "longitude": 121.557107
+        },
+        {
+          "id": "tw-taipei-br06",
+          "name": "BR06 Linguang · 麟光",
+          "latitude": 25.018535,
+          "longitude": 121.558791
+        },
+        {
+          "id": "tw-taipei-br07",
+          "name": "BR07 Liuzhangli · 六張犁",
+          "latitude": 25.023777,
+          "longitude": 121.553115
+        },
+        {
+          "id": "tw-taipei-br08",
+          "name": "BR08 Technology Building · 科技大樓",
+          "latitude": 25.026125,
+          "longitude": 121.543437
+        },
+        {
+          "id": "tw-taipei-br09",
+          "name": "BR09 Daan · 大安",
+          "latitude": 25.032943,
+          "longitude": 121.543551
+        },
+        {
+          "id": "tw-taipei-br10",
+          "name": "BR10 Zhongxiao Fuxing · 忠孝復興",
+          "latitude": 25.041629,
+          "longitude": 121.543767
+        },
+        {
+          "id": "tw-taipei-br11",
+          "name": "BR11 Nanjing Fuxing · 南京復興",
+          "latitude": 25.052319,
+          "longitude": 121.544011
+        },
+        {
+          "id": "tw-taipei-br12",
+          "name": "BR12 Zhongshan Junior High School · 中山國中",
+          "latitude": 25.060849,
+          "longitude": 121.544227
+        },
+        {
+          "id": "tw-taipei-br13",
+          "name": "BR13 Songshan Airport · 松山機場",
+          "latitude": 25.063,
+          "longitude": 121.551996
+        },
+        {
+          "id": "tw-taipei-br14",
+          "name": "BR14 Dazhi · 大直",
+          "latitude": 25.079477,
+          "longitude": 121.546895
+        },
+        {
+          "id": "tw-taipei-br15",
+          "name": "BR15 Jiannan Rd. · 劍南路",
+          "latitude": 25.084853,
+          "longitude": 121.555592
+        },
+        {
+          "id": "tw-taipei-br16",
+          "name": "BR16 Xihu · 西湖",
+          "latitude": 25.082133,
+          "longitude": 121.567213
+        },
+        {
+          "id": "tw-taipei-br17",
+          "name": "BR17 Gangqian · 港墘",
+          "latitude": 25.080028,
+          "longitude": 121.575081
+        },
+        {
+          "id": "tw-taipei-br18",
+          "name": "BR18 Wende · 文德",
+          "latitude": 25.078532,
+          "longitude": 121.584761
+        },
+        {
+          "id": "tw-taipei-br19",
+          "name": "BR19 Neihu · 內湖",
+          "latitude": 25.083661,
+          "longitude": 121.594408
+        },
+        {
+          "id": "tw-taipei-br20",
+          "name": "BR20 Dahu Park · 大湖公園",
+          "latitude": 25.083845,
+          "longitude": 121.602141
+        },
+        {
+          "id": "tw-taipei-br21",
+          "name": "BR21 Huzhou · 葫洲",
+          "latitude": 25.072701,
+          "longitude": 121.607158
+        },
+        {
+          "id": "tw-taipei-br22",
+          "name": "BR22 Donghu · 東湖",
+          "latitude": 25.067147,
+          "longitude": 121.611445
+        },
+        {
+          "id": "tw-taipei-br23",
+          "name": "BR23 Nangang Software Park · 南港軟體園區",
+          "latitude": 25.059905,
+          "longitude": 121.615953
+        },
+        {
+          "id": "tw-taipei-br24",
+          "name": "BR24 Taipei Nangang Exhibition Center · 南港展覽館",
+          "latitude": 25.055288,
+          "longitude": 121.6175001
+        }
+      ]
+    },
+    {
+      "id": "tw-taipei-r",
+      "lineNumber": "R",
+      "name": "Tamsui–Xinyi",
+      "color": "#E3002C",
+      "stations": [
+        {
+          "id": "tw-taipei-r01",
+          "name": "R01 Guangci/Fengtian Temple · 廣慈/奉天宮",
+          "latitude": 25.03747,
+          "longitude": 121.58188
+        },
+        {
+          "id": "tw-taipei-r02",
+          "name": "R02 Xiangshan · 象山",
+          "latitude": 25.03283,
+          "longitude": 121.569576
+        },
+        {
+          "id": "tw-taipei-r03",
+          "name": "R03 Taipei 101/World Trade Center · 台北101/世貿",
+          "latitude": 25.033102,
+          "longitude": 121.563292
+        },
+        {
+          "id": "tw-taipei-r04",
+          "name": "R04 Xinyi Anhe · 信義安和",
+          "latitude": 25.033326,
+          "longitude": 121.553526
+        },
+        {
+          "id": "tw-taipei-r05",
+          "name": "R05 Daan · 大安",
+          "latitude": 25.032943,
+          "longitude": 121.543551
+        },
+        {
+          "id": "tw-taipei-r06",
+          "name": "R06 Daan Park · 大安森林公園",
+          "latitude": 25.033396,
+          "longitude": 121.534882
+        },
+        {
+          "id": "tw-taipei-r07",
+          "name": "R07 Dongmen · 東門",
+          "latitude": 25.033847,
+          "longitude": 121.528739
+        },
+        {
+          "id": "tw-taipei-r08",
+          "name": "R08 C.K.S. Memorial Hall · 中正紀念堂",
+          "latitude": 25.032729,
+          "longitude": 121.51827
+        },
+        {
+          "id": "tw-taipei-r09",
+          "name": "R09 NTU Hospital · 台大醫院",
+          "latitude": 25.041256,
+          "longitude": 121.51604
+        },
+        {
+          "id": "tw-taipei-r10",
+          "name": "R10 Taipei Main Station · 台北車站",
+          "latitude": 25.046255,
+          "longitude": 121.517532
+        },
+        {
+          "id": "tw-taipei-r11",
+          "name": "R11 Zhongshan · 中山",
+          "latitude": 25.052685,
+          "longitude": 121.520392
+        },
+        {
+          "id": "tw-taipei-r12",
+          "name": "R12 Shuanglian · 雙連",
+          "latitude": 25.057805,
+          "longitude": 121.520627
+        },
+        {
+          "id": "tw-taipei-r13",
+          "name": "R13 Minquan W. Rd. · 民權西路",
+          "latitude": 25.062905,
+          "longitude": 121.51932
+        },
+        {
+          "id": "tw-taipei-r14",
+          "name": "R14 Yuanshan · 圓山",
+          "latitude": 25.071353,
+          "longitude": 121.520118
+        },
+        {
+          "id": "tw-taipei-r15",
+          "name": "R15 Jiantan · 劍潭",
+          "latitude": 25.084873,
+          "longitude": 121.525078
+        },
+        {
+          "id": "tw-taipei-r16",
+          "name": "R16 Shilin · 士林",
+          "latitude": 25.093535,
+          "longitude": 121.52623
+        },
+        {
+          "id": "tw-taipei-r17",
+          "name": "R17 Zhishan · 芝山",
+          "latitude": 25.10306,
+          "longitude": 121.522514
+        },
+        {
+          "id": "tw-taipei-r18",
+          "name": "R18 Mingde · 明德",
+          "latitude": 25.109721,
+          "longitude": 121.518848
+        },
+        {
+          "id": "tw-taipei-r19",
+          "name": "R19 Shipai · 石牌",
+          "latitude": 25.114523,
+          "longitude": 121.515559
+        },
+        {
+          "id": "tw-taipei-r20",
+          "name": "R20 Qilian · 唭哩岸",
+          "latitude": 25.120872,
+          "longitude": 121.506252
+        },
+        {
+          "id": "tw-taipei-r21",
+          "name": "R21 Qiyan · 奇岩",
+          "latitude": 25.125491,
+          "longitude": 121.501132
+        },
+        {
+          "id": "tw-taipei-r22",
+          "name": "R22 Beitou · 北投",
+          "latitude": 25.131841,
+          "longitude": 121.498633
+        },
+        {
+          "id": "tw-taipei-r23",
+          "name": "R23 Fuxinggang · 復興崗",
+          "latitude": 25.137474,
+          "longitude": 121.485444
+        },
+        {
+          "id": "tw-taipei-r24",
+          "name": "R24 Zhongyi · 忠義",
+          "latitude": 25.130969,
+          "longitude": 121.47341
+        },
+        {
+          "id": "tw-taipei-r25",
+          "name": "R25 Guandu · 關渡",
+          "latitude": 25.125633,
+          "longitude": 121.467102
+        },
+        {
+          "id": "tw-taipei-r26",
+          "name": "R26 Zhuwei · 竹圍",
+          "latitude": 25.13694,
+          "longitude": 121.459479
+        },
+        {
+          "id": "tw-taipei-r27",
+          "name": "R27 Hongshulin · 紅樹林",
+          "latitude": 25.154042,
+          "longitude": 121.458872
+        },
+        {
+          "id": "tw-taipei-r28",
+          "name": "R28 Tamsui · 淡水",
+          "latitude": 25.167818,
+          "longitude": 121.445561
+        }
+      ]
+    },
+    {
+      "id": "tw-taipei-r-xinbeitou",
+      "lineNumber": "R",
+      "name": "Xinbeitou branch",
+      "color": "#E3002C",
+      "stations": [
+        {
+          "id": "tw-taipei-r22",
+          "name": "R22 Beitou · 北投",
+          "latitude": 25.131841,
+          "longitude": 121.498633
+        },
+        {
+          "id": "tw-taipei-r22a",
+          "name": "R22A Xinbeitou · 新北投",
+          "latitude": 25.136933,
+          "longitude": 121.50253
+        }
+      ]
+    },
+    {
+      "id": "tw-taipei-g",
+      "lineNumber": "G",
+      "name": "Songshan–Xindian",
+      "color": "#008659",
+      "stations": [
+        {
+          "id": "tw-taipei-g01",
+          "name": "G01 Xindian · 新店",
+          "latitude": 24.957855,
+          "longitude": 121.537584
+        },
+        {
+          "id": "tw-taipei-g02",
+          "name": "G02 Xindian District Office · 新店區公所",
+          "latitude": 24.967393,
+          "longitude": 121.54131
+        },
+        {
+          "id": "tw-taipei-g03",
+          "name": "G03 Qizhang · 七張",
+          "latitude": 24.975169,
+          "longitude": 121.542942
+        },
+        {
+          "id": "tw-taipei-g04",
+          "name": "G04 Dapinglin · 大坪林",
+          "latitude": 24.982899,
+          "longitude": 121.541352
+        },
+        {
+          "id": "tw-taipei-g05",
+          "name": "G05 Jingmei · 景美",
+          "latitude": 24.9921276,
+          "longitude": 121.5406037
+        },
+        {
+          "id": "tw-taipei-g06",
+          "name": "G06 Wanlong · 萬隆",
+          "latitude": 25.001853,
+          "longitude": 121.539051
+        },
+        {
+          "id": "tw-taipei-g07",
+          "name": "G07 Gongguan · 公館",
+          "latitude": 25.014908,
+          "longitude": 121.534216
+        },
+        {
+          "id": "tw-taipei-g08",
+          "name": "G08 Taipower Building · 台電大樓",
+          "latitude": 25.020725,
+          "longitude": 121.528168
+        },
+        {
+          "id": "tw-taipei-g09",
+          "name": "G09 Guting · 古亭",
+          "latitude": 25.026357,
+          "longitude": 121.522873
+        },
+        {
+          "id": "tw-taipei-g10",
+          "name": "G10 C.K.S. Memorial Hall · 中正紀念堂",
+          "latitude": 25.032729,
+          "longitude": 121.51827
+        },
+        {
+          "id": "tw-taipei-g11",
+          "name": "G11 Xiaonanmen · 小南門",
+          "latitude": 25.035547,
+          "longitude": 121.510857
+        },
+        {
+          "id": "tw-taipei-g12",
+          "name": "G12 Ximen · 西門",
+          "latitude": 25.04209,
+          "longitude": 121.508303
+        },
+        {
+          "id": "tw-taipei-g13",
+          "name": "G13 Beimen · 北門",
+          "latitude": 25.049554,
+          "longitude": 121.510184
+        },
+        {
+          "id": "tw-taipei-g14",
+          "name": "G14 Zhongshan · 中山",
+          "latitude": 25.052685,
+          "longitude": 121.520392
+        },
+        {
+          "id": "tw-taipei-g15",
+          "name": "G15 Songjiang Nanjing · 松江南京",
+          "latitude": 25.052015,
+          "longitude": 121.533075
+        },
+        {
+          "id": "tw-taipei-g16",
+          "name": "G16 Nanjing Fuxing · 南京復興",
+          "latitude": 25.052319,
+          "longitude": 121.544011
+        },
+        {
+          "id": "tw-taipei-g17",
+          "name": "G17 Taipei Arena · 台北小巨蛋",
+          "latitude": 25.051836,
+          "longitude": 121.55153
+        },
+        {
+          "id": "tw-taipei-g18",
+          "name": "G18 Nanjing Sanmin · 南京三民",
+          "latitude": 25.051652,
+          "longitude": 121.564708
+        },
+        {
+          "id": "tw-taipei-g19",
+          "name": "G19 Songshan · 松山",
+          "latitude": 25.049283,
+          "longitude": 121.578012
+        }
+      ]
+    },
+    {
+      "id": "tw-taipei-g-xiaobitan",
+      "lineNumber": "G",
+      "name": "Xiaobitan branch",
+      "color": "#008659",
+      "stations": [
+        {
+          "id": "tw-taipei-g03",
+          "name": "G03 Qizhang · 七張",
+          "latitude": 24.975169,
+          "longitude": 121.542942
+        },
+        {
+          "id": "tw-taipei-g03a",
+          "name": "G03A Xiaobitan · 小碧潭",
+          "latitude": 24.971907,
+          "longitude": 121.530339
+        }
+      ]
+    },
+    {
+      "id": "tw-taipei-o-huilong",
+      "lineNumber": "O",
+      "name": "Zhonghe–Xinlu · Huilong",
+      "color": "#F8B61C",
+      "stations": [
+        {
+          "id": "tw-taipei-o01",
+          "name": "O01 Nanshijiao · 南勢角",
+          "latitude": 24.990045,
+          "longitude": 121.509237
+        },
+        {
+          "id": "tw-taipei-o02",
+          "name": "O02 Jingan · 景安",
+          "latitude": 24.993905,
+          "longitude": 121.505113
+        },
+        {
+          "id": "tw-taipei-o03",
+          "name": "O03 Yongan Market · 永安市場",
+          "latitude": 25.002876,
+          "longitude": 121.511231
+        },
+        {
+          "id": "tw-taipei-o04",
+          "name": "O04 Dingxi · 頂溪",
+          "latitude": 25.013821,
+          "longitude": 121.515485
+        },
+        {
+          "id": "tw-taipei-o05",
+          "name": "O05 Guting · 古亭",
+          "latitude": 25.026357,
+          "longitude": 121.522873
+        },
+        {
+          "id": "tw-taipei-o06",
+          "name": "O06 Dongmen · 東門",
+          "latitude": 25.033847,
+          "longitude": 121.528739
+        },
+        {
+          "id": "tw-taipei-o07",
+          "name": "O07 Zhongxiao Xinsheng · 忠孝新生",
+          "latitude": 25.042356,
+          "longitude": 121.532905
+        },
+        {
+          "id": "tw-taipei-o08",
+          "name": "O08 Songjiang Nanjing · 松江南京",
+          "latitude": 25.052015,
+          "longitude": 121.533075
+        },
+        {
+          "id": "tw-taipei-o09",
+          "name": "O09 Xingtian Temple · 行天宮",
+          "latitude": 25.059718,
+          "longitude": 121.533185
+        },
+        {
+          "id": "tw-taipei-o10",
+          "name": "O10 Zhongshan Elementary School · 中山國小",
+          "latitude": 25.062694,
+          "longitude": 121.526419
+        },
+        {
+          "id": "tw-taipei-o11",
+          "name": "O11 Minquan W. Rd. · 民權西路",
+          "latitude": 25.062905,
+          "longitude": 121.51932
+        },
+        {
+          "id": "tw-taipei-o12",
+          "name": "O12 Daqiaotou · 大橋頭",
+          "latitude": 25.063256,
+          "longitude": 121.51272
+        },
+        {
+          "id": "tw-taipei-o13",
+          "name": "O13 Taipei Bridge · 台北橋",
+          "latitude": 25.063274,
+          "longitude": 121.500762
+        },
+        {
+          "id": "tw-taipei-o14",
+          "name": "O14 Cailiao · 菜寮",
+          "latitude": 25.060274,
+          "longitude": 121.492156
+        },
+        {
+          "id": "tw-taipei-o15",
+          "name": "O15 Sanchong · 三重",
+          "latitude": 25.055791,
+          "longitude": 121.484725
+        },
+        {
+          "id": "tw-taipei-o16",
+          "name": "O16 Xianse Temple · 先嗇宮",
+          "latitude": 25.046493,
+          "longitude": 121.471916
+        },
+        {
+          "id": "tw-taipei-o17",
+          "name": "O17 Touqianzhuang · 頭前庄",
+          "latitude": 25.039705,
+          "longitude": 121.461746
+        },
+        {
+          "id": "tw-taipei-o18",
+          "name": "O18 Xinzhuang · 新莊",
+          "latitude": 25.036125,
+          "longitude": 121.452468
+        },
+        {
+          "id": "tw-taipei-o19",
+          "name": "O19 Fu Jen University · 輔大",
+          "latitude": 25.032718,
+          "longitude": 121.43547
+        },
+        {
+          "id": "tw-taipei-o20",
+          "name": "O20 Danfeng · 丹鳳",
+          "latitude": 25.0288671,
+          "longitude": 121.4227079
+        },
+        {
+          "id": "tw-taipei-o21",
+          "name": "O21 Huilong · 迴龍",
+          "latitude": 25.021862,
+          "longitude": 121.41127
+        }
+      ]
+    },
+    {
+      "id": "tw-taipei-o-luzhou",
+      "lineNumber": "O",
+      "name": "Zhonghe–Xinlu · Luzhou",
+      "color": "#F8B61C",
+      "stations": [
+        {
+          "id": "tw-taipei-o01",
+          "name": "O01 Nanshijiao · 南勢角",
+          "latitude": 24.990045,
+          "longitude": 121.509237
+        },
+        {
+          "id": "tw-taipei-o02",
+          "name": "O02 Jingan · 景安",
+          "latitude": 24.993905,
+          "longitude": 121.505113
+        },
+        {
+          "id": "tw-taipei-o03",
+          "name": "O03 Yongan Market · 永安市場",
+          "latitude": 25.002876,
+          "longitude": 121.511231
+        },
+        {
+          "id": "tw-taipei-o04",
+          "name": "O04 Dingxi · 頂溪",
+          "latitude": 25.013821,
+          "longitude": 121.515485
+        },
+        {
+          "id": "tw-taipei-o05",
+          "name": "O05 Guting · 古亭",
+          "latitude": 25.026357,
+          "longitude": 121.522873
+        },
+        {
+          "id": "tw-taipei-o06",
+          "name": "O06 Dongmen · 東門",
+          "latitude": 25.033847,
+          "longitude": 121.528739
+        },
+        {
+          "id": "tw-taipei-o07",
+          "name": "O07 Zhongxiao Xinsheng · 忠孝新生",
+          "latitude": 25.042356,
+          "longitude": 121.532905
+        },
+        {
+          "id": "tw-taipei-o08",
+          "name": "O08 Songjiang Nanjing · 松江南京",
+          "latitude": 25.052015,
+          "longitude": 121.533075
+        },
+        {
+          "id": "tw-taipei-o09",
+          "name": "O09 Xingtian Temple · 行天宮",
+          "latitude": 25.059718,
+          "longitude": 121.533185
+        },
+        {
+          "id": "tw-taipei-o10",
+          "name": "O10 Zhongshan Elementary School · 中山國小",
+          "latitude": 25.062694,
+          "longitude": 121.526419
+        },
+        {
+          "id": "tw-taipei-o11",
+          "name": "O11 Minquan W. Rd. · 民權西路",
+          "latitude": 25.062905,
+          "longitude": 121.51932
+        },
+        {
+          "id": "tw-taipei-o12",
+          "name": "O12 Daqiaotou · 大橋頭",
+          "latitude": 25.063256,
+          "longitude": 121.51272
+        },
+        {
+          "id": "tw-taipei-o50",
+          "name": "O50 Sanchong Elementary School · 三重國小",
+          "latitude": 25.070319,
+          "longitude": 121.496904
+        },
+        {
+          "id": "tw-taipei-o51",
+          "name": "O51 Sanhe Junior High School · 三和國中",
+          "latitude": 25.076859,
+          "longitude": 121.486347
+        },
+        {
+          "id": "tw-taipei-o52",
+          "name": "O52 St. Ignatius High School · 徐匯中學",
+          "latitude": 25.080728,
+          "longitude": 121.479673
+        },
+        {
+          "id": "tw-taipei-o53",
+          "name": "O53 Sanmin Senior High School · 三民高中",
+          "latitude": 25.085456,
+          "longitude": 121.473389
+        },
+        {
+          "id": "tw-taipei-o54",
+          "name": "O54 Luzhou · 蘆洲",
+          "latitude": 25.091554,
+          "longitude": 121.464471
+        }
+      ]
+    },
+    {
+      "id": "tw-taipei-bl",
+      "lineNumber": "BL",
+      "name": "Bannan",
+      "color": "#0070BD",
+      "stations": [
+        {
+          "id": "tw-taipei-bl01",
+          "name": "BL01 Dingpu · 頂埔",
+          "latitude": 24.96012,
+          "longitude": 121.4205
+        },
+        {
+          "id": "tw-taipei-bl02",
+          "name": "BL02 Yongning · 永寧",
+          "latitude": 24.966726,
+          "longitude": 121.436072
+        },
+        {
+          "id": "tw-taipei-bl03",
+          "name": "BL03 Tucheng · 土城",
+          "latitude": 24.973094,
+          "longitude": 121.444362
+        },
+        {
+          "id": "tw-taipei-bl04",
+          "name": "BL04 Haishan · 海山",
+          "latitude": 24.985339,
+          "longitude": 121.448786
+        },
+        {
+          "id": "tw-taipei-bl05",
+          "name": "BL05 Far Eastern Hospital · 亞東醫院",
+          "latitude": 24.998037,
+          "longitude": 121.452514
+        },
+        {
+          "id": "tw-taipei-bl06",
+          "name": "BL06 Fuzhong · 府中",
+          "latitude": 25.008619,
+          "longitude": 121.459409
+        },
+        {
+          "id": "tw-taipei-bl07",
+          "name": "BL07 Banqiao · 板橋",
+          "latitude": 25.013618,
+          "longitude": 121.462302
+        },
+        {
+          "id": "tw-taipei-bl08",
+          "name": "BL08 Xinpu · 新埔",
+          "latitude": 25.023738,
+          "longitude": 121.468361
+        },
+        {
+          "id": "tw-taipei-bl09",
+          "name": "BL09 Jiangzicui · 江子翠",
+          "latitude": 25.03001,
+          "longitude": 121.47239
+        },
+        {
+          "id": "tw-taipei-bl10",
+          "name": "BL10 Longshan Temple · 龍山寺",
+          "latitude": 25.03528,
+          "longitude": 121.499826
+        },
+        {
+          "id": "tw-taipei-bl11",
+          "name": "BL11 Ximen · 西門",
+          "latitude": 25.04209,
+          "longitude": 121.508303
+        },
+        {
+          "id": "tw-taipei-bl12",
+          "name": "BL12 Taipei Main Station · 台北車站",
+          "latitude": 25.046255,
+          "longitude": 121.517532
+        },
+        {
+          "id": "tw-taipei-bl13",
+          "name": "BL13 Shandao Temple · 善導寺",
+          "latitude": 25.044823,
+          "longitude": 121.523208
+        },
+        {
+          "id": "tw-taipei-bl14",
+          "name": "BL14 Zhongxiao Xinsheng · 忠孝新生",
+          "latitude": 25.042356,
+          "longitude": 121.532905
+        },
+        {
+          "id": "tw-taipei-bl15",
+          "name": "BL15 Zhongxiao Fuxing · 忠孝復興",
+          "latitude": 25.041629,
+          "longitude": 121.543767
+        },
+        {
+          "id": "tw-taipei-bl16",
+          "name": "BL16 Zhongxiao Dunhua · 忠孝敦化",
+          "latitude": 25.041478,
+          "longitude": 121.551098
+        },
+        {
+          "id": "tw-taipei-bl17",
+          "name": "BL17 S.Y.S. Memorial Hall · 國父紀念館",
+          "latitude": 25.041349,
+          "longitude": 121.557802
+        },
+        {
+          "id": "tw-taipei-bl18",
+          "name": "BL18 Taipei City Hall · 市政府",
+          "latitude": 25.041171,
+          "longitude": 121.565228
+        },
+        {
+          "id": "tw-taipei-bl19",
+          "name": "BL19 Yongchun · 永春",
+          "latitude": 25.040859,
+          "longitude": 121.576293
+        },
+        {
+          "id": "tw-taipei-bl20",
+          "name": "BL20 Houshanpi · 後山埤",
+          "latitude": 25.045055,
+          "longitude": 121.582522
+        },
+        {
+          "id": "tw-taipei-bl21",
+          "name": "BL21 Kunyang · 昆陽",
+          "latitude": 25.050461,
+          "longitude": 121.593268
+        },
+        {
+          "id": "tw-taipei-bl22",
+          "name": "BL22 Nangang · 南港",
+          "latitude": 25.052116,
+          "longitude": 121.606686
+        },
+        {
+          "id": "tw-taipei-bl23",
+          "name": "BL23 Taipei Nangang Exhibition Center · 南港展覽館",
+          "latitude": 25.055288,
+          "longitude": 121.6175001
+        }
+      ]
+    },
+    {
+      "id": "tw-taipei-y",
+      "lineNumber": "Y",
+      "name": "Circular",
+      "color": "#FFDB00",
+      "stations": [
+        {
+          "id": "tw-taipei-y07",
+          "name": "Y07 Dapinglin · 大坪林",
+          "latitude": 24.982914,
+          "longitude": 121.541366
+        },
+        {
+          "id": "tw-taipei-y08",
+          "name": "Y08 Shisizhang · 十四張",
+          "latitude": 24.983975,
+          "longitude": 121.528681
+        },
+        {
+          "id": "tw-taipei-y09",
+          "name": "Y09 Xiulang Bridge · 秀朗橋",
+          "latitude": 24.99046,
+          "longitude": 121.52412
+        },
+        {
+          "id": "tw-taipei-y10",
+          "name": "Y10 Jingping · 景平",
+          "latitude": 24.992168,
+          "longitude": 121.515947
+        },
+        {
+          "id": "tw-taipei-y11",
+          "name": "Y11 Jingan · 景安",
+          "latitude": 24.993922,
+          "longitude": 121.505091
+        },
+        {
+          "id": "tw-taipei-y12",
+          "name": "Y12 Zhonghe · 中和",
+          "latitude": 25.001725,
+          "longitude": 121.496855
+        },
+        {
+          "id": "tw-taipei-y13",
+          "name": "Y13 Qiaohe · 橋和",
+          "latitude": 25.004591,
+          "longitude": 121.490226
+        },
+        {
+          "id": "tw-taipei-y14",
+          "name": "Y14 Zhongyuan · 中原",
+          "latitude": 25.008509,
+          "longitude": 121.483354
+        },
+        {
+          "id": "tw-taipei-y15",
+          "name": "Y15 Banxin · 板新",
+          "latitude": 25.014003,
+          "longitude": 121.47293
+        },
+        {
+          "id": "tw-taipei-y16",
+          "name": "Y16 Banqiao · 板橋",
+          "latitude": 25.014297,
+          "longitude": 121.462882
+        },
+        {
+          "id": "tw-taipei-y17",
+          "name": "Y17 Xinpu Minsheng · 新埔民生",
+          "latitude": 25.022996,
+          "longitude": 121.467987
+        },
+        {
+          "id": "tw-taipei-y18",
+          "name": "Y18 Touqianzhuang · 頭前庄",
+          "latitude": 25.039607,
+          "longitude": 121.461625
+        },
+        {
+          "id": "tw-taipei-y19",
+          "name": "Y19 Xingfu · 幸福",
+          "latitude": 25.049784,
+          "longitude": 121.459902
+        },
+        {
+          "id": "tw-taipei-y20",
+          "name": "Y20 New Taipei Industrial Park · 新北產業園區",
+          "latitude": 25.061082,
+          "longitude": 121.459578
+        }
+      ]
+    }
+  ]
+}

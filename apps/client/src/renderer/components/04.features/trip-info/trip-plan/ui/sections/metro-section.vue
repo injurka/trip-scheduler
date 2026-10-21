@@ -1,13 +1,17 @@
 <script setup lang="ts">
+import type { MetroSystemDetails } from '../../lib/metro-route'
 import type { KitDropdownItem } from '~/components/01.kit/kit-dropdown'
 import type { ActivitySectionMetro, MetroRide } from '~/shared/types/models/activity'
 import { Icon } from '@iconify/vue'
 import { v4 as uuidv4 } from 'uuid'
 import { KitBtn } from '~/components/01.kit/kit-btn'
+import { KitDialogWithClose } from '~/components/01.kit/kit-dialog-with-close'
 import { KitInput } from '~/components/01.kit/kit-input'
+import { KitMap } from '~/components/01.kit/kit-map'
 import { KitSelectWithSearch } from '~/components/01.kit/kit-select-with-search'
 import { KitViewSwitcher } from '~/components/01.kit/kit-view-switcher'
-import { trpc } from '~/shared/services/trpc/trpc.service'
+import { metroService } from '~/shared/services/database/metro.service'
+import { getMetroGeometry, getMetroRidePath } from '../../lib/metro-route'
 
 interface Props {
   section: ActivitySectionMetro
@@ -35,11 +39,40 @@ const sectionData = computed(() => {
 })
 
 const metroSystems = ref<{ id: string, city: string }[]>([])
-const activeSystemDetails = ref<{
-  id: string
-  city: string
-  lines: { id: string, name: string, lineNumber: string | null, color: string, stations: { id: string, name: string }[] }[]
-} | null>(null)
+const activeSystemDetails = ref<MetroSystemDetails | null>(null)
+const loadError = ref('')
+const showMap = ref(false)
+const mapScope = ref<'network' | 'rides'>('network')
+const mappedLines = computed(() => {
+  const lines = activeSystemDetails.value?.lines || []
+  return lines.flatMap((line) => {
+    if (mapScope.value === 'network') {
+      const geometry = getMetroGeometry(line.stations)
+      return geometry ? [{ id: line.id, title: line.name, color: line.color, geometry, stations: line.stations }] : []
+    }
+    return sectionData.value.rides.filter(ride => ride.lineId === line.id).flatMap((ride) => {
+      const path = getMetroRidePath(line, ride.startStationId, ride.endStationId)
+      const geometry = path && getMetroGeometry(path.stations)
+      return path && geometry ? [{ id: ride.id, title: line.name, color: line.color, geometry, stations: path.stations }] : []
+    })
+  })
+})
+const mapMarkers = computed(() => [...new Map(mappedLines.value.flatMap(line => line.stations.map(station => [station.id, {
+  id: station.id,
+  title: station.name,
+  coords: { lat: station.latitude!, lon: station.longitude! },
+  color: line.color,
+  pointType: 'poi' as const,
+  scale: 0.45,
+}] as const))).values()])
+const hasMapData = computed(() => activeSystemDetails.value?.lines.some(line => getMetroGeometry(line.stations)))
+const incompleteRideMap = computed(() => mapScope.value === 'rides' && mappedLines.value.length !== sectionData.value.rides.length)
+function ridePath(ride: MetroRide) {
+  return getMetroRidePath(activeSystemDetails.value?.lines.find(line => line.id === ride.lineId), ride.startStationId, ride.endStationId)
+}
+function getStops(ride: MetroRide) {
+  return sectionData.value.mode === 'city' ? (ridePath(ride)?.stops ?? 0) : ride.stops
+}
 
 const isLoadingSystems = ref(false)
 const isLoadingDetails = ref(false)
@@ -60,53 +93,65 @@ function getStationOptionsForLine(lineId: string | null): KitDropdownItem<string
 }
 
 function getDirectionText(ride: MetroRide): string {
-  if (props.section.mode === 'free' || !activeSystemDetails.value || !ride.lineId || !ride.startStationId || !ride.endStationId) {
-    return ride.direction || '...'
-  }
-
-  const line = activeSystemDetails.value.lines.find(l => l.id === ride.lineId)
-  if (!line || line.stations.length < 2)
-    return '...'
-
-  const startIndex = line.stations.findIndex(s => s.id === ride.startStationId)
-  const endIndex = line.stations.findIndex(s => s.id === ride.endStationId)
-
-  if (startIndex === -1 || endIndex === -1 || startIndex === endIndex)
-    return '...'
-
-  const terminusStation = endIndex > startIndex ? line.stations[line.stations.length - 1] : line.stations[0]
-  return `в сторону ст. «${terminusStation.name}»`
+  return sectionData.value.mode === 'city' ? (ridePath(ride)?.direction || 'Выберите разные станции') : (ride.direction || '...')
 }
 
 async function fetchMetroSystems() {
   isLoadingSystems.value = true
   try {
-    metroSystems.value = await trpc.metro.listSystems.query() as { id: string, city: string }[]
+    metroSystems.value = await metroService.listSystems()
   }
   catch (e) {
     console.error('Failed to fetch metro systems:', e)
+    loadError.value = 'Не удалось загрузить список городов'
   }
   finally {
     isLoadingSystems.value = false
   }
 }
 
-async function fetchSystemDetails(systemId: string) {
-  if (!systemId) {
-    activeSystemDetails.value = null
+let detailsRequest = 0
+async function fetchSystemDetails(systemId: string | null) {
+  const request = ++detailsRequest
+  activeSystemDetails.value = null
+  isLoadingDetails.value = false
+  loadError.value = ''
+  if (!systemId || sectionData.value.mode !== 'city')
     return
-  }
   isLoadingDetails.value = true
   try {
-    activeSystemDetails.value = await trpc.metro.getDetails.query({ systemId }) as any
+    const details = await metroService.getDetails(systemId)
+    if (request === detailsRequest)
+      activeSystemDetails.value = details
   }
   catch (e) {
-    console.error(`Failed to fetch metro system details for ${systemId}:`, e)
-    activeSystemDetails.value = null
+    if (request === detailsRequest)
+      loadError.value = 'Не удалось загрузить метро. Попробуйте ещё раз.'
+    console.error('Failed to fetch metro details:', e)
   }
   finally {
-    isLoadingDetails.value = false
+    if (request === detailsRequest)
+      isLoadingDetails.value = false
   }
+}
+
+function handleSystemChange(systemId: string | null) {
+  if (systemId === sectionData.value.systemId)
+    return
+  showMap.value = false
+  updateSection({ systemId, rides: sectionData.value.rides.map(ride => ({
+    ...ride,
+    lineId: null,
+    lineNumber: null,
+    lineName: '',
+    lineColor: '#808080',
+    startStationId: null,
+    startStation: '',
+    endStationId: null,
+    endStation: '',
+    direction: '',
+    stops: 0,
+  })) })
 }
 
 function updateSection(newSectionData: Partial<ActivitySectionMetro>) {
@@ -123,9 +168,17 @@ function handleModeChange(newMode: 'free' | 'city') {
 }
 
 function updateRide(rideId: string, updatedRide: Partial<MetroRide>) {
-  const updatedRides = sectionData.value.rides.map(ride =>
-    ride.id === rideId ? { ...ride, ...updatedRide } : ride,
-  )
+  const updatedRides = sectionData.value.rides.map((ride) => {
+    if (ride.id !== rideId)
+      return ride
+    const next = { ...ride, ...updatedRide }
+    if (sectionData.value.mode === 'city') {
+      const path = ridePath(next)
+      next.stops = path?.stops ?? 0
+      next.direction = path?.direction ?? ''
+    }
+    return next
+  })
   updateSection({ rides: updatedRides })
 }
 
@@ -145,9 +198,7 @@ function handleLineChange(ride: MetroRide, newLineId: string | null) {
 }
 
 function handleStationChange(ride: MetroRide, field: 'startStation' | 'endStation', stationId: string | null) {
-  const station = activeSystemDetails.value?.lines
-    .flatMap(l => l.stations)
-    .find(s => s.id === stationId)
+  const station = activeSystemDetails.value?.lines.find(line => line.id === ride.lineId)?.stations.find(s => s.id === stationId)
 
   updateRide(ride.id, {
     [`${field}Id`]: stationId,
@@ -177,21 +228,10 @@ function removeRide(rideId: string) {
   updateSection({ rides: updatedRides })
 }
 
-onMounted(() => {
-  fetchMetroSystems()
-  if (sectionData.value.systemId) {
-    fetchSystemDetails(sectionData.value.systemId)
-  }
-})
-
-watch(() => sectionData.value.systemId, (newId) => {
-  if (newId && sectionData.value.mode === 'city') {
-    fetchSystemDetails(newId)
-  }
-  else {
-    activeSystemDetails.value = null
-  }
-})
+onMounted(fetchMetroSystems)
+watch(() => [sectionData.value.systemId, sectionData.value.mode] as const, ([id]) => {
+  fetchSystemDetails(id)
+}, { immediate: true })
 </script>
 
 <template>
@@ -209,9 +249,37 @@ watch(() => sectionData.value.systemId, (newId) => {
         :loading="isLoadingSystems"
         placeholder="Выберите город"
         class="city-selector"
-        @update:model-value="updateSection({ systemId: $event as string })"
+        @update:model-value="handleSystemChange($event as string | null)"
       />
     </div>
+
+    <p v-if="loadError" role="alert">
+      {{ loadError }} <KitBtn size="sm" variant="text" @click="fetchMetroSystems(); fetchSystemDetails(sectionData.systemId)">
+        Повторить
+      </KitBtn>
+    </p>
+    <p v-if="sectionData.mode === 'city' && activeSystemDetails && !activeSystemDetails.lines.length">
+      В этом городе пока нет линий метро.
+    </p>
+    <KitBtn v-if="sectionData.mode === 'city' && hasMapData" variant="subtle" icon="mdi:map-outline" @click="showMap = true">
+      Просмотр на карте
+    </KitBtn>
+    <KitDialogWithClose v-model:visible="showMap" :title="`Метро · ${activeSystemDetails?.city || ''}`" :max-width="1000">
+      <div class="metro-map-content">
+        <KitViewSwitcher v-model="mapScope" :items="[{ id: 'network', label: 'Вся сеть' }, { id: 'rides', label: 'Мой маршрут' }]" />
+        <p>Станции соединены по порядку. Линии на карте показывают схему, а не точную геометрию тоннелей.</p>
+        <p v-if="incompleteRideMap">
+          Не все отрезки можно показать: выберите линию и разные станции с координатами.
+        </p>
+        <KitMap v-if="mapMarkers.length" :key="mapScope" :center="[mapMarkers[0]!.coords.lon, mapMarkers[0]!.coords.lat]" :markers="mapMarkers" :routes="mappedLines" height="55vh" />
+        <p v-else>
+          Для выбранного маршрута пока нет данных карты.
+        </p>
+        <div class="metro-map-legend">
+          <span v-for="line in mappedLines" :key="line.id"><Icon icon="mdi:circle" :color="line.color" /> {{ line.title }}</span>
+        </div>
+      </div>
+    </KitDialogWithClose>
 
     <div class="rides-container">
       <div v-for="(ride, index) in sectionData.rides" :key="ride.id" class="ride-wrapper">
@@ -225,6 +293,7 @@ watch(() => sectionData.value.systemId, (newId) => {
               <KitSelectWithSearch :model-value="ride.lineId" :items="lineOptions" :loading="isLoadingDetails" placeholder="Линия" @update:model-value="handleLineChange(ride, $event as string)" />
               <KitSelectWithSearch :model-value="ride.startStationId" :items="getStationOptionsForLine(ride.lineId)" placeholder="Откуда" @update:model-value="handleStationChange(ride, 'startStation', $event as string)" />
               <KitSelectWithSearch :model-value="ride.endStationId" :items="getStationOptionsForLine(ride.lineId)" placeholder="Куда" @update:model-value="handleStationChange(ride, 'endStation', $event as string)" />
+              <span v-if="ridePath(ride)" class="city-ride-summary">{{ getDirectionText(ride) }} · {{ getStops(ride) }} ост.</span>
             </div>
           </div>
 
@@ -259,7 +328,7 @@ watch(() => sectionData.value.systemId, (newId) => {
                 <div class="path-line" />
                 <div class="path-details">
                   <span>{{ getDirectionText(ride) }}</span>
-                  <span v-if="ride.stops > 0">{{ ride.stops }} {{ ride.stops === 1 ? 'ост.' : (ride.stops > 1 && ride.stops < 5 ? 'ост-ки' : 'ост-ок') }}</span>
+                  <span v-if="getStops(ride) > 0">{{ getStops(ride) }} ост.</span>
                 </div>
               </div>
               <div class="station end">
@@ -286,6 +355,21 @@ watch(() => sectionData.value.systemId, (newId) => {
 </template>
 
 <style scoped lang="scss">
+.metro-map-content {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+.metro-map-legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+.city-ride-summary {
+  grid-column: 1 / -1;
+  font-size: 0.8rem;
+  color: var(--fg-secondary-color);
+}
 .metro-section {
   background-color: var(--bg-secondary-color);
   border: 1px solid var(--border-secondary-color);
@@ -370,6 +454,11 @@ watch(() => sectionData.value.systemId, (newId) => {
   grid-template-columns: 1fr 1fr 1fr;
   gap: 8px;
   width: 100%;
+}
+@media (max-width: 640px) {
+  .city-mode.editable .city-inputs {
+    grid-template-columns: minmax(0, 1fr);
+  }
 }
 .free-mode.editable .free-mode-grid {
   display: grid;

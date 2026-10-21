@@ -267,6 +267,8 @@ export const metroStations = pgTable('metro_stations', {
   id: text('id').primaryKey(),
   systemId: text('system_id').notNull().references(() => metroSystems.id, { onDelete: 'cascade' }),
   name: text('name').notNull(),
+  latitude: doublePrecision('latitude'),
+  longitude: doublePrecision('longitude'),
 })
 
 export const metroLineStations = pgTable('metro_line_stations', {
