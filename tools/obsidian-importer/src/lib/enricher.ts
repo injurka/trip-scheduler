@@ -5,6 +5,7 @@ import type {
   Booking,
   GeolocationPoint,
 } from '../types'
+import type { MetroActivityResolver } from './metro-resolver'
 import { existsSync } from 'node:fs'
 import { colors } from '../config/colors'
 import { dedentText } from '../parsers/activity'
@@ -120,12 +121,17 @@ export async function enrichActivityWithMediaAndLocation(
     uploadImages?: boolean
     geocode?: boolean
     locationContext?: string
+    metroCityContext?: string
+    resolveMetro?: MetroActivityResolver
     bookings?: Booking[]
     dayDate?: string
     gpxIndex?: Map<string, string>
     onProgress?: (message: string) => void
   } = {},
 ): Promise<ActivityPayload> {
+  if (options.resolveMetro)
+    act = await options.resolveMetro(act, options.metroCityContext ?? options.locationContext)
+
   const shouldUpload = options.uploadImages !== false && api !== null && tripId !== null
   const shouldGeocode = options.geocode !== false
   const notify = options.onProgress || (() => {})

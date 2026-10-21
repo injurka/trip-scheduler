@@ -17,6 +17,7 @@ import { enrichActivityWithMediaAndLocation } from '../lib/enricher'
 import { buildGpxIndex } from '../lib/gpx-indexer'
 import { buildImageIndex } from '../lib/image-indexer'
 import { generateActivitiesViaDirectLlm, mergeLlmActivitiesWithRawMarkdown } from '../lib/llm'
+import { createMetroActivityResolver } from '../lib/metro-resolver'
 import { stableId } from '../lib/stable-id'
 import { parseActivitiesFromMarkdown, stripFrontmatter } from '../parsers/activity'
 import { parseObsidianTripFolder } from '../parsers/vault'
@@ -60,7 +61,7 @@ export async function runImport(): Promise<void> {
 
   let runValidation = cliOptions.validate
 
-  if (!cliOptions.validate && !cliOptions.dryRun && !cliOptions.nonInteractive) {
+  if (!cliOptions.validate && !cliOptions.dryRun && !cliOptions.checkMetro && !cliOptions.nonInteractive) {
     const chosenMode = await promptForExecutionMode()
     if (chosenMode === 'validate') {
       runValidation = true
@@ -98,6 +99,32 @@ export async function runImport(): Promise<void> {
   catch (err: any) {
     console.error(`${colors.red}❌ Ошибка парсинга папки Obsidian: ${err.message}${colors.reset}`)
     process.exit(1)
+  }
+
+  if (cliOptions.checkMetro) {
+    if (cliOptions.dryRun)
+      throw new Error('Используйте --check-metro отдельно от --dry-run: проверка метро читает API, dry-run работает без сети.')
+    console.log(`Проверка метро: ${cliOptions.apiUrl} (только чтение, без авторизации и записи поездки).`)
+    const metroApi = new ApiClient(cliOptions.apiUrl)
+    const systems = await metroApi.listMetroSystems()
+    const resolveMetro = createMetroActivityResolver({ listMetroSystems: async () => systems, getMetroSystemDetails: id => metroApi.getMetroSystemDetails(id) }, message => console.warn(message))
+    let matched = 0
+    let total = 0
+    for (const day of tripData.days) {
+      for (const activity of parseActivitiesFromMarkdown(day.rawContent)) {
+        const result = await resolveMetro(activity, `${day.location || ''} ${day.title} ${day.fileName}`)
+        for (const section of result.sections || []) {
+          if (section.type !== 'metro')
+            continue
+          total++
+          if (section.mode === 'city')
+            matched++
+          console.log(`День ${day.dayNumber} · ${activity.title}: ${section.mode === 'city' ? `по городу (${section.systemId})` : 'ручной ввод'}; ${section.rides.length} отрезков`)
+        }
+      }
+    }
+    console.log(`Метро: ${matched}/${total} блоков сопоставлено со справочником.`)
+    return
   }
 
   const bookingsTotal = tripData.bookingsContent?.bookings?.length || 0
@@ -204,6 +231,8 @@ export async function runImport(): Promise<void> {
     console.error(`\n${colors.red}❌ Ошибка авторизации: ${err.message}${colors.reset}`)
     process.exit(1)
   }
+
+  const resolveMetro = createMetroActivityResolver(api, message => console.warn(`${colors.yellow}${message}${colors.reset}`))
 
   // 1. Connect to existing trip or create a new trip
   let targetTripId = cliOptions.tripId
@@ -788,7 +817,7 @@ export async function runImport(): Promise<void> {
       // Extract location context for the day to ensure accurate geocoding across multi-city trips
       let locationContext = tripData.cities.length > 0 ? tripData.cities[0] : undefined
       const locMatch = day.rawContent.match(/>[ \t]*\*\*(?:Локация|Location):\*\*[ \t]*([^\n]+)/i)
-      const dayContextText = `${locMatch ? locMatch[1] : ''} ${day.title} ${day.fileName}`
+      const dayContextText = `${day.location || (locMatch ? locMatch[1] : '')} ${day.title} ${day.fileName}`
       for (const city of tripData.cities) {
         if (new RegExp(`(^|[^\\wа-яёА-ЯЁ])${city}(?![\\wа-яёА-ЯЁ])`, 'iu').test(dayContextText)) {
           locationContext = city
@@ -810,6 +839,8 @@ export async function runImport(): Promise<void> {
               uploadImages: cliOptions.uploadImages,
               geocode: cliOptions.geocode,
               locationContext,
+              metroCityContext: dayContextText,
+              resolveMetro,
               bookings: createdBookings,
               dayDate: day.date,
               gpxIndex,

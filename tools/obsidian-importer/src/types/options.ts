@@ -7,6 +7,7 @@ export interface CliOptions {
   useLlm: boolean
   llmModel?: string
   dryRun: boolean
+  checkMetro?: boolean
   visibility: 'private' | 'public'
   status: 'planned' | 'draft' | 'completed'
   importTripMeta?: boolean

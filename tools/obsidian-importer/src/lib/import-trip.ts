@@ -12,6 +12,7 @@ import { enrichActivityWithMediaAndLocation } from './enricher'
 import { buildGpxIndex } from './gpx-indexer'
 import { buildImageIndex } from './image-indexer'
 import { generateActivitiesViaDirectLlm, mergeLlmActivitiesWithRawMarkdown } from './llm'
+import { createMetroActivityResolver } from './metro-resolver'
 
 /**
  * Programmatic-ядро импорта: приводит папку Obsidian-вольта к данным Trip Scheduler
@@ -64,6 +65,7 @@ export async function importTripFolderCore(
   options: ImportCoreOptions = {},
 ): Promise<ImportCoreResult> {
   const log = options.onLog
+  const resolveMetro = createMetroActivityResolver(transport, log)
   const progress = options.onProgress
   const useLlm = options.useLlm !== false
   const uploadImages = options.uploadImages !== false
@@ -534,6 +536,8 @@ export async function importTripFolderCore(
                 uploadImages,
                 geocode,
                 locationContext,
+                metroCityContext: dayContextText,
+                resolveMetro,
                 bookings: createdBookings,
                 dayDate: day.date,
                 gpxIndex,

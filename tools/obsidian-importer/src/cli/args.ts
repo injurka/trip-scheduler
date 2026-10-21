@@ -21,6 +21,7 @@ ${colors.bright}ОПЦИИ:${colors.reset}
   --llm                     Использовать LLM для умной генерации активностей
   --no-llm                  Использовать встроенный парсер таймлайна без LLM
   -m, --model <name>        Модель для AIHubMix/OpenAI (по умолч.: из config / ${DEFAULT_AIHUBMIX_MODEL})
+  --check-metro             Проверить метро по живому справочнику API без записи поездки
   --dry-run                 Режим предпросмотра без отправки запросов в базу
   -v, --validate            Режим валидации хранилища (диагностика структуры, предупреждения, упущенные данные)
   --status <status>         Статус поездки: planned | draft | completed (по умолч.: draft)
@@ -85,6 +86,9 @@ export function parseCliArgs(args = process.argv.slice(2)): CliOptions {
     }
     else if (arg === '-m' || arg === '--model') {
       options.llmModel = readValue()
+    }
+    else if (arg === '--check-metro') {
+      options.checkMetro = true
     }
     else if (arg === '--dry-run') {
       options.dryRun = true

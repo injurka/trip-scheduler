@@ -1,6 +1,7 @@
 import type { Transport } from '@limiteddissolve/obsidian-importer'
 import type { z } from 'zod'
 import type { CreateActivityInputSchema } from '~/modules/activity/activity.schemas'
+import { metroService } from '~/modules/metro/metro.service'
 import { tripService } from '~/modules/trip/trip.service'
 import { activityRepository } from '~/repositories/activity.repository'
 import { dayRepository } from '~/repositories/day.repository'
@@ -17,6 +18,9 @@ import { tripRepository } from '~/repositories/trip.repository'
  */
 export function createInProcessTransport(userId: string): Transport {
   return {
+    listMetroSystems: () => metroService.listSystems(),
+    getMetroSystemDetails: systemId => metroService.getDetails(systemId),
+
     async createTrip(payload) {
       // tripService.create проверяет квоту, создает дефолтные разделы и «День 1»
       const trip = await tripService.create({

@@ -1,4 +1,5 @@
 import type { ActivityPayload, Booking } from '../types'
+import type { MetroCatalogSource } from './metro-resolver'
 
 /**
  * Абстракция транспорта импорта: obsidian-importer пишет данные в Trip Scheduler
@@ -9,7 +10,7 @@ import type { ActivityPayload, Booking } from '../types'
  * @module
  */
 
-export interface Transport {
+export interface Transport extends Partial<MetroCatalogSource> {
   createTrip: (payload: {
     title: string
     shareSlug?: string

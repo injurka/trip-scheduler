@@ -5,13 +5,12 @@ import type { ActivitySectionMetro, MetroRide } from '~/shared/types/models/acti
 import { Icon } from '@iconify/vue'
 import { v4 as uuidv4 } from 'uuid'
 import { KitBtn } from '~/components/01.kit/kit-btn'
-import { KitDialogWithClose } from '~/components/01.kit/kit-dialog-with-close'
 import { KitInput } from '~/components/01.kit/kit-input'
-import { KitMap } from '~/components/01.kit/kit-map'
 import { KitSelectWithSearch } from '~/components/01.kit/kit-select-with-search'
 import { KitViewSwitcher } from '~/components/01.kit/kit-view-switcher'
 import { metroService } from '~/shared/services/database/metro.service'
 import { getMetroGeometry, getMetroRidePath } from '../../lib/metro-route'
+import MetroMapDialog from './metro-map-dialog.vue'
 
 interface Props {
   section: ActivitySectionMetro
@@ -42,31 +41,7 @@ const metroSystems = ref<{ id: string, city: string }[]>([])
 const activeSystemDetails = ref<MetroSystemDetails | null>(null)
 const loadError = ref('')
 const showMap = ref(false)
-const mapScope = ref<'network' | 'rides'>('network')
-const mappedLines = computed(() => {
-  const lines = activeSystemDetails.value?.lines || []
-  return lines.flatMap((line) => {
-    if (mapScope.value === 'network') {
-      const geometry = getMetroGeometry(line.stations)
-      return geometry ? [{ id: line.id, title: line.name, color: line.color, geometry, stations: line.stations }] : []
-    }
-    return sectionData.value.rides.filter(ride => ride.lineId === line.id).flatMap((ride) => {
-      const path = getMetroRidePath(line, ride.startStationId, ride.endStationId)
-      const geometry = path && getMetroGeometry(path.stations)
-      return path && geometry ? [{ id: ride.id, title: line.name, color: line.color, geometry, stations: path.stations }] : []
-    })
-  })
-})
-const mapMarkers = computed(() => [...new Map(mappedLines.value.flatMap(line => line.stations.map(station => [station.id, {
-  id: station.id,
-  title: station.name,
-  coords: { lat: station.latitude!, lon: station.longitude! },
-  color: line.color,
-  pointType: 'poi' as const,
-  scale: 0.45,
-}] as const))).values()])
 const hasMapData = computed(() => activeSystemDetails.value?.lines.some(line => getMetroGeometry(line.stations)))
-const incompleteRideMap = computed(() => mapScope.value === 'rides' && mappedLines.value.length !== sectionData.value.rides.length)
 function ridePath(ride: MetroRide) {
   return getMetroRidePath(activeSystemDetails.value?.lines.find(line => line.id === ride.lineId), ride.startStationId, ride.endStationId)
 }
@@ -264,22 +239,7 @@ watch(() => [sectionData.value.systemId, sectionData.value.mode] as const, ([id]
     <KitBtn v-if="sectionData.mode === 'city' && hasMapData" variant="subtle" icon="mdi:map-outline" @click="showMap = true">
       Просмотр на карте
     </KitBtn>
-    <KitDialogWithClose v-model:visible="showMap" :title="`Метро · ${activeSystemDetails?.city || ''}`" :max-width="1000">
-      <div class="metro-map-content">
-        <KitViewSwitcher v-model="mapScope" :items="[{ id: 'network', label: 'Вся сеть' }, { id: 'rides', label: 'Мой маршрут' }]" />
-        <p>Станции соединены по порядку. Линии на карте показывают схему, а не точную геометрию тоннелей.</p>
-        <p v-if="incompleteRideMap">
-          Не все отрезки можно показать: выберите линию и разные станции с координатами.
-        </p>
-        <KitMap v-if="mapMarkers.length" :key="mapScope" :center="[mapMarkers[0]!.coords.lon, mapMarkers[0]!.coords.lat]" :markers="mapMarkers" :routes="mappedLines" height="55vh" />
-        <p v-else>
-          Для выбранного маршрута пока нет данных карты.
-        </p>
-        <div class="metro-map-legend">
-          <span v-for="line in mappedLines" :key="line.id"><Icon icon="mdi:circle" :color="line.color" /> {{ line.title }}</span>
-        </div>
-      </div>
-    </KitDialogWithClose>
+    <MetroMapDialog v-model:visible="showMap" :system="activeSystemDetails" :rides="sectionData.rides" />
 
     <div class="rides-container">
       <div v-for="(ride, index) in sectionData.rides" :key="ride.id" class="ride-wrapper">
@@ -355,16 +315,6 @@ watch(() => [sectionData.value.systemId, sectionData.value.mode] as const, ([id]
 </template>
 
 <style scoped lang="scss">
-.metro-map-content {
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
-}
-.metro-map-legend {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 12px;
-}
 .city-ride-summary {
   grid-column: 1 / -1;
   font-size: 0.8rem;
@@ -455,7 +405,7 @@ watch(() => [sectionData.value.systemId, sectionData.value.mode] as const, ([id]
   gap: 8px;
   width: 100%;
 }
-@media (max-width: 640px) {
+@include media-down(sm) {
   .city-mode.editable .city-inputs {
     grid-template-columns: minmax(0, 1fr);
   }

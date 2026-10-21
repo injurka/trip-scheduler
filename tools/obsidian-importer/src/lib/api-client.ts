@@ -1,4 +1,5 @@
 import type { ActivityPayload } from '../types'
+import type { MetroCatalogDetails, MetroCatalogSystem } from './metro-resolver'
 import { readFileSync } from 'node:fs'
 import { basename } from 'node:path'
 
@@ -160,6 +161,14 @@ export class ApiClient {
     }
 
     throw lastError
+  }
+
+  async listMetroSystems(): Promise<MetroCatalogSystem[]> {
+    return this.request('/metro/systems')
+  }
+
+  async getMetroSystemDetails(systemId: string): Promise<MetroCatalogDetails> {
+    return this.request(`/metro/systems/${encodeURIComponent(systemId)}`)
   }
 
   // 1. Auth: SignIn
