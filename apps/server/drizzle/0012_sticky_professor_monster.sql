@@ -1,0 +1,1 @@
+ALTER TABLE "metro_lines" ADD COLUMN "is_circular" boolean DEFAULT false NOT NULL;

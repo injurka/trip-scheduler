@@ -1,0 +1,123 @@
+{
+  "id": "tw-taichung",
+  "city": "Тайчжун",
+  "country": "Тайвань",
+  "lines": [
+    {
+      "id": "tw-taichung-g",
+      "lineNumber": "G",
+      "name": "Green Line",
+      "color": "#84BD00",
+      "stations": [
+        {
+          "id": "tw-taichung-103a",
+          "name": "103a Beitun Main Station · 北屯總站 · G0",
+          "latitude": 24.189132,
+          "longitude": 120.70864
+        },
+        {
+          "id": "tw-taichung-103",
+          "name": "103 Jiushe · 舊社 · G3",
+          "latitude": 24.182289,
+          "longitude": 120.707294
+        },
+        {
+          "id": "tw-taichung-104",
+          "name": "104 Songzhu · 松竹 · G4",
+          "latitude": 24.180807,
+          "longitude": 120.70145
+        },
+        {
+          "id": "tw-taichung-105",
+          "name": "105 Sihwei Elementary School · 四維國小 · G5",
+          "latitude": 24.171243,
+          "longitude": 120.693295
+        },
+        {
+          "id": "tw-taichung-106",
+          "name": "106 Wenxin Chongde · 文心崇德 · G6",
+          "latitude": 24.172194,
+          "longitude": 120.684869
+        },
+        {
+          "id": "tw-taichung-107",
+          "name": "107 Wenxin Zhongqing · 文心中清 · G7",
+          "latitude": 24.173682,
+          "longitude": 120.670599
+        },
+        {
+          "id": "tw-taichung-108",
+          "name": "108 Wenhua Senior High School · 文華高中 · G8",
+          "latitude": 24.171416,
+          "longitude": 120.660455
+        },
+        {
+          "id": "tw-taichung-109",
+          "name": "109 Wenxin Yinghua · 文心櫻花 · G8a",
+          "latitude": 24.167636,
+          "longitude": 120.653674
+        },
+        {
+          "id": "tw-taichung-110",
+          "name": "110 Taichung City Hall · 市政府 · G9",
+          "latitude": 24.16199,
+          "longitude": 120.649035
+        },
+        {
+          "id": "tw-taichung-111",
+          "name": "111 Shui-an Temple · 水安宮 · G10",
+          "latitude": 24.153113,
+          "longitude": 120.646687
+        },
+        {
+          "id": "tw-taichung-112",
+          "name": "112 Wenxin Forest Park · 文心森林公園 · G10a",
+          "latitude": 24.1454,
+          "longitude": 120.6466
+        },
+        {
+          "id": "tw-taichung-113",
+          "name": "113 Nantun · 南屯 · G11",
+          "latitude": 24.1405,
+          "longitude": 120.6466
+        },
+        {
+          "id": "tw-taichung-114",
+          "name": "114 Feng-le Park · 豐樂公園 · G12",
+          "latitude": 24.132606,
+          "longitude": 120.64635
+        },
+        {
+          "id": "tw-taichung-115",
+          "name": "115 Daqing · 大慶 · G13",
+          "latitude": 24.1191,
+          "longitude": 120.6476
+        },
+        {
+          "id": "tw-taichung-116",
+          "name": "116 Jiuzhangli · 九張犁 · G14",
+          "latitude": 24.1145,
+          "longitude": 120.6401
+        },
+        {
+          "id": "tw-taichung-117",
+          "name": "117 Jiude · 九德 · G15",
+          "latitude": 24.111049,
+          "longitude": 120.634481
+        },
+        {
+          "id": "tw-taichung-118",
+          "name": "118 Wuri · 烏日",
+          "latitude": 24.1089,
+          "longitude": 120.6249
+        },
+        {
+          "id": "tw-taichung-119",
+          "name": "119 HSR Taichung Station · 高鐵臺中站",
+          "latitude": 24.110119,
+          "longitude": 120.614053
+        }
+      ]
+    }
+  ]
+}

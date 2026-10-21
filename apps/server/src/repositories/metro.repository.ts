@@ -84,11 +84,12 @@ export const metroRepository = {
             systemId: system.id,
             name: line.name,
             lineNumber: line.lineNumber,
+            isCircular: line.isCircular ?? false,
             color: line.color,
           })
           .onConflictDoUpdate({
             target: metroLines.id,
-            set: { name: line.name, color: line.color, lineNumber: line.lineNumber },
+            set: { name: line.name, color: line.color, lineNumber: line.lineNumber, isCircular: line.isCircular ?? false },
           })
 
         await tx.delete(metroLineStations).where(eq(metroLineStations.lineId, line.id))

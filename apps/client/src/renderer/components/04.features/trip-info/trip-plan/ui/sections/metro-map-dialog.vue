@@ -12,7 +12,7 @@ const visible = defineModel<boolean>('visible', { required: true })
 const scope = ref<'network' | 'rides'>('network')
 const mappedLines = computed(() => (props.system?.lines || []).flatMap((line) => {
   if (scope.value === 'network') {
-    const geometry = getMetroGeometry(line.stations)
+    const geometry = getMetroGeometry(line.isCircular ? [...line.stations, line.stations[0]!] : line.stations)
     return geometry ? [{ id: line.id, title: line.name, lineNumber: line.lineNumber, color: line.color, geometry, stations: line.stations }] : []
   }
   return props.rides.filter(ride => ride.lineId === line.id).flatMap((ride) => {

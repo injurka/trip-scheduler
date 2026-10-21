@@ -1,0 +1,494 @@
+{
+  "id": "tw-kaohsiung",
+  "city": "Гаосюн",
+  "country": "Тайвань",
+  "lines": [
+    {
+      "id": "tw-kaohsiung-r",
+      "lineNumber": "R",
+      "name": "Red Line",
+      "color": "#E4002B",
+      "stations": [
+        {
+          "id": "tw-kaohsiung-r3",
+          "name": "R3 Siaogang · 小港(小港醫院)",
+          "latitude": 22.564759,
+          "longitude": 120.353769
+        },
+        {
+          "id": "tw-kaohsiung-r4",
+          "name": "R4 Kaohsiung International Airport · 高雄國際機場",
+          "latitude": 22.569953,
+          "longitude": 120.342576
+        },
+        {
+          "id": "tw-kaohsiung-r4a",
+          "name": "R4A Caoya · 草衙(高雄捷運公司)",
+          "latitude": 22.580091,
+          "longitude": 120.328639
+        },
+        {
+          "id": "tw-kaohsiung-r5",
+          "name": "R5 Cianjhen Senior High School · 前鎮高中",
+          "latitude": 22.58826,
+          "longitude": 120.321753
+        },
+        {
+          "id": "tw-kaohsiung-r6",
+          "name": "R6 Kaisyuan · 凱旋",
+          "latitude": 22.596612,
+          "longitude": 120.315187
+        },
+        {
+          "id": "tw-kaohsiung-r7",
+          "name": "R7 Shihjia · 獅甲(勞工公園)",
+          "latitude": 22.605794,
+          "longitude": 120.308234
+        },
+        {
+          "id": "tw-kaohsiung-r8",
+          "name": "R8 Sanduo Shopping District · 三多商圈",
+          "latitude": 22.613224,
+          "longitude": 120.304791
+        },
+        {
+          "id": "tw-kaohsiung-r9",
+          "name": "R9 Central Park · 中央公園",
+          "latitude": 22.624805,
+          "longitude": 120.301183
+        },
+        {
+          "id": "tw-kaohsiung-r10",
+          "name": "R10 Formosa Boulevard · 美麗島",
+          "latitude": 22.631323,
+          "longitude": 120.301915
+        },
+        {
+          "id": "tw-kaohsiung-r11",
+          "name": "R11 Kaohsiung Main Station · 高雄車",
+          "latitude": 22.639093,
+          "longitude": 120.302579
+        },
+        {
+          "id": "tw-kaohsiung-r12",
+          "name": "R12 Houyi · 後驛(高醫大)",
+          "latitude": 22.648427,
+          "longitude": 120.303334
+        },
+        {
+          "id": "tw-kaohsiung-r13",
+          "name": "R13 Aozihdi · 凹子底",
+          "latitude": 22.657364,
+          "longitude": 120.303112
+        },
+        {
+          "id": "tw-kaohsiung-r14",
+          "name": "R14 Kaohsiung Arena · 巨蛋(三民家商)",
+          "latitude": 22.665982,
+          "longitude": 120.30331
+        },
+        {
+          "id": "tw-kaohsiung-r15",
+          "name": "R15 Ecological District · 生態園區",
+          "latitude": 22.676657,
+          "longitude": 120.306505
+        },
+        {
+          "id": "tw-kaohsiung-r16",
+          "name": "R16 Zuoying · 左營／高鐵",
+          "latitude": 22.688005,
+          "longitude": 120.309014
+        },
+        {
+          "id": "tw-kaohsiung-r17",
+          "name": "R17 World Games · 世運(國家體育園區)",
+          "latitude": 22.701597,
+          "longitude": 120.302506
+        },
+        {
+          "id": "tw-kaohsiung-r18",
+          "name": "R18 Oil Refinery Elementary School · 油廠國小",
+          "latitude": 22.708628,
+          "longitude": 120.302306
+        },
+        {
+          "id": "tw-kaohsiung-r19",
+          "name": "R19 Nanzih Technology Industrial Park · 楠梓科技園區",
+          "latitude": 22.718692,
+          "longitude": 120.307197
+        },
+        {
+          "id": "tw-kaohsiung-r20",
+          "name": "R20 Houjing · 後勁(海科大)",
+          "latitude": 22.722458,
+          "longitude": 120.316645
+        },
+        {
+          "id": "tw-kaohsiung-r21",
+          "name": "R21 Metropolitan Park · 都會公園",
+          "latitude": 22.729337,
+          "longitude": 120.320988
+        },
+        {
+          "id": "tw-kaohsiung-r22",
+          "name": "R22 Cingpu · 青埔(高科大)",
+          "latitude": 22.743898,
+          "longitude": 120.317721
+        },
+        {
+          "id": "tw-kaohsiung-r22a",
+          "name": "R22A Ciaotou Sugar Refinery · 橋頭糖廠",
+          "latitude": 22.753072,
+          "longitude": 120.314776
+        },
+        {
+          "id": "tw-kaohsiung-r23",
+          "name": "R23 Ciaotou Station · 橋頭火車",
+          "latitude": 22.760374,
+          "longitude": 120.310938
+        },
+        {
+          "id": "tw-kaohsiung-r24",
+          "name": "R24 Kaohsiung Medical University Gangshan Hospital · 岡山高醫",
+          "latitude": 22.780807,
+          "longitude": 120.301786
+        },
+        {
+          "id": "tw-kaohsiung-rk1",
+          "name": "RK1 Gangshan Station · 岡山車",
+          "latitude": 22.792953,
+          "longitude": 120.299025
+        }
+      ]
+    },
+    {
+      "id": "tw-kaohsiung-o",
+      "lineNumber": "O",
+      "name": "Orange Line",
+      "color": "#F8981D",
+      "stations": [
+        {
+          "id": "tw-kaohsiung-o1",
+          "name": "O1 Hamasen · 哈瑪星 · Sizihwan",
+          "latitude": 22.621438,
+          "longitude": 120.274581
+        },
+        {
+          "id": "tw-kaohsiung-o2",
+          "name": "O2 Yanchengpu · 鹽埕埔",
+          "latitude": 22.623872,
+          "longitude": 120.283945
+        },
+        {
+          "id": "tw-kaohsiung-o4",
+          "name": "O4 Cianjin · 前金",
+          "latitude": 22.628961,
+          "longitude": 120.29456
+        },
+        {
+          "id": "tw-kaohsiung-o5",
+          "name": "O5 Formosa Boulevard · 美麗島",
+          "latitude": 22.631323,
+          "longitude": 120.301915
+        },
+        {
+          "id": "tw-kaohsiung-o6",
+          "name": "O6 Sinyi Elementary School · 信義國小",
+          "latitude": 22.630718,
+          "longitude": 120.311552
+        },
+        {
+          "id": "tw-kaohsiung-o7",
+          "name": "O7 Cultural Center · 文化中心",
+          "latitude": 22.630245,
+          "longitude": 120.317722
+        },
+        {
+          "id": "tw-kaohsiung-o8",
+          "name": "O8 Wukuaicuo · 五塊厝",
+          "latitude": 22.629539,
+          "longitude": 120.327705
+        },
+        {
+          "id": "tw-kaohsiung-o9",
+          "name": "O9 Lingya Sports Park · 苓雅運動園區",
+          "latitude": 22.627296,
+          "longitude": 120.33457
+        },
+        {
+          "id": "tw-kaohsiung-o10",
+          "name": "O10 Weiwuying · 衛武營",
+          "latitude": 22.625006,
+          "longitude": 120.341499
+        },
+        {
+          "id": "tw-kaohsiung-o11",
+          "name": "O11 Fongshan West (Kaohsiung City Council) · 鳳山西",
+          "latitude": 22.625242,
+          "longitude": 120.347352
+        },
+        {
+          "id": "tw-kaohsiung-o12",
+          "name": "O12 Fongshan · 鳳山",
+          "latitude": 22.626021,
+          "longitude": 120.355861
+        },
+        {
+          "id": "tw-kaohsiung-o13",
+          "name": "O13 Dadong · 大東",
+          "latitude": 22.62523,
+          "longitude": 120.363344
+        },
+        {
+          "id": "tw-kaohsiung-o14",
+          "name": "O14 Fongshan Junior High School · 鳳山國中",
+          "latitude": 22.624867,
+          "longitude": 120.372482
+        },
+        {
+          "id": "tw-kaohsiung-ot1",
+          "name": "OT1 Daliao · 大寮(前庄)",
+          "latitude": 22.622222,
+          "longitude": 120.390531
+        }
+      ]
+    },
+    {
+      "id": "tw-kaohsiung-c",
+      "lineNumber": "C",
+      "name": "Circular Light Rail",
+      "color": "#77C043",
+      "isCircular": true,
+      "stations": [
+        {
+          "id": "tw-kaohsiung-c1",
+          "name": "C1 Lizihnei · 籬仔內",
+          "latitude": 22.604578,
+          "longitude": 120.3246121
+        },
+        {
+          "id": "tw-kaohsiung-c2",
+          "name": "C2 Kaisyuan Rueitian · 凱旋瑞田",
+          "latitude": 22.5995711,
+          "longitude": 120.3197975
+        },
+        {
+          "id": "tw-kaohsiung-c3",
+          "name": "C3 Cianjhen Star · 前鎮之星",
+          "latitude": 22.5954952,
+          "longitude": 120.3153928
+        },
+        {
+          "id": "tw-kaohsiung-c4",
+          "name": "C4 Kaisyuan Jhonghua · 凱旋中華",
+          "latitude": 22.5936154,
+          "longitude": 120.3105357
+        },
+        {
+          "id": "tw-kaohsiung-c5",
+          "name": "C5 Dream Mall · 夢時代",
+          "latitude": 22.595005,
+          "longitude": 120.3049144
+        },
+        {
+          "id": "tw-kaohsiung-c6",
+          "name": "C6 Commerce and Trade Park · 經貿園區",
+          "latitude": 22.6008963,
+          "longitude": 120.3026381
+        },
+        {
+          "id": "tw-kaohsiung-c7",
+          "name": "C7 Software Technology Park · 軟體園區",
+          "latitude": 22.6056852,
+          "longitude": 120.3008011
+        },
+        {
+          "id": "tw-kaohsiung-c8",
+          "name": "C8 Kaohsiung Exhibition Center · 高雄展覽館",
+          "latitude": 22.6101061,
+          "longitude": 120.2980082
+        },
+        {
+          "id": "tw-kaohsiung-c9",
+          "name": "C9 Cruise Terminal · 旅運中心",
+          "latitude": 22.6116371,
+          "longitude": 120.2933482
+        },
+        {
+          "id": "tw-kaohsiung-c10",
+          "name": "C10 Glory Pier · 光榮碼頭",
+          "latitude": 22.6166858,
+          "longitude": 120.2931506
+        },
+        {
+          "id": "tw-kaohsiung-c11",
+          "name": "C11 Love Pier · 真愛碼頭",
+          "latitude": 22.6192654,
+          "longitude": 120.2894256
+        },
+        {
+          "id": "tw-kaohsiung-c12",
+          "name": "C12 Dayi Pier-2 · 駁二大義",
+          "latitude": 22.6184985,
+          "longitude": 120.2842225
+        },
+        {
+          "id": "tw-kaohsiung-c13",
+          "name": "C13 Penglai Pier-2 · 駁二蓬萊",
+          "latitude": 22.6204454,
+          "longitude": 120.2799183
+        },
+        {
+          "id": "tw-kaohsiung-c14",
+          "name": "C14 Hamasen · 哈瑪星",
+          "latitude": 22.6216116,
+          "longitude": 120.2758388
+        },
+        {
+          "id": "tw-kaohsiung-c15",
+          "name": "C15 Shoushan Park · 壽山公園",
+          "latitude": 22.6265296,
+          "longitude": 120.278669
+        },
+        {
+          "id": "tw-kaohsiung-c16",
+          "name": "C16 Wenwu Temple · 文武聖殿",
+          "latitude": 22.6295474,
+          "longitude": 120.2807283
+        },
+        {
+          "id": "tw-kaohsiung-c17",
+          "name": "C17 Gushan District Office · 鼓山區公所",
+          "latitude": 22.6360321,
+          "longitude": 120.2825911
+        },
+        {
+          "id": "tw-kaohsiung-c18",
+          "name": "C18 Gushan · 輕軌鼓山站",
+          "latitude": 22.6420358,
+          "longitude": 120.2810929
+        },
+        {
+          "id": "tw-kaohsiung-c19",
+          "name": "C19 Makadao · 馬卡道",
+          "latitude": 22.6470427,
+          "longitude": 120.2814409
+        },
+        {
+          "id": "tw-kaohsiung-c20",
+          "name": "C20 TRA Museum of Fine Arts · 臺鐵美術館",
+          "latitude": 22.6521144,
+          "longitude": 120.2817491
+        },
+        {
+          "id": "tw-kaohsiung-c21a",
+          "name": "C21A Neiwei Arts Center · 內惟藝術中心",
+          "latitude": 22.6549695,
+          "longitude": 120.2828409
+        },
+        {
+          "id": "tw-kaohsiung-c21",
+          "name": "C21 Kaohsiung Museum of Fine Arts · 美術館",
+          "latitude": 22.6549882,
+          "longitude": 120.2872544
+        },
+        {
+          "id": "tw-kaohsiung-c22",
+          "name": "C22 Kaohsiung Municipal United Hospital · 聯合醫院",
+          "latitude": 22.654805,
+          "longitude": 120.2910873
+        },
+        {
+          "id": "tw-kaohsiung-c23",
+          "name": "C23 Longhua Elementary School · 龍華國小",
+          "latitude": 22.6544819,
+          "longitude": 120.2950847
+        },
+        {
+          "id": "tw-kaohsiung-c24",
+          "name": "C24 Heart of Love River · 愛河之心",
+          "latitude": 22.6561709,
+          "longitude": 120.303253
+        },
+        {
+          "id": "tw-kaohsiung-c25",
+          "name": "C25 Sinshang Elementary School · 新上國小",
+          "latitude": 22.6566418,
+          "longitude": 120.3088043
+        },
+        {
+          "id": "tw-kaohsiung-c26",
+          "name": "C26 Dashun Minzu · 大順民族",
+          "latitude": 22.6554849,
+          "longitude": 120.3154233
+        },
+        {
+          "id": "tw-kaohsiung-c27",
+          "name": "C27 Wanzihnei(Dashun Dingshan) · 灣仔內",
+          "latitude": 22.653543,
+          "longitude": 120.31888
+        },
+        {
+          "id": "tw-kaohsiung-c28",
+          "name": "C28 Kaohsiung Industrial High School · 高雄高工",
+          "latitude": 22.6497954,
+          "longitude": 120.3241552
+        },
+        {
+          "id": "tw-kaohsiung-c29",
+          "name": "C29 Shu-Te Home-Economics & Commercial High School · 樹德家商",
+          "latitude": 22.6438161,
+          "longitude": 120.3263305
+        },
+        {
+          "id": "tw-kaohsiung-c30",
+          "name": "C30 Science and Technology Museum · 科工館",
+          "latitude": 22.6369232,
+          "longitude": 120.3271428
+        },
+        {
+          "id": "tw-kaohsiung-c31",
+          "name": "C31 St.Joseph Hospital · 聖功醫院",
+          "latitude": 22.6327993,
+          "longitude": 120.3256124
+        },
+        {
+          "id": "tw-kaohsiung-c32",
+          "name": "C32 Kaisyuan Park · 凱旋公園",
+          "latitude": 22.6294128,
+          "longitude": 120.322824
+        },
+        {
+          "id": "tw-kaohsiung-c33",
+          "name": "C33 Department of Health · 衛生局",
+          "latitude": 22.6251751,
+          "longitude": 120.3236496
+        },
+        {
+          "id": "tw-kaohsiung-c34",
+          "name": "C34 Wucyuan Elementary School · 五權國小",
+          "latitude": 22.6211709,
+          "longitude": 120.32518
+        },
+        {
+          "id": "tw-kaohsiung-c35",
+          "name": "C35 Kaisyuan Wuchang · 凱旋武昌",
+          "latitude": 22.6168915,
+          "longitude": 120.3268268
+        },
+        {
+          "id": "tw-kaohsiung-c36",
+          "name": "C36 Kaisyuan Ersheng · 凱旋二聖",
+          "latitude": 22.6125106,
+          "longitude": 120.3271484
+        },
+        {
+          "id": "tw-kaohsiung-c37",
+          "name": "C37 LRT Depot · 輕軌機廠",
+          "latitude": 22.6084757,
+          "longitude": 120.3260515
+        }
+      ]
+    }
+  ]
+}

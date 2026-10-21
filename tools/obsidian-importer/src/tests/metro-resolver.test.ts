@@ -1,5 +1,7 @@
 import type { ActivityPayload, ActivitySectionMetro, MetroRide } from '../types'
 import { describe, expect, test } from 'bun:test'
+import kaohsiung from '../../../metro-import/data/kaohsiung.json'
+import taichung from '../../../metro-import/data/taichung.json'
 import taipei from '../../../metro-import/data/taipei.json'
 import { enrichActivityWithMediaAndLocation } from '../lib/enricher'
 import { createMetroActivityResolver } from '../lib/metro-resolver'
@@ -101,5 +103,39 @@ describe('metro catalog resolution', () => {
     const parsed = parseActivitiesFromMarkdown(markdown)[0]!
     const result = await enrichActivityWithMediaAndLocation(parsed, new Map(), null, null, new Map(), new Map(), { uploadImages: false, geocode: false, metroCityContext: 'Тайбэй', resolveMetro: createMetroActivityResolver(catalog) })
     expect(metro(result).rides[0]).toMatchObject({ id: metro(parsed).rides[0]!.id, lineId: 'tw-taipei-g', stops: 1 })
+  })
+})
+
+describe('Kaohsiung and Taichung catalogs', () => {
+  const catalog = {
+    listMetroSystems: async () => [kaohsiung, taichung].map(({ id, city }) => ({ id, city })),
+    getMetroSystemDetails: async (id: string) => id === kaohsiung.id ? kaohsiung : taichung,
+  }
+  test('maps Kaohsiung station codes and the former Sizihwan name', async () => {
+    const result = metro(await createMetroActivityResolver(catalog)(activity({ lineNumber: 'O', startStation: 'Sizihwan (O1)', endStation: 'Formosa Boulevard (O5)' }), 'Kaohsiung'))
+    expect(result).toMatchObject({ mode: 'city', systemId: 'tw-kaohsiung' })
+    expect(result.rides[0]).toMatchObject({ lineId: 'tw-kaohsiung-o', startStationId: 'tw-kaohsiung-o1', endStationId: 'tw-kaohsiung-o5', stops: 3 })
+  })
+  test('maps both passenger numeric codes and official source G codes in Taichung', async () => {
+    const resolve = createMetroActivityResolver(catalog)
+    const numeric = metro(await resolve(activity({ lineNumber: 'G', startStation: 'Wenhua Senior High School (108)', endStation: 'Daqing (115)' }), 'Тайчжун'))
+    expect(numeric).toMatchObject({ mode: 'city', systemId: 'tw-taichung' })
+    expect(numeric.rides[0]).toMatchObject({ startStationId: 'tw-taichung-108', endStationId: 'tw-taichung-115', stops: 7 })
+    const sourceCodes = metro(await resolve(activity({ lineNumber: 'G', startStation: 'G8', endStation: 'G13' }), '臺中'))
+    expect(sourceCodes.rides[0]).toMatchObject({ startStationId: 'tw-taichung-108', endStationId: 'tw-taichung-115', stops: 7 })
+  })
+  test('keeps contradictory names/codes manual instead of choosing Taichung City Hall', async () => {
+    const resolve = createMetroActivityResolver(catalog)
+    for (const station of ['Daqing (110)', 'Nantun (110)']) {
+      const result = metro(await resolve(activity({ lineNumber: 'G', startStation: station, endStation: 'Wenhua Senior High School (108)' }), 'Тайчжун'))
+      expect(result.mode).toBe('free')
+    }
+  })
+  test('crosses the Circular Light Rail boundary in one stop', async () => {
+    const result = metro(await createMetroActivityResolver(catalog)(activity({ lineNumber: 'C', startStation: 'C37', endStation: 'C1', direction: '' }), '高雄'))
+    expect(result.rides[0]).toMatchObject({ lineId: 'tw-kaohsiung-c', stops: 1 })
+    expect(result.rides[0]!.direction).toContain('по кольцу')
+    const explicit = metro(await createMetroActivityResolver(catalog)(activity({ lineNumber: 'C', startStation: 'C37', endStation: 'C1', direction: 'counterclockwise' }), '高雄'))
+    expect(explicit.mode).toBe('free')
   })
 })

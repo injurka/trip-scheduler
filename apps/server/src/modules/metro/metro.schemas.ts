@@ -30,6 +30,7 @@ export const ImportMetroSystemInputSchema = z.object({
   lines: z.array(z.object({
     id: z.string(),
     lineNumber: z.string().nullable().optional(),
+    isCircular: z.boolean().optional(),
     name: z.string(),
     color: z.string(),
     stations: z.array(z.object({

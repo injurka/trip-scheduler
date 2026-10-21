@@ -10,6 +10,7 @@ export interface MetroLine {
   name: string
   lineNumber: string | null
   color: string
+  isCircular?: boolean
   stations: MetroStation[]
 }
 
@@ -26,13 +27,21 @@ export function getMetroRidePath(line: MetroLine | undefined, startId: string | 
   const end = line.stations.findIndex(s => s.id === endId)
   if (start < 0 || end < 0 || start === end)
     return null
-  const stations = line.stations.slice(Math.min(start, end), Math.max(start, end) + 1)
+  let stations = line.stations.slice(Math.min(start, end), Math.max(start, end) + 1)
   if (end < start)
     stations.reverse()
+  if (line.isCircular) {
+    const forward = (end - start + line.stations.length) % line.stations.length
+    const backward = line.stations.length - forward
+    const step = forward <= backward ? 1 : -1
+    stations = Array.from({ length: Math.min(forward, backward) + 1 }, (_, index) => line.stations[(start + step * index + line.stations.length) % line.stations.length]!)
+  }
   return {
     stations,
-    stops: Math.abs(end - start),
-    direction: `в сторону ст. «${line.stations[end > start ? line.stations.length - 1 : 0].name}»`,
+    stops: stations.length - 1,
+    direction: line.isCircular
+      ? `по кольцу через ст. «${stations[1]!.name}»`
+      : `в сторону ст. «${line.stations[end > start ? line.stations.length - 1 : 0].name}»`,
   }
 }
 

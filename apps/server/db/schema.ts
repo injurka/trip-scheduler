@@ -260,6 +260,7 @@ export const metroLines = pgTable('metro_lines', {
   systemId: text('system_id').notNull().references(() => metroSystems.id, { onDelete: 'cascade' }),
   name: text('name').notNull(),
   lineNumber: text('line_number'),
+  isCircular: boolean('is_circular').notNull().default(false),
   color: text('color').notNull(),
 })
 
