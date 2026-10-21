@@ -261,12 +261,8 @@ watch(() => [sectionData.value.systemId, sectionData.value.mode] as const, ([id]
       icon="mdi:map-search-outline"
       size="sm"
       aria-label="На карте"
-      :title="hasMapData ? 'На карте' : 'Карта этого метро пока недоступна'"
       @click="showMap = true"
     />
-    <span v-if="sectionData.mode === 'city' && !isLoadingDetails && activeSystemDetails?.lines.length && !hasMapData" class="map-unavailable">
-      Карта этого метро пока недоступна
-    </span>
     <MetroMapDialog v-model:visible="showMap" :system="activeSystemDetails" :rides="sectionData.rides" />
 
     <div class="rides-container">
@@ -365,10 +361,6 @@ watch(() => [sectionData.value.systemId, sectionData.value.mode] as const, ([id]
   top: 50%;
   transform: translateY(-50%);
   color: var(--fg-tertiary-color);
-}
-.map-unavailable {
-  font-size: 0.8rem;
-  color: var(--fg-secondary-color);
 }
 .stops-row {
   min-height: 1.5em;
