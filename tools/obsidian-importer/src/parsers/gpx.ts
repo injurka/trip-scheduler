@@ -19,6 +19,19 @@ export interface ParsedGpxTrack {
   distance: number
   /** Длительность по первой/последней метке времени, секунды */
   duration?: number
+  /** Подписанные остановки и промежуточные отметки вдоль трека. */
+  checkpoints: GpxCheckpoint[]
+  /** Именованные точки вне трека, отображаемые отдельно от маршрута. */
+  landmarks: GpxLandmark[]
+}
+
+interface GpxLandmark {
+  name: string
+  coordinates: [number, number]
+}
+
+interface GpxCheckpoint extends GpxLandmark {
+  type: 'start' | 'via' | 'end'
 }
 
 const MAX_TRACK_POINTS = 1500
@@ -54,6 +67,70 @@ export function decodeXmlEntities(value: string): string {
     .replace(/&gt;/gi, '>')
     .replace(/&lt;/gi, '<')
     .replace(/&amp;/gi, '&')
+}
+
+function xmlText(value: string): string {
+  return decodeXmlEntities(value.replace(/<!\[CDATA\[([\s\S]*?)\]\]>/g, '$1')).trim()
+}
+
+function buildCheckpoints(coordinates: Array<[number, number]>, landmarks: GpxLandmark[]) {
+  const cumulative = [0]
+  for (let i = 1; i < coordinates.length; i++)
+    cumulative.push(cumulative[i - 1] + haversineMeters(coordinates[i - 1], coordinates[i]))
+  const distance = cumulative[cumulative.length - 1]
+  const stops: Array<GpxLandmark & { progress: number }> = []
+  const detached: GpxLandmark[] = []
+  for (const landmark of landmarks) {
+    let nearest = { distance: Infinity, progress: 0 }
+    for (let i = 1; i < coordinates.length; i++) {
+      const a = coordinates[i - 1]
+      const b = coordinates[i]
+      const scale = Math.cos(toRadians(landmark.coordinates[1]))
+      const dx = (b[0] - a[0]) * scale
+      const dy = b[1] - a[1]
+      const denominator = dx * dx + dy * dy
+      const fraction = denominator === 0
+        ? 0
+        : Math.max(0, Math.min(1, (((landmark.coordinates[0] - a[0]) * scale * dx) + ((landmark.coordinates[1] - a[1]) * dy)) / denominator))
+      const projected: [number, number] = [a[0] + (b[0] - a[0]) * fraction, a[1] + (b[1] - a[1]) * fraction]
+      const separation = haversineMeters(landmark.coordinates, projected)
+      if (separation < nearest.distance)
+        nearest = { distance: separation, progress: cumulative[i - 1] + (cumulative[i] - cumulative[i - 1]) * fraction }
+    }
+    // Nearby landmarks are checkpoints; distant landmarks must not divert the recorded trail.
+    if (nearest.distance <= 100) {
+      if (!stops.some(stop => stop.name === landmark.name && haversineMeters(stop.coordinates, landmark.coordinates) < 5))
+        stops.push({ ...landmark, progress: nearest.progress })
+    }
+    else {
+      detached.push(landmark)
+    }
+  }
+  stops.sort((a, b) => a.progress - b.progress)
+  const start = coordinates[0]
+  const end = coordinates[coordinates.length - 1]
+  const startName = stops.find(stop => haversineMeters(stop.coordinates, start) < 5)
+  const endName = [...stops].reverse().find(stop => stop !== startName && haversineMeters(stop.coordinates, end) < 5)
+  const intermediate = stops.filter(stop => stop !== startName && stop !== endName)
+  // Unnamed tracks still get useful distance markers, capped at roughly twenty rows.
+  if (stops.length === 0) {
+    const interval = Math.max(1000, Math.ceil(distance / 20000) * 1000)
+    let index = 1
+    for (let progress = interval; progress < distance - 50; progress += interval) {
+      while (index < cumulative.length - 1 && cumulative[index] < progress)
+        index++
+      const a = coordinates[index - 1]
+      const b = coordinates[index]
+      const fraction = (progress - cumulative[index - 1]) / (cumulative[index] - cumulative[index - 1])
+      intermediate.push({ name: `${progress / 1000} км`, coordinates: [a[0] + (b[0] - a[0]) * fraction, a[1] + (b[1] - a[1]) * fraction], progress })
+    }
+  }
+  const checkpoints: GpxCheckpoint[] = [
+    { name: startName?.name || 'Начало трека', coordinates: start, type: 'start' },
+    ...intermediate.map(stop => ({ name: stop.name, coordinates: stop.coordinates, type: 'via' as const })),
+    { name: endName?.name || 'Конец трека', coordinates: end, type: 'end' },
+  ]
+  return { checkpoints, landmarks: detached }
 }
 
 /**
@@ -122,11 +199,12 @@ export function extractGpxReferences(text: string): GpxReference[] {
  */
 export function parseGpxContent(content: string): ParsedGpxTrack | null {
   const coordinates: Array<[number, number]> = []
+  const landmarks: GpxLandmark[] = []
   // Waypoints describe landmarks, not the track's geometry. Prefer recorded
   // track points, then route points; never join both to unrelated landmarks.
   const pointTag = /<trkpt\b/i.test(content) ? 'trkpt' : /<rtept\b/i.test(content) ? 'rtept' : 'wpt'
-  for (const match of content.matchAll(new RegExp(`<${pointTag}\\b([^>]*)>`, 'gi'))) {
-    const attrs = match[1]
+  for (const match of content.matchAll(/<(trkpt|rtept|wpt)\b([^>]*?)(?:\/>|>([\s\S]*?)<\/\1>)/gi)) {
+    const attrs = match[2]
     const lat = attrs.match(/\blat\s*=\s*["']([^"']+)["']/i)?.[1]
     const lon = attrs.match(/\blon\s*=\s*["']([^"']+)["']/i)?.[1]
     if (!lat || !lon)
@@ -135,16 +213,20 @@ export function parseGpxContent(content: string): ParsedGpxTrack | null {
     const latNum = Number(lat)
     if (!Number.isFinite(lonNum) || !Number.isFinite(latNum) || Math.abs(lonNum) > 180 || Math.abs(latNum) > 90)
       continue
-    coordinates.push([lonNum, latNum])
+    if (match[1].toLowerCase() === pointTag)
+      coordinates.push([lonNum, latNum])
+    const name = xmlText(match[3]?.match(/<name\b[^>]*>([\s\S]*?)<\/name>/i)?.[1] || '')
+    if (name)
+      landmarks.push({ name, coordinates: [lonNum, latNum] })
   }
 
   if (coordinates.length < 2)
     return null
 
   // Имя трека: предпочитаем <trk><name>, затем <metadata><name>
-  const trkName = content.match(/<trk\b[^>]*>[\s\S]*?<name>([^<]*)<\/name>/i)?.[1]
-  const metaName = content.match(/<metadata\b[^>]*>[\s\S]*?<name>([^<]*)<\/name>/i)?.[1]
-  const name = decodeXmlEntities(trkName || metaName || '')
+  const trkName = content.match(/<(?:trk|rte)\b[^>]*>((?:(?!<(?:trkseg|trkpt|rtept|extensions)\b)[\s\S])*?)<name\b[^>]*>([\s\S]*?)<\/name>/i)?.[2]
+  const metaName = content.match(/<metadata\b[^>]*>\s*<name\b[^>]*>([\s\S]*?)<\/name>/i)?.[1]
+  const name = xmlText(trkName || metaName || '')
     .replace(/^Wikiloc\s*-\s*/i, '')
     .replace(/\s*-\s*Wikiloc$/i, '')
     .trim() || null
@@ -179,7 +261,7 @@ export function parseGpxContent(content: string): ParsedGpxTrack | null {
       duration = seconds
   }
 
-  return { name, coordinates: points, distance, duration }
+  return { name, coordinates: points, distance, duration, ...buildCheckpoints(coordinates, landmarks) }
 }
 
 export function parseGpxFile(filePath: string): ParsedGpxTrack | null {

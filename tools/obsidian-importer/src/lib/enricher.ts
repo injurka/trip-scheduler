@@ -423,25 +423,25 @@ export async function enrichActivityWithMediaAndLocation(
         continue
       }
       const title = ref.label || track.name || ref.fileName.replace(/\.gpx$/i, '')
-      const start = track.coordinates[0]
-      const end = track.coordinates[track.coordinates.length - 1]
+      for (const landmark of track.landmarks) {
+        mapPoints.push({
+          id: stableId('activity-map-point', act.startTime, ref.fileName, 'landmark', landmark.name, landmark.coordinates.join(',')),
+          coordinates: landmark.coordinates,
+          type: 'poi',
+          address: landmark.name,
+        })
+      }
       routes.push({
         id: stableId('activity-route', act.startTime, 'gpx', ref.fileName),
         title,
-        points: [
-          {
-            id: stableId('activity-map-point', act.startTime, ref.fileName, 'start'),
-            coordinates: start,
-            type: 'start',
-            address: title,
-          },
-          {
-            id: stableId('activity-map-point', act.startTime, ref.fileName, 'end'),
-            coordinates: end,
-            type: 'end',
-            address: title,
-          },
-        ],
+        points: track.checkpoints.map((point, index) => ({
+          id: point.type === 'via'
+            ? stableId('activity-map-point', act.startTime, ref.fileName, 'via', index, point.name, point.coordinates.join(','))
+            : stableId('activity-map-point', act.startTime, ref.fileName, point.type),
+          coordinates: point.coordinates,
+          type: point.type,
+          address: point.name,
+        })),
         transportMode: ref.isBike ? 'bike' : 'foot',
         distance: Math.round(track.distance),
         ...(track.duration !== undefined ? { duration: track.duration } : {}),

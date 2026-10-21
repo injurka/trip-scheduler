@@ -157,11 +157,15 @@ function getDecoratedRoutePoints(route: MapRoute): MapPoint[] {
             <div class="route-metrics">
               <a
                 v-if="route.transportMode === 'transit' && route.points.find(p => p.externalUrl)?.externalUrl"
+                class="route-map-link"
                 :href="route.points.find(p => p.externalUrl)?.externalUrl || undefined"
                 target="_blank"
                 rel="noopener noreferrer"
                 @click.stop
-              >В Google Maps</a>
+              >
+                <Icon icon="mdi:google-maps" class="route-map-link-icon" aria-hidden="true" />
+                В Google Maps
+              </a>
               <span v-if="route.distance" class="metric-badge">
                 <Icon icon="mdi:map-marker-distance" class="metric-icon" />
                 {{ formatDistance(route.distance) }}
@@ -394,6 +398,42 @@ function getDecoratedRoutePoints(route: MapRoute): MapPoint[] {
   display: flex;
   align-items: center;
   gap: 6px;
+  flex-shrink: 0;
+}
+
+.route-map-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 2px 7px;
+  border: 1px solid var(--border-secondary-color);
+  border-radius: var(--r-2xs);
+  background-color: var(--bg-primary-color);
+  color: var(--fg-accent-color);
+  font-size: 0.76rem;
+  font-weight: 600;
+  line-height: 1.2;
+  text-decoration: none;
+  white-space: nowrap;
+  transition: all 0.15s ease;
+
+  &:visited {
+    color: var(--fg-accent-color);
+  }
+
+  &:hover {
+    border-color: var(--fg-accent-color);
+    background-color: rgba(var(--fg-accent-color-rgb), 0.08);
+  }
+
+  &:focus-visible {
+    outline: 2px solid var(--fg-accent-color);
+    outline-offset: 2px;
+  }
+}
+
+.route-map-link-icon {
+  font-size: 0.95rem;
   flex-shrink: 0;
 }
 

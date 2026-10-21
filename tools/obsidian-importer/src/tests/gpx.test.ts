@@ -80,6 +80,49 @@ describe('parseGpxContent', () => {
     expect(track.distance).toBeLessThan(100)
   })
 
+  it('orders named waypoints along the track and keeps distant landmarks separate', () => {
+    const track = parseGpxContent(`<gpx>
+      <wpt lat="25.02" lon="121"><name><![CDATA[East & Peak]]></name></wpt>
+      <wpt lat="50" lon="30"><name>Hotel</name></wpt>
+      <wpt lat="25.01" lon="121"><name>Main &amp; Peak</name></wpt>
+      <wpt lat="25.01" lon="121"><name>Main &amp; Peak</name></wpt>
+      <wpt lat="invalid" lon="121"><name>Invalid</name></wpt>
+      <trk><name>Mountain trail</name><trkseg>
+        <trkpt lat="25" lon="121"><name>Trailhead</name></trkpt>
+        <trkpt lat="25.03" lon="121"><name>Visitor center</name></trkpt>
+      </trkseg></trk>
+    </gpx>`)!
+    expect(track.name).toBe('Mountain trail')
+    expect(track.coordinates).toEqual([[121, 25], [121, 25.03]])
+    expect(track.distance).toBeLessThan(3400)
+    expect(track.checkpoints.map(point => [point.name, point.type])).toEqual([
+      ['Trailhead', 'start'],
+      ['Main & Peak', 'via'],
+      ['East & Peak', 'via'],
+      ['Visitor center', 'end'],
+    ])
+    expect(track.landmarks).toEqual([{ name: 'Hotel', coordinates: [30, 50] }])
+  })
+
+  it('preserves names in route-only GPX without mistaking a point name for the route name', () => {
+    const track = parseGpxContent(`<gpx><rte>
+      <rtept lat="25" lon="121"><name>Start</name></rtept>
+      <rtept lat="25.01" lon="121"><name>Peak</name></rtept>
+      <rtept lat="25.02" lon="121"><name>Finish</name></rtept>
+    </rte></gpx>`)!
+    expect(track.name).toBeNull()
+    expect(track.checkpoints.map(point => point.name)).toEqual(['Start', 'Peak', 'Finish'])
+  })
+
+  it('adds kilometer checkpoints to an unnamed track without changing its geometry', () => {
+    const track = parseGpxContent('<gpx><trk><trkseg><trkpt lat="25" lon="121"/><trkpt lat="25.03" lon="121"/></trkseg></trk></gpx>')!
+    expect(track.checkpoints.map(point => point.name)).toEqual(['Начало трека', '1 км', '2 км', '3 км', 'Конец трека'])
+    expect(track.coordinates).toHaveLength(2)
+    const firstMarker = track.checkpoints[1]
+    expect(haversineMeters(track.coordinates[0], firstMarker.coordinates)).toBeCloseTo(1000, 0)
+    expect(track.checkpoints.every(point => point.coordinates.every(Number.isFinite))).toBe(true)
+  })
+
   it('measures the original track before limiting display points', () => {
     const points = Array.from({ length: 3000 }, (_, i) => [121 + (i % 2) * 0.001, 25 + i * 0.00001] as [number, number])
     const track = parseGpxContent(`<gpx><trk><trkseg>${points.map(([lon, lat]) => `<trkpt lat="${lat}" lon="${lon}"/>`).join('')}</trkseg></trk></gpx>`)!
@@ -88,6 +131,7 @@ describe('parseGpxContent', () => {
     expect(track.coordinates[0]).toEqual(points[0])
     expect(track.coordinates.at(-1)).toEqual(points.at(-1))
     expect(track.distance).toBeCloseTo(distance)
+    expect(track.checkpoints.length).toBeLessThanOrEqual(22)
   })
 })
 
@@ -202,6 +246,34 @@ describe('enricher: gpx tracks', () => {
     expect(geoSec.routes).toHaveLength(1)
     expect(geoSec.routes[0].transportMode).toBe('bike')
     expect(geoSec.routes[0].title).toBe('Chinan')
+  })
+
+  it('imports named checkpoints and detached POIs into the map while preserving recorded geometry', async () => {
+    const { filePath, gpxIndex } = makeGpxFile('chinan.gpx')
+    writeFileSync(filePath, SAMPLE_GPX.replace('<trk>', `
+      <wpt lat="23.922658" lon="121.508269"><name>Peak</name></wpt>
+      <wpt lat="50" lon="30"><name>Hotel</name></wpt>
+      <trk>`))
+    const activity = {
+      startTime: '08:00',
+      endTime: '12:00',
+      title: 'Hike',
+      tag: 'walk' as const,
+      sections: [{ id: 'description', type: 'description' as const, text: '_GPX-трек_: [[chinan.gpx|Trail]]' }],
+    }
+    const enrich = () => enrichActivityWithMediaAndLocation(activity, new Map(), null, null, new Map(), new Map(), { geocode: false, gpxIndex })
+    const result = await enrich()
+    const map = result.sections?.find(section => section.type === 'geolocation') as any
+    expect(map.routes).toHaveLength(1)
+    expect(map.routes[0].points.map((point: any) => [point.address, point.type])).toEqual([
+      ['Начало трека', 'start'],
+      ['Peak', 'via'],
+      ['Конец трека', 'end'],
+    ])
+    expect(map.routes[0].geometry).toEqual(parseGpxContent(SAMPLE_GPX)!.coordinates)
+    expect(map.points).toMatchObject([{ address: 'Hotel', coordinates: [30, 50], type: 'poi' }])
+    expect(new Set(map.routes[0].points.map((point: any) => point.id)).size).toBe(3)
+    expect((await enrich()).sections).toEqual(result.sections)
   })
 
   it('does not create a geolocation section for unresolvable gpx refs', async () => {

@@ -33,7 +33,7 @@ it('imports a GPX route through the CLI, even with images and geocoding disabled
     * Идём по тропе.
     * _GPX-трек_: [[walk.gpx|Тропа]]
 `)
-    writeFileSync(join(gpxDir, 'walk.gpx'), '<gpx><trk><name>Walk</name><trkseg><trkpt lat="25" lon="121"/><trkpt lat="25.01" lon="121.01"/></trkseg></trk></gpx>')
+    writeFileSync(join(gpxDir, 'walk.gpx'), '<gpx><wpt lat="25.005" lon="121.005"><name>Peak</name></wpt><trk><name>Walk</name><trkseg><trkpt lat="25" lon="121"/><trkpt lat="25.01" lon="121.01"/></trkseg></trk></gpx>')
     const child = Bun.spawn([
       process.execPath,
       new URL('../run.ts', import.meta.url).pathname,
@@ -64,6 +64,11 @@ it('imports a GPX route through the CLI, even with images and geocoding disabled
     expect(geo?.routes).toHaveLength(1)
     expect(geo.routes[0]).toMatchObject({ title: 'Тропа', transportMode: 'foot', isVisible: true })
     expect(geo.routes[0].geometry).toEqual([[121, 25], [121.01, 25.01]])
+    expect(geo.routes[0].points.map((point: any) => [point.address, point.type])).toEqual([
+      ['Начало трека', 'start'],
+      ['Peak', 'via'],
+      ['Конец трека', 'end'],
+    ])
   }
   finally {
     server.stop(true)
