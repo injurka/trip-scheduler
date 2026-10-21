@@ -78,7 +78,7 @@ const MetroRideSchema = z.object({
 const ActivitySectionMetroSchema = ActivitySectionBaseSchema.extend({
   type: z.literal('metro'),
   mode: z.enum(['free', 'city']).default('free'),
-  systemId: z.string().uuid().nullable().default(null),
+  systemId: z.string().nullable().default(null),
   rides: z.array(MetroRideSchema),
 })
 
