@@ -233,7 +233,8 @@ async function main() {
   const catalogVersion = readyVersion.id
 
   // ---------------------------------------------------------------------------
-  // 1. Сбор и планирование связей стран (countries <-> geo_catalog_countries)
+  // 1. Сбор и планирование связей стран (countries <-> geo_catalog_countries),
+  //    слияние дублей стран и досоздание недостающих (например, AG)
   // ---------------------------------------------------------------------------
   const [legacyCountryRows, catalogCountryRows] = await Promise.all([
     db.select().from(countries),
@@ -241,6 +242,7 @@ async function main() {
   ])
 
   const isoByNormRu = buildIsoCodeByNormalizedRuName()
+  const catalogCodesSet = new Set(catalogCountryRows.map(c => c.code.toUpperCase()))
 
   // Также учитываем имена из самой geo_catalog_countries
   for (const cat of catalogCountryRows) {
@@ -253,35 +255,117 @@ async function main() {
     }
   }
 
-  const usedSourceCodes = new Set(
-    legacyCountryRows.map(r => r.sourceCode?.toUpperCase()).filter((c): c is string => Boolean(c)),
-  )
+  const rowsByIsoCode = new Map<string, Array<typeof countries.$inferSelect>>()
+  const unrecognizedLegacyCountries: Array<{ id: string, name: string, sourceCode: string | null }> = []
+
+  for (const row of legacyCountryRows) {
+    const trimmedId = row.id.trim().toUpperCase()
+    const inferredCode = row.sourceCode?.trim().toUpperCase()
+      || isoByNormRu.get(normalizeName(row.name))
+      || (/^[A-Z]{2}$/.test(trimmedId) && catalogCodesSet.has(trimmedId) ? trimmedId : undefined)
+
+    if (!inferredCode) {
+      unrecognizedLegacyCountries.push({ id: row.id, name: row.name, sourceCode: row.sourceCode })
+      continue
+    }
+
+    const group = rowsByIsoCode.get(inferredCode) ?? []
+    group.push(row)
+    rowsByIsoCode.set(inferredCode, group)
+  }
+
+  const isUuidLike = (value: string) => /^[0-9a-f]{8}-[0-9a-f]{4}-/i.test(value.trim())
+
+  const duplicateCountryMerges: Array<{
+    code: string
+    winnerId: string
+    winnerName: string
+    loserIds: string[]
+    loserNames: string[]
+    adoptFlagUrl: string | null
+  }> = []
+
+  const countrySourceCodeUpdates: Array<{ id: string, name: string, sourceCode: string }> = []
   const legacyIdByCode = new Map<string, string>()
   const legacyNameByCode = new Map<string, string>()
-  for (const row of legacyCountryRows) {
-    if (row.sourceCode) {
-      const code = row.sourceCode.toUpperCase()
-      legacyIdByCode.set(code, row.id)
-      legacyNameByCode.set(code, row.name)
+
+  for (const [code, group] of rowsByIsoCode) {
+    const sorted = [...group].sort((a, b) => {
+      const aUuid = isUuidLike(a.id) ? 0 : 1
+      const bUuid = isUuidLike(b.id) ? 0 : 1
+      if (aUuid !== bUuid)
+        return aUuid - bUuid
+      const aFlag = a.flagUrl ? 0 : 1
+      const bFlag = b.flagUrl ? 0 : 1
+      if (aFlag !== bFlag)
+        return aFlag - bFlag
+      return a.id.localeCompare(b.id)
+    })
+
+    const winner = sorted[0]!
+    const losers = sorted.slice(1)
+
+    legacyIdByCode.set(code, winner.id)
+    legacyNameByCode.set(code, winner.name)
+
+    if (losers.length > 0) {
+      duplicateCountryMerges.push({
+        code,
+        winnerId: winner.id,
+        winnerName: winner.name,
+        loserIds: losers.map(l => l.id),
+        loserNames: losers.map(l => l.name),
+        adoptFlagUrl: !winner.flagUrl ? (losers.find(l => l.flagUrl)?.flagUrl ?? null) : null,
+      })
+    }
+
+    if (winner.sourceCode?.toUpperCase() !== code) {
+      countrySourceCodeUpdates.push({
+        id: winner.id,
+        name: winner.name,
+        sourceCode: code,
+      })
     }
   }
 
-  const countrySourceCodeUpdates: Array<{ id: string, name: string, sourceCode: string }> = []
-  for (const row of legacyCountryRows) {
-    if (row.sourceCode)
+  const ruRegionDisplay = new Intl.DisplayNames(['ru'], { type: 'region' })
+  const missingLegacyCountryInserts: Array<{
+    id: string
+    code: string
+    name: string
+    flagUrl: string | null
+  }> = []
+
+  for (const cat of catalogCountryRows) {
+    const code = cat.code.toUpperCase()
+    if (legacyIdByCode.has(code))
       continue
-    const norm = normalizeName(row.name)
-    const inferredCode = isoByNormRu.get(norm)
-    if (inferredCode && !usedSourceCodes.has(inferredCode)) {
-      usedSourceCodes.add(inferredCode)
-      legacyIdByCode.set(inferredCode, row.id)
-      legacyNameByCode.set(inferredCode, row.name)
-      countrySourceCodeUpdates.push({
-        id: row.id,
-        name: row.name,
-        sourceCode: inferredCode,
-      })
+
+    const newId = code === 'AG'
+      ? '07a6a3f0-9913-4b88-8b2f-710722854026'
+      : geoNamesPlaceId(cat.geonamesId)
+    let ruLabel: string | undefined
+    try {
+      const candidate = ruRegionDisplay.of(code)
+      if (candidate && candidate !== code)
+        ruLabel = candidate
     }
+    catch {
+      // ignore
+    }
+    const newName = ruLabel || cat.nameRu || cat.sourceName
+    const flagUrl = code === 'AG'
+      ? 'https://upload.wikimedia.org/wikipedia/commons/8/89/Flag_of_Antigua_and_Barbuda.svg'
+      : null
+
+    missingLegacyCountryInserts.push({
+      id: newId,
+      code,
+      name: newName,
+      flagUrl,
+    })
+    legacyIdByCode.set(code, newId)
+    legacyNameByCode.set(code, newName)
   }
 
   const catalogCountryUpdates: Array<{
@@ -428,17 +512,22 @@ async function main() {
     db.select().from(tripSections).where(eq(tripSections.type, 'bookings')),
   ])
 
-  // Карта code -> countryId с учетом планируемых обновлений
+  // Карта code -> countryId с учетом планируемых обновлений и слияния дублей
   const effectiveLegacyCountryIdByCode = new Map<string, string>()
   for (const cat of catalogCountryRows) {
     const code = cat.code.toUpperCase()
-    const id = cat.legacyCountryId ?? legacyIdByCode.get(code)
+    const id = legacyIdByCode.get(code) ?? cat.legacyCountryId
     if (id)
       effectiveLegacyCountryIdByCode.set(code, id)
   }
   const effectiveCodeByLegacyCountryId = new Map<string, string>()
   for (const [code, id] of effectiveLegacyCountryIdByCode) {
     effectiveCodeByLegacyCountryId.set(id, code)
+  }
+  for (const merge of duplicateCountryMerges) {
+    for (const loserId of merge.loserIds) {
+      effectiveCodeByLegacyCountryId.set(loserId, merge.code)
+    }
   }
 
   async function resolveLabelWithEffectiveCatalog(label: string, legacyCountryId?: string | null): Promise<{
@@ -872,14 +961,53 @@ async function main() {
     await db.transaction(async (tx) => {
       await tx.execute(sql.raw('SELECT pg_advisory_xact_lock(hashtext(\'trip-scheduler-geo-prepare-cutover\'))'))
 
-      // 5.1. Обновление countries.source_code
+      // 5.0. Досоздание недостающих стран в countries (например, Антигуа и Барбуда AG)
+      for (const missing of missingLegacyCountryInserts) {
+        await tx.insert(countries).values({
+          id: missing.id,
+          name: missing.name,
+          flagUrl: missing.flagUrl,
+          sourceCode: missing.code,
+        }).onConflictDoNothing()
+      }
+
+      // 5.1. Слияние и удаление дублей стран (перепривязка FK -> удаление дублей -> установка source_code на канонический UUID)
+      for (const merge of duplicateCountryMerges) {
+        await tx.update(countries)
+          .set({ sourceCode: null })
+          .where(inArray(countries.id, merge.loserIds))
+
+        await tx.update(highlights)
+          .set({ countryId: merge.winnerId })
+          .where(inArray(highlights.countryId, merge.loserIds))
+
+        await tx.update(destinationReviews)
+          .set({ countryId: merge.winnerId })
+          .where(inArray(destinationReviews.countryId, merge.loserIds))
+
+        await tx.update(geoCatalogCountries)
+          .set({ legacyCountryId: merge.winnerId, updatedAt: new Date() })
+          .where(inArray(geoCatalogCountries.legacyCountryId, merge.loserIds))
+
+        await tx.delete(countries)
+          .where(inArray(countries.id, merge.loserIds))
+
+        await tx.update(countries)
+          .set({
+            sourceCode: merge.code,
+            ...(merge.adoptFlagUrl ? { flagUrl: merge.adoptFlagUrl } : {}),
+          })
+          .where(eq(countries.id, merge.winnerId))
+      }
+
+      // 5.2. Обновление countries.source_code
       for (const item of countrySourceCodeUpdates) {
         await tx.update(countries)
           .set({ sourceCode: item.sourceCode })
-          .where(and(eq(countries.id, item.id), isNull(countries.sourceCode)))
+          .where(eq(countries.id, item.id))
       }
 
-      // 5.2. Обновление geo_catalog_countries.legacy_country_id и name_ru
+      // 5.3. Обновление geo_catalog_countries.legacy_country_id и name_ru
       for (const item of catalogCountryUpdates) {
         await tx.update(geoCatalogCountries)
           .set({
@@ -1106,10 +1234,10 @@ async function main() {
   // 6. Итоговый отчёт о готовности к сносу легаси
   // ---------------------------------------------------------------------------
   const unresolvedTripLinksCount = allTripGeoLinks.filter(l => l.status !== 'resolved' || !l.placeId).length
-  const unmappedLegacyCountriesAfter = legacyCountryRows.filter(r => !r.sourceCode).length - countrySourceCodeUpdates.length
+  const unmappedLegacyCountriesAfter = unrecognizedLegacyCountries.length
   const unmappedCatalogCountriesAfter = catalogCountryRows.filter((cat) => {
     const code = cat.code.toUpperCase()
-    return !cat.legacyCountryId && !legacyIdByCode.has(code)
+    return !legacyIdByCode.has(code)
   })
 
   const readiness = {
@@ -1124,6 +1252,7 @@ async function main() {
     tripsWithUnmigratedWeather: tripsWithUnmigratedWeatherCount,
     readyForLegacyCutover:
       unmappedLegacyCountriesAfter === 0
+      && unmappedCatalogCountriesAfter.length === 0
       && unresolvedTripLinksCount === 0
       && remainingUnresolvedHighlights.length === 0
       && remainingUnresolvedReviews.length === 0
@@ -1143,6 +1272,9 @@ async function main() {
       gubeikouPresentInCatalog: hasGubeikouInCatalog,
     },
     countries: {
+      duplicateMerges: duplicateCountryMerges,
+      missingCountriesToInsert: missingLegacyCountryInserts,
+      unrecognizedLegacyCountries,
       legacySourceCodeUpdates: countrySourceCodeUpdates.length,
       catalogCountryLinkUpdates: catalogCountryUpdates.length,
       sampleLinkedCountries: catalogCountryUpdates.slice(0, 15).map(c => ({

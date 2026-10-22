@@ -5,7 +5,7 @@ import KitSkeleton from '~/components/01.kit/kit-skeleton/ui/kit-skeleton.vue'
 <template>
   <KitSkeleton
     width="100%"
-    height="400px"
+    height="500px"
     border-radius="0"
     class="trip-map-skeleton"
   />

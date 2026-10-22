@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import type { MapCity } from '../composables/use-trip-map'
 import { Icon } from '@iconify/vue'
-import { computed, nextTick, onMounted, onUnmounted, ref, watch } from 'vue'
+import { computed, nextTick, onActivated, onMounted, onUnmounted, ref, watch } from 'vue'
 import { useRoute } from 'vue-router'
 import { useMapFullscreen } from '../composables/use-map-fullscreen'
 import { useMapRenderer } from '../composables/use-map-renderer'
@@ -46,6 +46,7 @@ const scrollRef = ref<HTMLDivElement | null>(null)
 const showCityList = ref(false)
 const panelRef = ref<InstanceType<typeof TripMapPanel> | null>(null)
 const geoError = ref(false)
+const isGeoLoading = ref(true)
 const isNativeFullscreen = ref(false)
 
 const hoveredCity = ref<MapCity | null>(null)
@@ -307,6 +308,7 @@ const popoverStyle = computed(() => getCityScreenCoords(selectedCity.value))
 
 async function loadGeoJson(): Promise<void> {
   geoError.value = false
+  isGeoLoading.value = true
   try {
     await loadGeo()
   }
@@ -314,11 +316,21 @@ async function loadGeoJson(): Promise<void> {
     console.error('[TripMapView] GeoJSON load error:', e)
     geoError.value = true
   }
+  finally {
+    isGeoLoading.value = false
+  }
+}
+
+async function handleRetryGeo(): Promise<void> {
+  await loadGeoJson()
+  await nextTick()
+  applySize()
+  centerScroll()
 }
 
 onMounted(async () => {
-  await fetchCities()
-  await loadGeoJson()
+  await Promise.all([fetchCities(), loadGeoJson()])
+  await nextTick()
 
   observe()
   window.addEventListener('resize', handleWindowResize)
@@ -336,6 +348,15 @@ onMounted(async () => {
 
   applySize()
   centerScroll()
+})
+
+onActivated(() => {
+  nextTick(() => {
+    applySize()
+    if (!isMapDirty.value)
+      centerScroll()
+    redraw()
+  })
 })
 
 onUnmounted(() => {
@@ -360,96 +381,104 @@ watch(dotPathLow, redraw)
 </script>
 
 <template>
-  <Teleport to="body" :disabled="!isFullscreen || isNativeFullscreen">
-    <div
-      ref="containerRef"
-      class="trip-map"
-      :class="{ 'trip-map-fs': isFullscreen }"
-    >
+  <div class="trip-map-view">
+    <Teleport to="body" :disabled="!isFullscreen || isNativeFullscreen">
       <div
-        ref="scrollRef"
-        class="trip-map-scroll"
-        @mousedown="handleMouseDown"
+        ref="containerRef"
+        class="trip-map"
+        :class="{ 'trip-map-fs': isFullscreen }"
       >
-        <TripMapSkeleton v-if="isLoading || isBuilding" />
+        <div
+          ref="scrollRef"
+          class="trip-map-scroll"
+          @mousedown="handleMouseDown"
+        >
+          <TripMapSkeleton v-if="isLoading || isGeoLoading || isBuilding" />
 
-        <TripMapError
-          v-else-if="geoError"
-          message="Не удалось загрузить карту мира"
-          @retry="loadGeoJson"
-        />
+          <TripMapError
+            v-else-if="geoError"
+            message="Не удалось загрузить карту мира"
+            @retry="handleRetryGeo"
+          />
 
-        <template v-else>
-          <!-- Canvas Wrapper / Stage -->
-          <div
-            class="trip-map-stage"
-            :class="{ 'is-hovering': hoveredCity, 'is-dragging': isDragging }"
-            :style="{ width: `${cssW}px`, height: `${cssH}px`, margin: '0 auto' }"
-            @mousemove="handleCanvasMouseMove"
-            @mouseleave="handleCanvasMouseLeave"
-            @click="handleCanvasClick"
-          >
-            <canvas ref="canvasRef" class="trip-map-canvas" />
+          <template v-else>
+            <!-- Canvas Wrapper / Stage -->
+            <div
+              class="trip-map-stage"
+              :class="{ 'is-hovering': hoveredCity, 'is-dragging': isDragging }"
+              :style="{ width: `${cssW}px`, height: `${cssH}px`, margin: '0 auto' }"
+              @mousemove="handleCanvasMouseMove"
+              @mouseleave="handleCanvasMouseLeave"
+              @click="handleCanvasClick"
+            >
+              <canvas ref="canvasRef" class="trip-map-canvas" />
 
-            <!-- Overlays -->
-            <div v-if="hoveredCity && hoveredCity.id !== selectedCity?.id" class="trip-map-tooltip" :style="hoverStyle">
-              {{ hoveredCity.name }}
-            </div>
-
-            <div v-if="selectedCity" class="trip-map-popover" :style="popoverStyle" @click.stop>
-              <div class="popover-header">
-                <span class="popover-title">{{ selectedCity.name }}</span>
-                <button class="popover-close" @click.stop="selectedCity = null; redraw()">
-                  <Icon icon="mdi:close" width="16" height="16" />
-                </button>
+              <!-- Overlays -->
+              <div v-if="hoveredCity && hoveredCity.id !== selectedCity?.id" class="trip-map-tooltip" :style="hoverStyle">
+                {{ hoveredCity.name }}
               </div>
-              <div class="popover-body">
-                {{ selectedCity.country }}
+
+              <div v-if="selectedCity" class="trip-map-popover" :style="popoverStyle" @click.stop>
+                <div class="popover-header">
+                  <span class="popover-title">{{ selectedCity.name }}</span>
+                  <button class="popover-close" @click.stop="selectedCity = null; redraw()">
+                    <Icon icon="mdi:close" width="16" height="16" />
+                  </button>
+                </div>
+                <div class="popover-body">
+                  {{ selectedCity.country }}
+                </div>
               </div>
             </div>
-          </div>
 
-          <TripMapEmpty v-if="cities.length === 0" />
+            <TripMapEmpty v-if="cities.length === 0" />
 
-          <div v-if="cities.length > 0" class="trip-map-badge">
-            {{ cities.length }}&nbsp;{{ pluralize(cities.length) }}
-          </div>
-
-          <Transition name="fade">
-            <div v-if="isFullscreen" class="trip-map-hint">
-              Колесо — приближение · Перетащи — перемещение
+            <div v-if="cities.length > 0" class="trip-map-badge">
+              {{ cities.length }}&nbsp;{{ pluralize(cities.length) }}
             </div>
-          </Transition>
+
+            <Transition name="fade">
+              <div v-if="isFullscreen" class="trip-map-hint">
+                Колесо — приближение · Перетащи — перемещение
+              </div>
+            </Transition>
+          </template>
+        </div>
+
+        <template v-if="!isLoading && !isGeoLoading && !isBuilding && !geoError">
+          <TripMapToolbar
+            :show-list="showCityList"
+            :is-fullscreen="isFullscreen"
+            :has-cities="cities.length > 0"
+            :show-reset="isMapDirty"
+            @toggle-list="showCityList = !showCityList"
+            @toggle-fullscreen="handleToggleFullscreen"
+            @reset="resetMap"
+            @zoom-in="handleZoomIn"
+            @zoom-out="handleZoomOut"
+          />
+
+          <TripMapPanel
+            ref="panelRef"
+            v-model:open="showCityList"
+            :cities="cities"
+            :grouped="grouped"
+            @city-click="focusCity"
+          />
         </template>
       </div>
-
-      <template v-if="!isLoading && !isBuilding && !geoError">
-        <TripMapToolbar
-          :show-list="showCityList"
-          :is-fullscreen="isFullscreen"
-          :has-cities="cities.length > 0"
-          :show-reset="isMapDirty"
-          @toggle-list="showCityList = !showCityList"
-          @toggle-fullscreen="handleToggleFullscreen"
-          @reset="resetMap"
-          @zoom-in="handleZoomIn"
-          @zoom-out="handleZoomOut"
-        />
-
-        <TripMapPanel
-          ref="panelRef"
-          v-model:open="showCityList"
-          :cities="cities"
-          :grouped="grouped"
-          @city-click="focusCity"
-        />
-      </template>
-    </div>
-  </Teleport>
+    </Teleport>
+  </div>
 </template>
 
 <style scoped lang="scss">
+.trip-map-view {
+  width: 100%;
+  height: 500px;
+}
+
 .trip-map {
+  position: relative;
   width: 100%;
   height: 500px;
 
