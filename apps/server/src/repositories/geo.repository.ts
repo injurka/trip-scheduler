@@ -93,7 +93,7 @@ export const geoRepository = {
           selected_name.is_preferred DESC,
           selected_name.name ASC
         LIMIT 1
-      ), ${geoPlaces.primaryName})`
+      ), ${geoPlaces.primaryName})`.as('name')
 
       const ranked = db.select({
         id: geoPlaces.id,
@@ -101,7 +101,7 @@ export const geoRepository = {
         countryId: geoCatalogCountries.legacyCountryId,
         countryCode: geoCatalogCountries.code,
         countryName: input.locale === 'ru'
-          ? sql<string>`COALESCE(${geoCatalogCountries.nameRu}, ${geoCatalogCountries.sourceName})`
+          ? sql<string>`COALESCE(${geoCatalogCountries.nameRu}, ${geoCatalogCountries.sourceName})`.as('country_name')
           : geoCatalogCountries.sourceName,
         regionName: geoPlaces.regionName,
         kind: geoPlaces.kind,
