@@ -18,7 +18,7 @@ interface Props {
 
 const props = withDefaults(defineProps<Props>(), {
   label: '',
-  placeholder: 'Начните вводить название города',
+  placeholder: 'Найти город',
   multiple: false,
   kinds: () => ['settlement'],
   countryId: undefined,
@@ -317,6 +317,7 @@ onBeforeUnmount(() => {
     border: 0;
     outline: 0;
     font: inherit;
+    font-size: 0.9rem;
 
     &::placeholder {
       color: var(--fg-tertiary-color);

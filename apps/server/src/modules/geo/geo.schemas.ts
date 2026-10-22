@@ -22,12 +22,6 @@ export const TripCityRefSchema = GeoPlaceRefSchema.extend({
   position: z.number().int().min(0),
 })
 
-export const UnresolvedTripCitySchema = z.object({
-  position: z.number().int().min(0),
-  label: z.string().min(1),
-  status: z.enum(['unresolved', 'needs_review']),
-})
-
 export const GeoPlaceSearchInputSchema = z.object({
   query: z.string().trim().min(2).max(100),
   countryId: z.string().min(1).optional(),
@@ -86,7 +80,6 @@ export const FlightCityIdsSchema = z.object({
 
 export type GeoPlaceRef = z.infer<typeof GeoPlaceRefSchema>
 export type TripCityRef = z.infer<typeof TripCityRefSchema>
-export type UnresolvedTripCity = z.infer<typeof UnresolvedTripCitySchema>
 export type GeoPlaceSearchInput = z.infer<typeof GeoPlaceSearchInputSchema>
 export type GeoPlaceGetByIdsInput = z.infer<typeof GeoPlaceGetByIdsInputSchema>
 export type ResolveCityInput = z.infer<typeof ResolveCityInputSchema>

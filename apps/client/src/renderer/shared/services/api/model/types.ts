@@ -140,7 +140,6 @@ export interface TripListFilters {
   search?: string
   statuses?: TripStatus[]
   tags?: string[]
-  cities?: string[]
   cityIds?: string[]
   userIds?: string[]
 }
@@ -192,11 +191,10 @@ export interface ITripRepository {
   create: (data: CreateTripInput) => Promise<Trip>
   update: (id: string, details: UpdateTripInput) => Promise<Trip>
   delete: (id: string) => Promise<Trip>
-  getUniqueCities: () => Promise<string[]>
   getUniqueTags: (params: { query?: string }) => Promise<string[]>
   listByUser: (params: { userId: string, limit: number }) => Promise<Trip[]>
   addParticipant: (tripId: string, userId: string) => Promise<void>
-  generateWeather: (params: { tripId: string, city?: string, placeId?: string, placeIds?: string[], forceRefresh?: boolean }) => Promise<{ weatherData: TripWeatherData, weatherByPlaceId: TripWeatherData, fromCache: boolean }>
+  generateWeather: (params: { tripId: string, placeId?: string, placeIds?: string[], forceRefresh?: boolean }) => Promise<{ weatherData: TripWeatherData, weatherByPlaceId: TripWeatherData, fromCache: boolean }>
 }
 
 export interface IDayRepository {

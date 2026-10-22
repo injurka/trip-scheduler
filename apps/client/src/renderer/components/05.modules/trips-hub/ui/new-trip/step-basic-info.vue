@@ -41,7 +41,7 @@ const startDate = computed({
     <GeoPlacePicker
       v-model="selectedCityRefs"
       label="Города путешествия"
-      placeholder="Найдите город в справочнике"
+      placeholder="Найти город"
       multiple
     />
     <div class="date-pickers">

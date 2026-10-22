@@ -211,10 +211,8 @@ function generateTextContent(): string {
   const start = new Date(trip.startDate).toLocaleDateString('ru-RU')
   const end = new Date(trip.endDate).toLocaleDateString('ru-RU')
   lines.push(`📅 Даты: ${start} - ${end}`)
-  const cityEntries = [
-    ...(trip.cityRefs ?? []).map(place => ({ position: place.position, name: place.name, countryName: place.countryName })),
-    ...(trip.unresolvedCities ?? []).map(city => ({ position: city.position, name: city.label, countryName: null })),
-  ].sort((a, b) => a.position - b.position)
+  const cityEntries = [...(trip.cityRefs ?? []).map(place => ({ position: place.position, name: place.name, countryName: place.countryName }))]
+    .sort((a, b) => a.position - b.position)
   if (cityEntries.length) {
     const counts = new Map<string, number>()
     for (const city of cityEntries)
@@ -223,9 +221,6 @@ function generateTextContent(): string {
       ? `${city.name} · ${city.countryName}`
       : city.name)
     lines.push(`📍 Города: ${labels.join(', ')}`)
-  }
-  else if (trip.cities.length) {
-    lines.push(`📍 Города: ${trip.cities.join(', ')}`)
   }
 
   if (trip.description) {

@@ -4,7 +4,6 @@ import type { GeoPlaceRef } from '~/modules/geo/geo.schemas'
 import { createHash } from 'node:crypto'
 import { z } from 'zod'
 import { AI_MODELS, createAiChatRequest, DEFAULT_AI_MODEL, parseJsonWithAiRepair } from '~/lib/llm'
-import { cityWeatherCacheRepository } from '~/repositories/city-weather-cache.repository'
 import { geoWeatherCacheRepository } from '~/repositories/geo-weather-cache.repository'
 import { llmUsageRepository } from '~/repositories/llm-usage.repository'
 import { quotaService } from '~/services/quota.service'
@@ -27,8 +26,6 @@ const MONTH_NAMES_RU = [
 const DAYS_IN_MONTHS = [31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31]
 
 export const CityWeatherResponseSchema = z.object({
-  latitude: z.number().nullable().optional(),
-  longitude: z.number().nullable().optional(),
   tempAverage: z.number().nullable().optional(),
   tempMin: z.number().nullable().optional(),
   tempMax: z.number().nullable().optional(),
@@ -308,52 +305,6 @@ export function calculateFeelsLike(temp: number, windSpeedKmh: number): number {
   return temp
 }
 
-async function fetchCityCoordinates(cityName: string): Promise<GeoLocation | null> {
-  const localMatch = findKnownLocation(cityName)
-  if (localMatch) {
-    return localMatch
-  }
-
-  const cleanName = normalizeCityName(cityName)
-
-  try {
-    const url = `https://geocoding-api.open-meteo.com/v1/search?name=${encodeURIComponent(cleanName)}&count=3&language=ru&format=json`
-    const res = await fetch(url, { signal: AbortSignal.timeout(6000) })
-    if (res.ok) {
-      const data = await res.json()
-      if (data.results && data.results.length > 0) {
-        const first = data.results[0]
-        return {
-          name: first.name,
-          latitude: first.latitude,
-          longitude: first.longitude,
-          country: first.country,
-        }
-      }
-    }
-
-    // Резервная попытка поиска на английском
-    const fallbackUrl = `https://geocoding-api.open-meteo.com/v1/search?name=${encodeURIComponent(cleanName)}&count=3&language=en&format=json`
-    const fallbackRes = await fetch(fallbackUrl, { signal: AbortSignal.timeout(5000) })
-    if (fallbackRes.ok) {
-      const data = await fallbackRes.json()
-      if (data.results && data.results.length > 0) {
-        const first = data.results[0]
-        return {
-          name: first.name,
-          latitude: first.latitude,
-          longitude: first.longitude,
-          country: first.country,
-        }
-      }
-    }
-    return null
-  }
-  catch {
-    return null
-  }
-}
-
 async function fetchClimateNormals(lat: number, lon: number, month: number): Promise<ClimateNormals | null> {
   try {
     const daysInMonth = DAYS_IN_MONTHS[month - 1] || 30
@@ -631,17 +582,17 @@ async function generateWeatherForLocation(
   cityName: string,
   month: number,
   userId: string,
-  geo: GeoLocation | null,
+  geo: GeoLocation,
 ): Promise<{ data: CityWeatherData, generated: boolean }> {
   const cityNormalized = normalizeCityName(cityName)
-  const lat = geo?.latitude ?? null
-  const daylight = lat !== null ? calculateAstronomicalDaylight(lat, month) : null
-  const realClimate = geo ? await fetchClimateNormals(geo.latitude, geo.longitude, month) : null
+  const lat = geo.latitude
+  const daylight = calculateAstronomicalDaylight(lat, month)
+  const realClimate = await fetchClimateNormals(geo.latitude, geo.longitude, month)
 
   try {
     const monthName = MONTH_NAMES_RU[month - 1] || `${month}-й месяц`
     let userPrompt = `Составь климатический контекст и туристический прогноз для города "${cityName}" на месяц "${monthName}" (${month}-й месяц года).`
-    if (realClimate && geo && daylight) {
+    if (realClimate) {
       userPrompt += `
 Реальные климатические наблюдения (${geo.name}, ${geo.country || ''}):
 - Широта: ${geo.latitude}, долгота: ${geo.longitude}
@@ -653,14 +604,10 @@ async function generateWeatherForLocation(
 
 Используй эти фактические цифры и составь точный туристический контекст.`
     }
-    else if (daylight && lat !== null) {
+    else {
       userPrompt += `
 Географическая широта: ${lat}. Астрономический день для этой широты: значение "${daylight.daylightValue}", описание "${daylight.daylightDescription}".
 Составь реалистичные климатические показатели для этого региона в ${monthName}.`
-    }
-    else {
-      userPrompt += `
-Координаты города не найдены в базе. Определи его реальные географические координаты (широту и долготу), климатический пояс и реалистичную погоду на ${monthName}.`
     }
 
     const prompts: AiRequestPrompts = {
@@ -726,52 +673,20 @@ async function generateWeatherForLocation(
     }
 
     return {
-      data: sanitizeAndValidateWeather(rawResult, cityNormalized, month, lat ?? parsed.latitude ?? null),
+      data: sanitizeAndValidateWeather(rawResult, cityNormalized, month, lat),
       generated: true,
     }
   }
   catch (error) {
     console.error(`[Weather Generation] Ошибка генерации для города ${cityName}:`, error)
     return {
-      data: getSeasonalFallbackWeather(cityName, month, lat ?? undefined),
+      data: getSeasonalFallbackWeather(cityName, month, lat),
       generated: false,
     }
   }
 }
 
 export const weatherGenerationService = {
-  async generateOrGetCityWeather(
-    city: string,
-    month: number,
-    userId: string,
-    forceRefresh = false,
-  ): Promise<{ data: CityWeatherData, fromCache: boolean }> {
-    const trimmedCity = city.trim()
-    const cityNormalized = normalizeCityName(trimmedCity)
-
-    // 1. Проверяем кэш в БД (при forceRefresh игнорируем кэш)
-    if (!forceRefresh) {
-      const cached = await cityWeatherCacheRepository.getByCityAndMonth(cityNormalized, month)
-      if (cached) {
-        if (cached.daylight && !cached.daylightDescription) {
-          const parsedDaylight = splitDaylightText(cached.daylight)
-          cached.daylight = parsedDaylight.value
-          cached.daylightDescription = parsedDaylight.description
-        }
-        return { data: { ...cached, city: trimmedCity }, fromCache: true }
-      }
-    }
-
-    // Legacy clients still resolve by name. New writes use generateOrGetPlaceWeather below.
-    const geo = await fetchCityCoordinates(trimmedCity)
-    const result = await generateWeatherForLocation(trimmedCity, month, userId, geo)
-    if (result.generated) {
-      await cityWeatherCacheRepository.save(cityNormalized, month, result.data)
-    }
-
-    return { data: result.data, fromCache: false }
-  },
-
   async generateOrGetPlaceWeather(
     place: GeoPlaceRef,
     month: number,
@@ -808,35 +723,6 @@ export const weatherGenerationService = {
     }
 
     return { data: result.data, fromCache: false }
-  },
-
-  async getBatchWeatherFromCache(
-    cities: string[],
-    month: number,
-  ): Promise<Record<string, CityWeatherData>> {
-    const normalizedMap = new Map<string, string>()
-    const normalizedList: string[] = []
-
-    for (const c of cities) {
-      const norm = normalizeCityName(c)
-      normalizedMap.set(norm, c.trim())
-      normalizedList.push(norm)
-    }
-
-    const cachedMap = await cityWeatherCacheRepository.getManyByCitiesAndMonth(normalizedList, month)
-    const result: Record<string, CityWeatherData> = {}
-
-    for (const [norm, data] of cachedMap.entries()) {
-      const originalName = normalizedMap.get(norm) || data.city
-      if (data.daylight && !data.daylightDescription) {
-        const parsedDaylight = splitDaylightText(data.daylight)
-        data.daylight = parsedDaylight.value
-        data.daylightDescription = parsedDaylight.description
-      }
-      result[originalName] = { ...data, city: originalName }
-    }
-
-    return result
   },
 
   sanitizeAndValidateWeather,

@@ -83,9 +83,9 @@ const formattedBudget = computed(() => {
             <Icon icon="mdi:calendar-month-outline" />
             <span>{{ formattedDates }}</span>
           </div>
-          <div v-if="trip.cities?.length" class="meta-item">
+          <div v-if="trip.cityRefs?.length" class="meta-item">
             <Icon icon="mdi:map-marker-outline" />
-            <span>{{ trip.cities.join(', ') }}</span>
+            <span>{{ trip.cityRefs.map(place => place.name).join(', ') }}</span>
           </div>
           <div v-if="formattedBudget" class="meta-item">
             <Icon icon="mdi:wallet-outline" />

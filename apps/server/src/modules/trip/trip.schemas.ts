@@ -1,6 +1,6 @@
 import { z } from 'zod'
 import { DayWithActivitiesSchema } from '../day/day.schemas'
-import { CityIdsInputSchema, TripCityRefSchema, UnresolvedTripCitySchema } from '../geo/geo.schemas'
+import { CityIdsInputSchema, TripCityRefSchema } from '../geo/geo.schemas'
 import { TripSectionSchema } from '../trip-section/trip-section.schemas'
 import { UserSchema } from '../user/user.schemas'
 
@@ -40,9 +40,7 @@ export const TripSchema = z.object({
   descriptionShort: z.string().nullable(),
   startDate: z.union([z.date(), z.string()]),
   endDate: z.union([z.date(), z.string()]),
-  cities: z.array(z.string()),
   cityRefs: z.array(TripCityRefSchema).optional(),
-  unresolvedCities: z.array(UnresolvedTripCitySchema).optional(),
   status: z.enum(['completed', 'planned', 'draft']),
   budget: z.number().nullable(),
   currency: z.string().nullable(),
@@ -91,7 +89,6 @@ export const UpdateTripInputSchema = z.object({
     descriptionShort: true,
     startDate: true,
     endDate: true,
-    cities: true,
     status: true,
     budget: true,
     currency: true,
@@ -108,13 +105,11 @@ export const UpdateTripInputSchema = z.object({
 
 export const GenerateWeatherInputSchema = z.object({
   tripId: z.string().uuid(),
-  city: z.string().optional(),
   placeId: z.string().uuid().optional(),
   placeIds: CityIdsInputSchema.optional(),
   forceRefresh: z.boolean().optional().default(false),
-}).refine(input => !(input.city && (input.placeId || input.placeIds?.length))
-  && !(input.placeId && input.placeIds?.length), {
-  message: 'Передайте один режим генерации погоды: placeId, placeIds или legacy city.',
+}).refine(input => !(input.placeId && input.placeIds?.length), {
+  message: 'Передайте placeId или placeIds.',
   path: ['placeId'],
 })
 
@@ -139,7 +134,6 @@ export const ListTripsInputSchema = z.object({
   search: z.string().optional(),
   statuses: z.array(z.enum(['completed', 'planned', 'draft'])).optional(),
   tags: z.array(z.string()).optional(),
-  cities: z.array(z.string()).optional(),
   cityIds: CityIdsInputSchema.optional(),
   userIds: z.array(z.string().uuid()).optional(),
 }).optional()

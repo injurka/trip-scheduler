@@ -166,21 +166,11 @@ const displayCityLabels = computed(() => {
   if (!props.trip)
     return []
 
-  const entries = [
-    ...(props.trip.cityRefs ?? []).map(place => ({
-      position: place.position,
-      name: place.name,
-      countryName: place.countryName,
-    })),
-    ...(props.trip.unresolvedCities ?? []).map(city => ({
-      position: city.position,
-      name: city.label,
-      countryName: null,
-    })),
-  ].sort((a, b) => a.position - b.position)
-
-  if (entries.length === 0)
-    return props.trip.cities ?? []
+  const entries = [...(props.trip.cityRefs ?? []).map(place => ({
+    position: place.position,
+    name: place.name,
+    countryName: place.countryName,
+  }))].sort((a, b) => a.position - b.position)
 
   const counts = new Map<string, number>()
   for (const entry of entries)
@@ -695,7 +685,6 @@ watch([() => props.trip?.id, () => appStore.auth.user?.id], ([tripId, userId]) =
       />
       <WeatherWidget
         v-if="displayCityLabels.length > 0"
-        :cities="trip.cities"
         :city-refs="trip.cityRefs"
         :start-date="trip.startDate"
         :trip-id="trip.id"
@@ -794,7 +783,6 @@ watch([() => props.trip?.id, () => appStore.auth.user?.id], ([tripId, userId]) =
       v-if="allPoints.length > 0 || allRoutes.length > 0 || displayCityLabels.length > 0"
       :points="allPoints"
       :routes="allRoutes"
-      :cities="trip.cities"
       :city-refs="trip.cityRefs"
     />
 
@@ -808,7 +796,7 @@ watch([() => props.trip?.id, () => appStore.auth.user?.id], ([tripId, userId]) =
     />
 
     <DaysListDialog v-model:visible="isDaysDialogVisible" :days="days" @navigate="navigateToDay" />
-    <CitiesListDialog v-model:visible="isCitiesDialogVisible" :cities="trip.cities" :city-refs="trip.cityRefs" />
+    <CitiesListDialog v-model:visible="isCitiesDialogVisible" :city-refs="trip.cityRefs" />
     <ParticipantsListDialog v-model:visible="isParticipantsDialogVisible" :participants="trip.participants" />
     <ShareTripDialog v-model:visible="isShareDialogVisible" :trip="trip" :initial-slug="shareDialogInitialSlug" :can-edit="canEdit" />
     <AttractionsListDialog v-model:visible="isAttractionsDialogVisible" :days="days" @navigate="navigateToDay" />

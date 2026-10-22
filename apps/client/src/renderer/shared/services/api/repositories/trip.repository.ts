@@ -50,11 +50,6 @@ class TripRepository implements ITripRepository {
   }
 
   @throttle(400)
-  async getUniqueCities(): Promise<string[]> {
-    return await trpc.trip.getUniqueCities.query()
-  }
-
-  @throttle(400)
   async getUniqueTags(params: { query?: string }): Promise<string[]> {
     return await trpc.trip.getUniqueTags.query(params)
   }
@@ -69,7 +64,7 @@ class TripRepository implements ITripRepository {
     await trpc.trip.addParticipant.mutate({ tripId, userId })
   }
 
-  async generateWeather(params: { tripId: string, city?: string, placeId?: string, placeIds?: string[], forceRefresh?: boolean }): Promise<{ weatherData: TripWeatherData, weatherByPlaceId: TripWeatherData, fromCache: boolean }> {
+  async generateWeather(params: { tripId: string, placeId?: string, placeIds?: string[], forceRefresh?: boolean }): Promise<{ weatherData: TripWeatherData, weatherByPlaceId: TripWeatherData, fromCache: boolean }> {
     return await trpc.trip.generateWeather.mutate(params) as { weatherData: TripWeatherData, weatherByPlaceId: TripWeatherData, fromCache: boolean }
   }
 }

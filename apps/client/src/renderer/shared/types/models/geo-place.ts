@@ -43,9 +43,3 @@ export interface GeoResolutionResult {
 export interface TripCityRef extends GeoPlaceRef {
   position: number
 }
-
-export interface UnresolvedTripCity {
-  position: number
-  label: string
-  status: Exclude<GeoResolutionStatus, 'resolved'>
-}

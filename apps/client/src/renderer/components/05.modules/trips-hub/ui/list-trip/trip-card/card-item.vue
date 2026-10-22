@@ -14,7 +14,7 @@ import { AppRoutePaths } from '~/shared/constants/routes'
 import { CommentParentType } from '~/shared/types/models/comment'
 import { TripsHubKey } from '../../../composables'
 
-interface Props extends Omit<ITrip, 'userId' | 'sections' | 'createdAt' | 'updatedAt'> {
+interface Props extends Omit<ITrip, 'userId' | 'sections' | 'createdAt' | 'updatedAt' | 'cities'> {
   userId?: string
   sections?: TripSection[]
   createdAt?: string
@@ -27,6 +27,10 @@ const props = withDefaults(defineProps<Props>(), {
   tags: () => [],
   isHighlight: false,
 })
+
+const cities = computed(() => [...(props.cityRefs ?? [])]
+  .sort((a, b) => a.position - b.position)
+  .map(place => place.name))
 
 const router = useRouter()
 const tripsHub = inject(TripsHubKey)
@@ -136,9 +140,7 @@ const tripData = computed<Trip>(() => ({
   descriptionShort: props.descriptionShort,
   startDate: props.startDate,
   endDate: props.endDate,
-  cities: props.cities,
-  cityRefs: props.cityRefs,
-  unresolvedCities: props.unresolvedCities,
+  cityRefs: props.cityRefs ?? [],
   status: props.status,
   budget: props.budget,
   currency: props.currency,

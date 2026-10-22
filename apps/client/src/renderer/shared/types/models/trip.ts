@@ -1,6 +1,6 @@
 import type { RouterInput } from '../trpc'
 import type { Day } from './activity'
-import type { TripCityRef, UnresolvedTripCity } from './geo-place'
+import type { TripCityRef } from './geo-place'
 
 // --- Типы, связанные с медиафайлами ---
 
@@ -197,9 +197,7 @@ export interface Trip {
   descriptionShort: string | null
   startDate: string
   endDate: string
-  cities: string[]
   cityRefs?: TripCityRef[]
-  unresolvedCities?: UnresolvedTripCity[]
   status: TripStatus
   budget: number | null
   currency: string | null

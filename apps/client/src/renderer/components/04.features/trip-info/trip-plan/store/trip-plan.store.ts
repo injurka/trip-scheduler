@@ -437,7 +437,7 @@ export const useTripPlanStore = defineStore('tripPlan', {
       })
     },
 
-    async generateWeather(params: { city?: string, placeId?: string, placeIds?: string[], forceRefresh?: boolean } = {}) {
+    async generateWeather(params: { placeId?: string, placeIds?: string[], forceRefresh?: boolean } = {}) {
       if (!this.trip)
         return null
 

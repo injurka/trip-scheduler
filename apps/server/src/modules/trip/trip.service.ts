@@ -58,10 +58,6 @@ export const tripService = {
     return trips as NonNullable<typeof trips[number]>[]
   },
 
-  async getUniqueCities() {
-    return await tripRepository.getUniqueCities()
-  },
-
   async getUniqueTags(query?: string) {
     return await tripRepository.getUniqueTags(query)
   },
@@ -231,41 +227,6 @@ export const tripService = {
     const existingTrip = await accessControlService.getTripAndVerifyAccess(id, userId, userRole)
     let selectedPlacesForUpdate: Awaited<ReturnType<typeof geoRepository.getByIds>> | undefined
 
-    if (details.cityIds !== undefined && details.cities !== undefined) {
-      const selectedPlaces = await geoRepository.getByIds({ ids: details.cityIds, locale: 'ru' })
-      const requestedLabels = details.cities.map(city => city.trim()).filter(Boolean)
-      const canonicalLabels = selectedPlaces.map(place => place.name)
-      if (JSON.stringify(requestedLabels) !== JSON.stringify(canonicalLabels)) {
-        throw createTRPCError('BAD_REQUEST', 'Названия городов должны соответствовать переданным ID из справочника.')
-      }
-    }
-
-    if (details.cityIds === undefined && details.cities !== undefined) {
-      const requestedLabels = details.cities.map(city => city.trim()).filter(Boolean)
-      const existingLabels = (existingTrip.cities ?? []).map(city => city.trim()).filter(Boolean)
-      if (JSON.stringify(requestedLabels) === JSON.stringify(existingLabels)) {
-        delete details.cities
-      }
-      else {
-        if (new Set(requestedLabels).size !== requestedLabels.length) {
-          throw createTRPCError('BAD_REQUEST', 'В списке городов есть повторения. Выберите города из справочника.')
-        }
-
-        const resolutions = await Promise.all(requestedLabels.map(label => geoRepository.resolveExact({ label, kinds: ['settlement'] })))
-        const unresolved = resolutions.find(result => result.status !== 'resolved' || !result.place)
-        if (unresolved) {
-          const message = unresolved.status === 'needs_review'
-            ? 'Некоторые названия совпадают с несколькими городами. Выберите точный город в обновлённой версии приложения.'
-            : 'Некоторые города не найдены в справочнике. Выберите города из обновлённой версии приложения.'
-          throw createTRPCError('BAD_REQUEST', message)
-        }
-
-        selectedPlacesForUpdate = resolutions.flatMap(result => result.place ? [result.place] : [])
-        details.cityIds = selectedPlacesForUpdate.map(place => place.id)
-        details.cities = selectedPlacesForUpdate.map(place => place.name)
-      }
-    }
-
     if (details.cityIds !== undefined) {
       const selectedPlaces = await geoRepository.getByIds({ ids: details.cityIds, locale: 'ru' })
       const selectableIds = await geoRepository.getSelectableIds(details.cityIds)
@@ -279,32 +240,10 @@ export const tripService = {
       }
 
       selectedPlacesForUpdate = selectedPlaces
-      details.cities = details.cityIds.map((placeId) => {
-        const place = selectedPlaces.find(candidate => candidate.id === placeId)
-        return place?.name ?? ''
-      })
     }
 
     if (details.shareSlug && !await tripRepository.isShareSlugAvailable(details.shareSlug, id)) {
       throw createTRPCError('CONFLICT', 'Этот slug уже занят. Выберите другой.')
-    }
-
-    // Если обновляются города или дата, но не передана погода, пробуем дополнить из кэша БД
-    if (details.cityIds === undefined && details.cities && details.cities.length > 0 && !details.weatherData) {
-      try {
-        const targetDate = details.startDate ? new Date(details.startDate) : new Date(existingTrip.startDate)
-        const month = targetDate.getMonth() + 1
-        const cachedBatch = await weatherGenerationService.getBatchWeatherFromCache(details.cities, month)
-        if (Object.keys(cachedBatch).length > 0) {
-          details.weatherData = {
-            ...((existingTrip.weatherData as any) || {}),
-            ...cachedBatch,
-          }
-        }
-      }
-      catch (error) {
-        console.warn('Не удалось автоматически подгрузить погоду из кэша БД:', error)
-      }
     }
 
     let updatedTrip
@@ -333,7 +272,6 @@ export const tripService = {
 
   async generateWeather(
     tripId: string,
-    city: string | undefined,
     placeId: string | undefined,
     placeIds: string[] | undefined,
     forceRefresh: boolean,
@@ -354,7 +292,7 @@ export const tripService = {
     const updatedWeatherByPlaceId: TripWeatherData = { ...currentWeatherByPlaceId }
     let hasGeneratedAny = false
 
-    if (placeId || placeIds?.length || (!city && tripData.cityRefs?.length)) {
+    if (placeId || placeIds?.length || tripData.cityRefs?.length) {
       const allPlaces = tripData.cityRefs ?? []
       const requestedIds = placeId ? [placeId] : placeIds?.length ? placeIds : allPlaces.map(place => place.id)
       const placesById = new Map(allPlaces.map(place => [place.id, place]))
@@ -375,16 +313,7 @@ export const tripService = {
       }
     }
     else {
-      const citiesToProcess = city ? [city] : (tripData.cities || [])
-      if (citiesToProcess.length === 0)
-        throw createTRPCError('BAD_REQUEST', 'В путешествии не указаны города для генерации сводки погоды.')
-
-      for (const legacyCity of citiesToProcess) {
-        const { data, fromCache } = await weatherGenerationService.generateOrGetCityWeather(legacyCity, month, userId, forceRefresh)
-        updatedWeatherData[legacyCity] = data
-        if (!fromCache)
-          hasGeneratedAny = true
-      }
+      throw createTRPCError('BAD_REQUEST', 'В путешествии не указаны города из справочника для генерации сводки погоды.')
     }
 
     await tripRepository.updateWeatherPayload(tripId, {

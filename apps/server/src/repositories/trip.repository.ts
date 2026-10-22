@@ -1,5 +1,5 @@
 import type { z } from 'zod'
-import type { GeoPlaceRef, TripCityRef, UnresolvedTripCity } from '~/modules/geo/geo.schemas'
+import type { GeoPlaceRef, TripCityRef } from '~/modules/geo/geo.schemas'
 import type { CreateTripInputSchema, ListTripsInputSchema, UpdateTripInputSchema } from '~/modules/trip/trip.schemas'
 import { randomBytes } from 'node:crypto'
 import { and, asc, eq, ilike, inArray, isNull, ne, or, sql } from 'drizzle-orm'
@@ -92,15 +92,15 @@ function mapTripParticipants<T extends { participants: Array<{ user: any }> }>(t
 }
 
 async function hydrateTripCities<T extends { id: string, cities: string[] }>(items: T[]) {
+  const itemsWithoutCityNames = items.map(({ cities: _cityNames, ...trip }) => trip)
   if (!items.length)
-    return items.map(trip => ({ ...trip, cityRefs: [] as TripCityRef[], unresolvedCities: [] as UnresolvedTripCity[] }))
+    return itemsWithoutCityNames.map(trip => ({ ...trip, cityRefs: [] as TripCityRef[] }))
 
-  const tripIds = items.map(trip => trip.id)
+  const tripIds = itemsWithoutCityNames.map(trip => trip.id)
   const links = await db.select({
     tripId: tripGeoPlaces.tripId,
     position: tripGeoPlaces.position,
     placeId: tripGeoPlaces.placeId,
-    legacyLabel: tripGeoPlaces.legacyLabel,
     status: tripGeoPlaces.status,
   })
     .from(tripGeoPlaces)
@@ -117,37 +117,19 @@ async function hydrateTripCities<T extends { id: string, cities: string[] }>(ite
     linksByTripId.set(link.tripId, tripLinks)
   }
 
-  return items.map((trip) => {
+  return itemsWithoutCityNames.map((trip) => {
     const tripLinks = linksByTripId.get(trip.id) ?? []
-    if (!tripLinks.length) {
-      const unresolvedCities = trip.cities.flatMap((label, position) => label.trim()
-        ? [{ position, label, status: 'unresolved' as const }]
-        : [])
-      return { ...trip, cityRefs: [] as TripCityRef[], unresolvedCities }
-    }
-
     const cityRefs: TripCityRef[] = []
-    const unresolvedCities: UnresolvedTripCity[] = []
-    const cities: string[] = []
 
     for (const link of tripLinks) {
       const place = link.placeId ? placesById.get(link.placeId) : undefined
-      if (link.status === 'resolved' && place) {
-        cityRefs.push({ ...place, position: link.position })
-        cities.push(place.name)
-        continue
-      }
-
-      const label = link.legacyLabel?.trim() || trip.cities[link.position]?.trim()
-      if (!label)
+      if (link.status !== 'resolved' || !place)
         continue
 
-      const status = link.status === 'needs_review' ? 'needs_review' : 'unresolved'
-      unresolvedCities.push({ position: link.position, label, status })
-      cities.push(label)
+      cityRefs.push({ ...place, position: link.position })
     }
 
-    return { ...trip, cities, cityRefs, unresolvedCities }
+    return { ...trip, cityRefs }
   })
 }
 
@@ -213,10 +195,6 @@ export const tripRepository = {
         const tagsArray = `{${filters.tags.join(',')}}`
         conditions.push(sql`${trips.tags} ?| ${tagsArray}`)
       }
-      if (filters?.cities && filters.cities.length > 0) {
-        const citiesArray = `{${filters.cities.join(',')}}`
-        conditions.push(sql`${trips.cities} ?| ${citiesArray}`)
-      }
       if (filters?.cityIds && filters.cityIds.length > 0) {
         const tripsWithSelectedCities = db
           .selectDistinct({ tripId: tripGeoPlaces.tripId })
@@ -240,22 +218,6 @@ export const tripRepository = {
 
       const mapped = result.map(mapTripParticipants).filter((trip): trip is NonNullable<typeof trip> => !!trip)
       return await hydrateTripCities(mapped)
-    })
-  },
-
-  /**
-   * Получает список уникальных городов из всех путешествий.
-   */
-  async getUniqueCities() {
-    return measureDbQuery('trips', 'select', async () => {
-      const cityExpression = sql<string>`jsonb_array_elements_text(${trips.cities})`
-
-      const result = await db
-        .selectDistinct({ city: cityExpression })
-        .from(trips)
-        .orderBy(cityExpression)
-
-      return result.map(row => row.city).filter(Boolean)
     })
   },
 
@@ -444,7 +406,7 @@ export const tripRepository = {
             .where(eq(trips.id, id))
         }
 
-        if (cityIds !== undefined || details.cities !== undefined) {
+        if (cityIds !== undefined) {
           await tx.delete(tripGeoPlaces).where(eq(tripGeoPlaces.tripId, id))
 
           if (cityIds !== undefined && cityIds.length > 0) {
@@ -461,18 +423,6 @@ export const tripRepository = {
           }
           else if (cityIds !== undefined) {
             await tx.update(trips).set({ cities: [] }).where(eq(trips.id, id))
-          }
-          else if (details.cities) {
-            const legacyCities = details.cities.filter(city => city.trim().length > 0)
-            if (legacyCities.length > 0) {
-              await tx.insert(tripGeoPlaces).values(legacyCities.map((legacyLabel, position) => ({
-                tripId: id,
-                position,
-                placeId: null,
-                legacyLabel,
-                status: 'unresolved' as const,
-              })))
-            }
           }
         }
 

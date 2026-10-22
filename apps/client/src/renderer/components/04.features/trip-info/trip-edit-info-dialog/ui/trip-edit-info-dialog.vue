@@ -2,7 +2,7 @@
 import type { CalendarDate } from '@internationalized/date'
 import type { KitDropdownItem } from '~/components/01.kit/kit-dropdown'
 import type { KitRadioOption } from '~/components/01.kit/kit-radio-group'
-import type { GeoPlaceRef, UnresolvedTripCity } from '~/shared/types/models/geo-place'
+import type { GeoPlaceRef } from '~/shared/types/models/geo-place'
 import type { Trip, TripMedia, UpdateTripInput } from '~/shared/types/models/trip'
 import { Icon } from '@iconify/vue'
 import { parseDate } from '@internationalized/date'
@@ -128,38 +128,14 @@ function selectCover(url: string | null) {
 
 const editableTrip = ref<Partial<UpdateTripInput & Pick<Trip, 'weatherByPlaceId'>>>({})
 const selectedCityRefs = ref<GeoPlaceRef[]>([])
-const unresolvedTripCities = ref<UnresolvedTripCity[]>([])
 const hasCitiesChanged = ref(false)
-
-const displayedCities = computed(() => hasCitiesChanged.value
-  ? [...selectedCityRefs.value.map(place => place.name), ...unresolvedTripCities.value.map(city => city.label)]
-  : editableTrip.value.cities ?? [])
 
 function markCitiesChanged() {
   hasCitiesChanged.value = true
-  editableTrip.value.cities = displayedCities.value
 }
 
 function onSelectedCityRefsChange(value: GeoPlaceRef | GeoPlaceRef[] | null) {
   selectedCityRefs.value = Array.isArray(value) ? value : value ? [value] : []
-  markCitiesChanged()
-}
-
-function resolveLegacyCity(position: number, value: GeoPlaceRef | GeoPlaceRef[] | null) {
-  const place = Array.isArray(value) ? value[0] : value
-  if (!place)
-    return
-
-  const current = [...selectedCityRefs.value]
-  const insertAt = Math.min(position, current.length)
-  current.splice(insertAt, 0, place)
-  selectedCityRefs.value = current
-  unresolvedTripCities.value = unresolvedTripCities.value.filter(city => city.position !== position)
-  markCitiesChanged()
-}
-
-function removeLegacyCity(position: number) {
-  unresolvedTripCities.value = unresolvedTripCities.value.filter(city => city.position !== position)
   markCitiesChanged()
 }
 
@@ -235,7 +211,7 @@ function handleSave() {
       (updatedFields as any)[fieldKey] = updatedValue
   }
 
-  if (hasCitiesChanged.value && unresolvedTripCities.value.length === 0)
+  if (hasCitiesChanged.value)
     updatedFields.cityIds = selectedCityRefs.value.map(place => place.id)
 
   emit('save', updatedFields)
@@ -250,7 +226,6 @@ watch(() => props.visible, (isVisible) => {
       title: props.trip.title,
       description: props.trip.description,
       descriptionShort: props.trip.descriptionShort,
-      cities: props.trip.cities ?? [],
       startDate: props.trip.startDate,
       endDate: props.trip.endDate,
       status: props.trip.status,
@@ -263,7 +238,6 @@ watch(() => props.visible, (isVisible) => {
       weatherByPlaceId: props.trip.weatherByPlaceId ? { ...props.trip.weatherByPlaceId } : {},
     }
     selectedCityRefs.value = [...(props.trip.cityRefs ?? [])].sort((a, b) => a.position - b.position)
-    unresolvedTripCities.value = [...(props.trip.unresolvedCities ?? [])].sort((a, b) => a.position - b.position)
     hasCitiesChanged.value = false
     hasFetchedImages.value = false
     isFullDescriptionOpen.value = false
@@ -278,20 +252,11 @@ const isGeneratingWeather = ref(false)
 
 const hasWeatherDataForAllCities = computed(() => {
   const refs = selectedCityRefs.value
-  if (refs.length > 0)
-    return refs.every(place => !!editableTrip.value.weatherByPlaceId?.[place.id])
-
-  const cities = displayedCities.value
-  if (cities.length === 0)
-    return false
-  const wData = editableTrip.value.weatherData as any
-  if (!wData)
-    return false
-  return cities.every((c: string) => !!wData[c])
+  return refs.length > 0 && refs.every(place => !!editableTrip.value.weatherByPlaceId?.[place.id])
 })
 
 async function handleGenerateWeatherInDialog() {
-  if (!props.trip?.id || !displayedCities.value.length)
+  if (!props.trip?.id || selectedCityRefs.value.length === 0)
     return
 
   isGeneratingWeather.value = true
@@ -381,31 +346,14 @@ async function handleGenerateWeatherInDialog() {
         <GeoPlacePicker
           :model-value="selectedCityRefs"
           label="Города"
-          placeholder="Найдите город в справочнике"
+          placeholder="Найти город"
           multiple
           @update:model-value="onSelectedCityRefsChange"
         />
-        <div v-if="unresolvedTripCities.length > 0" class="legacy-city-list">
-          <p class="field-hint">
-            В путешествии есть старые названия. Для сохранения нового списка сопоставьте их с городами из справочника или удалите.
-          </p>
-          <div v-for="city in unresolvedTripCities" :key="city.position" class="legacy-city-row">
-            <span class="legacy-city-label">{{ city.label }}</span>
-            <GeoPlacePicker
-              :model-value="null"
-              :label="`Заменить «${city.label}» на город из справочника`"
-              placeholder="Выберите город"
-              @update:model-value="resolveLegacyCity(city.position, $event)"
-            />
-            <KitBtn variant="text" color="secondary" size="sm" @click="removeLegacyCity(city.position)">
-              Удалить старое название
-            </KitBtn>
-          </div>
-        </div>
       </div>
 
       <!-- Климатический контекст городов во время редактирования/планирования -->
-      <div v-if="displayedCities.length > 0" class="weather-preview-box">
+      <div v-if="selectedCityRefs.length > 0" class="weather-preview-box">
         <div class="weather-preview-header">
           <div class="header-left">
             <Icon icon="mdi:weather-partly-cloudy" class="weather-icon" />
@@ -520,7 +468,7 @@ async function handleGenerateWeatherInDialog() {
         <KitBtn variant="outlined" color="secondary" @click="$emit('update:visible', false)">
           Отмена
         </KitBtn>
-        <KitBtn :disabled="!isChanged || (hasCitiesChanged && unresolvedTripCities.length > 0)" @click="handleSave">
+        <KitBtn :disabled="!isChanged" @click="handleSave">
           Сохранить
         </KitBtn>
       </div>

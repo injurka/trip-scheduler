@@ -7,17 +7,15 @@ import { useFullscreen } from '@vueuse/core'
 import { useRouter } from 'vue-router'
 import { KitBtn } from '~/components/01.kit/kit-btn'
 import GeolocationMap from '~/components/03.domain/trip-info/geolocation-section/ui/geolocation-map.vue'
-import { isValidCoordinate, nominatimService } from '~/shared/services/geo'
+import { isValidCoordinate } from '~/shared/services/geo'
 
 interface Props {
-  cities?: string[]
   cityRefs?: TripCityRef[]
   points?: any[]
   routes?: any[]
 }
 
 const props = withDefaults(defineProps<Props>(), {
-  cities: () => [],
   cityRefs: () => [],
   points: () => [],
   routes: () => [],
@@ -32,20 +30,6 @@ const isLoading = ref(true)
 const mapPoints = ref<MapPoint[]>([])
 const mapRoutes = ref<MapRoute[]>([])
 const mapCenter = ref<Coordinate>([37.6176, 55.7558])
-
-async function fetchCoordinates(city: string): Promise<[number, number] | null> {
-  try {
-    const result = await nominatimService.searchSingle(city)
-    if (result) {
-      return [result.lon, result.lat]
-    }
-    return null
-  }
-  catch (e) {
-    console.error(`Failed to geocode city: ${city}`, e)
-    return null
-  }
-}
 
 async function initMapData() {
   if (props.points.length > 0 || props.routes.length > 0) {
@@ -152,40 +136,6 @@ async function initMapData() {
     return
   }
 
-  if (props.cities.length > 0) {
-    isLoading.value = true
-    const points: MapPoint[] = []
-    const centerSum: [number, number] = [0, 0]
-    let validCount = 0
-
-    const results = await Promise.all(props.cities.map(async (city) => {
-      const coords = await fetchCoordinates(city)
-      return { city, coords }
-    }))
-
-    results.forEach(({ coords, city }, index) => {
-      if (coords) {
-        points.push({
-          id: `city-${index}`,
-          coordinates: [coords[0], coords[1]],
-          type: 'poi',
-          comment: city,
-        })
-        centerSum[0] += coords[0]
-        centerSum[1] += coords[1]
-        validCount++
-      }
-    })
-
-    if (validCount > 0) {
-      mapCenter.value = [centerSum[0] / validCount, centerSum[1] / validCount]
-      mapPoints.value = points
-    }
-    mapRoutes.value = []
-    isLoading.value = false
-    return
-  }
-
   mapPoints.value = []
   mapRoutes.value = []
   isLoading.value = false
@@ -247,7 +197,7 @@ onMounted(() => {
   initMapData()
 })
 
-watch(() => [props.cities, props.cityRefs, props.points, props.routes], () => {
+watch(() => [props.cityRefs, props.points, props.routes], () => {
   initMapData()
 }, { deep: true })
 </script>
@@ -274,7 +224,7 @@ watch(() => [props.cities, props.cityRefs, props.points, props.routes], () => {
         <span>Загрузка карты...</span>
       </div>
 
-      <div v-else-if="mapPoints.length === 0 && mapRoutes.length === 0 && cities.length === 0" class="empty-state">
+      <div v-else-if="mapPoints.length === 0 && mapRoutes.length === 0 && cityRefs.length === 0" class="empty-state">
         <Icon icon="mdi:map-marker-off-outline" />
         <span>Нет отмеченных локаций</span>
       </div>

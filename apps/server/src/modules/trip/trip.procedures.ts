@@ -48,20 +48,6 @@ export const tripProcedures = {
       return tripService.listByUser(input.userId, input.limit)
     }),
 
-  getUniqueCities: publicProcedure
-    .meta({
-      openapi: {
-        method: 'GET',
-        path: '/trips/cities',
-        tags: ['Trips'],
-        summary: 'Получить список всех уникальных городов',
-      },
-    })
-    .output(z.array(z.string()))
-    .query(async () => {
-      return tripService.getUniqueCities()
-    }),
-
   getUniqueTags: publicProcedure
     .meta({
       openapi: {
@@ -175,7 +161,6 @@ export const tripProcedures = {
     .mutation(async ({ input, ctx }) => {
       return tripService.generateWeather(
         input.tripId,
-        input.city,
         input.placeId,
         input.placeIds,
         input.forceRefresh ?? false,
