@@ -24,7 +24,9 @@ export interface LocationCoords {
  */
 export interface FlightSegment {
   departureCity?: string
+  departureCityId?: string
   arrivalCity?: string
+  arrivalCityId?: string
   departureAirport?: string // IATA code
   arrivalAirport?: string // IATA code
   departureAirportLocation?: LocationCoords

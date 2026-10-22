@@ -176,6 +176,8 @@ export const tripProcedures = {
       return tripService.generateWeather(
         input.tripId,
         input.city,
+        input.placeId,
+        input.placeIds,
         input.forceRefresh ?? false,
         ctx.user.id,
         ctx.user.role,

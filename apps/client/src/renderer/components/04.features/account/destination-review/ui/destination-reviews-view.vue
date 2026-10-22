@@ -1,13 +1,16 @@
 <script setup lang="ts">
 import type { DestinationMetricKey } from '../composables/use-destination-reviews'
 import type { Country } from '~/shared/types/models/destination-review'
+import type { GeoPlaceRef } from '~/shared/types/models/geo-place'
 import { Icon } from '@iconify/vue'
-import { computed, onMounted, ref } from 'vue'
+import { computed, onMounted, ref, watch } from 'vue'
 import { KitBtn } from '~/components/01.kit/kit-btn'
 import { KitDropdown } from '~/components/01.kit/kit-dropdown'
 import { KitPagination } from '~/components/01.kit/kit-pagination'
 import { KitSelectWithSearch } from '~/components/01.kit/kit-select-with-search'
 import { AsyncStateWrapper } from '~/components/02.shared/async-state-wrapper'
+import { GeoPlacePicker } from '~/components/03.domain/geo-place-picker'
+import { useRequest } from '~/plugins/request'
 import { METRIC_LABELS, useDestinationReviews } from '../composables/use-destination-reviews'
 import DestinationReviewCardSkeleton from './components/destination-review-card-skeleton.vue'
 import DestinationReviewCard from './components/destination-review-card.vue'
@@ -26,9 +29,9 @@ const {
   page,
   limit,
   countries,
-  availableCities,
   selectedCountry,
   selectedCity,
+  selectedCityId,
   sortBy,
   sortOrder,
   activePreset,
@@ -49,7 +52,6 @@ const {
   toggleMetric,
   fetchReviews,
   fetchCountries,
-  fetchCities,
   openCreateModal,
   openEditModal,
   submitReview,
@@ -62,10 +64,48 @@ const countryOptions = computed(() => countries.value.map((c: Country) => ({
   label: c.name,
 })))
 
-const cityOptions = computed(() => availableCities.value.map(c => ({
-  value: c,
-  label: c,
-})))
+const selectedCityRef = ref<GeoPlaceRef | null>(null)
+let cityHydrationSequence = 0
+
+watch(selectedCityId, async (cityId) => {
+  const sequence = ++cityHydrationSequence
+  if (!cityId) {
+    selectedCityRef.value = null
+    return
+  }
+
+  await useRequest({
+    key: `destination-reviews:hydrate-filter-city:${cityId}`,
+    fn: db => db.geo.getPlacesByIds([cityId]),
+    onSuccess: (places) => {
+      if (sequence !== cityHydrationSequence)
+        return
+
+      const place = places[0] ?? null
+      if (place && selectedCountry.value && place.countryId !== selectedCountry.value) {
+        selectedCityId.value = null
+        selectedCityRef.value = null
+        return
+      }
+      selectedCityRef.value = place
+    },
+  })
+}, { immediate: true })
+
+watch(selectedCountry, (countryId) => {
+  if (selectedCityRef.value && selectedCityRef.value.countryId !== countryId) {
+    selectedCityRef.value = null
+    selectedCityId.value = null
+  }
+})
+
+function onFilterCitySelected(value: GeoPlaceRef | GeoPlaceRef[] | null) {
+  const place = Array.isArray(value) ? value[0] ?? null : value
+  selectedCityRef.value = place
+  selectedCityId.value = place?.id ?? null
+  selectedCity.value = null
+  selectedCountry.value = place?.countryId ?? null
+}
 
 // Опции сортировки динамически адаптируются под выбранные метрики
 const sortOptions = computed(() => {
@@ -99,6 +139,8 @@ const showMetricsSetup = ref(false)
 function clearFilters() {
   selectedCountry.value = null
   selectedCity.value = null
+  selectedCityId.value = null
+  selectedCityRef.value = null
   sortBy.value = 'createdAt'
   sortOrder.value = 'desc'
   applyPreset('all') // Сбрасываем выбранные атрибуты до стандартных
@@ -106,7 +148,6 @@ function clearFilters() {
 
 onMounted(() => {
   fetchCountries()
-  fetchCities()
   fetchReviews()
 })
 </script>
@@ -141,15 +182,18 @@ onMounted(() => {
           class="filter-select"
           icon="mdi:earth"
         />
-        <KitSelectWithSearch
-          v-model="selectedCity"
-          :items="cityOptions"
+        <GeoPlacePicker
+          :model-value="selectedCityRef"
           placeholder="Все города"
-          clearable
-          size="sm"
-          class="filter-select"
-          icon="mdi:city"
+          @update:model-value="onFilterCitySelected"
         />
+      </div>
+
+      <div v-if="selectedCity" class="legacy-city-filter">
+        Старый фильтр по названию: {{ selectedCity }}
+        <button type="button" @click="selectedCity = null">
+          Сбросить
+        </button>
       </div>
 
       <div class="filters-spacer" />
@@ -252,7 +296,7 @@ onMounted(() => {
       </template>
 
       <template #empty>
-        <div v-if="!selectedCountry && !selectedCity && activePreset === 'all'" class="empty-state">
+        <div v-if="!selectedCountry && !selectedCity && !selectedCityId && activePreset === 'all'" class="empty-state">
           <Icon icon="mdi:map-search-outline" />
           <p>Пока нет добавленных впечатлений.</p>
         </div>

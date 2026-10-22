@@ -1,10 +1,11 @@
 /* eslint-disable ts/no-use-before-define */
 import type { AnyPgColumn } from 'drizzle-orm/pg-core'
 import type { ActivitySection, CityWeatherData, DayMetaInfo, PostElementContent, PostStatsDetail, TripWeatherData } from './schema.type'
-import { relations } from 'drizzle-orm'
+import { relations, sql } from 'drizzle-orm'
 import {
   bigint,
   boolean,
+  check,
   date,
   doublePrecision,
   index,
@@ -17,6 +18,7 @@ import {
   serial,
   text,
   timestamp,
+  uniqueIndex,
   uuid,
 } from 'drizzle-orm/pg-core'
 import { ONE_GIGABYTE_IN_BYTES } from '~/lib/constants'
@@ -40,6 +42,113 @@ export const tripSectionTypeEnum = pgEnum('trip_section_type', [
 ])
 
 export const noteTypeEnum = pgEnum('note_type', ['folder', 'markdown', 'excalidraw'])
+export const geoCatalogVersionStateEnum = pgEnum('geo_catalog_version_state', ['loading', 'ready', 'failed'])
+export const geoPlaceKindEnum = pgEnum('geo_place_kind', ['settlement', 'island', 'area'])
+export const geoPlaceNameOriginEnum = pgEnum('geo_place_name_origin', ['geonames_primary', 'geonames_ascii', 'geonames_alternate', 'app_override'])
+export const geoResolutionStatusEnum = pgEnum('geo_resolution_status', ['resolved', 'unresolved', 'needs_review'])
+
+export const countries = pgTable('countries', {
+  id: text('id').primaryKey(),
+  name: text('name').notNull(),
+  flagUrl: text('flagUrl'),
+  sourceCode: text('source_code').unique(),
+})
+
+export const geoCatalogVersions = pgTable('geo_catalog_versions', {
+  id: text('id').primaryKey(),
+  manifest: jsonb('manifest').$type<Record<string, unknown>>().notNull(),
+  checksum: text('checksum').notNull(),
+  state: geoCatalogVersionStateEnum('state').notNull().default('loading'),
+  importerVersion: text('importer_version').notNull(),
+  counts: jsonb('counts').$type<Record<string, number>>().notNull().default({}),
+  downloadedAt: timestamp('downloaded_at', { withTimezone: true }).notNull(),
+  publishedAt: timestamp('published_at', { withTimezone: true }),
+  createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
+  updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow().notNull(),
+})
+
+export const geoCatalogCountries = pgTable('geo_catalog_countries', {
+  code: text('code').primaryKey(),
+  geonamesId: text('geonames_id').notNull().unique(),
+  sourceName: text('source_name').notNull(),
+  asciiName: text('ascii_name').notNull(),
+  nameRu: text('name_ru'),
+  legacyCountryId: text('legacy_country_id').references(() => countries.id, { onDelete: 'set null' }),
+  sourceModifiedAt: date('source_modified_at'),
+  catalogVersion: text('catalog_version').references(() => geoCatalogVersions.id, { onDelete: 'set null' }),
+  createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
+  updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow().notNull(),
+})
+
+export const geoPlaces = pgTable('geo_places', {
+  id: uuid('id').primaryKey(),
+  source: text('source').notNull().default('geonames'),
+  sourceId: text('source_id').notNull(),
+  countryCode: text('country_code').notNull().references(() => geoCatalogCountries.code, { onDelete: 'restrict' }),
+  catalogVersion: text('catalog_version').references(() => geoCatalogVersions.id, { onDelete: 'restrict' }),
+  featureCode: text('feature_code').notNull(),
+  kind: geoPlaceKindEnum('kind').notNull().default('settlement'),
+  primaryName: text('primary_name').notNull(),
+  asciiName: text('ascii_name').notNull(),
+  latitude: doublePrecision('latitude').notNull(),
+  longitude: doublePrecision('longitude').notNull(),
+  admin1Code: text('admin1_code'),
+  admin2Code: text('admin2_code'),
+  regionName: text('region_name'),
+  timezone: text('timezone'),
+  population: bigint('population', { mode: 'number' }).notNull().default(0),
+  sourceModifiedAt: date('source_modified_at'),
+  sourcePresentInLatestSubset: boolean('source_present_in_latest_subset').notNull().default(true),
+  retired: boolean('retired').notNull().default(false),
+  createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
+  updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow().notNull(),
+}, t => ({
+  sourceKey: uniqueIndex('geo_places_source_key_uq').on(t.source, t.sourceId),
+  countryKindNameIdx: index('geo_places_country_kind_name_idx').on(t.countryCode, t.kind, t.primaryName),
+  latitudeRange: check('geo_places_latitude_range_check', sql`${t.latitude} >= -90 AND ${t.latitude} <= 90`),
+  longitudeRange: check('geo_places_longitude_range_check', sql`${t.longitude} >= -180 AND ${t.longitude} <= 180`),
+}))
+
+export const geoPlaceNames = pgTable('geo_place_names', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  placeId: uuid('place_id').notNull().references(() => geoPlaces.id, { onDelete: 'cascade' }),
+  language: text('language').notNull().default(''),
+  name: text('name').notNull(),
+  normalizedName: text('normalized_name').notNull(),
+  prefixKey: text('prefix_key').notNull(),
+  origin: geoPlaceNameOriginEnum('origin').notNull(),
+  isPreferred: boolean('is_preferred').notNull().default(false),
+  isHistorical: boolean('is_historical').notNull().default(false),
+  sourceNameId: text('source_name_id'),
+  catalogVersion: text('catalog_version').references(() => geoCatalogVersions.id, { onDelete: 'set null' }),
+  createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
+}, t => ({
+  placeLanguageNameUq: uniqueIndex('geo_place_names_place_language_name_uq').on(t.placeId, t.language, t.normalizedName),
+  prefixLookupIdx: index('geo_place_names_prefix_lookup_idx').on(t.prefixKey.op('text_pattern_ops')),
+  normalizedLookupIdx: index('geo_place_names_normalized_lookup_idx').on(t.normalizedName),
+}))
+
+export const geoResolutionAudit = pgTable('geo_resolution_audit', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  migrationRunId: text('migration_run_id').notNull(),
+  entityType: text('entity_type').notNull(),
+  entityId: text('entity_id').notNull(),
+  fieldPath: text('field_path').notNull(),
+  position: integer('position'),
+  sourceLabel: text('source_label').notNull(),
+  context: jsonb('context').$type<Record<string, unknown>>().notNull().default({}),
+  status: geoResolutionStatusEnum('status').notNull(),
+  reason: text('reason').notNull(),
+  candidates: jsonb('candidates').$type<Array<Record<string, unknown>>>().notNull().default([]),
+  chosenPlaceId: uuid('chosen_place_id').references(() => geoPlaces.id, { onDelete: 'restrict' }),
+  ruleProvenance: jsonb('rule_provenance').$type<Record<string, unknown>>().notNull().default({}),
+  beforeFingerprint: text('before_fingerprint').notNull(),
+  createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
+}, t => ({
+  runIdx: index('geo_resolution_audit_run_idx').on(t.migrationRunId),
+  entityIdx: index('geo_resolution_audit_entity_idx').on(t.entityType, t.entityId),
+  statusIdx: index('geo_resolution_audit_status_idx').on(t.status),
+}))
 
 export const plans = pgTable('plans', {
   id: serial('id').primaryKey(),
@@ -112,11 +221,30 @@ export const trips = pgTable('trips', {
   currency: text('currency').default('RUB'),
   tags: jsonb('tags').$type<string[]>().notNull().default([]),
   weatherData: jsonb('weather_data').$type<TripWeatherData>(),
+  weatherByPlaceId: jsonb('weather_by_place_id').$type<Record<string, CityWeatherData>>(),
   visibility: visibilityEnum('visibility').notNull().default('private'),
   userId: uuid('user_id').notNull().references(() => users.id, { onDelete: 'cascade' }),
   createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
   updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow().notNull(),
 })
+
+export const tripGeoPlaces = pgTable('trip_geo_places', {
+  tripId: uuid('trip_id').notNull().references(() => trips.id, { onDelete: 'cascade' }),
+  position: integer('position').notNull(),
+  placeId: uuid('place_id').references(() => geoPlaces.id, { onDelete: 'restrict' }),
+  legacyLabel: text('legacy_label'),
+  status: geoResolutionStatusEnum('status').notNull(),
+  createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
+  updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow().notNull(),
+}, t => ({
+  pk: primaryKey({ columns: [t.tripId, t.position] }),
+  placeIdx: index('trip_geo_places_place_idx').on(t.placeId),
+  positionCheck: check('trip_geo_places_position_check', sql`${t.position} >= 0`),
+  resolutionCheck: check('trip_geo_places_resolution_check', sql`
+    (${t.status} = 'resolved' AND ${t.placeId} IS NOT NULL)
+    OR (${t.status} <> 'resolved' AND ${t.placeId} IS NULL AND ${t.legacyLabel} IS NOT NULL)
+  `),
+}))
 
 export const tripSections = pgTable('trip_sections', {
   id: uuid('id').primaryKey().defaultRandom(),
@@ -253,6 +381,7 @@ export const metroSystems = pgTable('metro_systems', {
   id: text('id').primaryKey(),
   city: text('city').notNull().unique(),
   country: text('country').notNull(),
+  geoPlaceId: uuid('geo_place_id').references(() => geoPlaces.id, { onDelete: 'set null' }),
 })
 
 export const metroLines = pgTable('metro_lines', {
@@ -428,18 +557,13 @@ export const tripSubscriptions = pgTable('trip_subscriptions', {
 
 export const destinationTypeEnum = pgEnum('destination_type', ['country', 'city'])
 
-export const countries = pgTable('countries', {
-  id: text('id').primaryKey(),
-  name: text('name').notNull(),
-  flagUrl: text('flagUrl'),
-})
-
 export const destinationReviews = pgTable('destination_reviews', {
   id: uuid('id').primaryKey().defaultRandom(),
   userId: uuid('user_id').notNull().references(() => users.id, { onDelete: 'cascade' }),
   type: destinationTypeEnum('type').notNull(),
   countryId: text('country_id').notNull().references(() => countries.id, { onDelete: 'restrict' }),
   city: text('city'),
+  geoPlaceId: uuid('geo_place_id').references(() => geoPlaces.id, { onDelete: 'restrict' }),
   coverUrl: text('cover_url'),
   latitude: real('latitude').notNull(),
   longitude: real('longitude').notNull(),
@@ -450,6 +574,7 @@ export const destinationReviews = pgTable('destination_reviews', {
 }, t => ({
   typeIdx: index('dest_reviews_type_idx').on(t.type),
   countryIdx: index('dest_reviews_country_idx').on(t.countryId),
+  geoPlaceIdx: index('dest_reviews_geo_place_idx').on(t.geoPlaceId),
   userIdx: index('dest_reviews_user_idx').on(t.userId),
 }))
 
@@ -459,6 +584,7 @@ export const highlights = pgTable('highlights', {
   imageUrl: text('image_url').notNull(),
   countryId: text('country_id').notNull().references(() => countries.id, { onDelete: 'restrict' }),
   city: text('city').notNull(),
+  geoPlaceId: uuid('geo_place_id').references(() => geoPlaces.id, { onDelete: 'restrict' }),
   address: text('address'),
   comment: text('comment'),
 
@@ -474,6 +600,7 @@ export const highlights = pgTable('highlights', {
   createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
 }, t => ({
   countryIdx: index('highlights_country_idx').on(t.countryId),
+  geoPlaceIdx: index('highlights_geo_place_idx').on(t.geoPlaceId),
   userIdIdx: index('highlights_user_idx').on(t.userId),
 }))
 
@@ -488,6 +615,19 @@ export const cityWeatherCache = pgTable('city_weather_cache', {
   cityMonthIdx: index('city_weather_cache_city_month_idx').on(t.cityNormalized, t.month),
 }))
 
+export const geoWeatherCache = pgTable('geo_weather_cache', {
+  placeId: uuid('place_id').notNull().references(() => geoPlaces.id, { onDelete: 'restrict' }),
+  month: integer('month').notNull(),
+  generationVersion: text('generation_version').notNull(),
+  inputFingerprint: text('input_fingerprint').notNull(),
+  data: jsonb('data').$type<CityWeatherData>().notNull(),
+  createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
+  updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow().notNull(),
+}, t => ({
+  pk: primaryKey({ columns: [t.placeId, t.month, t.generationVersion] }),
+  monthCheck: check('geo_weather_cache_month_check', sql`${t.month} BETWEEN 1 AND 12`),
+}))
+
 // --- RELATIONS ---
 
 export const highlightsRelations = relations(highlights, ({ one }) => ({
@@ -499,6 +639,10 @@ export const highlightsRelations = relations(highlights, ({ one }) => ({
     fields: [highlights.countryId],
     references: [countries.id],
   }),
+  geoPlace: one(geoPlaces, {
+    fields: [highlights.geoPlaceId],
+    references: [geoPlaces.id],
+  }),
 }))
 
 export const destinationReviewsRelations = relations(destinationReviews, ({ one }) => ({
@@ -509,6 +653,10 @@ export const destinationReviewsRelations = relations(destinationReviews, ({ one 
   country: one(countries, {
     fields: [destinationReviews.countryId],
     references: [countries.id],
+  }),
+  geoPlace: one(geoPlaces, {
+    fields: [destinationReviews.geoPlaceId],
+    references: [geoPlaces.id],
   }),
 }))
 
@@ -523,6 +671,83 @@ export const tripsRelations = relations(trips, ({ one, many }) => ({
   participants: many(tripParticipants),
   sections: many(tripSections),
   notes: many(tripNotes),
+  cityLinks: many(tripGeoPlaces),
+}))
+
+export const tripGeoPlacesRelations = relations(tripGeoPlaces, ({ one }) => ({
+  trip: one(trips, {
+    fields: [tripGeoPlaces.tripId],
+    references: [trips.id],
+  }),
+  place: one(geoPlaces, {
+    fields: [tripGeoPlaces.placeId],
+    references: [geoPlaces.id],
+  }),
+}))
+
+export const countriesRelations = relations(countries, ({ many }) => ({
+  geoCatalogCountries: many(geoCatalogCountries),
+}))
+
+export const geoCatalogCountriesRelations = relations(geoCatalogCountries, ({ one, many }) => ({
+  legacyCountry: one(countries, {
+    fields: [geoCatalogCountries.legacyCountryId],
+    references: [countries.id],
+  }),
+  catalogVersion: one(geoCatalogVersions, {
+    fields: [geoCatalogCountries.catalogVersion],
+    references: [geoCatalogVersions.id],
+  }),
+  places: many(geoPlaces),
+}))
+
+export const geoCatalogVersionsRelations = relations(geoCatalogVersions, ({ many }) => ({
+  places: many(geoPlaces),
+  names: many(geoPlaceNames),
+}))
+
+export const geoPlacesRelations = relations(geoPlaces, ({ one, many }) => ({
+  country: one(geoCatalogCountries, {
+    fields: [geoPlaces.countryCode],
+    references: [geoCatalogCountries.code],
+  }),
+  catalogVersion: one(geoCatalogVersions, {
+    fields: [geoPlaces.catalogVersion],
+    references: [geoCatalogVersions.id],
+  }),
+  names: many(geoPlaceNames),
+  tripLinks: many(tripGeoPlaces),
+  weather: many(geoWeatherCache),
+  highlights: many(highlights),
+  destinationReviews: many(destinationReviews),
+  metroSystems: many(metroSystems),
+  resolutionAudit: many(geoResolutionAudit, { relationName: 'geo_audit_chosen_place' }),
+}))
+
+export const geoPlaceNamesRelations = relations(geoPlaceNames, ({ one }) => ({
+  place: one(geoPlaces, {
+    fields: [geoPlaceNames.placeId],
+    references: [geoPlaces.id],
+  }),
+  catalogVersion: one(geoCatalogVersions, {
+    fields: [geoPlaceNames.catalogVersion],
+    references: [geoCatalogVersions.id],
+  }),
+}))
+
+export const geoResolutionAuditRelations = relations(geoResolutionAudit, ({ one }) => ({
+  chosenPlace: one(geoPlaces, {
+    fields: [geoResolutionAudit.chosenPlaceId],
+    references: [geoPlaces.id],
+    relationName: 'geo_audit_chosen_place',
+  }),
+}))
+
+export const geoWeatherCacheRelations = relations(geoWeatherCache, ({ one }) => ({
+  place: one(geoPlaces, {
+    fields: [geoWeatherCache.placeId],
+    references: [geoPlaces.id],
+  }),
 }))
 
 export const tripSectionsRelations = relations(tripSections, ({ one }) => ({
@@ -654,9 +879,13 @@ export const refreshTokensRelations = relations(refreshTokens, ({ one }) => ({
   }),
 }))
 
-export const metroSystemsRelations = relations(metroSystems, ({ many }) => ({
+export const metroSystemsRelations = relations(metroSystems, ({ one, many }) => ({
   lines: many(metroLines),
   stations: many(metroStations),
+  geoPlace: one(geoPlaces, {
+    fields: [metroSystems.geoPlaceId],
+    references: [geoPlaces.id],
+  }),
 }))
 
 export const metroLinesRelations = relations(metroLines, ({ one, many }) => ({

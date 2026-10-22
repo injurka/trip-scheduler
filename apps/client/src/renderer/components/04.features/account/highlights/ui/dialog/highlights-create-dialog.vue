@@ -3,6 +3,7 @@
 import type { KitDropdownItem } from '~/components/01.kit/kit-dropdown'
 import type { DestinationMapPoint } from '~/shared/services/api/model/types'
 import type { Country } from '~/shared/types/models/destination-review'
+import type { GeoPlaceRef } from '~/shared/types/models/geo-place'
 import type { CreateHighlightInput } from '~/shared/types/models/user'
 import { Icon } from '@iconify/vue'
 import { CalendarDate, Time } from '@internationalized/date'
@@ -16,6 +17,8 @@ import { KitInput } from '~/components/01.kit/kit-input'
 import { KitMap } from '~/components/01.kit/kit-map'
 import { KitSelectWithSearch } from '~/components/01.kit/kit-select-with-search'
 import { KitTimeField } from '~/components/01.kit/kit-time-field'
+import { GeoPlacePicker } from '~/components/03.domain/geo-place-picker'
+import { useRequest } from '~/plugins/request'
 
 interface CountryDropdownItem extends KitDropdownItem<string> {
   flagUrl: string | null
@@ -50,36 +53,37 @@ const countryOptions = computed<CountryDropdownItem[]>(() =>
   })),
 )
 
-// Подсказки локаций на основе уже оставленных меток (Trip Map / Впечатления)
-const locationSuggestions = computed(() => {
-  const map = new Map<string, { countryId: string, city: string, name: string, flagUrl: string | null }>()
+const selectedCityRef = ref<GeoPlaceRef | null>(null)
 
-  for (const mp of props.mapPoints || []) {
-    if (mp.type === 'city' && mp.city && mp.country?.name) {
-      // Ищем ID страны по совпадению имени
-      const matchedCountry = props.countries.find(
-        c => c.name.toLowerCase() === mp.country!.name.toLowerCase(),
-      )
-
-      if (matchedCountry) {
-        const key = `${matchedCountry.id}-${mp.city}`
-        if (!map.has(key)) {
-          map.set(key, {
-            countryId: matchedCountry.id,
-            city: mp.city,
-            name: mp.city,
-            flagUrl: matchedCountry.flagUrl || null,
-          })
-        }
-      }
-    }
+watch(() => props.form.countryId, (countryId) => {
+  if (selectedCityRef.value && selectedCityRef.value.countryId !== countryId) {
+    selectedCityRef.value = null
+    props.form.geoPlaceId = null
+    props.form.city = ''
   }
-  return Array.from(map.values())
 })
 
-function applySuggestion(loc: { countryId: string, city: string }) {
-  props.form.countryId = loc.countryId
-  props.form.city = loc.city
+watch(() => [props.visible, props.form.geoPlaceId] as const, async ([visible, geoPlaceId]) => {
+  if (!visible || !geoPlaceId || selectedCityRef.value?.id === geoPlaceId) {
+    if (!geoPlaceId)
+      selectedCityRef.value = null
+    return
+  }
+
+  const places = await useRequest({
+    key: `highlight-create:city:${geoPlaceId}`,
+    fn: db => db.geo.getPlacesByIds([geoPlaceId]),
+  })
+  selectedCityRef.value = places?.[0] ?? null
+})
+
+function selectCity(value: GeoPlaceRef | GeoPlaceRef[] | null) {
+  const place = Array.isArray(value) ? value[0] ?? null : value
+  selectedCityRef.value = place
+  props.form.geoPlaceId = place?.id ?? null
+  props.form.city = place?.name ?? ''
+  if (place?.countryId)
+    props.form.countryId = place.countryId
 }
 
 // --- Логика кастомного выбора Даты и Времени ---
@@ -177,7 +181,7 @@ function handleMapClick(coords: [number, number]) {
 const isSubmitDisabled = computed(() =>
   !props.form.imageUrl
   || !props.form.countryId
-  || !props.form.city?.trim(),
+  || !props.form.geoPlaceId,
 )
 </script>
 
@@ -221,27 +225,16 @@ const isSubmitDisabled = computed(() =>
             </template>
           </KitSelectWithSearch>
 
-          <KitInput
-            v-model="form.city"
+          <GeoPlacePicker
+            :model-value="selectedCityRef"
+            :country-id="form.countryId"
             label="Город"
-            placeholder="Например, Qingdao"
+            placeholder="Выбери город из справочника"
+            @update:model-value="selectCity"
           />
-        </div>
-
-        <div v-if="locationSuggestions.length > 0" class="suggestions">
-          <span class="suggestions-label">Ранее посещенные:</span>
-          <div class="suggestions-list">
-            <button
-              v-for="loc in locationSuggestions"
-              :key="loc.countryId + loc.city"
-              class="suggestion-chip"
-              type="button"
-              @click="applySuggestion(loc)"
-            >
-              <img v-if="loc.flagUrl" :src="loc.flagUrl" class="chip-flag" alt="">
-              {{ loc.name }}
-            </button>
-          </div>
+          <p v-if="form.city && !form.geoPlaceId" class="field-hint">
+            В метаданных указано «{{ form.city }}». Выберите соответствующий город из справочника.
+          </p>
         </div>
 
         <div class="row row--aligned">

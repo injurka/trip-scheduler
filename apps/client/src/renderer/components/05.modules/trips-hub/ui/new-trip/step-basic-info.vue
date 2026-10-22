@@ -1,11 +1,18 @@
 <script setup lang="ts">
 import type { CalendarDate } from '@internationalized/date'
+import type { GeoPlaceRef } from '~/shared/types/models/geo-place'
 import type { CreateTripInput } from '~/shared/types/models/trip'
 import { parseDate } from '@internationalized/date'
 import { KitInput } from '~/components/01.kit/kit-input'
 import { CalendarPopover } from '~/components/02.shared/calendar-popover'
+import { GeoPlacePicker } from '~/components/03.domain/geo-place-picker'
 
 const tripData = defineModel<CreateTripInput>({ required: true })
+const selectedCityRefs = ref<GeoPlaceRef[]>([])
+
+watch(selectedCityRefs, (places) => {
+  tripData.value.cityIds = places.map(place => place.id)
+}, { deep: true })
 
 const toYyyyMmDd = (date: string | Date) => new Date(date).toISOString().split('T')[0]
 
@@ -30,6 +37,12 @@ const startDate = computed({
       v-model="tripData.description"
       label="Краткое описание (необязательно)"
       placeholder="Цель поездки, основные идеи"
+    />
+    <GeoPlacePicker
+      v-model="selectedCityRefs"
+      label="Города путешествия"
+      placeholder="Найдите город в справочнике"
+      multiple
     />
     <div class="date-pickers">
       <div class="date-picker">

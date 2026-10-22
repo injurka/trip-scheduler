@@ -1,10 +1,13 @@
 <script setup lang="ts">
 import type { Booking, FlightData, FlightSegment } from '../../models/types'
+import type { GeoPlaceRef } from '~/shared/types/models/geo-place'
 import { Icon } from '@iconify/vue'
 import { useRoute } from 'vue-router'
 import { KitDivider } from '~/components/01.kit/kit-divider'
 import { KitTooltip } from '~/components/01.kit/kit-tooltip'
+import { GeoPlacePicker } from '~/components/03.domain/geo-place-picker'
 import { useTripPlanStore } from '~/components/04.features/trip-info/trip-plan'
+import { useRequest } from '~/plugins/request'
 import BookingCardWrapper from '../shared/booking-card-wrapper.vue'
 import BookingDateTimeField from '../shared/booking-date-time-field.vue'
 import BookingField from '../shared/booking-field.vue'
@@ -45,6 +48,87 @@ function updatePhotos(newPhotos: string[]) {
 const segments = computed(() => props.booking.data.segments || [])
 const firstSegment = computed(() => segments.value[0])
 const lastSegment = computed(() => segments.value[segments.value.length - 1])
+const selectedCityRefs = ref<Record<string, GeoPlaceRef>>({})
+let cityHydrationSequence = 0
+
+function cityRefKey(segmentIndex: number, field: 'departure' | 'arrival') {
+  return `${segmentIndex}:${field}`
+}
+
+function segmentCityId(segment: FlightSegment, field: 'departure' | 'arrival') {
+  return field === 'departure' ? segment.departureCityId : segment.arrivalCityId
+}
+
+function updateSegmentCity(segmentIndex: number, field: 'departure' | 'arrival', value: GeoPlaceRef | GeoPlaceRef[] | null) {
+  const place = Array.isArray(value) ? value[0] ?? null : value
+  const segment = segments.value[segmentIndex]
+  if (!segment)
+    return
+
+  const newSegments = JSON.parse(JSON.stringify(props.booking.data.segments || [])) as FlightSegment[]
+  const nextSegment = newSegments[segmentIndex]
+  if (!nextSegment)
+    return
+
+  if (field === 'departure') {
+    nextSegment.departureCityId = place?.id
+    nextSegment.departureCity = place?.name
+  }
+  else {
+    nextSegment.arrivalCityId = place?.id
+    nextSegment.arrivalCity = place?.name
+  }
+
+  const key = cityRefKey(segmentIndex, field)
+  const nextSelected = { ...selectedCityRefs.value }
+  if (place)
+    nextSelected[key] = place
+  else
+    delete nextSelected[key]
+  selectedCityRefs.value = nextSelected
+
+  emit('update:booking', {
+    ...props.booking,
+    data: { ...props.booking.data, segments: newSegments },
+  })
+}
+
+watch(segments, async (currentSegments) => {
+  const sequence = ++cityHydrationSequence
+  const currentIds = new Set(currentSegments.flatMap(segment => [segment.departureCityId, segment.arrivalCityId].filter((id): id is string => !!id)))
+  const cached = Object.fromEntries(Object.entries(selectedCityRefs.value).filter(([key]) => {
+    const [index, field] = key.split(':')
+    const segment = currentSegments[Number(index)]
+    return !!segment && currentIds.has(segmentCityId(segment, field as 'departure' | 'arrival') ?? '')
+  }))
+  selectedCityRefs.value = cached
+
+  const missingIds = [...new Set(currentSegments.flatMap((segment) => {
+    const departureMissing = segment.departureCityId && !Object.values(cached).some(place => place.id === segment.departureCityId)
+    const arrivalMissing = segment.arrivalCityId && !Object.values(cached).some(place => place.id === segment.arrivalCityId)
+    return [departureMissing ? segment.departureCityId : undefined, arrivalMissing ? segment.arrivalCityId : undefined].filter((id): id is string => !!id)
+  }))]
+  if (missingIds.length === 0)
+    return
+
+  const places = await useRequest({
+    key: `flight-card:cities:${props.booking.id}:${missingIds.join(',')}`,
+    fn: db => db.geo.getPlacesByIds(missingIds),
+  })
+  if (sequence !== cityHydrationSequence)
+    return
+
+  const nextSelected = { ...selectedCityRefs.value }
+  for (const place of places ?? []) {
+    currentSegments.forEach((segment, index) => {
+      if (segment.departureCityId === place.id)
+        nextSelected[cityRefKey(index, 'departure')] = place
+      if (segment.arrivalCityId === place.id)
+        nextSelected[cityRefKey(index, 'arrival')] = place
+    })
+  }
+  selectedCityRefs.value = nextSelected
+}, { immediate: true, deep: true })
 
 const uniqueAirlines = computed(() => {
   if (!segments.value || segments.value.length === 0)
@@ -344,8 +428,32 @@ function updateSegmentField<K extends keyof FlightSegment>(segmentIndex: number,
 
           <BookingField :model-value="segment.airline" label="Авиакомпания" icon="mdi:compass-rose" :readonly="readonly" @update:model-value="updateSegmentField(index, 'airline', $event)" />
           <BookingField :model-value="segment.airlineIataCode" label="Код авиакомпании" icon="mdi:barcode" :readonly="readonly" placeholder="SU" @update:model-value="updateSegmentField(index, 'airlineIataCode', $event)" />
-          <BookingField :model-value="segment.departureCity" label="Город вылета" icon="mdi:city-variant-outline" :readonly="readonly" @update:model-value="updateSegmentField(index, 'departureCity', $event)" />
-          <BookingField :model-value="segment.arrivalCity" label="Город прилета" icon="mdi:city-variant-outline" :readonly="readonly" @update:model-value="updateSegmentField(index, 'arrivalCity', $event)" />
+          <div v-if="readonly" class="flight-city-field">
+            <span class="field-label">Город вылета</span>
+            <span>{{ segment.departureCity || '—' }}</span>
+          </div>
+          <div v-else class="flight-city-field">
+            <GeoPlacePicker
+              :model-value="selectedCityRefs[cityRefKey(index, 'departure')] ?? null"
+              label="Город вылета"
+              placeholder="Выберите город из справочника"
+              @update:model-value="updateSegmentCity(index, 'departure', $event)"
+            />
+            <small v-if="segment.departureCity && !segment.departureCityId">Старое название: {{ segment.departureCity }}</small>
+          </div>
+          <div v-if="readonly" class="flight-city-field">
+            <span class="field-label">Город прилета</span>
+            <span>{{ segment.arrivalCity || '—' }}</span>
+          </div>
+          <div v-else class="flight-city-field">
+            <GeoPlacePicker
+              :model-value="selectedCityRefs[cityRefKey(index, 'arrival')] ?? null"
+              label="Город прилета"
+              placeholder="Выберите город из справочника"
+              @update:model-value="updateSegmentCity(index, 'arrival', $event)"
+            />
+            <small v-if="segment.arrivalCity && !segment.arrivalCityId">Старое название: {{ segment.arrivalCity }}</small>
+          </div>
           <BookingField :model-value="segment.departureAirport" label="Аэропорт вылета" icon="mdi:airplane-takeoff" :readonly="readonly" @update:model-value="updateSegmentField(index, 'departureAirport', $event)" />
           <BookingField :model-value="segment.arrivalAirport" label="Аэропорт прилета" icon="mdi:airplane-landing" :readonly="readonly" @update:model-value="updateSegmentField(index, 'arrivalAirport', $event)" />
           <BookingDateTimeField :model-value="segment.departureDateTime" label="Время вылета" icon="mdi:clock-start" :readonly="readonly" type="datetime" @update:model-value="updateSegmentField(index, 'departureDateTime', $event)" />
@@ -412,6 +520,25 @@ function updateSegmentField<K extends keyof FlightSegment>(segmentIndex: number,
 </template>
 
 <style scoped lang="scss">
+.flight-city-field {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+
+  small {
+    color: var(--fg-tertiary-color);
+    font-size: 0.72rem;
+  }
+}
+
+.field-label {
+  color: var(--fg-tertiary-color);
+  font-size: 0.75rem;
+  font-weight: 600;
+  text-transform: uppercase;
+}
+
 .card-content {
   display: grid;
   grid-template-columns: 1fr 1.5fr 1fr;

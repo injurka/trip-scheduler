@@ -3,12 +3,13 @@ import type { SignInPayload, SignUpPayload, TokenPair, User } from '~/shared/typ
 import type { BlogListItems, BlogPost, CreateBlogPostInput, UpdateBlogPostInput } from '~/shared/types/models/blog'
 import type { Comment, CreateCommentInput, UpdateCommentInput } from '~/shared/types/models/comment'
 import type { Country, CreateDestinationReviewInput, DestinationReview } from '~/shared/types/models/destination-review'
+import type { GeoCatalogStatus, GeoPlaceKind, GeoPlaceRef, GeoPlaceSearchResult, GeoResolutionResult } from '~/shared/types/models/geo-place'
 import type { CreateMarkInput, GetMarksParams, Mark } from '~/shared/types/models/mark'
 import type { CreateMemoryInput, Memory, UpdateMemoryInput } from '~/shared/types/models/memory'
 import type { Place, PlaceTag } from '~/shared/types/models/place'
 import type { CreatePostInput, ListPostsFilters, PostDetail, UpdatePostInput, WhitelistUser } from '~/shared/types/models/post'
 import type { CreateTripInput, ImageMetadata, Plan, Trip, TripMedia, TripMediaPlacement, TripSection, TripSectionType, TripStatus, TripWeatherData, TripWithDays, UpdateTripInput } from '~/shared/types/models/trip'
-import type { CreateHighlightInput, Highlight } from '~/shared/types/models/user'
+import type { CreateHighlightInput, Highlight, UpdateHighlightInput } from '~/shared/types/models/user'
 
 export type NoteType = 'folder' | 'markdown' | 'excalidraw'
 export type DocumentAccess = 'public' | 'private'
@@ -121,11 +122,26 @@ export interface IPlacesRepository {
   getAvailableTags: (city: string) => Promise<PlaceTag[]>
 }
 
+export interface IGeoRepository {
+  getCatalogStatus: () => Promise<GeoCatalogStatus>
+  searchPlaces: (params: {
+    query: string
+    countryId?: string
+    countryCode?: string
+    kinds?: GeoPlaceKind[]
+    locale?: 'ru' | 'en'
+    limit?: number
+  }) => Promise<GeoPlaceSearchResult[]>
+  resolveCity: (params: { label: string, countryId?: string, countryCode?: string, regionName?: string, kinds?: GeoPlaceKind[] }) => Promise<GeoResolutionResult>
+  getPlacesByIds: (ids: string[], locale?: 'ru' | 'en') => Promise<GeoPlaceRef[]>
+}
+
 export interface TripListFilters {
   search?: string
   statuses?: TripStatus[]
   tags?: string[]
   cities?: string[]
+  cityIds?: string[]
   userIds?: string[]
 }
 
@@ -152,7 +168,7 @@ export interface ILLMRepository {
 }
 
 export interface IAiTripJobStatus {
-  status: 'pending' | 'generating' | 'importing' | 'done' | 'error'
+  status: 'pending' | 'generating' | 'importing' | 'done' | 'needs_input' | 'error'
   stage: string
   logs: string[]
   tripId: string | null
@@ -180,7 +196,7 @@ export interface ITripRepository {
   getUniqueTags: (params: { query?: string }) => Promise<string[]>
   listByUser: (params: { userId: string, limit: number }) => Promise<Trip[]>
   addParticipant: (tripId: string, userId: string) => Promise<void>
-  generateWeather: (params: { tripId: string, city?: string, forceRefresh?: boolean }) => Promise<{ weatherData: TripWeatherData, fromCache: boolean }>
+  generateWeather: (params: { tripId: string, city?: string, placeId?: string, placeIds?: string[], forceRefresh?: boolean }) => Promise<{ weatherData: TripWeatherData, weatherByPlaceId: TripWeatherData, fromCache: boolean }>
 }
 
 export interface IDayRepository {
@@ -279,6 +295,7 @@ export interface IUserRepository {
   getHighlights: (userId: string, limit: number, page: number, filters?: GetHighlightsFilters) => Promise<{ items: Highlight[], total: number }>
   getHighlightCities: (userId: string) => Promise<string[]>
   createHighlight: (data: CreateHighlightInput) => Promise<Highlight>
+  updateHighlight: (data: UpdateHighlightInput) => Promise<Highlight>
   deleteHighlight: (id: string) => Promise<void>
 }
 
@@ -332,6 +349,7 @@ export interface GetUserReviewsParams {
   page?: number
   countryId?: string
   city?: string
+  geoPlaceId?: string
   sortBy?: string
   sortOrder?: 'asc' | 'desc'
   selectedMetrics?: string[]
@@ -365,6 +383,7 @@ export interface IDatabaseClient {
   llm: ILLMRepository
   aiTrips: IAiTripRepository
   places: IPlacesRepository
+  geo: IGeoRepository
   blog: IBlogRepository
   marks: IMarksRepository
   notification: INotificationRepository

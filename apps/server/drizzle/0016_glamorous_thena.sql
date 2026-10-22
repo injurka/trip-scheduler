@@ -1,0 +1,2 @@
+CREATE INDEX "dest_reviews_geo_place_idx" ON "destination_reviews" USING btree ("geo_place_id");--> statement-breakpoint
+CREATE INDEX "highlights_geo_place_idx" ON "highlights" USING btree ("geo_place_id");

@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import type { MapMarker } from '~/components/01.kit/kit-map'
+import type { TripCityRef } from '~/shared/types/models/geo-place'
 import { Icon } from '@iconify/vue'
 import { computed, ref } from 'vue'
 import { KitDialogWithClose } from '~/components/01.kit/kit-dialog-with-close'
@@ -9,14 +10,26 @@ import { nominatimService } from '~/shared/services/geo'
 interface Props {
   visible: boolean
   cities: string[]
+  cityRefs?: TripCityRef[]
 }
-defineProps<Props>()
+const props = defineProps<Props>()
 const emit = defineEmits<{ (e: 'update:visible', value: boolean): void }>()
 
 const selectedCity = ref<string | null>(null)
 const selectedCityCoords = ref<{ lat: number, lon: number } | null>(null)
 const isMapViewerVisible = ref(false)
 const isLoadingCoords = ref(false)
+
+const cityEntries = computed(() => props.cityRefs?.length
+  ? [...props.cityRefs]
+      .sort((a, b) => a.position - b.position)
+      .map(place => ({
+        id: place.id,
+        name: place.name,
+        label: `${place.name} · ${place.countryName}`,
+        coordinates: { lat: place.latitude, lon: place.longitude },
+      }))
+  : props.cities.map((city, index) => ({ id: `legacy-${index}-${city}`, name: city, label: city, coordinates: null })))
 
 const center = computed((): [number, number] => {
   const lon = selectedCityCoords.value?.lon ?? 37.61
@@ -35,25 +48,31 @@ const markers = computed<MapMarker[]>(() => {
   ]
 })
 
-async function showMapForCity(city: string) {
-  if (!city)
+async function showMapForCity(city: (typeof cityEntries.value)[number]) {
+  if (!city.name)
     return
 
   isLoadingCoords.value = true
-  selectedCity.value = city
+  selectedCity.value = city.label
   selectedCityCoords.value = null
 
   try {
-    const result = await nominatimService.searchSingle(city)
-    if (result) {
+    if (city.coordinates) {
       selectedCityCoords.value = {
-        lat: result.lat,
-        lon: result.lon,
+        lat: city.coordinates.lat,
+        lon: city.coordinates.lon,
       }
       isMapViewerVisible.value = true
     }
     else {
-      console.error(`Координаты для города "${city}" не найдены.`)
+      const result = await nominatimService.searchSingle(city.name)
+      if (result) {
+        selectedCityCoords.value = { lat: result.lat, lon: result.lon }
+        isMapViewerVisible.value = true
+      }
+      else {
+        console.error(`Координаты для города "${city.name}" не найдены.`)
+      }
     }
   }
   catch (error) {
@@ -75,11 +94,11 @@ async function showMapForCity(city: string) {
       @update:visible="emit('update:visible', $event)"
     >
       <ul class="simple-list">
-        <li v-for="city in cities" :key="city">
+        <li v-for="city in cityEntries" :key="city.id">
           <button class="city-item-btn" @click="showMapForCity(city)">
             <Icon icon="mdi:map-marker-outline" />
-            <span>{{ city }}</span>
-            <Icon v-if="isLoadingCoords && selectedCity === city" icon="mdi:loading" class="spinner" />
+            <span>{{ city.label }}</span>
+            <Icon v-if="isLoadingCoords && selectedCity === city.label" icon="mdi:loading" class="spinner" />
             <Icon v-else icon="mdi:chevron-right" class="chevron" />
           </button>
         </li>

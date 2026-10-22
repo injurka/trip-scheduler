@@ -12,6 +12,8 @@ import { trpc } from '~/shared/services/trpc/trpc.service'
 const OFFLINE_MEDIA_CACHE_NAME = 'trip-scheduler-offline-media'
 
 export interface OfflineTripEntry {
+  /** Version of the serialized trip payload, independent of IndexedDB schema version. */
+  payloadSchemaVersion: number
   id: string
   title: string
   savedAt: number
@@ -96,7 +98,12 @@ export const useOfflineStore = defineStore('offline', {
         return
       try {
         const trips = await offlineStorageService.loadAllTrips()
-        this.savedTrips = trips
+        this.savedTrips = Object.fromEntries(Object.entries(trips).map(([id, entry]) => [id, {
+          ...entry,
+          // Older snapshots contain only the legacy city labels. Keep them readable offline;
+          // never try to resolve those labels against the network during hydration.
+          payloadSchemaVersion: entry.payloadSchemaVersion ?? 1,
+        }]))
       }
       catch (e) {
         console.warn('[OfflineStore] Ошибка инициализации IndexedDB:', e)
@@ -514,6 +521,7 @@ export const useOfflineStore = defineStore('offline', {
 
         const newEntry: OfflineTripEntry = {
           ...this.savedTrips[trip.id],
+          payloadSchemaVersion: 2,
           id: trip.id,
           title: trip.title,
           savedAt: Date.now(),

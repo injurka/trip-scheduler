@@ -356,19 +356,25 @@ class S3Service {
   }
 
   async listFilesInFolder(prefix: string): Promise<string[]> {
-    try {
+    const keys: string[] = []
+    let continuationToken: string | undefined
+
+    do {
       const response = await this.client.send(
         new ListObjectsV2Command({
           Bucket: this.bucket,
           Prefix: prefix,
+          ContinuationToken: continuationToken,
         }),
       )
-      return response.Contents?.map(item => item.Key as string).filter(Boolean) || []
-    }
-    catch (error) {
-      console.error(`S3 ListFilesInFolder Error for prefix ${prefix}:`, error)
-      return []
-    }
+      keys.push(...(response.Contents ?? []).map(item => item.Key).filter((key): key is string => Boolean(key)))
+
+      if (response.IsTruncated && !response.NextContinuationToken)
+        throw new Error(`S3 returned a truncated listing without a continuation token for ${prefix}`)
+      continuationToken = response.IsTruncated ? response.NextContinuationToken : undefined
+    } while (continuationToken)
+
+    return keys
   }
 
   async getFileContent(key: string): Promise<string> {

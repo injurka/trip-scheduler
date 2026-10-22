@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import type { useGeolocationMap } from '~/components/03.domain/trip-info/geolocation-section/composables/use-geolocation-map'
 import type { Coordinate, MapPoint, MapRoute } from '~/components/03.domain/trip-info/geolocation-section/models/types'
+import type { TripCityRef } from '~/shared/types/models/geo-place'
 import { Icon } from '@iconify/vue'
 import { useFullscreen } from '@vueuse/core'
 import { useRouter } from 'vue-router'
@@ -10,12 +11,14 @@ import { isValidCoordinate, nominatimService } from '~/shared/services/geo'
 
 interface Props {
   cities?: string[]
+  cityRefs?: TripCityRef[]
   points?: any[]
   routes?: any[]
 }
 
 const props = withDefaults(defineProps<Props>(), {
   cities: () => [],
+  cityRefs: () => [],
   points: () => [],
   routes: () => [],
 })
@@ -133,6 +136,22 @@ async function initMapData() {
     return
   }
 
+  if (props.cityRefs.length > 0) {
+    const places = [...props.cityRefs].sort((a, b) => a.position - b.position)
+    const points: MapPoint[] = places.map(place => ({
+      id: `city-${place.id}`,
+      coordinates: [place.longitude, place.latitude],
+      type: 'poi',
+      comment: `${place.name} · ${place.countryName}`,
+    }))
+    const centerSum = points.reduce<[number, number]>((sum, point) => [sum[0] + point.coordinates[0], sum[1] + point.coordinates[1]], [0, 0])
+    mapCenter.value = [centerSum[0] / points.length, centerSum[1] / points.length]
+    mapPoints.value = points
+    mapRoutes.value = []
+    isLoading.value = false
+    return
+  }
+
   if (props.cities.length > 0) {
     isLoading.value = true
     const points: MapPoint[] = []
@@ -228,7 +247,7 @@ onMounted(() => {
   initMapData()
 })
 
-watch(() => [props.cities, props.points, props.routes], () => {
+watch(() => [props.cities, props.cityRefs, props.points, props.routes], () => {
   initMapData()
 }, { deep: true })
 </script>

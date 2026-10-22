@@ -1,6 +1,23 @@
 import type { ActivityPayload, Booking } from '../types'
 import type { MetroCatalogSource } from './metro-resolver'
 
+export interface ImportGeoPlace {
+  id: string
+  name: string
+  countryCode: string
+  countryName: string
+  regionName: string | null
+  kind: 'settlement' | 'island' | 'area'
+  retired: boolean
+}
+
+export interface ImportGeoResolution {
+  status: 'resolved' | 'unresolved' | 'needs_review'
+  reason: string
+  place: ImportGeoPlace | null
+  candidates: Array<{ place: ImportGeoPlace, score: number, matchedName: string }>
+}
+
 /**
  * Абстракция транспорта импорта: obsidian-importer пишет данные в Trip Scheduler
  * либо через REST API (ApiClient, CLI-режим), либо напрямую через серверные
@@ -11,6 +28,10 @@ import type { MetroCatalogSource } from './metro-resolver'
  */
 
 export interface Transport extends Partial<MetroCatalogSource> {
+  resolveCity?: (label: string) => Promise<ImportGeoResolution>
+  getGeoPlacesByIds?: (ids: string[]) => Promise<ImportGeoPlace[]>
+  searchGeoPlaces?: (query: string) => Promise<ImportGeoPlace[]>
+
   createTrip: (payload: {
     title: string
     shareSlug?: string
@@ -35,6 +56,7 @@ export interface Transport extends Partial<MetroCatalogSource> {
     endDate?: string
     budget?: number | null
     currency?: string | null
+    cityIds?: string[]
   }) => Promise<unknown>
 
   deleteTrip?: (id: string) => Promise<unknown>

@@ -1,5 +1,6 @@
 import type { RouterInput } from '../trpc'
 import type { Day } from './activity'
+import type { TripCityRef, UnresolvedTripCity } from './geo-place'
 
 // --- Типы, связанные с медиафайлами ---
 
@@ -182,6 +183,11 @@ export interface CityWeatherData {
 
 export type TripWeatherData = Record<string, CityWeatherData>
 
+export interface TripWeatherPayload {
+  weatherData: TripWeatherData
+  weatherByPlaceId: TripWeatherData
+}
+
 export interface Trip {
   id: string
   userId: string
@@ -192,6 +198,8 @@ export interface Trip {
   startDate: string
   endDate: string
   cities: string[]
+  cityRefs?: TripCityRef[]
+  unresolvedCities?: UnresolvedTripCity[]
   status: TripStatus
   budget: number | null
   currency: string | null
@@ -202,6 +210,7 @@ export interface Trip {
   }[]
   tags: string[]
   weatherData?: TripWeatherData | null
+  weatherByPlaceId?: TripWeatherData | null
   visibility: TripVisibility
   createdAt: string
   updatedAt: string

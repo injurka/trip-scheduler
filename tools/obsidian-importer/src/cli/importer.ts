@@ -1,5 +1,6 @@
 import type { UploadedDocumentLink } from '../lib/document-links'
 import type { ActivityPayload, Booking } from '../types'
+import { readFileSync } from 'node:fs'
 import process from 'node:process'
 import { colors } from '../config/colors'
 import { loadEnvIfAvailable } from '../config/env'
@@ -18,6 +19,7 @@ import { convertActivityDocumentLinks } from '../lib/document-links'
 import { enrichActivityWithMediaAndLocation } from '../lib/enricher'
 import { buildGpxIndex } from '../lib/gpx-indexer'
 import { buildImageIndex } from '../lib/image-indexer'
+import { resolveCityIds } from '../lib/import-trip'
 import { generateActivitiesViaDirectLlm, mergeLlmActivitiesWithRawMarkdown } from '../lib/llm'
 import { createMetroActivityResolver } from '../lib/metro-resolver'
 import { stableId } from '../lib/stable-id'
@@ -33,6 +35,7 @@ import {
   promptForContinueToImport,
   promptForCredentials,
   promptForExecutionMode,
+  promptForGeoCity,
   promptForInteractiveOptions,
   promptForTargetDirectory,
   promptForTargetTrip,
@@ -43,6 +46,29 @@ export class ImportErrorsError extends Error {
     super(`Импорт не завершен полностью: ${count} ошибок`)
     this.name = 'ImportErrorsError'
   }
+}
+
+function loadCityMapping(path?: string): Record<string, string> {
+  if (!path)
+    return {}
+
+  const parsed = JSON.parse(readFileSync(path, 'utf8')) as { version?: unknown, mappings?: unknown }
+  if (parsed.version !== 1 || !Array.isArray(parsed.mappings)) {
+    throw new Error('city mapping manifest должен содержать { "version": 1, "mappings": [{ "label", "placeId" }] }.')
+  }
+
+  const result: Record<string, string> = {}
+  for (const entry of parsed.mappings) {
+    if (!entry || typeof entry !== 'object' || !('label' in entry) || !('placeId' in entry))
+      throw new Error('Каждое mapping должно содержать label и placeId.')
+    const { label, placeId } = entry as { label: unknown, placeId: unknown }
+    if (typeof label !== 'string' || !label.trim() || typeof placeId !== 'string' || !/^[\da-f]{8}-[\da-f]{4}-[\da-f]{4}-[\da-f]{4}-[\da-f]{12}$/i.test(placeId))
+      throw new Error('Mapping требует непустой точный label и UUID placeId.')
+    if (Object.hasOwn(result, label))
+      throw new Error(`В city mapping manifest повторяется label «${label}».`)
+    result[label] = placeId
+  }
+  return result
 }
 
 export async function runImport(): Promise<void> {
@@ -236,6 +262,25 @@ export async function runImport(): Promise<void> {
 
   const resolveMetro = createMetroActivityResolver(api, message => console.warn(`${colors.yellow}${message}${colors.reset}`))
 
+  let cityIds: string[] | undefined
+  if (importTripMeta) {
+    try {
+      const cityMappings = loadCityMapping(cliOptions.cityMappingPath)
+      console.log(`\n${colors.dim}🌍 Сверка городов с каталогом...${colors.reset}`)
+      cityIds = await resolveCityIds(tripData.cities, api, {
+        cityMappings,
+        resolveCity: cliOptions.nonInteractive ? undefined : promptForGeoCity,
+        onLog: message => console.log(`  ${colors.dim}${message}${colors.reset}`),
+      })
+      console.log(`  ${colors.green}✔ Города сопоставлены: ${cityIds.length}${colors.reset}`)
+    }
+    catch (error) {
+      const message = error instanceof Error ? error.message : String(error)
+      console.error(`\n${colors.red}❌ Города не сопоставлены; никаких изменений поездки ещё не сделано: ${message}${colors.reset}`)
+      process.exit(1)
+    }
+  }
+
   // 1. Connect to existing trip or create a new trip
   let targetTripId = cliOptions.tripId
   let overwriteDays = cliOptions.daysOverwrite ?? false
@@ -305,7 +350,7 @@ export async function runImport(): Promise<void> {
         description: tripData.description,
         descriptionShort: tripData.descriptionShort,
         imageUrl: coverImageUrl,
-        cities: tripData.cities,
+        cityIds,
         tags: tripData.tags,
         status: cliOptions.status,
         visibility: cliOptions.visibility,
@@ -317,6 +362,17 @@ export async function runImport(): Promise<void> {
     catch (err: any) {
       recordError('Обновление метаданных', err)
       console.warn(`  ${colors.yellow}⚠ Ошибка обновления метаданных: ${err.message}${colors.reset}`)
+      if (cityIds !== undefined) {
+        if (!targetTripId) {
+          try {
+            await api.deleteTrip(createdTrip.id)
+          }
+          catch (cleanupError) {
+            recordError('Удаление поездки после ошибки записи городов', cleanupError)
+          }
+        }
+        throw err
+      }
     }
   }
 

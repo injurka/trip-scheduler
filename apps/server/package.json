@@ -19,6 +19,8 @@
     "db:clean": "bun run db/reset.ts",
     "db:seed-mock": "bun run db/seed-from-mock.ts",
     "db:seed-dump": "bun run db/seed-from-dump.ts",
+    "geo:backfill-cities": "bun run db/city-backfill.ts",
+    "geo:import": "bun run src/modules/geo/import-catalog.ts",
     "db:studio": "bunx drizzle-kit studio",
     "db:reset": "bunx drizzle-kit drop",
     "--------------------------------< LINT & FORMAT >---------------------------------": "",

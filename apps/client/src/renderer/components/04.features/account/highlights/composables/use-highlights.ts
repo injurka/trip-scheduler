@@ -1,5 +1,6 @@
 import type { DestinationMapPoint } from '~/shared/services/api/model/types'
 import type { Country } from '~/shared/types/models/destination-review'
+import type { GeoPlaceRef } from '~/shared/types/models/geo-place'
 import type { CreateHighlightInput, Highlight } from '~/shared/types/models/user'
 import { CalendarDate } from '@internationalized/date'
 import { useRequest, useRequestStatus } from '~/plugins/request'
@@ -58,6 +59,7 @@ function createEmptyForm(): HighlightFormState {
   return {
     imageUrl: '',
     countryId: '',
+    geoPlaceId: null,
     city: '',
     address: '',
     comment: '',
@@ -221,6 +223,8 @@ export function useHighlights() {
   const itemsPerPage = 30
 
   const selectedCities = useQuerySync<string[]>('cities', [])
+  const selectedCityIds = useQuerySync<string[]>('cityIds', [])
+  const selectedCityRefs = ref<GeoPlaceRef[]>([])
 
   const dateRange = useQuerySync<HighlightDateRange | null>('dates', null, {
     parse(val) {
@@ -273,20 +277,31 @@ export function useHighlights() {
 
   const fetchError = ref(false)
 
-  const availableCities = ref<string[]>([])
   const filteredHighlights = computed(() => highlights.value)
 
-  async function fetchHighlightCities() {
-    if (!userId.value)
+  let cityFilterHydrationSequence = 0
+  watch(selectedCityIds, async (ids) => {
+    const sequence = ++cityFilterHydrationSequence
+    if (ids.length === 0) {
+      selectedCityRefs.value = []
       return
+    }
 
     await useRequest({
-      key: 'highlights:fetch-cities',
-      fn: db => db.user.getHighlightCities(userId.value),
-      onSuccess: (data) => {
-        availableCities.value = data
+      key: 'highlights:hydrate-city-filter',
+      force: true,
+      fn: db => db.geo.getPlacesByIds(ids),
+      onSuccess: (places) => {
+        if (sequence === cityFilterHydrationSequence)
+          selectedCityRefs.value = places
       },
     })
+  }, { immediate: true })
+
+  function setSelectedCityRefs(places: GeoPlaceRef[]) {
+    selectedCityRefs.value = places
+    selectedCityIds.value = places.map(place => place.id)
+    selectedCities.value = []
   }
 
   async function fetchHighlights() {
@@ -298,6 +313,8 @@ export function useHighlights() {
     if (selectedCities.value.length > 0) {
       filters.cities = selectedCities.value
     }
+    if (selectedCityIds.value.length > 0)
+      filters.cityIds = selectedCityIds.value
 
     if (dateRange.value?.start) {
       const s = dateRange.value.start
@@ -323,7 +340,7 @@ export function useHighlights() {
     })
   }
 
-  watch([selectedCities, dateRange], () => {
+  watch([selectedCities, selectedCityIds, dateRange], () => {
     if (currentPage.value !== 1) {
       currentPage.value = 1
     }
@@ -379,6 +396,7 @@ export function useHighlights() {
     Object.assign(editForm, {
       imageUrl: highlight.imageUrl || '',
       countryId: highlight.countryId || highlight.country?.id || '',
+      geoPlaceId: highlight.geoPlaceId ?? null,
       city: highlight.city || '',
       address: highlight.address || '',
       comment: highlight.comment || '',
@@ -512,6 +530,7 @@ export function useHighlights() {
     return {
       imageUrl: source.imageUrl || '',
       countryId: source.countryId || '',
+      geoPlaceId: source.geoPlaceId || null,
       city: source.city?.trim() || '',
       address: source.address?.trim() || '',
       comment: source.comment?.trim() || '',
@@ -529,7 +548,7 @@ export function useHighlights() {
     return Boolean(
       source.imageUrl
       && source.countryId
-      && source.city?.trim(),
+      && source.geoPlaceId,
     )
   }
 
@@ -549,7 +568,7 @@ export function useHighlights() {
 
   async function submitHighlight() {
     if (!isFormValid(form)) {
-      toast.error('Заполни фото, страну и город.')
+      toast.error('Заполни фото, страну и выбери город из справочника.')
       return
     }
 
@@ -574,7 +593,6 @@ export function useHighlights() {
           }
           else {
             await fetchHighlights()
-            await fetchHighlightCities()
           }
         },
         onError: (err: RequestError) => {
@@ -599,9 +617,24 @@ export function useHighlights() {
     isActionProcessing.value = true
     try {
       if (editFormFile.value) {
-        await uploadHighlightImage(editFormFile.value, editForm, editFormFile)
+        const success = await uploadHighlightImage(editFormFile.value, editForm, editFormFile)
+        if (!success)
+          return
       }
-      // TODO: В будущем добавить db.user.updateHighlight(...)
+
+      await useRequest({
+        key: EHighlightsKeys.UPDATE,
+        fn: db => db.user.updateHighlight({ id: editingHighlight.value!.id, ...normalizeForm(editForm) }),
+        onSuccess: (updatedHighlight) => {
+          highlights.value = highlights.value.map((highlight: Highlight) => highlight.id === updatedHighlight.id ? updatedHighlight : highlight)
+          editingHighlight.value = updatedHighlight
+          isEditModalOpen.value = false
+          toast.success('Фото обновлено.')
+        },
+        onError: (err: RequestError) => {
+          toast.error(err.error?.customMessage || 'Не удалось обновить фото.')
+        },
+      })
     }
     finally {
       isActionProcessing.value = false
@@ -626,7 +659,6 @@ export function useHighlights() {
         toast.success('Фото удалено.')
         highlights.value = highlights.value.filter((item: Highlight) => item.id !== id)
         totalItems.value--
-        fetchHighlightCities()
       },
       onError: (err: RequestError) => {
         toast.error(err.error?.customMessage || 'Не удалось удалить фото.')
@@ -655,8 +687,10 @@ export function useHighlights() {
     mapPoints,
     quality,
     selectedCities,
+    selectedCityIds,
+    selectedCityRefs,
+    setSelectedCityRefs,
     dateRange,
-    availableCities,
     isLoading,
     fetchError,
     isUploading,
@@ -670,7 +704,6 @@ export function useHighlights() {
     formFile,
     editFormFile,
     fetchHighlights,
-    fetchHighlightCities,
     fetchCountries,
     fetchMapPoints,
     openCreateModal,

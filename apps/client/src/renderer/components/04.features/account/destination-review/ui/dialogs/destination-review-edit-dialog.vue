@@ -1,6 +1,7 @@
 <script setup lang="ts">
 /* eslint-disable vue/no-mutating-props */
 import type { Country } from '~/shared/types/models/destination-review'
+import type { GeoPlaceRef } from '~/shared/types/models/geo-place'
 import { Icon } from '@iconify/vue'
 import { computed, ref, watch } from 'vue'
 import { KitBtn } from '~/components/01.kit/kit-btn'
@@ -11,6 +12,8 @@ import { KitInput } from '~/components/01.kit/kit-input'
 import { KitMap } from '~/components/01.kit/kit-map'
 import { KitSelectWithSearch } from '~/components/01.kit/kit-select-with-search'
 import { KitSlider } from '~/components/01.kit/kit-slider'
+import { GeoPlacePicker } from '~/components/03.domain/geo-place-picker'
+import { useRequest } from '~/plugins/request'
 import { METRIC_KEYS, METRIC_LABELS } from '../../composables/use-destination-reviews'
 
 const props = defineProps<{
@@ -39,6 +42,7 @@ const fileModel = computed({
 })
 
 const step = ref(1)
+const selectedCityRef = ref<GeoPlaceRef | null>(null)
 
 watch(visibleModel, (val) => {
   if (val) {
@@ -51,6 +55,37 @@ const countryOptions = computed(() => props.countries.map(c => ({
   label: c.name,
   flagUrl: c.flagUrl,
 })))
+
+watch(() => props.form.countryId, (countryId) => {
+  if (selectedCityRef.value && selectedCityRef.value.countryId !== countryId) {
+    selectedCityRef.value = null
+    props.form.geoPlaceId = null
+    props.form.city = ''
+  }
+})
+
+watch(() => [props.visible, props.form.geoPlaceId] as const, async ([isVisible, geoPlaceId]) => {
+  if (!isVisible || !geoPlaceId || selectedCityRef.value?.id === geoPlaceId) {
+    if (!geoPlaceId)
+      selectedCityRef.value = null
+    return
+  }
+
+  const places = await useRequest({
+    key: `destination-review-edit:city:${geoPlaceId}`,
+    fn: db => db.geo.getPlacesByIds([geoPlaceId]),
+  })
+  selectedCityRef.value = places?.[0] ?? null
+})
+
+function selectCity(value: GeoPlaceRef | GeoPlaceRef[] | null) {
+  const place = Array.isArray(value) ? value[0] ?? null : value
+  selectedCityRef.value = place
+  props.form.geoPlaceId = place?.id ?? null
+  props.form.city = place?.name ?? ''
+  if (place?.countryId)
+    props.form.countryId = place.countryId
+}
 
 const mapCenter = ref<[number, number]>([20, 45])
 const mapMarkers = computed(() => {
@@ -71,7 +106,7 @@ function handleMapClick(coords: [number, number]) {
 const isStep1Invalid = computed(() => {
   if (!props.form.countryId)
     return true
-  if (!props.form.city)
+  if (!props.form.geoPlaceId)
     return true
   if (props.form.latitude === '' || props.form.longitude === '')
     return true
@@ -149,7 +184,16 @@ function getSliderColor(value: number) {
           </template>
         </KitSelectWithSearch>
 
-        <KitInput v-model="form.city" label="Город" placeholder="Например: Париж" />
+        <GeoPlacePicker
+          :model-value="selectedCityRef"
+          :country-id="form.countryId"
+          label="Город"
+          placeholder="Выберите город из справочника"
+          @update:model-value="selectCity"
+        />
+        <p v-if="form.city && !form.geoPlaceId" class="field-hint">
+          Старое название: «{{ form.city }}». Выберите соответствующий город из справочника.
+        </p>
 
         <div class="map-section">
           <label class="section-label">Точка на карте</label>

@@ -2,6 +2,7 @@
 import type { CalendarDate } from '@internationalized/date'
 import type { KitDropdownItem } from '~/components/01.kit/kit-dropdown'
 import type { KitRadioOption } from '~/components/01.kit/kit-radio-group'
+import type { GeoPlaceRef, UnresolvedTripCity } from '~/shared/types/models/geo-place'
 import type { Trip, TripMedia, UpdateTripInput } from '~/shared/types/models/trip'
 import { Icon } from '@iconify/vue'
 import { parseDate } from '@internationalized/date'
@@ -13,6 +14,7 @@ import { KitInput } from '~/components/01.kit/kit-input'
 import { KitRadioGroup } from '~/components/01.kit/kit-radio-group'
 import { KitSelectWithSearch } from '~/components/01.kit/kit-select-with-search'
 import { CalendarPopover } from '~/components/02.shared/calendar-popover'
+import { GeoPlacePicker } from '~/components/03.domain/geo-place-picker'
 import { useRequest, useRequestStatus } from '~/plugins/request'
 import { useToast } from '~/shared/composables/use-toast'
 import { TripMediaPlacement, TripStatus, TripVisibility } from '~/shared/types/models/trip'
@@ -25,7 +27,6 @@ const emit = defineEmits<{
 }>()
 
 enum ETripEditInfoDialogKeys {
-  FETCH_CITIES = 'trip-edit-dialog:fetch-cities',
   FETCH_TAGS = 'trip-edit-dialog:fetch-tags',
   FETCH_IMAGES = 'trip-edit-dialog:fetch-images',
 }
@@ -39,7 +40,6 @@ const fieldsToCompare: (keyof UpdateTripInput)[] = [
   'title',
   'description',
   'descriptionShort',
-  'cities',
   'startDate',
   'endDate',
   'status',
@@ -73,11 +73,9 @@ const visibilityOptions: KitRadioOption<TripVisibility>[] = [
   },
 ]
 
-const availableCities = ref<KitDropdownItem<string>[]>([])
 const availableTags = ref<KitDropdownItem<string>[]>([])
 const coverImages = ref<TripMedia[]>([])
 
-const isLoadingCities = useRequestStatus(ETripEditInfoDialogKeys.FETCH_CITIES)
 const isLoadingTags = useRequestStatus(ETripEditInfoDialogKeys.FETCH_TAGS)
 const isLoadingImages = useRequestStatus(`${ETripEditInfoDialogKeys.FETCH_IMAGES}:${props.trip?.id}`)
 
@@ -93,15 +91,6 @@ function formatTag(tag: string): string {
 async function fetchDialogData() {
   if (!props.trip)
     return
-
-  useRequest({
-    key: ETripEditInfoDialogKeys.FETCH_CITIES,
-    force: false,
-    fn: db => db.trips.getUniqueCities(),
-    onSuccess: (cities) => {
-      availableCities.value = cities.map(city => ({ value: city, label: city }))
-    },
-  })
 
   useRequest({
     key: ETripEditInfoDialogKeys.FETCH_TAGS,
@@ -137,7 +126,42 @@ function selectCover(url: string | null) {
   isCoverDialogOpen.value = false
 }
 
-const editableTrip = ref<Partial<UpdateTripInput>>({})
+const editableTrip = ref<Partial<UpdateTripInput & Pick<Trip, 'weatherByPlaceId'>>>({})
+const selectedCityRefs = ref<GeoPlaceRef[]>([])
+const unresolvedTripCities = ref<UnresolvedTripCity[]>([])
+const hasCitiesChanged = ref(false)
+
+const displayedCities = computed(() => hasCitiesChanged.value
+  ? [...selectedCityRefs.value.map(place => place.name), ...unresolvedTripCities.value.map(city => city.label)]
+  : editableTrip.value.cities ?? [])
+
+function markCitiesChanged() {
+  hasCitiesChanged.value = true
+  editableTrip.value.cities = displayedCities.value
+}
+
+function onSelectedCityRefsChange(value: GeoPlaceRef | GeoPlaceRef[] | null) {
+  selectedCityRefs.value = Array.isArray(value) ? value : value ? [value] : []
+  markCitiesChanged()
+}
+
+function resolveLegacyCity(position: number, value: GeoPlaceRef | GeoPlaceRef[] | null) {
+  const place = Array.isArray(value) ? value[0] : value
+  if (!place)
+    return
+
+  const current = [...selectedCityRefs.value]
+  const insertAt = Math.min(position, current.length)
+  current.splice(insertAt, 0, place)
+  selectedCityRefs.value = current
+  unresolvedTripCities.value = unresolvedTripCities.value.filter(city => city.position !== position)
+  markCitiesChanged()
+}
+
+function removeLegacyCity(position: number) {
+  unresolvedTripCities.value = unresolvedTripCities.value.filter(city => city.position !== position)
+  markCitiesChanged()
+}
 
 function toYyyyMmDd(date: string | Date | undefined) {
   if (!date)
@@ -149,6 +173,9 @@ function toYyyyMmDd(date: string | Date | undefined) {
 const isChanged = computed(() => {
   if (!props.trip)
     return false
+
+  if (hasCitiesChanged.value)
+    return true
 
   for (const key of fieldsToCompare) {
     if (JSON.stringify(props.trip[key as keyof Trip]) !== JSON.stringify(editableTrip.value[key]))
@@ -208,6 +235,9 @@ function handleSave() {
       (updatedFields as any)[fieldKey] = updatedValue
   }
 
+  if (hasCitiesChanged.value && unresolvedTripCities.value.length === 0)
+    updatedFields.cityIds = selectedCityRefs.value.map(place => place.id)
+
   emit('save', updatedFields)
   emit('update:visible', false)
 }
@@ -230,7 +260,11 @@ watch(() => props.visible, (isVisible) => {
       imageUrl: props.trip.imageUrl,
       visibility: props.trip.visibility,
       weatherData: props.trip.weatherData ? { ...props.trip.weatherData } : {},
+      weatherByPlaceId: props.trip.weatherByPlaceId ? { ...props.trip.weatherByPlaceId } : {},
     }
+    selectedCityRefs.value = [...(props.trip.cityRefs ?? [])].sort((a, b) => a.position - b.position)
+    unresolvedTripCities.value = [...(props.trip.unresolvedCities ?? [])].sort((a, b) => a.position - b.position)
+    hasCitiesChanged.value = false
     hasFetchedImages.value = false
     isFullDescriptionOpen.value = false
     fetchDialogData()
@@ -243,7 +277,11 @@ watch(() => props.visible, (isVisible) => {
 const isGeneratingWeather = ref(false)
 
 const hasWeatherDataForAllCities = computed(() => {
-  const cities = editableTrip.value.cities || []
+  const refs = selectedCityRefs.value
+  if (refs.length > 0)
+    return refs.every(place => !!editableTrip.value.weatherByPlaceId?.[place.id])
+
+  const cities = displayedCities.value
   if (cities.length === 0)
     return false
   const wData = editableTrip.value.weatherData as any
@@ -253,7 +291,7 @@ const hasWeatherDataForAllCities = computed(() => {
 })
 
 async function handleGenerateWeatherInDialog() {
-  if (!props.trip?.id || !editableTrip.value.cities?.length)
+  if (!props.trip?.id || !displayedCities.value.length)
     return
 
   isGeneratingWeather.value = true
@@ -262,11 +300,13 @@ async function handleGenerateWeatherInDialog() {
       key: `trip-edit:generate-weather:${props.trip.id}`,
       fn: db => db.trips.generateWeather({
         tripId: props.trip!.id,
+        ...(selectedCityRefs.value.length ? { placeIds: selectedCityRefs.value.map(place => place.id) } : {}),
         forceRefresh: false,
       }),
     })
     if (res?.weatherData) {
       editableTrip.value.weatherData = res.weatherData
+      editableTrip.value.weatherByPlaceId = res.weatherByPlaceId
       useToast().success('Климатический контекст подготовлен!')
     }
   }
@@ -337,18 +377,35 @@ async function handleGenerateWeatherInDialog() {
           />
         </div>
       </div>
-      <KitSelectWithSearch
-        v-model="editableTrip.cities!"
-        :items="availableCities"
-        :loading="isLoadingCities"
-        label="Города"
-        placeholder="Добавьте город"
-        multiple
-        creatable
-      />
+      <div class="city-editor">
+        <GeoPlacePicker
+          :model-value="selectedCityRefs"
+          label="Города"
+          placeholder="Найдите город в справочнике"
+          multiple
+          @update:model-value="onSelectedCityRefsChange"
+        />
+        <div v-if="unresolvedTripCities.length > 0" class="legacy-city-list">
+          <p class="field-hint">
+            В путешествии есть старые названия. Для сохранения нового списка сопоставьте их с городами из справочника или удалите.
+          </p>
+          <div v-for="city in unresolvedTripCities" :key="city.position" class="legacy-city-row">
+            <span class="legacy-city-label">{{ city.label }}</span>
+            <GeoPlacePicker
+              :model-value="null"
+              :label="`Заменить «${city.label}» на город из справочника`"
+              placeholder="Выберите город"
+              @update:model-value="resolveLegacyCity(city.position, $event)"
+            />
+            <KitBtn variant="text" color="secondary" size="sm" @click="removeLegacyCity(city.position)">
+              Удалить старое название
+            </KitBtn>
+          </div>
+        </div>
+      </div>
 
       <!-- Климатический контекст городов во время редактирования/планирования -->
-      <div v-if="editableTrip.cities && editableTrip.cities.length > 0" class="weather-preview-box">
+      <div v-if="displayedCities.length > 0" class="weather-preview-box">
         <div class="weather-preview-header">
           <div class="header-left">
             <Icon icon="mdi:weather-partly-cloudy" class="weather-icon" />
@@ -369,15 +426,15 @@ async function handleGenerateWeatherInDialog() {
 
         <div class="weather-cities-status">
           <div
-            v-for="city in editableTrip.cities"
-            :key="city"
+            v-for="place in selectedCityRefs"
+            :key="place.id"
             class="city-weather-badge"
-            :class="{ 'is-ready': !!editableTrip.weatherData?.[city] }"
+            :class="{ 'is-ready': !!editableTrip.weatherByPlaceId?.[place.id] }"
           >
-            <span class="city-name">{{ city }}</span>
-            <span v-if="editableTrip.weatherData?.[city]" class="city-info">
-              {{ editableTrip.weatherData[city].tempAverage !== null ? `${editableTrip.weatherData[city].tempAverage > 0 ? '+' : ''}${editableTrip.weatherData[city].tempAverage}°` : '' }}
-              <template v-if="editableTrip.weatherData[city].windSpeed">, {{ editableTrip.weatherData[city].windSpeed }} км/ч</template>
+            <span class="city-name">{{ place.name }} · {{ place.countryName }}</span>
+            <span v-if="editableTrip.weatherByPlaceId?.[place.id]" class="city-info">
+              {{ editableTrip.weatherByPlaceId[place.id].tempAverage !== null ? `${editableTrip.weatherByPlaceId[place.id].tempAverage > 0 ? '+' : ''}${editableTrip.weatherByPlaceId[place.id].tempAverage}°` : '' }}
+              <template v-if="editableTrip.weatherByPlaceId[place.id].windSpeed">, {{ editableTrip.weatherByPlaceId[place.id].windSpeed }} км/ч</template>
             </span>
             <span v-else class="city-missing">нет данных</span>
           </div>
@@ -463,7 +520,7 @@ async function handleGenerateWeatherInDialog() {
         <KitBtn variant="outlined" color="secondary" @click="$emit('update:visible', false)">
           Отмена
         </KitBtn>
-        <KitBtn :disabled="!isChanged" @click="handleSave">
+        <KitBtn :disabled="!isChanged || (hasCitiesChanged && unresolvedTripCities.length > 0)" @click="handleSave">
           Сохранить
         </KitBtn>
       </div>

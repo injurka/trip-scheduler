@@ -1,9 +1,11 @@
 <script setup lang="ts">
+import type { GeoPlaceRef } from '~/shared/types/models/geo-place'
 import { Icon } from '@iconify/vue'
 import { KitBtn } from '~/components/01.kit/kit-btn'
 import { KitInput } from '~/components/01.kit/kit-input'
 import { KitSelectWithSearch } from '~/components/01.kit/kit-select-with-search'
 import { AsyncStateWrapper } from '~/components/02.shared/async-state-wrapper'
+import { GeoPlacePicker } from '~/components/03.domain/geo-place-picker'
 import { useOpenTrips } from '../composables/use-open-trips'
 import OpenTripCard from './components/open-trip-card.vue'
 import OpenTripSkeleton from './components/open-trip-skeleton.vue'
@@ -16,14 +18,12 @@ const props = defineProps<{
 const {
   trips,
   filters,
-  availableCities,
   availableTags,
   tagSearchQuery,
   isLoading,
   fetchError,
   hasLoadedOnce,
   fetchTrips,
-  fetchAvailableCities,
   searchTags,
 } = useOpenTrips(props.userId)
 
@@ -35,10 +35,12 @@ const statusOptions = [
   { value: 'draft', label: 'Черновик' },
 ]
 
-const selectedCity = computed({
-  get: () => filters.value.cities[0] || null,
-  set: val => filters.value.cities = val ? [val] : [],
-})
+const selectedCity = ref<GeoPlaceRef | null>(null)
+
+function onCitySelected(value: GeoPlaceRef | GeoPlaceRef[] | null) {
+  selectedCity.value = Array.isArray(value) ? value[0] ?? null : value
+  filters.value.cityIds = selectedCity.value ? [selectedCity.value.id] : []
+}
 
 const selectedTag = computed({
   get: () => filters.value.tags[0] || null,
@@ -47,14 +49,14 @@ const selectedTag = computed({
 
 watch(isFiltersOpen, (isOpen) => {
   if (isOpen) {
-    fetchAvailableCities()
     searchTags()
   }
 })
 
 function clearFilters() {
   filters.value.search = ''
-  filters.value.cities = []
+  filters.value.cityIds = []
+  selectedCity.value = null
   filters.value.tags = []
   filters.value.status = []
 }
@@ -112,12 +114,10 @@ onMounted(() => {
 
         <div class="filter-group">
           <label>Город</label>
-          <KitSelectWithSearch
-            v-model="selectedCity"
-            :items="availableCities"
+          <GeoPlacePicker
+            :model-value="selectedCity"
             placeholder="Все города"
-            icon="mdi:map-marker-outline"
-            clearable
+            @update:model-value="onCitySelected"
           />
         </div>
 
@@ -159,7 +159,7 @@ onMounted(() => {
       </template>
 
       <template #empty>
-        <div v-if="!filters.search && filters.cities.length === 0 && filters.tags.length === 0" class="empty-state">
+        <div v-if="!filters.search && filters.cityIds.length === 0 && filters.tags.length === 0" class="empty-state">
           <Icon icon="mdi:compass-off-outline" />
           <p>
             {{ isOwnProfile ? 'У вас пока нет открытых путешествий.' : 'У этого пользователя нет открытых путешествий.' }}

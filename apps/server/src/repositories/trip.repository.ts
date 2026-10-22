@@ -1,11 +1,13 @@
 import type { z } from 'zod'
+import type { GeoPlaceRef, TripCityRef, UnresolvedTripCity } from '~/modules/geo/geo.schemas'
 import type { CreateTripInputSchema, ListTripsInputSchema, UpdateTripInputSchema } from '~/modules/trip/trip.schemas'
 import { randomBytes } from 'node:crypto'
 import { and, asc, eq, ilike, inArray, isNull, ne, or, sql } from 'drizzle-orm'
 import { v4 as uuidv4 } from 'uuid'
 import { measureDbQuery } from '~/lib/db-monitoring'
+import { geoRepository } from '~/repositories/geo.repository'
 import { db } from '../../db'
-import { activities, days, tripParticipants, trips, tripSections } from '../../db/schema'
+import { activities, days, tripGeoPlaces, tripParticipants, trips, tripSections } from '../../db/schema'
 
 const RU_TO_EN_MAP: Record<string, string> = {
   а: 'a',
@@ -89,6 +91,66 @@ function mapTripParticipants<T extends { participants: Array<{ user: any }> }>(t
   }
 }
 
+async function hydrateTripCities<T extends { id: string, cities: string[] }>(items: T[]) {
+  if (!items.length)
+    return items.map(trip => ({ ...trip, cityRefs: [] as TripCityRef[], unresolvedCities: [] as UnresolvedTripCity[] }))
+
+  const tripIds = items.map(trip => trip.id)
+  const links = await db.select({
+    tripId: tripGeoPlaces.tripId,
+    position: tripGeoPlaces.position,
+    placeId: tripGeoPlaces.placeId,
+    legacyLabel: tripGeoPlaces.legacyLabel,
+    status: tripGeoPlaces.status,
+  })
+    .from(tripGeoPlaces)
+    .where(inArray(tripGeoPlaces.tripId, tripIds))
+    .orderBy(asc(tripGeoPlaces.tripId), asc(tripGeoPlaces.position))
+
+  const placeIds = [...new Set(links.flatMap(link => link.placeId ? [link.placeId] : []))]
+  const places = await geoRepository.getByIds({ ids: placeIds, locale: 'ru' })
+  const placesById = new Map<string, Omit<GeoPlaceRef, 'id'> & { id: string }>(places.map(place => [place.id, place]))
+  const linksByTripId = new Map<string, typeof links>()
+  for (const link of links) {
+    const tripLinks = linksByTripId.get(link.tripId) ?? []
+    tripLinks.push(link)
+    linksByTripId.set(link.tripId, tripLinks)
+  }
+
+  return items.map((trip) => {
+    const tripLinks = linksByTripId.get(trip.id) ?? []
+    if (!tripLinks.length) {
+      const unresolvedCities = trip.cities.flatMap((label, position) => label.trim()
+        ? [{ position, label, status: 'unresolved' as const }]
+        : [])
+      return { ...trip, cityRefs: [] as TripCityRef[], unresolvedCities }
+    }
+
+    const cityRefs: TripCityRef[] = []
+    const unresolvedCities: UnresolvedTripCity[] = []
+    const cities: string[] = []
+
+    for (const link of tripLinks) {
+      const place = link.placeId ? placesById.get(link.placeId) : undefined
+      if (link.status === 'resolved' && place) {
+        cityRefs.push({ ...place, position: link.position })
+        cities.push(place.name)
+        continue
+      }
+
+      const label = link.legacyLabel?.trim() || trip.cities[link.position]?.trim()
+      if (!label)
+        continue
+
+      const status = link.status === 'needs_review' ? 'needs_review' : 'unresolved'
+      unresolvedCities.push({ position: link.position, label, status })
+      cities.push(label)
+    }
+
+    return { ...trip, cities, cityRefs, unresolvedCities }
+  })
+}
+
 export const tripRepository = {
   /**
    * Проверяет, имеет ли пользователь полный доступ к путешествию
@@ -155,6 +217,13 @@ export const tripRepository = {
         const citiesArray = `{${filters.cities.join(',')}}`
         conditions.push(sql`${trips.cities} ?| ${citiesArray}`)
       }
+      if (filters?.cityIds && filters.cityIds.length > 0) {
+        const tripsWithSelectedCities = db
+          .selectDistinct({ tripId: tripGeoPlaces.tripId })
+          .from(tripGeoPlaces)
+          .where(inArray(tripGeoPlaces.placeId, filters.cityIds))
+        conditions.push(inArray(trips.id, tripsWithSelectedCities))
+      }
       if (filters?.userIds && filters.userIds.length > 0) {
         const subquery = db
           .selectDistinct({ tripId: tripParticipants.tripId })
@@ -169,7 +238,8 @@ export const tripRepository = {
         with: withParticipants,
       })
 
-      return result.map(mapTripParticipants)
+      const mapped = result.map(mapTripParticipants).filter((trip): trip is NonNullable<typeof trip> => !!trip)
+      return await hydrateTripCities(mapped)
     })
   },
 
@@ -216,7 +286,11 @@ export const tripRepository = {
         with: withFullTripData,
       })
 
-      return mapTripParticipants(result)
+      const mapped = mapTripParticipants(result)
+      if (!mapped)
+        return null
+      const [hydrated] = await hydrateTripCities([mapped])
+      return hydrated
     })
   },
 
@@ -260,7 +334,11 @@ export const tripRepository = {
         },
       })
 
-      return mapTripParticipants(result)
+      const mapped = mapTripParticipants(result)
+      if (!mapped)
+        return null
+      const [hydrated] = await hydrateTripCities([mapped])
+      return hydrated
     })
   },
 
@@ -281,7 +359,11 @@ export const tripRepository = {
         },
       })
 
-      return mapTripParticipants(result)
+      const mapped = mapTripParticipants(result)
+      if (!mapped)
+        return null
+      const [hydrated] = await hydrateTripCities([mapped])
+      return hydrated
     })
   },
 
@@ -335,9 +417,13 @@ export const tripRepository = {
    * Обновляет детали путешествия.
    * @returns Обновленный объект путешествия или null.
    */
-  async update(id: string, details: z.infer<typeof UpdateTripInputSchema>['details']) {
+  async update(
+    id: string,
+    details: z.infer<typeof UpdateTripInputSchema>['details'],
+    selectedPlaces?: GeoPlaceRef[],
+  ) {
     return measureDbQuery('trips', 'update', async () => {
-      const { startDate, endDate, participantIds, ...restDetails } = details
+      const { startDate, endDate, participantIds, cityIds, ...restDetails } = details
 
       const updatePayload = {
         ...restDetails,
@@ -356,6 +442,38 @@ export const tripRepository = {
             .update(trips)
             .set(updatePayload)
             .where(eq(trips.id, id))
+        }
+
+        if (cityIds !== undefined || details.cities !== undefined) {
+          await tx.delete(tripGeoPlaces).where(eq(tripGeoPlaces.tripId, id))
+
+          if (cityIds !== undefined && cityIds.length > 0) {
+            await tx.insert(tripGeoPlaces).values(cityIds.map((placeId, position) => ({
+              tripId: id,
+              position,
+              placeId,
+              legacyLabel: null,
+              status: 'resolved' as const,
+            })))
+            await tx.update(trips)
+              .set({ cities: cityIds.map(placeId => selectedPlaces?.find(place => place.id === placeId)?.name ?? '') })
+              .where(eq(trips.id, id))
+          }
+          else if (cityIds !== undefined) {
+            await tx.update(trips).set({ cities: [] }).where(eq(trips.id, id))
+          }
+          else if (details.cities) {
+            const legacyCities = details.cities.filter(city => city.trim().length > 0)
+            if (legacyCities.length > 0) {
+              await tx.insert(tripGeoPlaces).values(legacyCities.map((legacyLabel, position) => ({
+                tripId: id,
+                position,
+                placeId: null,
+                legacyLabel,
+                status: 'unresolved' as const,
+              })))
+            }
+          }
         }
 
         if (participantIds) {
@@ -392,7 +510,29 @@ export const tripRepository = {
         return result
       })
 
-      return mapTripParticipants(updatedTrip)
+      const mapped = mapTripParticipants(updatedTrip)
+      if (!mapped)
+        return null
+      const [hydrated] = await hydrateTripCities([mapped])
+      return hydrated
+    })
+  },
+
+  async updateWeatherPayload(
+    id: string,
+    payload: {
+      weatherData: Record<string, unknown>
+      weatherByPlaceId: Record<string, unknown>
+    },
+  ) {
+    return measureDbQuery('trips', 'update', async () => {
+      await db.update(trips)
+        .set({
+          weatherData: payload.weatherData as any,
+          weatherByPlaceId: payload.weatherByPlaceId as any,
+          updatedAt: new Date(),
+        })
+        .where(eq(trips.id, id))
     })
   },
 
@@ -411,9 +551,9 @@ export const tripRepository = {
    * Создает новое путешествие.
    * @returns Созданный объект путешествия.
    */
-  async create(data: z.infer<typeof CreateTripInputSchema>, userId: string) {
+  async create(data: z.infer<typeof CreateTripInputSchema>, userId: string, selectedPlaces: GeoPlaceRef[] = []) {
     return measureDbQuery('trips', 'insert', async () => {
-      const { startDate, endDate, ...restData } = data
+      const { startDate, endDate, cityIds: _cityIds, ...restData } = data
 
       const newStartDate = (startDate ? new Date(startDate) : new Date()).toISOString().split('T')[0]
       const newEndDate = (endDate ? new Date(endDate) : new Date(newStartDate)).toISOString().split('T')[0]
@@ -424,6 +564,7 @@ export const tripRepository = {
           .values({
             id: uuidv4(),
             ...restData,
+            cities: selectedPlaces.map(place => place.name),
             userId,
             startDate: newStartDate,
             endDate: newEndDate,
@@ -435,6 +576,16 @@ export const tripRepository = {
           userId,
         })
 
+        if (selectedPlaces.length > 0) {
+          await tx.insert(tripGeoPlaces).values(selectedPlaces.map((place, position) => ({
+            tripId: createdTrip.id,
+            position,
+            placeId: place.id,
+            legacyLabel: null,
+            status: 'resolved' as const,
+          })))
+        }
+
         return createdTrip
       })
 
@@ -443,7 +594,11 @@ export const tripRepository = {
         with: withFullTripData,
       })
 
-      return mapTripParticipants(result)
+      const mapped = mapTripParticipants(result)
+      if (!mapped)
+        return null
+      const [hydrated] = await hydrateTripCities([mapped])
+      return hydrated
     })
   },
 
@@ -477,7 +632,8 @@ export const tripRepository = {
         limit,
         with: withParticipants,
       })
-      return result.map(mapTripParticipants)
+      const mapped = result.map(mapTripParticipants).filter((trip): trip is NonNullable<typeof trip> => !!trip)
+      return await hydrateTripCities(mapped)
     })
   },
 }

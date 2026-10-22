@@ -1,8 +1,11 @@
 import type { CityWeatherData, SeasonalityLevel } from '../../../db/schema.type'
 import type { AiRequestPrompts } from '~/lib/llm'
+import type { GeoPlaceRef } from '~/modules/geo/geo.schemas'
+import { createHash } from 'node:crypto'
 import { z } from 'zod'
 import { AI_MODELS, createAiChatRequest, DEFAULT_AI_MODEL, parseJsonWithAiRepair } from '~/lib/llm'
 import { cityWeatherCacheRepository } from '~/repositories/city-weather-cache.repository'
+import { geoWeatherCacheRepository } from '~/repositories/geo-weather-cache.repository'
 import { llmUsageRepository } from '~/repositories/llm-usage.repository'
 import { quotaService } from '~/services/quota.service'
 
@@ -606,6 +609,136 @@ function getSeasonalFallbackWeather(city: string, month: number, latitude?: numb
   }
 }
 
+const GEO_WEATHER_GENERATION_VERSION = 'geo-weather-v1'
+
+function getGeoWeatherFingerprint(place: GeoPlaceRef, month: number): string {
+  const input = JSON.stringify({
+    placeId: place.id,
+    name: place.name,
+    countryCode: place.countryCode,
+    countryName: place.countryName,
+    regionName: place.regionName,
+    latitude: place.latitude,
+    longitude: place.longitude,
+    month,
+    generationVersion: GEO_WEATHER_GENERATION_VERSION,
+  })
+
+  return createHash('sha256').update(input).digest('hex')
+}
+
+async function generateWeatherForLocation(
+  cityName: string,
+  month: number,
+  userId: string,
+  geo: GeoLocation | null,
+): Promise<{ data: CityWeatherData, generated: boolean }> {
+  const cityNormalized = normalizeCityName(cityName)
+  const lat = geo?.latitude ?? null
+  const daylight = lat !== null ? calculateAstronomicalDaylight(lat, month) : null
+  const realClimate = geo ? await fetchClimateNormals(geo.latitude, geo.longitude, month) : null
+
+  try {
+    const monthName = MONTH_NAMES_RU[month - 1] || `${month}-й месяц`
+    let userPrompt = `Составь климатический контекст и туристический прогноз для города "${cityName}" на месяц "${monthName}" (${month}-й месяц года).`
+    if (realClimate && geo && daylight) {
+      userPrompt += `
+Реальные климатические наблюдения (${geo.name}, ${geo.country || ''}):
+- Широта: ${geo.latitude}, долгота: ${geo.longitude}
+- Средняя температура: ${realClimate.tempAverage}°C (ночь/утро от ${realClimate.tempMin}°C, день до ${realClimate.tempMax}°C)
+- Ощущается как: ${realClimate.feelsLike}°C
+- Скорость ветра: ${realClimate.windSpeed} км/ч
+- Дней с осадками: ${realClimate.rainyDays}, вероятность: ${realClimate.precipitationProbability}%
+- Астрономический день: значение "${daylight.daylightValue}", описание "${daylight.daylightDescription}"
+
+Используй эти фактические цифры и составь точный туристический контекст.`
+    }
+    else if (daylight && lat !== null) {
+      userPrompt += `
+Географическая широта: ${lat}. Астрономический день для этой широты: значение "${daylight.daylightValue}", описание "${daylight.daylightDescription}".
+Составь реалистичные климатические показатели для этого региона в ${monthName}.`
+    }
+    else {
+      userPrompt += `
+Координаты города не найдены в базе. Определи его реальные географические координаты (широту и долготу), климатический пояс и реалистичную погоду на ${monthName}.`
+    }
+
+    const prompts: AiRequestPrompts = {
+      system: getSystemPrompt(Boolean(realClimate)),
+      user: userPrompt,
+    }
+
+    const modelId = DEFAULT_AI_MODEL
+    const completion = await createAiChatRequest(prompts, {
+      model: modelId,
+      response_format: { type: 'json_object' },
+      temperature: 0.1,
+    })
+
+    if (completion.usage) {
+      const actualModelId = (AI_MODELS as readonly string[]).find(m => completion.model?.includes(m) || m.includes(completion.model)) || modelId
+      await quotaService.deductLlmCredits(
+        userId,
+        actualModelId,
+        completion.usage.prompt_tokens,
+        completion.usage.completion_tokens,
+      )
+
+      await llmUsageRepository.create({
+        userId,
+        model: actualModelId,
+        operation: 'weatherGeneration',
+        inputTokens: completion.usage.prompt_tokens,
+        outputTokens: completion.usage.completion_tokens,
+      })
+    }
+
+    const jsonResponse = completion.choices[0]?.message?.content
+    if (!jsonResponse)
+      throw new Error('Пустой ответ от ИИ при генерации погоды.')
+
+    const parsed = await parseJsonWithAiRepair<z.infer<typeof CityWeatherResponseSchema>>(jsonResponse, {
+      userId,
+      model: modelId,
+      operation: 'weatherGeneration',
+      maxRetries: 2,
+      schema: CityWeatherResponseSchema,
+    })
+
+    const rawResult: Partial<CityWeatherData> = {
+      city: cityName,
+      tempAverage: realClimate?.tempAverage ?? parsed.tempAverage,
+      tempMin: realClimate?.tempMin ?? parsed.tempMin,
+      tempMax: realClimate?.tempMax ?? parsed.tempMax,
+      feelsLike: realClimate?.feelsLike ?? parsed.feelsLike,
+      rainyDays: realClimate?.rainyDays ?? parsed.rainyDays,
+      precipitationProbability: realClimate?.precipitationProbability ?? parsed.precipitationProbability,
+      precipitationType: parsed.precipitationType,
+      windSpeed: realClimate?.windSpeed ?? parsed.windSpeed,
+      windDescription: parsed.windDescription,
+      seasonality: (parsed.seasonality as SeasonalityLevel) ?? 'medium',
+      seasonalityDescription: parsed.seasonalityDescription,
+      daylight: parsed.daylight,
+      daylightDescription: parsed.daylightDescription,
+      clothingRecommendation: parsed.clothingRecommendation,
+      summary: parsed.summary,
+      updatedAt: new Date().toISOString(),
+    }
+
+    return {
+      data: sanitizeAndValidateWeather(rawResult, cityNormalized, month, lat ?? parsed.latitude ?? null),
+      generated: true,
+    }
+  }
+  catch (error) {
+    console.error(`[Weather Generation] Ошибка генерации для города ${cityName}:`, error)
+    return {
+      data: getSeasonalFallbackWeather(cityName, month, lat ?? undefined),
+      generated: false,
+    }
+  }
+}
+
 export const weatherGenerationService = {
   async generateOrGetCityWeather(
     city: string,
@@ -629,118 +762,52 @@ export const weatherGenerationService = {
       }
     }
 
-    const monthName = MONTH_NAMES_RU[month - 1] || `${month}-й месяц`
-
-    // 2. Определение координат города (локальный словарь -> внешний геокодер)
+    // Legacy clients still resolve by name. New writes use generateOrGetPlaceWeather below.
     const geo = await fetchCityCoordinates(trimmedCity)
-    const lat = geo?.latitude ?? null
-    const daylight = lat !== null ? calculateAstronomicalDaylight(lat, month) : null
-
-    // 3. Реальные метеорологические нормы из архива
-    const realClimate = geo ? await fetchClimateNormals(geo.latitude, geo.longitude, month) : null
-
-    try {
-      let userPrompt = `Составь климатический контекст и туристический прогноз для города "${trimmedCity}" на месяц "${monthName}" (${month}-й месяц года).`
-      if (realClimate && geo && daylight) {
-        userPrompt += `
-Реальные климатические наблюдения (${geo.name}, ${geo.country || ''}):
-- Широта: ${geo.latitude}, долгота: ${geo.longitude}
-- Средняя температура: ${realClimate.tempAverage}°C (ночь/утро от ${realClimate.tempMin}°C, день до ${realClimate.tempMax}°C)
-- Ощущается как: ${realClimate.feelsLike}°C
-- Скорость ветра: ${realClimate.windSpeed} км/ч
-- Дней с осадками: ${realClimate.rainyDays}, вероятность: ${realClimate.precipitationProbability}%
-- Астрономический день: значение "${daylight.daylightValue}", описание "${daylight.daylightDescription}"
-
-Используй эти фактические цифры и составь точный туристический контекст.`
-      }
-      else if (daylight && lat !== null) {
-        userPrompt += `
-Географическая широта: ${lat}. Астрономический день для этой широты: значение "${daylight.daylightValue}", описание "${daylight.daylightDescription}".
-Составь реалистичные климатические показатели для этого региона в ${monthName}.`
-      }
-      else {
-        userPrompt += `
-Координаты города не найдены в базе. Определи его реальные географические координаты (широту и долготу), климатический пояс и реалистичную погоду на ${monthName}.`
-      }
-
-      const prompts: AiRequestPrompts = {
-        system: getSystemPrompt(Boolean(realClimate)),
-        user: userPrompt,
-      }
-
-      const modelId = DEFAULT_AI_MODEL
-      const completion = await createAiChatRequest(prompts, {
-        model: modelId,
-        response_format: { type: 'json_object' },
-        temperature: 0.1,
-      })
-
-      if (completion.usage) {
-        const actualModelId = (AI_MODELS as readonly string[]).find(m => completion.model?.includes(m) || m.includes(completion.model)) || modelId
-        await quotaService.deductLlmCredits(
-          userId,
-          actualModelId,
-          completion.usage.prompt_tokens,
-          completion.usage.completion_tokens,
-        )
-
-        await llmUsageRepository.create({
-          userId,
-          model: actualModelId,
-          operation: 'weatherGeneration',
-          inputTokens: completion.usage.prompt_tokens,
-          outputTokens: completion.usage.completion_tokens,
-        })
-      }
-
-      const jsonResponse = completion.choices[0]?.message?.content
-      if (!jsonResponse) {
-        throw new Error('Пустой ответ от ИИ при генерации погоды.')
-      }
-
-      const parsed = await parseJsonWithAiRepair<z.infer<typeof CityWeatherResponseSchema>>(jsonResponse, {
-        userId,
-        model: modelId,
-        operation: 'weatherGeneration',
-        maxRetries: 2,
-        schema: CityWeatherResponseSchema,
-      })
-
-      const finalLat = lat ?? parsed.latitude ?? null
-
-      const rawResult: Partial<CityWeatherData> = {
-        city: trimmedCity,
-        tempAverage: realClimate?.tempAverage ?? parsed.tempAverage,
-        tempMin: realClimate?.tempMin ?? parsed.tempMin,
-        tempMax: realClimate?.tempMax ?? parsed.tempMax,
-        feelsLike: realClimate?.feelsLike ?? parsed.feelsLike,
-        rainyDays: realClimate?.rainyDays ?? parsed.rainyDays,
-        precipitationProbability: realClimate?.precipitationProbability ?? parsed.precipitationProbability,
-        precipitationType: parsed.precipitationType,
-        windSpeed: realClimate?.windSpeed ?? parsed.windSpeed,
-        windDescription: parsed.windDescription,
-        seasonality: (parsed.seasonality as SeasonalityLevel) ?? 'medium',
-        seasonalityDescription: parsed.seasonalityDescription,
-        daylight: parsed.daylight,
-        daylightDescription: parsed.daylightDescription,
-        clothingRecommendation: parsed.clothingRecommendation,
-        summary: parsed.summary,
-        updatedAt: new Date().toISOString(),
-      }
-
-      // Физическая валидация и защита от климатических галлюцинаций
-      const validatedResult = sanitizeAndValidateWeather(rawResult, cityNormalized, month, finalLat)
-
-      // Сохраняем результат в кэш базы данных (перезаписывает предыдущий)
-      await cityWeatherCacheRepository.save(cityNormalized, month, validatedResult)
-
-      return { data: validatedResult, fromCache: false }
+    const result = await generateWeatherForLocation(trimmedCity, month, userId, geo)
+    if (result.generated) {
+      await cityWeatherCacheRepository.save(cityNormalized, month, result.data)
     }
-    catch (err) {
-      console.error(`[Weather Generation] Ошибка генерации для города ${trimmedCity}:`, err)
-      const fallback = getSeasonalFallbackWeather(trimmedCity, month, lat ?? undefined)
-      return { data: fallback, fromCache: false }
+
+    return { data: result.data, fromCache: false }
+  },
+
+  async generateOrGetPlaceWeather(
+    place: GeoPlaceRef,
+    month: number,
+    userId: string,
+    forceRefresh = false,
+  ): Promise<{ data: CityWeatherData, fromCache: boolean }> {
+    const inputFingerprint = getGeoWeatherFingerprint(place, month)
+    const cacheKey = {
+      placeId: place.id,
+      month,
+      generationVersion: GEO_WEATHER_GENERATION_VERSION,
+      inputFingerprint,
     }
+
+    if (!forceRefresh) {
+      const cached = await geoWeatherCacheRepository.get(cacheKey)
+      if (cached) {
+        return {
+          data: { ...cached, city: place.name },
+          fromCache: true,
+        }
+      }
+    }
+
+    const result = await generateWeatherForLocation(place.name, month, userId, {
+      name: place.name,
+      latitude: place.latitude,
+      longitude: place.longitude,
+      country: place.countryName,
+    })
+
+    if (result.generated) {
+      await geoWeatherCacheRepository.save({ ...cacheKey, data: result.data })
+    }
+
+    return { data: result.data, fromCache: false }
   },
 
   async getBatchWeatherFromCache(

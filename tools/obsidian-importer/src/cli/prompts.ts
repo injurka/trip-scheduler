@@ -1,3 +1,4 @@
+import type { ImportGeoPlace } from '../lib/transport'
 import type { CliOptions, ParsedTripData } from '../types'
 import { basename } from 'node:path'
 import process from 'node:process'
@@ -69,6 +70,24 @@ export async function promptForTargetDirectory(initialDir?: string): Promise<str
   }
 
   return normalizeVaultPath(targetDir)
+}
+
+export async function promptForGeoCity(label: string, candidates: ImportGeoPlace[]): Promise<string | undefined> {
+  if (candidates.length === 0)
+    return undefined
+
+  const response = await prompts({
+    type: 'select',
+    name: 'placeId',
+    message: `Выберите соответствие для «${label}» (ничего не будет записано до разрешения всех городов):`,
+    choices: candidates.slice(0, 30).map(place => ({
+      title: `${place.name} · ${place.countryName}`,
+      description: [place.regionName, place.kind].filter(Boolean).join(' · '),
+      value: place.id,
+    })),
+  })
+
+  return response.placeId as string | undefined
 }
 
 export async function promptForExecutionMode(): Promise<'validate' | 'import' | 'dry-run'> {

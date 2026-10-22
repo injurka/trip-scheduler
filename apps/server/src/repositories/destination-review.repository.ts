@@ -7,9 +7,17 @@ import { destinationReviews } from '~/../db/schema'
 import { measureDbQuery } from '~/lib/db-monitoring'
 
 export const destinationReviewRepository = {
+  async getByIdForUser(id: string, userId: string) {
+    return measureDbQuery('destinationReviews', 'select', async () => {
+      return db.query.destinationReviews.findFirst({
+        where: and(eq(destinationReviews.id, id), eq(destinationReviews.userId, userId)),
+      })
+    })
+  },
+
   async getByUserId(input: z.infer<typeof GetUserReviewsInputSchema>) {
     return measureDbQuery('destinationReviews', 'select', async () => {
-      const { userId, type, limit, page, countryId, city, sortBy, sortOrder, selectedMetrics } = input
+      const { userId, type, limit, page, countryId, city, geoPlaceId, sortBy, sortOrder, selectedMetrics } = input
       const offset = (page - 1) * limit
       const conditions: any[] = [eq(destinationReviews.userId, userId)]
 
@@ -19,6 +27,8 @@ export const destinationReviewRepository = {
         conditions.push(eq(destinationReviews.countryId, countryId))
       if (city)
         conditions.push(eq(destinationReviews.city, city))
+      if (geoPlaceId)
+        conditions.push(eq(destinationReviews.geoPlaceId, geoPlaceId))
 
       // Определение логики сортировки
       let sortExpr

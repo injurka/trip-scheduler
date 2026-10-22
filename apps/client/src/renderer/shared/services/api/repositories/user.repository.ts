@@ -1,7 +1,7 @@
 import type { IUserRepository } from '../model/types'
 import type { User } from '~/shared/types/models/auth'
 import type { Plan } from '~/shared/types/models/trip'
-import type { CreateHighlightInput, Highlight } from '~/shared/types/models/user'
+import type { CreateHighlightInput, Highlight, UpdateHighlightInput } from '~/shared/types/models/user'
 import { trpc } from '~/shared/services/trpc/trpc.service'
 import { throttle } from '../lib/decorators'
 
@@ -25,7 +25,7 @@ export class UserRepository implements IUserRepository {
   }
 
   @throttle(500)
-  async getHighlights(userId: string, limit: number, page: number, filters?: { cities?: string[], startDate?: string, endDate?: string }): Promise<{ items: Highlight[], total: number }> {
+  async getHighlights(userId: string, limit: number, page: number, filters?: { cities?: string[], cityIds?: string[], startDate?: string, endDate?: string }): Promise<{ items: Highlight[], total: number }> {
     const result = await trpc.user.getHighlights.query({ userId, limit, page, ...filters })
     return result as { items: Highlight[], total: number }
   }
@@ -39,6 +39,12 @@ export class UserRepository implements IUserRepository {
   @throttle(500)
   async createHighlight(data: CreateHighlightInput): Promise<Highlight> {
     const result = await trpc.user.createHighlight.mutate(data)
+    return result as Highlight
+  }
+
+  @throttle(500)
+  async updateHighlight(data: UpdateHighlightInput): Promise<Highlight> {
+    const result = await trpc.user.updateHighlight.mutate(data)
     return result as Highlight
   }
 

@@ -2,22 +2,24 @@
 import type { CalendarDate } from '@internationalized/date'
 import type { HighlightDateRange, HighlightImageQuality } from '../composables/use-highlights'
 import type { KitDropdownItem } from '~/components/01.kit/kit-dropdown'
+import type { GeoPlaceRef } from '~/shared/types/models/geo-place'
 import { KitBtn } from '~/components/01.kit/kit-btn'
 import { KitCalendarRange } from '~/components/01.kit/kit-calendar-range'
 import { KitDropdown } from '~/components/01.kit/kit-dropdown'
-import { KitSelectWithSearch } from '~/components/01.kit/kit-select-with-search'
+import { GeoPlacePicker } from '~/components/03.domain/geo-place-picker'
 
 const props = defineProps<{
   quality: HighlightImageQuality
-  selectedCities: string[]
-  availableCities: string[]
+  selectedPlaces: GeoPlaceRef[]
+  legacySelectedCities: string[]
   dateRange: HighlightDateRange | null
 }>()
 
 const emit = defineEmits<{
   (e: 'update:quality', value: HighlightImageQuality): void
-  (e: 'update:selectedCities', value: string[]): void
+  (e: 'update:selectedPlaces', value: GeoPlaceRef[]): void
   (e: 'update:dateRange', value: HighlightDateRange | null): void
+  (e: 'clearLegacyCities'): void
 }>()
 
 const localQuality = computed({
@@ -25,19 +27,15 @@ const localQuality = computed({
   set: value => emit('update:quality', value),
 })
 
-const localCities = computed({
-  get: () => props.selectedCities,
-  set: value => emit('update:selectedCities', value),
+const localPlaces = computed({
+  get: () => props.selectedPlaces,
+  set: (value: GeoPlaceRef | GeoPlaceRef[] | null) => emit('update:selectedPlaces', Array.isArray(value) ? value : value ? [value] : []),
 })
 
 const localDateRange = computed({
   get: () => props.dateRange,
   set: value => emit('update:dateRange', value),
 })
-
-const cityOptions = computed<KitDropdownItem<string>[]>(() =>
-  props.availableCities.map(c => ({ label: c, value: c })),
-)
 
 const dateRangeLabel = computed(() => {
   if (!props.dateRange?.start && !props.dateRange?.end)
@@ -66,14 +64,10 @@ const qualityOptions: KitDropdownItem<HighlightImageQuality>[] = [
   <div class="highlights-toolbar">
     <div class="toolbar-filters">
       <div class="filter-item filter-cities">
-        <KitSelectWithSearch
-          v-model="localCities"
-          :items="cityOptions"
+        <GeoPlacePicker
+          v-model="localPlaces"
           multiple
-          clearable
           placeholder="Все города"
-          size="sm"
-          icon="mdi:map-marker-outline"
         />
       </div>
 
@@ -116,6 +110,12 @@ const qualityOptions: KitDropdownItem<HighlightImageQuality>[] = [
         </KitDropdown>
       </div>
     </div>
+    <div v-if="legacySelectedCities.length > 0" class="legacy-city-filter">
+      Старый фильтр по названию: {{ legacySelectedCities.join(', ') }}
+      <button type="button" @click="emit('clearLegacyCities')">
+        Сбросить
+      </button>
+    </div>
   </div>
 </template>
 
@@ -140,8 +140,26 @@ const qualityOptions: KitDropdownItem<HighlightImageQuality>[] = [
   max-width: 100%;
   margin-right: auto;
 
-  :deep(.kit-select-with-search) {
-    gap: 0;
+  :deep(.geo-place-picker__control) {
+    min-height: 38px;
+  }
+}
+
+.legacy-city-filter {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  padding: 4px 0;
+  color: var(--fg-secondary-color);
+  font-size: 0.875rem;
+
+  button {
+    border: 0;
+    padding: 0;
+    color: var(--primary-color);
+    background: transparent;
+    cursor: pointer;
   }
 }
 

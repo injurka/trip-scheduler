@@ -9,6 +9,7 @@ const PHASE_BY_STATUS: Record<IAiTripJobStatus['status'], AiTripPhase> = {
   generating: 'generating',
   importing: 'importing',
   done: 'done',
+  needs_input: 'error',
   error: 'error',
 }
 
@@ -63,7 +64,7 @@ export function useAiTripGeneration() {
 
       applyStatus(status)
 
-      if (status.status === 'done' || status.status === 'error')
+      if (status.status === 'done' || status.status === 'needs_input' || status.status === 'error')
         return
 
       pollTimer = setTimeout(tick, 2500)

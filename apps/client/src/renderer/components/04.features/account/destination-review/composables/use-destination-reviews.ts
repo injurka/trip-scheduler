@@ -9,7 +9,6 @@ import { useAuthStore } from '~/shared/store/auth.store'
 export enum EDestinationReviewKeys {
   FETCH_COUNTRIES = 'destination-reviews:fetch-countries',
   FETCH_REVIEWS = 'destination-reviews:fetch-reviews',
-  FETCH_CITIES = 'destination-reviews:fetch-cities',
   CREATE_REVIEW = 'destination-reviews:create',
   UPDATE_REVIEW = 'destination-reviews:update',
   DELETE_REVIEW = 'destination-reviews:delete',
@@ -51,6 +50,7 @@ export const METRIC_PRESETS: MetricPreset[] = [
 interface ReviewFormState {
   type: 'city'
   countryId: string
+  geoPlaceId: string | null
   city: string
   coverUrl: string | null
   coverVariants: Record<string, string> | null
@@ -65,6 +65,7 @@ function createEmptyForm(): ReviewFormState {
   return {
     type: 'city',
     countryId: '',
+    geoPlaceId: null,
     city: '',
     coverUrl: null,
     coverVariants: null,
@@ -84,13 +85,13 @@ export function useDestinationReviews(userId: string) {
   const reviews = ref<DestinationReview[]>([])
   const totalItems = ref(0)
   const countries = ref<Country[]>([])
-  const availableCities = ref<string[]>([])
 
   // Фильтры, сортировка и пагинация
   const page = useQuerySync('page', 1)
   const limit = 24
   const selectedCountry = useQuerySync<string | null>('country', null)
   const selectedCity = useQuerySync<string | null>('city', null)
+  const selectedCityId = useQuerySync<string | null>('cityId', null)
   const sortBy = useQuerySync<string>('sortBy', 'createdAt')
   const sortOrder = useQuerySync<'asc' | 'desc'>('sortOrder', 'desc')
 
@@ -172,16 +173,6 @@ export function useDestinationReviews(userId: string) {
     })
   }
 
-  async function fetchCities() {
-    if (availableCities.value.length > 0)
-      return
-    await useRequest({
-      key: EDestinationReviewKeys.FETCH_CITIES,
-      fn: db => db.destinationReviews.getReviewCities(userId),
-      onSuccess: (data: string[]) => { availableCities.value = data },
-    })
-  }
-
   async function fetchReviews() {
     await useRequest({
       key: EDestinationReviewKeys.FETCH_REVIEWS,
@@ -191,6 +182,7 @@ export function useDestinationReviews(userId: string) {
         limit,
         countryId: selectedCountry.value || undefined,
         city: selectedCity.value || undefined,
+        geoPlaceId: selectedCityId.value || undefined,
         sortBy: sortBy.value,
         sortOrder: sortOrder.value,
         selectedMetrics: selectedMetrics.value.length === METRIC_KEYS.length ? undefined : selectedMetrics.value,
@@ -203,7 +195,7 @@ export function useDestinationReviews(userId: string) {
   }
 
   // Сброс страницы при изменении фильтров (включая метрики, чтобы бекенд пересчитал)
-  watch([selectedCountry, selectedCity, sortBy, sortOrder, selectedMetrics], () => {
+  watch([selectedCountry, selectedCity, selectedCityId, sortBy, sortOrder, selectedMetrics], () => {
     if (page.value !== 1) {
       page.value = 1
     }
@@ -265,6 +257,7 @@ export function useDestinationReviews(userId: string) {
     Object.assign(editForm, {
       type: 'city',
       countryId: review.country?.id || '',
+      geoPlaceId: review.geoPlaceId ?? null,
       city: review.city || '',
       coverUrl: review.coverUrl || null,
       coverVariants: (review as any).coverVariants || null,
@@ -304,6 +297,7 @@ export function useDestinationReviews(userId: string) {
     return {
       type: source.type,
       countryId: source.countryId,
+      geoPlaceId: source.geoPlaceId,
       city: source.city,
       coverUrl,
       coverVariants,
@@ -332,7 +326,6 @@ export function useDestinationReviews(userId: string) {
         toast.success('Впечатление добавлено!')
         isCreateModalOpen.value = false
         fetchReviews()
-        fetchCities()
       },
       onError: ({ error }) => { toast.error(error.customMessage || 'Ошибка при сохранении') },
     })
@@ -395,9 +388,9 @@ export function useDestinationReviews(userId: string) {
     page,
     limit,
     countries,
-    availableCities,
     selectedCountry,
     selectedCity,
+    selectedCityId,
     sortBy,
     sortOrder,
     activePreset,
@@ -417,7 +410,6 @@ export function useDestinationReviews(userId: string) {
     applyPreset,
     toggleMetric,
     fetchCountries,
-    fetchCities,
     fetchReviews,
     openCreateModal,
     openEditModal,

@@ -27,6 +27,7 @@ ${colors.bright}ОПЦИИ:${colors.reset}
   --status <status>         Статус поездки: planned | draft | completed (по умолч.: draft)
   --visibility <vis>        Видимость: private | public (по умолч.: private)
   --trip-id <id>            UUID существующего путешествия для синхронизации/дополнения
+  --city-mapping <path>     JSON manifest проверенных соответствий подписей городов и place IDs
   --overwrite-days          Полностью удалить старые дни и активности существующей поездки перед импортом
   --no-images               Не загружать медиа-файлы и фото на сервер
   --no-documents            Не загружать личные документы на сервер
@@ -109,6 +110,9 @@ export function parseCliArgs(args = process.argv.slice(2)): CliOptions {
     }
     else if (arg === '--trip-id') {
       options.tripId = readValue()
+    }
+    else if (arg === '--city-mapping') {
+      options.cityMappingPath = readValue()
     }
     else if (arg === '--overwrite-days') {
       options.daysOverwrite = true

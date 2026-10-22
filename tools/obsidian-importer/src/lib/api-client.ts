@@ -1,5 +1,6 @@
 import type { ActivityPayload } from '../types'
 import type { MetroCatalogDetails, MetroCatalogSystem } from './metro-resolver'
+import type { ImportGeoPlace, ImportGeoResolution } from './transport'
 import { readFileSync } from 'node:fs'
 import { basename } from 'node:path'
 
@@ -171,6 +172,25 @@ export class ApiClient {
     return this.request(`/metro/systems/${encodeURIComponent(systemId)}`)
   }
 
+  async resolveCity(label: string): Promise<ImportGeoResolution> {
+    return this.request('/geo/places/resolve', {
+      method: 'POST',
+      body: JSON.stringify({ label }),
+    })
+  }
+
+  async getGeoPlacesByIds(ids: string[]): Promise<ImportGeoPlace[]> {
+    return this.request('/geo/places/by-ids', {
+      method: 'POST',
+      body: JSON.stringify({ ids, locale: 'ru' }),
+    })
+  }
+
+  async searchGeoPlaces(query: string): Promise<ImportGeoPlace[]> {
+    const params = new URLSearchParams({ query: query.trim(), locale: 'ru', limit: '20' })
+    return this.request(`/geo/places/search?${params.toString()}`)
+  }
+
   // 1. Auth: SignIn
   async signIn(email: string, password: string): Promise<{ accessToken: string, user: any }> {
     try {
@@ -233,6 +253,7 @@ export class ApiClient {
     endDate?: string
     budget?: number | null
     currency?: string | null
+    cityIds?: string[]
   }): Promise<any> {
     return await this.request<any>(`/trips/${id}`, {
       method: 'PATCH',

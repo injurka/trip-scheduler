@@ -1,11 +1,13 @@
 <script setup lang="ts">
 import type { TDisplayMode, TripsHubTab } from '../composables/use-trips-hub'
 import type { ViewSwitcherItem } from '~/components/01.kit/kit-view-switcher'
+import type { GeoPlaceRef } from '~/shared/types/models/geo-place'
 import { KitBtn } from '~/components/01.kit/kit-btn'
 import { KitDivider } from '~/components/01.kit/kit-divider'
 import { KitDropdown } from '~/components/01.kit/kit-dropdown'
 import { KitSelectWithSearch } from '~/components/01.kit/kit-select-with-search'
 import { KitViewSwitcher } from '~/components/01.kit/kit-view-switcher'
+import { GeoPlacePicker } from '~/components/03.domain/geo-place-picker'
 import { AppRoutePaths } from '~/shared/constants/routes'
 import { useAuthStore } from '~/shared/store/auth.store'
 import { TripsHubKey, useTripsHub } from '../composables/use-trips-hub'
@@ -70,11 +72,12 @@ const statusOptions = [
   { value: 'draft', label: 'Черновик' },
 ]
 
-const selectedCity = computed({
-  get: () => tripsHub.filters.value.cities[0] || null,
-  set: val => tripsHub.filters.value.cities = val ? [val] : [],
+const selectedCity = ref<GeoPlaceRef | null>(null)
 
-})
+function onCitySelected(value: GeoPlaceRef | GeoPlaceRef[] | null) {
+  selectedCity.value = Array.isArray(value) ? value[0] ?? null : value
+  tripsHub.filters.value.cityIds = selectedCity.value ? [selectedCity.value.id] : []
+}
 
 const selectedTag = computed({
   get: () => tripsHub.filters.value.tags[0] || null,
@@ -96,7 +99,6 @@ watch(
   () => tripsHub.isFiltersOpen.value,
   (isOpen) => {
     if (isOpen) {
-      tripsHub.fetchAvailableCities()
       tripsHub.searchTags()
     }
   },
@@ -202,11 +204,10 @@ provide(TripsHubKey, tripsHub)
 
             <div class="filter-group">
               <label>Город</label>
-              <KitSelectWithSearch
-                v-model="selectedCity"
-                :items="tripsHub.availableCities.value"
+              <GeoPlacePicker
+                :model-value="selectedCity"
                 placeholder="Начните вводить город..."
-                icon="mdi:map-marker-outline"
+                @update:model-value="onCitySelected"
               />
             </div>
 

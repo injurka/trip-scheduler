@@ -3,7 +3,7 @@ import type { KitDropdownItem } from '~/components/01.kit/kit-dropdown'
 import type { MapRoute } from '~/components/03.domain/trip-info/geolocation-section'
 import type { IDay } from '~/components/04.features/trip-info/trip-plan/models/types'
 import type { OfflineDownloadOptions } from '~/shared/store/offline.store'
-import type { Trip, TripSection, TripWeatherData } from '~/shared/types/models/trip'
+import type { Trip, TripSection, TripWeatherPayload } from '~/shared/types/models/trip'
 import { Icon } from '@iconify/vue'
 import { DropdownMenuItem } from 'reka-ui'
 import { KitAnimatedTooltip } from '~/components/01.kit/kit-animated-tooltip'
@@ -162,17 +162,42 @@ const formattedDuration = computed(() => {
   return `${tripDurationDays.value} ${label}`
 })
 
-const formattedCities = computed(() => {
-  if (!props.trip?.cities?.length)
-    return ''
-  return props.trip.cities.join(' · ')
+const displayCityLabels = computed(() => {
+  if (!props.trip)
+    return []
+
+  const entries = [
+    ...(props.trip.cityRefs ?? []).map(place => ({
+      position: place.position,
+      name: place.name,
+      countryName: place.countryName,
+    })),
+    ...(props.trip.unresolvedCities ?? []).map(city => ({
+      position: city.position,
+      name: city.label,
+      countryName: null,
+    })),
+  ].sort((a, b) => a.position - b.position)
+
+  if (entries.length === 0)
+    return props.trip.cities ?? []
+
+  const counts = new Map<string, number>()
+  for (const entry of entries)
+    counts.set(entry.name, (counts.get(entry.name) ?? 0) + 1)
+
+  return entries.map(entry => (counts.get(entry.name) ?? 0) > 1 && entry.countryName
+    ? `${entry.name} · ${entry.countryName}`
+    : entry.name)
 })
 
+const formattedCities = computed(() => displayCityLabels.value.join(' · '))
+
 const citiesSummary = computed(() => {
-  if (!props.trip?.cities?.length)
+  if (!displayCityLabels.value.length)
     return { first: '', count: 0, hasMore: false }
-  const first = props.trip.cities[0]
-  const count = props.trip.cities.length
+  const first = displayCityLabels.value[0]
+  const count = displayCityLabels.value.length
   return {
     first,
     count,
@@ -307,9 +332,10 @@ async function handleDeleteTrip() {
     await emit('delete')
 }
 
-function handleWeatherUpdated(data: TripWeatherData) {
+function handleWeatherUpdated(data: TripWeatherPayload) {
   if (moduleStore.plan.trip) {
-    moduleStore.plan.trip.weatherData = data
+    moduleStore.plan.trip.weatherData = data.weatherData
+    moduleStore.plan.trip.weatherByPlaceId = data.weatherByPlaceId
   }
 }
 
@@ -522,13 +548,13 @@ watch([() => props.trip?.id, () => appStore.auth.user?.id], ([tripId, userId]) =
           </div>
 
           <div
-            v-if="trip.cities.length"
+            v-if="displayCityLabels.length"
             class="meta-item meta-item--cities"
             :class="{ 'is-clickable': citiesSummary.hasMore }"
             @click="citiesSummary.hasMore && (isCitiesDialogVisible = true)"
           >
             <Icon icon="mdi:map-marker-outline" />
-            <span class="cities-text" :title="trip.cities.join(', ')">
+            <span class="cities-text" :title="displayCityLabels.join(', ')">
               <span class="cities-full">{{ formattedCities }}</span>
               <span class="cities-compact">{{ citiesSummary.first }}</span>
             </span>
@@ -659,7 +685,7 @@ watch([() => props.trip?.id, () => appStore.auth.user?.id], ([tripId, userId]) =
     <div class="info-widgets">
       <StatsWidget
         :duration-days="tripDurationDays"
-        :city-count="trip.cities.length"
+        :city-count="displayCityLabels.length"
         :participant-count="trip.participants.length"
         :attraction-count="attractionCount"
         @show-days="isDaysDialogVisible = true"
@@ -668,11 +694,13 @@ watch([() => props.trip?.id, () => appStore.auth.user?.id], ([tripId, userId]) =
         @show-attractions="isAttractionsDialogVisible = true"
       />
       <WeatherWidget
-        v-if="trip.cities.length > 0"
+        v-if="displayCityLabels.length > 0"
         :cities="trip.cities"
+        :city-refs="trip.cityRefs"
         :start-date="trip.startDate"
         :trip-id="trip.id"
         :weather-data="trip.weatherData"
+        :weather-by-place-id="trip.weatherByPlaceId"
         :is-editable="isEditable"
         @weather-updated="handleWeatherUpdated"
       />
@@ -763,10 +791,11 @@ watch([() => props.trip?.id, () => appStore.auth.user?.id], ([tripId, userId]) =
     </div>
 
     <TripMapWidget
-      v-if="allPoints.length > 0 || allRoutes.length > 0 || trip.cities.length > 0"
+      v-if="allPoints.length > 0 || allRoutes.length > 0 || displayCityLabels.length > 0"
       :points="allPoints"
       :routes="allRoutes"
       :cities="trip.cities"
+      :city-refs="trip.cityRefs"
     />
 
     <KitDivider v-if="isTripUpcoming">
@@ -779,7 +808,7 @@ watch([() => props.trip?.id, () => appStore.auth.user?.id], ([tripId, userId]) =
     />
 
     <DaysListDialog v-model:visible="isDaysDialogVisible" :days="days" @navigate="navigateToDay" />
-    <CitiesListDialog v-model:visible="isCitiesDialogVisible" :cities="trip.cities" />
+    <CitiesListDialog v-model:visible="isCitiesDialogVisible" :cities="trip.cities" :city-refs="trip.cityRefs" />
     <ParticipantsListDialog v-model:visible="isParticipantsDialogVisible" :participants="trip.participants" />
     <ShareTripDialog v-model:visible="isShareDialogVisible" :trip="trip" :initial-slug="shareDialogInitialSlug" :can-edit="canEdit" />
     <AttractionsListDialog v-model:visible="isAttractionsDialogVisible" :days="days" @navigate="navigateToDay" />

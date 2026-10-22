@@ -29,6 +29,7 @@ export interface CityWeatherData {
 }
 
 export type TripWeatherData = Record<string, CityWeatherData>
+export type TripWeatherByPlaceId = Record<string, CityWeatherData>
 
 export interface DayMetaInfo {
   id: string

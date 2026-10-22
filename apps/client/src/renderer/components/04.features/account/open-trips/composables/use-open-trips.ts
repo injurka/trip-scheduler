@@ -5,7 +5,7 @@ import { useToast } from '~/shared/composables/use-toast'
 
 export interface OpenTripFilters {
   search: string
-  cities: string[]
+  cityIds: string[]
   tags: string[]
   status: TripStatus[]
 }
@@ -18,12 +18,11 @@ export function useOpenTrips(userId: string) {
 
   const filters = ref<OpenTripFilters>({
     search: '',
-    cities: [],
+    cityIds: [],
     tags: [],
     status: [],
   })
 
-  const availableCities = ref<{ value: string, label: string }[]>([])
   const availableTags = ref<{ value: string, label: string }[]>([])
   const tagSearchQuery = ref('')
 
@@ -46,28 +45,12 @@ export function useOpenTrips(userId: string) {
     })
   }
 
-  async function fetchAvailableCities() {
-    if (availableCities.value.length > 0)
-      return
-
-    await useRequest({
-      key: 'account:fetch-cities',
-      fn: db => db.trips.getUniqueCities(),
-      onSuccess: (cities) => {
-        availableCities.value = cities.map(city => ({ value: city, label: city }))
-      },
-      onError: ({ error }) => {
-        toast.error(`Не удалось загрузить города: ${error.customMessage}`)
-      },
-    })
-  }
-
   async function fetchTrips() {
     const apiFilters = {
       tab: 'public' as const,
       userIds: [userId],
       search: filters.value.search || undefined,
-      cities: filters.value.cities.length > 0 ? filters.value.cities : undefined,
+      cityIds: filters.value.cityIds.length > 0 ? filters.value.cityIds : undefined,
       tags: filters.value.tags.length > 0 ? filters.value.tags : undefined,
       statuses: filters.value.status.length > 0 ? filters.value.status : undefined,
     }
@@ -104,14 +87,12 @@ export function useOpenTrips(userId: string) {
   return {
     trips: readonly(trips),
     filters,
-    availableCities,
     availableTags,
     tagSearchQuery,
     isLoading,
     fetchError,
     hasLoadedOnce,
     fetchTrips,
-    fetchAvailableCities,
     searchTags,
   }
 }

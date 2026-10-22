@@ -69,8 +69,8 @@ class TripRepository implements ITripRepository {
     await trpc.trip.addParticipant.mutate({ tripId, userId })
   }
 
-  async generateWeather(params: { tripId: string, city?: string, forceRefresh?: boolean }): Promise<{ weatherData: TripWeatherData, fromCache: boolean }> {
-    return await trpc.trip.generateWeather.mutate(params) as { weatherData: TripWeatherData, fromCache: boolean }
+  async generateWeather(params: { tripId: string, city?: string, placeId?: string, placeIds?: string[], forceRefresh?: boolean }): Promise<{ weatherData: TripWeatherData, weatherByPlaceId: TripWeatherData, fromCache: boolean }> {
+    return await trpc.trip.generateWeather.mutate(params) as { weatherData: TripWeatherData, weatherByPlaceId: TripWeatherData, fromCache: boolean }
   }
 }
 

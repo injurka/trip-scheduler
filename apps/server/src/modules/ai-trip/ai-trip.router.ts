@@ -21,7 +21,7 @@ export const aiTripProcedures = {
   getStatus: protectedProcedure
     .input(z.object({ jobId: z.string().uuid() }))
     .output(z.object({
-      status: z.enum(['pending', 'generating', 'importing', 'done', 'error']),
+      status: z.enum(['pending', 'generating', 'importing', 'done', 'needs_input', 'error']),
       stage: z.string(),
       logs: z.array(z.string()),
       tripId: z.string().nullable(),

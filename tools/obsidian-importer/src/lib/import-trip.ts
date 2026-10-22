@@ -1,6 +1,6 @@
 import type { FinancesSectionContent } from '../types'
 import type { UploadedDocumentLink } from './document-links'
-import type { Transport } from './transport'
+import type { ImportGeoPlace, ImportGeoResolution, Transport } from './transport'
 import process from 'node:process'
 import { colors } from '../config/colors'
 import { DEFAULT_TRIP_SECTIONS } from '../config/constants'
@@ -40,8 +40,85 @@ export interface ImportCoreOptions {
   importNotes?: boolean
   importSections?: boolean
   importDocuments?: boolean
+  cityMappings?: Record<string, string>
+  resolveCity?: (label: string, candidates: ImportGeoPlace[], status: ImportGeoResolution['status']) => Promise<string | undefined>
   onLog?: (message: string) => void
   onProgress?: (stage: string, detail?: string) => void
+}
+
+export class GeoCityNeedsInputError extends Error {
+  constructor(message: string) {
+    super(message)
+    this.name = 'GeoCityNeedsInputError'
+  }
+}
+
+export async function resolveCityIds(
+  labels: string[],
+  transport: Pick<Transport, 'resolveCity' | 'getGeoPlacesByIds' | 'searchGeoPlaces'>,
+  options: Pick<ImportCoreOptions, 'cityMappings' | 'resolveCity' | 'onLog'> = {},
+): Promise<string[]> {
+  if (labels.length === 0)
+    return []
+
+  if (!transport.resolveCity || !transport.getGeoPlacesByIds) {
+    throw new Error('Транспорт не поддерживает разрешение городов. Обновите importer и сервер до версии с geo-каталогом.')
+  }
+
+  const labelsSet = new Set(labels)
+  const staleMappings = Object.keys(options.cityMappings ?? {}).filter(label => !labelsSet.has(label))
+  if (staleMappings.length > 0) {
+    throw new Error(`Mapping-файл содержит подписи, которых нет в текущей поездке: ${staleMappings.join(', ')}.`)
+  }
+
+  const selected: ImportGeoPlace[] = []
+  const selectedIds = new Set<string>()
+  for (const rawLabel of labels) {
+    const label = rawLabel.trim()
+    if (!label)
+      continue
+
+    const mappedId = options.cityMappings?.[rawLabel]
+    let place: ImportGeoPlace | undefined
+    if (mappedId) {
+      place = (await transport.getGeoPlacesByIds([mappedId]))[0]
+      if (!place || place.retired) {
+        throw new Error(`Mapping для «${rawLabel}» указывает на отсутствующий или retired ID: ${mappedId}`)
+      }
+      options.onLog?.(`Город «${rawLabel}» сопоставлен по mapping-файлу с «${place.name} · ${place.countryName}».`)
+    }
+    else {
+      const resolution = await transport.resolveCity(label)
+      if (resolution.status === 'resolved' && resolution.place) {
+        place = resolution.place
+      }
+      else {
+        let candidates = resolution.candidates.map(candidate => candidate.place)
+        if (candidates.length === 0 && transport.searchGeoPlaces)
+          candidates = await transport.searchGeoPlaces(label)
+        const chosenId = await options.resolveCity?.(rawLabel, candidates, resolution.status)
+        if (!chosenId) {
+          const candidateSummary = candidates.slice(0, 8).map(candidate => `${candidate.name} · ${candidate.countryName} [${candidate.id}]`).join('; ')
+          throw new GeoCityNeedsInputError(`Город «${rawLabel}»: ${resolution.status} (${resolution.reason}). ${candidateSummary ? `Кандидаты: ${candidateSummary}.` : 'Нет подходящих результатов.'} Уточните выбор или добавьте точный ID в mapping-файл.`)
+        }
+
+        place = (await transport.getGeoPlacesByIds([chosenId]))[0]
+        if (!place || place.retired || !candidates.some(candidate => candidate.id === chosenId)) {
+          throw new Error(`Выбор для «${rawLabel}» не соответствует доступному кандидату каталога.`)
+        }
+      }
+    }
+
+    if (!place)
+      throw new Error(`Не удалось разрешить город «${rawLabel}».`)
+    if (selectedIds.has(place.id))
+      throw new Error(`Несколько подписей поездки разрешились в одно место «${place.name} · ${place.countryName}». Удалите дубликат или уточните mapping.`)
+
+    selectedIds.add(place.id)
+    selected.push(place)
+  }
+
+  return selected.map(place => place.id)
 }
 
 export interface ImportCoreResult {
@@ -85,6 +162,9 @@ export async function importTripFolderCore(
   const importNotes = options.importNotes !== false
   const importSections = options.importSections !== false
   const importDocuments = options.importDocuments !== false
+  const cityIds = importTripMeta
+    ? await resolveCityIds(tripData.cities, transport, options)
+    : undefined
 
   // 1. Create trip
   progress?.('trip', 'Создание путешествия')
@@ -117,7 +197,7 @@ export async function importTripFolderCore(
           description: tripData.description,
           descriptionShort: tripData.descriptionShort,
           imageUrl: coverImageUrl,
-          cities: tripData.cities,
+          cityIds,
           tags: tripData.tags,
           status: options.status,
           visibility: options.visibility,

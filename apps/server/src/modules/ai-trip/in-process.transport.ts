@@ -1,6 +1,7 @@
 import type { Transport } from '@limiteddissolve/obsidian-importer'
 import type { z } from 'zod'
 import type { CreateActivityInputSchema } from '~/modules/activity/activity.schemas'
+import { geoService } from '~/modules/geo/geo.service'
 import { metroService } from '~/modules/metro/metro.service'
 import { tripService } from '~/modules/trip/trip.service'
 import { activityRepository } from '~/repositories/activity.repository'
@@ -20,6 +21,9 @@ export function createInProcessTransport(userId: string): Transport {
   return {
     listMetroSystems: () => metroService.listSystems(),
     getMetroSystemDetails: systemId => metroService.getDetails(systemId),
+    resolveCity: label => geoService.resolveExact({ label }),
+    getGeoPlacesByIds: ids => geoService.getByIds({ ids, locale: 'ru' }),
+    searchGeoPlaces: query => geoService.search({ query, locale: 'ru', limit: 20 }),
 
     async createTrip(payload) {
       // tripService.create проверяет квоту, создает дефолтные разделы и «День 1»
@@ -34,7 +38,7 @@ export function createInProcessTransport(userId: string): Transport {
     },
 
     async updateTrip(id, details) {
-      await tripRepository.update(id, details as any)
+      await tripService.update(id, details as any, userId, 'user')
     },
 
     async deleteTrip(id) {

@@ -1,0 +1,215 @@
+{
+  "source": "https://download.geonames.org/export/dump/cities500.zip",
+  "retrievedDate": "2026-10-22",
+  "zipBytes": 13900649,
+  "sha256": "3b8292a6ffcb11d87aa3b2dff47972fb0c8c0ed7245d54227db8f2ca1c81fc7f",
+  "member": "cities500.txt",
+  "memberTimestamp": [
+    2026,
+    10,
+    22,
+    4,
+    1,
+    8
+  ],
+  "memberTimestampNote": "ZIP member local timestamp; no timezone is encoded",
+  "uncompressedBytes": 41716248,
+  "rows": 236632,
+  "countries": 246,
+  "featureCodes": {
+    "PPL": 140120,
+    "PPLA": 3467,
+    "PPLC": 241,
+    "PPLX": 10686,
+    "PPLA2": 23375,
+    "PPLW": 9,
+    "PPLL": 600,
+    "PPLA3": 30521,
+    "PPLQ": 41,
+    "PPLA4": 27361,
+    "PPLS": 45,
+    "PPLR": 4,
+    "PPLH": 27,
+    "PPLF": 47,
+    "PPLA5": 30,
+    "PPLG": 9,
+    "PPLCH": 1,
+    "STLMT": 48
+  },
+  "primaryNameCollisionGroups": 17187,
+  "recordsInPrimaryNameCollisionGroups": 53277,
+  "compactJsonBytes": 50198338,
+  "compactJsonGzipBytes": 6504558,
+  "compactJsonScope": "10 selected fields, all source rows; no language-aware Russian aliases; not PostgreSQL or JS heap size",
+  "coverageProbeMode": "Exact casefold match in primary/ascii/unlabelled aliases with country filter; not a preferred-language or identity proof",
+  "coverage": {
+    "Tokyo": [
+      {
+        "geonamesId": 1850147,
+        "name": "Tokyo",
+        "countryCode": "JP",
+        "featureCode": "PPLC",
+        "population": 9733276,
+        "latitude": 35.6895,
+        "longitude": 139.69171
+      }
+    ],
+    "Kyoto": [
+      {
+        "geonamesId": 1857910,
+        "name": "Kyoto",
+        "countryCode": "JP",
+        "featureCode": "PPLA",
+        "population": 1463723,
+        "latitude": 35.02107,
+        "longitude": 135.75385
+      }
+    ],
+    "Kamakura": [
+      {
+        "geonamesId": 1860672,
+        "name": "Kamakura",
+        "countryCode": "JP",
+        "featureCode": "PPLA2",
+        "population": 172929,
+        "latitude": 35.31085,
+        "longitude": 139.54698
+      }
+    ],
+    "Hakone": [
+      {
+        "geonamesId": 1863357,
+        "name": "Hakone",
+        "countryCode": "JP",
+        "featureCode": "PPL",
+        "population": 11293,
+        "latitude": 35.18945,
+        "longitude": 139.02649
+      }
+    ],
+    "Nara": [
+      {
+        "geonamesId": 1855612,
+        "name": "Nara-shi",
+        "countryCode": "JP",
+        "featureCode": "PPLA",
+        "population": 367353,
+        "latitude": 34.68505,
+        "longitude": 135.80485
+      }
+    ],
+    "Osaka": [
+      {
+        "geonamesId": 1853909,
+        "name": "Osaka",
+        "countryCode": "JP",
+        "featureCode": "PPLA",
+        "population": 2753862,
+        "latitude": 34.69379,
+        "longitude": 135.50107
+      }
+    ],
+    "Hiroshima": [
+      {
+        "geonamesId": 1862415,
+        "name": "Hiroshima",
+        "countryCode": "JP",
+        "featureCode": "PPLA",
+        "population": 1200754,
+        "latitude": 34.4,
+        "longitude": 132.45
+      },
+      {
+        "geonamesId": 2130054,
+        "name": "Kitahiroshima",
+        "countryCode": "JP",
+        "featureCode": "PPLA2",
+        "population": 58918,
+        "latitude": 42.97583,
+        "longitude": 141.56722
+      }
+    ],
+    "Miyajima": [
+      {
+        "geonamesId": 1856798,
+        "name": "Miyajima",
+        "countryCode": "JP",
+        "featureCode": "PPL",
+        "population": 2018,
+        "latitude": 34.29907,
+        "longitude": 132.32186
+      }
+    ],
+    "Артыбаш": [
+      {
+        "geonamesId": 1511364,
+        "name": "Artybash",
+        "countryCode": "RU",
+        "featureCode": "PPL",
+        "population": 1200,
+        "latitude": 51.79278,
+        "longitude": 87.27611
+      }
+    ],
+    "Териберка": [
+      {
+        "geonamesId": 483379,
+        "name": "Teribërka",
+        "countryCode": "RU",
+        "featureCode": "PPL",
+        "population": 1300,
+        "latitude": 69.16088,
+        "longitude": 35.14527
+      }
+    ],
+    "Тайбэй": [
+      {
+        "geonamesId": 1668341,
+        "name": "Taipei",
+        "countryCode": "TW",
+        "featureCode": "PPLC",
+        "population": 7871900,
+        "latitude": 25.05306,
+        "longitude": 121.52639
+      }
+    ],
+    "Гаосюн": [
+      {
+        "geonamesId": 1673820,
+        "name": "Kaohsiung",
+        "countryCode": "TW",
+        "featureCode": "PPLA",
+        "population": 2737660,
+        "latitude": 22.61626,
+        "longitude": 120.31333
+      }
+    ],
+    "Гонконг": [
+      {
+        "geonamesId": 1819729,
+        "name": "Hong Kong",
+        "countryCode": "HK",
+        "featureCode": "PPLC",
+        "population": 7396076,
+        "latitude": 22.27832,
+        "longitude": 114.17469
+      }
+    ]
+  },
+  "proposedAllowlist": [
+    "PPL",
+    "PPLA",
+    "PPLA2",
+    "PPLA3",
+    "PPLA4",
+    "PPLA5",
+    "PPLC",
+    "PPLCD",
+    "PPLG",
+    "PPLF",
+    "PPLL",
+    "PPLR",
+    "STLMT"
+  ],
+  "proposedEligibleRows": 225823
+}

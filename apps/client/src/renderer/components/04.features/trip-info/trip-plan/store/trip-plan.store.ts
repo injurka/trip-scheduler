@@ -437,7 +437,7 @@ export const useTripPlanStore = defineStore('tripPlan', {
       })
     },
 
-    async generateWeather(city?: string, forceRefresh = false) {
+    async generateWeather(params: { city?: string, placeId?: string, placeIds?: string[], forceRefresh?: boolean } = {}) {
       if (!this.trip)
         return null
 
@@ -445,12 +445,12 @@ export const useTripPlanStore = defineStore('tripPlan', {
         key: ETripPlanKeys.GENERATE_WEATHER,
         fn: db => db.trips.generateWeather({
           tripId: this.trip!.id,
-          city,
-          forceRefresh,
+          ...params,
         }),
         onSuccess: (result) => {
           if (this.trip) {
             this.trip.weatherData = result.weatherData
+            this.trip.weatherByPlaceId = result.weatherByPlaceId
           }
           if (result.fromCache) {
             useToast().success('Климатический контекст получен из базы данных!')

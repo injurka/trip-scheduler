@@ -12,7 +12,7 @@ export type TDisplayMode = 'column' | 'row'
 
 export interface TripFilters {
   search: string
-  cities: string[]
+  cityIds: string[]
   users: string[]
   tags: string[]
   status: TripStatus[]
@@ -20,7 +20,6 @@ export interface TripFilters {
 
 enum ETripHubKeys {
   FETCH_ALL = 'trips:fetch-all',
-  FETCH_CITIES = 'trips:fetch-cities',
   FETCH_TAGS = 'trips:fetch-tags',
   CREATE = 'trips:create',
   UPDATE = 'trips:update',
@@ -33,7 +32,7 @@ function getDefaultTripData() {
     title: '',
     description: '',
     startDate: new Date().toISOString(),
-    cities: [],
+    cityIds: [],
     status: TripStatus.PLANNED,
     visibility: TripVisibility.PRIVATE,
   }
@@ -63,12 +62,11 @@ export function useTripsHub() {
   const newTripData = ref(getDefaultTripData())
   const filters = ref<TripFilters>({
     search: '',
-    cities: [],
+    cityIds: [],
     users: [],
     tags: [],
     status: [],
   })
-  const availableCities = ref<{ value: string, label: string }[]>([])
   const availableTags = ref<{ value: string, label: string }[]>([])
   const tagSearchQuery = ref('')
 
@@ -126,22 +124,6 @@ export function useTripsHub() {
     })
   }
 
-  async function fetchAvailableCities() {
-    if (availableCities.value.length > 0)
-      return
-
-    await useRequest({
-      key: ETripHubKeys.FETCH_CITIES,
-      fn: db => db.trips.getUniqueCities(),
-      onSuccess: (cities) => {
-        availableCities.value = cities.map(city => ({ value: city, label: city }))
-      },
-      onError: ({ error }) => {
-        toast.error(`Не удалось загрузить список городов: ${error.customMessage}`)
-      },
-    })
-  }
-
   async function fetchTrips(force = false) {
     if (isInitialized.value && !force) {
       return
@@ -150,7 +132,7 @@ export function useTripsHub() {
     const apiFilters = {
       tab: activeTab.value,
       search: filters.value.search || undefined,
-      cities: filters.value.cities.length > 0 ? filters.value.cities : undefined,
+      cityIds: filters.value.cityIds.length > 0 ? filters.value.cityIds : undefined,
       tags: filters.value.tags.length > 0 ? filters.value.tags : undefined,
       statuses: filters.value.status.length > 0 ? filters.value.status : undefined,
       userIds: filters.value.users.length > 0 ? filters.value.users : undefined,
@@ -320,7 +302,6 @@ export function useTripsHub() {
     activeTab,
     filters,
     isCreateModalOpen,
-    availableCities,
     availableTags,
     tagSearchQuery,
     newTripData,
@@ -335,7 +316,6 @@ export function useTripsHub() {
 
     // Actions
     fetchTrips,
-    fetchAvailableCities,
     searchTags,
     createTrip,
     deleteTrip,

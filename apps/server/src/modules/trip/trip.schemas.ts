@@ -1,5 +1,6 @@
 import { z } from 'zod'
 import { DayWithActivitiesSchema } from '../day/day.schemas'
+import { CityIdsInputSchema, TripCityRefSchema, UnresolvedTripCitySchema } from '../geo/geo.schemas'
 import { TripSectionSchema } from '../trip-section/trip-section.schemas'
 import { UserSchema } from '../user/user.schemas'
 
@@ -40,12 +41,15 @@ export const TripSchema = z.object({
   startDate: z.union([z.date(), z.string()]),
   endDate: z.union([z.date(), z.string()]),
   cities: z.array(z.string()),
+  cityRefs: z.array(TripCityRefSchema).optional(),
+  unresolvedCities: z.array(UnresolvedTripCitySchema).optional(),
   status: z.enum(['completed', 'planned', 'draft']),
   budget: z.number().nullable(),
   currency: z.string().nullable(),
   participants: z.array(TripParticipantSchema),
   tags: z.array(z.string()),
   weatherData: TripWeatherSchema.nullable().optional(),
+  weatherByPlaceId: TripWeatherSchema.nullable().optional(),
   visibility: z.enum(['public', 'private']),
   createdAt: z.date(),
   updatedAt: z.date(),
@@ -96,6 +100,7 @@ export const UpdateTripInputSchema = z.object({
     imageUrl: true,
     weatherData: true,
   }).partial().extend({
+    cityIds: CityIdsInputSchema.optional(),
     participantIds: z.array(z.string().uuid()).optional(),
     shareSlug: ShareSlugSchema.optional(),
   }),
@@ -104,17 +109,25 @@ export const UpdateTripInputSchema = z.object({
 export const GenerateWeatherInputSchema = z.object({
   tripId: z.string().uuid(),
   city: z.string().optional(),
+  placeId: z.string().uuid().optional(),
+  placeIds: CityIdsInputSchema.optional(),
   forceRefresh: z.boolean().optional().default(false),
+}).refine(input => !(input.city && (input.placeId || input.placeIds?.length))
+  && !(input.placeId && input.placeIds?.length), {
+  message: 'Передайте один режим генерации погоды: placeId, placeIds или legacy city.',
+  path: ['placeId'],
 })
 
 export const GenerateWeatherOutputSchema = z.object({
   weatherData: TripWeatherSchema,
+  weatherByPlaceId: TripWeatherSchema,
   fromCache: z.boolean(),
 })
 
 export const CreateTripInputSchema = TripSchema.pick({
   title: true,
 }).extend({
+  cityIds: CityIdsInputSchema.optional(),
   description: z.string().optional(),
   startDate: z.union([z.date(), z.string()]).optional(),
   endDate: z.union([z.date(), z.string()]).optional(),
@@ -127,6 +140,7 @@ export const ListTripsInputSchema = z.object({
   statuses: z.array(z.enum(['completed', 'planned', 'draft'])).optional(),
   tags: z.array(z.string()).optional(),
   cities: z.array(z.string()).optional(),
+  cityIds: CityIdsInputSchema.optional(),
   userIds: z.array(z.string().uuid()).optional(),
 }).optional()
 

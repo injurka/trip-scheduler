@@ -29,8 +29,10 @@ const {
   mapPoints,
   quality,
   selectedCities,
+  selectedCityIds,
+  selectedCityRefs,
+  setSelectedCityRefs,
   dateRange,
-  availableCities,
   isLoading,
   fetchError,
   isUploading,
@@ -43,7 +45,6 @@ const {
   formFile,
   editFormFile,
   fetchHighlights,
-  fetchHighlightCities,
   openCreateModal,
   openEditModal,
   handleFileSelect,
@@ -154,12 +155,12 @@ watch(isLoading, (loading) => {
 
 function clearFilters() {
   selectedCities.value = []
+  setSelectedCityRefs([])
   dateRange.value = null
 }
 
 onMounted(() => {
   fetchHighlights()
-  fetchHighlightCities()
 })
 </script>
 
@@ -185,16 +186,18 @@ onMounted(() => {
     <!-- Тулбар для фильтров -->
     <HighlightsToolbar
       v-model:quality="quality"
-      v-model:selected-cities="selectedCities"
       v-model:date-range="dateRange"
-      :available-cities="availableCities"
+      :selected-places="selectedCityRefs"
+      :legacy-selected-cities="selectedCities"
+      @update:selected-places="setSelectedCityRefs"
+      @clear-legacy-cities="selectedCities = []"
     />
 
     <HighlightsSkeleton v-if="isLoading" />
 
     <HighlightsErrorState v-else-if="fetchError && highlights.length === 0" @retry="fetchHighlights" />
 
-    <HighlightsEmptyState v-else-if="!isLoading && highlights.length === 0 && selectedCities.length === 0 && !dateRange" :is-owner="isOwner" />
+    <HighlightsEmptyState v-else-if="!isLoading && highlights.length === 0 && selectedCities.length === 0 && selectedCityIds.length === 0 && !dateRange" :is-owner="isOwner" />
 
     <div v-else-if="!isLoading && filteredHighlights.length === 0" class="empty-filters-state">
       <Icon icon="mdi:filter-variant-remove" class="empty-icon" />

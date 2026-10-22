@@ -7,6 +7,7 @@ import type {
   SetPasswordInputSchema,
   SignInInputSchema,
   SignUpInputSchema,
+  UpdateHighlightInputSchema,
   UpdateUserInputSchema,
   VerifyEmailInputSchema,
 } from './user.schemas'
@@ -15,6 +16,7 @@ import { db } from '~/../db'
 import { emailVerificationTokens, users } from '~/../db/schema'
 import { authUtils } from '~/lib/auth.utils'
 import { createTRPCError } from '~/lib/trpc'
+import { geoRepository } from '~/repositories/geo.repository'
 import { highlightRepository } from '~/repositories/highlight.repository'
 import { userRepository } from '~/repositories/user.repository'
 import { emailService } from '~/services/email.service'
@@ -199,6 +201,24 @@ export const userService = {
   },
 
   async createHighlight(data: z.infer<typeof CreateHighlightInputSchema>, userId: string) {
+    const resolution = data.geoPlaceId
+      ? null
+      : await geoRepository.resolveExact({ label: data.city, countryId: data.countryId, kinds: ['settlement'] })
+    const placeId = data.geoPlaceId ?? resolution?.place?.id
+    if (!placeId || (resolution && resolution.status !== 'resolved')) {
+      const message = resolution?.status === 'needs_review'
+        ? 'Название совпадает с несколькими городами. Выберите точный город из справочника.'
+        : 'Выберите город из справочника для выбранной страны.'
+      throw createTRPCError('BAD_REQUEST', message)
+    }
+
+    const [place] = await geoRepository.getByIds({ ids: [placeId], locale: 'ru' })
+    const [selectableId] = await geoRepository.getSelectableIds([placeId])
+    if (!place || !selectableId || place.kind !== 'settlement' || place.countryId !== data.countryId) {
+      throw createTRPCError('BAD_REQUEST', 'Выберите город из справочника для выбранной страны.')
+    }
+    data = { ...data, geoPlaceId: place.id, city: place.name }
+
     const { takenAt, ...restData } = data
     const newHighlight = await highlightRepository.create({
       ...restData,
@@ -210,6 +230,55 @@ export const userService = {
       throw createTRPCError('INTERNAL_SERVER_ERROR', 'Не удалось сохранить фото в витрину.')
     }
     return newHighlight
+  },
+
+  async updateHighlight(input: z.infer<typeof UpdateHighlightInputSchema>, userId: string) {
+    const { id, takenAt, ...data } = input
+    const existing = await highlightRepository.getByIdForUser(id, userId)
+    if (!existing)
+      throw createTRPCError('NOT_FOUND', 'Фото не найдено или у вас нет прав на его редактирование.')
+
+    const targetCountryId = data.countryId ?? existing.countryId
+    const targetCity = data.city ?? existing.city
+    const cityChanged = data.city !== undefined && data.city !== existing.city
+    const countryChanged = data.countryId !== undefined && data.countryId !== existing.countryId
+    let placeId = data.geoPlaceId ?? undefined
+
+    if (!placeId && (cityChanged || countryChanged)) {
+      const resolution = await geoRepository.resolveExact({ label: targetCity, countryId: targetCountryId, kinds: ['settlement'] })
+      if (resolution.status !== 'resolved' || !resolution.place) {
+        const message = resolution.status === 'needs_review'
+          ? 'Название совпадает с несколькими городами. Выберите точный город из справочника.'
+          : 'Город не найден в выбранной стране. Выберите город из справочника.'
+        throw createTRPCError('BAD_REQUEST', message)
+      }
+      placeId = resolution.place.id
+    }
+    else if (!placeId && data.geoPlaceId === undefined && existing.geoPlaceId) {
+      placeId = existing.geoPlaceId
+    }
+    else if (!placeId && data.geoPlaceId === null && targetCity.trim()) {
+      throw createTRPCError('BAD_REQUEST', 'Выберите город из справочника.')
+    }
+
+    if (placeId) {
+      const [place] = await geoRepository.getByIds({ ids: [placeId], locale: 'ru' })
+      const [selectableId] = await geoRepository.getSelectableIds([placeId])
+      if (!place || (!selectableId && place.id !== existing.geoPlaceId) || place.kind !== 'settlement' || place.countryId !== targetCountryId) {
+        throw createTRPCError('BAD_REQUEST', 'Выберите город из справочника для выбранной страны.')
+      }
+      data.geoPlaceId = place.id
+      data.city = place.name
+      data.countryId = targetCountryId
+    }
+
+    const updated = await highlightRepository.update(id, userId, {
+      ...data,
+      ...(takenAt !== undefined && { takenAt: takenAt ? new Date(takenAt) : null }),
+    })
+    if (!updated)
+      throw createTRPCError('NOT_FOUND', 'Фото не найдено или у вас нет прав на его редактирование.')
+    return updated
   },
 
   async deleteHighlight(id: string, userId: string) {

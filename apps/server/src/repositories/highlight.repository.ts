@@ -7,14 +7,25 @@ import { highlights } from '~/../db/schema'
 import { measureDbQuery } from '~/lib/db-monitoring'
 
 export const highlightRepository = {
+  async getByIdForUser(id: string, userId: string) {
+    return measureDbQuery('highlights', 'select', async () => {
+      return db.query.highlights.findFirst({
+        where: and(eq(highlights.id, id), eq(highlights.userId, userId)),
+      })
+    })
+  },
+
   async getByUserId(input: z.infer<typeof GetUserHighlightsInputSchema>) {
     return measureDbQuery('highlights', 'select', async () => {
-      const { userId, limit, page, cities, startDate, endDate } = input
+      const { userId, limit, page, cities, cityIds, startDate, endDate } = input
       const offset = (page - 1) * limit
       const conditions: any[] = [eq(highlights.userId, userId)]
 
       if (cities && cities.length > 0) {
         conditions.push(inArray(highlights.city, cities))
+      }
+      if (cityIds && cityIds.length > 0) {
+        conditions.push(inArray(highlights.geoPlaceId, cityIds))
       }
 
       if (startDate) {
@@ -91,6 +102,23 @@ export const highlightRepository = {
         with: {
           country: true,
         },
+      })
+    })
+  },
+
+  async update(id: string, userId: string, data: Partial<typeof highlights.$inferInsert>) {
+    return measureDbQuery('highlights', 'update', async () => {
+      const [updated] = await db.update(highlights)
+        .set(data)
+        .where(and(eq(highlights.id, id), eq(highlights.userId, userId)))
+        .returning({ id: highlights.id })
+
+      if (!updated)
+        return null
+
+      return db.query.highlights.findFirst({
+        where: eq(highlights.id, updated.id),
+        with: { country: true },
       })
     })
   },

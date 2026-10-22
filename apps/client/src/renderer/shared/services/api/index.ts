@@ -8,6 +8,7 @@ import type {
   IDayRepository,
   IDestinationReviewRepository,
   IFileRepository,
+  IGeoRepository,
   ILLMRepository,
   IMarksRepository,
   IMemoryRepository,
@@ -27,6 +28,7 @@ import { CommentRepository } from './repositories/comment.repository'
 import { DayRepository } from './repositories/day.repository'
 import { DestinationReviewRepository } from './repositories/destination-review.repository' // <-- НОВЫЙ ИМПОРТ
 import { FileRepository } from './repositories/file.repository'
+import { GeoRepository } from './repositories/geo.repository'
 import { LLMRepository } from './repositories/llm.repository'
 import { MarksRepository } from './repositories/marks.repository'
 import { MemoryRepository } from './repositories/memory.repository'
@@ -55,6 +57,7 @@ class TRPCDatabaseClient implements IDatabaseClient {
   comments: ICommentRepository = new CommentRepository()
   llm: ILLMRepository = new LLMRepository()
   places: IPlacesRepository = new PlacesRepository()
+  geo: IGeoRepository = new GeoRepository()
   marks: IMarksRepository = new MarksRepository()
   notification: INotificationRepository = new NotificationRepository()
   posts: IPostRepository = new PostRepository()

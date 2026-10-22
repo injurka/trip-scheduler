@@ -19,7 +19,7 @@ export const GenerateAiTripInputSchema = z.object({
 
 export type GenerateAiTripInput = z.infer<typeof GenerateAiTripInputSchema>
 
-export type AiTripJobStatus = 'pending' | 'generating' | 'importing' | 'done' | 'error'
+export type AiTripJobStatus = 'pending' | 'generating' | 'importing' | 'done' | 'needs_input' | 'error'
 
 export interface AiTripJob {
   id: string
@@ -445,7 +445,14 @@ async function runJob(jobId: string, userId: string, input: GenerateAiTripInput)
   catch (error: any) {
     console.error('[AI Trip] Ошибка генерации:', error)
     log(`Ошибка: ${error?.message || error}`)
-    setJob(jobId, { status: 'error', stage: 'Ошибка', error: error?.message || String(error) })
+    const message = error?.message || String(error)
+    const needsInput = error?.name === 'GeoCityNeedsInputError'
+      || /Город «.+» в авиасегменте (?:неоднозначен|не найден в справочнике)\./.test(message)
+    setJob(jobId, {
+      status: needsInput ? 'needs_input' : 'error',
+      stage: needsInput ? 'Нужно уточнить города' : 'Ошибка',
+      error: message,
+    })
   }
   finally {
     if (tempDir) {

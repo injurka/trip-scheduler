@@ -1,5 +1,6 @@
 <script setup lang="ts">
-import type { TripWeatherData } from '~/shared/types/models/trip'
+import type { TripCityRef } from '~/shared/types/models/geo-place'
+import type { TripWeatherData, TripWeatherPayload } from '~/shared/types/models/trip'
 import { Icon } from '@iconify/vue'
 import { KitBtn } from '~/components/01.kit/kit-btn'
 import { KitDropdown } from '~/components/01.kit/kit-dropdown'
@@ -9,16 +10,18 @@ import { useTripPermissions } from '~/components/05.modules/trip-info/composable
 
 interface Props {
   cities: string[]
+  cityRefs?: TripCityRef[]
   startDate: string
   tripId?: string
   weatherData?: TripWeatherData | null
+  weatherByPlaceId?: TripWeatherData | null
   isEditable?: boolean
 }
 
 const props = defineProps<Props>()
 
 const emit = defineEmits<{
-  (e: 'weatherUpdated', data: TripWeatherData): void
+  (e: 'weatherUpdated', data: TripWeatherPayload): void
 }>()
 
 const planStore = useTripPlanStore()
@@ -32,7 +35,7 @@ const isEditMode = computed(() => {
   return canEdit.value && !isViewMode.value
 })
 
-const selectedCity = ref<string | null>(null)
+const selectedCityKey = ref<string | null>(null)
 const isDropdownOpen = ref(false)
 const isDetailsExpanded = ref(false)
 const isGeneratingLocal = ref(false)
@@ -43,11 +46,21 @@ const isGenerating = computed(() => {
 })
 
 const cityOptions = computed(() => {
+  if (props.cityRefs?.length) {
+    return [...props.cityRefs]
+      .sort((a, b) => a.position - b.position)
+      .map(place => ({ value: place.id, label: `${place.name} · ${place.countryName}` }))
+  }
+
   return props.cities.map(city => ({
-    value: city,
+    value: `legacy:${city}`,
     label: city,
   }))
 })
+
+const selectedPlace = computed(() => props.cityRefs?.find(place => place.id === selectedCityKey.value) ?? null)
+const selectedLegacyCity = computed(() => selectedCityKey.value?.startsWith('legacy:') ? selectedCityKey.value.slice(7) : null)
+const selectedCity = computed(() => selectedPlace.value?.name ?? selectedLegacyCity.value)
 
 const MONTH_NAMES_PREPOSITIONAL: Record<number, string> = {
   0: 'январе',
@@ -75,7 +88,15 @@ const effectiveWeatherData = computed(() => {
   return props.weatherData || planStore.trip?.weatherData || null
 })
 
+const effectiveWeatherByPlaceId = computed(() => props.weatherByPlaceId || planStore.trip?.weatherByPlaceId || null)
+
 const currentCityWeather = computed(() => {
+  if (selectedPlace.value && effectiveWeatherByPlaceId.value?.[selectedPlace.value.id])
+    return effectiveWeatherByPlaceId.value[selectedPlace.value.id]
+  if (selectedPlace.value) {
+    const sameNameRefs = props.cityRefs?.filter(place => place.name === selectedPlace.value?.name) ?? []
+    return sameNameRefs.length === 1 ? effectiveWeatherData.value?.[selectedPlace.value.name] ?? null : null
+  }
   if (!selectedCity.value || !effectiveWeatherData.value)
     return null
 
@@ -147,9 +168,11 @@ async function handleGenerateWeather(forceRefresh = false) {
   isGeneratingLocal.value = true
 
   try {
-    const res = await planStore.generateWeather(selectedCity.value, forceRefresh)
+    const res = await planStore.generateWeather(selectedPlace.value
+      ? { placeId: selectedPlace.value.id, forceRefresh }
+      : { city: selectedLegacyCity.value ?? undefined, forceRefresh })
     if (res?.weatherData) {
-      emit('weatherUpdated', res.weatherData)
+      emit('weatherUpdated', { weatherData: res.weatherData, weatherByPlaceId: res.weatherByPlaceId })
     }
   }
   catch (e: any) {
@@ -166,9 +189,10 @@ async function handleGenerateAllCities(forceRefresh = false) {
   isGeneratingLocal.value = true
 
   try {
-    const res = await planStore.generateWeather(undefined, forceRefresh)
+    const placeIds = props.cityRefs?.map(place => place.id)
+    const res = await planStore.generateWeather(placeIds?.length ? { placeIds, forceRefresh } : { forceRefresh })
     if (res?.weatherData) {
-      emit('weatherUpdated', res.weatherData)
+      emit('weatherUpdated', { weatherData: res.weatherData, weatherByPlaceId: res.weatherByPlaceId })
     }
   }
   catch (e: any) {
@@ -180,11 +204,10 @@ async function handleGenerateAllCities(forceRefresh = false) {
   }
 }
 
-onMounted(() => {
-  if (props.cities.length > 0) {
-    selectedCity.value = props.cities[0]
-  }
-})
+watch(cityOptions, (options) => {
+  if (!options.some(option => option.value === selectedCityKey.value))
+    selectedCityKey.value = options[0]?.value ?? null
+}, { immediate: true })
 </script>
 
 <template>
@@ -214,7 +237,7 @@ onMounted(() => {
     <!-- Селектор городов -->
     <div v-if="cities.length > 1" class="city-selector-container">
       <KitDropdown
-        v-model="selectedCity"
+        v-model="selectedCityKey"
         v-model:open="isDropdownOpen"
         :items="cityOptions"
         align="start"

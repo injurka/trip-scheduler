@@ -20,6 +20,7 @@ import {
   SignUpInputSchema,
   SuccessResponseSchema,
   UnlinkProviderInputSchema,
+  UpdateHighlightInputSchema,
   UpdateUserInputSchema,
   UpdateUserStatusInputSchema,
   UserSchema,
@@ -237,6 +238,16 @@ export const userProcedures = {
     .output(HighlightSchema)
     .mutation(async ({ input, ctx }) => {
       return userService.createHighlight(input, ctx.user.id)
+    }),
+
+  updateHighlight: protectedProcedure
+    .meta({
+      openapi: { method: 'PATCH', path: '/users/highlights/{id}', tags: ['Users'], summary: 'Обновить фото в витрине' },
+    })
+    .input(UpdateHighlightInputSchema)
+    .output(HighlightSchema)
+    .mutation(async ({ input, ctx }) => {
+      return userService.updateHighlight(input, ctx.user.id)
     }),
 
   deleteHighlight: protectedProcedure

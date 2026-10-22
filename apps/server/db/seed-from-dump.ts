@@ -15,6 +15,12 @@ import {
   days,
   destinationReviews,
   emailVerificationTokens,
+  geoCatalogCountries,
+  geoCatalogVersions,
+  geoPlaceNames,
+  geoPlaces,
+  geoResolutionAudit,
+  geoWeatherCache,
   highlights,
   llmModels,
   llmTokenUsage,
@@ -30,6 +36,7 @@ import {
   posts,
   refreshTokens,
   savedPosts,
+  tripGeoPlaces,
   tripImages,
   tripParticipants,
   trips,
@@ -51,6 +58,17 @@ interface DumpData {
   highlights?: any[]
   destinationReviews?: any[]
   countries?: any[]
+  geoCatalog?: {
+    dumpFormatVersion: number
+    catalogMode: 'referenced-places'
+    catalogVersions?: any[]
+    catalogCountries?: any[]
+    places?: any[]
+    placeNames?: any[]
+    tripPlaces?: any[]
+    weatherCache?: any[]
+    resolutionAudit?: any[]
+  }
 }
 
 interface SelectedDump {
@@ -63,6 +81,84 @@ interface SelectedDump {
 // ─────────────────────────────────────────────────────────────
 
 const MAX_PG_PARAMS = 65_535
+const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i
+
+function collectDumpPlaceIds(value: unknown, result = new Set<string>()): Set<string> {
+  if (Array.isArray(value)) {
+    for (const item of value)
+      collectDumpPlaceIds(item, result)
+    return result
+  }
+  if (!value || typeof value !== 'object')
+    return result
+
+  for (const [key, nested] of Object.entries(value)) {
+    if (/(?:geo)?placeid$|(?:departure|arrival)cityid$/i.test(key) && typeof nested === 'string' && UUID_PATTERN.test(nested))
+      result.add(nested)
+    if (key === 'weatherByPlaceId' && nested && typeof nested === 'object' && !Array.isArray(nested)) {
+      for (const placeId of Object.keys(nested)) {
+        if (UUID_PATTERN.test(placeId))
+          result.add(placeId)
+      }
+    }
+    collectDumpPlaceIds(nested, result)
+  }
+  return result
+}
+
+function validateGeoDumpReferences(
+  geoCatalog: NonNullable<DumpData['geoCatalog']>,
+  dump: Pick<DumpData, 'trips' | 'metro' | 'highlights' | 'destinationReviews' | 'countries'>,
+): void {
+  const places = geoCatalog.places ?? []
+  const placeIds = new Set(places.map(place => place.id))
+  const countryCodes = new Set((geoCatalog.catalogCountries ?? []).map(country => country.code))
+  const versionIds = new Set((geoCatalog.catalogVersions ?? []).map(version => version.id))
+  const tripIds = new Set(dump.trips.map(trip => trip.id))
+  const appCountryIds = new Set((dump.countries ?? []).map(country => country.id))
+  const appPlaceIds = collectDumpPlaceIds([
+    dump.trips,
+    dump.metro,
+    dump.highlights ?? [],
+    dump.destinationReviews ?? [],
+  ])
+  const missingPlaceIds = [...appPlaceIds].filter(id => !placeIds.has(id))
+  if (missingPlaceIds.length > 0)
+    throw new Error(`geo/catalog.json не содержит ${missingPlaceIds.length} place ID, используемых прикладными данными`)
+
+  for (const place of places) {
+    if (!countryCodes.has(place.countryCode))
+      throw new Error(`GeoPlace ${place.id} ссылается на отсутствующую страну ${place.countryCode}`)
+    if (place.catalogVersion && !versionIds.has(place.catalogVersion))
+      throw new Error(`GeoPlace ${place.id} ссылается на отсутствующую версию ${place.catalogVersion}`)
+  }
+  for (const country of geoCatalog.catalogCountries ?? []) {
+    if (country.legacyCountryId && !appCountryIds.has(country.legacyCountryId))
+      throw new Error(`Geo country ${country.code} ссылается на отсутствующую app country ${country.legacyCountryId}`)
+    if (country.catalogVersion && !versionIds.has(country.catalogVersion))
+      throw new Error(`Geo country ${country.code} ссылается на отсутствующую версию ${country.catalogVersion}`)
+  }
+  for (const name of geoCatalog.placeNames ?? []) {
+    if (!placeIds.has(name.placeId))
+      throw new Error(`GeoPlaceName ссылается на отсутствующее место ${name.placeId}`)
+    if (name.catalogVersion && !versionIds.has(name.catalogVersion))
+      throw new Error(`GeoPlaceName ссылается на отсутствующую версию ${name.catalogVersion}`)
+  }
+  for (const row of geoCatalog.tripPlaces ?? []) {
+    if (!tripIds.has(row.tripId))
+      throw new Error(`TripGeoPlace ссылается на отсутствующую поездку ${row.tripId}`)
+    if (row.placeId && !placeIds.has(row.placeId))
+      throw new Error(`TripGeoPlace ссылается на отсутствующее место ${row.placeId}`)
+  }
+  for (const row of geoCatalog.weatherCache ?? []) {
+    if (!placeIds.has(row.placeId))
+      throw new Error(`GeoWeatherCache ссылается на отсутствующее место ${row.placeId}`)
+  }
+  for (const row of geoCatalog.resolutionAudit ?? []) {
+    if (row.chosenPlaceId && !placeIds.has(row.chosenPlaceId))
+      throw new Error(`GeoResolutionAudit ссылается на отсутствующее место ${row.chosenPlaceId}`)
+  }
+}
 
 function summarizeRecord(rec: Record<string, any>): string {
   const keys = Object.keys(rec)
@@ -177,6 +273,12 @@ async function safeInsert<T extends Record<string, any>>(
   }
 }
 
+async function insertGeoRows<T extends Record<string, any>>(label: string, table: any, rows: T[]): Promise<void> {
+  const result = await safeInsert(label, table, rows)
+  if (result.failed > 0)
+    throw new Error(`Geo restore stopped: ${result.failed} ${label} rows failed to insert`)
+}
+
 // ─────────────────────────────────────────────────────────────
 // Валидаторы
 // ─────────────────────────────────────────────────────────────
@@ -240,21 +342,25 @@ async function discoverAndSelectS3Dump(latest = false): Promise<string | null> {
 }
 
 async function readJsonFilesFromS3Dir(prefix: string): Promise<any[]> {
-  try {
-    const files = await s3Service.listFilesInFolder(prefix)
-    const jsonFiles = files.filter(f => f.endsWith('.json'))
+  const files = await s3Service.listFilesInFolder(prefix)
+  const jsonFiles = files.filter(f => f.endsWith('.json'))
 
-    const items = await Promise.all(
-      jsonFiles.map(async (key) => {
-        const content = await s3Service.getFileContent(key)
-        return JSON.parse(content)
-      }),
-    )
-    return items.flat()
-  }
-  catch {
-    return []
-  }
+  const items = await Promise.all(
+    jsonFiles.map(async (key) => {
+      const content = await s3Service.getFileContent(key)
+      return JSON.parse(content)
+    }),
+  )
+  return items.flat()
+}
+
+async function readOptionalJsonFileFromS3(key: string): Promise<any | undefined> {
+  const folder = key.slice(0, key.lastIndexOf('/') + 1)
+  const files = await s3Service.listFilesInFolder(folder)
+  if (!files.includes(key))
+    return undefined
+
+  return JSON.parse(await s3Service.getFileContent(key))
 }
 
 async function readDumpFromS3(prefix: string): Promise<DumpData> {
@@ -262,8 +368,8 @@ async function readDumpFromS3(prefix: string): Promise<DumpData> {
 
   const basePath = prefix.endsWith('/') ? prefix : `${prefix}/`
 
-  const [usersRaw, countriesRaw, marksRaw, trips, posts, blogs, metro, highlightsData, destinationReviewsData] = await Promise.all([
-    s3Service.getFileContent(`${basePath}users/all.json`).then(JSON.parse).catch(() => []),
+  const [usersRaw, countriesRaw, marksRaw, trips, posts, blogs, metro, highlightsData, destinationReviewsData, geoCatalog] = await Promise.all([
+    s3Service.getFileContent(`${basePath}users/all.json`).then(JSON.parse),
     readJsonFilesFromS3Dir(`${basePath}countries/`),
     readJsonFilesFromS3Dir(`${basePath}marks/`),
     readJsonFilesFromS3Dir(`${basePath}trips/`),
@@ -272,12 +378,13 @@ async function readDumpFromS3(prefix: string): Promise<DumpData> {
     readJsonFilesFromS3Dir(`${basePath}metro/`),
     readJsonFilesFromS3Dir(`${basePath}highlights/`),
     readJsonFilesFromS3Dir(`${basePath}destination-reviews/`),
+    readOptionalJsonFileFromS3(`${basePath}geo/catalog.json`),
   ])
 
-  const users = Array.isArray(usersRaw) ? usersRaw : []
+  const users = usersRaw
   console.log(`   👤 users: ${users.length} | ✈️  trips: ${trips.length} | 📝 posts: ${posts.length} | 📰 blogs: ${blogs.length} | 🚇 metro: ${metro.length} | 📸 highlights: ${highlightsData.length} | ⭐ reviews: ${destinationReviewsData.length}`)
 
-  return { users, countries: countriesRaw, marks: marksRaw, trips, posts, blogs, metro, highlights: highlightsData, destinationReviews: destinationReviewsData }
+  return { users, countries: countriesRaw, marks: marksRaw, trips, posts, blogs, metro, highlights: highlightsData, destinationReviews: destinationReviewsData, geoCatalog }
 }
 
 // ─────────────────────────────────────────────────────────────
@@ -285,28 +392,46 @@ async function readDumpFromS3(prefix: string): Promise<DumpData> {
 // ─────────────────────────────────────────────────────────────
 
 async function readJsonFilesFromDir(dir: string): Promise<any[]> {
+  let files: string[]
   try {
-    const files = await fs.readdir(dir)
-    const items = await Promise.all(
-      files
-        .filter(f => f.endsWith('.json'))
-        .map(async (f) => {
-          const content = await fs.readFile(path.join(dir, f), 'utf-8')
-          return JSON.parse(content)
-        }),
-    )
-    return items.flat()
+    files = await fs.readdir(dir)
   }
-  catch {
-    return []
+  catch (error) {
+    if ((error as NodeJS.ErrnoException).code === 'ENOENT')
+      return []
+    throw error
   }
+
+  const items = await Promise.all(
+    files
+      .filter(f => f.endsWith('.json'))
+      .map(async (f) => {
+        const content = await fs.readFile(path.join(dir, f), 'utf-8')
+        return JSON.parse(content)
+      }),
+  )
+  return items.flat()
+}
+
+async function readOptionalJsonFileFromDir(filePath: string): Promise<any | undefined> {
+  let content: string
+  try {
+    content = await fs.readFile(filePath, 'utf-8')
+  }
+  catch (error) {
+    if ((error as NodeJS.ErrnoException).code === 'ENOENT')
+      return undefined
+    throw error
+  }
+
+  return JSON.parse(content)
 }
 
 async function readDumpFromFolder(folderPath: string): Promise<DumpData> {
   console.log('📂 Чтение папочного дампа...')
 
-  const [usersRaw, countriesRaw, marksRaw, trips, posts, blogs, metro, highlightsData, destinationReviewsData] = await Promise.all([
-    fs.readFile(path.join(folderPath, 'users', 'all.json'), 'utf-8').then(JSON.parse).catch(() => []),
+  const [usersRaw, countriesRaw, marksRaw, trips, posts, blogs, metro, highlightsData, destinationReviewsData, geoCatalog] = await Promise.all([
+    fs.readFile(path.join(folderPath, 'users', 'all.json'), 'utf-8').then(JSON.parse),
     readJsonFilesFromDir(path.join(folderPath, 'countries')),
     readJsonFilesFromDir(path.join(folderPath, 'marks')),
     readJsonFilesFromDir(path.join(folderPath, 'trips')),
@@ -315,13 +440,14 @@ async function readDumpFromFolder(folderPath: string): Promise<DumpData> {
     readJsonFilesFromDir(path.join(folderPath, 'metro')),
     readJsonFilesFromDir(path.join(folderPath, 'highlights')),
     readJsonFilesFromDir(path.join(folderPath, 'destination-reviews')),
+    readOptionalJsonFileFromDir(path.join(folderPath, 'geo', 'catalog.json')),
   ])
 
-  const users = Array.isArray(usersRaw) ? usersRaw : []
+  const users = usersRaw
 
   console.log(`   👤 users: ${users.length} | ✈️  trips: ${trips.length} | 📝 posts: ${posts.length} | 📰 blogs: ${blogs.length} | 🚇 metro: ${metro.length} | 📸 highlights: ${highlightsData.length} | ⭐ reviews: ${destinationReviewsData.length}`)
 
-  return { users, countries: countriesRaw, marks: marksRaw, trips, posts, blogs, metro, highlights: highlightsData, destinationReviews: destinationReviewsData }
+  return { users, countries: countriesRaw, marks: marksRaw, trips, posts, blogs, metro, highlights: highlightsData, destinationReviews: destinationReviewsData, geoCatalog }
 }
 
 async function discoverAndSelectLocalDump(): Promise<SelectedDump | null> {
@@ -384,7 +510,7 @@ async function restoreMetro(sourceMetro: any[]): Promise<void> {
     console.log(`   📂 В дампе: ${sourceMetro.length} систем`)
     for (const system of sourceMetro) {
       await db.insert(metroSystems)
-        .values({ id: system.id, city: system.city, country: system.country })
+        .values({ id: system.id, city: system.city, country: system.country, geoPlaceId: system.geoPlaceId ?? null })
         .onConflictDoNothing()
 
       if (!Array.isArray(system.lines))
@@ -421,7 +547,7 @@ async function restoreMetro(sourceMetro: any[]): Promise<void> {
     console.log('   ⚠️  В дампе нет данных метро. Используем MOCK_METRO_DATA...')
     for (const system of mockMetro) {
       const [insertedSystem] = await db.insert(metroSystems)
-        .values({ id: system.id, city: system.city, country: system.country })
+        .values({ id: system.id, city: system.city, country: system.country, geoPlaceId: system.geoPlaceId ?? null })
         .returning()
 
       for (const line of system.lines) {
@@ -469,6 +595,7 @@ async function restoreTrips(sourceTrips: any[]): Promise<void> {
       sections,
       participants,
       user: _user,
+      cityLinks: _cityLinks,
       ...tripDetails
     } = sourceTrips[i]
 
@@ -553,6 +680,68 @@ async function restoreTrips(sourceTrips: any[]): Promise<void> {
     safeInsert('tripImages', tripImages, imagesToInsert),
   ])
   await safeInsert('memories', memories, memoriesToInsert)
+}
+
+async function restoreGeoCatalog(geoCatalog: DumpData['geoCatalog']): Promise<void> {
+  if (!geoCatalog) {
+    console.log('\n🌍 В дампе нет geo/catalog.json — используется legacy-режим без geo refs')
+    return
+  }
+  if (geoCatalog.dumpFormatVersion !== 1 || geoCatalog.catalogMode !== 'referenced-places')
+    throw new Error('Неподдерживаемый формат geo/catalog.json; восстановление остановлено до импорта данных')
+
+  const versions = (geoCatalog.catalogVersions ?? []).map((version: any) => ({
+    ...version,
+    // This dump keeps app-referenced places, not the complete searchable world catalog.
+    // Search stays unavailable until the pinned full catalog is imported again.
+    state: 'loading' as const,
+    downloadedAt: toDate(version.downloadedAt) ?? new Date(),
+    publishedAt: toDate(version.publishedAt),
+    createdAt: toDate(version.createdAt) ?? new Date(),
+    updatedAt: toDate(version.updatedAt) ?? new Date(),
+  }))
+  const catalogCountries = (geoCatalog.catalogCountries ?? []).map((country: any) => ({
+    ...country,
+    createdAt: toDate(country.createdAt) ?? new Date(),
+    updatedAt: toDate(country.updatedAt) ?? new Date(),
+  }))
+  const places = (geoCatalog.places ?? []).map((place: any) => ({
+    ...place,
+    createdAt: toDate(place.createdAt) ?? new Date(),
+    updatedAt: toDate(place.updatedAt) ?? new Date(),
+  }))
+  const names = (geoCatalog.placeNames ?? []).map((name: any) => ({
+    ...name,
+    createdAt: toDate(name.createdAt) ?? new Date(),
+  }))
+  const weatherCache = (geoCatalog.weatherCache ?? []).map((entry: any) => ({
+    ...entry,
+    createdAt: toDate(entry.createdAt) ?? new Date(),
+    updatedAt: toDate(entry.updatedAt) ?? new Date(),
+  }))
+  const resolutionAudit = (geoCatalog.resolutionAudit ?? []).map((entry: any) => ({
+    ...entry,
+    createdAt: toDate(entry.createdAt) ?? new Date(),
+  }))
+
+  console.log(`\n🌍 Восстановление referenced geo entities: ${places.length} мест, ${names.length} названий`)
+  await insertGeoRows('geoCatalogVersions', geoCatalogVersions, versions)
+  await insertGeoRows('geoCatalogCountries', geoCatalogCountries, catalogCountries)
+  await insertGeoRows('geoPlaces', geoPlaces, places)
+  await insertGeoRows('geoPlaceNames', geoPlaceNames, names)
+  await insertGeoRows('geoWeatherCache', geoWeatherCache, weatherCache)
+  await insertGeoRows('geoResolutionAudit', geoResolutionAudit, resolutionAudit)
+}
+
+async function restoreTripGeoPlaces(rows: any[] | undefined): Promise<void> {
+  if (!rows?.length)
+    return
+  const normalized = rows.map((row: any) => ({
+    ...row,
+    createdAt: toDate(row.createdAt) ?? new Date(),
+    updatedAt: toDate(row.updatedAt) ?? new Date(),
+  }))
+  await insertGeoRows('tripGeoPlaces', tripGeoPlaces, normalized)
 }
 
 async function restorePosts(sourcePosts: any[]): Promise<void> {
@@ -747,6 +936,9 @@ async function seedFromJson(): Promise<void> {
     }
   }
 
+  if (!dumpData || typeof dumpData !== 'object' || Array.isArray(dumpData))
+    throw new Error('Неверный формат дампа: ожидается JSON-объект; база не очищалась.')
+
   const {
     users: sourceUsers,
     countries: sourceCountries,
@@ -757,12 +949,48 @@ async function seedFromJson(): Promise<void> {
     marks: sourceMarks,
     highlights: sourceHighlights,
     destinationReviews: sourceReviews,
+    geoCatalog: sourceGeoCatalog,
   } = dumpData
 
   if (!Array.isArray(sourceUsers)) {
-    console.error('❌ Неверный формат дампа: отсутствует поле `users`.')
-    process.exit(1)
+    throw new TypeError('Неверный формат дампа: `users` должен быть массивом; база не очищалась.')
   }
+
+  const requiredCollections: Array<[string, unknown]> = [
+    ['trips', sourceTrips],
+    ['posts', sourcePosts],
+    ['blogs', sourceBlogs],
+    ['metro', sourceMetro],
+  ]
+  const invalidRequiredCollection = requiredCollections.find(([, value]) => !Array.isArray(value))
+  if (invalidRequiredCollection)
+    throw new Error(`Неверный формат дампа: \`${invalidRequiredCollection[0]}\` должен быть массивом; база не очищалась.`)
+
+  const optionalCollections: Array<[string, unknown]> = [
+    ['countries', sourceCountries],
+    ['marks', sourceMarks],
+    ['highlights', sourceHighlights],
+    ['destinationReviews', sourceReviews],
+  ]
+  const invalidOptionalCollection = optionalCollections.find(([, value]) => value !== undefined && !Array.isArray(value))
+  if (invalidOptionalCollection)
+    throw new Error(`Неверный формат дампа: \`${invalidOptionalCollection[0]}\` должен быть массивом; база не очищалась.`)
+
+  if (dumpData.geoCatalog && (
+    dumpData.geoCatalog.dumpFormatVersion !== 1
+    || dumpData.geoCatalog.catalogMode !== 'referenced-places'
+    || !Array.isArray(dumpData.geoCatalog.catalogVersions)
+    || !Array.isArray(dumpData.geoCatalog.catalogCountries)
+    || !Array.isArray(dumpData.geoCatalog.places)
+    || !Array.isArray(dumpData.geoCatalog.placeNames)
+    || !Array.isArray(dumpData.geoCatalog.tripPlaces)
+    || !Array.isArray(dumpData.geoCatalog.weatherCache)
+    || !Array.isArray(dumpData.geoCatalog.resolutionAudit)
+  )) {
+    throw new Error('Неподдерживаемый или неполный `geo/catalog.json`; база не очищалась.')
+  }
+  if (dumpData.geoCatalog)
+    validateGeoDumpReferences(dumpData.geoCatalog, dumpData)
 
   const startTime = Date.now()
 
@@ -770,6 +998,13 @@ async function seedFromJson(): Promise<void> {
   console.log('\n🗑️  Очистка таблиц...')
   await db.delete(highlights)
   await db.delete(destinationReviews)
+  await db.delete(tripGeoPlaces)
+  await db.delete(geoWeatherCache)
+  await db.delete(geoResolutionAudit)
+  await db.delete(geoPlaceNames)
+  await db.delete(geoPlaces)
+  await db.delete(geoCatalogCountries)
+  await db.delete(geoCatalogVersions)
   await db.delete(countries)
   await db.delete(blogs)
   await db.delete(savedPosts)
@@ -872,6 +1107,8 @@ async function seedFromJson(): Promise<void> {
       : Promise.resolve(),
   ])
 
+  await restoreGeoCatalog(sourceGeoCatalog)
+
   // 4. Метро
   await restoreMetro(Array.isArray(sourceMetro) ? sourceMetro : [])
 
@@ -950,6 +1187,7 @@ async function seedFromJson(): Promise<void> {
   // 7. Путешествия
   if (Array.isArray(sourceTrips) && sourceTrips.length > 0)
     await restoreTrips(sourceTrips)
+  await restoreTripGeoPlaces(sourceGeoCatalog?.tripPlaces)
 
   // 8. Посты
   if (Array.isArray(sourcePosts) && sourcePosts.length > 0)

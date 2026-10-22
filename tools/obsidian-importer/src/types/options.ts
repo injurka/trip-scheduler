@@ -21,6 +21,7 @@ export interface CliOptions {
   geocode: boolean
   nonInteractive?: boolean
   tripId?: string
+  cityMappingPath?: string
   daysOverwrite?: boolean
   configPath?: string
   validate?: boolean

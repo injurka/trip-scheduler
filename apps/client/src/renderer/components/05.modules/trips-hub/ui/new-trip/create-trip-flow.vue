@@ -22,7 +22,7 @@ const isFormValid = computed(() => {
     :max-width="500"
   >
     <div class="create-trip-flow">
-      <StepBasicInfo v-model="tripsHub.newTripData.value" />
+      <StepBasicInfo :key="String(tripsHub.isCreateModalOpen.value)" v-model="tripsHub.newTripData.value" />
 
       <div class="flow-actions">
         <KitBtn
