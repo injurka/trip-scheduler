@@ -296,3 +296,33 @@ jobs:
           files: trip-scheduler-${{ github.ref_name }}-android.apk
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  # ─── JOB 6: Обновление Portainer Stack ─────────────────────
+  deploy-portainer:
+    name: Deploy to Portainer
+    runs-on: ubuntu-latest
+    needs:
+      - build-client
+      - build-server
+      - create-release
+      - build-tauri
+      - build-android
+
+    steps:
+      - name: Update Portainer Stack
+        env:
+          PORTAINER_WEBHOOK: ${{ secrets.PORTAINER_WEBHOOK }}
+        run: |
+          if [ -z "$PORTAINER_WEBHOOK" ]; then
+            echo "::error::PORTAINER_WEBHOOK is not configured"
+            exit 1
+          fi
+
+          curl --fail-with-body \
+               --silent \
+               --show-error \
+               --max-time 60 \
+               --request POST \
+               "$PORTAINER_WEBHOOK"
+
+          echo "Portainer webhook triggered successfully"
