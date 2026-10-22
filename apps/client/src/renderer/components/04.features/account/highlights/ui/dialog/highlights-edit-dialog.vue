@@ -53,11 +53,27 @@ const countryOptions = computed<CountryDropdownItem[]>(() =>
   })),
 )
 
-const selectedCityRef = ref<GeoPlaceRef | null>(null)
+const selectedCityRef = ref<GeoPlaceRef | null>(
+  props.form.geoPlaceId && props.form.city
+    ? {
+        id: props.form.geoPlaceId,
+        name: props.form.city,
+        countryId: props.form.countryId || null,
+        countryCode: '',
+        countryName: '',
+        regionName: null,
+        kind: 'settlement',
+        latitude: 0,
+        longitude: 0,
+        timezone: null,
+        retired: false,
+      }
+    : null,
+)
 let cityHydrationSequence = 0
 
 watch(() => props.form.countryId, (countryId) => {
-  if (selectedCityRef.value && selectedCityRef.value.countryId !== countryId) {
+  if (selectedCityRef.value && selectedCityRef.value.countryId && selectedCityRef.value.countryId !== countryId) {
     selectedCityRef.value = null
     props.form.geoPlaceId = null
     props.form.city = ''
@@ -66,20 +82,39 @@ watch(() => props.form.countryId, (countryId) => {
 
 watch(() => [props.visible, props.form.geoPlaceId] as const, async ([visible, geoPlaceId]) => {
   const sequence = ++cityHydrationSequence
-  if (!visible || !geoPlaceId || selectedCityRef.value?.id === geoPlaceId) {
-    if (!geoPlaceId)
-      selectedCityRef.value = null
+  if (!visible || !geoPlaceId) {
+    selectedCityRef.value = null
     return
   }
 
-  selectedCityRef.value = null
+  if (selectedCityRef.value?.id === geoPlaceId && selectedCityRef.value?.name) {
+    return
+  }
+
+  if (props.form.city) {
+    selectedCityRef.value = {
+      id: geoPlaceId,
+      name: props.form.city,
+      countryId: props.form.countryId || null,
+      countryCode: '',
+      countryName: '',
+      regionName: null,
+      kind: 'settlement',
+      latitude: 0,
+      longitude: 0,
+      timezone: null,
+      retired: false,
+    }
+  }
+
   const places = await useRequest({
     key: `highlight-edit:city:${geoPlaceId}`,
     fn: db => db.geo.getPlacesByIds([geoPlaceId]),
   })
   if (sequence !== cityHydrationSequence)
     return
-  selectedCityRef.value = places?.[0] ?? null
+  if (places?.[0])
+    selectedCityRef.value = places[0]
 }, { immediate: true })
 
 function selectCity(value: GeoPlaceRef | GeoPlaceRef[] | null) {

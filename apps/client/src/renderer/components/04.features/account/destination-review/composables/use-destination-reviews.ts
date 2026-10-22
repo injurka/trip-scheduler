@@ -1,4 +1,5 @@
 import type { Country, DestinationReview } from '~/shared/types/models/destination-review'
+import type { GeoPlaceRef } from '~/shared/types/models/geo-place'
 import { computed, reactive, ref, watch } from 'vue'
 import { useRequest, useRequestStatus } from '~/plugins/request'
 import { useConfirm } from '~/shared/composables/use-confirm'
@@ -52,6 +53,7 @@ interface ReviewFormState {
   countryId: string
   geoPlaceId: string | null
   city: string
+  geoPlaceRef: GeoPlaceRef | null
   coverUrl: string | null
   coverVariants: Record<string, string> | null
   latitude: number | string
@@ -67,6 +69,7 @@ function createEmptyForm(): ReviewFormState {
     countryId: '',
     geoPlaceId: null,
     city: '',
+    geoPlaceRef: null,
     coverUrl: null,
     coverVariants: null,
     latitude: '',
@@ -252,11 +255,29 @@ export function useDestinationReviews(userId: string) {
       }
     }
 
+    const cityName = (review as any).geoPlace?.nameRu || (review as any).geoPlace?.nameEn || review.city || ''
+    const initialCityRef: GeoPlaceRef | null = review.geoPlaceId
+      ? {
+          id: review.geoPlaceId,
+          name: cityName,
+          countryId: review.country?.id || null,
+          countryCode: review.country?.sourceCode || (review as any).geoPlace?.countryCode || '',
+          countryName: review.country?.name || '',
+          regionName: (review as any).geoPlace?.regionName || null,
+          kind: ((review as any).geoPlace?.kind as any) || 'settlement',
+          latitude: Number(review.latitude) || 0,
+          longitude: Number(review.longitude) || 0,
+          timezone: (review as any).geoPlace?.timezone || null,
+          retired: false,
+        }
+      : null
+
     Object.assign(editForm, {
       type: 'city',
       countryId: review.country?.id || '',
       geoPlaceId: review.geoPlaceId ?? null,
-      city: review.city || '',
+      city: cityName,
+      geoPlaceRef: initialCityRef,
       coverUrl: review.coverUrl || null,
       coverVariants: (review as any).coverVariants || null,
       latitude: review.latitude ?? '',

@@ -1,6 +1,8 @@
 <script setup lang="ts">
 import type { GeoPlaceKind, GeoPlaceRef, GeoPlaceSearchResult } from '~/shared/types/models/geo-place'
 import { Icon } from '@iconify/vue'
+import { onClickOutside, useElementBounding, useWindowSize } from '@vueuse/core'
+import { computed, nextTick, onBeforeUnmount, ref, watch } from 'vue'
 import { useRequest } from '~/plugins/request'
 
 type GeoPlaceSelection = GeoPlaceRef | GeoPlaceRef[] | null
@@ -15,6 +17,7 @@ interface Props {
   countryId?: string
   countryCode?: string
   disabled?: boolean
+  clearable?: boolean
   icon?: string
   size?: 'sm' | 'md' | 'lg'
 }
@@ -28,6 +31,7 @@ const props = withDefaults(defineProps<Props>(), {
   countryId: undefined,
   countryCode: undefined,
   disabled: false,
+  clearable: true,
   icon: undefined,
   size: 'md',
 })
@@ -47,6 +51,27 @@ const activeIndex = ref(-1)
 const requestSequence = ref(0)
 const requestKey = `geo-place-picker:${Math.random().toString(36).slice(2)}`
 let debounceTimer: ReturnType<typeof setTimeout> | undefined
+
+const openDirection = ref<'down' | 'up'>('down')
+const DROPDOWN_MIN_HEIGHT = 250
+const { height: windowHeight } = useWindowSize()
+const { bottom: wrapperBottom, top: wrapperTop } = useElementBounding(rootElement)
+
+watch(isOpen, (isNowOpen) => {
+  if (isNowOpen) {
+    nextTick(() => {
+      const spaceBelow = windowHeight.value - wrapperBottom.value
+      const spaceAbove = wrapperTop.value
+
+      if (spaceBelow < DROPDOWN_MIN_HEIGHT && spaceAbove > spaceBelow) {
+        openDirection.value = 'up'
+      }
+      else {
+        openDirection.value = 'down'
+      }
+    })
+  }
+})
 
 const selectedPlaces = computed((): GeoPlaceRef[] => {
   if (Array.isArray(props.modelValue))
@@ -108,6 +133,8 @@ async function searchPlaces(searchQuery: string, sequence: number) {
 }
 
 function onFocus() {
+  if (props.disabled || isOpen.value)
+    return
   isOpen.value = true
   if (!props.multiple && (selectedPlaces.value.length > 0 || props.fallbackLabel)) {
     query.value = ''
@@ -145,16 +172,17 @@ function removePlace(placeId: string) {
   inputElement.value?.focus()
 }
 
-function clearSingleSelection() {
+function clearSelection() {
   emitSelection([])
   query.value = ''
-  isOpen.value = true
+  results.value = []
+  isOpen.value = false
   inputElement.value?.focus()
 }
 
 function onKeydown(event: KeyboardEvent) {
   if (event.key === 'Escape') {
-    isOpen.value = false
+    handleClose()
     return
   }
 
@@ -178,13 +206,16 @@ function onKeydown(event: KeyboardEvent) {
   }
 }
 
-function onFocusout(event: FocusEvent) {
-  const nextTarget = event.relatedTarget
-  if (nextTarget instanceof Node && rootElement.value?.contains(nextTarget))
+function handleClose() {
+  if (!isOpen.value)
     return
-
   isOpen.value = false
+  query.value = ''
+  results.value = []
+  activeIndex.value = -1
 }
+
+onClickOutside(rootElement, handleClose)
 
 function placeContext(place: GeoPlaceRef) {
   return [place.regionName, place.countryName].filter(Boolean).join(' · ')
@@ -198,26 +229,33 @@ onBeforeUnmount(() => {
 </script>
 
 <template>
-  <div ref="rootElement" class="geo-place-picker" @focusout="onFocusout">
-    <label v-if="label" class="geo-place-picker__label">{{ label }}</label>
+  <div ref="rootElement" class="geo-place-picker" :class="{ 'is-disabled': disabled }">
+    <label v-if="label" class="geo-place-picker__label" @click="inputElement?.focus()">{{ label }}</label>
 
     <div
       class="geo-place-picker__control"
       :class="[
         `geo-place-picker__control--${size}`,
-        { 'is-open': isOpen, 'is-disabled': disabled, 'has-icon': !!icon },
+        {
+          'is-open': isOpen,
+          'is-disabled': disabled,
+          'has-icon': !!icon,
+          'has-clear': clearable && !disabled && (multiple ? selectedPlaces.length > 0 : (selectedPlaces.length > 0 || !!fallbackLabel)),
+          'is-multiple': multiple,
+        },
       ]"
+      @click="inputElement?.focus()"
     >
       <Icon v-if="icon" :icon="icon" class="geo-place-picker__icon" />
 
-      <div v-if="multiple" class="geo-place-picker__selected">
+      <div v-if="multiple && selectedPlaces.length > 0" class="geo-place-picker__chips">
         <span v-for="place in selectedPlaces" :key="place.id" class="geo-place-picker__chip">
-          {{ place.name }}
+          <span>{{ place.name }}</span>
           <button
             type="button"
             :aria-label="`Удалить ${place.name}`"
             :disabled="disabled"
-            @click="removePlace(place.id)"
+            @click.stop="removePlace(place.id)"
           >
             <Icon icon="mdi:close-circle" />
           </button>
@@ -227,109 +265,178 @@ onBeforeUnmount(() => {
       <input
         ref="inputElement"
         :value="displayValue"
-        :placeholder="placeholder"
+        :placeholder="selectedPlaces.length === 0 ? placeholder : ''"
         :disabled="disabled"
         role="combobox"
         aria-autocomplete="list"
         :aria-expanded="isOpen"
+        autocomplete="off"
+        class="geo-place-picker__input"
         @focus="onFocus"
         @input="onInput(($event.target as HTMLInputElement).value)"
         @keydown="onKeydown"
       >
 
       <button
-        v-if="!multiple && (selectedPlaces.length > 0 || fallbackLabel)"
+        v-if="clearable && !disabled && (multiple ? selectedPlaces.length > 0 : (selectedPlaces.length > 0 || !!fallbackLabel))"
         type="button"
         class="geo-place-picker__clear"
-        aria-label="Очистить выбранный город"
-        :disabled="disabled"
-        @click="clearSingleSelection"
+        aria-label="Очистить выбор"
+        @click.stop="clearSelection"
       >
         <Icon icon="mdi:close" />
       </button>
     </div>
 
-    <div v-if="isOpen" class="geo-place-picker__menu" role="listbox">
-      <div v-if="isLoading" class="geo-place-picker__message">
-        Поиск городов…
+    <Transition name="fade-dropdown">
+      <div
+        v-if="isOpen"
+        class="geo-place-picker__menu"
+        :class="{ 'is-open-up': openDirection === 'up' }"
+        role="listbox"
+      >
+        <div v-if="isLoading" class="geo-place-picker__state">
+          <Icon icon="mdi:loading" class="spin-icon" />
+          <span>Поиск городов…</span>
+        </div>
+        <div v-else-if="searchError" class="geo-place-picker__state is-error">
+          <Icon icon="mdi:alert-circle-outline" />
+          <span>Не удалось загрузить справочник</span>
+        </div>
+        <div v-else-if="query.trim().length < 2" class="geo-place-picker__state">
+          <Icon icon="mdi:magnify" class="state-icon" />
+          <span>Введите от 2 символов для поиска</span>
+        </div>
+        <div v-else-if="results.length === 0" class="geo-place-picker__state">
+          <span>Ничего не найдено</span>
+        </div>
+        <ul v-else class="geo-place-picker__list">
+          <li
+            v-for="(place, index) in results"
+            :key="place.id"
+            role="option"
+            :aria-selected="selectedPlaceIds.has(place.id)"
+            class="geo-place-picker__option"
+            :class="{
+              'is-active': activeIndex === index,
+              'is-selected': selectedPlaceIds.has(place.id),
+              'is-disabled': multiple && selectedPlaceIds.has(place.id),
+            }"
+            @mouseenter="activeIndex = index"
+            @mousedown.prevent="selectPlace(place)"
+          >
+            <div class="geo-place-picker__option-content">
+              <div class="geo-place-picker__option-main">
+                <span class="geo-place-picker__option-title">{{ place.matchedName }}</span>
+                <span v-if="place.name !== place.matchedName" class="geo-place-picker__option-alias">({{ place.name }})</span>
+              </div>
+              <small v-if="placeContext(place)" class="geo-place-picker__option-subtitle">{{ placeContext(place) }}</small>
+            </div>
+            <Icon v-if="selectedPlaceIds.has(place.id)" icon="mdi:check" class="geo-place-picker__check-icon" />
+          </li>
+        </ul>
       </div>
-      <div v-else-if="searchError" class="geo-place-picker__message is-error">
-        Не удалось загрузить справочник городов.
-      </div>
-      <div v-else-if="query.trim().length < 2" class="geo-place-picker__message">
-        Введите не менее двух символов.
-      </div>
-      <div v-else-if="results.length === 0" class="geo-place-picker__message">
-        Город не найден. Можно выбрать только вариант из справочника.
-      </div>
-      <template v-else>
-        <button
-          v-for="(place, index) in results"
-          :key="place.id"
-          type="button"
-          role="option"
-          :aria-selected="selectedPlaceIds.has(place.id)"
-          class="geo-place-picker__option"
-          :class="{ 'is-active': activeIndex === index, 'is-selected': selectedPlaceIds.has(place.id) }"
-          :disabled="selectedPlaceIds.has(place.id)"
-          @mouseenter="activeIndex = index"
-          @click="selectPlace(place)"
-        >
-          <span class="geo-place-picker__option-main">
-            <strong>{{ place.matchedName }}</strong>
-            <span v-if="place.name !== place.matchedName">{{ place.name }}</span>
-          </span>
-          <small>{{ placeContext(place) }}</small>
-        </button>
-      </template>
-    </div>
+    </Transition>
   </div>
 </template>
 
 <style lang="scss" scoped>
 .geo-place-picker {
   position: relative;
+  width: 100%;
   display: flex;
   flex-direction: column;
   gap: 6px;
-  width: 100%;
+
+  &.is-disabled {
+    opacity: 0.7;
+    cursor: not-allowed;
+  }
 }
 
 .geo-place-picker__label {
-  color: var(--fg-secondary-color);
   font-size: 0.875rem;
   font-weight: 500;
+  color: var(--fg-secondary-color);
+  cursor: pointer;
 }
 
 .geo-place-picker__control {
   position: relative;
   display: flex;
-  flex-wrap: wrap;
   align-items: center;
+  flex-wrap: wrap;
   gap: 6px;
-  min-height: 46px;
-  padding: 6px 12px;
-  background: var(--bg-secondary-color);
+  width: 100%;
+  background-color: var(--bg-secondary-color);
   border: 1px solid var(--border-secondary-color);
   border-radius: var(--r-s);
+  color: var(--fg-primary-color);
   transition: border-color 0.2s;
+  box-sizing: border-box;
+  cursor: text;
 
+  &.is-open,
+  &:focus-within {
+    border-color: var(--border-focus-color);
+  }
+
+  &.is-disabled {
+    cursor: not-allowed;
+    opacity: 0.7;
+  }
+
+  .geo-place-picker__icon {
+    position: absolute;
+    top: 50%;
+    transform: translateY(-50%);
+    color: var(--fg-tertiary-color);
+    pointer-events: none;
+    z-index: 1;
+  }
+
+  .geo-place-picker__input {
+    flex-grow: 1;
+    min-width: 80px;
+    color: var(--fg-primary-color);
+    background: transparent;
+    border: 0;
+    outline: 0;
+    font-family: inherit;
+    line-height: normal;
+    padding: 0;
+
+    &::placeholder {
+      color: var(--fg-tertiary-color);
+    }
+
+    &:disabled {
+      cursor: not-allowed;
+    }
+  }
+
+  /* SIZES matching KitInput & KitSelectWithSearch exactly */
   &--sm {
     min-height: 38px;
     padding: 4px 10px;
+    font-size: 0.875rem;
 
     &.has-icon {
-      padding-left: 36px;
+      padding-left: 40px;
+    }
+
+    &.has-clear {
+      padding-right: 36px;
     }
 
     .geo-place-picker__icon {
-      left: 10px;
-      font-size: 1.125rem;
+      left: 12px;
+      font-size: 1.25rem;
     }
 
-    input {
+    .geo-place-picker__input {
       font-size: 0.875rem;
-      padding: 4px 0;
+      min-height: 28px;
     }
 
     .geo-place-picker__chip {
@@ -341,9 +448,14 @@ onBeforeUnmount(() => {
   &--md {
     min-height: 46px;
     padding: 6px 12px;
+    font-size: 1rem;
 
     &.has-icon {
       padding-left: 40px;
+    }
+
+    &.has-clear {
+      padding-right: 40px;
     }
 
     .geo-place-picker__icon {
@@ -351,18 +463,28 @@ onBeforeUnmount(() => {
       font-size: 1.25rem;
     }
 
-    input {
+    .geo-place-picker__input {
       font-size: 1rem;
-      padding: 4px 0;
+      min-height: 32px;
+    }
+
+    .geo-place-picker__chip {
+      padding: 4px 8px;
+      font-size: 0.875rem;
     }
   }
 
   &--lg {
     min-height: 54px;
     padding: 8px 14px;
+    font-size: 1.125rem;
 
     &.has-icon {
       padding-left: 44px;
+    }
+
+    &.has-clear {
+      padding-right: 44px;
     }
 
     .geo-place-picker__icon {
@@ -370,145 +492,235 @@ onBeforeUnmount(() => {
       font-size: 1.375rem;
     }
 
-    input {
+    .geo-place-picker__input {
       font-size: 1.125rem;
-      padding: 4px 0;
+      min-height: 36px;
+    }
+
+    .geo-place-picker__chip {
+      padding: 6px 10px;
+      font-size: 1rem;
     }
   }
 
-  &.is-open,
-  &:focus-within {
-    border-color: var(--border-focus-color);
-  }
-
-  &.is-disabled {
-    opacity: 0.7;
-  }
-
-  input {
-    flex: 1 1 120px;
-    min-width: 80px;
-    color: var(--fg-primary-color);
-    background: transparent;
-    border: 0;
-    outline: 0;
-    font: inherit;
-    font-size: 1rem;
-    line-height: 1.25;
+  &.is-multiple {
+    padding-top: 4px;
+    padding-bottom: 4px;
   }
 }
 
-.geo-place-picker__icon {
+.geo-place-picker__clear {
   position: absolute;
-  left: 12px;
+  right: 10px;
   top: 50%;
   transform: translateY(-50%);
+  background: none;
+  border: none;
+  cursor: pointer;
   color: var(--fg-tertiary-color);
-  pointer-events: none;
-  z-index: 1;
+  padding: 4px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  z-index: 3;
+  font-size: 1rem;
+  transition: all 0.2s;
+
+  &:hover {
+    color: var(--fg-primary-color);
+    background-color: var(--bg-hover-color);
+  }
 }
 
-.geo-place-picker__selected {
-  display: contents;
+.geo-place-picker__chips {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
 }
 
 .geo-place-picker__chip {
   display: inline-flex;
   align-items: center;
-  gap: 4px;
-  padding: 4px 7px 4px 10px;
-  border-radius: 999px;
-  color: var(--fg-primary-color);
-  background: var(--bg-primary-color);
-  font-size: 0.9rem;
+  gap: 6px;
+  background-color: var(--bg-accent-color);
+  color: var(--fg-on-accent-color);
+  border-radius: var(--r-s);
+  font-weight: 500;
 
-  button,
-  .geo-place-picker__clear {
+  button {
     display: inline-flex;
     align-items: center;
     justify-content: center;
     padding: 0;
-    color: var(--fg-secondary-color);
+    color: var(--fg-on-accent-color);
     background: transparent;
     border: 0;
     cursor: pointer;
     font-size: 1rem;
+    opacity: 0.7;
+    transition: opacity 0.2s;
+
+    &:hover {
+      opacity: 1;
+    }
   }
 }
 
-.geo-place-picker__clear {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  padding: 4px;
-  color: var(--fg-secondary-color);
-  background: transparent;
-  border: 0;
-  cursor: pointer;
-}
-
+/* DROPDOWN PANEL matching KitSelectWithSearch exactly */
 .geo-place-picker__menu {
   position: absolute;
-  z-index: 30;
+  width: 100%;
+  max-height: 250px;
+  overflow-y: auto;
+  background-color: var(--bg-secondary-color);
+  border: 1px solid var(--border-primary-color);
+  border-radius: var(--r-m);
+  z-index: 100;
+  box-shadow: var(--s-l);
   top: calc(100% + 4px);
-  left: 0;
-  right: 0;
-  max-height: 280px;
-  overflow: auto;
-  padding: 5px;
-  background: var(--bg-primary-color);
-  border: 1px solid var(--border-secondary-color);
-  border-radius: var(--r-s);
-  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.16);
+  padding: 6px;
+  box-sizing: border-box;
+
+  &.is-open-up {
+    top: auto;
+    bottom: calc(100% + 4px);
+  }
+}
+
+.geo-place-picker__list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
 }
 
 .geo-place-picker__option {
   display: flex;
-  flex-direction: column;
-  width: 100%;
-  gap: 2px;
-  padding: 9px 10px;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 8px 12px;
+  border-radius: var(--r-s);
+  cursor: pointer;
+  transition: background-color 0.2s;
   color: var(--fg-primary-color);
   text-align: left;
   background: transparent;
   border: 0;
-  border-radius: calc(var(--r-s) / 2);
-  cursor: pointer;
+  width: 100%;
+  box-sizing: border-box;
 
   &:hover,
   &.is-active {
-    background: var(--bg-secondary-color);
+    background-color: var(--bg-hover-color);
   }
 
   &.is-selected {
-    opacity: 0.55;
-    cursor: default;
+    background-color: var(--bg-accent-overlay-color);
+    color: var(--fg-accent-color);
+    font-weight: 500;
   }
 
-  small {
-    color: var(--fg-tertiary-color);
-    font-size: 0.75rem;
+  &.is-disabled {
+    cursor: default;
+    opacity: 0.7;
+    background-color: transparent;
   }
+}
+
+.geo-place-picker__option-content {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+  flex-grow: 1;
 }
 
 .geo-place-picker__option-main {
   display: flex;
   align-items: baseline;
   gap: 6px;
-
-  span {
-    color: var(--fg-secondary-color);
-    font-size: 0.82rem;
-  }
+  min-width: 0;
 }
 
-.geo-place-picker__message {
-  padding: 11px 10px;
+.geo-place-picker__option-title {
+  font-size: 0.95rem;
+  font-weight: 500;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.geo-place-picker__option-alias {
+  font-size: 0.85rem;
+  color: var(--fg-secondary-color);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.geo-place-picker__option-subtitle {
+  font-size: 0.75rem;
+  color: var(--fg-tertiary-color);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.geo-place-picker__check-icon {
+  margin-left: auto;
+  font-size: 1.1rem;
+  color: var(--fg-accent-color);
+  flex-shrink: 0;
+}
+
+.geo-place-picker__state {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 16px 12px;
+  text-align: center;
   color: var(--fg-secondary-color);
   font-size: 0.875rem;
 
   &.is-error {
     color: var(--fg-error-color);
   }
+
+  .state-icon {
+    font-size: 1.1rem;
+    opacity: 0.7;
+  }
+
+  .spin-icon {
+    font-size: 1.1rem;
+    animation: spin 1s linear infinite;
+  }
+}
+
+@keyframes spin {
+  100% {
+    transform: rotate(360deg);
+  }
+}
+
+.fade-dropdown-enter-active,
+.fade-dropdown-leave-active {
+  transition:
+    opacity 0.2s ease,
+    transform 0.2s ease;
+}
+
+.fade-dropdown-enter-from,
+.fade-dropdown-leave-to {
+  opacity: 0;
+  transform: translateY(-5px);
+}
+
+.is-open-up.fade-dropdown-enter-from,
+.is-open-up.fade-dropdown-leave-to {
+  transform: translateY(5px);
 }
 </style>

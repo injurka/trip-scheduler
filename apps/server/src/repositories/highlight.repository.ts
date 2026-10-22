@@ -39,6 +39,7 @@ export const highlightRepository = {
         where: and(...conditions),
         with: {
           country: true,
+          geoPlace: true,
         },
         orderBy: [desc(highlights.createdAt)],
         limit,
@@ -85,6 +86,7 @@ export const highlightRepository = {
         where: eq(highlights.id, newHighlight.id),
         with: {
           country: true,
+          geoPlace: true,
         },
       })
     })
@@ -102,7 +104,10 @@ export const highlightRepository = {
 
       return db.query.highlights.findFirst({
         where: eq(highlights.id, updated.id),
-        with: { country: true },
+        with: {
+          country: true,
+          geoPlace: true,
+        },
       })
     })
   },

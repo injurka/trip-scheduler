@@ -42,8 +42,13 @@ const fileModel = computed({
 })
 
 const step = ref(1)
-const selectedCityRef = ref<GeoPlaceRef | null>(null)
+const selectedCityRef = ref<GeoPlaceRef | null>(props.form.geoPlaceRef || null)
 let cityHydrationSequence = 0
+
+watch(() => props.form.geoPlaceRef, (newRef) => {
+  if (newRef)
+    selectedCityRef.value = newRef
+}, { immediate: true })
 
 watch(visibleModel, (val) => {
   if (val) {
@@ -58,29 +63,53 @@ const countryOptions = computed(() => props.countries.map(c => ({
 })))
 
 watch(() => props.form.countryId, (countryId) => {
-  if (selectedCityRef.value && selectedCityRef.value.countryId !== countryId) {
+  if (selectedCityRef.value && selectedCityRef.value.countryId && selectedCityRef.value.countryId !== countryId) {
     selectedCityRef.value = null
     props.form.geoPlaceId = null
     props.form.city = ''
+    props.form.geoPlaceRef = null
   }
 })
 
 watch(() => [props.visible, props.form.geoPlaceId] as const, async ([isVisible, geoPlaceId]) => {
   const sequence = ++cityHydrationSequence
-  if (!isVisible || !geoPlaceId || selectedCityRef.value?.id === geoPlaceId) {
-    if (!geoPlaceId)
-      selectedCityRef.value = null
+  if (!isVisible || !geoPlaceId) {
+    selectedCityRef.value = null
     return
   }
 
-  selectedCityRef.value = null
+  // Если уже выбран тот же город и у него есть имя, ничего не сбрасываем
+  if (selectedCityRef.value?.id === geoPlaceId && selectedCityRef.value?.name) {
+    return
+  }
+
+  // Если в форме уже есть сохраненное название города, мгновенно инициализируем без мигания
+  if (props.form.city) {
+    selectedCityRef.value = {
+      id: geoPlaceId,
+      name: props.form.city,
+      countryId: props.form.countryId || null,
+      countryCode: '',
+      countryName: '',
+      regionName: null,
+      kind: 'settlement',
+      latitude: Number(props.form.latitude) || 0,
+      longitude: Number(props.form.longitude) || 0,
+      timezone: null,
+      retired: false,
+    }
+  }
+
   const places = await useRequest({
     key: `destination-review-edit:city:${geoPlaceId}`,
     fn: db => db.geo.getPlacesByIds([geoPlaceId]),
   })
   if (sequence !== cityHydrationSequence)
     return
-  selectedCityRef.value = places?.[0] ?? null
+  if (places?.[0]) {
+    selectedCityRef.value = places[0]
+    props.form.geoPlaceRef = places[0]
+  }
 }, { immediate: true })
 
 function selectCity(value: GeoPlaceRef | GeoPlaceRef[] | null) {
@@ -88,6 +117,7 @@ function selectCity(value: GeoPlaceRef | GeoPlaceRef[] | null) {
   selectedCityRef.value = place
   props.form.geoPlaceId = place?.id ?? null
   props.form.city = place?.name ?? ''
+  props.form.geoPlaceRef = place
   if (place?.countryId)
     props.form.countryId = place.countryId
 }

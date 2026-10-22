@@ -56,7 +56,10 @@ export const destinationReviewRepository = {
 
       const items = await db.query.destinationReviews.findMany({
         where: and(...conditions),
-        with: { country: true },
+        with: {
+          country: true,
+          geoPlace: true,
+        },
         orderBy: [orderDirection, desc(destinationReviews.createdAt)],
         limit,
         offset,
@@ -106,7 +109,10 @@ export const destinationReviewRepository = {
 
       return await db.query.destinationReviews.findFirst({
         where: eq(destinationReviews.id, newReview.id),
-        with: { country: true },
+        with: {
+          country: true,
+          geoPlace: true,
+        },
       })
     })
   },
@@ -123,7 +129,10 @@ export const destinationReviewRepository = {
 
       return await db.query.destinationReviews.findFirst({
         where: eq(destinationReviews.id, updated.id),
-        with: { country: true },
+        with: {
+          country: true,
+          geoPlace: true,
+        },
       })
     })
   },

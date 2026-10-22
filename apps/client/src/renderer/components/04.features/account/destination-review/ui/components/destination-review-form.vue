@@ -226,6 +226,7 @@ function getSliderColor(value: number) {
 
         <GeoPlacePicker
           :model-value="selectedCityRef"
+          :fallback-label="form.geoPlaceId ? form.city : ''"
           :country-id="form.countryId"
           label="Город"
           placeholder="Выберите город из справочника"

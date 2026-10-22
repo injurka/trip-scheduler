@@ -102,7 +102,9 @@ function onFilterCitySelected(value: GeoPlaceRef | GeoPlaceRef[] | null) {
   const place = Array.isArray(value) ? value[0] ?? null : value
   selectedCityRef.value = place
   selectedCityId.value = place?.id ?? null
-  selectedCountry.value = place?.countryId ?? null
+  if (place?.countryId) {
+    selectedCountry.value = place.countryId
+  }
 }
 
 // Опции сортировки динамически адаптируются под выбранные метрики
@@ -182,6 +184,7 @@ onMounted(() => {
         <div class="city-filter">
           <GeoPlacePicker
             :model-value="selectedCityRef"
+            :country-id="selectedCountry || undefined"
             placeholder="Все города"
             size="sm"
             icon="mdi:city-variant-outline"
