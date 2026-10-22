@@ -137,6 +137,8 @@ const tripData = computed<Trip>(() => ({
   startDate: props.startDate,
   endDate: props.endDate,
   cities: props.cities,
+  cityRefs: props.cityRefs,
+  unresolvedCities: props.unresolvedCities,
   status: props.status,
   budget: props.budget,
   currency: props.currency,

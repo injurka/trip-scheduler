@@ -109,7 +109,7 @@ export const geoRepository = {
         longitude: geoPlaces.longitude,
         timezone: geoPlaces.timezone,
         retired: geoPlaces.retired,
-        matchedName: geoPlaceNames.name,
+        matchedName: sql<string>`${geoPlaceNames.name}`.as('matched_name'),
         matchRank: sql<number>`CASE WHEN ${geoPlaceNames.normalizedName} = ${query} THEN 0 ELSE 1 END`.as('match_rank'),
         languageRank: sql<number>`CASE WHEN ${geoPlaceNames.language} = ${input.locale} THEN 0 ELSE 1 END`.as('language_rank'),
         isPreferred: geoPlaceNames.isPreferred,
