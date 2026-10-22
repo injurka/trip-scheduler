@@ -228,10 +228,11 @@ export const geoRepository = {
       if (input.regionName)
         conditions.push(eq(geoPlaces.regionName, input.regionName))
 
+      const languageRank = sql<number>`CASE WHEN ${geoPlaceNames.language} = 'ru' THEN 0 WHEN ${geoPlaceNames.language} = '' THEN 1 ELSE 2 END`
       const rows = await db.select({
         placeId: geoPlaces.id,
         matchedName: geoPlaceNames.name,
-        languageRank: sql<number>`CASE WHEN ${geoPlaceNames.language} = 'ru' THEN 0 WHEN ${geoPlaceNames.language} = '' THEN 1 ELSE 2 END`,
+        languageRank,
         population: geoPlaces.population,
         countryCode: geoPlaces.countryCode,
       })
@@ -239,7 +240,7 @@ export const geoRepository = {
         .innerJoin(geoCatalogCountries, eq(geoPlaces.countryCode, geoCatalogCountries.code))
         .innerJoin(geoPlaceNames, eq(geoPlaceNames.placeId, geoPlaces.id))
         .where(and(...conditions))
-        .orderBy(asc(sql`language_rank`), desc(geoPlaces.population), asc(geoPlaces.countryCode), asc(geoPlaces.id))
+        .orderBy(asc(languageRank), desc(geoPlaces.population), asc(geoPlaces.countryCode), asc(geoPlaces.id))
         .limit(50)
 
       const matchingRows = new Map<string, typeof rows[number]>()
