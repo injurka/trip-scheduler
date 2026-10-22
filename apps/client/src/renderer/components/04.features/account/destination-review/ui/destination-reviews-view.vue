@@ -30,7 +30,6 @@ const {
   limit,
   countries,
   selectedCountry,
-  selectedCity,
   selectedCityId,
   sortBy,
   sortOrder,
@@ -103,7 +102,6 @@ function onFilterCitySelected(value: GeoPlaceRef | GeoPlaceRef[] | null) {
   const place = Array.isArray(value) ? value[0] ?? null : value
   selectedCityRef.value = place
   selectedCityId.value = place?.id ?? null
-  selectedCity.value = null
   selectedCountry.value = place?.countryId ?? null
 }
 
@@ -138,7 +136,6 @@ const showMetricsSetup = ref(false)
 
 function clearFilters() {
   selectedCountry.value = null
-  selectedCity.value = null
   selectedCityId.value = null
   selectedCityRef.value = null
   sortBy.value = 'createdAt'
@@ -191,13 +188,6 @@ onMounted(() => {
             @update:model-value="onFilterCitySelected"
           />
         </div>
-      </div>
-
-      <div v-if="selectedCity" class="legacy-city-filter">
-        Старый фильтр по названию: {{ selectedCity }}
-        <button type="button" @click="selectedCity = null">
-          Сбросить
-        </button>
       </div>
 
       <div class="filters-spacer" />
@@ -300,7 +290,7 @@ onMounted(() => {
       </template>
 
       <template #empty>
-        <div v-if="!selectedCountry && !selectedCity && !selectedCityId && activePreset === 'all'" class="empty-state">
+        <div v-if="!selectedCountry && !selectedCityId && activePreset === 'all'" class="empty-state">
           <Icon icon="mdi:map-search-outline" />
           <p>Пока нет добавленных впечатлений.</p>
         </div>

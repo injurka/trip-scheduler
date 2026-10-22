@@ -596,6 +596,8 @@ async function restoreTrips(sourceTrips: any[]): Promise<void> {
       participants,
       user: _user,
       cityLinks: _cityLinks,
+      cities: _cities,
+      weatherData: _weatherData,
       ...tripDetails
     } = sourceTrips[i]
 
@@ -736,11 +738,13 @@ async function restoreGeoCatalog(geoCatalog: DumpData['geoCatalog']): Promise<vo
 async function restoreTripGeoPlaces(rows: any[] | undefined): Promise<void> {
   if (!rows?.length)
     return
-  const normalized = rows.map((row: any) => ({
-    ...row,
-    createdAt: toDate(row.createdAt) ?? new Date(),
-    updatedAt: toDate(row.updatedAt) ?? new Date(),
-  }))
+  const normalized = rows
+    .filter((row: any) => Boolean(row.placeId))
+    .map(({ legacyLabel: _legacyLabel, status: _status, ...row }: any) => ({
+      ...row,
+      createdAt: toDate(row.createdAt) ?? new Date(),
+      updatedAt: toDate(row.updatedAt) ?? new Date(),
+    }))
   await insertGeoRows('tripGeoPlaces', tripGeoPlaces, normalized)
 }
 

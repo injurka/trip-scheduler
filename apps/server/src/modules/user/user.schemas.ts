@@ -75,7 +75,6 @@ export const GetUserHighlightsInputSchema = z.object({
   userId: z.string().uuid(),
   limit: z.number().min(1).max(100).default(30),
   page: z.number().min(1).default(1),
-  cities: z.array(z.string()).optional(),
   cityIds: z.array(z.string().uuid()).max(100).optional(),
   startDate: z.string().optional(),
   endDate: z.string().optional(),
@@ -84,8 +83,8 @@ export const GetUserHighlightsInputSchema = z.object({
 export const CreateHighlightInputSchema = z.object({
   imageUrl: z.string(),
   countryId: z.string().min(2),
-  geoPlaceId: z.string().uuid().nullable().optional(),
-  city: z.string().min(1),
+  geoPlaceId: z.string().uuid(),
+  city: z.string().optional(),
   address: z.string().optional().nullable(),
   comment: z.string().optional().nullable(),
   latitude: z.number().optional().nullable(),

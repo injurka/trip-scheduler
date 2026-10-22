@@ -48,7 +48,7 @@ const fieldsToCompare: (keyof UpdateTripInput)[] = [
   'tags',
   'imageUrl',
   'visibility',
-  'weatherData',
+  'weatherByPlaceId',
 ]
 
 const statusOptions = [
@@ -234,7 +234,6 @@ watch(() => props.visible, (isVisible) => {
       tags: props.trip.tags?.map(t => t.toLowerCase()) ?? [],
       imageUrl: props.trip.imageUrl,
       visibility: props.trip.visibility,
-      weatherData: props.trip.weatherData ? { ...props.trip.weatherData } : {},
       weatherByPlaceId: props.trip.weatherByPlaceId ? { ...props.trip.weatherByPlaceId } : {},
     }
     selectedCityRefs.value = [...(props.trip.cityRefs ?? [])].sort((a, b) => a.position - b.position)
@@ -269,8 +268,7 @@ async function handleGenerateWeatherInDialog() {
         forceRefresh: false,
       }),
     })
-    if (res?.weatherData) {
-      editableTrip.value.weatherData = res.weatherData
+    if (res?.weatherByPlaceId) {
       editableTrip.value.weatherByPlaceId = res.weatherByPlaceId
       useToast().success('Климатический контекст подготовлен!')
     }

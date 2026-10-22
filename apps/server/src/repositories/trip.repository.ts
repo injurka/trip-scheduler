@@ -91,23 +91,21 @@ function mapTripParticipants<T extends { participants: Array<{ user: any }> }>(t
   }
 }
 
-async function hydrateTripCities<T extends { id: string, cities: string[] }>(items: T[]) {
-  const itemsWithoutCityNames = items.map(({ cities: _cityNames, ...trip }) => trip)
+async function hydrateTripCities<T extends { id: string }>(items: T[]) {
   if (!items.length)
-    return itemsWithoutCityNames.map(trip => ({ ...trip, cityRefs: [] as TripCityRef[] }))
+    return items.map(trip => ({ ...trip, cityRefs: [] as TripCityRef[] }))
 
-  const tripIds = itemsWithoutCityNames.map(trip => trip.id)
+  const tripIds = items.map(trip => trip.id)
   const links = await db.select({
     tripId: tripGeoPlaces.tripId,
     position: tripGeoPlaces.position,
     placeId: tripGeoPlaces.placeId,
-    status: tripGeoPlaces.status,
   })
     .from(tripGeoPlaces)
     .where(inArray(tripGeoPlaces.tripId, tripIds))
     .orderBy(asc(tripGeoPlaces.tripId), asc(tripGeoPlaces.position))
 
-  const placeIds = [...new Set(links.flatMap(link => link.placeId ? [link.placeId] : []))]
+  const placeIds = [...new Set(links.map(link => link.placeId))]
   const places = await geoRepository.getByIds({ ids: placeIds, locale: 'ru' })
   const placesById = new Map<string, Omit<GeoPlaceRef, 'id'> & { id: string }>(places.map(place => [place.id, place]))
   const linksByTripId = new Map<string, typeof links>()
@@ -117,13 +115,13 @@ async function hydrateTripCities<T extends { id: string, cities: string[] }>(ite
     linksByTripId.set(link.tripId, tripLinks)
   }
 
-  return itemsWithoutCityNames.map((trip) => {
+  return items.map((trip) => {
     const tripLinks = linksByTripId.get(trip.id) ?? []
     const cityRefs: TripCityRef[] = []
 
     for (const link of tripLinks) {
-      const place = link.placeId ? placesById.get(link.placeId) : undefined
-      if (link.status !== 'resolved' || !place)
+      const place = placesById.get(link.placeId)
+      if (!place)
         continue
 
       cityRefs.push({ ...place, position: link.position })
@@ -382,7 +380,6 @@ export const tripRepository = {
   async update(
     id: string,
     details: z.infer<typeof UpdateTripInputSchema>['details'],
-    selectedPlaces?: GeoPlaceRef[],
   ) {
     return measureDbQuery('trips', 'update', async () => {
       const { startDate, endDate, participantIds, cityIds, ...restDetails } = details
@@ -409,20 +406,12 @@ export const tripRepository = {
         if (cityIds !== undefined) {
           await tx.delete(tripGeoPlaces).where(eq(tripGeoPlaces.tripId, id))
 
-          if (cityIds !== undefined && cityIds.length > 0) {
+          if (cityIds.length > 0) {
             await tx.insert(tripGeoPlaces).values(cityIds.map((placeId, position) => ({
               tripId: id,
               position,
               placeId,
-              legacyLabel: null,
-              status: 'resolved' as const,
             })))
-            await tx.update(trips)
-              .set({ cities: cityIds.map(placeId => selectedPlaces?.find(place => place.id === placeId)?.name ?? '') })
-              .where(eq(trips.id, id))
-          }
-          else if (cityIds !== undefined) {
-            await tx.update(trips).set({ cities: [] }).where(eq(trips.id, id))
           }
         }
 
@@ -471,14 +460,12 @@ export const tripRepository = {
   async updateWeatherPayload(
     id: string,
     payload: {
-      weatherData: Record<string, unknown>
       weatherByPlaceId: Record<string, unknown>
     },
   ) {
     return measureDbQuery('trips', 'update', async () => {
       await db.update(trips)
         .set({
-          weatherData: payload.weatherData as any,
           weatherByPlaceId: payload.weatherByPlaceId as any,
           updatedAt: new Date(),
         })
@@ -514,7 +501,6 @@ export const tripRepository = {
           .values({
             id: uuidv4(),
             ...restData,
-            cities: selectedPlaces.map(place => place.name),
             userId,
             startDate: newStartDate,
             endDate: newEndDate,
@@ -531,8 +517,6 @@ export const tripRepository = {
             tripId: createdTrip.id,
             position,
             placeId: place.id,
-            legacyLabel: null,
-            status: 'resolved' as const,
           })))
         }
 

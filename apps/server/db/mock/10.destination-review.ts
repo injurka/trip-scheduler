@@ -1,4 +1,5 @@
 import { v4 as uuidv4 } from 'uuid'
+import { geoNamesPlaceId } from '~/modules/geo/geo-id'
 import { MOCK_USER_ID_1 } from './00.users'
 
 const now = Date.now()
@@ -9,6 +10,7 @@ export const MOCK_DESTINATION_REVIEWS_DATA = [
     userId: MOCK_USER_ID_1,
     type: 'city',
     countryId: '4edb4270-8701-4f49-b6fc-684da36c83eb', // Италия
+    geoPlaceId: geoNamesPlaceId('3169070'),
     city: 'Рим',
     coverUrl: 'https://images.unsplash.com/photo-1552832230-c0197dd311b5?q=80&w=1200&auto=format&fit=crop',
     latitude: 41.9028,
@@ -39,6 +41,7 @@ export const MOCK_DESTINATION_REVIEWS_DATA = [
     userId: MOCK_USER_ID_1,
     type: 'city',
     countryId: 'e30c61ad-ea40-423a-a8a2-4f39ac5a89d8', // Япония
+    geoPlaceId: geoNamesPlaceId('1857910'),
     city: 'Киото',
     coverUrl: 'https://images.unsplash.com/photo-1493976040374-85c8e12f0c0e?q=80&w=1200&auto=format&fit=crop',
     latitude: 35.0116,
@@ -69,6 +72,7 @@ export const MOCK_DESTINATION_REVIEWS_DATA = [
     userId: MOCK_USER_ID_1,
     type: 'city',
     countryId: 'fe6ce9a6-d827-4b23-9920-f0cfbd335a61', // Франция
+    geoPlaceId: geoNamesPlaceId('2988507'),
     city: 'Париж',
     coverUrl: 'https://images.unsplash.com/photo-1502602898657-3e907600bb8e?q=80&w=1200&auto=format&fit=crop',
     latitude: 48.8566,
@@ -99,6 +103,7 @@ export const MOCK_DESTINATION_REVIEWS_DATA = [
     userId: MOCK_USER_ID_1,
     type: 'city',
     countryId: 'e9be1cb9-0864-4adf-abba-9d119013b053', // Испания
+    geoPlaceId: geoNamesPlaceId('3128760'),
     city: 'Барселона',
     coverUrl: 'https://images.unsplash.com/photo-1583422409516-2895a77ef244?q=80&w=1200&auto=format&fit=crop',
     latitude: 41.3851,
@@ -129,6 +134,7 @@ export const MOCK_DESTINATION_REVIEWS_DATA = [
     userId: MOCK_USER_ID_1,
     type: 'city',
     countryId: 'c7f89013-2e19-4501-bdef-94167dc0d760', // США
+    geoPlaceId: geoNamesPlaceId('5128581'),
     city: 'Нью-Йорк',
     coverUrl: 'https://images.unsplash.com/photo-1496442226666-8d4d0e62e6e9?q=80&w=1200&auto=format&fit=crop',
     latitude: 40.7128,

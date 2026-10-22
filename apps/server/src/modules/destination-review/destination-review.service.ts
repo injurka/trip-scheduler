@@ -5,31 +5,18 @@ import { createTRPCError } from '~/lib/trpc'
 import { destinationReviewRepository } from '~/repositories/destination-review.repository'
 import { geoRepository } from '~/repositories/geo.repository'
 
-async function canonicalizeSelectedCity<T extends { countryId?: string, geoPlaceId?: string | null, city?: string | null, type?: 'city' | 'country' }>(data: T): Promise<T> {
-  if (data.type === 'country' || (!data.geoPlaceId && !data.city?.trim()))
+async function canonicalizeSelectedCity<T extends { countryId?: string, geoPlaceId?: string | null, city?: string | null, type?: 'city' | 'country' }>(
+  data: T,
+  existingPlaceId?: string | null,
+): Promise<T> {
+  if (data.type === 'country')
+    return { ...data, geoPlaceId: null, city: null }
+  if (!data.geoPlaceId)
     return data
 
-  let placeId = data.geoPlaceId
-  if (!placeId && data.city?.trim()) {
-    const resolution = await geoRepository.resolveExact({
-      label: data.city,
-      countryId: data.countryId,
-      kinds: ['settlement'],
-    })
-    if (resolution.status !== 'resolved' || !resolution.place) {
-      const message = resolution.status === 'needs_review'
-        ? 'Название совпадает с несколькими городами. Выберите точный город из справочника.'
-        : 'Город не найден в выбранной стране. Выберите город из справочника.'
-      throw createTRPCError('BAD_REQUEST', message)
-    }
-    placeId = resolution.place.id
-  }
-  if (!placeId)
-    return data
-
-  const [place] = await geoRepository.getByIds({ ids: [placeId], locale: 'ru' })
-  const [selectableId] = await geoRepository.getSelectableIds([placeId])
-  if (!place || !selectableId || place.kind !== 'settlement' || (data.countryId && place.countryId !== data.countryId)) {
+  const [place] = await geoRepository.getByIds({ ids: [data.geoPlaceId], locale: 'ru' })
+  const [selectableId] = await geoRepository.getSelectableIds([data.geoPlaceId])
+  if (!place || (!selectableId && place.id !== existingPlaceId) || place.kind !== 'settlement' || (data.countryId && place.countryId !== data.countryId)) {
     throw createTRPCError('BAD_REQUEST', 'Выберите город из справочника для выбранной страны.')
   }
 
@@ -47,16 +34,12 @@ export const destinationReviewService = {
     return await destinationReviewRepository.getByUserId(input)
   },
 
-  async getReviewCities(userId: string) {
-    return await destinationReviewRepository.getCitiesByUserId(userId)
-  },
-
   async getMapPoints(userId: string) {
     return await destinationReviewRepository.getMapPoints(userId)
   },
 
   async create(data: z.infer<typeof CreateReviewInputSchema>, userId: string) {
-    if (data.type === 'city' && !data.geoPlaceId && !data.city?.trim())
+    if (data.type === 'city' && !data.geoPlaceId)
       throw createTRPCError('BAD_REQUEST', 'Выберите город из справочника.')
 
     data = await canonicalizeSelectedCity(data)
@@ -76,25 +59,22 @@ export const destinationReviewService = {
     if (!existing)
       throw createTRPCError('NOT_FOUND', 'Впечатление не найдено или у вас нет прав на его редактирование.')
 
-    if ((data.type ?? existing.type) === 'city'
-      && data.countryId !== undefined
-      && data.countryId !== existing.countryId
-      && data.city === undefined
-      && data.geoPlaceId === undefined) {
-      data.city = existing.city
+    const targetType = data.type ?? existing.type
+    if (targetType === 'city') {
+      const targetPlaceId = data.geoPlaceId === undefined ? existing.geoPlaceId : data.geoPlaceId
+      if (!targetPlaceId)
+        throw createTRPCError('BAD_REQUEST', 'Выберите город из справочника.')
+
+      if (data.geoPlaceId !== undefined || data.countryId !== undefined || data.type !== undefined) {
+        data.geoPlaceId = targetPlaceId
+        data.countryId = data.countryId ?? existing.countryId
+      }
+      else {
+        delete data.city
+      }
     }
 
-    const cityUnchanged = data.geoPlaceId === undefined
-      && data.city !== undefined
-      && data.city === existing.city
-      && (data.countryId === undefined || data.countryId === existing.countryId)
-    if (cityUnchanged) {
-      delete data.city
-      if (data.countryId === existing.countryId)
-        delete data.countryId
-    }
-
-    data = await canonicalizeSelectedCity(data)
+    data = await canonicalizeSelectedCity(data, existing.geoPlaceId)
     const updated = await destinationReviewRepository.update(id, data as any, userId)
     if (!updated) {
       throw createTRPCError('NOT_FOUND', 'Впечатление не найдено или у вас нет прав на его редактирование.')

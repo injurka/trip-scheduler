@@ -196,32 +196,18 @@ export const userService = {
     return await highlightRepository.getByUserId(input)
   },
 
-  async getHighlightCities(userId: string) {
-    return await highlightRepository.getCitiesByUserId(userId)
-  },
-
   async createHighlight(data: z.infer<typeof CreateHighlightInputSchema>, userId: string) {
-    const resolution = data.geoPlaceId
-      ? null
-      : await geoRepository.resolveExact({ label: data.city, countryId: data.countryId, kinds: ['settlement'] })
-    const placeId = data.geoPlaceId ?? resolution?.place?.id
-    if (!placeId || (resolution && resolution.status !== 'resolved')) {
-      const message = resolution?.status === 'needs_review'
-        ? 'Название совпадает с несколькими городами. Выберите точный город из справочника.'
-        : 'Выберите город из справочника для выбранной страны.'
-      throw createTRPCError('BAD_REQUEST', message)
-    }
-
-    const [place] = await geoRepository.getByIds({ ids: [placeId], locale: 'ru' })
-    const [selectableId] = await geoRepository.getSelectableIds([placeId])
+    const [place] = await geoRepository.getByIds({ ids: [data.geoPlaceId], locale: 'ru' })
+    const [selectableId] = await geoRepository.getSelectableIds([data.geoPlaceId])
     if (!place || !selectableId || place.kind !== 'settlement' || place.countryId !== data.countryId) {
       throw createTRPCError('BAD_REQUEST', 'Выберите город из справочника для выбранной страны.')
     }
-    data = { ...data, geoPlaceId: place.id, city: place.name }
 
     const { takenAt, ...restData } = data
     const newHighlight = await highlightRepository.create({
       ...restData,
+      geoPlaceId: place.id,
+      city: place.name,
       takenAt: takenAt ? new Date(takenAt) : undefined,
       userId,
     })
@@ -239,37 +225,20 @@ export const userService = {
       throw createTRPCError('NOT_FOUND', 'Фото не найдено или у вас нет прав на его редактирование.')
 
     const targetCountryId = data.countryId ?? existing.countryId
-    const targetCity = data.city ?? existing.city
-    const cityChanged = data.city !== undefined && data.city !== existing.city
-    const countryChanged = data.countryId !== undefined && data.countryId !== existing.countryId
-    let placeId = data.geoPlaceId ?? undefined
+    const targetPlaceId = data.geoPlaceId ?? existing.geoPlaceId
 
-    if (!placeId && (cityChanged || countryChanged)) {
-      const resolution = await geoRepository.resolveExact({ label: targetCity, countryId: targetCountryId, kinds: ['settlement'] })
-      if (resolution.status !== 'resolved' || !resolution.place) {
-        const message = resolution.status === 'needs_review'
-          ? 'Название совпадает с несколькими городами. Выберите точный город из справочника.'
-          : 'Город не найден в выбранной стране. Выберите город из справочника.'
-        throw createTRPCError('BAD_REQUEST', message)
-      }
-      placeId = resolution.place.id
-    }
-    else if (!placeId && data.geoPlaceId === undefined && existing.geoPlaceId) {
-      placeId = existing.geoPlaceId
-    }
-    else if (!placeId && data.geoPlaceId === null && targetCity.trim()) {
-      throw createTRPCError('BAD_REQUEST', 'Выберите город из справочника.')
-    }
-
-    if (placeId) {
-      const [place] = await geoRepository.getByIds({ ids: [placeId], locale: 'ru' })
-      const [selectableId] = await geoRepository.getSelectableIds([placeId])
+    if (data.geoPlaceId !== undefined || data.countryId !== undefined) {
+      const [place] = await geoRepository.getByIds({ ids: [targetPlaceId], locale: 'ru' })
+      const [selectableId] = await geoRepository.getSelectableIds([targetPlaceId])
       if (!place || (!selectableId && place.id !== existing.geoPlaceId) || place.kind !== 'settlement' || place.countryId !== targetCountryId) {
         throw createTRPCError('BAD_REQUEST', 'Выберите город из справочника для выбранной страны.')
       }
       data.geoPlaceId = place.id
       data.city = place.name
       data.countryId = targetCountryId
+    }
+    else {
+      delete data.city
     }
 
     const updated = await highlightRepository.update(id, userId, {

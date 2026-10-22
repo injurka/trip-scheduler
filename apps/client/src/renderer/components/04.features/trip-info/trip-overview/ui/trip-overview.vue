@@ -324,7 +324,6 @@ async function handleDeleteTrip() {
 
 function handleWeatherUpdated(data: TripWeatherPayload) {
   if (moduleStore.plan.trip) {
-    moduleStore.plan.trip.weatherData = data.weatherData
     moduleStore.plan.trip.weatherByPlaceId = data.weatherByPlaceId
   }
 }
@@ -688,7 +687,6 @@ watch([() => props.trip?.id, () => appStore.auth.user?.id], ([tripId, userId]) =
         :city-refs="trip.cityRefs"
         :start-date="trip.startDate"
         :trip-id="trip.id"
-        :weather-data="trip.weatherData"
         :weather-by-place-id="trip.weatherByPlaceId"
         :is-editable="isEditable"
         @weather-updated="handleWeatherUpdated"

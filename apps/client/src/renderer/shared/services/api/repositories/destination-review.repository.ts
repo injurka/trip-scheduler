@@ -10,11 +10,6 @@ export class DestinationReviewRepository implements IDestinationReviewRepository
   }
 
   @throttle(500)
-  async getReviewCities(userId: string): Promise<string[]> {
-    return await trpc.destinationReview.getReviewCities.query({ userId })
-  }
-
-  @throttle(500)
   async getMapPoints(userId: string): Promise<DestinationMapPoint[]> {
     return await trpc.destinationReview.getMapPoints.query({ userId }) as DestinationMapPoint[]
   }

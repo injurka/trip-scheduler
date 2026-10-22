@@ -440,7 +440,6 @@ function updateSegmentField<K extends keyof FlightSegment>(segmentIndex: number,
               placeholder="Выберите город из справочника"
               @update:model-value="updateSegmentCity(index, 'departure', $event)"
             />
-            <small v-if="segment.departureCity && !segment.departureCityId">Старое название: {{ segment.departureCity }}</small>
           </div>
           <div v-if="readonly" class="flight-city-field">
             <span class="field-label">Город прилета</span>
@@ -454,7 +453,6 @@ function updateSegmentField<K extends keyof FlightSegment>(segmentIndex: number,
               placeholder="Выберите город из справочника"
               @update:model-value="updateSegmentCity(index, 'arrival', $event)"
             />
-            <small v-if="segment.arrivalCity && !segment.arrivalCityId">Старое название: {{ segment.arrivalCity }}</small>
           </div>
           <BookingField :model-value="segment.departureAirport" label="Аэропорт вылета" icon="mdi:airplane-takeoff" :readonly="readonly" @update:model-value="updateSegmentField(index, 'departureAirport', $event)" />
           <BookingField :model-value="segment.arrivalAirport" label="Аэропорт прилета" icon="mdi:airplane-landing" :readonly="readonly" @update:model-value="updateSegmentField(index, 'arrivalAirport', $event)" />
@@ -527,11 +525,6 @@ function updateSegmentField<K extends keyof FlightSegment>(segmentIndex: number,
   flex-direction: column;
   gap: 4px;
   min-width: 0;
-
-  small {
-    color: var(--fg-tertiary-color);
-    font-size: 0.72rem;
-  }
 }
 
 .field-label {

@@ -222,7 +222,6 @@ export function useHighlights() {
   const currentPage = useQuerySync('page', 1)
   const itemsPerPage = 30
 
-  const selectedCities = useQuerySync<string[]>('cities', [])
   const selectedCityIds = useQuerySync<string[]>('cityIds', [])
   const selectedCityRefs = ref<GeoPlaceRef[]>([])
 
@@ -301,7 +300,6 @@ export function useHighlights() {
   function setSelectedCityRefs(places: GeoPlaceRef[]) {
     selectedCityRefs.value = places
     selectedCityIds.value = places.map(place => place.id)
-    selectedCities.value = []
   }
 
   async function fetchHighlights() {
@@ -310,9 +308,6 @@ export function useHighlights() {
     fetchError.value = false
 
     const filters: Record<string, string | string[]> = {}
-    if (selectedCities.value.length > 0) {
-      filters.cities = selectedCities.value
-    }
     if (selectedCityIds.value.length > 0)
       filters.cityIds = selectedCityIds.value
 
@@ -340,7 +335,7 @@ export function useHighlights() {
     })
   }
 
-  watch([selectedCities, selectedCityIds, dateRange], () => {
+  watch([selectedCityIds, dateRange], () => {
     if (currentPage.value !== 1) {
       currentPage.value = 1
     }
@@ -686,7 +681,6 @@ export function useHighlights() {
     countries,
     mapPoints,
     quality,
-    selectedCities,
     selectedCityIds,
     selectedCityRefs,
     setSelectedCityRefs,

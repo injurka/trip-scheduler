@@ -238,9 +238,6 @@ const isSubmitDisabled = computed(() =>
             placeholder="Выбери город из справочника"
             @update:model-value="selectCity"
           />
-          <p v-if="form.city && !form.geoPlaceId" class="field-hint">
-            Старое название: «{{ form.city }}». Выберите соответствующий город из справочника.
-          </p>
         </div>
 
         <div class="row row--aligned">

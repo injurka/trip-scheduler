@@ -90,7 +90,6 @@ export function useDestinationReviews(userId: string) {
   const page = useQuerySync('page', 1)
   const limit = 24
   const selectedCountry = useQuerySync<string | null>('country', null)
-  const selectedCity = useQuerySync<string | null>('city', null)
   const selectedCityId = useQuerySync<string | null>('cityId', null)
   const sortBy = useQuerySync<string>('sortBy', 'createdAt')
   const sortOrder = useQuerySync<'asc' | 'desc'>('sortOrder', 'desc')
@@ -181,7 +180,6 @@ export function useDestinationReviews(userId: string) {
         page: page.value,
         limit,
         countryId: selectedCountry.value || undefined,
-        city: selectedCity.value || undefined,
         geoPlaceId: selectedCityId.value || undefined,
         sortBy: sortBy.value,
         sortOrder: sortOrder.value,
@@ -195,7 +193,7 @@ export function useDestinationReviews(userId: string) {
   }
 
   // Сброс страницы при изменении фильтров (включая метрики, чтобы бекенд пересчитал)
-  watch([selectedCountry, selectedCity, selectedCityId, sortBy, sortOrder, selectedMetrics], () => {
+  watch([selectedCountry, selectedCityId, sortBy, sortOrder, selectedMetrics], () => {
     if (page.value !== 1) {
       page.value = 1
     }
@@ -389,7 +387,6 @@ export function useDestinationReviews(userId: string) {
     limit,
     countries,
     selectedCountry,
-    selectedCity,
     selectedCityId,
     sortBy,
     sortOrder,

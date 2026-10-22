@@ -17,13 +17,10 @@ export const highlightRepository = {
 
   async getByUserId(input: z.infer<typeof GetUserHighlightsInputSchema>) {
     return measureDbQuery('highlights', 'select', async () => {
-      const { userId, limit, page, cities, cityIds, startDate, endDate } = input
+      const { userId, limit, page, cityIds, startDate, endDate } = input
       const offset = (page - 1) * limit
       const conditions: any[] = [eq(highlights.userId, userId)]
 
-      if (cities && cities.length > 0) {
-        conditions.push(inArray(highlights.city, cities))
-      }
       if (cityIds && cityIds.length > 0) {
         conditions.push(inArray(highlights.geoPlaceId, cityIds))
       }
@@ -74,19 +71,6 @@ export const highlightRepository = {
       })
 
       return { items: mappedItems, total: Number(totalResult.count) }
-    })
-  },
-
-  async getCitiesByUserId(userId: string) {
-    return measureDbQuery('highlights', 'select', async () => {
-      const cityExpression = sql<string>`${highlights.city}`
-      const result = await db
-        .selectDistinct({ city: cityExpression })
-        .from(highlights)
-        .where(and(eq(highlights.userId, userId), sql`${highlights.city} IS NOT NULL`))
-        .orderBy(cityExpression)
-
-      return result.map(row => row.city).filter(Boolean)
     })
   },
 

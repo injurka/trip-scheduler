@@ -728,7 +728,7 @@ export const weatherGenerationService = {
   sanitizeAndValidateWeather,
 
   /**
-   * Санитизация сохраненного weatherData путешествия: прогоняет каждую городскую сводку
+   * Санитизация сохраненного weatherByPlaceId путешествия: прогоняет каждую городскую сводку
    * через физическую валидацию по месяцу начала поездки.
    */
   sanitizeTripWeatherPayload(
@@ -739,12 +739,15 @@ export const weatherGenerationService = {
       ? new Date(startDate).getMonth() + 1
       : new Date().getMonth() + 1
     const result: Record<string, CityWeatherData> = {}
-    for (const [city, data] of Object.entries(payload)) {
+    for (const [key, data] of Object.entries(payload)) {
       if (!data || typeof data !== 'object')
         continue
-      result[city] = sanitizeAndValidateWeather(
+      const cityLabel = typeof (data as Partial<CityWeatherData>).city === 'string' && (data as Partial<CityWeatherData>).city
+        ? (data as Partial<CityWeatherData>).city!
+        : key
+      result[key] = sanitizeAndValidateWeather(
         data as Partial<CityWeatherData>,
-        normalizeCityName(city),
+        normalizeCityName(cityLabel),
         month,
       )
     }

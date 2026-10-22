@@ -28,7 +28,6 @@ const {
   countries,
   mapPoints,
   quality,
-  selectedCities,
   selectedCityIds,
   selectedCityRefs,
   setSelectedCityRefs,
@@ -154,7 +153,6 @@ watch(isLoading, (loading) => {
 })
 
 function clearFilters() {
-  selectedCities.value = []
   setSelectedCityRefs([])
   dateRange.value = null
 }
@@ -188,16 +186,14 @@ onMounted(() => {
       v-model:quality="quality"
       v-model:date-range="dateRange"
       :selected-places="selectedCityRefs"
-      :legacy-selected-cities="selectedCities"
       @update:selected-places="setSelectedCityRefs"
-      @clear-legacy-cities="selectedCities = []"
     />
 
     <HighlightsSkeleton v-if="isLoading" />
 
     <HighlightsErrorState v-else-if="fetchError && highlights.length === 0" @retry="fetchHighlights" />
 
-    <HighlightsEmptyState v-else-if="!isLoading && highlights.length === 0 && selectedCities.length === 0 && selectedCityIds.length === 0 && !dateRange" :is-owner="isOwner" />
+    <HighlightsEmptyState v-else-if="!isLoading && highlights.length === 0 && selectedCityIds.length === 0 && !dateRange" :is-owner="isOwner" />
 
     <div v-else-if="!isLoading && filteredHighlights.length === 0" class="empty-filters-state">
       <Icon icon="mdi:filter-variant-remove" class="empty-icon" />

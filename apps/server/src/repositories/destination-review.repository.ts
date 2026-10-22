@@ -17,7 +17,7 @@ export const destinationReviewRepository = {
 
   async getByUserId(input: z.infer<typeof GetUserReviewsInputSchema>) {
     return measureDbQuery('destinationReviews', 'select', async () => {
-      const { userId, type, limit, page, countryId, city, geoPlaceId, sortBy, sortOrder, selectedMetrics } = input
+      const { userId, type, limit, page, countryId, geoPlaceId, sortBy, sortOrder, selectedMetrics } = input
       const offset = (page - 1) * limit
       const conditions: any[] = [eq(destinationReviews.userId, userId)]
 
@@ -25,8 +25,6 @@ export const destinationReviewRepository = {
         conditions.push(eq(destinationReviews.type, type))
       if (countryId)
         conditions.push(eq(destinationReviews.countryId, countryId))
-      if (city)
-        conditions.push(eq(destinationReviews.city, city))
       if (geoPlaceId)
         conditions.push(eq(destinationReviews.geoPlaceId, geoPlaceId))
 
@@ -70,19 +68,6 @@ export const destinationReviewRepository = {
         .where(and(...conditions))
 
       return { items, total: Number(totalResult.count) }
-    })
-  },
-
-  async getCitiesByUserId(userId: string) {
-    return measureDbQuery('destinationReviews', 'select', async () => {
-      const cityExpression = sql<string>`${destinationReviews.city}`
-      const result = await db
-        .selectDistinct({ city: cityExpression })
-        .from(destinationReviews)
-        .where(and(eq(destinationReviews.userId, userId), sql`${destinationReviews.city} IS NOT NULL`))
-        .orderBy(cityExpression)
-
-      return result.map(row => row.city).filter(Boolean)
     })
   },
 

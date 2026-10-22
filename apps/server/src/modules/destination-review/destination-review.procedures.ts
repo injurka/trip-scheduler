@@ -21,16 +21,6 @@ export const destinationReviewProcedures = {
       return destinationReviewService.getCountries()
     }),
 
-  getReviewCities: publicProcedure
-    .meta({
-      openapi: { method: 'GET', path: '/destination-reviews/user/{userId}/cities', tags: ['Destination Reviews'], summary: 'Получить список городов из отзывов' },
-    })
-    .input(z.object({ userId: z.string().uuid() }))
-    .output(z.array(z.string()))
-    .query(async ({ input }) => {
-      return destinationReviewService.getReviewCities(input.userId)
-    }),
-
   getMapPoints: publicProcedure
     .meta({
       openapi: { method: 'GET', path: '/destination-reviews/user/{userId}/map-points', tags: ['Destination Reviews'], summary: 'Получить точки для карты' },

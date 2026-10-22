@@ -220,16 +220,6 @@ export const userProcedures = {
       return userService.getHighlights(input)
     }),
 
-  getHighlightCities: publicProcedure
-    .meta({
-      openapi: { method: 'GET', path: '/users/{userId}/highlights/cities', tags: ['Users'], summary: 'Получить города витрины пользователя' },
-    })
-    .input(z.object({ userId: z.string().uuid() }))
-    .output(z.array(z.string()))
-    .query(async ({ input }) => {
-      return userService.getHighlightCities(input.userId)
-    }),
-
   createHighlight: protectedProcedure
     .meta({
       openapi: { method: 'POST', path: '/users/highlights', tags: ['Users'], summary: 'Добавить фото в витрину' },

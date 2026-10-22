@@ -12,7 +12,6 @@ interface Props {
   cityRefs?: TripCityRef[]
   startDate: string
   tripId?: string
-  weatherData?: TripWeatherData | null
   weatherByPlaceId?: TripWeatherData | null
   isEditable?: boolean
 }
@@ -75,23 +74,12 @@ const monthName = computed(() => {
   return MONTH_NAMES_PREPOSITIONAL[date.getMonth()] || date.toLocaleString('ru-RU', { month: 'long' })
 })
 
-const effectiveWeatherData = computed(() => {
-  return props.weatherData || planStore.trip?.weatherData || null
-})
-
 const effectiveWeatherByPlaceId = computed(() => props.weatherByPlaceId || planStore.trip?.weatherByPlaceId || null)
 
 const currentCityWeather = computed(() => {
-  if (selectedPlace.value && effectiveWeatherByPlaceId.value?.[selectedPlace.value.id])
-    return effectiveWeatherByPlaceId.value[selectedPlace.value.id]
-  if (selectedPlace.value) {
-    const sameNameRefs = props.cityRefs?.filter(place => place.name === selectedPlace.value?.name) ?? []
-    return sameNameRefs.length === 1 ? effectiveWeatherData.value?.[selectedPlace.value.name] ?? null : null
-  }
-  if (!selectedPlace.value || !effectiveWeatherData.value)
+  if (!selectedPlace.value || !effectiveWeatherByPlaceId.value)
     return null
-
-  return effectiveWeatherData.value[selectedCity.value!] || null
+  return effectiveWeatherByPlaceId.value[selectedPlace.value.id] ?? null
 })
 
 const hasDetailedInfo = computed(() => {
@@ -163,8 +151,8 @@ async function handleGenerateWeather(forceRefresh = false) {
       return
 
     const res = await planStore.generateWeather({ placeId: selectedPlace.value.id, forceRefresh })
-    if (res?.weatherData) {
-      emit('weatherUpdated', { weatherData: res.weatherData, weatherByPlaceId: res.weatherByPlaceId })
+    if (res?.weatherByPlaceId) {
+      emit('weatherUpdated', { weatherByPlaceId: res.weatherByPlaceId })
     }
   }
   catch (e: any) {
@@ -183,8 +171,8 @@ async function handleGenerateAllCities(forceRefresh = false) {
   try {
     const placeIds = props.cityRefs?.map(place => place.id)
     const res = await planStore.generateWeather(placeIds?.length ? { placeIds, forceRefresh } : { forceRefresh })
-    if (res?.weatherData) {
-      emit('weatherUpdated', { weatherData: res.weatherData, weatherByPlaceId: res.weatherByPlaceId })
+    if (res?.weatherByPlaceId) {
+      emit('weatherUpdated', { weatherByPlaceId: res.weatherByPlaceId })
     }
   }
   catch (e: any) {

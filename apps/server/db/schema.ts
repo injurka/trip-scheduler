@@ -1,6 +1,6 @@
 /* eslint-disable ts/no-use-before-define */
 import type { AnyPgColumn } from 'drizzle-orm/pg-core'
-import type { ActivitySection, CityWeatherData, DayMetaInfo, PostElementContent, PostStatsDetail, TripWeatherData } from './schema.type'
+import type { ActivitySection, CityWeatherData, DayMetaInfo, PostElementContent, PostStatsDetail } from './schema.type'
 import { relations, sql } from 'drizzle-orm'
 import {
   bigint,
@@ -215,12 +215,10 @@ export const trips = pgTable('trips', {
   descriptionShort: text('description_short'),
   startDate: date('start_date').notNull(),
   endDate: date('end_date').notNull(),
-  cities: jsonb('cities').$type<string[]>().notNull().default([]),
   status: statusEnum('status').notNull().default('draft'),
   budget: real('budget'),
   currency: text('currency').default('RUB'),
   tags: jsonb('tags').$type<string[]>().notNull().default([]),
-  weatherData: jsonb('weather_data').$type<TripWeatherData>(),
   weatherByPlaceId: jsonb('weather_by_place_id').$type<Record<string, CityWeatherData>>(),
   visibility: visibilityEnum('visibility').notNull().default('private'),
   userId: uuid('user_id').notNull().references(() => users.id, { onDelete: 'cascade' }),
@@ -231,19 +229,13 @@ export const trips = pgTable('trips', {
 export const tripGeoPlaces = pgTable('trip_geo_places', {
   tripId: uuid('trip_id').notNull().references(() => trips.id, { onDelete: 'cascade' }),
   position: integer('position').notNull(),
-  placeId: uuid('place_id').references(() => geoPlaces.id, { onDelete: 'restrict' }),
-  legacyLabel: text('legacy_label'),
-  status: geoResolutionStatusEnum('status').notNull(),
+  placeId: uuid('place_id').notNull().references(() => geoPlaces.id, { onDelete: 'restrict' }),
   createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
   updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow().notNull(),
 }, t => ({
   pk: primaryKey({ columns: [t.tripId, t.position] }),
   placeIdx: index('trip_geo_places_place_idx').on(t.placeId),
   positionCheck: check('trip_geo_places_position_check', sql`${t.position} >= 0`),
-  resolutionCheck: check('trip_geo_places_resolution_check', sql`
-    (${t.status} = 'resolved' AND ${t.placeId} IS NOT NULL)
-    OR (${t.status} <> 'resolved' AND ${t.placeId} IS NULL AND ${t.legacyLabel} IS NOT NULL)
-  `),
 }))
 
 export const tripSections = pgTable('trip_sections', {
@@ -576,6 +568,7 @@ export const destinationReviews = pgTable('destination_reviews', {
   countryIdx: index('dest_reviews_country_idx').on(t.countryId),
   geoPlaceIdx: index('dest_reviews_geo_place_idx').on(t.geoPlaceId),
   userIdx: index('dest_reviews_user_idx').on(t.userId),
+  cityGeoPlaceCheck: check('dest_reviews_city_geo_place_check', sql`(${t.type} = 'country' AND ${t.geoPlaceId} IS NULL) OR (${t.type} = 'city' AND ${t.geoPlaceId} IS NOT NULL)`),
 }))
 
 export const highlights = pgTable('highlights', {
@@ -584,7 +577,7 @@ export const highlights = pgTable('highlights', {
   imageUrl: text('image_url').notNull(),
   countryId: text('country_id').notNull().references(() => countries.id, { onDelete: 'restrict' }),
   city: text('city').notNull(),
-  geoPlaceId: uuid('geo_place_id').references(() => geoPlaces.id, { onDelete: 'restrict' }),
+  geoPlaceId: uuid('geo_place_id').notNull().references(() => geoPlaces.id, { onDelete: 'restrict' }),
   address: text('address'),
   comment: text('comment'),
 
@@ -602,17 +595,6 @@ export const highlights = pgTable('highlights', {
   countryIdx: index('highlights_country_idx').on(t.countryId),
   geoPlaceIdx: index('highlights_geo_place_idx').on(t.geoPlaceId),
   userIdIdx: index('highlights_user_idx').on(t.userId),
-}))
-
-export const cityWeatherCache = pgTable('city_weather_cache', {
-  id: serial('id').primaryKey(),
-  cityNormalized: text('city_normalized').notNull(),
-  month: integer('month').notNull(),
-  data: jsonb('data').$type<CityWeatherData>().notNull(),
-  createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
-  updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow().notNull(),
-}, t => ({
-  cityMonthIdx: index('city_weather_cache_city_month_idx').on(t.cityNormalized, t.month),
 }))
 
 export const geoWeatherCache = pgTable('geo_weather_cache', {

@@ -1,4 +1,5 @@
 import { v4 as uuidv4 } from 'uuid'
+import { geoNamesPlaceId } from '~/modules/geo/geo-id'
 import { MOCK_USER_ID_1 } from './00.users'
 
 const baseImageUrl1 = 'https://images.unsplash.com/photo-1498307833015-e7b400441eb8'
@@ -16,6 +17,7 @@ export const MOCK_HIGHLIGHTS_DATA = [
     userId: MOCK_USER_ID_1,
     imageUrl: `${baseImageUrl1}?q=80&w=1200&auto=format&fit=crop`,
     countryId: '4edb4270-8701-4f49-b6fc-684da36c83eb', // Италия
+    geoPlaceId: geoNamesPlaceId('3169070'),
     city: 'Рим',
     address: 'Колизей',
     comment: 'Невероятная архитектура и дух времени!',
@@ -38,6 +40,7 @@ export const MOCK_HIGHLIGHTS_DATA = [
     userId: MOCK_USER_ID_1,
     imageUrl: `${baseImageUrl2}?q=80&w=1200&auto=format&fit=crop`,
     countryId: 'fe6ce9a6-d827-4b23-9920-f0cfbd335a61', // Франция
+    geoPlaceId: geoNamesPlaceId('2988507'),
     city: 'Париж',
     address: 'Эйфелева башня',
     comment: 'Романтика на каждом шагу.',
@@ -60,6 +63,7 @@ export const MOCK_HIGHLIGHTS_DATA = [
     userId: MOCK_USER_ID_1,
     imageUrl: `${baseImageUrl3}?q=80&w=1200&auto=format&fit=crop`,
     countryId: 'e30c61ad-ea40-423a-a8a2-4f39ac5a89d8', // Япония
+    geoPlaceId: geoNamesPlaceId('1850147'),
     city: 'Токио',
     address: 'Храм Сэнсо-дзи',
     comment: 'Смешение современности и традиций.',
@@ -82,6 +86,7 @@ export const MOCK_HIGHLIGHTS_DATA = [
     userId: MOCK_USER_ID_1,
     imageUrl: `${baseImageUrl4}?q=80&w=1200&auto=format&fit=crop`,
     countryId: 'e9be1cb9-0864-4adf-abba-9d119013b053', // Испания
+    geoPlaceId: geoNamesPlaceId('3128760'),
     city: 'Барселона',
     address: 'Саграда Фамилия',
     comment: 'Шедевр Гауди, который строят уже более 100 лет. Витражи внутри просто космос!',
@@ -104,6 +109,7 @@ export const MOCK_HIGHLIGHTS_DATA = [
     userId: MOCK_USER_ID_1,
     imageUrl: `${baseImageUrl5}?q=80&w=1200&auto=format&fit=crop`,
     countryId: 'c7f89013-2e19-4501-bdef-94167dc0d760', // США
+    geoPlaceId: geoNamesPlaceId('5128581'),
     city: 'Нью-Йорк',
     address: 'Таймс-сквер',
     comment: 'Ослепительные неоновые вывески и энергия города, который никогда не спит.',
@@ -126,6 +132,7 @@ export const MOCK_HIGHLIGHTS_DATA = [
     userId: MOCK_USER_ID_1,
     imageUrl: `${baseImageUrl6}?q=80&w=1200&auto=format&fit=crop`,
     countryId: '54d5ef6b-2625-43ad-94ef-cec5525cd83e', // Таиланд
+    geoPlaceId: geoNamesPlaceId('1609350'),
     city: 'Бангкок',
     address: 'Большой дворец',
     comment: 'Золотые ступы переливаются на солнце. Очень жарко, но потрясающе красиво.',
@@ -148,6 +155,7 @@ export const MOCK_HIGHLIGHTS_DATA = [
     userId: MOCK_USER_ID_1,
     imageUrl: `${baseImageUrl7}?q=80&w=1200&auto=format&fit=crop`,
     countryId: 'fa7aa91a-d451-4745-9a62-e4f245b842a6', // Турция
+    geoPlaceId: geoNamesPlaceId('745044'),
     city: 'Стамбул',
     address: 'Айя-София',
     comment: 'Место встречи двух континентов и нескольких эпох. Монументально!',
@@ -170,6 +178,7 @@ export const MOCK_HIGHLIGHTS_DATA = [
     userId: MOCK_USER_ID_1,
     imageUrl: `${baseImageUrl8}?q=80&w=1200&auto=format&fit=crop`,
     countryId: 'd0d7e94b-c8a7-40ed-a63f-d26bfca8606d', // Россия
+    geoPlaceId: geoNamesPlaceId('524901'),
     city: 'Москва',
     address: 'Красная площадь',
     comment: 'Зимой здесь особенная атмосфера. ГУМ в огнях и снег вокруг.',

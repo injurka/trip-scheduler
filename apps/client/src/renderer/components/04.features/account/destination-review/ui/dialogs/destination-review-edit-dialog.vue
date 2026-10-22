@@ -197,9 +197,6 @@ function getSliderColor(value: number) {
           placeholder="Выберите город из справочника"
           @update:model-value="selectCity"
         />
-        <p v-if="form.city && !form.geoPlaceId" class="field-hint">
-          Старое название: «{{ form.city }}». Выберите соответствующий город из справочника.
-        </p>
 
         <div class="map-section">
           <label class="section-label">Точка на карте</label>

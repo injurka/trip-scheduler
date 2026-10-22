@@ -184,7 +184,6 @@ export interface CityWeatherData {
 export type TripWeatherData = Record<string, CityWeatherData>
 
 export interface TripWeatherPayload {
-  weatherData: TripWeatherData
   weatherByPlaceId: TripWeatherData
 }
 
@@ -207,7 +206,6 @@ export interface Trip {
     avatarUrl: string
   }[]
   tags: string[]
-  weatherData?: TripWeatherData | null
   weatherByPlaceId?: TripWeatherData | null
   visibility: TripVisibility
   createdAt: string

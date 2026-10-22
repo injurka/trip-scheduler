@@ -53,7 +53,6 @@ export const GetUserReviewsInputSchema = z.object({
   limit: z.number().min(1).max(100).default(24),
   page: z.number().min(1).default(1),
   countryId: z.string().optional(),
-  city: z.string().optional(),
   geoPlaceId: z.string().uuid().optional(),
   sortBy: z.enum([
     'createdAt',
@@ -77,7 +76,7 @@ export const CreateReviewInputSchema = z.object({
   type: z.enum(['country', 'city']),
   countryId: z.string(),
   geoPlaceId: z.string().uuid().nullable().optional(),
-  city: z.string().nullable(),
+  city: z.string().nullable().optional(),
   coverUrl: z.string().nullable(),
   coverVariants: z.record(z.string(), z.string()).optional().nullable(),
   latitude: z.number(),

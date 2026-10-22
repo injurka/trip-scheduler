@@ -381,6 +381,8 @@ async function seed() {
       memories: mockMemories,
       participantIds,
       sections: mockSections,
+      cities: _cities,
+      weatherData: _weatherData,
       ...tripDetails
     } = tripData
 

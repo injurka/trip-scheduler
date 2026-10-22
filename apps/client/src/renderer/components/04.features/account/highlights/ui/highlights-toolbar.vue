@@ -11,7 +11,6 @@ import { GeoPlacePicker } from '~/components/03.domain/geo-place-picker'
 const props = defineProps<{
   quality: HighlightImageQuality
   selectedPlaces: GeoPlaceRef[]
-  legacySelectedCities: string[]
   dateRange: HighlightDateRange | null
 }>()
 
@@ -19,7 +18,6 @@ const emit = defineEmits<{
   (e: 'update:quality', value: HighlightImageQuality): void
   (e: 'update:selectedPlaces', value: GeoPlaceRef[]): void
   (e: 'update:dateRange', value: HighlightDateRange | null): void
-  (e: 'clearLegacyCities'): void
 }>()
 
 const localQuality = computed({
@@ -112,12 +110,6 @@ const qualityOptions: KitDropdownItem<HighlightImageQuality>[] = [
         </KitDropdown>
       </div>
     </div>
-    <div v-if="legacySelectedCities.length > 0" class="legacy-city-filter">
-      Старый фильтр по названию: {{ legacySelectedCities.join(', ') }}
-      <button type="button" @click="emit('clearLegacyCities')">
-        Сбросить
-      </button>
-    </div>
   </div>
 </template>
 
@@ -141,24 +133,6 @@ const qualityOptions: KitDropdownItem<HighlightImageQuality>[] = [
   width: 260px;
   max-width: 100%;
   margin-right: auto;
-}
-
-.legacy-city-filter {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  width: 100%;
-  padding: 4px 0;
-  color: var(--fg-secondary-color);
-  font-size: 0.875rem;
-
-  button {
-    border: 0;
-    padding: 0;
-    color: var(--primary-color);
-    background: transparent;
-    cursor: pointer;
-  }
 }
 
 .filter-date {

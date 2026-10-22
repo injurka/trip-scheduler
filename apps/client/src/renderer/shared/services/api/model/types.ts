@@ -194,7 +194,7 @@ export interface ITripRepository {
   getUniqueTags: (params: { query?: string }) => Promise<string[]>
   listByUser: (params: { userId: string, limit: number }) => Promise<Trip[]>
   addParticipant: (tripId: string, userId: string) => Promise<void>
-  generateWeather: (params: { tripId: string, placeId?: string, placeIds?: string[], forceRefresh?: boolean }) => Promise<{ weatherData: TripWeatherData, weatherByPlaceId: TripWeatherData, fromCache: boolean }>
+  generateWeather: (params: { tripId: string, placeId?: string, placeIds?: string[], forceRefresh?: boolean }) => Promise<{ weatherByPlaceId: TripWeatherData, fromCache: boolean }>
 }
 
 export interface IDayRepository {
@@ -281,7 +281,7 @@ export interface IAuthRepository {
 }
 
 export interface GetHighlightsFilters {
-  cities?: string[]
+  cityIds?: string[]
   startDate?: string
   endDate?: string
 }
@@ -291,7 +291,6 @@ export interface IUserRepository {
   listPlans: () => Promise<Plan[]>
   search: (query: string) => Promise<{ id: string, name: string, email: string | null, avatarUrl: string | null }[]>
   getHighlights: (userId: string, limit: number, page: number, filters?: GetHighlightsFilters) => Promise<{ items: Highlight[], total: number }>
-  getHighlightCities: (userId: string) => Promise<string[]>
   createHighlight: (data: CreateHighlightInput) => Promise<Highlight>
   updateHighlight: (data: UpdateHighlightInput) => Promise<Highlight>
   deleteHighlight: (id: string) => Promise<void>
@@ -346,7 +345,6 @@ export interface GetUserReviewsParams {
   limit?: number
   page?: number
   countryId?: string
-  city?: string
   geoPlaceId?: string
   sortBy?: string
   sortOrder?: 'asc' | 'desc'
@@ -355,7 +353,6 @@ export interface GetUserReviewsParams {
 
 export interface IDestinationReviewRepository {
   getCountries: () => Promise<Country[]>
-  getReviewCities: (userId: string) => Promise<string[]>
   getUserReviews: (params: GetUserReviewsParams) => Promise<{ items: DestinationReview[], total: number }>
   getMapPoints: (userId: string) => Promise<DestinationMapPoint[]>
   create: (data: CreateDestinationReviewInput) => Promise<DestinationReview>

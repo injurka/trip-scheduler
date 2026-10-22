@@ -46,7 +46,6 @@ export const TripSchema = z.object({
   currency: z.string().nullable(),
   participants: z.array(TripParticipantSchema),
   tags: z.array(z.string()),
-  weatherData: TripWeatherSchema.nullable().optional(),
   weatherByPlaceId: TripWeatherSchema.nullable().optional(),
   visibility: z.enum(['public', 'private']),
   createdAt: z.date(),
@@ -95,7 +94,7 @@ export const UpdateTripInputSchema = z.object({
     tags: true,
     visibility: true,
     imageUrl: true,
-    weatherData: true,
+    weatherByPlaceId: true,
   }).partial().extend({
     cityIds: CityIdsInputSchema.optional(),
     participantIds: z.array(z.string().uuid()).optional(),
@@ -114,7 +113,6 @@ export const GenerateWeatherInputSchema = z.object({
 })
 
 export const GenerateWeatherOutputSchema = z.object({
-  weatherData: TripWeatherSchema,
   weatherByPlaceId: TripWeatherSchema,
   fromCache: z.boolean(),
 })

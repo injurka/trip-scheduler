@@ -1,7 +1,6 @@
 import type { z } from 'zod'
 import type { TripWeatherData } from '../../../db/schema.type'
 import type { CreateTripInputSchema, ListTripsInputSchema, TripWithDaysSchema, UpdateTripInputSchema } from './trip.schemas'
-import type { TripCityRef } from '~/modules/geo/geo.schemas'
 import { createTRPCError } from '~/lib/trpc'
 import { commentRepository } from '~/repositories/comment.repository'
 import { dayRepository } from '~/repositories/day.repository'
@@ -25,33 +24,6 @@ function isUniqueConstraintViolation(error: unknown): boolean {
   return false
 }
 
-function normalizeWeatherLabel(value: string): string {
-  return value.normalize('NFKD').replace(/\p{M}/gu, '').trim().toLocaleLowerCase('und').replace(/ё/g, 'е')
-}
-
-function getLegacyWeatherKeys(places: TripCityRef[]): Map<string, string> {
-  const counts = new Map<string, number>()
-  for (const place of places) {
-    const key = normalizeWeatherLabel(place.name)
-    counts.set(key, (counts.get(key) ?? 0) + 1)
-  }
-
-  const labels = new Map<string, string>()
-  const used = new Set<string>()
-  for (const place of places) {
-    const duplicateName = (counts.get(normalizeWeatherLabel(place.name)) ?? 0) > 1
-    const context = duplicateName ? [place.regionName, place.countryName].filter(Boolean).join(', ') : ''
-    let label = context ? `${place.name} — ${context}` : place.name
-    if (used.has(normalizeWeatherLabel(label)))
-      label = `${label} (${place.countryCode})`
-    if (used.has(normalizeWeatherLabel(label)))
-      label = `${label} [${place.id.slice(0, 8)}]`
-    used.add(normalizeWeatherLabel(label))
-    labels.set(place.id, label)
-  }
-  return labels
-}
-
 export const tripService = {
   async getAll(filters?: z.infer<typeof ListTripsInputSchema>, userId?: string) {
     const trips = await tripRepository.getAll(filters, userId)
@@ -67,12 +39,6 @@ export const tripService = {
     if (!trip)
       throw createTRPCError('NOT_FOUND', `Путешествие с ID ${id} не найдено.`)
 
-    if (trip.weatherData) {
-      trip.weatherData = weatherGenerationService.sanitizeTripWeatherPayload(
-        trip.weatherData as any,
-        trip.startDate,
-      )
-    }
     if (trip.weatherByPlaceId)
       trip.weatherByPlaceId = weatherGenerationService.sanitizeTripWeatherPayload(trip.weatherByPlaceId, trip.startDate)
 
@@ -83,13 +49,6 @@ export const tripService = {
     const trip = await tripRepository.getByIdWithDays(id)
     if (!trip)
       throw createTRPCError('NOT_FOUND', `Путешествие с ID ${id} не найдено.`)
-
-    if (trip.weatherData) {
-      trip.weatherData = weatherGenerationService.sanitizeTripWeatherPayload(
-        trip.weatherData,
-        trip.startDate,
-      )
-    }
 
     if (trip.weatherByPlaceId)
       trip.weatherByPlaceId = weatherGenerationService.sanitizeTripWeatherPayload(trip.weatherByPlaceId, trip.startDate)
@@ -102,12 +61,6 @@ export const tripService = {
     if (!trip)
       throw createTRPCError('NOT_FOUND', 'Путешествие по этой ссылке не найдено.')
 
-    if (trip.weatherData) {
-      trip.weatherData = weatherGenerationService.sanitizeTripWeatherPayload(
-        trip.weatherData,
-        trip.startDate,
-      )
-    }
     if (trip.weatherByPlaceId)
       trip.weatherByPlaceId = weatherGenerationService.sanitizeTripWeatherPayload(trip.weatherByPlaceId, trip.startDate)
 
@@ -225,7 +178,6 @@ export const tripService = {
     userRole: string,
   ) {
     const existingTrip = await accessControlService.getTripAndVerifyAccess(id, userId, userRole)
-    let selectedPlacesForUpdate: Awaited<ReturnType<typeof geoRepository.getByIds>> | undefined
 
     if (details.cityIds !== undefined) {
       const selectedPlaces = await geoRepository.getByIds({ ids: details.cityIds, locale: 'ru' })
@@ -238,8 +190,6 @@ export const tripService = {
       if (invalidPlaces) {
         throw createTRPCError('BAD_REQUEST', 'Выберите города из загруженного справочника.')
       }
-
-      selectedPlacesForUpdate = selectedPlaces
     }
 
     if (details.shareSlug && !await tripRepository.isShareSlugAvailable(details.shareSlug, id)) {
@@ -248,7 +198,7 @@ export const tripService = {
 
     let updatedTrip
     try {
-      updatedTrip = await tripRepository.update(id, details, selectedPlacesForUpdate)
+      updatedTrip = await tripRepository.update(id, details)
     }
     catch (error) {
       if (isUniqueConstraintViolation(error) && details.shareSlug) {
@@ -260,9 +210,9 @@ export const tripService = {
       throw createTRPCError('NOT_FOUND', `Путешествие с ID ${id} не найдено.`)
     }
 
-    if (updatedTrip.weatherData) {
-      updatedTrip.weatherData = weatherGenerationService.sanitizeTripWeatherPayload(
-        updatedTrip.weatherData,
+    if (updatedTrip.weatherByPlaceId) {
+      updatedTrip.weatherByPlaceId = weatherGenerationService.sanitizeTripWeatherPayload(
+        updatedTrip.weatherByPlaceId,
         updatedTrip.startDate,
       )
     }
@@ -286,8 +236,6 @@ export const tripService = {
 
     const startDate = tripData.startDate ? new Date(tripData.startDate) : new Date()
     const month = startDate.getMonth() + 1 // 1-12
-    const currentWeatherData = (tripData.weatherData || {}) as TripWeatherData
-    const updatedWeatherData: TripWeatherData = { ...currentWeatherData }
     const currentWeatherByPlaceId = (tripData.weatherByPlaceId || {}) as TripWeatherData
     const updatedWeatherByPlaceId: TripWeatherData = { ...currentWeatherByPlaceId }
     let hasGeneratedAny = false
@@ -301,13 +249,11 @@ export const tripService = {
         throw createTRPCError('BAD_REQUEST', 'Погоду можно запросить только для города, выбранного в этом путешествии.')
       }
 
-      const legacyKeys = getLegacyWeatherKeys(allPlaces)
       for (const place of requestedPlaces) {
         if (!place)
           continue
         const { data, fromCache } = await weatherGenerationService.generateOrGetPlaceWeather(place, month, userId, forceRefresh)
         updatedWeatherByPlaceId[place.id] = data
-        updatedWeatherData[legacyKeys.get(place.id) ?? place.name] = { ...data, city: place.name }
         if (!fromCache)
           hasGeneratedAny = true
       }
@@ -317,12 +263,10 @@ export const tripService = {
     }
 
     await tripRepository.updateWeatherPayload(tripId, {
-      weatherData: updatedWeatherData,
       weatherByPlaceId: updatedWeatherByPlaceId,
     })
 
     return {
-      weatherData: updatedWeatherData,
       weatherByPlaceId: updatedWeatherByPlaceId,
       fromCache: !hasGeneratedAny,
     }

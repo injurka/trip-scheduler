@@ -449,7 +449,6 @@ export const useTripPlanStore = defineStore('tripPlan', {
         }),
         onSuccess: (result) => {
           if (this.trip) {
-            this.trip.weatherData = result.weatherData
             this.trip.weatherByPlaceId = result.weatherByPlaceId
           }
           if (result.fromCache) {
