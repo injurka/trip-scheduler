@@ -148,6 +148,27 @@ async function makeDecision(item: MigrationItem, catalogReady: boolean): Promise
   item.status = resolution.status
   item.reason = resolution.reason
 
+  // Точного совпадения нет — для ручного разбора добавляем кандидатов prefix-поиском
+  // БЕЗ фильтра страны: иначе кросс-кодовые случаи (например, «Гонконг» у записи
+  // со страной Китай, а место в каталоге под кодом HK) остаются с пустым списком вариантов.
+  if (item.status === 'unresolved' && item.candidates.length === 0) {
+    const suggestions = await geoRepository.search({ query: item.sourceLabel, locale: 'ru', limit: 10 })
+    if (suggestions.length > 0) {
+      item.candidates = suggestions.map(result => ({
+        placeId: result.id,
+        name: result.name,
+        countryId: result.countryId,
+        countryCode: result.countryCode,
+        countryName: result.countryName,
+        regionName: result.regionName,
+        kind: result.kind,
+        matchedName: result.matchedName,
+      }))
+      item.status = 'needs_review'
+      item.reason = 'prefix_candidates_for_review'
+    }
+  }
+
   const hasCountryContext = Boolean(item.countryId || item.countryCode)
   if (resolution.status === 'resolved' && resolution.place && hasCountryContext) {
     const matchedName = resolution.candidates.find(candidate => candidate.place.id === resolution.place!.id)?.matchedName
