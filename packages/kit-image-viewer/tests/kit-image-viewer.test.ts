@@ -115,3 +115,33 @@ describe('kitImageViewer - quality change resets zoom', () => {
     wrapper.unmount()
   })
 })
+
+describe('kitImageViewer - Escape isolation', () => {
+  it('closes the image without passing Escape to the fullscreen gallery', async () => {
+    const wrapper = mount(KitImageViewer, {
+      props: { visible: true, currentIndex: 0, images: [{ url: 'https://example.com/photo.jpg' }] },
+      attachTo: document.body,
+      global: { stubs: { Icon: true, ImageMetadataPanel: true } },
+    })
+    const galleryEscape = vi.fn()
+    window.addEventListener('keydown', galleryEscape)
+
+    try {
+      const event = new KeyboardEvent('keydown', { key: 'Escape', bubbles: true, cancelable: true })
+      document.body.dispatchEvent(event)
+      await nextTick()
+
+      expect(wrapper.emitted('update:visible')).toEqual([[false]])
+      expect(event.defaultPrevented).toBe(true)
+      expect(galleryEscape).not.toHaveBeenCalled()
+
+      await wrapper.setProps({ visible: false })
+      document.body.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }))
+      expect(galleryEscape).toHaveBeenCalledOnce()
+    }
+    finally {
+      window.removeEventListener('keydown', galleryEscape)
+      wrapper.unmount()
+    }
+  })
+})

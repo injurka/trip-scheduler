@@ -37,8 +37,8 @@ watch(isFullscreen, (val) => {
   isHtmlScrollLocked.value = val
 })
 
-onKeyStroke('Escape', () => {
-  if (!imageViewer.isOpen.value && isFullscreen.value) {
+onKeyStroke('Escape', (event) => {
+  if (!event.defaultPrevented && !imageViewer.isOpen.value && isFullscreen.value) {
     isFullscreen.value = false
   }
 })

@@ -227,7 +227,7 @@ function handleFocusBlock(block: TimelineBlock) {
         Обсуждение
       </KitDivider>
 
-      <section class="comments-section">
+      <section class="post-comments-container">
         <TripComments
           :parent-id="post.id"
           :parent-type="CommentParentType.POST"
@@ -427,7 +427,7 @@ function handleFocusBlock(block: TimelineBlock) {
 .comments-divider {
   margin: 40px 0 24px;
 }
-.comments-section {
+.post-comments-container {
   background: var(--bg-secondary-color);
   border-radius: var(--r-l);
   padding: 16px;

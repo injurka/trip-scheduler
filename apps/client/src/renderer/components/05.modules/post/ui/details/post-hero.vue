@@ -88,7 +88,7 @@ const heroMediaUrl = computed(() => {
   height: 400px;
   width: 100%;
   overflow: hidden;
-  border-radius: 0 0 var(--r-xl) var(--r-xl);
+  border-radius: var(--r-xl);
   display: flex;
   align-items: flex-end;
   margin-bottom: 24px;

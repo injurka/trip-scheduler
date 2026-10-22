@@ -30,6 +30,19 @@ body {
   caret-color: var(--fg-primary-color);
 }
 
+:where([aria-modal='true'], [role='dialog'], [role='alertdialog']),
+:where([aria-modal='true'], [role='dialog'], [role='alertdialog']) * {
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+
+:where([aria-modal='true'], [role='dialog'], [role='alertdialog'])::-webkit-scrollbar,
+:where([aria-modal='true'], [role='dialog'], [role='alertdialog']) *::-webkit-scrollbar {
+  display: none;
+  width: 0;
+  height: 0;
+}
+
 *,
 *::before,
 *::after {

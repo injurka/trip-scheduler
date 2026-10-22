@@ -240,6 +240,17 @@
         "typescript": "^6.0.3",
       },
     },
+    "tools/metro-import": {
+      "name": "@injurka/metro-import",
+      "version": "1.0.0",
+      "devDependencies": {
+        "@antfu/eslint-config": "9.5.1",
+        "@types/bun": "latest",
+        "eslint": "^10.10.0",
+        "eslint-plugin-format": "2.0.1",
+        "typescript": "6.0.3",
+      },
+    },
     "tools/obsidian-importer": {
       "name": "@limiteddissolve/obsidian-importer",
       "version": "1.2.2",

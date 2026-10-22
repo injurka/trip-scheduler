@@ -247,7 +247,7 @@ export function useBaseMap() {
             minZoom: options.minZoom ?? 2,
             maxZoom: options.maxZoom ?? 22,
             pitch: options.pitch ?? 0,
-            maxPitch: options.maxPitch ?? 85,
+            maxPitch: options.maxPitch ?? 60,
             bearing: options.bearing ?? 0,
             interactive: true,
             dragRotate: true,

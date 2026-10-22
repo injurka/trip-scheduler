@@ -12,7 +12,6 @@ import {
 } from '../composables'
 import ImageMetadataPanel from './kit-image-metadata-panel.vue'
 import KitViewerControls from './kit-viewer-controls.vue'
-import KitViewerTooltip from './kit-viewer-tooltip.vue'
 
 interface Props {
   visible: boolean
@@ -530,6 +529,7 @@ useEventListener(typeof document !== 'undefined' ? document : null, 'keydown', (
   switch (e.key) {
     case 'Escape':
       e.preventDefault()
+      e.stopPropagation()
       if (isMetadataPanelOpen.value)
         closeMetadataPanel()
       else
@@ -765,17 +765,18 @@ onUnmounted(() => {
                   class="thumbnails-wrapper"
                   @scroll.passive="onThumbnailsScroll"
                 >
-                  <div
+                  <TransitionGroup
+                    tag="div"
+                    name="thumbnail-fade"
                     class="thumbnails-track"
                     :style="{
                       width: `${totalThumbnailsWidth}px`,
                       height: `${thumbnailSize}px`,
                     }"
                   >
-                    <KitViewerTooltip
+                    <div
                       v-for="item in visibleThumbnails"
                       :key="`thumb-${item.index}`"
-                      :text="`К ${isVideoImage(item.image) ? 'видео' : 'изображению'} ${item.index + 1}`"
                       :style="{
                         position: 'absolute',
                         left: `${item.offset}px`,
@@ -787,6 +788,7 @@ onUnmounted(() => {
                     >
                       <button
                         class="thumbnail"
+                        :aria-label="`К ${isVideoImage(item.image) ? 'видео' : 'изображению'} ${item.index + 1}`"
                         :class="{
                           'active': item.index === currentIndex,
                           'is-broken': failedThumbnails.has(item.index),
@@ -826,8 +828,8 @@ onUnmounted(() => {
                           <Icon icon="mdi:image-off-outline" />
                         </div>
                       </button>
-                    </KitViewerTooltip>
-                  </div>
+                    </div>
+                  </TransitionGroup>
                 </div>
               </div>
             </Transition>
@@ -1330,12 +1332,26 @@ onUnmounted(() => {
 .thumbnails-track {
   position: relative;
   flex-shrink: 0;
+}
 
-  :deep(.kit-viewer-tooltip-wrapper),
-  :deep(.kit-viewer-tooltip-trigger) {
-    width: 100%;
-    height: 100%;
-    display: block;
+.thumbnail-fade-enter-active,
+.thumbnail-fade-leave-active {
+  transition: opacity 0.2s ease;
+}
+
+.thumbnail-fade-enter-from,
+.thumbnail-fade-leave-to {
+  opacity: 0;
+}
+
+.thumbnail-fade-leave-active {
+  pointer-events: none;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .thumbnail-fade-enter-active,
+  .thumbnail-fade-leave-active {
+    transition: none;
   }
 }
 

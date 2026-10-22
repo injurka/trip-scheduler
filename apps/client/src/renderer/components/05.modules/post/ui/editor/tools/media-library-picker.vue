@@ -411,8 +411,8 @@ watch(() => props.visible, (isOpen) => {
   inset: 0;
   background: rgba(0, 0, 0, 0.1);
   display: flex;
-  align-items: flex-start;
-  justify-content: flex-end;
+  align-items: flex-end;
+  justify-content: flex-start;
   padding: 8px;
   transition: all 0.2s;
 }

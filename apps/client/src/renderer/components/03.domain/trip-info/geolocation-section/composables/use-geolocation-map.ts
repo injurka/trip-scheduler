@@ -799,7 +799,6 @@ export function useGeolocationMap() {
       center: options.center,
       zoom: options.zoom ?? 12,
       pitch: options.pitch ?? 0,
-      maxPitch: 85,
       bearing: options.bearing ?? 0,
       interactive: options.interactive ?? true,
       showAttribution: true,

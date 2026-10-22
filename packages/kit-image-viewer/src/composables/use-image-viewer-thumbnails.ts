@@ -142,7 +142,6 @@ export function useImageViewerThumbnails(options: UseImageViewerThumbnailsOption
 
   function scrollThumbnailIntoView(index: number, behavior: ScrollBehavior = 'smooth') {
     const targetScrollLeft = index * itemPitch.value
-    scrollLeft.value = targetScrollLeft
 
     nextTick(() => {
       const strip = thumbnailsRef.value

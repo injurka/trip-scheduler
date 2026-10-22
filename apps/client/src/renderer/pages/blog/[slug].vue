@@ -4,6 +4,7 @@ import { useRoute } from 'vue-router'
 import { KitBtn } from '~/components/01.kit/kit-btn'
 import { KitImage } from '~/components/01.kit/kit-image'
 import { KitInlineMdEditorWrapper } from '~/components/01.kit/kit-inline-md-editor'
+import { KitSkeleton } from '~/components/01.kit/kit-skeleton'
 import { AsyncStateWrapper } from '~/components/02.shared/async-state-wrapper'
 import { NavigationBack } from '~/components/02.shared/navigation-back'
 import { useBlogStore } from '~/components/05.modules/blog/store/blog.store'
@@ -18,6 +19,11 @@ const authStore = useAuthStore()
 const confirm = useConfirm()
 
 const slug = route.params.slug as string
+const articleSkeletonParagraphs = [
+  ['100%', '94%', '82%'],
+  ['96%', '100%', '72%'],
+  ['100%', '88%'],
+]
 
 const canEdit = computed(() => authStore.user?.role === 'admin' || false)
 
@@ -67,6 +73,30 @@ onMounted(() => {
       :loading="store.isLoadingDetail"
       :data="store.currentPost"
     >
+      <template #loading>
+        <div class="article-skeleton" role="status" aria-label="Загружаем статью">
+          <div class="article-skeleton-header" aria-hidden="true">
+            <KitSkeleton width="104px" height="14px" border-radius="999px" />
+            <KitSkeleton class="title-line" width="72%" height="2.5rem" border-radius="6px" />
+            <KitSkeleton class="title-line title-line-short" width="48%" height="2.5rem" border-radius="6px" />
+          </div>
+
+          <KitSkeleton class="cover-skeleton" height="auto" border-radius="var(--r-l)" />
+
+          <div class="article-body-skeleton" aria-hidden="true">
+            <div v-for="(paragraph, index) in articleSkeletonParagraphs" :key="index" class="paragraph-skeleton">
+              <KitSkeleton
+                v-for="(width, lineIndex) in paragraph"
+                :key="lineIndex"
+                :width="width"
+                height="14px"
+                border-radius="4px"
+              />
+            </div>
+          </div>
+        </div>
+      </template>
+
       <template #success="{ data }">
         <article class="article">
           <header class="article-header">
@@ -137,12 +167,84 @@ onMounted(() => {
   }
 }
 
+.article-skeleton {
+  padding-top: 1px;
+}
+
+.article-skeleton-header {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+  margin: 24px 0 32px;
+}
+
+.title-line {
+  max-width: 100%;
+}
+
+.title-line-short {
+  width: 48%;
+}
+
+.cover-skeleton {
+  aspect-ratio: 2 / 1;
+  max-height: 400px;
+  margin-bottom: 36px;
+}
+
+.article-body-skeleton {
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+  max-width: 68ch;
+  margin: 0 auto;
+}
+
+.paragraph-skeleton {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
 .cover-image {
   width: 100%;
   height: 400px;
   border-radius: var(--r-l);
   overflow: hidden;
   margin-bottom: 40px;
+}
+
+@media (max-width: 600px) {
+  .content-wrapper {
+    padding: 16px;
+  }
+
+  .article-skeleton-header {
+    margin: 20px 0 24px;
+  }
+
+  .title-line {
+    height: 2rem !important;
+    width: 88% !important;
+  }
+
+  .title-line-short {
+    width: 58% !important;
+  }
+
+  .cover-skeleton {
+    aspect-ratio: 1.45 / 1;
+    margin-bottom: 28px;
+  }
+
+  .article-body-skeleton {
+    gap: 20px;
+  }
+
+  .paragraph-skeleton {
+    gap: 9px;
+  }
 }
 
 :deep(.article-content) {

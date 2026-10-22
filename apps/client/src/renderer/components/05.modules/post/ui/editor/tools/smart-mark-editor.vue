@@ -5,7 +5,7 @@ import { v4 as uuidv4 } from 'uuid'
 import { computed, ref, watch } from 'vue'
 import { KitBtn } from '~/components/01.kit/kit-btn'
 import { KitDialogWithClose } from '~/components/01.kit/kit-dialog-with-close'
-import { resolveApiUrl } from '~/shared/lib/url'
+import { getImageUrl, resolveApiUrl } from '~/shared/lib/url'
 
 interface Props {
   visible: boolean
@@ -24,7 +24,19 @@ const activeMarkId = ref<string | null>(null)
 const markLabelInput = ref('')
 
 const resolvedImageUrl = computed(() => {
-  return resolveApiUrl(currentMedia.value.url)
+  const media = currentMedia.value
+  const variants = media.metadata?.variants
+
+  if (media.type === 'video') {
+    return resolveApiUrl(variants?.poster || variants?.small || media.url)
+  }
+
+  const optimizedVariant = variants?.medium || variants?.small
+  if (optimizedVariant) {
+    return resolveApiUrl(optimizedVariant)
+  }
+
+  return getImageUrl(media.url, { w: 1280, fmt: 'webp', q: 75 }) || ''
 })
 
 function handleImageClick(event: MouseEvent) {
