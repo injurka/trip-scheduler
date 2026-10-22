@@ -87,11 +87,19 @@ type GeoPlaceRef = {
   retired: boolean
 }
 
-geo.search({ query, countryId?, kinds?, locale: 'ru' | 'en', limit? })
-// { items: GeoPlaceRef[], catalogVersion: string }
+geo.searchPlaces({ query, countryId?, countryCode?, kinds?, locale: 'ru' | 'en', limit? })
+// GeoPlaceSearchResult[] — по одному уникальному месту на запрос (dedup по ID);
+// matchedName — совпавший alias. Версия каталога не вкладывается в ответ.
 
-geo.getByIds({ ids, locale })
-// { items: GeoPlaceRef[], missingIds: string[], catalogVersion: string }
+geo.getPlacesByIds({ ids, locale })
+// GeoPlaceRef[] — включая retired (для гидратации ссылок). Отсутствующие ID опускаются,
+// missing вычисляется как «запрошенные минус вернувшиеся»; отдельного поля missingIds нет.
+
+geo.catalogStatus()
+// { ready, version, publishedAt, placeCount } — источник версии каталога вместо поля в каждом ответе.
+
+geo.resolveCity({ label, countryId? | countryCode?, regionName?, kinds? })
+// GeoResolutionResult { status: resolved|unresolved|needs_review, reason, place, candidates, provenance }
 ```
 
 - Query trim, min 2 и max 100 символов; limit по умолчанию 20, верхний предел 30. Пустой запрос не выгружает каталог. getByIds ограничен, например, 100 ID на запрос; точные пределы отражаются и в Zod, и в документации.

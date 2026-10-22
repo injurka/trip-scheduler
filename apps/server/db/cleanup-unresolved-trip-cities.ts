@@ -19,6 +19,7 @@ interface LinkSnapshot {
 interface RemovedCity {
   position: number
   label: string
+  kind: 'unresolved_link' | 'unlinked_city'
 }
 
 interface UnlinkedCity {
@@ -88,19 +89,44 @@ function buildCleanupItem(
   trip: { id: string, title: string, cities: string[] },
   links: LinkSnapshot[],
 ): CleanupItem | null {
+  const beforeCities = Array.isArray(trip.cities) ? trip.cities : []
   const unresolvedLinks = links.filter(link => link.status !== 'resolved' || !link.placeId)
-  if (unresolvedLinks.length === 0)
+  const linkedPositions = new Set(links.map(link => link.position))
+  // Метки в trips.cities без строки-линка — это неразрешённое легаси, которое
+  // иначе станет невидимым в новом ID-только read-модели (hydrateTripCities читает
+  // только trip_geo_places). Их нельзя тихо «оставить»: включаем в ту же очистку.
+  const unlinkedCities = beforeCities.flatMap((label, position) =>
+    label.trim() && !linkedPositions.has(position)
+      ? [{ position, label }]
+      : [])
+
+  if (unresolvedLinks.length === 0 && unlinkedCities.length === 0)
     return null
 
-  const removedPositions = new Set(unresolvedLinks.map(link => link.position))
-  const beforeCities = Array.isArray(trip.cities) ? trip.cities : []
+  const removedPositions = new Set([
+    ...unresolvedLinks.map(link => link.position),
+    ...unlinkedCities.map(city => city.position),
+  ])
   const validLinks = links.filter(link => link.status === 'resolved' && link.placeId)
   const afterLinks = validLinks.map((link) => {
     const removedBefore = [...removedPositions].filter(position => position < link.position).length
     return { ...link, position: link.position - removedBefore }
   })
   const afterCities = beforeCities.filter((_, position) => !removedPositions.has(position))
-  const linkedPositions = new Set(links.map(link => link.position))
+  const unresolvedLinkByPosition = new Map(unresolvedLinks.map(link => [link.position, link]))
+
+  const removed = [...removedPositions]
+    .sort((a, b) => a - b)
+    .map((position) => {
+      const link = unresolvedLinkByPosition.get(position)
+      const fromProjection = beforeCities[position]?.trim()
+      const fromLink = link?.legacyLabel?.trim()
+      return {
+        position,
+        label: fromProjection || fromLink || '(без подписи)',
+        kind: link ? 'unresolved_link' as const : 'unlinked_city' as const,
+      }
+    })
 
   return {
     tripId: trip.id,
@@ -110,18 +136,8 @@ function buildCleanupItem(
     beforeLinks: links,
     afterCities,
     afterLinks,
-    removed: unresolvedLinks.map((link) => {
-      const fromProjection = beforeCities[link.position]?.trim()
-      const fromLink = link.legacyLabel?.trim()
-      return {
-        position: link.position,
-        label: fromProjection || fromLink || '(без подписи)',
-      }
-    }),
-    unlinkedCities: beforeCities.flatMap((label, position) =>
-      label.trim() && !linkedPositions.has(position)
-        ? [{ position, label }]
-        : []),
+    removed,
+    unlinkedCities,
   }
 }
 
@@ -188,19 +204,26 @@ async function createManifest(outputPath: string): Promise<void> {
   }
   const reportPath = await writePrivateJson(outputPath, manifest)
   const removedCount = manifest.items.reduce((sum, item) => sum + item.removed.length, 0)
-  const unlinkedCount = manifest.items.reduce((sum, item) => sum + item.unlinkedCities.length, 0)
+  const unresolvedLinkCount = manifest.items.reduce(
+    (sum, item) => sum + item.removed.filter(city => city.kind === 'unresolved_link').length,
+    0,
+  )
+  const unlinkedCount = manifest.items.reduce(
+    (sum, item) => sum + item.removed.filter(city => city.kind === 'unlinked_city').length,
+    0,
+  )
   console.info(JSON.stringify({
     runId: manifest.runId,
     trips: manifest.items.length,
-    unresolvedCityLinks: removedCount,
-    unlinkedCityLabelsLeftUntouched: unlinkedCount,
+    removedCityLabels: removedCount,
+    removedUnresolvedLinks: unresolvedLinkCount,
+    removedUnlinkedCityLabels: unlinkedCount,
     reportPath,
     affected: manifest.items.map(item => ({
       tripId: item.tripId,
       title: item.title,
       removing: item.removed,
       keeping: item.afterCities,
-      unlinkedLeftUntouched: item.unlinkedCities,
     })),
     note: 'Поездки и список городов не изменены. Применение возможно только с отдельным --apply.',
   }, null, 2))
@@ -281,7 +304,9 @@ async function applyManifest(manifest: CleanupManifest, shouldApply: boolean): P
     runId: manifest.runId,
     mode: shouldApply ? 'apply' : 'dry-run',
     trips: items.length,
-    unresolvedCityLinks: items.reduce((sum, item) => sum + item.removed.length, 0),
+    removedCityLabels: items.reduce((sum, item) => sum + item.removed.length, 0),
+    removedUnresolvedLinks: items.reduce((sum, item) => sum + item.removed.filter(city => city.kind === 'unresolved_link').length, 0),
+    removedUnlinkedCityLabels: items.reduce((sum, item) => sum + item.removed.filter(city => city.kind === 'unlinked_city').length, 0),
     tripFieldsChanged: ['cities'],
     cityLinksChanged: true,
   }, null, 2))
