@@ -206,6 +206,7 @@ provide(TripsHubKey, tripsHub)
               <label>Город</label>
               <GeoPlacePicker
                 :model-value="selectedCity"
+                icon="mdi:city-variant-outline"
                 placeholder="Начните вводить город..."
                 @update:model-value="onCitySelected"
               />

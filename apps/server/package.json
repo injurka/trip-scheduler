@@ -21,6 +21,7 @@
     "db:seed-dump": "bun run db/seed-from-dump.ts",
     "geo:backfill-cities": "bun run db/city-backfill.ts",
     "geo:cleanup-trip-cities": "bun run db/cleanup-unresolved-trip-cities.ts",
+    "geo:prepare-cutover": "bun run db/prepare-cutover.ts",
     "geo:import": "bun run src/modules/geo/import-catalog.ts",
     "db:studio": "bunx drizzle-kit studio",
     "db:reset": "bunx drizzle-kit drop",

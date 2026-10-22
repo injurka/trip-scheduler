@@ -67,6 +67,8 @@ const qualityOptions: KitDropdownItem<HighlightImageQuality>[] = [
         <GeoPlacePicker
           v-model="localPlaces"
           multiple
+          size="sm"
+          icon="mdi:city-variant-outline"
           placeholder="Все города"
         />
       </div>
@@ -139,10 +141,6 @@ const qualityOptions: KitDropdownItem<HighlightImageQuality>[] = [
   width: 260px;
   max-width: 100%;
   margin-right: auto;
-
-  :deep(.geo-place-picker__control) {
-    min-height: 38px;
-  }
 }
 
 .legacy-city-filter {

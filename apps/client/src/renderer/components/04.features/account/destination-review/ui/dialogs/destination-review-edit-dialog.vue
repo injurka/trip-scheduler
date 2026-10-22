@@ -43,6 +43,7 @@ const fileModel = computed({
 
 const step = ref(1)
 const selectedCityRef = ref<GeoPlaceRef | null>(null)
+let cityHydrationSequence = 0
 
 watch(visibleModel, (val) => {
   if (val) {
@@ -65,18 +66,22 @@ watch(() => props.form.countryId, (countryId) => {
 })
 
 watch(() => [props.visible, props.form.geoPlaceId] as const, async ([isVisible, geoPlaceId]) => {
+  const sequence = ++cityHydrationSequence
   if (!isVisible || !geoPlaceId || selectedCityRef.value?.id === geoPlaceId) {
     if (!geoPlaceId)
       selectedCityRef.value = null
     return
   }
 
+  selectedCityRef.value = null
   const places = await useRequest({
     key: `destination-review-edit:city:${geoPlaceId}`,
     fn: db => db.geo.getPlacesByIds([geoPlaceId]),
   })
+  if (sequence !== cityHydrationSequence)
+    return
   selectedCityRef.value = places?.[0] ?? null
-})
+}, { immediate: true })
 
 function selectCity(value: GeoPlaceRef | GeoPlaceRef[] | null) {
   const place = Array.isArray(value) ? value[0] ?? null : value
@@ -186,6 +191,7 @@ function getSliderColor(value: number) {
 
         <GeoPlacePicker
           :model-value="selectedCityRef"
+          :fallback-label="form.geoPlaceId ? form.city : ''"
           :country-id="form.countryId"
           label="Город"
           placeholder="Выберите город из справочника"

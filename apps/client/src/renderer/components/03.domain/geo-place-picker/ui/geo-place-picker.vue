@@ -7,6 +7,7 @@ type GeoPlaceSelection = GeoPlaceRef | GeoPlaceRef[] | null
 
 interface Props {
   modelValue: GeoPlaceSelection
+  fallbackLabel?: string
   label?: string
   placeholder?: string
   multiple?: boolean
@@ -14,9 +15,12 @@ interface Props {
   countryId?: string
   countryCode?: string
   disabled?: boolean
+  icon?: string
+  size?: 'sm' | 'md' | 'lg'
 }
 
 const props = withDefaults(defineProps<Props>(), {
+  fallbackLabel: '',
   label: '',
   placeholder: 'Найти город',
   multiple: false,
@@ -24,6 +28,8 @@ const props = withDefaults(defineProps<Props>(), {
   countryId: undefined,
   countryCode: undefined,
   disabled: false,
+  icon: undefined,
+  size: 'md',
 })
 
 const emit = defineEmits<{
@@ -51,7 +57,7 @@ const selectedPlaces = computed((): GeoPlaceRef[] => {
 const selectedPlaceIds = computed(() => new Set(selectedPlaces.value.map(place => place.id)))
 const displayValue = computed(() => {
   if (!props.multiple && !query.value)
-    return selectedPlaces.value[0]?.name ?? ''
+    return selectedPlaces.value[0]?.name || props.fallbackLabel || ''
   return query.value
 })
 
@@ -103,7 +109,7 @@ async function searchPlaces(searchQuery: string, sequence: number) {
 
 function onFocus() {
   isOpen.value = true
-  if (!props.multiple && selectedPlaces.value.length > 0) {
+  if (!props.multiple && (selectedPlaces.value.length > 0 || props.fallbackLabel)) {
     query.value = ''
     nextTick(() => inputElement.value?.select())
   }
@@ -195,7 +201,15 @@ onBeforeUnmount(() => {
   <div ref="rootElement" class="geo-place-picker" @focusout="onFocusout">
     <label v-if="label" class="geo-place-picker__label">{{ label }}</label>
 
-    <div class="geo-place-picker__control" :class="{ 'is-open': isOpen, 'is-disabled': disabled }">
+    <div
+      class="geo-place-picker__control"
+      :class="[
+        `geo-place-picker__control--${size}`,
+        { 'is-open': isOpen, 'is-disabled': disabled, 'has-icon': !!icon },
+      ]"
+    >
+      <Icon v-if="icon" :icon="icon" class="geo-place-picker__icon" />
+
       <div v-if="multiple" class="geo-place-picker__selected">
         <span v-for="place in selectedPlaces" :key="place.id" class="geo-place-picker__chip">
           {{ place.name }}
@@ -224,7 +238,7 @@ onBeforeUnmount(() => {
       >
 
       <button
-        v-if="!multiple && selectedPlaces.length > 0"
+        v-if="!multiple && (selectedPlaces.length > 0 || fallbackLabel)"
         type="button"
         class="geo-place-picker__clear"
         aria-label="Очистить выбранный город"
@@ -288,16 +302,79 @@ onBeforeUnmount(() => {
 }
 
 .geo-place-picker__control {
+  position: relative;
   display: flex;
   flex-wrap: wrap;
   align-items: center;
-  gap: 7px;
+  gap: 6px;
   min-height: 46px;
-  padding: 7px 10px;
+  padding: 6px 12px;
   background: var(--bg-secondary-color);
   border: 1px solid var(--border-secondary-color);
   border-radius: var(--r-s);
   transition: border-color 0.2s;
+
+  &--sm {
+    min-height: 38px;
+    padding: 4px 10px;
+
+    &.has-icon {
+      padding-left: 36px;
+    }
+
+    .geo-place-picker__icon {
+      left: 10px;
+      font-size: 1.125rem;
+    }
+
+    input {
+      font-size: 0.875rem;
+      padding: 4px 0;
+    }
+
+    .geo-place-picker__chip {
+      padding: 2px 6px;
+      font-size: 0.8125rem;
+    }
+  }
+
+  &--md {
+    min-height: 46px;
+    padding: 6px 12px;
+
+    &.has-icon {
+      padding-left: 40px;
+    }
+
+    .geo-place-picker__icon {
+      left: 12px;
+      font-size: 1.25rem;
+    }
+
+    input {
+      font-size: 1rem;
+      padding: 4px 0;
+    }
+  }
+
+  &--lg {
+    min-height: 54px;
+    padding: 8px 14px;
+
+    &.has-icon {
+      padding-left: 44px;
+    }
+
+    .geo-place-picker__icon {
+      left: 14px;
+      font-size: 1.375rem;
+    }
+
+    input {
+      font-size: 1.125rem;
+      padding: 4px 0;
+    }
+  }
 
   &.is-open,
   &:focus-within {
@@ -309,20 +386,26 @@ onBeforeUnmount(() => {
   }
 
   input {
-    flex: 1 1 140px;
-    min-width: 100px;
-    padding: 5px 2px;
+    flex: 1 1 120px;
+    min-width: 80px;
     color: var(--fg-primary-color);
     background: transparent;
     border: 0;
     outline: 0;
     font: inherit;
-    font-size: 0.9rem;
-
-    &::placeholder {
-      color: var(--fg-tertiary-color);
-    }
+    font-size: 1rem;
+    line-height: 1.25;
   }
+}
+
+.geo-place-picker__icon {
+  position: absolute;
+  left: 12px;
+  top: 50%;
+  transform: translateY(-50%);
+  color: var(--fg-tertiary-color);
+  pointer-events: none;
+  z-index: 1;
 }
 
 .geo-place-picker__selected {

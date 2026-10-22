@@ -116,6 +116,7 @@ onMounted(() => {
           <label>Город</label>
           <GeoPlacePicker
             :model-value="selectedCity"
+            icon="mdi:city-variant-outline"
             placeholder="Все города"
             @update:model-value="onCitySelected"
           />

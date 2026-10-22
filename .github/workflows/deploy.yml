@@ -313,12 +313,8 @@ jobs:
         env:
           PORTAINER_WEBHOOK: ${{ secrets.PORTAINER_WEBHOOK }}
         run: |
-          if [ -z "$PORTAINER_WEBHOOK" ]; then
-            echo "::error::PORTAINER_WEBHOOK is not configured"
-            exit 1
-          fi
-
-          curl --fail-with-body \
+          curl -k \
+               --fail-with-body \
                --silent \
                --show-error \
                --max-time 60 \

@@ -435,6 +435,7 @@ function updateSegmentField<K extends keyof FlightSegment>(segmentIndex: number,
           <div v-else class="flight-city-field">
             <GeoPlacePicker
               :model-value="selectedCityRefs[cityRefKey(index, 'departure')] ?? null"
+              :fallback-label="segment.departureCityId ? segment.departureCity : ''"
               label="Город вылета"
               placeholder="Выберите город из справочника"
               @update:model-value="updateSegmentCity(index, 'departure', $event)"
@@ -448,6 +449,7 @@ function updateSegmentField<K extends keyof FlightSegment>(segmentIndex: number,
           <div v-else class="flight-city-field">
             <GeoPlacePicker
               :model-value="selectedCityRefs[cityRefKey(index, 'arrival')] ?? null"
+              :fallback-label="segment.arrivalCityId ? segment.arrivalCity : ''"
               label="Город прилета"
               placeholder="Выберите город из справочника"
               @update:model-value="updateSegmentCity(index, 'arrival', $event)"

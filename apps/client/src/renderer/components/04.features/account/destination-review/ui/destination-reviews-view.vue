@@ -182,11 +182,15 @@ onMounted(() => {
           class="filter-select"
           icon="mdi:earth"
         />
-        <GeoPlacePicker
-          :model-value="selectedCityRef"
-          placeholder="Все города"
-          @update:model-value="onFilterCitySelected"
-        />
+        <div class="city-filter">
+          <GeoPlacePicker
+            :model-value="selectedCityRef"
+            placeholder="Все города"
+            size="sm"
+            icon="mdi:city-variant-outline"
+            @update:model-value="onFilterCitySelected"
+          />
+        </div>
       </div>
 
       <div v-if="selectedCity" class="legacy-city-filter">
@@ -372,6 +376,11 @@ onMounted(() => {
   max-width: 100%;
 }
 
+.city-filter {
+  width: 220px;
+  max-width: 100%;
+}
+
 .filters-spacer {
   flex-grow: 1;
 }
@@ -533,6 +542,10 @@ onMounted(() => {
   }
 
   .filter-select {
+    width: 100%;
+  }
+
+  .city-filter {
     width: 100%;
   }
 
