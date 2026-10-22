@@ -39,6 +39,7 @@ interface MigrationItem {
   status: 'resolved' | 'unresolved' | 'needs_review'
   reason: string
   placeId: string | null
+  chosenPlaceCountryId?: string | null
   decisionSource: 'exact_preferred_in_country' | 'reviewed_mapping' | null
   reviewed: boolean
   reviewedBy?: string
@@ -568,11 +569,18 @@ async function validateManifestDecisions(manifest: MigrationManifest): Promise<M
         throw new Error(`Выбранный place ID отсутствует или retired: ${selectedId}`)
       if (['highlight', 'destination_review', 'metro', 'flight'].includes(decision.entityType) && place.kind !== 'settlement')
         throw new Error(`${decision.entityType} допускает только settlement`)
-      if (decision.countryId && place.countryId !== decision.countryId)
-        throw new Error(`${decision.key}: страна выбранного места не совпадает с countryId записи`)
-      if (decision.countryCode && place.countryCode !== decision.countryCode)
-        throw new Error(`${decision.key}: страна выбранного места не совпадает с countryCode контекста`)
+      if (isSafeAuto) {
+        // Авто-резолв обязан сохранять согласованность страны. Ручной review, наоборот,
+        // может исправить ошибочно приписанную страну (например, «Гонконг» со страной Китай),
+        // поэтому для ручного маппинга проверку страны не применяем — страна записи будет
+        // приведена к стране выбранного места при apply.
+        if (decision.countryId && place.countryId !== decision.countryId)
+          throw new Error(`${decision.key}: страна выбранного места не совпадает с countryId записи`)
+        if (decision.countryCode && place.countryCode !== decision.countryCode)
+          throw new Error(`${decision.key}: страна выбранного места не совпадает с countryCode контекста`)
+      }
       current.placeId = selectedId
+      current.chosenPlaceCountryId = place.countryId
       current.status = 'resolved'
       current.reason = decision.decisionSource === 'exact_preferred_in_country' ? decision.reason : 'reviewed_mapping'
       current.decisionSource = decision.decisionSource === 'exact_preferred_in_country' ? decision.decisionSource : 'reviewed_mapping'
@@ -652,10 +660,17 @@ async function applyManifest(manifest: MigrationManifest, shouldApply: boolean):
         })
       }
       else if (item.placeId && item.entityType === 'highlight') {
-        await tx.update(highlights).set({ geoPlaceId: item.placeId }).where(eq(highlights.id, item.entityId))
+        await tx.update(highlights).set({
+          geoPlaceId: item.placeId,
+          ...(item.chosenPlaceCountryId ? { countryId: item.chosenPlaceCountryId } : {}),
+        }).where(eq(highlights.id, item.entityId))
       }
       else if (item.placeId && item.entityType === 'destination_review') {
-        await tx.update(destinationReviews).set({ geoPlaceId: item.placeId, updatedAt: new Date() }).where(eq(destinationReviews.id, item.entityId))
+        await tx.update(destinationReviews).set({
+          geoPlaceId: item.placeId,
+          ...(item.chosenPlaceCountryId ? { countryId: item.chosenPlaceCountryId } : {}),
+          updatedAt: new Date(),
+        }).where(eq(destinationReviews.id, item.entityId))
       }
       else if (item.placeId && item.entityType === 'metro') {
         await tx.update(metroSystems).set({ geoPlaceId: item.placeId }).where(eq(metroSystems.id, item.entityId))
@@ -694,6 +709,8 @@ async function applyManifest(manifest: MigrationManifest, shouldApply: boolean):
           countryCode: item.countryCode ?? null,
           beforeLink: item.entityType === 'trip' ? previous.link ?? null : undefined,
           beforeGeoPlaceId: item.entityType === 'trip' ? undefined : previous.row.geoPlaceId ?? null,
+          beforeCountryId: item.entityType === 'highlight' || item.entityType === 'destination_review' ? item.countryId ?? null : undefined,
+          afterCountryId: item.entityType === 'highlight' || item.entityType === 'destination_review' ? item.chosenPlaceCountryId ?? null : undefined,
           beforeCityId: item.entityType === 'flight' ? item.beforeCityId ?? null : undefined,
           beforeCityIdPresent: item.entityType === 'flight' ? item.beforeCityIdPresent === true : undefined,
           afterPlaceId: item.placeId,
@@ -834,12 +851,16 @@ async function rollbackRun(runId: string, shouldApply: boolean): Promise<void> {
         }
       }
       else if (entityType === 'highlight') {
-        const beforePlaceId = (items[0]!.context as Record<string, any>).beforeGeoPlaceId ?? null
-        await tx.update(highlights).set({ geoPlaceId: beforePlaceId }).where(eq(highlights.id, first.entityId))
+        const context = items[0]!.context as Record<string, any>
+        const beforePlaceId = context.beforeGeoPlaceId ?? null
+        const countryPayload = 'beforeCountryId' in context ? { countryId: context.beforeCountryId ?? null } : {}
+        await tx.update(highlights).set({ geoPlaceId: beforePlaceId, ...countryPayload }).where(eq(highlights.id, first.entityId))
       }
       else if (entityType === 'destination_review') {
-        const beforePlaceId = (items[0]!.context as Record<string, any>).beforeGeoPlaceId ?? null
-        await tx.update(destinationReviews).set({ geoPlaceId: beforePlaceId, updatedAt: new Date() }).where(eq(destinationReviews.id, first.entityId))
+        const context = items[0]!.context as Record<string, any>
+        const beforePlaceId = context.beforeGeoPlaceId ?? null
+        const countryPayload = 'beforeCountryId' in context ? { countryId: context.beforeCountryId ?? null } : {}
+        await tx.update(destinationReviews).set({ geoPlaceId: beforePlaceId, ...countryPayload, updatedAt: new Date() }).where(eq(destinationReviews.id, first.entityId))
       }
       else if (entityType === 'metro') {
         const beforePlaceId = (items[0]!.context as Record<string, any>).beforeGeoPlaceId ?? null
