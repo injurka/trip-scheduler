@@ -263,10 +263,11 @@ onClickOutside(wrapperRef, handleClose)
           </li>
         </ul>
         <div v-else-if="loading" class="dropdown-state">
-          Загрузка...
+          <Icon icon="mdi:loading" class="spin-icon" />
+          <span>Загрузка...</span>
         </div>
         <div v-else class="dropdown-state">
-          Ничего не найдено
+          <span>Ничего не найдено</span>
         </div>
       </div>
     </Transition>
@@ -376,9 +377,25 @@ onClickOutside(wrapperRef, handleClose)
 }
 
 .dropdown-state {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
   padding: 16px;
   text-align: center;
   color: var(--fg-secondary-color);
+  font-size: 0.95rem;
+
+  .spin-icon {
+    font-size: 1.1rem;
+    animation: spin 1s linear infinite;
+  }
+}
+
+@keyframes spin {
+  100% {
+    transform: rotate(360deg);
+  }
 }
 
 .chip-input-wrapper {
@@ -418,6 +435,10 @@ onClickOutside(wrapperRef, handleClose)
     color: var(--fg-primary-color);
     min-width: 120px;
     padding: 4px 0;
+
+    &::placeholder {
+      color: var(--fg-tertiary-color);
+    }
   }
 }
 

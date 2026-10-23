@@ -59,6 +59,11 @@ textarea {
   font-feature-settings: 'tnum';
 }
 
+input::placeholder,
+textarea::placeholder {
+  color: var(--fg-tertiary-color);
+}
+
 h1,
 h2,
 h3,

@@ -107,6 +107,7 @@ const id = `kit-input-${Math.random().toString(36).substring(2, 9)}`
     color: var(--fg-tertiary-color);
     pointer-events: none;
     z-index: 1;
+    font-size: 1rem;
   }
 
   input,
@@ -119,6 +120,10 @@ const id = `kit-input-${Math.random().toString(36).substring(2, 9)}`
     transition: border-color 0.2s;
     font-family: inherit;
     font-size: 1rem;
+
+    &::placeholder {
+      color: var(--fg-tertiary-color);
+    }
 
     &.has-prefix-icon {
       padding-left: 40px;

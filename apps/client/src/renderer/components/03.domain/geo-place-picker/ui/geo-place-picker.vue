@@ -301,11 +301,10 @@ onBeforeUnmount(() => {
         </div>
         <div v-else-if="searchError" class="geo-place-picker__state is-error">
           <Icon icon="mdi:alert-circle-outline" />
-          <span>Не удалось загрузить справочник</span>
+          <span>Не удалось загрузить данные</span>
         </div>
         <div v-else-if="query.trim().length < 2" class="geo-place-picker__state">
-          <Icon icon="mdi:magnify" class="state-icon" />
-          <span>Введите от 2 символов для поиска</span>
+          <span>Введите от 2 символов</span>
         </div>
         <div v-else-if="results.length === 0" class="geo-place-picker__state">
           <span>Ничего не найдено</span>
@@ -431,12 +430,12 @@ onBeforeUnmount(() => {
 
     .geo-place-picker__icon {
       left: 12px;
-      font-size: 1.25rem;
+      font-size: 1rem;
     }
 
     .geo-place-picker__input {
       font-size: 0.875rem;
-      min-height: 28px;
+      min-height: 20px;
     }
 
     .geo-place-picker__chip {
@@ -460,7 +459,7 @@ onBeforeUnmount(() => {
 
     .geo-place-picker__icon {
       left: 12px;
-      font-size: 1.25rem;
+      font-size: 1rem;
     }
 
     .geo-place-picker__input {
@@ -580,7 +579,6 @@ onBeforeUnmount(() => {
   z-index: 100;
   box-shadow: var(--s-l);
   top: calc(100% + 4px);
-  padding: 6px;
   box-sizing: border-box;
 
   &.is-open-up {
@@ -592,7 +590,7 @@ onBeforeUnmount(() => {
 .geo-place-picker__list {
   list-style: none;
   margin: 0;
-  padding: 0;
+  padding: 6px;
 }
 
 .geo-place-picker__option {
@@ -600,7 +598,7 @@ onBeforeUnmount(() => {
   align-items: center;
   justify-content: space-between;
   gap: 10px;
-  padding: 8px 12px;
+  padding: 10px 14px;
   border-radius: var(--r-s);
   cursor: pointer;
   transition: background-color 0.2s;
@@ -680,18 +678,13 @@ onBeforeUnmount(() => {
   align-items: center;
   justify-content: center;
   gap: 8px;
-  padding: 16px 12px;
+  padding: 16px;
   text-align: center;
   color: var(--fg-secondary-color);
-  font-size: 0.875rem;
+  font-size: 0.95rem;
 
   &.is-error {
     color: var(--fg-error-color);
-  }
-
-  .state-icon {
-    font-size: 1.1rem;
-    opacity: 0.7;
   }
 
   .spin-icon {
