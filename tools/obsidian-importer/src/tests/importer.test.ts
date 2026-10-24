@@ -169,7 +169,7 @@ tags:
     }
   })
 
-  it('parses is_ready in frontmatter and appends (✅ Готов) to day description', () => {
+  it('parses is_ready in frontmatter and appends (⏳ Не готов) when false, nothing when true or omitted', () => {
     const readyMarkdown = `---
 day: 3
 date: 2026-11-06
@@ -188,13 +188,24 @@ is_ready: true
     expect(fm.isReady).toBe(true)
 
     const desc = extractDayDescription(readyMarkdown, fm)
-    expect(desc).toBe('Фаза 1 — Чистый отпуск. Первое знакомство с Формозой без гонки после перелёта. (✅ Готов)')
+    expect(desc).toBe('Фаза 1 — Чистый отпуск. Первое знакомство с Формозой без гонки после перелёта.')
 
     const notReadyMarkdown = readyMarkdown.replace('is_ready: true', 'is_ready: false')
     const fmNotReady = parseDayFrontmatter(notReadyMarkdown)
     expect(fmNotReady.is_ready).toBe(false)
     const descNotReady = extractDayDescription(notReadyMarkdown, fmNotReady)
-    expect(descNotReady).toBe('Фаза 1 — Чистый отпуск. Первое знакомство с Формозой без гонки после перелёта.')
+    expect(descNotReady).toBe('Фаза 1 — Чистый отпуск. Первое знакомство с Формозой без гонки после перелёта. (⏳ Не готов)')
+
+    const omittedReadyMarkdown = readyMarkdown.replace('is_ready: true\n', '')
+    const fmOmitted = parseDayFrontmatter(omittedReadyMarkdown)
+    expect(fmOmitted.is_ready).toBeUndefined()
+    const descOmitted = extractDayDescription(omittedReadyMarkdown, fmOmitted)
+    expect(descOmitted).toBe('Фаза 1 — Чистый отпуск. Первое знакомство с Формозой без гонки после перелёта.')
+
+    const emptyDescNotReady = extractDayDescription('', { is_ready: false, isReady: false })
+    expect(emptyDescNotReady).toBe('')
+    const notReadyNoHighlight = extractDayDescription('# Заголовок\n\n', { is_ready: false, isReady: false })
+    expect(notReadyNoHighlight).toBe('(⏳ Не готов)')
   })
 })
 

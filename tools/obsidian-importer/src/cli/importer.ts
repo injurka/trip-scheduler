@@ -876,14 +876,22 @@ export async function runImport(): Promise<void> {
       // Enrich activities with geolocations, uploaded image galleries, note callouts, and matched bookings
       const enrichedActivities: ActivityPayload[] = []
       // Extract location context for the day to ensure accurate geocoding across multi-city trips
-      let locationContext = tripData.cities.length > 0 ? tripData.cities[0] : undefined
+      let locationContext = day.baseCity || day.frontmatter?.baseCity || day.frontmatter?.base_city
       const locMatch = day.rawContent.match(/>[ \t]*\*\*(?:Локация|Location):\*\*[ \t]*([^\n]+)/i)
-      const dayContextText = `${day.location || (locMatch ? locMatch[1] : '')} ${day.title} ${day.fileName}`
-      for (const city of tripData.cities) {
-        if (new RegExp(`(^|[^\\wа-яёА-ЯЁ])${city}(?![\\wа-яёА-ЯЁ])`, 'iu').test(dayContextText)) {
-          locationContext = city
-          break
+      const dayLocation = day.location || (locMatch ? locMatch[1] : '')
+      const arrowSegments = dayLocation.split(/\s*(?:→|->|➔|—|–)\s*/).map(s => s.trim()).filter(Boolean)
+      const destinationPart = arrowSegments.length > 1 ? arrowSegments[arrowSegments.length - 1] : ''
+      const dayContextText = `${destinationPart} ${dayLocation} ${day.title} ${day.fileName}`
+      if (!locationContext) {
+        for (const city of tripData.cities) {
+          if (new RegExp(`(^|[^\\wа-яёА-ЯЁ])${city}(?![\\wа-яёА-ЯЁ])`, 'iu').test(dayContextText)) {
+            locationContext = city
+            break
+          }
         }
+      }
+      if (!locationContext && tripData.cities.length > 0) {
+        locationContext = tripData.cities[0]
       }
 
       for (let actIdx = 0; actIdx < activitiesToCreate.length; actIdx++) {

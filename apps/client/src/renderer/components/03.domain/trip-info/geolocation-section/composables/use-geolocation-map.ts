@@ -854,7 +854,7 @@ export function useGeolocationMap() {
           })
         })
       }
-      return () => {}
+      return () => { }
     },
   }
 
@@ -877,6 +877,82 @@ export function useGeolocationMap() {
   const setInteractive = (interactive: boolean) => {
     baseMap.setInteractive(interactive)
     isDraggableAllowed.value = interactive
+  }
+
+  const fitToContent = (
+    customPoints?: MapPoint[],
+    customRoutes?: MapRoute[],
+    options?: {
+      padding?: number | { top: number, right: number, bottom: number, left: number }
+      maxZoom?: number
+      duration?: number
+    },
+  ): boolean => {
+    const pts = customPoints ?? Array.from(pointsMap.values()).map(item => item.point)
+    const rts = customRoutes ?? Array.from(routesMap.values())
+
+    let minLng = Number.POSITIVE_INFINITY
+    let maxLng = Number.NEGATIVE_INFINITY
+    let minLat = Number.POSITIVE_INFINITY
+    let maxLat = Number.NEGATIVE_INFINITY
+
+    const consider = (coord?: Coordinate | null) => {
+      if (!coord || !isValidCoordinate(coord))
+        return
+      const [lng, lat] = coord
+      if (lng < minLng)
+        minLng = lng
+      if (lng > maxLng)
+        maxLng = lng
+      if (lat < minLat)
+        minLat = lat
+      if (lat > maxLat)
+        maxLat = lat
+    }
+
+    pts.forEach(p => consider(p.coordinates))
+    rts.forEach((r) => {
+      if (r.geometry && r.geometry.length > 0) {
+        r.geometry.forEach(c => consider(c))
+      }
+      else if (r.points && r.points.length > 0) {
+        r.points.forEach(p => consider(p.coordinates))
+      }
+    })
+
+    if (minLng === Number.POSITIVE_INFINITY || minLat === Number.POSITIVE_INFINITY)
+      return false
+
+    const map = baseMap.mapInstance.value
+    if (!map)
+      return false
+
+    if (minLng === maxLng && minLat === maxLat) {
+      map.flyTo({
+        center: [minLng, minLat],
+        zoom: Math.min(options?.maxZoom ?? 16, 16),
+        duration: options?.duration ?? 400,
+      })
+      return true
+    }
+
+    const padding
+      = typeof options?.padding === 'number'
+        ? { top: options.padding, right: options.padding, bottom: options.padding, left: options.padding }
+        : (options?.padding ?? { top: 40, right: 40, bottom: 40, left: 40 })
+
+    baseMap.fitBounds(
+      [
+        [minLng, minLat],
+        [maxLng, maxLat],
+      ],
+      {
+        padding,
+        maxZoom: options?.maxZoom ?? 16,
+        duration: options?.duration ?? 400,
+      },
+    )
+    return true
   }
 
   return {
@@ -905,5 +981,7 @@ export function useGeolocationMap() {
     setActivePointId,
     showCurrentLocation,
     onPointDragEnd,
+    fitBounds: baseMap.fitBounds,
+    fitToContent,
   }
 }

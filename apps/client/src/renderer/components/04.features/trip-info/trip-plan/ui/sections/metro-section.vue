@@ -319,7 +319,7 @@ watch(() => [sectionData.value.systemId, sectionData.value.mode] as const, ([id]
                       class="station-list"
                     >
                       <summary>
-                        Промежуточные станции · {{ getStops(ride) - 1 }}
+                        ост. {{ intermediateStations(ride).length }}
                         <Icon icon="mdi:chevron-down" class="expand-icon" />
                       </summary>
                       <ol aria-label="Промежуточные станции">
@@ -375,8 +375,12 @@ watch(() => [sectionData.value.systemId, sectionData.value.mode] as const, ([id]
     gap: 6px;
     width: fit-content;
     cursor: pointer;
-    color: var(--fg-primary-color);
+    color: var(--fg-secondary-color);
     list-style: none;
+
+    &:hover {
+      color: var(--fg-primary-color);
+    }
 
     &::-webkit-details-marker {
       display: none;

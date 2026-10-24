@@ -276,10 +276,16 @@ function handleTransportModeChange(routeId: string, mode: TransportMode) {
 
 function setActiveRoute(routeId: string | null) {
   activeRouteId.value = routeId
-  if (routeId)
+  if (routeId) {
     mode.value = 'add_route_point'
-  else
+    const targetRoute = routes.value.find(r => r.id === routeId)
+    if (targetRoute && ((targetRoute.points?.length ?? 0) > 0 || (targetRoute.geometry?.length ?? 0) > 0)) {
+      mapController.value?.fitToContent([], [targetRoute], { duration: 400, padding: 50, maxZoom: 16 })
+    }
+  }
+  else {
     mode.value = 'pan'
+  }
   selectedLocation.value = null
 }
 
@@ -347,6 +353,12 @@ async function onMapReady(controller: ReturnType<typeof useGeolocationMap>) {
   isInitialized.value = true
   if ((!points.value || points.value.length === 0) && routes.value && routes.value.length > 0) {
     activeView.value = 'routes'
+  }
+
+  if (props.readonly && (props.section.points?.length > 0 || props.section.routes?.length > 0)) {
+    nextTick(() => {
+      controller.fitToContent(props.section.points, props.section.routes, { duration: 0, padding: 40, maxZoom: 16 })
+    })
   }
 
   watch([points, routes], debouncedUpdate, { deep: true })

@@ -14,10 +14,12 @@ interface Props {
   portalTarget?: HTMLElement
   withPanel?: boolean
   withFullscreenControl?: boolean
+  hasContent?: boolean
 }
 
 const props = withDefaults(defineProps<Props>(), {
   withFullscreenControl: true,
+  hasContent: false,
 })
 
 const emit = defineEmits<{
@@ -25,6 +27,7 @@ const emit = defineEmits<{
   (e: 'toggleFullscreen'): void
   (e: 'setTileSource', sourceId: TileSourceId): void
   (e: 'centerOnMyLocation'): void
+  (e: 'fitBounds'): void
 }>()
 
 const appSettingsStore = useAppSettingsStore()
@@ -95,6 +98,15 @@ function zoomOut() {
         icon="mdi:minus"
         aria-label="Отдалить"
         @click="zoomOut"
+      />
+      <KitBtn
+        v-if="hasContent"
+        variant="outlined"
+        color="secondary"
+        icon="mdi:fit-to-screen-outline"
+        aria-label="Вписать весь маршрут"
+        title="Вписать весь маршрут"
+        @click="emit('fitBounds')"
       />
     </div>
     <KitDropdown :items="tillerItems" :portal-target="portalTarget" @update:model-value="handleTileSourceSelect">

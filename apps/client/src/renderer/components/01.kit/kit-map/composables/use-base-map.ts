@@ -139,11 +139,16 @@ export function useBaseMap() {
       targetBounds = bounds as LngLatBoundsLike
     }
 
-    mapInstance.value.fitBounds(targetBounds, {
-      padding: options?.padding ?? { top: 50, right: 50, bottom: 50, left: 50 },
-      duration: options?.duration ?? 500,
-      maxZoom: options?.maxZoom ?? 16,
-    })
+    try {
+      mapInstance.value.fitBounds(targetBounds, {
+        padding: options?.padding ?? { top: 50, right: 50, bottom: 50, left: 50 },
+        duration: options?.duration ?? 500,
+        maxZoom: options?.maxZoom ?? 16,
+      })
+    }
+    catch (e) {
+      console.warn('fitBounds skipped:', e)
+    }
   }
 
   const fitExtent = (

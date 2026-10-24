@@ -11,7 +11,7 @@ import { getMetroGeometry, getMetroRidePath } from '../../lib/metro-route'
 const props = defineProps<{ system: MetroSystemDetails | null, rides: MetroRide[] }>()
 const visible = defineModel<boolean>('visible', { required: true })
 const scope = ref<'network' | 'rides'>('network')
-const showStationNames = ref(true)
+const showStationNames = ref(false)
 const mappedLines = computed(() => (props.system?.lines || []).flatMap((line) => {
   if (scope.value === 'network') {
     const geometry = getMetroGeometry(line.isCircular ? [...line.stations, line.stations[0]!] : line.stations)
@@ -44,8 +44,10 @@ const legend = computed(() => [...new Map(mappedLines.value.map((mapped) => {
 })).values()])
 const incomplete = computed(() => scope.value === 'rides' && mappedLines.value.length !== props.rides.length)
 watch(visible, (open) => {
-  if (open)
+  if (open) {
     scope.value = props.rides.some(ride => getMetroRidePath(props.system?.lines.find(line => line.id === ride.lineId), ride.startStationId, ride.endStationId)) ? 'rides' : 'network'
+    showStationNames.value = false
+  }
 })
 </script>
 
@@ -53,7 +55,14 @@ watch(visible, (open) => {
   <KitDialogWithClose v-model:visible="visible" :title="`Метро · ${system?.city || ''}`" :max-width="1040" content-class="metro-map-dialog">
     <div class="metro-map">
       <div class="toolbar">
-        <KitViewSwitcher v-model="scope" :items="[{ id: 'network', label: 'Вся сеть', icon: 'mdi:transit-connection-variant' }, { id: 'rides', label: 'Мой маршрут', icon: 'mdi:map-marker-path' }]" />
+        <KitViewSwitcher
+          v-model="scope"
+          class="scope-switcher"
+          :items="[
+            { id: 'network', label: 'Вся сеть', icon: 'mdi:transit-connection-variant' },
+            { id: 'rides', label: 'Мой маршрут', icon: 'mdi:map-marker-path' },
+          ]"
+        />
         <KitBtn
           class="labels-toggle"
           variant="text"
@@ -63,8 +72,8 @@ watch(visible, (open) => {
           :aria-checked="showStationNames"
           @click="showStationNames = !showStationNames"
         >
+          <span class="toggle-label">Названия станций</span>
           <span class="toggle-track" aria-hidden="true"><span class="toggle-thumb" /></span>
-          Названия станций
         </KitBtn>
       </div>
       <p v-if="incomplete" class="map-notice" role="status">
@@ -99,51 +108,112 @@ watch(visible, (open) => {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  flex-wrap: wrap;
-  gap: 10px;
-
-  :deep(.kit-view-switcher .kit-view-switcher-button .kit-view-switcher-label) {
-    display: inline;
-  }
+  gap: 12px;
+}
+.scope-switcher {
+  flex: 0 1 auto;
+  width: fit-content;
 
   :deep(.kit-view-switcher) {
-    flex: 0 1 auto;
-    width: fit-content;
+    height: 36px;
+    padding: 3px;
+    background-color: var(--bg-secondary-color);
+    border: 1px solid var(--border-secondary-color);
+    border-radius: var(--r-s);
+
+    .kit-view-switcher-glider {
+      top: 3px;
+      height: calc(100% - 6px);
+      border-radius: calc(var(--r-s) - 2px);
+      box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
+    }
+
+    .kit-view-switcher-button {
+      height: 100%;
+      min-height: 0;
+      padding: 0 12px;
+      font-size: 0.8125rem;
+      font-weight: 500;
+      gap: 6px;
+      border-radius: calc(var(--r-s) - 2px);
+
+      .kit-view-switcher-icon {
+        font-size: 1rem;
+        flex-shrink: 0;
+      }
+
+      .kit-view-switcher-label {
+        display: inline;
+        white-space: nowrap;
+      }
+    }
   }
 }
 .labels-toggle {
-  font-size: 0.8rem;
+  &.kit-btn {
+    height: 36px;
+    padding: 0 12px;
+    border-radius: var(--r-s);
+    background-color: var(--bg-secondary-color);
+    border: 1px solid var(--border-secondary-color);
+    font-size: 0.8125rem;
+    font-weight: 500;
+    color: var(--fg-secondary-color);
+    box-shadow: none;
+    transition:
+      background-color 0.2s ease,
+      border-color 0.2s ease,
+      color 0.2s ease;
+    flex-shrink: 0;
 
-  :deep(.kit-btn-content) {
-    gap: 8px;
-  }
+    :deep(.kit-btn-content) {
+      gap: 10px;
+      display: inline-flex;
+      align-items: center;
+    }
 
-  &[aria-checked='true'] {
-    .toggle-track {
-      background-color: var(--fg-accent-color);
+    &:hover:not(:disabled) {
+      background-color: var(--bg-hover-color);
+      border-color: var(--border-primary-color);
+      color: var(--fg-primary-color);
     }
-    .toggle-thumb {
-      transform: translateX(12px);
+
+    &[aria-checked='true'] {
+      color: var(--fg-primary-color);
+
+      .toggle-track {
+        background-color: var(--fg-accent-color);
+      }
+
+      .toggle-thumb {
+        transform: translateX(12px);
+      }
     }
   }
+}
+.toggle-label {
+  user-select: none;
+  white-space: nowrap;
 }
 .toggle-track {
   display: inline-flex;
   align-items: center;
-  width: 32px;
-  height: 20px;
-  padding: 3px;
+  width: 28px;
+  height: 16px;
+  padding: 2px;
   box-sizing: border-box;
   border-radius: 999px;
   background-color: var(--fg-tertiary-color);
-  transition: background-color 0.2s;
+  transition: background-color 0.2s ease;
+  flex-shrink: 0;
 }
 .toggle-thumb {
-  width: 14px;
-  height: 14px;
+  width: 12px;
+  height: 12px;
   border-radius: 50%;
   background-color: #fff;
-  transition: transform 0.2s;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.2);
+  transition: transform 0.2s cubic-bezier(0.4, 0, 0.2, 1);
 }
 .map-canvas {
   overflow: hidden;
@@ -203,13 +273,54 @@ watch(visible, (open) => {
     font-size: 32px;
   }
 }
+
 @include media-down(sm) {
   .legend {
     grid-template-columns: repeat(2, minmax(0, 1fr));
     gap: 8px 12px;
   }
   .toolbar {
-    justify-content: center;
+    flex-direction: column;
+    align-items: stretch;
+    gap: 8px;
+  }
+  .scope-switcher {
+    width: 100%;
+
+    :deep(.kit-view-switcher) {
+      width: 100%;
+      display: flex;
+      overflow: hidden;
+      padding: 3px;
+
+      .kit-view-switcher-button {
+        flex: 1 1 50%;
+        min-width: 0;
+        justify-content: center;
+        padding: 0 8px;
+
+        .kit-view-switcher-label {
+          display: inline;
+          font-size: 0.8rem;
+          white-space: nowrap;
+          overflow: hidden;
+          text-overflow: ellipsis;
+        }
+
+        .kit-view-switcher-icon {
+          font-size: 1rem;
+          flex-shrink: 0;
+        }
+      }
+    }
+  }
+  .labels-toggle.kit-btn {
+    width: 100%;
+
+    :deep(.kit-btn-content) {
+      width: 100%;
+      justify-content: space-between;
+    }
   }
 }
 </style>

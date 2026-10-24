@@ -2,6 +2,7 @@ import type {
   ActivityPayload,
   ActivitySection,
   ActivitySectionDescription,
+  ActivitySectionGeolocation,
   Booking,
   GeolocationPoint,
 } from '../types'
@@ -41,6 +42,103 @@ function matchesHotelBookingActivity(title: string, hotelName: string): boolean 
 
   return [normalizedHotelName, brandName, shortName]
     .some(alias => alias.length >= 4 && normalizedTitle.includes(alias))
+}
+
+function computeGeoBoundsAndCenter(
+  points: Array<{ coordinates?: [number, number] }>,
+  routes: Array<{ points?: Array<{ coordinates?: [number, number] }>, geometry?: [number, number][] }>,
+): { center: [number, number], zoom: number } | null {
+  const allCoords: [number, number][] = []
+
+  points.forEach((p) => {
+    if (p.coordinates && Array.isArray(p.coordinates) && p.coordinates.length === 2 && !Number.isNaN(p.coordinates[0]) && !Number.isNaN(p.coordinates[1])) {
+      allCoords.push(p.coordinates)
+    }
+  })
+
+  routes.forEach((r) => {
+    if (Array.isArray(r.geometry) && r.geometry.length > 0) {
+      r.geometry.forEach((c) => {
+        if (Array.isArray(c) && c.length === 2 && !Number.isNaN(c[0]) && !Number.isNaN(c[1])) {
+          allCoords.push(c)
+        }
+      })
+    }
+    else if (Array.isArray(r.points)) {
+      r.points.forEach((p) => {
+        if (p.coordinates && Array.isArray(p.coordinates) && p.coordinates.length === 2 && !Number.isNaN(p.coordinates[0]) && !Number.isNaN(p.coordinates[1])) {
+          allCoords.push(p.coordinates)
+        }
+      })
+    }
+  })
+
+  if (allCoords.length === 0)
+    return null
+
+  let minLng = allCoords[0][0]
+  let maxLng = allCoords[0][0]
+  let minLat = allCoords[0][1]
+  let maxLat = allCoords[0][1]
+
+  for (let i = 1; i < allCoords.length; i++) {
+    const [lng, lat] = allCoords[i]
+    if (lng < minLng)
+      minLng = lng
+    if (lng > maxLng)
+      maxLng = lng
+    if (lat < minLat)
+      minLat = lat
+    if (lat > maxLat)
+      maxLat = lat
+  }
+
+  const center: [number, number] = [
+    (minLng + maxLng) / 2,
+    (minLat + maxLat) / 2,
+  ]
+
+  if (minLng === maxLng && minLat === maxLat) {
+    return { center, zoom: 16 }
+  }
+
+  const dLat = ((maxLat - minLat) * Math.PI) / 180
+  const dLng = ((maxLng - minLng) * Math.PI) / 180
+  const a = Math.sin(dLat / 2) * Math.sin(dLat / 2)
+    + Math.cos((minLat * Math.PI) / 180) * Math.cos((maxLat * Math.PI) / 180) * Math.sin(dLng / 2) * Math.sin(dLng / 2)
+  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a))
+  const distanceKm = 6371 * c
+
+  let zoom = 14
+  if (distanceKm <= 0.4) {
+    zoom = 16
+  }
+  else if (distanceKm <= 1.2) {
+    zoom = 15
+  }
+  else if (distanceKm <= 3.5) {
+    zoom = 14
+  }
+  else if (distanceKm <= 10) {
+    zoom = 13
+  }
+  else if (distanceKm <= 25) {
+    zoom = 12
+  }
+  else if (distanceKm <= 60) {
+    zoom = 11
+  }
+  else if (distanceKm <= 150) {
+    zoom = 9
+  }
+  else if (distanceKm <= 400) {
+    zoom = 8
+  }
+  else {
+    zoom = 6
+  }
+
+  return { center, zoom }
 }
 
 const CALLOUT_META_MAP: Record<string, { defaultTitle: string, icon: string, color: string }> = {
@@ -134,7 +232,7 @@ export async function enrichActivityWithMediaAndLocation(
 
   const shouldUpload = options.uploadImages !== false && api !== null && tripId !== null
   const shouldGeocode = options.geocode !== false
-  const notify = options.onProgress || (() => {})
+  const notify = options.onProgress || (() => { })
 
   const newSections: ActivitySection[] = []
 
@@ -266,36 +364,8 @@ export async function enrichActivityWithMediaAndLocation(
     })
   }
 
-  // 4. Clean description: remove location lines, iframes, image callouts, wikilinks, and note callouts
-  text = text
-    .replace(/^[ \t]*(?:[*-][ \t]*)?(?:_[^_\n]*(?:локаци|карт|маршрут|путь|maps?|ориентир|ссылка|хайкинг|трек|trail|точк|старт|финиш|вело|велотрек)[^_\n]*_|\*\*[^*\n]*(?:локаци|карт|маршрут|путь|maps?|ориентир|ссылка|хайкинг|трек|trail|точк|старт|финиш|вело|велотрек)[^*\n]*\*\*):[^\n]*\n?/gmi, '')
-    .replace(/<iframe[^>]*src=["'](?:https?:)?\/\/[^"']*["'][^>]*>\s*<\/iframe>/gi, '')
-    .replace(/<iframe[^>]*>[\s\S]*?<\/iframe>/gi, '')
-    .replace(/\[(?:Yandex Maps|Google Maps|2GIS|OpenStreetMap|AllTrails|Hikingbook|Карты Yandex|Карты Google|Карты|Maps|Трек|Маршрут|Велотрек|Веломаршрут)[^\]]+\]\([^)]+\)/gi, '')
-    .replace(imageCalloutRegex, '')
-    .replace(/!\[\[[^\]]+\]\]/g, '')
-    .replace(/!\[[^\]]*\]\([^)]+\)/g, '')
-    .replace(noteCalloutRegex, '')
-    .replace(/^[ \t]*(?:[-*+]|\d+[.)])[ \t]*$/gm, '')
-    .replace(/\n{3,}/g, '\n\n')
-
-  text = dedentText(text)
-
-  // Add primary cleaned description section if text remains
-  if (text) {
-    newSections.push({
-      id: stableId('activity-description', act.startTime, text),
-      type: 'description',
-      text,
-    })
-  }
-
-  // Add note/tip sections (Заметка)
-  for (const noteSec of noteSections) {
-    newSections.push(noteSec)
-  }
-
-  // 5. Process Locations -> Geolocation Section ("Локация")
+  // 4. Process Locations -> Geolocation Section ("Локация")
+  let geoSection: ActivitySectionGeolocation | null = null
   if (extractedLocations.length > 0 || gpxReferences.length > 0) {
     const mapPoints: GeolocationPoint[] = []
     // Group trail waypoints into routes
@@ -459,18 +529,54 @@ export async function enrichActivityWithMediaAndLocation(
         .filter((addr): addr is string => addr != null && addr.trim() !== '' && !routeLabels.some(r => r.toLowerCase().includes(addr.toLowerCase())))
 
       const sectionTitle = [...poiLabels, ...routeLabels].join(' • ') || routes[0]?.title || mapPoints[0]?.address || 'Локация'
-      const center = mapPoints[0]?.coordinates || routes[0]?.points[0]?.coordinates
+      const geoMeta = computeGeoBoundsAndCenter(mapPoints, routes)
+      const center = geoMeta?.center || mapPoints[0]?.coordinates || routes[0]?.points[0]?.coordinates
       const totalPoints = mapPoints.length + routes.reduce((s: number, r: any) => s + r.points.length, 0)
-      newSections.push({
+      const zoom = geoMeta?.zoom ?? (totalPoints > 2 ? 12 : totalPoints > 1 ? 13 : 14)
+      geoSection = {
         id: stableId('activity-geolocation', act.startTime),
         type: 'geolocation',
         title: sectionTitle,
         points: mapPoints,
         routes,
         center,
-        zoom: totalPoints > 2 ? 12 : totalPoints > 1 ? 13 : 14,
-      })
+        zoom,
+      }
     }
+  }
+
+  // 5. Clean description: remove location lines, iframes, image callouts, wikilinks, and note callouts
+  text = text
+    .replace(/^[ \t]*(?:[*-][ \t]*)?(?:_[^_\n]*(?:локаци|карт|маршрут|путь|maps?|ориентир|ссылка|хайкинг|трек|trail|точк|старт|финиш|вело|велотрек)[^_\n]*_|\*\*[^*\n]*(?:локаци|карт|маршрут|путь|maps?|ориентир|ссылка|хайкинг|трек|trail|точк|старт|финиш|вело|велотрек)[^*\n]*\*\*):[^\n]*\n?/gmi, '')
+    .replace(/<iframe[^>]*src=["'](?:https?:)?\/\/[^"']*["'][^>]*>\s*<\/iframe>/gi, '')
+    .replace(/<iframe[^>]*>[\s\S]*?<\/iframe>/gi, '')
+    .replace(/\[(?:Yandex Maps|Google Maps|2GIS|OpenStreetMap|AllTrails|Hikingbook|Карты Yandex|Карты Google|Карты|Maps|Трек|Маршрут|Велотрек|Веломаршрут)[^\]]+\]\([^)]+\)/gi, '')
+    .replace(imageCalloutRegex, '')
+    .replace(/!\[\[[^\]]+\]\]/g, '')
+    .replace(/!\[[^\]]*\]\([^)]+\)/g, '')
+    .replace(noteCalloutRegex, '')
+    .replace(/^[ \t]*(?:[-*+]|\d+[.)])[ \t]*$/gm, '')
+    .replace(/\n{3,}/g, '\n\n')
+
+  text = dedentText(text)
+
+  // Add primary cleaned description section if text remains
+  if (text) {
+    newSections.push({
+      id: stableId('activity-description', act.startTime, text),
+      type: 'description',
+      text,
+    })
+  }
+
+  // Add note/tip sections (Заметка)
+  for (const noteSec of noteSections) {
+    newSections.push(noteSec)
+  }
+
+  // Add geolocation section
+  if (geoSection) {
+    newSections.push(geoSection)
   }
 
   // 6. Process Images -> Gallery Section ("Галерея")

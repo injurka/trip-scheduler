@@ -27,6 +27,7 @@ interface Props {
   withSearchControl?: boolean
   selectedCoords?: Coordinate | null
   useStaticRenderer?: boolean
+  autoFit?: boolean
 }
 
 const props = withDefaults(defineProps<Props>(), {
@@ -41,6 +42,7 @@ const props = withDefaults(defineProps<Props>(), {
   withSearchControl: false,
   selectedCoords: null,
   useStaticRenderer: false,
+  autoFit: true,
 })
 
 const emit = defineEmits<{
@@ -67,8 +69,28 @@ const {
   setActivePointId,
   setSelectionMarker,
   setStaticMapData,
+  fitToContent,
+  fitBounds,
   ...restMapController
 } = useGeolocationMap()
+
+const hasMapContent = computed(() => {
+  return props.points.length > 0 || props.routes.some(r => (r.points?.length ?? 0) > 0 || (r.geometry?.length ?? 0) > 0)
+})
+
+function performAutoFit(duration = 0) {
+  if (!props.autoFit || !hasMapContent.value)
+    return
+  const map = mapInstance.value
+  if (!map)
+    return
+  map.resize()
+  fitToContent(props.points, props.routes, {
+    duration,
+    padding: 40,
+    maxZoom: 16,
+  })
+}
 
 const mapContainerRef = ref<HTMLElement>()
 const isMapActive = ref(!props.interactiveOnClick)
@@ -116,6 +138,12 @@ watch(() => props.points, (newPoints) => {
   })
   newPoints.forEach(addOrUpdatePoint)
   previousPointIds = newPointIds
+
+  if (props.readonly && props.autoFit && hasMapContent.value) {
+    nextTick(() => {
+      performAutoFit(300)
+    })
+  }
 }, { deep: true })
 
 watch(() => props.routes, (newRoutes) => {
@@ -139,6 +167,12 @@ watch(() => props.routes, (newRoutes) => {
       removeRoute(route.id)
   })
   previousRouteIds = newRouteIds
+
+  if (props.readonly && props.autoFit && hasMapContent.value) {
+    nextTick(() => {
+      performAutoFit(300)
+    })
+  }
 }, { deep: true })
 
 watch(() => props.readonly, (isReadonly) => {
@@ -216,6 +250,8 @@ onMounted(async () => {
     setActivePointId,
     setSelectionMarker,
     setStaticMapData,
+    fitToContent,
+    fitBounds,
     ...restMapController,
   })
 })
@@ -224,6 +260,11 @@ watch(isMapLoaded, (isReady) => {
   if (isReady) {
     if (props.useStaticRenderer) {
       setStaticMapData(props.points, props.routes)
+      if (props.autoFit && hasMapContent.value) {
+        nextTick(() => {
+          performAutoFit(0)
+        })
+      }
       return
     }
     props.points.forEach(addOrUpdatePoint)
@@ -234,6 +275,12 @@ watch(isMapLoaded, (isReady) => {
         addOrUpdateRoute(route)
     })
     previousRouteIds = new Set(props.routes.map(r => r.id))
+
+    if (props.autoFit && hasMapContent.value) {
+      nextTick(() => {
+        performAutoFit(0)
+      })
+    }
   }
 })
 </script>
@@ -308,10 +355,12 @@ watch(isMapLoaded, (isReady) => {
         :portal-target="dropdownPortalTarget"
         :with-panel="withPanel"
         :with-fullscreen-control="withFullscreenControl"
+        :has-content="hasMapContent"
         @toggle-panel="$emit('togglePanel')"
         @toggle-fullscreen="$emit('toggleFullscreen')"
         @set-tile-source="handleSetTileSource"
         @center-on-my-location="showCurrentLocation"
+        @fit-bounds="performAutoFit(400)"
       />
     </slot>
 

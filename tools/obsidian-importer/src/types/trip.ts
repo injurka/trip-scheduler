@@ -27,6 +27,8 @@ export interface DayFrontmatter {
   tags?: string[]
   is_ready?: boolean
   isReady?: boolean
+  base_city?: string
+  baseCity?: string
 }
 
 export interface ParsedDay {
@@ -45,6 +47,8 @@ export interface ParsedDay {
   tags?: string[]
   is_ready?: boolean
   isReady?: boolean
+  base_city?: string
+  baseCity?: string
   frontmatter?: DayFrontmatter
 }
 

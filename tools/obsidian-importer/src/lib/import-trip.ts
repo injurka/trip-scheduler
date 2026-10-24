@@ -93,7 +93,7 @@ export async function resolveCityIds(
         place = resolution.place
       }
       else {
-        let candidates = resolution.candidates.map(candidate => candidate.place)
+        let candidates = (resolution.candidates ?? []).map(candidate => candidate.place)
         if (candidates.length === 0 && transport.searchGeoPlaces)
           candidates = await transport.searchGeoPlaces(label)
         const chosenId = await options.resolveCity?.(rawLabel, candidates, resolution.status)
@@ -593,15 +593,22 @@ export async function importTripFolderCore(
         }
 
         const enrichedActivities: import('../types').ActivityPayload[] = []
-        let locationContext = tripData.cities.length > 0 ? tripData.cities[0] : undefined
+        let locationContext = day.baseCity || day.frontmatter?.baseCity || day.frontmatter?.base_city
         const locationMatch = day.rawContent.match(/>[ \t]*\*\*(?:Локация|Location):\*\*[ \t]*([^\n]+)/i)
         const dayLocation = day.location || locationMatch?.[1] || ''
-        const dayContextText = `${dayLocation} ${day.title} ${day.fileName}`
-        for (const city of tripData.cities) {
-          if (new RegExp(`(^|[^\\wа-яёА-ЯЁ])${city}(?![\\wа-яёА-ЯЁ])`, 'iu').test(dayContextText)) {
-            locationContext = city
-            break
+        const arrowSegments = dayLocation.split(/\s*(?:→|->|➔|—|–)\s*/).map(s => s.trim()).filter(Boolean)
+        const destinationPart = arrowSegments.length > 1 ? arrowSegments[arrowSegments.length - 1] : ''
+        const dayContextText = `${destinationPart} ${dayLocation} ${day.title} ${day.fileName}`
+        if (!locationContext) {
+          for (const city of tripData.cities) {
+            if (new RegExp(`(^|[^\\wа-яёА-ЯЁ])${city}(?![\\wа-яёА-ЯЁ])`, 'iu').test(dayContextText)) {
+              locationContext = city
+              break
+            }
           }
+        }
+        if (!locationContext && tripData.cities.length > 0) {
+          locationContext = tripData.cities[0]
         }
         const uploader = transport.uploadImage
           ? { uploadImage: transport.uploadImage.bind(transport) }

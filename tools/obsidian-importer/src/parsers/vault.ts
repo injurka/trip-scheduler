@@ -274,6 +274,15 @@ export function parseDayFrontmatter(markdown: string): DayFrontmatter {
       result.isReady = result.is_ready
       continue
     }
+
+    if (key === 'base_city' || key === 'baseCity') {
+      const val = unquoteYamlScalar(rawValue)
+      if (val) {
+        result.baseCity = val
+        result.base_city = val
+      }
+      continue
+    }
   }
 
   return result
@@ -386,11 +395,11 @@ export function extractDayDescription(content: string, frontmatter?: DayFrontmat
     }
   }
 
-  if (fm.is_ready || fm.isReady) {
+  if (fm.is_ready === false || fm.isReady === false) {
     if (description) {
-      return `${description} (✅ Готов)`
+      return `${description} (⏳ Не готов)`
     }
-    return '(✅ Готов)'
+    return '(⏳ Не готов)'
   }
 
   return description
@@ -551,6 +560,8 @@ export function parseObsidianTripFolder(tripPath: string, startDateStr?: string)
         tags: dayFrontmatter.tags,
         is_ready: dayFrontmatter.is_ready,
         isReady: dayFrontmatter.isReady,
+        base_city: dayFrontmatter.base_city || dayFrontmatter.baseCity,
+        baseCity: dayFrontmatter.baseCity || dayFrontmatter.base_city,
         frontmatter: Object.keys(dayFrontmatter).length > 0 ? dayFrontmatter : undefined,
       })
     }

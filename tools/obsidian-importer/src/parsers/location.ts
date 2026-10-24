@@ -475,6 +475,18 @@ export function extractLocationsFromText(text: string): ExtractedLocation[] {
             }
           }
         }
+        else {
+          const searchMatch = decoded.match(/\/maps\/search\/([^?#]+)/i)
+          if (searchMatch && searchMatch[1].trim()) {
+            const searchVal = searchMatch[1].replace(/\+/g, ' ').trim()
+            if (searchVal && !/^[-\d.,\s]+$/.test(searchVal)) {
+              locationQuery = searchVal
+              if (!locationName) {
+                locationName = searchVal
+              }
+            }
+          }
+        }
       }
       catch {
         // ignore
