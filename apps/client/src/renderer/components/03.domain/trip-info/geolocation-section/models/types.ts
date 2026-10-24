@@ -1,3 +1,4 @@
+import type { FitBoundsOptions, LngLatBoundsLike } from 'maplibre-gl'
 import type { EActivitySectionType } from '~/shared/types/models/activity'
 
 export type Coordinate = [number, number]
@@ -58,6 +59,8 @@ export interface GeolocationMapOptions {
   pitch?: number
   bearing?: number
   interactive?: boolean
+  bounds?: [Coordinate, Coordinate] | LngLatBoundsLike
+  fitBoundsOptions?: FitBoundsOptions
 }
 
 export interface OSRMResponse {

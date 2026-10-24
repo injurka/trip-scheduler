@@ -2,9 +2,10 @@
 import type { Coordinate, MapPoint, MapRoute } from '../models/types'
 import type { TileSourceId } from '~/shared/lib/map-styles-sources'
 import { onClickOutside } from '@vueuse/core'
-import { onMounted, ref, watch } from 'vue'
+import { computed, onMounted, ref, watch } from 'vue'
 import { KitBtn } from '~/components/01.kit/kit-btn'
 import { KitInput } from '~/components/01.kit/kit-input'
+import { computeBoundingBox, isValidCoordinate } from '~/shared/services/geo'
 import { useGeolocationMap } from '../composables/use-geolocation-map'
 import GeolocationMapControls from './geolocation-map-controls.vue'
 
@@ -74,12 +75,14 @@ const {
   ...restMapController
 } = useGeolocationMap()
 
+let hasAutoFitted = false
+
 const hasMapContent = computed(() => {
   return props.points.length > 0 || props.routes.some(r => (r.points?.length ?? 0) > 0 || (r.geometry?.length ?? 0) > 0)
 })
 
-function performAutoFit(duration = 0) {
-  if (!props.autoFit || !hasMapContent.value)
+function performAutoFit(duration = 400) {
+  if (!hasMapContent.value)
     return
   const map = mapInstance.value
   if (!map)
@@ -139,9 +142,10 @@ watch(() => props.points, (newPoints) => {
   newPoints.forEach(addOrUpdatePoint)
   previousPointIds = newPointIds
 
-  if (props.readonly && props.autoFit && hasMapContent.value) {
+  if (props.autoFit && !hasAutoFitted && hasMapContent.value) {
+    hasAutoFitted = true
     nextTick(() => {
-      performAutoFit(300)
+      performAutoFit(400)
     })
   }
 }, { deep: true })
@@ -168,9 +172,10 @@ watch(() => props.routes, (newRoutes) => {
   })
   previousRouteIds = newRouteIds
 
-  if (props.readonly && props.autoFit && hasMapContent.value) {
+  if (props.autoFit && !hasAutoFitted && hasMapContent.value) {
+    hasAutoFitted = true
     nextTick(() => {
-      performAutoFit(300)
+      performAutoFit(400)
     })
   }
 }, { deep: true })
@@ -217,13 +222,34 @@ onMounted(async () => {
   if (!mapContainerRef.value)
     return
 
+  const initialBounds = props.autoFit ? computeBoundingBox(props.points, props.routes) : null
+
+  let initialCenter = props.center
+  let initialZoom = props.zoom
+  if (props.autoFit && !initialBounds) {
+    if (props.points.length === 1 && isValidCoordinate(props.points[0]?.coordinates)) {
+      initialCenter = props.points[0].coordinates
+      initialZoom = 16
+    }
+    else if (props.routes.length === 1 && props.routes[0]?.points?.length === 1 && isValidCoordinate(props.routes[0].points[0].coordinates)) {
+      initialCenter = props.routes[0].points[0].coordinates
+      initialZoom = 16
+    }
+  }
+
+  if (initialBounds) {
+    hasAutoFitted = true
+  }
+
   await initMap({
     container: mapContainerRef.value,
-    center: props.center,
-    zoom: props.zoom,
+    center: initialCenter,
+    zoom: initialZoom,
     pitch: props.pitch,
     bearing: props.bearing,
     interactive: !props.interactiveOnClick,
+    bounds: initialBounds || undefined,
+    fitBoundsOptions: initialBounds ? { padding: 40, maxZoom: 16 } : undefined,
   })
 
   mapInstance.value?.on('click', (event) => {
@@ -260,11 +286,6 @@ watch(isMapLoaded, (isReady) => {
   if (isReady) {
     if (props.useStaticRenderer) {
       setStaticMapData(props.points, props.routes)
-      if (props.autoFit && hasMapContent.value) {
-        nextTick(() => {
-          performAutoFit(0)
-        })
-      }
       return
     }
     props.points.forEach(addOrUpdatePoint)
@@ -276,9 +297,10 @@ watch(isMapLoaded, (isReady) => {
     })
     previousRouteIds = new Set(props.routes.map(r => r.id))
 
-    if (props.autoFit && hasMapContent.value) {
+    if (props.autoFit && !hasAutoFitted && hasMapContent.value) {
+      hasAutoFitted = true
       nextTick(() => {
-        performAutoFit(0)
+        performAutoFit(400)
       })
     }
   }

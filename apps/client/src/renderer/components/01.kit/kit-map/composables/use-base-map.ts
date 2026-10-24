@@ -25,6 +25,8 @@ export interface BaseMapOptions {
   interactive?: boolean
   rotateSensitivity?: number
   pitchSensitivity?: number
+  bounds?: LngLatBoundsLike
+  fitBoundsOptions?: FitBoundsOptions
 }
 
 export type StyleLoadCallback = (map: MapLibreMap) => void
@@ -142,7 +144,7 @@ export function useBaseMap() {
     try {
       mapInstance.value.fitBounds(targetBounds, {
         padding: options?.padding ?? { top: 50, right: 50, bottom: 50, left: 50 },
-        duration: options?.duration ?? 500,
+        duration: options?.duration !== undefined ? options.duration : 400,
         maxZoom: options?.maxZoom ?? 16,
       })
     }
@@ -262,6 +264,7 @@ export function useBaseMap() {
             pitchSpeed: -0.5 * (options.pitchSensitivity ?? 0.4),
             attributionControl: options.showAttribution === false ? false : undefined,
             ...(transformRequest ? { transformRequest } : {}),
+            ...(options.bounds ? { bounds: options.bounds, fitBoundsOptions: options.fitBoundsOptions ?? { padding: 40, maxZoom: 16 } } : {}),
           })
 
           // Регистрация прозрачной SDF-заглушки для предотвращения ошибок спрайтов

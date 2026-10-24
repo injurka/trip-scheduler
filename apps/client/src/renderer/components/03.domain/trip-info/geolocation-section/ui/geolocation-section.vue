@@ -355,12 +355,6 @@ async function onMapReady(controller: ReturnType<typeof useGeolocationMap>) {
     activeView.value = 'routes'
   }
 
-  if (props.readonly && (props.section.points?.length > 0 || props.section.routes?.length > 0)) {
-    nextTick(() => {
-      controller.fitToContent(props.section.points, props.section.routes, { duration: 0, padding: 40, maxZoom: 16 })
-    })
-  }
-
   watch([points, routes], debouncedUpdate, { deep: true })
 }
 

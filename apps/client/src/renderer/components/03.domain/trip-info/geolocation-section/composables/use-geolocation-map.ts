@@ -802,6 +802,8 @@ export function useGeolocationMap() {
       bearing: options.bearing ?? 0,
       interactive: options.interactive ?? true,
       showAttribution: true,
+      bounds: options.bounds,
+      fitBoundsOptions: options.fitBoundsOptions,
     })
 
     const map = baseMap.mapInstance.value
@@ -931,7 +933,7 @@ export function useGeolocationMap() {
       map.flyTo({
         center: [minLng, minLat],
         zoom: Math.min(options?.maxZoom ?? 16, 16),
-        duration: options?.duration ?? 400,
+        duration: options?.duration !== undefined ? options.duration : 400,
       })
       return true
     }
@@ -949,7 +951,7 @@ export function useGeolocationMap() {
       {
         padding,
         maxZoom: options?.maxZoom ?? 16,
-        duration: options?.duration ?? 400,
+        duration: options?.duration !== undefined ? options.duration : 400,
       },
     )
     return true

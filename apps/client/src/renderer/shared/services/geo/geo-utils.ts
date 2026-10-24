@@ -52,6 +52,55 @@ export function isValidCoordinate(coords: any): coords is [number, number] {
   )
 }
 
+/**
+ * Вычисляет Bounding Box для набора точек и маршрутов.
+ * Возвращает null, если точек нет, меньше двух или все координаты совпадают.
+ */
+export function computeBoundingBox(
+  points?: Array<{ coordinates?: [number, number] }>,
+  routes?: Array<{ points?: Array<{ coordinates?: [number, number] }>, geometry?: [number, number][] }>,
+): [[number, number], [number, number]] | null {
+  let minLng = Number.POSITIVE_INFINITY
+  let maxLng = Number.NEGATIVE_INFINITY
+  let minLat = Number.POSITIVE_INFINITY
+  let maxLat = Number.NEGATIVE_INFINITY
+
+  const consider = (coord?: [number, number] | null) => {
+    if (!coord || !isValidCoordinate(coord))
+      return
+    const [lng, lat] = coord
+    if (lng < minLng)
+      minLng = lng
+    if (lng > maxLng)
+      maxLng = lng
+    if (lat < minLat)
+      minLat = lat
+    if (lat > maxLat)
+      maxLat = lat
+  }
+
+  points?.forEach(p => consider(p.coordinates))
+  routes?.forEach((r) => {
+    if (Array.isArray(r.geometry) && r.geometry.length > 0) {
+      r.geometry.forEach(c => consider(c))
+    }
+    else if (Array.isArray(r.points) && r.points.length > 0) {
+      r.points.forEach(p => consider(p.coordinates))
+    }
+  })
+
+  if (minLng === Number.POSITIVE_INFINITY || minLat === Number.POSITIVE_INFINITY)
+    return null
+
+  if (minLng === maxLng && minLat === maxLat)
+    return null
+
+  return [
+    [minLng, minLat],
+    [maxLng, maxLat],
+  ]
+}
+
 export interface MarkerStyleOptions {
   color?: string
   scale?: number
