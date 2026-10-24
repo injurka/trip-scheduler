@@ -59,6 +59,7 @@ export function isValidCoordinate(coords: any): coords is [number, number] {
 export function computeBoundingBox(
   points?: Array<{ coordinates?: [number, number] }>,
   routes?: Array<{ points?: Array<{ coordinates?: [number, number] }>, geometry?: [number, number][] }>,
+  marginRatio = 0.15,
 ): [[number, number], [number, number]] | null {
   let minLng = Number.POSITIVE_INFINITY
   let maxLng = Number.NEGATIVE_INFINITY
@@ -95,9 +96,11 @@ export function computeBoundingBox(
   if (minLng === maxLng && minLat === maxLat)
     return null
 
+  const dLng = maxLng - minLng
+  const dLat = maxLat - minLat
   return [
-    [minLng, minLat],
-    [maxLng, maxLat],
+    [minLng - dLng * marginRatio, Math.max(-85, minLat - dLat * marginRatio)],
+    [maxLng + dLng * marginRatio, Math.min(85, maxLat + dLat * marginRatio)],
   ]
 }
 

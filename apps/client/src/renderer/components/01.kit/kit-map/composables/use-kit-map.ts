@@ -284,7 +284,7 @@ export function useKitMap() {
           [minLon, minLat],
           [maxLon, maxLat],
         ],
-        { padding: { top: 50, right: 50, bottom: 50, left: 50 }, maxZoom: 15 },
+        { padding: { top: 70, right: 70, bottom: 70, left: 70 }, maxZoom: 14 },
       )
     }
   }

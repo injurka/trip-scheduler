@@ -453,10 +453,11 @@ onBeforeUnmount(() => {
     flex: 1;
     min-height: 0;
 
-    // Хедер absolute (вне потока) — отступ от него лежит на .content-wrapper:
-    // фон тянется до верха под хедером, контент начинается ниже
+    // Хедер и футер absolute (вне потока) — отступы от них лежат на .content-wrapper:
+    // фон тянется под хедером и футером, контент начинается и заканчивается с безопасными отступами
     .content-wrapper {
       padding-top: var(--header-height);
+      padding-bottom: calc(var(--footer-height) + var(--safe-area-inset-bottom) + 16px);
     }
   }
 }
@@ -823,11 +824,11 @@ onBeforeUnmount(() => {
 }
 
 :deep(.app-footer) {
-  transition: margin-left 0.3s ease;
+  transition: left 0.3s ease;
 
   &.is-panel-pinned {
     @media (max-width: 1800px) {
-      margin-left: 440px;
+      left: 440px;
     }
   }
 }

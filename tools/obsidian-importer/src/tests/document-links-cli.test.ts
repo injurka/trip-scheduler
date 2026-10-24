@@ -12,6 +12,8 @@ it('CLI links activity descriptions to private uploaded documents', async () => 
     const path = new URL(request.url).pathname
     if (path === '/auth/signin')
       return Response.json({ token: { accessToken: 'test-token' }, user: {} })
+    if (path === '/geo/places/resolve')
+      return Response.json({ status: 'resolved', place: { id: '00000000-0000-4000-8000-000000000002', name: 'Arrival' } })
     if (path === '/api/upload') {
       const form = await request.formData()
       uploads.push(JSON.parse(String(form.get('metadata'))))

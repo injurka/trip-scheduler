@@ -10,6 +10,7 @@ export {}
 declare global {
   const AppRouteNames: typeof import('../../constants/routes').AppRouteNames
   const AppRoutePaths: typeof import('../../constants/routes').AppRoutePaths
+  const DEEP_LINK_SCHEME: typeof import('../../lib/deep-link').DEEP_LINK_SCHEME
   const EffectScope: typeof import('vue').EffectScope
   const MAPTILER_KEY: typeof import('../../lib/map-styles-sources').MAPTILER_KEY
   const MAPTILER_TERRAIN_3D_SOURCE_ID: typeof import('../../lib/map-styles-sources').MAPTILER_TERRAIN_3D_SOURCE_ID
@@ -18,6 +19,7 @@ declare global {
   const SERVER_URL: typeof import('../../lib/env').SERVER_URL
   const TILE_SOURCES: typeof import('../../lib/map-styles-sources').TILE_SOURCES
   const TILE_SOURCES_META: typeof import('../../lib/map-styles-sources').TILE_SOURCES_META
+  const WEB_APP_URL: typeof import('../../lib/env').WEB_APP_URL
   const acceptHMRUpdate: typeof import('pinia').acceptHMRUpdate
   const applyTerrain: typeof import('../../lib/map-styles-sources').applyTerrain
   const asyncComputed: typeof import('@vueuse/core').asyncComputed
@@ -62,6 +64,7 @@ declare global {
   const formatTime: typeof import('../../lib/date-time').formatTime
   const formatTimestamp: typeof import('../../lib/date-time').formatTimestamp
   const getActivePinia: typeof import('pinia').getActivePinia
+  const getAppBaseUrl: typeof import('../../lib/env').getAppBaseUrl
   const getCurrentInstance: typeof import('vue').getCurrentInstance
   const getCurrentScope: typeof import('vue').getCurrentScope
   const getCurrentWatcher: typeof import('vue').getCurrentWatcher
@@ -75,6 +78,8 @@ declare global {
   const getMaplibreTransformRequest: typeof import('../../lib/map-tile-cache').getMaplibreTransformRequest
   const getTilesForBBox: typeof import('../../lib/tile-calc').getTilesForBBox
   const getTimeFromTimestamp: typeof import('../../lib/date-time').getTimeFromTimestamp
+  const getTripDeepLinkUrl: typeof import('../../lib/deep-link').getTripDeepLinkUrl
+  const getTripWebUrl: typeof import('../../lib/deep-link').getTripWebUrl
   const h: typeof import('vue').h
   const handleDeepLinkUrl: typeof import('../../lib/deep-link').handleDeepLinkUrl
   const iconCategories: typeof import('../../constants/icon-list').iconCategories
@@ -415,6 +420,7 @@ declare module 'vue' {
   interface ComponentCustomProperties {
     readonly AppRouteNames: UnwrapRef<typeof import('../../constants/routes')['AppRouteNames']>
     readonly AppRoutePaths: UnwrapRef<typeof import('../../constants/routes')['AppRoutePaths']>
+    readonly DEEP_LINK_SCHEME: UnwrapRef<typeof import('../../lib/deep-link')['DEEP_LINK_SCHEME']>
     readonly EffectScope: UnwrapRef<typeof import('vue')['EffectScope']>
     readonly MAPTILER_KEY: UnwrapRef<typeof import('../../lib/map-styles-sources')['MAPTILER_KEY']>
     readonly MAPTILER_TERRAIN_SOURCE_ID: UnwrapRef<typeof import('../../lib/map-styles-sources')['MAPTILER_TERRAIN_SOURCE_ID']>
@@ -422,6 +428,7 @@ declare module 'vue' {
     readonly SERVER_URL: UnwrapRef<typeof import('../../lib/env')['SERVER_URL']>
     readonly TILE_SOURCES: UnwrapRef<typeof import('../../lib/map-styles-sources')['TILE_SOURCES']>
     readonly TILE_SOURCES_META: UnwrapRef<typeof import('../../lib/map-styles-sources')['TILE_SOURCES_META']>
+    readonly WEB_APP_URL: UnwrapRef<typeof import('../../lib/env')['WEB_APP_URL']>
     readonly acceptHMRUpdate: UnwrapRef<typeof import('pinia')['acceptHMRUpdate']>
     readonly applyTerrain: UnwrapRef<typeof import('../../lib/map-styles-sources')['applyTerrain']>
     readonly asyncComputed: UnwrapRef<typeof import('@vueuse/core')['asyncComputed']>
@@ -466,6 +473,7 @@ declare module 'vue' {
     readonly formatTime: UnwrapRef<typeof import('../../lib/date-time')['formatTime']>
     readonly formatTimestamp: UnwrapRef<typeof import('../../lib/date-time')['formatTimestamp']>
     readonly getActivePinia: UnwrapRef<typeof import('pinia')['getActivePinia']>
+    readonly getAppBaseUrl: UnwrapRef<typeof import('../../lib/env')['getAppBaseUrl']>
     readonly getCurrentInstance: UnwrapRef<typeof import('vue')['getCurrentInstance']>
     readonly getCurrentScope: UnwrapRef<typeof import('vue')['getCurrentScope']>
     readonly getCurrentWatcher: UnwrapRef<typeof import('vue')['getCurrentWatcher']>
@@ -479,6 +487,8 @@ declare module 'vue' {
     readonly getMaplibreTransformRequest: UnwrapRef<typeof import('../../lib/map-tile-cache')['getMaplibreTransformRequest']>
     readonly getTilesForBBox: UnwrapRef<typeof import('../../lib/tile-calc')['getTilesForBBox']>
     readonly getTimeFromTimestamp: UnwrapRef<typeof import('../../lib/date-time')['getTimeFromTimestamp']>
+    readonly getTripDeepLinkUrl: UnwrapRef<typeof import('../../lib/deep-link')['getTripDeepLinkUrl']>
+    readonly getTripWebUrl: UnwrapRef<typeof import('../../lib/deep-link')['getTripWebUrl']>
     readonly h: UnwrapRef<typeof import('vue')['h']>
     readonly handleDeepLinkUrl: UnwrapRef<typeof import('../../lib/deep-link')['handleDeepLinkUrl']>
     readonly iconCategories: UnwrapRef<typeof import('../../constants/icon-list')['iconCategories']>

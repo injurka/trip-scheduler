@@ -7,6 +7,7 @@ const appUpdateStore = useAppUpdateStore()
 const {
   hasUpdate,
   latestVersion,
+  isAppImage,
   isDownloading,
   downloadProgress,
   downloadedBytes,
@@ -75,7 +76,12 @@ const progressDetails = computed(() => {
 
             <p class="prompt-description">
               <span v-if="downloadedFilePath">
-                Файл обновления v{{ latestVersion }} успешно загружен.
+                <template v-if="isAppImage">
+                  Файл AppImage v{{ latestVersion }} успешно загружен. Нажмите «Установить и перезапустить», чтобы заменить текущий AppImage на новый и перезапустить приложение.
+                </template>
+                <template v-else>
+                  Файл обновления v{{ latestVersion }} успешно загружен.
+                </template>
               </span>
               <span v-else-if="downloadError">
                 {{ downloadError }}. Вы можете повторить попытку или перейти к релизу.
@@ -107,11 +113,11 @@ const progressDetails = computed(() => {
             <!-- Состояние 1: Загрузка завершена -->
             <template v-if="downloadedFilePath && !isDownloading">
               <KitBtn
-                icon="mdi:cellphone-arrow-down"
+                :icon="isAppImage ? 'mdi:restart' : 'mdi:cellphone-arrow-down'"
                 color="primary"
-                @click="appUpdateStore.installApk()"
+                @click="appUpdateStore.installUpdate()"
               >
-                Установить
+                {{ isAppImage ? 'Установить и перезапустить' : 'Установить' }}
               </KitBtn>
               <KitBtn
                 variant="outlined"

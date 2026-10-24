@@ -4,10 +4,28 @@ import { getCurrent, onOpenUrl } from '@tauri-apps/plugin-deep-link'
 import { AppRoutePaths } from '~/shared/constants/routes'
 import { useToastStore } from '~/shared/store/toast.store'
 import { useAuthStore } from '../store/auth.store'
-import { isTauri } from './env'
+import { getAppBaseUrl, isTauri } from './env'
+
+export const DEEP_LINK_SCHEME = 'trip-scheduler'
 
 /**
- * Обрабатывает входящий deep link URI (например, trip-scheduler://auth/callback?token=... или trip-scheduler://user/settings?oauth_success=...)
+ * Генерирует Deep Link для прямого открытия сущности в приложении (по схеме trip-scheduler://)
+ */
+export function getTripDeepLinkUrl(slugOrId: string): string {
+  const clean = slugOrId.replace(/^\/+/, '')
+  return `${DEEP_LINK_SCHEME}://trip/${clean}`
+}
+
+/**
+ * Генерирует публичный веб-URL для открытия/шеринга в браузере или через App Links
+ */
+export function getTripWebUrl(slugOrId: string): string {
+  const path = AppRoutePaths.Trip.Info(slugOrId)
+  return new URL(path, getAppBaseUrl()).toString()
+}
+
+/**
+ * Обрабатывает входящий deep link URI (например, trip-scheduler://trip/... или https://trip-scheduler.limited-dissolve.ru/trip/...)
  */
 export async function handleDeepLinkUrl(rawUrl: string, pinia: Pinia, router: Router): Promise<void> {
   if (!rawUrl)
@@ -17,8 +35,9 @@ export async function handleDeepLinkUrl(rawUrl: string, pinia: Pinia, router: Ro
     // В URL схемах вида trip-scheduler://auth/callback хост = auth, pathname = /callback
     // Нормализуем для парсинга через new URL
     let urlStr = rawUrl
-    if (urlStr.startsWith('trip-scheduler://')) {
-      urlStr = urlStr.replace('trip-scheduler://', 'http://localhost/')
+    if (urlStr.startsWith(`${DEEP_LINK_SCHEME}://`)) {
+      const pathPart = urlStr.replace(new RegExp(`^${DEEP_LINK_SCHEME}://`), '').replace(/^\/+/, '')
+      urlStr = `http://localhost/${pathPart}`
     }
 
     const parsed = new URL(urlStr)
@@ -27,13 +46,6 @@ export async function handleDeepLinkUrl(rawUrl: string, pinia: Pinia, router: Ro
 
     const authStore = useAuthStore(pinia)
     const toastStore = useToastStore(pinia)
-
-    // Push notifications use trip-scheduler://trip/<id>?day=...&section=memories.
-    if (pathname.startsWith('/trip/')) {
-      await router.isReady()
-      await router.push({ path: pathname, query: Object.fromEntries(searchParams.entries()) })
-      return
-    }
 
     // 1. Авторизация через OAuth callback
     if (pathname.includes('/auth/callback') || pathname.startsWith('/auth/callback')) {
@@ -77,6 +89,20 @@ export async function handleDeepLinkUrl(rawUrl: string, pinia: Pinia, router: Ro
       if (authStore.user?.id) {
         await router.push(`/user/${authStore.user.id}/settings`)
       }
+      return
+    }
+
+    // 3. Открытие путешествия, постов, блога или других экранов
+    if (
+      pathname.startsWith('/trip/')
+      || pathname.startsWith('/trips')
+      || pathname.startsWith('/post/')
+      || pathname.startsWith('/blog')
+      || pathname.startsWith('/user/')
+      || pathname === '/'
+    ) {
+      await router.isReady()
+      await router.push({ path: pathname, query: Object.fromEntries(searchParams.entries()) })
     }
   }
   catch (err) {

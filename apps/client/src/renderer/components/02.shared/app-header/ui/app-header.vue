@@ -29,9 +29,8 @@ const navItems = [
     id: 'trips',
     label: 'Приключения',
     desc: 'Ваши планы и маршруты',
-    icon: 'mdi:compass-outline',
+    icon: 'mdi:map-outline',
     color: 'var(--fg-accent-color)',
-    bgColor: 'rgba(var(--fg-accent-color-rgb), 0.1)',
   },
   // {
   //   id: 'activity-map',
@@ -39,7 +38,6 @@ const navItems = [
   //   desc: 'Планируйте дела на карте',
   //   icon: 'mdi:map-marker-radius',
   //   color: '#00bcd4',
-  //   bgColor: 'rgba(0, 188, 212, 0.1)',
   // },
   {
     id: 'posts',
@@ -47,7 +45,6 @@ const navItems = [
     desc: 'Заметки и истории',
     icon: 'mdi:image-text',
     color: '#8e44ad',
-    bgColor: 'rgba(142, 68, 173, 0.1)',
   },
   {
     id: 'links',
@@ -55,7 +52,6 @@ const navItems = [
     desc: 'Сервисы для туристов',
     icon: 'mdi:link-variant',
     color: '#27ae60',
-    bgColor: 'rgba(39, 174, 96, 0.1)',
   },
   {
     id: 'blog',
@@ -63,9 +59,40 @@ const navItems = [
     desc: 'Новости и обновления',
     icon: 'mdi:notebook-outline',
     color: '#e67e22',
-    bgColor: 'rgba(230, 126, 34, 0.1)',
   },
 ]
+
+function isItemActive(item: typeof navItems[0]): boolean {
+  switch (item.id) {
+    case 'trips':
+      return (
+        route.path === '/'
+        || route.path.startsWith('/trip')
+        || route.name === AppRouteNames.TripList
+        || route.name === AppRouteNames.TripInfo
+      )
+    case 'posts':
+      return (
+        route.path.startsWith('/post')
+        || route.name === AppRouteNames.PostList
+        || route.name === AppRouteNames.PostDetails
+        || route.name === AppRouteNames.PostCreate
+      )
+    case 'links':
+      return (
+        route.name === AppRouteNames.UsefulLinks
+        || route.path.startsWith('/useful-links')
+      )
+    case 'blog':
+      return (
+        route.path.startsWith('/blog')
+        || route.name === AppRouteNames.BlogList
+        || route.name === AppRouteNames.BlogArticle
+      )
+    default:
+      return false
+  }
+}
 
 function handleNavigation(item: typeof navItems[0]) {
   switch (item.id) {
@@ -188,35 +215,49 @@ onMounted(() => {
           align="start"
           :side-offset="8"
           class="nav-dropdown"
+          content-class="nav-dropdown-menu"
         >
           <template #trigger>
-            <div class="logo-wrapper">
+            <button
+              class="logo-wrapper"
+              :class="{ 'is-open': isNavMenuOpen }"
+              type="button"
+              aria-label="Навигация Trip Scheduler"
+            >
               <div class="logo">
                 <Icon width="20" height="20" class="logo-icon" icon="mdi:map-marker-path" />
                 <span class="logo-text">Trip Scheduler</span>
               </div>
-            </div>
+              <Icon
+                icon="mdi:chevron-down"
+                class="logo-chevron"
+                :class="{ 'is-open': isNavMenuOpen }"
+              />
+            </button>
           </template>
 
           <div class="nav-menu-content">
-            <div class="nav-menu-header">
-              <span>Навигация</span>
-            </div>
             <div class="nav-grid">
               <button
                 v-for="item in navItems"
                 :key="item.id"
                 class="nav-item"
+                :class="{ 'is-active': isItemActive(item) }"
+                :style="{ '--item-color': item.color }"
+                type="button"
                 @click="handleNavigation(item)"
               >
-                <div class="nav-item-icon" :style="{ color: item.color, backgroundColor: item.bgColor }">
-                  <Icon :icon="item.icon" />
+                <div class="nav-item-icon-box">
+                  <Icon :icon="item.icon" class="nav-item-icon" />
                 </div>
                 <div class="nav-item-info">
                   <span class="nav-item-title">{{ item.label }}</span>
                   <span class="nav-item-desc">{{ item.desc }}</span>
                 </div>
-                <Icon icon="mdi:chevron-right" class="nav-arrow" />
+                <div class="nav-item-end">
+                  <span v-if="isItemActive(item)" class="nav-item-active-indicator" title="Текущий раздел" />
+                  <Icon v-else icon="mdi:chevron-right" class="nav-arrow" />
+                </div>
               </button>
             </div>
           </div>
@@ -396,32 +437,66 @@ onMounted(() => {
     height: 40px;
 
     .logo-wrapper {
-      padding: 0 16px;
+      padding: 0 10px 0 14px;
       background-color: var(--bg-secondary-color);
+      border: 1px solid transparent;
       border-radius: 20px;
       transition:
-        border-radius 0.5s cubic-bezier(0.4, 0, 0.2, 1),
+        border-radius 0.3s cubic-bezier(0.4, 0, 0.2, 1),
         transform 0.2s ease,
+        background-color 0.2s ease,
+        border-color 0.2s ease,
         box-shadow 0.2s ease;
       height: 100%;
-      display: flex;
+      display: inline-flex;
       align-items: center;
+      gap: 4px;
       cursor: pointer;
       overflow: hidden;
+      outline: none;
 
       @include hover {
-        & {
-          border-radius: 10px;
-          box-shadow: var(--s-l);
+        border-radius: 12px;
+        box-shadow: var(--s-m);
+        border-color: var(--border-secondary-color);
 
-          .logo-icon {
-            transform: rotate(10deg) scale(1.1);
-          }
+        .logo-icon {
+          transform: rotate(8deg) scale(1.08);
+        }
+
+        .logo-chevron {
+          color: var(--fg-primary-color);
+        }
+      }
+
+      &.is-open {
+        border-radius: 12px;
+        background-color: var(--bg-hover-color);
+        border-color: var(--border-accent-color);
+        box-shadow: var(--s-s);
+
+        .logo-icon {
+          color: var(--fg-accent-color);
         }
       }
 
       &:active {
         transform: translateY(0);
+      }
+
+      .logo-chevron {
+        font-size: 1.15rem;
+        color: var(--fg-tertiary-color);
+        transition:
+          transform 0.25s cubic-bezier(0.4, 0, 0.2, 1),
+          color 0.2s ease;
+        margin-left: 2px;
+        flex-shrink: 0;
+
+        &.is-open {
+          transform: rotate(180deg);
+          color: var(--fg-accent-color);
+        }
       }
     }
 
@@ -573,22 +648,23 @@ onMounted(() => {
   }
 }
 
-.nav-menu-content {
-  width: 280px;
-  padding: 0;
-  border-radius: var(--r-m);
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
+:global(.nav-dropdown-menu) {
+  width: 308px !important;
+  max-width: calc(100vw - 20px) !important;
+  padding: 8px !important;
+  background-color: var(--bg-primary-color) !important;
+  border: 1px solid var(--border-secondary-color) !important;
+  border-radius: var(--r-l) !important;
+  box-shadow: var(--s-xl) !important;
+  backdrop-filter: blur(16px);
+  overflow: hidden;
 }
 
-.nav-menu-header {
-  padding: 8px 12px 4px;
-  font-size: 0.75rem;
-  font-weight: 600;
-  text-transform: uppercase;
-  letter-spacing: 0.05em;
-  color: var(--fg-tertiary-color);
+.nav-menu-content {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  width: 100%;
 }
 
 .nav-grid {
@@ -601,48 +677,47 @@ onMounted(() => {
   display: flex;
   align-items: center;
   gap: 12px;
-  padding: 10px 12px;
-  border-radius: var(--r-s);
+  padding: 8px 10px;
+  border-radius: var(--r-m);
   border: 1px solid transparent;
   background-color: transparent;
   cursor: pointer;
   text-align: left;
-  transition: all 0.2s cubic-bezier(0.25, 0.8, 0.25, 1);
+  transition:
+    background-color 0.2s ease,
+    border-color 0.2s ease,
+    transform 0.2s cubic-bezier(0.2, 0.8, 0.2, 1);
   width: 100%;
+  user-select: none;
+  outline: none;
 
-  @include hover {
-    & {
-      background-color: var(--bg-secondary-color);
-      border-color: var(--border-secondary-color);
-      transform: translateX(4px);
-
-      .nav-arrow {
-        opacity: 1;
-        transform: translateX(0);
-      }
-    }
-  }
-
-  &-icon {
-    width: 36px;
-    height: 36px;
-    border-radius: 10px;
+  &-icon-box {
+    width: 44px;
+    height: 44px;
+    border-radius: 12px;
     display: flex;
     align-items: center;
     justify-content: center;
-    font-size: 1.3rem;
     flex-shrink: 0;
-    transition: transform 0.2s ease;
+    background-color: color-mix(in srgb, var(--item-color) 12%, transparent);
+    border: 1px solid color-mix(in srgb, var(--item-color) 24%, transparent);
+    color: var(--item-color);
+    transition:
+      background-color 0.2s ease,
+      border-color 0.2s ease,
+      color 0.2s ease,
+      transform 0.2s cubic-bezier(0.2, 0.8, 0.2, 1),
+      box-shadow 0.2s ease;
   }
 
-  @media (hover: hover) and (pointer: fine) {
-    &:hover &-icon {
-      transform: scale(1.1) rotate(5deg);
-    }
+  &-icon {
+    font-size: 1.35rem;
+    transition: transform 0.2s ease;
   }
 
   &-info {
     flex-grow: 1;
+    min-width: 0;
     display: flex;
     flex-direction: column;
     gap: 2px;
@@ -652,21 +727,89 @@ onMounted(() => {
     font-size: 0.95rem;
     font-weight: 600;
     color: var(--fg-primary-color);
-    line-height: 1.2;
+    line-height: 1.25;
+    transition: color 0.2s ease;
   }
 
   &-desc {
-    font-size: 0.8rem;
+    font-size: 0.78rem;
     color: var(--fg-secondary-color);
     line-height: 1.2;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  &-end {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 20px;
+    flex-shrink: 0;
+  }
+
+  &-active-indicator {
+    width: 7px;
+    height: 7px;
+    border-radius: 50%;
+    background-color: var(--item-color);
+    box-shadow: 0 0 8px var(--item-color);
   }
 
   .nav-arrow {
     color: var(--fg-tertiary-color);
-    font-size: 1.1rem;
+    font-size: 1.15rem;
     opacity: 0;
     transform: translateX(-4px);
-    transition: all 0.2s ease;
+    transition:
+      opacity 0.2s ease,
+      transform 0.2s ease,
+      color 0.2s ease;
+  }
+
+  @include hover {
+    background-color: var(--bg-hover-color);
+    border-color: var(--border-secondary-color);
+
+    .nav-item-icon-box {
+      background-color: color-mix(in srgb, var(--item-color) 18%, transparent);
+      border-color: color-mix(in srgb, var(--item-color) 50%, transparent);
+      transform: scale(1.05);
+      box-shadow: 0 2px 10px color-mix(in srgb, var(--item-color) 25%, transparent);
+    }
+
+    .nav-arrow {
+      opacity: 1;
+      transform: translateX(0);
+      color: var(--item-color);
+    }
+  }
+
+  // Стилизация активного пункта (по референсу с цветом каждого раздела)
+  &.is-active {
+    background-color: color-mix(in srgb, var(--item-color) 8%, transparent);
+    border-color: color-mix(in srgb, var(--item-color) 28%, transparent);
+
+    .nav-item-icon-box {
+      background-color: color-mix(in srgb, var(--item-color) 18%, transparent);
+      border-color: color-mix(in srgb, var(--item-color) 60%, transparent);
+      color: var(--item-color);
+      box-shadow: 0 2px 10px color-mix(in srgb, var(--item-color) 30%, transparent);
+    }
+
+    .nav-item-title {
+      color: var(--item-color);
+      font-weight: 700;
+    }
+
+    @include hover {
+      background-color: color-mix(in srgb, var(--item-color) 12%, transparent);
+      border-color: color-mix(in srgb, var(--item-color) 40%, transparent);
+
+      .nav-item-icon-box {
+        border-color: var(--item-color);
+      }
+    }
   }
 }
 
@@ -704,7 +847,8 @@ onMounted(() => {
         width: 100%;
       }
 
-      .logo-text {
+      .logo-text,
+      .logo-chevron {
         display: none;
         white-space: nowrap;
       }

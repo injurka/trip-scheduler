@@ -1,5 +1,6 @@
 import type { Booking } from '../types'
-import { existsSync } from 'node:fs'
+import type { ImageCacheEntry } from './cache'
+import { resolveImageFromIndex, uploadSingleImage } from './image-uploader'
 
 export interface BookingImageUploader {
   uploadImage: (tripId: string, filePath: string, placement?: 'route' | 'memories' | 'notes' | 'documents') => Promise<string>
@@ -8,6 +9,7 @@ export interface BookingImageUploader {
 export interface ResolveBookingPhotosOptions {
   uploadImages?: boolean
   onLog?: (message: string) => void
+  persistentCache?: Map<string, ImageCacheEntry>
 }
 
 export interface ResolveBookingPhotosResult {
@@ -56,13 +58,9 @@ export async function resolveAndUploadBookingPhotos(
       }
 
       // 2. Локальный файл из вольта Obsidian
-      const cleanName = photo.replace(/^\.\//, '')
-      const localPath = imageIndex.get(cleanName)
-        || imageIndex.get(cleanName.toLowerCase())
-        || imageIndex.get(cleanName.split('/').at(-1) ?? '')
-        || imageIndex.get((cleanName.split('/').at(-1) ?? '').toLowerCase())
+      const localPath = resolveImageFromIndex(photo, imageIndex)
 
-      if (localPath && existsSync(localPath)) {
+      if (localPath) {
         if (shouldUpload && uploader && tripId) {
           try {
             if (uploadCache.has(localPath)) {
@@ -71,10 +69,16 @@ export async function resolveAndUploadBookingPhotos(
                 resolvedPhotos.push(cachedUrl)
             }
             else {
-              options.onLog?.(`📸 Загрузка фото бронирования [${booking.title}]: ${cleanName}`)
-              const uploadedUrl = await uploader.uploadImage(tripId, localPath, 'route')
+              options.onLog?.(`📸 Загрузка фото бронирования [${booking.title}]: ${photo}`)
+              const uploadedUrl = await uploadSingleImage(
+                tripId,
+                localPath,
+                uploader,
+                uploadCache,
+                options.persistentCache,
+                'route',
+              )
               if (uploadedUrl) {
-                uploadCache.set(localPath, uploadedUrl)
                 if (!resolvedPhotos.includes(uploadedUrl))
                   resolvedPhotos.push(uploadedUrl)
                 totalUploaded++
@@ -82,7 +86,7 @@ export async function resolveAndUploadBookingPhotos(
             }
           }
           catch (err: any) {
-            options.onLog?.(`⚠ Ошибка загрузки фото бронирования «${cleanName}»: ${err?.message || err}`)
+            options.onLog?.(`⚠ Ошибка загрузки фото бронирования «${photo}»: ${err?.message || err}`)
             throw err
           }
         }

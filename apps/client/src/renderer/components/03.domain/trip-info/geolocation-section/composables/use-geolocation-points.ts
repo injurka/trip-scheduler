@@ -70,7 +70,7 @@ export function useGeolocationPoints(mapApiRef: Ref<GeolocationMapApi | undefine
     point.coordinates = [lon, lat]
 
     await movePoint(point.id, point.coordinates)
-    mapApiRef.value?.flyToLocation(lon, lat, 16)
+    mapApiRef.value?.flyToLocation(lon, lat, 14)
   }
 
   function handlePointUpdate(point: MapPoint) {

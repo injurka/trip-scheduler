@@ -269,8 +269,27 @@ async fn download_app_update(
     Ok(final_path)
 }
 
+#[derive(Clone, serde::Serialize)]
+struct PlatformInfo {
+    os: String,
+    is_appimage: bool,
+    appimage_path: Option<String>,
+}
+
 #[tauri::command]
-async fn open_downloaded_apk(app: tauri::AppHandle, path: String) -> Result<(), String> {
+fn get_platform_info() -> PlatformInfo {
+    let os = std::env::consts::OS.to_string();
+    let appimage_path = std::env::var("APPIMAGE").ok();
+    let is_appimage = appimage_path.is_some();
+    PlatformInfo {
+        os,
+        is_appimage,
+        appimage_path,
+    }
+}
+
+#[tauri::command]
+async fn install_app_update(app: tauri::AppHandle, path: String) -> Result<(), String> {
     #[cfg(mobile)]
     {
         use tauri_plugin_tracking::{InstallApkPayload, TrackingExt};
@@ -282,11 +301,60 @@ async fn open_downloaded_apk(app: tauri::AppHandle, path: String) -> Result<(), 
 
     #[cfg(desktop)]
     {
+        let downloaded_file = std::path::PathBuf::from(&path);
+
+        #[cfg(target_os = "linux")]
+        {
+            if let Ok(appimage_env) = std::env::var("APPIMAGE") {
+                let running_path = std::path::PathBuf::from(&appimage_env);
+                if running_path.exists() && downloaded_file.exists() {
+                    use std::os::unix::fs::PermissionsExt;
+                    if let Ok(meta) = fs::metadata(&downloaded_file) {
+                        let mut perms = meta.permissions();
+                        perms.set_mode(0o755);
+                        let _ = fs::set_permissions(&downloaded_file, perms);
+                    }
+
+                    // In Linux, unlinking/renaming a running binary is allowed.
+                    let backup_path = running_path.with_extension("AppImage.old");
+                    let _ = fs::remove_file(&backup_path);
+                    if let Err(e) = fs::rename(&running_path, &backup_path) {
+                        return Err(format!("Не удалось подготовить AppImage к замене: {e}"));
+                    }
+
+                    let copy_res = fs::copy(&downloaded_file, &running_path)
+                        .map(|_| ())
+                        .or_else(|_| fs::rename(&downloaded_file, &running_path));
+
+                    match copy_res {
+                        Ok(_) => {
+                            let _ = fs::remove_file(&backup_path);
+                            if let Ok(meta) = fs::metadata(&running_path) {
+                                let mut perms = meta.permissions();
+                                perms.set_mode(0o755);
+                                let _ = fs::set_permissions(&running_path, perms);
+                            }
+                            app.restart();
+                        }
+                        Err(err) => {
+                            let _ = fs::rename(&backup_path, &running_path);
+                            return Err(format!("Не удалось установить новый AppImage: {err}"));
+                        }
+                    }
+                }
+            }
+        }
+
         use tauri_plugin_opener::OpenerExt;
         app.opener()
             .open_path(path, None::<&str>)
             .map_err(|e| e.to_string())
     }
+}
+
+#[tauri::command]
+async fn open_downloaded_apk(app: tauri::AppHandle, path: String) -> Result<(), String> {
+    install_app_update(app, path).await
 }
 
 #[tauri::command]
@@ -390,6 +458,8 @@ pub fn run() {
             vault_delete_file,
             download_app_update,
             open_downloaded_apk,
+            install_app_update,
+            get_platform_info,
             tracking_start,
             tracking_stop,
             tracking_is_running,

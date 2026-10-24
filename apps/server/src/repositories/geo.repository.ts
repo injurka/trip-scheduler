@@ -256,10 +256,45 @@ export const geoRepository = {
         return place ? [{ place, score: 1, matchedName: candidate.matchedName }] : []
       })
 
+      // Правило доминирования (Safe Dominance):
+      // Если среди кандидатов есть явный мегаполис/столица, население которого
+      // превосходит второго кандидата минимум в 20 раз и составляет не менее 500k человек,
+      // то совпадение считается однозначно разрешённым (например, Москва: 13 млн vs 25 тыс в США).
+      let dominantPlace: typeof resolutionCandidates[number]['place'] | null = null
+      let isDominantResolved = false
+
+      if (resolutionCandidates.length === 1) {
+        dominantPlace = resolutionCandidates[0]!.place
+      }
+      else if (resolutionCandidates.length > 1) {
+        const topCandidate = candidates[0]!
+        const secondCandidate = candidates[1]!
+        const topPop = topCandidate.population || 0
+        const secondPop = secondCandidate.population || 0
+
+        if (topPop >= 500_000 && (secondPop === 0 || topPop / secondPop >= 20)) {
+          const matched = placeById.get(topCandidate.placeId)
+          if (matched) {
+            dominantPlace = matched
+            isDominantResolved = true
+          }
+        }
+      }
+
+      const isResolved = resolutionCandidates.length === 1 || isDominantResolved
+      const status = isResolved ? 'resolved' as const : resolutionCandidates.length > 1 ? 'needs_review' as const : 'unresolved' as const
+      const reason = isDominantResolved
+        ? 'dominant_exact_name_by_population'
+        : resolutionCandidates.length === 1
+          ? 'unique_exact_name'
+          : resolutionCandidates.length > 1
+            ? 'ambiguous_exact_name'
+            : 'exact_name_not_found'
+
       return {
-        status: resolutionCandidates.length === 1 ? 'resolved' as const : resolutionCandidates.length > 1 ? 'needs_review' as const : 'unresolved' as const,
-        reason: resolutionCandidates.length === 1 ? 'unique_exact_name' : resolutionCandidates.length > 1 ? 'ambiguous_exact_name' : 'exact_name_not_found',
-        place: resolutionCandidates.length === 1 ? resolutionCandidates[0]!.place : null,
+        status,
+        reason,
+        place: dominantPlace,
         candidates: resolutionCandidates,
         provenance: {
           method: 'normalized_exact_name',

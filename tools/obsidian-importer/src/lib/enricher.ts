@@ -6,14 +6,16 @@ import type {
   Booking,
   GeolocationPoint,
 } from '../types'
+import type { ImageCacheEntry } from './cache'
 import type { MetroActivityResolver } from './metro-resolver'
-import { existsSync } from 'node:fs'
 import { colors } from '../config/colors'
 import { dedentText } from '../parsers/activity'
 import { extractGalleryBlocks } from '../parsers/gallery'
 import { extractGpxReferences, parseGpxFile, resolveGpxFile } from '../parsers/gpx'
 import { extractExternalTrailLinks, extractLabeledRouteMode, extractLocationsFromText, extractRouteTransportMode } from '../parsers/location'
+import { pMap } from './concurrency'
 import { geocodeLocation } from './geocode'
+import { resolveImageFromIndex, uploadSingleImage } from './image-uploader'
 import { stableId } from './stable-id'
 
 interface ImageUploader {
@@ -99,7 +101,7 @@ function computeGeoBoundsAndCenter(
   ]
 
   if (minLng === maxLng && minLat === maxLat) {
-    return { center, zoom: 14.5 }
+    return { center, zoom: 13.5 }
   }
 
   const dLat = ((maxLat - minLat) * Math.PI) / 180
@@ -109,33 +111,33 @@ function computeGeoBoundsAndCenter(
   const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a))
   const distanceKm = 6371 * c
 
-  let zoom = 13
+  let zoom = 12
   if (distanceKm <= 0.4) {
-    zoom = 15
-  }
-  else if (distanceKm <= 1.2) {
     zoom = 14
   }
-  else if (distanceKm <= 3.5) {
+  else if (distanceKm <= 1.2) {
     zoom = 13
   }
-  else if (distanceKm <= 10) {
+  else if (distanceKm <= 3.5) {
     zoom = 12
   }
-  else if (distanceKm <= 25) {
+  else if (distanceKm <= 10) {
     zoom = 11
   }
-  else if (distanceKm <= 60) {
+  else if (distanceKm <= 25) {
     zoom = 10
   }
+  else if (distanceKm <= 60) {
+    zoom = 9
+  }
   else if (distanceKm <= 150) {
-    zoom = 8.5
+    zoom = 8
   }
   else if (distanceKm <= 400) {
-    zoom = 7.5
+    zoom = 7
   }
   else {
-    zoom = 5.5
+    zoom = 5
   }
 
   return { center, zoom }
@@ -225,6 +227,7 @@ export async function enrichActivityWithMediaAndLocation(
     dayDate?: string
     gpxIndex?: Map<string, string>
     onProgress?: (message: string) => void
+    persistentImageCache?: Map<string, ImageCacheEntry>
   } = {},
 ): Promise<ActivityPayload> {
   if (options.resolveMetro)
@@ -532,7 +535,7 @@ export async function enrichActivityWithMediaAndLocation(
       const geoMeta = computeGeoBoundsAndCenter(mapPoints, routes)
       const center = geoMeta?.center || mapPoints[0]?.coordinates || routes[0]?.points[0]?.coordinates
       const totalPoints = mapPoints.length + routes.reduce((s: number, r: any) => s + r.points.length, 0)
-      const zoom = geoMeta?.zoom ?? (totalPoints > 2 ? 12 : totalPoints > 1 ? 13 : 14)
+      const zoom = geoMeta?.zoom ?? (totalPoints > 2 ? 11 : totalPoints > 1 ? 12 : 13.5)
       geoSection = {
         id: stableId('activity-geolocation', act.startTime),
         type: 'geolocation',
@@ -590,31 +593,25 @@ export async function enrichActivityWithMediaAndLocation(
     galleryGroups.push({ title: '', images: foundImageNames })
 
   if (galleryGroups.length > 0) {
-    let imageNumber = 0
-    const totalImages = galleryGroups.reduce((total, gallery) => total + gallery.images.length, 0)
     for (const gallery of galleryGroups) {
-      const uploadedImageUrls: string[] = []
-
-      for (const imgName of gallery.images) {
-        imageNumber++
-        const localPath = imageIndex.get(imgName)
-          || imageIndex.get(imgName.toLowerCase())
-          || imageIndex.get(imgName.split('/').at(-1) ?? '')
-          || imageIndex.get((imgName.split('/').at(-1) ?? '').toLowerCase())
-        if (localPath && existsSync(localPath)) {
+      const resolvedUrls = await pMap(gallery.images, async (imgName) => {
+        const localPath = resolveImageFromIndex(imgName, imageIndex)
+        if (localPath) {
           if (shouldUpload && api && tripId) {
             try {
               if (uploadCache.has(localPath)) {
-                uploadedImageUrls.push(uploadCache.get(localPath)!)
+                return uploadCache.get(localPath)!
               }
-              else {
-                notify(`📸 Загрузка фото [${imageNumber}/${totalImages}]: ${imgName}`)
-                const uploadedUrl = await api.uploadImage(tripId, localPath, 'route')
-                if (uploadedUrl) {
-                  uploadCache.set(localPath, uploadedUrl)
-                  uploadedImageUrls.push(uploadedUrl)
-                }
-              }
+              notify(`📸 Загрузка фото: ${imgName}`)
+              const uploadedUrl = await uploadSingleImage(
+                tripId,
+                localPath,
+                api,
+                uploadCache,
+                options.persistentImageCache,
+                'route',
+              )
+              return uploadedUrl || null
             }
             catch (uploadErr: any) {
               console.warn(`      ${colors.yellow}⚠ Ошибка загрузки фото ${imgName}: ${uploadErr.message}${colors.reset}`)
@@ -622,7 +619,10 @@ export async function enrichActivityWithMediaAndLocation(
             }
           }
         }
-      }
+        return null
+      }, 4)
+
+      const uploadedImageUrls = resolvedUrls.filter((url): url is string => Boolean(url))
 
       if (uploadedImageUrls.length > 0) {
         newSections.push({

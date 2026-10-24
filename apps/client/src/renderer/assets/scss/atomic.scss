@@ -5,11 +5,17 @@
   --content-bg-opacity: 1;
   --content-gradient-width: 100px;
   --header-base-height: 56px;
+  --footer-base-height: 52px;
   --safe-area-inset-top: env(safe-area-inset-top, 0px);
   --safe-area-inset-bottom: env(safe-area-inset-bottom, 0px);
   --safe-area-inset-left: env(safe-area-inset-left, 0px);
   --safe-area-inset-right: env(safe-area-inset-right, 0px);
   --header-height: var(--header-base-height);
+  --footer-height: var(--footer-base-height);
+
+  @include media-down(sm) {
+    --footer-height: 105px;
+  }
 }
 
 .content-wrapper {
@@ -21,6 +27,7 @@
   flex-direction: column;
   flex-grow: 1;
   padding: 16px;
+  padding-bottom: calc(var(--footer-height) + var(--safe-area-inset-bottom) + 16px);
   max-width: 1000px;
   min-height: 100%;
   width: 100%;
@@ -29,7 +36,7 @@
   transition: background-color 0.3s ease;
 
   @include media-down(sm) {
-    padding: 16px 6px;
+    padding: 16px 6px calc(var(--footer-height) + var(--safe-area-inset-bottom) + 12px);
   }
 
 

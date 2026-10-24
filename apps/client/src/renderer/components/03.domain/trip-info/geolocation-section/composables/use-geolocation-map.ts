@@ -683,7 +683,7 @@ export function useGeolocationMap() {
     }
   }
 
-  const flyToLocation = (longitude: number, latitude: number, zoom = 14) => {
+  const flyToLocation = (longitude: number, latitude: number, zoom = 13.5) => {
     baseMap.flyTo(longitude, latitude, zoom)
   }
 
@@ -697,7 +697,7 @@ export function useGeolocationMap() {
       return false
 
     const { lon, lat, displayName } = result
-    flyToLocation(lon, lat, 15)
+    flyToLocation(lon, lat, 14)
 
     const map = baseMap.mapInstance.value
     if (map) {
@@ -735,7 +735,7 @@ export function useGeolocationMap() {
           return
 
         const { longitude, latitude } = position.coords
-        flyToLocation(longitude, latitude, 16)
+        flyToLocation(longitude, latitude, 14)
 
         if (!currentLocationMarker) {
           const el = document.createElement('div')
@@ -932,25 +932,33 @@ export function useGeolocationMap() {
     if (minLng === maxLng && minLat === maxLat) {
       map.flyTo({
         center: [minLng, minLat],
-        zoom: Math.min(options?.maxZoom ?? 14.5, 14.5),
+        zoom: Math.min(options?.maxZoom ?? 13.5, 13.5),
         duration: options?.duration !== undefined ? options.duration : 400,
       })
       return true
     }
 
+    const dLng = maxLng - minLng
+    const dLat = maxLat - minLat
+    const marginRatio = 0.15
+    const paddedMinLng = minLng - dLng * marginRatio
+    const paddedMaxLng = maxLng + dLng * marginRatio
+    const paddedMinLat = Math.max(-85, minLat - dLat * marginRatio)
+    const paddedMaxLat = Math.min(85, maxLat + dLat * marginRatio)
+
     const padding
       = typeof options?.padding === 'number'
         ? { top: options.padding, right: options.padding, bottom: options.padding, left: options.padding }
-        : (options?.padding ?? { top: 60, right: 60, bottom: 60, left: 60 })
+        : (options?.padding ?? { top: 70, right: 70, bottom: 70, left: 70 })
 
     baseMap.fitBounds(
       [
-        [minLng, minLat],
-        [maxLng, maxLat],
+        [paddedMinLng, paddedMinLat],
+        [paddedMaxLng, paddedMaxLat],
       ],
       {
         padding,
-        maxZoom: options?.maxZoom ?? 15,
+        maxZoom: options?.maxZoom ?? 14,
         duration: options?.duration !== undefined ? options.duration : 400,
       },
     )

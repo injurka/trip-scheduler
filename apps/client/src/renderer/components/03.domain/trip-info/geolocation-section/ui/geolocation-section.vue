@@ -244,7 +244,7 @@ watch(searchQuery, (newQuery) => {
 })
 
 function handleFocusOnPoint(point: MapPoint) {
-  mapController.value?.flyToLocation(point.coordinates[0], point.coordinates[1], 17)
+  mapController.value?.flyToLocation(point.coordinates[0], point.coordinates[1], 14)
 }
 
 function handleStartMovePoint(pointId: string) {
@@ -280,7 +280,7 @@ function setActiveRoute(routeId: string | null) {
     mode.value = 'add_route_point'
     const targetRoute = routes.value.find(r => r.id === routeId)
     if (targetRoute && ((targetRoute.points?.length ?? 0) > 0 || (targetRoute.geometry?.length ?? 0) > 0)) {
-      mapController.value?.fitToContent([], [targetRoute], { duration: 400, padding: 60, maxZoom: 15 })
+      mapController.value?.fitToContent([], [targetRoute], { duration: 400, padding: 70, maxZoom: 14 })
     }
   }
   else {

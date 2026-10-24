@@ -168,6 +168,19 @@ export const tripService = {
 
     await quotaService.incrementTripCount(userId)
 
+    if (selectedPlaces.length > 0) {
+      const month = newTrip.startDate
+        ? new Date(newTrip.startDate).getMonth() + 1
+        : new Date().getMonth() + 1
+      const cachedWeather = await weatherGenerationService.getCachedWeatherForPlaces(selectedPlaces, month)
+      if (Object.keys(cachedWeather).length > 0) {
+        await tripRepository.updateWeatherPayload(newTrip.id, {
+          weatherByPlaceId: cachedWeather,
+        })
+        newTrip.weatherByPlaceId = cachedWeather
+      }
+    }
+
     return newTrip
   },
 
@@ -208,6 +221,31 @@ export const tripService = {
     }
     if (!updatedTrip) {
       throw createTRPCError('NOT_FOUND', `Путешествие с ID ${id} не найдено.`)
+    }
+
+    if (details.cityIds !== undefined && updatedTrip.cityRefs && updatedTrip.cityRefs.length > 0) {
+      const month = updatedTrip.startDate
+        ? new Date(updatedTrip.startDate).getMonth() + 1
+        : new Date().getMonth() + 1
+
+      const cachedWeather = await weatherGenerationService.getCachedWeatherForPlaces(updatedTrip.cityRefs, month)
+      const currentWeather = (updatedTrip.weatherByPlaceId || {}) as Record<string, any>
+      let hasChanges = false
+      const mergedWeather = { ...currentWeather }
+
+      for (const [placeId, weatherData] of Object.entries(cachedWeather)) {
+        if (!mergedWeather[placeId]) {
+          mergedWeather[placeId] = weatherData
+          hasChanges = true
+        }
+      }
+
+      if (hasChanges) {
+        await tripRepository.updateWeatherPayload(updatedTrip.id, {
+          weatherByPlaceId: mergedWeather,
+        })
+        updatedTrip.weatherByPlaceId = mergedWeather
+      }
     }
 
     if (updatedTrip.weatherByPlaceId) {

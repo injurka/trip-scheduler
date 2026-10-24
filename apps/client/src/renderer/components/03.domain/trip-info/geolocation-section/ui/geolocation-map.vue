@@ -33,7 +33,7 @@ interface Props {
 
 const props = withDefaults(defineProps<Props>(), {
   readonly: true,
-  zoom: 14,
+  zoom: 13.5,
   pitch: 0,
   bearing: 0,
   interactiveOnClick: false,
@@ -90,8 +90,8 @@ function performAutoFit(duration = 400) {
   map.resize()
   fitToContent(props.points, props.routes, {
     duration,
-    padding: 60,
-    maxZoom: 15,
+    padding: 70,
+    maxZoom: 14,
   })
 }
 
@@ -229,11 +229,11 @@ onMounted(async () => {
   if (props.autoFit && !initialBounds) {
     if (props.points.length === 1 && isValidCoordinate(props.points[0]?.coordinates)) {
       initialCenter = props.points[0].coordinates
-      initialZoom = 14.5
+      initialZoom = 13.5
     }
     else if (props.routes.length === 1 && props.routes[0]?.points?.length === 1 && isValidCoordinate(props.routes[0].points[0].coordinates)) {
       initialCenter = props.routes[0].points[0].coordinates
-      initialZoom = 14.5
+      initialZoom = 13.5
     }
   }
 
@@ -249,7 +249,7 @@ onMounted(async () => {
     bearing: props.bearing,
     interactive: !props.interactiveOnClick,
     bounds: initialBounds || undefined,
-    fitBoundsOptions: initialBounds ? { padding: 60, maxZoom: 15 } : undefined,
+    fitBoundsOptions: initialBounds ? { padding: 70, maxZoom: 14 } : undefined,
   })
 
   mapInstance.value?.on('click', (event) => {

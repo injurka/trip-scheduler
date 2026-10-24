@@ -17,6 +17,7 @@ const props = withDefaults(defineProps<{
   size?: 'sm' | 'md' | 'lg'
   portalTarget?: HTMLElement
   modal?: boolean
+  contentClass?: string
 }>(), {
   items: () => [],
   modelValue: null,
@@ -25,6 +26,7 @@ const props = withDefaults(defineProps<{
   size: 'md',
   portalTarget: undefined,
   modal: false,
+  contentClass: undefined,
 })
 
 const emit = defineEmits<{
@@ -58,6 +60,7 @@ function handleSelect(item: KitDropdownItem<T>) {
     <DropdownMenuPortal :to="props.portalTarget">
       <DropdownMenuContent
         class="kit-dropdown-content"
+        :class="props.contentClass"
         :side-offset="props.sideOffset"
         :align="props.align"
         @close-auto-focus.prevent

@@ -19,6 +19,8 @@ for (const audit of [false, true]) {
         return Response.json(taipei)
       if (path === '/auth/signin')
         return Response.json({ token: { accessToken: 'test-token' }, user: {} })
+      if (path === '/geo/places/resolve')
+        return Response.json({ status: 'resolved', place: { id: '00000000-0000-4000-8000-000000000002', name: 'Taipei' } })
       if (request.method === 'GET')
         return Response.json(path.includes('details') ? { sections: [] } : [])
       const body = await request.json() as any

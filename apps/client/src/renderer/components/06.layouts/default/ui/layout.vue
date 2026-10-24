@@ -46,16 +46,18 @@ import { ThemeManager } from '~/components/02.shared/theme-manager'
   display: flex;
   flex-grow: 1;
 
-  // Хедер absolute (вне потока) — отступ от него лежит на корне страницы
-  // (.content-wrapper): фон страницы тянется до верха под хедером, контент
-  // начинается ниже. !important перебивает scoped padding страниц
-  // (специфичность ничья 0,2,0, порядок в бандле ненадёжен)
+  // Хедер и футер absolute (вне потока) — отступы от них лежат на корне страницы
+  // (.content-wrapper): фон страницы тянется до краев под хедером и футером,
+  // контент начинается и заканчивается с безопасными отступами. !important
+  // перебивает scoped padding страниц (специфичность ничья 0,2,0, порядок в бандле ненадёжен)
   > :deep(.content-wrapper) {
     padding-top: var(--header-height) !important;
+    padding-bottom: calc(var(--footer-height) + var(--safe-area-inset-bottom) + 16px) !important;
 
     // Полноэкранный режим карты — в вебе отступ не нужен, но в Tauri он обязателен
     &.is-map-mode {
       padding-top: 0 !important;
+      padding-bottom: 0 !important;
 
       :global(html.is-tauri) & {
         padding-top: var(--header-height) !important;

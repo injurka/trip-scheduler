@@ -9,3 +9,14 @@ export const isMobileApp = isTauri && isMobile
 
 /** Базовый URL сервера: env при сборке → прод для Tauri → пусто для веба */
 export const SERVER_URL = import.meta.env.VITE_APP_SERVER_URL || (isTauri ? 'https://trip-scheduler-api.limited-dissolve.ru' : '')
+
+/** Базовый публичный URL веб-версии приложения */
+export const WEB_APP_URL = import.meta.env.VITE_APP_CLIENT_URL || 'https://trip-scheduler.limited-dissolve.ru'
+
+/** Получает базовый URL приложения для формирования публичных ссылок */
+export function getAppBaseUrl(): string {
+  if (isTauri) {
+    return WEB_APP_URL
+  }
+  return typeof window !== 'undefined' ? window.location.origin : WEB_APP_URL
+}

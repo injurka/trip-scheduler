@@ -14,6 +14,8 @@ it('imports a GPX route through the CLI, even with images and geocoding disabled
       const path = new URL(request.url).pathname
       if (path === '/auth/signin')
         return Response.json({ token: { accessToken: 'test-token' }, user: {} })
+      if (path === '/geo/places/resolve')
+        return Response.json({ status: 'resolved', place: { id: '00000000-0000-4000-8000-000000000002', name: 'Walk' } })
       if (request.method === 'GET')
         return Response.json(path.includes('details') ? { sections: [] } : [])
       const body = await request.json() as any

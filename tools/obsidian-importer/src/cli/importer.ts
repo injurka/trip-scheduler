@@ -11,14 +11,17 @@ import { resolveAndUploadBookingPhotos } from '../lib/booking-media'
 import {
   computeDayLlmHash,
   loadGeocodeCache,
+  loadImageUploadCache,
   loadLlmCache,
   saveGeocodeCache,
+  saveImageUploadCache,
   saveLlmCache,
 } from '../lib/cache'
 import { convertActivityDocumentLinks } from '../lib/document-links'
 import { enrichActivityWithMediaAndLocation } from '../lib/enricher'
 import { buildGpxIndex } from '../lib/gpx-indexer'
 import { buildImageIndex } from '../lib/image-indexer'
+import { batchUploadTripImages, collectTripImagePaths } from '../lib/image-uploader'
 import { resolveCityIds } from '../lib/import-trip'
 import { generateActivitiesViaDirectLlm, mergeLlmActivitiesWithRawMarkdown } from '../lib/llm'
 import { createMetroActivityResolver } from '../lib/metro-resolver'
@@ -377,9 +380,35 @@ export async function runImport(): Promise<void> {
   }
 
   // 2. Create / Update Trip Section Tabs (All 6 Standard Sections)
+  const persistentImageCache = loadImageUploadCache()
   const uploadCache = new Map<string, string>()
   const imageIndex = buildImageIndex(targetDir)
   const gpxIndex = buildGpxIndex(targetDir)
+
+  // Pre-upload trip images concurrently with caching
+  if (cliOptions.uploadImages) {
+    const tripImagePaths = collectTripImagePaths(tripData, imageIndex)
+    if (tripImagePaths.length > 0) {
+      console.log(`\n${colors.dim}📸 Синхронизация медиа файлов (${tripImagePaths.length} фото)...${colors.reset}`)
+      const uploadStats = await batchUploadTripImages(
+        createdTrip.id,
+        tripImagePaths,
+        api,
+        uploadCache,
+        persistentImageCache,
+        {
+          uploadImages: cliOptions.uploadImages,
+          onProgress: msg => console.log(`  ${colors.dim}${msg}${colors.reset}`),
+        },
+      )
+      if (uploadStats.uploaded > 0) {
+        console.log(`  ${colors.green}✔ Загружено новых фото: ${uploadStats.uploaded}${uploadStats.cached > 0 ? ` (из кеша: ${uploadStats.cached})` : ''}${colors.reset}`)
+      }
+      else if (uploadStats.cached > 0) {
+        console.log(`  ${colors.green}✔ Все фото (${uploadStats.cached}) подхвачены из кеша без повторной загрузки${colors.reset}`)
+      }
+    }
+  }
 
   if (tripData.bookingsContent?.bookings && tripData.bookingsContent.bookings.length > 0) {
     await resolveAndUploadBookingPhotos(
@@ -391,6 +420,7 @@ export async function runImport(): Promise<void> {
       {
         uploadImages: cliOptions.uploadImages,
         onLog: msg => console.log(`  ${colors.dim}${msg}${colors.reset}`),
+        persistentCache: persistentImageCache,
       },
     )
   }
@@ -916,6 +946,7 @@ export async function runImport(): Promise<void> {
               onProgress: (msg) => {
                 console.log(`      ${colors.dim}[${actIdx + 1}/${activitiesToCreate.length}] ${msg}${colors.reset}`)
               },
+              persistentImageCache,
             },
           )
           enrichedActivities.push(enriched)
@@ -1015,11 +1046,14 @@ export async function runImport(): Promise<void> {
   // Persist caches to disk for future runs
   saveGeocodeCache(geoCache)
   saveLlmCache(llmCache)
+  saveImageUploadCache(persistentImageCache)
   const savedMessages: string[] = []
   if (geoCache.size > 0)
     savedMessages.push(`${geoCache.size} локаций`)
   if (llmCache.size > 0)
     savedMessages.push(`${llmCache.size} дней ИИ`)
+  if (persistentImageCache.size > 0)
+    savedMessages.push(`${persistentImageCache.size} фото`)
   if (savedMessages.length > 0) {
     console.log(`\n${colors.dim}💾 Кеши сохранены: ${savedMessages.join(', ')}${colors.reset}`)
   }

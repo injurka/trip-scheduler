@@ -132,12 +132,17 @@ function selectItem(item: KitDropdownItem<T>) {
     const index = model.findIndex(v => v === item.value)
     if (index === -1)
       model.push(item.value)
+    else
+      model.splice(index, 1)
 
     emit('update:modelValue', model)
     searchQuery.value = ''
   }
   else {
-    emit('update:modelValue', item.value)
+    if (props.modelValue === item.value)
+      emit('update:modelValue', null)
+    else
+      emit('update:modelValue', item.value)
     handleClose()
   }
 }
@@ -252,7 +257,7 @@ onClickOutside(wrapperRef, handleClose)
             v-for="item in filteredItems"
             :key="String(item.value)"
             class="dropdown-item"
-            :class="{ 'is-active': isSelected(item), 'is-disabled': multiple && isSelected(item) }"
+            :class="{ 'is-active': isSelected(item) }"
             @mousedown.prevent="selectItem(item)"
           >
             <slot name="item" :item="item">

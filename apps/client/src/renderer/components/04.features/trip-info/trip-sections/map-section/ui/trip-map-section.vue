@@ -278,12 +278,12 @@ function handleMapClick(coords: [number, number]) {
 function focusOnItem(item: MapPoint | MapRoute) {
   selectedItemId.value = item.id
   if ('coordinates' in item) { // MapPoint
-    mapController.value?.flyToLocation(item.coordinates[0], item.coordinates[1], 16)
+    mapController.value?.flyToLocation(item.coordinates[0], item.coordinates[1], 14)
   }
   else if ('geometry' in item) { // MapRoute
     const start = item.geometry?.[0] || item.points[0]?.coordinates
     if (start)
-      mapController.value?.flyToLocation(start[0], start[1], 14)
+      mapController.value?.flyToLocation(start[0], start[1], 13)
   }
 
   if (isSmallScreen.value) {

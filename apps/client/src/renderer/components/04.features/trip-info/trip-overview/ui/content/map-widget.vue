@@ -188,7 +188,11 @@ function fitViewToData(map: any) {
         [minLon, minLat],
         [maxLon, maxLat],
       ],
-      { padding: 40, maxZoom: 14, duration: 500 },
+      {
+        padding: 60,
+        maxZoom: 13.5,
+        duration: 500,
+      },
     )
   }
 }

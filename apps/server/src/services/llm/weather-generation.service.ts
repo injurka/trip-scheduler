@@ -725,6 +725,44 @@ export const weatherGenerationService = {
     return { data: result.data, fromCache: false }
   },
 
+  /**
+   * Подтягивает погоду из кеша для переданного списка городов и месяца.
+   * Если для города в кеше нет данных, город просто не включается в результат.
+   * Никаких обращений к LLM здесь не происходит.
+   */
+  async getCachedWeatherForPlaces(
+    places: GeoPlaceRef[],
+    month: number,
+  ): Promise<Record<string, CityWeatherData>> {
+    if (!places.length)
+      return {}
+
+    const queryItems = places.map((place) => {
+      const inputFingerprint = getGeoWeatherFingerprint(place, month)
+      return {
+        placeId: place.id,
+        month,
+        generationVersion: GEO_WEATHER_GENERATION_VERSION,
+        inputFingerprint,
+      }
+    })
+
+    const cachedMap = await geoWeatherCacheRepository.getMany(queryItems)
+    const result: Record<string, CityWeatherData> = {}
+
+    for (const place of places) {
+      const cached = cachedMap.get(place.id)
+      if (cached) {
+        result[place.id] = {
+          ...cached,
+          city: place.name,
+        }
+      }
+    }
+
+    return result
+  },
+
   sanitizeAndValidateWeather,
 
   /**

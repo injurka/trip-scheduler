@@ -86,6 +86,23 @@ export function configureAndroidManifest(): boolean {
     }
   }
 
+  // 3.1. Add App Links intent-filter for domain "trip-scheduler.limited-dissolve.ru"
+  const appLinkFilter = `            <intent-filter android:autoVerify="true">
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+                <data android:scheme="https" android:host="trip-scheduler.limited-dissolve.ru" />
+                <data android:scheme="http" android:host="trip-scheduler.limited-dissolve.ru" />
+            </intent-filter>`
+
+  if (!content.includes('android:host="trip-scheduler.limited-dissolve.ru"')) {
+    if (content.includes('</activity>')) {
+      content = content.replace('</activity>', `${appLinkFilter}\n        </activity>`)
+      console.log('[configure-android] Added App Links intent-filter (trip-scheduler.limited-dissolve.ru)')
+      modified = true
+    }
+  }
+
   // 4. Add Tracking Foreground Service inside <application> if missing
   const serviceTag = `        <service
             android:name="ru.tripscheduler.tracking.TrackingService"

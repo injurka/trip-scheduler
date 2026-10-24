@@ -127,7 +127,7 @@ const defaultBackgroundSettings: BackgroundSettings = {
   showSymbols: true,
   showImage: true,
   customImageUrl: '',
-  imageOpacity: 0.05,
+  imageOpacity: 0.1,
   enableContentDimming: true,
   contentDimmingOpacity: 0.95,
   contentGradientWidth: 100, // px

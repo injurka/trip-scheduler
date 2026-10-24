@@ -8,11 +8,20 @@ import { isTripMediaRootDirName } from '../config/paths'
 import { parseActivitiesFromMarkdown, stripFrontmatter } from '../parsers/activity'
 import { parseObsidianTripFolder } from '../parsers/vault'
 import { resolveAndUploadBookingPhotos } from './booking-media'
-import { computeDayLlmHash, loadGeocodeCache, loadLlmCache, saveGeocodeCache, saveLlmCache } from './cache'
+import {
+  computeDayLlmHash,
+  loadGeocodeCache,
+  loadImageUploadCache,
+  loadLlmCache,
+  saveGeocodeCache,
+  saveImageUploadCache,
+  saveLlmCache,
+} from './cache'
 import { convertActivityDocumentLinks } from './document-links'
 import { enrichActivityWithMediaAndLocation } from './enricher'
 import { buildGpxIndex } from './gpx-indexer'
 import { buildImageIndex } from './image-indexer'
+import { batchUploadTripImages, collectTripImagePaths } from './image-uploader'
 import { generateActivitiesViaDirectLlm, mergeLlmActivitiesWithRawMarkdown } from './llm'
 import { createMetroActivityResolver } from './metro-resolver'
 
@@ -209,9 +218,27 @@ export async function importTripFolderCore(
       }, log, 'Обновление метаданных')
     }
 
+    const persistentImageCache = loadImageUploadCache()
     const uploadCache = new Map<string, string>()
     const imageIndex = uploadImages ? buildImageIndex(targetDir) : new Map<string, string>()
     const gpxIndex = buildGpxIndex(targetDir)
+
+    // Pre-upload trip images concurrently with caching
+    if (uploadImages && transport.uploadImage) {
+      const uploader = { uploadImage: transport.uploadImage.bind(transport) }
+      const tripImagePaths = collectTripImagePaths(tripData, imageIndex)
+      await batchUploadTripImages(
+        createdTrip.id,
+        tripImagePaths,
+        uploader,
+        uploadCache,
+        persistentImageCache,
+        {
+          uploadImages,
+          onProgress: msg => log?.(msg),
+        },
+      )
+    }
 
     if (tripData.bookingsContent?.bookings && tripData.bookingsContent.bookings.length > 0) {
       const uploader = transport.uploadImage ? { uploadImage: transport.uploadImage.bind(transport) } : null
@@ -224,6 +251,7 @@ export async function importTripFolderCore(
         {
           uploadImages,
           onLog: msg => log?.(msg),
+          persistentCache: persistentImageCache,
         },
       )
     }
@@ -634,6 +662,7 @@ export async function importTripFolderCore(
                 dayDate: day.date,
                 gpxIndex,
                 onProgress: log,
+                persistentImageCache,
               },
             )
             enrichedActivities.push(enriched)
@@ -666,6 +695,7 @@ export async function importTripFolderCore(
 
       saveGeocodeCache(geoCache)
       saveLlmCache(llmCache)
+      saveImageUploadCache(persistentImageCache)
     }
 
     log?.(`${colors.green}Импорт «${tripData.title}» завершен: дней ${dayIdMap.size}, активностей ${activitiesCreated}, заметок ${notesCreated}, документов ${documentsUploaded}${colors.reset}`)

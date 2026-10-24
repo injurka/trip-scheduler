@@ -3,7 +3,7 @@ import { invoke } from '@tauri-apps/api/core'
 import { listen } from '@tauri-apps/api/event'
 import { compareVersions } from 'compare-versions'
 import { defineStore } from 'pinia'
-import { isTauri } from '~/shared/lib/env'
+import { isMobile, isTauri } from '~/shared/lib/env'
 import { openExternalUrl } from '~/shared/lib/opener'
 import { useToastStore } from './toast.store'
 
@@ -19,11 +19,22 @@ export interface DownloadProgressPayload {
   path?: string | null
 }
 
+export interface PlatformInfo {
+  os: string
+  is_appimage: boolean
+  appimage_path: string | null
+}
+
 export interface AppUpdateState {
   hasUpdate: boolean
   latestVersion: string | null
-  apkUrl: string | null
+  assetUrl: string | null
+  assetName: string | null
+  apkUrl: string | null // kept for compatibility
   releaseUrl: string
+  targetPlatform: string
+  isAppImage: boolean
+  appImagePath: string | null
   isDownloading: boolean
   downloadProgress: number
   downloadedBytes: number
@@ -38,8 +49,13 @@ export const useAppUpdateStore = defineStore('appUpdate', {
   state: (): AppUpdateState => ({
     hasUpdate: false,
     latestVersion: null,
+    assetUrl: null,
+    assetName: null,
     apkUrl: null,
     releaseUrl: GITHUB_RELEASES_PAGE,
+    targetPlatform: 'android',
+    isAppImage: false,
+    appImagePath: null,
     isDownloading: false,
     downloadProgress: 0,
     downloadedBytes: 0,
@@ -49,6 +65,120 @@ export const useAppUpdateStore = defineStore('appUpdate', {
   }),
 
   actions: {
+    async detectTargetPlatform(): Promise<{ os: string, isAppImage: boolean, appImagePath: string | null }> {
+      if (isTauri) {
+        try {
+          const info = await invoke<PlatformInfo>('get_platform_info')
+          if (info) {
+            return {
+              os: info.os.toLowerCase(),
+              isAppImage: info.is_appimage,
+              appImagePath: info.appimage_path,
+            }
+          }
+        }
+        catch (e) {
+          console.warn('[AppUpdate] Не удалось получить platform_info через invoke:', e)
+        }
+      }
+
+      const ua = navigator.userAgent.toLowerCase()
+      if (isMobile || /android/i.test(ua)) {
+        return { os: 'android', isAppImage: false, appImagePath: null }
+      }
+      if (/linux/i.test(ua)) {
+        return { os: 'linux', isAppImage: isTauri, appImagePath: null }
+      }
+      if (/win/i.test(ua)) {
+        return { os: 'windows', isAppImage: false, appImagePath: null }
+      }
+      return { os: 'other', isAppImage: false, appImagePath: null }
+    },
+
+    async fetchLatestReleaseInfo(): Promise<{
+      assetUrl: string | null
+      apkUrl: string | null
+      assetName: string | null
+      latestVersion: string | null
+      releaseUrl: string
+      isAppImage: boolean
+    }> {
+      const platform = await this.detectTargetPlatform()
+      this.isAppImage = platform.isAppImage
+      this.appImagePath = platform.appImagePath
+      this.targetPlatform = platform.os
+
+      if (this.assetUrl && this.latestVersion) {
+        return {
+          assetUrl: this.assetUrl,
+          apkUrl: this.apkUrl,
+          assetName: this.assetName,
+          latestVersion: this.latestVersion,
+          releaseUrl: this.releaseUrl,
+          isAppImage: this.isAppImage,
+        }
+      }
+
+      try {
+        const response = await fetch(API_GITHUB_RELEASES_LATEST)
+        if (response.ok) {
+          const latestRelease = await response.json()
+          const tag = latestRelease.tag_name || ''
+          const cleanLatestVersion = tag.replace(/^\D*/, '')
+          const assets = latestRelease.assets || []
+
+          let selectedAsset: any = null
+
+          if (platform.os === 'linux') {
+            // На Linux предпочитаем AppImage, либо deb
+            selectedAsset = assets.find((a: any) => typeof a.name === 'string' && a.name.endsWith('.AppImage'))
+              || assets.find((a: any) => typeof a.name === 'string' && a.name.endsWith('.deb'))
+          }
+          else if (platform.os === 'windows') {
+            selectedAsset = assets.find((a: any) => typeof a.name === 'string' && (a.name.endsWith('.exe') || a.name.endsWith('.msi')))
+          }
+          else {
+            // Android или mobile
+            selectedAsset = assets.find((a: any) => typeof a.name === 'string' && a.name.endsWith('.apk'))
+          }
+
+          // Fallback если специфичный ассет не найден
+          if (!selectedAsset && assets.length > 0) {
+            selectedAsset = assets.find((a: any) => typeof a.name === 'string' && a.name.endsWith('.apk')) || assets[0]
+          }
+
+          const apkAsset = assets.find((a: any) => typeof a.name === 'string' && a.name.endsWith('.apk'))
+
+          if (cleanLatestVersion) {
+            this.latestVersion = cleanLatestVersion
+          }
+          if (selectedAsset) {
+            this.assetUrl = selectedAsset.browser_download_url
+            this.assetName = selectedAsset.name
+            this.apkUrl = this.assetUrl
+          }
+          if (apkAsset) {
+            this.apkUrl = apkAsset.browser_download_url
+          }
+          if (latestRelease.html_url) {
+            this.releaseUrl = latestRelease.html_url
+          }
+        }
+      }
+      catch (e) {
+        console.warn('[AppUpdate] Не удалось получить данные последнего релиза:', e)
+      }
+
+      return {
+        assetUrl: this.assetUrl,
+        apkUrl: this.apkUrl,
+        assetName: this.assetName,
+        latestVersion: this.latestVersion,
+        releaseUrl: this.releaseUrl,
+        isAppImage: this.isAppImage,
+      }
+    },
+
     async checkForUpdates(silent = true) {
       // Автопроверка по умолчанию выполняется только в Tauri (Android / Desktop)
       if (silent && !isTauri) {
@@ -56,32 +186,21 @@ export const useAppUpdateStore = defineStore('appUpdate', {
       }
 
       try {
-        const response = await fetch(API_GITHUB_RELEASES_LATEST)
-        if (!response.ok) {
+        const { assetUrl, latestVersion, releaseUrl } = await this.fetchLatestReleaseInfo()
+        if (!latestVersion) {
           return
         }
 
-        const latestRelease = await response.json()
-        const tag = latestRelease.tag_name || ''
-        const cleanLatestVersion = tag.replace(/^\D*/, '')
         const currentVersion = typeof __APP_VERSION__ !== 'undefined' ? __APP_VERSION__ : '0.0.0'
-
-        if (!cleanLatestVersion) {
+        if (compareVersions(latestVersion, currentVersion) <= 0) {
           return
         }
-
-        if (compareVersions(cleanLatestVersion, currentVersion) <= 0) {
-          return
-        }
-
-        const apkAsset = latestRelease.assets?.find((asset: any) =>
-          typeof asset.name === 'string' && asset.name.endsWith('.apk'),
-        )
 
         this.hasUpdate = true
-        this.latestVersion = cleanLatestVersion
-        this.apkUrl = apkAsset?.browser_download_url ?? null
-        this.releaseUrl = latestRelease.html_url || GITHUB_RELEASES_PAGE
+        this.latestVersion = latestVersion
+        this.assetUrl = assetUrl
+        this.apkUrl = this.apkUrl || assetUrl
+        this.releaseUrl = releaseUrl
       }
       catch (e) {
         if (!silent) {
@@ -91,27 +210,54 @@ export const useAppUpdateStore = defineStore('appUpdate', {
       }
     },
 
+    async downloadAppInBrowser() {
+      const toastStore = useToastStore()
+      toastStore.info('Подготовка к скачиванию...')
+
+      let url = this.assetUrl || this.apkUrl
+      if (!url) {
+        const info = await this.fetchLatestReleaseInfo()
+        url = info.assetUrl || info.apkUrl
+      }
+
+      const finalUrl = url || this.releaseUrl || GITHUB_RELEASES_PAGE
+      if (url) {
+        toastStore.success('Скачивание файла началось!')
+      }
+      else {
+        toastStore.info('Переход на страницу релиза...')
+      }
+
+      const isDirectDownloadFile = finalUrl.endsWith('.apk') || finalUrl.endsWith('.AppImage') || finalUrl.endsWith('.deb') || finalUrl.endsWith('.exe')
+      if (typeof document !== 'undefined' && isDirectDownloadFile) {
+        const link = document.createElement('a')
+        link.href = finalUrl
+        link.setAttribute('download', '')
+        link.setAttribute('target', '_blank')
+        link.setAttribute('rel', 'noopener noreferrer')
+        document.body.appendChild(link)
+        link.click()
+        document.body.removeChild(link)
+        return
+      }
+
+      await openExternalUrl(finalUrl)
+    },
+
     async startUpdate() {
-      // Если это среда Tauri и есть прямая ссылка на APK — скачиваем с прогрессом
-      if (isTauri && this.apkUrl) {
+      const downloadUrl = this.assetUrl || this.apkUrl
+      // Если это среда Tauri и есть прямая ссылка на файл — скачиваем с прогрессом
+      if (isTauri && downloadUrl) {
         await this.downloadUpdateInApp()
         return
       }
 
-      // Фолбэк для веба или если нет прямого APK (переход на релиз / браузерная загрузка)
-      const url = this.apkUrl || this.releaseUrl
-      if (!url) {
-        this.closePrompt()
-        return
-      }
-
-      const toastStore = useToastStore()
-      toastStore.info('Переход к загрузке обновления...')
-      await openExternalUrl(url)
+      await this.downloadAppInBrowser()
     },
 
     async downloadUpdateInApp() {
-      if (!this.apkUrl) {
+      const downloadUrl = this.assetUrl || this.apkUrl
+      if (!downloadUrl) {
         return
       }
 
@@ -141,9 +287,13 @@ export const useAppUpdateStore = defineStore('appUpdate', {
           }
         })
 
-        const filename = `trip-scheduler-v${this.latestVersion || 'latest'}.apk`
+        const defaultFilename = this.isAppImage
+          ? `trip-scheduler-v${this.latestVersion || 'latest'}.AppImage`
+          : `trip-scheduler-v${this.latestVersion || 'latest'}.apk`
+
+        const filename = this.assetName || defaultFilename
         const filePath = await invoke<string>('download_app_update', {
-          url: this.apkUrl,
+          url: downloadUrl,
           filename,
         })
 
@@ -153,8 +303,10 @@ export const useAppUpdateStore = defineStore('appUpdate', {
 
         toastStore.success('Обновление успешно загружено!')
 
-        // Сразу пробуем открыть установщик
-        await this.installApk()
+        // Если это мобильное приложение — сразу открываем системный установщик
+        if (isMobile) {
+          await this.installUpdate()
+        }
       }
       catch (err: any) {
         console.error('[AppUpdate] Ошибка при загрузке обновления:', err)
@@ -170,23 +322,31 @@ export const useAppUpdateStore = defineStore('appUpdate', {
       }
     },
 
-    async installApk() {
+    async installUpdate() {
       if (!this.downloadedFilePath) {
         return
       }
 
       const toastStore = useToastStore()
       try {
-        await invoke('open_downloaded_apk', { path: this.downloadedFilePath })
+        if (this.isAppImage) {
+          toastStore.info('Замена AppImage и перезапуск приложения...')
+        }
+        await invoke('install_app_update', { path: this.downloadedFilePath })
       }
       catch (e: any) {
-        console.error('[AppUpdate] Ошибка открытия локального установщика APK:', e)
-        toastStore.error('APK загружен, но Android не смог открыть установщик. Нажмите «Установить», чтобы повторить.')
+        console.error('[AppUpdate] Ошибка установки обновления:', e)
+        const msg = typeof e === 'string' ? e : (e?.message || 'Ошибка установки обновления')
+        toastStore.error(msg)
       }
     },
 
+    async installApk() {
+      await this.installUpdate()
+    },
+
     async openExternalRelease() {
-      const url = this.apkUrl || this.releaseUrl
+      const url = this.assetUrl || this.apkUrl || this.releaseUrl
       if (url) {
         await openExternalUrl(url)
       }
