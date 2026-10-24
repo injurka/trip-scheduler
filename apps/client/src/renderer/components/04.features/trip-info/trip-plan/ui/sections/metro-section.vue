@@ -52,6 +52,80 @@ function getStops(ride: MetroRide) {
   return sectionData.value.mode === 'city' ? (ridePath(ride)?.stops ?? ride.stops) : ride.stops
 }
 
+function getDistanceKm(lat1: number, lon1: number, lat2: number, lon2: number): number {
+  const R = 6371
+  const dLat = (lat2 - lat1) * (Math.PI / 180)
+  const dLon = (lon2 - lon1) * (Math.PI / 180)
+  const a
+    = Math.sin(dLat / 2) * Math.sin(dLat / 2)
+      + Math.cos(lat1 * (Math.PI / 180)) * Math.cos(lat2 * (Math.PI / 180))
+      * Math.sin(dLon / 2) * Math.sin(dLon / 2)
+  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a))
+  return R * c
+}
+
+function getRideDurationMinutes(ride: MetroRide): number | null {
+  const stops = getStops(ride)
+  if (!stops || stops <= 0)
+    return null
+
+  const path = ridePath(ride)
+  if (path && path.stations.length >= 2) {
+    let totalDistanceKm = 0
+    let hasCoordsCount = 0
+
+    for (let i = 0; i < path.stations.length - 1; i++) {
+      const s1 = path.stations[i]
+      const s2 = path.stations[i + 1]
+      if (s1.latitude != null && s1.longitude != null && s2.latitude != null && s2.longitude != null) {
+        totalDistanceKm += getDistanceKm(s1.latitude, s1.longitude, s2.latitude, s2.longitude)
+        hasCoordsCount++
+      }
+    }
+
+    if (hasCoordsCount === path.stations.length - 1 && totalDistanceKm > 0) {
+      // Commercial speed in metro ~33 km/h (incl. acceleration, braking, station dwell ~30-40s)
+      const minutes = Math.round((totalDistanceKm / 33) * 60)
+      return Math.max(stops * 1, minutes)
+    }
+  }
+
+  // Heuristic: ~2.2 minutes per hop (average worldwide for urban rapid transit)
+  return Math.max(1, Math.round(stops * 2.2))
+}
+
+function formatStationsCount(count: number): string {
+  const abs = Math.abs(count)
+  const mod10 = abs % 10
+  const mod100 = abs % 100
+  if (mod100 >= 11 && mod100 <= 19)
+    return `${count} станций`
+  if (mod10 === 1)
+    return `${count} станция`
+  if (mod10 >= 2 && mod10 <= 4)
+    return `${count} станции`
+  return `${count} станций`
+}
+
+function formatStationsSummary(ride: MetroRide): string {
+  const stops = getStops(ride)
+  if (!stops || stops <= 0)
+    return ''
+
+  const stationsText = formatStationsCount(stops)
+  const duration = getRideDurationMinutes(ride)
+  return duration ? `${stationsText} · ~${duration} мин` : stationsText
+}
+
+function getTransferText(currentRide: MetroRide, nextRide?: MetroRide): string {
+  if (!nextRide)
+    return 'Пересадка'
+  const station = currentRide.endStation || nextRide.startStation
+  if (station)
+    return `Пересадка на ст. «${station}»`
+  return 'Пересадка'
+}
+
 const isLoadingSystems = ref(false)
 const isLoadingDetails = ref(false)
 
@@ -277,7 +351,7 @@ watch(() => [sectionData.value.systemId, sectionData.value.mode] as const, ([id]
               <KitSelectWithSearch :model-value="ride.lineId" :items="lineOptions" :loading="isLoadingDetails" placeholder="Линия" @update:model-value="handleLineChange(ride, $event as string)" />
               <KitSelectWithSearch :model-value="ride.startStationId" :items="getStationOptionsForLine(ride.lineId)" placeholder="Откуда" @update:model-value="handleStationChange(ride, 'startStation', $event as string)" />
               <KitSelectWithSearch :model-value="ride.endStationId" :items="getStationOptionsForLine(ride.lineId)" placeholder="Куда" @update:model-value="handleStationChange(ride, 'endStation', $event as string)" />
-              <span v-if="ridePath(ride)" class="city-ride-summary">{{ getDirectionText(ride) }} · {{ getStops(ride) }} ост.</span>
+              <span v-if="ridePath(ride)" class="city-ride-summary">{{ getDirectionText(ride) }} · {{ formatStationsSummary(ride) }}</span>
             </div>
           </div>
 
@@ -295,7 +369,7 @@ watch(() => [sectionData.value.systemId, sectionData.value.mode] as const, ([id]
                 <input type="color" :value="ride.lineColor" class="color-input" @input="updateRide(ride.id, { lineColor: ($event.target as HTMLInputElement).value })">
               </div>
               <KitInput :model-value="ride.direction" placeholder="Направление (необяз.)" size="sm" @update:model-value="updateRide(ride.id, { direction: $event as string })" />
-              <KitInput :model-value="ride.stops" placeholder="Остановки" type="number" size="sm" @update:model-value="updateRide(ride.id, { stops: Number($event) || 0 })" />
+              <KitInput :model-value="ride.stops" placeholder="Станции" type="number" size="sm" @update:model-value="updateRide(ride.id, { stops: Number($event) || 0 })" />
             </div>
           </div>
 
@@ -313,13 +387,12 @@ watch(() => [sectionData.value.systemId, sectionData.value.mode] as const, ([id]
                 <div class="path-details">
                   <span>{{ getDirectionText(ride) }}</span>
                   <div class="stops-row">
-                    <span v-if="sectionData.mode === 'free' && getStops(ride) > 0" class="stops-count">{{ getStops(ride) }} ост.</span>
                     <details
                       v-if="sectionData.mode === 'city' && intermediateStations(ride).length"
                       class="station-list"
                     >
                       <summary>
-                        ост. {{ intermediateStations(ride).length }}
+                        {{ formatStationsSummary(ride) }}
                         <Icon icon="mdi:chevron-down" class="expand-icon" />
                       </summary>
                       <ol aria-label="Промежуточные станции">
@@ -328,6 +401,12 @@ watch(() => [sectionData.value.systemId, sectionData.value.mode] as const, ([id]
                         </li>
                       </ol>
                     </details>
+                    <span
+                      v-else-if="getStops(ride) > 0"
+                      class="stops-count"
+                    >
+                      {{ formatStationsSummary(ride) }}
+                    </span>
                   </div>
                 </div>
               </div>
@@ -341,7 +420,7 @@ watch(() => [sectionData.value.systemId, sectionData.value.mode] as const, ([id]
         </div>
         <div v-if="index < sectionData.rides.length - 1" class="transfer-info">
           <Icon icon="mdi:swap-horizontal-bold" class="transfer-icon" />
-          <span>Пересадка</span>
+          <span>{{ getTransferText(ride, sectionData.rides[index + 1]) }}</span>
         </div>
       </div>
     </div>

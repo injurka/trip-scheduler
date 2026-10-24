@@ -132,7 +132,7 @@ const formattedDuration = computed(() => {
         <Icon icon="mdi:subway-variant" class="metro-icon" />
         <span v-if="metroRide.lineNumber" class="line-num">{{ metroRide.lineNumber }}</span>
         <span class="line-name">{{ metroRide.lineName || 'Метро' }}</span>
-        <span v-if="metroRide.stops" class="stops-count">• {{ metroRide.stops }} ост.</span>
+        <span v-if="metroRide.stops" class="stops-count">• {{ metroRide.stops }} ст.</span>
       </div>
 
       <!-- Bus badge -->
