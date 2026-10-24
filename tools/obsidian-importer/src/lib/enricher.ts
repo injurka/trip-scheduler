@@ -99,7 +99,7 @@ function computeGeoBoundsAndCenter(
   ]
 
   if (minLng === maxLng && minLat === maxLat) {
-    return { center, zoom: 16 }
+    return { center, zoom: 14.5 }
   }
 
   const dLat = ((maxLat - minLat) * Math.PI) / 180
@@ -109,33 +109,33 @@ function computeGeoBoundsAndCenter(
   const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a))
   const distanceKm = 6371 * c
 
-  let zoom = 14
+  let zoom = 13
   if (distanceKm <= 0.4) {
-    zoom = 16
-  }
-  else if (distanceKm <= 1.2) {
     zoom = 15
   }
-  else if (distanceKm <= 3.5) {
+  else if (distanceKm <= 1.2) {
     zoom = 14
   }
-  else if (distanceKm <= 10) {
+  else if (distanceKm <= 3.5) {
     zoom = 13
   }
-  else if (distanceKm <= 25) {
+  else if (distanceKm <= 10) {
     zoom = 12
   }
-  else if (distanceKm <= 60) {
+  else if (distanceKm <= 25) {
     zoom = 11
   }
+  else if (distanceKm <= 60) {
+    zoom = 10
+  }
   else if (distanceKm <= 150) {
-    zoom = 9
+    zoom = 8.5
   }
   else if (distanceKm <= 400) {
-    zoom = 8
+    zoom = 7.5
   }
   else {
-    zoom = 6
+    zoom = 5.5
   }
 
   return { center, zoom }

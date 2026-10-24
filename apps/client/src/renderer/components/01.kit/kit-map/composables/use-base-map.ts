@@ -143,9 +143,9 @@ export function useBaseMap() {
 
     try {
       mapInstance.value.fitBounds(targetBounds, {
-        padding: options?.padding ?? { top: 50, right: 50, bottom: 50, left: 50 },
+        padding: options?.padding ?? { top: 60, right: 60, bottom: 60, left: 60 },
         duration: options?.duration !== undefined ? options.duration : 400,
-        maxZoom: options?.maxZoom ?? 16,
+        maxZoom: options?.maxZoom ?? 15,
       })
     }
     catch (e) {
@@ -175,7 +175,7 @@ export function useBaseMap() {
     fitBounds(extent, {
       padding,
       duration: options?.duration ?? 500,
-      maxZoom: options?.maxZoom ?? 16,
+      maxZoom: options?.maxZoom ?? 15,
     })
   }
 
@@ -264,7 +264,7 @@ export function useBaseMap() {
             pitchSpeed: -0.5 * (options.pitchSensitivity ?? 0.4),
             attributionControl: options.showAttribution === false ? false : undefined,
             ...(transformRequest ? { transformRequest } : {}),
-            ...(options.bounds ? { bounds: options.bounds, fitBoundsOptions: options.fitBoundsOptions ?? { padding: 40, maxZoom: 16 } } : {}),
+            ...(options.bounds ? { bounds: options.bounds, fitBoundsOptions: options.fitBoundsOptions ?? { padding: 60, maxZoom: 15 } } : {}),
           })
 
           // Регистрация прозрачной SDF-заглушки для предотвращения ошибок спрайтов

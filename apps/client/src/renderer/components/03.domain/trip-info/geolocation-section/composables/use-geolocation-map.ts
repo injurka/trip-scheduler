@@ -932,7 +932,7 @@ export function useGeolocationMap() {
     if (minLng === maxLng && minLat === maxLat) {
       map.flyTo({
         center: [minLng, minLat],
-        zoom: Math.min(options?.maxZoom ?? 16, 16),
+        zoom: Math.min(options?.maxZoom ?? 14.5, 14.5),
         duration: options?.duration !== undefined ? options.duration : 400,
       })
       return true
@@ -941,7 +941,7 @@ export function useGeolocationMap() {
     const padding
       = typeof options?.padding === 'number'
         ? { top: options.padding, right: options.padding, bottom: options.padding, left: options.padding }
-        : (options?.padding ?? { top: 40, right: 40, bottom: 40, left: 40 })
+        : (options?.padding ?? { top: 60, right: 60, bottom: 60, left: 60 })
 
     baseMap.fitBounds(
       [
@@ -950,7 +950,7 @@ export function useGeolocationMap() {
       ],
       {
         padding,
-        maxZoom: options?.maxZoom ?? 16,
+        maxZoom: options?.maxZoom ?? 15,
         duration: options?.duration !== undefined ? options.duration : 400,
       },
     )

@@ -90,8 +90,8 @@ function performAutoFit(duration = 400) {
   map.resize()
   fitToContent(props.points, props.routes, {
     duration,
-    padding: 40,
-    maxZoom: 16,
+    padding: 60,
+    maxZoom: 15,
   })
 }
 
@@ -229,11 +229,11 @@ onMounted(async () => {
   if (props.autoFit && !initialBounds) {
     if (props.points.length === 1 && isValidCoordinate(props.points[0]?.coordinates)) {
       initialCenter = props.points[0].coordinates
-      initialZoom = 16
+      initialZoom = 14.5
     }
     else if (props.routes.length === 1 && props.routes[0]?.points?.length === 1 && isValidCoordinate(props.routes[0].points[0].coordinates)) {
       initialCenter = props.routes[0].points[0].coordinates
-      initialZoom = 16
+      initialZoom = 14.5
     }
   }
 
@@ -249,7 +249,7 @@ onMounted(async () => {
     bearing: props.bearing,
     interactive: !props.interactiveOnClick,
     bounds: initialBounds || undefined,
-    fitBoundsOptions: initialBounds ? { padding: 40, maxZoom: 16 } : undefined,
+    fitBoundsOptions: initialBounds ? { padding: 60, maxZoom: 15 } : undefined,
   })
 
   mapInstance.value?.on('click', (event) => {
