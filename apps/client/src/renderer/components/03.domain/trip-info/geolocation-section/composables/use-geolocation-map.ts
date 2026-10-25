@@ -940,7 +940,7 @@ export function useGeolocationMap() {
 
     const dLng = maxLng - minLng
     const dLat = maxLat - minLat
-    const marginRatio = 0.15
+    const marginRatio = 0.10
     const paddedMinLng = minLng - dLng * marginRatio
     const paddedMaxLng = maxLng + dLng * marginRatio
     const paddedMinLat = Math.max(-85, minLat - dLat * marginRatio)
@@ -949,7 +949,7 @@ export function useGeolocationMap() {
     const padding
       = typeof options?.padding === 'number'
         ? { top: options.padding, right: options.padding, bottom: options.padding, left: options.padding }
-        : (options?.padding ?? { top: 70, right: 70, bottom: 70, left: 70 })
+        : (options?.padding ?? { top: 60, right: 60, bottom: 60, left: 60 })
 
     baseMap.fitBounds(
       [
@@ -958,7 +958,7 @@ export function useGeolocationMap() {
       ],
       {
         padding,
-        maxZoom: options?.maxZoom ?? 14,
+        maxZoom: options?.maxZoom ?? 14.8,
         duration: options?.duration !== undefined ? options.duration : 400,
       },
     )

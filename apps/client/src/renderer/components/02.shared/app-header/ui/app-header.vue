@@ -134,6 +134,10 @@ function handleClickProfile() {
 onMounted(() => {
   let ticking = false
   const handleScroll = () => {
+    if (isNavMenuOpen.value) {
+      isNavMenuOpen.value = false
+    }
+
     if (!ticking) {
       requestAnimationFrame(() => {
         const currentScrollY = window.scrollY

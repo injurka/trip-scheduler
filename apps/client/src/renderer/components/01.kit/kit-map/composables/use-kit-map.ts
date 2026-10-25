@@ -5,6 +5,26 @@ import { resolveApiUrl } from '~/shared/lib/url'
 import { createMarkerElement } from '~/shared/services/geo'
 import { useBaseMap } from './use-base-map'
 
+function getAvailableFont(map: maplibregl.Map): string[] {
+  const layers = map.getStyle()?.layers || []
+  for (const layer of layers) {
+    if (layer.type === 'symbol' && layer.layout && 'text-font' in layer.layout) {
+      const font = (layer.layout as Record<string, any>)['text-font']
+      if (Array.isArray(font) && font.length) {
+        return font
+      }
+    }
+  }
+  return ['Open Sans Regular', 'Arial Unicode MS Regular']
+}
+
+function getLabelColors(): { color: string, haloColor: string } {
+  if (typeof document !== 'undefined' && document.documentElement.classList.contains('dark')) {
+    return { color: '#f3f4f6', haloColor: '#18181b' }
+  }
+  return { color: '#1f2937', haloColor: '#ffffff' }
+}
+
 export function useKitMap() {
   const baseMap = useBaseMap()
 
@@ -12,9 +32,169 @@ export function useKitMap() {
   const routesMap = new Map<string, KitMapRoute>()
   let searchMarker: maplibregl.Marker | null = null
 
+  const circleSourceId = 'kit-circle-markers-src'
+  const circleLayerId = 'kit-circle-markers-layer'
+  const circleLabelsLayerId = 'kit-circle-markers-labels'
+  let circleHoverPopup: maplibregl.Popup | null = null
+  let circleMarkersData: MapMarker[] = []
+  let isHoverListenersAttached = false
+
+  const clearCircleMarkers = (map: maplibregl.Map | null | undefined) => {
+    circleMarkersData = []
+    if (circleHoverPopup) {
+      circleHoverPopup.remove()
+      circleHoverPopup = null
+    }
+    if (!map)
+      return
+
+    if (map.getLayer(circleLabelsLayerId))
+      map.removeLayer(circleLabelsLayerId)
+    if (map.getLayer(circleLayerId))
+      map.removeLayer(circleLayerId)
+    if (map.getSource(circleSourceId))
+      map.removeSource(circleSourceId)
+  }
+
+  const renderCircleMarkers = (map: maplibregl.Map, circleMarkers: MapMarker[]) => {
+    circleMarkersData = circleMarkers
+
+    const geojson: GeoJSON.FeatureCollection<GeoJSON.Point> = {
+      type: 'FeatureCollection',
+      features: circleMarkers.map(marker => ({
+        type: 'Feature',
+        properties: {
+          id: marker.id,
+          title: marker.title || '',
+          color: marker.color || '#3399CC',
+          showLabel: Boolean(marker.showLabel),
+        },
+        geometry: {
+          type: 'Point',
+          coordinates: [marker.coords.lon, marker.coords.lat],
+        },
+      })),
+    }
+
+    const existingSource = map.getSource(circleSourceId) as maplibregl.GeoJSONSource | undefined
+    if (existingSource) {
+      existingSource.setData(geojson)
+      if (map.getLayer(circleLabelsLayerId)) {
+        const hasAnyLabelVisible = circleMarkers.some(m => m.showLabel)
+        map.setLayoutProperty(circleLabelsLayerId, 'visibility', hasAnyLabelVisible ? 'visible' : 'none')
+      }
+      return
+    }
+
+    if (!circleMarkers.length)
+      return
+
+    map.addSource(circleSourceId, {
+      type: 'geojson',
+      data: geojson,
+    })
+
+    // 1. Точки-кружки на холсте WebGL (рендеринг на видеокарте вместо десятков/сотен DOM-элементов)
+    map.addLayer({
+      id: circleLayerId,
+      type: 'circle',
+      source: circleSourceId,
+      paint: {
+        'circle-radius': [
+          'interpolate',
+          ['linear'],
+          ['zoom'],
+          8,
+          3,
+          11,
+          4.5,
+          14,
+          6,
+          17,
+          8,
+        ],
+        'circle-color': ['get', 'color'],
+        'circle-stroke-width': 2,
+        'circle-stroke-color': '#ffffff',
+      },
+    })
+
+    // 2. Подписи станций при включенном режиме "Названия станций"
+    const hasGlyphs = Boolean(map.getStyle()?.glyphs)
+    if (hasGlyphs) {
+      const fontStack = getAvailableFont(map)
+      const labelColors = getLabelColors()
+      const hasAnyLabelVisible = circleMarkers.some(m => m.showLabel)
+
+      map.addLayer({
+        id: circleLabelsLayerId,
+        type: 'symbol',
+        source: circleSourceId,
+        layout: {
+          'text-field': ['get', 'title'],
+          'text-font': fontStack,
+          'text-size': [
+            'interpolate',
+            ['linear'],
+            ['zoom'],
+            9,
+            10,
+            12,
+            11,
+            15,
+            12,
+          ],
+          'text-offset': [0.75, 0],
+          'text-anchor': 'left',
+          'text-optional': true,
+          'visibility': hasAnyLabelVisible ? 'visible' : 'none',
+        },
+        paint: {
+          'text-color': labelColors.color,
+          'text-halo-color': labelColors.haloColor,
+          'text-halo-width': 2,
+          'text-halo-blur': 0.5,
+        },
+      })
+    }
+
+    if (!isHoverListenersAttached) {
+      map.on('mouseenter', circleLayerId, (e) => {
+        map.getCanvas().style.cursor = 'pointer'
+        const feature = e.features?.[0]
+        if (feature && feature.geometry.type === 'Point') {
+          const coords = (feature.geometry as GeoJSON.Point).coordinates.slice() as [number, number]
+          const title = feature.properties?.title
+          if (title) {
+            if (!circleHoverPopup) {
+              circleHoverPopup = new maplibregl.Popup({
+                closeButton: false,
+                closeOnClick: false,
+                offset: 12,
+                className: 'maplibre-station-hover-wrapper',
+              })
+            }
+            circleHoverPopup
+              .setLngLat(coords)
+              .setHTML(`<div class="station-label-popup">${title}</div>`)
+              .addTo(map)
+          }
+        }
+      })
+
+      map.on('mouseleave', circleLayerId, () => {
+        map.getCanvas().style.cursor = ''
+        circleHoverPopup?.remove()
+      })
+
+      isHoverListenersAttached = true
+    }
+  }
+
   const removeAllMarkers = () => {
     markersMap.forEach(marker => marker.remove())
     markersMap.clear()
+    clearCircleMarkers(baseMap.mapInstance.value)
   }
 
   const updateMarkers = (markers: MapMarker[]) => {
@@ -22,7 +202,12 @@ export function useKitMap() {
     if (!map)
       return
 
-    const newMarkerIds = new Set(markers.map(m => m.id))
+    const circleMarkers = markers.filter(m => m.shape === 'circle')
+    const domMarkers = markers.filter(m => m.shape !== 'circle')
+
+    renderCircleMarkers(map, circleMarkers)
+
+    const newMarkerIds = new Set(domMarkers.map(m => m.id))
 
     // Удаляем маркеры, которых больше нет в списке
     markersMap.forEach((marker, id) => {
@@ -32,10 +217,10 @@ export function useKitMap() {
       }
     })
 
-    if (!markers.length)
+    if (!domMarkers.length)
       return
 
-    markers.forEach((marker) => {
+    domMarkers.forEach((marker) => {
       let markerInstance = markersMap.get(marker.id)
 
       if (!markerInstance) {
@@ -263,6 +448,19 @@ export function useKitMap() {
         maxLat = lngLat.lat
     })
 
+    circleMarkersData.forEach((marker) => {
+      const lon = marker.coords.lon
+      const lat = marker.coords.lat
+      if (lon < minLon)
+        minLon = lon
+      if (lon > maxLon)
+        maxLon = lon
+      if (lat < minLat)
+        minLat = lat
+      if (lat > maxLat)
+        maxLat = lat
+    })
+
     routesMap.forEach((route) => {
       if (route.geometry) {
         route.geometry.forEach(([lon, lat]) => {
@@ -284,7 +482,7 @@ export function useKitMap() {
           [minLon, minLat],
           [maxLon, maxLat],
         ],
-        { padding: { top: 70, right: 70, bottom: 70, left: 70 }, maxZoom: 14 },
+        { padding: { top: 60, right: 60, bottom: 60, left: 60 }, maxZoom: 14.8 },
       )
     }
   }
@@ -338,6 +536,10 @@ export function useKitMap() {
       markersMap.forEach(marker => marker.addTo(map))
       if (searchMarker) {
         searchMarker.addTo(map)
+      }
+      isHoverListenersAttached = false
+      if (circleMarkersData.length > 0) {
+        renderCircleMarkers(map, circleMarkersData)
       }
     })
   }

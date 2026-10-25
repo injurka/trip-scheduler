@@ -90,8 +90,8 @@ function performAutoFit(duration = 400) {
   map.resize()
   fitToContent(props.points, props.routes, {
     duration,
-    padding: 70,
-    maxZoom: 14,
+    padding: 60,
+    maxZoom: 14.8,
   })
 }
 
@@ -249,7 +249,7 @@ onMounted(async () => {
     bearing: props.bearing,
     interactive: !props.interactiveOnClick,
     bounds: initialBounds || undefined,
-    fitBoundsOptions: initialBounds ? { padding: 70, maxZoom: 14 } : undefined,
+    fitBoundsOptions: initialBounds ? { padding: 60, maxZoom: 14.8 } : undefined,
   })
 
   mapInstance.value?.on('click', (event) => {

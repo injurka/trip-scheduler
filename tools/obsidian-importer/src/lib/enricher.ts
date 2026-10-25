@@ -112,14 +112,14 @@ function computeGeoBoundsAndCenter(
   const distanceKm = 6371 * c
 
   let zoom = 12
-  if (distanceKm <= 0.4) {
-    zoom = 14
+  if (distanceKm <= 0.6) {
+    zoom = 14.8
   }
   else if (distanceKm <= 1.2) {
-    zoom = 13
+    zoom = 13.8
   }
   else if (distanceKm <= 3.5) {
-    zoom = 12
+    zoom = 12.8
   }
   else if (distanceKm <= 10) {
     zoom = 11

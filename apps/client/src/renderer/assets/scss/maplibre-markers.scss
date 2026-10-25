@@ -9,6 +9,10 @@
   place-items: center;
   width: 28px;
   height: 28px;
+  user-select: none;
+  pointer-events: auto;
+  contain: layout style;
+  transition: none !important;
 
   &::before {
     content: '';
@@ -97,6 +101,36 @@
 }
 
 /* 2. Всплывающие подсказки и комментарии (Popups) */
+.maplibregl-popup.maplibre-station-hover-wrapper {
+  pointer-events: none;
+  z-index: 90 !important;
+
+  .maplibregl-popup-content {
+    background: transparent !important;
+    box-shadow: none !important;
+    padding: 0 !important;
+    border-radius: 0 !important;
+    border: none !important;
+  }
+
+  .maplibregl-popup-tip {
+    display: none !important;
+  }
+}
+
+.station-label-popup {
+  padding: 3px 8px;
+  border-radius: var(--r-s, 4px);
+  background: var(--bg-primary-color);
+  color: var(--fg-primary-color);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+  border: 1px solid var(--border-secondary-color);
+  font: 500 11px/1.4 var(--font-base, sans-serif);
+  white-space: nowrap;
+  pointer-events: none;
+  user-select: none;
+}
+
 .maplibregl-popup.maplibre-point-comment-wrapper {
   /* ВАЖНО: z-index выше любых меток (у меток 20..50), чтобы метки не перекрывали текст */
   z-index: 90 !important;

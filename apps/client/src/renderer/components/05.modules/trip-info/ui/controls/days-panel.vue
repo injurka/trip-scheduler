@@ -186,7 +186,7 @@ function getDayActivitiesCount(day: Day): number {
   position: fixed;
   top: 0;
   left: 0;
-  width: 400px;
+  width: 440px;
   height: 100%;
   background-color: var(--bg-primary-color);
   z-index: 11;

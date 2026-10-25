@@ -170,7 +170,6 @@ watch(
       updateMarkers(newMarkers)
     }
   },
-  { deep: true },
 )
 
 watch(
@@ -183,7 +182,6 @@ watch(
       }
     }
   },
-  { deep: true },
 )
 
 onMounted(async () => {

@@ -127,6 +127,7 @@ export function createCustomRasterStyle(tileUrl: string, name = 'Custom Tiles'):
   return {
     version: 8,
     name,
+    glyphs: 'https://demotiles.maplibre.org/font/{fontstack}/{range}.pbf',
     sources: {
       'custom-tiles': {
         type: 'raster',
@@ -180,6 +181,7 @@ export const TILE_SOURCES_META: Record<TileSourceId, MapSourceMeta> = {
 
 export const OSM_STYLE: StyleSpecification = {
   version: 8,
+  glyphs: 'https://demotiles.maplibre.org/font/{fontstack}/{range}.pbf',
   sources: {
     'osm-tiles': {
       type: 'raster',

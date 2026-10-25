@@ -80,7 +80,7 @@ watch(visible, (open) => {
         <Icon icon="mdi:information-outline" /> Выберите линию и станции для всех отрезков маршрута.
       </p>
       <div class="map-canvas">
-        <KitMap v-if="markers.length" :key="scope" :center="mapCenter" :markers="markers" :routes="mappedLines" height="min(56dvh, 580px)" />
+        <KitMap v-if="markers.length" :center="mapCenter" :markers="markers" :routes="mappedLines" height="min(56dvh, 580px)" />
         <div v-else class="empty-state">
           <Icon icon="mdi:map-marker-path" />
           <span>Выберите станции, чтобы увидеть маршрут</span>
