@@ -56,6 +56,15 @@ export function useKitMap() {
       map.removeSource(circleSourceId)
   }
 
+  const bringCircleMarkersToFront = (map: maplibregl.Map) => {
+    if (map.getLayer(circleLayerId)) {
+      map.moveLayer(circleLayerId)
+    }
+    if (map.getLayer(circleLabelsLayerId)) {
+      map.moveLayer(circleLabelsLayerId)
+    }
+  }
+
   const renderCircleMarkers = (map: maplibregl.Map, circleMarkers: MapMarker[]) => {
     circleMarkersData = circleMarkers
 
@@ -83,6 +92,7 @@ export function useKitMap() {
         const hasAnyLabelVisible = circleMarkers.some(m => m.showLabel)
         map.setLayoutProperty(circleLabelsLayerId, 'visibility', hasAnyLabelVisible ? 'visible' : 'none')
       }
+      bringCircleMarkersToFront(map)
       return
     }
 
@@ -157,6 +167,8 @@ export function useKitMap() {
         },
       })
     }
+
+    bringCircleMarkersToFront(map)
 
     if (!isHoverListenersAttached) {
       map.on('mouseenter', circleLayerId, (e) => {
@@ -341,6 +353,8 @@ export function useKitMap() {
       data: geojson,
     })
 
+    const beforeLayerId = map.getLayer(circleLayerId) ? circleLayerId : undefined
+
     // 1. Слой тени (shadow)
     map.addLayer({
       id: shadowLayerId,
@@ -354,7 +368,7 @@ export function useKitMap() {
         'line-blur': 3,
         'line-offset': 1,
       },
-    })
+    }, beforeLayerId)
 
     // 2. Белая подложка (casing)
     map.addLayer({
@@ -367,7 +381,7 @@ export function useKitMap() {
         'line-width': ['interpolate', ['linear'], ['zoom'], 8, 3.5, 12, 6, 16, 8.5],
         'line-opacity': 0.95,
       },
-    })
+    }, beforeLayerId)
 
     // 3. Основная линия
     map.addLayer({
@@ -380,7 +394,7 @@ export function useKitMap() {
         'line-width': ['interpolate', ['linear'], ['zoom'], 8, 2, 12, 3.8, 16, 5.5],
         ...(route.isDirect ? { 'line-dasharray': [2, 2] } : {}),
       },
-    })
+    }, beforeLayerId)
   }
 
   const removeRoute = (routeId: string) => {
@@ -424,6 +438,8 @@ export function useKitMap() {
         removeRoute(route.id)
       }
     })
+
+    bringCircleMarkersToFront(map)
   }
 
   const fitViewToMarkers = () => {
