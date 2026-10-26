@@ -267,7 +267,7 @@ onBeforeUnmount(() => {
   flex-direction: column;
   flex: 1;
   position: relative;
-  overflow: hidden;
+  overflow-x: clip;
 
   // Заметки занимают ровно высоту вьюпорта, скролл живёт внутри секции (дерево файлов, .editor-body).
   // Без явной высоты flex-элемент растягивается по контенту, `#app` (min-height: 100dvh) растёт вместе с ним,
@@ -276,6 +276,7 @@ onBeforeUnmount(() => {
     flex: 0 0 auto;
     height: 100dvh;
     min-height: 0;
+    overflow: hidden;
   }
 
   .trip-info-divider {

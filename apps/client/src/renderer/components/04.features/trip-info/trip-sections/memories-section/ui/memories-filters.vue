@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import type { MemoriesGridSize } from '../composables/use-memories-view'
 import { Icon } from '@iconify/vue'
 import { computed, ref } from 'vue'
 import { KitDropdown } from '~/components/01.kit/kit-dropdown'
@@ -18,6 +19,7 @@ const filterDay = defineModel<string>('filterDay', { required: true })
 const filterRating = defineModel<number>('filterRating', { required: true })
 const sortOrder = defineModel<string>('sortOrder', { required: true })
 const isFullscreen = defineModel<boolean>('isFullscreen', { default: false })
+const gridSize = defineModel<MemoriesGridSize>('gridSize', { default: 'md' })
 const isRatingFilterOpen = ref(false)
 
 function toggleFullscreen() {
@@ -79,6 +81,45 @@ const starColor = computed(() => filterRating.value > 0 ? 'var(--c-orange-500)' 
 
     <!-- Правая часть: Действия и сортировка -->
     <div class="right-controls">
+      <!-- Переключатель масштаба сетки: S / M / L -->
+      <div class="filter-group grid-size-group">
+        <div class="grid-size-toggle" role="group" aria-label="Масштаб сетки">
+          <KitTooltip text="Мелкая сетка (S)">
+            <button
+              type="button"
+              class="size-toggle-btn"
+              :class="{ 'is-active': gridSize === 'sm' }"
+              aria-label="Мелкая сетка"
+              @click="gridSize = 'sm'"
+            >
+              <Icon icon="mdi:grid" />
+            </button>
+          </KitTooltip>
+          <KitTooltip text="Обычная сетка (M)">
+            <button
+              type="button"
+              class="size-toggle-btn"
+              :class="{ 'is-active': gridSize === 'md' }"
+              aria-label="Обычная сетка"
+              @click="gridSize = 'md'"
+            >
+              <Icon icon="mdi:view-grid-outline" />
+            </button>
+          </KitTooltip>
+          <KitTooltip text="Крупная сетка (L)">
+            <button
+              type="button"
+              class="size-toggle-btn"
+              :class="{ 'is-active': gridSize === 'lg' }"
+              aria-label="Крупная сетка"
+              @click="gridSize = 'lg'"
+            >
+              <Icon icon="mdi:square-outline" />
+            </button>
+          </KitTooltip>
+        </div>
+      </div>
+
       <div class="filter-group rating-toggle-group">
         <KitTooltip text="Фильтр по рейтингу">
           <button
@@ -286,6 +327,43 @@ const starColor = computed(() => filterRating.value > 0 ? 'var(--c-orange-500)' 
   }
 }
 
+.grid-size-toggle {
+  display: inline-flex;
+  align-items: center;
+  background-color: var(--bg-primary-color);
+  border: 1px solid var(--border-secondary-color);
+  border-radius: var(--r-s);
+  padding: 2px;
+  gap: 2px;
+  height: 34px;
+
+  .size-toggle-btn {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 28px;
+    height: 28px;
+    border-radius: var(--r-xs);
+    border: none;
+    background: transparent;
+    color: var(--fg-tertiary-color);
+    cursor: pointer;
+    font-size: 1.15rem;
+    transition: all 0.2s;
+
+    &:hover {
+      color: var(--fg-primary-color);
+      background-color: var(--bg-hover-color);
+    }
+
+    &.is-active {
+      background-color: var(--bg-secondary-color);
+      color: var(--fg-accent-color);
+      box-shadow: 0 1px 2px rgba(0, 0, 0, 0.08);
+    }
+  }
+}
+
 .rating-toggle-group {
   display: none;
 }
@@ -346,6 +424,16 @@ const starColor = computed(() => filterRating.value > 0 ? 'var(--c-orange-500)' 
     .icon-trigger {
       width: 36px;
       height: 36px;
+    }
+  }
+
+  .grid-size-toggle {
+    height: 36px;
+
+    .size-toggle-btn {
+      width: 26px;
+      height: 28px;
+      font-size: 1.05rem;
     }
   }
 

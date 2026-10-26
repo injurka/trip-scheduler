@@ -2,6 +2,7 @@ import type { Ref } from 'vue'
 import type { ImageViewerImage } from '~/components/01.kit/kit-image-viewer'
 import type { Day } from '~/shared/types/models/activity'
 import type { Memory } from '~/shared/types/models/memory'
+import { useStorage } from '@vueuse/core'
 import { computed, ref, watch } from 'vue'
 import { memoryToViewerImage } from '~/components/05.modules/trip-info/lib/helpers'
 import { usePagination } from '~/shared/composables/use-pagination'
@@ -14,11 +15,13 @@ export interface GroupedMemory {
 }
 
 export type SortType = 'date-desc' | 'date-asc' | 'rating-desc' | 'rating-asc'
+export type MemoriesGridSize = 'sm' | 'md' | 'lg'
 
 export function useMemoriesView(memories: Ref<Memory[]>, days: Ref<Day[]>) {
   const sortType = ref<SortType>('date-asc')
   const filterDay = ref<string>('all')
   const filterRating = ref<number>(0)
+  const gridSize = useStorage<MemoriesGridSize>('trip-scheduler-memories-grid-size', 'md')
 
   const sortOptions = [
     { value: 'date-asc', label: 'По дате ↑', icon: 'mdi:sort-calendar-ascending' },
@@ -129,6 +132,7 @@ export function useMemoriesView(memories: Ref<Memory[]>, days: Ref<Day[]>) {
   })
 
   return {
+    gridSize,
     sortType,
     filterDay,
     filterRating,

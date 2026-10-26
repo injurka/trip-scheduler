@@ -12,8 +12,11 @@ import MemoriesGroup from './memories-group.vue'
 const store = useModuleStore(['memories', 'plan'])
 const { memories, isLoadingMemories } = storeToRefs(store.memories)
 const { days } = storeToRefs(store.plan)
+const route = useRoute()
+const router = useRouter()
 
 const {
+  gridSize,
   filterDay,
   sortType,
   availableDays,
@@ -55,6 +58,24 @@ function openViewer(memoryId: string) {
   }
 }
 
+function getMatchedDay(date: string) {
+  if (!date || date === 'no-date')
+    return undefined
+  return days.value.find(day => day.date?.slice(0, 10) === date)
+}
+
+function handleToggleFilterDay(date: string) {
+  filterDay.value = filterDay.value === date ? 'all' : date
+}
+
+function handleGoToDayPlan(dayId: string) {
+  isFullscreen.value = false
+  const query = { ...route.query }
+  delete query.section
+  query.day = dayId
+  router.push({ query })
+}
+
 const loadMoreTrigger = ref<HTMLElement | null>(null)
 
 useIntersectionObserver(
@@ -84,11 +105,16 @@ onMounted(() => {
         v-model:filter-rating="filterRating"
         v-model:sort-order="sortType"
         v-model:is-fullscreen="isFullscreen"
+        v-model:grid-size="gridSize"
         :available-days="availableDays"
         :sort-options="sortOptions"
       />
 
-      <div v-if="isLoadingMemories && memories.length === 0" class="skeleton-grid">
+      <div
+        v-if="isLoadingMemories && memories.length === 0"
+        class="skeleton-grid"
+        :class="`is-size-${gridSize}`"
+      >
         <div v-for="i in 12" :key="i" class="skeleton-item">
           <KitSkeleton width="100%" height="100%" />
         </div>
@@ -105,7 +131,13 @@ onMounted(() => {
           v-for="group in groupedMemories"
           :key="group.date"
           :group="group"
+          :matched-day="getMatchedDay(group.date)"
+          :current-filter-day="filterDay"
+          :grid-size="gridSize"
           @click-image="openViewer"
+          @play-group="openViewer"
+          @toggle-filter-day="handleToggleFilterDay"
+          @go-to-day-plan="handleGoToDayPlan"
         />
 
         <div v-if="hasMore" ref="loadMoreTrigger" class="load-trigger">
@@ -134,6 +166,7 @@ onMounted(() => {
   flex-direction: column;
   gap: 16px;
   min-height: 400px;
+  --memories-group-header-top: calc(var(--header-height, 60px) + 12px);
 
   &.is-fullscreen {
     position: fixed;
@@ -145,16 +178,11 @@ onMounted(() => {
     overflow-y: auto;
     height: 100vh;
     height: 100dvh;
+    --memories-group-header-top: 12px;
 
     @media (max-width: 768px) {
       padding: 12px 12px calc(12px + var(--safe-area-inset-bottom, 0px));
-    }
-
-    :deep(.filters-header) {
-      position: sticky;
-      top: 0;
-      z-index: 20;
-      box-shadow: var(--s-m);
+      --memories-group-header-top: 8px;
     }
   }
 }
@@ -218,10 +246,25 @@ onMounted(() => {
 
 .skeleton-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
-  gap: 8px;
+  grid-template-columns: repeat(auto-fill, minmax(var(--cell-size, 190px), 1fr));
+  gap: var(--grid-gap, 8px);
   width: 100%;
   margin-top: 48px;
+
+  &.is-size-sm {
+    --cell-size: 130px;
+    --grid-gap: 6px;
+  }
+
+  &.is-size-md {
+    --cell-size: 190px;
+    --grid-gap: 8px;
+  }
+
+  &.is-size-lg {
+    --cell-size: 290px;
+    --grid-gap: 12px;
+  }
 }
 
 .skeleton-item {
