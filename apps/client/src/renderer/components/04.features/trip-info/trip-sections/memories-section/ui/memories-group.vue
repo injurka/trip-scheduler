@@ -190,9 +190,6 @@ function handleGoToPlan() {
   align-items: center;
   justify-content: flex-start;
   pointer-events: none;
-  padding: 4px 0;
-  margin-top: 12px;
-  margin-bottom: 2px;
 }
 
 .group-header-chip {
@@ -205,7 +202,7 @@ function handleGoToPlan() {
   background-color: color-mix(in srgb, var(--bg-secondary-color) 88%, transparent);
   backdrop-filter: blur(14px);
   -webkit-backdrop-filter: blur(14px);
-  border: 1px solid var(--border-secondary-color);
+  border: 1px solid var(--border-primary-color);
   box-shadow: var(--s-m);
   max-width: 100%;
   transition: all 0.2s ease;
@@ -283,7 +280,6 @@ function handleGoToPlan() {
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
-    max-width: 150px;
     border: 1px solid var(--border-secondary-color);
   }
 }
