@@ -14,6 +14,7 @@ import { v4 as uuidv4 } from 'uuid'
 import { toRaw } from 'vue'
 import { useRequest } from '~/plugins/request'
 import { useToast } from '~/shared/composables/use-toast'
+import { readTimelineMedia } from '../lib/media-timeline'
 import { EPostRequestKeys } from './post.store'
 
 type ClientPostMedia = PostMedia & { file?: File }
@@ -63,15 +64,32 @@ function defaultPostState(): PostDetail {
     whitelistUserIds: [],
     elements: [],
     statsDetail: { views: 0, duration: 0 },
-    stages: [
-      { id: uuidv4(), day: 1, time: '', title: 'Начало', order: 0, blocks: [] } as unknown as TimelineStage,
-    ],
+    stages: [],
     user: { id: '', name: '', avatarUrl: '' },
     stats: { likes: 0, saves: 0, isLiked: false, isSaved: false },
     createdAt: new Date().toISOString(),
     description: '',
     status: 'draft',
   }
+}
+
+function clearDraftCacheForPost(postId: string, isNewPost: boolean) {
+  if (typeof localStorage === 'undefined')
+    return
+
+  localStorage.removeItem(`trip_scheduler_post_draft_${postId}`)
+  const newDraftKey = 'trip_scheduler_post_draft_new'
+  if (isNewPost) {
+    localStorage.removeItem(newDraftKey)
+    return
+  }
+
+  try {
+    const cached = JSON.parse(localStorage.getItem(newDraftKey) || 'null')
+    if (cached?.createdServerId === postId || cached?.post?.id === postId)
+      localStorage.removeItem(newDraftKey)
+  }
+  catch { /* Ignore a corrupt cache; the server remains authoritative. */ }
 }
 
 /**
@@ -124,6 +142,8 @@ export const usePostDraftStore = defineStore('post-draft', {
     isSaving: false,
     createdServerId: null as string | null,
     isNewPost: true,
+    creationPromise: null as Promise<string | null> | null,
+    activeUploads: 0,
   }),
 
   actions: {
@@ -155,7 +175,17 @@ export const usePostDraftStore = defineStore('post-draft', {
       this.isDirty = false
     },
 
-    async ensurePostCreated() {
+    async ensurePostCreated(): Promise<string | null> {
+      if (this.creationPromise)
+        return this.creationPromise
+      this.creationPromise = this.createServerDraft()
+      try {
+        return await this.creationPromise
+      }
+      finally { this.creationPromise = null }
+    },
+
+    async createServerDraft() {
       if (this.createdServerId)
         return this.createdServerId
       if (!this.isNewPost)
@@ -193,42 +223,97 @@ export const usePostDraftStore = defineStore('post-draft', {
     },
 
     async uploadSingleMedia(file: File): Promise<PostMedia | null> {
-      const postId = await this.ensurePostCreated()
-      if (!postId)
-        return null
+      this.activeUploads++
+      try {
+        const postId = await this.ensurePostCreated()
+        if (!postId)
+          return null
+        const capture = await readTimelineMedia(file)
 
-      let result: PostMedia | null = null
-      const isVideo = file.type.startsWith('video/') || /\.(?:mp4|webm|mov|mkv|avi|ogg|quicktime)$/i.test(file.name)
+        let result: PostMedia | null = null
+        const isVideo = file.type.startsWith('video/') || /\.(?:mp4|webm|mov|mkv|avi|ogg|quicktime)$/i.test(file.name)
 
-      await useRequest<TripMedia>({
-        key: `post:upload-instant:${uuidv4()}`,
-        fn: db => db.files.uploadFile(file, postId, 'post', 'content'),
-        onSuccess: (uploaded) => {
-          if (uploaded) {
-            const newMedia: PostMedia = {
-              id: uploaded.id,
-              type: isVideo ? 'video' : 'image',
-              url: uploaded.url,
-              isPrivate: false,
-              hasAccess: true,
-              metadata: uploaded.metadata,
-              originalName: uploaded.originalName,
-              marks: [],
+        await useRequest<TripMedia>({
+          key: `post:upload-instant:${uuidv4()}`,
+          fn: db => db.files.uploadFile(file, postId, 'post', 'content', null, null, { capturedAt: capture.capturedAt, captureSource: capture.source, latitude: capture.latitude, longitude: capture.longitude }),
+          onSuccess: (uploaded) => {
+            if (uploaded) {
+              const newMedia: PostMedia = {
+                id: uploaded.id,
+                type: isVideo ? 'video' : 'image',
+                url: uploaded.url,
+                isPrivate: false,
+                hasAccess: true,
+                metadata: { ...uploaded.metadata, capturedAt: capture.capturedAt },
+                takenAt: capture.capturedAt || uploaded.takenAt,
+                latitude: capture.latitude ?? uploaded.latitude,
+                longitude: capture.longitude ?? uploaded.longitude,
+                variants: uploaded.variants,
+                originalName: uploaded.originalName,
+                marks: [],
+              }
+              this.post.media.push(newMedia)
+              this.isDirty = true
+              result = newMedia
             }
-            this.post.media.push(newMedia)
-            this.isDirty = true
-            result = newMedia
-          }
-        },
-        onError: ({ error }) => {
-          useToast().error(`Ошибка загрузки ${file.name}: ${error.customMessage}`)
-        },
-      })
+          },
+          onError: ({ error }) => {
+            useToast().error(`Ошибка загрузки ${file.name}: ${error.customMessage}`)
+          },
+        })
 
-      return result
+        return result
+      }
+      finally { this.activeUploads-- }
     },
 
-    removeGlobalMedia(mediaId: string) {
+    async refreshMedia() {
+      const id = this.createdServerId || (!this.isNewPost ? this.post.id : null)
+      if (!id)
+        return
+      const beforeIds = new Set(this.post.media.map(media => media.id))
+      await useRequest<PostDetail>({
+        key: `post:refresh-media:${id}`,
+        fn: db => db.posts.getById({ id }),
+        onSuccess: (data) => {
+          if (!data)
+            return
+          const remote = data.media || []
+          const remoteIds = new Set(remote.map(media => media.id))
+          const concurrentUploads = this.post.media.filter(media => !beforeIds.has(media.id) && !remoteIds.has(media.id))
+          this.post.media = [...remote, ...concurrentUploads]
+          for (const stage of this.post.stages || []) {
+            for (const block of stage.blocks) {
+              if (block.type === 'gallery') {
+                block.images = block.images.flatMap(image => this.post.media.filter(media => media.id === image.id))
+              }
+            }
+          }
+        },
+      })
+    },
+
+    async discardDraft(): Promise<boolean> {
+      const id = this.createdServerId || (!this.isNewPost ? this.post.id : null)
+      if (id) {
+        const result = await useRequest({ key: `post:discard:${id}`, fn: db => db.posts.delete({ id }) })
+        if (!result)
+          return false
+      }
+      localStorage.removeItem('trip_scheduler_post_draft_new')
+      if (id)
+        localStorage.removeItem(`trip_scheduler_post_draft_${id}`)
+      this.initDraft(undefined, true)
+      return true
+    },
+
+    async removeGlobalMedia(mediaId: string): Promise<boolean> {
+      const deleted = await useRequest({
+        key: `post:delete-media:${mediaId}`,
+        fn: db => db.posts.deleteMedia({ id: mediaId }),
+      })
+      if (!deleted)
+        return false
       const mediaToRemove = this.post.media.find(m => m.id === mediaId)
       if (mediaToRemove && mediaToRemove.url.startsWith('blob:')) {
         URL.revokeObjectURL(mediaToRemove.url)
@@ -246,10 +331,7 @@ export const usePostDraftStore = defineStore('post-draft', {
       }
       this.isDirty = true
 
-      useRequest({
-        key: `post:delete-media:${mediaId}`,
-        fn: db => db.posts.deleteMedia({ id: mediaId }),
-      })
+      return true
     },
 
     applyAiGeneratedData(data: AiGeneratedPostData) {
@@ -299,7 +381,7 @@ export const usePostDraftStore = defineStore('post-draft', {
     },
 
     async generateWithAi(text: string) {
-      await useRequest<AiGeneratedPostData>({
+      const result = await useRequest<AiGeneratedPostData>({
         key: EPostRequestKeys.GENERATE,
         fn: db => db.posts.generateFromText({ text }),
         onSuccess: (data) => {
@@ -312,6 +394,7 @@ export const usePostDraftStore = defineStore('post-draft', {
           useToast().error(error.customMessage || 'Ошибка при генерации поста.')
         },
       })
+      return Boolean(result)
     },
 
     async addGlobalMedia(files: File[], onProgress?: (count: number) => void): Promise<ClientPostMedia[]> {
@@ -488,7 +571,7 @@ export const usePostDraftStore = defineStore('post-draft', {
         if (!postId)
           throw new Error('Не удалось получить ID поста')
 
-        const elements = this.post.stages.map((stage: TimelineStage, index: number) => {
+        const elements = this.post.stages.filter(stage => stage.blocks.length > 0 || stage.title !== 'Начало' || stage.time).map((stage: TimelineStage, index: number) => {
           const content = stage.blocks.map((block: any) => {
             if (block.type === 'text')
               return { id: block.id, type: 'markdown' as const, text: block.content || '' }
@@ -540,13 +623,8 @@ export const usePostDraftStore = defineStore('post-draft', {
         })
 
         this.isDirty = false
-
-        if (this.isNewPost) {
-          localStorage.removeItem('trip_scheduler_post_draft_new')
-        }
-        else {
-          localStorage.removeItem(`trip_scheduler_post_draft_${this.post.id}`)
-        }
+        this.post.status = publishStatus
+        clearDraftCacheForPost(postId, this.isNewPost)
 
         return postId
       }

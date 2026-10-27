@@ -1,10 +1,16 @@
 <script setup lang="ts">
+import type { ImageViewerImage } from '~/components/01.kit/kit-image-viewer'
 import type { MapPoint, MapRoute } from '~/components/03.domain/trip-info/geolocation-section'
-import type { PostDetail } from '~/shared/types/models/post'
+import type { useGeolocationMap } from '~/components/03.domain/trip-info/geolocation-section/composables/use-geolocation-map'
+import type { PostDetail, PostMedia } from '~/shared/types/models/post'
 import { Icon } from '@iconify/vue'
-import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
+import { useDebounceFn, useMediaQuery, useResizeObserver } from '@vueuse/core'
+import { Marker, Popup } from 'maplibre-gl'
+import { computed, nextTick, onBeforeUnmount, onMounted, ref, shallowRef, watch } from 'vue'
+import { KitImageViewer, useImageViewer } from '~/components/01.kit/kit-image-viewer'
 import { KitTooltip } from '~/components/01.kit/kit-tooltip'
 import GeolocationMap from '~/components/03.domain/trip-info/geolocation-section/ui/geolocation-map.vue'
+import { resolveApiUrl } from '~/shared/lib/url'
 
 import { isValidCoordinate } from '~/shared/services/geo'
 
@@ -12,14 +18,14 @@ interface Props {
   visible: boolean
   pinned?: boolean
   post: PostDetail
-  focusCoords?: [number, number] | null
   focusBlockId?: string | null
+  focusRequest?: number
 }
 
 const props = withDefaults(defineProps<Props>(), {
   pinned: false,
-  focusCoords: null,
   focusBlockId: null,
+  focusRequest: 0,
 })
 
 const emit = defineEmits<{
@@ -32,7 +38,7 @@ const position = ref({ x: 0, y: 0 })
 const dragStart = ref({ x: 0, y: 0 })
 const initialPos = ref({ x: 0, y: 0 })
 const isMapFullscreen = ref(false)
-const dynamicCenter = ref<[number, number] | null>(null)
+const isMobileScreen = useMediaQuery('(max-width: 959px)')
 
 const hasActiveFocus = computed(() => {
   return props.focusBlockId && props.focusBlockId !== 'null' && props.focusBlockId !== 'undefined'
@@ -167,16 +173,45 @@ const mapRoutes = computed<MapRoute[]>(() => {
   return routes
 })
 
-const mapCenter = computed((): [number, number] => {
-  if (dynamicCenter.value && isValidCoordinate(dynamicCenter.value)) {
-    return dynamicCenter.value
+const controller = shallowRef<ReturnType<typeof useGeolocationMap> | null>(null)
+const showPhotoPoints = ref(true)
+const { isOpen, open, currentIndex } = useImageViewer()
+const mapBodyRef = ref<HTMLElement | null>(null)
+const photoMarkers: Marker[] = []
+let photoPopup: Popup | null = null
+
+const photos = computed(() => {
+  const media = new Map<string, PostMedia>()
+  for (const photo of props.post.media || [])
+    media.set(photo.id, photo)
+  for (const stage of props.post.stages || []) {
+    for (const block of stage.blocks) {
+      if (block.type === 'gallery') {
+        for (const photo of block.images)
+          media.set(photo.id, photo)
+      }
+    }
   }
+  return [...media.values()].flatMap((photo) => {
+    if (photo.type !== 'image' || photo.hasAccess === false)
+      return []
+    const lat = photo.latitude ?? photo.metadata?.latitude
+    const lng = photo.longitude ?? photo.metadata?.longitude
+    if (lat == null || lng == null)
+      return []
+    const coordinates: [number, number] = [Number(lng), Number(lat)]
+    return isValidCoordinate(coordinates) ? [{ photo, coordinates }] : []
+  })
+})
+const mapCenter = computed((): [number, number] => {
   if (mapPoints.value.length > 0) {
     return mapPoints.value[0].coordinates
   }
   if (mapRoutes.value.length > 0 && mapRoutes.value[0].geometry && mapRoutes.value[0].geometry.length > 0) {
     return mapRoutes.value[0].geometry[0]
   }
+  if (photos.value.length > 0)
+    return photos.value[0].coordinates
   if (isValidCoordinate([props.post.longitude, props.post.latitude])) {
     return [props.post.longitude, props.post.latitude]
   }
@@ -184,14 +219,89 @@ const mapCenter = computed((): [number, number] => {
   return [48.4031, 54.3142]
 })
 
-watch(() => props.focusCoords, (coords) => {
-  if (coords) {
-    dynamicCenter.value = coords
-  }
-})
+const viewerImages = computed<ImageViewerImage[]>(() => photos.value.map(({ photo }) => ({
+  url: photo.url,
+  alt: photo.originalName || 'Фото',
+  meta: photo.metadata,
+  variants: photo.variants || photo.metadata?.variants,
+})))
+
+function clearPhotoMarkers() {
+  photoPopup?.remove()
+  photoPopup = null
+  photoMarkers.splice(0).forEach(marker => marker.remove())
+}
+
+function syncPhotoMarkers() {
+  clearPhotoMarkers()
+  const map = controller.value?.mapInstance.value
+  if (!map || !controller.value?.isMapLoaded.value || !showPhotoPoints.value)
+    return
+  photos.value.forEach(({ photo, coordinates }, index) => {
+    const variants = photo.variants || photo.metadata?.variants
+    const imageUrl = resolveApiUrl(variants?.small || variants?.medium || photo.url)
+    const markerButton = document.createElement('button')
+    markerButton.type = 'button'
+    markerButton.className = 'post-photo-marker'
+    markerButton.setAttribute('aria-label', photo.originalName || 'Показать фото')
+    const thumbnail = document.createElement('img')
+    thumbnail.src = imageUrl
+    thumbnail.alt = ''
+    markerButton.append(thumbnail)
+    markerButton.addEventListener('click', (event) => {
+      event.stopPropagation()
+      photoPopup?.remove()
+      const content = document.createElement('button')
+      content.type = 'button'
+      content.className = 'post-photo-preview'
+      content.setAttribute('aria-label', 'Открыть фото')
+      const image = document.createElement('img')
+      image.src = resolveApiUrl(variants?.medium || photo.url)
+      image.alt = photo.originalName || 'Фото'
+      const caption = document.createElement('span')
+      caption.textContent = 'Открыть фото'
+      content.append(image, caption)
+      content.addEventListener('click', () => open(viewerImages.value, index))
+      photoPopup = new Popup({ offset: 24, maxWidth: '260px' })
+        .setLngLat(coordinates)
+        .setDOMContent(content)
+        .addTo(map)
+    })
+    photoMarkers.push(new Marker({ element: markerButton, draggable: false })
+      .setLngLat(coordinates).addTo(map))
+  })
+}
+
+async function focusSelection() {
+  await nextTick()
+  const mapController = controller.value
+  if (!mapController?.isMapLoaded.value || !(props.visible || props.pinned))
+    return
+  mapController.mapInstance.value?.resize()
+  const route = mapRoutes.value.find(route => route.id === props.focusBlockId)
+  const point = mapPoints.value.find(point => point.id === props.focusBlockId)
+  mapController.setActivePointId(point?.id ?? null)
+  if (route)
+    mapController.fitToContent([], [route], { padding: 60, maxZoom: 15, duration: 500 })
+  else if (point)
+    mapController.fitToContent([point], [], { padding: 60, maxZoom: 15, duration: 500 })
+  else
+    mapController.fitToContent([...mapPoints.value, ...photos.value.map(({ photo, coordinates }) => ({ id: `photo-${photo.id}`, type: 'poi' as const, coordinates }))], mapRoutes.value, { padding: 60, maxZoom: 15, duration: 0 })
+}
+
+useResizeObserver(mapBodyRef, useDebounceFn(focusSelection, 100))
+
+watch([() => props.focusRequest, () => props.focusBlockId, () => props.visible, () => props.pinned, isMapFullscreen, () => controller.value?.isMapLoaded.value], focusSelection, { flush: 'post' })
+watch([photos, showPhotoPoints, () => controller.value?.isMapLoaded.value], syncPhotoMarkers, { flush: 'post' })
+
+function onMapReady(mapController: ReturnType<typeof useGeolocationMap>) {
+  controller.value = mapController
+  syncPhotoMarkers()
+  focusSelection()
+}
 
 function startDrag(e: MouseEvent) {
-  if (props.pinned || isMapFullscreen.value)
+  if (props.pinned || isMapFullscreen.value || isMobileScreen.value)
     return
   if (e.target instanceof HTMLButtonElement || (e.target as HTMLElement).closest('button'))
     return
@@ -223,14 +333,23 @@ function toggleFullscreen() {
 }
 
 function handleKeydown(e: KeyboardEvent) {
-  if (e.key === 'Escape' && isMapFullscreen.value) {
+  if (e.key !== 'Escape')
+    return
+
+  if (isMapFullscreen.value)
     isMapFullscreen.value = false
-  }
+  else if (props.visible && !props.pinned && isMobileScreen.value)
+    closeMap()
 }
 
 function closeMap() {
   isMapFullscreen.value = false
   emit('update:visible', false)
+}
+
+function unpinMap() {
+  emit('update:visible', true)
+  emit('update:pinned', false)
 }
 
 onMounted(() => {
@@ -256,6 +375,7 @@ watch(() => props.visible, (val) => {
 })
 
 onBeforeUnmount(() => {
+  clearPhotoMarkers()
   document.removeEventListener('mousemove', onDrag)
   document.removeEventListener('mouseup', stopDrag)
   document.removeEventListener('keydown', handleKeydown)
@@ -264,42 +384,62 @@ onBeforeUnmount(() => {
 
 <template>
   <Teleport to="body" :disabled="pinned">
+    <Transition name="map-backdrop">
+      <div
+        v-if="visible && !pinned && isMobileScreen"
+        class="map-drawer-backdrop"
+        aria-hidden="true"
+        @click="closeMap"
+      />
+    </Transition>
     <Transition name="fade">
       <div
         v-show="visible || pinned"
         class="floating-map-window"
-        :class="{ 'is-pinned': pinned, 'is-fullscreen': isMapFullscreen }"
+        :class="{
+          'is-pinned': pinned,
+          'is-fullscreen': isMapFullscreen,
+          'is-mobile-drawer': isMobileScreen && !pinned,
+        }"
         :style="(pinned || isMapFullscreen) ? {} : { left: `${position.x}px`, top: `${position.y}px` }"
       >
-        <div v-if="!pinned && !isMapFullscreen" class="map-drag-handle" @mousedown="startDrag">
-          <div class="drag-indicator">
+        <div v-if="!pinned && !isMapFullscreen" class="map-drag-handle" :class="{ 'is-mobile-drawer': isMobileScreen }" @mousedown="startDrag">
+          <div v-if="isMobileScreen" class="drawer-grabber" aria-hidden="true" />
+          <div v-else class="drag-indicator">
             <Icon icon="mdi:drag-horizontal" />
           </div>
           <div class="header-actions">
-            <KitTooltip text="Закрепить">
+            <button class="action-btn photo-toggle" :class="{ 'is-active': showPhotoPoints }" :aria-pressed="showPhotoPoints" aria-label="Показать точки фото" title="Точки фото" @click="showPhotoPoints = !showPhotoPoints">
+              <Icon icon="mdi:camera" />
+            </button>
+            <KitTooltip v-if="!isMobileScreen" text="Закрепить">
               <button class="action-btn" @click="emit('update:pinned', true)">
                 <Icon icon="mdi:pin" />
               </button>
             </KitTooltip>
             <KitTooltip text="Закрыть">
-              <button class="action-btn" @click="closeMap">
+              <button class="action-btn" aria-label="Закрыть карту" @click="closeMap">
                 <Icon icon="mdi:close" />
               </button>
             </KitTooltip>
           </div>
         </div>
 
-        <KitTooltip v-if="pinned && !isMapFullscreen" text="Открепить карту">
-          <button
-            class="unpin-floating-btn"
-            @click="emit('update:pinned', false)"
-          >
-            <Icon icon="mdi:pin-off" />
-          </button>
-        </KitTooltip>
+        <div v-if="pinned || isMapFullscreen" class="map-overlay-actions">
+          <KitTooltip v-if="pinned && !isMapFullscreen" text="Открепить карту">
+            <button class="unpin-floating-btn" aria-label="Открепить карту" @click="unpinMap">
+              <Icon icon="mdi:pin-off" />
+            </button>
+          </KitTooltip>
+          <KitTooltip text="Точки фото">
+            <button class="unpin-floating-btn photo-toggle" :class="{ 'is-active': showPhotoPoints }" :aria-pressed="showPhotoPoints" aria-label="Показать точки фото" @click="showPhotoPoints = !showPhotoPoints">
+              <Icon icon="mdi:camera" />
+            </button>
+          </KitTooltip>
+        </div>
 
-        <div class="map-body">
-          <div v-if="mapPoints.length === 0 && mapRoutes.length === 0" class="empty-map">
+        <div ref="mapBodyRef" class="map-body">
+          <div v-if="mapPoints.length === 0 && mapRoutes.length === 0 && photos.length === 0" class="empty-map">
             <p>В этом посте нет отмеченных локаций.</p>
           </div>
           <GeolocationMap
@@ -314,11 +454,13 @@ onBeforeUnmount(() => {
             :is-fullscreen="isMapFullscreen"
             :with-panel="false"
             @toggle-fullscreen="toggleFullscreen"
+            @map-ready="onMapReady"
           />
         </div>
       </div>
     </Transition>
   </Teleport>
+  <KitImageViewer v-model:current-index="currentIndex" :visible="isOpen" :images="viewerImages" @update:visible="isOpen = $event" @close="isOpen = false" />
 </template>
 
 <style scoped lang="scss">
@@ -363,15 +505,29 @@ onBeforeUnmount(() => {
     border: none !important;
   }
 
-  @include media-down(sm) {
-    &:not(.is-pinned):not(.is-fullscreen) {
-      width: calc(100vw - 20px);
-      height: 60vh;
-      resize: none;
-      left: 10px !important;
-      top: 10vh !important;
-    }
+  &.is-mobile-drawer {
+    top: auto !important;
+    right: 0 !important;
+    bottom: 0 !important;
+    left: 0 !important;
+    width: 100vw;
+    height: min(82dvh, 860px);
+    min-width: 0;
+    min-height: 0;
+    max-height: calc(100dvh - var(--safe-area-inset-top, env(safe-area-inset-top, 0px)));
+    padding-bottom: var(--safe-area-inset-bottom, env(safe-area-inset-bottom, 0px));
+    border-radius: var(--r-l) var(--r-l) 0 0;
+    border-bottom: none;
+    resize: none;
+    z-index: 1001;
   }
+}
+
+.map-drawer-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.45);
+  z-index: 1000;
 }
 
 .map-drag-handle {
@@ -388,6 +544,25 @@ onBeforeUnmount(() => {
   &:active {
     cursor: grabbing;
   }
+
+  &.is-mobile-drawer {
+    height: 48px;
+    flex-shrink: 0;
+    cursor: default;
+    padding: 0 12px;
+  }
+}
+
+.drawer-grabber {
+  position: absolute;
+  top: 8px;
+  left: 50%;
+  width: 36px;
+  height: 4px;
+  border-radius: var(--r-full);
+  background: var(--fg-tertiary-color);
+  opacity: 0.7;
+  transform: translateX(-50%);
 }
 
 .drag-indicator {
@@ -421,11 +596,16 @@ onBeforeUnmount(() => {
   }
 }
 
-.unpin-floating-btn {
+.map-overlay-actions {
   position: absolute;
   top: 12px;
   left: 12px;
   z-index: 10;
+  display: flex;
+  gap: 8px;
+}
+
+.unpin-floating-btn {
   width: 36px;
   height: 36px;
   border-radius: 8px;
@@ -457,6 +637,7 @@ onBeforeUnmount(() => {
   flex: 1;
   position: relative;
   background: var(--bg-secondary-color);
+  min-height: 0;
 }
 
 .empty-map {
@@ -477,5 +658,57 @@ onBeforeUnmount(() => {
 .fade-leave-to {
   opacity: 0;
   transform: translateY(10px) scale(0.98);
+}
+
+.map-backdrop-enter-active,
+.map-backdrop-leave-active {
+  transition: opacity 0.2s ease;
+}
+
+.map-backdrop-enter-from,
+.map-backdrop-leave-to {
+  opacity: 0;
+}
+.photo-toggle {
+  border: 1px solid var(--border-secondary-color);
+
+  &.is-active {
+    border-color: var(--fg-accent-color);
+  }
+}
+
+:deep(.post-photo-marker) {
+  width: 32px;
+  height: 32px;
+  padding: 0;
+  overflow: hidden;
+  border: 2px solid var(--fg-accent-color);
+  border-radius: 50%;
+  cursor: pointer;
+  background: var(--bg-primary-color);
+
+  img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+  }
+}
+
+:deep(.post-photo-preview) {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  width: 220px;
+  padding: 0;
+  border: none;
+  cursor: pointer;
+  background: var(--bg-primary-color);
+  color: var(--fg-primary-color);
+
+  img {
+    width: 100%;
+    max-height: 180px;
+    object-fit: cover;
+  }
 }
 </style>

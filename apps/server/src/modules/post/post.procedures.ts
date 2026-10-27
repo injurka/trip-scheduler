@@ -1,5 +1,6 @@
 import { z } from 'zod'
 import { protectedProcedure, publicProcedure } from '~/lib/trpc'
+import { describeMediaTimeline, MediaTimelineInputSchema, MediaTimelineOutputSchema } from '~/services/llm/media-timeline.service'
 import { postGenerationService } from '~/services/llm/post-generation.service'
 import {
   AiGeneratedPostOutputSchema,
@@ -89,6 +90,11 @@ export const postProcedures = {
     .query(async ({ input }) => {
       return postService.getUniqueTags(input.query)
     }),
+
+  describeMediaTimeline: protectedProcedure
+    .input(MediaTimelineInputSchema)
+    .output(MediaTimelineOutputSchema)
+    .mutation(({ input, ctx }) => describeMediaTimeline(ctx.user.id, input)),
 
   generateFromText: protectedProcedure
     .meta({ openapi: { method: 'POST', path: '/posts/generate', tags: ['Posts'], summary: 'Сгенерировать структуру поста с помощью ИИ' } })

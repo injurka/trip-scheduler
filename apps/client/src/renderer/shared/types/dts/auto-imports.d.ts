@@ -13,7 +13,6 @@ declare global {
   const DEEP_LINK_SCHEME: typeof import('../../lib/deep-link').DEEP_LINK_SCHEME
   const EffectScope: typeof import('vue').EffectScope
   const MAPTILER_KEY: typeof import('../../lib/map-styles-sources').MAPTILER_KEY
-  const MAPTILER_TERRAIN_3D_SOURCE_ID: typeof import('../../lib/map-styles-sources').MAPTILER_TERRAIN_3D_SOURCE_ID
   const MAPTILER_TERRAIN_SOURCE_ID: typeof import('../../lib/map-styles-sources').MAPTILER_TERRAIN_SOURCE_ID
   const OSM_STYLE: typeof import('../../lib/map-styles-sources').OSM_STYLE
   const SERVER_URL: typeof import('../../lib/env').SERVER_URL
@@ -100,7 +99,6 @@ declare global {
   const lazyComponent: typeof import('../../lib/lazy-component').lazyComponent
   const lngLatToTile: typeof import('../../lib/tile-calc').lngLatToTile
   const makeDestructurable: typeof import('@vueuse/core').makeDestructurable
-  const manualResetRef: typeof import('@vueuse/core')['manualResetRef']
   const mapActions: typeof import('pinia').mapActions
   const mapGetters: typeof import('pinia').mapGetters
   const mapState: typeof import('pinia').mapState
@@ -151,8 +149,6 @@ declare global {
   const refWithControl: typeof import('@vueuse/core').refWithControl
   const resolveApiUrl: typeof import('../../lib/url').resolveApiUrl
   const resolveComponent: typeof import('vue').resolveComponent
-  const resolveRef: typeof import('@vueuse/core').resolveRef
-  const resolveUnref: typeof import('@vueuse/core')['resolveUnref']
   const router: typeof import('../../lib/router').default
   const setActivePinia: typeof import('pinia').setActivePinia
   const setMapStoreSuffix: typeof import('pinia').setMapStoreSuffix

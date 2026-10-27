@@ -252,6 +252,9 @@ onMounted(async () => {
     fitBoundsOptions: initialBounds ? { padding: 60, maxZoom: 14.8 } : undefined,
   })
 
+  // Keep map pan/zoom available in view mode, but prevent dragging its point markers.
+  modifyInteraction.setActive(!props.readonly)
+
   mapInstance.value?.on('click', (event) => {
     if (!isMapActive.value)
       return

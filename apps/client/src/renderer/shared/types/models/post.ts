@@ -82,6 +82,10 @@ export interface PostMedia {
   width?: number
   height?: number
   metadata?: any
+  variants?: Record<string, string> | null
+  takenAt?: string | Date | null
+  latitude?: number | null
+  longitude?: number | null
 }
 
 export interface WhitelistUser {
@@ -140,6 +144,7 @@ export interface ListPostsFilters {
   country?: string
   query?: string
   onlySaved?: boolean
+  onlyDrafts?: boolean
 }
 
 export interface CreatePostInput {

@@ -15,6 +15,8 @@ interface Props {
   selectedIds?: string[]
   mode?: 'select' | 'manage'
   single?: boolean
+  title?: string
+  allowTimeline?: boolean
 }
 
 const props = withDefaults(defineProps<Props>(), {
@@ -26,6 +28,8 @@ const props = withDefaults(defineProps<Props>(), {
 const emit = defineEmits<{
   (e: 'update:visible', value: boolean): void
   (e: 'confirm', media: PostMedia[]): void
+  (e: 'timeline', media: PostMedia[]): void
+  (e: 'busy', value: boolean): void
 }>()
 
 const store = usePostDraftStore()
@@ -43,7 +47,7 @@ const processedCount = ref(0)
 const totalToProcess = ref(0)
 
 function toggleSelection(id: string) {
-  if (props.mode === 'manage')
+  if (props.mode === 'manage' && !props.allowTimeline)
     return
 
   if (props.single) {
@@ -76,9 +80,9 @@ function togglePrivacy(media: PostMedia) {
 
 function getMediaThumbnail(media: PostMedia) {
   if (media.type === 'video') {
-    return media.metadata?.variants?.poster || media.metadata?.variants?.small || media.url
+    return media.variants?.poster || media.metadata?.variants?.poster || media.variants?.small || media.metadata?.variants?.small || media.url
   }
-  return media.metadata?.variants?.small ?? media.url
+  return media.variants?.small || media.metadata?.variants?.small || media.url
 }
 
 async function handleDelete(id: string) {
@@ -90,40 +94,53 @@ async function handleDelete(id: string) {
   })
 
   if (isConfirmed) {
-    store.removeGlobalMedia(id)
+    const removed = await store.removeGlobalMedia(id)
+    if (!removed)
+      return
     localSelectedIds.value = localSelectedIds.value.filter(sid => sid !== id)
   }
 }
 
 onChange(async (files) => {
-  if (!files || files.length === 0)
+  if (!files || files.length === 0 || isProcessing.value)
     return
 
   isProcessing.value = true
-  totalToProcess.value = files.length
-  processedCount.value = 0
+  emit('busy', true)
+  try {
+    totalToProcess.value = files.length
+    processedCount.value = 0
 
-  const filesArray = Array.from(files)
+    const filesArray = Array.from(files)
 
-  for (const file of filesArray) {
-    const added = await store.uploadSingleMedia(file)
-    if (added && props.mode === 'select') {
-      if (props.single) {
-        localSelectedIds.value = [added.id]
+    for (const file of filesArray) {
+      const added = await store.uploadSingleMedia(file)
+      if (added && (props.mode === 'select' || props.allowTimeline)) {
+        if (props.single) {
+          localSelectedIds.value = [added.id]
+        }
+        else {
+          localSelectedIds.value.push(added.id)
+        }
       }
-      else {
-        localSelectedIds.value.push(added.id)
-      }
+      processedCount.value++
     }
-    processedCount.value++
   }
-
-  isProcessing.value = false
+  finally {
+    isProcessing.value = false
+    emit('busy', false)
+  }
 })
+
+function handleTimeline() {
+  emit('timeline', post.value.media.filter(media => localSelectedIds.value.includes(media.id)))
+  emit('update:visible', false)
+}
 
 watch(() => props.visible, (isOpen) => {
   if (isOpen) {
     localSelectedIds.value = [...props.selectedIds]
+    void store.refreshMedia()
   }
 })
 </script>
@@ -131,32 +148,40 @@ watch(() => props.visible, (isOpen) => {
 <template>
   <KitDialogWithClose
     :visible="visible"
-    :title="mode === 'select' ? (single ? 'Выбрать обложку' : 'Выбрать медиа') : 'Медиатека поста'"
+    :title="title || (mode === 'select' ? (single ? 'Выбрать обложку' : 'Выбрать медиа') : 'Медиатека поста')"
     icon="mdi:image-multiple-outline"
     :max-width="900"
     :persistent="isProcessing"
     @update:visible="emit('update:visible', $event)"
   >
-    <div class="library-container">
+    <div class="library-container" :class="{ 'is-empty': !post.media.length }">
       <div v-if="isProcessing" class="processing-overlay">
         <Icon icon="mdi:loading" class="spin" />
         <p>Загрузка медиафайлов ({{ processedCount }} / {{ totalToProcess }})...</p>
       </div>
 
-      <div class="toolbar">
-        <button class="upload-btn" @click="open()">
-          <Icon icon="mdi:cloud-upload-outline" />
-          <span>Загрузить фото или видео</span>
-        </button>
-
+      <div v-if="post.media.length" class="toolbar">
         <div class="stats">
-          Всего: {{ post.media.length }}
+          Файлы: {{ post.media.length }}<span v-if="localSelectedIds.length"> · Выбрано: {{ localSelectedIds.length }}</span>
+        </div>
+        <div class="toolbar-actions">
+          <KitBtn variant="tonal" icon="mdi:plus" :disabled="isProcessing" @click="open()">
+            Добавить медиа
+          </KitBtn>
+
+          <KitBtn v-if="!single && (mode === 'select' || allowTimeline)" variant="text" :disabled="isProcessing" @click="localSelectedIds = localSelectedIds.length === post.media.length ? [] : post.media.map(media => media.id)">
+            {{ localSelectedIds.length === post.media.length && post.media.length ? 'Снять выбор' : 'Выбрать все' }}
+          </KitBtn>
         </div>
       </div>
 
       <div v-if="post.media.length === 0" class="empty-state">
-        <Icon icon="mdi:image-filter-hdr" class="empty-icon" />
-        <p>Медиатека пуста. Загрузите фотографии или видео, чтобы использовать их в посте.</p>
+        <span class="empty-symbol"><Icon icon="mdi:image-multiple-outline" /></span>
+        <h3>Добавьте моменты путешествия</h3>
+        <p>Фото и видео можно собрать в галерею или распределить по таймлайну.</p>
+        <KitBtn icon="mdi:plus" :disabled="isProcessing" @click="open()">
+          Выбрать фото и видео
+        </KitBtn>
       </div>
 
       <draggable
@@ -171,7 +196,8 @@ watch(() => props.visible, (isOpen) => {
         <template #item="{ element: media }">
           <div
             class="media-card"
-            :class="{ 'selected': localSelectedIds.includes(media.id) && mode === 'select', 'is-private': media.isPrivate }"
+            :title="media.originalName"
+            :class="{ 'selected': localSelectedIds.includes(media.id) && (mode === 'select' || allowTimeline), 'is-private': media.isPrivate }"
             @click="toggleSelection(media.id)"
           >
             <div v-if="mode === 'manage'" class="drag-handle">
@@ -197,24 +223,31 @@ watch(() => props.visible, (isOpen) => {
               <Icon :icon="media.isPrivate ? 'mdi:lock' : 'mdi:lock-open-variant-outline'" />
             </button>
 
-            <div v-if="mode === 'select'" class="selection-overlay">
+            <button v-if="mode === 'select' || allowTimeline" type="button" class="selection-overlay" :aria-label="media.originalName || 'Выбрать медиа'" :aria-pressed="localSelectedIds.includes(media.id)" @click.stop="toggleSelection(media.id)">
               <div class="checkbox">
                 <Icon v-if="localSelectedIds.includes(media.id)" icon="mdi:check" />
               </div>
-            </div>
+            </button>
 
-            <button class="delete-btn" @click.stop="handleDelete(media.id)">
+            <span class="media-caption">{{ media.originalName || (media.type === 'video' ? 'Видео' : 'Фото') }}</span>
+            <button class="delete-btn" :aria-label="`Удалить ${media.originalName || 'медиа'}`" @click.stop="handleDelete(media.id)">
               <Icon icon="mdi:trash-can-outline" />
             </button>
           </div>
         </template>
       </draggable>
 
+      <p class="library-hint">
+        <Icon icon="mdi:cloud-check-outline" /><span>Медиа сохраняются в черновике и удаляются вместе с постом.</span>
+      </p>
       <div class="footer-actions">
-        <KitBtn variant="outlined" color="secondary" @click="emit('update:visible', false)">
+        <KitBtn variant="text" color="secondary" :disabled="isProcessing" @click="emit('update:visible', false)">
           {{ mode === 'select' ? 'Отмена' : 'Закрыть' }}
         </KitBtn>
-        <KitBtn v-if="mode === 'select'" :disabled="localSelectedIds.length === 0" @click="handleConfirm">
+        <KitBtn v-if="allowTimeline && post.media.length" :disabled="!localSelectedIds.length || isProcessing" icon="mdi:timeline-outline" @click="handleTimeline">
+          В таймлайн ({{ localSelectedIds.length }})
+        </KitBtn>
+        <KitBtn v-if="mode === 'select' && post.media.length" :disabled="localSelectedIds.length === 0" @click="handleConfirm">
           {{ single ? 'Выбрать' : `Выбрать (${localSelectedIds.length})` }}
         </KitBtn>
       </div>
@@ -223,14 +256,31 @@ watch(() => props.visible, (isOpen) => {
 </template>
 
 <style scoped lang="scss">
+.library-hint {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  font-size: 12px;
+  line-height: 1.5;
+  color: var(--fg-secondary-color);
+  margin: 16px 0 0;
+  > svg {
+    margin-top: 2px;
+    flex-shrink: 0;
+    font-size: 16px;
+  }
+}
 .library-container {
   display: flex;
   flex-direction: column;
-  height: 70vh;
-  max-height: 700px;
   position: relative;
+  min-height: 300px;
+  height: min(62dvh, 580px);
+  &.is-empty {
+    height: auto;
+    min-height: 0;
+  }
 }
-
 .processing-overlay {
   position: absolute;
   inset: 0;
@@ -260,47 +310,53 @@ watch(() => props.visible, (isOpen) => {
 
 .toolbar {
   display: flex;
-  justify-content: space-between;
+  flex-wrap: wrap;
   align-items: center;
+  justify-content: space-between;
+  gap: 12px;
   padding-bottom: 16px;
-  border-bottom: 1px solid var(--border-secondary-color);
-  margin-bottom: 16px;
 }
-
-.upload-btn {
+.toolbar-actions {
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
   gap: 8px;
-  padding: 8px 16px;
-  background: var(--bg-tertiary-color);
-  border: 1px solid var(--border-secondary-color);
-  border-radius: var(--r-m);
-  color: var(--fg-primary-color);
-  font-weight: 600;
-  cursor: pointer;
-  transition: all 0.2s;
-
-  &:hover {
-    background: var(--bg-hover-color);
-    border-color: var(--fg-accent-color);
+  > button {
+    font-size: 12px;
+    padding: 8px 10px;
   }
 }
-
 .stats {
+  font-size: 13px;
   color: var(--fg-secondary-color);
-  font-size: 0.9rem;
 }
-
 .media-grid {
   flex: 1;
+  min-height: 0;
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
-  grid-auto-rows: 140px;
+  grid-auto-rows: 180px;
+  align-content: start;
   gap: 12px;
   overflow-y: auto;
-  padding-right: 4px;
+  padding: 2px;
 }
-
+.media-caption {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  height: 30px;
+  display: block;
+  padding: 7px 8px;
+  background: var(--bg-primary-color);
+  color: var(--fg-secondary-color);
+  font-size: 11px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  overflow: hidden;
+  pointer-events: none;
+}
 .media-card {
   position: relative;
   border-radius: var(--r-m);
@@ -322,7 +378,8 @@ watch(() => props.visible, (isOpen) => {
     }
   }
 
-  &:hover {
+  &:hover,
+  &:focus-within {
     .delete-btn,
     .drag-handle {
       opacity: 1;
@@ -333,7 +390,7 @@ watch(() => props.visible, (isOpen) => {
 .video-badge {
   position: absolute;
   top: 8px;
-  left: 8px;
+  left: calc(50% - 12px);
   background: rgba(0, 0, 0, 0.65);
   color: white;
   border-radius: 6px;
@@ -381,8 +438,8 @@ watch(() => props.visible, (isOpen) => {
 
 .drag-handle {
   position: absolute;
-  bottom: 8px;
-  left: 8px;
+  top: 8px;
+  left: calc(50% - 12px);
   width: 22px;
   height: 22px;
   background: rgba(0, 0, 0, 0.5);
@@ -403,13 +460,15 @@ watch(() => props.visible, (isOpen) => {
 
 .media-img {
   width: 100%;
-  height: 100%;
+  height: calc(100% - 30px);
 }
 
 .selection-overlay {
+  border: none;
+  cursor: pointer;
   position: absolute;
-  inset: 0;
-  background: rgba(0, 0, 0, 0.1);
+  inset: 0 0 30px;
+  background: transparent;
   display: flex;
   align-items: flex-end;
   justify-content: flex-start;
@@ -431,7 +490,7 @@ watch(() => props.visible, (isOpen) => {
 
 .delete-btn {
   position: absolute;
-  bottom: 8px;
+  bottom: 38px;
   right: 8px;
   width: 28px;
   height: 28px;
@@ -453,27 +512,76 @@ watch(() => props.visible, (isOpen) => {
 }
 
 .empty-state {
-  flex: 1;
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  color: var(--fg-secondary-color);
   text-align: center;
-  gap: 16px;
-
-  .empty-icon {
-    font-size: 64px;
-    opacity: 0.5;
+  gap: 12px;
+  min-height: 260px;
+  padding: 28px 20px;
+  border: 1px dashed var(--border-secondary-color);
+  border-radius: var(--r-m);
+  background: var(--bg-secondary-color);
+  h3 {
+    font-size: 17px;
+    margin: 0;
+  }
+  p {
+    max-width: 330px;
+    font-size: 13px;
+    line-height: 1.6;
+    color: var(--fg-secondary-color);
+    margin: 0 0 4px;
   }
 }
-
+.empty-symbol {
+  width: 52px;
+  height: 52px;
+  border: 1px solid var(--border-secondary-color);
+  background: var(--bg-primary-color);
+  border-radius: var(--r-m);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--fg-secondary-color);
+  font-size: 26px;
+  margin-bottom: 4px;
+}
 .footer-actions {
   display: flex;
+  flex-wrap: wrap;
   justify-content: flex-end;
-  gap: 12px;
+  gap: 10px;
   padding-top: 16px;
   border-top: 1px solid var(--border-secondary-color);
   margin-top: 16px;
+  > button {
+    font-size: 13px;
+  }
+}
+@media (max-width: 640px) {
+  .library-container {
+    height: min(62dvh, 540px);
+  }
+  .toolbar {
+    gap: 10px;
+  }
+  .toolbar-actions {
+    width: 100%;
+    justify-content: space-between;
+  }
+  .media-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    grid-auto-rows: 180px;
+    gap: 10px;
+  }
+  .footer-actions > button {
+    flex: 1;
+  }
+  .empty-state {
+    min-height: 250px;
+    padding: 20px 12px;
+  }
 }
 </style>

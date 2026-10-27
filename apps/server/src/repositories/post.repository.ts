@@ -1,11 +1,13 @@
 import type { SQL } from 'drizzle-orm'
 import type { z } from 'zod'
 import type { CreatePostInputSchema, ListPostsInputSchema, UpdatePostInputSchema } from '~/modules/post/post.schemas'
-import { and, desc, eq, exists, ilike, inArray, lt, max, or, sql } from 'drizzle-orm'
+import { TRPCError } from '@trpc/server'
+import { and, desc, eq, exists, ilike, lt, max, or, sql } from 'drizzle-orm'
 import { v4 as uuidv4 } from 'uuid'
 import { db } from '~/../db'
-import { postElements, postLikes, postMedia, posts, postWhitelist, savedPosts } from '~/../db/schema'
+import { postElements, postLikes, postMedia, posts, postWhitelist, savedPosts, storageCleanupTasks, users } from '~/../db/schema'
 import { measureDbQuery } from '~/lib/db-monitoring'
+import { postMediaStorageKeys } from '~/services/storage-cleanup.service'
 
 const userRelationQuery = {
   columns: {
@@ -96,7 +98,11 @@ async function _fetchPostData<T extends DbClient | DbTransaction>(
 export const postRepository = {
   async findAll(filters: z.infer<typeof ListPostsInputSchema>, currentUserId?: string, userRole?: string) {
     return measureDbQuery('posts', 'select', async () => {
-      const conditions: (SQL<unknown> | undefined)[] = [eq(posts.status, 'completed')]
+      if (filters.onlyDrafts && !currentUserId)
+        return { items: [], nextCursor: undefined }
+      const conditions: (SQL<unknown> | undefined)[] = [eq(posts.status, filters.onlyDrafts ? 'draft' : 'completed')]
+      if (filters.onlyDrafts && currentUserId)
+        conditions.push(eq(posts.userId, currentUserId))
 
       if (filters.userId) {
         conditions.push(eq(posts.userId, filters.userId))
@@ -241,14 +247,14 @@ export const postRepository = {
 
         if (data.mediaIds && data.mediaIds.length > 0) {
           const updates = data.mediaIds.map((id, index) =>
-            tx.update(postMedia).set({ order: index }).where(eq(postMedia.id, id)),
+            tx.update(postMedia).set({ order: index }).where(and(eq(postMedia.id, id), eq(postMedia.postId, post.id))),
           )
           await Promise.all(updates)
         }
 
         if (data.mediaPrivacy) {
           for (const [mid, isPrivate] of Object.entries(data.mediaPrivacy)) {
-            await tx.update(postMedia).set({ isPrivate }).where(eq(postMedia.id, mid))
+            await tx.update(postMedia).set({ isPrivate }).where(and(eq(postMedia.id, mid), eq(postMedia.postId, post.id)))
           }
         }
 
@@ -267,14 +273,16 @@ export const postRepository = {
 
   async createMedia(data: Omit<typeof postMedia.$inferInsert, 'id' | 'order'>) {
     return measureDbQuery('postMedia', 'insert', async () => {
-      const maxOrderResult = await db.select({ value: max(postMedia.order) })
-        .from(postMedia)
-        .where(eq(postMedia.postId, data.postId))
-
-      const nextOrder = (maxOrderResult[0].value ?? -1) + 1
-
-      const result = await db.insert(postMedia).values({ id: uuidv4(), ...data, order: nextOrder }).returning()
-      return result[0]
+      return db.transaction(async (tx) => {
+        const [post] = await tx.select({ id: posts.id, userId: posts.userId }).from(posts).where(eq(posts.id, data.postId)).for('update')
+        if (!post)
+          throw new Error('Пост удалён. Загрузка не может быть привязана.')
+        const maxOrderResult = await tx.select({ value: max(postMedia.order) }).from(postMedia).where(eq(postMedia.postId, data.postId))
+        const nextOrder = (maxOrderResult[0].value ?? -1) + 1
+        const [result] = await tx.insert(postMedia).values({ id: uuidv4(), ...data, order: nextOrder }).returning()
+        await tx.update(users).set({ currentStorageBytes: sql`${users.currentStorageBytes} + ${data.sizeBytes || 0}` }).where(eq(users.id, post.userId))
+        return result
+      })
     })
   },
 
@@ -289,13 +297,32 @@ export const postRepository = {
 
   async deleteMedia(id: string) {
     return measureDbQuery('postMedia', 'delete', async () => {
-      await db.delete(postMedia).where(eq(postMedia.id, id))
+      await db.transaction(async (tx) => {
+        const media = await tx.query.postMedia.findFirst({ where: eq(postMedia.id, id) })
+        if (!media)
+          return
+        const [post] = await tx.select().from(posts).where(eq(posts.id, media.postId)).for('update')
+        if (!post)
+          return
+        const [removed] = await tx.delete(postMedia).where(eq(postMedia.id, id)).returning()
+        if (!removed)
+          return
+        await tx.insert(storageCleanupTasks).values({ keys: postMediaStorageKeys(removed) })
+        await tx.update(users).set({ currentStorageBytes: sql`GREATEST(0, ${users.currentStorageBytes} - ${removed.sizeBytes})` }).where(eq(users.id, post.userId))
+        const elements = await tx.query.postElements.findMany({ where: eq(postElements.postId, media.postId) })
+        for (const element of elements) {
+          const content = element.content.filter(block => block.type !== 'image' || block.imageId !== id)
+            .map(block => block.type === 'gallery' ? { ...block, imageIds: block.imageIds.filter(mid => mid !== id) } : block)
+          await tx.update(postElements).set({ content }).where(eq(postElements.id, element.id))
+        }
+      })
     })
   },
 
   async update(id: string, updateInput: z.infer<typeof UpdatePostInputSchema>['data']) {
     return measureDbQuery('posts', 'update', async () => {
       return await db.transaction(async (tx) => {
+        await tx.select({ id: posts.id }).from(posts).where(eq(posts.id, id)).for('update')
         const { elements, mediaIds, mediaPrivacy, whitelistUserIds, statsDetail, startDate, tags, ...postData } = updateInput
 
         if (Object.keys(postData).length > 0 || statsDetail || startDate !== undefined || tags) {
@@ -315,6 +342,15 @@ export const postRepository = {
         }
 
         if (elements) {
+          const media = await tx.select({ id: postMedia.id }).from(postMedia).where(eq(postMedia.postId, id))
+          const validIds = new Set(media.map(item => item.id))
+          for (const element of elements) {
+            for (const block of element.content) {
+              const ids = block.type === 'gallery' ? block.imageIds : block.type === 'image' ? [block.imageId] : []
+              if (ids.some(mediaId => !validIds.has(mediaId)))
+                throw new TRPCError({ code: 'BAD_REQUEST', message: 'В таймлайне есть удалённое или чужое медиа. Обновите медиатеку.' })
+            }
+          }
           await tx.delete(postElements).where(eq(postElements.postId, id))
 
           if (elements.length > 0) {
@@ -332,17 +368,10 @@ export const postRepository = {
         }
 
         if (mediaIds !== undefined) {
-          const existingMedia = await tx.query.postMedia.findMany({
-            where: eq(postMedia.postId, id),
-          })
-          const toDeleteIds = existingMedia.map(m => m.id).filter(mid => !mediaIds.includes(mid))
-          if (toDeleteIds.length > 0) {
-            await tx.delete(postMedia).where(inArray(postMedia.id, toDeleteIds))
-          }
-
+          // Media removal is explicit (deleteMedia), never inferred from a stale draft.
           if (mediaIds.length > 0) {
             const updates = mediaIds.map((mid, index) =>
-              tx.update(postMedia).set({ order: index }).where(eq(postMedia.id, mid)),
+              tx.update(postMedia).set({ order: index }).where(and(eq(postMedia.id, mid), eq(postMedia.postId, id))),
             )
             await Promise.all(updates)
           }
@@ -350,7 +379,7 @@ export const postRepository = {
 
         if (mediaPrivacy !== undefined) {
           for (const [mid, isPrivate] of Object.entries(mediaPrivacy)) {
-            await tx.update(postMedia).set({ isPrivate }).where(eq(postMedia.id, mid))
+            await tx.update(postMedia).set({ isPrivate }).where(and(eq(postMedia.id, mid), eq(postMedia.postId, id)))
           }
         }
 
@@ -413,8 +442,16 @@ export const postRepository = {
 
   async delete(id: string) {
     return measureDbQuery('posts', 'delete', async () => {
-      const [deleted] = await db.delete(posts).where(eq(posts.id, id)).returning()
-      return deleted
+      return db.transaction(async (tx) => {
+        const [post] = await tx.select().from(posts).where(eq(posts.id, id)).for('update')
+        if (!post)
+          return
+        const media = await tx.query.postMedia.findMany({ where: eq(postMedia.postId, id) })
+        await tx.insert(storageCleanupTasks).values({ prefix: `posts/${id}/`, keys: [...new Set(media.flatMap(postMediaStorageKeys))] })
+        await tx.update(users).set({ currentStorageBytes: sql`GREATEST(0, ${users.currentStorageBytes} - ${media.reduce((sum, item) => sum + item.sizeBytes, 0)})` }).where(eq(users.id, post.userId))
+        const [deleted] = await tx.delete(posts).where(eq(posts.id, id)).returning()
+        return deleted
+      })
     })
   },
 

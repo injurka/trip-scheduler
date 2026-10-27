@@ -149,6 +149,7 @@ export const ListPostsInputSchema = z.object({
   country: z.string().optional(),
   query: z.string().optional(),
   onlySaved: z.boolean().optional(),
+  onlyDrafts: z.boolean().optional(),
 })
 
 export const ToggleSavePostInputSchema = z.object({

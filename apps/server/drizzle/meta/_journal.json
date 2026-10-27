@@ -134,6 +134,13 @@
       "when": 1792697238650,
       "tag": "0018_blue_doorman",
       "breakpoints": true
+    },
+    {
+      "idx": 19,
+      "version": "7",
+      "when": 1793099436435,
+      "tag": "0019_soft_zodiak",
+      "breakpoints": true
     }
   ]
 }

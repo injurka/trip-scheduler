@@ -401,6 +401,18 @@ export const metroLineStations = pgTable('metro_line_stations', {
   pk: primaryKey({ columns: [t.lineId, t.stationId] }),
 }))
 
+// Durable S3 cleanup outbox. It deliberately survives deletion of the owning post.
+export const storageCleanupTasks = pgTable('storage_cleanup_tasks', {
+  id: uuid('id').defaultRandom().primaryKey(),
+  keys: jsonb('keys').$type<string[]>().notNull().default([]),
+  prefix: text('prefix'),
+  uploadId: text('upload_id'),
+  keepIfMediaUrl: text('keep_if_media_url'),
+  availableAt: timestamp('available_at', { withTimezone: true }).defaultNow().notNull(),
+  attempts: integer('attempts').default(0).notNull(),
+  lastError: text('last_error'),
+}, t => ({ availableIdx: index('storage_cleanup_available_idx').on(t.availableAt) }))
+
 export const postMediaTypeEnum = pgEnum('post_media_type', ['image', 'video'])
 
 export const postMedia = pgTable('post_media', {

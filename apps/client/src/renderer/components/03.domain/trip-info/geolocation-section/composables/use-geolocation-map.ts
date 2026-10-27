@@ -488,7 +488,10 @@ export function useGeolocationMap() {
     const existing = pointsMap.get(point.id)
 
     if (existing) {
-      if (existing.point.type !== point.type || existing.point.style?.color !== point.style?.color) {
+      if (existing.point.type !== point.type || existing.point.style?.color !== point.style?.color
+        || existing.point.style?.opacity !== point.style?.opacity
+        || existing.point.style?.scale !== point.style?.scale
+        || existing.point.style?.zIndex !== point.style?.zIndex) {
         if (existing.popup?.isOpen()) {
           existing.popup.remove()
         }

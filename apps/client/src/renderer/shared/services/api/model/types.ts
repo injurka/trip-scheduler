@@ -86,6 +86,7 @@ export interface INoteRepository {
 }
 
 export interface IPostRepository {
+  describeMediaTimeline: (params: { groups: { id: number, count: number, frame: string }[] }) => Promise<{ groups: { id: number, title: string }[] }>
   list: (filters: ListPostsFilters) => Promise<{ items: PostDetail[], nextCursor?: string }>
   getById: (params: { id: string }) => Promise<PostDetail>
   create: (data: CreatePostInput) => Promise<PostDetail>
@@ -252,6 +253,7 @@ export interface IFileRepository {
   listImageByTrip: (tripId: string, placement: TripMediaPlacement) => Promise<TripMedia[]>
   getAllUserFiles: () => Promise<TripMedia[]>
   deleteFile: (id: string) => Promise<void>
+  downloadMediaPreview: (path: string) => Promise<Blob>
   getMetadata: (id: string) => Promise<ImageMetadata | null>
   listDocuments: (tripId: string) => Promise<TripDocumentResponse[]>
   updateDocumentMeta: (

@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import type { WhitelistUser } from '~/shared/types/models/post'
+import type { PostMedia, WhitelistUser } from '~/shared/types/models/post'
 import { Icon } from '@iconify/vue'
 import { parseDate } from '@internationalized/date'
 import { onClickOutside, useDebounceFn } from '@vueuse/core'
@@ -10,11 +10,12 @@ import draggable from 'vuedraggable'
 import { KitAvatar } from '~/components/01.kit/kit-avatar'
 import { KitBtn } from '~/components/01.kit/kit-btn'
 import { KitCalendar } from '~/components/01.kit/kit-calendar'
+import { KitDialogWithClose } from '~/components/01.kit/kit-dialog-with-close'
 import { KitDropdown } from '~/components/01.kit/kit-dropdown'
 import { KitImage } from '~/components/01.kit/kit-image'
 import { KitInput } from '~/components/01.kit/kit-input'
 import { KitSelectWithSearch } from '~/components/01.kit/kit-select-with-search'
-import { KitTooltip } from '~/components/01.kit/kit-tooltip'
+import { KitViewSwitcher } from '~/components/01.kit/kit-view-switcher'
 import { NavigationBack } from '~/components/02.shared/navigation-back'
 import { useRequest } from '~/plugins/request'
 import { useConfirm } from '~/shared/composables/use-confirm'
@@ -26,9 +27,19 @@ import { EPostRequestKeys, usePostStore } from '../../store/post.store'
 import PostDetailsView from '../details/post-details-view.vue'
 import StageEditor from './stage-editor.vue'
 import MediaLibraryPicker from './tools/media-library-picker.vue'
+import MediaTimelineImport from './tools/media-timeline-import.vue'
 import PostMapPicker from './tools/post-map-picker.vue'
 
 const getDraftKey = (id?: string) => id ? `trip_scheduler_post_draft_${id}` : 'trip_scheduler_post_draft_new'
+
+function clearNewDraftAlias(postId: string) {
+  try {
+    const cached = JSON.parse(localStorage.getItem(getDraftKey()) || 'null')
+    if (cached?.createdServerId === postId || cached?.post?.id === postId)
+      localStorage.removeItem(getDraftKey())
+  }
+  catch { /* Ignore a corrupt cache; the post editor will load from the server. */ }
+}
 
 const store = usePostDraftStore()
 const postStore = usePostStore()
@@ -40,6 +51,36 @@ const confirm = useConfirm()
 const { post, isDirty } = storeToRefs(store)
 const isGenerating = computed(() => postStore.isGenerating)
 const isPreviewMode = ref(false)
+const activeSection = ref<'about' | 'story' | 'publish'>('about')
+const editorSections = [
+  { id: 'about' as const, label: 'О посте', icon: 'mdi:text-box-outline' },
+  { id: 'story' as const, label: 'Таймлайн', icon: 'mdi:timeline-outline' },
+  { id: 'publish' as const, label: 'Публикация', icon: 'mdi:send-outline' },
+]
+const isAiDialogOpen = ref(false)
+const isMediaTimelineOpen = ref(false)
+const isManualTimeline = ref(false)
+const hasTimelineContent = computed(() => (post.value.stages || []).some(stage => stage.blocks.length > 0 || stage.title !== 'Начало'))
+const stageCount = computed(() => hasTimelineContent.value || isManualTimeline.value ? post.value.stages?.length || 0 : 0)
+const coverMedia = computed(() => post.value.media[0])
+const coverUrl = computed(() => {
+  const media = coverMedia.value
+  if (!media)
+    return ''
+  const variants = media.variants || media.metadata?.variants || {}
+  return media.type === 'video' ? variants.poster || variants.small || '' : variants.medium || variants.small || media.url
+})
+const publishIssues = computed(() => [!post.value.title.trim() && 'Название поста', !post.value.country && 'Страна путешествия'].filter((issue): issue is string => Boolean(issue)))
+
+function startManualTimeline() {
+  isManualTimeline.value = true
+  if (!post.value.stages?.length)
+    store.addStage()
+}
+function nextSection() {
+  activeSection.value = activeSection.value === 'about' ? 'story' : 'publish'
+}
+
 const isPublishing = ref(false)
 const isEditMode = ref(false)
 const isLoading = ref(true)
@@ -47,6 +88,17 @@ const isLoading = ref(true)
 let isLeavingIntentionally = false
 
 const aiPrompt = ref('')
+const isImportingMedia = ref(false)
+const mediaTimeline = ref<InstanceType<typeof MediaTimelineImport>>()
+async function handleMediaTimelineSelection(media: PostMedia[]) {
+  activeSection.value = 'story'
+  isMediaTimelineOpen.value = true
+  await nextTick()
+  await mediaTimeline.value?.selectMedia(media)
+}
+
+const isMediaBusy = computed(() => isImportingMedia.value || store.activeUploads > 0)
+const isDraft = computed(() => !isEditMode.value || post.value.status === 'draft')
 
 const isMediaLibraryOpen = ref(false)
 const isMapPickerOpen = ref(false)
@@ -102,14 +154,35 @@ const stagesModel = computed({
 
 // Защита от случайного закрытия вкладки
 onBeforeRouteLeave(async (_to, _from, next) => {
+  if (isLoading.value) {
+    toast.error('Дождитесь завершения загрузки редактора.')
+    next(false)
+    return
+  }
+  if (isMediaBusy.value) {
+    toast.error('Дождитесь завершения загрузки медиа.')
+    next(false)
+    return
+  }
   if (isLeavingIntentionally || isPublishing.value || !isDirty.value) {
     next()
     return
   }
 
+  if (isDraft.value) {
+    try {
+      await store.savePost(store.isNewPost, 'draft')
+      next()
+    }
+    catch {
+      toast.error('Не удалось сохранить черновик. Повторите попытку перед выходом.')
+      next(false)
+    }
+    return
+  }
   const isConfirmed = await confirm({
-    title: 'Уйти без сохранения?',
-    description: 'У вас есть несохраненные изменения, которые будут безвозвратно потеряны.',
+    title: 'Закрыть редактор?',
+    description: 'Текстовые правки сохранены на этом устройстве. Загруженные файлы уже привязаны к посту на сервере.',
     type: 'danger',
     confirmText: 'Покинуть',
   })
@@ -124,22 +197,38 @@ onBeforeRouteLeave(async (_to, _from, next) => {
 })
 
 async function handleCancelBtn() {
-  if (isDirty.value) {
-    const isConfirmed = await confirm({
-      title: 'Отменить редактирование?',
-      description: 'Все изменения будут удалены безвозвратно.',
-      type: 'danger',
-      confirmText: 'Удалить',
-    })
-    if (!isConfirmed)
-      return
-
-    localStorage.removeItem(getDraftKey(route.params.id as string))
-  }
-
+  if (isMediaBusy.value)
+    return
+  const accepted = await confirm({
+    title: isDraft.value ? 'Удалить черновик и все его медиа?' : 'Отменить текстовые правки?',
+    description: isDraft.value ? 'Черновик и его медиатека будут удалены. Это действие необратимо.' : 'Правки текста и настроек будут отменены. Загрузки и удаления медиа уже сохранены на сервере.',
+    type: 'danger',
+    confirmText: isDraft.value ? 'Удалить черновик' : 'Отменить правки',
+  })
+  if (!accepted)
+    return
+  if (isDraft.value && !await store.discardDraft())
+    return
+  localStorage.removeItem(getDraftKey(route.params.id as string))
   isLeavingIntentionally = true
   store.isDirty = false
-  router.back()
+  await router.push(AppRoutePaths.Post.List)
+}
+
+async function handleSaveDraft() {
+  if (isMediaBusy.value)
+    return
+  isPublishing.value = true
+  try {
+    await store.savePost(store.isNewPost, 'draft')
+    postStore.setTab('drafts')
+    isLeavingIntentionally = true
+    await router.push(AppRoutePaths.Post.List)
+  }
+  catch {
+    toast.error('Не удалось сохранить черновик.')
+  }
+  finally { isPublishing.value = false }
 }
 
 const calendarDateModel = computed({
@@ -256,18 +345,24 @@ async function handleGenerate() {
 
   if (!isConfirmed)
     return
-  await store.generateWithAi(aiPrompt.value)
-  aiPrompt.value = ''
+  const generated = await store.generateWithAi(aiPrompt.value)
+  if (generated) {
+    aiPrompt.value = ''
+    isAiDialogOpen.value = false
+    activeSection.value = 'story'
+  }
 }
 
 async function handlePublish() {
   if (!post.value)
     return
   if (!post.value.title) {
+    activeSection.value = 'about'
     toast.error('Пожалуйста, укажите заголовок')
     return
   }
   if (!post.value.country) {
+    activeSection.value = 'about'
     toast.error('Пожалуйста, выберите страну')
     return
   }
@@ -305,6 +400,7 @@ onMounted(async () => {
 
   if (id) {
     isEditMode.value = true
+    clearNewDraftAlias(id)
     const draftStr = localStorage.getItem(draftKey)
 
     if (draftStr) {
@@ -352,6 +448,16 @@ onMounted(async () => {
       store.initDraft(undefined, true)
     }
   }
+  if (!id && store.isNewPost) {
+    const createdPostId = await store.ensurePostCreated()
+    if (createdPostId) {
+      localStorage.setItem(draftKey, JSON.stringify({
+        post: store.post,
+        createdServerId: createdPostId,
+      }))
+    }
+  }
+  await store.refreshMedia()
   isLoading.value = false
 
   store.$subscribe((_mutation, state) => {
@@ -361,7 +467,7 @@ onMounted(async () => {
         createdServerId: state.createdServerId,
       }))
     }
-  })
+  }, { flush: 'sync' })
 })
 
 watch(() => [post.value?.title, post.value?.insight, post.value?.description], () => {
@@ -371,78 +477,54 @@ watch(() => [post.value?.title, post.value?.insight, post.value?.description], (
 
 <template>
   <div class="editor-page">
-    <div v-if="isPublishing" class="fullscreen-loader-overlay">
-      <div class="overlay-bg" />
-      <div class="overlay-content">
-        <Icon icon="mdi:loading" class="spinner" />
-        <span>{{ isEditMode ? 'Сохранение изменений...' : 'Публикация поста...' }}</span>
-      </div>
+    <div v-if="isPublishing" class="fullscreen-loader-overlay" role="status">
+      <Icon icon="mdi:loading" class="spinner" />
+      <span>Сохраняем пост…</span>
     </div>
-
-    <NavigationBack />
-
+    <div class="editor-back">
+      <NavigationBack />
+    </div>
     <header class="editor-topbar">
-      <div class="left">
-        <h2 class="page-title">
-          {{ isPreviewMode ? 'Предпросмотр' : (isEditMode ? 'Редактирование' : 'Новый пост') }}
-        </h2>
+      <div class="editor-heading">
+        <div>
+          <h1 class="page-title">
+            {{ isEditMode ? 'Редактирование поста' : 'Новый пост' }}
+          </h1>
+          <span class="post-status">{{ isDraft ? 'Черновик · виден только вам' : 'Опубликованный пост' }}</span>
+        </div>
       </div>
-
-      <div class="actions">
-        <KitTooltip v-if="!isPreviewMode" text="Медиатека">
-          <button class="action-icon-btn" @click="openLibraryManage">
-            <Icon icon="mdi:image-multiple-outline" />
-          </button>
-        </KitTooltip>
-
-        <button class="preview-toggle" @click="isPreviewMode = !isPreviewMode">
-          <Icon :icon="isPreviewMode ? 'mdi:pencil-outline' : 'mdi:eye-outline'" />
-          <span class="btn-label">{{ isPreviewMode ? 'Редактировать' : 'Просмотр' }}</span>
-        </button>
-      </div>
+      <KitBtn variant="text" :icon="isPreviewMode ? 'mdi:pencil-outline' : 'mdi:eye-outline'" :disabled="isMediaBusy" @click="isPreviewMode = !isPreviewMode">
+        {{ isPreviewMode ? 'К редактору' : 'Предпросмотр' }}
+      </KitBtn>
     </header>
-
     <div v-if="isLoading" class="loading-state">
-      Загрузка редактора...
+      Загрузка редактора…
     </div>
-
     <div v-else-if="isPreviewMode && post" class="preview-container">
       <PostDetailsView :post="previewData" :is-preview-mode="true" />
     </div>
-
     <div v-else-if="post" class="editor-container">
-      <section class="meta-section">
-        <div class="cover-area" @click="openLibraryManage">
-          <div v-if="post.media.length > 0" class="cover-preview">
-            <KitImage :src="post.media[0].url" object-fit="cover" />
-            <div class="cover-overlay">
-              <button class="change-btn">
-                <Icon icon="mdi:camera-retake-outline" />
-                <span>Управлять медиа</span>
-              </button>
-            </div>
-          </div>
-          <div v-else class="cover-placeholder">
-            <Icon icon="mdi:camera-plus" width="32" height="32" />
-            <span>Добавить главное фото</span>
-          </div>
+      <nav class="editor-navigation" aria-label="Разделы редактора">
+        <KitViewSwitcher v-model="activeSection" :items="editorSections" full-width />
+      </nav>
+      <div v-show="activeSection === 'about'" class="editor-panel">
+        <div class="panel-heading">
+          <h2>О чём ваше путешествие?</h2><p>Название, вступление и обложка — первое, что увидят читатели.</p>
         </div>
-
-        <div class="main-inputs">
-          <KitInput v-model="post.title" label="Название маршрута" />
-          <KitInput v-model="post.insight" label="Главный инсайт" placeholder="Короткий совет..." type="textarea" :rows="2" />
-          <KitInput v-model="post.description" label="Вступление" placeholder="О чем это путешествие..." type="textarea" :rows="3" />
-        </div>
-      </section>
-
-      <section class="details-section">
-        <h3 class="section-title">
-          Детали
-        </h3>
-        <div class="details-grid">
+        <section class="meta-section">
+          <div class="main-inputs">
+            <KitInput v-model="post.title" label="Название поста" placeholder="Например, выходные в горах" />
+            <KitInput v-model="post.description" label="Вступление" placeholder="Пара слов о путешествии…" type="textarea" :rows="3" />
+          </div>
+          <button class="cover-area" type="button" @click="openLibraryManage">
+            <KitImage v-if="coverUrl" :src="coverUrl" object-fit="cover" class="cover-image" />
+            <span v-else class="cover-placeholder"><Icon icon="mdi:image-plus-outline" /><span>{{ coverMedia ? 'Видео в медиатеке' : 'Добавить обложку' }}</span></span>
+            <span class="cover-caption"><Icon icon="mdi:image-multiple-outline" />{{ post.media.length ? `Медиатека · ${post.media.length}` : 'Фото и видео' }}</span>
+          </button>
+        </section>
+        <section class="essentials-grid">
           <div class="field-group">
-            <label>Локация</label>
-            <div class="location-inputs">
+            <label>Страна</label><div class="location-inputs">
               <div class="country-selector">
                 <KitSelectWithSearch
                   :model-value="post.country ?? null"
@@ -456,35 +538,32 @@ watch(() => [post.value?.title, post.value?.insight, post.value?.description], (
                     <span>{{ item.label }}</span>
                   </template>
                 </KitSelectWithSearch>
-              </div>
-
-              <KitTooltip text="Указать на карте">
-                <button class="map-btn" :class="{ 'has-coords': post.latitude }" @click="isMapPickerOpen = true">
-                  <Icon icon="mdi:map-marker-radius" />
-                </button>
-              </KitTooltip>
+              </div><KitBtn variant="tonal" class="map-picker-btn" icon="mdi:map-marker-outline" aria-label="Указать место на карте" @click="isMapPickerOpen = true" />
             </div>
           </div>
-
-          <div class="field-group dual">
-            <div>
-              <label>Дата начала</label>
-              <KitDropdown align="start" :side-offset="4">
-                <template #trigger>
-                  <div class="date-trigger-wrapper" :class="{ 'is-empty': !post.startDate }">
-                    <Icon icon="mdi:calendar" class="input-icon-prefix" />
-                    <div class="trigger-text">
-                      {{ formattedStartDate || 'Выберите дату...' }}
-                    </div>
+          <div class="field-group">
+            <label>Дата начала</label>
+            <KitDropdown align="start" :side-offset="4" content-class="post-date-dropdown">
+              <template #trigger>
+                <button type="button" class="date-trigger-wrapper" :class="{ 'is-empty': !post.startDate }" aria-label="Дата начала">
+                  <Icon icon="mdi:calendar" class="input-icon-prefix" />
+                  <div class="trigger-text">
+                    {{ formattedStartDate || 'Выберите дату...' }}
                   </div>
-                </template>
-                <div class="calendar-dropdown-content">
-                  <KitCalendar v-model="calendarDateModel" />
-                </div>
-              </KitDropdown>
-            </div>
-            <div>
-              <label>Время в пути</label>
+                </button>
+              </template>
+              <div class="calendar-dropdown-content">
+                <KitCalendar v-model="calendarDateModel" />
+              </div>
+            </KitDropdown>
+          </div>
+        </section>
+        <details class="optional-section">
+          <summary><span class="disclosure-icon"><Icon icon="mdi:tune-variant" /></span><span class="disclosure-copy"><span class="disclosure-title">Дополнительно</span><span class="summary-hint">Совет читателям, длительность и теги</span></span><Icon icon="mdi:chevron-down" /></summary>
+          <div class="optional-content">
+            <KitInput v-model="post.insight" label="Совет читателям" placeholder="Что стоит знать перед поездкой?" type="textarea" :rows="2" />
+            <div class="field-group">
+              <label>Длительность путешествия</label>
               <div class="duration-editor">
                 <KitInput v-model.number="durationValue" type="number" placeholder="0" size="sm" class="duration-val-input" @input="updateDuration" />
                 <KitSelectWithSearch
@@ -497,152 +576,648 @@ watch(() => [post.value?.title, post.value?.insight, post.value?.description], (
                 />
               </div>
             </div>
-          </div>
-
-          <div class="field-group">
-            <label>Теги (#прогулка, #архитектура)</label>
-            <div ref="tagsWrapperRef" class="tags-input-container">
-              <div class="tags-input-wrapper">
-                <div v-for="tag in post.tags" :key="tag" class="tag-chip">
-                  #{{ tag }} <span class="remove" @click="store.removeTag(tag)">×</span>
+            <div class="field-group">
+              <label>Теги</label>
+              <div ref="tagsWrapperRef" class="tags-input-container">
+                <div class="tags-input-wrapper">
+                  <div v-for="tag in post.tags" :key="tag" class="tag-chip">
+                    #{{ tag }} <span class="remove" @click="store.removeTag(tag)">×</span>
+                  </div>
+                  <input v-model="tempTag" placeholder="+ Добавить" class="tag-input" @keydown.enter="addTag()" @focus="isTagInputFocused = true; fetchTags('')">
                 </div>
-                <input v-model="tempTag" placeholder="+ Добавить" class="tag-input" @keydown.enter="addTag()" @focus="isTagInputFocused = true; fetchTags('')">
+
+                <div v-if="suggestedTags.length > 0 && isTagInputFocused" class="tags-dropdown">
+                  <div class="suggested-tags-wrapper">
+                    <button v-for="tag in suggestedTags" :key="tag" class="suggested-tag-btn" @click.stop="addTag(tag)">
+                      #{{ tag }}
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </details>
+      </div>
+      <div v-show="activeSection === 'story'" class="editor-panel">
+        <div class="panel-heading">
+          <h2>История по шагам</h2><p>Добавьте активности вручную или соберите их с помощью медиа и ИИ.</p>
+        </div>
+        <div class="timeline-tools">
+          <KitBtn variant="tonal" icon="mdi:plus" @click="startManualTimeline">
+            Вручную
+          </KitBtn>
+          <KitBtn variant="tonal" icon="mdi:image-multiple-outline" :disabled="isMediaBusy" @click="openLibraryManage">
+            Из фото и видео
+          </KitBtn>
+          <KitBtn variant="text" icon="mdi:creation" :disabled="isMediaBusy" @click="isAiDialogOpen = true">
+            Из текста с ИИ
+          </KitBtn>
+        </div>
+        <div v-if="!hasTimelineContent && !isManualTimeline" class="timeline-empty">
+          <Icon icon="mdi:timeline-outline" /><h3>Как прошло путешествие?</h3><p>Прогулка, обед, дорога — каждый момент станет отдельным этапом.</p>
+        </div>
+        <section v-else class="timeline-section" aria-label="Этапы путешествия">
+          <draggable
+            v-model="stagesModel"
+            item-key="id"
+            handle=".drag-handle"
+            ghost-class="ghost-stage"
+            class="stages-list"
+            @end="store.isDirty = true"
+          >
+            <template #item="{ element, index }">
+              <StageEditor :stage="element" :index="index" />
+            </template>
+          </draggable>
+
+          <KitBtn variant="tonal" icon="mdi:plus-circle-outline" class="add-stage-btn" @click="store.addStage">
+            Добавить этап
+          </KitBtn>
+        </section>
+      </div>
+      <div v-show="activeSection === 'publish'" class="editor-panel">
+        <div class="panel-heading">
+          <h2>Перед публикацией</h2><p>Проверьте пост и настройте доступ к приватным медиа.</p>
+        </div>
+        <div class="publication-summary">
+          <div class="publication-identity">
+            <KitImage v-if="coverUrl" :src="coverUrl" class="publication-cover" object-fit="cover" />
+            <span v-else class="publication-symbol"><Icon icon="mdi:text-box-outline" /></span>
+            <div class="publication-copy">
+              <h3>{{ post.title || 'Пока без названия' }}</h3><p>{{ post.country || 'Страна не указана' }}<span v-if="formattedStartDate"> · {{ formattedStartDate }}</span></p><div class="post-counts">
+                <span>Этапы: {{ stageCount }}</span><span>Медиа: {{ post.media.length }}</span>
+              </div>
+            </div>
+          </div>
+          <KitBtn variant="outlined" icon="mdi:eye-outline" @click="isPreviewMode = true">
+            Предпросмотр
+          </KitBtn>
+        </div>
+        <div v-if="publishIssues.length" class="publication-checklist">
+          <h3>Осталось заполнить</h3>
+          <KitBtn v-for="issue in publishIssues" :key="issue" variant="text" class="checklist-item" @click="activeSection = 'about'">
+            <span>{{ issue }}</span><span class="checklist-action">Добавить <Icon icon="mdi:arrow-right" /></span>
+          </KitBtn>
+        </div>
+        <details class="optional-section">
+          <summary><span class="disclosure-icon"><Icon icon="mdi:shield-account-outline" /></span><span class="disclosure-copy"><span class="disclosure-title">Доступ к приватным медиа</span><span class="summary-hint">{{ post.whitelist?.length ? `Пользователей в списке: ${post.whitelist.length}` : 'Сейчас видны только вам' }}</span></span><Icon icon="mdi:chevron-down" /></summary>
+          <div class="optional-content">
+            <p class="field-hint">
+              Добавьте тех, кому можно видеть медиа с замком. Остальные фото и видео доступны читателям поста.
+            </p>
+            <div class="whitelist-content">
+              <div class="search-user-wrapper">
+                <KitInput
+                  v-model="userSearchQuery"
+                  placeholder="Поиск пользователя по имени или email..."
+                  @input="performUserSearch"
+                />
+
+                <div v-if="searchUserResults.length > 0" class="user-search-dropdown">
+                  <div
+                    v-for="foundUser in searchUserResults"
+                    :key="foundUser.id"
+                    class="user-search-item"
+                    @click="handleAddWhitelistUser(foundUser)"
+                  >
+                    <KitAvatar :src="foundUser.avatarUrl || ''" :name="foundUser.name || 'Пользователь'" size="xs" />
+                    <div class="user-info">
+                      <div class="user-name">
+                        {{ foundUser.name || 'Без имени' }}
+                      </div>
+                      <div v-if="foundUser.email" class="user-email">
+                        {{ foundUser.email }}
+                      </div>
+                    </div>
+                    <button class="add-user-action">
+                      <Icon icon="mdi:plus" />
+                    </button>
+                  </div>
+                </div>
               </div>
 
-              <div v-if="suggestedTags.length > 0 && isTagInputFocused" class="tags-dropdown">
-                <div class="suggested-tags-wrapper">
-                  <button v-for="tag in suggestedTags" :key="tag" class="suggested-tag-btn" @click.stop="addTag(tag)">
-                    #{{ tag }}
+              <div v-if="post.whitelist?.length" class="whitelist-users-grid">
+                <div
+                  v-for="u in post.whitelist"
+                  :key="u.id"
+                  class="whitelist-user-chip"
+                >
+                  <KitAvatar :src="u.avatarUrl || ''" :name="u.name || 'Пользователь'" size="xs" />
+                  <span class="chip-name">{{ u.name || u.email || 'Пользователь' }}</span>
+                  <button class="remove-chip-btn" title="Удалить из списка" @click="handleRemoveWhitelistUser(u.id)">
+                    <Icon icon="mdi:close" />
                   </button>
                 </div>
               </div>
-            </div>
-          </div>
-        </div>
-      </section>
-
-      <section class="whitelist-section">
-        <div class="whitelist-header">
-          <div class="title-with-badge">
-            <Icon icon="mdi:shield-account-outline" class="section-icon" />
-            <h3 class="section-title">
-              Белый список (приватные медиа)
-            </h3>
-          </div>
-          <span class="whitelist-hint">
-            Пользователи, которым разрешен просмотр ваших приватных фото и видео в этом посте
-          </span>
-        </div>
-
-        <div class="whitelist-content">
-          <div class="search-user-wrapper">
-            <KitInput
-              v-model="userSearchQuery"
-              placeholder="Поиск пользователя по имени или email..."
-              @input="performUserSearch"
-            />
-
-            <div v-if="searchUserResults.length > 0" class="user-search-dropdown">
-              <div
-                v-for="foundUser in searchUserResults"
-                :key="foundUser.id"
-                class="user-search-item"
-                @click="handleAddWhitelistUser(foundUser)"
-              >
-                <KitAvatar :src="foundUser.avatarUrl || ''" :name="foundUser.name || 'Пользователь'" size="xs" />
-                <div class="user-info">
-                  <div class="user-name">
-                    {{ foundUser.name || 'Без имени' }}
-                  </div>
-                  <div v-if="foundUser.email" class="user-email">
-                    {{ foundUser.email }}
-                  </div>
-                </div>
-                <button class="add-user-action">
-                  <Icon icon="mdi:plus" />
-                </button>
+              <div v-else class="whitelist-empty">
+                <Icon icon="mdi:lock-outline" />
+                <span>Список пуст. Приватные фото и видео будут видны только вам.</span>
               </div>
             </div>
           </div>
-
-          <div v-if="post.whitelist?.length" class="whitelist-users-grid">
-            <div
-              v-for="u in post.whitelist"
-              :key="u.id"
-              class="whitelist-user-chip"
-            >
-              <KitAvatar :src="u.avatarUrl || ''" :name="u.name || 'Пользователь'" size="xs" />
-              <span class="chip-name">{{ u.name || u.email || 'Пользователь' }}</span>
-              <button class="remove-chip-btn" title="Удалить из списка" @click="handleRemoveWhitelistUser(u.id)">
-                <Icon icon="mdi:close" />
-              </button>
-            </div>
-          </div>
-          <div v-else class="whitelist-empty">
-            <Icon icon="mdi:lock-outline" />
-            <span>Список пуст. Приватные фото и видео будут видны только вам.</span>
-          </div>
+        </details>
+        <div class="danger-action">
+          <KitBtn variant="text" color="secondary" icon="mdi:trash-can-outline" :disabled="isMediaBusy" @click="handleCancelBtn">
+            {{ isDraft ? 'Удалить черновик и медиа' : 'Отменить правки' }}
+          </KitBtn>
         </div>
-      </section>
-
-      <section v-if="post.stages" class="timeline-section">
-        <h3 class="section-title">
-          Таймлайн
-        </h3>
-
-        <draggable
-          v-model="stagesModel"
-          item-key="id"
-          handle=".drag-handle"
-          ghost-class="ghost-stage"
-          class="stages-list"
-          @end="store.isDirty = true"
-        >
-          <template #item="{ element, index }">
-            <StageEditor :stage="element" :index="index" />
-          </template>
-        </draggable>
-
-        <KitBtn variant="tonal" icon="mdi:plus-circle-outline" class="add-stage-btn" @click="store.addStage">
-          Добавить этап
-        </KitBtn>
-      </section>
-
-      <section v-if="!isEditMode && (!post.stages?.length || (post.stages.length === 1 && post.stages[0].blocks.length === 0))" class="ai-generation-section" :class="{ 'is-loading': isGenerating }">
-        <div v-if="isGenerating" class="generating-overlay">
-          <Icon icon="mdi:loading" class="spinner-icon" />
-          <span>Магия в процессе...</span>
+      </div>
+      <footer class="editor-submit">
+        <span class="footer-status">{{ isMediaBusy ? 'Обрабатываем медиа…' : isDirty ? 'Есть изменения' : 'Можно продолжить позже' }}</span>
+        <div class="submit-actions">
+          <KitBtn v-if="isDraft" variant="outlined" :disabled="isMediaBusy || isPublishing" @click="handleSaveDraft">
+            Сохранить черновик
+          </KitBtn>
+          <KitBtn v-if="activeSection !== 'publish'" icon="mdi:arrow-right" :disabled="isMediaBusy" @click="nextSection">
+            Далее
+          </KitBtn>
+          <KitBtn v-else icon="mdi:check" :disabled="isMediaBusy || isPublishing" @click="handlePublish">
+            {{ isDraft ? 'Опубликовать' : 'Сохранить изменения' }}
+          </KitBtn>
         </div>
-
-        <div class="ai-header">
-          <Icon icon="mdi:magic-staff" class="ai-icon" />
-          <h3>Магия ИИ</h3>
-        </div>
-        <p class="ai-hint">
-          Опишите ваше путешествие текстом, а мы автоматически соберем структуру, таймлайны и маршруты для поста.
+      </footer>
+    </div>
+    <MediaLibraryPicker v-model:visible="isMediaLibraryOpen" mode="manage" allow-timeline @timeline="handleMediaTimelineSelection" @confirm="isMediaLibraryOpen = false" />
+    <KitDialogWithClose v-model:visible="isMediaTimelineOpen" title="Таймлайн из медиа" :max-width="780" :persistent="isMediaBusy">
+      <MediaTimelineImport ref="mediaTimeline" :disabled="isGenerating" @busy="isImportingMedia = $event" @applied="isMediaTimelineOpen = false" />
+    </KitDialogWithClose>
+    <KitDialogWithClose v-model:visible="isAiDialogOpen" title="Магия ИИ" :max-width="600" :persistent="isGenerating">
+      <div class="ai-generation-section">
+        <p class="field-hint">
+          Опишите поездку. ИИ предложит название и последовательность активностей.
         </p>
-        <KitInput v-model="aiPrompt" type="textarea" :rows="4" :disabled="isGenerating" placeholder="Например: Вчера мы прилетели в Париж. Утром пошли к Эйфелевой башне..." />
-        <KitBtn icon="mdi:creation" variant="subtle" color="primary" :loading="isGenerating" class="ai-btn" @click="handleGenerate">
+        <KitInput v-model="aiPrompt" type="textarea" :rows="4" :disabled="isGenerating || isMediaBusy" placeholder="Например: Вчера мы прилетели в Париж. Утром пошли к Эйфелевой башне..." />
+        <KitBtn icon="mdi:creation" variant="subtle" color="primary" :loading="isGenerating" :disabled="isMediaBusy" class="ai-btn" @click="handleGenerate">
           Сгенерировать пост
         </KitBtn>
-      </section>
-
-      <div class="editor-submit">
-        <KitBtn variant="text" color="secondary" style="margin-right: auto;" @click="handleCancelBtn">
-          Отмена
-        </KitBtn>
-        <KitBtn icon="mdi:check" :loading="isPublishing" variant="subtle" @click="handlePublish">
-          {{ isEditMode ? 'Сохранить изменения' : 'Опубликовать' }}
-        </KitBtn>
       </div>
-    </div>
-
-    <MediaLibraryPicker v-model:visible="isMediaLibraryOpen" mode="manage" @confirm="isMediaLibraryOpen = false" />
+    </KitDialogWithClose>
     <PostMapPicker v-model:visible="isMapPickerOpen" :initial-coords="{ lat: post?.latitude ?? 0, lng: post?.longitude ?? 0 }" @confirm="handleMapConfirm" />
   </div>
 </template>
 
 <style scoped lang="scss">
+.editor-page {
+  --editor-width: 960px;
+  min-width: 0;
+  color: var(--fg-primary-color);
+}
+.editor-topbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  max-width: var(--editor-width);
+  margin: 0 auto;
+  padding: 8px 0 24px;
+}
+.editor-heading {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-width: 0;
+}
+.page-title {
+  margin: 0 0 4px;
+  font-size: 1.35rem;
+  font-weight: 700;
+  letter-spacing: -0.03em;
+}
+.post-status,
+.footer-status,
+.field-hint,
+.summary-hint,
+.summary-label {
+  font-size: 13px;
+  color: var(--fg-secondary-color);
+  line-height: 1.5;
+}
+.editor-container {
+  max-width: var(--editor-width);
+  margin: 0 auto;
+  min-width: 0;
+}
+.editor-navigation {
+  position: sticky;
+  top: calc(var(--header-height, 0px) + var(--safe-area-inset-top, 0px));
+  z-index: 21;
+  padding: 8px 0;
+  margin-bottom: 24px;
+  background: var(--bg-primary-color);
+}
+.editor-panel {
+  min-height: 440px;
+  min-width: 0;
+  padding: 0 4px 28px;
+}
+.panel-heading {
+  margin-bottom: 24px;
+  h2 {
+    margin: 0 0 6px;
+    font-size: 1.3rem;
+    letter-spacing: -0.025em;
+  }
+  p {
+    margin: 0;
+    color: var(--fg-secondary-color);
+    font-size: 14px;
+    line-height: 1.5;
+  }
+}
+.meta-section {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 240px;
+  align-items: stretch;
+  gap: 24px;
+  margin-bottom: 24px;
+}
+.main-inputs {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  min-width: 0;
+}
+.cover-area {
+  display: flex;
+  flex-direction: column;
+  position: relative;
+  min-height: 180px;
+  padding: 0;
+  overflow: hidden;
+  border: 1px dashed var(--border-secondary-color);
+  border-radius: var(--r-m);
+  background: var(--bg-secondary-color);
+  color: var(--fg-secondary-color);
+  cursor: pointer;
+  &:hover,
+  &:focus-visible {
+    border-color: var(--fg-accent-color);
+  }
+}
+.cover-image {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  :deep(.kit-image-container),
+  :deep(img) {
+    height: 100%;
+    width: 100%;
+  }
+}
+.cover-placeholder {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  padding: 20px;
+  font-size: 14px;
+  > svg {
+    font-size: 28px;
+  }
+}
+.cover-caption {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  z-index: 1;
+  margin-top: auto;
+  padding: 10px;
+  background: var(--bg-secondary-color);
+  font-size: 12px;
+  width: 100%;
+}
+.essentials-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  gap: 24px;
+  margin-bottom: 24px;
+}
+.field-group {
+  min-width: 0;
+  > label {
+    display: block;
+    font-size: 14px;
+    color: var(--fg-secondary-color);
+    margin-bottom: 8px;
+  }
+}
+.location-inputs {
+  display: flex;
+  align-items: stretch;
+  gap: 8px;
+  min-width: 0;
+}
+.country-selector {
+  flex: 1;
+  min-width: 0;
+}
+.option-flag {
+  width: 20px;
+  height: 14px;
+  object-fit: cover;
+  margin-right: 8px;
+}
+.date-trigger-wrapper {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 0 12px;
+  min-height: 40px;
+  border: 1px solid var(--border-secondary-color);
+  border-radius: var(--r-s);
+  background: var(--bg-secondary-color);
+  cursor: pointer;
+  .input-icon-prefix {
+    color: var(--fg-secondary-color);
+  }
+  .trigger-text {
+    font-size: 14px;
+  }
+}
+.duration-editor {
+  display: flex;
+  align-items: stretch;
+  gap: 8px;
+  max-width: 350px;
+}
+.duration-val-input {
+  flex: 1;
+  min-width: 0;
+}
+.duration-type-select {
+  width: 130px;
+}
+.editor-back {
+  max-width: var(--editor-width);
+  margin: 0 auto;
+  padding-top: 8px;
+}
+.location-inputs {
+  align-items: flex-start;
+}
+.location-inputs :deep(input),
+.date-trigger-wrapper {
+  height: 40px;
+  min-height: 40px;
+}
+.location-inputs > .map-picker-btn {
+  width: 40px;
+  height: 40px;
+  min-height: 40px;
+  padding: 0;
+  flex: 0 0 40px;
+}
+.date-trigger-wrapper {
+  width: 100%;
+  color: var(--fg-primary-color);
+  text-align: left;
+}
+.optional-section {
+  border: 1px solid var(--border-secondary-color);
+  border-radius: var(--r-m);
+  background: var(--bg-primary-color);
+  overflow: visible;
+  > summary {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 16px;
+    cursor: pointer;
+    list-style: none;
+    &::-webkit-details-marker {
+      display: none;
+    }
+    > svg:last-child {
+      margin-left: auto;
+      flex-shrink: 0;
+      color: var(--fg-secondary-color);
+      transition: transform 150ms;
+    }
+  }
+  &[open] > summary > svg:last-child {
+    transform: rotate(180deg);
+  }
+}
+.disclosure-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  flex-shrink: 0;
+  border: 1px solid var(--border-secondary-color);
+  border-radius: var(--r-s);
+  background: var(--bg-secondary-color);
+  color: var(--fg-secondary-color);
+  font-size: 18px;
+}
+.disclosure-copy {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+}
+.disclosure-title {
+  font-size: 14px;
+  font-weight: 600;
+  line-height: 1.4;
+}
+.summary-hint {
+  font-size: 12px;
+  font-weight: 400;
+}
+.optional-content {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  padding: 4px 16px 20px;
+  :deep(.kit-input-wrapper input),
+  :deep(.kit-input-wrapper textarea) {
+    border-color: var(--border-primary-color);
+    &::placeholder {
+      color: var(--fg-secondary-color);
+    }
+  }
+}
+.timeline-tools {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-bottom: 24px;
+}
+.timeline-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  min-height: 250px;
+  padding: 32px 20px;
+  background: var(--bg-secondary-color);
+  border: 1px dashed var(--border-secondary-color);
+  border-radius: var(--r-m);
+  > svg {
+    font-size: 36px;
+    color: var(--fg-tertiary-color);
+    margin-bottom: 14px;
+  }
+  h3 {
+    margin: 0 0 8px;
+    font-size: 16px;
+  }
+  p {
+    margin: 0;
+    color: var(--fg-secondary-color);
+    font-size: 14px;
+    max-width: 340px;
+    line-height: 1.6;
+  }
+}
+.stages-list {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  min-width: 0;
+}
+.add-stage-btn {
+  margin-top: 16px;
+  width: 100%;
+}
+.publication-summary {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 20px;
+  border: 1px solid var(--border-secondary-color);
+  border-radius: var(--r-m);
+  padding: 20px;
+  margin-bottom: 20px;
+  background: var(--bg-secondary-color);
+  > button {
+    flex-shrink: 0;
+  }
+}
+.publication-identity {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  min-width: 0;
+}
+.publication-cover,
+.publication-symbol {
+  width: 72px;
+  height: 72px;
+  flex: 0 0 72px;
+  border-radius: var(--r-s);
+  overflow: hidden;
+}
+.publication-symbol {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--bg-primary-color);
+  color: var(--fg-tertiary-color);
+  border: 1px solid var(--border-secondary-color);
+  font-size: 28px;
+}
+.publication-copy {
+  min-width: 0;
+  h3 {
+    font-size: 19px;
+    margin: 0 0 6px;
+    overflow-wrap: anywhere;
+  }
+  > p {
+    font-size: 13px;
+    margin: 0 0 10px;
+    color: var(--fg-secondary-color);
+  }
+}
+.post-counts {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  font-size: 12px;
+  color: var(--fg-secondary-color);
+}
+.publication-checklist {
+  padding: 16px;
+  margin-bottom: 20px;
+  border: 1px solid var(--border-secondary-color);
+  border-radius: var(--r-m);
+  > h3 {
+    margin: 0 0 8px;
+    font-size: 13px;
+    font-weight: 500;
+    color: var(--fg-secondary-color);
+  }
+}
+.checklist-item {
+  display: flex;
+  width: 100%;
+  padding: 10px 0;
+  color: var(--fg-primary-color);
+  font-weight: 500;
+  border-radius: 0;
+  :deep(.kit-btn-content) {
+    display: flex;
+    width: 100%;
+    justify-content: space-between;
+    gap: 16px;
+  }
+  + .checklist-item {
+    border-top: 1px solid var(--border-secondary-color);
+  }
+}
+.checklist-action {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--fg-accent-color);
+  font-size: 12px;
+}
+.danger-action {
+  display: flex;
+  justify-content: flex-end;
+  padding-top: 12px;
+  :deep(button) {
+    color: var(--fg-error-color);
+    font-size: 12px;
+    padding: 8px;
+  }
+}
+.editor-submit {
+  position: sticky;
+  bottom: calc(var(--footer-height, 0px) + var(--safe-area-inset-bottom, 0px));
+  z-index: 20;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 12px;
+  border-top: 1px solid var(--border-secondary-color);
+  background: var(--bg-primary-color);
+  padding: 16px 0;
+}
+.submit-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-left: auto;
+}
+.preview-container {
+  max-width: var(--editor-width);
+  margin: 0 auto;
+}
+.loading-state {
+  text-align: center;
+  padding: 48px;
+  color: var(--fg-secondary-color);
+}
 .fullscreen-loader-overlay {
   position: fixed;
   inset: 0;
@@ -650,637 +1225,272 @@ watch(() => [post.value?.title, post.value?.insight, post.value?.description], (
   display: flex;
   align-items: center;
   justify-content: center;
-
-  .overlay-bg {
-    position: absolute;
-    inset: 0;
-    background: var(--bg-primary-color);
-    opacity: 0.8;
-  }
-
-  .overlay-content {
-    position: relative;
-    z-index: 1;
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    gap: 16px;
-    color: var(--fg-primary-color);
-    font-weight: 500;
-    font-size: 1.1rem;
-
-    .spinner {
-      font-size: 3rem;
-      color: var(--fg-accent-color);
-      animation: spin 1s linear infinite;
-    }
-  }
-}
-
-.loading-state {
-  padding: 40px;
-  text-align: center;
-  color: var(--fg-secondary-color);
-}
-.editor-page {
-  background-color: var(--bg-primary-color);
-  min-height: 100vh;
-  padding-bottom: 40px;
-}
-
-.editor-topbar {
+  flex-direction: column;
+  gap: 16px;
   background: rgba(var(--bg-primary-color-rgb), 0.95);
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: 12px 24px;
-  border-bottom: 1px solid var(--border-secondary-color);
-}
-
-.page-title {
-  font-size: 1.25rem;
-  font-weight: 700;
-  margin: 0;
-}
-.editor-submit {
-  display: flex;
-  align-items: center;
-  justify-content: flex-end;
-  margin-top: 24px;
-  padding-bottom: 24px;
-}
-.actions {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-}
-
-.action-icon-btn {
-  width: 36px;
-  height: 36px;
-  border-radius: var(--r-s);
-  border: 1px solid var(--border-secondary-color);
-  background: transparent;
-  color: var(--fg-secondary-color);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  cursor: pointer;
-  transition: all 0.2s;
-  font-size: 1.2rem;
-  &:hover {
-    background: var(--bg-hover-color);
-    color: var(--fg-primary-color);
-  }
-}
-
-.preview-toggle {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  background: none;
-  border: none;
-  cursor: pointer;
-  font-weight: 500;
-  color: var(--fg-secondary-color);
-  padding: 6px 12px;
-  border-radius: var(--r-s);
-  transition: all 0.2s;
-  height: 36px;
-  &:hover {
-    background: var(--bg-hover-color);
-    color: var(--fg-primary-color);
-  }
-}
-
-.editor-container {
-  max-width: 800px;
-  margin: 0 auto;
-  padding: 24px 16px;
-  display: flex;
-  flex-direction: column;
-  gap: 32px;
-}
-
-.ai-generation-section {
-  position: relative;
-  background: linear-gradient(
-    135deg,
-    rgba(var(--bg-accent-color-rgb), 0.1) 0%,
-    rgba(var(--bg-primary-color-rgb), 0.5) 100%
-  );
-  border: 1px solid var(--border-accent-color);
-  border-radius: var(--r-m);
-  padding: 20px;
-  box-shadow: 0 4px 20px rgba(var(--bg-accent-color-rgb), 0.05);
-
-  &.is-loading {
-    overflow: hidden;
-    pointer-events: none;
-  }
-
-  .ai-header {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    margin-bottom: 8px;
-    color: var(--fg-accent-color);
-    h3 {
-      margin: 0;
-      font-size: 1.1rem;
-      font-weight: 700;
-    }
-    .ai-icon {
-      font-size: 1.5rem;
-    }
-  }
-
-  .ai-hint {
-    color: var(--fg-secondary-color);
-    font-size: 0.9rem;
-    margin-bottom: 16px;
-    line-height: 1.4;
-  }
-  .ai-btn {
-    margin-top: 16px;
-    width: 100%;
-    justify-content: center;
-  }
-}
-
-.generating-overlay {
-  position: absolute;
-  inset: 0;
-  background: rgba(var(--bg-primary-color-rgb), 0.85);
-  backdrop-filter: blur(4px);
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  z-index: 10;
-  color: var(--fg-accent-color);
-  font-weight: 600;
-  gap: 12px;
-
-  .spinner-icon {
+  .spinner {
+    animation: editor-spin 1s linear infinite;
     font-size: 36px;
-    animation: ai-spin 1.5s linear infinite;
   }
 }
-
-@keyframes ai-spin {
-  from {
-    transform: rotate(0deg);
-  }
-  to {
-    transform: rotate(360deg);
-  }
-}
-
-@keyframes spin {
-  from {
-    transform: rotate(0deg);
-  }
-  to {
-    transform: rotate(360deg);
-  }
-}
-
-.meta-section,
-.details-section,
-.whitelist-section {
-  background-color: var(--bg-secondary-color);
-  padding: 16px;
-  border-radius: var(--r-m);
-  border: 1px solid var(--border-secondary-color);
-}
-
-.whitelist-header {
-  margin-bottom: 16px;
-
-  .title-with-badge {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-
-    .section-icon {
-      font-size: 1.3rem;
-      color: var(--fg-accent-color);
-    }
-  }
-
-  .whitelist-hint {
-    display: block;
-    margin-top: 4px;
-    font-size: 0.85rem;
-    color: var(--fg-secondary-color);
-  }
-}
-
-.whitelist-content {
+.ai-generation-section {
   display: flex;
   flex-direction: column;
-  gap: 12px;
+  gap: 16px;
 }
-
-.search-user-wrapper {
+@keyframes editor-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+.search-user-wrapper,
+.tags-input-container {
   position: relative;
 }
-
-.user-search-dropdown {
+.user-search-dropdown,
+.tags-dropdown {
   position: absolute;
   top: calc(100% + 4px);
   left: 0;
   right: 0;
-  background: var(--bg-secondary-color);
+  background: var(--bg-primary-color);
   border: 1px solid var(--border-secondary-color);
-  border-radius: var(--r-m);
-  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.2);
-  z-index: 50;
+  border-radius: var(--r-s);
+  padding: 8px;
+  box-shadow: var(--s-m);
+  z-index: 30;
   max-height: 220px;
   overflow-y: auto;
 }
-
 .user-search-item {
   display: flex;
   align-items: center;
   gap: 10px;
-  padding: 8px 12px;
+  padding: 8px;
   cursor: pointer;
-  transition: background 0.15s;
-
   &:hover {
-    background: var(--bg-hover-color);
-  }
-
-  .user-info {
-    flex: 1;
-    min-width: 0;
-
-    .user-name {
-      font-weight: 500;
-      font-size: 0.9rem;
-      white-space: nowrap;
-      overflow: hidden;
-      text-overflow: ellipsis;
-    }
-
-    .user-email {
-      font-size: 0.75rem;
-      color: var(--fg-secondary-color);
-      white-space: nowrap;
-      overflow: hidden;
-      text-overflow: ellipsis;
-    }
-  }
-
-  .add-user-action {
-    background: transparent;
-    border: none;
-    color: var(--fg-accent-color);
-    font-size: 1.2rem;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    cursor: pointer;
+    background: var(--bg-secondary-color);
   }
 }
-
+.user-info {
+  flex: 1;
+  min-width: 0;
+  .user-name,
+  .user-email {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    font-size: 14px;
+  }
+  .user-email {
+    font-size: 12px;
+    color: var(--fg-secondary-color);
+  }
+}
+.add-user-action,
+.remove-chip-btn {
+  border: none;
+  background: transparent;
+  color: var(--fg-secondary-color);
+  display: flex;
+  padding: 4px;
+  cursor: pointer;
+}
+.whitelist-content {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
 .whitelist-users-grid {
   display: flex;
   flex-wrap: wrap;
   gap: 8px;
 }
-
 .whitelist-user-chip {
   display: flex;
   align-items: center;
   gap: 6px;
-  background: var(--bg-tertiary-color);
   border: 1px solid var(--border-secondary-color);
-  padding: 4px 8px 4px 6px;
-  border-radius: 20px;
-
+  border-radius: 24px;
+  padding: 4px 8px;
   .chip-name {
-    font-size: 0.85rem;
-    font-weight: 500;
-    max-width: 140px;
-    white-space: nowrap;
+    max-width: 160px;
     overflow: hidden;
     text-overflow: ellipsis;
-  }
-
-  .remove-chip-btn {
-    background: transparent;
-    border: none;
-    color: var(--fg-secondary-color);
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    cursor: pointer;
-    font-size: 0.9rem;
-    padding: 0;
-    margin-left: 2px;
-
-    &:hover {
-      color: var(--fg-error-color);
-    }
+    white-space: nowrap;
+    font-size: 13px;
   }
 }
-
 .whitelist-empty {
   display: flex;
   align-items: center;
   gap: 8px;
-  font-size: 0.85rem;
   color: var(--fg-secondary-color);
-  padding: 8px 0;
-}
-
-.cover-area {
-  height: 180px;
-  border-radius: var(--r-m);
-  overflow: hidden;
-  cursor: pointer;
-  border: 1px solid var(--border-secondary-color);
-  background: var(--bg-tertiary-color);
-  position: relative;
-  margin-bottom: 16px;
-  transition: border-color 0.2s;
-  &:hover {
-    border-color: var(--fg-accent-color);
-    .cover-overlay {
-      opacity: 1;
-    }
-  }
-}
-
-.cover-preview {
-  width: 100%;
-  height: 100%;
-  position: relative;
-  :deep(.kit-image-container) {
-    height: 100%;
-  }
-}
-.cover-overlay {
-  position: absolute;
-  inset: 0;
-  background: rgba(0, 0, 0, 0.3);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  opacity: 0;
-  transition: opacity 0.2s;
-}
-.change-btn {
-  background: white;
-  color: black;
-  border: none;
-  padding: 8px 16px;
-  border-radius: 20px;
-  font-weight: 600;
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  cursor: pointer;
-}
-.cover-placeholder {
-  height: 100%;
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-  align-items: center;
-  justify-content: center;
-  color: var(--fg-secondary-color);
-  span {
-    font-weight: 600;
-  }
-}
-
-.section-title {
-  font-size: 0.8rem;
-  font-weight: 700;
-  margin-bottom: 16px;
-  color: var(--fg-tertiary-color);
-  text-transform: uppercase;
-  letter-spacing: 0.5px;
-}
-.details-grid {
-  display: flex;
-  flex-direction: column;
-  gap: 20px;
-}
-.main-inputs {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-}
-
-.field-group {
-  :deep(.kit-input-wrapper) > input {
-    background: var(--bg-primary-color);
-  }
-  label {
-    display: block;
-    font-size: 0.85rem;
-    font-weight: 600;
-    margin-bottom: 8px;
-    color: var(--fg-secondary-color);
-  }
-  &.dual {
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-    gap: 16px;
-  }
-}
-
-.date-trigger-wrapper {
-  background-color: var(--bg-primary-color);
-  border: 1px solid var(--border-secondary-color);
-  border-radius: var(--r-s);
-  padding: 0 12px;
-  display: flex;
-  align-items: center;
-  cursor: pointer;
-  min-height: 38px;
-  transition: border-color 0.2s;
-  &:hover {
-    border-color: var(--border-focus-color);
-  }
-  .input-icon-prefix {
-    color: var(--fg-tertiary-color);
-    margin-right: 8px;
-    font-size: 1.1rem;
-  }
-  .trigger-text {
-    color: var(--fg-primary-color);
-    font-size: 0.875rem;
-    user-select: none;
-  }
-  &.is-empty .trigger-text {
-    color: var(--fg-tertiary-color);
-  }
-}
-
-.calendar-dropdown-content :deep(.calendar) {
-  background-color: transparent;
-  border: none;
-  box-shadow: none;
-  padding: 4px;
-}
-.duration-editor {
-  display: flex;
-  gap: 8px;
-  align-items: stretch;
-  .duration-val-input {
-    width: 90px;
-    flex-shrink: 0;
-  }
-  .duration-type-select {
-    flex-grow: 1;
-    min-width: 110px;
-  }
-}
-.location-inputs {
-  display: flex;
-  gap: 8px;
-  align-items: flex-start;
-}
-.country-selector {
-  flex: 1;
-  min-width: 200px;
-  :deep(.chip-input-wrapper) {
-    background-color: var(--bg-primary-color) !important;
-  }
-}
-.option-flag {
-  width: 20px;
-  height: 15px;
-  object-fit: cover;
-  border-radius: 2px;
-  border: 1px solid rgba(0, 0, 0, 0.1);
-  flex-shrink: 0;
-}
-.map-btn {
-  width: 38px;
-  height: 38px;
-  flex-shrink: 0;
-  border: 1px solid var(--border-secondary-color);
-  background: var(--bg-tertiary-color);
-  border-radius: var(--r-s);
-  color: var(--fg-secondary-color);
-  cursor: pointer;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  transition: all 0.2s;
-  &:hover {
-    background: var(--bg-hover-color);
-    color: var(--fg-accent-color);
-  }
-  &.has-coords {
-    color: var(--fg-accent-color);
-    border-color: var(--fg-accent-color);
-    background: rgba(var(--fg-accent-color-rgb), 0.1);
-  }
-}
-
-.tags-input-container {
-  position: relative;
-}
-.tags-dropdown {
-  position: absolute;
-  top: calc(100% + 4px);
-  left: 0;
-  width: 100%;
-  background: var(--bg-primary-color);
-  border: 1px solid var(--border-secondary-color);
-  border-radius: var(--r-s);
-  padding: 8px;
-  box-shadow: var(--s-l);
-  z-index: 10;
-}
-.suggested-tags-wrapper {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 6px;
-}
-.suggested-tag-btn {
-  background: var(--bg-tertiary-color);
-  color: var(--fg-primary-color);
-  border: 1px solid var(--border-secondary-color);
-  border-radius: var(--r-s);
-  padding: 4px 10px;
-  font-size: 0.85rem;
-  cursor: pointer;
-  transition: all 0.2s;
-  &:hover {
-    background: rgba(var(--fg-accent-color-rgb), 0.1);
-    color: var(--fg-accent-color);
-    border-color: var(--fg-accent-color);
-  }
+  font-size: 13px;
 }
 .tags-input-wrapper {
   display: flex;
   flex-wrap: wrap;
   gap: 6px;
-  padding: 6px;
-  background: var(--bg-primary-color);
-  border: 1px solid var(--border-secondary-color);
+  border: 1px solid var(--border-primary-color);
   border-radius: var(--r-s);
-  min-height: 42px;
-  &:focus-within {
-    border-color: var(--fg-accent-color);
-  }
-}
-.tag-chip {
-  background: rgba(var(--fg-accent-color-rgb), 0.1);
-  color: var(--fg-accent-color);
-  padding: 0px 8px;
-  border-radius: 4px;
-  font-size: 0.85rem;
-  display: flex;
-  align-items: center;
-  gap: 4px;
-  font-weight: 500;
-  .remove {
-    cursor: pointer;
-    font-size: 1.1rem;
-    line-height: 0.8;
-    &:hover {
-      opacity: 0.7;
-    }
-  }
+  background: var(--bg-secondary-color);
+  padding: 8px;
+  min-height: 40px;
 }
 .tag-input {
+  flex: 1;
+  min-width: 80px;
   border: none;
   background: transparent;
   outline: none;
-  flex: 1;
-  min-width: 80px;
   color: var(--fg-primary-color);
-  font-size: 0.9rem;
+  font-size: 14px;
+  &::placeholder {
+    color: var(--fg-secondary-color);
+  }
 }
-.add-stage-btn {
-  width: 100%;
-  justify-content: center;
-  padding: 12px;
-  margin-top: 16px;
+.tag-chip {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  border-radius: 4px;
+  padding: 2px 8px;
+  background: var(--bg-primary-color);
+  font-size: 13px;
+  .remove {
+    cursor: pointer;
+  }
 }
 
-@include media-down(sm) {
-  .field-group.dual {
-    grid-template-columns: 1fr;
-    gap: 12px;
+:global(.post-date-dropdown.kit-dropdown-content) {
+  min-width: 0;
+  padding: 0;
+  overflow: visible;
+  border: 0;
+  background: transparent;
+  box-shadow: none;
+}
+.suggested-tags-wrapper {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.suggested-tag-btn {
+  border: 1px solid var(--border-secondary-color);
+  background: var(--bg-secondary-color);
+  color: var(--fg-primary-color);
+  padding: 6px 10px;
+  border-radius: var(--r-s);
+  cursor: pointer;
+}
+@media (max-width: 640px) {
+  .editor-topbar {
+    gap: 8px;
+    padding: 12px 0 20px;
+    align-items: flex-start;
+    > button {
+      font-size: 12px;
+      padding: 8px;
+    }
   }
-  .location-inputs {
-    flex-wrap: wrap;
+  .editor-heading {
+    gap: 4px;
   }
-  .country-selector {
-    width: 100%;
-    flex: 100%;
-    min-width: 100%;
+  .page-title {
+    font-size: 18px;
+  }
+  .post-status {
+    font-size: 11px;
+  }
+  .editor-navigation {
+    margin-bottom: 24px;
+    :deep(.kit-view-switcher-button) {
+      padding: 8px;
+      gap: 5px;
+      font-size: 12px;
+    }
+    :deep(.kit-view-switcher .kit-view-switcher-button .kit-view-switcher-label) {
+      display: inline;
+    }
+    :deep(.kit-view-switcher-icon) {
+      display: none;
+    }
+  }
+  .meta-section {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 16px;
+  }
+  .cover-area {
+    min-height: 120px;
+  }
+  .cover-placeholder {
+    flex-direction: row;
+    padding: 16px;
+  }
+  .essentials-grid {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 16px;
+  }
+  .summary-hint {
+    font-size: 11px;
+  }
+  .panel-heading h2 {
+    font-size: 19px;
+  }
+  .editor-panel {
+    min-height: 360px;
+    padding-bottom: 16px;
+  }
+  .timeline-tools {
+    gap: 8px;
+    > button {
+      font-size: 12px;
+      padding: 10px;
+    }
+  }
+  .footer-status {
+    display: none;
+  }
+  .editor-submit {
+    padding: 12px 0;
+  }
+  .submit-actions {
+    flex: 1;
+    gap: 8px;
+    > button {
+      flex: 1;
+      font-size: 12px;
+      padding: 10px 8px;
+    }
+  }
+  .publication-summary {
+    padding: 16px;
+    flex-direction: column;
+    align-items: stretch;
+    gap: 16px;
+    > button {
+      align-self: flex-start;
+    }
+  }
+  .publication-symbol,
+  .publication-cover {
+    width: 56px;
+    height: 56px;
+    flex-basis: 56px;
+  }
+  .publication-copy h3 {
+    font-size: 17px;
+  }
+  .optional-section > summary {
+    padding: 14px;
+    gap: 10px;
+  }
+  .optional-content {
+    padding: 0 14px 16px;
+  }
+  .danger-action {
+    justify-content: flex-start;
   }
 }
 </style>

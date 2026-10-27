@@ -35,6 +35,10 @@ export class PostRepository implements IPostRepository {
     return trpc.post.getUniqueTags.query(params)
   }
 
+  async describeMediaTimeline(params: { groups: { id: number, count: number, frame: string }[] }) {
+    return trpc.post.describeMediaTimeline.mutate(params)
+  }
+
   async generateFromText(params: { text: string }) {
     return trpc.post.generateFromText.mutate(params)
   }

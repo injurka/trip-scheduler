@@ -2,14 +2,26 @@ import type { EntityType, IFileRepository, TripDocumentResponse } from '../model
 import type { ImageMetadata, TripMedia, TripMediaPlacement } from '~/shared/types/models/trip'
 import { ofetch } from 'ofetch'
 import { SERVER_URL } from '~/shared/lib/env'
+import { resolveApiUrl } from '~/shared/lib/url'
 import { refreshTokensIfNeeded } from '~/shared/services/trpc/auth-token.service'
 import { trpc } from '~/shared/services/trpc/trpc.service'
 import { TOKEN_KEY, useAuthStore } from '~/shared/store/auth.store'
 import { throttle } from '../lib/decorators'
 
+const MULTIPART_UPLOAD_THRESHOLD = 20 * 1024 * 1024
+const VIDEO_FILE_EXTENSION = /\.(?:mp4|webm|mov|mkv|avi|ogg|quicktime)$/i
+
+function isVideoFile(file: File): boolean {
+  return file.type.startsWith('video/') || VIDEO_FILE_EXTENSION.test(file.name)
+}
+
+function shouldUseMultipartUpload(file: File): boolean {
+  return file.size > MULTIPART_UPLOAD_THRESHOLD || isVideoFile(file)
+}
+
 export class FileRepository implements IFileRepository {
   /**
-   * Загружает файл на сервер (используя FormData) с указанием типа сущности.
+   * Загружает файл на сервер, используя multipart для видео и крупных файлов.
    */
   async uploadFile(
     file: File,
@@ -20,6 +32,33 @@ export class FileRepository implements IFileRepository {
     comment?: string | null,
     metadata?: Record<string, any>,
   ): Promise<TripMedia> {
+    if (shouldUseMultipartUpload(file)) {
+      const signal = new AbortController().signal
+      const uploadMultipart = () => this.uploadMultipartWithProgress(
+        file,
+        entityId,
+        entityType,
+        placement || null,
+        () => {},
+        signal,
+        metadata,
+      )
+
+      try {
+        return await uploadMultipart()
+      }
+      catch (err: any) {
+        if (err.status !== 401 && err.statusCode !== 401 && err.response?.status !== 401)
+          throw err
+
+        const refreshed = await refreshTokensIfNeeded()
+        if (!refreshed)
+          throw err
+
+        return await uploadMultipart()
+      }
+    }
+
     const formData = new FormData()
     formData.append('file', file)
     formData.append('entityId', entityId)
@@ -71,9 +110,11 @@ export class FileRepository implements IFileRepository {
     placement: string | null,
     onProgress: (percentage: number) => void,
     signal: AbortSignal,
+    metadata?: Record<string, any>,
   ): Promise<TripMedia> {
     const serverUrl = SERVER_URL
-    const accessToken = localStorage.getItem(TOKEN_KEY)
+    const authStore = useAuthStore()
+    const accessToken = authStore.tokenPair?.accessToken || localStorage.getItem(TOKEN_KEY)
     const headers: Record<string, string> = {
       'Authorization': `Bearer ${accessToken}`,
       'Content-Type': 'application/json',
@@ -169,6 +210,7 @@ export class FileRepository implements IFileRepository {
           parts: completedParts,
           fileName: file.name,
           fileSize: file.size,
+          metadata,
         },
       })
 
@@ -199,7 +241,7 @@ export class FileRepository implements IFileRepository {
     onProgress: (percentage: number) => void,
     signal: AbortSignal,
   ): Promise<TripMedia> {
-    if (file.size > 20 * 1024 * 1024 || file.type.startsWith('video/')) {
+    if (shouldUseMultipartUpload(file)) {
       return this.uploadMultipartWithProgress(file, entityId, entityType, placement, onProgress, signal)
     }
 
@@ -277,6 +319,10 @@ export class FileRepository implements IFileRepository {
   @throttle(500)
   async deleteFile(id: string): Promise<void> {
     await trpc.image.delete.mutate({ id })
+  }
+
+  async downloadMediaPreview(path: string): Promise<Blob> {
+    return ofetch(resolveApiUrl(path), { responseType: 'blob' })
   }
 
   @throttle(300)

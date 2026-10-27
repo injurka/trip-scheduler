@@ -136,7 +136,7 @@ export async function uploadChunkController(c: Context) {
   const chunkBuffer = Buffer.from(await c.req.arrayBuffer())
 
   try {
-    const part = await imageUploadService.uploadChunk(key, uploadId, partNumber, chunkBuffer)
+    const part = await imageUploadService.uploadChunk(key, uploadId, partNumber, chunkBuffer, user.id, user.role)
     return c.json(part)
   }
   catch (error: any) {
@@ -207,7 +207,7 @@ export async function abortMultipartUploadController(c: Context) {
   }
 
   try {
-    await imageUploadService.abortMultipart(key, uploadId)
+    await imageUploadService.abortMultipart(key, uploadId, user.id, user.role)
     return c.json({ success: true })
   }
   catch (error: any) {

@@ -10,6 +10,7 @@ import { updateDatabaseMetrics } from './lib/db-monitoring'
 import { Logger } from './lib/logger'
 import { dumpService } from './services/dump.service'
 import { s3Service } from './services/s3.service'
+import { processStorageCleanup } from './services/storage-cleanup.service'
 import { telegramAuthService } from './services/telegram-auth.service'
 
 const logger = new Logger()
@@ -69,6 +70,9 @@ try {
       createDump('Запуск еженедельного дампа базы данных по расписанию...')
     })
   }
+
+  void processStorageCleanup()
+  setInterval(() => void processStorageCleanup(), 30_000)
 
   logger.success('Server is ready 🚀')
 }

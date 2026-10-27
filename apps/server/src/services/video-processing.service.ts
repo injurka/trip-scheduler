@@ -7,6 +7,7 @@ import { db } from 'db'
 import { postMedia, tripImages } from 'db/schema'
 import { eq } from 'drizzle-orm'
 import { s3Service } from './s3.service'
+import { trackPendingPostUpload } from './storage-cleanup.service'
 
 const execFileAsync = promisify(execFile)
 
@@ -134,6 +135,10 @@ class VideoProcessingService {
     const webVideoPath = path.join(tmpDir, 'web.mp4')
 
     try {
+      if (s3Key.startsWith('posts/')) {
+        const base = s3Key.slice(0, -ext.length)
+        await trackPendingPostUpload([`${base}-poster.webp`, `${base}-web.mp4`], s3Key)
+      }
       // 1. Скачиваем оригинальное видео во временный файл потоком
       const streamRes = await s3Service.getObjectStream(s3Key)
       if (!streamRes || !streamRes.stream) {

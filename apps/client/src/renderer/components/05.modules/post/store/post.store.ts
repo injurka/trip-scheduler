@@ -77,7 +77,7 @@ export const usePostStore = defineStore('post-main', {
     nextCursor: undefined as string | undefined,
     filters: {
       search: '',
-      tab: 'explore' as 'explore' | 'saved',
+      tab: 'explore' as 'explore' | 'saved' | 'drafts',
     },
     hasLoaded: false,
   }),
@@ -94,24 +94,34 @@ export const usePostStore = defineStore('post-main', {
         return
 
       const cursor = reload ? undefined : this.nextCursor
+      const requestedTab = this.filters.tab
+      const requestedSearch = this.filters.search
+      if (reload && requestedTab === 'drafts') {
+        this.posts = []
+        this.nextCursor = undefined
+      }
 
       const filters: ListPostsFilters = {
         limit: 10,
         cursor,
         query: this.filters.search || undefined,
         onlySaved: this.filters.tab === 'saved',
+        onlyDrafts: this.filters.tab === 'drafts',
       }
 
       await useRequest<{ items: PostDetail[], nextCursor?: string }>({
         key: EPostRequestKeys.LIST,
         fn: db => db.posts.list(filters),
         onSuccess: (data) => {
-          if (!data)
+          if (!data || requestedTab !== this.filters.tab || requestedSearch !== this.filters.search)
             return
+          const visibleItems = requestedTab === 'drafts'
+            ? data.items.filter(post => post.status === 'draft')
+            : data.items
           if (reload)
-            this.posts = data.items
+            this.posts = visibleItems
           else
-            this.posts.push(...data.items)
+            this.posts.push(...visibleItems)
 
           this.nextCursor = data.nextCursor
           this.hasLoaded = true
@@ -145,6 +155,13 @@ export const usePostStore = defineStore('post-main', {
         fn: db => db.posts.delete({ id }),
         onSuccess: () => {
           this.posts = this.posts.filter(p => p.id !== id)
+          localStorage.removeItem(`trip_scheduler_post_draft_${id}`)
+          try {
+            const draft = JSON.parse(localStorage.getItem('trip_scheduler_post_draft_new') || 'null')
+            if (draft?.createdServerId === id || draft?.post?.id === id)
+              localStorage.removeItem('trip_scheduler_post_draft_new')
+          }
+          catch { /* Ignore a corrupt local cache; the server deletion succeeded. */ }
         },
       })
     },
@@ -196,13 +213,17 @@ export const usePostStore = defineStore('post-main', {
 
     setSearch(query: string) {
       this.filters.search = query
+      this.posts = []
+      this.nextCursor = undefined
       this.fetchPosts(true)
     },
 
-    setTab(tab: 'explore' | 'saved') {
+    setTab(tab: 'explore' | 'saved' | 'drafts') {
       if (this.filters.tab === tab)
         return
       this.filters.tab = tab
+      this.posts = []
+      this.nextCursor = undefined
       this.fetchPosts(true)
     },
   },

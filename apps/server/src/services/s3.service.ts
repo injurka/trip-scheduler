@@ -111,6 +111,7 @@ class S3Service {
     }
     catch (e) {
       console.error(`S3 AbortMultipartUpload Error for key ${key}:`, e)
+      throw e
     }
   }
 
@@ -146,6 +147,7 @@ class S3Service {
     }
     catch (error) {
       console.error(`S3 Delete Error for key ${key}:`, error)
+      throw error
     }
   }
 
@@ -157,7 +159,7 @@ class S3Service {
     try {
       for (let i = 0; i < validKeys.length; i += 1000) {
         const chunk = validKeys.slice(i, i + 1000)
-        await this.client.send(
+        const result = await this.client.send(
           new DeleteObjectsCommand({
             Bucket: this.bucket,
             Delete: {
@@ -166,6 +168,8 @@ class S3Service {
             },
           }),
         )
+        if (result.Errors?.length)
+          throw new Error(`S3 failed to delete: ${result.Errors.map(error => error.Key).join(', ')}`)
       }
     }
     catch (error: any) {
@@ -176,7 +180,7 @@ class S3Service {
         const CONCURRENCY = 25
         for (let i = 0; i < validKeys.length; i += CONCURRENCY) {
           const batch = validKeys.slice(i, i + CONCURRENCY)
-          await Promise.allSettled(
+          await Promise.all(
             batch.map(Key =>
               this.client.send(
                 new DeleteObjectCommand({
@@ -190,6 +194,7 @@ class S3Service {
       }
       catch (fallbackError) {
         console.error('S3 DeleteFiles fallback Error:', fallbackError)
+        throw fallbackError
       }
     }
   }
@@ -240,6 +245,7 @@ class S3Service {
     }
     catch (error) {
       console.error(`S3 DeleteFolder Error for prefix ${prefix}:`, error)
+      throw error
     }
   }
 

@@ -2,8 +2,7 @@ import type { z } from 'zod'
 import type { CreatePostInputSchema, ListPostsInputSchema, UpdatePostInputSchema } from './post.schemas'
 import { createTRPCError } from '~/lib/trpc'
 import { postRepository } from '~/repositories/post.repository'
-import { deleteFileWithVariants } from '~/services/file-storage.service'
-import { quotaService } from '~/services/quota.service'
+import { processStorageCleanup } from '~/services/storage-cleanup.service'
 
 export const postService = {
   async getAll(filters: z.infer<typeof ListPostsInputSchema>, userId?: string, userRole?: string) {
@@ -44,6 +43,12 @@ export const postService = {
       metadata,
       type: metadata?.mediaType === 'video' ? 'video' : 'image',
       isPrivate: metadata?.isPrivate === true || false,
+      variants: metadata?.variants || {},
+      takenAt: metadata?.takenAt ? new Date(metadata.takenAt) : null,
+      latitude: metadata?.latitude,
+      longitude: metadata?.longitude,
+      width: metadata?.width,
+      height: metadata?.height,
     })
   },
 
@@ -56,26 +61,9 @@ export const postService = {
       throw createTRPCError('FORBIDDEN', 'У вас нет прав на редактирование этого поста.')
     }
 
-    let mediaToDelete: any[] = []
-    if (input.data.mediaIds !== undefined) {
-      const existingMedia = await postRepository.getMediaByPostId(input.id)
-      mediaToDelete = existingMedia.filter(m => !input.data.mediaIds!.includes(m.id))
-    }
-
     const updated = await postRepository.update(input.id, input.data)
     if (!updated) {
       throw createTRPCError('INTERNAL_SERVER_ERROR', 'Не удалось обновить пост.')
-    }
-
-    if (mediaToDelete.length > 0) {
-      for (const media of mediaToDelete) {
-        await deleteFileWithVariants({
-          url: media.url,
-          variants: (media.metadata as any)?.variants || {},
-        }).catch(e => console.error(`Failed to delete post media ${media.id} from S3`, e))
-
-        await quotaService.decrementStorageUsage(existingPost.user.id, media.sizeBytes).catch(console.error)
-      }
     }
 
     return updated
@@ -90,18 +78,8 @@ export const postService = {
       throw createTRPCError('FORBIDDEN', 'У вас нет прав на удаление этого поста.')
     }
 
-    const existingMedia = await postRepository.getMediaByPostId(id)
-
     const deleted = await postRepository.delete(id)
-
-    for (const media of existingMedia) {
-      await deleteFileWithVariants({
-        url: media.url,
-        variants: (media.metadata as any)?.variants || {},
-      }).catch(e => console.error(`Failed to delete post media ${media.id} from S3`, e))
-
-      await quotaService.decrementStorageUsage(existingPost.user.id, media.sizeBytes).catch(console.error)
-    }
+    void processStorageCleanup()
 
     return deleted
   },
@@ -119,12 +97,7 @@ export const postService = {
 
     await postRepository.deleteMedia(mediaId)
 
-    await deleteFileWithVariants({
-      url: media.url,
-      variants: (media.metadata as any)?.variants || {},
-    }).catch(e => console.error(`Failed to delete post media ${media.id} from S3`, e))
-
-    await quotaService.decrementStorageUsage(media.post.userId, media.sizeBytes).catch(console.error)
+    void processStorageCleanup()
 
     return { success: true }
   },

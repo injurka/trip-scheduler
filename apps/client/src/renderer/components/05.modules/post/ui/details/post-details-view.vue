@@ -12,9 +12,9 @@ import { KitDropdown } from '~/components/01.kit/kit-dropdown'
 import { KitTooltip } from '~/components/01.kit/kit-tooltip'
 import { NavigationBack } from '~/components/02.shared/navigation-back'
 import { TripComments } from '~/components/04.features/trip-info/trip-comments'
+import { useDisplay } from '~/shared/composables/use-display'
 import { useToast } from '~/shared/composables/use-toast'
 import { AppRoutePaths } from '~/shared/constants/routes'
-import { isValidCoordinate } from '~/shared/services/geo'
 import { CommentParentType } from '~/shared/types/models/comment'
 import { usePostStore } from '../../store/post.store'
 import PostHero from './post-hero.vue'
@@ -39,8 +39,21 @@ const isOwner = computed(() => !!user.value && user.value.id === props.post.user
 const activeStageId = ref(props.post.stages?.[0]?.id)
 const isMapVisible = ref(false)
 const isMapPinned = ref(false)
-const mapFocusCoords = ref<[number, number] | null>(null)
+const { mobile } = useDisplay()
+const hasMapContent = computed(() => props.post.elements?.some(element => element.content.some((block: any) => {
+  if (block.type === 'location')
+    return block.location?.lat != null && block.location?.lng != null
+  return block.type === 'route' && (block.route?.geometry?.length ?? 0) >= 2
+})) ?? false)
 const mapFocusBlockId = ref<string | null>(null)
+const mapFocusRequest = ref(0)
+
+watch(mobile, (isMobile) => {
+  if (isMobile && isMapPinned.value) {
+    isMapVisible.value = true
+    isMapPinned.value = false
+  }
+})
 
 watch(isMapPinned, (val) => {
   emit('mapPinnedChange', val)
@@ -106,35 +119,17 @@ function scrollToStage(id: string) {
 
 function pinMap() {
   isMapVisible.value = true
-  isMapPinned.value = true
+  if (!mobile.value)
+    isMapPinned.value = true
 }
 
 function handleFocusBlock(block: TimelineBlock) {
-  // Тоггл: если кликнули по тому же блоку, сбрасываем фокус
-  if (mapFocusBlockId.value === block.id) {
-    mapFocusBlockId.value = null
-    mapFocusCoords.value = null
-  }
-  else {
-    isMapVisible.value = true
-    mapFocusBlockId.value = block.id
+  mapFocusRequest.value++
+  isMapVisible.value = true
+  if (!mobile.value && hasMapContent.value && !props.isPreviewMode)
+    isMapPinned.value = true
 
-    if (block.type === 'location' && block.coords) {
-      let lat = Number(block.coords.lat)
-      let lng = Number(block.coords.lng)
-      if (Math.abs(lat) > 90 && Math.abs(lng) <= 90) {
-        const temp = lat
-        lat = lng
-        lng = temp
-      }
-      const coords: [number, number] = [lng, lat]
-      mapFocusCoords.value = isValidCoordinate(coords) ? coords : null
-    }
-    else if (block.type === 'route' && (block as any).geometry && (block as any).geometry.length > 0) {
-      const firstCoord = (block as any).geometry[0]
-      mapFocusCoords.value = isValidCoordinate(firstCoord) ? firstCoord : null
-    }
-  }
+  mapFocusBlockId.value = block.id
 }
 </script>
 
@@ -216,8 +211,8 @@ function handleFocusBlock(block: TimelineBlock) {
           v-model:visible="isMapVisible"
           v-model:pinned="isMapPinned"
           :post="post"
-          :focus-coords="mapFocusCoords"
           :focus-block-id="mapFocusBlockId"
+          :focus-request="mapFocusRequest"
         />
       </div>
     </div>
@@ -235,7 +230,7 @@ function handleFocusBlock(block: TimelineBlock) {
       </section>
     </div>
 
-    <div v-if="!isMapPinned" class="map-fab-group">
+    <div v-if="!isMapPinned && !(mobile && isMapVisible)" class="map-fab-group">
       <KitTooltip text="Показать на карте">
         <button class="fab-main" @click="isMapVisible = true">
           <Icon icon="mdi:map" />
@@ -528,6 +523,9 @@ function handleFocusBlock(block: TimelineBlock) {
       display: none;
     }
   }
+}
+
+@include media-down(md) {
   .fab-divider,
   .fab-pin {
     display: none;

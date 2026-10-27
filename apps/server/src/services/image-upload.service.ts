@@ -14,6 +14,7 @@ import { extractAndStructureMetadata, generateImageVariants } from '~/services/i
 import { fileUploadsCounter, fileUploadSizeBytesHistogram } from '~/services/metrics.service'
 import { quotaService } from '~/services/quota.service'
 import { s3Service } from '~/services/s3.service'
+import { trackPendingPostUpload } from '~/services/storage-cleanup.service'
 import { videoProcessingService } from '~/services/video-processing.service'
 
 const tripHandler: IUploadHandler = {
@@ -176,6 +177,9 @@ export class ImageUploadService {
     const variantUrls: Record<string, string> = {}
     let variantsTotalSize = 0
 
+    if (entityType === 'post')
+      await trackPendingPostUpload([paths.path, ...Object.keys(variants).map(paths.getVariantPaths)], paths.path)
+
     await Promise.all(
       Object.entries(variants).map(async ([name, variantBuffer]) => {
         const vPaths = paths.getVariantPaths(name)
@@ -198,7 +202,7 @@ export class ImageUploadService {
       })
     }
 
-    if (entityType !== 'avatar' && entityType !== 'blog') {
+    if (entityType !== 'avatar' && entityType !== 'blog' && entityType !== 'post') {
       await quotaService.incrementStorageUsage(ctx.userId, totalSize)
     }
 
@@ -246,6 +250,15 @@ export class ImageUploadService {
 
     const paths = generateFilePaths(folderPath, ctx.fileName)
     const uploadId = await s3Service.createMultipartUpload(paths.path, ctx.fileType)
+    if (entityType === 'post') {
+      try {
+        await trackPendingPostUpload([paths.path], paths.path, uploadId)
+      }
+      catch (error) {
+        await s3Service.abortMultipartUpload(paths.path, uploadId)
+        throw error
+      }
+    }
 
     return {
       uploadId,
@@ -254,7 +267,16 @@ export class ImageUploadService {
     }
   }
 
-  async uploadChunk(key: string, uploadId: string, partNumber: number, chunkBuffer: Buffer | Uint8Array) {
+  private async validatePostKey(key: string, userId: string, userRole: string) {
+    if (!key.startsWith('posts/'))
+      return
+    const post = await postRepository.findById(key.split('/')[1])
+    if (!post || (post.userId !== userId && userRole !== 'admin'))
+      throw new HTTPException(403, { message: 'Нет доступа к медиатеке поста.' })
+  }
+
+  async uploadChunk(key: string, uploadId: string, partNumber: number, chunkBuffer: Buffer | Uint8Array, userId: string, userRole: string) {
+    await this.validatePostKey(key, userId, userRole)
     return await s3Service.uploadPart(key, uploadId, partNumber, chunkBuffer)
   }
 
@@ -277,6 +299,18 @@ export class ImageUploadService {
     if (!handler)
       throw new HTTPException(400, { message: 'Неизвестный тип сущности.' })
 
+    const validationContext: UploadContext = {
+      userId: ctx.userId,
+      userRole: ctx.userRole,
+      entityId: ctx.entityId,
+      placement: ctx.placement,
+      file: { name: ctx.fileName, size: ctx.fileSize, type: 'application/octet-stream' } as File,
+      buffer: Buffer.alloc(0),
+    }
+    await handler.validate(validationContext)
+    const expectedFolder = `${handler.getFolderPath(validationContext)}/`
+    if (!ctx.key.startsWith(expectedFolder) || ctx.key.slice(expectedFolder.length).includes('/'))
+      throw new HTTPException(403, { message: 'Файл не принадлежит этой сущности.' })
     await s3Service.completeMultipartUpload(ctx.key, ctx.uploadId, ctx.parts)
 
     const isVideo = /\.(?:mp4|webm|mov|mkv|avi|ogg|quicktime)$/i.test(ctx.fileName)
@@ -311,7 +345,7 @@ export class ImageUploadService {
       })
     }
 
-    if (entityType !== 'avatar' && entityType !== 'blog') {
+    if (entityType !== 'avatar' && entityType !== 'blog' && entityType !== 'post') {
       await quotaService.incrementStorageUsage(ctx.userId, ctx.fileSize)
     }
 
@@ -321,7 +355,8 @@ export class ImageUploadService {
     return { url: ctx.key, variants: {}, dbRecord, metadata }
   }
 
-  async abortMultipart(key: string, uploadId: string) {
+  async abortMultipart(key: string, uploadId: string, userId: string, userRole: string) {
+    await this.validatePostKey(key, userId, userRole)
     await s3Service.abortMultipartUpload(key, uploadId)
   }
 }

@@ -6,7 +6,7 @@ import { usePostStore } from '../../store/post.store'
 const store = usePostStore()
 const { filters } = storeToRefs(store)
 
-function handleTabChange(tab: 'explore' | 'saved') {
+function handleTabChange(tab: 'explore' | 'saved' | 'drafts') {
   store.setTab(tab)
 }
 
@@ -36,6 +36,9 @@ watchDebounced(
           @click="handleTabChange('saved')"
         >
           Сохраненное
+        </button>
+        <button class="tab-btn" :class="{ active: filters.tab === 'drafts' }" @click="handleTabChange('drafts')">
+          Черновики
         </button>
       </div>
 
