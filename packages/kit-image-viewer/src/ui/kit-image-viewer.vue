@@ -11,6 +11,7 @@ import {
   useImageViewerUi,
 } from '../composables'
 import ImageMetadataPanel from './kit-image-metadata-panel.vue'
+import KitVideoPlayer from './kit-video-player.vue'
 import KitViewerControls from './kit-viewer-controls.vue'
 
 interface Props {
@@ -718,21 +719,13 @@ onUnmounted(() => {
                         ? { aspectRatio: `${images[i].meta?.width}/${images[i].meta?.height}` }
                         : undefined"
                     >
-                      <video
+                      <KitVideoPlayer
                         v-if="isVideoImage(images[i]) && i === currentIndex"
+                        v-show="!imageLoadStates[i]?.error"
                         :key="images[i].url"
-                        :ref="setVideoRef"
                         :src="getImageUrl(images[i], 'original')"
-                        class="viewer-image viewer-video"
-                        :class="{
-                          'loaded': imageLoadStates[i]?.loaded,
-                          'has-error': imageLoadStates[i]?.error,
-                          'is-ui-hidden': !isUiVisible,
-                        }"
-                        :aria-label="images[i]?.alt || `Видео ${i + 1}`"
-                        controls
-                        playsinline
-                        :preload="i === currentIndex ? 'metadata' : 'none'"
+                        :label="images[i]?.alt || `Видео ${i + 1}`"
+                        @ready="setVideoRef"
                         @loadedmetadata="e => handleVideoLoadedMetadata(i, e)"
                         @error="e => handleImageError(i, e)"
                       />
@@ -1678,7 +1671,7 @@ onUnmounted(() => {
     height: 100%;
     max-width: 100%;
     max-height: 100%;
-    background: #000;
+    background: transparent;
     opacity: 1;
     touch-action: auto;
   }

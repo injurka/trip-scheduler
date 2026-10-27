@@ -164,6 +164,7 @@ describe('kitImageViewer - video playback', () => {
       global: { stubs: { Icon: true, ImageMetadataPanel: true } },
     })
     try {
+      await nextTick()
       const video = document.querySelector('video.viewer-video') as HTMLVideoElement
       expect(document.querySelectorAll('video.viewer-video')).toHaveLength(1)
       expect(video.getAttribute('src')).toBe('/clip.mp4?token=test')
