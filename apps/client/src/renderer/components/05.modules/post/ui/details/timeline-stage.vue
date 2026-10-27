@@ -36,7 +36,7 @@ const stageColor = computed(() => {
 
     <div class="stage-content">
       <header class="stage-header">
-        <h4 class="stage-title">
+        <h4 v-if="stage.title.trim()" class="stage-title">
           {{ stage.title }}
         </h4>
         <div class="stage-meta">

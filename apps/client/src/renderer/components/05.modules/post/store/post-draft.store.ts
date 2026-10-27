@@ -374,7 +374,7 @@ export const usePostDraftStore = defineStore('post-draft', {
               })
             : []
 
-          return { id: uuidv4(), title: stage.title || `Этап ${sIdx + 1}`, day: stage.day || 1, time: stage.time || '', order: sIdx, blocks } as unknown as TimelineStage
+          return { id: uuidv4(), title: stage.title ?? `Этап ${sIdx + 1}`, day: stage.day || 1, time: stage.time || '', order: sIdx, blocks } as unknown as TimelineStage
         })
       }
       this.isDirty = true

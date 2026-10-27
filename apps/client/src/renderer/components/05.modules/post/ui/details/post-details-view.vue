@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import type { KitDropdownItem } from '~/components/01.kit/kit-dropdown'
-import type { PostDetail, TimelineBlock } from '~/shared/types/models/post'
+import type { PostDetail, TimelineBlock, TimelineStage as TimelineStageModel } from '~/shared/types/models/post'
 import { Icon } from '@iconify/vue'
 import { useResizeObserver } from '@vueuse/core'
 import { storeToRefs } from 'pinia'
@@ -117,6 +117,13 @@ function scrollToStage(id: string) {
   }
 }
 
+function stageNavigationLabel(stage: TimelineStageModel, index: number): string {
+  if (stage.title.trim())
+    return stage.title
+  const day = stage.day || index + 1
+  return stage.time ? `День ${day} · ${stage.time}` : `День ${day}`
+}
+
 function pinMap() {
   isMapVisible.value = true
   if (!mobile.value)
@@ -169,13 +176,13 @@ function handleFocusBlock(block: TimelineBlock) {
             @scroll="updateScrollState"
           >
             <button
-              v-for="stage in post.stages"
+              v-for="(stage, index) in post.stages"
               :key="stage.id"
               class="nav-tab"
               :class="{ active: activeStageId === stage.id }"
               @click="scrollToStage(stage.id)"
             >
-              {{ stage.title }}
+              {{ stageNavigationLabel(stage, index) }}
             </button>
           </div>
         </div>

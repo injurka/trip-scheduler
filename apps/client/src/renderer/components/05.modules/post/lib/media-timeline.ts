@@ -94,7 +94,7 @@ export async function readTimelineMedia(file: File): Promise<TimelineMedia> {
 }
 
 function captureTimestampFromFilename(name: string): string {
-  const match = name.match(/(?:^|\D)(20\d{2})[-_]?(\d{2})[-_]?(\d{2})[T_ -]?(\d{2})[._:-]?(\d{2})[._:-]?(\d{2})(?:\D|$)/)
+  const match = name.match(/(?:^|\D)(20\d{2})[-_]?(\d{2})[-_]?(\d{2})[T_ -]?(\d{2})[._:-]?(\d{2})[._:-]?(\d{2})\d{0,3}(?:\D|$)/)
   if (!match)
     return ''
   const [, y, m, d, h, min, sec] = match
@@ -136,7 +136,7 @@ export function groupTimelineMedia(items: TimelineMedia[], gapMinutes = 60): Med
       || time - new Date(previous.capturedAt).getTime() > gapMinutes * 60000
       || time - new Date(last.items[0].capturedAt).getTime() > 3 * 3600000
       || distanceKm(previous, item) > 2) {
-      groups.push({ items: [item], title: `Активность ${groups.length + 1}`, date: item.capturedAt.slice(0, 10), time: item.capturedAt.slice(11, 16) })
+      groups.push({ items: [item], title: '', date: item.capturedAt.slice(0, 10), time: item.capturedAt.slice(11, 16) })
     }
     else {
       last.items.push(item)
@@ -144,7 +144,7 @@ export function groupTimelineMedia(items: TimelineMedia[], gapMinutes = 60): Med
   }
   const unknown = items.filter(item => !item.capturedAt)
   if (unknown.length)
-    groups.push({ items: unknown, title: 'Без даты съёмки', date: '', time: '' })
+    groups.push({ items: unknown, title: '', date: '', time: '' })
   return groups
 }
 

@@ -3,11 +3,14 @@ import type { PostMedia } from '~/shared/types/models/post'
 import { Icon } from '@iconify/vue'
 import { useFileDialog } from '@vueuse/core'
 import { storeToRefs } from 'pinia'
-import { ref, watch } from 'vue'
+import { computed, ref, watch } from 'vue'
 import draggable from 'vuedraggable'
 import { KitBtn } from '~/components/01.kit/kit-btn'
 import { KitDialogWithClose } from '~/components/01.kit/kit-dialog-with-close'
 import { KitImage } from '~/components/01.kit/kit-image'
+import { KitInput } from '~/components/01.kit/kit-input'
+import { resolveApiUrl } from '~/shared/lib/url'
+import { readStoredTimelineMedia } from '../../../lib/media-timeline'
 import { usePostDraftStore } from '../../../store/post-draft.store'
 
 interface Props {
@@ -41,6 +44,36 @@ const { open, onChange } = useFileDialog({
 
 const { post } = storeToRefs(store)
 const localSelectedIds = ref<string[]>([])
+const captureDateTimeFormatter = new Intl.DateTimeFormat('ru-RU', {
+  day: '2-digit',
+  month: '2-digit',
+  year: 'numeric',
+  hour: '2-digit',
+  minute: '2-digit',
+})
+const isFullscreen = ref(false)
+const searchQuery = ref('')
+const mediaTypeFilter = ref<'all' | PostMedia['type']>('all')
+const previewMedia = ref<PostMedia | null>(null)
+const isVideoPreviewOpen = ref(false)
+const filteredMedia = computed(() => {
+  const query = searchQuery.value.trim().toLocaleLowerCase()
+  return post.value.media.filter((media) => {
+    const matchesType = mediaTypeFilter.value === 'all' || media.type === mediaTypeFilter.value
+    const matchesName = !query || (media.originalName || '').toLocaleLowerCase().includes(query)
+    return matchesType && matchesName
+  })
+})
+const visibleMediaIds = computed(() => new Set(filteredMedia.value.map(media => media.id)))
+const hasActiveMediaFilters = computed(() => Boolean(searchQuery.value.trim()) || mediaTypeFilter.value !== 'all')
+const allVisibleMediaSelected = computed(() => filteredMedia.value.length > 0
+  && filteredMedia.value.every(media => localSelectedIds.value.includes(media.id)))
+const imageCount = computed(() => post.value.media.filter(media => media.type === 'image').length)
+const videoCount = computed(() => post.value.media.filter(media => media.type === 'video').length)
+const videoPreviewUrl = computed(() => {
+  const media = previewMedia.value
+  return media ? resolveApiUrl(media.metadata?.variants?.web || media.url) : ''
+})
 
 const isProcessing = ref(false)
 const processedCount = ref(0)
@@ -68,6 +101,23 @@ function toggleSelection(id: string) {
   }
 }
 
+function toggleVisibleSelection() {
+  const visibleIds = visibleMediaIds.value
+  if (allVisibleMediaSelected.value) {
+    localSelectedIds.value = localSelectedIds.value.filter(id => !visibleIds.has(id))
+    return
+  }
+
+  const selectedIds = new Set(localSelectedIds.value)
+  visibleIds.forEach(id => selectedIds.add(id))
+  localSelectedIds.value = post.value.media.filter(media => selectedIds.has(media.id)).map(media => media.id)
+}
+
+function clearMediaFilters() {
+  searchQuery.value = ''
+  mediaTypeFilter.value = 'all'
+}
+
 function handleConfirm() {
   const selectedMedia = post.value.media.filter(m => localSelectedIds.value.includes(m.id))
   emit('confirm', selectedMedia)
@@ -83,6 +133,20 @@ function getMediaThumbnail(media: PostMedia) {
     return media.variants?.poster || media.metadata?.variants?.poster || media.variants?.small || media.metadata?.variants?.small || media.url
   }
   return media.variants?.small || media.metadata?.variants?.small || media.url
+}
+
+function getMediaCaptureDateTime(media: PostMedia) {
+  const capturedAt = readStoredTimelineMedia(media).capturedAt
+  if (!capturedAt)
+    return 'Дата не указана'
+
+  const date = new Date(capturedAt)
+  return Number.isFinite(date.getTime()) ? captureDateTimeFormatter.format(date) : 'Дата не указана'
+}
+
+function openVideoPreview(media: PostMedia) {
+  previewMedia.value = media
+  isVideoPreviewOpen.value = true
 }
 
 async function handleDelete(id: string) {
@@ -139,6 +203,8 @@ function handleTimeline() {
 
 watch(() => props.visible, (isOpen) => {
   if (isOpen) {
+    isFullscreen.value = false
+    clearMediaFilters()
     localSelectedIds.value = [...props.selectedIds]
     void store.refreshMedia()
   }
@@ -150,11 +216,27 @@ watch(() => props.visible, (isOpen) => {
     :visible="visible"
     :title="title || (mode === 'select' ? (single ? 'Выбрать обложку' : 'Выбрать медиа') : 'Медиатека поста')"
     icon="mdi:image-multiple-outline"
-    :max-width="900"
+    :max-width="1100"
+    :content-class="{ 'media-library-dialog--fullscreen': isFullscreen }"
     :persistent="isProcessing"
     @update:visible="emit('update:visible', $event)"
   >
-    <div class="library-container" :class="{ 'is-empty': !post.media.length }">
+    <template #header-actions>
+      <KitBtn
+        variant="outlined"
+        color="secondary"
+        size="sm"
+        class="media-library-fullscreen-toggle"
+        :icon="isFullscreen ? 'mdi:fullscreen-exit' : 'mdi:fullscreen'"
+        :aria-label="isFullscreen ? 'Свернуть медиатеку' : 'Развернуть медиатеку на весь экран'"
+        :aria-pressed="isFullscreen"
+        @click="isFullscreen = !isFullscreen"
+      >
+        <span class="media-library-fullscreen-label">{{ isFullscreen ? 'Свернуть' : 'На весь экран' }}</span>
+      </KitBtn>
+    </template>
+
+    <div class="library-container" :class="{ 'is-empty': !post.media.length, 'is-fullscreen': isFullscreen }">
       <div v-if="isProcessing" class="processing-overlay">
         <Icon icon="mdi:loading" class="spin" />
         <p>Загрузка медиафайлов ({{ processedCount }} / {{ totalToProcess }})...</p>
@@ -162,16 +244,41 @@ watch(() => props.visible, (isOpen) => {
 
       <div v-if="post.media.length" class="toolbar">
         <div class="stats">
-          Файлы: {{ post.media.length }}<span v-if="localSelectedIds.length"> · Выбрано: {{ localSelectedIds.length }}</span>
+          <strong>{{ post.media.length }} файлов</strong>
+          <span v-if="hasActiveMediaFilters">Показано: {{ filteredMedia.length }}</span>
+          <span v-if="localSelectedIds.length" class="selected-summary">Выбрано: {{ localSelectedIds.length }}</span>
         </div>
         <div class="toolbar-actions">
-          <KitBtn variant="tonal" icon="mdi:plus" :disabled="isProcessing" @click="open()">
+          <KitBtn variant="tonal" size="sm" icon="mdi:plus" :disabled="isProcessing" @click="open()">
             Добавить медиа
           </KitBtn>
 
-          <KitBtn v-if="!single && (mode === 'select' || allowTimeline)" variant="text" :disabled="isProcessing" @click="localSelectedIds = localSelectedIds.length === post.media.length ? [] : post.media.map(media => media.id)">
-            {{ localSelectedIds.length === post.media.length && post.media.length ? 'Снять выбор' : 'Выбрать все' }}
+          <KitBtn v-if="!single && (mode === 'select' || allowTimeline)" variant="text" color="secondary" size="sm" :disabled="isProcessing || !filteredMedia.length" @click="toggleVisibleSelection">
+            {{ allVisibleMediaSelected ? 'Снять видимые' : 'Выбрать видимые' }}
           </KitBtn>
+        </div>
+      </div>
+
+      <div v-if="post.media.length" class="media-controls">
+        <div class="media-search-wrap">
+          <KitInput
+            v-model="searchQuery"
+            icon="mdi:magnify"
+            size="sm"
+            placeholder="Поиск по имени файла"
+            aria-label="Поиск по имени файла"
+          />
+        </div>
+        <div class="media-type-filters" role="group" aria-label="Фильтр по типу медиа">
+          <button type="button" class="media-filter" :class="{ active: mediaTypeFilter === 'all' }" :aria-pressed="mediaTypeFilter === 'all'" @click="mediaTypeFilter = 'all'">
+            Все <span class="filter-count">{{ post.media.length }}</span>
+          </button>
+          <button type="button" class="media-filter" :class="{ active: mediaTypeFilter === 'image' }" :aria-pressed="mediaTypeFilter === 'image'" @click="mediaTypeFilter = 'image'">
+            Фото <span class="filter-count">{{ imageCount }}</span>
+          </button>
+          <button type="button" class="media-filter" :class="{ active: mediaTypeFilter === 'video' }" :aria-pressed="mediaTypeFilter === 'video'" @click="mediaTypeFilter = 'video'">
+            Видео <span class="filter-count">{{ videoCount }}</span>
+          </button>
         </div>
       </div>
 
@@ -184,23 +291,37 @@ watch(() => props.visible, (isOpen) => {
         </KitBtn>
       </div>
 
+      <div v-else-if="!filteredMedia.length" class="no-results">
+        <Icon icon="mdi:image-search-outline" />
+        <div>
+          <strong>Ничего не найдено</strong>
+          <p>Измените запрос или выберите другой тип медиа.</p>
+        </div>
+        <KitBtn variant="text" color="secondary" size="sm" @click="clearMediaFilters">
+          Сбросить фильтры
+        </KitBtn>
+      </div>
+
       <draggable
         v-else
         v-model="post.media"
         item-key="id"
         class="media-grid"
         handle=".drag-handle"
-        :disabled="mode === 'select'"
+        :disabled="mode === 'select' || hasActiveMediaFilters"
         @end="store.isDirty = true"
       >
         <template #item="{ element: media }">
           <div
             class="media-card"
-            :title="media.originalName"
-            :class="{ 'selected': localSelectedIds.includes(media.id) && (mode === 'select' || allowTimeline), 'is-private': media.isPrivate }"
+            :class="{
+              'selected': localSelectedIds.includes(media.id) && (mode === 'select' || allowTimeline),
+              'is-private': media.isPrivate,
+              'is-filtered-out': !visibleMediaIds.has(media.id),
+            }"
             @click="toggleSelection(media.id)"
           >
-            <div v-if="mode === 'manage'" class="drag-handle">
+            <div v-if="mode === 'manage'" class="drag-handle" title="Перетащите, чтобы изменить порядок">
               <Icon icon="mdi:drag" />
             </div>
 
@@ -210,14 +331,24 @@ watch(() => props.visible, (isOpen) => {
               class="media-img"
             />
 
-            <div v-if="media.type === 'video'" class="video-badge" title="Видео">
-              <Icon icon="mdi:play-circle" />
-            </div>
+            <button
+              v-if="media.type === 'video'"
+              type="button"
+              class="video-preview-btn"
+              :aria-label="`Просмотреть видео ${media.originalName || ''}`"
+              title="Просмотреть видео"
+              @click.stop="openVideoPreview(media)"
+            >
+              <Icon icon="mdi:play" />
+            </button>
 
             <button
+              type="button"
               class="privacy-btn"
               :class="{ active: media.isPrivate }"
               :title="media.isPrivate ? 'Приватное (только для белого списка)' : 'Публичное медиа'"
+              :aria-label="media.isPrivate ? 'Сделать медиа публичным' : 'Сделать медиа приватным'"
+              :aria-pressed="media.isPrivate"
               @click.stop="togglePrivacy(media)"
             >
               <Icon :icon="media.isPrivate ? 'mdi:lock' : 'mdi:lock-open-variant-outline'" />
@@ -229,22 +360,28 @@ watch(() => props.visible, (isOpen) => {
               </div>
             </button>
 
-            <span class="media-caption">{{ media.originalName || (media.type === 'video' ? 'Видео' : 'Фото') }}</span>
-            <button class="delete-btn" :aria-label="`Удалить ${media.originalName || 'медиа'}`" @click.stop="handleDelete(media.id)">
+            <span class="media-caption" :title="media.originalName || (media.type === 'video' ? 'Видео' : 'Фото')">
+              {{ getMediaCaptureDateTime(media) }}
+            </span>
+            <button type="button" class="delete-btn" :title="`Удалить ${media.originalName || 'медиа'}`" :aria-label="`Удалить ${media.originalName || 'медиа'}`" @click.stop="handleDelete(media.id)">
               <Icon icon="mdi:trash-can-outline" />
             </button>
           </div>
         </template>
       </draggable>
 
-      <p class="library-hint">
-        <Icon icon="mdi:cloud-check-outline" /><span>Медиа сохраняются в черновике и удаляются вместе с постом.</span>
-      </p>
       <div class="footer-actions">
         <KitBtn variant="text" color="secondary" :disabled="isProcessing" @click="emit('update:visible', false)">
           {{ mode === 'select' ? 'Отмена' : 'Закрыть' }}
         </KitBtn>
-        <KitBtn v-if="allowTimeline && post.media.length" :disabled="!localSelectedIds.length || isProcessing" icon="mdi:timeline-outline" @click="handleTimeline">
+        <KitBtn
+          v-if="allowTimeline && post.media.length"
+          :variant="localSelectedIds.length ? 'solid' : 'text'"
+          :color="localSelectedIds.length ? 'primary' : 'secondary'"
+          :disabled="!localSelectedIds.length || isProcessing"
+          icon="mdi:timeline-outline"
+          @click="handleTimeline"
+        >
           В таймлайн ({{ localSelectedIds.length }})
         </KitBtn>
         <KitBtn v-if="mode === 'select' && post.media.length" :disabled="localSelectedIds.length === 0" @click="handleConfirm">
@@ -252,30 +389,48 @@ watch(() => props.visible, (isOpen) => {
         </KitBtn>
       </div>
     </div>
+
+    <KitDialogWithClose
+      :visible="isVideoPreviewOpen"
+      :title="previewMedia?.originalName || 'Просмотр видео'"
+      icon="mdi:video-outline"
+      :max-width="1100"
+      @update:visible="isVideoPreviewOpen = $event"
+    >
+      <div class="video-preview-content">
+        <video
+          v-if="isVideoPreviewOpen && videoPreviewUrl"
+          :src="videoPreviewUrl"
+          controls
+          autoplay
+          playsinline
+          class="video-preview-player"
+        />
+      </div>
+    </KitDialogWithClose>
   </KitDialogWithClose>
 </template>
 
 <style scoped lang="scss">
-.library-hint {
-  display: flex;
-  align-items: flex-start;
-  gap: 8px;
-  font-size: 12px;
-  line-height: 1.5;
-  color: var(--fg-secondary-color);
-  margin: 16px 0 0;
-  > svg {
-    margin-top: 2px;
-    flex-shrink: 0;
-    font-size: 16px;
-  }
+:global(.media-library-fullscreen-toggle) {
+  flex: 0 0 auto;
+  min-width: max-content;
+  white-space: nowrap;
 }
+
 .library-container {
   display: flex;
   flex-direction: column;
   position: relative;
+  width: 100%;
+  min-width: 0;
   min-height: 300px;
   height: min(62dvh, 580px);
+  &.is-fullscreen {
+    flex: 1 1 0;
+    height: auto;
+    min-height: 0;
+  }
   &.is-empty {
     height: auto;
     min-height: 0;
@@ -314,46 +469,153 @@ watch(() => props.visible, (isOpen) => {
   align-items: center;
   justify-content: space-between;
   gap: 12px;
-  padding-bottom: 16px;
+  width: 100%;
+  max-width: 1480px;
+  margin: 0 auto 12px;
 }
 .toolbar-actions {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
   gap: 8px;
-  > button {
-    font-size: 12px;
-    padding: 8px 10px;
-  }
 }
 .stats {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px 14px;
+  min-height: 38px;
   font-size: 13px;
   color: var(--fg-secondary-color);
+
+  strong {
+    color: var(--fg-primary-color);
+    font-weight: 600;
+  }
+}
+.selected-summary {
+  color: var(--fg-accent-color);
+}
+.media-controls {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  width: 100%;
+  max-width: 1480px;
+  margin: 0 auto 14px;
+}
+.media-search-wrap {
+  flex: 1 1 280px;
+  min-width: 220px;
+  max-width: 420px;
+}
+.media-type-filters {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  max-width: 100%;
+  padding: 4px;
+  border: 1px solid var(--border-secondary-color);
+  border-radius: var(--r-m);
+  background: var(--bg-secondary-color);
+}
+.media-filter {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  min-height: 32px;
+  padding: 5px 10px;
+  border: 0;
+  border-radius: var(--r-s);
+  background: transparent;
+  color: var(--fg-secondary-color);
+  font: inherit;
+  font-size: 12px;
+  white-space: nowrap;
+  cursor: pointer;
+  transition:
+    background-color 0.15s ease,
+    color 0.15s ease;
+
+  &:hover:not(.active) {
+    color: var(--fg-primary-color);
+  }
+
+  &:focus-visible {
+    outline: 2px solid var(--border-focus-color);
+    outline-offset: 1px;
+  }
+
+  &.active {
+    background: var(--bg-primary-color);
+    color: var(--fg-primary-color);
+    box-shadow: var(--s-s);
+    font-weight: 600;
+  }
+}
+.filter-count {
+  color: var(--fg-tertiary-color);
+  font-size: 11px;
 }
 .media-grid {
   flex: 1;
   min-height: 0;
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
-  grid-auto-rows: 180px;
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 180px), 200px));
+  grid-auto-rows: 190px;
+  justify-content: center;
   align-content: start;
   gap: 12px;
   overflow-y: auto;
+  width: 100%;
+  max-width: 1480px;
+  margin: 0 auto;
   padding: 2px;
+}
+.no-results {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  min-height: 220px;
+  color: var(--fg-secondary-color);
+  text-align: center;
+
+  > svg {
+    font-size: 28px;
+    color: var(--fg-tertiary-color);
+  }
+
+  strong {
+    color: var(--fg-primary-color);
+  }
+
+  p {
+    margin: 4px 0 8px;
+    font-size: 13px;
+  }
 }
 .media-caption {
   position: absolute;
   bottom: 0;
   left: 0;
   right: 0;
-  height: 30px;
-  display: block;
-  padding: 7px 8px;
+  height: 40px;
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  padding: 5px 8px;
   background: var(--bg-primary-color);
   color: var(--fg-secondary-color);
-  font-size: 11px;
+  font-size: 12px;
+  line-height: 1.25;
   text-overflow: ellipsis;
-  white-space: nowrap;
+  overflow-wrap: anywhere;
   overflow: hidden;
   pointer-events: none;
 }
@@ -364,7 +626,14 @@ watch(() => props.visible, (isOpen) => {
   cursor: pointer;
   border: 2px solid transparent;
   background: var(--bg-tertiary-color);
-  transition: all 0.2s;
+  transition:
+    border-color 0.2s ease,
+    box-shadow 0.2s ease,
+    transform 0.2s ease;
+
+  &.is-filtered-out {
+    display: none;
+  }
 
   &.selected {
     border-color: var(--fg-accent-color);
@@ -381,26 +650,43 @@ watch(() => props.visible, (isOpen) => {
   &:hover,
   &:focus-within {
     .delete-btn,
+    .privacy-btn,
     .drag-handle {
       opacity: 1;
     }
+
+    transform: translateY(-2px);
+    box-shadow: var(--s-s);
   }
 }
 
-.video-badge {
+.video-preview-btn {
   position: absolute;
-  top: 8px;
-  left: calc(50% - 12px);
+  top: calc(50% - 20px);
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: 48px;
+  height: 48px;
   background: rgba(0, 0, 0, 0.65);
   color: white;
-  border-radius: 6px;
-  padding: 4px;
-  font-size: 18px;
+  border: 1px solid rgba(255, 255, 255, 0.75);
+  border-radius: 50%;
+  padding: 0;
+  font-size: 26px;
   display: flex;
   align-items: center;
   justify-content: center;
-  pointer-events: none;
-  z-index: 2;
+  cursor: pointer;
+  z-index: 4;
+  transition:
+    background-color 0.2s,
+    transform 0.2s;
+
+  &:hover,
+  &:focus-visible {
+    background: var(--fg-accent-color);
+    transform: translate(-50%, -50%) scale(1.08);
+  }
 }
 
 .privacy-btn {
@@ -418,7 +704,10 @@ watch(() => props.visible, (isOpen) => {
   justify-content: center;
   cursor: pointer;
   z-index: 3;
-  transition: all 0.2s ease;
+  opacity: 0;
+  transition:
+    opacity 0.15s ease,
+    background-color 0.15s ease;
 
   &.active {
     background: var(--fg-warning-color, #f59e0b);
@@ -434,6 +723,10 @@ watch(() => props.visible, (isOpen) => {
 
 .media-card.is-private {
   border: 2px solid var(--fg-warning-color, #f59e0b);
+
+  .privacy-btn {
+    opacity: 1;
+  }
 }
 
 .drag-handle {
@@ -460,14 +753,14 @@ watch(() => props.visible, (isOpen) => {
 
 .media-img {
   width: 100%;
-  height: calc(100% - 30px);
+  height: calc(100% - 40px);
 }
 
 .selection-overlay {
   border: none;
   cursor: pointer;
   position: absolute;
-  inset: 0 0 30px;
+  inset: 0 0 40px;
   background: transparent;
   display: flex;
   align-items: flex-end;
@@ -490,7 +783,7 @@ watch(() => props.visible, (isOpen) => {
 
 .delete-btn {
   position: absolute;
-  bottom: 38px;
+  bottom: 48px;
   right: 8px;
   width: 28px;
   height: 28px;
@@ -535,6 +828,54 @@ watch(() => props.visible, (isOpen) => {
     margin: 0 0 4px;
   }
 }
+
+.video-preview-content {
+  width: 100%;
+  display: grid;
+  place-items: center;
+  min-height: 0;
+}
+
+.video-preview-player {
+  display: block;
+  width: 100%;
+  max-height: min(72dvh, 720px);
+  aspect-ratio: 16 / 9;
+  background: #000;
+  object-fit: contain;
+}
+
+:global(.media-library-dialog--fullscreen) {
+  inset: 0 !important;
+  width: 100vw !important;
+  height: 100dvh !important;
+  max-width: none !important;
+  max-height: none !important;
+  padding: max(12px, var(--safe-area-inset-top, env(safe-area-inset-top, 0px)))
+    max(12px, var(--safe-area-inset-right, env(safe-area-inset-right, 0px)))
+    max(12px, var(--safe-area-inset-bottom, env(safe-area-inset-bottom, 0px)))
+    max(12px, var(--safe-area-inset-left, env(safe-area-inset-left, 0px))) !important;
+  border-radius: 0 !important;
+  transform: translate(0, 0) !important;
+}
+
+:global(.media-library-dialog--fullscreen .dialog-body) {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  min-width: 0;
+  min-height: 0;
+  overflow: hidden;
+}
+
+:global(.media-library-dialog--fullscreen .library-container.is-empty .empty-state) {
+  flex: 1;
+  width: 100%;
+  min-height: 0;
+  border: 0;
+  background: transparent;
+}
+
 .empty-symbol {
   width: 52px;
   height: 52px;
@@ -553,9 +894,9 @@ watch(() => props.visible, (isOpen) => {
   flex-wrap: wrap;
   justify-content: flex-end;
   gap: 10px;
-  padding-top: 16px;
+  padding-top: 8px;
   border-top: 1px solid var(--border-secondary-color);
-  margin-top: 16px;
+
   > button {
     font-size: 13px;
   }
@@ -571,9 +912,24 @@ watch(() => props.visible, (isOpen) => {
     width: 100%;
     justify-content: space-between;
   }
+  .media-controls {
+    align-items: stretch;
+    gap: 10px;
+  }
+  .media-search-wrap {
+    flex-basis: 100%;
+    max-width: none;
+  }
+  .media-type-filters {
+    width: 100%;
+    justify-content: space-between;
+  }
+  .media-filter {
+    flex: 1;
+  }
   .media-grid {
     grid-template-columns: repeat(2, minmax(0, 1fr));
-    grid-auto-rows: 180px;
+    grid-auto-rows: 170px;
     gap: 10px;
   }
   .footer-actions > button {
@@ -582,6 +938,20 @@ watch(() => props.visible, (isOpen) => {
   .empty-state {
     min-height: 250px;
     padding: 20px 12px;
+  }
+}
+
+@media (max-width: 480px) {
+  :global(.media-library-fullscreen-label) {
+    display: none;
+  }
+}
+
+@media (hover: none) {
+  .media-card .privacy-btn,
+  .media-card .delete-btn,
+  .media-card .drag-handle {
+    opacity: 1;
   }
 }
 </style>

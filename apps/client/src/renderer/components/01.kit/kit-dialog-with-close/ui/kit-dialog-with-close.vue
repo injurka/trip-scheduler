@@ -73,11 +73,16 @@ function handlePointerDownOutside(event: PointerDownOutsideEvent) {
               </DialogTitle>
             </div>
           </template>
-          <DialogClose as-child>
-            <button class="close-button" :aria-label="`Закрыть диалог ${title ?? ''}`">
-              <Icon icon="mdi:close" />
-            </button>
-          </DialogClose>
+          <div class="dialog-actions" :class="{ 'has-header-actions': !!$slots['header-actions'] }">
+            <div v-if="$slots['header-actions']" class="dialog-header-actions">
+              <slot name="header-actions" />
+            </div>
+            <DialogClose as-child>
+              <button class="close-button" :aria-label="`Закрыть диалог ${title ?? ''}`">
+                <Icon icon="mdi:close" />
+              </button>
+            </DialogClose>
+          </div>
         </div>
 
         <DialogDescription :class="description ? 'dialog-description' : 'sr-only'">
@@ -178,13 +183,44 @@ function handlePointerDownOutside(event: PointerDownOutsideEvent) {
   display: flex;
   justify-content: space-between;
   align-items: center;
+  gap: 8px;
   flex-shrink: 0;
+}
+
+.dialog-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-left: auto;
+  flex-shrink: 0;
+}
+
+.dialog-actions.has-header-actions {
+  gap: 14px;
+}
+
+.dialog-header-actions {
+  display: flex;
+  align-items: center;
+  flex: 0 0 auto;
+  min-width: max-content;
+  white-space: nowrap;
+}
+
+.dialog-actions.has-header-actions .close-button {
+  position: static;
+  width: 38px;
+  height: 38px;
+  flex: 0 0 38px;
+  padding: 0;
+  line-height: 1;
 }
 
 .title-container {
   display: flex;
   align-items: center;
   gap: 10px;
+  min-width: 0;
   color: var(--fg-primary-color);
 }
 
@@ -195,6 +231,9 @@ function handlePointerDownOutside(event: PointerDownOutsideEvent) {
 .dialog-title {
   font-size: 1.125rem;
   font-weight: 600;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .dialog-description {

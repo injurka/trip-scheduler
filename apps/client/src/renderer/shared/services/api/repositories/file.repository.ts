@@ -151,7 +151,7 @@ export class FileRepository implements IFileRepository {
         const end = Math.min(file.size, start + chunkSize)
         const chunk = file.slice(start, end)
 
-        const partResult = await new Promise<{ partNumber: number, eTag: string }>((resolve, reject) => {
+        const partResult = await new Promise<{ PartNumber: number, ETag: string }>((resolve, reject) => {
           const xhr = new XMLHttpRequest()
           const chunkUrl = `${serverUrl}/api/upload/multipart/chunk?uploadId=${encodeURIComponent(uploadId)}&key=${encodeURIComponent(key)}&partNumber=${partNumber}`
 
@@ -192,8 +192,8 @@ export class FileRepository implements IFileRepository {
         })
 
         completedParts.push({
-          PartNumber: partResult.partNumber,
-          ETag: partResult.eTag,
+          PartNumber: partResult.PartNumber,
+          ETag: partResult.ETag,
         })
       }
 

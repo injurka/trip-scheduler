@@ -95,7 +95,7 @@ function getBlockTitle(type: TimelineBlockType) {
 
         <KitInput
           :model-value="stage.title"
-          placeholder="Название этапа (напр. Завтрак)"
+          placeholder="Название этапа (необязательно)"
           class="stage-title-input"
           size="sm"
           @update:model-value="val => store.updateStage(stage.id, { title: val as string })"
