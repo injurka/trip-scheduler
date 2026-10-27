@@ -10,6 +10,7 @@ import { computed, nextTick, onBeforeUnmount, onMounted, ref, shallowRef, watch 
 import { KitImageViewer, useImageViewer } from '~/components/01.kit/kit-image-viewer'
 import { KitTooltip } from '~/components/01.kit/kit-tooltip'
 import GeolocationMap from '~/components/03.domain/trip-info/geolocation-section/ui/geolocation-map.vue'
+import { getPostMediaVariants } from '~/components/05.modules/post/lib/media-variants'
 import { resolveApiUrl } from '~/shared/lib/url'
 
 import { isValidCoordinate } from '~/shared/services/geo'
@@ -223,7 +224,7 @@ const viewerImages = computed<ImageViewerImage[]>(() => photos.value.map(({ phot
   url: photo.url,
   alt: photo.originalName || 'Фото',
   meta: photo.metadata,
-  variants: photo.variants || photo.metadata?.variants,
+  variants: getPostMediaVariants(photo),
 })))
 
 function clearPhotoMarkers() {
@@ -238,7 +239,7 @@ function syncPhotoMarkers() {
   if (!map || !controller.value?.isMapLoaded.value || !showPhotoPoints.value)
     return
   photos.value.forEach(({ photo, coordinates }, index) => {
-    const variants = photo.variants || photo.metadata?.variants
+    const variants = getPostMediaVariants(photo)
     const imageUrl = resolveApiUrl(variants?.small || variants?.medium || photo.url)
     const markerButton = document.createElement('button')
     markerButton.type = 'button'

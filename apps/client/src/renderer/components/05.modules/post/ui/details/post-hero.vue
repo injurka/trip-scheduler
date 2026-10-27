@@ -3,6 +3,7 @@ import type { PostDetail } from '~/shared/types/models/post'
 import { Icon } from '@iconify/vue'
 import { KitAvatar } from '~/components/01.kit/kit-avatar'
 import { KitImage } from '~/components/01.kit/kit-image'
+import { getPostMediaVariants } from '~/components/05.modules/post/lib/media-variants'
 
 interface IProps {
   post: PostDetail
@@ -34,11 +35,12 @@ const heroMediaUrl = computed(() => {
   if (!media || media.hasAccess === false)
     return ''
 
+  const variants = getPostMediaVariants(media)
   if (media.type === 'video') {
-    return media.metadata?.variants?.poster || media.metadata?.variants?.large || media.url
+    return variants.poster || variants.small || media.url
   }
 
-  return media.metadata?.variants?.large || media.url
+  return variants.large || media.url
 })
 </script>
 

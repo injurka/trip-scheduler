@@ -22,6 +22,7 @@ import { useConfirm } from '~/shared/composables/use-confirm'
 import { useToast } from '~/shared/composables/use-toast'
 import { AppRoutePaths } from '~/shared/constants/routes'
 import { MOCK_COUNTRY_DATA } from '../../data/countries'
+import { getPostMediaVariants } from '../../lib/media-variants'
 import { usePostDraftStore } from '../../store/post-draft.store'
 import { EPostRequestKeys, usePostStore } from '../../store/post.store'
 import PostDetailsView from '../details/post-details-view.vue'
@@ -29,6 +30,10 @@ import StageEditor from './stage-editor.vue'
 import MediaLibraryPicker from './tools/media-library-picker.vue'
 import MediaTimelineImport from './tools/media-timeline-import.vue'
 import PostMapPicker from './tools/post-map-picker.vue'
+
+const emit = defineEmits<{
+  (e: 'mapPinnedChange', pinned: boolean): void
+}>()
 
 const getDraftKey = (id?: string) => id ? `trip_scheduler_post_draft_${id}` : 'trip_scheduler_post_draft_new'
 
@@ -51,6 +56,7 @@ const confirm = useConfirm()
 const { post, isDirty } = storeToRefs(store)
 const isGenerating = computed(() => postStore.isGenerating)
 const isPreviewMode = ref(false)
+const isPreviewMapPinned = ref(false)
 const activeSection = ref<'about' | 'story' | 'publish'>('about')
 const editorSections = [
   { id: 'about' as const, label: 'О посте', icon: 'mdi:text-box-outline' },
@@ -67,10 +73,20 @@ const coverUrl = computed(() => {
   const media = coverMedia.value
   if (!media)
     return ''
-  const variants = media.variants || media.metadata?.variants || {}
+  const variants = getPostMediaVariants(media)
   return media.type === 'video' ? variants.poster || variants.small || '' : variants.medium || variants.small || media.url
 })
 const publishIssues = computed(() => [!post.value.title.trim() && 'Название поста', !post.value.country && 'Страна путешествия'].filter((issue): issue is string => Boolean(issue)))
+
+function handlePreviewMapPinnedChange(pinned: boolean) {
+  isPreviewMapPinned.value = pinned
+  emit('mapPinnedChange', pinned)
+}
+
+watch(isPreviewMode, (isPreview) => {
+  if (!isPreview)
+    handlePreviewMapPinnedChange(false)
+})
 
 function startManualTimeline() {
   isManualTimeline.value = true
@@ -500,8 +516,8 @@ watch(() => [post.value?.title, post.value?.insight, post.value?.description], (
     <div v-if="isLoading" class="loading-state">
       Загрузка редактора…
     </div>
-    <div v-else-if="isPreviewMode && post" class="preview-container">
-      <PostDetailsView :post="previewData" :is-preview-mode="true" />
+    <div v-else-if="isPreviewMode && post" class="preview-container" :class="{ 'is-map-pinned': isPreviewMapPinned }">
+      <PostDetailsView :post="previewData" :is-preview-mode="true" @map-pinned-change="handlePreviewMapPinnedChange" />
     </div>
     <div v-else-if="post" class="editor-container">
       <nav class="editor-navigation" aria-label="Разделы редактора">
@@ -1217,6 +1233,11 @@ watch(() => [post.value?.title, post.value?.insight, post.value?.description], (
 .preview-container {
   max-width: var(--editor-width);
   margin: 0 auto;
+
+  &.is-map-pinned {
+    max-width: none;
+    width: 100%;
+  }
 }
 .loading-state {
   text-align: center;

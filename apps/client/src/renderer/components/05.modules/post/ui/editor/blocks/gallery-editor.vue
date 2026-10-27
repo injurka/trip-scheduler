@@ -5,6 +5,7 @@ import { computed, ref } from 'vue'
 import draggable from 'vuedraggable'
 import { KitImage } from '~/components/01.kit/kit-image'
 import { KitTooltip } from '~/components/01.kit/kit-tooltip'
+import { getPostMediaVariants } from '~/components/05.modules/post/lib/media-variants'
 import MediaLibraryPicker from '../tools/media-library-picker.vue'
 import SmartMarkEditor from '../tools/smart-mark-editor.vue'
 
@@ -57,12 +58,12 @@ function handleLibraryConfirm(selected: PostMedia[]) {
 const currentSelectedIds = computed(() => props.images.map(i => i.id))
 
 function getEditorThumbUrl(img: PostMedia) {
+  const variants = getPostMediaVariants(img)
   if (img.type === 'video') {
-    return img.metadata?.variants?.poster || img.metadata?.variants?.small || img.url
+    return variants.poster || variants.small || img.url
   }
-  const variants = img.metadata?.variants
 
-  return variants?.small || variants?.medium || img.url
+  return variants.small || variants.medium || img.url
 }
 </script>
 

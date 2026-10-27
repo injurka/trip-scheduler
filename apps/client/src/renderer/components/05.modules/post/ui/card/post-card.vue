@@ -7,6 +7,7 @@ import { KitAvatar } from '~/components/01.kit/kit-avatar'
 import { KitBtn } from '~/components/01.kit/kit-btn'
 import { KitDropdown } from '~/components/01.kit/kit-dropdown'
 import { KitImage } from '~/components/01.kit/kit-image'
+import { getPostMediaVariants } from '~/components/05.modules/post/lib/media-variants'
 import { resolveApiUrl } from '~/shared/lib/url'
 
 interface Props {
@@ -83,21 +84,14 @@ function toggleMark(markId: string) {
   activeMarkId.value = activeMarkId.value === markId ? null : markId
 }
 
-interface MediaVariants {
-  small?: string
-  medium?: string
-  large?: string
-}
-
 function getMainImgUrl(media: PostMedia) {
   if (media.hasAccess === false)
     return ''
 
+  const variants = getPostMediaVariants(media)
   if (media.type === 'video') {
-    return media.metadata?.variants?.poster || media.metadata?.variants?.medium || media.metadata?.variants?.small || media.url
+    return variants.poster || variants.medium || variants.small || media.url
   }
-
-  const variants = media.metadata?.variants as MediaVariants | undefined
 
   return variants?.medium || media.url
 }
@@ -106,11 +100,11 @@ function getBlurImgUrl(media: PostMedia) {
   if (media.hasAccess === false)
     return ''
 
+  const variants = getPostMediaVariants(media)
   if (media.type === 'video') {
-    return media.metadata?.variants?.poster || media.metadata?.variants?.small || media.url
+    return variants.poster || variants.small || media.url
   }
 
-  const variants = media.metadata?.variants as MediaVariants | undefined
   return variants?.small || variants?.medium || media.url
 }
 

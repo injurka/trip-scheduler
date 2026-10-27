@@ -5,6 +5,7 @@ import { v4 as uuidv4 } from 'uuid'
 import { computed, ref, watch } from 'vue'
 import { KitBtn } from '~/components/01.kit/kit-btn'
 import { KitDialogWithClose } from '~/components/01.kit/kit-dialog-with-close'
+import { getPostMediaVariants } from '~/components/05.modules/post/lib/media-variants'
 import { getImageUrl, resolveApiUrl } from '~/shared/lib/url'
 
 interface Props {
@@ -25,7 +26,7 @@ const markLabelInput = ref('')
 
 const resolvedImageUrl = computed(() => {
   const media = currentMedia.value
-  const variants = media.metadata?.variants
+  const variants = getPostMediaVariants(media)
 
   if (media.type === 'video') {
     return resolveApiUrl(variants?.poster || variants?.small || media.url)

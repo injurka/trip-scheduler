@@ -6,6 +6,7 @@ import { computed, ref } from 'vue'
 import { KitDialogWithClose } from '~/components/01.kit/kit-dialog-with-close'
 import { KitImage } from '~/components/01.kit/kit-image'
 import { KitImageViewer, useImageViewer } from '~/components/01.kit/kit-image-viewer'
+import { getPostMediaVariants } from '~/components/05.modules/post/lib/media-variants'
 import { resolveApiUrl } from '~/shared/lib/url'
 
 const props = withDefaults(defineProps<{
@@ -28,19 +29,15 @@ const viewerImages = computed<ImageViewerImage[]>(() => {
       url: img.url,
       alt: img.originalName || 'Image',
       meta: img.metadata || undefined,
-      variants: img.metadata?.variants,
+      variants: getPostMediaVariants(img),
     }))
 })
 
 function getOptimizedUrl(img: PostMedia) {
+  const variants = getPostMediaVariants(img)
   if (img.type === 'video') {
-    return img.metadata?.variants?.poster || img.metadata?.variants?.medium || img.metadata?.variants?.small || img.url
+    return variants.poster || variants.medium || variants.small || img.url
   }
-
-  const variants = img.metadata?.variants
-
-  if (!variants)
-    return img.url
 
   if (props.displayType === 'grid' || props.displayType === 'masonry') {
     return variants.medium || variants.small || img.url
@@ -99,7 +96,7 @@ function handleItemClick(img: PostMedia, e: Event) {
   }
 
   if (img.type === 'video') {
-    activeVideoUrl.value = resolveApiUrl(img.metadata?.variants?.web || img.url)
+    activeVideoUrl.value = resolveApiUrl(getPostMediaVariants(img).web || img.url)
     isVideoModalOpen.value = true
     return
   }
