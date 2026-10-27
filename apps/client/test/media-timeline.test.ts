@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'bun:test'
-import { groupTimelineMedia, readStoredTimelineMedia, readTimelineMedia, videoCreationDate } from '../src/renderer/components/05.modules/post/lib/media-timeline'
+import { groupTimelineMedia, prepareGroupAnalysisFrame, readStoredTimelineMedia, readTimelineMedia, videoCreationDate } from '../src/renderer/components/05.modules/post/lib/media-timeline'
 
 const item = (capturedAt: string, extra = {}) => ({ file: new File([''], 'photo.jpg'), capturedAt, source: 'exif' as const, ...extra })
 
@@ -67,5 +67,35 @@ describe('persisted media grouping', () => {
     const groups = groupTimelineMedia(media.map(readStoredTimelineMedia))
     expect(groups.map(group => group.items.map(item => item.media?.id))).toEqual([['a', 'b'], ['c']])
     expect(groups.flatMap(group => group.items).every(item => !item.file)).toBe(true)
+  })
+})
+
+describe('group analysis frames', () => {
+  it('uses a photo even when the middle item is a video without a poster', async () => {
+    const groups = groupTimelineMedia([
+      readStoredTimelineMedia({ id: 'photo', type: 'image', url: 'photo.jpg' } as Parameters<typeof readStoredTimelineMedia>[0]),
+      readStoredTimelineMedia({ id: 'video', type: 'video', url: 'video.mp4' } as Parameters<typeof readStoredTimelineMedia>[0]),
+    ])
+    const paths: string[] = []
+    expect(await prepareGroupAnalysisFrame(groups[0], async (path) => {
+      paths.push(path)
+      return 'frame'
+    })).toBe('frame')
+    expect(paths).toEqual(['photo.jpg'])
+  })
+  it('tries another photo after a broken preview and original', async () => {
+    const groups = groupTimelineMedia([
+      readStoredTimelineMedia({ id: 'good', type: 'image', url: 'good.jpg' } as Parameters<typeof readStoredTimelineMedia>[0]),
+      readStoredTimelineMedia({ id: 'broken', type: 'image', url: 'broken.jpg', variants: { small: 'missing.jpg' } } as Parameters<typeof readStoredTimelineMedia>[0]),
+    ])
+    const paths: string[] = []
+    const frame = await prepareGroupAnalysisFrame(groups[0], async (path) => {
+      paths.push(path)
+      if (path === 'missing.jpg')
+        throw new Error('Not found')
+      return path === 'good.jpg' ? 'frame' : undefined
+    })
+    expect(frame).toBe('frame')
+    expect(paths).toEqual(['missing.jpg', 'broken.jpg', 'good.jpg'])
   })
 })

@@ -11,7 +11,7 @@ import { KitImageViewer } from '~/components/01.kit/kit-image-viewer'
 import { KitInput } from '~/components/01.kit/kit-input'
 import { useRequest } from '~/plugins/request'
 import { useToast } from '~/shared/composables/use-toast'
-import { createAnalysisFrame, groupTimelineMedia, readStoredTimelineMedia } from '../../../lib/media-timeline'
+import { createAnalysisFrame, groupTimelineMedia, prepareGroupAnalysisFrame, readStoredTimelineMedia } from '../../../lib/media-timeline'
 import { usePostDraftStore } from '../../../store/post-draft.store'
 import MediaLibraryPicker from './media-library-picker.vue'
 
@@ -120,35 +120,41 @@ async function analyze() {
   error.value = ''
   try {
     const samples: { id: number, count: number, frame: string }[] = []
-    for (const [id, group] of groups.value.slice(0, 12).entries()) {
-      progress.value = `Готовим кадры для ИИ: ${id + 1} / ${Math.min(groups.value.length, 12)}`
-      const media = group.items[Math.floor(group.items.length / 2)].media
-      if (!media)
-        continue
-      const preview = media.variants?.poster || media.metadata?.variants?.poster
-        || media.variants?.small || media.metadata?.variants?.small || (media.type === 'image' ? media.url : undefined)
-      if (!preview)
-        continue
-      const blob = await useRequest({ key: `post:media-frame:${media.id}`, fn: db => db.files.downloadMediaPreview(preview), onError: () => {} })
-      const frame = blob ? await createAnalysisFrame(blob) : undefined
+    const failedGroups: number[] = []
+    for (const [id, group] of groups.value.entries()) {
+      progress.value = `Готовим кадры для ИИ: ${id + 1} / ${groups.value.length}`
+      const frame = await prepareGroupAnalysisFrame(group, async (path) => {
+        const blob = await useRequest({ key: 'post:media-frame', fn: db => db.files.downloadMediaPreview(path), onError: () => {} })
+        return blob ? createAnalysisFrame(blob) : undefined
+      })
       if (frame)
         samples.push({ id, count: group.items.length, frame })
+      else
+        failedGroups.push(id + 1)
     }
-    if (!samples.length) {
-      error.value = 'Не удалось получить кадры. Можно создать таймлайн без ИИ.'
+    if (failedGroups.length) {
+      error.value = `Не удалось подготовить кадры для групп: ${failedGroups.join(', ')}. Проверьте доступность медиа и повторите анализ. Группы сохранены.`
       return
     }
-    progress.value = 'ИИ подбирает названия активностей…'
-    await useRequest({
-      key: 'post:media-timeline:describe',
-      fn: db => db.posts.describeMediaTimeline({ groups: samples }),
-      onSuccess: (data) => {
-        data?.groups.forEach((result) => {
-          if (groups.value[result.id])
-            groups.value[result.id].title = result.title
-        })
-      },
-      onError: () => { error.value = 'ИИ недоступен. Группы сохранены, названия можно изменить вручную.' },
+    const titles: { id: number, title: string }[] = []
+    for (let offset = 0; offset < samples.length; offset += 12) {
+      progress.value = `ИИ подбирает названия активностей: ${offset + 1}–${Math.min(offset + 12, samples.length)} / ${samples.length}…`
+      const data = await useRequest({
+        key: 'post:media-timeline:describe',
+        fn: db => db.posts.describeMediaTimeline({ groups: samples.slice(offset, offset + 12) }),
+        onError: () => { error.value = 'Не удалось получить полный набор названий от ИИ. Группы сохранены, повторите анализ или измените названия вручную.' },
+      })
+      if (!data)
+        return
+      titles.push(...data.groups)
+    }
+    if (titles.length !== groups.value.length || new Set(titles.map(result => result.id)).size !== groups.value.length
+      || titles.some(result => !groups.value[result.id])) {
+      error.value = 'ИИ вернул неполный набор названий. Группы сохранены, повторите анализ.'
+      return
+    }
+    titles.forEach((result) => {
+      groups.value[result.id].title = result.title
     })
   }
   catch {
@@ -339,9 +345,6 @@ async function apply() {
                 +{{ group.items.length - 4 }}
               </button>
             </div>
-            <span class="group-first-file" :title="group.items[0].media?.originalName">
-              {{ group.items[0].media?.originalName || 'Файл без даты съёмки' }}
-            </span>
           </div>
           <div class="group-datetime">
             <KitInput v-model="group.date" label="Дата" type="date" :disabled="busy" />
@@ -707,13 +710,7 @@ async function apply() {
     outline-offset: 2px;
   }
 }
-.group-first-file {
-  overflow: hidden;
-  color: var(--fg-secondary-color);
-  font-size: 12px;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
+
 .group-datetime {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));

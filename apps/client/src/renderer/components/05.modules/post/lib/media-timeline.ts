@@ -148,6 +148,42 @@ export function groupTimelineMedia(items: TimelineMedia[], gapMinutes = 60): Med
   return groups
 }
 
+// Prefer photos near the middle, then try other files and preview variants.
+export async function prepareGroupAnalysisFrame(
+  group: MediaGroup,
+  loadFrame: (path: string) => Promise<string | undefined>,
+): Promise<string | undefined> {
+  const middle = Math.floor(group.items.length / 2)
+  const candidates = group.items.map((item, index) => ({ media: item.media, index }))
+    .sort((a, b) => Number(b.media?.type === 'image') - Number(a.media?.type === 'image')
+      || Math.abs(a.index - middle) - Math.abs(b.index - middle))
+  const attempted = new Set<string>()
+  for (const { media } of candidates) {
+    if (!media)
+      continue
+    const paths = [
+      media.variants?.poster,
+      media.metadata?.variants?.poster,
+      media.variants?.small,
+      media.metadata?.variants?.small,
+      media.variants?.medium,
+      media.metadata?.variants?.medium,
+      media.type === 'image' ? media.url : undefined,
+    ]
+    for (const path of paths) {
+      if (!path || attempted.has(path))
+        continue
+      attempted.add(path)
+      try {
+        const frame = await loadFrame(path)
+        if (frame)
+          return frame
+      }
+      catch { /* Try the next preview or file in this group. */ }
+    }
+  }
+}
+
 // A single small frame per group; videos themselves never go to the model.
 export async function createAnalysisFrame(file: Blob & { name?: string }): Promise<string | undefined> {
   const url = URL.createObjectURL(file)

@@ -30,7 +30,7 @@ describe('bounded media timeline AI analysis', () => {
     const result = await describeMediaTimeline('user', input)
     expect(result.groups).toEqual([{ id: 0, title: 'Прогулка у воды' }])
     expect(check).toHaveBeenCalledWith('user')
-    expect(complete.mock.calls[0][1]).toMatchObject({ model: 'gemini-3.5-flash-lite', max_tokens: 900 })
+    expect(complete.mock.calls[0][1]).toMatchObject({ model: 'gemini-3.5-flash-lite', max_tokens: 1800 })
     expect(complete.mock.calls[0][0]).toMatchObject({ user: [{ type: 'text' }, { type: 'image_url', image_url: { detail: 'low' } }] })
     expect(deduct).toHaveBeenCalledWith('user', 'gemini-3.5-flash-lite', 123, 24)
     expect(record).toHaveBeenCalledTimes(1)
@@ -45,5 +45,21 @@ describe('bounded media timeline AI analysis', () => {
     await expect(describeMediaTimeline('user', input)).rejects.toThrow('Группы по времени сохранены')
     expect(complete).toHaveBeenCalledTimes(1)
     expect(deduct).toHaveBeenCalledTimes(1)
+  })
+})
+
+describe('complete media timeline titles', () => {
+  it('rejects missing and duplicate titles instead of returning partial success', async () => {
+    const twoGroups = { groups: [input.groups[0], { ...input.groups[0], id: 1 }] }
+    for (const groups of [
+      [{ id: 0, title: 'Кафе' }],
+      [{ id: 0, title: 'Кафе' }, { id: 0, title: 'Кафе' }],
+    ]) {
+      complete.mockResolvedValueOnce({ model: 'gemini-3.5-flash-lite', usage: { prompt_tokens: 5, completion_tokens: 2 }, choices: [{ message: { content: JSON.stringify({ groups }) } }] })
+      await expect(describeMediaTimeline('user', twoGroups)).rejects.toThrow('неполный набор')
+    }
+  })
+  it('rejects duplicate input ids', () => {
+    expect(MediaTimelineInputSchema.safeParse({ groups: [input.groups[0], input.groups[0]] }).success).toBe(false)
   })
 })
