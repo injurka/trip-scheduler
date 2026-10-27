@@ -72,7 +72,8 @@ const imageCount = computed(() => post.value.media.filter(media => media.type ==
 const videoCount = computed(() => post.value.media.filter(media => media.type === 'video').length)
 const videoPreviewUrl = computed(() => {
   const media = previewMedia.value
-  return media ? resolveApiUrl(media.metadata?.variants?.web || media.url) : ''
+
+  return media ? resolveApiUrl(media.variants?.web || media.metadata?.variants?.web || media.url) : ''
 })
 
 const isProcessing = ref(false)

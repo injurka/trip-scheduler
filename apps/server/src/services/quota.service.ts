@@ -14,6 +14,7 @@ const FALLBACK_MODEL_PRICES: Record<string, { input: number, output: number }> =
   'baidu-deepseek-v4-flash': { input: 0.142, output: 0.284 },
   'gemini-2.5-flash': { input: 0.5, output: 1.5 },
   'gemini-2.5-flash-lite': { input: 0.075, output: 0.3 },
+  'gemini-3.5-flash-lite': { input: 0.3, output: 2.5 },
 }
 
 async function getModelCosts(modelId: string): Promise<{ input: number, output: number }> {
