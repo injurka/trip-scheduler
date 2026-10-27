@@ -64,6 +64,20 @@ const filteredMedia = computed(() => {
     return matchesType && matchesName
   })
 })
+const displayedMedia = computed(() => {
+  const media = post.value.media
+  if (props.mode !== 'select')
+    return media
+
+  return media
+    .map((item, index) => ({ item, index, capturedAt: readStoredTimelineMedia(item).capturedAt }))
+    .sort((a, b) => {
+      if (!a.capturedAt || !b.capturedAt)
+        return a.capturedAt ? -1 : b.capturedAt ? 1 : a.index - b.index
+      return a.capturedAt.localeCompare(b.capturedAt) || a.index - b.index
+    })
+    .map(({ item }) => item)
+})
 const visibleMediaIds = computed(() => new Set(filteredMedia.value.map(media => media.id)))
 const hasActiveMediaFilters = computed(() => Boolean(searchQuery.value.trim()) || mediaTypeFilter.value !== 'all')
 const allVisibleMediaSelected = computed(() => filteredMedia.value.length > 0
@@ -219,7 +233,7 @@ watch(() => props.visible, (isOpen) => {
     icon="mdi:image-multiple-outline"
     :max-width="1100"
     :content-class="{ 'media-library-dialog--fullscreen': isFullscreen }"
-    :persistent="isProcessing"
+    :persistent="true"
     @update:visible="emit('update:visible', $event)"
   >
     <template #header-actions>
@@ -243,7 +257,7 @@ watch(() => props.visible, (isOpen) => {
         <p>Загрузка медиафайлов ({{ processedCount }} / {{ totalToProcess }})...</p>
       </div>
 
-      <div v-if="post.media.length" class="toolbar">
+      <div v-if="post.media.length" class="media-toolbar">
         <div class="stats">
           <strong>{{ post.media.length }} файлов</strong>
           <span v-if="hasActiveMediaFilters">Показано: {{ filteredMedia.length }}</span>
@@ -258,9 +272,7 @@ watch(() => props.visible, (isOpen) => {
             {{ allVisibleMediaSelected ? 'Снять видимые' : 'Выбрать видимые' }}
           </KitBtn>
         </div>
-      </div>
 
-      <div v-if="post.media.length" class="media-controls">
         <div class="media-search-wrap">
           <KitInput
             v-model="searchQuery"
@@ -305,7 +317,7 @@ watch(() => props.visible, (isOpen) => {
 
       <draggable
         v-else
-        v-model="post.media"
+        :list="displayedMedia"
         item-key="id"
         class="media-grid"
         handle=".drag-handle"
@@ -464,30 +476,30 @@ watch(() => props.visible, (isOpen) => {
   }
 }
 
-.toolbar {
-  display: flex;
-  flex-wrap: wrap;
+.media-toolbar {
+  display: grid;
+  grid-template-columns: max-content max-content minmax(180px, 1fr) max-content;
   align-items: center;
-  justify-content: space-between;
-  gap: 12px;
+  gap: 10px 12px;
   width: 100%;
   max-width: 1480px;
-  margin: 0 auto 12px;
+  margin: 0 auto 14px;
 }
 .toolbar-actions {
   display: flex;
-  flex-wrap: wrap;
+  flex-wrap: nowrap;
   align-items: center;
   gap: 8px;
 }
 .stats {
   display: flex;
   align-items: center;
-  flex-wrap: wrap;
-  gap: 8px 14px;
+  flex-wrap: nowrap;
+  gap: 8px 10px;
   min-height: 38px;
   font-size: 13px;
   color: var(--fg-secondary-color);
+  white-space: nowrap;
 
   strong {
     color: var(--fg-primary-color);
@@ -497,20 +509,8 @@ watch(() => props.visible, (isOpen) => {
 .selected-summary {
   color: var(--fg-accent-color);
 }
-.media-controls {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  justify-content: space-between;
-  gap: 12px;
-  width: 100%;
-  max-width: 1480px;
-  margin: 0 auto 14px;
-}
 .media-search-wrap {
-  flex: 1 1 280px;
-  min-width: 220px;
-  max-width: 420px;
+  min-width: 0;
 }
 .media-type-filters {
   display: inline-flex;
@@ -902,26 +902,41 @@ watch(() => props.visible, (isOpen) => {
     font-size: 13px;
   }
 }
+@media (max-width: 980px) {
+  .media-toolbar {
+    grid-template-columns: minmax(0, 1fr) max-content;
+  }
+  .media-search-wrap {
+    grid-column: 1;
+  }
+  .media-type-filters {
+    grid-column: 2;
+  }
+}
+
 @media (max-width: 640px) {
   .library-container {
     height: min(62dvh, 540px);
   }
-  .toolbar {
+  .media-toolbar {
+    grid-template-columns: minmax(0, 1fr);
     gap: 10px;
   }
+  .stats {
+    flex-wrap: wrap;
+    white-space: normal;
+  }
   .toolbar-actions {
+    grid-column: 1;
     width: 100%;
     justify-content: space-between;
   }
-  .media-controls {
-    align-items: stretch;
-    gap: 10px;
-  }
   .media-search-wrap {
-    flex-basis: 100%;
+    grid-column: 1;
     max-width: none;
   }
   .media-type-filters {
+    grid-column: 1;
     width: 100%;
     justify-content: space-between;
   }

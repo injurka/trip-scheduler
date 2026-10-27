@@ -145,3 +145,45 @@ describe('kitImageViewer - Escape isolation', () => {
     }
   })
 })
+
+describe('kitImageViewer - video playback', () => {
+  it('uses the original video, isolates playback keys and removes inactive players', async () => {
+    const play = vi.spyOn(HTMLMediaElement.prototype, 'play').mockResolvedValue()
+    const pause = vi.spyOn(HTMLMediaElement.prototype, 'pause').mockImplementation(() => {})
+    const wrapper = mount(KitImageViewer, {
+      props: {
+        visible: true,
+        currentIndex: 0,
+        images: [
+          { url: '/clip.mp4?token=test', mediaType: 'video', variants: { large: '/poster.jpg' } },
+          { url: '/second.webm', mediaType: 'video' },
+          { url: '/photo.jpg' },
+        ],
+      },
+      attachTo: document.body,
+      global: { stubs: { Icon: true, ImageMetadataPanel: true } },
+    })
+    try {
+      const video = document.querySelector('video.viewer-video') as HTMLVideoElement
+      expect(document.querySelectorAll('video.viewer-video')).toHaveLength(1)
+      expect(video.getAttribute('src')).toBe('/clip.mp4?token=test')
+      expect(video.style.transform).toBe('')
+      document.body.dispatchEvent(new KeyboardEvent('keydown', { key: ' ', bubbles: true, cancelable: true }))
+      expect(play).toHaveBeenCalledOnce()
+      expect(wrapper.emitted('update:currentIndex')).toBeUndefined()
+      video.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowRight', bubbles: true }))
+      expect(wrapper.emitted('update:currentIndex')).toBeUndefined()
+      await wrapper.setProps({ currentIndex: 1 })
+      expect(pause).toHaveBeenCalled()
+      expect(document.querySelectorAll('video.viewer-video')).toHaveLength(1)
+      expect(document.querySelector('video.viewer-video')?.getAttribute('src')).toBe('/second.webm')
+      await wrapper.setProps({ currentIndex: 2 })
+      expect(document.querySelector('video.viewer-video')).toBeNull()
+    }
+    finally {
+      wrapper.unmount()
+      play.mockRestore()
+      pause.mockRestore()
+    }
+  })
+})

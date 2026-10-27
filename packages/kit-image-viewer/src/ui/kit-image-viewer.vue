@@ -67,6 +67,7 @@ const props = withDefaults(defineProps<Props>(), {
 const emit = defineEmits<Emits>()
 
 const imageRef = ref<HTMLImageElement | null>(null)
+const videoRef = ref<HTMLVideoElement | null>(null)
 const containerRef = ref<HTMLElement | null>(null)
 const thumbnailsRef = ref<HTMLElement | null>(null)
 const naturalSize = reactive({ width: 0, height: 0 })
@@ -108,6 +109,8 @@ const {
   thumbnailsRef,
   resolveUrl: props.resolveUrl,
 })
+
+const isCurrentVideo = computed(() => isVideoImage(currentImage.value))
 
 const {
   selectedQuality,
@@ -160,7 +163,7 @@ const { idle: isIdle } = useIdle(3000, {
 })
 
 const areControlsVisible = computed(() => {
-  if (isMetadataPanelOpen.value)
+  if (isMetadataPanelOpen.value || isCurrentVideo.value)
     return true
   if (isDragging.value || isZoomed.value)
     return true
@@ -189,16 +192,22 @@ const {
 })
 
 function handleTouchStartCombined(event: TouchEvent) {
+  if (!props.enableTouch || isCurrentVideo.value)
+    return
   handleSwipeTouchStart(event)
   handleTouchStart(event)
 }
 
 function handleTouchMoveCombined(event: TouchEvent) {
+  if (!props.enableTouch || isCurrentVideo.value)
+    return
   handleSwipeTouchMove(event)
   handleTouchMove(event)
 }
 
 function handleTouchEndCombined(event: TouchEvent) {
+  if (!props.enableTouch || isCurrentVideo.value)
+    return
   handleSwipeTouchEnd()
   handleTouchEnd(event)
 }
@@ -296,7 +305,23 @@ function handleVideoLoadedMetadata(index: number, event: Event) {
   }
 }
 
-void handleVideoLoadedMetadata
+function setVideoRef(el: unknown) {
+  videoRef.value = el instanceof HTMLVideoElement ? el : null
+}
+
+function pauseVideo() {
+  videoRef.value?.pause()
+}
+
+function retryVideo() {
+  const state = imageLoadStates[props.currentIndex]
+  if (state) {
+    state.error = false
+    state.loaded = false
+    state.loader = true
+  }
+  videoRef.value?.load()
+}
 
 function handleImageError(index: number, event: Event) {
   if (!imageLoadStates[index]) {
@@ -420,6 +445,7 @@ async function handleShowMetadata() {
 }
 
 function close() {
+  pauseVideo()
   emit('update:visible', false)
   emit('close')
 }
@@ -448,6 +474,8 @@ function goToIndex(index: number) {
   if (index >= 0 && index < props.images.length)
     emit('update:currentIndex', index)
 }
+
+watch(() => [props.currentIndex, props.visible, currentImage.value?.url], pauseVideo, { flush: 'sync' })
 
 watch(() => props.currentIndex, (index) => {
   resetTransform(false)
@@ -526,6 +554,29 @@ useEventListener(typeof document !== 'undefined' ? document : null, 'keydown', (
   if (isEditing)
     return
 
+  if (e.key !== 'Escape' && (target.closest('video') || target.closest('button') || target.closest('a')))
+    return
+
+  if (isCurrentVideo.value && [' ', 'k', 'ArrowLeft', 'ArrowRight', 'm'].includes(e.key)) {
+    const video = videoRef.value
+    if (!video || e.repeat)
+      return
+    e.preventDefault()
+    if (e.key === ' ' || e.key === 'k') {
+      if (video.paused)
+        void video.play().catch(() => {})
+      else
+        video.pause()
+    }
+    else if (e.key === 'm') {
+      video.muted = !video.muted
+    }
+    else if (Number.isFinite(video.duration)) {
+      video.currentTime = Math.max(0, Math.min(video.duration, video.currentTime + (e.key === 'ArrowRight' ? 5 : -5)))
+    }
+    return
+  }
+
   switch (e.key) {
     case 'Escape':
       e.preventDefault()
@@ -556,6 +607,7 @@ useEventListener(typeof document !== 'undefined' ? document : null, 'keydown', (
 })
 
 onUnmounted(() => {
+  pauseVideo()
   if (typeof document !== 'undefined')
     document.body.style.overflow = ''
   loaderTimeouts.forEach(timer => clearTimeout(timer))
@@ -569,8 +621,9 @@ onUnmounted(() => {
       <div
         v-if="visible"
         class="image-viewer-overlay"
+        :class="{ 'is-video-viewer': isCurrentVideo, 'has-thumbnails': enableThumbnails && hasMultipleImages }"
         @click="handleOverlayClick"
-        @wheel="handleWheel"
+        @wheel="e => !isCurrentVideo && handleWheel(e)"
         @touchstart="handleTouchStartCombined"
         @touchmove="handleTouchMoveCombined"
         @touchend="handleTouchEndCombined"
@@ -601,7 +654,8 @@ onUnmounted(() => {
                   :is-zoomed="isZoomed"
                   :has-metadata="hasMetadata"
                   :is-metadata-loading="isMetadataLoading"
-                  :show-quality-selector="showQualitySelector"
+                  :show-quality-selector="showQualitySelector && !isCurrentVideo"
+                  :is-video="isCurrentVideo"
                   :show-info-button="showInfoButton"
                   :is-downloading="isDownloading"
                   @reset-transform="() => resetTransform(true)"
@@ -659,23 +713,23 @@ onUnmounted(() => {
                   <div class="current-image-wrapper">
                     <div
                       class="image-slot"
-                      :class="{ 'has-error': imageLoadStates[i]?.error }"
-                      :style="!imageLoadStates[i]?.error && images[i]?.meta?.width && images[i]?.meta?.height
+                      :class="{ 'has-error': imageLoadStates[i]?.error, 'video-slot': isVideoImage(images[i]) }"
+                      :style="!isVideoImage(images[i]) && !imageLoadStates[i]?.error && images[i]?.meta?.width && images[i]?.meta?.height
                         ? { aspectRatio: `${images[i].meta?.width}/${images[i].meta?.height}` }
                         : undefined"
                     >
                       <video
-                        v-if="isVideoImage(images[i])"
-                        :ref="el => setRef(el, i)"
+                        v-if="isVideoImage(images[i]) && i === currentIndex"
+                        :key="images[i].url"
+                        :ref="setVideoRef"
                         :src="getImageUrl(images[i], 'original')"
                         class="viewer-image viewer-video"
                         :class="{
                           'loaded': imageLoadStates[i]?.loaded,
                           'has-error': imageLoadStates[i]?.error,
                           'is-ui-hidden': !isUiVisible,
-                          'fill-slot': !!(images[i]?.meta?.width && images[i]?.meta?.height),
                         }"
-                        :style="i === currentIndex ? [imageStyle, currentImageStyle] : adjacentImageStyle"
+                        :aria-label="images[i]?.alt || `Видео ${i + 1}`"
                         controls
                         playsinline
                         :preload="i === currentIndex ? 'metadata' : 'none'"
@@ -683,7 +737,7 @@ onUnmounted(() => {
                         @error="e => handleImageError(i, e)"
                       />
                       <img
-                        v-else
+                        v-else-if="!isVideoImage(images[i])"
                         :ref="el => setRef(el, i)"
                         :src="getImageUrl(images[i], i === currentIndex ? selectedQuality : 'large')"
                         :alt="images[i]?.alt || `Image ${i + 1}`"
@@ -717,7 +771,10 @@ onUnmounted(() => {
                                 <Icon icon="mdi:image-broken-variant" class="error-icon" />
                               </div>
                               <span class="error-title">Не удалось загрузить {{ isVideoImage(images[i]) ? 'видео' : 'изображение' }}</span>
-                              <span class="error-subtitle">Проверьте подключение к сети или корректность ссылки</span>
+                              <span class="error-subtitle">{{ isVideoImage(images[i]) ? 'Проверьте сеть. Формат или кодек видео может не поддерживаться браузером.' : 'Проверьте подключение к сети или корректность ссылки' }}</span>
+                              <button v-if="isVideoImage(images[i])" class="retry-video" @click.stop="retryVideo">
+                                Повторить
+                              </button>
                             </div>
                             <div v-else class="shimmer-container">
                               <div class="shimmer-wave" />
@@ -731,16 +788,22 @@ onUnmounted(() => {
                 </div>
               </div>
 
-              <div
+              <button
                 v-if="(hasMultipleImages || hasPrevPage) && transform.scale <= minZoom"
                 class="nav-zone prev-zone"
+                aria-label="Предыдущий файл"
                 @click="prev"
-              />
-              <div
+              >
+                <Icon v-if="isCurrentVideo" icon="mdi:chevron-left" />
+              </button>
+              <button
                 v-if="(hasMultipleImages || hasNextPage) && transform.scale <= minZoom"
                 class="nav-zone next-zone"
+                aria-label="Следующий файл"
                 @click="next"
-              />
+              >
+                <Icon v-if="isCurrentVideo" icon="mdi:chevron-right" />
+              </button>
             </div>
           </div>
 
@@ -799,8 +862,8 @@ onUnmounted(() => {
                       >
                         <template v-if="!failedThumbnails.has(item.index)">
                           <video
-                            v-if="isVideoImage(item.image)"
-                            :src="resolveThumbnailUrl(item.image)"
+                            v-if="isVideoImage(item.image) && resolveThumbnailUrl(item.image) === getImageUrl(item.image, 'original')"
+                            :src="getImageUrl(item.image, 'original')"
                             muted
                             playsinline
                             preload="metadata"
@@ -1144,6 +1207,8 @@ onUnmounted(() => {
 }
 
 .nav-zone {
+  background: transparent;
+  border: 0;
   position: absolute;
   top: 0;
   bottom: 0;
@@ -1585,6 +1650,81 @@ onUnmounted(() => {
   }
   .header-left {
     justify-content: flex-start;
+  }
+}
+</style>
+
+<style scoped lang="scss">
+.is-video-viewer {
+  .slide-wrapper {
+    padding: 0;
+  }
+  .viewer-content {
+    min-height: 0;
+  }
+  .current-image-wrapper {
+    box-sizing: border-box;
+    padding: 80px 64px 32px;
+  }
+  &.has-thumbnails .current-image-wrapper {
+    padding-bottom: calc(112px + var(--safe-area-inset-bottom, env(safe-area-inset-bottom, 0px)));
+  }
+  .video-slot {
+    width: 100%;
+    height: 100%;
+  }
+  .viewer-video {
+    width: 100%;
+    height: 100%;
+    max-width: 100%;
+    max-height: 100%;
+    background: #000;
+    opacity: 1;
+    touch-action: auto;
+  }
+  .nav-zone {
+    top: 50%;
+    bottom: auto;
+    width: 44px;
+    height: 44px;
+    transform: translateY(-50%);
+    border-radius: 50%;
+    background: rgba(40, 40, 40, 0.85);
+    color: white;
+    font-size: 28px;
+    display: grid;
+    place-items: center;
+  }
+  .prev-zone {
+    left: 8px;
+  }
+  .next-zone {
+    right: 8px;
+  }
+}
+.retry-video {
+  margin-top: 12px;
+  padding: 10px 16px;
+  border: 1px solid #777;
+  border-radius: 8px;
+  background: #333;
+  color: white;
+  cursor: pointer;
+}
+@media (max-width: 599px) {
+  .is-video-viewer .current-image-wrapper {
+    padding: 76px 8px 72px;
+  }
+  .is-video-viewer .nav-zone {
+    top: auto;
+    bottom: calc(12px + var(--safe-area-inset-bottom, env(safe-area-inset-bottom, 0px)));
+    transform: none;
+  }
+  .is-video-viewer.has-thumbnails .nav-zone {
+    bottom: calc(76px + var(--safe-area-inset-bottom, env(safe-area-inset-bottom, 0px)));
+  }
+  .is-video-viewer.has-thumbnails .current-image-wrapper {
+    padding-bottom: calc(132px + var(--safe-area-inset-bottom, env(safe-area-inset-bottom, 0px)));
   }
 }
 </style>

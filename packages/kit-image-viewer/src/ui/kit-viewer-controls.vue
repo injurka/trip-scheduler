@@ -6,6 +6,7 @@ import KitViewerDropdown from './kit-viewer-dropdown.vue'
 import KitViewerTooltip from './kit-viewer-tooltip.vue'
 
 interface Props {
+  isVideo?: boolean
   isUiVisible: boolean
   canZoomIn: boolean
   canZoomOut: boolean
@@ -78,7 +79,7 @@ const currentQuality = computed({
         </KitViewerDropdown>
       </KitViewerTooltip>
 
-      <KitViewerTooltip v-if="showInfoButton" text="Информация о снимке">
+      <KitViewerTooltip v-if="showInfoButton" :text="isVideo ? 'Информация о видео' : 'Информация о снимке'">
         <button
           class="control-btn"
           :class="{ loading: isMetadataLoading }"
@@ -90,7 +91,7 @@ const currentQuality = computed({
         </button>
       </KitViewerTooltip>
 
-      <KitViewerTooltip text="Сбросить масштаб">
+      <KitViewerTooltip v-if="!isVideo" text="Сбросить масштаб">
         <button
           class="control-btn"
           :disabled="!isZoomed"

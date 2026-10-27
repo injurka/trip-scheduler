@@ -20,7 +20,7 @@ export function isVideoImage(img?: ImageViewerImage | null): boolean {
   return (
     img.mediaType === 'video'
     || img.meta?.mediaType === 'video'
-    || /\.(?:mp4|webm|mov|mkv|avi|ogg|quicktime)$/i.test(img.url || '')
+    || /\.(?:mp4|webm|mov|mkv|avi|ogg|quicktime)(?:[?#].*)?$/i.test(img.url || '')
   )
 }
 

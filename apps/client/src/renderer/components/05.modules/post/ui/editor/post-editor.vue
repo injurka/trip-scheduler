@@ -738,7 +738,12 @@ watch(() => [post.value?.title, post.value?.insight, post.value?.description], (
       </footer>
     </div>
     <MediaLibraryPicker v-model:visible="isMediaLibraryOpen" mode="manage" allow-timeline @timeline="handleMediaTimelineSelection" @confirm="isMediaLibraryOpen = false" />
-    <KitDialogWithClose v-model:visible="isMediaTimelineOpen" title="Таймлайн из медиа" :max-width="780" :persistent="isMediaBusy">
+    <KitDialogWithClose
+      v-model:visible="isMediaTimelineOpen"
+      title="Таймлайн из медиа"
+      :max-width="780"
+      :persistent="true"
+    >
       <MediaTimelineImport ref="mediaTimeline" :disabled="isGenerating" @busy="isImportingMedia = $event" @applied="isMediaTimelineOpen = false" />
     </KitDialogWithClose>
     <KitDialogWithClose v-model:visible="isAiDialogOpen" title="Магия ИИ" :max-width="600" :persistent="isGenerating">

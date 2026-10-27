@@ -1,11 +1,13 @@
 <script setup lang="ts">
 import type { MediaGroup, TimelineMedia } from '../../../lib/media-timeline'
+import type { ImageViewerImage } from '~/components/01.kit/kit-image-viewer'
 import type { PostMedia, TimelineStage } from '~/shared/types/models/post'
 import { Icon } from '@iconify/vue'
 import { v4 as uuid } from 'uuid'
 import { computed, ref } from 'vue'
 import { KitBtn } from '~/components/01.kit/kit-btn'
 import { KitImage } from '~/components/01.kit/kit-image'
+import { KitImageViewer } from '~/components/01.kit/kit-image-viewer'
 import { KitInput } from '~/components/01.kit/kit-input'
 import { useRequest } from '~/plugins/request'
 import { useToast } from '~/shared/composables/use-toast'
@@ -26,6 +28,9 @@ const busy = ref(false)
 const progress = ref('')
 const error = ref('')
 const libraryOpen = ref(false)
+const groupPreviewOpen = ref(false)
+const groupPreviewImages = ref<ImageViewerImage[]>([])
+const groupPreviewIndex = ref(0)
 const selectedMediaIds = computed(() => items.value.flatMap(item => item.media ? [item.media.id] : []))
 const unknownCount = computed(() => items.value.filter(item => !item.capturedAt).length)
 const hasGapChanges = computed(() => appliedGap.value !== normalizeGap(gap.value))
@@ -48,6 +53,42 @@ function getGroupThumbnail(item: TimelineMedia): string {
     return ''
   return media.variants?.poster || media.metadata?.variants?.poster
     || media.variants?.small || media.metadata?.variants?.small || media.url
+}
+
+function toGroupPreviewImage(media: PostMedia): ImageViewerImage {
+  const variants = {
+    ...(media.metadata?.variants || {}),
+    ...(media.variants || {}),
+  }
+
+  return {
+    url: media.type === 'video' ? variants.web || media.url : media.url,
+    alt: media.originalName || 'Медиафайл',
+    caption: media.originalName || undefined,
+    mediaType: media.type,
+    variants,
+    meta: {
+      ...(media.metadata || {}),
+      mediaId: media.id,
+      mediaType: media.type,
+      width: media.width ?? media.metadata?.width,
+      height: media.height ?? media.metadata?.height,
+    },
+  }
+}
+
+function openGroupPreview(group: MediaGroup, selectedItem?: TimelineMedia) {
+  if (!selectedItem?.media)
+    return
+
+  const media = group.items.flatMap(item => item.media ? [item.media] : [])
+  const currentIndex = media.findIndex(item => item.id === selectedItem.media?.id)
+  if (currentIndex < 0)
+    return
+
+  groupPreviewImages.value = media.map(toGroupPreviewImage)
+  groupPreviewIndex.value = currentIndex
+  groupPreviewOpen.value = true
 }
 
 function setBusy(value: boolean) {
@@ -200,7 +241,7 @@ async function apply() {
     </div>
     <div v-else class="selection-summary">
       <div class="selection-summary-copy">
-        <span class="selection-summary-icon"><Icon icon="mdi:check-circle-outline" /></span>
+        <span class="selection-summary-icon"><Icon icon="mdi:check-circle" /></span>
         <div>
           <strong>Выбрано медиа: {{ items.length }}</strong>
           <span>Создано групп: {{ groups.length }}</span>
@@ -228,7 +269,7 @@ async function apply() {
         </div>
         <div class="grouping-controls">
           <KitInput v-model="gap" label="Пауза между активностями, минут" type="number" min="5" max="240" :disabled="busy" />
-          <KitBtn variant="outlined" color="secondary" size="sm" icon="mdi:refresh" :disabled="busy || !canRegroup" @click="regroup">
+          <KitBtn variant="outlined" color="secondary" size="md" icon="mdi:refresh" :disabled="busy || !canRegroup" @click="regroup">
             Пересчитать группы
           </KitBtn>
         </div>
@@ -276,12 +317,27 @@ async function apply() {
           </div>
           <KitInput v-model="group.title" label="Название (необязательно)" :disabled="busy" />
           <div class="group-media-preview">
-            <div class="thumbnail-strip" aria-hidden="true">
-              <div v-for="(item, previewIndex) in group.items.slice(0, 4)" :key="item.media?.id ?? previewIndex" class="timeline-thumbnail">
+            <div class="thumbnail-strip">
+              <button
+                v-for="(item, previewIndex) in group.items.slice(0, 4)"
+                :key="item.media?.id ?? previewIndex"
+                type="button"
+                class="timeline-thumbnail"
+                :aria-label="`Просмотреть ${item.media?.originalName || 'медиафайл'}`"
+                @click="openGroupPreview(group, item)"
+              >
                 <KitImage v-if="getGroupThumbnail(item)" :src="getGroupThumbnail(item)" alt="" object-fit="cover" />
                 <Icon v-if="item.media?.type === 'video'" icon="mdi:play-circle" class="thumbnail-video-icon" />
-              </div>
-              <span v-if="group.items.length > 4" class="thumbnail-more">+{{ group.items.length - 4 }}</span>
+              </button>
+              <button
+                v-if="group.items.length > 4"
+                type="button"
+                class="thumbnail-more"
+                :aria-label="`Просмотреть ещё ${group.items.length - 4} файлов`"
+                @click="openGroupPreview(group, group.items[4])"
+              >
+                +{{ group.items.length - 4 }}
+              </button>
             </div>
             <span class="group-first-file" :title="group.items[0].media?.originalName">
               {{ group.items[0].media?.originalName || 'Файл без даты съёмки' }}
@@ -307,6 +363,16 @@ async function apply() {
       </KitBtn>
     </template>
     <MediaLibraryPicker v-model:visible="libraryOpen" :selected-ids="selectedMediaIds" mode="select" title="Медиа для таймлайна" @confirm="selectMedia" @busy="setBusy" />
+    <KitImageViewer
+      :visible="groupPreviewOpen"
+      :images="groupPreviewImages"
+      :current-index="groupPreviewIndex"
+      :enable-thumbnails="true"
+      :show-info-button="false"
+      @update:visible="groupPreviewOpen = $event"
+      @update:current-index="groupPreviewIndex = $event"
+      @close="groupPreviewOpen = false"
+    />
   </div>
 </template>
 
@@ -342,6 +408,9 @@ async function apply() {
   gap: 12px;
   min-width: 0;
 }
+.selection-summary-copy {
+  flex: 1 1 auto;
+}
 .selection-empty-icon,
 .selection-summary-icon {
   display: grid;
@@ -359,6 +428,12 @@ async function apply() {
   border: 0;
   background: transparent;
   font-size: 24px;
+
+  :deep(svg) {
+    display: block;
+    width: 24px;
+    height: 24px;
+  }
 }
 .selection-empty-copy strong,
 .selection-summary-copy strong {
@@ -367,7 +442,7 @@ async function apply() {
   font-size: 14px;
 }
 .selection-empty-copy p,
-.selection-summary-copy span {
+.selection-summary-copy > div > span {
   display: block;
   margin: 4px 0 0;
   color: var(--fg-secondary-color);
@@ -583,11 +658,21 @@ async function apply() {
 }
 .timeline-thumbnail {
   position: relative;
+  display: block;
   width: 42px;
   height: 42px;
+  flex: 0 0 42px;
+  padding: 0;
+  border: 0;
   overflow: hidden;
   border-radius: var(--r-xs);
   background: var(--bg-tertiary-color);
+  cursor: pointer;
+
+  &:focus-visible {
+    outline: 2px solid var(--fg-accent-color);
+    outline-offset: 2px;
+  }
 
   :deep(.kit-image-wrapper) {
     width: 100%;
@@ -607,11 +692,20 @@ async function apply() {
   place-items: center;
   width: 42px;
   height: 42px;
+  flex: 0 0 42px;
+  padding: 0;
+  border: 0;
   border-radius: var(--r-xs);
   background: var(--bg-tertiary-color);
   color: var(--fg-secondary-color);
   font-size: 12px;
   font-weight: 600;
+  cursor: pointer;
+
+  &:focus-visible {
+    outline: 2px solid var(--fg-accent-color);
+    outline-offset: 2px;
+  }
 }
 .group-first-file {
   overflow: hidden;
