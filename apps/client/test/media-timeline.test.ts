@@ -71,6 +71,17 @@ describe('persisted media grouping', () => {
 })
 
 describe('group analysis frames', () => {
+  it('ignores videos even when they have an available poster', async () => {
+    const groups = groupTimelineMedia([
+      readStoredTimelineMedia({ id: 'video', type: 'video', url: 'video.mp4', variants: { poster: 'poster.jpg' } } as Parameters<typeof readStoredTimelineMedia>[0]),
+    ])
+    const paths: string[] = []
+    expect(await prepareGroupAnalysisFrame(groups[0], async (path) => {
+      paths.push(path)
+      return 'frame'
+    })).toBeUndefined()
+    expect(paths).toEqual([])
+  })
   it('uses a photo even when the middle item is a video without a poster', async () => {
     const groups = groupTimelineMedia([
       readStoredTimelineMedia({ id: 'photo', type: 'image', url: 'photo.jpg' } as Parameters<typeof readStoredTimelineMedia>[0]),

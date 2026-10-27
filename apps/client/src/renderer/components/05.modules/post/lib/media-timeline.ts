@@ -148,15 +148,15 @@ export function groupTimelineMedia(items: TimelineMedia[], gapMinutes = 60): Med
   return groups
 }
 
-// Prefer photos near the middle, then try other files and preview variants.
+// Use only photos, preferring those near the middle of the group.
 export async function prepareGroupAnalysisFrame(
   group: MediaGroup,
   loadFrame: (path: string) => Promise<string | undefined>,
 ): Promise<string | undefined> {
   const middle = Math.floor(group.items.length / 2)
   const candidates = group.items.map((item, index) => ({ media: item.media, index }))
-    .sort((a, b) => Number(b.media?.type === 'image') - Number(a.media?.type === 'image')
-      || Math.abs(a.index - middle) - Math.abs(b.index - middle))
+    .filter(item => item.media?.type === 'image')
+    .sort((a, b) => Math.abs(a.index - middle) - Math.abs(b.index - middle))
   const attempted = new Set<string>()
   for (const { media } of candidates) {
     if (!media)

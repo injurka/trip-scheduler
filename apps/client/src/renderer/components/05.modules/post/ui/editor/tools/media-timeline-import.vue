@@ -123,17 +123,23 @@ async function analyze() {
     const failedGroups: number[] = []
     for (const [id, group] of groups.value.entries()) {
       progress.value = `Готовим кадры для ИИ: ${id + 1} / ${groups.value.length}`
+      if (!group.items.some(item => item.media?.type === 'image'))
+        continue
       const frame = await prepareGroupAnalysisFrame(group, async (path) => {
         const blob = await useRequest({ key: 'post:media-frame', fn: db => db.files.downloadMediaPreview(path), onError: () => {} })
         return blob ? createAnalysisFrame(blob) : undefined
       })
       if (frame)
-        samples.push({ id, count: group.items.length, frame })
+        samples.push({ id, count: group.items.filter(item => item.media?.type === 'image').length, frame })
       else
         failedGroups.push(id + 1)
     }
     if (failedGroups.length) {
       error.value = `Не удалось подготовить кадры для групп: ${failedGroups.join(', ')}. Проверьте доступность медиа и повторите анализ. Группы сохранены.`
+      return
+    }
+    if (!samples.length) {
+      toast.info('В выбранных группах нет фото для анализа ИИ.')
       return
     }
     const titles: { id: number, title: string }[] = []
@@ -148,8 +154,9 @@ async function analyze() {
         return
       titles.push(...data.groups)
     }
-    if (titles.length !== groups.value.length || new Set(titles.map(result => result.id)).size !== groups.value.length
-      || titles.some(result => !groups.value[result.id])) {
+    const expectedIds = new Set(samples.map(sample => sample.id))
+    if (titles.length !== samples.length || new Set(titles.map(result => result.id)).size !== expectedIds.size
+      || titles.some(result => !expectedIds.has(result.id))) {
       error.value = 'ИИ вернул неполный набор названий. Группы сохранены, повторите анализ.'
       return
     }
