@@ -224,6 +224,43 @@ export interface ExternalTrailLink {
 }
 
 /**
+ * Извлекает markdown-ссылки [title](url), допуская сбалансированные скобки внутри URL.
+ * Google Maps регулярно генерирует пути вида /dir/Place(Name) с неэкранированными
+ * скобками — обычный regex /[^)]+/ обрезает такой URL на первой «)» и теряет
+ * координатный payload и остаток имени места.
+ */
+export function extractMarkdownLinks(text: string): Array<{ title: string, url: string }> {
+  const results: Array<{ title: string, url: string }> = []
+  const linkStartRegex = /\[([^\]]+)\]\(/g
+  let match: RegExpExecArray | null
+  while ((match = linkStartRegex.exec(text)) !== null) {
+    const title = match[1]
+    const urlStart = linkStartRegex.lastIndex
+    let depth = 1
+    let index = urlStart
+    while (index < text.length && depth > 0) {
+      const char = text[index]
+      if (char === '\n')
+        break
+      if (char === '(')
+        depth++
+      else if (char === ')')
+        depth--
+      index++
+    }
+    if (depth !== 0) {
+      // Малформированная ссылка: пропускаем до конца строки и ищем следующие ссылки
+      const nextLineBreak = text.indexOf('\n', urlStart)
+      linkStartRegex.lastIndex = nextLineBreak === -1 ? text.length : nextLineBreak + 1
+      continue
+    }
+    results.push({ title, url: text.slice(urlStart, index - 1).trim() })
+    linkStartRegex.lastIndex = index
+  }
+  return results
+}
+
+/**
  * Находит внешние ссылки на хайкинг/вело платформы (AllTrails, Hikingbook, Komoot, Wikiloc, Strava)
  * в строках активностей для сохранения в виде интерактивных карточек-заметок.
  */
@@ -233,11 +270,9 @@ export function extractExternalTrailLinks(text: string): ExternalTrailLink[] {
   let match: RegExpExecArray | null
   while ((match = trailLineRegex.exec(text)) !== null) {
     const lineContent = match[1]
-    const linkRegex = /\[([^\]]+)\]\((https?:\/\/[^)]+)\)/g
-    let linkMatch: RegExpExecArray | null
-    while ((linkMatch = linkRegex.exec(lineContent)) !== null) {
-      const title = linkMatch[1].trim()
-      const url = linkMatch[2].trim()
+    for (const { title: rawTitle, url: rawUrl } of extractMarkdownLinks(lineContent)) {
+      const title = rawTitle.trim()
+      const url = rawUrl.trim()
       const isBike = /вело|bike/i.test(match[0]) || /travelmode=bicycl|travelmode=bike|!3e1/i.test(url)
       if (/alltrails\.com|hikingbook\.net|komoot\.com|wikiloc\.com|strava\.com/i.test(url)) {
         results.push({
@@ -443,13 +478,10 @@ export function extractLocationsFromText(text: string): ExtractedLocation[] {
     const lineContent = locLineMatch[1]
     const isLineBike = /вело|bike/i.test(locLineMatch[0])
 
-    const linkRegex = /\[([^\]]+)\]\((https?:\/\/[^)]+)\)/g
-    let linkMatch: RegExpExecArray | null
+    const markdownLinks = extractMarkdownLinks(lineContent)
     let foundLink = false
-    while ((linkMatch = linkRegex.exec(lineContent)) !== null) {
+    for (const { title: linkTitle, url: linkUrl } of markdownLinks) {
       foundLink = true
-      const linkTitle = linkMatch[1]
-      const linkUrl = linkMatch[2]
       const isBike = isLineBike || /travelmode=bicycl|travelmode=bike|!3e1/i.test(linkUrl)
       const externalUrl = isSupportedMapUrl(linkUrl) ? linkUrl : undefined
 
@@ -562,11 +594,10 @@ export function extractLocationsFromText(text: string): ExtractedLocation[] {
   }
 
   // 3. Standalone map markdown links in text
-  const standaloneMapLinkRegex = /\[((?:Yandex Maps|Google Maps|2GIS|OpenStreetMap|AllTrails|Hikingbook|Карты|Maps|Трек|Маршрут|Велотрек|Веломаршрут)[^\]]+)\]\((https?:\/\/[^)]+)\)/gi
-  let stdMapLinkMatch: RegExpExecArray | null
-  while ((stdMapLinkMatch = standaloneMapLinkRegex.exec(remainingText)) !== null) {
-    const title = stdMapLinkMatch[1]
-    const url = stdMapLinkMatch[2]
+  const standaloneTitlePrefix = /^(?:Yandex Maps|Google Maps|2GIS|OpenStreetMap|AllTrails|Hikingbook|Карты|Maps|Трек|Маршрут|Велотрек|Веломаршрут).+/i
+  for (const { title, url } of extractMarkdownLinks(remainingText)) {
+    if (!standaloneTitlePrefix.test(title))
+      continue
     const isBike = /вело|bike/i.test(title) || /travelmode=bicycl|travelmode=bike|!3e1/i.test(url)
     const externalUrl = isSupportedMapUrl(url) ? url : undefined
     const cleanTitle = title.replace(PREFIX_CLEAN_REGEX, '').trim() || title

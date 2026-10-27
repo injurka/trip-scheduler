@@ -1,7 +1,11 @@
 <script lang="ts" setup>
 import { useHead } from '@vueuse/head'
+import { useRoute } from 'vue-router'
 import { BackgroundEffects } from '~/components/02.shared/background-effects'
+import { AppRouteNames } from '~/shared/constants/routes'
 import { isMobileApp } from '~/shared/lib/env'
+
+const route = useRoute()
 
 useHead({
   htmlAttrs: {
@@ -11,7 +15,10 @@ useHead({
 </script>
 
 <template>
-  <main class="main empty-layout">
+  <main
+    class="main empty-layout"
+    :class="{ 'main--welcome-edge-to-edge': isMobileApp && route.name === AppRouteNames.Root }"
+  >
     <div v-if="isMobileApp" class="system-bar-top-scrim" aria-hidden="true" />
     <div class="main-content">
       <slot />
@@ -39,6 +46,10 @@ useHead({
   padding-bottom: var(--safe-area-inset-bottom);
   min-height: 100dvh;
   box-sizing: border-box;
+}
+
+.main--welcome-edge-to-edge {
+  padding-top: 0;
 }
 
 .system-bar-top-scrim {
