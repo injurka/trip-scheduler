@@ -4,6 +4,7 @@ import { Icon } from '@iconify/vue'
 import { KitAvatar } from '~/components/01.kit/kit-avatar'
 import { KitImage } from '~/components/01.kit/kit-image'
 import { getPostMediaVariants } from '~/components/05.modules/post/lib/media-variants'
+import PostVideoThumbnail from '../shared/post-video-thumbnail.vue'
 
 interface IProps {
   post: PostDetail
@@ -30,23 +31,46 @@ const formattedDuration = computed(() => {
   return `${hours} ч.`
 })
 
-const heroMediaUrl = computed(() => {
+const heroMedia = computed(() => {
   const media = props.post.media?.[0]
   if (!media || media.hasAccess === false)
+    return null
+
+  return media
+})
+
+const heroMediaUrl = computed(() => {
+  if (!heroMedia.value || heroMedia.value.type === 'video')
     return ''
 
-  const variants = getPostMediaVariants(media)
-  if (media.type === 'video') {
-    return variants.poster || variants.small || media.url
-  }
+  const variants = getPostMediaVariants(heroMedia.value)
+  return variants.large || heroMedia.value.url
+})
 
-  return variants.large || media.url
+const heroVideoUrl = computed(() => {
+  if (!heroMedia.value || heroMedia.value.type !== 'video')
+    return ''
+  const variants = getPostMediaVariants(heroMedia.value)
+  return variants.web || heroMedia.value.url
+})
+
+const heroVideoPoster = computed(() => {
+  if (!heroMedia.value || heroMedia.value.type !== 'video')
+    return ''
+  const variants = getPostMediaVariants(heroMedia.value)
+  return variants.poster || variants.medium || variants.small || ''
 })
 </script>
 
 <template>
   <div class="post-hero">
     <div class="hero-bg">
+      <PostVideoThumbnail
+        v-if="heroMedia?.type === 'video'"
+        :src="heroVideoUrl"
+        :poster="heroVideoPoster"
+        :alt="heroMedia.originalName || 'Видео'"
+      />
       <KitImage v-if="heroMediaUrl" :src="heroMediaUrl" object-fit="cover" />
     </div>
 

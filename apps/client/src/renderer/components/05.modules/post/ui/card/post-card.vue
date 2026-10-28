@@ -9,6 +9,7 @@ import { KitDropdown } from '~/components/01.kit/kit-dropdown'
 import { KitImage } from '~/components/01.kit/kit-image'
 import { getPostMediaVariants } from '~/components/05.modules/post/lib/media-variants'
 import { resolveApiUrl } from '~/shared/lib/url'
+import PostVideoThumbnail from '../shared/post-video-thumbnail.vue'
 
 interface Props {
   post: PostDetail
@@ -90,7 +91,7 @@ function getMainImgUrl(media: PostMedia) {
 
   const variants = getPostMediaVariants(media)
   if (media.type === 'video') {
-    return variants.poster || variants.medium || variants.small || media.url
+    return ''
   }
 
   return variants?.medium || media.url
@@ -102,7 +103,7 @@ function getBlurImgUrl(media: PostMedia) {
 
   const variants = getPostMediaVariants(media)
   if (media.type === 'video') {
-    return variants.poster || variants.small || media.url
+    return variants.poster || variants.small || variants.medium || ''
   }
 
   return variants?.small || variants?.medium || media.url
@@ -230,6 +231,7 @@ const cardStyle = computed(() => ({
                 <div class="blur-backdrop">
                   <!-- Оптимизация: берем маленькую версию для фона -->
                   <KitImage
+                    v-if="currentMedia.type !== 'video' || getBlurImgUrl(currentMedia)"
                     :src="getBlurImgUrl(currentMedia)"
                     object-fit="cover"
                     class="backdrop-img"
@@ -238,7 +240,14 @@ const cardStyle = computed(() => ({
                 </div>
 
                 <div class="main-img-wrapper">
+                  <PostVideoThumbnail
+                    v-if="currentMedia.type === 'video'"
+                    :src="getPostMediaVariants(currentMedia).web || currentMedia.url"
+                    :poster="getMainImgUrl(currentMedia) || getBlurImgUrl(currentMedia)"
+                    :alt="currentMedia.originalName || 'Видео'"
+                  />
                   <KitImage
+                    v-else
                     :src="getMainImgUrl(currentMedia)"
                     class="main-img"
                     object-fit="contain"

@@ -3,11 +3,10 @@ import type { ImageViewerImage } from '~/components/01.kit/kit-image-viewer'
 import type { PostMedia } from '~/shared/types/models/post'
 import { Icon } from '@iconify/vue'
 import { computed, ref } from 'vue'
-import { KitDialogWithClose } from '~/components/01.kit/kit-dialog-with-close'
 import { KitImage } from '~/components/01.kit/kit-image'
 import { KitImageViewer, useImageViewer } from '~/components/01.kit/kit-image-viewer'
 import { getPostMediaVariants } from '~/components/05.modules/post/lib/media-variants'
-import { resolveApiUrl } from '~/shared/lib/url'
+import PostVideoThumbnail from '../../shared/post-video-thumbnail.vue'
 
 const props = withDefaults(defineProps<{
   images: PostMedia[]
@@ -19,24 +18,43 @@ const props = withDefaults(defineProps<{
 
 const { isOpen, open, currentIndex } = useImageViewer()
 
-const activeVideoUrl = ref<string | null>(null)
-const isVideoModalOpen = ref(false)
+const accessibleMedia = computed(() => props.images.filter(img => img.hasAccess !== false))
 
 const viewerImages = computed<ImageViewerImage[]>(() => {
-  return props.images
-    .filter(img => img.type !== 'video' && img.hasAccess !== false)
-    .map(img => ({
-      url: img.url,
+  return accessibleMedia.value.map((img) => {
+    const variants = getPostMediaVariants(img)
+    const videoUrl = img.type === 'video' ? variants.web || img.url : img.url
+
+    return {
+      url: videoUrl,
       alt: img.originalName || 'Image',
-      meta: img.metadata || undefined,
-      variants: getPostMediaVariants(img),
-    }))
+      mediaType: img.type,
+      meta: {
+        ...(img.metadata || {}),
+        imageId: img.id,
+        mediaType: img.type,
+        width: img.width ?? img.metadata?.width,
+        height: img.height ?? img.metadata?.height,
+        takenAt: img.takenAt ?? img.metadata?.takenAt,
+        latitude: img.latitude ?? img.metadata?.latitude,
+        longitude: img.longitude ?? img.metadata?.longitude,
+      },
+      variants: img.type === 'video'
+        ? {
+            ...variants,
+            small: variants.poster || variants.small || variants.medium || videoUrl,
+            medium: variants.poster || variants.medium || variants.small || videoUrl,
+            large: variants.web || variants.large || videoUrl,
+          }
+        : variants,
+    }
+  })
 })
 
 function getOptimizedUrl(img: PostMedia) {
   const variants = getPostMediaVariants(img)
   if (img.type === 'video') {
-    return variants.poster || variants.medium || variants.small || img.url
+    return variants.poster || variants.medium || variants.small || ''
   }
 
   if (props.displayType === 'grid' || props.displayType === 'masonry') {
@@ -95,13 +113,7 @@ function handleItemClick(img: PostMedia, e: Event) {
     return
   }
 
-  if (img.type === 'video') {
-    activeVideoUrl.value = resolveApiUrl(getPostMediaVariants(img).web || img.url)
-    isVideoModalOpen.value = true
-    return
-  }
-
-  const imageIndex = viewerImages.value.findIndex(v => v.url === img.url)
+  const imageIndex = accessibleMedia.value.findIndex(media => media.id === img.id)
   if (imageIndex !== -1) {
     open(viewerImages.value, imageIndex)
   }
@@ -125,7 +137,13 @@ function handleItemClick(img: PostMedia, e: Event) {
           <span class="lock-desc">Только в белом списке</span>
         </div>
         <template v-else>
-          <KitImage :src="getOptimizedUrl(img)" object-fit="cover" />
+          <PostVideoThumbnail
+            v-if="img.type === 'video'"
+            :src="getPostMediaVariants(img).web || img.url"
+            :poster="getOptimizedUrl(img)"
+            :alt="img.originalName || 'Видео'"
+          />
+          <KitImage v-else :src="getOptimizedUrl(img)" object-fit="cover" />
           <div v-if="img.type === 'video'" class="video-play-badge">
             <Icon icon="mdi:play" />
           </div>
@@ -163,11 +181,13 @@ function handleItemClick(img: PostMedia, e: Event) {
             <span class="lock-desc">Только в белом списке</span>
           </div>
           <template v-else>
-            <KitImage
-              :src="getOptimizedUrl(img)"
-              object-fit="cover"
-              draggable="false"
+            <PostVideoThumbnail
+              v-if="img.type === 'video'"
+              :src="getPostMediaVariants(img).web || img.url"
+              :poster="getOptimizedUrl(img)"
+              :alt="img.originalName || 'Видео'"
             />
+            <KitImage v-else :src="getOptimizedUrl(img)" object-fit="cover" draggable="false" />
             <div v-if="img.type === 'video'" class="video-play-badge">
               <Icon icon="mdi:play" />
             </div>
@@ -194,7 +214,13 @@ function handleItemClick(img: PostMedia, e: Event) {
           <span class="lock-desc">Только в белом списке</span>
         </div>
         <template v-else>
-          <KitImage :src="getOptimizedUrl(img)" object-fit="cover" />
+          <PostVideoThumbnail
+            v-if="img.type === 'video'"
+            :src="getPostMediaVariants(img).web || img.url"
+            :poster="getOptimizedUrl(img)"
+            :alt="img.originalName || 'Видео'"
+          />
+          <KitImage v-else :src="getOptimizedUrl(img)" object-fit="cover" />
           <div v-if="img.type === 'video'" class="video-play-badge">
             <Icon icon="mdi:play" />
           </div>
@@ -216,24 +242,6 @@ function handleItemClick(img: PostMedia, e: Event) {
       @update:visible="isOpen = $event"
       @close="isOpen = false"
     />
-
-    <KitDialogWithClose
-      :visible="isVideoModalOpen"
-      title="Просмотр видео"
-      icon="mdi:video-outline"
-      :max-width="900"
-      @update:visible="isVideoModalOpen = $event"
-    >
-      <div v-if="activeVideoUrl" class="video-modal-content">
-        <video
-          :src="activeVideoUrl"
-          controls
-          autoplay
-          playsinline
-          class="modal-video-player"
-        />
-      </div>
-    </KitDialogWithClose>
   </div>
 </template>
 
@@ -478,22 +486,5 @@ function handleItemClick(img: PostMedia, e: Event) {
   align-items: center;
   justify-content: center;
   pointer-events: none;
-}
-
-.video-modal-content {
-  width: 100%;
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  background: #000;
-  border-radius: var(--r-m);
-  overflow: hidden;
-}
-
-.modal-video-player {
-  max-width: 100%;
-  max-height: 75vh;
-  width: 100%;
-  outline: none;
 }
 </style>
