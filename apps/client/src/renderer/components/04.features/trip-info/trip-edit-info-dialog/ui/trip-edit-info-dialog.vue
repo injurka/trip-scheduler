@@ -6,10 +6,10 @@ import type { GeoPlaceRef } from '~/shared/types/models/geo-place'
 import type { Trip, TripMedia, UpdateTripInput } from '~/shared/types/models/trip'
 import { Icon } from '@iconify/vue'
 import { parseDate } from '@internationalized/date'
+import { defineComponent, h } from 'vue'
 import { KitBtn } from '~/components/01.kit/kit-btn'
 import { KitDialogWithClose } from '~/components/01.kit/kit-dialog-with-close'
 import { KitImage } from '~/components/01.kit/kit-image'
-import { KitInlineMdEditorWrapper } from '~/components/01.kit/kit-inline-md-editor'
 import { KitInput } from '~/components/01.kit/kit-input'
 import { KitRadioGroup } from '~/components/01.kit/kit-radio-group'
 import { KitSelectWithSearch } from '~/components/01.kit/kit-select-with-search'
@@ -17,6 +17,7 @@ import { CalendarPopover } from '~/components/02.shared/calendar-popover'
 import { GeoPlacePicker } from '~/components/03.domain/geo-place-picker'
 import { useRequest, useRequestStatus } from '~/plugins/request'
 import { useToast } from '~/shared/composables/use-toast'
+import { lazyComponent } from '~/shared/lib/lazy-component'
 import { TripMediaPlacement, TripStatus, TripVisibility } from '~/shared/types/models/trip'
 
 const props = defineProps<Props>()
@@ -25,6 +26,16 @@ const emit = defineEmits<{
   (e: 'update:visible', value: boolean): void
   (e: 'save', value: UpdateTripInput): void
 }>()
+
+const KitInlineMdEditorWrapper = lazyComponent(
+  () => import('~/components/01.kit/kit-inline-md-editor/ui/kit-inline-md-editor-wrapper.vue'),
+  {
+    delay: 0,
+    loadingComponent: defineComponent({
+      setup: () => () => h('span', { class: 'md-editor-loading' }, 'Подготовка редактора…'),
+    }),
+  },
+)
 
 enum ETripEditInfoDialogKeys {
   FETCH_TAGS = 'trip-edit-dialog:fetch-tags',
@@ -330,10 +341,10 @@ async function handleGenerateWeatherInDialog() {
             />
           </div>
         </div>
-        <p v-show="isFullDescriptionOpen" class="field-hint">
+        <p v-if="isFullDescriptionOpen" class="field-hint">
           Раскрывается по кнопке «Подробнее» — детали, история, впечатления.
         </p>
-        <div v-show="isFullDescriptionOpen" class="md-field-editor">
+        <div v-if="isFullDescriptionOpen" class="md-field-editor">
           <KitInlineMdEditorWrapper
             v-model="descriptionModel"
             placeholder="Подробное описание..."
@@ -379,7 +390,7 @@ async function handleGenerateWeatherInDialog() {
           >
             <span class="city-name">{{ place.name }} · {{ place.countryName }}</span>
             <span v-if="editableTrip.weatherByPlaceId?.[place.id]" class="city-info">
-              {{ editableTrip.weatherByPlaceId[place.id].tempAverage !== null ? `${editableTrip.weatherByPlaceId[place.id].tempAverage > 0 ? '+' : ''}${editableTrip.weatherByPlaceId[place.id].tempAverage}°` : '' }}
+              {{ editableTrip.weatherByPlaceId[place.id].tempAverage !== null ? `${editableTrip.weatherByPlaceId[place.id]?.tempAverage! > 0 ? '+' : ''}${editableTrip.weatherByPlaceId[place.id].tempAverage}°` : '' }}
               <template v-if="editableTrip.weatherByPlaceId[place.id].windSpeed">, {{ editableTrip.weatherByPlaceId[place.id].windSpeed }} км/ч</template>
             </span>
             <span v-else class="city-missing">нет данных</span>
@@ -643,6 +654,14 @@ async function handleGenerateWeatherInDialog() {
   }
 }
 
+.md-editor-loading {
+  display: inline-flex;
+  min-height: 62px;
+  align-items: center;
+  color: var(--fg-tertiary-color);
+  font-size: 0.85rem;
+}
+
 .date-trigger {
   width: 100%;
   padding: 12px;
@@ -751,11 +770,6 @@ async function handleGenerateWeatherInDialog() {
   background-color: var(--bg-secondary-color);
   transition: all 0.2s ease;
   position: relative;
-
-  @include hover {
-    & {
-    }
-  }
 
   &.selected {
     border-color: var(--fg-accent-color);

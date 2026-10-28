@@ -1,7 +1,8 @@
 import type { InjectionKey } from 'vue'
 import type { ITrip } from '../models/types'
+import type { GeoPlaceRef } from '~/shared/types/models/geo-place'
 import type { UpdateTripInput } from '~/shared/types/models/trip'
-import { refDebounced, useLocalStorage } from '@vueuse/core'
+import { refDebounced, StorageSerializers, useLocalStorage } from '@vueuse/core'
 import { useAbortRequest, useRequest, useRequestError, useRequestStatus } from '~/plugins/request'
 import { useLastCounts } from '~/shared/composables/use-last-counts'
 import { useOfflineStore } from '~/shared/store/offline.store'
@@ -48,6 +49,10 @@ function sortTripsByDate(tripsList: ITrip[]): ITrip[] {
   })
 }
 
+function toIsoDateString(value: string | Date): string {
+  return value instanceof Date ? value.toISOString() : value
+}
+
 export function useTripsHub() {
   const { setCount } = useLastCounts()
   const { abort } = useAbortRequest()
@@ -60,12 +65,15 @@ export function useTripsHub() {
   const isFiltersOpen = ref(false)
   const isCreateModalOpen = ref(false)
   const newTripData = ref(getDefaultTripData())
-  const filters = ref<TripFilters>({
+  const filters = useLocalStorage<TripFilters>('trips-hub-filters', {
     search: '',
     cityIds: [],
     users: [],
     tags: [],
     status: [],
+  }, { mergeDefaults: true })
+  const selectedCity = useLocalStorage<GeoPlaceRef | null>('trips-hub-selected-city', null, {
+    serializer: StorageSerializers.object,
   })
   const availableTags = ref<{ value: string, label: string }[]>([])
   const tagSearchQuery = ref('')
@@ -226,7 +234,16 @@ export function useTripsHub() {
       return
 
     const originalTrip = { ...trips.value[tripIndex] }
-    trips.value[tripIndex] = { ...originalTrip, ...updatedData }
+    trips.value[tripIndex] = {
+      ...originalTrip,
+      ...updatedData,
+      startDate: updatedData.startDate === undefined
+        ? originalTrip.startDate
+        : toIsoDateString(updatedData.startDate),
+      endDate: updatedData.endDate === undefined
+        ? originalTrip.endDate
+        : toIsoDateString(updatedData.endDate),
+    }
 
     useRequest({
       key: `${ETripHubKeys.UPDATE}:${updatedData.id}`,
@@ -301,6 +318,7 @@ export function useTripsHub() {
     isFiltersOpen,
     activeTab,
     filters,
+    selectedCity,
     isCreateModalOpen,
     availableTags,
     tagSearchQuery,

@@ -72,7 +72,7 @@ const statusOptions = [
   { value: 'draft', label: 'Черновик' },
 ]
 
-const selectedCity = ref<GeoPlaceRef | null>(null)
+const selectedCity = tripsHub.selectedCity
 
 function onCitySelected(value: GeoPlaceRef | GeoPlaceRef[] | null) {
   selectedCity.value = Array.isArray(value) ? value[0] ?? null : value

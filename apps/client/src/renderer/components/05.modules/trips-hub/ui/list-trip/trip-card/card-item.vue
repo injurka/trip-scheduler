@@ -520,6 +520,11 @@ const tripData = computed<Trip>(() => ({
     }
   }
 
+  @media (hover: none), (pointer: coarse) {
+    opacity: 1;
+    transform: translateX(0);
+  }
+
   .action-btn {
     display: flex;
     align-items: center;
