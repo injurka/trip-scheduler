@@ -2,10 +2,15 @@
 import { Icon } from '@iconify/vue'
 import { useDebounceFn } from '@vueuse/core'
 import { KitBtn } from '~/components/01.kit/kit-btn'
-import { KitInlineMdEditorWrapper } from '~/components/01.kit/kit-inline-md-editor'
+import { KitMarkdownViewer } from '~/components/01.kit/kit-markdown-viewer'
 import { useModuleStore } from '~/components/05.modules/trip-info/composables/use-trip-info-module'
+import { lazyComponent } from '~/shared/lib/lazy-component'
 import { trpc } from '~/shared/services/trpc/trpc.service'
 import LlmCanvasAssistant from './llm-canvas-assistant.vue'
+
+const KitInlineMdEditorWrapper = lazyComponent(
+  () => import('~/components/01.kit/kit-inline-md-editor').then(module => module.KitInlineMdEditorWrapper),
+)
 
 const { ui, plan } = useModuleStore(['ui', 'plan'])
 const { isViewMode } = storeToRefs(ui)
@@ -126,18 +131,22 @@ function discardDraft() {
           </div>
         </div>
         <div class="draft-editor-wrapper">
-          <KitInlineMdEditorWrapper
-            :model-value="generatedDraft"
-            :readonly="true"
+          <KitMarkdownViewer
+            :markdown="generatedDraft"
             class="note-editor draft-editor"
           />
         </div>
       </div>
 
+      <KitMarkdownViewer
+        v-else-if="isViewMode"
+        :markdown="noteContent"
+        placeholder="Свободное полотно для заметок, идей и набросков этого дня..."
+        class="note-editor"
+      />
       <KitInlineMdEditorWrapper
         v-else
         :model-value="noteContent"
-        :readonly="isViewMode"
         placeholder="Свободное полотно для заметок, идей и набросков этого дня..."
         class="note-editor"
         :features="{

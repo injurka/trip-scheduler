@@ -6,9 +6,11 @@ import { KitBtn } from '~/components/01.kit/kit-btn'
 import { KitDivider } from '~/components/01.kit/kit-divider'
 import { KitTooltip } from '~/components/01.kit/kit-tooltip'
 import { useModuleStore } from '~/components/05.modules/trip-info/composables/use-trip-info-module'
+import { lazyComponent } from '~/shared/lib/lazy-component'
 import { EActivityStatus, EActivityTag } from '~/shared/types/models/activity'
-import DayNote from './day-note.vue'
 import DayActivitiesList from './list.vue'
+
+const DayNote = lazyComponent(() => import('./day-note.vue'))
 
 const { plan, ui } = useModuleStore(['plan', 'ui'])
 

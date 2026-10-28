@@ -4,14 +4,16 @@ import type { IDay } from '~/components/04.features/trip-info/trip-plan/models/t
 import { Icon } from '@iconify/vue'
 import { useFullscreen, useStorage } from '@vueuse/core'
 import { KitTooltip } from '~/components/01.kit/kit-tooltip'
-import GeolocationMap from '~/components/03.domain/trip-info/geolocation-section/ui/geolocation-map.vue'
+import { lazyComponent } from '~/shared/lib/lazy-component'
 import { EActivitySectionType } from '~/shared/types/models/activity'
+
+const props = defineProps<Props>()
+
+const GeolocationMap = lazyComponent(() => import('~/components/03.domain/trip-info/geolocation-section/ui/geolocation-map.vue'))
 
 interface Props {
   day: IDay
 }
-
-const props = defineProps<Props>()
 
 const wrapperRef = ref<HTMLElement | null>(null)
 const { isFullscreen, toggle: toggleFullscreen } = useFullscreen(wrapperRef)

@@ -8,16 +8,18 @@ import { TripEditInfoDialog } from '~/components/04.features/trip-info/trip-edit
 import { TripMemoriesView } from '~/components/04.features/trip-info/trip-memories'
 import { DayMetaBadges, TripPlanView } from '~/components/04.features/trip-info/trip-plan'
 import { useDisplay } from '~/shared/composables/use-display'
+import { lazyComponent } from '~/shared/lib/lazy-component'
 import { useModuleStore } from '../composables/use-trip-info-module'
 import { useTripInfoView } from '../composables/use-trip-info-view'
-import DayRouteMap from './content/day-route-map.vue'
 import SectionRenderer from './content/section-renderer.vue'
-import TripOverviewContent from './content/trip-overview.vue'
 import DayNavigation from './controls/day-navigation.vue'
 import DaysControls from './controls/days-controls.vue'
 import DayHeader from './day-header.vue'
 import TripInfoEmpty from './states/trip-info-empty.vue'
 import TripInfoSkeleton from './states/trip-info-skeleton.vue'
+
+const DayRouteMap = lazyComponent(() => import('./content/day-route-map.vue'))
+const TripOverviewContent = lazyComponent(() => import('./content/trip-overview.vue'))
 
 const {
   tripId,

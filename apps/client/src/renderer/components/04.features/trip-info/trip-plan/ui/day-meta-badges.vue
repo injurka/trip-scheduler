@@ -21,21 +21,27 @@ import {
 import { v4 as uuidv4 } from 'uuid'
 import { KitBtn } from '~/components/01.kit/kit-btn'
 import { KitDialogWithClose } from '~/components/01.kit/kit-dialog-with-close'
-import { KitInlineMdEditorWrapper } from '~/components/01.kit/kit-inline-md-editor'
 import { KitInput } from '~/components/01.kit/kit-input'
+import { KitMarkdownViewer } from '~/components/01.kit/kit-markdown-viewer'
 import { KitTooltip } from '~/components/01.kit/kit-tooltip'
 import { DayBookingsModal } from '~/components/04.features/trip-info/trip-sections/booking-section'
 import { useModuleStore } from '~/components/05.modules/trip-info/composables/use-trip-info-module'
+import { lazyComponent } from '~/shared/lib/lazy-component'
 import { TripSectionType } from '~/shared/types/models/trip'
 import { badgePresets } from '../lib/badge-presets'
+
+const props = defineProps<Props>()
+
+const emit = defineEmits(['update:meta'])
+
+const KitInlineMdEditorWrapper = lazyComponent(
+  () => import('~/components/01.kit/kit-inline-md-editor').then(module => module.KitInlineMdEditorWrapper),
+)
 
 interface Props {
   meta: DayMetaInfo[]
   readonly?: boolean
 }
-
-const props = defineProps<Props>()
-const emit = defineEmits(['update:meta'])
 
 const confirm = useConfirm()
 const store = useModuleStore(['plan', 'sections'])
@@ -284,10 +290,7 @@ function createBlankBadge() {
                 :side-offset="8"
                 side="top"
               >
-                <KitInlineMdEditorWrapper
-                  :model-value="item.content || ''"
-                  :readonly="true"
-                />
+                <KitMarkdownViewer :markdown="item.content || ''" />
                 <TooltipArrow class="badge-tooltip-arrow" />
               </TooltipContent>
             </TooltipPortal>
@@ -379,7 +382,7 @@ function createBlankBadge() {
       :max-width="1000"
       @update:visible="!$event && closeViewer()"
     >
-      <KitInlineMdEditorWrapper :model-value="currentItem.content || ''" :readonly="true" />
+      <KitMarkdownViewer :markdown="currentItem.content || ''" />
     </KitDialogWithClose>
 
     <!-- Editor Dialog -->

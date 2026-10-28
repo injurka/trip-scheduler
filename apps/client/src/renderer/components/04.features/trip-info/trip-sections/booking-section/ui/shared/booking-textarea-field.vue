@@ -1,6 +1,13 @@
 <script setup lang="ts">
 import { Icon } from '@iconify/vue'
-import { KitInlineMdEditorWrapper } from '~/components/01.kit/kit-inline-md-editor'
+import { KitMarkdownViewer } from '~/components/01.kit/kit-markdown-viewer'
+import { lazyComponent } from '~/shared/lib/lazy-component'
+
+defineProps<Props>()
+
+const KitInlineMdEditorWrapper = lazyComponent(
+  () => import('~/components/01.kit/kit-inline-md-editor').then(module => module.KitInlineMdEditorWrapper),
+)
 
 interface Props {
   label: string
@@ -8,7 +15,6 @@ interface Props {
   readonly: boolean
 }
 
-defineProps<Props>()
 const modelValue = defineModel<string>()
 
 const internalModel = computed({
@@ -26,9 +32,14 @@ const internalModel = computed({
       {{ label }}
     </label>
     <div class="editor-wrapper" :class="{ 'is-readonly': readonly }">
+      <KitMarkdownViewer
+        v-if="readonly"
+        :markdown="modelValue"
+        placeholder="Добавьте заметки..."
+      />
       <KitInlineMdEditorWrapper
+        v-else
         v-model="internalModel"
-        :readonly="readonly"
         placeholder="Добавьте заметки..."
       />
     </div>

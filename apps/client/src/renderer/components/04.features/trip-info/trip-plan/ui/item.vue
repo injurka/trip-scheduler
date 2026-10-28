@@ -18,28 +18,20 @@ import { onClickOutside } from '@vueuse/core'
 
 import { v4 as uuidv4 } from 'uuid'
 import { KitDropdown } from '~/components/01.kit/kit-dropdown'
-import { KitInlineMdEditorWrapper } from '~/components/01.kit/kit-inline-md-editor'
 import { KitTimeField } from '~/components/01.kit/kit-time-field'
 import { KitTooltip } from '~/components/01.kit/kit-tooltip'
 import { useModuleStore } from '~/components/05.modules/trip-info/composables/use-trip-info-module'
 import { activityTagIcons, activityTagLabels, getTagInfo } from '~/components/05.modules/trip-info/lib/helpers'
 import AddSectionMenu from '~/components/05.modules/trip-info/ui/controls/add-section-menu.vue'
+import { lazyComponent } from '~/shared/lib/lazy-component'
 import { EActivitySectionType, EActivityTag } from '~/shared/types/models/activity'
 import { useActivityDiff } from '../composables/use-activity-diff'
 import SelectBookingDialog from './dialogs/select-booking-dialog.vue'
 import LlmActivityEditor from './llm-activity-editor.vue'
 import ActivitySectionRenderer from './sections/section-renderer.vue'
 
-interface ActivityItemProps {
-  activity: Activity
-  draft?: Activity | null
-  isFirst: boolean
-  isLast: boolean
-  isCollapsed: boolean
-  isPreviewMode?: boolean
-}
-
 const props = defineProps<ActivityItemProps>()
+
 const emit = defineEmits<{
   (e: 'update', value: Activity): void
   (e: 'delete', value: string): void
@@ -51,6 +43,19 @@ const emit = defineEmits<{
   (e: 'requestAiEdit', prompt: string): void
   (e: 'acceptDraftFields', fields: string[]): void
 }>()
+
+const KitInlineMdEditorWrapper = lazyComponent(
+  () => import('~/components/01.kit/kit-inline-md-editor').then(module => module.KitInlineMdEditorWrapper),
+)
+
+interface ActivityItemProps {
+  activity: Activity
+  draft?: Activity | null
+  isFirst: boolean
+  isLast: boolean
+  isCollapsed: boolean
+  isPreviewMode?: boolean
+}
 
 const store = useModuleStore(['ui'])
 const { isViewMode } = storeToRefs(store.ui)

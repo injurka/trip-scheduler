@@ -2,21 +2,15 @@
 import type { useGeolocationMap } from '../composables/use-geolocation-map'
 import type { ActivitySectionGeolocation, Coordinate, MapPoint, MapRoute, TransportMode } from '../models/types'
 import { Icon } from '@iconify/vue'
-import { useDebounceFn } from '@vueuse/core'
+import { useDebounceFn, useIntersectionObserver } from '@vueuse/core'
 import { computed, nextTick, onMounted, onUnmounted, ref, shallowRef, toRaw, watch } from 'vue'
 import { useToast } from '~/shared/composables/use-toast'
+import { lazyComponent } from '~/shared/lib/lazy-component'
 import { useGeolocationPoints } from '../composables/use-geolocation-points'
 import { useGeolocationRoutes } from '../composables/use-geolocation-routes'
 import { POI_COLORS } from '../constant'
-import GeolocationMap from './geolocation-map.vue'
 import GeolocationPoiList from './geolocation-poi-list.vue'
 import GeolocationRouteList from './geolocation-route-list.vue'
-
-interface Props {
-  section: ActivitySectionGeolocation
-  readonly?: boolean
-  height?: string
-}
 
 const props = withDefaults(defineProps<Props>(), {
   readonly: false,
@@ -27,10 +21,31 @@ const emit = defineEmits<{
   (e: 'updateSection', value: ActivitySectionGeolocation): void
 }>()
 
+const GeolocationMap = lazyComponent(() => import('./geolocation-map.vue'))
+
+interface Props {
+  section: ActivitySectionGeolocation
+  readonly?: boolean
+  height?: string
+}
+
 const isInitialized = ref(false)
 const sectionContainerRef = ref<HTMLElement | null>(null)
+const mapMountTargetRef = ref<HTMLElement | null>(null)
+const shouldMountMap = ref(typeof IntersectionObserver === 'undefined')
 const mapController = shallowRef<ReturnType<typeof useGeolocationMap>>()
 let unsubDragEnd: (() => void) | null = null
+
+const { stop: stopMapObserver } = useIntersectionObserver(
+  mapMountTargetRef,
+  ([entry]) => {
+    if (entry?.isIntersecting) {
+      shouldMountMap.value = true
+      stopMapObserver()
+    }
+  },
+  { rootMargin: '500px 0px' },
+)
 
 const activeView = ref<'points' | 'routes'>(
   (!props.section?.points || props.section.points.length === 0) && (props.section?.routes && props.section.routes.length > 0)
@@ -384,6 +399,7 @@ onMounted(() => {
 })
 
 onUnmounted(() => {
+  stopMapObserver()
   if (unsubDragEnd) {
     unsubDragEnd()
     unsubDragEnd = null
@@ -660,25 +676,33 @@ onUnmounted(() => {
     </div>
 
     <!-- КАРТА -->
-    <GeolocationMap
-      class="map-wrapper"
-      :points="allMapPoints"
-      :routes="routes"
-      :mode="mode"
-      :center="mapCenter"
-      :height="height"
-      :is-loading="isLoading"
-      :zoom="section.zoom"
-      :readonly="readonly"
-      :is-fullscreen="isMapFullscreen"
-      with-fullscreen-control
-      :interactive-on-click="true"
-      :selected-coords="selectedLocation?.coords || null"
-      @map-ready="onMapReady"
-      @map-click="handleMapClick"
-      @toggle-panel="isPanelVisible = !isPanelVisible"
-      @toggle-fullscreen="handleToggleFullscreen"
-    />
+    <div
+      ref="mapMountTargetRef"
+      class="map-mount-target"
+      :style="{ height: isMapFullscreen ? '100%' : height }"
+    >
+      <GeolocationMap
+        v-if="shouldMountMap"
+        class="map-wrapper"
+        :points="allMapPoints"
+        :routes="routes"
+        :mode="mode"
+        :center="mapCenter"
+        :height="height"
+        :is-loading="isLoading"
+        :zoom="section.zoom"
+        :readonly="readonly"
+        :is-fullscreen="isMapFullscreen"
+        with-fullscreen-control
+        :interactive-on-click="true"
+        :selected-coords="selectedLocation?.coords || null"
+        @map-ready="onMapReady"
+        @map-click="handleMapClick"
+        @toggle-panel="isPanelVisible = !isPanelVisible"
+        @toggle-fullscreen="handleToggleFullscreen"
+      />
+      <div v-else class="map-lazy-placeholder" aria-hidden="true" />
+    </div>
   </div>
 </template>
 
@@ -711,6 +735,19 @@ onUnmounted(() => {
       height: 100%;
     }
   }
+}
+
+.map-mount-target {
+  width: 100%;
+  flex: 0 0 auto;
+  overflow: hidden;
+  border-radius: var(--r-s);
+}
+
+.map-lazy-placeholder {
+  width: 100%;
+  height: 100%;
+  background: var(--bg-tertiary-color);
 }
 
 .main-panel {

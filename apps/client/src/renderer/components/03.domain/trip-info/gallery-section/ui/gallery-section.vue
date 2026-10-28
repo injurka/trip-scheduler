@@ -16,6 +16,8 @@ import { useModuleStore } from '~/components/05.modules/trip-info/composables/us
 import { tripMediaToViewerImage } from '~/components/05.modules/trip-info/lib/helpers'
 import { ETripGalleryKeys } from '~/components/05.modules/trip-info/store/trip-info-route-gallery.store'
 import { useRequestError } from '~/plugins/request'
+import { SERVER_URL } from '~/shared/lib/env'
+import { resolveApiUrl } from '~/shared/lib/url'
 import GalleryPicker from './gallery-picker.vue'
 
 interface Props {
@@ -27,7 +29,7 @@ const emit = defineEmits(['updateSection'])
 const route = useRoute()
 
 const store = useModuleStore(['routeGallery', 'ui'])
-const { tripImages, isUploadingImage, isFetchingImages } = storeToRefs(store.routeGallery)
+const { tripImages, isUploadingImage, isFetchingImages, loadedTripId } = storeToRefs(store.routeGallery)
 const { isViewMode } = storeToRefs(store.ui)
 
 const fileInput = ref<HTMLInputElement | null>(null)
@@ -39,6 +41,33 @@ const fetchError = useRequestError(ETripGalleryKeys.FETCH_IMAGES)
 
 const imageUrls = computed(() => props.section.imageUrls || [])
 const tripId = computed(() => route.params.id as string)
+
+function isApiHostedImage(url: string) {
+  try {
+    const mediaOrigin = new URL(resolveApiUrl(url), window.location.origin).origin
+    const apiOrigin = new URL(SERVER_URL || window.location.origin).origin
+    return mediaOrigin === apiOrigin
+  }
+  catch {
+    return false
+  }
+}
+
+const hasApiHostedImages = computed(() => imageUrls.value.some(isApiHostedImage))
+const isImageMetadataLoading = computed(() =>
+  hasApiHostedImages.value && (isFetchingImages.value || (loadedTripId.value !== tripId.value && !fetchError.value)),
+)
+
+function normalizeMediaUrl(url: string) {
+  const resolved = resolveApiUrl(url)
+  try {
+    const parsed = new URL(resolved, window.location.origin)
+    return `${parsed.origin}${parsed.pathname}`
+  }
+  catch {
+    return resolved
+  }
+}
 
 function loadImages() {
   if (tripId.value) {
@@ -53,7 +82,11 @@ onMounted(() => {
 
 const fullImagesData = computed(() => {
   return imageUrls.value.map((url) => {
-    const existingImg = tripImages.value.find(tripImg => tripImg.url === url)
+    const requestedUrl = normalizeMediaUrl(url)
+    const existingImg = tripImages.value.find((tripImg) => {
+      const mediaUrls = [tripImg.url, ...Object.values(tripImg.variants || {})].filter((value): value is string => !!value)
+      return mediaUrls.some(mediaUrl => normalizeMediaUrl(mediaUrl) === requestedUrl)
+    })
     if (existingImg)
       return existingImg
 
@@ -100,8 +133,14 @@ const remainingImagesCount = computed(() =>
 )
 
 const visibleImages = computed(() =>
-  imageUrls.value.slice(0, maxVisibleImages.value),
+  fullImagesData.value.slice(0, maxVisibleImages.value),
 )
+const moreImage = computed(() => fullImagesData.value[maxVisibleImages.value])
+const moreImageSrc = computed(() => moreImage.value?.variants?.small || moreImage.value?.variants?.medium || moreImage.value?.url)
+const moreImageVariants = computed(() => {
+  const mediumVariant = moreImage.value?.variants?.medium
+  return mediumVariant ? { medium: mediumVariant, large: mediumVariant } : undefined
+})
 
 function deleteImage(index: number) {
   const updatedUrls = imageUrls.value.filter((_, i) => i !== index)
@@ -204,7 +243,7 @@ function handleAddLink() {
     >
 
     <AsyncStateWrapper
-      :loading="isFetchingImages"
+      :loading="isImageMetadataLoading"
       :error="fetchError"
       :data="displayData"
       :retry-handler="loadImages"
@@ -222,13 +261,14 @@ function handleAddLink() {
         <div class="gallery-container" :class="galleryClass">
           <div
             v-for="(image, index) in visibleImages"
-            :key="`${image}-${index}`"
+            :key="image.id || `${image.url}-${index}`"
             class="image-wrapper"
             @click="openViewer(index)"
           >
             <KitImage
               class="image-item"
-              :src="image"
+              :src="image.variants?.small || image.variants?.medium || image.url"
+              :variants="image.variants?.medium ? { medium: image.variants.medium, large: image.variants.medium } : undefined"
               :alt="`Image ${index + 1}`"
               object-fit="cover"
             />
@@ -251,7 +291,8 @@ function handleAddLink() {
           >
             <KitImage
               class="image-item"
-              :src="imageUrls[maxVisibleImages]"
+              :src="moreImageSrc"
+              :variants="moreImageVariants"
               alt="More images"
               object-fit="cover"
             />

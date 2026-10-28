@@ -1,17 +1,24 @@
 <script setup lang="ts">
 import type { ActivitySectionText } from '~/shared/types/models/activity'
-import { KitInlineMdEditorWrapper } from '~/components/01.kit/kit-inline-md-editor'
+import { KitMarkdownViewer } from '~/components/01.kit/kit-markdown-viewer'
 import { useModuleStore } from '~/components/05.modules/trip-info/composables/use-trip-info-module'
 import { getDocumentLinkPath } from '~/shared/lib/document-link'
+import { lazyComponent } from '~/shared/lib/lazy-component'
 import { openExternalUrl } from '~/shared/lib/opener'
 import { resolveApiUrl } from '~/shared/lib/url'
+
+const props = defineProps<Props>()
+
+const emit = defineEmits(['updateSection'])
+
+const KitInlineMdEditorWrapper = lazyComponent(
+  () => import('~/components/01.kit/kit-inline-md-editor').then(module => module.KitInlineMdEditorWrapper),
+)
 
 interface Props {
   section: ActivitySectionText
 }
 
-const props = defineProps<Props>()
-const emit = defineEmits(['updateSection'])
 const store = useModuleStore(['ui'])
 
 const { isViewMode } = storeToRefs(store.ui)
@@ -37,9 +44,15 @@ function handleInlineEditorBlur() {
 
 <template>
   <div class="description-section" @click.capture="handleDocumentClick">
+    <KitMarkdownViewer
+      v-if="isViewMode"
+      :markdown="sectionModel"
+      placeholder="Добавьте заметку или описание..."
+      class="section-editor"
+    />
     <KitInlineMdEditorWrapper
+      v-else
       v-model="sectionModel"
-      :readonly="isViewMode"
       placeholder="Добавьте заметку или описание..."
       class="section-editor"
       @blur="handleInlineEditorBlur()"
@@ -65,7 +78,7 @@ function handleInlineEditorBlur() {
 .section-editor {
   width: 100%;
 
-  :deep(.ProseMirror) {
+  :deep(.kit-markdown-viewer__content > p) {
     p {
       margin: 0 !important;
       line-height: 1.6;

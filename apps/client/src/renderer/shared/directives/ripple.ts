@@ -39,17 +39,6 @@ if (typeof document !== 'undefined') {
 
 const vRipple: Directive = {
   mounted(el) {
-    const computedStyle = window.getComputedStyle(el)
-    if (computedStyle.position === 'static') {
-      el.style.position = 'relative'
-    }
-
-    const container = document.createElement('div')
-    container.className = 'kit-ripple-container'
-    el.appendChild(container)
-
-    el._rippleContainer = container
-
     el.addEventListener('mousedown', createRipple)
   },
   unmounted(el) {
@@ -63,10 +52,18 @@ const vRipple: Directive = {
 
 function createRipple(event: MouseEvent) {
   const el = event.currentTarget as HTMLElement
-  const container = (el as any)._rippleContainer
+  let container = (el as any)._rippleContainer as HTMLElement | undefined
 
-  if (!container)
-    return
+  if (!container) {
+    if (window.getComputedStyle(el).position === 'static') {
+      el.style.position = 'relative'
+    }
+
+    container = document.createElement('div')
+    container.className = 'kit-ripple-container'
+    el.appendChild(container)
+    ;(el as any)._rippleContainer = container
+  }
 
   const circle = document.createElement('span')
   const diameter = Math.max(el.clientWidth, el.clientHeight)

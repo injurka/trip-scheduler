@@ -1,9 +1,16 @@
 <script setup lang="ts">
 import { Icon } from '@iconify/vue'
 import { KitBtn } from '~/components/01.kit/kit-btn'
-import { KitInlineMdEditorWrapper } from '~/components/01.kit/kit-inline-md-editor'
-import { DayRouteVisualizer } from '~/components/04.features/trip-info/trip-plan'
+import { KitMarkdownViewer } from '~/components/01.kit/kit-markdown-viewer'
 import { useModuleStore } from '~/components/05.modules/trip-info/composables/use-trip-info-module'
+import { lazyComponent } from '~/shared/lib/lazy-component'
+
+const KitInlineMdEditorWrapper = lazyComponent(
+  () => import('~/components/01.kit/kit-inline-md-editor').then(module => module.KitInlineMdEditorWrapper),
+)
+const DayRouteVisualizer = lazyComponent(
+  () => import('~/components/04.features/trip-info/trip-plan/ui/route-visualizer/day-route-visualizer.vue'),
+)
 
 const store = useModuleStore(['plan', 'ui'])
 
@@ -76,19 +83,32 @@ function handleScrollToActivity(activityId: string) {
         </KitBtn>
       </div>
 
+      <KitMarkdownViewer
+        v-if="isViewMode"
+        :key="selectedDay.id"
+        :markdown="selectedDay.title"
+        class="day-title"
+      />
       <KitInlineMdEditorWrapper
+        v-else
         :key="selectedDay.id"
         v-model="selectedDay.title"
-        :readonly="isViewMode"
         :features="{ 'block-edit': false }"
         placeholder="Название дня..."
         class="day-title"
         @blur="handleTitleBlur(selectedDay.title)"
       />
+      <KitMarkdownViewer
+        v-if="isViewMode"
+        :key="selectedDay.id"
+        :markdown="selectedDay.description"
+        placeholder="Добавьте описание..."
+        class="day-description"
+      />
       <KitInlineMdEditorWrapper
+        v-else
         :key="selectedDay.id"
         v-model="selectedDay.description"
-        :readonly="isViewMode"
         :features="{ 'block-edit': false }"
         placeholder="Добавьте описание..."
         class="day-description"
@@ -251,7 +271,7 @@ function handleScrollToActivity(activityId: string) {
   font-family: var(--font-accent);
 
   :deep() {
-    .ProseMirror {
+    .kit-markdown-viewer__content {
       h1,
       p {
         font-family: var(--font-accent);
@@ -268,7 +288,7 @@ function handleScrollToActivity(activityId: string) {
 
 .day-description {
   :deep() {
-    .ProseMirror p {
+    .kit-markdown-viewer__content p {
       color: var(--fg-secondary-color);
       line-height: 1.7;
       font-size: 0.88rem;
