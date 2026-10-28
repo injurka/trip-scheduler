@@ -41,6 +41,7 @@ export interface AppUpdateState {
   totalBytes: number | null
   downloadedFilePath: string | null
   downloadError: string | null
+  isInstalling: boolean
 }
 
 let unlistenProgress: UnlistenFn | null = null
@@ -62,6 +63,7 @@ export const useAppUpdateStore = defineStore('appUpdate', {
     totalBytes: null,
     downloadedFilePath: null,
     downloadError: null,
+    isInstalling: false,
   }),
 
   actions: {
@@ -323,11 +325,12 @@ export const useAppUpdateStore = defineStore('appUpdate', {
     },
 
     async installUpdate() {
-      if (!this.downloadedFilePath) {
+      if (!this.downloadedFilePath || this.isInstalling) {
         return
       }
 
       const toastStore = useToastStore()
+      this.isInstalling = true
       try {
         if (this.isAppImage) {
           toastStore.info('Замена AppImage и перезапуск приложения...')
@@ -338,6 +341,9 @@ export const useAppUpdateStore = defineStore('appUpdate', {
         console.error('[AppUpdate] Ошибка установки обновления:', e)
         const msg = typeof e === 'string' ? e : (e?.message || 'Ошибка установки обновления')
         toastStore.error(msg)
+      }
+      finally {
+        this.isInstalling = false
       }
     },
 

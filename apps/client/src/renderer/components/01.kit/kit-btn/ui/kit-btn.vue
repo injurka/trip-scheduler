@@ -17,6 +17,10 @@ const props = withDefaults(defineProps<Props>(), {
   size: 'md',
 })
 
+const emit = defineEmits<{
+  (event: 'click', payload: MouseEvent): void
+}>()
+
 const slots = useSlots()
 
 const isIconOnly = computed(() => props.icon && !slots.default)
@@ -36,6 +40,7 @@ const componentClasses = computed(() => [
     :class="componentClasses"
     :disabled="props.disabled"
     type="button"
+    @click="emit('click', $event)"
   >
     <span class="kit-btn-content">
       <Icon v-if="props.icon" :icon="props.icon" class="kit-btn-icon" />

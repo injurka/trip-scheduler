@@ -204,7 +204,7 @@ onKeyStroke('Escape', (e) => {
             color="primary"
             size="xs"
             class="header-action-btn"
-            @click="handleOpenAddDialog"
+            @click="handleOpenAddDialog()"
           >
             <Icon icon="mdi:plus" />
             <span>Добавить</span>

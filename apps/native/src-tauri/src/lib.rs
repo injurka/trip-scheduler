@@ -276,10 +276,30 @@ struct PlatformInfo {
     appimage_path: Option<String>,
 }
 
+#[cfg(target_os = "linux")]
+fn current_appimage_path() -> Option<PathBuf> {
+    let from_environment = std::env::var_os("APPIMAGE")
+        .map(PathBuf::from)
+        .filter(|path| path.is_file());
+
+    from_environment.or_else(|| {
+        std::env::current_exe().ok().filter(|path| {
+            path.is_file()
+                && path
+                    .extension()
+                    .and_then(|extension| extension.to_str())
+                    .is_some_and(|extension| extension.eq_ignore_ascii_case("AppImage"))
+        })
+    })
+}
+
 #[tauri::command]
 fn get_platform_info() -> PlatformInfo {
     let os = std::env::consts::OS.to_string();
-    let appimage_path = std::env::var("APPIMAGE").ok();
+    #[cfg(target_os = "linux")]
+    let appimage_path = current_appimage_path().map(|path| path.to_string_lossy().into_owned());
+    #[cfg(not(target_os = "linux"))]
+    let appimage_path = None;
     let is_appimage = appimage_path.is_some();
     PlatformInfo {
         os,
@@ -305,8 +325,7 @@ async fn install_app_update(app: tauri::AppHandle, path: String) -> Result<(), S
 
         #[cfg(target_os = "linux")]
         {
-            if let Ok(appimage_env) = std::env::var("APPIMAGE") {
-                let running_path = std::path::PathBuf::from(&appimage_env);
+            if let Some(running_path) = current_appimage_path() {
                 if running_path.exists() && downloaded_file.exists() {
                     use std::os::unix::fs::PermissionsExt;
                     if let Ok(meta) = fs::metadata(&downloaded_file) {

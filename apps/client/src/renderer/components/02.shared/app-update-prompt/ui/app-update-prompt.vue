@@ -14,6 +14,7 @@ const {
   totalBytes,
   downloadedFilePath,
   downloadError,
+  isInstalling,
 } = storeToRefs(appUpdateStore)
 
 function formatBytes(bytes: number): string {
@@ -113,11 +114,12 @@ const progressDetails = computed(() => {
             <!-- Состояние 1: Загрузка завершена -->
             <template v-if="downloadedFilePath && !isDownloading">
               <KitBtn
-                :icon="isAppImage ? 'mdi:restart' : 'mdi:cellphone-arrow-down'"
+                :icon="isInstalling ? 'mdi:loading' : (isAppImage ? 'mdi:restart' : 'mdi:cellphone-arrow-down')"
                 color="primary"
+                :disabled="isInstalling"
                 @click="appUpdateStore.installUpdate()"
               >
-                {{ isAppImage ? 'Установить и перезапустить' : 'Установить' }}
+                {{ isInstalling ? 'Установка…' : (isAppImage ? 'Установить и перезапустить' : 'Установить') }}
               </KitBtn>
               <KitBtn
                 variant="outlined"
