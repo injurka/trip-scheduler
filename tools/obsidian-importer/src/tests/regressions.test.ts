@@ -26,6 +26,34 @@ afterEach(() => {
 })
 
 describe('importer regressions', () => {
+  it('keeps location metadata out of descriptions and resource links', () => {
+    const directory = temporaryDirectory('obsidian-map-metadata-')
+    const file = join(directory, 'Чек-лист.md')
+    writeFileSync(file, [
+      '## Кофе',
+      '- [ ] **Кофейня:** попробовать фильтр',
+      '  - *Локация:* [Кофейня](https://www.google.com/maps?q=24.155,120.657)',
+      '  - *Совет:* [Кофейня](https://www.google.com/maps?q=24.155,120.657) — заказать у стойки',
+      '  - *Сайт:* [Меню](https://example.com/menu)',
+      '- [ ] Пирожные',
+      '  - *Где покупать:* [Пекарня](https://www.google.com/maps?q=24.1,120.6)',
+      '- [ ] **Ещё место:** [Первый вариант](https://www.google.com/maps?q=25,121)',
+      '  - *Локация:* [Выбранное место](https://www.google.com/maps?q=24,120)',
+      '- [ ] **Без выбора:** [Первый вариант](https://www.google.com/maps?q=25,121)',
+      '  - *Локация:* Заведение пока не выбрано',
+    ].join('\n'))
+    const { items = [] } = parseObsidianChecklists([file])
+    expect(items[0].locationCoords).toEqual({ lat: 24.155, lon: 120.657 })
+    expect(items[0].link).toBe('https://example.com/menu')
+    expect(items[0].description).not.toContain('Локация:')
+    expect(items[0].description).not.toContain('google.com/maps')
+    expect(items[0].description).toContain('заказать у стойки')
+    expect(items[1].location).toBe('Пекарня')
+    expect(items[1].link).toBeUndefined()
+    expect(items[2].locationCoords).toEqual({ lat: 24, lon: 120 })
+    expect(items[3].locationCoords).toBeUndefined()
+  })
+
   it('imports checklist map coordinates from location links and keeps plain locations', () => {
     const directory = temporaryDirectory('obsidian-location-')
     const file = join(directory, 'Чек-лист.md')

@@ -7,6 +7,7 @@ import { computed, ref } from 'vue'
 import { KitCheckbox } from '~/components/01.kit/kit-checkbox'
 import { KitEditable } from '~/components/01.kit/kit-editable'
 import { useTripPermissions } from '~/components/05.modules/trip-info/composables/use-trip-permissions'
+import { checklistDescription, checklistMapCoords, isChecklistMapUrl } from '../lib/location'
 import ChecklistLocationMap from './checklist-location-map.vue'
 
 interface Props {
@@ -27,6 +28,7 @@ const isEditingLink = ref(false)
 const isEditingCost = ref(false)
 const isEditingLocation = ref(false)
 const isLocationMapOpen = ref(false)
+const isEditingMap = ref(false)
 const isPriorityPickerOpen = ref(false)
 const isSubtasksExpanded = ref(true)
 const newSubtaskText = ref('')
@@ -59,7 +61,10 @@ const subtasksStats = computed(() => {
   return { completed, total, allDone: completed === total }
 })
 const renderedText = computed(() => renderMarkdown(props.item.text))
-const renderedDescription = computed(() => renderMarkdown(props.item.description))
+const locationCoords = computed(() => props.item.locationCoords || checklistMapCoords(props.item.link))
+const visibleLink = computed(() => isChecklistMapUrl(props.item.link) ? undefined : props.item.link)
+const visibleDescription = computed(() => checklistDescription(props.item.description))
+const renderedDescription = computed(() => renderMarkdown(visibleDescription.value))
 
 function updateField<K extends keyof ChecklistItem>(key: K, value: ChecklistItem[K]) {
   if (key !== 'completed' && props.readonly)
@@ -94,6 +99,10 @@ function handleCostUpdate(value: string) {
 
   if (!value)
     isEditingCost.value = false
+}
+function openLocationMap(editing = false) {
+  isEditingMap.value = editing && !props.readonly
+  isLocationMapOpen.value = true
 }
 function saveLocation(value: { name: string, coords: { lat: number, lon: number } }) {
   if (props.readonly)
@@ -212,17 +221,18 @@ onClickOutside(priorityPickerMenuRef, () => {
               <span>{{ item.cost }}</span>
             </span>
             <button
-              v-if="item.location || item.locationCoords"
+              v-if="item.location || locationCoords"
               class="badge badge-location"
-              title="Открыть на карте"
-              @click="isLocationMapOpen = true"
+              :disabled="!locationCoords"
+              :title="locationCoords ? 'Открыть на карте' : 'Координаты не указаны'"
+              @click="openLocationMap()"
             >
               <Icon icon="mdi:map-marker-outline" class="badge-icon" />
               {{ item.location || 'Точка на карте' }}
             </button>
             <a
-              v-if="item.link && readonly"
-              :href="item.link"
+              v-if="visibleLink && readonly"
+              :href="visibleLink"
               target="_blank"
               rel="noopener noreferrer"
               class="badge badge-link"
@@ -274,7 +284,7 @@ onClickOutside(priorityPickerMenuRef, () => {
 
           <button
             class="action-btn"
-            :class="{ 'is-active': item.link || isEditingLink }"
+            :class="{ 'is-active': visibleLink || isEditingLink }"
             title="Ссылка"
             @click="isEditingLink = !isEditingLink"
           >
@@ -326,7 +336,7 @@ onClickOutside(priorityPickerMenuRef, () => {
 
       <!-- Детали: Стоимость, Локация, Ссылка, Описание -->
       <div
-        v-if="item.cost || isEditingCost || item.location || isEditingLocation || item.link || isEditingLink || item.description || isEditingDescription"
+        v-if="isEditingCost || isEditingLocation || visibleLink || isEditingLink || visibleDescription || isEditingDescription"
         class="item-details-container"
       >
         <!-- Стоимость -->
@@ -359,20 +369,20 @@ onClickOutside(priorityPickerMenuRef, () => {
             class="action-btn location-map-btn"
             title="Выбрать точку на карте"
             aria-label="Выбрать точку на карте"
-            @click="isLocationMapOpen = true"
+            @click="openLocationMap(true)"
           >
             <Icon icon="mdi:map-marker-radius-outline" />
           </button>
         </div>
 
         <!-- Ссылка -->
-        <div v-if="item.link || isEditingLink" class="detail-block">
+        <div v-if="visibleLink || isEditingLink" class="detail-block">
           <div class="icon-wrapper">
             <Icon icon="mdi:link-variant" class="detail-icon" />
           </div>
           <KitEditable
             v-if="isEditingLink"
-            :model-value="item.link || ''"
+            :model-value="visibleLink || ''"
             placeholder="https://example.com"
             :readonly="readonly"
             class="details-input"
@@ -380,15 +390,15 @@ onClickOutside(priorityPickerMenuRef, () => {
           />
           <a
             v-else
-            :href="item.link"
+            :href="visibleLink"
             target="_blank"
             rel="noopener noreferrer"
             class="detail-link"
-          >{{ item.link }}</a>
+          >{{ visibleLink }}</a>
         </div>
 
         <!-- Описание / Гайд -->
-        <div v-if="item.description || isEditingDescription" class="detail-block">
+        <div v-if="visibleDescription || isEditingDescription" class="detail-block">
           <div class="icon-wrapper">
             <Icon
               icon="mdi:text-box-outline"
@@ -399,7 +409,7 @@ onClickOutside(priorityPickerMenuRef, () => {
           </div>
           <KitEditable
             v-if="isEditingDescription"
-            :model-value="item.description || ''"
+            :model-value="visibleDescription || ''"
             placeholder="Добавить совет, лайфхак или детали..."
             type="textarea"
             :readonly="readonly"
@@ -460,8 +470,9 @@ onClickOutside(priorityPickerMenuRef, () => {
     <ChecklistLocationMap
       v-if="isLocationMapOpen"
       :name="item.location || ''"
-      :coords="item.locationCoords"
+      :coords="locationCoords"
       :readonly="readonly"
+      :editing="isEditingMap"
       @close="isLocationMapOpen = false"
       @save="saveLocation"
     />

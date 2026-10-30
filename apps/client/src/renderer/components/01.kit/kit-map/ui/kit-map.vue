@@ -2,6 +2,7 @@
 import type { Map as MapLibreMap } from 'maplibre-gl'
 import type { KitMapRoute, MapLayerOption, MapMarker } from '../models/types'
 import type { TileSourceId } from '~/shared/lib/map-styles-sources'
+import { useResizeObserver } from '@vueuse/core'
 import { nextTick, onMounted, onUnmounted, ref, shallowRef, watch } from 'vue'
 import { KitBtn } from '~/components/01.kit/kit-btn'
 import { checkMapTilerAvailability, getMapStyle, TILE_SOURCES } from '~/shared/lib/map-styles-sources'
@@ -165,7 +166,6 @@ function applyTileLayer(newId: string) {
     setStyle(style, { diff: false })
   }
 }
-
 async function initializeAvailableLayers() {
   if (props.customLayers) {
     availableLayers.value = props.customLayers
@@ -178,7 +178,6 @@ async function initializeAvailableLayers() {
   availableLayers.value = layers
   activeLayerId.value = getPreferredMapLayerId(layers)
 }
-
 async function createDefaultMapLayers(): Promise<MapLayerOption[]> {
   const layers: MapLayerOption[] = []
 
@@ -187,6 +186,8 @@ async function createDefaultMapLayers(): Promise<MapLayerOption[]> {
     layers.push({ id: 'maptilerOutdoor', label: TILE_SOURCES.maptilerOutdoor.label, icon: TILE_SOURCES.maptilerOutdoor.icon, style: getMapStyle('maptilerOutdoor') })
     layers.push({ id: 'satellite', label: TILE_SOURCES.satellite.label, icon: TILE_SOURCES.satellite.icon, style: getMapStyle('satellite') })
   }
+
+  layers.push({ id: 'osm', label: TILE_SOURCES.osm.label, icon: TILE_SOURCES.osm.icon, style: getMapStyle('osm') })
 
   layers.push({
     id: 'custom',
@@ -197,7 +198,6 @@ async function createDefaultMapLayers(): Promise<MapLayerOption[]> {
 
   return layers
 }
-
 function getPreferredMapLayerId(layers: MapLayerOption[]): string {
   const preferredSource = appSettingsStore.activeTileSource
 
@@ -205,7 +205,6 @@ function getPreferredMapLayerId(layers: MapLayerOption[]): string {
     ? preferredSource
     : layers[0].id
 }
-
 async function initializeKitMap() {
   const initialStyle = availableLayers.value.find(l => l.id === activeLayerId.value)?.style || getMapStyle('maptilerStreets')
 
@@ -226,7 +225,6 @@ async function initializeKitMap() {
   if (mapInstance.value)
     registerMapEvents(mapInstance.value)
 }
-
 function registerMapEvents(map: MapLibreMap) {
   map.on('click', (event) => {
     emit('click', [event.lngLat.lng, event.lngLat.lat])
@@ -242,10 +240,13 @@ function registerMapEvents(map: MapLibreMap) {
   if (shouldAutoPanToContent())
     fitViewToMarkers()
 }
-
 function shouldAutoPanToContent(): boolean {
   return props.autoPan && (props.markers.length > 0 || props.routes.length > 0)
 }
+
+useResizeObserver(mapWrapperRef, () => {
+  mapInstance.value?.resize()
+})
 
 onMounted(async () => {
   if (!mapWrapperRef.value)

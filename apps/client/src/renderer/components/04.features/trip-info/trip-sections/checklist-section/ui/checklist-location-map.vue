@@ -10,6 +10,7 @@ interface Props {
   name: string
   coords?: { lat: number, lon: number }
   readonly: boolean
+  editing: boolean
 }
 
 const props = defineProps<Props>()
@@ -48,7 +49,7 @@ async function search() {
   }
 }
 function select(coords: [number, number]) {
-  if (props.readonly)
+  if (props.readonly || !props.editing)
     return
 
   selected.value = { lat: coords[1], lon: coords[0] }
@@ -62,8 +63,13 @@ function select(coords: [number, number]) {
     :max-width="800"
     @update:visible="!$event && emit('close')"
   >
+    <template v-if="editing && !readonly" #header-actions>
+      <KitBtn size="sm" :disabled="!selected || isSearching" @click="selected && emit('save', { name: selectedName, coords: selected })">
+        Сохранить точку
+      </KitBtn>
+    </template>
     <div class="location-map-content">
-      <form class="location-search" @submit.prevent="search">
+      <form v-if="editing && !readonly" class="location-search" @submit.prevent="search">
         <KitInput v-model="query" placeholder="Название места или адрес" />
         <KitBtn
           type="submit"
@@ -75,7 +81,7 @@ function select(coords: [number, number]) {
       <p v-if="error" role="alert">
         {{ error }}
       </p>
-      <p v-if="!selected">
+      <p v-if="!selected && editing">
         Найдите место по названию<span v-if="!readonly"> или выберите точку на карте</span>.
       </p>
       <KitMap
@@ -83,18 +89,10 @@ function select(coords: [number, number]) {
         :center="center"
         :zoom="selected ? 15 : 2"
         :markers="markers"
-        height="45vh"
+        :auto-pan="false"
+        height="min(65vh, 640px)"
         @click="select"
       />
-      <div class="location-map-footer">
-        <span v-if="selected">{{ selected.lat.toFixed(6) }}, {{ selected.lon.toFixed(6) }}</span>
-        <KitBtn v-if="!readonly" :disabled="!selected || isSearching" @click="selected && emit('save', { name: selectedName, coords: selected })">
-          Сохранить точку
-        </KitBtn>
-        <KitBtn v-else @click="emit('close')">
-          Закрыть
-        </KitBtn>
-      </div>
     </div>
   </KitDialogWithClose>
 </template>
@@ -105,13 +103,9 @@ function select(coords: [number, number]) {
   flex-direction: column;
   gap: 12px;
 }
-.location-search,
-.location-map-footer {
+.location-search {
   display: flex;
   align-items: center;
   gap: 12px;
-}
-.location-map-footer {
-  justify-content: space-between;
 }
 </style>

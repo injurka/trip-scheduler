@@ -70,12 +70,12 @@ export function extractCostFromText(text: string): string | undefined {
 }
 
 function extractChecklistLocation(text: string): { name: string, coords?: { lat: number, lon: number } } | undefined {
-  const match = text.match(/\*{1,2}(?:Где пробовать|Локация|Место|Где искать|Где купить):\*{1,2}\s*([^;\n]+)/i)
-  if (!match)
-    return undefined
-  const value = match[1]
+  const match = text.match(/\*{1,2}(?:Где пробовать|Локация|Место|Где искать|Где купить|Где покупать):\*{1,2}\s*([^;\n]+)/i)
+  const value = match?.[1] ?? text
   const link = value.match(/\[([^\]]+)\]\((https?:\/\/[^)]+)\)/)
-  const coordinates = link ? extractCoordinatesFromUrl(link[2]) : undefined
+  const coordinates = link && isChecklistMapUrl(link[2]) ? extractCoordinatesFromUrl(link[2]) : undefined
+  if (!match && !coordinates)
+    return undefined
   const name = (link ? link[1] : value.split('(`')[0].replace(/\s*\(~.*$/, ''))
     .trim()
     .replace(/^[*_]+|[*_]+$/g, '')
@@ -87,7 +87,33 @@ export function extractLocationFromText(text: string): string | undefined {
   return extractChecklistLocation(text)?.name
 }
 
+function isChecklistMapUrl(value: string): boolean {
+  try {
+    const url = new URL(value)
+    const host = url.hostname.toLowerCase()
+    return host === 'maps.app.goo.gl'
+      || host === 'maps.google.com'
+      || (/^(?:www\.)?google\.[a-z.]+$/.test(host) && url.pathname.startsWith('/maps'))
+      || /^(?:www\.)?openstreetmap\.org$/.test(host)
+      || (/^(?:www\.)?yandex\.[a-z.]+$/.test(host) && url.pathname.startsWith('/maps'))
+  }
+  catch {
+    return false
+  }
+}
+
+function checklistDescription(text: string): string {
+  if (/^\*{1,2}Локация:\*{1,2}/i.test(text)) {
+    // The location field is metadata; keep only a meaningful annotation after it.
+    const link = text.match(/\[[^\]]+\]\(https?:\/\/[^)]+\)(.*)$/)
+    return link?.[1].replace(/^[\s.;—–-]+/, '').trim() || ''
+  }
+  return text.replace(/\[([^\]]+)\]\((https?:\/\/[^)]+)\)/g, (link, name, url) => isChecklistMapUrl(url) ? name : link)
+}
+
 export function extractLinkFromText(text: string): string | undefined {
+  // Map URLs belong to the location field, never the generic resource link.
+  text = text.replace(/https?:\/\/[^\s)]+/gi, url => isChecklistMapUrl(url) ? '' : url)
   const mdMatch = text.match(/\[([^\]]+)\]\((https?:\/\/[^)]+)\)/i)
   if (mdMatch)
     return mdMatch[2]
@@ -354,7 +380,7 @@ export function parseObsidianChecklists(checklistDirOrFiles: string[] | string):
           type: currentTabId,
           groupId: currentGroupId,
           priority,
-          description,
+          description: description ? checklistDescription(description) || undefined : undefined,
           cost,
           location: location?.name,
           locationCoords: location?.coords,
@@ -376,20 +402,27 @@ export function parseObsidianChecklists(checklistDirOrFiles: string[] | string):
           currentItem.cost = costInDesc
 
         const locInDesc = extractChecklistLocation(descText)
-        if (locInDesc && !currentItem.location)
+        const isExplicitLocation = /^\*{1,2}Локация:\*{1,2}/i.test(descText)
+        if (locInDesc && (!currentItem.location || isExplicitLocation))
           currentItem.location = locInDesc.name
-        if (locInDesc?.coords && !currentItem.locationCoords)
+        if (locInDesc && isExplicitLocation)
+          currentItem.locationCoords = locInDesc.coords
+        else if (locInDesc?.coords && !currentItem.locationCoords)
           currentItem.locationCoords = locInDesc.coords
 
         const linkInDesc = extractLinkFromText(descText)
         if (linkInDesc && !currentItem.link)
           currentItem.link = linkInDesc
 
+        const descriptionText = checklistDescription(descText)
+        if (!descriptionText)
+          continue
+
         if (currentItem.description) {
-          currentItem.description += `\n${descText}`
+          currentItem.description += `\n${descriptionText}`
         }
         else {
-          currentItem.description = descText
+          currentItem.description = descriptionText
         }
       }
     }
