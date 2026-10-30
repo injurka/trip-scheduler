@@ -2,7 +2,7 @@ version: '3.8'
 
 services:
   client:
-    image: ${REGISTRY:-docker.io}/injurka/trip-scheduler-client:latest
+    image: ${REGISTRY:-ghcr.io}/injurka/trip-scheduler-client:latest
     networks:
       - prod-net
     environment:
@@ -18,7 +18,7 @@ services:
         - "traefik.http.services.trip-client.loadbalancer.server.port=1420"
 
   server:
-    image: ${REGISTRY:-docker.io}/injurka/trip-scheduler-server:latest
+    image: ${REGISTRY:-ghcr.io}/injurka/trip-scheduler-server:latest
     environment:
       PORT: "8080"
       FRONTEND_URL: "${FRONTEND_URL}"
