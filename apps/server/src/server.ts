@@ -37,10 +37,27 @@ async function createDump(info: string) {
   }
 }
 
+async function waitForPostgres() {
+  const maxAttempts = 5
+  for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+    try {
+      await checkService('PostgreSQL', () => db.execute(sql`SELECT 1`).then(() => { }), logger)
+      return
+    }
+    catch (error) {
+      if (attempt === maxAttempts)
+        throw error
+
+      logger.warn(`PostgreSQL ещё не готова (попытка ${attempt}/${maxAttempts}); повтор через 5 секунд`, error)
+      await Bun.sleep(5_000)
+    }
+  }
+}
+
 logger.log(`Trip Scheduler API starting on http://${host}:${port}`)
 
 try {
-  await checkService('PostgreSQL', () => db.execute(sql`SELECT 1`).then(() => { }), logger)
+  await waitForPostgres()
 
   logger.info('Применение миграций базы данных...')
   await migrate(db, { migrationsFolder: path.join(process.cwd(), 'drizzle') })
