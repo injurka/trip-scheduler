@@ -471,7 +471,17 @@ useMutationObserver(
   <div class="card finances-card">
     <header class="card-header">
       <div class="header-title-group">
-        <h4>Финансы и бюджет</h4>
+        <h4>Финансы</h4>
+        <div v-if="effectiveOverallBudget > 0 || totalSpend > 0" class="budget-summary">
+          <div class="budget-total">
+            <span>{{ hasBudget ? 'Бюджет поездки' : 'Всего расходов' }}</span>
+            <strong>{{ formatCurrency(hasBudget ? effectiveOverallBudget : totalSpend, mainCurrency) }}</strong>
+          </div>
+          <span v-if="hasBudget" class="budget-remainder">
+            <template v-if="freeBudget > 0">Свободно: {{ formatCurrency(freeBudget, mainCurrency) }}</template>
+            <template v-else>Остаток: {{ formatCurrency(remainingBudget, mainCurrency) }}</template>
+          </span>
+        </div>
       </div>
       <KitViewSwitcher
         v-model="currentView"
@@ -482,23 +492,6 @@ useMutationObserver(
     <div v-if="effectiveOverallBudget > 0 || totalSpend > 0" class="summary-cards">
       <!-- Режим План vs Факт -->
       <template v-if="hasBudget">
-        <div class="summary-card total budget">
-          <div class="card-top">
-            <span class="card-label">
-              <span class="label-full">Бюджет поездки</span>
-              <span class="label-short">Бюджет</span>
-            </span>
-            <Icon icon="mdi:wallet-outline" class="card-icon" />
-          </div>
-          <div class="card-value">
-            {{ formatCurrency(effectiveOverallBudget, mainCurrency) }}
-          </div>
-          <div class="card-meta">
-            <span v-if="freeBudget > 0">Свободно: <strong>{{ formatCurrency(freeBudget, mainCurrency) }}</strong></span>
-            <span v-else>Остаток: {{ formatCurrency(remainingBudget, mainCurrency) }}</span>
-          </div>
-        </div>
-
         <div class="summary-card paid">
           <div class="card-top">
             <span class="card-label">Оплачено</span>
@@ -530,22 +523,6 @@ useMutationObserver(
 
       <!-- Классический режим (без заданного бюджета) -->
       <template v-else>
-        <div class="summary-card total">
-          <div class="card-top">
-            <span class="card-label">
-              <span class="label-full">Всего расходов</span>
-              <span class="label-short">Всего</span>
-            </span>
-            <Icon icon="mdi:wallet-outline" class="card-icon" />
-          </div>
-          <div class="card-value">
-            {{ formatCurrency(totalSpend, mainCurrency) }}
-          </div>
-          <div class="card-meta">
-            {{ spendingByCategory.length }} {{ getCategoryWord(spendingByCategory.length) }}
-          </div>
-        </div>
-
         <div class="summary-card planned">
           <div class="card-top">
             <span class="card-label">Основные</span>
@@ -787,9 +764,44 @@ useMutationObserver(
   }
 }
 
+.header-title-group {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.budget-summary {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.budget-total {
+  display: flex;
+  align-items: baseline;
+  flex-wrap: wrap;
+  gap: 0.25rem 0.6rem;
+  color: var(--fg-secondary-color);
+  font-size: 0.8rem;
+
+  strong {
+    color: var(--fg-primary-color);
+    font-family: var(--font-mono);
+    font-size: 1.1rem;
+    font-variant-numeric: tabular-nums;
+    overflow-wrap: anywhere;
+  }
+}
+
+.budget-remainder {
+  color: var(--fg-tertiary-color);
+  font-size: 0.75rem;
+}
+
 .summary-cards {
   display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
+  grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 0.75rem;
   padding-bottom: 0.25rem;
 }
@@ -805,19 +817,6 @@ useMutationObserver(
   transition:
     border-color 0.2s ease,
     box-shadow 0.2s ease;
-
-  &.total {
-    border-color: color-mix(in srgb, var(--fg-accent-color) 30%, var(--border-secondary-color));
-    background: linear-gradient(
-      135deg,
-      var(--bg-primary-color) 0%,
-      color-mix(in srgb, var(--bg-accent-color, #fce9e4) 25%, var(--bg-primary-color)) 100%
-    );
-
-    .card-value {
-      color: var(--fg-primary-color);
-    }
-  }
 
   &.paid {
     border-color: color-mix(in srgb, #10b981 35%, var(--border-secondary-color));
@@ -1256,10 +1255,6 @@ useMutationObserver(
 }
 
 @include media-down(md) {
-  .summary-cards {
-    grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
-  }
-
   .days-stats-grid {
     grid-template-columns: 1fr;
   }
@@ -1294,7 +1289,7 @@ useMutationObserver(
   }
 
   .summary-cards {
-    grid-template-columns: repeat(3, minmax(0, 1fr));
+    grid-template-columns: repeat(2, minmax(0, 1fr));
     gap: 0.4rem;
     padding-bottom: 0;
   }
