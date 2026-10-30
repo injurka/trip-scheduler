@@ -11,16 +11,16 @@ function matchCategory(text: string): DocumentCategory | null {
   if (/(?:паспорт|passport|виза|visa|\bid\b|права|водительск|driver|license|licence|удостоверение|загран|снилс|snils|омс)/iu.test(t)) {
     return 'id'
   }
-  if (/(?:поезд|train|thsr|tra|shinkansen|авиа|самолет|flight|перелет|трансфер|transfer|автобус|bus|паром|ferry|аренда|прокат)/iu.test(t)) {
+  if (/(?:транспорт|transport|transit|поезд|train|thsr|\btra\b|shinkansen|авиа|самолет|flight|перелет|трансфер|transfer|автобус|bus|паром|ferry|аренда|прокат)/iu.test(t)) {
     return 'transport'
   }
-  if (/(?:отель|гостиниц|hotel|hostel|booking|жилье|проживание|апартамент|airbnb|чек-ин|check-in)/iu.test(t)) {
+  if (/(?:отел(?:ь|и|я|ем|ей|ям|ями|ях)|гостиниц|hotel|hostel|booking\.com|жилье|проживание|апартамент|airbnb|чек-ин|check-in)/iu.test(t)) {
     return 'lodging'
   }
   if (/(?:страхов|insurance|полис|медицин|медиц|medical)/iu.test(t)) {
     return 'insurance'
   }
-  if (/(?:билет|ticket|boarding|посадочн|маршрут-квитанция|квитанция|receipt|voucher|ваучер|купон|coupon|пропуск|\bpass\b|талон|confirmation|itinerary)/iu.test(t)) {
+  if (/(?:билет|ticket|boarding|посадочн|маршрут-квитанция|квитанция|receipt|voucher|ваучер|купон|coupon|пропуск|\bpass\b|талон|confirmation|подтвержден|itinerary)/iu.test(t)) {
     return 'tickets'
   }
 
@@ -158,10 +158,10 @@ export function parseObsidianDocuments(tripRootPath: string): {
 
   // Обход найденных директорий с документами
   for (const { path: dir, defaultAccess } of candidateDirs) {
-    scanDocumentDirectory(dir, null, defaultAccess)
+    scanDocumentDirectory(dir, [], defaultAccess)
   }
 
-  function scanDocumentDirectory(dirPath: string, parentFolderName: string | null, currentAccess: 'private' | 'public') {
+  function scanDocumentDirectory(dirPath: string, parentFolders: string[], currentAccess: 'private' | 'public') {
     let entries: Dirent[]
     try {
       entries = readdirSync(dirPath, { withFileTypes: true })
@@ -182,7 +182,7 @@ export function parseObsidianDocuments(tripRootPath: string): {
         const isAccessScope = /^(?:private|личные|приватные|public|общие|публичные)$/iu.test(subName)
         if (isAccessScope) {
           const scopeAccess: 'private' | 'public' = /^(?:private|личные|приватные)$/iu.test(subName) ? 'private' : 'public'
-          scanDocumentDirectory(fullPath, parentFolderName, scopeAccess)
+          scanDocumentDirectory(fullPath, parentFolders, scopeAccess)
         }
         else {
           const folderName = entry.name
@@ -192,7 +192,7 @@ export function parseObsidianDocuments(tripRootPath: string): {
               name: folderName,
             })
           }
-          scanDocumentDirectory(fullPath, folderName, currentAccess)
+          scanDocumentDirectory(fullPath, [...parentFolders, folderName], currentAccess)
         }
       }
       else if (entry.isFile()) {
@@ -211,7 +211,8 @@ export function parseObsidianDocuments(tripRootPath: string): {
 
         const fileName = entry.name
         const title = fileName.replace(/\.[^/.]+$/, '')
-        const category = detectDocumentCategory(fileName, parentFolderName)
+        const parentFolderName = parentFolders.at(-1) ?? null
+        const category = detectDocumentCategory(fileName, parentFolders.join(' / '))
 
         documents.push({
           title,
