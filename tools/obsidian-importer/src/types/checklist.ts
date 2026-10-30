@@ -29,6 +29,7 @@ export interface ChecklistItem {
   priority?: ChecklistPriority
   description?: string
   cost?: string
+  locationCoords?: { lat: number, lon: number }
   location?: string
   link?: string
   tags?: string[]

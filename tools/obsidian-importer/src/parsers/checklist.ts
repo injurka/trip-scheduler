@@ -8,6 +8,7 @@ import type {
 import { existsSync, readdirSync, readFileSync, statSync } from 'node:fs'
 import { basename, join } from 'node:path'
 import { stableId } from '../lib/stable-id'
+import { extractCoordinatesFromUrl } from './location'
 
 export function detectIconForGroup(groupName: string): string {
   const text = groupName.toLowerCase()
@@ -68,12 +69,22 @@ export function extractCostFromText(text: string): string | undefined {
   return undefined
 }
 
+function extractChecklistLocation(text: string): { name: string, coords?: { lat: number, lon: number } } | undefined {
+  const match = text.match(/\*{1,2}(?:Где пробовать|Локация|Место|Где искать|Где купить):\*{1,2}\s*([^;\n]+)/i)
+  if (!match)
+    return undefined
+  const value = match[1]
+  const link = value.match(/\[([^\]]+)\]\((https?:\/\/[^)]+)\)/)
+  const coordinates = link ? extractCoordinatesFromUrl(link[2]) : undefined
+  const name = (link ? link[1] : value.split('(`')[0].replace(/\s*\(~.*$/, ''))
+    .trim()
+    .replace(/^[*_]+|[*_]+$/g, '')
+    .trim()
+  return { name, coords: coordinates ? { lon: coordinates[0], lat: coordinates[1] } : undefined }
+}
+
 export function extractLocationFromText(text: string): string | undefined {
-  const match = text.match(/\*(?:Где пробовать|Локация|Место|Где искать|Где купить):\*\s*([^;\n)]+)/i)
-  if (match) {
-    return match[1].split('(`')[0].trim().replace(/\s*\(~.*$/, '')
-  }
-  return undefined
+  return extractChecklistLocation(text)?.name
 }
 
 export function extractLinkFromText(text: string): string | undefined {
@@ -98,10 +109,6 @@ export function extractLinkFromText(text: string): string | undefined {
 }
 
 export function detectPriorityFromText(text: string): ChecklistPriority {
-  if (/🚨|❌|запрещен|штраф|критическ|обязательн|строго/i.test(text))
-    return 5
-  if (/⚡|важно|рекомендует|высок/i.test(text))
-    return 4
   if (/\[P5\]/i.test(text))
     return 5
   if (/\[P4\]/i.test(text))
@@ -112,6 +119,11 @@ export function detectPriorityFromText(text: string): ChecklistPriority {
     return 2
   if (/\[P1\]/i.test(text))
     return 1
+
+  if (/🚨|❌|запрещен|штраф|критическ|обязательн|строго/i.test(text))
+    return 5
+  if (/⚡|важно|рекомендует|высок/i.test(text))
+    return 4
 
   return 1
 }
@@ -138,6 +150,14 @@ const CUSTOM_TAB_META: Record<string, { name: string, icon: string }> = {
   'must-buy': { name: 'Must-Buy: Шопинг', icon: 'mdi:shopping-outline' },
   'must-do': { name: 'Must-Do: Впечатления', icon: 'mdi:compass-outline' },
   'readiness-timeline': { name: 'Контрольный таймлайн готовности', icon: 'mdi:timeline-clock-outline' },
+}
+
+function displayGroupTitle(title: string, tabId: string): string {
+  if (tabId !== 'readiness-timeline')
+    return title
+
+  // Keep source titles for stable IDs; shorten only the displayed deadline.
+  return title.match(/^(За\s+\d+(?:\s*[–—-]\s*\d+)?\s+\S+\s+до\s+(?:вылета|поездки|путешествия)|В\s+день\s+(?:вылета|поездки|отъезда))(?=\s|$)/iu)?.[1] ?? title
 }
 
 function ensureCustomTab(tabs: ChecklistTabConfig[], tabId: string): void {
@@ -258,7 +278,7 @@ export function parseObsidianChecklists(checklistDirOrFiles: string[] | string):
 
         groups.push({
           id: groupId,
-          name: groupTitle,
+          name: displayGroupTitle(groupTitle, currentTabId),
           icon,
           type: currentTabId,
         })
@@ -281,7 +301,7 @@ export function parseObsidianChecklists(checklistDirOrFiles: string[] | string):
 
           groups.push({
             id: groupId,
-            name: groupTitle,
+            name: displayGroupTitle(groupTitle, currentTabId),
             icon,
             type: currentTabId,
           })
@@ -315,7 +335,7 @@ export function parseObsidianChecklists(checklistDirOrFiles: string[] | string):
 
         const priority = detectPriorityFromText(taskText)
         const cost = extractCostFromText(taskText)
-        const location = extractLocationFromText(taskText)
+        const location = extractChecklistLocation(taskText)
         const link = extractLinkFromText(taskText)
 
         let cleanText = taskText.replace(/\[P[1-5]\]/gi, '').trim()
@@ -336,7 +356,8 @@ export function parseObsidianChecklists(checklistDirOrFiles: string[] | string):
           priority,
           description,
           cost,
-          location,
+          location: location?.name,
+          locationCoords: location?.coords,
           link,
           subtasks: [],
         }
@@ -354,9 +375,11 @@ export function parseObsidianChecklists(checklistDirOrFiles: string[] | string):
         if (costInDesc && !currentItem.cost)
           currentItem.cost = costInDesc
 
-        const locInDesc = extractLocationFromText(descText)
+        const locInDesc = extractChecklistLocation(descText)
         if (locInDesc && !currentItem.location)
-          currentItem.location = locInDesc
+          currentItem.location = locInDesc.name
+        if (locInDesc?.coords && !currentItem.locationCoords)
+          currentItem.locationCoords = locInDesc.coords
 
         const linkInDesc = extractLinkFromText(descText)
         if (linkInDesc && !currentItem.link)

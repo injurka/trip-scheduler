@@ -35,7 +35,8 @@ const {
   tabItems,
   currentTabConfig,
   progress,
-  hideCompleted,
+  completionFilter,
+  cycleCompletionFilter,
   searchQuery,
   currentTabGroups,
   currentTabUngroupedItems,
@@ -135,13 +136,13 @@ function handleTabSave(tab: { id: string, name: string, icon: string }) {
                   </KitBtn>
 
                   <KitBtn
-                    :variant="hideCompleted ? 'tonal' : 'subtle'"
+                    :variant="completionFilter === 'all' ? 'subtle' : 'tonal'"
                     size="sm"
-                    :icon="hideCompleted ? 'mdi:eye-off-outline' : 'mdi:eye-outline'"
-                    :title="hideCompleted ? 'Показать выполненные задачи' : 'Скрыть выполненные задачи'"
-                    @click="hideCompleted = !hideCompleted"
+                    :icon="completionFilter === 'pending' ? 'mdi:eye-off-outline' : completionFilter === 'completed' ? 'mdi:check-all' : 'mdi:eye-outline'"
+                    :title="completionFilter === 'all' ? 'Все задачи. Нажмите, чтобы скрыть выполненные' : completionFilter === 'pending' ? 'Только невыполненные. Нажмите, чтобы показать выполненные' : 'Только выполненные. Нажмите, чтобы показать все задачи'"
+                    @click="cycleCompletionFilter"
                   >
-                    <span class="btn-text">{{ hideCompleted ? 'Скрыты' : 'Скрыть готовые' }}</span>
+                    <span class="btn-text">{{ completionFilter === 'all' ? 'Все' : completionFilter === 'pending' ? 'Скрыть готовые' : 'Показать готовые' }}</span>
                   </KitBtn>
 
                   <KitBtn
@@ -263,8 +264,11 @@ function handleTabSave(tab: { id: string, name: string, icon: string }) {
                 <p v-if="searchQuery">
                   По вашему запросу ничего не найдено.
                 </p>
-                <p v-else-if="hideCompleted && (items.filter(i => i.type === activeTab)).length > 0">
+                <p v-else-if="completionFilter === 'pending' && (items.filter(i => i.type === activeTab)).length > 0">
                   Все задачи выполнены!
+                </p>
+                <p v-else-if="completionFilter === 'completed' && (items.filter(i => i.type === activeTab)).length > 0">
+                  Пока нет выполненных задач.
                 </p>
                 <p v-else>
                   В этой вкладке пока нет задач.

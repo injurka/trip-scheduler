@@ -12,6 +12,7 @@ ENV NODE_ENV=production
 ENV PORT=8080
 
 COPY package.json bun.lock ./
+COPY apps/client/patches ./apps/client/patches
 COPY apps/server/package.json ./apps/server/package.json
 COPY packages/finance-contract/package.json ./packages/finance-contract/package.json
 COPY packages/finance-contract/src ./packages/finance-contract/src

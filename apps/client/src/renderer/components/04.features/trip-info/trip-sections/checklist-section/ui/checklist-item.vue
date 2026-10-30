@@ -7,6 +7,7 @@ import { computed, ref } from 'vue'
 import { KitCheckbox } from '~/components/01.kit/kit-checkbox'
 import { KitEditable } from '~/components/01.kit/kit-editable'
 import { useTripPermissions } from '~/components/05.modules/trip-info/composables/use-trip-permissions'
+import ChecklistLocationMap from './checklist-location-map.vue'
 
 interface Props {
   item: ChecklistItem
@@ -25,6 +26,7 @@ const isEditingDescription = ref(false)
 const isEditingLink = ref(false)
 const isEditingCost = ref(false)
 const isEditingLocation = ref(false)
+const isLocationMapOpen = ref(false)
 const isPriorityPickerOpen = ref(false)
 const isSubtasksExpanded = ref(true)
 const newSubtaskText = ref('')
@@ -92,6 +94,13 @@ function handleCostUpdate(value: string) {
 
   if (!value)
     isEditingCost.value = false
+}
+function saveLocation(value: { name: string, coords: { lat: number, lon: number } }) {
+  if (props.readonly)
+    return
+
+  emit('update:item', { ...props.item, location: props.item.location || value.name, locationCoords: value.coords })
+  isLocationMapOpen.value = false
 }
 function handleLocationUpdate(value: string) {
   updateField('location', value)
@@ -200,12 +209,17 @@ onClickOutside(priorityPickerMenuRef, () => {
           <div class="meta-badges">
             <span v-if="item.cost" class="badge badge-cost" title="Ориентировочная стоимость">
               <Icon icon="mdi:currency-usd" class="badge-icon" />
-              {{ item.cost }}
+              <span>{{ item.cost }}</span>
             </span>
-            <span v-if="item.location" class="badge badge-location" title="Локация">
+            <button
+              v-if="item.location || item.locationCoords"
+              class="badge badge-location"
+              title="Открыть на карте"
+              @click="isLocationMapOpen = true"
+            >
               <Icon icon="mdi:map-marker-outline" class="badge-icon" />
-              {{ item.location }}
-            </span>
+              {{ item.location || 'Точка на карте' }}
+            </button>
             <a
               v-if="item.link && readonly"
               :href="item.link"
@@ -251,7 +265,7 @@ onClickOutside(priorityPickerMenuRef, () => {
 
           <button
             class="action-btn"
-            :class="{ 'is-active': item.location || isEditingLocation }"
+            :class="{ 'is-active': item.location || item.locationCoords || isEditingLocation }"
             title="Локация"
             @click="isEditingLocation = !isEditingLocation"
           >
@@ -341,6 +355,14 @@ onClickOutside(priorityPickerMenuRef, () => {
             class="details-input"
             @update:model-value="handleLocationUpdate"
           />
+          <button
+            class="action-btn location-map-btn"
+            title="Выбрать точку на карте"
+            aria-label="Выбрать точку на карте"
+            @click="isLocationMapOpen = true"
+          >
+            <Icon icon="mdi:map-marker-radius-outline" />
+          </button>
         </div>
 
         <!-- Ссылка -->
@@ -435,6 +457,14 @@ onClickOutside(priorityPickerMenuRef, () => {
         </form>
       </div>
     </div>
+    <ChecklistLocationMap
+      v-if="isLocationMapOpen"
+      :name="item.location || ''"
+      :coords="item.locationCoords"
+      :readonly="readonly"
+      @close="isLocationMapOpen = false"
+      @save="saveLocation"
+    />
   </div>
 </template>
 
@@ -501,6 +531,10 @@ onClickOutside(priorityPickerMenuRef, () => {
   flex-grow: 1;
   min-width: 0;
   gap: 2px;
+
+  :deep(.kit-editable-controls) {
+    display: none;
+  }
 }
 
 .item-text,
@@ -547,12 +581,15 @@ onClickOutside(priorityPickerMenuRef, () => {
   }
 
   &.badge-cost {
+    line-height: 1.3;
+    padding-block: 2px;
     background: rgba(var(--fg-accent-color-rgb, 16, 185, 129), 0.1);
     color: var(--fg-accent-color);
     border-color: rgba(var(--fg-accent-color-rgb, 16, 185, 129), 0.2);
   }
 
   &.badge-location {
+    cursor: pointer;
     color: var(--fg-info-color);
     white-space: normal;
     word-break: break-word;
@@ -620,8 +657,60 @@ onClickOutside(priorityPickerMenuRef, () => {
 .item-actions {
   display: flex;
   align-items: center;
+  align-self: flex-start;
+  flex-shrink: 0;
+  gap: 2px;
   margin-left: auto;
-  padding-left: 8px;
+  margin-top: 2px;
+  padding: 2px;
+  border: 1px solid var(--border-secondary-color);
+  border-radius: var(--r-s);
+  background-color: var(--bg-secondary-color);
+
+  .action-btn,
+  .delete-item-btn {
+    flex: 0 0 28px;
+    width: 28px;
+    height: 28px;
+    border-radius: var(--r-xs);
+    cursor: pointer;
+    opacity: 1;
+    line-height: 1;
+    transition:
+      background-color 0.15s ease,
+      color 0.15s ease;
+
+    &:hover {
+      background-color: var(--bg-hover-color);
+    }
+
+    &:focus-visible {
+      outline: 2px solid var(--fg-accent-color);
+      outline-offset: 1px;
+    }
+  }
+
+  .action-btn.is-active {
+    background-color: var(--bg-tertiary-color);
+  }
+
+  .delete-item-btn {
+    margin-left: 2px;
+  }
+}
+
+@media (max-width: 640px) {
+  .main-line {
+    flex-wrap: wrap;
+  }
+
+  .text-and-badges {
+    flex-basis: calc(100% - 72px);
+  }
+
+  .item-actions {
+    margin-top: 0;
+  }
 }
 
 .action-btn {
@@ -653,9 +742,17 @@ onClickOutside(priorityPickerMenuRef, () => {
 }
 
 .detail-block {
+  :deep(.kit-editable-root:not([data-editing='true']) .kit-editable-controls) {
+    display: none;
+  }
   display: flex;
   gap: 8px;
   align-items: center;
+}
+
+.location-map-btn {
+  flex-shrink: 0;
+  opacity: 1;
 }
 
 .icon-wrapper {
@@ -829,6 +926,8 @@ onClickOutside(priorityPickerMenuRef, () => {
 
 .priority-picker-wrapper {
   position: relative;
+  display: flex;
+  flex-shrink: 0;
 }
 
 .priority-btn {

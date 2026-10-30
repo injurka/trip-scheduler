@@ -67,7 +67,12 @@ export function useChecklistSection(props: UseChecklistSectionProps, emit: (even
   const groups = ref<ChecklistGroup[]>(JSON.parse(JSON.stringify(props.section.content?.groups || [])))
   const activeTab = ref<ChecklistTab>(tabs.value[0]?.id || 'preparation')
 
-  const hideCompleted = ref(false)
+  const completionFilter = ref<'all' | 'pending' | 'completed'>('all')
+  function cycleCompletionFilter() {
+    completionFilter.value = completionFilter.value === 'all'
+      ? 'pending'
+      : completionFilter.value === 'pending' ? 'completed' : 'all'
+  }
   const searchQuery = ref('')
 
   const debouncedUpdate = useDebounceFn(() => {
@@ -326,8 +331,10 @@ export function useChecklistSection(props: UseChecklistSectionProps, emit: (even
   const filteredItems = computed(() => {
     let result = items.value.filter(item => item.type === activeTab.value)
 
-    if (hideCompleted.value)
+    if (completionFilter.value === 'pending')
       result = result.filter(item => !item.completed)
+    else if (completionFilter.value === 'completed')
+      result = result.filter(item => item.completed)
 
     if (searchQuery.value.trim()) {
       const query = searchQuery.value.toLowerCase()
@@ -408,7 +415,8 @@ export function useChecklistSection(props: UseChecklistSectionProps, emit: (even
     tabItems,
     currentTabConfig,
     progress,
-    hideCompleted,
+    completionFilter,
+    cycleCompletionFilter,
     searchQuery,
     currentTabGroups,
     currentTabUngroupedItems,

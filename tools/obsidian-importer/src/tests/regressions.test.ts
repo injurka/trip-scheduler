@@ -7,7 +7,7 @@ import { parseCliArgs } from '../cli/args'
 import { buildImageIndex } from '../lib/image-indexer'
 import { importTripFolderCore } from '../lib/import-trip'
 import { parseTransportMarkdown } from '../parsers/booking'
-import { parseObsidianChecklists } from '../parsers/checklist'
+import { detectPriorityFromText, parseObsidianChecklists } from '../parsers/checklist'
 import { parseDayMetaFromMarkdown } from '../parsers/day-meta'
 import { parseObsidianFinances } from '../parsers/finances'
 import { resolveValidationScopeContext, validateObsidianVault } from '../validator'
@@ -26,6 +26,68 @@ afterEach(() => {
 })
 
 describe('importer regressions', () => {
+  it('imports checklist map coordinates from location links and keeps plain locations', () => {
+    const directory = temporaryDirectory('obsidian-location-')
+    const file = join(directory, 'Чек-лист.md')
+    writeFileSync(file, [
+      '## Еда',
+      '- [ ] Бэнто',
+      '  - *Где пробовать:* [Fenqihu Hotel (奮起湖大飯店)](https://www.google.com/maps?q=23.504,120.695); заказать на месте',
+      '- [ ] Чай',
+      '  - *Локация:* *Чайный магазин*',
+      '- [ ] Кофе — **Место:** [Кафе](https://www.google.com/maps?q=0,0)',
+    ].join('\n'))
+    const { items = [] } = parseObsidianChecklists([file])
+    expect(items[0].location).toBe('Fenqihu Hotel (奮起湖大飯店)')
+    expect(items[0].locationCoords).toEqual({ lat: 23.504, lon: 120.695 })
+    expect(items[1].location).toBe('Чайный магазин')
+    expect(items[1].locationCoords).toBeUndefined()
+    expect(items[2].locationCoords).toEqual({ lat: 0, lon: 0 })
+  })
+
+  it('uses explicit checklist priority before keyword heuristics', () => {
+    for (const priority of [1, 2, 3, 4, 5] as const) {
+      expect(detectPriorityFromText(`[P${priority}] Критически важно, строго обязательно!`)).toBe(priority)
+    }
+    expect(detectPriorityFromText('❌ Запрещено')).toBe(5)
+    expect(detectPriorityFromText('Важно')).toBe(4)
+  })
+
+  it('shortens readiness deadlines without changing source-based group identities', () => {
+    const directory = temporaryDirectory('obsidian-timeline-')
+    const file = join(directory, 'Контрольный таймлайн готовности.md')
+    const titles = [
+      'За 45–30 дней до вылета (T-45d / T-30d) — eVisa и Отели',
+      'За 28 дней до поездки (T-28d) — Критический день поездов THSR и TRA!',
+      'За 14 дней до вылета (T-14d)',
+      'За 7 дней до вылета (T-7d)',
+      'За 3 дня до вылета (T-3d)',
+      'За 24 часа до вылета (T-24h)',
+      'В день вылета (День 01)',
+      'Документы (оригиналы) — проверить',
+    ]
+    writeFileSync(file, titles.map(title => `### ${title}\n- [ ] Проверить`).join('\n'))
+    const parsed = parseObsidianChecklists([file])
+    expect(parsed.groups!.map(group => group.name)).toEqual([
+      'За 45–30 дней до вылета',
+      'За 28 дней до поездки',
+      'За 14 дней до вылета',
+      'За 7 дней до вылета',
+      'За 3 дня до вылета',
+      'За 24 часа до вылета',
+      'В день вылета',
+      titles[7],
+    ])
+    writeFileSync(file, `## ${titles[0]}\n- [x] Проверить`)
+    const h2 = parseObsidianChecklists([file])
+    expect(h2.groups![0].name).toBe('За 45–30 дней до вылета')
+    expect(h2.groups![0].id).toBe(parsed.groups![0].id)
+    expect(h2.items![0].id).toBe(parsed.items![0].id)
+    const regularFile = join(directory, 'Подготовка.md')
+    writeFileSync(regularFile, `## ${titles[0]}\n- [ ] Проверить`)
+    expect(parseObsidianChecklists([regularFile]).groups![0].name).toBe(titles[0])
+  })
+
   it('rejects unknown CLI options and missing values', () => {
     expect(() => parseCliArgs(['--non-interactive'])).toThrow('Неизвестная опция')
     expect(() => parseCliArgs(['--dir'])).toThrow('требуется значение')

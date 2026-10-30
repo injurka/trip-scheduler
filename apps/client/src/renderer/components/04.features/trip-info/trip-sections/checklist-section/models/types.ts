@@ -31,6 +31,7 @@ export interface ChecklistItem {
   link?: string // Внешняя ссылка
   cost?: string // Ориентировочная стоимость (например, "~65 TWD / ~180 ₽")
   location?: string // Локация или адрес
+  locationCoords?: { lat: number, lon: number }
   tags?: string[] // Теги (например, ["стритфуд", "тайбей"])
   subtasks?: ChecklistSubtask[] // Вложенные подпункты
 }
